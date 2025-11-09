@@ -1,0 +1,4 @@
+# Configuration for the ingestion script
+# SEC EDGAR requires a User-Agent in the format: "Sample Company Name AdminContact@<sample company domain>.com"
+USER_AGENT_EMAIL="Your Name your.email@example.com"
+GCS_BUCKET_NAME="your-unique-bucket-name"
