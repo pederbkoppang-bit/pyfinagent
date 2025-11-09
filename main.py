@@ -3,6 +3,7 @@ import json
 import argparse
 import logging
 import requests
+import pathlib
 from dotenv import load_dotenv
 from google.cloud import storage
 from google.api_core import exceptions as gcp_exceptions
@@ -69,10 +70,10 @@ def get_cik(ticker: str) -> str:
 
 # --- CORE API FUNCTIONS ---
 
-def get_latest_10k_url(cik: str) -> (str, str):
+def get_latest_10k_info(cik: str) -> (str, str, str):
     """Gets the direct URL to the latest 10-K HTML file from the SEC API."""
     logging.info(f"Finding latest 10-K filing for CIK:{cik}...")
-    # [cite: https://www.sec.gov/files/edgar/filer-information/api-overview.pdf, Page 5]
+    # SEC API documentation: https://www.sec.gov/os/accessing-edgar-data
     url = f"https://data.sec.gov/submissions/CIK{cik}.json"
     
     response = requests.get(url, headers=SEC_API_HEADERS)
@@ -85,33 +86,51 @@ def get_latest_10k_url(cik: str) -> (str, str):
         if filings['form'][i] == '10-K':
             accession_num = filings['accessionNumber'][i]
             doc_name = filings['primaryDocument'][i]
+            filing_date = filings['filingDate'][i]
             
             # Format the accession number (remove dashes) for the URL
             acc_no_clean = accession_num.replace('-', '')
             
-            # This is the direct link to the HTML/TXT filing
-            file_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_clean}/{doc_name}"
-            logging.info(f"Found 10-K: {doc_name} at {file_url}")
-            return file_url, doc_name
+            # The complete submission text file is consistently named after the
+            # accession number with a .txt extension. This is more reliable
+            # than using the 'primaryDocument' field. Both the directory and
+            # the filename use the accession number without dashes.
+            # Ref: https://www.sec.gov/os/accessing-edgar-data
+            full_submission_doc_name = f"{acc_no_clean}.txt"
+            file_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_clean}/{full_submission_doc_name}"
+
+            logging.info(f"Found 10-K filed on {filing_date}: {doc_name} (using full submission file: {full_submission_doc_name})")
+            return file_url, full_submission_doc_name, filing_date
 
     raise FileNotFoundError(f"No 10-K found for CIK {cik}.")
 
-def upload_from_url_to_gcs(storage_client: storage.Client, file_url: str, ticker: str, doc_name: str):
+def upload_from_url_to_gcs(storage_client: storage.Client, file_url: str, ticker: str, filing_date: str, doc_name: str):
     """Streams a file from the SEC website directly to GCS without saving to disk."""
-    logging.info(f"Streaming {doc_name} to Cloud Storage...")
     
     try:
         bucket = storage_client.bucket(BUCKET_NAME)
-        blob_name = f"{ticker}/{doc_name}" # e.g., "AAPL/aapl-10k-2023.htm"
+        
+        # Construct a more descriptive blob name
+        file_extension = "".join(pathlib.Path(doc_name).suffixes)
+        blob_name = f"{ticker}/10-K_{filing_date}{file_extension}"
+
         blob = bucket.blob(blob_name)
+
+        # Check if the blob already exists to avoid re-uploading
+        if blob.exists():
+            logging.info(f"File {blob_name} already exists in gs://{BUCKET_NAME}. Skipping.")
+            return
+
+        logging.info(f"Streaming {doc_name} to gs://{BUCKET_NAME}/{blob_name}...")
         
         # Use stream=True to avoid loading the whole file into memory
         with requests.get(file_url, headers=SEC_API_HEADERS, stream=True) as r:
             r.raise_for_status()
+            content_type = r.headers.get('Content-Type', 'text/html')
             # Stream the file directly to the GCS blob
-            blob.upload_from_file(r.raw, content_type='text/html')
+            blob.upload_from_file(r.raw, content_type=content_type)
         
-        logging.info(f"Successfully streamed to gs://{BUCKET_NAME}/{blob_name}")
+        logging.info(f"Successfully uploaded to gs://{BUCKET_NAME}/{blob_name}")
         
     except gcp_exceptions.NotFound:
         logging.error(f"Upload failed: Bucket '{BUCKET_NAME}' not found.")
@@ -126,13 +145,14 @@ def process_ticker(ticker: str, storage_client: storage.Client):
         cik = get_cik(ticker)
 
         # 2. Get latest 10-K URL
-        file_url, doc_name = get_latest_10k_url(cik)
+        file_url, doc_name, filing_date = get_latest_10k_info(cik)
 
         # 3. Upload to GCS
         upload_from_url_to_gcs(
             storage_client=storage_client,
             file_url=file_url,
             ticker=ticker,
+            filing_date=filing_date,
             doc_name=doc_name
         )
         
