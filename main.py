@@ -69,8 +69,8 @@ def get_cik(ticker: str) -> str:
 
 # --- CORE API FUNCTIONS ---
 
-def get_10k_filings(cik: str):
-    """Yields potential 10-K filing details from the SEC API."""
+def get_latest_10k_url(cik: str) -> (str, str):
+    """Gets the direct URL to the latest 10-K HTML file from the SEC API."""
     logging.info(f"Finding latest 10-K filing for CIK:{cik}...")
     # [cite: https://www.sec.gov/files/edgar/filer-information/api-overview.pdf, Page 5]
     url = f"https://data.sec.gov/submissions/CIK{cik}.json"
@@ -84,37 +84,45 @@ def get_10k_filings(cik: str):
     for i in range(len(filings['form'])):
         if filings['form'][i] == '10-K':
             accession_num = filings['accessionNumber'][i]
+            
+            # --- THIS IS THE FIX ---
+            # We must use the 'primaryDocument' field from the API.
+            # The bug was assuming the filename was based on the accession number.
             doc_name = filings['primaryDocument'][i]
-            filing_date = filings['filingDate'][i]
-
+            # --- END OF FIX ---
+            
             # Format the accession number (remove dashes) for the URL
             acc_no_clean = accession_num.replace('-', '')
-
-            # The most reliable way to get the full filing is to use the accession
-            # number for the filename, with a .txt extension.
-            full_submission_filename = f"{acc_no_clean}.txt"
-            file_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_clean}/{full_submission_filename}"
-            logging.info(f"Found 10-K filed on {filing_date}: {full_submission_filename}")
-            yield file_url, full_submission_filename, filing_date
+            
+            # This is the direct link to the HTML/TXT filing
+            file_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_clean}/{doc_name}"
+            logging.info(f"Found 10-K: {doc_name} at {file_url}")
+            return file_url, doc_name
 
     raise FileNotFoundError(f"No 10-K found for CIK {cik}.")
 
-def upload_from_url_to_gcs(storage_client: storage.Client, file_url: str, ticker: str, doc_name: str, filing_date: str):
+def upload_from_url_to_gcs(storage_client: storage.Client, file_url: str, ticker: str, doc_name: str):
     """Streams a file from the SEC website directly to GCS without saving to disk."""
     logging.info(f"Streaming {doc_name} to Cloud Storage...")
-    bucket = storage_client.bucket(BUCKET_NAME)
-    # Use a more descriptive blob name
-    file_extension = os.path.splitext(doc_name)[1]
-    blob_name = f"{ticker}/10-K_{filing_date}{file_extension}"
-    blob = bucket.blob(blob_name)
-    # Use stream=True to avoid loading the whole file into memory
-    with requests.get(file_url, headers=SEC_API_HEADERS, stream=True) as r:
-        r.raise_for_status()
-        content_type = r.headers.get('Content-Type', 'application/octet-stream')
-        # Stream the file directly to the GCS blob
-        blob.upload_from_file(r.raw, content_type=content_type)
     
-    logging.info(f"Successfully streamed to gs://{BUCKET_NAME}/{blob_name}")
+    try:
+        bucket = storage_client.bucket(BUCKET_NAME)
+        blob_name = f"{ticker}/{doc_name}" # e.g., "AAPL/aapl-10k-2023.htm"
+        blob = bucket.blob(blob_name)
+        
+        # Use stream=True to avoid loading the whole file into memory
+        with requests.get(file_url, headers=SEC_API_HEADERS, stream=True) as r:
+            r.raise_for_status()
+            # Stream the file directly to the GCS blob
+            blob.upload_from_file(r.raw, content_type='text/html')
+        
+        logging.info(f"Successfully streamed to gs://{BUCKET_NAME}/{blob_name}")
+        
+    except gcp_exceptions.NotFound:
+        logging.error(f"Upload failed: Bucket '{BUCKET_NAME}' not found.")
+    except Exception as e:
+        logging.error(f"Error streaming file: {e}", exc_info=True) # Added exc_info=True for better debugging
+        raise
 
 def process_ticker(ticker: str, storage_client: storage.Client):
     """Helper function to process a single ticker."""
@@ -122,32 +130,21 @@ def process_ticker(ticker: str, storage_client: storage.Client):
         # 1. Find CIK
         cik = get_cik(ticker)
 
-        # 2. Find the most recent, valid 10-K and upload it.
-        # This loop attempts to download filings, skipping any that result in a 404.
-        for file_url, doc_name, filing_date in get_10k_filings(cik):
-            try:
-                upload_from_url_to_gcs(
-                    storage_client=storage_client,
-                    file_url=file_url,
-                    ticker=ticker,
-                    doc_name=doc_name,
-                    filing_date=filing_date
-                )
-                logging.info(f"Successfully ingested 10-K for {ticker} from {file_url}")
-                return # Exit after the first successful upload
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 404:
-                    logging.warning(f"Filing at {file_url} not found (404). Trying next available filing.")
-                    continue # Try the next filing
-                else:
-                    raise # Re-raise other HTTP errors
-            except gcp_exceptions.NotFound:
-                logging.error(f"Upload failed for {ticker}: Bucket '{BUCKET_NAME}' not found.")
-                break # Stop processing this ticker if the bucket is missing
+        # 2. Get latest 10-K URL
+        file_url, doc_name = get_latest_10k_url(cik)
 
-        logging.error(f"Could not find a valid, downloadable 10-K for {ticker}.")
+        # 3. Upload to GCS
+        upload_from_url_to_gcs(
+            storage_client=storage_client,
+            file_url=file_url,
+            ticker=ticker,
+            doc_name=doc_name
+        )
+        
+        logging.info(f"Successfully ingested {ticker} 10-K.")
+
     except Exception as e:
-        logging.error(f"An unexpected error occurred while processing {ticker}: {e}")
+        logging.error(f"An unexpected error occurred while processing {ticker}: {e}", exc_info=True) # Added exc_info=True
 
 def main(args):
     """Main function to orchestrate the ingestion process."""
