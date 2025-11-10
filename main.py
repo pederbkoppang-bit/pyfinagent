@@ -4,7 +4,6 @@ import re
 import argparse
 import logging
 import requests
-import yfinance as yf
 from datetime import datetime
 from dotenv import load_dotenv
 from google.cloud import storage
@@ -248,45 +247,6 @@ def upload_json_to_gcs(storage_client: storage.Client, data: dict, ticker: str):
     blob.upload_from_string(json.dumps(data, indent=2), content_type='application/json')
     logging.info(f"Successfully uploaded to gs://{BUCKET_NAME}/{blob_name}")
 
-def get_and_upload_yfinance_data(storage_client: storage.Client, ticker: str):
-    """Fetches key info and historical prices from yfinance and uploads to GCS."""
-    logging.info(f"Fetching yfinance data for {ticker}...")
-    try:
-        stock = yf.Ticker(ticker)
-        
-        # 1. Fetch key metrics (P/E, P/S, etc.)
-        info = stock.info
-        if not info or 'symbol' not in info:
-            logging.warning(f"Could not fetch info for ticker {ticker} from yfinance. It might be delisted or invalid.")
-            return
-
-        info_blob_name = f"{ticker}/yfinance_info.json"
-        bucket = storage_client.bucket(BUCKET_NAME)
-        info_blob = bucket.blob(info_blob_name)
-
-        if info_blob.exists():
-            logging.info(f"File {info_blob_name} already exists in GCS. Skipping info upload.")
-        else:
-            info_blob.upload_from_string(json.dumps(info, indent=2), content_type='application/json')
-            logging.info(f"Successfully uploaded yfinance info to gs://{BUCKET_NAME}/{info_blob_name}")
-
-        # 2. Fetch maximum available historical daily prices
-        history_blob_name = f"{ticker}/yfinance_daily_prices_max.json"
-        history_blob = bucket.blob(history_blob_name)
-
-        if history_blob.exists():
-            logging.info(f"File {history_blob_name} already exists in GCS. Skipping price history upload.")
-        else:
-            hist_df = stock.history(period="max")
-            # Convert DataFrame to JSON records format for easy loading later
-            hist_json = hist_df.reset_index().to_json(orient="records", date_format="iso")
-            
-            history_blob.upload_from_string(hist_json, content_type='application/json')
-            logging.info(f"Successfully uploaded max price history to gs://{BUCKET_NAME}/{history_blob_name}")
-
-    except Exception as e:
-        logging.error(f"An error occurred while fetching yfinance data for {ticker}: {e}", exc_info=True)
-
 
 def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]):
     """Helper function to process a single ticker."""
@@ -305,10 +265,7 @@ def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]
         # 4. Upload the JSON data to GCS
         upload_json_to_gcs(storage_client, facts, ticker)
 
-        # 5. Get yfinance data (market data, prices) and upload to GCS
-        get_and_upload_yfinance_data(storage_client, ticker)
-
-        logging.info(f"Successfully processed SEC filings, facts, and yfinance data for {ticker}.")
+        logging.info(f"Successfully processed SEC filings and facts for {ticker}.")
     except gcp_exceptions.NotFound:
         logging.error(f"Upload failed for {ticker}: Bucket '{BUCKET_NAME}' not found.")
     except (requests.exceptions.RequestException, FileNotFoundError, ValueError) as e:
