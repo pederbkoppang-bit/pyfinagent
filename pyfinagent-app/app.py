@@ -13,15 +13,13 @@ from vertexai.preview.language_models import GoogleSearchRetrieval
 
 
 # --- 1. CONFIGURATION ---
+# All your project-specific data is pre-filled
 PROJECT_ID = "sunny-might-477607-p8" 
 LOCATION = "us-central1"
 
-# [--- UPDATE 1 ---]
 # This is the URL you got from deploying your QuantAgent in Phase 3
-# (Fixed to be a valid Python string)
 QUANT_AGENT_URL = "[https://quant-agent-afytokcdfq-uc.a.run.app/](https://quant-agent-afytokcdfq-uc.a.run.app/)" 
 
-# [--- UPDATE 2 ---]
 # This is the RAG Data Store ID you just provided
 RAG_DATA_STORE_ID = "10-k-data_1762684273198_gcs_store" 
 # --- (END OF CONFIGURATION) ---
@@ -37,7 +35,7 @@ try:
     # 1. RAG_Agent (Tool)
     # [cite: PyFinAgent.md - This is the 'AI Memory' from Phase 2]
     # [--- THE FIX IS HERE ---]
-    # We call SearchTool(...) directly instead of language_models.SearchTool(...)
+    # We call SearchTool(...) directly
     rag_tool = Tool.from_retrieval(
         SearchTool(data_store_id=RAG_DATA_STORE_ID)
     )
