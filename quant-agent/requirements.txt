@@ -1,5 +1,4 @@
 functions-framework
 requests
 yfinance
-pandas
 python-dotenv
