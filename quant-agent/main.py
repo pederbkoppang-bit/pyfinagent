@@ -12,7 +12,8 @@ load_dotenv()
 
 # Use the email you provided for the SEC User-Agent
 YOUR_EMAIL = os.getenv("USER_AGENT_EMAIL", "peder.bkoppang@hotmail.no")
-CIK_MAP_URL = "[https://www.sec.gov/files/company_tickers.json](https://www.sec.gov/files/company_tickers.json)"
+# [FIX] Corrected the URL to be a simple string
+CIK_MAP_URL = "https://www.sec.gov/files/company_tickers.json" 
 SEC_API_HEADERS = {
     'User-Agent': f"PyFinAgent {YOUR_EMAIL}",
     'Accept-Encoding': 'gzip, deflate',
@@ -97,7 +98,8 @@ def quant_agent(request):
         # [cite: Comprehensive Financial Analysis Template.pdf.pdf, Part 1.1]
         logging.info(f"QuantAgent: Fetching SEC facts for {ticker_str}...")
         cik_10_digit = get_cik(ticker_str.upper())
-        facts_url = f"[https://data.sec.gov/api/xbrl/companyfacts/CIK](https://data.sec.gov/api/xbrl/companyfacts/CIK){cik_10_digit}.json"
+        # [FIX] Corrected the f-string URL
+        facts_url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_10_digit}.json"
         response = requests.get(facts_url, headers=SEC_API_HEADERS)
         response.raise_for_status()
         facts = response.json()
