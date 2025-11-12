@@ -6,9 +6,7 @@ from google.cloud import bigquery
 import vertexai
 
 # [--- THE FIX IS HERE ---]
-# We now import SearchTool and GoogleSearchRetrieval from the correct modules
-from vertexai.preview.generative_models import GenerativeModel, Tool, Part, SearchTool 
-from vertexai.preview.language_models import GoogleSearchRetrieval
+from vertexai.generative_models import GenerativeModel, Tool, grounding
 # [--- END OF FIX ---]
 
 
@@ -35,17 +33,14 @@ try:
     # 1. RAG_Agent (Tool)
     # [cite: PyFinAgent.md - This is the 'AI Memory' from Phase 2]
     # [--- THE FIX IS HERE ---]
-    # We call SearchTool(...) directly
-    rag_tool = Tool.from_retrieval(
-        SearchTool(data_store_id=RAG_DATA_STORE_ID)
-    )
+    # We create the retrieval tool using the high-level grounding API.
+    retrieval = Tool.from_retrieval(grounding.Retrieval(grounding.VertexAISearch(datastore=f"projects/{PROJECT_ID}/locations/{LOCATION}/collections/default_collection/dataStores/{RAG_DATA_STORE_ID}")))
+    rag_tool = Tool.from_retrieval(retrieval)
     # [--- END OF FIX ---]
     
     # 2. MarketAgent (Tool)
     # [cite: PyFinAgent.md - This is the 'Live Web Search' agent]
-    market_tool = Tool.from_google_search_retrieval(
-        GoogleSearchRetrieval()
-    )
+    market_tool = Tool.from_google_search_retrieval()
 
     # 3. AnalystAgent (Models)
     # This is the "Lead Analyst" that synthesizes everything
