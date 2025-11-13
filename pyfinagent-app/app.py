@@ -16,7 +16,7 @@ PROJECT_ID = "sunny-might-477607-p8"
 LOCATION = "us-central1"
 
 # This is the URL you got from deploying your QuantAgent in Phase 3
-QUANT_AGENT_URL = "[https://quant-agent-afytokcdfq-uc.a.run.app/](https://quant-agent-afytokcdfq-uc.a.run.app/)" 
+QUANT_AGENT_URL = "https://quant-agent-afytokcdfq-uc.a.run.app/" 
 
 # This is the RAG Data Store ID you just provided
 RAG_DATA_STORE_ID = "10-k-data_1762684273198_gcs_store" 
@@ -33,14 +33,17 @@ try:
     # 1. RAG_Agent (Tool)
     # [cite: PyFinAgent.md - This is the 'AI Memory' from Phase 2]
     # [--- THE FIX IS HERE ---]
-    # We create the retrieval tool using the high-level grounding API.
-    retrieval = Tool.from_retrieval(grounding.Retrieval(grounding.VertexAISearch(datastore=f"projects/{PROJECT_ID}/locations/{LOCATION}/collections/default_collection/dataStores/{RAG_DATA_STORE_ID}")))
-    rag_tool = Tool.from_retrieval(retrieval)
+    # We create the retrieval tool for the RAG agent, ensuring the full datastore path is used.
+    datastore_path = (f"projects/{PROJECT_ID}/locations/{LOCATION}/collections/default_collection/"
+                      f"dataStores/{RAG_DATA_STORE_ID}")
+    rag_tool = Tool.from_retrieval(
+        grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
+    )
     # [--- END OF FIX ---]
     
     # 2. MarketAgent (Tool)
     # [cite: PyFinAgent.md - This is the 'Live Web Search' agent]
-    market_tool = Tool.from_google_search_retrieval()
+    market_tool = Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())
 
     # 3. AnalystAgent (Models)
     # This is the "Lead Analyst" that synthesizes everything
@@ -127,7 +130,9 @@ if st.button("Run Comprehensive Analysis", disabled=(not ticker)):
             """
             
             synthesis_response = synthesis_model.generate_content(synthesis_prompt)
-            final_report = json.loads(synthesis_response.text)
+            # Clean up potential markdown formatting from the LLM response
+            cleaned_response_text = synthesis_response.text.strip().replace("```json", "").replace("```", "")
+            final_report = json.loads(cleaned_response_text)
             
             # --- 5. FINAL CALCULATION (PYTHON) ---
             # [cite: PyFinAgent.md - Python-First, Part 8]
@@ -170,8 +175,8 @@ if 'report' in st.session_state and st.session_state.report.get('final_synthesis
     report_data = st.session_state.report['final_synthesis']
     
     # Get the price from the Quant report
-    price_data = st.session_state.report.get('part_1_5_quant', {}).get('part_5_valuation', {}).get('market_price')
-    price_str = f"${price_data:.2f}" if isinstance(price_data, (int, float)) else "N/A"
+    price_data = st.session_state.report.get('part_1_5_quant', {}).get('part_5_valuation', {}).get('market_price', 'N/A')
+    price_str = f"${price_data:.2f}" if isinstance(price_data, (int, float)) else str(price_data)
     
     st.header(f"Final Score: {report_data['final_weighted_score']} / 10")
     st.subheader(f"Recommendation: {report_data['recommendation']['action']} (at {price_str})")

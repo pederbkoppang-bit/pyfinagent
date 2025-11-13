@@ -1,9 +1,9 @@
 import os
 import json
 import re
-import argparse
 import logging
 import requests
+import base64
 from datetime import datetime
 from dotenv import load_dotenv
 from google.cloud import storage
@@ -109,16 +109,19 @@ def get_filings_for_last_10_years(cik: str, forms: list[str]) -> list[tuple[str,
 
     filing_details = []
     # Process each batch of filings (recent and all historical pages)
-    for filing_batch in all_filings_data:
-        for i, form_type in enumerate(filing_batch['form']):
-            filing_date = filing_batch['filingDate'][i]
+    for batch in all_filings_data:
+        # Zip the lists together to process each filing as a complete record.
+        # This is more robust than iterating with an index.
+        zipped_filings = zip(
+            batch.get('accessionNumber', []),
+            batch.get('filingDate', []),
+            batch.get('form', []),
+            batch.get('primaryDocument', [])
+        )
+        for acc_num, filing_date, form_type, doc_name in zipped_filings:
             filing_year = int(filing_date.split('-')[0])
-
             if form_type in forms and filing_year >= ten_years_ago:
-                accession_num = filing_batch['accessionNumber'][i]
-                doc_name = filing_batch['primaryDocument'][i]
-                acc_no_clean = accession_num.replace('-', '')
-
+                acc_no_clean = acc_num.replace('-', '')
                 file_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_clean}/{doc_name}"
                 logging.info(f"Found {form_type} document from {filing_year}: {doc_name}")
                 filing_details.append((file_url, doc_name, filing_date, form_type))
@@ -154,24 +157,30 @@ def parse_filing_into_sections(html_content: str) -> dict:
     logging.info("Parsing filing into semantic sections...")
     parser = 'lxml-xml' if '<?xml' in html_content.lower()[:100] else 'lxml'
     soup = BeautifulSoup(html_content, parser)
-
-    # Extract text, using a separator to preserve some structure.
-    full_text = soup.get_text(separator='\n')
-
     # Regex to find lines that start with "Item" followed by a number/letter.
     # This is a common pattern for section headers.
     # re.MULTILINE allows `^` to match the start of each line.
-    item_pattern = re.compile(r"^\s*item\s+[\d\w]{1,2}\.?", re.IGNORECASE | re.MULTILINE)
+    # This improved regex is more flexible, handling variations in spacing and optional periods.
+    # It looks for "Item" at the beginning of a line, followed by spaces, then the item number (e.g., 1A, 7).
+    item_pattern = re.compile(r"^\s*item\s+[\d\w]{1,2}(?:\.|\s)", re.IGNORECASE | re.MULTILINE)
+
+    # Extract text *after* HTML parsing, which normalizes whitespace and removes tags that could break the regex.
+    # We also replace non-breaking spaces with regular spaces.
+    full_text = soup.get_text(separator='\n').replace('\xa0', ' ')
 
     # Find all starting positions of headers
     matches = list(item_pattern.finditer(full_text))
 
     if not matches:
-        logging.warning("No section headers found with regex. Saving debug file.")
-        # Write the text content to a file for local debugging
-        with open("debug_filing_text.txt", "w", encoding="utf-8") as f:
-            f.write(full_text)
-        return {}
+        # If no matches are found, it's possible the entire document is the content.
+        # As a fallback, we'll save the whole cleaned text under a generic key.
+        logging.warning("No section headers found with regex. Saving entire document content as a fallback.")
+        cleaned_full_text = clean_text(full_text)
+        if cleaned_full_text:
+            return {"document_content": cleaned_full_text}
+        else:
+            logging.warning("No text content found after cleaning. Skipping.")
+            return {}
 
     sections = {}
     # Extract content between each match
@@ -248,14 +257,17 @@ def upload_json_to_gcs(storage_client: storage.Client, data: dict, ticker: str):
     logging.info(f"Successfully uploaded to gs://{BUCKET_NAME}/{blob_name}")
 
 
-def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]):
+def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str], limit: int):
     """Helper function to process a single ticker."""
     try:
         # 1. Find CIK
         cik = get_cik(ticker)
 
         # 2. Get the latest 10-K/10-Q filing and upload the document
-        all_filings = get_filings_for_last_10_years(cik, forms)
+        all_filings = get_filings_for_last_10_years(cik, forms)[:limit]
+        if not all_filings:
+            logging.warning(f"No filings found for {ticker} within the specified parameters.")
+            return
         for file_url, doc_name, filing_date, form_type in all_filings:
             upload_from_url_to_gcs(storage_client, file_url, ticker, doc_name, filing_date, form_type)
 
@@ -271,24 +283,40 @@ def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]
     except (requests.exceptions.RequestException, FileNotFoundError, ValueError) as e:
         logging.error(f"An unexpected error occurred while processing {ticker}: {e}", exc_info=True) # Added exc_info=True
 
-def main(args):
-    """Main function to orchestrate the ingestion process."""
+def ingest_tickers_pubsub(event, context):
+    """
+    Cloud Function entry point triggered by a Pub/Sub message.
+    The message payload should be a JSON object like:
+    {
+        "tickers": ["AAPL", "GOOG"],
+        "forms": ["10-K", "10-Q"],
+        "limit": 2
+    }
+    """
     if not BUCKET_NAME:
         logging.error("GCS_BUCKET_NAME must be set.")
         return
-        
+
     logging.info(f"SEC API User-Agent set to: 'PyFinAgent {USER_AGENT_EMAIL}'")
     logging.info(f"Target GCS Bucket: 'gs://{BUCKET_NAME}'")
 
-    storage_client = storage.Client()
-    
-    for ticker in args.tickers:
-        process_ticker(ticker.strip().upper(), storage_client, args.forms)
+    # Decode the Pub/Sub message
+    if 'data' in event:
+        try:
+            # Data is base64-encoded
+            message_data = base64.b64decode(event['data']).decode('utf-8')
+            payload = json.loads(message_data)
+            tickers = payload.get('tickers', [])
+            forms = payload.get('forms', ['10-K', '10-Q'])
+            limit = payload.get('limit', 5)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            logging.error(f"Failed to decode Pub/Sub message: {e}")
+            return
+    else:
+        logging.warning("No data in Pub/Sub event. Nothing to process.")
+        return
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Fetch latest 10-K filings via SEC API and upload to GCS.")
-    parser.add_argument('tickers', nargs='+', help="One or more stock tickers to process (e.g., AAPL NVDA GOOG).")
-    parser.add_argument('--forms', nargs='+', default=['10-K', '10-Q'],
-                        help="A list of SEC form types to download (e.g., 10-K 10-Q 8-K).")
-    args = parser.parse_args()
-    main(args)
+    storage_client = storage.Client()
+
+    for ticker in tickers:
+        process_ticker(ticker.strip().upper(), storage_client, forms, limit)

@@ -26,7 +26,8 @@ _cik_map_cache = None
 def get_cik_map():
     """Fetches and caches the SEC Ticker->CIK mapping."""
     global _cik_map_cache
-    if _cik_map_cache:
+    # If the cache is populated and is a non-empty dictionary, return it.
+    if _cik_map_cache and isinstance(_cik_map_cache, dict) and len(_cik_map_cache) > 0:
         return _cik_map_cache
 
     logging.info("Fetching and caching SEC CIK map...")
