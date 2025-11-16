@@ -1,13 +1,3 @@
-# --- Failsafe Debugging ---
-# This is a low-level check to see if the script is executed at all.
-# It writes directly to a file, bypassing the logging module which might not be initialized.
-import os
-script_dir = os.path.dirname(__file__)
-log_file_path = os.path.join(script_dir, "failsafe_debug.log")
-with open(log_file_path, "a") as f:
-    from datetime import datetime
-    f.write(f"Script execution started at {datetime.now().isoformat()}\\n")
-
 import logging
 import streamlit as st
 import requests
@@ -18,20 +8,12 @@ import traceback
 from datetime import datetime
 import vertexai
 
-# --- 1. CONFIGURATION ---
-# All your project-specific data is pre-filled
-PROJECT_ID = "sunny-might-477607-p8" 
-LOCATION = "us-central1"
-
-# This is the URL you got from deploying your QuantAgent in Phase 3
-QUANT_AGENT_URL = "https://quant-agent-afytokcdfq-uc.a.run.app/" 
-
-# This is the RAG Data Store ID you just provided
-RAG_DATA_STORE_ID = "10-k-data_1762684273198_gcs_store" 
-
-# This is the generative model to be used by the agents
-GEMINI_MODEL = "gemini-1.5-pro-001"
-# --- (END OF CONFIGURATION) ---
+# --- 1. CONFIGURATION (from secrets.toml) ---
+PROJECT_ID = st.secrets.gcp.project_id
+LOCATION = st.secrets.gcp.location
+QUANT_AGENT_URL = st.secrets.agent.quant_agent_url
+RAG_DATA_STORE_ID = st.secrets.agent.rag_data_store_id
+GEMINI_MODEL = st.secrets.agent.gemini_model
 
 @st.cache_resource
 def initialize_gcp_services():
@@ -65,6 +47,75 @@ def initialize_gcp_services():
         "synthesis_model": synthesis_model
     }
 
+def run_quant_agent(ticker: str) -> dict:
+    """Executes the QuantAgent and returns the report."""
+    logging.info(f"Starting QuantAgent for ticker: {ticker}")
+    st.session_state.status_text.text("Task 1/4: QuantAgent fetching hard financials (SEC + yfinance)...")
+    
+    try:
+        quant_response = requests.get(f"{QUANT_AGENT_URL}?ticker={ticker}", timeout=300)
+        quant_response.raise_for_status()
+        quant_report = quant_response.json()
+        
+        if quant_report.get("error"):
+            logging.error(f"QuantAgent returned an error: {quant_report['error']}")
+            raise ValueError(f"QuantAgent Error: {quant_report['error']}")
+            
+        logging.info("QuantAgent finished successfully.")
+        return quant_report
+
+    except requests.exceptions.HTTPError as e:
+        logging.error(f"HTTP Error during QuantAgent execution: {e}", exc_info=True)
+        error_message = f"HTTP Error: {e}. The QuantAgent at {QUANT_AGENT_URL} failed."
+        try:
+            # Try to parse more specific error from function response
+            error_details = e.response.json()
+            st.error(f"{error_message} Details: {error_details.get('error', 'No details provided.')}")
+        except json.JSONDecodeError:
+            st.error(f"{error_message} Could not parse error response.")
+        raise
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request failed for QuantAgent: {e}", exc_info=True)
+        st.error(f"Could not connect to the QuantAgent. Please check the URL and function logs. Error: {e}")
+        raise
+
+def run_rag_agent(rag_model, ticker: str) -> dict:
+    """Executes the RAG_Agent for 10-K analysis."""
+    logging.info("Starting RAG_Agent for 10-K analysis.")
+    st.session_state.status_text.text("Task 2/4: RAG_Agent analyzing 10-K filings...")
+    rag_prompt = f"Using ONLY the provided 10-K documents, analyze the Economic Moat and Governance (exec compensation), and key 'Risk Factors' for {ticker}. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
+    rag_response = rag_model.generate_content(rag_prompt)
+    logging.info("RAG_Agent finished successfully.")
+    return {"text": rag_response.text}
+
+def run_market_agent(market_model, ticker: str) -> dict:
+    """Executes the MarketAgent for news and sentiment analysis."""
+    logging.info("Starting MarketAgent for news and sentiment analysis.")
+    st.session_state.status_text.text("Task 3/4: MarketAgent scanning news/sentiment...")
+    market_prompt = f"Analyze the Macro (PESTEL) and current Market Sentiment (news, social media 'scuttlebutt') for {ticker}. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
+    market_response = market_model.generate_content(market_prompt)
+    logging.info("MarketAgent finished successfully.")
+    return {"text": market_response.text}
+
+def run_synthesis_agent(synthesis_model, ticker: str) -> dict:
+    """Executes the AnalystAgent to synthesize all findings."""
+    logging.info("Starting AnalystAgent for final synthesis.")
+    st.session_state.status_text.text("Task 4/4: LeadAnalyst synthesizing final report...")
+    
+    # Dynamically load the synthesis prompt from a file
+    with open("synthesis_prompt.txt", "r") as f:
+        synthesis_prompt_template = f.read()
+
+    synthesis_prompt = synthesis_prompt_template.format(
+        ticker=ticker,
+        quant_report=json.dumps(st.session_state.report['part_1_5_quant']),
+        rag_report=st.session_state.report['part_1_4_6_rag']['text'],
+        market_report=st.session_state.report['part_2_3_market']['text']
+    )
+    
+    synthesis_response = synthesis_model.generate_content(synthesis_prompt)
+    return synthesis_response
+
 def main():
     """Main function to run the Streamlit application."""
     st.set_page_config(page_title="PyFinAgent", layout="wide")
@@ -79,7 +130,7 @@ def main():
     try:
         services = initialize_gcp_services()
         bq_client = services["bq_client"]
-        TABLE_ID = services["table_id"]
+        table_id = services["table_id"]
         rag_model = services["rag_model"]
         market_model = services["market_model"]
         synthesis_model = services["synthesis_model"]
@@ -91,82 +142,25 @@ def main():
 
     if st.button("Run Comprehensive Analysis", disabled=(not ticker)):
         st.session_state.report = {}
+        st.session_state.status_text = st.empty()
         
         with st.spinner("Running Analysis Pipeline..."):
             try:
                 # --- 2. AGENT EXECUTION ---
-                status_text = st.empty()
-
-                # --- Agent 1: QuantAgent (Python-First) ---
-                # [cite: PyFinAgent.md - Part 1.1, Part 5]
-                logging.info(f"Starting QuantAgent for ticker: {ticker}")
-                status_text.text("Task 1/4: QuantAgent fetching hard financials (SEC + yfinance)...")
-                # This is the HTTP call to the Cloud Function you just deployed
-                quant_response = requests.get(f"{QUANT_AGENT_URL}?ticker={ticker}")
-                quant_response.raise_for_status() # Will raise an error if the function failed
-                quant_report = quant_response.json()
-                logging.info("QuantAgent finished successfully.")
-                
-                if quant_report.get("error"):
-                    logging.error(f"QuantAgent returned an error: {quant_report['error']}")
-                    raise ValueError(f"QuantAgent Error: {quant_report['error']}")
-                st.session_state.report['part_1_5_quant'] = quant_report
-
-                # --- Agent 2: RAG_Agent (10-K Analysis) ---
-                # [cite: PyFinAgent.md - Part 1.2, Part 4, Part 6]
-                logging.info("Starting RAG_Agent for 10-K analysis.")
-                status_text.text("Task 2/4: RAG_Agent analyzing 10-K filings...")
-                rag_prompt = f"Using ONLY the provided 10-K documents, analyze the Economic Moat and Governance (exec compensation), and key 'Risk Factors' for {ticker}. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
-                rag_response = rag_model.generate_content(rag_prompt)
-                st.session_state.report['part_1_4_6_rag'] = {"text": rag_response.text}
-                logging.info("RAG_Agent finished successfully.")
-
-                # --- Agent 3: MarketAgent (Live Web Search) ---
-                # [cite: PyFinAgent.md - Part 2, Part 3]
-                logging.info("Starting MarketAgent for news and sentiment analysis.")
-                status_text.text("Task 3/4: MarketAgent scanning news/sentiment...")
-                market_prompt = f"Analyze the Macro (PESTEL) and current Market Sentiment (news, social media 'scuttlebutt') for {ticker}. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
-                market_response = market_model.generate_content(market_prompt)
-                st.session_state.report['part_2_3_market'] = {"text": market_response.text}
-                logging.info("MarketAgent finished successfully.")
+                st.session_state.report['part_1_5_quant'] = run_quant_agent(ticker)
+                st.session_state.report['part_1_4_6_rag'] = run_rag_agent(rag_model, ticker)
+                st.session_state.report['part_2_3_market'] = run_market_agent(market_model, ticker)
                 
                 # --- Agent 4: AnalystAgent (Synthesis & Scoring) ---
-                # [cite: PyFinAgent.md - Part 7, Part 8]
-                logging.info("Starting AnalystAgent for final synthesis.")
-                status_text.text("Task 4/4: LeadAnalyst synthesizing final report...")
-                synthesis_prompt = f"""
-                You are the Lead Analyst. Your team has submitted their findings for {ticker}.
-                Your job is to synthesize all reports into a final recommendation and score,
-                as specified in the Comprehensive Financial Analysis Template.
-
-                [QUANT REPORT (Facts & Ratios)]: {json.dumps(st.session_state.report['part_1_5_quant'])}
-                [RAG REPORT (10-K Analysis)]: {st.session_state.report['part_1_4_6_rag']['text']}
-                [MARKET REPORT (News & Sentiment)]: {st.session_state.report['part_2_3_market']['text']}
-
-                Perform the following actions:
-                1.  **Part 7 (Recommendation):** Provide a BUY/HOLD/SELL recommendation, time horizon, and justification.
-                2.  **Part 8 (Scoring):** Provide a raw score (1-10, float) for each of the 5 pillars from the template.
-                3.  **Part 8 (Summary):** Write the 2-3 sentence final summary.
+                synthesis_response = run_synthesis_agent(synthesis_model, ticker)
                 
-                Return ONLY a JSON object:
-                {{
-                    "recommendation": {{"action": "BUY", "justification": "..."}},
-                    "scoring_matrix": {{
-                        "pillar_1_corporate": 8.0,
-                        "pillar_2_industry": 7.0,
-                        "pillar_3_valuation": 6.0,
-                        "pillar_4_sentiment": 7.5,
-                        "pillar_5_governance": 8.0
-                    }},
-                    "final_summary": "..."
-                }}
-                """
-                
-                synthesis_response = synthesis_model.generate_content(synthesis_prompt)
                 # Clean up potential markdown formatting from the LLM response before parsing
                 response_text = synthesis_response.text.strip()
                 if response_text.startswith("```json"):
                     response_text = response_text[7:-3]
+                elif response_text.startswith("```"):
+                    response_text = response_text[3:-3].strip()
+
                 final_report = json.loads(response_text)
                 
                 logging.info(f"AnalystAgent Response: {final_report}")
@@ -185,7 +179,7 @@ def main():
                 logging.info(f"Final weighted score calculated: {final_report['final_weighted_score']}")
                 
                 # --- 6. WRITE TO BIGQUERY ---
-                status_text.text("Saving report to BigQuery...")
+                st.session_state.status_text.text("Saving report to BigQuery...")
                 row_to_insert = {
                     "ticker": ticker,
                     "analysis_date": datetime.now().isoformat(),
@@ -194,21 +188,19 @@ def main():
                     "summary": final_report['final_summary'],
                     "full_report_json": json.dumps(st.session_state.report)
                 }
-                errors = bq_client.insert_rows_json(TABLE_ID, [row_to_insert])
+                errors = bq_client.insert_rows_json(table_id, [row_to_insert])
                 if errors:
                     logging.error(f"Failed to write to BigQuery: {errors}")
                     st.error(f"Failed to write to BigQuery: {errors}")
                 else:
                     logging.info("Report successfully saved to BigQuery.")
                 
-                status_text.empty()
+                st.session_state.status_text.empty()
+                del st.session_state.status_text
                 
-            except requests.exceptions.HTTPError as e:
-                logging.error(f"HTTP Error during QuantAgent execution: {e}", exc_info=True)
-                st.error(f"HTTP Error: {e}. The QuantAgent failed. Check its logs.")
-                st.json(e.response.json())
             except Exception as e:
                 logging.error(f"An error occurred during analysis: {e}", exc_info=True)
+                st.session_state.status_text.empty()
                 st.error(f"An error occurred during analysis: {e}")
                 st.write(traceback.format_exc())
 
