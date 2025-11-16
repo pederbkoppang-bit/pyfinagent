@@ -1,7 +1,10 @@
 # --- Failsafe Debugging ---
 # This is a low-level check to see if the script is executed at all.
 # It writes directly to a file, bypassing the logging module which might not be initialized.
-with open("failsafe_debug.log", "a") as f:
+import os
+script_dir = os.path.dirname(__file__)
+log_file_path = os.path.join(script_dir, "failsafe_debug.log")
+with open(log_file_path, "a") as f:
     from datetime import datetime
     f.write(f"Script execution started at {datetime.now().isoformat()}\\n")
 
@@ -12,7 +15,6 @@ import json
 from google.cloud import bigquery
 from vertexai.generative_models import GenerativeModel, Tool, grounding
 import traceback
-import os
 from datetime import datetime
 import vertexai
 

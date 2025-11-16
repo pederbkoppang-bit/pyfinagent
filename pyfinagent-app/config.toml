@@ -1,0 +1,10 @@
+[server]
+headless = true
+port = 8081
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+# This address is what the browser uses to connect.
+# In a proxied environment like this, it's automatically detected.
+# Do not set serverAddress here.
