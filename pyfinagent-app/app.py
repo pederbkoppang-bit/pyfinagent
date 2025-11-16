@@ -7,6 +7,11 @@ from vertexai.generative_models import GenerativeModel, Tool, grounding
 import traceback
 from datetime import datetime
 import vertexai
+import pandas as pd
+from fpdf import FPDF
+
+# --- Logging Configuration ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- 1. CONFIGURATION (from secrets.toml) ---
 PROJECT_ID = st.secrets.gcp.project_id
@@ -116,12 +121,159 @@ def run_synthesis_agent(synthesis_model, ticker: str) -> dict:
     synthesis_response = synthesis_model.generate_content(synthesis_prompt)
     return synthesis_response
 
+@st.cache_data(ttl=3600) # Cache for 1 hour
+def get_historical_data(_bq_client, table_id: str, ticker: str):
+    """
+    Queries BigQuery for historical analysis of a given ticker.
+    The bq_client argument is prefixed with an underscore to tell Streamlit's
+    caching mechanism not to hash it.
+    """
+    if not ticker:
+        return None
+
+    logging.info(f"Fetching historical data for {ticker} from BigQuery.")
+    query = f"""
+        SELECT
+            analysis_date,
+            final_score,
+            recommendation,
+            summary
+        FROM `{table_id}`
+        WHERE ticker = @ticker
+        ORDER BY analysis_date DESC
+        LIMIT 10
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ScalarQueryParameter("ticker", "STRING", ticker.upper())]
+    )
+    query_job = _bq_client.query(query, job_config=job_config)
+    return query_job.to_dataframe()
+
+def generate_pdf_report(report: dict) -> bytes:
+    """Generates a PDF report from the analysis data."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 16)
+
+    ticker = report.get('part_1_5_quant', {}).get('ticker', 'N/A')
+    pdf.cell(0, 10, f"PyFinAgent Analysis Report: {ticker}", 0, 1, "C")
+    pdf.ln(10)
+
+    synthesis = report.get('final_synthesis', {})
+    if synthesis:
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, "Executive Summary", 0, 1)
+
+        pdf.set_font("Helvetica", "", 10)
+        score = synthesis.get('final_weighted_score', 'N/A')
+        recommendation = synthesis.get('recommendation', {}).get('action', 'N/A')
+        justification = synthesis.get('recommendation', {}).get('justification', 'N/A')
+        summary = synthesis.get('final_summary', 'N/A')
+
+        pdf.multi_cell(0, 5, f"Final Score: {score} / 10")
+        pdf.multi_cell(0, 5, f"Recommendation: {recommendation}")
+        pdf.multi_cell(0, 5, f"Justification: {justification}")
+        pdf.ln(5)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(0, 5, "Summary:", 0, 1)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 5, summary)
+        pdf.ln(10)
+
+    def write_section(title, content_key):
+        content = report.get(content_key, {}).get('text', 'Not available.')
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, title, 0, 1)
+        pdf.set_font("Helvetica", "", 10)
+        # Use write() for better handling of unicode characters
+        pdf.write(5, content)
+        pdf.ln(10)
+
+    write_section("10-K Analysis (Economic Moat, Governance, Risks)", 'part_1_4_6_rag')
+    write_section("Market Analysis (Macro & Sentiment)", 'part_2_3_market')
+
+    # The FPDF library expects latin-1 encoding when outputting to a string.
+    return pdf.output(dest='S').encode('latin-1')
+
+def display_price_chart():
+    """Renders a line chart of historical stock prices if available."""
+    if 'report' not in st.session_state or not st.session_state.report.get('part_1_5_quant'):
+        return
+
+    historical_prices = st.session_state.report['part_1_5_quant'].get('historical_prices')
+    if historical_prices:
+        st.subheader("Historical Price Chart")
+        price_df = pd.read_json(historical_prices, orient='split')
+        st.line_chart(price_df.set_index('Date')['Close'])
+
+def display_report():
+    """Renders the final analysis report in a structured and appealing layout."""
+    if 'report' not in st.session_state or not st.session_state.report.get('final_synthesis'):
+        return
+
+    report_data = st.session_state.report['final_synthesis']
+    
+    # Get the price from the Quant report for context
+    price_data = st.session_state.report.get('part_1_5_quant', {}).get('part_5_valuation', {}).get('market_price', 'N/A')
+    price_str = f"${price_data:.2f}" if isinstance(price_data, (int, float)) else str(price_data)
+
+    # --- Main Score and Recommendation ---
+    st.success("Analysis Complete!")
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        st.metric(
+            label="Final Score",
+            value=f"{report_data['final_weighted_score']:.2f} / 10"
+        )
+        st.metric(
+            label="Recommendation",
+            value=report_data['recommendation']['action']
+        )
+        st.caption(f"at {price_str}")
+
+    with col2:
+        st.subheader("Justification")
+        st.write(report_data['recommendation']['justification'])
+
+    st.divider()
+
+    # --- Final Summary & Full Report ---
+    display_price_chart()
+    st.divider()
+
+    st.subheader("Final Summary")
+    st.write(report_data['final_summary'])
+    
+    with st.expander("View Full Raw Data (JSON)"):
+        st.json(st.session_state.report)
+
+# The email of the authorized user
+AUTHORIZED_EMAIL = "peder.bkoppang@hotmail.no"
+
 def main():
     """Main function to run the Streamlit application."""
-    st.set_page_config(page_title="PyFinAgent", layout="wide")
+    st.set_page_config(page_title="PyFinAgent", page_icon="📈", layout="wide")
+
+    # --- Authentication Check ---
+    if not st.user.is_logged_in:
+        st.title("Welcome to PyFinAgent")
+        st.write("Please log in to continue.")
+        if st.button("Log in with Google"):
+            st.login()
+        return
+
+    if st.user.email != AUTHORIZED_EMAIL:
+        st.error("Access denied. You are not an authorized user.")
+        st.write(f"You are logged in as: {st.user.email}")
+        if st.button("Log out"):
+            st.logout()
+        return
+
+    # --- Authorized Application Code ---
+    # If we get here, the user is logged in and authorized.
 
     # --- STREAMLIT UI ---
-    st.title("PyFinAgent: AI Financial Analyst")
+    st.title("PyFinAgent Dashboard: AI Financial Analyst")
     st.caption(f"A Multi-Agent AI built on the Comprehensive Financial Analysis Template")
 
     ticker = st.text_input("Enter Company Ticker (e.g., NVDA, AAPL):")
@@ -140,6 +292,51 @@ def main():
         st.exception(e)
         return # Stop execution if services fail
 
+    with st.sidebar:
+        st.write(f"Welcome, {st.user.name}!")
+        if st.button("Log out"):
+            st.logout()
+        st.divider()
+
+        st.header("⚙️ Actions")
+        if st.button("Clear All Caches"):
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            st.success("All caches have been cleared!")
+
+        if st.session_state.get('report', {}).get('final_synthesis'):
+            st.download_button(
+                label="Download Report as PDF",
+                data=generate_pdf_report(st.session_state.report),
+                file_name=f"PyFinAgent_Report_{st.session_state.report.get('part_1_5_quant', {}).get('ticker', 'NA')}.pdf",
+                mime="application/pdf",
+            )
+
+        st.header("📄 Recent Reports")
+        if ticker:
+            try:
+                historical_df = get_historical_data(bq_client, table_id, ticker)
+                if not historical_df.empty:
+                    st.caption(f"Past Analysis for {ticker.upper()}")
+                    # Format date for better readability
+                    historical_df["analysis_date"] = pd.to_datetime(historical_df["analysis_date"]).dt.strftime('%Y-%m-%d %H:%M')
+                    
+                    # Rename columns for presentation
+                    display_df = historical_df.rename(columns={
+                        "analysis_date": "Date",
+                        "final_score": "Score",
+                        "recommendation": "Recommendation",
+                        "summary": "Summary"
+                    })
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info(f"No historical reports found for {ticker.upper()}.")
+            except Exception as e:
+                logging.error(f"Failed to display historical data: {e}", exc_info=True)
+                st.warning("Could not load historical reports.")
+
+    st.divider()
+
     if st.button("Run Comprehensive Analysis", disabled=(not ticker)):
         st.session_state.report = {}
         st.session_state.status_text = st.empty()
@@ -156,12 +353,19 @@ def main():
                 
                 # Clean up potential markdown formatting from the LLM response before parsing
                 response_text = synthesis_response.text.strip()
-                if response_text.startswith("```json"):
-                    response_text = response_text[7:-3]
-                elif response_text.startswith("```"):
-                    response_text = response_text[3:-3].strip()
+                try:
+                    if response_text.startswith("```json"):
+                        response_text = response_text[7:-3].strip()
+                    elif response_text.startswith("```"):
+                        response_text = response_text[3:-3].strip()
 
-                final_report = json.loads(response_text)
+                    final_report = json.loads(response_text)
+                except json.JSONDecodeError as e:
+                    logging.error(f"Failed to parse JSON from synthesis agent for ticker {ticker}.")
+                    logging.error(f"LLM Response Text was: {response_text}")
+                    st.error("The final analysis report returned an invalid format and could not be parsed.")
+                    st.code(response_text, language="text")
+                    raise e
                 
                 logging.info(f"AnalystAgent Response: {final_report}")
                 # --- 5. FINAL CALCULATION (PYTHON) ---
@@ -199,28 +403,12 @@ def main():
                 del st.session_state.status_text
                 
             except Exception as e:
-                logging.error(f"An error occurred during analysis: {e}", exc_info=True)
+                logging.error(f"An error occurred during analysis for ticker '{ticker}': {e}", exc_info=True)
                 st.session_state.status_text.empty()
                 st.error(f"An error occurred during analysis: {e}")
                 st.write(traceback.format_exc())
 
-    # --- 7. DISPLAY RESULTS ---
-    if 'report' in st.session_state and st.session_state.report.get('final_synthesis'):
-        st.success("Analysis Complete!")
-        report_data = st.session_state.report['final_synthesis']
-        
-        # Get the price from the Quant report
-        price_data = st.session_state.report.get('part_1_5_quant', {}).get('part_5_valuation', {}).get('market_price', 'N/A')
-        price_str = f"${price_data:.2f}" if isinstance(price_data, (int, float)) else str(price_data)
-        
-        st.header(f"Final Score: {report_data['final_weighted_score']} / 10")
-        st.subheader(f"Recommendation: {report_data['recommendation']['action']} (at {price_str})")
-        st.write(report_data['recommendation']['justification'])
-        st.subheader("Final Summary")
-        st.write(report_data['final_summary'])
-        
-        with st.expander("View Full Data (JSON)"):
-            st.json(st.session_state.report)
+    display_report()
 
 if __name__ == "__main__":
     try:

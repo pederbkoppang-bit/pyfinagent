@@ -1,13 +1,16 @@
 [server]
 # Tells Streamlit it is running remotely
 headless = true
+# This tells Streamlit to trust the X-Forwarded-For, X-Forwarded-Host, 
+# and X-Forwarded-Proto headers from the proxy.
+enableCORS = true
+enableXsrfProtection = true
 
-# Disables the checks that block proxied connections
-enableCORS = false
-enableXsrfProtection = false
-
-# Ensures the port matches the web preview
+# The port where the server will listen for browser connections.
+# For Cloud Run, this should be the port your container listens on (often 8080 or 8081).
 port = 8081
 
-# The base URL path for the Streamlit app.
-baseUrlPath = "/"
+[browser]
+# The address of your app in the browser.
+# For Cloud Run, this would be your app's URL.
+serverAddress = "pyfinagent-app-afytokcdfq-uc.a.run.app"

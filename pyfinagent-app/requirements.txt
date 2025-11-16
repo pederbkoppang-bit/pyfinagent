@@ -1,6 +1,7 @@
 streamlit
 requests
 google-cloud-bigquery
-google-cloud-aiplatform[generative_models]
-google-cloud-discoveryengine
-python-dotenv
+google-cloud-aiplatform
+db-dtypes
+pandas
+fpdf2
