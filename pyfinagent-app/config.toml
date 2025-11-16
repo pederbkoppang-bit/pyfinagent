@@ -1,10 +1,11 @@
 [server]
 headless = true
-port = 8081
+port = 8501
 enableCORS = false
 enableXsrfProtection = false
 
 [browser]
 # This address is what the browser uses to connect.
 # In a proxied environment like this, it's automatically detected.
-# Do not set serverAddress here.
+# If auto-detection fails, you can set it to your app's public URL.
+serverAddress = "8501-cs-fbfab048-5129-44a6-a19f-7f260baaaea0.cs-europe-west4-fycr.cloudshell.dev"

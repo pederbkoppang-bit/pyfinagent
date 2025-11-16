@@ -28,6 +28,9 @@ QUANT_AGENT_URL = "https://quant-agent-afytokcdfq-uc.a.run.app/"
 
 # This is the RAG Data Store ID you just provided
 RAG_DATA_STORE_ID = "10-k-data_1762684273198_gcs_store" 
+
+# This is the generative model to be used by the agents
+GEMINI_MODEL = "gemini-1.5-pro-001"
 # --- (END OF CONFIGURATION) ---
 
 @st.cache_resource
@@ -36,6 +39,7 @@ def initialize_gcp_services():
     Initializes all GCP services and AI models.
     Using @st.cache_resource ensures this expensive operation runs only once.
     """
+    logging.info(f"Initializing models with GEMINI_MODEL: '{GEMINI_MODEL}'")
     logging.info("Initializing GCP services...")
     vertexai.init(project=PROJECT_ID, location=LOCATION)
     bq_client = bigquery.Client(project=PROJECT_ID)
@@ -48,9 +52,9 @@ def initialize_gcp_services():
         grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
     )
     market_tool = Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())
-    synthesis_model = GenerativeModel("gemini-1.5-pro")
-    rag_model = GenerativeModel("gemini-1.5-pro", tools=[rag_tool])
-    market_model = GenerativeModel("gemini-1.5-pro", tools=[market_tool])
+    synthesis_model = GenerativeModel(GEMINI_MODEL)
+    rag_model = GenerativeModel(GEMINI_MODEL, tools=[rag_tool])
+    market_model = GenerativeModel(GEMINI_MODEL, tools=[market_tool])
 
     logging.info("GCP services initialized successfully.")
     return {
@@ -63,8 +67,9 @@ def initialize_gcp_services():
 
 def main():
     """Main function to run the Streamlit application."""
-    # --- STREAMLIT UI ---
     st.set_page_config(page_title="PyFinAgent", layout="wide")
+
+    # --- STREAMLIT UI ---
     st.title("PyFinAgent: AI Financial Analyst")
     st.caption(f"A Multi-Agent AI built on the Comprehensive Financial Analysis Template")
 

@@ -1,0 +1,13 @@
+[server]
+# Tells Streamlit it is running remotely
+headless = true
+
+# Disables the checks that block proxied connections
+enableCORS = false
+enableXsrfProtection = false
+
+# Ensures the port matches the web preview
+port = 8081
+
+# The base URL path for the Streamlit app.
+baseUrlPath = "/"
