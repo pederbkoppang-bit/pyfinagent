@@ -4,15 +4,23 @@ services:
     build: .
     # The container name makes it easy to reference
     container_name: pyfinagent-app
-    ports:
-      - "8080:8080"
+    environment:
+      # This environment variable is used by Streamlit for authentication callbacks.
+      # It ensures that Streamlit knows its external URL.
+      - STREAMLIT_SERVER_ADDRESS=${WEB_HOST}
     # No need to expose ports here, as Nginx will handle traffic
     healthcheck:
       # Test that the Streamlit server is up and running.
-      test: ["CMD", "curl", "-f", "http://localhost:8080/_stcore/health"]
+      # This now points to our custom, unauthenticated healthz page.
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
+    volumes:
+      # Mount the secrets file into the container where Streamlit expects it.
+      - ./.streamlit:/app/.streamlit:ro
+    networks:
+      - pyfinagent-net
 
   # The Nginx reverse proxy service
   nginx:
@@ -22,8 +30,14 @@ services:
       # Map port 8501 on the host to port 80 in the container to match the Web Preview URL.
       - "8501:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./entrypoint.sh:/entrypoint.sh
-    entrypoint: ["/entrypoint.sh"]
-    depends_on:
-      - app
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: # This ensures nginx waits for the app to be healthy before starting
+      app:
+        condition: service_healthy
+    networks:
+      - pyfinagent-net
+
+# Define the shared network
+networks:
+  pyfinagent-net:
+    driver: bridge

@@ -13,12 +13,6 @@ from fpdf import FPDF
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- 1. CONFIGURATION (from secrets.toml) ---
-PROJECT_ID = st.secrets.gcp.project_id
-LOCATION = st.secrets.gcp.location
-QUANT_AGENT_URL = st.secrets.agent.quant_agent_url
-RAG_DATA_STORE_ID = st.secrets.agent.rag_data_store_id
-GEMINI_MODEL = st.secrets.agent.gemini_model
 
 @st.cache_resource
 def initialize_gcp_services():
@@ -26,6 +20,12 @@ def initialize_gcp_services():
     Initializes all GCP services and AI models.
     Using @st.cache_resource ensures this expensive operation runs only once.
     """
+    # Access secrets inside the function to ensure they are loaded after auth.
+    PROJECT_ID = st.secrets.gcp.project_id
+    LOCATION = st.secrets.gcp.location
+    RAG_DATA_STORE_ID = st.secrets.agent.rag_data_store_id
+    GEMINI_MODEL = st.secrets.agent.gemini_model
+
     logging.info(f"Initializing models with GEMINI_MODEL: '{GEMINI_MODEL}'")
     logging.info("Initializing GCP services...")
     vertexai.init(project=PROJECT_ID, location=LOCATION)
@@ -55,6 +55,7 @@ def initialize_gcp_services():
 def run_quant_agent(ticker: str) -> dict:
     """Executes the QuantAgent and returns the report."""
     logging.info(f"Starting QuantAgent for ticker: {ticker}")
+    QUANT_AGENT_URL = st.secrets.agent.quant_agent_url  # Access secret just-in-time
     st.session_state.status_text.text("Task 1/4: QuantAgent fetching hard financials (SEC + yfinance)...")
     
     try:
@@ -247,32 +248,11 @@ def display_report():
     with st.expander("View Full Raw Data (JSON)"):
         st.json(st.session_state.report)
 
-# The email of the authorized user
-AUTHORIZED_EMAIL = "peder.bkoppang@hotmail.no"
+# The email of the authorized user - this can also be moved to secrets if needed
+AUTHORIZED_EMAIL = "peder.bkoppang@hotmail.no" 
 
 def main():
     """Main function to run the Streamlit application."""
-    st.set_page_config(page_title="PyFinAgent", page_icon="📈", layout="wide")
-
-    # --- Authentication Check ---
-    if not st.user.is_logged_in:
-        st.title("Welcome to PyFinAgent")
-        st.write("Please log in to continue.")
-        if st.button("Log in with Google"):
-            st.login()
-        return
-
-    if st.user.email != AUTHORIZED_EMAIL:
-        st.error("Access denied. You are not an authorized user.")
-        st.write(f"You are logged in as: {st.user.email}")
-        if st.button("Log out"):
-            st.logout()
-        return
-
-    # --- Authorized Application Code ---
-    # If we get here, the user is logged in and authorized.
-
-    # --- STREAMLIT UI ---
     st.title("PyFinAgent Dashboard: AI Financial Analyst")
     st.caption(f"A Multi-Agent AI built on the Comprehensive Financial Analysis Template")
 
@@ -293,10 +273,7 @@ def main():
         return # Stop execution if services fail
 
     with st.sidebar:
-        st.write(f"Welcome, {st.user.name}!")
-        if st.button("Log out"):
-            st.logout()
-        st.divider()
+        st.info("Running in a self-hosted environment.")
 
         st.header("⚙️ Actions")
         if st.button("Clear All Caches"):
