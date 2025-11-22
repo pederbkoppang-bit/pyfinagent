@@ -4,26 +4,26 @@ steps:
   args:
   - 'build'
   - '-t'
-  - 'us-central1-docker.pkg.dev/sunny-might-477607-p8/pyfinagent/pyfinagent-app:latest'
+  - '${_LOCATION}-docker.pkg.dev/${PROJECT_ID}/pyfinagent/pyfinagent-app:latest'
   - '.'
 
 # 2. Push the container image to Artifact Registry
 - name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
-  - 'us-central1-docker.pkg.dev/sunny-might-477607-p8/pyfinagent/pyfinagent-app:latest'
+  - '${_LOCATION}-docker.pkg.dev/${PROJECT_ID}/pyfinagent/pyfinagent-app:latest'
 
-# 3. Deploy container image to Cloud Run
+# 3. Deploy container image to Cloud Run and mount secrets
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
   args:
   - 'run'
   - 'deploy'
   - 'pyfinagent-app' # The name of your Cloud Run service
-  - '--image=us-central1-docker.pkg.dev/sunny-might-477607-p8/pyfinagent/pyfinagent-app:latest'
-  - '--region=us-central1'
+  - '--region=${_LOCATION}'
+  - '--image=${_LOCATION}-docker.pkg.dev/${PROJECT_ID}/pyfinagent/pyfinagent-app:latest'
   - '--platform=managed'
   - '--allow-unauthenticated' # Use --no-allow-unauthenticated for a private service
 
-images:
-- 'us-central1-docker.pkg.dev/sunny-might-477607-p8/pyfinagent/pyfinagent-app:latest'
+options:
+  substitution_option: 'ALLOW_LOOSE'

@@ -1,15 +1,15 @@
-version: '3.3'
-
 services:
   # The Streamlit application service
   app:
     build: .
     # The container name makes it easy to reference
     container_name: pyfinagent-app
+    ports:
+      - "8080:8080"
     # No need to expose ports here, as Nginx will handle traffic
     healthcheck:
       # Test that the Streamlit server is up and running.
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/_stcore/health"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -17,8 +17,11 @@ RUN addgroup --system --gid 1001 streamlit && \
 COPY requirements.txt .
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# We install as root, which is standard and safe inside a container.
+# The --no-warn-script-location flag suppresses warnings about PATH, as we know the executables
+# will be in the system's standard /usr/local/bin.
+RUN pip install --no-cache-dir --upgrade pip && \ 
+    pip install --no-cache-dir --no-warn-script-location -r requirements.txt
 
 # Copy the rest of the application's code into the container
 COPY . .
@@ -30,4 +33,8 @@ USER streamlit
 EXPOSE 8080
 
 # Run app.py when the container launches
-CMD ["streamlit", "run", "app.py"]
+# The flags below are crucial for running Streamlit behind a reverse proxy like Nginx.
+CMD ["streamlit", "run", "app.py", \
+     "--browser.serverAddress=0.0.0.0", \
+     "--server.enableCORS=false", \
+     "--browser.gatherUsageStats=false"]
