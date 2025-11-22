@@ -9,38 +9,52 @@ from datetime import datetime
 import vertexai
 import pandas as pd
 from components.sidebar import display_sidebar
-
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-@st.cache_resource
 def initialize_gcp_services():
     """
     Initializes all GCP services and AI models.
-    Using @st.cache_resource ensures this expensive operation runs only once.
+    This function is called once per session and its results are stored in st.session_state.
     """
     # Access secrets inside the function to ensure they are loaded after auth.
-    PROJECT_ID = st.secrets.gcp.project_id
-    VERTEX_AI_LOCATION = st.secrets.gcp.vertex_ai_location
-    RAG_LOCATION = st.secrets.gcp.rag_location
+    try:
+        PROJECT_ID = st.secrets.gcp.project_id
+        LOCATION = st.secrets.gcp.vertex_ai_location
+    except AttributeError as e:
+        st.error(f"**Error:** Failed to access a required GCP secret: `{e}`")
+        st.warning(
+            "This usually means the secret is missing or misspelled in your Streamlit Cloud app settings "
+            "or your local `secrets.toml` file."
+        )
+        # Help the user debug by showing what secrets ARE available.
+        available_secrets = "Available top-level secrets: " + str(list(st.secrets.keys()))
+        gcp_secrets = "Available secrets under `[gcp]`: " + str(list(st.secrets.get('gcp', {}).keys()))
+        st.info(f"**Debugging Info:**\n\n{available_secrets}\n\n{gcp_secrets}")
+        st.stop() # Stop the app gracefully.
+
     RAG_DATA_STORE_ID = st.secrets.agent.rag_data_store_id
     GEMINI_MODEL = st.secrets.agent.gemini_model
 
     logging.info(f"Initializing models with GEMINI_MODEL: '{GEMINI_MODEL}'")
     logging.info("Initializing GCP services...")
-    vertexai.init(project=PROJECT_ID, location=VERTEX_AI_LOCATION)
+    vertexai.init(project=PROJECT_ID, location=LOCATION)
     bq_client = bigquery.Client(project=PROJECT_ID)
     st.session_state.bigquery = bigquery # Store module for use in sidebar component
     table_id = f"{PROJECT_ID}.financial_reports.analysis_results"
 
     # --- AGENT DEFINITIONS (from PyFinAgent.md canvas) ---
-    datastore_path = (f"projects/{PROJECT_ID}/locations/{RAG_LOCATION}/collections/default_collection/"
+    datastore_path = (f"projects/{PROJECT_ID}/locations/{LOCATION}/collections/default_collection/"
                       f"dataStores/{RAG_DATA_STORE_ID}")
     rag_tool = Tool.from_retrieval(
         grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
     )
-    market_tool = Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())
+    # Manually construct the tool to be compatible with the API backend's expectation.
+    # The API error "use google_search field instead" indicates we should use grounding.GoogleSearch(),
+    # and we pass this directly to the Tool constructor.
+    market_tool = Tool(google_search=grounding.GoogleSearch())
+
     synthesis_model = GenerativeModel(GEMINI_MODEL)
     rag_model = GenerativeModel(GEMINI_MODEL, tools=[rag_tool])
     market_model = GenerativeModel(GEMINI_MODEL, tools=[market_tool])
@@ -182,18 +196,25 @@ def main():
     st.title("PyFinAgent Dashboard: AI Financial Analyst")
     st.caption(f"A Multi-Agent AI built on the Comprehensive Financial Analysis Template")
 
+    # Initialize services only once per session using session_state as a flag.
     try:
-        services = initialize_gcp_services()
-        bq_client = services["bq_client"]
-        table_id = services["table_id"]
-        rag_model = services["rag_model"]
-        market_model = services["market_model"]
-        synthesis_model = services["synthesis_model"]
+        if 'gcp_services' not in st.session_state:
+            st.session_state.gcp_services = initialize_gcp_services()
+
+        services = st.session_state.gcp_services
+        bq_client = services.get("bq_client")
+        table_id = services.get("table_id")
+        rag_model = services.get("rag_model")
+        market_model = services.get("market_model")
+        synthesis_model = services.get("synthesis_model")
     except Exception as e:
         logging.error("Failed to initialize GCP services.", exc_info=True)
         st.error("Failed to initialize critical GCP services. The application cannot continue.")
         st.exception(e)
         return # Stop execution if services fail
+
+    # Display the custom sidebar components. This should be called on every page for consistency.
+    display_sidebar(bq_client, table_id, st.session_state.get("ticker"))
 
     # --- Ticker Input and Clear Button ---
     col1, col2 = st.columns([4, 1])
@@ -209,8 +230,6 @@ def main():
     # Use a form to allow submission on pressing Enter
     with st.form(key='analysis_form'):
         submitted = st.form_submit_button("Run Comprehensive Analysis")
-
-    display_sidebar(bq_client, table_id, st.session_state.ticker)
 
     # Create a placeholder for the chart that will be filled later.
     st.session_state.chart_container = st.empty()
