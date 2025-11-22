@@ -4,19 +4,21 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /app
 
+# Accept the version number as a build argument
+ARG APP_VERSION
+
 # Set environment variables for Streamlit
-ENV STREAMLIT_SERVER_PORT=8080 \
+ENV STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false \
-    STREAMLIT_SERVER_ENABLE_CORS=false
+    STREAMLIT_SERVER_ENABLE_CORS=false \
+    APP_VERSION=$APP_VERSION
 
 # Copy all application code first
 COPY requirements.txt .
 COPY synthesis_prompt.txt . 
 COPY Dashboard.py .
 COPY pages/ ./pages/
-
-# Copy the secrets file for Streamlit
-COPY .streamlit/ .streamlit/
+COPY components/ ./components/
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \ 
@@ -29,8 +31,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # USER streamlit
 
 # Expose the port the app runs on
-EXPOSE 8080
+EXPOSE 8501
 
 # Run app.py when the container launches
 # The flags below are crucial for running Streamlit behind a reverse proxy, especially for authentication.
-CMD ["streamlit", "run", "Dashboard.py", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "pages/1_🏠_Home.py", "--server.address=0.0.0.0"]

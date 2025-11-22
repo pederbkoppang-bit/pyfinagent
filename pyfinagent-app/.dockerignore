@@ -1,0 +1,7 @@
+# Docker build context exclusion file
+
+__pycache__/
+*.pyc
+
+# Exclude sensitive files from the Docker image
+service-account-key.json

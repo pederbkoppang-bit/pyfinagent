@@ -8,7 +8,7 @@ import traceback
 from datetime import datetime
 import vertexai
 import pandas as pd
-from fpdf import FPDF
+from components.sidebar import display_sidebar
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,18 +22,20 @@ def initialize_gcp_services():
     """
     # Access secrets inside the function to ensure they are loaded after auth.
     PROJECT_ID = st.secrets.gcp.project_id
-    LOCATION = st.secrets.gcp.location
+    VERTEX_AI_LOCATION = st.secrets.gcp.vertex_ai_location
+    RAG_LOCATION = st.secrets.gcp.rag_location
     RAG_DATA_STORE_ID = st.secrets.agent.rag_data_store_id
     GEMINI_MODEL = st.secrets.agent.gemini_model
 
     logging.info(f"Initializing models with GEMINI_MODEL: '{GEMINI_MODEL}'")
     logging.info("Initializing GCP services...")
-    vertexai.init(project=PROJECT_ID, location=LOCATION)
+    vertexai.init(project=PROJECT_ID, location=VERTEX_AI_LOCATION)
     bq_client = bigquery.Client(project=PROJECT_ID)
+    st.session_state.bigquery = bigquery # Store module for use in sidebar component
     table_id = f"{PROJECT_ID}.financial_reports.analysis_results"
 
     # --- AGENT DEFINITIONS (from PyFinAgent.md canvas) ---
-    datastore_path = (f"projects/{PROJECT_ID}/locations/{LOCATION}/collections/default_collection/"
+    datastore_path = (f"projects/{PROJECT_ID}/locations/{RAG_LOCATION}/collections/default_collection/"
                       f"dataStores/{RAG_DATA_STORE_ID}")
     rag_tool = Tool.from_retrieval(
         grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
@@ -122,90 +124,18 @@ def run_synthesis_agent(synthesis_model, ticker: str) -> dict:
     synthesis_response = synthesis_model.generate_content(synthesis_prompt)
     return synthesis_response
 
-@st.cache_data(ttl=3600) # Cache for 1 hour
-def get_historical_data(_bq_client, table_id: str, ticker: str):
-    """
-    Queries BigQuery for historical analysis of a given ticker.
-    The bq_client argument is prefixed with an underscore to tell Streamlit's
-    caching mechanism not to hash it.
-    """
-    if not ticker:
-        return None
-
-    logging.info(f"Fetching historical data for {ticker} from BigQuery.")
-    query = f"""
-        SELECT
-            analysis_date,
-            final_score,
-            recommendation,
-            summary
-        FROM `{table_id}`
-        WHERE ticker = @ticker
-        ORDER BY analysis_date DESC
-        LIMIT 10
-    """
-    job_config = bigquery.QueryJobConfig(
-        query_parameters=[bigquery.ScalarQueryParameter("ticker", "STRING", ticker.upper())]
-    )
-    query_job = _bq_client.query(query, job_config=job_config)
-    return query_job.to_dataframe()
-
-def generate_pdf_report(report: dict) -> bytes:
-    """Generates a PDF report from the analysis data."""
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Helvetica", "B", 16)
-
-    ticker = report.get('part_1_5_quant', {}).get('ticker', 'N/A')
-    pdf.cell(0, 10, f"PyFinAgent Analysis Report: {ticker}", 0, 1, "C")
-    pdf.ln(10)
-
-    synthesis = report.get('final_synthesis', {})
-    if synthesis:
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 10, "Executive Summary", 0, 1)
-
-        pdf.set_font("Helvetica", "", 10)
-        score = synthesis.get('final_weighted_score', 'N/A')
-        recommendation = synthesis.get('recommendation', {}).get('action', 'N/A')
-        justification = synthesis.get('recommendation', {}).get('justification', 'N/A')
-        summary = synthesis.get('final_summary', 'N/A')
-
-        pdf.multi_cell(0, 5, f"Final Score: {score} / 10")
-        pdf.multi_cell(0, 5, f"Recommendation: {recommendation}")
-        pdf.multi_cell(0, 5, f"Justification: {justification}")
-        pdf.ln(5)
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 5, "Summary:", 0, 1)
-        pdf.set_font("Helvetica", "", 10)
-        pdf.multi_cell(0, 5, summary)
-        pdf.ln(10)
-
-    def write_section(title, content_key):
-        content = report.get(content_key, {}).get('text', 'Not available.')
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 10, title, 0, 1)
-        pdf.set_font("Helvetica", "", 10)
-        # Use write() for better handling of unicode characters
-        pdf.write(5, content)
-        pdf.ln(10)
-
-    write_section("10-K Analysis (Economic Moat, Governance, Risks)", 'part_1_4_6_rag')
-    write_section("Market Analysis (Macro & Sentiment)", 'part_2_3_market')
-
-    # The FPDF library expects latin-1 encoding when outputting to a string.
-    return pdf.output(dest='S').encode('latin-1')
-
 def display_price_chart():
     """Renders a line chart of historical stock prices if available."""
     if 'report' not in st.session_state or not st.session_state.report.get('part_1_5_quant'):
         return
 
+    chart_container = st.session_state.get('chart_container')
     historical_prices = st.session_state.report['part_1_5_quant'].get('historical_prices')
-    if historical_prices:
-        st.subheader("Historical Price Chart")
+    if historical_prices and chart_container:
         price_df = pd.read_json(historical_prices, orient='split')
-        st.line_chart(price_df.set_index('Date')['Close'])
+        with chart_container.container():
+            st.subheader("Historical Price Chart")
+            st.line_chart(price_df.set_index('Date')['Close'])
 
 def display_report():
     """Renders the final analysis report in a structured and appealing layout."""
@@ -238,10 +168,6 @@ def display_report():
 
     st.divider()
 
-    # --- Final Summary & Full Report ---
-    display_price_chart()
-    st.divider()
-
     st.subheader("Final Summary")
     st.write(report_data['final_summary'])
     
@@ -256,9 +182,6 @@ def main():
     st.title("PyFinAgent Dashboard: AI Financial Analyst")
     st.caption(f"A Multi-Agent AI built on the Comprehensive Financial Analysis Template")
 
-    ticker = st.text_input("Enter Company Ticker (e.g., NVDA, AAPL):")
-
-    # Load services only when the button is pressed or on first run
     try:
         services = initialize_gcp_services()
         bq_client = services["bq_client"]
@@ -272,56 +195,44 @@ def main():
         st.exception(e)
         return # Stop execution if services fail
 
-    with st.sidebar:
-        st.info("Running in a self-hosted environment.")
+    # --- Ticker Input and Clear Button ---
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        # Use a key to automatically save the input's state across reruns and page navigations.
+        st.text_input("Enter Company Ticker (e.g., NVDA, AAPL):", key="ticker", label_visibility="collapsed", placeholder="Enter Company Ticker (e.g., NVDA, AAPL)")
+    with col2:
+        if st.button("Clear", use_container_width=True):
+            with st.spinner("Clearing..."):
+                st.session_state.ticker = ""
+            st.rerun() # Rerun to reflect the cleared state immediately
 
-        st.header("⚙️ Actions")
-        if st.button("Clear All Caches"):
-            st.cache_data.clear()
-            st.cache_resource.clear()
-            st.success("All caches have been cleared!")
+    # Use a form to allow submission on pressing Enter
+    with st.form(key='analysis_form'):
+        submitted = st.form_submit_button("Run Comprehensive Analysis")
 
-        if st.session_state.get('report', {}).get('final_synthesis'):
-            st.download_button(
-                label="Download Report as PDF",
-                data=generate_pdf_report(st.session_state.report),
-                file_name=f"PyFinAgent_Report_{st.session_state.report.get('part_1_5_quant', {}).get('ticker', 'NA')}.pdf",
-                mime="application/pdf",
-            )
+    display_sidebar(bq_client, table_id, st.session_state.ticker)
 
-        st.header("📄 Recent Reports")
-        if ticker:
-            try:
-                historical_df = get_historical_data(bq_client, table_id, ticker)
-                if not historical_df.empty:
-                    st.caption(f"Past Analysis for {ticker.upper()}")
-                    # Format date for better readability
-                    historical_df["analysis_date"] = pd.to_datetime(historical_df["analysis_date"]).dt.strftime('%Y-%m-%d %H:%M')
-                    
-                    # Rename columns for presentation
-                    display_df = historical_df.rename(columns={
-                        "analysis_date": "Date",
-                        "final_score": "Score",
-                        "recommendation": "Recommendation",
-                        "summary": "Summary"
-                    })
-                    st.dataframe(display_df, use_container_width=True, hide_index=True)
-                else:
-                    st.info(f"No historical reports found for {ticker.upper()}.")
-            except Exception as e:
-                logging.error(f"Failed to display historical data: {e}", exc_info=True)
-                st.warning("Could not load historical reports.")
+    # Create a placeholder for the chart that will be filled later.
+    st.session_state.chart_container = st.empty()
 
     st.divider()
 
-    if st.button("Run Comprehensive Analysis", disabled=(not ticker)):
+    # Run analysis only if the form was submitted and a ticker was provided
+    if submitted and st.session_state.ticker:
+        ticker = st.session_state.ticker # Use a local variable for clarity within this block
+        st.session_state.chart_container.empty() # Clear previous chart
         st.session_state.report = {}
         st.session_state.status_text = st.empty()
         
         with st.spinner("Running Analysis Pipeline..."):
+            # --- 1. Run Quant Agent First & Display Chart ---
+
             try:
-                # --- 2. AGENT EXECUTION ---
                 st.session_state.report['part_1_5_quant'] = run_quant_agent(ticker)
+                # Display the chart immediately after data is fetched
+                display_price_chart()
+
+                # --- 2. Run Remaining Agents ---
                 st.session_state.report['part_1_4_6_rag'] = run_rag_agent(rag_model, ticker)
                 st.session_state.report['part_2_3_market'] = run_market_agent(market_model, ticker)
                 
@@ -379,6 +290,9 @@ def main():
                 st.session_state.status_text.empty()
                 del st.session_state.status_text
                 
+            except ValueError as e:
+                # Catches specific errors raised by agents (like QuantAgent error)
+                st.error(str(e))
             except Exception as e:
                 logging.error(f"An error occurred during analysis for ticker '{ticker}': {e}", exc_info=True)
                 st.session_state.status_text.empty()
