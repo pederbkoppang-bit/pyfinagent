@@ -11,11 +11,39 @@ import vertexai
 import pandas as pd
 from components.sidebar import display_sidebar
 
-# --- Logging Configuration ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# --- Structured Logging Configuration ---
+
+class JsonFormatter(logging.Formatter):
+    """Formats log records into a JSON string."""
+    def format(self, record):
+        log_record = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "message": record.getMessage(),
+        }
+        # Add extra context if it exists, which we will use for agent context
+        if hasattr(record, 'context'):
+            log_record.update(record.context)
+
+        # Add exception info if it exists
+        if record.exc_info:
+            log_record['exception'] = self.formatException(record.exc_info)
+
+        return json.dumps(log_record)
+
+def setup_logging():
+    """Configures the root logger to use the JSON formatter."""
+    logger = logging.getLogger()
+    # Set to DEBUG for more verbosity, or INFO for production
+    logger.setLevel(logging.INFO)
+    if logger.hasHandlers():
+        logger.handlers.clear()
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
+    logger.addHandler(handler)
 
 # --- Page Configuration (Must be the first Streamlit command) ---
-st.set_page_config(page_title="PyFinAgent Dashboard", page_icon="🏠", layout="wide")
+st.set_page_config(page_title="Home", page_icon="🏠", layout="wide")
 
 
 def initialize_gcp_services():
@@ -100,27 +128,55 @@ def run_ingestion_agent(ticker: str):
     Triggers the ingestion agent Cloud Function to download and process
     10-K filings for a given ticker. This function is idempotent.
     """
-    logging.info(f"Starting ingestion check for ticker: {ticker}")
+    context = {"agent_name": "ingestion_agent", "ticker": ticker}
+    logging.info("Starting ingestion agent check.", extra={'context': context})
     st.session_state.status_text.text(f"Step 1/5: Checking for and ingesting 10-K filings for {ticker}...")
-    
+
     try:
         INGESTION_AGENT_URL = st.secrets.agent.ingestion_agent_url
-        # The body now includes the ticker
+        context["agent_url"] = INGESTION_AGENT_URL
         response = requests.post(INGESTION_AGENT_URL, json={'ticker': ticker}, timeout=900) # 15 min timeout
         response.raise_for_status()
         result = response.json()
-        logging.info(f"Ingestion agent for {ticker} finished: {result.get('status', 'No status returned')}")
+
+        # Add response status to context for richer logs
+        context["response_status"] = result.get('status')
+        context["response_body"] = result
+
         if result.get('status') != 'success':
-             # Log a warning but don't block the analysis, as RAG might still work with older data
-             logging.warning(f"Ingestion agent may not have completed successfully: {result}")
+            # Log a warning but don't block the analysis, as RAG might still work with older data
+            logging.warning("Ingestion agent may not have completed successfully.", extra={'context': context})
+        else:
+            logging.info("Ingestion agent finished successfully.", extra={'context': context})
+
     except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to trigger or complete ingestion for {ticker}: {e}", exc_info=True)
-        # Display a warning in the UI but allow the process to continue
-        st.warning(f"Could not ingest 10-K documents for {ticker}. Analysis will proceed, but may be incomplete.")
+        # Try to get more details from the response if available
+        error_details = "No response body."
+        if e.response is not None:
+            try:
+                error_details = e.response.json()
+            except json.JSONDecodeError:
+                error_details = e.response.text
+        context["error_details"] = error_details
+        logging.error("Failed to trigger or complete ingestion agent.", extra={'context': context}, exc_info=True)
+
+        # --- ENHANCED UI ERROR REPORTING ---
+        # Provide a clear, user-facing error message with actionable advice.
+        st.warning(
+            f"**Could not ingest 10-K documents for `{ticker}`.**\n\n"
+            "This usually means the backend ingestion agent failed. The analysis will continue with any "
+            "previously stored data, but the report may be incomplete. See details below."
+        )
+        # Use an expander to show the technical details without cluttering the UI.
+        with st.expander("Click to see technical error details"):
+            st.error(f"**Exception:** `{e}`")
+            st.write("**Response from agent (if any):**")
+            st.code(json.dumps(error_details, indent=2) if isinstance(error_details, dict) else error_details, language="json")
 
 def run_quant_agent(ticker: str) -> dict:
     """Executes the QuantAgent and returns the report."""
-    logging.info(f"Starting QuantAgent for ticker: {ticker}")
+    context = {"agent_name": "quant_agent", "ticker": ticker}
+    logging.info("Starting QuantAgent.", extra={'context': context})
     QUANT_AGENT_URL = st.secrets.agent.quant_agent_url  # Access secret just-in-time
     # Status text is now managed in the main execution block for parallel runs.
     
@@ -130,14 +186,15 @@ def run_quant_agent(ticker: str) -> dict:
         quant_report = quant_response.json()
         
         if quant_report.get("error"):
-            logging.error(f"QuantAgent returned an error: {quant_report['error']}")
+            context["error_details"] = quant_report['error']
+            logging.error("QuantAgent returned a functional error.", extra={'context': context})
             raise ValueError(f"QuantAgent Error: {quant_report['error']}")
             
-        logging.info("QuantAgent finished successfully.")
+        logging.info("QuantAgent finished successfully.", extra={'context': context})
         return quant_report
 
     except requests.exceptions.HTTPError as e:
-        logging.error(f"HTTP Error during QuantAgent execution: {e}", exc_info=True)
+        logging.error("HTTP Error during QuantAgent execution.", extra={'context': context}, exc_info=True)
         error_message = f"HTTP Error: {e}. The QuantAgent at {QUANT_AGENT_URL} failed."
         try:
             # Try to parse more specific error from function response
@@ -147,29 +204,32 @@ def run_quant_agent(ticker: str) -> dict:
             st.error(f"{error_message} Could not parse error response.")
         raise
     except requests.exceptions.RequestException as e:
-        logging.error(f"Request failed for QuantAgent: {e}", exc_info=True)
+        logging.error("Request failed for QuantAgent.", extra={'context': context}, exc_info=True)
         st.error(f"Could not connect to the QuantAgent. Please check the URL and function logs. Error: {e}")
         raise
 
 def run_rag_agent(rag_model, ticker: str) -> dict:
     """Executes the RAG_Agent for 10-K analysis."""
-    logging.info("Starting RAG_Agent for 10-K analysis.")
+    context = {"agent_name": "rag_agent", "ticker": ticker}
+    logging.info("Starting RAG_Agent for 10-K analysis.", extra={'context': context})
     rag_prompt = f"Using ONLY the provided 10-K documents, analyze the Economic Moat and Governance (exec compensation), and key 'Risk Factors' for {ticker}. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
     rag_response = rag_model.generate_content(rag_prompt)
-    logging.info("RAG_Agent finished successfully.")
+    logging.info("RAG_Agent finished successfully.", extra={'context': context})
     return {"text": rag_response.text}
 
 def run_market_agent(market_model, ticker: str) -> dict:
     """Executes the MarketAgent for news and sentiment analysis."""
-    logging.info("Starting MarketAgent for news and sentiment analysis.")
+    context = {"agent_name": "market_agent", "ticker": ticker}
+    logging.info("Starting MarketAgent for news and sentiment analysis.", extra={'context': context})
     market_prompt = f"Analyze the Macro (PESTEL) and current Market Sentiment (news, social media 'scuttlebutt') for {ticker}. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
     market_response = market_model.generate_content(market_prompt)
-    logging.info("MarketAgent finished successfully.")
+    logging.info("MarketAgent finished successfully.", extra={'context': context})
     return {"text": market_response.text}
 
 def run_synthesis_agent(synthesis_model, ticker: str) -> dict:
     """Executes the AnalystAgent to synthesize all findings."""
-    logging.info("Starting AnalystAgent for final synthesis.")
+    context = {"agent_name": "synthesis_agent", "ticker": ticker}
+    logging.info("Starting AnalystAgent for final synthesis.", extra={'context': context})
     st.session_state.status_text.text("Step 4/5: LeadAnalyst synthesizing final report...")
     
     # Dynamically load the synthesis prompt from a file
@@ -187,17 +247,62 @@ def run_synthesis_agent(synthesis_model, ticker: str) -> dict:
     return synthesis_response
 
 def display_price_chart():
-    """Renders a line chart of historical stock prices if available."""
-    if 'report' not in st.session_state or not st.session_state.report.get('part_1_5_quant'):
+    """
+    Renders a placeholder chart initially, and then fills it with historical
+    stock price data once available.
+    """
+    chart_container = st.session_state.get('chart_container')
+    if not chart_container:
         return
 
-    chart_container = st.session_state.get('chart_container')
-    historical_prices = st.session_state.report['part_1_5_quant'].get('historical_prices')
-    if historical_prices and chart_container:
-        price_df = pd.read_json(historical_prices, orient='split')
-        with chart_container.container():
-            st.subheader("Historical Price Chart")
-            st.line_chart(price_df.set_index('Date')['Close'])
+    # Check if the necessary data is available in the session state report
+    quant_data = st.session_state.get('report', {}).get('part_1_5_quant')
+    historical_prices_json = quant_data.get('historical_prices') if quant_data else None
+
+    with chart_container.container():
+        if not historical_prices_json:
+            # --- Display Placeholder Chart ---
+            st.subheader("Historical Performance")
+            # Create a dummy dataframe for the placeholder chart structure
+            placeholder_df = pd.DataFrame({
+                'Date': pd.to_datetime(['2024-01-01', '2024-01-02']),
+                'Close': [None, None],
+                'Volume': [None, None]
+            }).set_index('Date')
+            st.line_chart(placeholder_df['Close'], use_container_width=True)
+            st.bar_chart(placeholder_df['Volume'], use_container_width=True)
+            st.info("Stock chart will appear here after data is fetched.")
+            return
+
+        # --- Display Actual Chart (when data is available) ---
+        try:
+            price_df = pd.read_json(historical_prices_json, orient='split')
+            price_df['Date'] = pd.to_datetime(price_df['Date'])
+            price_df.set_index('Date', inplace=True)
+        except (ValueError, KeyError) as e:
+            logging.error(f"Could not parse historical price data: {e}")
+            st.warning("Could not display price chart. The data format may be incorrect.")
+            return
+
+        st.subheader("Historical Performance")
+
+        # --- Date Range Slider ---
+        min_date = price_df.index.min().date()
+        max_date = price_df.index.max().date()
+
+        date_range = st.slider(
+            "Select Date Range:",
+            min_value=min_date,
+            max_value=max_date,
+            value=(min_date, max_date), # Default to full range
+            format="YYYY-MM-DD"
+        )
+
+        # Filter dataframe based on slider
+        filtered_df = price_df[date_range[0]:date_range[1]]
+
+        st.line_chart(filtered_df['Close'], use_container_width=True)
+        st.bar_chart(filtered_df['Volume'], use_container_width=True)
 
 def display_report():
     """Renders the final analysis report in a structured and appealing layout."""
@@ -241,6 +346,9 @@ AUTHORIZED_EMAIL = "peder.bkoppang@hotmail.no"
 
 def main():
     """Main function to run the Streamlit application."""
+    # Setup structured logging at the start of the app.
+    setup_logging()
+
     st.title("PyFinAgent Dashboard: AI Financial Analyst")
     st.caption(f"A Multi-Agent AI built on the Comprehensive Financial Analysis Template")
 
@@ -348,16 +456,13 @@ def main():
                     st.session_state.report['part_1_4_6_rag'] = rag_future.result()
                     st.session_state.report['part_2_3_market'] = market_future.result()
 
-                logging.info("All parallel agents finished successfully.")
+                logging.info("All parallel agents (Quant, RAG, Market) have completed.")
 
                 # --- 3. Display Chart Immediately After Quant Data is Available ---
                 display_price_chart()
 
                 # --- 4. Run Synthesis Agent (Depends on previous results) ---
                 # The status text for this agent is handled inside its function.
-                synthesis_response = run_synthesis_agent(synthesis_model, ticker)
-                
-                # This is a duplicate call, let's remove it. The one above is sufficient.
                 synthesis_response = run_synthesis_agent(synthesis_model, ticker)
                 
                 # Clean up potential markdown formatting from the LLM response before parsing
@@ -370,14 +475,14 @@ def main():
 
                     final_report = json.loads(response_text)
                 except json.JSONDecodeError as e:
-                    logging.error(f"Failed to parse JSON from synthesis agent for ticker {ticker}.")
-                    logging.error(f"LLM Response Text was: {response_text}")
+                    error_context = {"ticker": ticker, "llm_response": response_text}
+                    logging.error("Failed to parse JSON from synthesis agent.", extra={'context': error_context})
                     st.error("The final analysis report returned an invalid format and could not be parsed.")
                     st.code(response_text, language="text")
                     raise e
                 
-                logging.info(f"AnalystAgent Response: {final_report}")
-                # --- 5. Final Calculation & Saving ---
+                logging.info("AnalystAgent successfully parsed.", extra={'context': {"ticker": ticker}})
+                # --- 5. Final Calculation & Saving --- #
                 # [cite: PyFinAgent.md - Python-First, Part 8]
                 scores = final_report['scoring_matrix']
                 final_score = (
@@ -389,11 +494,15 @@ def main():
                 )
                 final_report['final_weighted_score'] = round(final_score, 2)
                 st.session_state.report['final_synthesis'] = final_report
-                logging.info(f"Final weighted score calculated: {final_report['final_weighted_score']}")
+                score_context = {"ticker": ticker, "final_score": final_report['final_weighted_score']}
+                logging.info("Final weighted score calculated.", extra={'context': score_context})
                 
                 st.session_state.status_text.text("Step 5/5: Saving report to BigQuery...")
+                # Extract company name from the quant report, with a fallback.
+                company_name = st.session_state.report.get('part_1_5_quant', {}).get('company_name', 'N/A')
                 row_to_insert = {
                     "ticker": ticker,
+                    "company_name": company_name,
                     "analysis_date": datetime.now().isoformat(),
                     "final_score": final_report['final_weighted_score'],
                     "recommendation": final_report['recommendation']['action'],
@@ -402,10 +511,11 @@ def main():
                 }
                 errors = bq_client.insert_rows_json(table_id, [row_to_insert])
                 if errors:
-                    logging.error(f"Failed to write to BigQuery: {errors}")
+                    error_context = {"ticker": ticker, "bq_errors": errors}
+                    logging.error("Failed to write report to BigQuery.", extra={'context': error_context})
                     st.error(f"Failed to write to BigQuery: {errors}")
                 else:
-                    logging.info("Report successfully saved to BigQuery.")
+                    logging.info("Report successfully saved to BigQuery.", extra={'context': {"ticker": ticker}})
                 
                 st.session_state.status_text.empty()
                 del st.session_state.status_text
@@ -414,7 +524,8 @@ def main():
                 # Catches specific errors raised by agents (like QuantAgent error)
                 st.error(str(e))
             except Exception as e:
-                logging.error(f"An error occurred during analysis for ticker '{ticker}': {e}", exc_info=True)
+                error_context = {"ticker": ticker}
+                logging.error("An uncaught error occurred during the main analysis pipeline.", extra={'context': error_context}, exc_info=True)
                 st.session_state.status_text.empty()
                 st.error(f"An error occurred during analysis: {e}")
                 st.write(traceback.format_exc())

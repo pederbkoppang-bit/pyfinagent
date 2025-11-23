@@ -18,6 +18,7 @@ def get_historical_data(_bq_client, table_id: str, ticker: str):
     query = f"""
         SELECT
             analysis_date,
+            company_name,
             final_score,
             recommendation,
             summary
@@ -65,6 +66,17 @@ def generate_pdf_report(report: dict) -> bytes:
 
     return pdf.output(dest='S').encode('latin-1')
 
+def _handle_report_load(ticker, analysis_date):
+    """
+    Sets session state to trigger loading a past report on the main page.
+    """
+    st.session_state.report_to_load = {
+        "Ticker": ticker,
+        "Analysis Date": analysis_date
+    }
+    # We need to rerun the app for the main page to process this state change
+    st.rerun()
+
 def display_sidebar(bq_client, table_id, ticker):
     """Renders the sidebar with all its components."""
     with st.sidebar:
@@ -93,14 +105,22 @@ def display_sidebar(bq_client, table_id, ticker):
                 historical_df = get_historical_data(bq_client, table_id, ticker)
                 if not historical_df.empty:
                     st.caption(f"Past Analysis for {ticker.upper()}")
-                    historical_df["analysis_date"] = pd.to_datetime(historical_df["analysis_date"]).dt.strftime('%Y-%m-%d %H:%M')
-                    display_df = historical_df.rename(columns={
-                        "analysis_date": "Date",
-                        "final_score": "Score",
-                        "recommendation": "Recommendation",
-                        "summary": "Summary"
-                    })
-                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+                    # Create a header for our clickable list
+                    cols = st.columns([2, 2, 1])
+                    cols[0].markdown("**Date**")
+                    cols[1].markdown("**Company**")
+                    cols[2].markdown("**Score**")
+
+                    # Iterate over rows to create a clickable entry for each report
+                    for index, row in historical_df.iterrows():
+                        # Format date for display
+                        date_str = pd.to_datetime(row["analysis_date"]).strftime('%Y-%m-%d %H:%M')
+                        cols = st.columns([2, 2, 1, 1])
+                        cols[0].markdown(f"`{date_str}`")
+                        cols[1].write(row.get("company_name", "N/A"))
+                        cols[2].write(f"{row['final_score']:.2f}")
+                        # The button that triggers the report load
+                        cols[3].button("Load", key=f"load_{index}", on_click=_handle_report_load, args=(ticker, date_str), use_container_width=True)
                 else:
                     st.info(f"No historical reports found for {ticker.upper()}.")
             except Exception as e:

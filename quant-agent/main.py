@@ -5,6 +5,7 @@ import yfinance as yf
 import os
 import logging
 from dotenv import load_dotenv
+from google.cloud import storage
 
 # --- CONFIG ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,6 +20,10 @@ SEC_API_HEADERS = {
     'Accept-Encoding': 'gzip, deflate',
     'Host': 'data.sec.gov'
 }
+
+# --- GCP Clients (Initialized globally) ---
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME") # e.g., 'pyfinagent-filings'
+storage_client = None # Initialize as None
 
 _cik_map_cache = None
 
@@ -43,7 +48,9 @@ def get_cik_map():
         return _cik_map_cache
     except Exception as e:
         logging.error(f"Failed to fetch CIK map: {e}")
-        raise
+        # Do not raise an exception here during startup.
+        # Instead, return None and let the calling function handle the error.
+        return None
 
 def get_cik(ticker: str) -> str:
     """Gets a 10-digit CIK string for a given ticker."""
@@ -72,6 +79,77 @@ def get_latest_financial_fact(facts, fact_name, unit):
         logging.warning(f"Could not find fact '{fact_name}' with unit '{unit}'")
         return None
 
+def get_company_facts(cik_10_digit: str) -> dict:
+    """
+    Retrieves company facts. First, it tries to load from GCS bucket where
+    ingestion-agent should have placed it. If it fails, it falls back to
+    fetching directly from the SEC API.
+    """
+    # Try to fetch from GCS first
+    global storage_client
+    if storage_client is None:
+        logging.info("Initializing Google Cloud Storage client...")
+        storage_client = storage.Client()
+
+    if GCS_BUCKET_NAME:
+        try:
+            gcs_path = f"sec-filings/CIK{cik_10_digit}/companyfacts.json"
+            logging.info(f"Attempting to load company facts from GCS: gs://{GCS_BUCKET_NAME}/{gcs_path}")
+            bucket = storage_client.bucket(GCS_BUCKET_NAME)
+            blob = bucket.blob(gcs_path)
+            if blob.exists():
+                facts_json = blob.download_as_string()
+                logging.info("Successfully loaded company facts from GCS.")
+                return json.loads(facts_json)
+            else:
+                logging.warning("companyfacts.json not found in GCS. Falling back to SEC API.")
+        except Exception as e:
+            logging.error(f"Failed to load from GCS, falling back to SEC API. Error: {e}", exc_info=True)
+
+    # Fallback to SEC API
+    logging.info(f"Fetching company facts directly from SEC API for CIK{cik_10_digit}.")
+    facts_url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_10_digit}.json"
+    response = requests.get(facts_url, headers=SEC_API_HEADERS)
+    response.raise_for_status()
+    facts = response.json()
+    logging.info("Successfully fetched company facts from SEC API.")
+    return facts
+
+def get_historical_prices(ticker_str: str, cik_10_digit: str) -> str:
+    """
+    Retrieves 5 years of historical stock prices. First, it tries to load from a
+    pre-processed JSON file in the GCS bucket. If it fails, it falls back to
+    fetching live data from yfinance.
+    """
+    # Try to fetch from GCS first
+    global storage_client
+    if storage_client is None:
+        logging.info("Initializing Google Cloud Storage client...")
+        storage_client = storage.Client()
+
+    if GCS_BUCKET_NAME:
+        try:
+            # Assuming ingestion-agent saves prices at this conventional path
+            gcs_path = f"sec-filings/CIK{cik_10_digit}/historical_prices.json"
+            logging.info(f"Attempting to load historical prices from GCS: gs://{GCS_BUCKET_NAME}/{gcs_path}")
+            bucket = storage_client.bucket(GCS_BUCKET_NAME)
+            blob = bucket.blob(gcs_path)
+            if blob.exists():
+                prices_json_string = blob.download_as_string().decode('utf-8')
+                logging.info("Successfully loaded historical prices from GCS.")
+                return prices_json_string
+            else:
+                logging.warning("historical_prices.json not found in GCS. Falling back to yfinance.")
+        except Exception as e:
+            logging.error(f"Failed to load prices from GCS, falling back to yfinance. Error: {e}", exc_info=True)
+
+    # Fallback to yfinance API
+    logging.info(f"Fetching 5-year historical prices from yfinance for {ticker_str}.")
+    stock = yf.Ticker(ticker_str)
+    hist_data = stock.history(period="5y").reset_index()
+    hist_data['Date'] = hist_data['Date'].dt.strftime('%Y-%m-%d')
+    return hist_data.to_json(orient="split", date_format="iso")
+
 # --- AGENT MAIN FUNCTION ---
 @functions_framework.http
 def quant_agent(request):
@@ -99,11 +177,8 @@ def quant_agent(request):
         # [cite: Comprehensive Financial Analysis Template.pdf.pdf, Part 1.1]
         logging.info(f"QuantAgent: Fetching SEC facts for {ticker_str}...")
         cik_10_digit = get_cik(ticker_str.upper())
-        # [FIX] Corrected the f-string URL
-        facts_url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_10_digit}.json"
-        response = requests.get(facts_url, headers=SEC_API_HEADERS)
-        response.raise_for_status()
-        facts = response.json()
+        facts = get_company_facts(cik_10_digit)
+        historical_prices_json = get_historical_prices(ticker_str, cik_10_digit)
 
         latest_revenue = get_latest_financial_fact(facts, 'Revenues', 'USD')
         latest_net_income = get_latest_financial_fact(facts, 'NetIncomeLoss', 'USD')
@@ -113,7 +188,7 @@ def quant_agent(request):
         report = {
             "ticker": ticker_str,
             "cik": cik_10_digit,
-            "entity_name": facts.get('entityName', 'N/A'),
+            "company_name": facts.get('entityName', 'N/A'),
 
             "part_1_financials": {
                 "source": "SEC EDGAR API (/api/xbrl/companyfacts/)",
@@ -126,7 +201,8 @@ def quant_agent(request):
                 "market_cap": market_cap,
                 "pe_ratio": pe_ratio,
                 "ps_ratio": ps_ratio,
-                "latest_eps_diluted": latest_eps_diluted
+                "latest_eps_diluted": latest_eps_diluted,
+                "historical_prices": historical_prices_json
             }
         }
         # Return the report as a JSON response

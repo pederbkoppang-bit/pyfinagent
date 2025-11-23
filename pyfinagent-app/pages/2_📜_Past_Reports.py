@@ -25,14 +25,42 @@ def load_and_display_reports():
         st.stop()
 
     try:
+        # --- Sorting Controls ---
+        st.sidebar.subheader("Table Sorting")
+        column_mapping = {
+            "Analysis Date": "analysis_date",
+            "Ticker": "ticker",
+            "Company Name": "company_name",
+            "Final Score": "final_score",
+            "Recommendation": "recommendation"
+        }
+        
+        sort_column_display = st.sidebar.selectbox(
+            "Sort by:",
+            options=list(column_mapping.keys()),
+            index=0, # Default to 'Analysis Date'
+            key='sort_column'
+        )
+        sort_order = st.sidebar.radio(
+            "Order:",
+            options=["Descending", "Ascending"],
+            index=0, # Default to 'Descending'
+            key='sort_order',
+            horizontal=True
+        )
+
+        sort_column_db = column_mapping[sort_column_display]
+        sort_order_sql = "DESC" if sort_order == "Descending" else "ASC"
+
         query = f"""
             SELECT
                 ticker,
+                company_name,
                 analysis_date,
                 final_score,
                 recommendation
             FROM `{table_id}`
-            ORDER BY analysis_date DESC
+            ORDER BY {sort_column_db} {sort_order_sql}
         """
         query_job = bq_client.query(query)
         reports_df = query_job.to_dataframe()
@@ -45,16 +73,32 @@ def load_and_display_reports():
         reports_df['analysis_date'] = pd.to_datetime(reports_df['analysis_date']).dt.strftime('%Y-%m-%d %H:%M:%S')
         reports_df = reports_df.rename(columns={
             "ticker": "Ticker",
+            "company_name": "Company Name",
             "analysis_date": "Analysis Date",
             "final_score": "Final Score",
             "recommendation": "Recommendation"
         })
 
+        # --- Search/Filter Bar ---
+        search_query = st.text_input(
+            "Search by Ticker or Company Name:",
+            placeholder="e.g., AAPL or Apple Inc."
+        )
+
+        if search_query:
+            search_query_lower = search_query.lower()
+            filtered_df = reports_df[
+                reports_df['Ticker'].str.lower().str.contains(search_query_lower) |
+                reports_df['Company Name'].str.lower().str.contains(search_query_lower)
+            ]
+        else:
+            filtered_df = reports_df
+
         st.info("Click on a row to select a report, then click the button below to view it on the Home page.")
         
         # Use st.data_editor to make rows selectable
         selected_row = st.data_editor(
-            reports_df,
+            filtered_df, # Display the filtered dataframe
             hide_index=True,
             use_container_width=True,
             num_rows="dynamic",
@@ -62,16 +106,52 @@ def load_and_display_reports():
             key="report_editor"
         )
 
-        if st.button("View Selected Report on Home Page", use_container_width=True):
+        # --- Action Buttons ---
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("View Selected Report on Home Page", use_container_width=True):
+                # Get the index of the selected row from the editor's state
+                selected_indices = st.session_state.report_editor.get("edited_rows", {})
+                if not selected_indices:
+                    st.warning("Please click on a row in the table to select a report first.")
+                else:
+                    # We only care about the first selection
+                    selected_index = list(selected_indices.keys())[0]
+                    # Get the correct report data from the potentially filtered dataframe
+                    st.session_state.report_to_load = filtered_df.iloc[selected_index].to_dict()
+                    # Navigate to the main Home page to load the report
+                    st.switch_page("Home.py")
+        
+        with col2:
+            if st.button("Delete Selected Report", use_container_width=True, type="primary"):
+                st.session_state.show_delete_confirmation = True
+
+        # --- Delete Confirmation Modal ---
+        if st.session_state.get("show_delete_confirmation"):
             # Get the index of the selected row from the editor's state
             selected_indices = st.session_state.report_editor.get("edited_rows", {})
             if not selected_indices:
                 st.warning("Please click on a row in the table to select a report first.")
+                st.session_state.show_delete_confirmation = False # Reset state
             else:
-                # We only care about the first selection
-                selected_index = list(selected_indices.keys())[0]
-                st.session_state.report_to_load = reports_df.iloc[selected_index].to_dict()
-                st.switch_page("pages/1_🏠_Home.py")
+                with st.warning("Are you sure you want to delete this report? This action cannot be undone."):
+                    c1, c2 = st.columns(2)
+                    if c1.button("Yes, Delete", use_container_width=True):
+                        selected_index = list(selected_indices.keys())[0]
+                        report_to_delete = filtered_df.iloc[selected_index]
+                        
+                        delete_query = f"""
+                            DELETE FROM `{table_id}`
+                            WHERE ticker = '{report_to_delete['Ticker']}' 
+                            AND analysis_date = TIMESTAMP('{report_to_delete['Analysis Date']}')
+                        """
+                        bq_client.query(delete_query).result() # Execute and wait for completion
+                        st.success(f"Report for {report_to_delete['Ticker']} from {report_to_delete['Analysis Date']} has been deleted.")
+                        st.session_state.show_delete_confirmation = False
+                        st.rerun() # Refresh the page to show the updated table
+                    if c2.button("No, Cancel", use_container_width=True):
+                        st.session_state.show_delete_confirmation = False
+                        st.rerun()
 
     except NotFound:
         st.error(f"The table `{table_id}` was not found. Please ensure it exists and you have permissions.")

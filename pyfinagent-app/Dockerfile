@@ -17,7 +17,7 @@ ENV STREAMLIT_SERVER_PORT=8501 \
 # Copy all application code first
 COPY requirements.txt .
 COPY synthesis_prompt.txt . 
-COPY Dashboard.py .
+COPY Home.py .
 COPY pages/ ./pages/
 COPY components/ ./components/
 
@@ -36,4 +36,4 @@ EXPOSE 8501
 
 # Run app.py when the container launches
 # The flags below are crucial for running Streamlit behind a reverse proxy, especially for authentication.
-CMD ["streamlit", "run", "pages/1_🏠_Home.py", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "Home.py", "--server.address=0.0.0.0"]

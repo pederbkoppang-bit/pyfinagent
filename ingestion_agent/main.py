@@ -2,16 +2,40 @@ import os
 import json
 import re
 import logging
+import sys
 import requests
-import base64
 from datetime import datetime
 from dotenv import load_dotenv
 from google.cloud import storage
 from google.api_core import exceptions as gcp_exceptions
 from bs4 import BeautifulSoup
+import functions_framework
+
+# --- STRUCTURED LOGGING (for Google Cloud Logging) ---
+class JsonFormatter(logging.Formatter):
+    """Formats log records into a JSON string compatible with Cloud Logging."""
+    def format(self, record):
+        log_record = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "severity": record.levelname,
+            "message": record.getMessage(),
+            "json_payload": {}
+        }
+        if hasattr(record, 'context'):
+            log_record['json_payload'] = record.context
+        if record.exc_info:
+            log_record['exception'] = self.formatException(record.exc_info)
+        return json.dumps(log_record)
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+if logger.hasHandlers():
+    logger.handlers.clear()
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(JsonFormatter())
+logger.addHandler(handler)
 
 # --- CONFIGURATION ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 load_dotenv()
 
 # SEC provides a JSON mapping of all tickers to CIKs
@@ -22,7 +46,7 @@ BUCKET_NAME = "10k-filling-data"
 USER_AGENT_EMAIL = os.getenv("USER_AGENT_EMAIL")
 
 if not USER_AGENT_EMAIL:
-    logging.warning("USER_AGENT_EMAIL not set in .env file. Using placeholder.")
+    logger.warning("USER_AGENT_EMAIL not set in .env file. Using placeholder.")
     # Fallback to the email you provided, but .env is the best practice
     USER_AGENT_EMAIL = "peder.bkoppang@hotmail.no"
 
@@ -47,7 +71,7 @@ def get_cik_map():
     if _cik_map_cache:
         return _cik_map_cache
 
-    logging.info("Fetching and processing SEC CIK map (this happens once)...")
+    logger.info("Fetching and processing SEC CIK map (this happens once)...")
     try:
         # Use a standard requests User-Agent for this public file
         headers = {'User-Agent': f"PyFinAgent {USER_AGENT_EMAIL}"}
@@ -60,10 +84,10 @@ def get_cik_map():
             item['ticker']: str(item['cik_str']).zfill(10)
             for item in company_data.values()
         }
-        logging.info("Successfully processed and cached CIK map.")
+        logger.info("Successfully processed and cached CIK map.")
         return _cik_map_cache
     except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to fetch CIK map from SEC: {e}")
+        logger.error(f"Failed to fetch CIK map from SEC: {e}")
         raise
 
 def get_cik(ticker: str) -> str:
@@ -72,14 +96,14 @@ def get_cik(ticker: str) -> str:
     cik = cik_map.get(ticker.upper())
     if not cik:
         raise ValueError(f"Ticker {ticker} not found in SEC CIK mapping.")
-    logging.info(f"Found CIK for {ticker}: {cik}")
+    logger.info(f"Found CIK for {ticker}: {cik}")
     return cik
 
 # --- CORE API FUNCTIONS ---
 
 def get_filings_for_last_10_years(cik: str, forms: list[str]) -> list[tuple[str, str, str, str]]:
-    """Gets direct URLs and info for all filings of specified forms from the last 10 years."""
-    logging.info(f"Finding all {', '.join(forms)} filings from the last 10 years for CIK:{cik}...")
+    """Gets direct URLs and info for all filings of specified forms from the last 10 years."""    
+    logger.info(f"Finding all {', '.join(forms)} filings from the last 10 years for CIK:{cik}...")
     base_url = "https://data.sec.gov/submissions/"
     current_year = datetime.now().year
     ten_years_ago = current_year - 10
@@ -99,10 +123,10 @@ def get_filings_for_last_10_years(cik: str, forms: list[str]) -> list[tuple[str,
             # If this date is before our 10-year cutoff, we can stop fetching.
             filing_to_year = int(file_info['filingTo'].split('-')[0])
             if filing_to_year < ten_years_ago:
-                logging.info(f"Stopping historical data fetch; {file_info['name']} is older than 10 years.")
+                logger.info(f"Stopping historical data fetch; {file_info['name']} is older than 10 years.")
                 break
             file_url = f"{base_url}{file_info['name']}"
-            logging.info(f"Fetching historical data from {file_url}...")
+            logger.info(f"Fetching historical data from {file_url}...")
             paginated_response = requests.get(file_url, headers=SEC_API_HEADERS)
             paginated_response.raise_for_status()
             all_filings_data.append(paginated_response.json())
@@ -123,7 +147,7 @@ def get_filings_for_last_10_years(cik: str, forms: list[str]) -> list[tuple[str,
             if form_type in forms and filing_year >= ten_years_ago:
                 acc_no_clean = acc_num.replace('-', '')
                 file_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_clean}/{doc_name}"
-                logging.info(f"Found {form_type} document from {filing_year}: {doc_name}")
+                logger.info(f"Found {form_type} document from {filing_year}: {doc_name}")
                 filing_details.append((file_url, doc_name, filing_date, form_type))
 
     if not filing_details:
@@ -134,12 +158,12 @@ def get_filings_for_last_10_years(cik: str, forms: list[str]) -> list[tuple[str,
 
 def get_company_facts(cik: str) -> dict:
     """Fetches company facts (financial data from XBRL) from the SEC API."""
-    logging.info(f"Fetching company facts for CIK:{cik}...")
+    logger.info(f"Fetching company facts for CIK:{cik}...")
     url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
     response = requests.get(url, headers=SEC_API_HEADERS)
     response.raise_for_status()
     facts = response.json()
-    logging.info(f"Successfully fetched company facts for {facts.get('entityName', 'CIK ' + cik)}.")
+    logger.info(f"Successfully fetched company facts for {facts.get('entityName', 'CIK ' + cik)}.")
     return facts
 
 
@@ -154,7 +178,7 @@ def parse_filing_into_sections(html_content: str) -> dict:
     """
     Parses an SEC filing's HTML to extract and clean text from major sections (Items).
     """
-    logging.info("Parsing filing into semantic sections...")
+    logger.info("Parsing filing into semantic sections...")
     parser = 'lxml-xml' if '<?xml' in html_content.lower()[:100] else 'lxml'
     soup = BeautifulSoup(html_content, parser)
     # Regex to find lines that start with "Item" followed by a number/letter.
@@ -174,12 +198,12 @@ def parse_filing_into_sections(html_content: str) -> dict:
     if not matches:
         # If no matches are found, it's possible the entire document is the content.
         # As a fallback, we'll save the whole cleaned text under a generic key.
-        logging.warning("No section headers found with regex. Saving entire document content as a fallback.")
+        logger.warning("No section headers found with regex. Saving entire document content as a fallback.")
         cleaned_full_text = clean_text(full_text)
         if cleaned_full_text:
             return {"document_content": cleaned_full_text}
         else:
-            logging.warning("No text content found after cleaning. Skipping.")
+            logger.warning("No text content found after cleaning. Skipping.")
             return {}
 
     sections = {}
@@ -204,14 +228,14 @@ def parse_filing_into_sections(html_content: str) -> dict:
 
 def upload_from_url_to_gcs(storage_client: storage.Client, file_url: str, ticker: str, doc_name: str, filing_date: str, form_type: str):
     """Downloads, parses, and uploads a filing as a structured JSON to GCS."""
-    logging.info(f"Processing {doc_name} for GCS upload...")
+    logger.info(f"Processing {doc_name} for GCS upload...")
     bucket = storage_client.bucket(BUCKET_NAME)
     # Change the extension to .json as we are saving structured data
     blob_name = f"{ticker}/{form_type}_{filing_date}_{os.path.splitext(doc_name)[0]}.json"
     blob = bucket.blob(blob_name)
 
     if blob.exists():
-        logging.info(f"File {blob_name} already exists in GCS. Skipping.")
+        logger.info(f"File {blob_name} already exists in GCS. Skipping.", extra={'context': {'blob_name': blob_name}})
         return
 
     response = requests.get(file_url, headers=SEC_DOWNLOAD_HEADERS)
@@ -221,7 +245,7 @@ def upload_from_url_to_gcs(storage_client: storage.Client, file_url: str, ticker
     sections = parse_filing_into_sections(response.text)
 
     if not sections:
-        logging.warning(f"Could not parse any sections for {doc_name}. Skipping upload.")
+        logger.warning(f"Could not parse any sections for {doc_name}. Skipping upload.")
         return
 
     # Create the final JSON object with metadata
@@ -237,24 +261,24 @@ def upload_from_url_to_gcs(storage_client: storage.Client, file_url: str, ticker
     # Upload the structured data as a JSON file
     blob.upload_from_string(json.dumps(output_data, indent=2), content_type='application/json')
 
-    logging.info(f"Successfully uploaded structured JSON to gs://{BUCKET_NAME}/{blob_name}")
+    logger.info(f"Successfully uploaded structured JSON to gs://{BUCKET_NAME}/{blob_name}")
 
 def upload_json_to_gcs(storage_client: storage.Client, data: dict, ticker: str):
     """Uploads a JSON object to GCS."""
     cik = data.get('cik')
     entity_name = data.get('entityName', '').replace(' ', '_')
     blob_name = f"{ticker}/company_facts_{cik}.json"
-    logging.info(f"Uploading company facts for {entity_name} to GCS...")
+    logger.info(f"Uploading company facts for {entity_name} to GCS...")
 
     bucket = storage_client.bucket(BUCKET_NAME)
     blob = bucket.blob(blob_name)
 
     if blob.exists():
-        logging.info(f"File {blob_name} already exists in GCS. Skipping.")
+        logger.info(f"File {blob_name} already exists in GCS. Skipping.")
         return
 
     blob.upload_from_string(json.dumps(data, indent=2), content_type='application/json')
-    logging.info(f"Successfully uploaded to gs://{BUCKET_NAME}/{blob_name}")
+    logger.info(f"Successfully uploaded to gs://{BUCKET_NAME}/{blob_name}")
 
 
 def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str], limit: int):
@@ -266,7 +290,7 @@ def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]
         # 2. Get the latest 10-K/10-Q filing and upload the document
         all_filings = get_filings_for_last_10_years(cik, forms)[:limit]
         if not all_filings:
-            logging.warning(f"No filings found for {ticker} within the specified parameters.")
+            logger.warning(f"No filings found for {ticker} within the specified parameters.")
             return
         for file_url, doc_name, filing_date, form_type in all_filings:
             upload_from_url_to_gcs(storage_client, file_url, ticker, doc_name, filing_date, form_type)
@@ -277,46 +301,48 @@ def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]
         # 4. Upload the JSON data to GCS
         upload_json_to_gcs(storage_client, facts, ticker)
 
-        logging.info(f"Successfully processed SEC filings and facts for {ticker}.")
+        logger.info(f"Successfully processed SEC filings and facts for {ticker}.")
     except gcp_exceptions.NotFound:
-        logging.error(f"Upload failed for {ticker}: Bucket '{BUCKET_NAME}' not found.")
+        logger.error(f"Upload failed for {ticker}: Bucket '{BUCKET_NAME}' not found.")
+        raise # Re-raise to signal a server error
     except (requests.exceptions.RequestException, FileNotFoundError, ValueError) as e:
-        logging.error(f"An unexpected error occurred while processing {ticker}: {e}", exc_info=True) # Added exc_info=True
+        logger.error(f"An unexpected error occurred while processing {ticker}: {e}", exc_info=True)
+        raise # Re-raise to signal a server error
 
-def ingest_tickers_pubsub(event, context):
-    """
-    Cloud Function entry point triggered by a Pub/Sub message.
-    The message payload should be a JSON object like:
-    {
-        "tickers": ["AAPL", "GOOG"],
-        "forms": ["10-K", "10-Q"],
-        "limit": 2
-    }
-    """
+@functions_framework.http
+def ingestion_agent_http(request):
+    """HTTP Cloud Function entry point."""
     if not BUCKET_NAME:
-        logging.error("GCS_BUCKET_NAME must be set.")
-        return
+        logger.critical("FATAL: BUCKET_NAME environment variable is not set.")
+        return ({"status": "error", "message": "Server configuration error."}, 500)
 
-    logging.info(f"SEC API User-Agent set to: 'PyFinAgent {USER_AGENT_EMAIL}'")
-    logging.info(f"Target GCS Bucket: 'gs://{BUCKET_NAME}'")
+    if request.method != 'POST':
+        return ('Method Not Allowed', 405)
 
-    # Decode the Pub/Sub message
-    if 'data' in event:
-        try:
-            # Data is base64-encoded
-            message_data = base64.b64decode(event['data']).decode('utf-8')
-            payload = json.loads(message_data)
-            tickers = payload.get('tickers', [])
-            forms = payload.get('forms', ['10-K', '10-Q'])
-            limit = payload.get('limit', 5)
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            logging.error(f"Failed to decode Pub/Sub message: {e}")
-            return
-    else:
-        logging.warning("No data in Pub/Sub event. Nothing to process.")
-        return
+    try:
+        request_json = request.get_json(silent=True)
+        if not request_json or 'ticker' not in request_json:
+            logger.error("Invalid request: Missing 'ticker' in JSON body.")
+            return ({"status": "error", "message": "Invalid request: 'ticker' is required."}, 400)
 
-    storage_client = storage.Client()
+        ticker = request_json['ticker'].strip().upper()
+        context = {"ticker": ticker, "agent": "ingestion-agent"}
+        logger.info("Ingestion agent triggered.", extra={'context': context})
 
-    for ticker in tickers:
-        process_ticker(ticker.strip().upper(), storage_client, forms, limit)
+        # Define which forms to fetch and how many of each.
+        # Fetch both 10-K (annual) and 10-Q (quarterly) filings.
+        forms_to_fetch = ['10-K', '10-Q']
+        # Set a high limit to ensure all filings from the last 10 years are retrieved.
+        filing_limit = 50 
+
+        storage_client = storage.Client()
+        process_ticker(ticker, storage_client, forms_to_fetch, filing_limit)
+
+        logger.info("Ingestion process completed successfully.", extra={'context': context})
+        return ({"status": "success", "message": f"Ingestion completed for {ticker}."}, 200)
+
+    except Exception as e:
+        # The process_ticker function now re-raises exceptions, so we catch them here.
+        logger.critical("An unhandled exception occurred during the ingestion process.", exc_info=True)
+        # Return a generic 500 error to the client to avoid leaking implementation details.
+        return ({"status": "error", "message": "An internal server error occurred."}, 500)

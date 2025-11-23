@@ -2,3 +2,4 @@ functions-framework
 requests
 yfinance
 python-dotenv
+google-cloud-storage
