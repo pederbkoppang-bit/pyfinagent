@@ -5,12 +5,17 @@ import json
 from google.cloud import bigquery
 from vertexai.generative_models import GenerativeModel, Tool, grounding
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import vertexai
 import pandas as pd
 from components.sidebar import display_sidebar
+
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# --- Page Configuration (Must be the first Streamlit command) ---
+st.set_page_config(page_title="PyFinAgent Dashboard", page_icon="🏠", layout="wide")
 
 
 def initialize_gcp_services():
@@ -39,21 +44,43 @@ def initialize_gcp_services():
 
     logging.info(f"Initializing models with GEMINI_MODEL: '{GEMINI_MODEL}'")
     logging.info("Initializing GCP services...")
+    # Log the SDK version for easier troubleshooting of version-specific issues.
+    if hasattr(vertexai, '__version__'):
+        logging.info(f"Using google-cloud-aiplatform SDK version: {vertexai.__version__}")
+
     vertexai.init(project=PROJECT_ID, location=LOCATION)
     bq_client = bigquery.Client(project=PROJECT_ID)
     st.session_state.bigquery = bigquery # Store module for use in sidebar component
     table_id = f"{PROJECT_ID}.financial_reports.analysis_results"
 
     # --- AGENT DEFINITIONS (from PyFinAgent.md canvas) ---
-    datastore_path = (f"projects/{PROJECT_ID}/locations/{LOCATION}/collections/default_collection/"
+    # For global datastores used with models in us-central1, the datastore path must explicitly use "global".
+    # The LOCATION variable is for the model endpoint, not necessarily the datastore's location.
+    datastore_path = (f"projects/{PROJECT_ID}/locations/global/collections/default_collection/"
                       f"dataStores/{RAG_DATA_STORE_ID}")
     rag_tool = Tool.from_retrieval(
         grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
     )
-    # Manually construct the tool to be compatible with the API backend's expectation.
-    # The API error "use google_search field instead" indicates we should use grounding.GoogleSearch(),
-    # and we pass this directly to the Tool constructor.
-    market_tool = Tool(google_search=grounding.GoogleSearch())
+
+    # --- Robust Google Search Tool Initialization for Different SDK Versions ---
+    # The `google-cloud-aiplatform` SDK has inconsistencies across versions.
+    # - Newer SDKs use `Tool.from_google_search()`.
+    # - Older SDKs use `Tool.from_google_search_retrieval()`.
+    # - The API backend *requires* the tool object to have a `google_search` attribute.
+    # This logic handles all cases: it tries the modern method, falls back to the
+    # legacy one, and then *always* patches the object to ensure it has the correct
+
+    # `google_search` attribute for API compatibility. After multiple attempts, it's clear
+    # that patching the object after creation is unreliable.
+    # The definitive solution is to construct the tool from a dictionary, which
+    # bypasses the inconsistent factory methods (`from_google_search...`) and ensures
+    # the object is created with the exact structure the API backend requires.
+    logging.info("Initializing Google Search tool using Tool.from_dict for maximum compatibility.")
+    tool_dict = {
+        "google_search": {} # The presence of this key enables Google Search.
+    }
+    market_tool = Tool.from_dict(tool_dict)
+    logging.info("Successfully created Google Search tool from dictionary.")
 
     synthesis_model = GenerativeModel(GEMINI_MODEL)
     rag_model = GenerativeModel(GEMINI_MODEL, tools=[rag_tool])
@@ -68,11 +95,34 @@ def initialize_gcp_services():
         "synthesis_model": synthesis_model
     }
 
+def run_ingestion_agent(ticker: str):
+    """
+    Triggers the ingestion agent Cloud Function to download and process
+    10-K filings for a given ticker. This function is idempotent.
+    """
+    logging.info(f"Starting ingestion check for ticker: {ticker}")
+    st.session_state.status_text.text(f"Step 1/5: Checking for and ingesting 10-K filings for {ticker}...")
+    
+    try:
+        INGESTION_AGENT_URL = st.secrets.agent.ingestion_agent_url
+        # The body now includes the ticker
+        response = requests.post(INGESTION_AGENT_URL, json={'ticker': ticker}, timeout=900) # 15 min timeout
+        response.raise_for_status()
+        result = response.json()
+        logging.info(f"Ingestion agent for {ticker} finished: {result.get('status', 'No status returned')}")
+        if result.get('status') != 'success':
+             # Log a warning but don't block the analysis, as RAG might still work with older data
+             logging.warning(f"Ingestion agent may not have completed successfully: {result}")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to trigger or complete ingestion for {ticker}: {e}", exc_info=True)
+        # Display a warning in the UI but allow the process to continue
+        st.warning(f"Could not ingest 10-K documents for {ticker}. Analysis will proceed, but may be incomplete.")
+
 def run_quant_agent(ticker: str) -> dict:
     """Executes the QuantAgent and returns the report."""
     logging.info(f"Starting QuantAgent for ticker: {ticker}")
     QUANT_AGENT_URL = st.secrets.agent.quant_agent_url  # Access secret just-in-time
-    st.session_state.status_text.text("Task 1/4: QuantAgent fetching hard financials (SEC + yfinance)...")
+    # Status text is now managed in the main execution block for parallel runs.
     
     try:
         quant_response = requests.get(f"{QUANT_AGENT_URL}?ticker={ticker}", timeout=300)
@@ -104,7 +154,6 @@ def run_quant_agent(ticker: str) -> dict:
 def run_rag_agent(rag_model, ticker: str) -> dict:
     """Executes the RAG_Agent for 10-K analysis."""
     logging.info("Starting RAG_Agent for 10-K analysis.")
-    st.session_state.status_text.text("Task 2/4: RAG_Agent analyzing 10-K filings...")
     rag_prompt = f"Using ONLY the provided 10-K documents, analyze the Economic Moat and Governance (exec compensation), and key 'Risk Factors' for {ticker}. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
     rag_response = rag_model.generate_content(rag_prompt)
     logging.info("RAG_Agent finished successfully.")
@@ -113,7 +162,6 @@ def run_rag_agent(rag_model, ticker: str) -> dict:
 def run_market_agent(market_model, ticker: str) -> dict:
     """Executes the MarketAgent for news and sentiment analysis."""
     logging.info("Starting MarketAgent for news and sentiment analysis.")
-    st.session_state.status_text.text("Task 3/4: MarketAgent scanning news/sentiment...")
     market_prompt = f"Analyze the Macro (PESTEL) and current Market Sentiment (news, social media 'scuttlebutt') for {ticker}. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
     market_response = market_model.generate_content(market_prompt)
     logging.info("MarketAgent finished successfully.")
@@ -122,7 +170,7 @@ def run_market_agent(market_model, ticker: str) -> dict:
 def run_synthesis_agent(synthesis_model, ticker: str) -> dict:
     """Executes the AnalystAgent to synthesize all findings."""
     logging.info("Starting AnalystAgent for final synthesis.")
-    st.session_state.status_text.text("Task 4/4: LeadAnalyst synthesizing final report...")
+    st.session_state.status_text.text("Step 4/5: LeadAnalyst synthesizing final report...")
     
     # Dynamically load the synthesis prompt from a file
     with open("synthesis_prompt.txt", "r") as f:
@@ -216,6 +264,45 @@ def main():
     # Display the custom sidebar components. This should be called on every page for consistency.
     display_sidebar(bq_client, table_id, st.session_state.get("ticker"))
 
+    # --- Logic to Load a Selected Past Report ---
+    # This block is triggered by navigating from the 'Past Reports' page
+    if 'report_to_load' in st.session_state:
+        report_info = st.session_state.report_to_load
+        # Clear the trigger state
+        del st.session_state.report_to_load
+
+        with st.spinner(f"Loading report for {report_info['Ticker']} from {report_info['Analysis Date']}..."):
+            try:
+                # Extract ticker and date from the report info dictionary
+                ticker = report_info['Ticker']
+                # The date is already a string, convert it to a datetime object for the query
+                analysis_date_obj = pd.to_datetime(report_info['Analysis Date'])
+                
+                # Query for the full JSON report
+                query = f"""
+                    SELECT full_report_json FROM `{table_id}`
+                    WHERE ticker = @ticker AND TIMESTAMP_TRUNC(analysis_date, MINUTE) = @analysis_date
+                    LIMIT 1
+                """
+                job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
+                        bigquery.ScalarQueryParameter("analysis_date", "DATETIME", analysis_date_obj),
+                    ]
+                )
+                query_job = bq_client.query(query, job_config=job_config)
+                result = list(query_job.result())
+                
+                # The BigQuery client might auto-parse the JSON column into a dict.
+                # If not, it will be a string that needs parsing. This handles both cases.
+                retrieved_data = result[0].full_report_json
+                if isinstance(retrieved_data, str):
+                    st.session_state.report = json.loads(retrieved_data)
+                else:
+                    st.session_state.report = retrieved_data # It's already a dict
+            except Exception as e:
+                st.error(f"Failed to load the selected report: {e}")
+
     # --- Ticker Input and Clear Button ---
     col1, col2 = st.columns([4, 1])
     with col1:
@@ -244,18 +331,33 @@ def main():
         st.session_state.status_text = st.empty()
         
         with st.spinner("Running Analysis Pipeline..."):
-            # --- 1. Run Quant Agent First & Display Chart ---
-
             try:
-                st.session_state.report['part_1_5_quant'] = run_quant_agent(ticker)
-                # Display the chart immediately after data is fetched
+                # --- 1. Run Ingestion Agent (Synchronously) ---
+                # This ensures documents are ready before the RAG agent runs.
+                run_ingestion_agent(ticker)
+
+                # --- 2. Run Independent Agents in Parallel ---
+                st.session_state.status_text.text("Step 2/5: Running Quant, RAG, and Market agents in parallel...")
+                with ThreadPoolExecutor(max_workers=3) as executor:
+                    quant_future = executor.submit(run_quant_agent, ticker)
+                    rag_future = executor.submit(run_rag_agent, rag_model, ticker)
+                    market_future = executor.submit(run_market_agent, market_model, ticker)
+
+                    # Get results, this will block until each future is complete
+                    st.session_state.report['part_1_5_quant'] = quant_future.result()
+                    st.session_state.report['part_1_4_6_rag'] = rag_future.result()
+                    st.session_state.report['part_2_3_market'] = market_future.result()
+
+                logging.info("All parallel agents finished successfully.")
+
+                # --- 3. Display Chart Immediately After Quant Data is Available ---
                 display_price_chart()
 
-                # --- 2. Run Remaining Agents ---
-                st.session_state.report['part_1_4_6_rag'] = run_rag_agent(rag_model, ticker)
-                st.session_state.report['part_2_3_market'] = run_market_agent(market_model, ticker)
+                # --- 4. Run Synthesis Agent (Depends on previous results) ---
+                # The status text for this agent is handled inside its function.
+                synthesis_response = run_synthesis_agent(synthesis_model, ticker)
                 
-                # --- Agent 4: AnalystAgent (Synthesis & Scoring) ---
+                # This is a duplicate call, let's remove it. The one above is sufficient.
                 synthesis_response = run_synthesis_agent(synthesis_model, ticker)
                 
                 # Clean up potential markdown formatting from the LLM response before parsing
@@ -275,7 +377,7 @@ def main():
                     raise e
                 
                 logging.info(f"AnalystAgent Response: {final_report}")
-                # --- 5. FINAL CALCULATION (PYTHON) ---
+                # --- 5. Final Calculation & Saving ---
                 # [cite: PyFinAgent.md - Python-First, Part 8]
                 scores = final_report['scoring_matrix']
                 final_score = (
@@ -289,8 +391,7 @@ def main():
                 st.session_state.report['final_synthesis'] = final_report
                 logging.info(f"Final weighted score calculated: {final_report['final_weighted_score']}")
                 
-                # --- 6. WRITE TO BIGQUERY ---
-                st.session_state.status_text.text("Saving report to BigQuery...")
+                st.session_state.status_text.text("Step 5/5: Saving report to BigQuery...")
                 row_to_insert = {
                     "ticker": ticker,
                     "analysis_date": datetime.now().isoformat(),
@@ -318,6 +419,9 @@ def main():
                 st.error(f"An error occurred during analysis: {e}")
                 st.write(traceback.format_exc())
 
+    # --- Display Logic ---
+    # This will now display either a newly generated report or a loaded past report
+    display_price_chart()
     display_report()
 
 if __name__ == "__main__":
