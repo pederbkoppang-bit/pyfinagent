@@ -333,7 +333,8 @@ def ingestion_agent_http(request):
             return ({"status": "error", "message": "Invalid request: 'ticker' is required."}, 400)
 
         ticker = request_json['ticker'].strip().upper()
-        context = {"ticker": ticker, "agent": "ingestion-agent"}
+        run_id = request_json.get('run_id') # Get the unique run ID
+        context = {"ticker": ticker, "agent": "ingestion-agent", "run_id": run_id}
         logger.info("Ingestion agent triggered.", extra={'context': context})
 
         # Define which forms to fetch and how many of each.

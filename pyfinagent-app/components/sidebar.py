@@ -26,8 +26,8 @@ def generate_pdf_report(report: dict) -> bytes:
         summary = synthesis.get('final_summary', 'N/A')
 
         pdf.multi_cell(0, 5, f"Final Score: {score} / 10")
-        pdf.multi_cell(0, 5, f"Recommendation: {recommendation}", 0, 1)
-        pdf.multi_cell(0, 5, f"Justification: {justification}", 0, 1)
+        pdf.multi_cell(0, 5, f"Recommendation: {recommendation}", border=0, ln=1)
+        pdf.multi_cell(0, 5, f"Justification: {justification}", border=0, ln=1)
         pdf.ln(5)
         pdf.set_font("Helvetica", "B", 10)
         pdf.cell(0, 5, "Summary:", 0, 1)

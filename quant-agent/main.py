@@ -160,6 +160,7 @@ def quant_agent(request):
     [cite: Product Canvas:PyFinAgent.md]
     """
     ticker_str = request.args.get('ticker')
+    run_id = request.args.get('run_id') # Get run_id from query params
     if not ticker_str:
         return (json.dumps({"error": "No ticker provided"}), 400)
 
@@ -176,7 +177,7 @@ def quant_agent(request):
 
         # --- 2. SEC API: Get Fundamental Facts (Revenue, EPS) ---
         # [cite: Comprehensive Financial Analysis Template.pdf.pdf, Part 1.1]
-        logging.info(f"QuantAgent: Fetching SEC facts for {ticker_str}...")
+        logging.info(f"QuantAgent: Fetching SEC facts for {ticker_str}...", extra={'context': {'run_id': run_id}})
         cik_10_digit = get_cik(ticker_str.upper())
         facts = get_company_facts(cik_10_digit)
         historical_prices_json = get_historical_prices(ticker_str, cik_10_digit)
