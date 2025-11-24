@@ -1,6 +1,6 @@
+functions-framework
 google-cloud-storage
-python-dotenv
 requests
+python-dotenv
 beautifulsoup4
 lxml
-functions-framework

@@ -29,6 +29,15 @@ echo "🔐 Using service account for authentication."
 gcloud auth activate-service-account --key-file=service-account-key.json
 gcloud config set project "$PROJECT_ID"
 
+# --- Deploy Cloud Function Agents (if changed) ---
+echo "🔄 Checking for updates to backend agents..."
+# The agent deployment script is in the parent directory.
+# It has its own logic to check for git changes and will skip deployment if there are none.
+if [ -f ../deploy_agents.sh ]; then
+    (cd .. && ./deploy_agents.sh) || { echo "Agent deployment failed. Aborting app deployment."; exit 1; }
+else
+    echo "⚠️ Warning: ../deploy_agents.sh not found. Skipping agent deployment."
+fi
 
 echo "🚀 Starting deployment script..."
 

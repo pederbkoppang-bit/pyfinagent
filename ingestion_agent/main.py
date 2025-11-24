@@ -41,8 +41,8 @@ load_dotenv()
 # SEC provides a JSON mapping of all tickers to CIKs
 CIK_MAP_URL = "https://www.sec.gov/files/company_tickers.json"
 # Your GCS bucket name
-BUCKET_NAME = "10k-filling-data"
 # SEC requires a descriptive User-Agent header with a contact email.
+BUCKET_NAME = os.getenv("BUCKET_NAME")
 USER_AGENT_EMAIL = os.getenv("USER_AGENT_EMAIL")
 
 if not USER_AGENT_EMAIL:
@@ -135,13 +135,20 @@ def get_filings_for_last_10_years(cik: str, forms: list[str]) -> list[tuple[str,
     # Process each batch of filings (recent and all historical pages)
     for batch in all_filings_data:
         # Zip the lists together to process each filing as a complete record.
-        # This is more robust than iterating with an index.
+        # This is more robust than iterating with an index. Using .get with an empty list
+        # as a default prevents KeyErrors if a key is missing in the API response.
         zipped_filings = zip(
             batch.get('accessionNumber', []),
             batch.get('filingDate', []),
             batch.get('form', []),
             batch.get('primaryDocument', [])
         )
+
+        # Check if essential data is missing, which would indicate a problem with the source data.
+        if not batch.get('accessionNumber'):
+            logger.warning("A filing batch from SEC was missing 'accessionNumber' data. Skipping batch.")
+            continue
+
         for acc_num, filing_date, form_type, doc_name in zipped_filings:
             filing_year = int(filing_date.split('-')[0])
             if form_type in forms and filing_year >= ten_years_ago:
@@ -281,14 +288,14 @@ def upload_json_to_gcs(storage_client: storage.Client, data: dict, ticker: str):
     logger.info(f"Successfully uploaded to gs://{BUCKET_NAME}/{blob_name}")
 
 
-def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str], limit: int):
+def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]):
     """Helper function to process a single ticker."""
     try:
         # 1. Find CIK
         cik = get_cik(ticker)
 
         # 2. Get the latest 10-K/10-Q filing and upload the document
-        all_filings = get_filings_for_last_10_years(cik, forms)[:limit]
+        all_filings = get_filings_for_last_10_years(cik, forms)
         if not all_filings:
             logger.warning(f"No filings found for {ticker} within the specified parameters.")
             return
@@ -332,11 +339,9 @@ def ingestion_agent_http(request):
         # Define which forms to fetch and how many of each.
         # Fetch both 10-K (annual) and 10-Q (quarterly) filings.
         forms_to_fetch = ['10-K', '10-Q']
-        # Set a high limit to ensure all filings from the last 10 years are retrieved.
-        filing_limit = 50 
 
         storage_client = storage.Client()
-        process_ticker(ticker, storage_client, forms_to_fetch, filing_limit)
+        process_ticker(ticker, storage_client, forms_to_fetch)
 
         logger.info("Ingestion process completed successfully.", extra={'context': context})
         return ({"status": "success", "message": f"Ingestion completed for {ticker}."}, 200)

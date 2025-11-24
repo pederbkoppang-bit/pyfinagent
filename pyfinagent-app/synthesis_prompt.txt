@@ -8,11 +8,14 @@ Here are the inputs from your team:
 1. QUANT AGENT REPORT (Hard Financials & Valuation):
 {quant_report}
 ---
-2. RAG AGENT REPORT (10-K Analysis: Moat, Governance, Risks):
+2. RAG AGENT REPORT (10-K & 10-Q Analysis: Moat, Governance, Risks):
 {rag_report}
 ---
 3. MARKET AGENT REPORT (Macro Environment & Market Sentiment):
 {market_report}
+---
+4. DEEP DIVE ANALYSIS (Critical Questions & 10-K Answers):
+{deep_dive_analysis}
 ---
 
 Based on ALL the provided information, generate the final JSON report with the following structure:
@@ -29,7 +32,7 @@ Based on ALL the provided information, generate the final JSON report with the f
     "action": "<string, one of: 'Strong Buy', 'Buy', 'Hold', 'Sell', 'Strong Sell'>",
     "justification": "<string, a concise (2-3 sentence) justification for your recommendation, referencing key data points from the agent reports.>"
   }},
-  "final_summary": "<string, a detailed (3-5 paragraph) narrative summarizing the investment thesis. Start with the recommendation, then elaborate on the key findings from each of the five pillars. Synthesize the information; do not just list the findings. Explain how the different pieces of information connect to form a cohesive investment picture.>",
+  "final_summary": "<string, a detailed (3-5 paragraph) narrative summarizing the investment thesis. Start with the recommendation, then elaborate on the key findings from each of the five pillars. **Crucially, incorporate the insights from the Deep Dive Analysis** to explain how potential risks or discrepancies have been addressed or why they are significant. Synthesize all information; do not just list the findings. Explain how the different pieces of information connect to form a cohesive investment picture.>",
   "key_risks": [
     "<string, identify the most critical risk from the RAG agent's findings>",
     "<string, identify the most critical risk from the Market agent's findings>",

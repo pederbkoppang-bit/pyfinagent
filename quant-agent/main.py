@@ -94,6 +94,7 @@ def get_company_facts(cik_10_digit: str) -> dict:
     if GCS_BUCKET_NAME:
         try:
             gcs_path = f"sec-filings/CIK{cik_10_digit}/companyfacts.json"
+            gcs_path = f"sec-filings/CIK{cik_10_digit}/companyfacts.json" # Corrected path
             logging.info(f"Attempting to load company facts from GCS: gs://{GCS_BUCKET_NAME}/{gcs_path}")
             bucket = storage_client.bucket(GCS_BUCKET_NAME)
             blob = bucket.blob(gcs_path)

@@ -94,31 +94,35 @@ def load_and_display_reports():
         else:
             filtered_df = reports_df
 
+        # Add a 'select' column to the dataframe for the checkbox
+        filtered_df.insert(0, "select", False)
+
         st.info("Click on a row to select a report, then click the button below to view it on the Home page.")
         
         # Use st.data_editor to make rows selectable
-        selected_row = st.data_editor(
+        edited_df = st.data_editor(
             filtered_df, # Display the filtered dataframe
             hide_index=True,
             use_container_width=True,
-            num_rows="dynamic",
-            on_change=None, # We will handle selection via a button
-            key="report_editor"
+            key="report_editor",
+            column_config={
+                "select": st.column_config.CheckboxColumn(required=True, help="Select reports to view or delete")
+            },
+            disabled=[col for col in reports_df.columns if col != 'select'], # Make all data columns read-only
         )
 
         # --- Action Buttons ---
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("View Selected Report on Home Page", use_container_width=True):
-                # Get the index of the selected row from the editor's state
-                selected_indices = st.session_state.report_editor.get("edited_rows", {})
-                if not selected_indices:
+            if st.button("View Selected Report(s) on Home Page", use_container_width=True):
+                # Get the selected rows from the editor's state
+                selected_rows = edited_df[edited_df.select]
+                if selected_rows.empty:
                     st.warning("Please click on a row in the table to select a report first.")
                 else:
-                    # We only care about the first selection
-                    selected_index = list(selected_indices.keys())[0]
-                    # Get the correct report data from the potentially filtered dataframe
-                    st.session_state.report_to_load = filtered_df.iloc[selected_index].to_dict()
+                    # Get all selected reports
+                    selected_reports = selected_rows.to_dict(orient="records")
+                    st.session_state.reports_to_load = selected_reports
                     # Navigate to the main Home page to load the report
                     st.switch_page("Home.py")
         
@@ -128,17 +132,15 @@ def load_and_display_reports():
 
         # --- Delete Confirmation Modal ---
         if st.session_state.get("show_delete_confirmation"):
-            # Get the index of the selected row from the editor's state
-            selected_indices = st.session_state.report_editor.get("edited_rows", {})
-            if not selected_indices:
+            selected_rows = edited_df[edited_df.select]
+            if selected_rows.empty:
                 st.warning("Please click on a row in the table to select a report first.")
                 st.session_state.show_delete_confirmation = False # Reset state
             else:
-                with st.warning("Are you sure you want to delete this report? This action cannot be undone."):
+                with st.warning(f"Are you sure you want to delete these {len(selected_rows)} report(s)? This action cannot be undone."):
                     c1, c2 = st.columns(2)
                     if c1.button("Yes, Delete", use_container_width=True):
-                        selected_index = list(selected_indices.keys())[0]
-                        report_to_delete = filtered_df.iloc[selected_index]
+                        report_to_delete = selected_rows.iloc[0] # Example: deleting first selected
                         
                         delete_query = f"""
                             DELETE FROM `{table_id}`

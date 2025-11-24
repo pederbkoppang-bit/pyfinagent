@@ -1,0 +1,14 @@
+steps:
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  args:
+  - gcloud
+  - functions
+  - deploy
+  - ingestion-agent
+  - --region=us-central1
+  - --runtime=python310
+  - --source=.
+  - --entry-point=ingestion_agent_http
+  - --trigger-http
+  - --allow-unauthenticated
+  - --set-env-vars=BUCKET_NAME=your-gcs-bucket-name,USER_AGENT_EMAIL=your-email@example.com
