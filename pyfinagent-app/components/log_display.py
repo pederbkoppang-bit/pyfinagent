@@ -32,12 +32,8 @@ def display_logs():
         with st.session_state.log_container:
             st.write("#### Thought Process")
             # Display all but the last message as completed
-            for msg in st.session_state.log_messages[:-1]:
+            for msg in st.session_state.log_messages:
                 st.success(msg, icon="✔️")
-            # Display the last message with a spinner as the current activity
-            if st.session_state.log_messages:
-                with st.spinner(st.session_state.log_messages[-1]):
-                    time.sleep(0.5) # Brief pause to make the animation noticeable
 
 def clear_log_display():
     """Clears the log messages and the display area."""

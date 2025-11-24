@@ -3,7 +3,7 @@ import streamlit as st
 import requests
 import json
 from google.cloud import bigquery
-from google.cloud import logging as gcp_logging # Renamed to avoid conflict with standard logging
+from google.cloud.logging import Client as GCPLoggingClient # Correct, specific import
 from vertexai.generative_models import GenerativeModel, Tool, grounding
 import traceback
 from datetime import datetime
@@ -11,6 +11,7 @@ import vertexai
 import pandas as pd
 import uuid
 import time
+from queue import Queue
 from components.sidebar import display_sidebar
 from components.stock_chart import display_price_chart
 from components.progress_bar import initialize_status_elements, update_progress, clear_progress
@@ -229,7 +230,7 @@ def run_quant_agent(ticker: str) -> dict:
         raise
 
 @st.cache_data(ttl="1h", hash_funcs={GenerativeModel: lambda m: m._model_name}) # Cache for 1 hour
-def run_rag_agent(ticker: str) -> dict:
+def run_rag_agent(rag_model: GenerativeModel, ticker: str) -> dict:
     """Executes the RAG_Agent for 10-K analysis, with error handling."""
     context = {"agent_name": "rag_agent", "ticker": ticker}
     logging.info("Starting RAG_Agent for 10-K analysis.", extra={'context': context})
@@ -247,7 +248,7 @@ def run_rag_agent(ticker: str) -> dict:
         raise
 
 @st.cache_data(ttl="1h", hash_funcs={GenerativeModel: lambda m: m._model_name}) # Cache for 1 hour
-def run_market_agent(ticker: str) -> dict:
+def run_market_agent(market_model: GenerativeModel, ticker: str) -> dict:
     """Executes the MarketAgent for news and sentiment analysis, with error handling."""
     context = {"agent_name": "market_agent", "ticker": ticker}
     logging.info("Starting MarketAgent for news and sentiment analysis.", extra={'context': context})
@@ -265,7 +266,7 @@ def run_market_agent(ticker: str) -> dict:
         raise
 
 @st.cache_data(ttl="1h", hash_funcs={GenerativeModel: lambda m: m._model_name}) # Cache for 1 hour
-def run_synthesis_agent(ticker: str, deep_dive_analysis: str) -> dict:
+def run_synthesis_agent(synthesis_model: GenerativeModel, ticker: str, deep_dive_analysis: str) -> dict:
     """Executes the AnalystAgent to synthesize all findings."""
     context = {"agent_name": "synthesis_agent", "ticker": ticker}
     logging.info("Starting AnalystAgent for final synthesis.", extra={'context': context})
@@ -345,12 +346,12 @@ def display_report():
 # The email of the authorized user - this can also be moved to secrets if needed
 AUTHORIZED_EMAIL = "peder.bkoppang@hotmail.no" 
 
-def poll_gcp_logs(run_id: str, project_id: str, stop_event):
+def poll_gcp_logs(run_id: str, project_id: str, stop_event, log_queue: Queue):
     """Polls Google Cloud Logging for new log entries with a specific run_id."""
 
-    client = gcp_logging.Client(project=project_id)
+    client = GCPLoggingClient(project=project_id)
     last_timestamp = datetime.utcnow().isoformat() + "Z"
-    # Using last_timestamp is generally sufficient for polling new logs.
+    seen_log_ids = set()
 
     while not stop_event.is_set():
         try:
@@ -362,18 +363,13 @@ def poll_gcp_logs(run_id: str, project_id: str, stop_event):
             )
             
             # list_entries is a paginated API call from the high-level client
-            for entry in client.list_entries(filter_=log_filter, order_by=gcp_logging.DESCENDING):
-                # Extract the core message
-                message = entry.payload.get('message', str(entry.payload))
-                
-                # Add to our UI log queue
-                if 'logs_from_poll' not in st.session_state:
-                    st.session_state.logs_from_poll = []
-                st.session_state.logs_from_poll.append(message)
-                
-                # Update the last timestamp to avoid fetching old logs again
-                last_timestamp = entry.timestamp.isoformat()
+            for entry in client.list_entries(filter_=log_filter, order_by="timestamp desc"):
+                if entry.insert_id not in seen_log_ids:
+                    seen_log_ids.add(entry.insert_id)
+                    message = entry.payload.get('message', str(entry.payload))
+                    log_queue.put(message) # Put message into the thread-safe queue
 
+            # Update last_timestamp after processing a batch
             time.sleep(2) # Poll every 2 seconds
 
         except Exception as e:
@@ -523,174 +519,141 @@ def main():
     analysis_in_progress = st.session_state.get('analysis_in_progress', False)
 
     if (submitted or analysis_in_progress) and st.session_state.ticker:
-        ticker = st.session_state.ticker
-        
-        # --- Live Log Display Update ---
-        # This now runs at the start of the pipeline block to immediately show logs.
-        if 'logs_from_poll' in st.session_state:
-            st.session_state.log_messages.extend(st.session_state.logs_from_poll)
-            st.session_state.logs_from_poll = [] # Clear the queue after displaying
-        display_logs()
-        # --- INITIALIZATION (only on first run) ---
-        if submitted:
-            st.session_state.analysis_in_progress = True
-            st.session_state.analysis_cancelled = False # Ensure cancel flag is reset
-            st.session_state.run_id = str(uuid.uuid4()) # Generate unique ID for this run
-            st.session_state.report = {}
-            st.session_state.progress_value = 0
-            st.session_state.log_messages = [] # Clear logs on new run
-            st.session_state.logs_from_poll = []
+        with st.spinner("Running comprehensive analysis... Please wait."):
+            ticker = st.session_state.ticker
+            
+            # --- Live Log Display Update ---
+            if 'log_queue' in st.session_state:
+                while not st.session_state.log_queue.empty():
+                    message = st.session_state.log_queue.get_nowait()
+                    st.session_state.log_messages.append(message)
 
-            # --- Start Log Polling Thread ---
-            import threading
-            st.session_state.stop_log_polling = threading.Event()
-            polling_thread = threading.Thread(target=poll_gcp_logs, args=(st.session_state.run_id, st.secrets.gcp.project_id, st.session_state.stop_log_polling))
-            polling_thread.daemon = True
-            polling_thread.start()
+            display_logs()
+            # --- INITIALIZATION (only on first run) ---
+            if submitted:
+                st.session_state.analysis_in_progress = True
+                st.session_state.analysis_cancelled = False # Ensure cancel flag is reset
+                st.session_state.run_id = str(uuid.uuid4()) # Generate unique ID for this run
+                st.session_state.report = {}
+                st.session_state.progress_value = 0
+                st.session_state.log_messages = [] # Clear logs on new run
 
-        try:
-            # --- PIPELINE STAGE 1: INGESTION --- (No change needed here, log_to_ui is still useful for top-level status)
-            if 'ingestion_agent' not in st.session_state.report:
-                update_progress(0, f"First, I need to gather the latest 10-K and 10-Q filings for **{ticker}**. This ensures my analysis is based on the most recent official data.")
-                run_ingestion_agent(ticker)
-                st.session_state.report['ingestion_agent'] = True
-                update_progress(15, "Filings are ingested. Now, let's start the multi-agent analysis.")
+                # --- Start Log Polling Thread ---
+                import threading
+                st.session_state.log_queue = Queue() # Initialize the thread-safe queue
+                st.session_state.stop_log_polling = threading.Event()
+                polling_thread = threading.Thread(target=poll_gcp_logs, args=(st.session_state.run_id, st.secrets.gcp.project_id, st.session_state.stop_log_polling, st.session_state.log_queue))
+                polling_thread.daemon = True
+                polling_thread.start()
 
-            # --- PIPELINE STAGE 2: AGENT EXECUTION (SEQUENTIAL) ---
-            if 'part_1_5_quant' not in st.session_state.report:
-                update_progress(15, "Running the **QuantAgent** to pull key financial metrics, ratios, and valuation data. This forms the quantitative backbone of my analysis.")
-                st.session_state.report['part_1_5_quant'] = run_quant_agent(ticker)
-                update_progress(30, "Quantitative data acquired.")
+            try:
+                # --- PIPELINE STAGE 1: INGESTION ---
+                if 'ingestion_agent' not in st.session_state.report:
+                    update_progress(0, f"First, I need to gather the latest 10-K and 10-Q filings for **{ticker}**.")
+                    run_ingestion_agent(ticker)
+                    st.session_state.report['ingestion_agent'] = True
+                    update_progress(15, "Filings are ingested. Now, let's start the multi-agent analysis.")
 
-            if 'part_1_4_6_rag' not in st.session_state.report:
-                update_progress(30, "Deploying the **RAGAgent** to read through the 10-K filings. I'm looking for details on economic moat, governance, and stated risk factors.")
-                st.session_state.report['part_1_4_6_rag'] = run_rag_agent(ticker)
-                update_progress(45, "Document analysis complete.")
+                # --- PIPELINE STAGE 2: AGENT EXECUTION (SEQUENTIAL) ---
+                if 'part_1_5_quant' not in st.session_state.report:
+                    update_progress(15, "Running the **QuantAgent** to pull key financial metrics and ratios.")
+                    st.session_state.report['part_1_5_quant'] = run_quant_agent(ticker)
+                    update_progress(30, "Quantitative data acquired.")
 
-            if 'part_2_3_market' not in st.session_state.report:
-                update_progress(45, "Engaging the **MarketAgent** to scan for recent news, market sentiment, and macroeconomic trends related to the company.")
-                st.session_state.report['part_2_3_market'] = run_market_agent(ticker)
-                update_progress(60, "Market and sentiment analysis is done.")
+                if 'part_1_4_6_rag' not in st.session_state.report:
+                    update_progress(30, "Deploying the **RAGAgent** to read through the 10-K filings.")
+                    st.session_state.report['part_1_4_6_rag'] = run_rag_agent(rag_model, ticker)
+                    update_progress(45, "Document analysis complete.")
 
-            # --- PIPELINE STAGE 3: DEEP DIVE & SYNTHESIS ---
-            if 'final_synthesis' not in st.session_state.report:
-                # --- Deep Dive Step ---
-                update_progress(60, "Now for the deep dive. I'll cross-reference the findings from all agents to generate critical questions that connect the dots.")
-                log_to_ui("Generating 'deep dive' questions from agent reports...")
-                deep_dive_prompt = (
-                    "You are a world-class financial investigator. Your mission is to synthesize the three reports below to formulate 2-3 critical questions. "
-                    "These questions will be used to probe the company's latest 10-K (annual) and 10-Q (quarterly) filings for definitive answers. "
-                    "Your goal is to uncover hidden risks, validate opportunities, or challenge assumptions by finding contradictions or connections between the reports. "
-                    "Focus on questions where the answer is likely to materially impact an investment thesis.\n\n"
-                    "For example, if the quant report shows declining margins, and the market report mentions new competitors, a good question would be: 'What does the latest 10-Q say about the impact of new market entrants on pricing power and profit margins?'\n\n"
-                    "Output ONLY the questions as a numbered list, with no introductory text.\n\n"
-                    "---REPORTS---\n"
-                    f"1. Quantitative Report (Financials & Valuation):\n{json.dumps(st.session_state.report['part_1_5_quant'])}\n\n"
-                    f"2. 10-K Analysis Report (Moat, Governance, Risks):\n{st.session_state.report['part_1_4_6_rag']['text']}\n\n"
-                    f"3. Market & Sentiment Report (Macro, News):\n{st.session_state.report['part_2_3_market']['text']}"
-                    "\n---END REPORTS---"
-                )
+                if 'part_2_3_market' not in st.session_state.report:
+                    update_progress(45, "Engaging the **MarketAgent** to scan for recent news and sentiment.")
+                    st.session_state.report['part_2_3_market'] = run_market_agent(market_model, ticker)
+                    update_progress(60, "Market and sentiment analysis is done.")
 
-                question_response = synthesis_model.generate_content(deep_dive_prompt) 
-                deep_dive_questions = question_response.text.strip().split('\n')
-                
-                # --- Display the generated questions in the UI log ---
-                log_to_ui("I've formulated these questions to investigate further:")
-                for i, q in enumerate(deep_dive_questions):
-                    if q.strip(): # Avoid logging empty lines from the LLM response
-                        log_to_ui(f"   *{q.strip()}*")
-                
-                update_progress(65, "With the questions formulated, I'm using the **RAGAgent** again to find precise answers within the source documents.")
-                log_to_ui("Now, I'm finding answers in the source filings...")
-                deep_dive_answers = []
-                for question in deep_dive_questions:
-                    if question.strip(): # Ensure not an empty line
-                        answer_response = rag_model.generate_content(f"Using the provided 10-K and 10-Q documents, find the most relevant information to answer the following critical question, prioritizing the most recent filings: {question}")
-                        deep_dive_answers.append(f"Q: {question}\nA: {answer_response.text.strip()}")
-                
-                st.session_state.report['deep_dive_analysis'] = "\n\n".join(deep_dive_answers)
-                check_for_cancellation()
+                # --- PIPELINE STAGE 3: DEEP DIVE & SYNTHESIS ---
+                if 'final_synthesis' not in st.session_state.report:
+                    update_progress(60, "Now for the deep dive. I'll cross-reference the findings to generate critical questions.")
+                    log_to_ui("Generating 'deep dive' questions from agent reports...")
+                    deep_dive_prompt = (
+                        "You are a world-class financial investigator. Your mission is to synthesize the three reports below to formulate 2-3 critical questions. "
+                        "These questions will be used to probe the company's latest 10-K (annual) and 10-Q (quarterly) filings for definitive answers. "
+                        "Your goal is to uncover hidden risks, validate opportunities, or challenge assumptions by finding contradictions or connections between the reports. "
+                        "Focus on questions where the answer is likely to materially impact an investment thesis.\n\n"
+                        "For example, if the quant report shows declining margins, and the market report mentions new competitors, a good question would be: 'What does the latest 10-Q say about the impact of new market entrants on pricing power and profit margins?'\n\n"
+                        "Output ONLY the questions as a numbered list, with no introductory text.\n\n"
+                        "---REPORTS---\n"
+                        f"1. Quantitative Report (Financials & Valuation):\n{json.dumps(st.session_state.report['part_1_5_quant'])}\n\n"
+                        f"2. 10-K Analysis Report (Moat, Governance, Risks):\n{st.session_state.report['part_1_4_6_rag']['text']}\n\n"
+                        f"3. Market & Sentiment Report (Macro, News):\n{st.session_state.report['part_2_3_market']['text']}"
+                        "\n---END REPORTS---"
+                    )
+                    question_response = synthesis_model.generate_content(deep_dive_prompt)
+                    deep_dive_questions = question_response.text.strip().split('\n')
+                    log_to_ui("I've formulated these questions to investigate further:")
+                    for i, q in enumerate(deep_dive_questions):
+                        if q.strip(): log_to_ui(f"   *{q.strip()}*")
+                    
+                    update_progress(65, "Using the **RAGAgent** again to find precise answers in the source documents.")
+                    log_to_ui("Now, I'm finding answers in the source filings...")
+                    deep_dive_answers = []
+                    for question in deep_dive_questions:
+                        if question.strip():
+                            answer_response = rag_model.generate_content(f"Using the provided 10-K and 10-Q documents, find the most relevant information to answer the following critical question, prioritizing the most recent filings: {question}")
+                            deep_dive_answers.append(f"Q: {question}\nA: {answer_response.text.strip()}")
+                    st.session_state.report['deep_dive_analysis'] = "\n\n".join(deep_dive_answers)
+                    check_for_cancellation()
 
-                # --- Final Synthesis Step ---
-                update_progress(70, "All data is in. The **LeadAnalyst** is now synthesizing everything into a final, structured report with a score and recommendation.")
-                synthesis_response = run_synthesis_agent(ticker, st.session_state.report['deep_dive_analysis'])
-                response_text = synthesis_response.text.strip()
-                try:
-                    if response_text.startswith("```json"):
-                        response_text = response_text[7:-3].strip()
-                    elif response_text.startswith("```"):
-                        response_text = response_text[3:-3].strip()
-                    final_report = json.loads(response_text)
-                except json.JSONDecodeError as e:
-                    # Handle parsing error
-                    error_context = {"ticker": ticker, "llm_response": response_text}
-                    logging.error("Failed to parse JSON from synthesis agent.", extra={'context': error_context})
-                    st.error("The final analysis report returned an invalid format.")
-                    st.code(response_text, language="text")
-                    raise e
+                    update_progress(70, "All data is in. The **LeadAnalyst** is synthesizing everything into a final report.")
+                    synthesis_response = run_synthesis_agent(synthesis_model, ticker, st.session_state.report['deep_dive_analysis'])
+                    response_text = synthesis_response.text.strip()
+                    try:
+                        if response_text.startswith("```json"): response_text = response_text[7:-3].strip()
+                        elif response_text.startswith("```"): response_text = response_text[3:-3].strip()
+                        final_report = json.loads(response_text)
+                    except json.JSONDecodeError as e:
+                        logging.error("Failed to parse JSON from synthesis agent.", extra={'context': {"ticker": ticker, "llm_response": response_text}})
+                        st.error("The final analysis report returned an invalid format."); st.code(response_text, language="text"); raise e
 
-                update_progress(80, "The final report is drafted. Just a few more steps.")
-                
-                # --- PIPELINE STAGE 4: FINAL SCORE CALCULATION ---
-                scores = final_report['scoring_matrix']
-                weights = st.session_state.score_weights
-                final_score = (
-                    scores.get('pillar_1_corporate', 5.0) * weights['pillar_1_corporate'] +
-                    scores.get('pillar_2_industry', 5.0) * weights['pillar_2_industry'] +
-                    scores.get('pillar_3_valuation', 5.0) * weights['pillar_3_valuation'] +
-                    scores.get('pillar_4_sentiment', 5.0) * weights['pillar_4_sentiment'] +
-                    scores.get('pillar_5_governance', 5.0) * weights['pillar_5_governance']
-                )
-                final_report['final_weighted_score'] = round(final_score, 2)
-                st.session_state.report['final_synthesis'] = final_report
-                logging.info("Final weighted score calculated.", extra={'context': {"ticker": ticker, "final_score": final_report['final_weighted_score']}})
+                    update_progress(80, "The final report is drafted. Calculating final score.")
+                    
+                    scores = final_report['scoring_matrix']
+                    weights = st.session_state.score_weights
+                    final_score = (scores.get('pillar_1_corporate', 5.0) * weights['pillar_1_corporate'] + scores.get('pillar_2_industry', 5.0) * weights['pillar_2_industry'] + scores.get('pillar_3_valuation', 5.0) * weights['pillar_3_valuation'] + scores.get('pillar_4_sentiment', 5.0) * weights['pillar_4_sentiment'] + scores.get('pillar_5_governance', 5.0) * weights['pillar_5_governance'])
+                    final_report['final_weighted_score'] = round(final_score, 2)
+                    st.session_state.report['final_synthesis'] = final_report
+                    logging.info("Final weighted score calculated.", extra={'context': {"ticker": ticker, "final_score": final_report['final_weighted_score']}})
 
-            # --- PIPELINE STAGE 5: SAVING REPORT ---
-            if 'report_saved' not in st.session_state.report:
-                update_progress(80, "Saving the complete analysis to BigQuery for future reference. This is the final step.")
-                log_to_ui("Saving the final report to BigQuery for future reference...")
-                company_name = st.session_state.report.get('part_1_5_quant', {}).get('company_name', 'N/A')
-                row_to_insert = {
-                    "ticker": ticker, "company_name": company_name,
-                    "analysis_date": datetime.now().isoformat(),
-                    "final_score": st.session_state.report['final_synthesis']['final_weighted_score'],
-                    "recommendation": st.session_state.report['final_synthesis']['recommendation']['action'],
-                    "summary": st.session_state.report['final_synthesis']['final_summary'],
-                    "full_report_json": json.dumps(st.session_state.report)
-                }
-                errors = bq_client.insert_rows_json(table_id, [row_to_insert])
-                if errors:
-                    logging.error("Failed to write report to BigQuery.", extra={'context': {"ticker": ticker, "bq_errors": errors}})
-                    st.error(f"Failed to write to BigQuery: {errors}")
-                else:
-                    logging.info("Report successfully saved to BigQuery.", extra={'context': {"ticker": ticker}})
-                    log_to_ui("Analysis complete and saved!")
-                st.session_state.report['report_saved'] = True
-                update_progress(100, "All done! The comprehensive analysis is complete.")
+                # --- PIPELINE STAGE 5: SAVING REPORT ---
+                if 'report_saved' not in st.session_state.report:
+                    update_progress(80, "Saving the complete analysis to BigQuery for future reference.")
+                    log_to_ui("Saving the final report to BigQuery for future reference...")
+                    company_name = st.session_state.report.get('part_1_5_quant', {}).get('company_name', 'N/A')
+                    row_to_insert = {"ticker": ticker, "company_name": company_name, "analysis_date": datetime.now().isoformat(), "final_score": st.session_state.report['final_synthesis']['final_weighted_score'], "recommendation": st.session_state.report['final_synthesis']['recommendation']['action'], "summary": st.session_state.report['final_synthesis']['final_summary'], "full_report_json": json.dumps(st.session_state.report)}
+                    errors = bq_client.insert_rows_json(table_id, [row_to_insert])
+                    if errors:
+                        logging.error("Failed to write report to BigQuery.", extra={'context': {"ticker": ticker, "bq_errors": errors}})
+                        st.error(f"Failed to write to BigQuery: {errors}")
+                    else:
+                        logging.info("Report successfully saved to BigQuery.", extra={'context': {"ticker": ticker}})
+                        log_to_ui("Analysis complete and saved!")
+                    st.session_state.report['report_saved'] = True
+                    update_progress(100, "All done! The comprehensive analysis is complete.")
 
-            # --- FINAL CLEANUP ---
-            if 'stop_log_polling' in st.session_state:
-                st.session_state.stop_log_polling.set() # Signal the polling thread to stop
-            st.session_state.cancel_button_placeholder.empty() # Clear the cancel button on success
-            clear_log_display()
-            clear_progress()
-            st.session_state.analysis_in_progress = False # Unlock state
-            st.rerun() # Rerun one last time to display the final report cleanly
+                # --- FINAL CLEANUP ---
+                if 'stop_log_polling' in st.session_state:
+                    st.session_state.stop_log_polling.set()
+                st.session_state.cancel_button_placeholder.empty()
+                st.session_state.analysis_in_progress = False # Unlock state
 
-        except (ValueError, Exception) as e:
-            # --- ERROR CLEANUP ---
-            if 'stop_log_polling' in st.session_state:
-                st.session_state.stop_log_polling.set() # Stop polling on error
-            st.session_state.cancel_button_placeholder.empty() # Clear cancel button on error
-
-            # General error handling
-            error_context = {"ticker": ticker}
-            logging.error("An error occurred during the analysis pipeline.", extra={'context': error_context}, exc_info=True)
-            clear_progress()
-            clear_log_display()
-            st.error(f"An error occurred during analysis: {e}")
-            st.write(traceback.format_exc())
-            st.session_state.analysis_in_progress = False # Unlock state on error
+            except (ValueError, Exception) as e:
+                # --- ERROR CLEANUP ---
+                if 'stop_log_polling' in st.session_state:
+                    st.session_state.stop_log_polling.set()
+                st.session_state.cancel_button_placeholder.empty()
+                logging.error("An error occurred during the analysis pipeline.", extra={'context': {"ticker": ticker}}, exc_info=True)
+                st.error(f"An error occurred during analysis: {e}")
+                st.write(traceback.format_exc())
+                st.session_state.analysis_in_progress = False
 
     # --- Display Logic ---
     # This will now display either a newly generated report or a loaded past report
