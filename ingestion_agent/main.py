@@ -45,11 +45,6 @@ CIK_MAP_URL = "https://www.sec.gov/files/company_tickers.json"
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 USER_AGENT_EMAIL = os.getenv("USER_AGENT_EMAIL")
 
-if not USER_AGENT_EMAIL:
-    logger.warning("USER_AGENT_EMAIL not set in .env file. Using placeholder.")
-    # Fallback to the email you provided, but .env is the best practice
-    USER_AGENT_EMAIL = "peder.bkoppang@hotmail.no"
-
 # Set up the required headers for all SEC API calls
 SEC_API_HEADERS = {
     'User-Agent': f"PyFinAgent {USER_AGENT_EMAIL}",
@@ -319,8 +314,9 @@ def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]
 @functions_framework.http
 def ingestion_agent_http(request):
     """HTTP Cloud Function entry point."""
-    if not BUCKET_NAME:
-        logger.critical("FATAL: BUCKET_NAME environment variable is not set.")
+    # Critical configuration check
+    if not BUCKET_NAME or not USER_AGENT_EMAIL:
+        logger.critical("FATAL: BUCKET_NAME and/or USER_AGENT_EMAIL environment variables are not set.")
         return ({"status": "error", "message": "Server configuration error."}, 500)
 
     if request.method != 'POST':

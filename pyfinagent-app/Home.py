@@ -238,8 +238,11 @@ def run_rag_agent(rag_model: GenerativeModel, ticker: str) -> dict:
     try:
         rag_prompt = f"Using the provided 10-K (annual) and 10-Q (quarterly) documents, analyze the Economic Moat, Governance (executive compensation), and key 'Risk Factors' for {ticker}. Prioritize the most recent filings for the most current information. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
         rag_response = rag_model.generate_content(rag_prompt)
+        # Safely extract text from the response, which might have multiple parts.
+        # This joins the text from all parts, handling cases where the model output is complex.
+        response_text = "".join(part.text for part in rag_response.candidates[0].content.parts)
         logging.info("RAG_Agent finished successfully.", extra={'context': context})
-        return {"text": rag_response.text}
+        return {"text": response_text}
     except Exception as e:
         logging.error("RAG Agent (Vertex AI) failed.", extra={'context': context}, exc_info=True)
         st.error(f"The RAG Agent encountered an error while analyzing documents. The analysis cannot continue.")
@@ -256,8 +259,10 @@ def run_market_agent(market_model: GenerativeModel, ticker: str) -> dict:
     try:
         market_prompt = f"Analyze the Macro (PESTEL) and current Market Sentiment (news, social media 'scuttlebutt') for {ticker}. [cite: Comprehensive Financial Analysis Template.pdf.pdf]"
         market_response = market_model.generate_content(market_prompt)
+        # Safely extract text from the response
+        response_text = "".join(part.text for part in market_response.candidates[0].content.parts)
         logging.info("MarketAgent finished successfully.", extra={'context': context})
-        return {"text": market_response.text}
+        return {"text": response_text}
     except Exception as e:
         logging.error("Market Agent (Vertex AI) failed.", extra={'context': context}, exc_info=True)
         st.error(f"The Market Agent encountered an error while analyzing market data. The analysis cannot continue.")
@@ -288,7 +293,10 @@ def run_synthesis_agent(synthesis_model: GenerativeModel, ticker: str, deep_dive
     
     try:
         synthesis_response = synthesis_model.generate_content(synthesis_prompt)
-        return synthesis_response
+        # Safely extract text from the synthesis response before returning
+        response_text = "".join(part.text for part in synthesis_response.candidates[0].content.parts)
+        logging.info("Synthesis Agent finished successfully.", extra={'context': context})
+        return response_text
     except Exception as e:
         logging.error("Synthesis Agent (Vertex AI) failed.", extra={'context': context}, exc_info=True)
         st.error(f"The final Synthesis Agent encountered a critical error. The analysis cannot continue.")
@@ -605,8 +613,8 @@ def main():
 
                     update_progress(70, "All data is in. The **LeadAnalyst** is synthesizing everything into a final report.")
                     synthesis_response = run_synthesis_agent(synthesis_model, ticker, st.session_state.report['deep_dive_analysis'])
-                    response_text = synthesis_response.text.strip()
-                    try:
+                    response_text = synthesis_response.strip()
+                    try: # The response should be a JSON string, so we parse it
                         if response_text.startswith("```json"): response_text = response_text[7:-3].strip()
                         elif response_text.startswith("```"): response_text = response_text[3:-3].strip()
                         final_report = json.loads(response_text)
