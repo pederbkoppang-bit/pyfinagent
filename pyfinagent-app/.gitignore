@@ -1,4 +1,5 @@
 # .gitignore
 
 # Ignore sensitive credential files
-secrets.toml
+**/secrets.toml
+**/service-account-key.json
