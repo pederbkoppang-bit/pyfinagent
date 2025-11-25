@@ -192,6 +192,15 @@ def run_synthesis_pipeline(synthesis_model, ticker, report):
     except:
         return json.loads(draft_text)
 
+def start_analysis():
+    """Callback to initialize the analysis state."""
+    st.session_state.analysis_running = True
+    st.session_state.report = {} # Clear previous report
+    clear_log_display()
+    clear_progress()
+    st.session_state.company_name = ""
+    st.session_state.error_message = None # Clear previous errors
+
 # --- Main App ---
 def main():
     def display_report():
@@ -220,19 +229,33 @@ def main():
     setup_logging()
     if 'score_weights' not in st.session_state:
         st.session_state.score_weights = {'pillar_1_corporate': 0.35, 'pillar_2_industry': 0.20, 'pillar_3_valuation': 0.20, 'pillar_4_sentiment': 0.15, 'pillar_5_governance': 0.10}
+    if 'analysis_running' not in st.session_state:
+        st.session_state.analysis_running = False
+    if 'report' not in st.session_state:
+        st.session_state.report = {}
+    if 'company_name' not in st.session_state:
+        st.session_state.company_name = ""
+    if 'error_message' not in st.session_state:
+        st.session_state.error_message = None
+    if 'av_data' not in st.session_state:
+        st.session_state.av_data = {}
+        st.session_state.score_weights = {'pillar_1_corporate': 0.35, 'pillar_2_industry': 0.20, 'pillar_3_valuation': 0.20, 'pillar_4_sentiment': 0.15, 'pillar_5_governance': 0.10}
 
     st.title("PyFinAgent: AI Financial Analyst (Agentic)")
     st.caption("Powered by Alpha Vantage Data & Reflexion Architecture")
 
     if 'gcp_services' not in st.session_state:
-        # When switching from past reports, 'report' can be a string-heavy dict from BQ
-        # We need to ensure final_synthesis is parsed to a dict if it exists.
-        if 'report' in st.session_state and isinstance(st.session_state.report.get('final_synthesis'), str):
-            try:
-                st.session_state.report['final_synthesis'] = json.loads(st.session_state.report['final_synthesis'])
-            except json.JSONDecodeError:
-                st.error("Failed to parse report data. Please try re-running the analysis.")
         st.session_state.gcp_services = initialize_gcp_services()
+
+    # This check MUST run on every script run to handle navigation from past reports.
+    # It ensures that if a report was loaded from BQ (as a string), it's parsed.
+    if 'report' in st.session_state and isinstance(st.session_state.report.get('final_synthesis'), str):
+        try:
+            st.session_state.report['final_synthesis'] = json.loads(st.session_state.report['final_synthesis'])
+        except (json.JSONDecodeError, TypeError):
+            st.error("Failed to parse report data. Please start a new analysis.")
+            st.session_state.report = {} # Clear corrupted report
+
     services = st.session_state.gcp_services
     display_sidebar(services['bq_client'], services['table_id'], st.session_state.get("ticker"))
 
@@ -240,72 +263,105 @@ def main():
     with col1: st.text_input("Enter Ticker:", key="ticker", label_visibility="collapsed", placeholder="e.g. NVDA")
     with col2: 
         if st.button("Clear", use_container_width=True):
-            st.session_state.clear()
+            # Selectively clear state instead of wiping everything
+            st.session_state.ticker = ""
+            st.session_state.report = {}
+            st.session_state.analysis_running = False
+            st.session_state.company_name = ""
+            st.session_state.av_data = {}
             st.rerun()
 
     initialize_log_display()
     initialize_status_elements()
 
-    if st.button("Run Comprehensive Analysis", type="primary") and st.session_state.ticker:
-        st.session_state.analysis_triggered = True
-        st.rerun()
+    st.button(
+        "Run Comprehensive Analysis",
+        type="primary",
+        on_click=start_analysis,
+        disabled=not st.session_state.ticker,
+        use_container_width=True
+    )
 
     display_logs()
 
-    if st.session_state.get('analysis_triggered'):
+    # --- Error Display ---
+    # If an error was caught in the pipeline, display it and stop.
+    if st.session_state.get('error_message'):
+        st.error(st.session_state.error_message)
+
+    # --- Analysis Pipeline Execution ---
+    # This block executes step-by-step, only if no error has occurred.
+    if st.session_state.get('analysis_running') and not st.session_state.get('error_message'):
         ticker = st.session_state.ticker
-        st.session_state.report = {} # Clear previous report before new run
         
+        # Display header consistently during analysis
+        if st.session_state.get('company_name'):
+            st.subheader(f"Analyzing: {st.session_state.company_name} ({ticker.upper()})")
+        else:
+            st.subheader(f"Analyzing: {ticker.upper()}")
+
         try:
-            # --- UI Enhancement: Display Company Name & Ticker ---
-            overview_data = tools_alphavantage.get_fundamental_overview(ticker)
-            company_name = overview_data.get("Name", ticker.upper())
-            st.subheader(f"Analyzing: {company_name} ({ticker.upper()})")
+            if 'company_name' not in st.session_state.report:
+                overview_data = tools_alphavantage.get_fundamental_overview(ticker)
+                st.session_state.company_name = overview_data.get("Name", ticker.upper())
+                st.session_state.report['company_name'] = st.session_state.company_name
+                st.rerun()
 
-            log_to_ui("📡 Fetching Alpha Vantage Market Intel...")
-            av_data = tools_alphavantage.get_market_intel(ticker)
-            run_ingestion_agent(ticker)
-            st.session_state.report['ingestion_agent'] = True
+            if 'ingestion_agent' not in st.session_state.report:
+                log_to_ui("📡 Fetching Alpha Vantage Market Intel & checking filings...")
+                st.session_state.av_data = tools_alphavantage.get_market_intel(ticker)
+                run_ingestion_agent(ticker)
+                st.session_state.report['ingestion_agent'] = True
+                st.rerun()
 
-            update_progress(20, "Gathering Financials...")
-            st.session_state.report['part_1_5_quant'] = run_quant_agent(ticker)
+            if 'part_1_5_quant' not in st.session_state.report:
+                update_progress(20, "Gathering Financials...")
+                st.session_state.report['part_1_5_quant'] = run_quant_agent(ticker)
+                st.rerun()
             
-            update_progress(35, "Analyzing 10-Ks...")
-            st.session_state.report['part_1_4_6_rag'] = run_rag_agent(services['rag_model'], ticker)
+            if 'part_1_4_6_rag' not in st.session_state.report:
+                update_progress(35, "Analyzing 10-Ks...")
+                st.session_state.report['part_1_4_6_rag'] = run_rag_agent(services['rag_model'], ticker)
+                st.rerun()
 
-            update_progress(50, "Scanning Market News...")
-            st.session_state.report['part_2_3_market'] = run_market_agent(services['market_model'], ticker, av_data)
+            if 'part_2_3_market' not in st.session_state.report:
+                update_progress(50, "Scanning Market News...")
+                st.session_state.report['part_2_3_market'] = run_market_agent(services['market_model'], ticker, st.session_state.av_data)
+                st.rerun()
 
-            update_progress(55, "Analyzing Rivals...")
-            st.session_state.report['part_6_competitor'] = run_competitor_agent(services['market_model'], ticker, av_data)
+            if 'part_6_competitor' not in st.session_state.report:
+                update_progress(55, "Analyzing Rivals...")
+                st.session_state.report['part_6_competitor'] = run_competitor_agent(services['market_model'], ticker, st.session_state.av_data)
+                st.rerun()
 
-            update_progress(60, "Deep Dive...")
-            st.session_state.report['deep_dive_analysis'] = run_deep_dive_agent(services['synthesis_model'], services['rag_model'], ticker, st.session_state.report)
-       
-            final_json = run_synthesis_pipeline(services['synthesis_model'], ticker, st.session_state.report)
-            scores = final_json['scoring_matrix']
-            w = st.session_state.score_weights
-            final_score = sum(scores.get(k, 0) * v for k, v in w.items())
-            final_json['final_weighted_score'] = round(final_score, 2)
-            st.session_state.report['final_synthesis'] = final_json
-
-            update_progress(95, "Saving report...")
-            # Assume BQ save logic here (skipped for brevity)
-            st.session_state.report['report_saved'] = True
-            update_progress(100, "Analysis Complete.")
+            if 'deep_dive_analysis' not in st.session_state.report:
+                update_progress(60, "Deep Dive...")
+                st.session_state.report['deep_dive_analysis'] = run_deep_dive_agent(services['synthesis_model'], services['rag_model'], ticker, st.session_state.report)
+                st.rerun()
+    
+            if 'final_synthesis' not in st.session_state.report:
+                final_json = run_synthesis_pipeline(services['synthesis_model'], ticker, st.session_state.report)
+                scores = final_json['scoring_matrix']
+                final_score = sum(scores.get(k, 0) * v for k, v in st.session_state.score_weights.items())
+                final_json['final_weighted_score'] = round(final_score, 2)
+                st.session_state.report['final_synthesis'] = final_json
+                update_progress(100, "Analysis Complete.")
+                st.rerun()
 
         except Exception as e:
-            st.error(f"Analysis halted: {e}")
-            logging.error("Pipeline failed", exc_info=True)
-        finally:
-            # IMPORTANT: Reset the trigger so it doesn't run again on the next interaction
-            st.session_state.analysis_triggered = False
-            # Rerun one last time to settle the page and display the final report
+            full_traceback = traceback.format_exc()
+            error_msg = f"Analysis halted unexpectedly: {e}\n\nTraceback:\n{full_traceback}"
+            logging.error(f"Pipeline failed for ticker {st.session_state.ticker}: {error_msg}")
+            st.session_state.error_message = error_msg
+            st.session_state.analysis_running = False # Stop the process on error
             st.rerun()
-    
-    # This block is now for displaying a previously run report from session state
-    # if the user navigates away and comes back, for example.
-    elif st.session_state.get('report', {}).get('final_synthesis'):
+
+    # This block handles displaying the final report once it's available.
+    if st.session_state.report.get('final_synthesis') and not st.session_state.get('error_message'):
+        # Ensure the running flag is off once the report is complete.
+        st.session_state.analysis_running = False
+        company_name = st.session_state.get('company_name', st.session_state.ticker.upper())
+        st.subheader(f"Analysis For: {company_name} ({st.session_state.ticker.upper()})")
         display_report()
 
 if __name__ == "__main__":
