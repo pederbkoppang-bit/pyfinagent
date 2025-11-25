@@ -25,6 +25,7 @@ def log_to_ui(message: str):
 
 def display_logs():
     """
+    
     Renders the log messages from the session state queue in a dynamic,
     conversational format within the designated log container.
     """

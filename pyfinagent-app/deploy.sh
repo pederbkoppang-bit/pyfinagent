@@ -19,15 +19,24 @@ echo "📦 Version: $APP_VERSION"
 
 # --- Script Start ---
 # Read the project ID from the secrets file to ensure we're using the correct one.
-# This requires `toml-cli` to be installed: `pip install toml-cli`
-PROJECT_ID=$(toml get --toml-path .streamlit/secrets.toml gcp.project_id | tr -d '"')
+# This uses yq (https://github.com/mikefarah/yq), a lightweight and portable command-line YAML/XML/TOML processor.
+PROJECT_ID=$(yq '.gcp_service_account.project_id' .streamlit/secrets.toml)
 
 # --- Service Account Authentication ---
-# Authenticate using the service account key file for non-interactive deployment.
-# This avoids the need for browser-based login.
-echo "🔐 Using service account for authentication."
-gcloud auth activate-service-account --key-file=service-account-key.json
+# For non-interactive deployment, we will reconstruct the service
+# account JSON from secrets.toml to authenticate gcloud.
+echo "🔐 Authenticating service account from secrets.toml..."
+
+# The private_key from TOML is malformed with literal '\\n' characters.
+# We will use a Python script to load the TOML data, fix the private key string,
+# and pipe the corrected JSON directly to the gcloud command's standard input.
+SERVICE_ACCOUNT_EMAIL=$(yq '.gcp_service_account.client_email' .streamlit/secrets.toml)
+
+python3 -c 'import toml, json, sys; secrets = toml.load(".streamlit/secrets.toml")["gcp_service_account"]; secrets["private_key"] = secrets["private_key"].replace("\\n", "\n"); print(json.dumps(secrets))' | gcloud auth activate-service-account "$SERVICE_ACCOUNT_EMAIL" --key-file=-
+
+# Set the active project.
 gcloud config set project "$PROJECT_ID"
+echo "✅ gcloud authenticated for project $PROJECT_ID."
 
 # --- Deploy Cloud Function Agents (if changed) ---
 echo "🔄 Checking for updates to backend agents..."
@@ -61,12 +70,10 @@ docker build --progress=plain --build-arg APP_VERSION=$APP_VERSION -t $IMAGE_NAM
 
 # 4. Run the new container in detached mode.
 # We mount the secrets directory and provide the service account key directly to the container
-# via a volume mount and the GOOGLE_APPLICATION_CREDENTIALS environment variable.
+# via a volume mount. The app will read secrets from the mounted .streamlit/secrets.toml file.
 echo "▶️  Starting new container '$CONTAINER_NAME' from image '$IMAGE_NAME'..."
 docker run -d -p $HOST_PORT:$CONTAINER_PORT --name $CONTAINER_NAME \
-    -v "$(pwd)/.streamlit:/app/.streamlit" \
-    -v "$(pwd)/service-account-key.json:/app/service-account-key.json" \
-    -e GOOGLE_APPLICATION_CREDENTIALS="/app/service-account-key.json" \
+    -v "$(pwd)/.streamlit:/app/.streamlit:ro" \
     $IMAGE_NAME
 
 echo "🎉 Deployment complete! Your application is running."
