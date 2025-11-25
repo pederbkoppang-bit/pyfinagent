@@ -18,6 +18,8 @@ ENV STREAMLIT_SERVER_PORT=8501 \
 COPY requirements.txt .
 COPY synthesis_prompt.txt . 
 COPY Home.py .
+COPY agent_prompts.py .
+COPY tools_alphavantage.py .
 COPY pages/ ./pages/
 COPY components/ ./components/
 
