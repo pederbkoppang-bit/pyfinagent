@@ -175,20 +175,33 @@ def run_ingestion_agent(ticker: str, status):
 
         # Iterate over the response content line by line.
         for line in response.iter_lines():
-            if line:
-                log_message = line.decode('utf-8')
-                # Update the status container's label with the latest log message.
-                # The agent now prefixes logs with severity, so we strip that for the UI
-                cleaned_log = re.sub(r'^(INFO|WARNING|ERROR|CRITICAL):', '', log_message).strip()
-                status.update(label=cleaned_log)
+            if not line:
+                continue
 
-                # Check for the specific success message to confirm completion.
+            message = line.decode('utf-8')
+            try:
+                # Attempt to parse the line as a JSON object from the agent
+                data = json.loads(message)
+                if data.get("type") == "metadata" and "company_name" in data.get("data", {}):
+                    # If we receive the company name, store it and rerun to display it
+                    st.session_state['company_name'] = data['data']['company_name']
+                    st.rerun()
+                elif data.get("type") == "error":
+                    status.update(label=f"Error from agent: {data.get('message')}")
+                    success = False
+                    break
+            except json.JSONDecodeError:
+                # If it's not JSON, treat it as a plain log message
+                log_message = message
+                cleaned_log = re.sub(r'^(INFO|WARNING|ERROR|CRITICAL):', '', log_message).strip()
+                if cleaned_log:
+                    status.update(label=cleaned_log)
+
                 if "Ingestion process completed successfully." in log_message:
                     success = True
-                # Check for failure messages to stop early.
-                elif "failed" in log_message.lower() or "error" in log_message.lower():
-                    success = False # Explicitly mark as failed
-                    break # Stop processing on the first sign of failure
+                elif "Ingestion agent failed" in log_message:
+                    success = False
+                    break
             
         return success
     except Exception as e:
@@ -313,6 +326,7 @@ def main():
         st.session_state.report = {}
         st.session_state.ticker = ""
         st.session_state.analysis_in_progress = False
+        st.session_state.company_name = ""
         st.session_state.av_data = {}
 
     if 'score_weights' not in st.session_state:
@@ -342,6 +356,7 @@ def main():
         st.session_state.analysis_ticker = st.session_state.ticker
         st.session_state.report = {}
         st.session_state.av_data = {}
+        st.session_state.company_name = ""
         st.session_state.analysis_in_progress = True
 
     # Only draw the main UI if an analysis is NOT in progress
@@ -349,7 +364,7 @@ def main():
         def clear_state_callback():
             """Resets the session state for a new analysis, preserving services."""
             for key in ['ticker', 'report', 'analysis_in_progress', 'av_data']:
-                if key in st.session_state:
+                if key in st.session_state: # Reset company_name as well
                     st.session_state[key] = "" if key == 'ticker' else {}
     
         col1, col2 = st.columns([4, 1])
@@ -363,6 +378,12 @@ def main():
     if st.session_state.get('analysis_in_progress') and st.session_state.get('analysis_ticker'):
         ticker = st.session_state.analysis_ticker
         report = st.session_state.report
+
+        # --- Display Ticker and Company Name ---
+        st.subheader(f"Analyzing: {ticker}")
+        company_name = st.session_state.get('company_name', 'Fetching company name...')
+        st.caption(company_name)
+        st.divider()
         
         # Define the total number of steps for the progress bar
         TOTAL_STEPS = 8
