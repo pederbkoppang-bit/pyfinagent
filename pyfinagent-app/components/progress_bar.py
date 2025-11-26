@@ -19,10 +19,10 @@ def update_progress(value: int, text: str):
     if 'progress_bar_placeholder' in st.session_state:
         st.session_state.progress_bar_placeholder.progress(value)
     
-    # Use a more "chat-like" or "thought" bubble for the status text
+    # Use a more descriptive status text
     if 'status_text_placeholder' in st.session_state:
         # Using a markdown-based container to simulate a "thought" from the agent
-        st.session_state.status_text_placeholder.markdown(f"🤔 **Agent thought:** {text}")
+        st.session_state.status_text_placeholder.markdown(f"**Overall Progress:** {text}")
 
 def clear_progress():
     """Clears the progress bar and status text from the UI."""

@@ -196,25 +196,39 @@ def run_ingestion_agent(ticker: str, status):
 
 @st.cache_data(ttl="1h")
 def run_quant_agent(ticker: str, _status) -> dict:
-    # --- Agent Functions ---
-
-    _status.update(label=f"📊 Running Quant Agent for {ticker}...")
-    
-    # Enhance Quant Agent with Alpha Vantage Overview
-    av_overview = tools_alphavantage.get_fundamental_overview(ticker)
-    
+    """Triggers the Quant Agent and streams its logs to the UI."""
     QUANT_AGENT_URL = st.secrets.agent.quant_agent_url
+    final_data = None
+
     try:
-        response = requests.get(f"{QUANT_AGENT_URL}?ticker={ticker}", timeout=600) # type: ignore
-        data = response.json()
-        if "error" in data: raise ValueError(data["error"])
-        
-        # Merge Alpha Vantage Data into Report
-        if "part_5_valuation" in data and isinstance(av_overview, dict):
-            data["part_5_valuation"]["alpha_vantage_overview"] = av_overview
-        
-        _status.update(label="✅ Quant data acquired.")
-        return data
+        # Use stream=True to handle the streaming response
+        response = requests.get(f"{QUANT_AGENT_URL}?ticker={ticker}", timeout=600, stream=True)
+        response.raise_for_status()
+
+        for line in response.iter_lines():
+            if line:
+                log_message = line.decode('utf-8')
+                if log_message.startswith("FINAL_JSON:"):
+                    # This is the final data payload
+                    json_str = log_message.replace("FINAL_JSON:", "", 1)
+                    final_data = json.loads(json_str)
+                    break # Stop processing after getting the final data
+                elif log_message.startswith("ERROR:"):
+                    raise ValueError(log_message)
+                else:
+                    # This is a regular log message, update the UI
+                    _status.update(label=log_message)
+
+        if final_data:
+            # Enhance Quant Agent with Alpha Vantage Overview after getting the data
+            _status.update(label="Fetching additional overview from Alpha Vantage...")
+            av_overview = tools_alphavantage.get_fundamental_overview(ticker)
+            if "part_5_valuation" in final_data and isinstance(av_overview, dict):
+                final_data["part_5_valuation"]["alpha_vantage_overview"] = av_overview
+            _status.update(label="✅ Quant data acquired.")
+            return final_data
+        else:
+            raise ValueError("Quant Agent did not return a final JSON payload.")
     except Exception as e:
         st.error(f"Quant Agent failed: {e}")
         raise
@@ -348,45 +362,55 @@ def main():
         ticker = st.session_state.analysis_ticker
         report = st.session_state.report
         
+        # Define the total number of steps for the progress bar
+        TOTAL_STEPS = 8
+
         initialize_status_elements()
         with st.status("Agent Thought Process", expanded=True) as status:
             try:
                 # Step 0: Data Ingestion
                 if 'ingestion_complete' not in report:
+                    update_progress(int(1/TOTAL_STEPS * 100), "Step 1: Ingesting SEC Filings...")
                     status.update(label="Starting data ingestion...")
                     if not run_ingestion_agent(ticker, status):
                         raise Exception("Data Ingestion Failed")
                     report['ingestion_complete'] = True
                     st.rerun()
 
-                # Step 1: Fetch Alpha Vantage Data
+                # Step 1: Fetch Alpha Vantage Market Intel
                 if 'av_data' not in st.session_state or not st.session_state.av_data:
+                    update_progress(int(2/TOTAL_STEPS * 100), "Step 2: Fetching Market Intelligence...")
                     status.update(label="📡 Fetching Alpha Vantage Market Intel...")
                     st.session_state.av_data = tools_alphavantage.get_market_intel(ticker)
                     st.rerun()
 
                 # Step 2: Quantitative Analysis
                 if 'part_1_5_quant' not in report:
+                    update_progress(int(3/TOTAL_STEPS * 100), "Step 3: Running Quantitative Analysis...")
                     report['part_1_5_quant'] = run_quant_agent(ticker, status)
                     st.rerun()
                 
                 # Step 3: RAG Analysis on 10-K Filings
                 if 'part_1_4_6_rag' not in report:
+                    update_progress(int(4/TOTAL_STEPS * 100), "Step 4: Analyzing SEC Filings (RAG)...")
                     report['part_1_4_6_rag'] = run_rag_agent(services['rag_model'], ticker, status)
                     st.rerun()
 
                 # Step 4: Market News Analysis
                 if 'part_2_3_market' not in report:
+                    update_progress(int(5/TOTAL_STEPS * 100), "Step 5: Analyzing Market News & Sentiment...")
                     report['part_2_3_market'] = run_market_agent(services['market_model'], ticker, st.session_state.av_data, status)
                     st.rerun()
 
                 # Step 5: Competitor Analysis
                 if 'part_6_competitor' not in report:
+                    update_progress(int(6/TOTAL_STEPS * 100), "Step 6: Identifying and Analyzing Competitors...")
                     report['part_6_competitor'] = run_competitor_agent(services['market_model'], ticker, st.session_state.av_data, status)
                     st.rerun()
 
                 # Step 6: Deep Dive Contradiction Analysis
                 if 'deep_dive_analysis' not in report:
+                    update_progress(int(7/TOTAL_STEPS * 100), "Step 7: Performing Deep-Dive Contradiction Analysis...")
                     report['deep_dive_analysis'] = run_deep_dive_agent(
                         services['synthesis_model'], services['rag_model'], ticker, report, status
                     )
@@ -394,6 +418,7 @@ def main():
 
                 # Step 7: Final Synthesis and Scoring
                 if 'final_synthesis' not in report:
+                    update_progress(int(8/TOTAL_STEPS * 100), "Step 8: Synthesizing Final Report and Scoring...")
                     final_json = run_synthesis_pipeline(
                         services['synthesis_model'], ticker, st.session_state.report, status
                     )
@@ -402,6 +427,7 @@ def main():
                     final_score = sum(scores.get(k, 0) * v for k, v in w.items())
                     final_json['final_weighted_score'] = round(final_score, 2)
                     report['final_synthesis'] = final_json
+                    update_progress(100, "Finalizing Report...")
                     st.rerun()
 
                 # Step 8: Save the final report to BigQuery
@@ -417,6 +443,7 @@ def main():
 
                     st.session_state.report['report_saved'] = True
                     status.update(label="Analysis Complete!", state="complete", expanded=False)
+                    clear_progress() # Clear the progress bar on completion
                     st.session_state.analysis_in_progress = False
                     st.rerun()
 
@@ -425,6 +452,7 @@ def main():
                 st.error(f"Analysis halted: {e}")
                 st.write(traceback.format_exc())
                 st.session_state.analysis_in_progress = False
+                clear_progress() # Clear the progress bar on failure
                 logging.error("Pipeline failed", exc_info=True)
 
     # --- Render Final Report ---

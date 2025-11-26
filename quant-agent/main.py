@@ -1,14 +1,34 @@
 import functions_framework
 import requests
 import json
+import sys
+import traceback
 import yfinance as yf
 import os
 import logging
 from dotenv import load_dotenv
 from google.cloud import storage
+from flask import Response, stream_with_context
 
 # --- CONFIG ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# A handler that captures logs to be streamed over HTTP
+class StreamHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.queue = []
+    def emit(self, record):
+        self.queue.append(self.format(record) + '\n')
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+if logger.hasHandlers():
+    logger.handlers.clear()
+# Standard handler for Cloud Logging
+stdout_handler = logging.StreamHandler(sys.stdout)
+# Use a simple formatter for streaming to the UI, as the UI will handle the presentation.
+stdout_handler.setFormatter(logging.Formatter('%(message)s'))
+logger.addHandler(stdout_handler)
+
 load_dotenv()
 
 # Use the email you provided for the SEC User-Agent
@@ -159,57 +179,74 @@ def quant_agent(request):
     and returns structured financial data from both SEC API and yfinance.
     [cite: Product Canvas:PyFinAgent.md]
     """
-    ticker_str = request.args.get('ticker')
-    run_id = request.args.get('run_id') # Get run_id from query params
-    if not ticker_str:
-        return (json.dumps({"error": "No ticker provided"}), 400)
+    def generate_logs_and_data():
+        stream_handler = StreamHandler()
+        stream_handler.setFormatter(logging.Formatter('%(message)s'))
+        logger.addHandler(stream_handler)
 
-    try:
-        # --- 1. yfinance: Get Market Data (Price, Ratios) ---
-        # [cite: Comprehensive Financial Analysis Template.pdf.pdf, Part 5]
-        logging.info(f"QuantAgent: Fetching yfinance data for {ticker_str}...")
-        stock = yf.Ticker(ticker_str)
-        info = stock.info
-        market_price = info.get('currentPrice') or info.get('regularMarketPrice')
-        pe_ratio = info.get('trailingPE')
-        ps_ratio = info.get('priceToSalesTrailing12Months')
-        market_cap = info.get('marketCap')
+        ticker_str = request.args.get('ticker')
+        if not ticker_str:
+            yield "ERROR: No ticker provided"
+            return
 
-        # --- 2. SEC API: Get Fundamental Facts (Revenue, EPS) ---
-        # [cite: Comprehensive Financial Analysis Template.pdf.pdf, Part 1.1]
-        logging.info(f"QuantAgent: Fetching SEC facts for {ticker_str}...", extra={'context': {'run_id': run_id}})
-        cik_10_digit = get_cik(ticker_str.upper())
-        facts = get_company_facts(cik_10_digit)
-        historical_prices_json = get_historical_prices(ticker_str, cik_10_digit)
+        try:
+            # --- 1. yfinance: Get Market Data (Price, Ratios) ---
+            logging.info(f"Fetching yfinance market data for {ticker_str}...")
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
+            stock = yf.Ticker(ticker_str)
+            info = stock.info
+            market_price = info.get('currentPrice') or info.get('regularMarketPrice')
+            pe_ratio = info.get('trailingPE')
+            ps_ratio = info.get('priceToSalesTrailing12Months')
+            market_cap = info.get('marketCap')
 
-        latest_revenue = get_latest_financial_fact(facts, 'Revenues', 'USD')
-        latest_net_income = get_latest_financial_fact(facts, 'NetIncomeLoss', 'USD')
-        latest_eps_diluted = get_latest_financial_fact(facts, 'EarningsPerShareDiluted', 'USD/shares')
+            # --- 2. SEC API: Get Fundamental Facts (Revenue, EPS) ---
+            logging.info(f"Fetching SEC fundamental facts for {ticker_str}...")
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
+            cik_10_digit = get_cik(ticker_str.upper())
+            facts = get_company_facts(cik_10_digit)
+            historical_prices_json = get_historical_prices(ticker_str, cik_10_digit)
 
-        # --- 3. Compile Final Agent Report ---
-        report = {
-            "ticker": ticker_str,
-            "cik": cik_10_digit,
-            "company_name": facts.get('entityName', 'N/A'),
+            latest_revenue = get_latest_financial_fact(facts, 'Revenues', 'USD')
+            latest_net_income = get_latest_financial_fact(facts, 'NetIncomeLoss', 'USD')
+            latest_eps_diluted = get_latest_financial_fact(facts, 'EarningsPerShareDiluted', 'USD/shares')
 
-            "part_1_financials": {
-                "source": "SEC EDGAR API (/api/xbrl/companyfacts/)",
-                "latest_revenue": latest_revenue,
-                "latest_net_income": latest_net_income
-            },
-            "part_5_valuation": {
-                "source": "yfinance & SEC API",
-                "market_price": market_price,
-                "market_cap": market_cap,
-                "pe_ratio": pe_ratio,
-                "ps_ratio": ps_ratio,
-                "latest_eps_diluted": latest_eps_diluted,
-                "historical_prices": historical_prices_json
+            # --- 3. Compile Final Agent Report ---
+            logging.info("Compiling final quantitative report...")
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
+            report = {
+                "ticker": ticker_str,
+                "cik": cik_10_digit,
+                "company_name": facts.get('entityName', 'N/A'),
+                "part_1_financials": {
+                    "source": "SEC EDGAR API (/api/xbrl/companyfacts/)",
+                    "latest_revenue": latest_revenue,
+                    "latest_net_income": latest_net_income
+                },
+                "part_5_valuation": {
+                    "source": "yfinance & SEC API",
+                    "market_price": market_price,
+                    "market_cap": market_cap,
+                    "pe_ratio": pe_ratio,
+                    "ps_ratio": ps_ratio,
+                    "latest_eps_diluted": latest_eps_diluted,
+                    "historical_prices": historical_prices_json
+                }
             }
-        }
-        # Return the report as a JSON response
-        return (json.dumps(report), 200, {'Content-Type': 'application/json'})
+            
+            # Yield the final JSON report with a special prefix
+            yield f"FINAL_JSON:{json.dumps(report)}"
 
-    except Exception as e:
-        logging.error(f"QuantAgent failed for {ticker_str}: {e}", exc_info=True)
-        return (json.dumps({"error": str(e), "ticker": ticker_str}), 500)
+        except Exception as e:
+            error_message = f"QuantAgent failed for {ticker_str}: {str(e)}\n{traceback.format_exc()}"
+            logging.critical(error_message, exc_info=True)
+            for log in stream_handler.queue: yield log
+            yield f"ERROR: {error_message}"
+        finally:
+            # IMPORTANT: Remove the handler to avoid adding it again on the next invocation
+            logger.removeHandler(stream_handler)
+
+    return Response(stream_with_context(generate_logs_and_data()), mimetype='text/plain')
