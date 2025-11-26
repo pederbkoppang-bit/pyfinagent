@@ -18,7 +18,6 @@ from queue import Queue
 from components.sidebar import display_sidebar
 from components.stock_chart import display_price_chart
 from components.progress_bar import initialize_status_elements, update_progress, clear_progress
-from components.log_display import initialize_log_display, log_to_ui, clear_log_display, display_logs
 from components.evaluation_table import display_evaluation_table
 from components.radar_chart import display_radar_chart
 from components.reports_comparison import display_reports_comparison
@@ -127,63 +126,122 @@ def display_report():
     with st.expander("View Full Raw Data (JSON)"):
         st.json(st.session_state.report, expanded=True)
 
-# --- Agent Functions ---
+def _handle_report_load(bq_client, table_id):
+    """
+    Checks session state for a report to load (triggered from sidebar or past reports page),
+    queries BigQuery for the full report data, and populates the main
+    session state 'report' object.
+    """
+    # This function handles loading a single report.
+    if 'report_to_load' in st.session_state and st.session_state.report_to_load:
+        report_info = st.session_state.report_to_load
+        ticker = report_info['Ticker']
+        analysis_date = report_info['Analysis Date']
+        
+        query = f"""
+            SELECT full_report_json
+            FROM `{table_id}`
+            WHERE ticker = @ticker AND analysis_date = @analysis_date
+            LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
+                bigquery.ScalarQueryParameter("analysis_date", "TIMESTAMP", analysis_date),
+            ]
+        )
+        query_job = bq_client.query(query, job_config=job_config)
+        results = list(query_job.result())
+        
+        if results:
+            # The full report is stored as a JSON string in BigQuery
+            st.session_state.report = json.loads(results[0].full_report_json)
+        
+        # Clear the flag to prevent re-loading on the next rerun
+        del st.session_state.report_to_load
 
-def run_ingestion_agent(ticker: str):
-    log_to_ui(f"🔍 Checking filings for {ticker}...")
+def run_ingestion_agent(ticker: str, status):
+    """Triggers the data ingestion agent and waits for it to complete."""
+    INGESTION_AGENT_URL = st.secrets.agent.ingestion_agent_url
+    success = False # Default to failure unless success message is seen
+
     try:
-        INGESTION_AGENT_URL = st.secrets.agent.ingestion_agent_url
-        requests.post(INGESTION_AGENT_URL, json={'ticker': ticker}, timeout=900)
-        log_to_ui("✅ Ingestion check complete.")
+        # Make a POST request with stream=True to handle the streaming response.
+        # The agent will now send back logs line-by-line.
+        response = requests.post(
+            INGESTION_AGENT_URL, json={'ticker': ticker}, timeout=300, stream=True
+        )
+        response.raise_for_status() # Check for immediate errors like 4xx/5xx
+
+        # Iterate over the response content line by line.
+        for line in response.iter_lines():
+            if line:
+                log_message = line.decode('utf-8')
+                # Update the status container's label with the latest log message.
+                status.update(label=log_message)
+                # Check for the specific success message to confirm completion.
+                if "Ingestion process completed successfully." in log_message:
+                    success = True
+                    break # Exit the loop as we have confirmation of success.
+
+                # Check for failure messages to stop early.
+                if "failed" in log_message.lower() or "error" in log_message.lower():
+                    success = False # Explicitly mark as failed
+                    break # Exit the loop on failure
+            
+        return success
     except Exception as e:
-        log_to_ui("⚠️ Ingestion agent warning.")
+        st.error(f"Failed to connect to or stream from ingestion agent: {e}")
+        return False
 
 @st.cache_data(ttl="1h")
-def run_quant_agent(ticker: str) -> dict:
-    log_to_ui(f"📊 Running Quant Agent for {ticker}...")
+def run_quant_agent(ticker: str, _status) -> dict:
+    # --- Agent Functions ---
+
+    _status.update(label=f"📊 Running Quant Agent for {ticker}...")
     
     # Enhance Quant Agent with Alpha Vantage Overview
     av_overview = tools_alphavantage.get_fundamental_overview(ticker)
     
     QUANT_AGENT_URL = st.secrets.agent.quant_agent_url
     try:
-        response = requests.get(f"{QUANT_AGENT_URL}?ticker={ticker}", timeout=300)
+        response = requests.get(f"{QUANT_AGENT_URL}?ticker={ticker}", timeout=600) # type: ignore
         data = response.json()
         if "error" in data: raise ValueError(data["error"])
         
         # Merge Alpha Vantage Data into Report
         if "part_5_valuation" in data and isinstance(av_overview, dict):
             data["part_5_valuation"]["alpha_vantage_overview"] = av_overview
-            
-        log_to_ui("✅ Quant data acquired.")
+        
+        _status.update(label="✅ Quant data acquired.")
         return data
     except Exception as e:
         st.error(f"Quant Agent failed: {e}")
         raise
 
-def run_rag_agent(rag_model, ticker):
-    log_to_ui("📑 RAG Agent analyzing documents...")
+def run_rag_agent(rag_model, ticker, status):
+    status.update(label="📑 RAG Agent analyzing documents...")
     prompt = agent_prompts.get_rag_prompt(ticker)
     response = rag_model.generate_content(prompt)
-    log_to_ui("✅ RAG analysis complete.")
+    status.update(label="✅ RAG analysis complete.")
     return {"text": response.text}
 
-def run_market_agent(market_model, ticker, av_data):
-    log_to_ui("🌍 Market Agent analyzing Alpha Vantage sentiment feed...")
+def run_market_agent(market_model, ticker, av_data, status):
+    status.update(label="🌍 Market Agent analyzing Alpha Vantage sentiment feed...")
     prompt = agent_prompts.get_market_prompt(ticker, av_data)
     response = market_model.generate_content(prompt)
-    log_to_ui("✅ Market analysis complete.")
+    status.update(label="✅ Market analysis complete.")
     return {"text": response.text}
 
-def run_competitor_agent(market_model, ticker, av_data):
-    log_to_ui("⚔️ Competitor Scout analyzing co-occurring rivals...")
+def run_competitor_agent(market_model, ticker, av_data, status):
+    status.update(label="⚔️ Competitor Scout analyzing co-occurring rivals...")
     prompt = agent_prompts.get_competitor_prompt(ticker, av_data)
     response = market_model.generate_content(prompt)
-    log_to_ui("✅ Competitor analysis complete.")
+    status.update(label="✅ Competitor analysis complete.")
     return {"text": response.text}
 
-def run_deep_dive_agent(synthesis_model, rag_model, ticker, report):
-    log_to_ui("🕵️ Deep Dive Agent: Looking for contradictions...")
+def run_deep_dive_agent(synthesis_model, rag_model, ticker, report, status):
+    status.update(label="🕵️ Deep Dive Agent: Looking for contradictions...")
     prompt = agent_prompts.get_deep_dive_prompt(
         ticker, 
         report['part_1_5_quant'],
@@ -196,14 +254,14 @@ def run_deep_dive_agent(synthesis_model, rag_model, ticker, report):
     answers = []
     for q in questions:
         if q.strip():
-            log_to_ui(f"   ❓ Investigating: {q.strip()}")
+            status.update(label=f"   ❓ Investigating: {q.strip()}")
             ans_resp = rag_model.generate_content(f"Answer this using 10-K: {q}")
             answers.append(f"Q: {q}\nA: {ans_resp.text}")
+            time.sleep(2) # Add a 2-second delay to avoid hitting API rate limits
     return "\n\n".join(answers)
 
-def run_synthesis_pipeline(synthesis_model, ticker, report):
-    update_progress(70, "Lead Analyst drafting report...")
-    log_to_ui("✍️ Lead Analyst: Drafting thesis...")
+def run_synthesis_pipeline(synthesis_model, ticker, report, status):
+    status.update(label="✍️ Lead Analyst: Drafting thesis...")
     draft_prompt = agent_prompts.get_synthesis_prompt(
         ticker,
         report['part_1_5_quant'],
@@ -215,8 +273,7 @@ def run_synthesis_pipeline(synthesis_model, ticker, report):
     draft_response = synthesis_model.generate_content(draft_prompt)
     draft_text = clean_json_output(draft_response.text)
     
-    update_progress(85, "Critic reviewing...")
-    log_to_ui("🧐 Critic Agent: Validating data points...")
+    status.update(label="🧐 Critic Agent: Validating data points...")
     critic_prompt = agent_prompts.get_critic_prompt(ticker, draft_text, report['part_1_5_quant'])
     final_response = synthesis_model.generate_content(critic_prompt)
     final_text = clean_json_output(final_response.text)
@@ -230,108 +287,147 @@ def run_synthesis_pipeline(synthesis_model, ticker, report):
 
 def main():
     setup_logging()
+    # Initialize GCP services at the start of every run to ensure they are available.
+    if 'gcp_services' not in st.session_state:
+        st.session_state.gcp_services = initialize_gcp_services()
+
+    if 'score_weights' not in st.session_state:
+        # Initialize all required state keys to prevent KeyErrors
+        st.session_state.score_weights = {'pillar_1_corporate': 0.35, 'pillar_2_industry': 0.20, 'pillar_3_valuation': 0.20, 'pillar_4_sentiment': 0.15, 'pillar_5_governance': 0.10}
+        st.session_state.report = {}
+        st.session_state.ticker = ""
+        st.session_state.analysis_in_progress = False
+        st.session_state.av_data = {}
+
     if 'score_weights' not in st.session_state:
         st.session_state.score_weights = {'pillar_1_corporate': 0.35, 'pillar_2_industry': 0.20, 'pillar_3_valuation': 0.20, 'pillar_4_sentiment': 0.15, 'pillar_5_governance': 0.10}
 
     st.title("PyFinAgent: AI Financial Analyst (Agentic)")
     st.caption("Powered by Alpha Vantage Data & Reflexion Architecture")
 
-    if 'gcp_services' not in st.session_state:
-        st.session_state.gcp_services = initialize_gcp_services()
     services = st.session_state.gcp_services
-    display_sidebar(services['bq_client'], services['table_id'], st.session_state.get("ticker"))
+    # Only display the sidebar reports if an analysis is NOT in progress to prevent crashes.
+    if not st.session_state.get('analysis_in_progress'):
+        # Handle loading a past report if triggered from another page
+        _handle_report_load(services['bq_client'], services['table_id'])
+        display_sidebar(services['bq_client'], services['table_id'], st.session_state.get("ticker"))
 
-    col1, col2 = st.columns([4, 1])
-    with col1: st.text_input("Enter Ticker:", key="ticker", label_visibility="collapsed", placeholder="e.g. NVDA")
-    with col2: 
-        if st.button("Clear", use_container_width=True):
-            st.session_state.clear()
-            st.rerun()
-
-    if st.button("Run Comprehensive Analysis", type="primary"):
+    # This check MUST run on every script run to handle navigation from past reports.
+    if 'report' in st.session_state and isinstance(st.session_state.report.get('final_synthesis'), str):
+        try:
+            st.session_state.report['final_synthesis'] = json.loads(st.session_state.report['final_synthesis'])
+        except (json.JSONDecodeError, TypeError):
+            st.error("Failed to parse report data from previous page. Please start a new analysis.")
+            st.session_state.report = {} # Clear corrupted report
+    
+    def start_analysis_callback():
+        """Sets the state to begin the analysis."""
+        # Persist the ticker value for the analysis run
+        st.session_state.analysis_ticker = st.session_state.ticker
+        st.session_state.report = {}
+        st.session_state.av_data = {}
         st.session_state.analysis_in_progress = True
 
-    initialize_status_elements()
-    initialize_log_display()
-    display_logs()
+    # Only draw the main UI if an analysis is NOT in progress
+    if not st.session_state.get('analysis_in_progress'):
+        def clear_state_callback():
+            """Resets the session state for a new analysis, preserving services."""
+            for key in ['ticker', 'report', 'analysis_in_progress', 'av_data']:
+                if key in st.session_state:
+                    st.session_state[key] = "" if key == 'ticker' else {}
+    
+        col1, col2 = st.columns([4, 1])
+        with col1: st.text_input("Enter Ticker:", key="ticker", label_visibility="collapsed", placeholder="e.g. NVDA")
+        with col2: 
+            st.button("Clear", on_click=clear_state_callback, use_container_width=True)
+    
+        st.button("Run Comprehensive Analysis", type="primary", on_click=start_analysis_callback, disabled=not st.session_state.get("ticker"), use_container_width=True)
 
     # --- EXECUTION LOOP ---
-    if st.session_state.get('analysis_in_progress') and st.session_state.ticker:
-        ticker = st.session_state.ticker
-        if 'report' not in st.session_state: st.session_state.report = {}
+    if st.session_state.get('analysis_in_progress') and st.session_state.get('analysis_ticker'):
+        ticker = st.session_state.analysis_ticker
+        report = st.session_state.report
         
-        try:
-            # 0. Fetch Alpha Vantage Data
-            if 'av_data' not in st.session_state:
-                log_to_ui("📡 Fetching Alpha Vantage Market Intel...")
-                st.session_state.av_data = tools_alphavantage.get_market_intel(ticker)
+        initialize_status_elements()
+        with st.status("Agent Thought Process", expanded=True) as status:
+            try:
+                # Step 0: Data Ingestion
+                if 'ingestion_complete' not in report:
+                    status.update(label="Starting data ingestion...")
+                    if not run_ingestion_agent(ticker, status):
+                        raise Exception("Data Ingestion Failed")
+                    report['ingestion_complete'] = True
+                    st.rerun()
 
-            # 1. Pipeline
-            if 'ingestion_agent' not in st.session_state.report:
-                run_ingestion_agent(ticker)
-                st.session_state.report['ingestion_agent'] = True
+                # Step 1: Fetch Alpha Vantage Data
+                if 'av_data' not in st.session_state or not st.session_state.av_data:
+                    status.update(label="📡 Fetching Alpha Vantage Market Intel...")
+                    st.session_state.av_data = tools_alphavantage.get_market_intel(ticker)
+                    st.rerun()
 
-            if 'part_1_5_quant' not in st.session_state.report:
-                update_progress(20, "Gathering Financials...")
-                st.session_state.report['part_1_5_quant'] = run_quant_agent(ticker)
-            
-            if 'part_1_4_6_rag' not in st.session_state.report:
-                update_progress(35, "Analyzing 10-Ks...")
-                st.session_state.report['part_1_4_6_rag'] = run_rag_agent(services['rag_model'], ticker)
-
-            if 'part_2_3_market' not in st.session_state.report:
-                update_progress(50, "Scanning Market News...")
-                st.session_state.report['part_2_3_market'] = run_market_agent(services['market_model'], ticker, st.session_state.av_data)
-
-            if 'part_6_competitor' not in st.session_state.report:
-                update_progress(55, "Analyzing Rivals...")
-                st.session_state.report['part_6_competitor'] = run_competitor_agent(services['market_model'], ticker, st.session_state.av_data)
-
-            if 'deep_dive_analysis' not in st.session_state.report:
-                update_progress(60, "Deep Dive...")
-                st.session_state.report['deep_dive_analysis'] = run_deep_dive_agent(services['synthesis_model'], services['rag_model'], ticker, st.session_state.report)
-
-            if 'final_synthesis' not in st.session_state.report:
-                final_json = run_synthesis_pipeline(services['synthesis_model'], ticker, st.session_state.report)
-                # Score Calculation
-                scores = final_json.get('scoring_matrix', {})
-                w = st.session_state.score_weights
-                final_score = sum(scores.get(k, 0) * v for k, v in w.items())
-                final_json['final_weighted_score'] = round(final_score, 2)
-                st.session_state.report['final_synthesis'] = final_json
-
-            if 'report_saved' not in st.session_state.report:
-                update_progress(95, "Saving report...")
+                # Step 2: Quantitative Analysis
+                if 'part_1_5_quant' not in report:
+                    report['part_1_5_quant'] = run_quant_agent(ticker, status)
+                    st.rerun()
                 
-                # --- BIGQUERY SAVE LOGIC ---
-                try:
-                    company_name = st.session_state.report.get('part_1_5_quant', {}).get('company_name', 'N/A')
-                    row = {
-                        "ticker": ticker, 
-                        "company_name": company_name, 
-                        "analysis_date": datetime.now().isoformat(), 
-                        "final_score": st.session_state.report['final_synthesis']['final_weighted_score'], 
-                        "recommendation": st.session_state.report['final_synthesis'].get('recommendation', {}).get('action', 'N/A'), 
-                        "summary": st.session_state.report['final_synthesis'].get('final_summary', ''), 
-                        "full_report_json": json.dumps(st.session_state.report)
-                    }
-                    errors = services['bq_client'].insert_rows_json(services['table_id'], [row])
-                    if errors: logging.error(f"BQ Error: {errors}")
-                except Exception as e:
-                    logging.error(f"Save failed: {e}")
+                # Step 3: RAG Analysis on 10-K Filings
+                if 'part_1_4_6_rag' not in report:
+                    report['part_1_4_6_rag'] = run_rag_agent(services['rag_model'], ticker, status)
+                    st.rerun()
 
-                st.session_state.report['report_saved'] = True
-                update_progress(100, "Analysis Complete.")
+                # Step 4: Market News Analysis
+                if 'part_2_3_market' not in report:
+                    report['part_2_3_market'] = run_market_agent(services['market_model'], ticker, st.session_state.av_data, status)
+                    st.rerun()
+
+                # Step 5: Competitor Analysis
+                if 'part_6_competitor' not in report:
+                    report['part_6_competitor'] = run_competitor_agent(services['market_model'], ticker, st.session_state.av_data, status)
+                    st.rerun()
+
+                # Step 6: Deep Dive Contradiction Analysis
+                if 'deep_dive_analysis' not in report:
+                    report['deep_dive_analysis'] = run_deep_dive_agent(
+                        services['synthesis_model'], services['rag_model'], ticker, report, status
+                    )
+                    st.rerun()
+
+                # Step 7: Final Synthesis and Scoring
+                if 'final_synthesis' not in report:
+                    final_json = run_synthesis_pipeline(
+                        services['synthesis_model'], ticker, st.session_state.report, status
+                    )
+                    scores = final_json.get('scoring_matrix', {})
+                    w = st.session_state.score_weights
+                    final_score = sum(scores.get(k, 0) * v for k, v in w.items())
+                    final_json['final_weighted_score'] = round(final_score, 2)
+                    report['final_synthesis'] = final_json
+                    st.rerun()
+
+                # Step 8: Save the final report to BigQuery
+                if 'report_saved' not in report:
+                    status.update(label="Saving report...")
+                    try:
+                        company_name = report.get('part_1_5_quant', {}).get('company_name', 'N/A')
+                        row = {"ticker": ticker, "company_name": company_name, "analysis_date": datetime.now().isoformat(), "final_score": report['final_synthesis']['final_weighted_score'], "recommendation": report['final_synthesis'].get('recommendation', {}).get('action', 'N/A'), "summary": report['final_synthesis'].get('final_summary', ''), "full_report_json": json.dumps(report)}
+                        errors = services['bq_client'].insert_rows_json(services['table_id'], [row])
+                        if errors: logging.error(f"BQ Error: {errors}")
+                    except Exception as e:
+                        logging.error(f"Save failed: {e}")
+
+                    st.session_state.report['report_saved'] = True
+                    status.update(label="Analysis Complete!", state="complete", expanded=False)
+                    st.session_state.analysis_in_progress = False
+                    st.rerun()
+
+            except Exception as e:
+                status.update(label="Analysis Failed", state="error")
+                st.error(f"Analysis halted: {e}")
+                st.write(traceback.format_exc())
                 st.session_state.analysis_in_progress = False
-                st.rerun()
+                logging.error("Pipeline failed", exc_info=True)
 
-        except Exception as e:
-            st.error(f"Analysis halted: {e}")
-            st.write(traceback.format_exc())
-            st.session_state.analysis_in_progress = False
-            logging.error("Pipeline failed", exc_info=True)
-
-    # --- Render Report ---
+    # --- Render Final Report ---
     if st.session_state.get('report', {}).get('final_synthesis'):
         display_report()
 

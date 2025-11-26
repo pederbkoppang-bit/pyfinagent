@@ -1,11 +1,11 @@
+# .streamlit/config.toml
+
 [server]
 headless = true
-port = 8501
 enableCORS = false
-enableXsrfProtection = false
+port = 8501
 
-[browser]
-# This address is what the browser uses to connect.
-# In a proxied environment like this, it's automatically detected.
-# If auto-detection fails, you can set it to your app's public URL.
-serverAddress = "8501-cs-fbfab048-5129-44a6-a19f-7f260baaaea0.cs-europe-west4-fycr.cloudshell.dev"
+[logger]
+# Level can be "error", "warning", "info", or "debug".
+# "debug" is very verbose and useful for diagnosing issues.
+level = "debug"

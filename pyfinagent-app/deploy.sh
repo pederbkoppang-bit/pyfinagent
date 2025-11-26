@@ -70,11 +70,8 @@ docker build --progress=plain --build-arg APP_VERSION=$APP_VERSION -t $IMAGE_NAM
 
 # 4. Run the new container in detached mode.
 # We mount the secrets directory and provide the service account key directly to the container
-# via a volume mount. The app will read secrets from the mounted .streamlit/secrets.toml file.
 echo "▶️  Starting new container '$CONTAINER_NAME' from image '$IMAGE_NAME'..."
-docker run -d -p $HOST_PORT:$CONTAINER_PORT --name $CONTAINER_NAME \
-    -v "$(pwd)/.streamlit:/app/.streamlit:ro" \
-    $IMAGE_NAME
+docker run -d -p $HOST_PORT:$CONTAINER_PORT --name $CONTAINER_NAME $IMAGE_NAME
 
 echo "🎉 Deployment complete! Your application is running."
 echo "➡️  Access it at: http://localhost:$HOST_PORT"

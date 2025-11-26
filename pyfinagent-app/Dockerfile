@@ -23,6 +23,9 @@ COPY tools_alphavantage.py .
 COPY pages/ ./pages/
 COPY components/ ./components/
 
+# Copy the .streamlit directory which contains secrets.toml and config.toml
+COPY .streamlit/ ./.streamlit/
+
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \ 
     pip install --no-cache-dir --no-warn-script-location -r requirements.txt

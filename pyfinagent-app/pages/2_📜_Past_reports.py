@@ -114,16 +114,18 @@ def load_and_display_reports():
         # --- Action Buttons ---
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("View Selected Report(s) on Home Page", use_container_width=True):
+            if st.button("View Selected Report on Home Page", use_container_width=True):
                 # Get the selected rows from the editor's state
                 selected_rows = edited_df[edited_df.select]
                 if selected_rows.empty:
                     st.warning("Please click on a row in the table to select a report first.")
+                elif len(selected_rows) > 1:
+                    st.warning("Please select only one report to view.")
                 else:
-                    # Get all selected reports
-                    selected_reports = selected_rows.to_dict(orient="records")
-                    st.session_state.reports_to_load = selected_reports
-                    # Navigate to the main Home page to load the report
+                    # Get the single selected report
+                    report_to_load = selected_rows.to_dict(orient="records")[0]
+                    st.session_state.report_to_load = report_to_load
+                    # Navigate to the main Home page to load it
                     st.switch_page("Home.py")
         
         with col2:

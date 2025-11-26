@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from google.cloud import bigquery
 import logging
 
 @st.cache_data(ttl=3600) # Cache for 1 hour
@@ -9,8 +10,9 @@ def get_historical_data(_bq_client, table_id: str, ticker: str):
     The bq_client argument is prefixed with an underscore to tell Streamlit's
     caching mechanism not to hash it.
     """
-    if not ticker:
-        return None
+    # Guard against uninitialized client or empty ticker
+    if not ticker or not _bq_client:
+        return pd.DataFrame()
 
     logging.info(f"Fetching historical data for {ticker} from BigQuery.")
     query = f"""
@@ -25,8 +27,9 @@ def get_historical_data(_bq_client, table_id: str, ticker: str):
         ORDER BY analysis_date DESC
         LIMIT 10
     """
-    job_config = st.session_state.bigquery.QueryJobConfig(
-        query_parameters=[st.session_state.bigquery.ScalarQueryParameter("ticker", "STRING", ticker.upper())]
+    # Use the passed-in client to create query parameters
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ScalarQueryParameter("ticker", "STRING", ticker.upper())]
     )
     query_job = _bq_client.query(query, job_config=job_config)
     return query_job.to_dataframe()

@@ -19,7 +19,7 @@
 
 GCP_PROJECT_ID="sunny-might-477607-p8"      # <-- REPLACE with your GCP Project ID
 GCP_REGION="us-central1"                  # <-- REPLACE with your preferred GCP region
-GCS_BUCKET_NAME="10k-filling-data"      # <-- REPLACE with your GCS bucket name
+BUCKET_NAME="10k-filling-data"      # <-- REPLACE with your GCS bucket name
 USER_AGENT_EMAIL="peder.bkoppang@hotmail.no" # <-- REPLACE with your email for the SEC User-Agent
 GCP_USER_ACCOUNT="peder.bkoppang@hotmail.no" # <-- The user account that will run this script
 
@@ -29,12 +29,12 @@ echo "Starting PyFinAgent deployment..."
 echo "---------------------------------"
 echo "Project ID:     $GCP_PROJECT_ID"
 echo "Region:         $GCP_REGION"
-echo "GCS Bucket:     $GCS_BUCKET_NAME"
+echo "GCS Bucket:     $BUCKET_NAME"
 echo "---------------------------------"
 echo
 
 # Validate that placeholder values have been changed
-if [[ "$GCP_PROJECT_ID" == "your-gcp-project-id" || "$GCS_BUCKET_NAME" == "your-gcs-bucket-name" ]]; then
+if [[ "$GCP_PROJECT_ID" == "your-gcp-project-id" || "$BUCKET_NAME" == "your-gcs-bucket-name" ]]; then
   echo "ERROR: Please replace the placeholder values in the 'Configuration' section of the script before running."
   exit 1
 fi
@@ -82,7 +82,7 @@ else
       --entry-point=quant_agent \
       --trigger-http \
       --allow-unauthenticated \
-      --set-env-vars="GCS_BUCKET_NAME=$GCS_BUCKET_NAME,USER_AGENT_EMAIL=$USER_AGENT_EMAIL" \
+      --set-env-vars="BUCKET_NAME=$BUCKET_NAME,USER_AGENT_EMAIL=$USER_AGENT_EMAIL" \
       || { echo "Deployment of quant-agent failed."; cd ..; exit 1; }
     echo "✅ quant-agent deployment command issued."
 fi
@@ -104,7 +104,7 @@ else
       --entry-point=ingestion_agent_http \
       --trigger-http \
       --allow-unauthenticated \
-      --set-env-vars="GCS_BUCKET_NAME=$GCS_BUCKET_NAME,USER_AGENT_EMAIL=$USER_AGENT_EMAIL" \
+      --set-env-vars="BUCKET_NAME=$BUCKET_NAME,USER_AGENT_EMAIL=$USER_AGENT_EMAIL" \
       --timeout=900s \
       || { echo "Deployment of ingestion-agent failed."; cd ..; exit 1; }
     echo "✅ ingestion-agent deployment command issued."

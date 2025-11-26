@@ -4,8 +4,10 @@ import re
 import logging
 import sys
 import requests
+import traceback
 from datetime import datetime
 from dotenv import load_dotenv
+from flask import Response, stream_with_context
 from google.cloud import storage
 from google.api_core import exceptions as gcp_exceptions
 from bs4 import BeautifulSoup
@@ -27,13 +29,23 @@ class JsonFormatter(logging.Formatter):
             log_record['exception'] = self.formatException(record.exc_info)
         return json.dumps(log_record)
 
+# A handler that captures logs to be streamed over HTTP
+class StreamHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.queue = []
+    def emit(self, record):
+        self.queue.append(self.format(record) + '\n')
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 if logger.hasHandlers():
     logger.handlers.clear()
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(JsonFormatter())
-logger.addHandler(handler)
+# Standard handler for Cloud Logging
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setFormatter(JsonFormatter())
+logger.addHandler(stdout_handler)
+
 
 # --- CONFIGURATION ---
 load_dotenv()
@@ -314,37 +326,54 @@ def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]
 @functions_framework.http
 def ingestion_agent_http(request):
     """HTTP Cloud Function entry point."""
-    # Critical configuration check
-    if not BUCKET_NAME or not USER_AGENT_EMAIL:
-        logger.critical("FATAL: BUCKET_NAME and/or USER_AGENT_EMAIL environment variables are not set.")
-        return ({"status": "error", "message": "Server configuration error."}, 500)
+    def generate_logs():
+        # This handler will capture logs for this specific request
+        stream_handler = StreamHandler()
+        # Use a formatter that includes the severity level for client-side parsing.
+        stream_handler.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
+        logger.addHandler(stream_handler)
 
-    if request.method != 'POST':
-        return ('Method Not Allowed', 405)
+        try:
+            # Critical configuration check
+            if not BUCKET_NAME or not USER_AGENT_EMAIL:
+                raise ValueError("Server configuration error: BUCKET_NAME and/or USER_AGENT_EMAIL environment variables are not set.")
 
-    try:
-        request_json = request.get_json(silent=True)
-        if not request_json or 'ticker' not in request_json:
-            logger.error("Invalid request: Missing 'ticker' in JSON body.")
-            return ({"status": "error", "message": "Invalid request: 'ticker' is required."}, 400)
+            if request.method != 'POST':
+                raise ValueError("Method Not Allowed")
 
-        ticker = request_json['ticker'].strip().upper()
-        run_id = request_json.get('run_id') # Get the unique run ID
-        context = {"ticker": ticker, "agent": "ingestion-agent", "run_id": run_id}
-        logger.info("Ingestion agent triggered.", extra={'context': context})
+            request_json = request.get_json(silent=True)
+            if not request_json or 'ticker' not in request_json:
+                raise ValueError("Invalid request: 'ticker' is required in JSON body.")
 
-        # Define which forms to fetch and how many of each.
-        # Fetch both 10-K (annual) and 10-Q (quarterly) filings.
-        forms_to_fetch = ['10-K', '10-Q']
+            ticker = request_json['ticker'].strip().upper()
+            run_id = request_json.get('run_id')
+            context = {"ticker": ticker, "agent": "ingestion-agent", "run_id": run_id}
 
-        storage_client = storage.Client()
-        process_ticker(ticker, storage_client, forms_to_fetch)
+            logger.info("Ingestion agent triggered.", extra={'context': context})
+            # Yield any logs that have been captured so far
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
 
-        logger.info("Ingestion process completed successfully.", extra={'context': context})
-        return ({"status": "success", "message": f"Ingestion completed for {ticker}."}, 200)
+            forms_to_fetch = ['10-K', '10-Q']
+            storage_client = storage.Client()
 
-    except Exception as e:
-        # The process_ticker function now re-raises exceptions, so we catch them here.
-        logger.critical("An unhandled exception occurred during the ingestion process.", exc_info=True)
-        # Return a generic 500 error to the client to avoid leaking implementation details.
-        return ({"status": "error", "message": "An internal server error occurred."}, 500)
+            # We need to manually iterate and yield logs during the process
+            # This requires adapting the process_ticker logic slightly or just letting it run
+            # and flushing logs periodically if it were a long process.
+            # For now, we'll just run it and then flush.
+            process_ticker(ticker, storage_client, forms_to_fetch)
+
+            logger.info("Ingestion process completed successfully.", extra={'context': context})
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
+
+        except Exception as e:
+            error_message = f"Ingestion agent failed: {str(e)}\n{traceback.format_exc()}"
+            logger.critical(error_message, exc_info=True)
+            for log in stream_handler.queue: yield log
+            yield error_message # Ensure the final error is sent
+        finally:
+            # IMPORTANT: Remove the handler to avoid adding it again on the next invocation
+            logger.removeHandler(stream_handler)
+
+    return Response(stream_with_context(generate_logs()), mimetype='text/plain')
