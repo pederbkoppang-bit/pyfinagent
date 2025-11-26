@@ -6,7 +6,8 @@ This module separates the 'Brain' (prompts) from the 'Body' (Home.py).
 
 import json
 
-def get_rag_prompt(ticker: str) -> str:
+def get_rag_prompt(ticker: str, status_handler=None) -> str:
+    if status_handler: status_handler.log("   Generating prompt for RAG Agent...")
     return (
         f"You are a specialized Financial Analyst focusing on 10-K and 10-Q filings for {ticker}. "
         "Your goal is to extract factual, hard data regarding:\n"
@@ -17,10 +18,11 @@ def get_rag_prompt(ticker: str) -> str:
         "mention which document (e.g., '2024 10-K') it came from."
     )
 
-def get_market_prompt(ticker: str, av_data: dict) -> str:
+def get_market_prompt(ticker: str, av_data: dict, status_handler=None) -> str:
     """
     Uses Alpha Vantage News Sentiment Data.
     """
+    if status_handler: status_handler.log("   Generating prompt for Market Agent...")
     return (
         f"You are a Market Sentiment Specialist. Analyze the provided News Feed for {ticker}.\n"
         "--- DATA ---\n"
@@ -32,11 +34,12 @@ def get_market_prompt(ticker: str, av_data: dict) -> str:
         "3. **Macro Context**: Do these stories relate to macro factors (rates, war) or company-specific execution?"
     )
 
-def get_competitor_prompt(ticker: str, av_data: dict) -> str:
+def get_competitor_prompt(ticker: str, av_data: dict, status_handler=None) -> str:
     """
     Uses Dynamic Competitor Discovery from Alpha Vantage.
     """
     rivals = av_data.get('derived_competitors', [])
+    if status_handler: status_handler.log("   Generating prompt for Competitor Agent...")
     return (
         f"You are a Competitor Intelligence Scout. Based on news co-occurrence, the following companies are frequently mentioned with {ticker}: {rivals}.\n\n"
         "**TASK:**\n"
@@ -45,7 +48,8 @@ def get_competitor_prompt(ticker: str, av_data: dict) -> str:
         "3. Assess if {ticker} is mentioned in a 'winning' or 'losing' context relative to these peers."
     )
 
-def get_deep_dive_prompt(ticker: str, quant_data: dict, rag_text: str, market_text: str, competitor_text: str) -> str:
+def get_deep_dive_prompt(ticker: str, quant_data: dict, rag_text: str, market_text: str, competitor_text: str, status_handler=None) -> str:
+    if status_handler: status_handler.log("   Generating questions for Deep-Dive Agent...")
     return (
         f"You are a Senior Investment Investigator. Your job is NOT to summarize, but to PROBE.\n"
         f"I have four reports for {ticker} that may contain contradictions or gaps.\n\n"
@@ -61,7 +65,8 @@ def get_deep_dive_prompt(ticker: str, quant_data: dict, rag_text: str, market_te
         "Output ONLY the numbered list of questions."
     )
 
-def get_synthesis_prompt(ticker: str, quant_data: dict, rag_text: str, market_text: str, competitor_text: str, deep_dive_text: str) -> str:
+def get_synthesis_prompt(ticker: str, quant_data: dict, rag_text: str, market_text: str, competitor_text: str, deep_dive_text: str, status_handler=None, step_num: float = 8.1) -> str:
+    if status_handler: status_handler.log(f"   -> Step {step_num}: Generating prompt for Synthesis Agent...")
     return (
         f"You are the Lead Analyst for {ticker}. Synthesize the following agent reports into a cohesive investment thesis.\n\n"
         "--- INPUTS ---\n"
@@ -79,7 +84,8 @@ def get_synthesis_prompt(ticker: str, quant_data: dict, rag_text: str, market_te
         "Return a JSON object with keys: `scoring_matrix`, `recommendation`, `final_summary`, `key_risks`."
     )
 
-def get_critic_prompt(ticker: str, draft_report: str, quant_data: dict) -> str:
+def get_critic_prompt(ticker: str, draft_report: str, quant_data: dict, status_handler=None, step_num: float = 8.2) -> str:
+    if status_handler: status_handler.log(f"   -> Step {step_num}: Generating prompt for Critic Agent...")
     return (
         f"You are the Compliance & Quality Control Officer. Review the draft report for {ticker}.\n\n"
         "--- HARD DATA (TRUTH) ---\n"
