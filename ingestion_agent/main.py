@@ -192,51 +192,154 @@ def parse_filing_into_sections(html_content: str) -> dict:
     """
     Parses an SEC filing's HTML to extract and clean text from major sections (Items).
     """
-    logger.info("Parsing filing into semantic sections...")
+    logger.info("Parsing filing into semantic sections (Items)...")
     parser = 'lxml-xml' if '<?xml' in html_content.lower()[:100] else 'lxml'
     soup = BeautifulSoup(html_content, parser)
-    # Regex to find lines that start with "Item" followed by a number/letter.
-    # This is a common pattern for section headers.
-    # re.MULTILINE allows `^` to match the start of each line.
-    # This improved regex is more flexible, handling variations in spacing and optional periods.
-    # It looks for "Item" at the beginning of a line, followed by spaces, then the item number (e.g., 1A, 7).
-    item_pattern = re.compile(r"^\s*item\s+[\d\w]{1,2}(?:\.|\s)", re.IGNORECASE | re.MULTILINE)
 
-    # Extract text *after* HTML parsing, which normalizes whitespace and removes tags that could break the regex.
-    # We also replace non-breaking spaces with regular spaces.
+    # 0. Pre-emptively remove style-only tags that add no semantic meaning
+    # and can interfere with text extraction.
+    for tag_name in ['font', 'b', 'i', 'u', 'strong', 'em']:
+        for tag in soup.find_all(tag_name):
+            # Replaces the tag with its contents
+            tag.unwrap()
+
+    # 1. Find all tables, convert them to Markdown, and replace them in the soup.
+    # This preserves the table structure before converting the whole document to text.
+    for table in soup.find_all('table'):
+        # Parse the table into a list of lists
+        table_data = []
+        for row in table.find_all('tr'):
+            row_data = [cell.get_text(strip=True) for cell in row.find_all(['td', 'th'])]
+            if any(row_data): # Only add rows that have some content
+                table_data.append(row_data)
+
+        if not table_data:
+            continue
+
+        # Normalize table: ensure all rows have the same number of columns
+        # This handles malformed tables that use colspan or have inconsistent cell counts.
+        max_cols = max(len(row) for row in table_data) if table_data else 0
+        normalized_table_data = [row + [''] * (max_cols - len(row)) for row in table_data]
+
+        if not normalized_table_data or not normalized_table_data[0]:
+            continue
+
+        # Convert the list of lists to a Markdown table string
+        markdown_table = "\n\n" # Add spacing around the table
+        # Header
+        markdown_table += "| " + " | ".join(map(str, normalized_table_data[0])) + " |\n"
+        # Separator
+        markdown_table += "| " + " | ".join(['---'] * len(normalized_table_data[0])) + " |\n"
+        # Body
+        for row in normalized_table_data[1:]:
+            markdown_table += "| " + " | ".join(map(str, row)) + " |\n"
+        markdown_table += "\n"
+
+        # Replace the table tag with a new tag containing the Markdown text
+        table.replace_with(soup.new_string(markdown_table))
+
+    # 2. Pre-process text: remove non-breaking spaces and normalize
     full_text = soup.get_text(separator='\n').replace('\xa0', ' ')
 
-    # Find all starting positions of headers
+    # 3. Find all section headers. This is a more robust pattern that handles cases
+    # where the title is on the same line as "Item X" or on a subsequent line,
+    # which is common in SEC filings.
+    # It also now looks for an optional "Part X" prefix.
+    #
+    # Breakdown of the regex:
+    #   ^\s*                      - Start of a line with optional whitespace.
+    #   (?:part\s+[ivx]+[.,]?\s*)? - Optional non-capturing group for "Part I", "Part II.", etc.
+    #   (item\s+[\d\w]{1,3}(?:\.|\s)?) - Group 1: Captures "Item" followed by its number/letter combo (e.g., "Item 1A", "Item 7.").
+    #   \s*                       - Optional whitespace after the item number.
+    #   (?:-|\u2013|\u2014)?\s*    - Optional dash or em-dash, followed by optional space.
+    #   ([a-z\s,()&’'\"\d]{5,150})? - Group 2 (optional): Captures the section title if it's on the same line.
+    #   \s*$                      - Must end with optional whitespace and the end of the line OR
+    #   |                         - OR
+    #   (?=\n\s*[a-z].+)          - A positive lookahead to assert that the next line starts with the title.
+    #                             This allows us to match "Item X" on one line and the title on the next.
+    item_pattern = re.compile(
+        r"^\s*(?:part\s+[ivx]+[.,]?\s*)?(item\s+[\d\w]{1,3}(?:\.|\s)?)\s*(?:-|\u2013|\u2014)?\s*([a-z\s,()&’'\"\d]{5,150})?\s*$",
+        re.IGNORECASE | re.MULTILINE
+    )
     matches = list(item_pattern.finditer(full_text))
 
+    # Define a pattern to find the end of the main content (e.g., "SIGNATURES", "EXHIBIT INDEX")
+    end_of_document_pattern = re.compile(r"^\s*(SIGNATURES|EXHIBIT INDEX|Consolidated Financial Statements)\s*$", re.IGNORECASE | re.MULTILINE)
+
     if not matches:
-        # If no matches are found, it's possible the entire document is the content.
-        # As a fallback, we'll save the whole cleaned text under a generic key.
-        logger.warning("No section headers found with regex. Saving entire document content as a fallback.")
+        logger.warning("No 'Item X' section headers found with regex. Attempting fallback parsing. If this also fails, the entire document content will be saved.")
         cleaned_full_text = clean_text(full_text)
         if cleaned_full_text:
             return {"document_content": cleaned_full_text}
         else:
-            logger.warning("No text content found after cleaning. Skipping.")
+            logger.warning("No text content found after cleaning. Skipping file.")
             return {}
 
     sections = {}
-    # Extract content between each match
-    for i, match in enumerate(matches):
-        start_pos = match.end()
-        # The end position is the start of the next match, or the end of the file
-        end_pos = matches[i+1].start() if i + 1 < len(matches) else len(full_text)
+    # 4. Extract content between each header
+    for i, current_match in enumerate(matches):
+        # Standardize the key (e.g., "item 1a", "Item 1A." -> "item1a")
+        item_part = current_match.group(1).strip()
+        current_key = re.sub(r'[^a-z0-9]', '', item_part.lower().replace(' ', ''))
+        if not current_key.startswith('item'):
+            continue # Should not happen with the regex, but as a safeguard.
 
-        # Get the header text from the match itself
-        header_text = match.group(0).strip()
-        # Get the content between this header and the next
+        start_pos = current_match.end()
+
+        # Default end position is the end of the document.
+        # We look for a "sentinel" string like "SIGNATURES" to get a cleaner end point.
+        end_of_doc_match = end_of_document_pattern.search(full_text)
+        end_pos = end_of_doc_match.start() if end_of_doc_match else len(full_text)
+
+
+        # Find the correct end position. The end is the start of the *next* item,
+        # but we must also handle sub-items (e.g., Item 1A should end before Item 1B).
+        for next_match in matches[i+1:]:
+            next_key = re.sub(r'[^a-z0-9]', '', next_match.group(1).lower().replace(' ', ''))
+            # If the next item is a sub-item of the current one (e.g. current='item1', next='item1a'), skip it.
+            if next_key.startswith(current_key) and len(next_key) > len(current_key):
+                continue
+            end_pos = next_match.start()
+            break # Found the correct next major item, so stop searching.
+
+        # Get the section title and content
+        header_title = (current_match.group(2) or "").strip()
+
         content_text = full_text[start_pos:end_pos]
-
-        section_key = header_text.lower().replace('.', '').replace(':', '').replace(' ', '_')
         cleaned_content = clean_text(content_text)
 
+        # If the title was not on the same line, it's likely the first line of the content.
+        if not header_title and cleaned_content:
+            first_line = cleaned_content.split('\n')[0]
+            # A plausible title is short, capitalized, and doesn't end with a period.
+            if 5 < len(first_line) < 150 and first_line.istitle() and not first_line.endswith('.'):
+                header_title = first_line
+                # Remove the title from the content itself
+                cleaned_content = cleaned_content[len(header_title):].lstrip()
+
+
+        # 5. Post-process content to remove noise
+        # Remove the section title if it's repeated at the start of the content
+        if cleaned_content.lower().startswith(header_title.lower()):
+            cleaned_content = cleaned_content[len(header_title):].lstrip()
+
+        # Remove common noise like "Table of Contents" and page numbers
+        lines = []
+        for line in cleaned_content.split('\n'):
+            # Ignore lines that are just "Table of Contents" or page number indicators
+            if "table of contents" in line.lower() or re.match(r'^\s*F-\d+\s*$', line, re.IGNORECASE):
+                continue
+            # Remove trailing page numbers like "| 71"
+            line = re.sub(r'\s*\|\s*\d+\s*$', '', line)
+            lines.append(line)
+        cleaned_content = '\n'.join(lines).strip()
+
         if cleaned_content:
-            sections[section_key] = cleaned_content
+            # 6. Merge content if the same item key is found again
+            if current_key in sections:
+                sections[current_key] += "\n\n" + cleaned_content
+            else:
+                sections[current_key] = cleaned_content
 
     return sections
 
@@ -295,11 +398,15 @@ def upload_json_to_gcs(storage_client: storage.Client, data: dict, ticker: str):
     logger.info(f"Successfully uploaded to gs://{BUCKET_NAME}/{blob_name}")
 
 
-def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]):
+def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str], stream_handler: StreamHandler = None):
     """Helper function to process a single ticker."""
     try:
         # 1. Find CIK
         cik = get_cik(ticker)
+
+        if stream_handler:
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
 
         # 2. Get the latest 10-K/10-Q filing and upload the document
         all_filings = get_filings_for_last_10_years(cik, forms)
@@ -308,14 +415,30 @@ def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]
             return
         for file_url, doc_name, filing_date, form_type in all_filings:
             upload_from_url_to_gcs(storage_client, file_url, ticker, doc_name, filing_date, form_type) # type: ignore
+            if stream_handler:
+                for log in stream_handler.queue: yield log
+                stream_handler.queue.clear()
 
         # 3. Get company facts as structured JSON data (only needs to be done once per ticker)
         facts = get_company_facts(cik) # type: ignore
+        company_name = facts.get('entityName')
+        if company_name and stream_handler:
+            # Send company name to the client in a structured format
+            yield json.dumps({"type": "metadata", "data": {"company_name": company_name}}) + "\n"
+        if stream_handler:
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
 
         # 4. Upload the JSON data to GCS
         upload_json_to_gcs(storage_client, facts, ticker)
+        if stream_handler:
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
 
         logger.info(f"Successfully processed SEC filings and facts for {ticker}.")
+        if stream_handler:
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
     except gcp_exceptions.NotFound:
         logger.error(f"Upload failed for {ticker}: Bucket '{BUCKET_NAME}' not found.")
         raise # Re-raise to signal a server error
@@ -329,7 +452,11 @@ def ingestion_agent_http(request):
     def generate_logs():
         # This handler will capture logs for this specific request
         stream_handler = StreamHandler()
-        # Use a formatter that includes the severity level for client-side parsing.
+        # Use a simple formatter. We will prepend severity in a structured way for logs,
+        # and send other data (like metadata) as distinct JSON objects.
+        # The client will parse each line. If it's JSON, it's structured data.
+        # If not, it's a plain log message.
+        # A more robust format for logs to be parsed as JSON by the client.
         stream_handler.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
         logger.addHandler(stream_handler)
 
@@ -350,18 +477,18 @@ def ingestion_agent_http(request):
             context = {"ticker": ticker, "agent": "ingestion-agent", "run_id": run_id}
 
             logger.info("Ingestion agent triggered.", extra={'context': context})
-            # Yield any logs that have been captured so far
+            # Send initial metadata to the client
+            yield json.dumps({"type": "metadata", "data": {"ticker": ticker}}) + "\n"
+
+            # Yield any startup logs
             for log in stream_handler.queue: yield log
             stream_handler.queue.clear()
 
             forms_to_fetch = ['10-K', '10-Q']
             storage_client = storage.Client()
 
-            # We need to manually iterate and yield logs during the process
-            # This requires adapting the process_ticker logic slightly or just letting it run
-            # and flushing logs periodically if it were a long process.
-            # For now, we'll just run it and then flush.
-            process_ticker(ticker, storage_client, forms_to_fetch)
+            # Yield logs from the process_ticker generator
+            yield from process_ticker(ticker, storage_client, forms_to_fetch, stream_handler)
 
             logger.info("Ingestion process completed successfully.", extra={'context': context})
             for log in stream_handler.queue: yield log
@@ -369,9 +496,13 @@ def ingestion_agent_http(request):
 
         except Exception as e:
             error_message = f"Ingestion agent failed: {str(e)}\n{traceback.format_exc()}"
-            logger.critical(error_message, exc_info=True)
-            for log in stream_handler.queue: yield log
-            yield error_message # Ensure the final error is sent
+            # Use logger to capture the final error
+            logger.critical(error_message, exc_info=False) # exc_info=False to avoid duplication
+            # Yield any remaining logs
+            for log in stream_handler.queue:
+                yield log
+            # Also send a structured error message
+            yield json.dumps({"type": "error", "message": str(e)}) + "\n"
         finally:
             # IMPORTANT: Remove the handler to avoid adding it again on the next invocation
             logger.removeHandler(stream_handler)
