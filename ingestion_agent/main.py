@@ -307,10 +307,10 @@ def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]
             logger.warning(f"No filings found for {ticker} within the specified parameters.")
             return
         for file_url, doc_name, filing_date, form_type in all_filings:
-            upload_from_url_to_gcs(storage_client, file_url, ticker, doc_name, filing_date, form_type)
+            upload_from_url_to_gcs(storage_client, file_url, ticker, doc_name, filing_date, form_type) # type: ignore
 
         # 3. Get company facts as structured JSON data (only needs to be done once per ticker)
-        facts = get_company_facts(cik)
+        facts = get_company_facts(cik) # type: ignore
 
         # 4. Upload the JSON data to GCS
         upload_json_to_gcs(storage_client, facts, ticker)

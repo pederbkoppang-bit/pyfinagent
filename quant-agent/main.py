@@ -25,8 +25,8 @@ if logger.hasHandlers():
     logger.handlers.clear()
 # Standard handler for Cloud Logging
 stdout_handler = logging.StreamHandler(sys.stdout)
-# Use a simple formatter for streaming to the UI, as the UI will handle the presentation.
-stdout_handler.setFormatter(logging.Formatter('%(message)s'))
+# Use a formatter that includes severity for Cloud Logging.
+stdout_handler.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
 logger.addHandler(stdout_handler)
 
 load_dotenv()
@@ -181,7 +181,7 @@ def quant_agent(request):
     """
     def generate_logs_and_data():
         stream_handler = StreamHandler()
-        stream_handler.setFormatter(logging.Formatter('%(message)s'))
+        stream_handler.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
         logger.addHandler(stream_handler)
 
         ticker_str = request.args.get('ticker')

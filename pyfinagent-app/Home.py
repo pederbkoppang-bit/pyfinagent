@@ -178,16 +178,17 @@ def run_ingestion_agent(ticker: str, status):
             if line:
                 log_message = line.decode('utf-8')
                 # Update the status container's label with the latest log message.
-                status.update(label=log_message)
+                # The agent now prefixes logs with severity, so we strip that for the UI
+                cleaned_log = re.sub(r'^(INFO|WARNING|ERROR|CRITICAL):', '', log_message).strip()
+                status.update(label=cleaned_log)
+
                 # Check for the specific success message to confirm completion.
                 if "Ingestion process completed successfully." in log_message:
                     success = True
-                    break # Exit the loop as we have confirmation of success.
-
                 # Check for failure messages to stop early.
-                if "failed" in log_message.lower() or "error" in log_message.lower():
+                elif "failed" in log_message.lower() or "error" in log_message.lower():
                     success = False # Explicitly mark as failed
-                    break # Exit the loop on failure
+                    break # Stop processing on the first sign of failure
             
         return success
     except Exception as e:
@@ -217,7 +218,8 @@ def run_quant_agent(ticker: str, _status) -> dict:
                     raise ValueError(log_message)
                 else:
                     # This is a regular log message, update the UI
-                    _status.update(label=log_message)
+                    cleaned_log = re.sub(r'^(INFO|WARNING|ERROR|CRITICAL):', '', log_message).strip()
+                    _status.update(label=cleaned_log)
 
         if final_data:
             # Enhance Quant Agent with Alpha Vantage Overview after getting the data
