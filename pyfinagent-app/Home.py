@@ -22,7 +22,7 @@ from components.evaluation_table import display_evaluation_table
 from components.radar_chart import display_radar_chart
 from components.reports_comparison import display_reports_comparison
 import agent_prompts 
-import tools_alphavantage 
+from tools import alphavantage as tools_alphavantage
 
 # --- Structured Logging ---
 class JsonFormatter(logging.Formatter):

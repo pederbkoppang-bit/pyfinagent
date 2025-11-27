@@ -1,5 +1,5 @@
 import streamlit as st
-import tools_slack
+from tools import slack as tools_slack
 import os
 
 st.set_page_config(page_title="Notifications", page_icon="🔔", layout="wide")

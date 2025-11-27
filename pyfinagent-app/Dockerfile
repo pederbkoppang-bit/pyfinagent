@@ -19,10 +19,9 @@ COPY requirements.txt .
 COPY synthesis_prompt.txt . 
 COPY Home.py .
 COPY agent_prompts.py .
-COPY tools_alphavantage.py .
-COPY tools_slack.py .
 COPY pages/ ./pages/
 COPY components/ ./components/
+COPY tools/ ./tools/
 
 # Copy the .streamlit directory which contains secrets.toml and config.toml
 COPY .streamlit/ ./.streamlit/
