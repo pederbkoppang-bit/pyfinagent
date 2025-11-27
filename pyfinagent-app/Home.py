@@ -104,24 +104,26 @@ def display_report():
     display_evaluation_table()
     st.divider()
 
-    chart_col1, chart_col2 = st.columns(2)
-    with chart_col1:
-        display_radar_chart()
-    with chart_col2:
-        display_price_chart()
-    
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.metric("Final Score", f"{report_data.get('final_weighted_score', 0):.2f} / 10")
-        st.metric("Recommendation", report_data.get('recommendation', {}).get('action', 'N/A'))
-        st.caption(f"at {price_str}")
+    # New Layout: Main content on the left (2/3 width), dashboard on the right (1/3 width)
+    main_col, dashboard_col = st.columns([2, 1])
 
-    with col2:
+    with main_col:
+        st.subheader("Stock Price Chart (5-Year History)")
+        # Pass the ticker from the report data to avoid relying on session state
+        display_price_chart(ticker=st.session_state.report.get('part_1_5_quant', {}).get('ticker'))
+
         st.subheader("Justification")
         st.write(report_data.get('recommendation', {}).get('justification', 'No justification provided.'))
 
-    st.subheader("Final Summary")
-    st.write(report_data.get('final_summary', 'No summary provided.'))
+        st.subheader("Final Summary")
+        st.write(report_data.get('final_summary', 'No summary provided.'))
+
+    with dashboard_col:
+        st.metric("Final Score", f"{report_data.get('final_weighted_score', 0):.2f} / 10")
+        st.metric("Recommendation", report_data.get('recommendation', {}).get('action', 'N/A'))
+        st.caption(f"at {price_str}")
+        st.subheader("Pillar Score Analysis")
+        display_radar_chart()
     
     with st.expander("View Full Raw Data (JSON)"):
         st.json(st.session_state.report, expanded=True)
@@ -310,8 +312,11 @@ def run_synthesis_pipeline(synthesis_model, ticker, report, status_handler: Stat
     final_text = clean_json_output(final_response.candidates[0].content.parts[0].text)
     
     try:
+        # The final output from the critic should be a clean JSON string.
+        # We parse it here to return a dictionary.
         return json.loads(final_text)
-    except:
+    except (json.JSONDecodeError, TypeError):
+        # If the critic's output is malformed, fall back to the original draft.
         return json.loads(draft_text)
 
 # --- Main App ---
@@ -459,18 +464,19 @@ def main():
             # Final Step: Save the report
             if 'report_saved' not in report:
                 status_handler.update_step("Step 8.4: Saving report to BigQuery...")
+                
+                # Define the row dictionary before the try block to ensure it always exists.
+                company_name = report.get('part_1_5_quant', {}).get('company_name', 'N/A')
+                row = {"ticker": ticker, "company_name": company_name, "analysis_date": datetime.now().isoformat(), "final_score": report['final_synthesis']['final_weighted_score'], "recommendation": report['final_synthesis'].get('recommendation', {}).get('action', 'N/A'), "summary": report['final_synthesis'].get('final_summary', ''), "full_report_json": json.dumps(report)}
+                
                 try:
-                    company_name = report.get('part_1_5_quant', {}).get('company_name', 'N/A')
-                    row = {"ticker": ticker, "company_name": company_name, "analysis_date": datetime.now().isoformat(), "final_score": report['final_synthesis']['final_weighted_score'], "recommendation": report['final_synthesis'].get('recommendation', {}).get('action', 'N/A'), "summary": report['final_synthesis'].get('final_summary', ''), "full_report_json": json.dumps(report)}
                     errors = services['bq_client'].insert_rows_json(services['table_id'], [row])
                     if errors: logging.error(f"BQ Error: {errors}")
                 except Exception as e:
                     logging.error(f"Save failed: {e}")
 
-                # After saving, the report object is a JSON string.
-                # We must parse it back to a dictionary to prevent errors on the final rerun.
-                st.session_state.report = json.loads(row["full_report_json"])
-
+                # The st.session_state.report is already a dictionary.
+                # The problematic line that caused the crash has been removed.
                 st.session_state.report['report_saved'] = True
                 status_handler.complete()
                 st.session_state.analysis_in_progress = False

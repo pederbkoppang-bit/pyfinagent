@@ -4,11 +4,15 @@ import logging
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-def display_price_chart(analysis_dates=None):
+def display_price_chart(ticker: str, analysis_dates=None):
     """
     Renders a placeholder chart initially, and then fills it with historical
     stock price data once available from st.session_state.
     Optionally plots markers for past analysis dates.
+
+    Args:
+        ticker (str): The stock ticker symbol (e.g., "NVDA") for the chart title.
+        analysis_dates (list, optional): A list of dates to mark on the chart.
     """
     # Check if the necessary data is available in the session state report
     quant_data = st.session_state.get('report', {}).get('part_1_5_quant')
@@ -139,7 +143,7 @@ def display_price_chart(analysis_dates=None):
 
     # --- Layout and Theming ---
     fig.update_layout(
-        title_text=f"{st.session_state.ticker} Stock Price",
+        title_text=f"{ticker} Stock Price",
         height=600,
         showlegend=True,
         xaxis_rangeslider_visible=False, # Hide the default range slider

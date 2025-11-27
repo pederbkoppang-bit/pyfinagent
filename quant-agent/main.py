@@ -220,7 +220,7 @@ def quant_agent(request):
             for log in stream_handler.queue: yield log
             stream_handler.queue.clear()
             report = {
-                "ticker": ticker_str,
+                "ticker": ticker_str.upper(), # Ensure ticker is always uppercase
                 "cik": cik_10_digit,
                 "company_name": facts.get('entityName', 'N/A'),
                 "part_1_financials": {
