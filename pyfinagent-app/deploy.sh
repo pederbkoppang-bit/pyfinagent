@@ -21,6 +21,7 @@ echo "📦 Version: $APP_VERSION"
 # Read the project ID from the secrets file to ensure we're using the correct one.
 # This uses yq (https://github.com/mikefarah/yq), a lightweight and portable command-line YAML/XML/TOML processor.
 PROJECT_ID=$(yq '.gcp_service_account.project_id' .streamlit/secrets.toml)
+SLACK_WEBHOOK_URL=$(yq '.slack.webhook_url' .streamlit/secrets.toml)
 
 # --- Service Account Authentication ---
 # For non-interactive deployment, we will reconstruct the service
@@ -71,7 +72,11 @@ docker build --progress=plain --build-arg APP_VERSION=$APP_VERSION -t $IMAGE_NAM
 # 4. Run the new container in detached mode.
 # We mount the secrets directory and provide the service account key directly to the container
 echo "▶️  Starting new container '$CONTAINER_NAME' from image '$IMAGE_NAME'..."
-docker run -d -p $HOST_PORT:$CONTAINER_PORT --name $CONTAINER_NAME $IMAGE_NAME
+docker run -d \
+  -p $HOST_PORT:$CONTAINER_PORT \
+  --name $CONTAINER_NAME \
+  -e SLACK_WEBHOOK_URL="$SLACK_WEBHOOK_URL" \
+  $IMAGE_NAME
 
 echo "🎉 Deployment complete! Your application is running."
 echo "➡️  Access it at: http://localhost:$HOST_PORT"
