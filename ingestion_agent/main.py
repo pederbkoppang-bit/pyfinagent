@@ -448,6 +448,67 @@ def process_ticker(ticker: str, storage_client: storage.Client, forms: list[str]
 
 @functions_framework.http
 def ingestion_agent_http(request):
+    """HTTP Cloud Function entry point that streams logs."""
+    def generate_logs():
+        # This handler will capture logs for this specific request
+        stream_handler = StreamHandler()
+        # The client will parse each line. If not JSON, it's a plain log message.
+        stream_handler.setFormatter(logging.Formatter('%(message)s'))
+        logger.addHandler(stream_handler)
+
+        try:
+            # Critical configuration check
+            if not BUCKET_NAME or not USER_AGENT_EMAIL:
+                raise ValueError("Server configuration error: BUCKET_NAME and/or USER_AGENT_EMAIL environment variables are not set.")
+
+            if request.method != 'POST':
+                raise ValueError("Method Not Allowed")
+
+            request_json = request.get_json(silent=True)
+            if not request_json or 'ticker' not in request_json:
+                raise ValueError("Invalid request: 'ticker' is required in JSON body.")
+
+            ticker = request_json['ticker'].strip().upper()
+            context = {"ticker": ticker, "agent": "ingestion-agent"}
+
+            logger.info(f"Ingestion agent triggered for {ticker}.", extra={'context': context})
+            
+            # Yield any startup logs
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
+
+            forms_to_fetch = ['10-K', '10-Q']
+            storage_client = storage.Client()
+
+            # Yield logs from the process_ticker generator
+            yield from process_ticker(ticker, storage_client, forms_to_fetch, stream_handler)
+
+            logger.info("Ingestion process completed successfully.", extra={'context': context})
+            for log in stream_handler.queue: yield log
+            stream_handler.queue.clear()
+            
+            # Signal completion
+            yield "STREAM_COMPLETE"
+
+        except Exception as e:
+            error_message = f"Ingestion agent failed: {str(e)}\n{traceback.format_exc()}"
+            logger.critical(error_message, exc_info=False)
+            for log in stream_handler.queue:
+                yield log
+            # Send a structured error message
+            yield f"ERROR:{str(e)}"
+        finally:
+            # IMPORTANT: Remove the handler to avoid adding it again on the next invocation
+            logger.removeHandler(stream_handler)
+
+    return Response(stream_with_context(generate_logs()), mimetype='text/plain')
+
+
+# This is the old function, which will be replaced by the streaming version above.
+# I am commenting it out to preserve it for reference, but it is no longer used.
+'''
+@functions_framework.http
+def ingestion_agent_http(request):
     """HTTP Cloud Function entry point."""
     def generate_logs():
         # This handler will capture logs for this specific request
@@ -508,3 +569,4 @@ def ingestion_agent_http(request):
             logger.removeHandler(stream_handler)
 
     return Response(stream_with_context(generate_logs()), mimetype='text/plain')
+'''

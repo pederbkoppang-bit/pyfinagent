@@ -20,11 +20,11 @@ class StatusHandler:
 
         # Store the placeholder but only draw the UI elements once.
         # This check prevents re-drawing on every st.rerun.
-        if not hasattr(self, '_progress_bar_placeholder'):
-            self._progress_bar_placeholder = progress_bar
+        if 'status_handler_initialized' not in st.session_state:
+            st.session_state._progress_bar_placeholder = progress_bar
             # st.status will manage the expandable log area and its state.
-            self._status_context = st.status("Initializing analysis...", expanded=False)
-
+            st.session_state._status_context = st.status("Initializing analysis...", expanded=False)
+            st.session_state.status_handler_initialized = True
 
     def update_step(self, status_text: str):
         """
@@ -47,7 +47,7 @@ class StatusHandler:
             self.current_step += 0.1 # Increment slightly for unnumbered steps
 
         progress_value = int((self.current_step / self.total_steps) * 100)
-        self._progress_bar_placeholder.progress(min(progress_value, 100), text=status_text)
+        st.session_state._progress_bar_placeholder.progress(min(progress_value, 100), text=status_text)
         # The main step update is a significant log, so we treat it as such.
         self.log(f"✅ {status_text}") # Also add the major step to the detailed log
 
@@ -55,17 +55,16 @@ class StatusHandler:
         """
         Updates the status label to the latest message.
         """
-        self._status_context.update(label=message)
+        st.session_state._status_context.update(label=message)
 
     def complete(self, final_message: str = "Analysis Complete!"):
         """Clears the progress bar and shows a final completion message."""
-        self._progress_bar_placeholder.empty()
+        st.session_state._progress_bar_placeholder.empty()
         # Set the final state of the status container
-        self._status_context.update(label=final_message, state="complete", expanded=False)
+        st.session_state._status_context.update(label=final_message, state="complete", expanded=False)
 
     def error(self, error_message: str):
         """Displays an error message in the status area."""
-        # Set the final state of the status container to 'error'
-        self._status_context.update(label=error_message, state="error", expanded=True)
+        st.session_state._status_context.update(label=error_message, state="error", expanded=True)
         # We can also log the error inside the container for more details if needed
         self.log(f"🚨 ERROR: {error_message}")

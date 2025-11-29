@@ -185,12 +185,12 @@ def quant_agent(request):
         # This formatter will be used for the logs streamed back to the main app.
         stream_handler.setFormatter(logging.Formatter('%(message)s'))
         logger.addHandler(stream_handler)
-
+    
         ticker_str = request.args.get('ticker')
         if not ticker_str:
             yield "ERROR: No ticker provided"
             return
-
+    
         try:
             # --- 1. yfinance: Get Market Data (Price, Ratios) ---
             logging.info(f"Fetching yfinance market data for {ticker_str}...")
@@ -202,7 +202,7 @@ def quant_agent(request):
             pe_ratio = info.get('trailingPE')
             ps_ratio = info.get('priceToSalesTrailing12Months')
             market_cap = info.get('marketCap')
-
+    
             # --- 2. SEC API: Get Fundamental Facts (Revenue, EPS) ---
             logging.info(f"Fetching SEC fundamental facts for {ticker_str}...")
             for log in stream_handler.queue: yield log
@@ -210,11 +210,11 @@ def quant_agent(request):
             cik_10_digit = get_cik(ticker_str.upper())
             facts = get_company_facts(cik_10_digit)
             historical_prices_json = get_historical_prices(ticker_str, cik_10_digit)
-
+    
             latest_revenue = get_latest_financial_fact(facts, 'Revenues', 'USD')
             latest_net_income = get_latest_financial_fact(facts, 'NetIncomeLoss', 'USD')
             latest_eps_diluted = get_latest_financial_fact(facts, 'EarningsPerShareDiluted', 'USD/shares')
-
+    
             # --- 3. Compile Final Agent Report ---
             logging.info("Compiling final quantitative report...")
             for log in stream_handler.queue: yield log
@@ -241,7 +241,7 @@ def quant_agent(request):
             
             # Yield the final JSON report with a special prefix
             yield f"FINAL_JSON:{json.dumps(report)}"
-
+    
         except Exception as e:
             error_message = f"QuantAgent failed for {ticker_str}: {str(e)}\n{traceback.format_exc()}"
             logging.critical(error_message, exc_info=True)
@@ -250,5 +250,5 @@ def quant_agent(request):
         finally:
             # IMPORTANT: Remove the handler to avoid adding it again on the next invocation
             logger.removeHandler(stream_handler)
-
+    
     return Response(stream_with_context(generate_logs_and_data()), mimetype='text/plain')

@@ -48,6 +48,22 @@ def get_competitor_prompt(ticker: str, av_data: dict, status_handler=None) -> st
         "3. Assess if {ticker} is mentioned in a 'winning' or 'losing' context relative to these peers."
     )
 
+def get_macro_prompt(ticker: str, av_data: dict, status_handler=None) -> str:
+    """
+    Uses Alpha Vantage Macroeconomic Data (CPI, Rates, GDP).
+    """
+    if status_handler: status_handler.log("   Generating prompt for Macro Agent...")
+    return (
+        f"You are a Macroeconomic Strategist. Analyze the provided economic indicators in the context of {ticker}.\n"
+        "--- DATA ---\n"
+        f"{json.dumps(av_data.get('macro_summary', {}))}\n"
+        "------------\n"
+        "**TASK:**\n"
+        "1. **Economic Climate**: Based on CPI, Interest Rates, and GDP, what is the overall economic environment (e.g., inflationary, recessionary, growing)?\n"
+        "2. **Impact on {ticker}**: How might this climate specifically affect {ticker}'s business? (e.g., consumer spending, borrowing costs).\n"
+        "3. **Forward Outlook**: Are the trends in these indicators getting better or worse for the company?"
+    )
+
 def get_deep_dive_prompt(ticker: str, quant_data: dict, rag_text: str, market_text: str, competitor_text: str, status_handler=None) -> str:
     if status_handler: status_handler.log("   Generating questions for Deep-Dive Agent...")
     return (
