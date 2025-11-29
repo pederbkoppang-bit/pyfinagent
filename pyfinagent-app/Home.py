@@ -103,13 +103,14 @@ def display_report():
     
     # Ensure report_data is a dictionary, not a string
     raw_data = st.session_state.report['final_synthesis']
-    report_data = {}
     if isinstance(raw_data, str):
         try:
             report_data = json.loads(raw_data)
         except json.JSONDecodeError:
             st.error("Failed to parse the final report data.")
             return
+    else:
+        report_data = raw_data # It's already a dictionary
     
     try:
         # Try to get price from yfinance data structure first
@@ -225,6 +226,18 @@ def run_macro_agent(market_model, ticker, av_data, status_handler: StatusHandler
     response = market_model.generate_content(prompt)
     return {"text": response.text}
 
+def _parse_json_with_fallback(json_string: str, status_handler: StatusHandler, agent_name: str):
+    """Attempts to parse a JSON string, with a fallback for double-encoded JSON."""
+    try:
+        data = json.loads(json_string)
+        # Handle cases where the model returns a JSON string inside a string
+        if isinstance(data, str):
+            status_handler.log(f"⚠️ {agent_name} agent returned a string-in-a-string. Attempting re-parse.")
+            return json.loads(data)
+        return data
+    except json.JSONDecodeError:
+        return None
+
 def run_deep_dive_agent(synthesis_model, rag_model, ticker, report, status_handler: StatusHandler):
     status_handler.log("🕵️ Deep Dive Agent: Finding contradictions...")
 
@@ -270,15 +283,17 @@ def run_synthesis_pipeline(synthesis_model, ticker, report, status_handler: Stat
     final_response = synthesis_model.generate_content(critic_prompt)
     final_text = clean_json_output(final_response.text)
     
-    try:
-        return json.loads(final_text)
-    except json.JSONDecodeError:
+    # Attempt to parse the critic's response first
+    final_data = _parse_json_with_fallback(final_text, status_handler, "Critic")
+    if final_data:
+        return final_data
+    else:
         status_handler.log("⚠️ Critic agent returned invalid JSON. Falling back to draft.")
-        try:
-            return json.loads(draft_text)
-        except json.JSONDecodeError:
-            status_handler.error("Fatal: Both Synthesis and Critic agents failed to produce valid JSON.")
-            return {"error": "Failed to parse final report from both agents."}
+        draft_data = _parse_json_with_fallback(draft_text, status_handler, "Synthesis")
+        if draft_data: return draft_data
+    
+    status_handler.error("Fatal: Both Synthesis and Critic agents failed to produce valid JSON.")
+    return {"error": "Failed to parse final report from both agents."}
 
 def get_nvda_dummy_data():
     """Returns a complete dummy report structure for NVDA for testing."""
