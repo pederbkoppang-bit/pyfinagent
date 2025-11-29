@@ -17,6 +17,7 @@ from datetime import datetime
 import vertexai
 import pandas as pd
 
+import time
 from components.sidebar import display_sidebar
 from components.stock_chart import display_price_chart
 from components.evaluation_table import display_evaluation_table
@@ -99,7 +100,16 @@ def initialize_gcp_services():
 
 def display_report():
     if 'report' not in st.session_state or not st.session_state.report.get('final_synthesis'): return
-    report_data = st.session_state.report['final_synthesis']
+    
+    # Ensure report_data is a dictionary, not a string
+    raw_data = st.session_state.report['final_synthesis']
+    report_data = {}
+    if isinstance(raw_data, str):
+        try:
+            report_data = json.loads(raw_data)
+        except json.JSONDecodeError:
+            st.error("Failed to parse the final report data.")
+            return
     
     try:
         # Try to get price from yfinance data structure first
@@ -119,7 +129,10 @@ def display_report():
     st.divider()
     c1, c2 = st.columns(2)
     with c1: display_radar_chart()
-    with c2: display_price_chart()
+    with c2: 
+        ticker = st.session_state.report.get('part_1_5_quant', {}).get('ticker')
+        if ticker:
+            display_price_chart(ticker)
     c1, c2 = st.columns([1, 3])
     with c1:
         st.metric("Final Score", f"{report_data.get('final_weighted_score', 0):.2f} / 10")
@@ -233,6 +246,7 @@ def run_deep_dive_agent(synthesis_model, rag_model, ticker, report, status_handl
         if q.strip():
             status_handler.log(f"   ❓ Investigating: {q.strip()}")
             ans_resp = rag_model.generate_content(f"Answer this using 10-K: {q}")
+            time.sleep(2) # Add a delay to avoid hitting API rate limits
             answers.append(f"Q: {q}\nA: {ans_resp.text}")
     return "\n\n".join(answers)
 
@@ -245,7 +259,8 @@ def run_synthesis_pipeline(synthesis_model, ticker, report, status_handler: Stat
         report['part_2_3_market']['text'],
         report.get('part_6_competitor', {'text': 'No competitor data.'})['text'],
         report.get('part_7_macro', {'text': 'No macro data.'})['text'],
-        report['deep_dive_analysis']
+        report['deep_dive_analysis'],
+        status_handler=status_handler
     )
     draft_response = synthesis_model.generate_content(draft_prompt)
     draft_text = clean_json_output(draft_response.text)
@@ -255,8 +270,62 @@ def run_synthesis_pipeline(synthesis_model, ticker, report, status_handler: Stat
     final_response = synthesis_model.generate_content(critic_prompt)
     final_text = clean_json_output(final_response.text)
     
-    try: return json.loads(final_text)
-    except: return json.loads(draft_text)
+    try:
+        return json.loads(final_text)
+    except json.JSONDecodeError:
+        status_handler.log("⚠️ Critic agent returned invalid JSON. Falling back to draft.")
+        try:
+            return json.loads(draft_text)
+        except json.JSONDecodeError:
+            status_handler.error("Fatal: Both Synthesis and Critic agents failed to produce valid JSON.")
+            return {"error": "Failed to parse final report from both agents."}
+
+def get_nvda_dummy_data():
+    """Returns a complete dummy report structure for NVDA for testing."""
+    return {
+        'ingestion_agent': True,
+        'part_1_5_quant': {
+            "ticker": "NVDA", "cik": "0001045810", "company_name": "NVIDIA CORP (DUMMY)",
+            "part_1_financials": {
+                "latest_revenue": {"value": 92276000000, "period": "FY", "filed": "2024-02-21"},
+                "latest_net_income": {"value": 49994000000, "period": "FY", "filed": "2024-02-21"}
+            },
+            "part_5_valuation": {
+                "market_price": 950.02, "market_cap": 2375000000000, "pe_ratio": 75.9, "ps_ratio": 35.1,
+                "latest_eps_diluted": {"value": 11.93, "period": "FY", "filed": "2024-02-21"},
+                "historical_prices": '{"columns":["Date","Close"],"data":[["2023-01-01",400],["2024-01-01",900]]}'
+            },
+            'yf_data': {
+                'valuation': {'Current Price': 950.02, 'Market Cap': 2375000000000},
+                'financials': {'P/E Ratio': 75.9, 'P/S Ratio': 35.1},
+                'chart_data': pd.DataFrame({
+                    'Date': pd.to_datetime(['2023-01-01', '2024-01-01', '2024-05-01']),
+                    'Open': [390, 890, 940],
+                    'High': [410, 910, 960],
+                    'Low': [385, 885, 935],
+                    'Close': [400, 900, 950.02],
+                }).set_index('Date')
+            }
+        },
+        'part_1_4_6_rag': {"text": "Dummy RAG analysis: NVIDIA has a strong moat in AI chips due to its CUDA platform (Source: 2024 10-K)."},
+        'part_2_3_market': {"text": "Dummy Market analysis: Sentiment is overwhelmingly positive, driven by AI demand."},
+        'part_6_competitor': {"text": "Dummy Competitor analysis: AMD and Intel are key rivals, but NVIDIA leads in the data center space."},
+        'part_7_macro': {"text": "Dummy Macro analysis: The current economic climate is favorable for tech spending."},
+        'deep_dive_analysis': "Dummy Deep Dive: Q: Is the high P/E ratio justified? A: The 10-K suggests future growth in AI and automotive sectors supports the valuation.",
+        'final_synthesis': {
+            'scoring_matrix': {
+                'pillar_1_corporate': 9, 'pillar_2_industry': 8, 'pillar_3_valuation': 6,
+                'pillar_4_sentiment': 9, 'pillar_5_governance': 7
+            },
+            'recommendation': {'action': 'Strong Buy', 'justification': 'Dominant market position and explosive growth in AI justify the premium valuation.'},
+            'final_summary': 'This is a dummy summary. NVIDIA shows exceptional performance driven by its leadership in the AI sector. While valuation is high, its technological moat and growth prospects remain unparalleled.',
+            'key_risks': 'Dummy Key Risks: High dependency on the AI market, geopolitical risks related to chip manufacturing.',
+            'final_weighted_score': 8.15
+        },
+        'report_saved': True,
+        'notified_start': True
+    }
+
 
 # --- Main App ---
 def main():
@@ -272,17 +341,31 @@ def main():
     services = st.session_state.gcp_services
     display_sidebar(services['bq_client'], services['table_id'], st.session_state.get("ticker"))
 
-    col1, col2 = st.columns([4, 1])
+    col1, col2, col3 = st.columns([3, 2, 1])
     with col1: st.text_input("Enter Ticker:", key="ticker", label_visibility="collapsed", placeholder="e.g. NVDA")
-    with col2: 
+    with col3: 
         if st.button("Clear", use_container_width=True):
             st.session_state.clear()
             if 'status_handler_initialized' in st.session_state:
                 del st.session_state.status_handler_initialized
             st.rerun()
 
-    if st.button("Run Comprehensive Analysis", type="primary"):
-        st.session_state.analysis_in_progress = True
+    with col2:
+        if st.button("Run Comprehensive Analysis", type="primary", use_container_width=True):
+            # Clear previous report data to ensure a fresh start
+            if 'report' in st.session_state:
+                del st.session_state.report
+            # Set flags to start the new analysis
+            st.session_state.analysis_in_progress = True
+            st.session_state.test_mode = False
+
+        if st.button("Test with NVDA", use_container_width=True):
+            st.session_state.clear()
+            st.session_state.ticker = "NVDA"
+            st.session_state.report = get_nvda_dummy_data()
+            st.session_state.analysis_in_progress = False
+            st.session_state.test_mode = True
+            st.rerun()
 
     if st.session_state.get('analysis_in_progress') and st.session_state.ticker:
         ticker = st.session_state.ticker

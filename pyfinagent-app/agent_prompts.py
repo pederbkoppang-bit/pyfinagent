@@ -81,7 +81,7 @@ def get_deep_dive_prompt(ticker: str, quant_data: dict, rag_text: str, market_te
         "Output ONLY the numbered list of questions."
     )
 
-def get_synthesis_prompt(ticker: str, quant_data: dict, rag_text: str, market_text: str, competitor_text: str, deep_dive_text: str, status_handler=None, step_num: float = 8.1) -> str:
+def get_synthesis_prompt(ticker: str, quant_data: dict, rag_text: str, market_text: str, competitor_text: str, macro_text: str, deep_dive_text: str, status_handler=None, step_num: float = 8.1) -> str:
     if status_handler: status_handler.log(f"   -> Step {step_num}: Generating prompt for Synthesis Agent...")
     return (
         f"You are the Lead Analyst for {ticker}. Synthesize the following agent reports into a cohesive investment thesis.\n\n"
@@ -90,6 +90,7 @@ def get_synthesis_prompt(ticker: str, quant_data: dict, rag_text: str, market_te
         f"RAG: {rag_text}\n"
         f"MARKET: {market_text}\n"
         f"COMPETITOR: {competitor_text}\n"
+        f"MACRO: {macro_text}\n"
         f"DEEP DIVE: {deep_dive_text}\n"
         "--------------\n\n"
         "**REQUIREMENTS:**\n"
@@ -102,12 +103,19 @@ def get_synthesis_prompt(ticker: str, quant_data: dict, rag_text: str, market_te
 
 def get_critic_prompt(ticker: str, draft_report: str, quant_data: dict, status_handler=None, step_num: float = 8.2) -> str:
     if status_handler: status_handler.log(f"   -> Step {step_num}: Generating prompt for Critic Agent...")
+    # The draft_report might be a JSON string. For consistency in the prompt,
+    # it's better to load it into a Python object and then dump it back to a
+    # consistently formatted string.
+    try:
+        draft_obj = json.loads(draft_report)
+    except json.JSONDecodeError:
+        draft_obj = {"error": "Could not parse draft report", "raw": draft_report}
     return (
         f"You are the Compliance & Quality Control Officer. Review the draft report for {ticker}.\n\n"
         "--- HARD DATA (TRUTH) ---\n"
         f"{json.dumps(quant_data)}\n\n"
         "--- DRAFT REPORT ---\n"
-        f"{draft_report}\n\n"
+        f"{json.dumps(draft_obj)}\n\n"
         "**YOUR TASK:**\n"
         "1. Check for **Hallucinations**: Does the draft mention numbers that contradict the Hard Data?\n"
         "2. Check for **Logic Errors**: Does a 'Strong Buy' recommendation accompany a low score (e.g., 3/10)?\n"
