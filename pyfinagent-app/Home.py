@@ -12,6 +12,7 @@ import json
 import re
 from google.cloud import bigquery
 from vertexai.generative_models import GenerativeModel, Tool, grounding
+from google.api_core import exceptions
 import traceback
 from datetime import datetime
 import vertexai
@@ -22,7 +23,6 @@ from components.sidebar import display_sidebar
 from components.stock_chart import display_price_chart
 from components.evaluation_table import display_evaluation_table
 from components.status_handler import StatusHandler
-from components.radar_chart import display_radar_chart
 from components.reports_comparison import display_reports_comparison
 import agent_prompts 
 from tools import alphavantage as tools_alphavantage
@@ -100,17 +100,13 @@ def initialize_gcp_services():
 
 def display_report():
     if 'report' not in st.session_state or not st.session_state.report.get('final_synthesis'): return
-    
-    # Ensure report_data is a dictionary, not a string
+
+    # Create a temporary StatusHandler to use the robust JSON parser
+    status_handler = StatusHandler(total_steps=1, progress_bar=st.empty())
     raw_data = st.session_state.report['final_synthesis']
-    if isinstance(raw_data, str):
-        try:
-            report_data = json.loads(raw_data)
-        except json.JSONDecodeError:
-            st.error("Failed to parse the final report data.")
-            return
-    else:
-        report_data = raw_data # It's already a dictionary
+    report_data = _parse_json_with_fallback(raw_data if isinstance(raw_data, str) else json.dumps(raw_data), status_handler, "Display")
+
+    if not report_data: return st.error("Failed to parse the final report data for display.")
     
     try:
         # Try to get price from yfinance data structure first
@@ -128,12 +124,10 @@ def display_report():
     st.success("Analysis Complete!")
     display_evaluation_table()
     st.divider()
-    c1, c2 = st.columns(2)
-    with c1: display_radar_chart()
-    with c2: 
-        ticker = st.session_state.report.get('part_1_5_quant', {}).get('ticker')
-        if ticker:
-            display_price_chart(ticker)
+    ticker = st.session_state.report.get('part_1_5_quant', {}).get('ticker')
+    if ticker:
+        display_price_chart(ticker)
+
     c1, c2 = st.columns([1, 3])
     with c1:
         st.metric("Final Score", f"{report_data.get('final_weighted_score', 0):.2f} / 10")
@@ -201,29 +195,45 @@ def run_quant_agent(ticker: str, status_handler: StatusHandler) -> dict:
     final_json['yf_data'] = yf_data
     return final_json
 
+def _generate_content_with_retry(model, prompt, status_handler: StatusHandler, agent_name: str):
+    """Wrapper for model.generate_content with retry logic for transient errors."""
+    max_retries = 3
+    delay = 5  # Initial delay in seconds
+    for attempt in range(max_retries):
+        try:
+            return model.generate_content(prompt)
+        except exceptions.ServiceUnavailable as e:
+            if attempt < max_retries - 1:
+                status_handler.log(f"⚠️ {agent_name} Agent unavailable. Retrying in {delay}s... ({attempt + 1}/{max_retries-1})")
+                time.sleep(delay)
+                delay *= 2  # Exponential backoff
+            else:
+                status_handler.error(f"🚨 {agent_name} Agent failed after {max_retries} attempts.")
+                raise e # Re-raise the exception after the final attempt
+
 def run_rag_agent(rag_model, ticker, status_handler: StatusHandler):
     status_handler.log("📑 RAG Agent analyzing documents...")
     prompt = agent_prompts.get_rag_prompt(ticker)
-    response = rag_model.generate_content(prompt)
+    response = _generate_content_with_retry(rag_model, prompt, status_handler, "RAG")
     return {"text": response.text}
 
 def run_market_agent(market_model, ticker, av_data, status_handler: StatusHandler):
     status_handler.log("🌍 Market Agent analyzing Sentiment (Alpha Vantage)...")
     prompt = agent_prompts.get_market_prompt(ticker, av_data)
-    response = market_model.generate_content(prompt)
+    response = _generate_content_with_retry(market_model, prompt, status_handler, "Market")
     return {"text": response.text}
 
 def run_competitor_agent(market_model, ticker, av_data, status_handler: StatusHandler):
     status_handler.log("⚔️ Competitor Scout analyzing rivals...")
     prompt = agent_prompts.get_competitor_prompt(ticker, av_data)
-    response = market_model.generate_content(prompt)
+    response = _generate_content_with_retry(market_model, prompt, status_handler, "Competitor")
     return {"text": response.text}
 
 def run_macro_agent(market_model, ticker, av_data, status_handler: StatusHandler):
     status_handler.log("🏛️ Macro Strategist: Fetching Rates, CPI, and GDP...")
     # Macro data is now part of the comprehensive av_data fetch
     prompt = agent_prompts.get_macro_prompt(ticker, av_data)
-    response = market_model.generate_content(prompt)
+    response = _generate_content_with_retry(market_model, prompt, status_handler, "Macro")
     return {"text": response.text}
 
 def _parse_json_with_fallback(json_string: str, status_handler: StatusHandler, agent_name: str):
@@ -252,19 +262,23 @@ def run_deep_dive_agent(synthesis_model, rag_model, ticker, report, status_handl
         report.get('part_6_competitor', {'text': 'No competitor data.'})['text'],
         status_handler=status_handler # Corrected: Pass the status_handler object
     )
-    response = synthesis_model.generate_content(prompt)
+    response = _generate_content_with_retry(synthesis_model, prompt, status_handler, "Deep Dive (Question Generation)")
     questions = response.text.strip().split('\n')
     answers = []
     for q in questions:
         if q.strip():
             status_handler.log(f"   ❓ Investigating: {q.strip()}")
-            ans_resp = rag_model.generate_content(f"Answer this using 10-K: {q}")
+            ans_resp = _generate_content_with_retry(rag_model, f"Answer this using 10-K: {q}", status_handler, "Deep Dive (Answer Generation)")
             time.sleep(2) # Add a delay to avoid hitting API rate limits
             answers.append(f"Q: {q}\nA: {ans_resp.text}")
     return "\n\n".join(answers)
 
 def run_synthesis_pipeline(synthesis_model, ticker, report, status_handler: StatusHandler):
     status_handler.update_step("Step 8: Drafting final report...")
+    status_handler.log("   -> Step 8.1: Generating prompt for Synthesis Agent...")
+    with st.expander("Show Synthesis Prompt"):
+        st.text(agent_prompts.SYNTHESIS_PROMPT_TEMPLATE)
+
     draft_prompt = agent_prompts.get_synthesis_prompt(
         ticker,
         report['part_1_5_quant'],
@@ -275,12 +289,16 @@ def run_synthesis_pipeline(synthesis_model, ticker, report, status_handler: Stat
         report['deep_dive_analysis'],
         status_handler=status_handler
     )
-    draft_response = synthesis_model.generate_content(draft_prompt)
+    draft_response = _generate_content_with_retry(synthesis_model, draft_prompt, status_handler, "Synthesis")
     draft_text = clean_json_output(draft_response.text)
 
     status_handler.update_step("Step 9: Critic reviewing draft...")
+    status_handler.log("   -> Step 9.1: Generating prompt for Critic Agent...")
+    with st.expander("Show Critic Prompt"):
+        st.text(agent_prompts.CRITIC_PROMPT_TEMPLATE)
+
     critic_prompt = agent_prompts.get_critic_prompt(ticker, draft_text, report['part_1_5_quant'])
-    final_response = synthesis_model.generate_content(critic_prompt)
+    final_response = _generate_content_with_retry(synthesis_model, critic_prompt, status_handler, "Critic")
     final_text = clean_json_output(final_response.text)
     
     # Attempt to parse the critic's response first

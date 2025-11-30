@@ -1,0 +1,6 @@
+functions-framework==3.*
+google-cloud-bigquery==3.*
+pydantic==2.*
+pandas
+numpy==1.*
+python-dotenv

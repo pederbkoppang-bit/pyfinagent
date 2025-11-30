@@ -112,5 +112,36 @@ fi
 cd .. # Return to the root directory
 echo
 
+# --- 3. Deploy risk-management-agent ---
+echo "--- Checking risk-management-agent for changes ---"
+# The path is different for this agent, it's inside pyfinagent-app
+cd pyfinagent-app/risk-management-agent
+if git diff --quiet HEAD -- .; then
+    echo "No changes detected in risk-management-agent. Skipping deployment."
+else
+    echo "Changes detected. Deploying risk-management-agent..."
+    gcloud functions deploy risk-management-agent \
+      --gen2 \
+      --region="$GCP_REGION" \
+      --runtime=python311 \
+      --source=. \
+      --entry-point=risk_gatekeeper_http \
+      --trigger-http \
+      --allow-unauthenticated \
+      --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,RMA_RISK_TARGET_FRACTION=0.01,RMA_MAX_DRAWDOWN=0.15,RMA_VIX_HALT=35.0,RMA_VIX_WARNING=25.0,RMA_SKEW_FEAR_THRESHOLD=1.5,RMA_OFI_TOXICITY_THRESHOLD=5.0,RMA_MAX_L1_PARTICIPATION=0.10,RMA_MAX_CONCENTRATION=0.20,RMA_MAX_GROSS_LEVERAGE=1.5" \
+      || { echo "Deployment of risk-management-agent failed."; cd ../..; exit 1; }
+    echo "✅ risk-management-agent deployment command issued."
+
+    echo "Granting BigQuery Data Editor role to risk-management-agent service account..."
+    gcloud bigquery datasets add-iam-policy-binding pyfinagent_data \
+      --member="serviceAccount:risk-management-agent@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+      --role="roles/bigquery.dataEditor" \
+      --project="$GCP_PROJECT_ID" \
+      --quiet
+    echo "✅ IAM policy for BigQuery updated."
+fi
+cd ../.. # Return to the root directory
+echo
+
 echo "🚀 All deployment commands have been issued successfully!"
 echo "Please check the Google Cloud Console for deployment status and update your Streamlit secrets with the new URLs."
