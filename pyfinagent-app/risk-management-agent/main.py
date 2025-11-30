@@ -301,7 +301,7 @@ def risk_gatekeeper_http(request):
         return ApprovedAction(status="VETO", approved_size=0, reasons=[f"VETO: Input Validation Error."], event_id=event_id, risk_intervention=True).model_dump(), 400
 
     gatekeeper = RiskGatekeeper()
-
+ 
     try:
         approved_action = gatekeeper.evaluate(state_input, action_input)
         return approved_action.model_dump(), 200
