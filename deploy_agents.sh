@@ -67,6 +67,29 @@ gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
 echo "✅ Pre-flight checks complete."
 echo
 
+# --- Pre-deployment: Fetch Dynamic Configuration ---
+echo "--- Fetching Redis IP for agent configuration ---"
+REDIS_HOST=$(gcloud redis instances describe pyfinagent-redis --region="$GCP_REGION" --project="$GCP_PROJECT_ID" --format="value(host)")
+
+if [[ -z "$REDIS_HOST" ]]; then
+  echo "ERROR: Failed to retrieve Redis host IP. Please check that the Redis instance 'pyfinagent-redis' exists in region '$GCP_REGION'."
+  exit 1
+fi
+echo "Found Redis Host IP: $REDIS_HOST"
+echo
+
+# --- Pre-deployment: Grant IAM Roles to Service Account ---
+echo "--- Granting required IAM roles to the pyfinagent-runner service account ---"
+echo "Granting BigQuery Data Editor role..."
+gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
+  --member="serviceAccount:pyfinagent-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+  --role="roles/bigquery.dataEditor" \
+  --condition=None \
+  --quiet
+
+echo "✅ IAM policies updated."
+echo
+
 # --- 1. Deploy quant-agent ---
 echo "--- Checking quant-agent for changes ---"
 cd quant-agent
@@ -81,8 +104,10 @@ else
       --source=. \
       --entry-point=quant_agent \
       --trigger-http \
+      --service-account="pyfinagent-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+      --vpc-connector=pyfinagent-connector \
       --allow-unauthenticated \
-      --set-env-vars="BUCKET_NAME=$BUCKET_NAME,USER_AGENT_EMAIL=$USER_AGENT_EMAIL" \
+      --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,REDIS_HOST=$REDIS_HOST,REDIS_PORT=6379,BUCKET_NAME=$BUCKET_NAME,USER_AGENT_EMAIL=$USER_AGENT_EMAIL" \
       || { echo "Deployment of quant-agent failed."; cd ..; exit 1; }
     echo "✅ quant-agent deployment command issued."
 fi
@@ -103,8 +128,9 @@ else
       --source=. \
       --entry-point=ingestion_agent_http \
       --trigger-http \
+      --service-account="pyfinagent-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
       --allow-unauthenticated \
-      --set-env-vars="BUCKET_NAME=$BUCKET_NAME,USER_AGENT_EMAIL=$USER_AGENT_EMAIL" \
+      --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,BUCKET_NAME=$BUCKET_NAME,USER_AGENT_EMAIL=$USER_AGENT_EMAIL" \
       --timeout=900s \
       || { echo "Deployment of ingestion-agent failed."; cd ..; exit 1; }
     echo "✅ ingestion-agent deployment command issued."
@@ -117,32 +143,24 @@ echo "--- Checking risk-management-agent for changes ---"
 # The path is different for this agent, it's inside pyfinagent-app
 cd pyfinagent-app/risk-management-agent
 if git diff --quiet HEAD -- .; then
-    echo "No changes detected in risk-management-agent. Skipping deployment."
+    echo "No changes detected in risk-management-agent code. Redeploying to ensure latest environment variables."
 else
     echo "Changes detected. Deploying risk-management-agent..."
-    gcloud functions deploy risk-management-agent \
-      --gen2 \
-      --region="$GCP_REGION" \
-      --runtime=python311 \
-      --source=. \
-      --entry-point=risk_gatekeeper_http \
-      --trigger-http \
-      --service-account="pyfinagent-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
-      --allow-unauthenticated \
-      --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,RMA_RISK_TARGET_FRACTION=0.01,RMA_MAX_DRAWDOWN=0.15,RMA_VIX_HALT=35.0,RMA_VIX_WARNING=25.0,RMA_SKEW_FEAR_THRESHOLD=1.5,RMA_OFI_TOXICITY_THRESHOLD=5.0,RMA_MAX_L1_PARTICIPATION=0.10,RMA_MAX_CONCENTRATION=0.20,RMA_MAX_GROSS_LEVERAGE=1.5" \
-      || { echo "Deployment of risk-management-agent failed."; cd ../..; exit 1; }
-    echo "✅ risk-management-agent deployment command issued."
-
-    echo "Granting BigQuery Data Editor role to pyfinagent-runner service account..."
-    gcloud bigquery datasets add-iam-policy-binding pyfinagent_data \
-      --member="serviceAccount:pyfinagent-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
-      --role="roles/bigquery.dataEditor" \
-      --project="$GCP_PROJECT_ID" \
-      --quiet
-    echo "✅ IAM policy for BigQuery updated."
 fi
-cd ../.. # Return to the root directory
-echo
+gcloud functions deploy risk-management-agent \
+  --gen2 \
+  --region="$GCP_REGION" \
+  --runtime=python311 \
+  --source=. \
+  --entry-point=risk_gatekeeper_http \
+  --trigger-http \
+  --service-account="pyfinagent-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+  --vpc-connector=pyfinagent-connector \
+  --allow-unauthenticated \
+  --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,REDIS_HOST=$REDIS_HOST,REDIS_PORT=6379,RMA_RISK_TARGET_FRACTION=0.01,RMA_MAX_DRAWDOWN=0.15,RMA_VIX_HALT=35.0,RMA_VIX_WARNING=25.0,RMA_SKEW_FEAR_THRESHOLD=1.5,RMA_OFI_TOXICITY_THRESHOLD=5.0,RMA_MAX_L1_PARTICIPATION=0.10,RMA_MAX_CONCENTRATION=0.20,RMA_MAX_GROSS_LEVERAGE=1.5" \
+  || { echo "Redeployment of risk-management-agent failed."; cd ../..; exit 1; }
+echo "✅ risk-management-agent redeployment command issued."
+cd ../..
 
 echo "🚀 All deployment commands have been issued successfully!"
 echo "Please check the Google Cloud Console for deployment status and update your Streamlit secrets with the new URLs."

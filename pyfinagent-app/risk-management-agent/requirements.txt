@@ -4,3 +4,5 @@ pydantic==2.*
 pandas
 numpy==1.*
 python-dotenv
+redis>=4.0.0
+

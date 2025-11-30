@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import functions_framework
 from pydantic import BaseModel, ValidationError, Field
+import redis
 from typing import Dict, Any, Optional, List
 from google.cloud import bigquery
 from datetime import datetime
@@ -13,6 +14,9 @@ logging.basicConfig(level=logging.INFO)
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 DATASET_ID = "pyfinagent_data"
 TABLE_ID = "risk_intervention_log"
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+STATE_KEY_PREFIX = "agent_state" # e.g., agent_state:SPY
 
 # Initialize BigQuery Client for Logging (outside handler for connection reuse)
 try:
@@ -23,6 +27,16 @@ except Exception as e:
     logging.error(f"Failed to initialize BigQuery client: {e}")
     bq_client = None
     table_ref_str = None
+
+# Initialize Redis Client
+try:
+    if not REDIS_HOST:
+        raise ValueError("REDIS_HOST environment variable not set.")
+    redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    redis_client.ping() # Check connection
+except Exception as e:
+    logging.error(f"Failed to initialize Redis client: {e}")
+    redis_client = None
 
 # --- Pydantic Models for Input Validation ---
 # Ensures the incoming State data structure is valid before risk evaluation.
@@ -285,23 +299,36 @@ def risk_gatekeeper_http(request):
     """
     request_json = request.get_json(silent=True)
 
-    if not request_json or 'state' not in request_json or 'action' not in request_json:
-        return {"error": "Invalid input. Must include 'state' and 'action'."}, 400
+    if not request_json or 'action' not in request_json:
+        return {"error": "Invalid input. Must include 'action'."}, 400
 
     # Validate Inputs using Pydantic V2
     try:
-        # We map the input JSON structure to the AgentState model defined above.
-        # This assumes the input JSON 'state' object mirrors the nested structure.
-        state_input = AgentState.model_validate(request_json['state'])
         action_input = ProposedAction.model_validate(request_json['action'])
     except ValidationError as e:
         logging.error(f"Input validation failed: {e.json()}")
         # Fail-Safe: Veto if input data is corrupted or missing critical fields
         event_id = request_json.get('action', {}).get('event_id', 'ERROR')
-        return ApprovedAction(status="VETO", approved_size=0, reasons=[f"VETO: Input Validation Error."], event_id=event_id, risk_intervention=True).model_dump(), 400
+        return ApprovedAction(status="VETO", approved_size=0, reasons=["VETO: Input Validation Error."], event_id=event_id, risk_intervention=True).model_dump(), 400
+
+    # --- NEW: Fetch state independently from Redis ---
+    try:
+        if not redis_client:
+            raise ConnectionError("Redis client not available.")
+        state_key = f"{STATE_KEY_PREFIX}:{action_input.ticker}"
+        state_json = redis_client.get(state_key)
+        if not state_json:
+            raise ValueError(f"State not found in Redis for key: {state_key}")
+        
+        # Validate the state fetched from Redis
+        state_input = AgentState.model_validate_json(state_json)
+
+    except (ConnectionError, ValueError, ValidationError) as e:
+        logging.error(f"Failed to fetch or validate state from Redis: {e}")
+        return ApprovedAction(status="VETO", approved_size=0, reasons=["VETO: Failed to retrieve valid state."], event_id=action_input.event_id, risk_intervention=True).model_dump(), 500
 
     gatekeeper = RiskGatekeeper()
- 
+
     try:
         approved_action = gatekeeper.evaluate(state_input, action_input)
         return approved_action.model_dump(), 200
