@@ -1,5 +1,6 @@
 # tools/portfolio.py
 import pandas as pd
+import numpy as np
 import yfinance as yf
 import streamlit as st
 from google.cloud import bigquery
@@ -131,6 +132,25 @@ def get_trade_history(user_id: str, account_id: str) -> pd.DataFrame:
     """
     logging.info("Fetching trade history (Mock data used for demonstration)")
     return get_mock_trade_history()
+
+@st.cache_data(ttl=3600) # Cache for 1 hour
+def fetch_benchmark_data(tickers: list) -> pd.DataFrame:
+    """Fetches historical close prices for a list of benchmark tickers."""
+    if not tickers:
+        return pd.DataFrame()
+    
+    try:
+        # Fetch data for the last 5 years to ensure we have enough history
+        data = yf.download(tickers, period="5y", interval="1d", auto_adjust=True)['Close']
+        if data.empty:
+            return pd.DataFrame()
+        # If only one ticker is fetched, it returns a Series. Convert to DataFrame.
+        if isinstance(data, pd.Series):
+            data = data.to_frame(name=tickers[0])
+        return data.tz_localize('UTC') # Localize to UTC to match portfolio data
+    except Exception as e:
+        logging.error(f"Failed to fetch benchmark data for {tickers}: {e}")
+        return pd.DataFrame()
 
 def fetch_live_market_data(tickers: list) -> dict:
     """Fetches live prices and sparkline data using yfinance (Bulk fetch)."""
