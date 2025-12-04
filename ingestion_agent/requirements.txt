@@ -1,6 +1,14 @@
-functions-framework
-google-cloud-storage
-requests
-python-dotenv
-beautifulsoup4
-lxml
+# ingestion-agent/requirements.txt (Refactored)
+
+# Core GCP Libraries
+google-cloud-bigquery
+functions-framework  # For Google Cloud Functions deployment
+
+# Data Handling
+pandas
+numpy
+pyarrow  # Essential for efficient BigQuery loading
+pytz     # For robust timezone handling
+
+# Data Sources (Keep only the necessary providers)
+yfinance # Or your primary market data provider SDK

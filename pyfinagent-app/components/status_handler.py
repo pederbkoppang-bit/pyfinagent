@@ -7,6 +7,9 @@ class StatusHandler:
     This class encapsulates a progress bar and a primary status message, using
     st.status to efficiently handle and display detailed streaming logs.
     """
+    # Class constant for the spinner's HTML structure.
+    _SPINNER_HTML = '<div class="gemini-spinner"><div class="gemini-spinner-bar"></div><div class="gemini-spinner-bar"></div><div class="gemini-spinner-bar"></div><div class="gemini-spinner-bar"></div></div>'
+
     def __init__(self, total_steps: int, progress_bar):
         """
         Initializes all necessary UI placeholders.
@@ -22,8 +25,11 @@ class StatusHandler:
         # This check prevents re-drawing on every st.rerun.
         if 'status_handler_initialized' not in st.session_state:
             st.session_state._progress_bar_placeholder = progress_bar
+            # This placeholder will act as our custom, HTML-enabled status label
+            st.session_state._status_label_placeholder = st.empty()
             # st.status will manage the expandable log area and its state.
-            st.session_state._status_context = st.status("Initializing analysis...", expanded=False)
+            st.session_state._status_context = st.status("Logs", expanded=False)
+            self._inject_spinner_css() # Inject CSS once
             st.session_state.status_handler_initialized = True
 
     def update_step(self, status_text: str):
@@ -51,15 +57,53 @@ class StatusHandler:
         # The main step update is a significant log, so we treat it as such.
         self.log(f"✅ {status_text}") # Also add the major step to the detailed log
 
+    def _inject_spinner_css(self):
+        """
+        Injects the CSS for the Gemini spinner into the app.
+        This should only be called once.
+        """
+        st.markdown("""
+            <style>
+                .gemini-spinner {
+                    display: inline-flex; /* Use inline-flex to appear next to text */
+                    justify-content: center;
+                    align-items: center;
+                    gap: 5px;
+                    vertical-align: middle; /* Align spinner with the text */
+                    margin-right: 10px; /* Space between spinner and text */
+                }
+                .gemini-spinner-bar {
+                    width: 4px;
+                    height: 16px;
+                    background-color: #4285F4; /* Google Blue */
+                    border-radius: 2px;
+                    animation: bounce 1.2s ease-in-out infinite;
+                }
+                .gemini-spinner-bar:nth-child(2) { background-color: #DB4437; animation-delay: -1.0s; } /* Google Red */
+                .gemini-spinner-bar:nth-child(3) { background-color: #F4B400; animation-delay: -0.8s; } /* Google Yellow */
+                .gemini-spinner-bar:nth-child(4) { background-color: #0F9D58; animation-delay: -0.6s; } /* Google Green */
+                @keyframes bounce {
+                    0%, 80%, 100% { transform: scaleY(0.5); opacity: 0.5; }
+                    40% { transform: scaleY(1.0); opacity: 1.0; }
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
     def log(self, message: str):
         """
-        Updates the status label to the latest message.
+        Updates the status with a custom Gemini-style spinner and the latest message.
+        It also logs the message inside the expandable container.
         """
-        st.session_state._status_context.update(label=message)
+        # Update the external placeholder (our custom label) with the spinner and message
+        st.session_state._status_label_placeholder.markdown(f"{self._SPINNER_HTML} {message}", unsafe_allow_html=True)
+
+        with st.session_state._status_context:
+            st.write(f"> {message}") # Log message with a quote for distinction
 
     def complete(self, final_message: str = "Analysis Complete!"):
         """Clears the progress bar and shows a final completion message."""
         st.session_state._progress_bar_placeholder.empty()
+        st.session_state._status_label_placeholder.empty() # Clear the custom label
         # Set the final state of the status container
         st.session_state._status_context.update(label=final_message, state="complete", expanded=False)
 
