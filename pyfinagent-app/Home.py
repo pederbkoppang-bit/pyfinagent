@@ -304,13 +304,14 @@ def _generate_content_with_retry(model, prompt, status_handler: StatusHandler, a
     for attempt in range(max_retries):
         try:
             return model.generate_content(prompt)
-        except exceptions.ServiceUnavailable as e:
+        except (exceptions.ServiceUnavailable, exceptions.ResourceExhausted) as e:
+            error_type = "unavailable" if isinstance(e, exceptions.ServiceUnavailable) else "rate limited"
             if attempt < max_retries - 1:
-                status_handler.log(f"⚠️ {agent_name} Agent unavailable. Retrying in {delay}s... ({attempt + 1}/{max_retries-1})")
+                status_handler.log(f"⚠️ {agent_name} Agent is {error_type}. Retrying in {delay}s... ({attempt + 1}/{max_retries-1})")
                 time.sleep(delay)
                 delay *= 2  # Exponential backoff
             else:
-                status_handler.error(f"🚨 {agent_name} Agent failed after {max_retries} attempts.")
+                status_handler.error(f"🚨 {agent_name} Agent failed after {max_retries} attempts due to being {error_type}.")
                 raise e # Re-raise the exception after the final attempt
 
 def run_rag_agent(rag_model, ticker, status_handler: StatusHandler):
