@@ -109,34 +109,131 @@ def display_report():
     if not report_data: return st.error("Failed to parse the final report data for display.")
     
     try:
-        # Try to get price from yfinance data structure first
         quant_data = st.session_state.report.get('part_1_5_quant', {})
-        # Check new yfinance path
-        if 'yf_data' in quant_data:
-            price_val = quant_data['yf_data'].get('valuation', {}).get('Current Price', 0)
-        else:
-            # Fallback to old path
-            price_val = quant_data.get('part_5_valuation', {}).get('market_price', 0)
-            
+        price_val = quant_data.get('yf_data', {}).get('valuation', {}).get('Current Price', 0)
         price_str = f"${price_val:.2f}"
     except: price_str = "N/A"
 
     st.success("Analysis Complete!")
     display_evaluation_table()
     st.divider()
+
+    # --- Executive Summary ---
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        st.metric("Final Score", f"{report_data.get('final_weighted_score', 0):.2f} / 10", help="Weighted score based on the 5 pillars of analysis.")
+        st.metric("Recommendation", report_data.get('recommendation', {}).get('action', 'N/A'), delta_color="off")
+        st.caption(f"Price at time of analysis: {price_str}")
+    with c2:
+        st.subheader("Investment Thesis")
+        st.write(report_data.get('final_summary', ''))
+        
+        justification = report_data.get('recommendation', {}).get('justification')
+        if justification:
+            with st.expander("Show Recommendation Justification"):
+                st.info(justification)
+
+    st.divider()
+
+    # --- Price Chart ---
     ticker = st.session_state.report.get('part_1_5_quant', {}).get('ticker')
     if ticker:
         display_price_chart(ticker)
 
-    c1, c2 = st.columns([1, 3])
-    with c1:
-        st.metric("Final Score", f"{report_data.get('final_weighted_score', 0):.2f} / 10")
-        st.metric("Recommendation", report_data.get('recommendation', {}).get('action', 'N/A'))
-        st.caption(f"at {price_str}")
-    with c2:
-        st.subheader("Summary")
-        st.write(report_data.get('final_summary', ''))
-    with st.expander("Raw Data"): st.json(st.session_state.report)
+    # --- Detailed Analysis Tabs ---
+    tab1, tab2, tab3, tab4 = st.tabs(["Key Metrics & Risks", "Agent Analysis", "Deep Dive Q&A", "Raw Data"])
+
+    with tab1:
+        st.subheader("Key Financials (from SEC Filings)")
+        filing_financials = quant_data.get('part_1_financials', {})
+        if filing_financials:
+            # Check for data staleness
+            latest_revenue_data = filing_financials.get('latest_revenue', {})
+            if latest_revenue_data and 'filed' in latest_revenue_data:
+                try:
+                    filed_date = datetime.fromisoformat(latest_revenue_data['filed'])
+                    # Check if filed_date is more than 4 months ago (approx 120 days)
+                    if (datetime.now() - filed_date).days > 120:
+                        st.warning("⚠️ The latest SEC filing data is over 4 months old and may be stale. A new 10-Q or 10-K may be available soon.")
+                except (ValueError, TypeError):
+                    logging.warning(f"Could not parse 'filed' date: {latest_revenue_data.get('filed')}")
+            # Use columns for a cleaner layout
+            c1, c2, c3 = st.columns(3)
+            # Helper to format the metric
+            def display_metric(column, label, data):
+                if data and isinstance(data, dict):
+                    value = data.get('value', 0)
+                    period = data.get('period', '')
+                    filed = data.get('filed', '')
+                    column.metric(label, f"${value/1e9:.2f}B", help=f"Period: {period} | Filed: {filed}")
+                else:
+                    column.metric(label, "N/A")
+            
+            display_metric(c1, "Latest Revenue", filing_financials.get('latest_revenue'))
+            display_metric(c2, "Latest Net Income", filing_financials.get('latest_net_income'))
+            display_metric(c3, "Latest Operating Cash Flow", filing_financials.get('latest_operating_cash_flow'))
+        else:
+            st.info("No financial data from SEC filings available.")
+
+        st.subheader("Valuation & Performance (from yfinance)")
+        yf_valuation = quant_data.get('yf_data', {}).get('valuation', {})
+        yf_financials = quant_data.get('yf_data', {}).get('financials', {})
+        if yf_valuation or yf_financials:
+            v_cols = st.columns(4)
+            
+            # Display Current Price
+            price = yf_valuation.get("Current Price")
+            v_cols[0].metric("Current Price", f"${price:.2f}" if price is not None else "N/A")
+
+            # Display Market Cap
+            mkt_cap = yf_valuation.get("Market Cap")
+            if mkt_cap is not None:
+                v_cols[1].metric("Market Cap", f"${mkt_cap/1e12:.3f}T")
+            else:
+                v_cols[1].metric("Market Cap", "N/A")
+
+            # Display P/E Ratio
+            pe_ratio = yf_financials.get("P/E Ratio")
+            v_cols[2].metric("P/E Ratio", f"{pe_ratio:.2f}" if pe_ratio is not None else "N/A")
+
+            # Display P/S Ratio
+            ps_ratio = yf_financials.get("P/S Ratio")
+            v_cols[3].metric("P/S Ratio", f"{ps_ratio:.2f}" if ps_ratio is not None else "N/A")
+        else:
+            st.info("No quantitative metrics available.")
+
+        st.subheader("Key Risks to Watch")
+        key_risks = report_data.get('key_risks')
+        if key_risks:
+            for risk in key_risks:
+                st.warning(f"⚠️ {risk}")
+        else:
+            st.info("No key risks were identified.")
+
+    with tab2:
+        st.subheader("Individual Agent Analyses")
+        with st.expander("📄 SEC Filings Analysis (RAG Agent)"): st.write(st.session_state.report.get('part_1_4_6_rag', {}).get('text', 'N/A'))
+        with st.expander("📈 Market Sentiment Analysis (Market Agent)"): st.write(st.session_state.report.get('part_2_3_market', {}).get('text', 'N/A'))
+        with st.expander("⚔️ Competitor Analysis (Competitor Scout)"): st.write(st.session_state.report.get('part_6_competitor', {}).get('text', 'N/A'))
+        with st.expander("🏛️ Macroeconomic Outlook (Macro Strategist)"): st.write(st.session_state.report.get('part_7_macro', {}).get('text', 'N/A'))
+
+    with tab3:
+        st.subheader("Deep Dive Investigation")
+        deep_dive_text = st.session_state.report.get('deep_dive_analysis', 'No deep dive analysis was performed.')
+        # Use regex to split into Q&A pairs for better formatting
+        qa_pairs = re.split(r'\nQ: ', deep_dive_text)
+        if len(qa_pairs) > 1:
+            for i, pair in enumerate(qa_pairs):
+                if not pair.strip(): continue
+                if i > 0: pair = "Q: " + pair # Add back the prefix for subsequent pairs
+                parts = re.split(r'\nA: ', pair, 1)
+                if len(parts) == 2:
+                    st.info(f"**Question:** {parts[0].replace('Q: ', '').strip()}")
+                    st.success(f"**Answer:** {parts[1].strip()}")
+
+    with tab4:
+        st.subheader("Full Report Raw Data")
+        st.json(st.session_state.report)
 
 # --- Agent Functions ---
 
@@ -193,6 +290,11 @@ def run_quant_agent(ticker: str, status_handler: StatusHandler) -> dict:
     # Merge yfinance data for a comprehensive report
     yf_data = tools_yfinance.get_comprehensive_financials(ticker)
     final_json['yf_data'] = yf_data
+
+    # Standardize column names to prevent KeyErrors in charting
+    if 'chart_data' in yf_data and isinstance(yf_data['chart_data'], pd.DataFrame):
+        yf_data['chart_data'].columns = [col.lower() for col in yf_data['chart_data'].columns]
+
     return final_json
 
 def _generate_content_with_retry(model, prompt, status_handler: StatusHandler, agent_name: str):
@@ -279,13 +381,18 @@ def run_synthesis_pipeline(synthesis_model, ticker, report, status_handler: Stat
     with st.expander("Show Synthesis Prompt"):
         st.text(agent_prompts.SYNTHESIS_PROMPT_TEMPLATE)
 
+    # Combine market, competitor, and macro reports into a single context string for the prompt.
+    market_context = (
+        f"Market News & Sentiment:\n{report['part_2_3_market']['text']}\n\n"
+        f"Competitor Analysis:\n{report.get('part_6_competitor', {'text': 'No competitor data.'})['text']}\n\n"
+        f"Macroeconomic Outlook:\n{report.get('part_7_macro', {'text': 'No macro data.'})['text']}"
+    )
+
     draft_prompt = agent_prompts.get_synthesis_prompt(
         ticker,
         report['part_1_5_quant'],
         report['part_1_4_6_rag']['text'],
-        report['part_2_3_market']['text'],
-        report.get('part_6_competitor', {'text': 'No competitor data.'})['text'],
-        report.get('part_7_macro', {'text': 'No macro data.'})['text'],
+        market_context,
         report['deep_dive_analysis'],
         status_handler=status_handler
     )
@@ -325,19 +432,19 @@ def get_nvda_dummy_data():
             },
             "part_5_valuation": {
                 "market_price": 950.02, "market_cap": 2375000000000, "pe_ratio": 75.9, "ps_ratio": 35.1,
-                "latest_eps_diluted": {"value": 11.93, "period": "FY", "filed": "2024-02-21"},
-                "historical_prices": '{"columns":["Date","Close"],"data":[["2023-01-01",400],["2024-01-01",900]]}'
+                "latest_eps_diluted": {"value": 11.93, "period": "FY", "filed": "2024-02-21"}
             },
             'yf_data': {
                 'valuation': {'Current Price': 950.02, 'Market Cap': 2375000000000},
                 'financials': {'P/E Ratio': 75.9, 'P/S Ratio': 35.1},
                 'chart_data': pd.DataFrame({
-                    'Date': pd.to_datetime(['2023-01-01', '2024-01-01', '2024-05-01']),
-                    'Open': [390, 890, 940],
-                    'High': [410, 910, 960],
-                    'Low': [385, 885, 935],
-                    'Close': [400, 900, 950.02],
-                }).set_index('Date')
+                    'date': pd.to_datetime(['2023-01-01', '2024-01-01', '2024-05-01']),
+                    'open': [390, 890, 940],
+                    'high': [410, 910, 960],
+                    'low': [385, 885, 935],
+                    'close': [400, 900, 950.02],
+                    'volume': [1000000, 2000000, 1500000]
+                }).set_index('date')
             }
         },
         'part_1_4_6_rag': {"text": "Dummy RAG analysis: NVIDIA has a strong moat in AI chips due to its CUDA platform (Source: 2024 10-K)."},

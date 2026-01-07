@@ -16,20 +16,20 @@ def display_price_chart(ticker: str, analysis_dates=None):
     """
     # Check if the necessary data is available in the session state report
     quant_data = st.session_state.get('report', {}).get('part_1_5_quant')
-    # Corrected path: The historical prices are nested inside the 'part_5_valuation' dictionary.
-    historical_prices_json = quant_data.get('part_5_valuation', {}).get('historical_prices') if quant_data else None
+    price_df = quant_data.get('yf_data', {}).get('chart_data') if quant_data else None
 
-    if not historical_prices_json:
+    if price_df is None or not isinstance(price_df, pd.DataFrame):
         # If there's no data, simply don't display the chart.
-        # A placeholder can be added here if desired for the "loading" state.
         st.info("Historical price data not available for chart.")
         return
 
     # --- Data Processing ---
     try:
-        price_df = pd.read_json(historical_prices_json, orient='split')
-        price_df['Date'] = pd.to_datetime(price_df['Date'])
-        price_df.set_index('Date', inplace=True)
+        # Ensure data is in the correct format (already done in agent, but good practice to check)
+        if not isinstance(price_df.index, pd.DatetimeIndex):
+             price_df.index = pd.to_datetime(price_df.index)
+        # Ensure columns are lowercase
+        price_df.columns = [col.lower() for col in price_df.columns]
     except (ValueError, KeyError) as e:
         logging.error(f"Could not parse historical price data: {e}")
         st.warning("Could not display price chart. The data format may be incorrect.")
@@ -39,15 +39,6 @@ def display_price_chart(ticker: str, analysis_dates=None):
 
     # --- UI Controls for the Chart ---
     st.write("#### Chart Options")
-    cols = st.columns(4)
-    with cols[0]:
-        show_sma_50 = st.checkbox("Show SMA 1", value=True)
-    with cols[1]:
-        show_sma_200 = st.checkbox("Show SMA 2", value=False)
-    with cols[2]:
-        show_bb = st.checkbox("Bollinger Bands", value=False)
-    with cols[3]:
-        show_rsi = st.checkbox("Show RSI", value=True)
 
     # --- Expander for Customizing Indicator Parameters ---
     with st.expander("Customize Indicator Parameters"):
@@ -60,26 +51,32 @@ def display_price_chart(ticker: str, analysis_dates=None):
             bb_std = st.number_input("BB Std. Dev.", min_value=0.1, max_value=5.0, value=2.0, step=0.1)
         with param_cols[2]:
             rsi_period = st.number_input("RSI Period", min_value=1, max_value=100, value=14, step=1)
+    
+    cols = st.columns(4)
+    show_sma_50 = cols[0].checkbox(f"Show SMA {sma_50_period}", value=True)
+    show_sma_200 = cols[1].checkbox(f"Show SMA {sma_200_period}", value=False)
+    show_bb = cols[2].checkbox("Bollinger Bands", value=False)
+    show_rsi = cols[3].checkbox("Show RSI", value=True)
 
 
     # --- Calculate Technical Indicators ---
-    price_df[f'SMA_{sma_50_period}'] = price_df['Close'].rolling(window=sma_50_period).mean()
-    price_df[f'SMA_{sma_200_period}'] = price_df['Close'].rolling(window=sma_200_period).mean()
+    price_df[f'SMA_{sma_50_period}'] = price_df['close'].rolling(window=sma_50_period).mean()
+    price_df[f'SMA_{sma_200_period}'] = price_df['close'].rolling(window=sma_200_period).mean()
     
     # Calculate Bollinger Bands
-    price_df[f'SMA_{bb_window}'] = price_df['Close'].rolling(window=bb_window).mean()
-    price_df['BB_std'] = price_df['Close'].rolling(window=bb_window).std()
+    price_df[f'SMA_{bb_window}'] = price_df['close'].rolling(window=bb_window).mean()
+    price_df['BB_std'] = price_df['close'].rolling(window=bb_window).std()
     price_df['BB_Upper'] = price_df[f'SMA_{bb_window}'] + (price_df['BB_std'] * bb_std)
     price_df['BB_Lower'] = price_df[f'SMA_{bb_window}'] - (price_df['BB_std'] * bb_std)
 
     # Calculate RSI
-    delta = price_df['Close'].diff()
+    delta = price_df['close'].diff()
     gain = delta.where(delta > 0, 0)
     loss = -delta.where(delta < 0, 0)
     avg_gain = gain.ewm(com=rsi_period - 1, min_periods=rsi_period).mean()
     avg_loss = loss.ewm(com=rsi_period - 1, min_periods=rsi_period).mean()
     rs = avg_gain / avg_loss
-    price_df['RSI'] = 100 - (100 / (1 + rs))
+    price_df['rsi'] = 100 - (100 / (1 + rs))
 
     # --- Create the Plotly Figure ---
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True,
@@ -88,22 +85,22 @@ def display_price_chart(ticker: str, analysis_dates=None):
 
     # --- Candlestick Trace ---
     fig.add_trace(go.Candlestick(x=price_df.index,
-                                 open=price_df['Open'],
-                                 high=price_df['High'],
-                                 low=price_df['Low'],
-                                 close=price_df['Close'],
+                                 open=price_df['open'],
+                                 high=price_df['high'],
+                                 low=price_df['low'],
+                                 close=price_df['close'],
                                  name='OHLC'),
                   row=1, col=1)
 
     # --- Moving Average Traces (conditional) ---
     if show_sma_50:
         fig.add_trace(go.Scatter(x=price_df.index, y=price_df[f'SMA_{sma_50_period}'],
-                                 mode='lines', name=f'{sma_50_period}-Day SMA',
+                                 mode='lines', name=f'{sma_50_period}-day SMA',
                                  line=dict(color='orange', width=1)),
                       row=1, col=1)
     if show_sma_200:
         fig.add_trace(go.Scatter(x=price_df.index, y=price_df[f'SMA_{sma_200_period}'],
-                                 mode='lines', name=f'{sma_200_period}-Day SMA',
+                                 mode='lines', name=f'{sma_200_period}-day SMA',
                                  line=dict(color='purple', width=1)),
                       row=1, col=1)
     
@@ -121,14 +118,14 @@ def display_price_chart(ticker: str, analysis_dates=None):
 
     # --- Volume Bar Trace ---
     # Color bars based on price movement
-    colors = ['green' if row['Close'] >= row['Open'] else 'red' for index, row in price_df.iterrows()]
-    fig.add_trace(go.Bar(x=price_df.index, y=price_df['Volume'],
+    colors = ['green' if row['close'] >= row['open'] else 'red' for index, row in price_df.iterrows()]
+    fig.add_trace(go.Bar(x=price_df.index, y=price_df['volume'],
                          marker_color=colors, name='Volume'),
                   row=2, col=1)
     
     # --- RSI Trace (conditional) ---
     if show_rsi:
-        fig.add_trace(go.Scatter(x=price_df.index, y=price_df['RSI'], mode='lines', name='RSI', line=dict(color='blue', width=1)), row=3, col=1)
+        fig.add_trace(go.Scatter(x=price_df.index, y=price_df['rsi'], mode='lines', name='RSI', line=dict(color='blue', width=1)), row=3, col=1)
         # Add overbought/oversold lines
         fig.add_hline(y=70, line_dash="dash", line_color="red", line_width=1, row=3, col=1)
         fig.add_hline(y=30, line_dash="dash", line_color="green", line_width=1, row=3, col=1)

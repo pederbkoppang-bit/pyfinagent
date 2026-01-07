@@ -5,6 +5,28 @@ This module separates the 'Brain' (prompts) from the 'Body' (Home.py).
 """
 
 import json
+from pathlib import Path
+
+# Load the detailed synthesis prompt from the adjacent text file.
+SYNTHESIS_PROMPT_PATH = Path(__file__).parent / "synthesis_prompt.txt"
+SYNTHESIS_PROMPT_TEMPLATE = SYNTHESIS_PROMPT_PATH.read_text()
+
+CRITIC_PROMPT_TEMPLATE = """You are the Compliance & Quality Control Officer. Review the draft report for {ticker}.
+
+--- HARD DATA (TRUTH) ---
+{quant_data}
+
+--- DRAFT REPORT ---
+{draft_report}
+
+**YOUR TASK:**
+1. Check for **Hallucinations**: Does the draft mention numbers that contradict the Hard Data?
+2. Check for **Logic Errors**: Does a 'Strong Buy' recommendation accompany a low score (e.g., 3/10)?
+3. Check for **JSON Validity**: Is the structure correct?
+
+If the report is good, output the JSON exactly as is.
+If there are errors, correct the JSON values and summary to match the Hard Data, then output the CORRECTED JSON.
+Do not output markdown code blocks, just the raw JSON string."""
 
 def get_rag_prompt(ticker: str, status_handler=None) -> str:
     if status_handler: status_handler.log("   Generating prompt for RAG Agent...")
@@ -81,24 +103,17 @@ def get_deep_dive_prompt(ticker: str, quant_data: dict, rag_text: str, market_te
         "Output ONLY the numbered list of questions."
     )
 
-def get_synthesis_prompt(ticker: str, quant_data: dict, rag_text: str, market_text: str, competitor_text: str, macro_text: str, deep_dive_text: str, status_handler=None, step_num: float = 8.1) -> str:
+def get_synthesis_prompt(ticker: str, quant_report: dict, rag_report: str, market_report: str, deep_dive_analysis: str, status_handler=None, step_num: float = 8.1) -> str:
     if status_handler: status_handler.log(f"   -> Step {step_num}: Generating prompt for Synthesis Agent...")
-    return (
-        f"You are the Lead Analyst for {ticker}. Synthesize the following agent reports into a cohesive investment thesis.\n\n"
-        "--- INPUTS ---\n"
-        f"QUANT: {json.dumps(quant_data)}\n"
-        f"RAG: {rag_text}\n"
-        f"MARKET: {market_text}\n"
-        f"COMPETITOR: {competitor_text}\n"
-        f"MACRO: {macro_text}\n"
-        f"DEEP DIVE: {deep_dive_text}\n"
-        "--------------\n\n"
-        "**REQUIREMENTS:**\n"
-        "1. **Scoring Matrix**: Assign 0-10 scores for Corporate, Industry, Valuation, Sentiment, Governance.\n"
-        "2. **Recommendation**: Strong Buy / Buy / Hold / Sell / Strong Sell.\n"
-        "3. **Summary**: A professional narrative connecting the dots.\n\n"
-        "**OUTPUT FORMAT:**\n"
-        "Return a JSON object with keys: `scoring_matrix`, `recommendation`, `final_summary`, `key_risks`."
+    # Use the loaded template and format it with the provided context.
+    # Note: The template expects market_report, but the old function signature had competitor and macro.
+    # I am aligning with the template's variable names.
+    return SYNTHESIS_PROMPT_TEMPLATE.format(
+        ticker=ticker,
+        quant_report=json.dumps(quant_report, indent=2),
+        rag_report=rag_report,
+        market_report=market_report, # Assuming this combines market, competitor, and macro reports.
+        deep_dive_analysis=deep_dive_analysis
     )
 
 def get_critic_prompt(ticker: str, draft_report: str, quant_data: dict, status_handler=None, step_num: float = 8.2) -> str:
@@ -107,20 +122,13 @@ def get_critic_prompt(ticker: str, draft_report: str, quant_data: dict, status_h
     # it's better to load it into a Python object and then dump it back to a
     # consistently formatted string.
     try:
-        draft_obj = json.loads(draft_report)
+        # Ensure the draft report is a consistently formatted JSON string.
+        draft_obj_str = json.dumps(json.loads(draft_report), indent=2)
     except json.JSONDecodeError:
-        draft_obj = {"error": "Could not parse draft report", "raw": draft_report}
-    return (
-        f"You are the Compliance & Quality Control Officer. Review the draft report for {ticker}.\n\n"
-        "--- HARD DATA (TRUTH) ---\n"
-        f"{json.dumps(quant_data)}\n\n"
-        "--- DRAFT REPORT ---\n"
-        f"{json.dumps(draft_obj)}\n\n"
-        "**YOUR TASK:**\n"
-        "1. Check for **Hallucinations**: Does the draft mention numbers that contradict the Hard Data?\n"
-        "2. Check for **Logic Errors**: Does a 'Strong Buy' recommendation accompany a low score (e.g., 3/10)?\n"
-        "3. Check for **JSON Validity**: Is the structure correct?\n\n"
-        "If the report is good, output the JSON exactly as is.\n"
-        "If there are errors, correct the JSON values and summary to match the Hard Data, then output the CORRECTED JSON.\n"
-        "Do not output markdown code blocks, just the raw JSON string."
+        draft_obj_str = json.dumps({"error": "Could not parse draft report", "raw": draft_report})
+
+    return CRITIC_PROMPT_TEMPLATE.format(
+        ticker=ticker,
+        quant_data=json.dumps(quant_data, indent=2),
+        draft_report=draft_obj_str
     )
