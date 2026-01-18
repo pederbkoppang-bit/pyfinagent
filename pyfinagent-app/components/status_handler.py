@@ -1,5 +1,7 @@
 import streamlit as st
 import re
+from datetime import datetime
+import time
 
 class StatusHandler:
     """
@@ -26,9 +28,7 @@ class StatusHandler:
         if 'status_handler_initialized' not in st.session_state:
             st.session_state._progress_bar_placeholder = progress_bar
             # This placeholder will act as our custom, HTML-enabled status label
-            st.session_state._status_label_placeholder = st.empty()
-            # st.status will manage the expandable log area and its state.
-            st.session_state._status_context = st.status("Logs", expanded=False)
+            st.session_state._header_placeholder = st.empty()
             self._inject_spinner_css() # Inject CSS once
             st.session_state.status_handler_initialized = True
 
@@ -86,29 +86,33 @@ class StatusHandler:
                     0%, 80%, 100% { transform: scaleY(0.5); opacity: 0.5; }
                     40% { transform: scaleY(1.0); opacity: 1.0; }
                 }
+                .logic-token {
+                    background-color: #334155; /* slate-700 */
+                    color: #e2e8f0; /* slate-200 */
+                    border: 1px solid #475569; /* slate-600 */
+                    border-radius: 0.375rem; /* rounded-md */
+                    padding: 0.25rem 0.5rem;
+                    font-family: monospace;
+                    font-size: 0.8rem;
+                }
             </style>
         """, unsafe_allow_html=True)
 
     def log(self, message: str):
         """
         Updates the status with a custom Gemini-style spinner and the latest message.
-        It also logs the message inside the expandable container.
+        The detailed logging to the expander has been removed for performance.
         """
-        # Update the external placeholder (our custom label) with the spinner and message
-        st.session_state._status_label_placeholder.markdown(f"{self._SPINNER_HTML} {message}", unsafe_allow_html=True)
-
-        with st.session_state._status_context:
-            st.write(f"> {message}") # Log message with a quote for distinction
+        # Update the external header placeholder with the spinner and message
+        st.session_state._header_placeholder.markdown(f"{self._SPINNER_HTML} {message}", unsafe_allow_html=True)
 
     def complete(self, final_message: str = "Analysis Complete!"):
         """Clears the progress bar and shows a final completion message."""
         st.session_state._progress_bar_placeholder.empty()
-        st.session_state._status_label_placeholder.empty() # Clear the custom label
-        # Set the final state of the status container
-        st.session_state._status_context.update(label=final_message, state="complete", expanded=False)
+        st.session_state._header_placeholder.empty() # Clear the custom label
+        st.success(final_message)
 
     def error(self, error_message: str):
         """Displays an error message in the status area."""
-        st.session_state._status_context.update(label=error_message, state="error", expanded=True)
-        # We can also log the error inside the container for more details if needed
-        self.log(f"🚨 ERROR: {error_message}")
+        st.session_state._header_placeholder.empty()
+        st.error(error_message)

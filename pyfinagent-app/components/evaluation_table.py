@@ -1,15 +1,12 @@
 import streamlit as st
 
-def display_evaluation_table():
+def display_evaluation_table(scores: dict):
     """
     Displays a dashboard-style breakdown of the scoring pillars, their weights,
     and the scores they received.
     """
-    if 'report' not in st.session_state or not st.session_state.report.get('final_synthesis'):
+    if not scores:
         return
-
-    report_data = st.session_state.report['final_synthesis']
-    scores = report_data.get('scoring_matrix', {})
     
     # Define the pillars and their weights
     pillar_weights = {
@@ -35,4 +32,5 @@ def display_evaluation_table():
                 help=f"This pillar has a {info['weight']:.0%} weight in the final score."
             )
 
-    st.info(f"The final weighted score of **{report_data.get('final_weighted_score', 0.0):.2f} / 10** is calculated based on the scores and weights of these pillars.")
+    # This component's responsibility is just the table. The final score is shown elsewhere.
+    # We can remove the info box to keep the component focused.

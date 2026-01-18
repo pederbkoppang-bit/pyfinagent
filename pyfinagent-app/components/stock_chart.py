@@ -17,6 +17,7 @@ def display_price_chart(ticker: str, analysis_dates=None):
     # Check if the necessary data is available in the session state report
     quant_data = st.session_state.get('report', {}).get('part_1_5_quant')
     price_df = quant_data.get('yf_data', {}).get('chart_data') if quant_data else None
+    current_price = quant_data.get('yf_data', {}).get('valuation', {}).get('Current Price') if quant_data else None
 
     if price_df is None or not isinstance(price_df, pd.DataFrame):
         # If there's no data, simply don't display the chart.
@@ -137,6 +138,14 @@ def display_price_chart(ticker: str, analysis_dates=None):
                           annotation_text="Analysis", annotation_position="top left",
                           row=1, col=1)
 
+    # --- Add Horizontal Line for Current Price ---
+    if current_price is not None:
+        fig.add_hline(y=current_price, line_dash="dash", line_color="red", line_width=2,
+                      annotation_text=f"Current Price: ${current_price:.2f}",
+                      annotation_position="bottom right",
+                      annotation_font_size=12,
+                      annotation_font_color="red",
+                      row=1, col=1)
 
     # --- Layout and Theming ---
     fig.update_layout(
@@ -145,7 +154,9 @@ def display_price_chart(ticker: str, analysis_dates=None):
         showlegend=True,
         xaxis_rangeslider_visible=False, # Hide the default range slider
         yaxis_title='Price (USD)',
-        template='plotly_white', # Use a clean, professional theme
+        template='plotly_dark', # Use a dark theme for slate aesthetic
+        paper_bgcolor='rgba(0,0,0,0)', # Transparent background
+        plot_bgcolor='rgba(0,0,0,0)', # Transparent plot area
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     fig.update_yaxes(title_text="Volume", row=2, col=1)
@@ -165,4 +176,7 @@ def display_price_chart(ticker: str, analysis_dates=None):
         )
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    # --- Center the chart using a column layout ---
+    _, chart_col, _ = st.columns([1, 10, 1])
+    with chart_col:
+        st.plotly_chart(fig, use_container_width=True)

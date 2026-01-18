@@ -35,9 +35,9 @@ def get_rag_prompt(ticker: str, status_handler=None) -> str:
         "Your goal is to extract factual, hard data regarding:\n"
         "1. **Economic Moat**: specific competitive advantages.\n"
         "2. **Governance**: Executive compensation alignment and shareholder structure.\n"
-        "3. **Risk Factors**: The specific risks listed in Item 1A.\n\n"
-        "**CRITICAL INSTRUCTION:** You must cite your sources. When you find a fact, "
-        "mention which document (e.g., '2024 10-K') it came from."
+        "3. **Risk Factors**: The specific risks listed in Item 1A.\n"
+        "**CRITICAL INSTRUCTION:** You MUST cite your sources. When you find a fact, "
+        "add a citation with the document and date in the format **[Source | YYYY-MM-DD]**. For example: [2024 10-K | 2024-02-21]."
     )
 
 def get_market_prompt(ticker: str, av_data: dict, status_handler=None) -> str:

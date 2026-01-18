@@ -12,6 +12,7 @@ import json
 import re
 from google.cloud import bigquery
 from vertexai.generative_models import GenerativeModel, Tool, grounding
+from google.oauth2 import service_account
 from google.api_core import exceptions
 import traceback
 from datetime import datetime
@@ -21,10 +22,10 @@ import pandas as pd
 import time
 from components.sidebar import display_sidebar
 from components.stock_chart import display_price_chart
-from components.evaluation_table import display_evaluation_table
 from components.status_handler import StatusHandler
 from components.reports_comparison import display_reports_comparison
-import agent_prompts 
+from components.glass_box_dashboard import display_glass_box_dashboard
+import agent_prompts
 from tools import alphavantage as tools_alphavantage
 from tools import yfinance as tools_yfinance
 from tools import slack as tools_slack
@@ -69,16 +70,85 @@ def clean_json_output(text: str) -> str:
 def initialize_gcp_services():
     try:
         PROJECT_ID = st.secrets.gcp.project_id
-        LOCATION = st.secrets.gcp.vertex_ai_location
-    except AttributeError:
-        st.error("Missing GCP secrets.")
+        LOCATION = st.secrets.gcp.vertex_ai_location # This should exist
+    except AttributeError as e:
+        st.error(f"Missing critical GCP secrets (project_id or vertex_ai_location): {e}")
         st.stop()
+
+    credentials = None
+    try:
+        # Recommended: Use a single secret for the entire JSON keyfile
+        credentials_str = st.secrets.gcp.credentials
+        if not credentials_str:
+            raise AttributeError("gcp.credentials secret is empty.")
+            
+        credentials_info = json.loads(credentials_str)
+        
+        # --- Robustness Check ---
+        # The error "missing 'email' field" often means the JSON is malformed or
+        # the wrong fields are present. We explicitly check for standard fields.
+        if "client_email" not in credentials_info or "private_key" not in credentials_info:
+            raise ValueError("Service account JSON is missing 'client_email' or 'private_key'.")
+        if credentials_info.get("project_id") != PROJECT_ID:
+            logging.warning(f"Project ID mismatch: Secret expects '{PROJECT_ID}', but keyfile has '{credentials_info.get('project_id')}'. Using secret's ID.")
+
+        credentials = service_account.Credentials.from_service_account_info(credentials_info)
+        logging.info("Successfully authenticated using service account from st.secrets.")
+    except (AttributeError, json.JSONDecodeError, ValueError) as e:
+        logging.warning("st.secrets.gcp.credentials not found or invalid. Falling back to Application Default Credentials.")
+    # --- Custom CSS for Bento Grid, Citations, and Mobile ---
+    st.markdown("""
+        <style>
+            /* Main container styling */
+            .main .block-container {
+                padding-top: 2rem;
+                padding-bottom: 2rem;
+            }
+            /* Bento Grid Card Styling */
+            .bento-card {
+                background-color: #1a1a1a;
+                border: 1px solid #2e2e2e;
+                border-radius: 12px;
+                padding: 20px;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+            .bento-card h3 {
+                font-size: 1.1rem;
+                color: #a0a0a0;
+                margin-bottom: 15px;
+            }
+            /* Citation Styling */
+            .citation {
+                display: inline-block;
+                font-size: 0.7rem;
+                font-weight: bold;
+                color: #00aaff;
+                background-color: #003366;
+                border-radius: 4px;
+                padding: 2px 5px;
+                vertical-align: super;
+                cursor: pointer;
+            }
+            /* Custom LLM-generated Citation Styling */
+            .llm-citation {
+                display: inline-block;
+                font-size: 0.8rem;
+                font-weight: 500;
+                color: #c7d2fe; /* A lighter blue/purple for distinction */
+                background-color: rgba(34, 211, 238, 0.1); /* Cyan with transparency */
+                border-radius: 5px;
+                padding: 2px 6px;
+            }
+        </style>
+    """, unsafe_allow_html=True)
 
     RAG_DATA_STORE_ID = st.secrets.agent.rag_data_store_id
     GEMINI_MODEL = st.secrets.agent.gemini_model
 
-    vertexai.init(project=PROJECT_ID, location=LOCATION)
-    bq_client = bigquery.Client(project=PROJECT_ID)
+    vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials) # credentials can be None
+    bq_client = bigquery.Client(project=PROJECT_ID, credentials=credentials) # credentials can be None
     table_id = f"{PROJECT_ID}.financial_reports.analysis_results"
 
     datastore_path = (f"projects/{PROJECT_ID}/locations/global/collections/default_collection/"
@@ -98,142 +168,130 @@ def initialize_gcp_services():
         "synthesis_model": synthesis_model
     }
 
+def _render_citations(text: str, citations: list) -> str:
+    """
+    Parses text for citation markers like [1] and replaces them with
+    Streamlit popovers containing the source information.
+    """
+    if not citations:
+        return text
+
+    # Create a mapping from citation number to source details
+    citation_map = {f"[{i+1}]": c for i, c in enumerate(citations)}
+
+    # Use a function for replacement to handle popovers, which can't be in a simple f-string
+    def replace_match(match):
+        marker = match.group(0)
+        if marker in citation_map:
+            source = citation_map[marker]
+            uri = source.get('uri', 'N/A')
+            title = source.get('title', 'No Title')
+            
+            # Using a unique key for each popover
+            popover_key = f"popover_{marker.strip('[]')}_{hash(text[:20])}"
+            
+            # This is a conceptual representation. Streamlit doesn't allow embedding widgets
+            # directly into a string like this. We will handle this in the display logic.
+            # For now, we return a styled placeholder.
+            return f'<span class="citation" title="Source: {title} - {uri}">{marker}</span>'
+        return marker
+
+    # This approach is limited. A better way is to split the text and render parts.
+    parts = re.split(r'(\[\d+\])', text)
+    for part in parts:
+        if re.match(r'(\[\d+\])', part):
+            marker_num = int(part.strip('[]'))
+            if 1 <= marker_num <= len(citations):
+                source = citations[marker_num - 1]
+                uri = source.get('uri', 'N/A')
+                title = source.get('title', 'No Title')
+                with st.popover(part):
+                    st.markdown(f"**Source:** {title}")
+                    st.caption(f"URI: {uri}")
+        else:
+            st.write(part, end="")
+    st.write("") # for newline
+
+def render_with_citations(text: str):
+    """
+    Uses regex to find custom citation patterns like [Source | Date] and
+    replaces them with a styled HTML span for display with st.markdown.
+    """
+    if not isinstance(text, str):
+        return
+
+    def replace_citation(match):
+        source, date = match.groups()
+        return f'<span class="llm-citation" title="Source: {source.strip()} | Date: {date.strip()}">[{source.strip()}]</span>'
+
+    pattern = r'\[([^|]+?)\s*\|\s*([^\]]+?)\]'
+    formatted_text = re.sub(pattern, replace_citation, text)
+    st.markdown(formatted_text, unsafe_allow_html=True)
+
+def display_football_field_chart(price: float, valuation_data: dict):
+    """Renders a Plotly Football Field chart for valuation ranges."""
+    # This is a placeholder for the actual Plotly chart generation.
+    # In a real implementation, you would use Plotly Express or Go to create the chart.
+    st.info("🏈 Valuation Football Field Chart Placeholder")
+    st.write(f"Current Price: ${price:.2f}")
+    st.json(valuation_data)
+    st.caption("This chart would show valuation ranges (e.g., P/E, DCF) against the current price.")
+
 def display_report():
-    if 'report' not in st.session_state or not st.session_state.report.get('final_synthesis'): return
+    """
+    Performs data hybridization and renders the high-fidelity "Glass Box" dashboard.
+    This function replaces the previous widget-based report display.
+    """
+    if 'report' not in st.session_state or not st.session_state.report.get('final_synthesis'):
+        return
 
-    # Create a temporary StatusHandler to use the robust JSON parser
-    status_handler = StatusHandler(total_steps=1, progress_bar=st.empty())
-    raw_data = st.session_state.report['final_synthesis']
-    report_data = _parse_json_with_fallback(raw_data if isinstance(raw_data, str) else json.dumps(raw_data), status_handler, "Display")
+    report = st.session_state.report
+    synthesis = report.get('final_synthesis', {})
+    quant = report.get('part_1_5_quant', {})
 
-    if not report_data: return st.error("Failed to parse the final report data for display.")
-    
+    # 1. Data Hybridization
     try:
-        quant_data = st.session_state.report.get('part_1_5_quant', {})
-        price_val = quant_data.get('yf_data', {}).get('valuation', {}).get('Current Price', 0)
-        price_str = f"${price_val:.2f}"
-    except: price_str = "N/A"
+        # Process key_risks into a structured format for the 5x5 matrix
+        processed_risks = []
+        for i, risk_text in enumerate(synthesis.get('key_risks', [])):
+            # Simple heuristic to assign coordinates for visualization
+            # A more advanced implementation could use another LLM call for this
+            impact = (hash(risk_text) % 5) + 1
+            likelihood = ((hash(risk_text) >> 8) % 5) + 1
+            processed_risks.append({
+                "id": i,
+                "text": risk_text.replace("🚨", "").strip(),
+                "impact": impact,
+                "likelihood": likelihood
+            })
 
-    st.success("Analysis Complete!")
-    display_evaluation_table()
-    st.divider()
+        # Safely access nested financial data
+        part_1_financials = quant.get('part_1_financials') if quant.get('part_1_financials') is not None else {}
+        yf_data = quant.get('yf_data') if quant.get('yf_data') is not None else {}
 
-    # --- Executive Summary ---
-    c1, c2 = st.columns([1, 3])
-    with c1:
-        st.metric("Final Score", f"{report_data.get('final_weighted_score', 0):.2f} / 10", help="Weighted score based on the 5 pillars of analysis.")
-        st.metric("Recommendation", report_data.get('recommendation', {}).get('action', 'N/A'), delta_color="off")
-        st.caption(f"Price at time of analysis: {price_str}")
-    with c2:
-        st.subheader("Investment Thesis")
-        st.write(report_data.get('final_summary', ''))
-        
-        justification = report_data.get('recommendation', {}).get('justification')
-        if justification:
-            with st.expander("Show Recommendation Justification"):
-                st.info(justification)
+        # Create the final JSON payload for the frontend
+        payload = {
+            "ticker": st.session_state.ticker,
+            "ai_score": synthesis.get('final_weighted_score', 0),
+            "recommendation": synthesis.get('recommendation', {}),
+            "summary": synthesis.get('final_summary', 'No summary available.'),
+            "current_price": quant.get('yf_data', {}).get('valuation', {}).get('Current Price', 0),
+            "financials": {
+                "revenue": part_1_financials.get('latest_revenue', {}).get('value'),
+                "net_income": part_1_financials.get('latest_net_income', {}).get('value'),
+                "market_cap": yf_data.get('valuation', {}).get('Market Cap')
+            },
+            "valuation_ranges": quant.get('part_5_valuation', {}),
+            "key_risks": processed_risks
+        }
 
-    st.divider()
+        # 2. Render the HTML Component
+        display_glass_box_dashboard(payload)
 
-    # --- Price Chart ---
-    ticker = st.session_state.report.get('part_1_5_quant', {}).get('ticker')
-    if ticker:
-        display_price_chart(ticker)
-
-    # --- Detailed Analysis Tabs ---
-    tab1, tab2, tab3, tab4 = st.tabs(["Key Metrics & Risks", "Agent Analysis", "Deep Dive Q&A", "Raw Data"])
-
-    with tab1:
-        st.subheader("Key Financials (from SEC Filings)")
-        filing_financials = quant_data.get('part_1_financials', {})
-        if filing_financials:
-            # Check for data staleness
-            latest_revenue_data = filing_financials.get('latest_revenue', {})
-            if latest_revenue_data and 'filed' in latest_revenue_data:
-                try:
-                    filed_date = datetime.fromisoformat(latest_revenue_data['filed'])
-                    # Check if filed_date is more than 4 months ago (approx 120 days)
-                    if (datetime.now() - filed_date).days > 120:
-                        st.warning("⚠️ The latest SEC filing data is over 4 months old and may be stale. A new 10-Q or 10-K may be available soon.")
-                except (ValueError, TypeError):
-                    logging.warning(f"Could not parse 'filed' date: {latest_revenue_data.get('filed')}")
-            # Use columns for a cleaner layout
-            c1, c2, c3 = st.columns(3)
-            # Helper to format the metric
-            def display_metric(column, label, data):
-                if data and isinstance(data, dict):
-                    value = data.get('value', 0)
-                    period = data.get('period', '')
-                    filed = data.get('filed', '')
-                    column.metric(label, f"${value/1e9:.2f}B", help=f"Period: {period} | Filed: {filed}")
-                else:
-                    column.metric(label, "N/A")
-            
-            display_metric(c1, "Latest Revenue", filing_financials.get('latest_revenue'))
-            display_metric(c2, "Latest Net Income", filing_financials.get('latest_net_income'))
-            display_metric(c3, "Latest Operating Cash Flow", filing_financials.get('latest_operating_cash_flow'))
-        else:
-            st.info("No financial data from SEC filings available.")
-
-        st.subheader("Valuation & Performance (from yfinance)")
-        yf_valuation = quant_data.get('yf_data', {}).get('valuation', {})
-        yf_financials = quant_data.get('yf_data', {}).get('financials', {})
-        if yf_valuation or yf_financials:
-            v_cols = st.columns(4)
-            
-            # Display Current Price
-            price = yf_valuation.get("Current Price")
-            v_cols[0].metric("Current Price", f"${price:.2f}" if price is not None else "N/A")
-
-            # Display Market Cap
-            mkt_cap = yf_valuation.get("Market Cap")
-            if mkt_cap is not None:
-                v_cols[1].metric("Market Cap", f"${mkt_cap/1e12:.3f}T")
-            else:
-                v_cols[1].metric("Market Cap", "N/A")
-
-            # Display P/E Ratio
-            pe_ratio = yf_financials.get("P/E Ratio")
-            v_cols[2].metric("P/E Ratio", f"{pe_ratio:.2f}" if pe_ratio is not None else "N/A")
-
-            # Display P/S Ratio
-            ps_ratio = yf_financials.get("P/S Ratio")
-            v_cols[3].metric("P/S Ratio", f"{ps_ratio:.2f}" if ps_ratio is not None else "N/A")
-        else:
-            st.info("No quantitative metrics available.")
-
-        st.subheader("Key Risks to Watch")
-        key_risks = report_data.get('key_risks')
-        if key_risks:
-            for risk in key_risks:
-                st.warning(f"⚠️ {risk}")
-        else:
-            st.info("No key risks were identified.")
-
-    with tab2:
-        st.subheader("Individual Agent Analyses")
-        with st.expander("📄 SEC Filings Analysis (RAG Agent)"): st.write(st.session_state.report.get('part_1_4_6_rag', {}).get('text', 'N/A'))
-        with st.expander("📈 Market Sentiment Analysis (Market Agent)"): st.write(st.session_state.report.get('part_2_3_market', {}).get('text', 'N/A'))
-        with st.expander("⚔️ Competitor Analysis (Competitor Scout)"): st.write(st.session_state.report.get('part_6_competitor', {}).get('text', 'N/A'))
-        with st.expander("🏛️ Macroeconomic Outlook (Macro Strategist)"): st.write(st.session_state.report.get('part_7_macro', {}).get('text', 'N/A'))
-
-    with tab3:
-        st.subheader("Deep Dive Investigation")
-        deep_dive_text = st.session_state.report.get('deep_dive_analysis', 'No deep dive analysis was performed.')
-        # Use regex to split into Q&A pairs for better formatting
-        qa_pairs = re.split(r'\nQ: ', deep_dive_text)
-        if len(qa_pairs) > 1:
-            for i, pair in enumerate(qa_pairs):
-                if not pair.strip(): continue
-                if i > 0: pair = "Q: " + pair # Add back the prefix for subsequent pairs
-                parts = re.split(r'\nA: ', pair, 1)
-                if len(parts) == 2:
-                    st.info(f"**Question:** {parts[0].replace('Q: ', '').strip()}")
-                    st.success(f"**Answer:** {parts[1].strip()}")
-
-    with tab4:
-        st.subheader("Full Report Raw Data")
-        st.json(st.session_state.report)
+    except Exception as e:
+        logging.error(f"Failed to build Glass Box dashboard payload: {e}", exc_info=True)
+        st.error("An error occurred while preparing the report display. Please see logs for details.")
+        st.code(traceback.format_exc())
 
 # --- Agent Functions ---
 
@@ -318,7 +376,14 @@ def run_rag_agent(rag_model, ticker, status_handler: StatusHandler):
     status_handler.log("📑 RAG Agent analyzing documents...")
     prompt = agent_prompts.get_rag_prompt(ticker)
     response = _generate_content_with_retry(rag_model, prompt, status_handler, "RAG")
-    return {"text": response.text}
+    
+    # Extract citation metadata for Radical Transparency
+    citations = []
+    if response and hasattr(response, 'grounding_metadata') and response.grounding_metadata:
+        for citation in response.grounding_metadata.grounding_attributions:
+             citations.append({'uri': citation.web.uri, 'title': citation.web.title})
+
+    return {"text": response.text, "citations": citations}
 
 def run_market_agent(market_model, ticker, av_data, status_handler: StatusHandler):
     status_handler.log("🌍 Market Agent analyzing Sentiment (Alpha Vantage)...")
@@ -451,7 +516,7 @@ def get_nvda_dummy_data():
         'part_1_4_6_rag': {"text": "Dummy RAG analysis: NVIDIA has a strong moat in AI chips due to its CUDA platform (Source: 2024 10-K)."},
         'part_2_3_market': {"text": "Dummy Market analysis: Sentiment is overwhelmingly positive, driven by AI demand."},
         'part_6_competitor': {"text": "Dummy Competitor analysis: AMD and Intel are key rivals, but NVIDIA leads in the data center space."},
-        'part_7_macro': {"text": "Dummy Macro analysis: The current economic climate is favorable for tech spending."},
+        'part_7_macro': {"text": "Dummy Macro analysis: The current economic climate is favorable for tech spending. [1]"},
         'deep_dive_analysis': "Dummy Deep Dive: Q: Is the high P/E ratio justified? A: The 10-K suggests future growth in AI and automotive sectors supports the valuation.",
         'final_synthesis': {
             'scoring_matrix': {
@@ -475,7 +540,7 @@ def main():
         st.session_state.score_weights = {'pillar_1_corporate': 0.35, 'pillar_2_industry': 0.20, 'pillar_3_valuation': 0.20, 'pillar_4_sentiment': 0.15, 'pillar_5_governance': 0.10}
 
     st.title("PyFinAgent: AI Financial Analyst (Agentic)")
-    st.caption("Hybrid Architecture: yfinance (Quant) + Alpha Vantage (Sentiment)")
+    st.caption("A 'Glass Box' Financial Copilot")
 
     if 'gcp_services' not in st.session_state:
         st.session_state.gcp_services = initialize_gcp_services()

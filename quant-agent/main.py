@@ -100,7 +100,7 @@ def get_latest_financial_fact(facts, fact_name, unit):
         logging.warning(f"Could not find fact '{fact_name}' with unit '{unit}'")
         return None
 
-def get_company_facts(cik_10_digit: str) -> dict:
+def get_company_facts(cik_10_digit: str, ticker_str: str) -> dict:
     """
     Retrieves company facts. First, it tries to load from GCS bucket where
     ingestion-agent should have placed it. If it fails, it falls back to
@@ -114,8 +114,7 @@ def get_company_facts(cik_10_digit: str) -> dict:
 
     if GCS_BUCKET_NAME:
         try:
-            gcs_path = f"sec-filings/CIK{cik_10_digit}/companyfacts.json"
-            gcs_path = f"sec-filings/CIK{cik_10_digit}/companyfacts.json" # Corrected path
+            gcs_path = f"{ticker_str.upper()}/companyfacts.json"
             logging.info(f"Attempting to load company facts from GCS: gs://{GCS_BUCKET_NAME}/{gcs_path}")
             bucket = storage_client.bucket(GCS_BUCKET_NAME)
             blob = bucket.blob(gcs_path)
@@ -152,7 +151,7 @@ def get_historical_prices(ticker_str: str, cik_10_digit: str) -> str:
     if GCS_BUCKET_NAME:
         try:
             # Assuming ingestion-agent saves prices at this conventional path
-            gcs_path = f"sec-filings/CIK{cik_10_digit}/historical_prices.json"
+            gcs_path = f"{ticker_str.upper()}/historical_prices.json"
             logging.info(f"Attempting to load historical prices from GCS: gs://{GCS_BUCKET_NAME}/{gcs_path}")
             bucket = storage_client.bucket(GCS_BUCKET_NAME)
             blob = bucket.blob(gcs_path)
@@ -208,7 +207,7 @@ def quant_agent(request):
             for log in stream_handler.queue: yield log
             stream_handler.queue.clear()
             cik_10_digit = get_cik(ticker_str.upper())
-            facts = get_company_facts(cik_10_digit)
+            facts = get_company_facts(cik_10_digit, ticker_str)
             historical_prices_json = get_historical_prices(ticker_str, cik_10_digit)
     
             latest_revenue = get_latest_financial_fact(facts, 'Revenues', 'USD')

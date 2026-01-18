@@ -19,30 +19,30 @@ echo "📦 Version: $APP_VERSION"
 
 # --- Script Start ---
 # Read the project ID from the secrets file to ensure we're using the correct one.
-# This uses yq (https://github.com/mikefarah/yq), a lightweight and portable command-line YAML/XML/TOML processor.
-PROJECT_ID=$(yq '.gcp_service_account.project_id' .streamlit/secrets.toml)
-SLACK_WEBHOOK_URL=$(yq '.slack.webhook_url' .streamlit/secrets.toml)
+SECRETS_FILE=".streamlit/secrets.toml"
+PROJECT_ID=$(grep -m 1 'project_id' "$SECRETS_FILE" | cut -d '"' -f 2 | tr -d '[:cntrl:]')
+SLACK_WEBHOOK_URL=$(grep 'webhook_url' "$SECRETS_FILE" | cut -d '"' -f 2 | tr -d '[:cntrl:]')
 
 # --- Service Account Authentication ---
 # For non-interactive deployment, we will reconstruct the service
 # account JSON from secrets.toml to authenticate gcloud.
 echo "🔐 Authenticating service account from secrets.toml..."
 
-# The private_key from TOML is malformed with literal '\\n' characters.
-# We will use a Python script to load the TOML data, fix the private key string,
-# and pipe the corrected JSON directly to the gcloud command's standard input.
-SERVICE_ACCOUNT_EMAIL=$(yq '.gcp_service_account.client_email' .streamlit/secrets.toml)
-
+# The private_key from TOML can be malformed with literal '\\n' characters.
+# We will use a Python script to correctly format it for gcloud.
+SERVICE_ACCOUNT_EMAIL=$(grep 'client_email' "$SECRETS_FILE" | cut -d '"' -f 2 | tr -d '[:cntrl:]')
+ 
+# Use a single Python command to read the TOML file, correctly format the private key's newlines,
+# and pipe the valid JSON directly to gcloud. This avoids intermediate files and sed issues.
 python3 -c 'import toml, json, sys; secrets = toml.load(".streamlit/secrets.toml")["gcp_service_account"]; secrets["private_key"] = secrets["private_key"].replace("\\n", "\n"); print(json.dumps(secrets))' | gcloud auth activate-service-account "$SERVICE_ACCOUNT_EMAIL" --key-file=-
-
+ 
 # Set the active project.
 gcloud config set project "$PROJECT_ID"
 echo "✅ gcloud authenticated for project $PROJECT_ID."
-
 # --- Deploy Cloud Function Agents (if changed) ---
 echo "🔄 Checking for updates to backend agents..."
 # The agent deployment script is in the parent directory.
-# It has its own logic to check for git changes and will skip deployment if there are none.
+# It has its own logic to check for git changes and will skip deployment if there are none. It also handles its own secret parsing.
 if [ -f ../deploy_agents.sh ]; then
     (cd .. && ./deploy_agents.sh) || { echo "Agent deployment failed. Aborting app deployment."; exit 1; }
 else
