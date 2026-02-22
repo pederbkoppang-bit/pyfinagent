@@ -44,16 +44,26 @@ def get_market_prompt(ticker: str, av_data: dict, status_handler=None) -> str:
     """
     Uses Alpha Vantage News Sentiment Data.
     """
-    if status_handler: status_handler.log("   Generating prompt for Market Agent...")
+    if status_handler: status_handler.log("   Generating prompt for Market Agent (Sentiment Divergence)...")
+
+    # The prompt is designed based on academic research (e.g., Tetlock, 2007) that media sentiment
+    # can be a leading indicator for stock price movements, especially when sentiment diverges from price.
     return (
-        f"You are a Market Sentiment Specialist. Analyze the provided News Feed for {ticker}.\n"
-        "--- DATA ---\n"
-        f"{json.dumps(av_data.get('sentiment_summary', [])[:10])}\n"
-        "------------\n"
-        "**TASK:**\n"
-        "1. **Sentiment Trend**: The data includes 'sentiment_score'. Is the trend positive or negative?\n"
-        "2. **Key Narratives**: What are the dominant stories driving the stock?\n"
-        "3. **Macro Context**: Do these stories relate to macro factors (rates, war) or company-specific execution?"
+        f"You are an advanced quantitative sentiment analyst for {ticker}. Your task is to detect early breakout signals by identifying sentiment-price divergence.\n"
+        "You will analyze up to 50 recent news articles to find evidence of an 'Accumulation Phase' where positive news sentiment is rising but the market has not yet priced it in.\n\n"
+        "--- RECENT NEWS SENTIMENT DATA ---\n"
+        f"{json.dumps(av_data.get('sentiment_summary', [])[:50])}\n"
+        "----------------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "Execute the following analysis and structure your output into the three sections specified below.\n\n"
+        "1.  **Calculate Sentiment Velocity**: Assess the momentum of sentiment. Is the average `sentiment_score` across the articles strongly positive (e.g., > 0.35)? Is the narrative strengthening over time?\n\n"
+        "2.  **Check for Divergence**: This is the critical signal. Search the news summaries for narratives suggesting the stock price is 'undervalued,' 'ignored,' 'flat,' 'range-bound,' or has 'not yet reacted.' If you find strongly positive sentiment combined with these price-suppression narratives, issue a 'Divergence Warning'.\n\n"
+        "3.  **Identify Catalyst Phrasing**: Scan the news summaries for specific, forward-looking institutional catalyst keywords. These are often associated with Q3 tech/cyclical breakouts. Keywords to look for include: 'inventory bottoming,' 'unmet demand,' 'supply chain recovery,' 'upgraded guidance,' 'new cycle,' 'pent-up demand.'\n\n"
+        "**OUTPUT STRUCTURE:**\n"
+        "Provide your analysis in the following format ONLY:\n\n"
+        "[1] Average Sentiment Momentum: <Your analysis of sentiment velocity and strength.>\n"
+        "[2] Divergence Analysis (Is this a hidden breakout?): <State whether you've found a divergence. If so, issue the 'Divergence Warning' and explain why. Otherwise, explain why not.>\n"
+        "[3] Key Institutional Catalysts: <List any catalyst keywords you found and the context in which they appeared. If none, state 'No specific catalysts identified.'>"
     )
 
 def get_competitor_prompt(ticker: str, av_data: dict, status_handler=None) -> str:
