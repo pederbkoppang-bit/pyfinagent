@@ -58,7 +58,9 @@ class MacroState(BaseModel):
 
 class BehavioralState(BaseModel):
     # Options Skew (Ref 4.3)
-    IV_skew_25delta: Optional[float] = None 
+    IV_skew_25delta: Optional[float] = None
+    # Historical baseline for skew
+    IV_skew_14d_avg: Optional[float] = None
 
 class MemoryState(BaseModel):
     # Must be Annualized Volatility Forecast (Ref 5.3)
@@ -80,11 +82,18 @@ class ProposedAction(BaseModel):
     proposed_size: int = Field(..., gt=0)
     price: float = Field(..., gt=0) # Arrival Price
 
+class PredictiveSignals(BaseModel):
+    """Holds signals derived from market microstructure and options data."""
+    accumulation_alert: Optional[str] = None
+    bid_ask_depth_ratio: Optional[float] = None
+    skew_flattening_pct: Optional[float] = None
+
 class ApprovedAction(BaseModel):
     status: str # APPROVED, ADJUSTED, VETO
     approved_size: int
     risk_intervention: bool
     reasons: List[str]
+    predictive_signals: PredictiveSignals
     event_id: str
 
 # --- The Risk Gatekeeper ---
@@ -107,6 +116,10 @@ class RiskGatekeeper:
         # Hard Constraints
         self.MAX_CONCENTRATION = float(os.getenv("RMA_MAX_CONCENTRATION", 0.20))
         self.MAX_GROSS_LEVERAGE = float(os.getenv("RMA_MAX_GROSS_LEVERAGE", 1.5))
+
+        # Predictive Accumulation Thresholds
+        self.SKEW_FLATTENING_THRESHOLD = float(os.getenv("RMA_SKEW_FLATTENING_THRESHOLD", 0.20)) # 20% drop
+        self.BID_ASK_RATIO_THRESHOLD = float(os.getenv("RMA_BID_ASK_RATIO_THRESHOLD", 1.5))
 
     def evaluate(self, state: AgentState, action: ProposedAction) -> ApprovedAction:
         reasons = []
@@ -147,7 +160,10 @@ class RiskGatekeeper:
         current_size, constraint_reasons = self._check_hard_constraints(current_size, state.portfolio, action.price)
         reasons.extend(constraint_reasons)
 
-        return self._finalize_decision(action, current_size, reasons)
+        # 6. NEW: Detect Institutional Accumulation
+        predictive_signals = self._detect_institutional_accumulation(state)
+
+        return self._finalize_decision(action, current_size, reasons, predictive_signals)
 
     def _calculate_vol_adjusted_size(self, state: AgentState, price: float):
         # Uses GARCH forecast (Annualized) for volatility targeting
@@ -241,7 +257,42 @@ class RiskGatekeeper:
 
         return max(0, size), reasons
 
-    def _finalize_decision(self, action: ProposedAction, approved_size, reasons) -> ApprovedAction:
+    def _detect_institutional_accumulation(self, state: AgentState) -> PredictiveSignals:
+        """
+        Analyzes options skew and L1 depth to detect 'smart money' accumulation.
+        Based on research by Xing, Zhang, & Zhao (2010) and Easley et al.
+        """
+        signals = PredictiveSignals()
+        skew_flattened = False
+        bid_depth_strong = False
+
+        # 1. Options Skew Flattening Check
+        current_skew = state.behavioral.IV_skew_25delta
+        historical_skew = state.behavioral.IV_skew_14d_avg
+
+        if current_skew is not None and historical_skew is not None and historical_skew > 0:
+            flattening_pct = (historical_skew - current_skew) / historical_skew
+            signals.skew_flattening_pct = round(flattening_pct, 4)
+            if flattening_pct >= self.SKEW_FLATTENING_THRESHOLD:
+                skew_flattened = True
+
+        # 2. Bid/Ask Depth Ratio Check
+        bid_depth = state.microstructure.L1_depth_bid
+        ask_depth = state.microstructure.L1_depth_ask
+
+        if bid_depth is not None and ask_depth is not None and ask_depth > 0:
+            ratio = bid_depth / ask_depth
+            signals.bid_ask_depth_ratio = round(ratio, 2)
+            if ratio > self.BID_ASK_RATIO_THRESHOLD:
+                bid_depth_strong = True
+
+        # 3. Confluence Signal: Trigger alert if both conditions are met
+        if skew_flattened and bid_depth_strong:
+            signals.accumulation_alert = "HIGH - Options skew flattening paired with bid-side order flow accumulation detected."
+
+        return signals
+
+    def _finalize_decision(self, action: ProposedAction, approved_size: int, reasons: List[str], predictive_signals: PredictiveSignals) -> ApprovedAction:
         risk_intervention = False
         if approved_size <= 0:
             status = "VETO"
@@ -259,7 +310,8 @@ class RiskGatekeeper:
             approved_size=approved_size, 
             reasons=reasons, 
             event_id=action.event_id,
-            risk_intervention=risk_intervention
+            risk_intervention=risk_intervention,
+            predictive_signals=predictive_signals
         )
         
         # Log the decision (especially interventions) to BigQuery
@@ -308,8 +360,8 @@ def risk_gatekeeper_http(request):
     except ValidationError as e:
         logging.error(f"Input validation failed: {e.json()}")
         # Fail-Safe: Veto if input data is corrupted or missing critical fields
-        event_id = request_json.get('action', {}).get('event_id', 'ERROR')
-        return ApprovedAction(status="VETO", approved_size=0, reasons=["VETO: Input Validation Error."], event_id=event_id, risk_intervention=True).model_dump(), 400
+        event_id = request_json.get('action', {}).get('event_id', 'validation_error')
+        return ApprovedAction(status="VETO", approved_size=0, reasons=["VETO: Input Validation Error."], event_id=event_id, risk_intervention=True, predictive_signals=PredictiveSignals()).model_dump(), 400
 
     # --- NEW: Fetch state independently from Redis ---
     try:
@@ -325,7 +377,7 @@ def risk_gatekeeper_http(request):
 
     except (ConnectionError, ValueError, ValidationError) as e:
         logging.error(f"Failed to fetch or validate state from Redis: {e}")
-        return ApprovedAction(status="VETO", approved_size=0, reasons=["VETO: Failed to retrieve valid state."], event_id=action_input.event_id, risk_intervention=True).model_dump(), 500
+        return ApprovedAction(status="VETO", approved_size=0, reasons=["VETO: Failed to retrieve valid state."], event_id=action_input.event_id, risk_intervention=True, predictive_signals=PredictiveSignals()).model_dump(), 500
 
     gatekeeper = RiskGatekeeper()
 
@@ -335,4 +387,4 @@ def risk_gatekeeper_http(request):
     except Exception as e:
         logging.error(f"An unexpected error occurred during risk evaluation: {e}", exc_info=True)
         # Fail-Safe: If the risk engine fails, halt trading.
-        return ApprovedAction(status="VETO", approved_size=0, reasons=["VETO: Internal Risk Engine Error."], event_id=action_input.event_id, risk_intervention=True).model_dump(), 500
+        return ApprovedAction(status="VETO", approved_size=0, reasons=["VETO: Internal Risk Engine Error."], event_id=action_input.event_id, risk_intervention=True, predictive_signals=PredictiveSignals()).model_dump(), 500

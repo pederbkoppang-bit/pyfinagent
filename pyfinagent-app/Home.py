@@ -266,8 +266,8 @@ def display_report():
             })
 
         # Safely access nested financial data
-        part_1_financials = quant.get('part_1_financials') if quant.get('part_1_financials') is not None else {}
-        yf_data = quant.get('yf_data') if quant.get('yf_data') is not None else {}
+        part_1_financials = quant.get('part_1_financials') or {}
+        yf_data = quant.get('yf_data') or {}
 
         # Create the final JSON payload for the frontend
         payload = {
@@ -275,7 +275,7 @@ def display_report():
             "ai_score": synthesis.get('final_weighted_score', 0),
             "recommendation": synthesis.get('recommendation', {}),
             "summary": synthesis.get('final_summary', 'No summary available.'),
-            "current_price": quant.get('yf_data', {}).get('valuation', {}).get('Current Price', 0),
+            "current_price": yf_data.get('valuation', {}).get('Current Price', 0),
             "financials": {
                 "revenue": part_1_financials.get('latest_revenue', {}).get('value'),
                 "net_income": part_1_financials.get('latest_net_income', {}).get('value'),
