@@ -29,6 +29,8 @@ The system is composed of a frontend coordinator, backend data-processing agents
 *   `RAG Agent`: Analyzes 10-K and 10-Q documents, focusing on Economic Moat, Governance, and key business Risks.
 *   `Market Agent`: Analyzes the macroeconomic environment (PESTEL) and overall market sentiment.
 *   `Competitor Scout`: Identifies and analyzes key competitors to assess the competitive landscape.
+*   `Sector Catalyst Agent`: Monitors "Innovation Velocity" (Patent filing growth ≥ 20%) and labor market momentum to identify R&D-driven breakthroughs before they hit the balance sheet.
+*   `Supply Chain Agent`: Analyzes structural scarcity (e.g., NAND memory cycles) and competitive scaling to confirm sector-wide tailwinds.
 *   `Macro Strategist`: Provides high-level macroeconomic context and identifies relevant industry trends.
 *   `Deep Dive Agent`: Answers critical, specific questions by performing targeted searches within 10-K documents.
 *   `Synthesis Agent`: Synthesizes the outputs from all other agents into a final, structured JSON investment analysis report.

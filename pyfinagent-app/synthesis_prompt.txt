@@ -10,10 +10,16 @@ The report MUST be in a structured JSON format. Do not include any introductory 
 2. RAG & EARNINGS AGENT REPORT (10-K/10-Q Analysis, Moat, Governance, Risks, and Earnings Call Tone):
 {rag_report}
 ---
-3. MARKET AGENT REPORT (Macro Environment & Sentiment Divergence):
+3. MARKET & MACRO AGENT REPORT (Sentiment Divergence & Economic Climate):
 {market_report}
 ---
-4. DEEP DIVE ANALYSIS (Critical Questions & 10-K Answers):
+4. SECTOR CATALYST AGENT REPORT (Innovation & Labor Momentum):
+{sector_catalyst_report}
+---
+5. SUPPLY CHAIN AGENT REPORT (Sector-wide Tailwinds):
+{supply_chain_report}
+---
+6. DEEP DIVE ANALYSIS (Critical Questions & 10-K Answers):
 {deep_dive_analysis}
 ---
 
@@ -22,17 +28,22 @@ Based on ALL the provided information, generate the final JSON report using the 
 
 ### PREDICTIVE BREAKOUT ANALYSIS (HIGH PRIORITY) ###
 Before writing your summary, you must perform a "Confluence Check" for early breakout signals. Scan the incoming reports for the following specific flags:
+1.  **Structural Liquidity**: Look for an `"accumulation_alert"` in the QUANT & RISK AGENT REPORT, specifically one triggered by skew flattening and bid-ask depth.
+2.  **Innovation Velocity**: Look for patent growth ≥ 20% in the SECTOR CATALYST AGENT REPORT.
+3.  **Labor Momentum**: Look for specialized R&D hiring growth ≥ 30% in the SECTOR CATALYST AGENT REPORT.
+4.  **Sentiment Divergence**: Look for a `"Divergence Warning"` in the MARKET & MACRO AGENT REPORT.
 
-1.  **Sentiment/Price Divergence**: Look for a `"Divergence Warning"` in the MARKET AGENT REPORT.
-2.  **Qualitative Catalysts**: Look for `"Cyclical Catalysts Detected": true` or a high `"forward_sentiment_score"` (e.g., > 7) in the RAG & EARNINGS AGENT REPORT.
-3.  **Institutional Accumulation**: Look for an `"accumulation_alert"` in the QUANT & RISK AGENT REPORT.
+**HIERARCHY OF ALPHA (DECISION LOGIC):**
+In cases of conflicting signals (e.g., Bearish Macro vs. Bullish Structural), the Structural signals **MUST** take precedence. If the Market Agent reports a 'Divergence Warning' and the Sector Catalyst reports high innovation velocity, you are witnessing a 'SanDisk Paradigm' decoupling.
 
 **TRIGGER LOGIC:**
-If you detect at least **TWO (2) of these three** predictive signals across the provided reports, you **MUST** begin your `final_summary` with the following alert on its own line:
+*   **Superior Structural Breakout**: If you detect **Structural Liquidity** (1) AND **Innovation Velocity** (2) AND **Labor Momentum** (3), you MUST begin your `final_summary` with:
+    `🚨 SUPERIOR STRUCTURAL BREAKOUT ALERT 🚨`
+    Your summary must then explicitly explain how the company’s internal innovation and institutional accumulation are "decoupling" from broader market volatility.
 
-`🚨 HIGH CONVICTION BREAKOUT ALERT 🚨`
-
-Then, your summary must explain the confluence of factors driving this high-conviction rating.
+*   **High Conviction Breakout**: If the above condition is not met, but you detect at least **TWO (2)** of the four signals (1-4), you MUST begin your `final_summary` with:
+    `🚨 HIGH CONVICTION BREAKOUT ALERT 🚨`
+    Your summary must then explain the confluence of factors driving this rating.
 
 ### FINAL REPORT STRUCTURE ###
 Generate the final JSON report with the following structure ONLY:
@@ -40,7 +51,7 @@ Generate the final JSON report with the following structure ONLY:
 {{
   "scoring_matrix": {{
     "pillar_1_corporate": <float, score 1-10 for Business Model, Financial Health, and Moat>,
-    "pillar_2_industry": <float, score 1-10 for Industry Trends and Macro (PESTEL) factors>,
+    "pillar_2_industry": <float, score 1-10 for Industry Trends, Supply Chain, and Macro factors>,
     "pillar_3_valuation": <float, score 1-10 for Valuation metrics (DCF, Comps)>,
     "pillar_4_sentiment": <float, score 1-10 for Market Sentiment and News analysis>,
     "pillar_5_governance": <float, score 1-10 for Governance, Executive Compensation, and Shareholder Friendliness>

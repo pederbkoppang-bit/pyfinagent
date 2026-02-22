@@ -80,6 +80,36 @@ def get_competitor_prompt(ticker: str, av_data: dict, status_handler=None) -> st
         "3. Assess if {ticker} is mentioned in a 'winning' or 'losing' context relative to these peers."
     )
 
+def get_sector_catalyst_prompt(ticker: str, innovation_data: dict, labor_data: dict, status_handler=None) -> str:
+    """
+    Generates a prompt for the Sector Catalyst Agent to analyze innovation and labor momentum.
+    """
+    if status_handler: status_handler.log("   Generating prompt for Sector Catalyst Agent...")
+    return (
+        f"You are a Structural Forensics Expert for {ticker}, specializing in identifying R&D-driven breakthroughs from non-financial data.\n\n"
+        "--- INNOVATION & LABOR DATA ---\n"
+        f"Innovation Data: {json.dumps(innovation_data)}\n"
+        f"Labor Data: {json.dumps(labor_data)}\n"
+        "------------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1.  **Analyze Patent Velocity**: The data shows patent filing growth of {innovation_data.get('patent_velocity_pct', 0)*100:.0f}%. Evaluate if this represents the formation of a true 'technological moat' (e.g., foundational patents in a new category) or merely a defensive/incremental filing strategy.\n\n"
+        "2.  **Cross-Reference Labor Momentum**: The data shows R&D-specific job growth of {labor_data.get('rd_job_growth_pct', 0)*100:.0f}%. Cross-reference this hiring momentum with the company's known product cycle. Are they hiring for the next generation of a core product (e.g., a new chip architecture, a new drug platform), or is it general corporate growth?\n\n"
+        "3.  **Synthesize a Verdict**: Based on your analysis, is there evidence of a structural, R&D-driven breakout event on the horizon? State your conclusion clearly."
+    )
+
+def get_supply_chain_prompt(ticker: str, co_occurrence_data: dict, status_handler=None) -> str:
+    """
+    Generates a prompt for the Supply Chain Agent to analyze sector-wide dynamics.
+    """
+    if status_handler: status_handler.log("   Generating prompt for Supply Chain Agent...")
+    rivals = co_occurrence_data.get('derived_competitors', [])
+    return (
+        f"You are a Supply Chain Intelligence Analyst. Your goal is to determine if {ticker} is benefiting from a sector-wide tailwind or if its gains are unique.\n\n"
+        f"The following companies are frequently mentioned with {ticker}, suggesting they operate in the same ecosystem: {rivals}\n\n"
+        "**YOUR TASK:**\n"
+        "Analyze the co-occurrence data and any implied narratives. Determine if the entire sector appears to be scaling up together (e.g., widespread reports of 'unmet demand,' 'capacity constraints,' or 'inventory depletion' across multiple names), which would confirm a structural tailwind. Conversely, if positive news is isolated to {ticker}, it may indicate market share capture. Provide your assessment."
+    )
+
 def get_macro_prompt(ticker: str, av_data: dict, status_handler=None) -> str:
     """
     Uses Alpha Vantage Macroeconomic Data (CPI, Rates, GDP).
@@ -113,16 +143,26 @@ def get_deep_dive_prompt(ticker: str, quant_data: dict, rag_text: str, market_te
         "Output ONLY the numbered list of questions."
     )
 
-def get_synthesis_prompt(ticker: str, quant_report: dict, rag_report: str, market_report: str, deep_dive_analysis: str, status_handler=None, step_num: float = 8.1) -> str:
+def get_synthesis_prompt(
+    ticker: str,
+    quant_report: dict,
+    rag_report: str,
+    market_report: str,
+    sector_catalyst_report: str,
+    supply_chain_report: str,
+    deep_dive_analysis: str,
+    status_handler=None,
+    step_num: float = 8.1
+) -> str:
     if status_handler: status_handler.log(f"   -> Step {step_num}: Generating prompt for Synthesis Agent...")
     # Use the loaded template and format it with the provided context.
-    # Note: The template expects market_report, but the old function signature had competitor and macro.
-    # I am aligning with the template's variable names.
     return SYNTHESIS_PROMPT_TEMPLATE.format(
         ticker=ticker,
         quant_report=json.dumps(quant_report, indent=2),
         rag_report=rag_report,
-        market_report=market_report, # Assuming this combines market, competitor, and macro reports.
+        market_report=market_report,
+        sector_catalyst_report=sector_catalyst_report,
+        supply_chain_report=supply_chain_report,
         deep_dive_analysis=deep_dive_analysis
     )
 

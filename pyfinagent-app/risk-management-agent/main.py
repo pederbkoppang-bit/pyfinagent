@@ -52,6 +52,21 @@ class MicrostructureState(BaseModel):
     # Raw L1 depth for liquidity checks
     L1_depth_bid: Optional[int] = Field(None, ge=0)
     L1_depth_ask: Optional[int] = Field(None, ge=0)
+    # VEX: Measures delta change per 1% change in IV.
+    vanna_exposure_vex: Optional[float] = None
+    # CEX: Measures daily delta decay.
+    charm_exposure_cex: Optional[float] = None
+    # Speed: Measures the rate of change of Gamma.
+    speed: Optional[float] = None
+
+class InnovationState(BaseModel):
+    patent_velocity_pct: Optional[float] = None
+    citation_lag_days: Optional[int] = None
+    new_filings_count: Optional[int] = None
+
+class LaborMomentumState(BaseModel):
+    rd_job_growth_pct: Optional[float] = None
+    specialized_role_count: Optional[int] = None
 
 class MacroState(BaseModel):
     VIX: Optional[float] = Field(None, gt=0)
@@ -73,6 +88,8 @@ class AgentState(BaseModel):
     macro: MacroState
     behavioral: BehavioralState
     memory: MemoryState
+    innovation: Optional[InnovationState] = None
+    labor: Optional[LaborMomentumState] = None
 
 class ProposedAction(BaseModel):
     event_id: str
@@ -118,8 +135,9 @@ class RiskGatekeeper:
         self.MAX_GROSS_LEVERAGE = float(os.getenv("RMA_MAX_GROSS_LEVERAGE", 1.5))
 
         # Predictive Accumulation Thresholds
-        self.SKEW_FLATTENING_THRESHOLD = float(os.getenv("RMA_SKEW_FLATTENING_THRESHOLD", 0.20)) # 20% drop
-        self.BID_ASK_RATIO_THRESHOLD = float(os.getenv("RMA_BID_ASK_RATIO_THRESHOLD", 1.5))
+        self.SKEW_FLATTENING_THRESHOLD = float(os.getenv("RMA_SKEW_FLATTENING_THRESHOLD", 0.12)) # 12% drop
+        self.BID_ASK_RATIO_THRESHOLD = float(os.getenv("RMA_BID_ASK_RATIO_THRESHOLD", 2.5))
+        self.RELATIVE_VOLUME_THRESHOLD = float(os.getenv("RMA_RELATIVE_VOLUME_THRESHOLD", 1.5)) # 50% spike
 
     def evaluate(self, state: AgentState, action: ProposedAction) -> ApprovedAction:
         reasons = []
@@ -265,6 +283,7 @@ class RiskGatekeeper:
         signals = PredictiveSignals()
         skew_flattened = False
         bid_depth_strong = False
+        positive_vanna = False
 
         # 1. Options Skew Flattening Check
         current_skew = state.behavioral.IV_skew_25delta
@@ -286,9 +305,20 @@ class RiskGatekeeper:
             if ratio > self.BID_ASK_RATIO_THRESHOLD:
                 bid_depth_strong = True
 
-        # 3. Confluence Signal: Trigger alert if both conditions are met
-        if skew_flattened and bid_depth_strong:
-            signals.accumulation_alert = "HIGH - Options skew flattening paired with bid-side order flow accumulation detected."
+        # 3. Vanna Exposure Check (Recursive Buying Loop Signal)
+        vanna = state.microstructure.vanna_exposure_vex
+        if vanna is not None and vanna > 0:
+            positive_vanna = True
+
+        # 4. Confluence Signal: Trigger alert if all conditions are met
+        if skew_flattened and bid_depth_strong and positive_vanna: # type: ignore
+            signals.accumulation_alert = "CRITICAL - Hyper-growth structural setup detected: Skew flattening < 0.12, Bid-Ask > 2.5, and Positive Vanna/Charm exposure."
+
+        # 5. Structural Decoupling Check (Escalation)
+        innovation = state.innovation
+        labor = state.labor
+        if innovation and labor and innovation.patent_velocity_pct is not None and labor.rd_job_growth_pct is not None and innovation.patent_velocity_pct >= 0.20 and labor.rd_job_growth_pct >= 0.30:
+            signals.accumulation_alert = "STRUCTURAL OVERDRIVE - Innovation and Labor momentum confirm institutional accumulation phase."
 
         return signals
 
