@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     api_ninjas_key: str = Field("", description="API Ninjas key for earnings transcripts")
     patentsview_api_key: str = Field("", description="PatentsView API key (free at patentsview.org)")
 
+    # --- GCS ---
+    gcs_bucket_name: str = Field("10k-filling-data", description="GCS bucket for filings and transcripts")
+
     # --- Execution Mode ---
     use_celery: bool = Field(False, description="Use Celery+Redis for async tasks. When False, runs analysis synchronously.")
 

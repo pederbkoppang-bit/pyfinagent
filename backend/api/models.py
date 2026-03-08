@@ -47,6 +47,13 @@ class SynthesisReport(BaseModel):
     final_summary: str
     key_risks: list[str]
     final_weighted_score: Optional[float] = None
+    # v2 enrichment fields — assembled by orchestrator after synthesis
+    enrichment_signals: Optional[dict] = None
+    debate_result: Optional[dict] = None
+    decision_traces: Optional[list] = None
+    risk_data: Optional[dict] = None
+    bias_report: Optional[dict] = None
+    conflict_report: Optional[dict] = None
 
 
 # ── API Models ───────────────────────────────────────────────────────

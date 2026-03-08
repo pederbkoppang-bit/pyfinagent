@@ -1,13 +1,13 @@
 "use client";
 
-import type { SynthesisReport } from "@/lib/types";
+import type { SynthesisReport, DebateResult } from "@/lib/types";
 import { BentoCard } from "./BentoCard";
 
 function formatNumber(num: number | null | undefined): string {
   if (num == null) return "N/A";
-  if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
-  if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
-  if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+  if (Math.abs(num) >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
+  if (Math.abs(num) >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+  if (Math.abs(num) >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
   return num.toLocaleString();
 }
 
@@ -55,14 +55,78 @@ export function InvestmentThesisCard({
   report: SynthesisReport;
   financials?: { revenue?: number; net_income?: number; market_cap?: number };
 }) {
+  const debate = report.debate_result as DebateResult | undefined;
+  const catalysts = debate?.bull_case?.key_catalysts?.slice(0, 4) ?? [];
+  const threats = debate?.bear_case?.key_threats?.slice(0, 4) ?? [];
+  const confidence = debate?.consensus_confidence;
+
   return (
     <BentoCard className="flex flex-col">
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-400">
-        <span>🔬</span> Investment Thesis
+      <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-400">
+        <span>🔬</span> Executive Summary
       </h3>
-      <p className="mb-6 text-sm leading-relaxed text-slate-300">
-        {report.final_summary}
+
+      {/* Justification */}
+      <p className="mb-2 text-xs font-medium text-sky-400/80">
+        {report.recommendation.justification}
       </p>
+
+      {/* Summary paragraphs */}
+      <div className="mb-4 space-y-2">
+        {report.final_summary.split(/\n+/).filter(Boolean).map((para, i) => (
+          <p key={i} className="text-sm leading-relaxed text-slate-300">
+            {para}
+          </p>
+        ))}
+      </div>
+
+      {/* Catalysts vs Risks side-by-side */}
+      {(catalysts.length > 0 || threats.length > 0) && (
+        <div className="mb-4 grid grid-cols-2 gap-4">
+          {catalysts.length > 0 && (
+            <div>
+              <h4 className="mb-1.5 text-xs font-semibold text-emerald-400">Key Catalysts</h4>
+              <ul className="space-y-1">
+                {catalysts.map((c, i) => (
+                  <li key={i} className="text-xs text-slate-400">
+                    <span className="text-emerald-500">▸</span> {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {threats.length > 0 && (
+            <div>
+              <h4 className="mb-1.5 text-xs font-semibold text-rose-400">Key Threats</h4>
+              <ul className="space-y-1">
+                {threats.map((t, i) => (
+                  <li key={i} className="text-xs text-slate-400">
+                    <span className="text-rose-500">▸</span> {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Consensus confidence meter */}
+      {confidence != null && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500">Debate Consensus Confidence</span>
+            <span className="font-mono text-sky-400">{Math.round(confidence * 100)}%</span>
+          </div>
+          <div className="mt-1 h-1.5 w-full rounded-full bg-slate-700">
+            <div
+              className="h-1.5 rounded-full bg-gradient-to-r from-sky-500 to-cyan-400"
+              style={{ width: `${confidence * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Financial snapshot */}
       {financials && (
         <div className="mt-auto grid grid-cols-3 gap-4 border-t border-slate-800 pt-4">
           <div className="text-center">

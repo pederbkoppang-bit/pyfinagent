@@ -228,10 +228,10 @@ class AnalysisOrchestrator:
         """Fetch options chain flow analysis."""
         return options_flow.get_options_flow(ticker)
 
-    async def fetch_social_sentiment(self, ticker: str) -> dict:
+    async def fetch_social_sentiment(self, ticker: str, fallback_articles: list[dict] | None = None) -> dict:
         """Fetch social/news sentiment from Alpha Vantage."""
         return await social_sentiment.get_social_sentiment(
-            ticker, self.settings.alphavantage_api_key
+            ticker, self.settings.alphavantage_api_key, fallback_articles
         )
 
     async def fetch_patent_data(self, ticker: str, company_name: str) -> dict:
@@ -240,7 +240,7 @@ class AnalysisOrchestrator:
 
     async def fetch_earnings_tone(self, ticker: str) -> dict:
         """Fetch earnings call transcript."""
-        return await earnings_tone.get_earnings_tone(ticker, self.settings.api_ninjas_key)
+        return await earnings_tone.get_earnings_tone(ticker, self.settings.api_ninjas_key, bucket_name=self.settings.gcs_bucket_name)
 
     async def fetch_fred_data(self) -> dict:
         """Fetch FRED macro indicators."""
@@ -475,6 +475,27 @@ class AnalysisOrchestrator:
 
         articles = av_data.get("sentiment_summary", [])
 
+        # Fallback: yfinance news when AV returns nothing
+        fallback_articles: list[dict] = []
+        if not articles:
+            import yfinance as yf
+            yf_news = yf.Ticker(ticker).news or []
+            for item in yf_news:
+                content = item.get("content", item)
+                title = content.get("title", "")
+                summary = content.get("summary", "") or title
+                provider = content.get("provider", {})
+                src = provider.get("displayName", "unknown") if isinstance(provider, dict) else "unknown"
+                fallback_articles.append({
+                    "title": title,
+                    "summary": summary,
+                    "source": src,
+                    "overall_sentiment_score": None,
+                })
+            articles = fallback_articles
+            if fallback_articles:
+                logger.info("AV empty for %s — using %d yfinance articles as fallback", ticker, len(fallback_articles))
+
         (
             insider_data, options_data, social_data, patent_data,
             earnings_data, fred_macro, alt_result, sector_data,
@@ -482,7 +503,7 @@ class AnalysisOrchestrator:
         ) = await asyncio.gather(
             _safe(self.fetch_insider_data, "Insider", ticker),
             _safe(self.fetch_options_data, "Options", ticker),
-            _safe(self.fetch_social_sentiment, "Social", ticker),
+            _safe(self.fetch_social_sentiment, "Social", ticker, fallback_articles or None),
             _safe(self.fetch_patent_data, "Patent", ticker, company_name),
             _safe(self.fetch_earnings_tone, "Earnings", ticker),
             _safe(self.fetch_fred_data, "FRED"),

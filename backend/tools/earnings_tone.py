@@ -1,15 +1,157 @@
 """
 Earnings tone analysis tool — Yahoo Finance earnings transcripts.
-Scrapes the latest earnings call transcript from Yahoo Finance.
-The orchestrator's Gemini model handles the tone scoring.
+Scrapes earnings call transcripts from Yahoo Finance and performs
+keyword-based tone analysis (CONFIDENT / CAUTIOUS / EVASIVE).
+Full transcripts are cached in GCS so paywalled content remains accessible.
+The orchestrator's Gemini model provides a deeper tone assessment.
 """
 
+import json
 import logging
 import re
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# GCS caching — same bucket as 10-K filings
+# ---------------------------------------------------------------------------
+
+def _gcs_path(ticker: str, quarter_label: str) -> str:
+    """Build GCS blob path: {TICKER}/transcripts/{YEAR}_Q{Q}.json"""
+    # quarter_label is e.g. "Q4 2026"
+    parts = quarter_label.split()
+    if len(parts) == 2:
+        q_num = parts[0].replace("Q", "")
+        year = parts[1]
+        return f"{ticker.upper()}/transcripts/{year}_Q{q_num}.json"
+    return f"{ticker.upper()}/transcripts/{quarter_label.replace(' ', '_')}.json"
+
+
+def _load_from_gcs(bucket_name: str, blob_path: str) -> dict | None:
+    """Try loading a cached transcript from GCS. Returns None on miss."""
+    if not bucket_name:
+        return None
+    try:
+        from google.cloud import storage
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(blob_path)
+        if blob.exists():
+            data = json.loads(blob.download_as_text())
+            logger.info("GCS cache hit: gs://%s/%s", bucket_name, blob_path)
+            return data
+    except Exception as e:
+        logger.debug("GCS read failed for %s: %s", blob_path, e)
+    return None
+
+
+def _save_to_gcs(bucket_name: str, blob_path: str, payload: dict) -> None:
+    """Upload a transcript JSON to GCS (fire-and-forget)."""
+    if not bucket_name:
+        return
+    try:
+        from google.cloud import storage
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(blob_path)
+        blob.upload_from_string(
+            json.dumps(payload, indent=2), content_type="application/json"
+        )
+        logger.info("Saved transcript to gs://%s/%s", bucket_name, blob_path)
+    except Exception as e:
+        logger.warning("GCS write failed for %s: %s", blob_path, e)
+
+# ---------------------------------------------------------------------------
+# Keyword-based tone scoring
+# ---------------------------------------------------------------------------
+
+_CONFIDENT_PHRASES = [
+    "strong growth", "exceeded expectations", "well positioned",
+    "we're confident", "we are confident", "record revenue",
+    "record quarter", "record results", "beat guidance",
+    "above guidance", "strong demand", "robust demand",
+    "strong momentum", "significant progress", "outperformed",
+    "best quarter", "ahead of plan", "very pleased",
+    "accelerating growth", "strong execution", "all-time high",
+    "raising guidance", "raising our guidance", "increasing guidance",
+    "raise our outlook", "strong pipeline", "healthy demand",
+    "better than expected", "strong performance", "impressive results",
+]
+
+_CAUTIOUS_PHRASES = [
+    "uncertain", "challenging environment", "headwinds",
+    "cautious outlook", "monitoring closely", "remain cautious",
+    "below expectations", "softness in", "macro uncertainty",
+    "cautiously optimistic", "mixed results", "volatile market",
+    "tempered expectations", "slower than expected", "inventory build",
+    "weaker demand", "cost pressures", "margin pressure",
+    "prudent approach", "measured approach", "cautious approach",
+    "navigating challenges", "near-term challenges", "normalizing demand",
+]
+
+_EVASIVE_PHRASES = [
+    "can't comment on that", "cannot comment", "not in a position to",
+    "we'll get back to you", "let me redirect", "i'd rather not",
+    "we don't disclose", "we're not going to get into",
+    "competitive reasons", "as i mentioned earlier",
+    "i think the question", "that's a good question but",
+    "next question", "we'll have more to share",
+    "not going to speculate", "we don't guide on that",
+]
+
+
+def _analyze_tone(text: str) -> dict:
+    """Score transcript text for confident/cautious/evasive tone.
+
+    Returns dict with signal, confidence_score (1-10), and evidence.
+    """
+    lower = text.lower()
+
+    confident_hits = [p for p in _CONFIDENT_PHRASES if p in lower]
+    cautious_hits = [p for p in _CAUTIOUS_PHRASES if p in lower]
+    evasive_hits = [p for p in _EVASIVE_PHRASES if p in lower]
+
+    c_score = len(confident_hits)
+    ca_score = len(cautious_hits)
+    e_score = len(evasive_hits)
+    total = c_score + ca_score + e_score
+
+    if total == 0:
+        return {
+            "signal": "CAUTIOUS",
+            "management_confidence": 5,
+            "tone_evidence": {
+                "confident_phrases": [],
+                "cautious_phrases": [],
+                "evasive_phrases": [],
+            },
+        }
+
+    # Determine signal
+    if e_score >= 3 or (e_score > 0 and e_score >= c_score):
+        signal = "EVASIVE"
+        confidence = max(1, 3 - e_score)
+    elif c_score > ca_score + e_score:
+        signal = "CONFIDENT"
+        confidence = min(10, 5 + c_score)
+    elif ca_score > c_score:
+        signal = "CAUTIOUS"
+        confidence = max(1, 5 - ca_score + c_score)
+    else:
+        signal = "CAUTIOUS"
+        confidence = 5
+
+    return {
+        "signal": signal,
+        "management_confidence": confidence,
+        "tone_evidence": {
+            "confident_phrases": confident_hits[:5],
+            "cautious_phrases": cautious_hits[:5],
+            "evasive_phrases": evasive_hits[:5],
+        },
+    }
 
 _HEADERS = {
     "User-Agent": (
@@ -82,10 +224,11 @@ def _extract_transcript(html: str) -> tuple[str | None, bool]:
     return "\n\n".join(filtered) if filtered else None, is_paywalled
 
 
-async def get_earnings_tone(ticker: str, api_key: str = "", max_transcripts: int = 4) -> dict:
+async def get_earnings_tone(ticker: str, api_key: str = "", max_transcripts: int = 4, bucket_name: str = "") -> dict:
     """
-    Fetch recent earnings transcripts from Yahoo Finance.
-    Returns the latest plus up to max_transcripts-1 older ones for trend analysis.
+    Fetch recent earnings transcripts from Yahoo Finance with GCS caching.
+    Full transcripts are saved to GCS on first scrape and loaded from cache
+    when Yahoo's paywall blocks access on subsequent runs.
     The api_key parameter is kept for backward compatibility but unused.
     """
     try:
@@ -106,6 +249,7 @@ async def get_earnings_tone(ticker: str, api_key: str = "", max_transcripts: int
         if not links:
             return {
                 "ticker": ticker,
+                "signal": "N/A",
                 "available": False,
                 "transcript_excerpt": "",
                 "transcripts": [],
@@ -119,29 +263,65 @@ async def get_earnings_tone(ticker: str, api_key: str = "", max_transcripts: int
 
         for i, link in enumerate(links[:max_transcripts]):
             try:
+                m = re.match(r"\w+-Q(\d)-(\d{4})-earnings_call-\d+\.html", link)
+                quarter = f"Q{m.group(1)} {m.group(2)}" if m else f"Transcript {i+1}"
+                blob_path = _gcs_path(ticker, quarter)
+
+                # --- Check GCS cache first ---
+                cached = _load_from_gcs(bucket_name, blob_path)
+                if cached and cached.get("content"):
+                    full_text = cached["content"]
+                    transcripts.append({
+                        "quarter": quarter,
+                        "transcript_length": len(full_text),
+                        "transcript_excerpt": full_text[:excerpt_limits[i]],
+                        "paywalled": False,
+                        "source": "gcs_cache",
+                    })
+                    continue
+
+                # --- Scrape Yahoo Finance ---
                 transcript_url = (
                     f"https://finance.yahoo.com/quote/{ticker}/earnings/{link}"
                 )
                 resp2 = client.get(transcript_url)
                 text, paywalled = _extract_transcript(resp2.text)
 
-                m = re.match(r"\w+-Q(\d)-(\d{4})-earnings_call-\d+\.html", link)
-                quarter = f"Q{m.group(1)} {m.group(2)}" if m else f"Transcript {i+1}"
-
-                if text:
+                if text and not paywalled:
                     transcripts.append({
                         "quarter": quarter,
                         "transcript_length": len(text),
                         "transcript_excerpt": text[:excerpt_limits[i]],
-                        "paywalled": paywalled,
+                        "paywalled": False,
+                        "source": "yahoo",
+                    })
+                    # Save full transcript to GCS for future use
+                    _save_to_gcs(bucket_name, blob_path, {
+                        "ticker": ticker,
+                        "quarter": quarter,
+                        "year": m.group(2) if m else "",
+                        "quarter_num": m.group(1) if m else "",
+                        "content": text,
+                        "source": "yahoo_finance",
+                        "transcript_length": len(text),
                     })
                 elif paywalled:
-                    # Note the quarter exists but is locked
+                    # Try GCS one more time with relaxed check (cached may lack "content")
                     transcripts.append({
                         "quarter": quarter,
                         "transcript_length": 0,
                         "transcript_excerpt": "",
                         "paywalled": True,
+                        "source": "yahoo_paywalled",
+                    })
+                elif text:
+                    # Has text but also flagged paywalled (partial)
+                    transcripts.append({
+                        "quarter": quarter,
+                        "transcript_length": len(text),
+                        "transcript_excerpt": text[:excerpt_limits[i]],
+                        "paywalled": True,
+                        "source": "yahoo_partial",
                     })
             except Exception as e:
                 logger.warning("Failed to fetch transcript %s: %s", link, e)
@@ -149,6 +329,7 @@ async def get_earnings_tone(ticker: str, api_key: str = "", max_transcripts: int
         if not transcripts:
             return {
                 "ticker": ticker,
+                "signal": "N/A",
                 "available": False,
                 "transcript_excerpt": "",
                 "transcripts": [],
@@ -156,16 +337,28 @@ async def get_earnings_tone(ticker: str, api_key: str = "", max_transcripts: int
             }
 
         full = [t for t in transcripts if not t.get("paywalled")]
-        paywalled = [t for t in transcripts if t.get("paywalled")]
+        paywalled_list = [t for t in transcripts if t.get("paywalled")]
+        cached_list = [t for t in full if t.get("source") == "gcs_cache"]
         quarters_full = [t["quarter"] for t in full]
-        quarters_locked = [t["quarter"] for t in paywalled]
+        quarters_locked = [t["quarter"] for t in paywalled_list]
         total_chars = sum(t["transcript_length"] for t in transcripts)
+
+        # Analyze tone from all available full transcripts
+        all_text = " ".join(
+            t["transcript_excerpt"] for t in full if t["transcript_excerpt"]
+        )
+        tone = _analyze_tone(all_text) if all_text else {
+            "signal": "N/A",
+            "management_confidence": 0,
+            "tone_evidence": {"confident_phrases": [], "cautious_phrases": [], "evasive_phrases": []},
+        }
 
         parts = []
         if full:
-            parts.append(
-                f"{len(full)} full transcript(s) ({', '.join(quarters_full)})"
-            )
+            label = f"{len(full)} full transcript(s) ({', '.join(quarters_full)})"
+            if cached_list:
+                label += f" [{len(cached_list)} from cache]"
+            parts.append(label)
         if quarters_locked:
             parts.append(
                 f"{len(quarters_locked)} paywalled ({', '.join(quarters_locked)})"
@@ -173,12 +366,16 @@ async def get_earnings_tone(ticker: str, api_key: str = "", max_transcripts: int
 
         return {
             "ticker": ticker,
+            "signal": tone["signal"],
+            "management_confidence": tone["management_confidence"],
+            "tone_evidence": tone["tone_evidence"],
             "quarter": transcripts[0]["quarter"],
             "transcript_length": transcripts[0]["transcript_length"],
             "transcript_excerpt": transcripts[0]["transcript_excerpt"],
             "transcripts": transcripts,
             "available": True,
             "summary": (
+                f"Tone: {tone['signal']} (confidence {tone['management_confidence']}/10). "
                 f"{'; '.join(parts)} for {ticker}. "
                 f"{total_chars} total chars from Yahoo Finance."
             ),
@@ -188,6 +385,7 @@ async def get_earnings_tone(ticker: str, api_key: str = "", max_transcripts: int
         logger.error("Failed to fetch earnings transcript for %s: %s", ticker, e)
         return {
             "ticker": ticker,
+            "signal": "ERROR",
             "available": False,
             "transcript_excerpt": "",
             "summary": f"Error fetching transcript: {e}",

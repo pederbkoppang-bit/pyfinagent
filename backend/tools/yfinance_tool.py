@@ -15,12 +15,28 @@ def get_comprehensive_financials(ticker: str) -> dict:
         stock = yf.Ticker(ticker)
         info = stock.info
 
+        # ── Valuation with computed fallbacks ────────────────────────
+        trailing_pe = info.get("trailingPE")
+        if trailing_pe is None:
+            price = info.get("currentPrice")
+            eps = info.get("trailingEps")
+            if price and eps and eps != 0:
+                trailing_pe = round(price / eps, 2)
+
+        peg = info.get("pegRatio")
+        if peg is None:
+            fwd_pe = info.get("forwardPE")
+            eg = info.get("earningsGrowth")  # decimal, e.g. 0.15 = 15%
+            if fwd_pe and eg and eg > 0:
+                growth_pct = eg * 100
+                peg = round(fwd_pe / growth_pct, 2)
+
         valuation = {
             "Current Price": info.get("currentPrice"),
             "Market Cap": info.get("marketCap"),
-            "P/E Ratio": info.get("trailingPE"),
+            "P/E Ratio": trailing_pe,
             "Forward P/E": info.get("forwardPE"),
-            "PEG Ratio": info.get("pegRatio"),
+            "PEG Ratio": peg,
             "Price/Book": info.get("priceToBook"),
             "Dividend Yield": info.get("dividendYield", 0) * 100 if info.get("dividendYield") else 0,
         }
@@ -52,6 +68,12 @@ def get_comprehensive_financials(ticker: str) -> dict:
             "health": health,
             "institutional": institutional,
             "company_name": info.get("longName", ticker),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "week_52_high": info.get("fiftyTwoWeekHigh"),
+            "week_52_low": info.get("fiftyTwoWeekLow"),
+            "revenue": info.get("totalRevenue"),
+            "net_income": info.get("netIncomeToCommon"),
         }
 
     except Exception as e:

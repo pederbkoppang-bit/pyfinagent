@@ -122,6 +122,25 @@ export function DebateView({ debate }: { debate: DebateResult }) {
               </ul>
             </div>
           )}
+          {/* Evidence with source provenance */}
+          {debate.bull_case?.evidence && debate.bull_case.evidence.length > 0 && (
+            <div className="mt-3">
+              <span className="text-xs font-medium text-emerald-400/70">Evidence</span>
+              <div className="mt-1 space-y-1.5">
+                {debate.bull_case.evidence.slice(0, 4).map((e, i) => (
+                  <div key={i} className="rounded-lg bg-emerald-500/5 p-2 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded bg-emerald-500/20 px-1 py-0.5 text-[9px] font-semibold text-emerald-400">
+                        {e.source}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-slate-400">{e.data_point}</p>
+                    <p className="mt-0.5 italic text-slate-500">{e.interpretation}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bear Case */}
@@ -151,6 +170,25 @@ export function DebateView({ debate }: { debate: DebateResult }) {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+          {/* Evidence with source provenance */}
+          {debate.bear_case?.evidence && debate.bear_case.evidence.length > 0 && (
+            <div className="mt-3">
+              <span className="text-xs font-medium text-rose-400/70">Evidence</span>
+              <div className="mt-1 space-y-1.5">
+                {debate.bear_case.evidence.slice(0, 4).map((e, i) => (
+                  <div key={i} className="rounded-lg bg-rose-500/5 p-2 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded bg-rose-500/20 px-1 py-0.5 text-[9px] font-semibold text-rose-400">
+                        {e.source}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-slate-400">{e.data_point}</p>
+                    <p className="mt-0.5 italic text-slate-500">{e.interpretation}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

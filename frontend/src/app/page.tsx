@@ -4,24 +4,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { AnalysisProgress } from "@/components/AnalysisProgress";
 import {
-  AlphaScoreCard,
   InvestmentThesisCard,
   RisksCard,
   ScoringMatrixCard,
 } from "@/components/GlassBoxCards";
+import { ReportHeader } from "@/components/ReportHeader";
+import { ReportTabs, type TabDef } from "@/components/ReportTabs";
+import { SignalDashboard } from "@/components/SignalDashboard";
+import { DecisionTraceView } from "@/components/DecisionTraceView";
 import { StockChart } from "@/components/StockChart";
 import { EvaluationTable } from "@/components/EvaluationTable";
 import { ValuationRange } from "@/components/ValuationRange";
 import { ResearchInvestigator } from "@/components/ResearchInvestigator";
 import { PdfDownload } from "@/components/PdfDownload";
-import { SignalCards, SignalSummaryBar } from "@/components/SignalCards";
 import { DebateView } from "@/components/DebateView";
 import type { DebateResult } from "@/components/DebateView";
 import { RiskDashboard } from "@/components/RiskDashboard";
 import type { RiskDataPayload } from "@/components/RiskDashboard";
 import { BiasReport } from "@/components/BiasReport";
 import { getAnalysisStatus, startAnalysis } from "@/lib/api";
-import type { AnalysisStatusResponse, SynthesisReport, EnrichmentSignals } from "@/lib/types";
+import type {
+  AnalysisStatusResponse,
+  SynthesisReport,
+  EnrichmentSignals,
+  DecisionTrace,
+} from "@/lib/types";
 
 export default function DashboardPage() {
   const [ticker, setTicker] = useState("");
@@ -140,103 +147,139 @@ export default function DashboardPage() {
         )}
 
         {/* Glass Box Report (when complete) */}
-        {report && (
-          <div className="grid grid-cols-12 gap-6">
-            {/* Row 1: Alpha Score + Investment Thesis */}
-            <div className="col-span-12 md:col-span-4">
-              <AlphaScoreCard report={report} />
-            </div>
-            <div className="col-span-12 md:col-span-8">
-              <InvestmentThesisCard
-                report={report}
-                financials={financials ? {
-                  revenue: (financials as Record<string, Record<string, number>>).health?.["Free Cash Flow"],
-                  net_income: undefined,
-                  market_cap: (financials as Record<string, Record<string, number>>).valuation?.["Market Cap"],
-                } : undefined}
-              />
-            </div>
+        {report && (() => {
+          const enrichmentSignals = report.enrichment_signals as EnrichmentSignals | undefined;
+          const debateResult = report.debate_result as DebateResult | undefined;
+          const riskData = report.risk_data as RiskDataPayload | undefined;
+          const decisionTraces = report.decision_traces as DecisionTrace[] | undefined;
 
-            {/* Row 2: Evaluation Table (5 pillar cards) */}
-            <div className="col-span-12">
-              <EvaluationTable scores={report.scoring_matrix} />
+          // Count badges for tabs
+          const signalCount = enrichmentSignals ? Object.keys(enrichmentSignals).length : 0;
+          const anomalyCount = (riskData?.anomalies?.anomaly_count) ?? 0;
+          const biasCount = (report.bias_report as Record<string, unknown> | undefined)?.bias_count as number | undefined;
+
+          const tabs: TabDef[] = [
+            { id: "overview", label: "Overview", icon: "📋" },
+            { id: "signals", label: "Signals", icon: "📡", badge: signalCount > 0 ? signalCount : null },
+            { id: "debate", label: "Debate", icon: "⚖️", badge: debateResult?.consensus || null },
+            { id: "risk", label: "Risk", icon: "🎯", badge: anomalyCount > 0 ? `${anomalyCount} anomalies` : null },
+            { id: "audit", label: "Audit", icon: "🔍", badge: biasCount != null && biasCount > 0 ? `${biasCount} flags` : null },
+          ];
+
+          return (
+            <div className="space-y-6">
+              {/* Report Header — always visible */}
+              <ReportHeader ticker={activeTicker} report={report} financials={financials} />
+
+              {/* Tabbed content */}
+              <ReportTabs tabs={tabs}>
+                {(activeTab) => (
+                  <>
+                    {/* ── OVERVIEW TAB ── */}
+                    {activeTab === "overview" && (
+                      <div className="grid grid-cols-12 gap-6">
+                        {/* Executive Summary */}
+                        <div className="col-span-12">
+                          <InvestmentThesisCard
+                            report={report}
+                            financials={financials ? {
+                              revenue: (financials as Record<string, unknown>).revenue as number | undefined,
+                              net_income: (financials as Record<string, unknown>).net_income as number | undefined,
+                              market_cap: (financials as Record<string, Record<string, number>>).valuation?.["Market Cap"],
+                            } : undefined}
+                          />
+                        </div>
+
+                        {/* Evaluation Table (5 pillars) */}
+                        <div className="col-span-12">
+                          <EvaluationTable scores={report.scoring_matrix} />
+                        </div>
+
+                        {/* Valuation + Risks side-by-side */}
+                        <div className="col-span-12 md:col-span-6">
+                          <ValuationRange
+                            valuation={(financials as Record<string, Record<string, number | null>> | null)?.valuation}
+                            health={(financials as Record<string, Record<string, number | null>> | null)?.health}
+                          />
+                        </div>
+                        <div className="col-span-12 md:col-span-6">
+                          <RisksCard risks={report.key_risks} />
+                        </div>
+
+                        {/* Scoring Matrix + PDF */}
+                        <div className="col-span-12 md:col-span-8">
+                          <ScoringMatrixCard report={report} />
+                        </div>
+                        <div className="col-span-12 md:col-span-4 flex flex-col gap-4">
+                          <PdfDownload ticker={activeTicker} report={report} financials={financials} className="w-full" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── SIGNALS TAB ── */}
+                    {activeTab === "signals" && (
+                      <div className="space-y-6">
+                        {enrichmentSignals ? (
+                          <SignalDashboard signals={enrichmentSignals} />
+                        ) : (
+                          <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-6 text-center text-sm text-slate-500">
+                            Enrichment signals not available for this analysis.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── DEBATE TAB ── */}
+                    {activeTab === "debate" && (
+                      <div className="space-y-6">
+                        {debateResult ? (
+                          <DebateView debate={debateResult} />
+                        ) : (
+                          <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-6 text-center text-sm text-slate-500">
+                            Agent debate data not available for this analysis.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── RISK TAB ── */}
+                    {activeTab === "risk" && (
+                      <div className="space-y-6">
+                        {riskData ? (
+                          <RiskDashboard data={riskData} />
+                        ) : (
+                          <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-6 text-center text-sm text-slate-500">
+                            Risk data not available for this analysis.
+                          </div>
+                        )}
+                        <StockChart
+                          ticker={activeTicker}
+                          currentPrice={(financials as Record<string, Record<string, number>> | null)?.valuation?.["Current Price"] ?? undefined}
+                        />
+                      </div>
+                    )}
+
+                    {/* ── AUDIT TAB ── */}
+                    {activeTab === "audit" && (
+                      <div className="space-y-6">
+                        {(report.bias_report || report.conflict_report) && (
+                          <BiasReport
+                            biasReport={report.bias_report}
+                            conflictReport={report.conflict_report}
+                          />
+                        )}
+                        <DecisionTraceView traces={decisionTraces ?? []} />
+                        <div style={{ minHeight: 400 }}>
+                          <ResearchInvestigator ticker={activeTicker} />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </ReportTabs>
             </div>
-
-            {/* Row 2.5: Enrichment Signals (if available) */}
-            {(report as unknown as Record<string, unknown>).enrichment_signals ? (
-              <div className="col-span-12 space-y-4">
-                <SignalSummaryBar
-                  signals={
-                    (report as unknown as Record<string, unknown>)
-                      .enrichment_signals as EnrichmentSignals
-                  }
-                />
-                <SignalCards
-                  signals={
-                    (report as unknown as Record<string, unknown>)
-                      .enrichment_signals as EnrichmentSignals
-                  }
-                />
-              </div>
-            ) : null}
-
-            {/* Row 2.7: Agent Debate */}
-            {report.debate_result ? (
-              <div className="col-span-12">
-                <DebateView debate={report.debate_result as DebateResult} />
-              </div>
-            ) : null}
-
-            {/* Row 2.8: Risk Dashboard */}
-            {report.risk_data ? (
-              <div className="col-span-12">
-                <RiskDashboard data={report.risk_data as RiskDataPayload} />
-              </div>
-            ) : null}
-
-            {/* Row 2.9: Bias & Conflict Report */}
-            {(report.bias_report || report.conflict_report) ? (
-              <div className="col-span-12">
-                <BiasReport
-                  biasReport={report.bias_report}
-                  conflictReport={report.conflict_report}
-                />
-              </div>
-            ) : null}
-
-            {/* Row 3: Stock Chart */}
-            <div className="col-span-12">
-              <StockChart
-                ticker={activeTicker}
-                currentPrice={(financials as Record<string, Record<string, number>> | null)?.valuation?.["Current Price"] ?? undefined}
-              />
-            </div>
-
-            {/* Row 4: Valuation Football Field + Risks */}
-            <div className="col-span-12 md:col-span-6">
-              <ValuationRange
-                valuation={(financials as Record<string, Record<string, number | null>> | null)?.valuation}
-                health={(financials as Record<string, Record<string, number | null>> | null)?.health}
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <RisksCard risks={report.key_risks} />
-            </div>
-
-            {/* Row 5: Scoring Matrix + PDF download */}
-            <div className="col-span-12 md:col-span-8">
-              <ScoringMatrixCard report={report} />
-            </div>
-            <div className="col-span-12 md:col-span-4 flex flex-col gap-4">
-              <PdfDownload ticker={activeTicker} report={report} className="w-full" />
-            </div>
-
-            {/* Row 6: Research Investigator */}
-            <div className="col-span-12" style={{ minHeight: 400 }}>
-              <ResearchInvestigator ticker={activeTicker} />
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Empty state */}
         {!status && !report && !error && (

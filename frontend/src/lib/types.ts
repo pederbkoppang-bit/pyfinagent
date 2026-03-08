@@ -266,6 +266,7 @@ export interface DecisionTrace {
   evidence_citations: string[];
   reasoning_steps: string[];
   latency_ms: number;
+  source_url?: string;
 }
 
 // ── Bias & Conflict Detection ────────────────────────────────────

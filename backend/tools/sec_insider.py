@@ -118,15 +118,15 @@ def _parse_form4_xml(xml_text: str) -> list[dict]:
 
 async def _fetch_form4(
     client: httpx.AsyncClient, sem: asyncio.Semaphore,
-    accession: str, doc: str,
+    company_cik: str, accession: str, doc: str,
 ) -> list[dict]:
     """Fetch and parse a single Form 4 XML document."""
-    # Filer CIK is the first segment of the accession number (no leading zeros)
-    filer_cik = accession.split("-")[0].lstrip("0") or "0"
+    # Use the company CIK (issuer), not the filer/agent CIK from the accession
+    cik_stripped = company_cik.lstrip("0") or "0"
     acc_no_dashes = accession.replace("-", "")
     # Strip XSLT prefix (e.g. "xslF345X05/") to get the raw XML filename
     raw_doc = doc.split("/")[-1] if "/" in doc else doc
-    url = SEC_ARCHIVES_URL.format(filer_cik=filer_cik, accession=acc_no_dashes, doc=raw_doc)
+    url = SEC_ARCHIVES_URL.format(filer_cik=cik_stripped, accession=acc_no_dashes, doc=raw_doc)
 
     async with sem:
         try:
@@ -189,7 +189,7 @@ async def get_insider_trades(ticker: str, months: int = 6) -> dict:
         sem = asyncio.Semaphore(5)
         async with httpx.AsyncClient(timeout=30, headers=SEC_HEADERS) as client:
             tasks = [
-                _fetch_form4(client, sem, acc, doc)
+                _fetch_form4(client, sem, cik, acc, doc)
                 for acc, doc, _ in form4_filings
             ]
             results = await asyncio.gather(*tasks)
