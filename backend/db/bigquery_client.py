@@ -85,7 +85,7 @@ class BigQueryClient:
         rows = list(self.client.query(query, job_config=job_config).result())
         if rows:
             row = dict(rows[0])
-            if row.get("full_report_json"):
+            if row.get("full_report_json") and isinstance(row["full_report_json"], str):
                 row["full_report_json"] = json.loads(row["full_report_json"])
             return row
         return None

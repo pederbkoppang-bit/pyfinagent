@@ -9,14 +9,21 @@ import {
   RisksCard,
   ScoringMatrixCard,
 } from "@/components/GlassBoxCards";
+import { StockChart } from "@/components/StockChart";
+import { EvaluationTable } from "@/components/EvaluationTable";
+import { ValuationRange } from "@/components/ValuationRange";
+import { ResearchInvestigator } from "@/components/ResearchInvestigator";
+import { PdfDownload } from "@/components/PdfDownload";
 import { getAnalysisStatus, startAnalysis } from "@/lib/api";
 import type { AnalysisStatusResponse, SynthesisReport } from "@/lib/types";
 
 export default function DashboardPage() {
   const [ticker, setTicker] = useState("");
+  const [activeTicker, setActiveTicker] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [status, setStatus] = useState<AnalysisStatusResponse | null>(null);
   const [report, setReport] = useState<SynthesisReport | null>(null);
+  const [financials, setFinancials] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -33,7 +40,9 @@ export default function DashboardPage() {
     setError(null);
     setReport(null);
     setStatus(null);
+    setFinancials(null);
     setLoading(true);
+    setActiveTicker(ticker.toUpperCase());
 
     try {
       const res = await startAnalysis(ticker);
@@ -49,6 +58,12 @@ export default function DashboardPage() {
             clearInterval(pollRef.current!);
             pollRef.current = null;
             setReport(s.report ?? null);
+            // Fetch yfinance financials for the valuation cards
+            try {
+              const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+              const fRes = await fetch(`${API_BASE}/api/charts/${encodeURIComponent(ticker)}/financials`);
+              if (fRes.ok) setFinancials(await fRes.json());
+            } catch { /* best-effort */ }
             setLoading(false);
           } else if (s.status === "failed") {
             clearInterval(pollRef.current!);
@@ -116,24 +131,56 @@ export default function DashboardPage() {
         {/* Glass Box Report (when complete) */}
         {report && (
           <div className="grid grid-cols-12 gap-6">
-            {/* Alpha Score */}
+            {/* Row 1: Alpha Score + Investment Thesis */}
             <div className="col-span-12 md:col-span-4">
               <AlphaScoreCard report={report} />
             </div>
-
-            {/* Investment Thesis */}
             <div className="col-span-12 md:col-span-8">
-              <InvestmentThesisCard report={report} />
+              <InvestmentThesisCard
+                report={report}
+                financials={financials ? {
+                  revenue: (financials as Record<string, Record<string, number>>).health?.["Free Cash Flow"],
+                  net_income: undefined,
+                  market_cap: (financials as Record<string, Record<string, number>>).valuation?.["Market Cap"],
+                } : undefined}
+              />
             </div>
 
-            {/* Scoring Matrix */}
+            {/* Row 2: Evaluation Table (5 pillar cards) */}
+            <div className="col-span-12">
+              <EvaluationTable scores={report.scoring_matrix} />
+            </div>
+
+            {/* Row 3: Stock Chart */}
+            <div className="col-span-12">
+              <StockChart
+                ticker={activeTicker}
+                currentPrice={(financials as Record<string, Record<string, number>> | null)?.valuation?.["Current Price"] ?? undefined}
+              />
+            </div>
+
+            {/* Row 4: Valuation Football Field + Risks */}
             <div className="col-span-12 md:col-span-6">
-              <ScoringMatrixCard report={report} />
+              <ValuationRange
+                valuation={(financials as Record<string, Record<string, number | null>> | null)?.valuation}
+                health={(financials as Record<string, Record<string, number | null>> | null)?.health}
+              />
             </div>
-
-            {/* Risks */}
             <div className="col-span-12 md:col-span-6">
               <RisksCard risks={report.key_risks} />
+            </div>
+
+            {/* Row 5: Scoring Matrix + PDF download */}
+            <div className="col-span-12 md:col-span-8">
+              <ScoringMatrixCard report={report} />
+            </div>
+            <div className="col-span-12 md:col-span-4 flex flex-col gap-4">
+              <PdfDownload ticker={activeTicker} report={report} className="w-full" />
+            </div>
+
+            {/* Row 6: Research Investigator */}
+            <div className="col-span-12" style={{ minHeight: 400 }}>
+              <ResearchInvestigator ticker={activeTicker} />
             </div>
           </div>
         )}

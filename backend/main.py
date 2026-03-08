@@ -10,6 +10,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.analysis import router as analysis_router
+from backend.api.charts import router as charts_router
+from backend.api.investigate import router as investigate_router
 from backend.api.reports import router as reports_router
 from backend.config.settings import get_settings
 
@@ -64,6 +66,8 @@ app.add_middleware(
 
 # Routes
 app.include_router(analysis_router)
+app.include_router(charts_router)
+app.include_router(investigate_router)
 app.include_router(reports_router)
 
 
