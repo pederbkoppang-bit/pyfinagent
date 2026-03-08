@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #020617;
+  --bg-card: rgba(15, 23, 42, 0.7);
+  --border-card: #1e293b;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: #e2e8f0;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(56, 189, 248, 0.5), 0 0 60px rgba(56, 189, 248, 0.2); }
+}
+
+.alpha-score-glow {
+  animation: pulse-glow 3s infinite ease-in-out;
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+/* Gemini-style animated spinner */
+.gemini-spinner {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+}
+
+.gemini-bar {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background-color: #4285f4;
+  animation: gemini-bounce 1.2s ease-in-out infinite;
+}
+
+.gemini-bar:nth-child(2) { background-color: #db4437; animation-delay: -1s; }
+.gemini-bar:nth-child(3) { background-color: #f4b400; animation-delay: -0.8s; }
+.gemini-bar:nth-child(4) { background-color: #0f9d58; animation-delay: -0.6s; }
+
+@keyframes gemini-bounce {
+  0%, 80%, 100% { transform: scaleY(0.5); opacity: 0.5; }
+  40% { transform: scaleY(1.0); opacity: 1.0; }
+}
