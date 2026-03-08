@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # --- External APIs ---
     alphavantage_api_key: str = Field("", description="Alpha Vantage API key")
     slack_webhook_url: str = Field("", description="Slack webhook URL for notifications")
+    fred_api_key: str = Field("", description="FRED (Federal Reserve) API key")
+    api_ninjas_key: str = Field("", description="API Ninjas key for earnings transcripts")
+    patentsview_api_key: str = Field("", description="PatentsView API key (free at patentsview.org)")
 
     # --- Execution Mode ---
     use_celery: bool = Field(False, description="Use Celery+Redis for async tasks. When False, runs analysis synchronously.")

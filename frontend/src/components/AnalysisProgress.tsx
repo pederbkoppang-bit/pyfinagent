@@ -9,9 +9,13 @@ const ALL_STEPS = [
   { key: "rag", label: "Document Analysis", icon: "📄" },
   { key: "market", label: "Sentiment", icon: "🎯" },
   { key: "competitor", label: "Competitors", icon: "🏆" },
+  { key: "data_enrichment", label: "Data Enrichment", icon: "📡" },
+  { key: "enrichment_analysis", label: "Signal Analysis", icon: "🧠" },
+  { key: "debate", label: "Agent Debate", icon: "⚖️" },
   { key: "macro", label: "Macro Economy", icon: "🌍" },
   { key: "deep_dive", label: "Deep Dive", icon: "🔍" },
   { key: "synthesis", label: "Synthesis", icon: "🧪" },
+  { key: "bias_audit", label: "Bias Audit", icon: "🛡️" },
 ];
 
 export function AnalysisProgress({

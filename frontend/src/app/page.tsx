@@ -14,8 +14,14 @@ import { EvaluationTable } from "@/components/EvaluationTable";
 import { ValuationRange } from "@/components/ValuationRange";
 import { ResearchInvestigator } from "@/components/ResearchInvestigator";
 import { PdfDownload } from "@/components/PdfDownload";
+import { SignalCards, SignalSummaryBar } from "@/components/SignalCards";
+import { DebateView } from "@/components/DebateView";
+import type { DebateResult } from "@/components/DebateView";
+import { RiskDashboard } from "@/components/RiskDashboard";
+import type { RiskDataPayload } from "@/components/RiskDashboard";
+import { BiasReport } from "@/components/BiasReport";
 import { getAnalysisStatus, startAnalysis } from "@/lib/api";
-import type { AnalysisStatusResponse, SynthesisReport } from "@/lib/types";
+import type { AnalysisStatusResponse, SynthesisReport, EnrichmentSignals } from "@/lib/types";
 
 export default function DashboardPage() {
   const [ticker, setTicker] = useState("");
@@ -116,8 +122,13 @@ export default function DashboardPage() {
 
         {/* Error */}
         {error && (
-          <div className="mb-6 rounded-lg border border-rose-900 bg-rose-950/50 p-4 text-sm text-rose-200">
-            {error}
+          <div className="mb-6 rounded-lg border border-rose-900 bg-rose-950/50 p-4">
+            <p className="text-sm font-medium text-rose-200">{error}</p>
+            {error.includes("Cannot reach backend") && (
+              <p className="mt-2 text-xs text-rose-300/60">
+                Run: <code className="rounded bg-rose-900/40 px-1.5 py-0.5 font-mono">uvicorn backend.main:app --port 8000</code>
+              </p>
+            )}
           </div>
         )}
 
@@ -150,6 +161,48 @@ export default function DashboardPage() {
             <div className="col-span-12">
               <EvaluationTable scores={report.scoring_matrix} />
             </div>
+
+            {/* Row 2.5: Enrichment Signals (if available) */}
+            {(report as unknown as Record<string, unknown>).enrichment_signals ? (
+              <div className="col-span-12 space-y-4">
+                <SignalSummaryBar
+                  signals={
+                    (report as unknown as Record<string, unknown>)
+                      .enrichment_signals as EnrichmentSignals
+                  }
+                />
+                <SignalCards
+                  signals={
+                    (report as unknown as Record<string, unknown>)
+                      .enrichment_signals as EnrichmentSignals
+                  }
+                />
+              </div>
+            ) : null}
+
+            {/* Row 2.7: Agent Debate */}
+            {report.debate_result ? (
+              <div className="col-span-12">
+                <DebateView debate={report.debate_result as DebateResult} />
+              </div>
+            ) : null}
+
+            {/* Row 2.8: Risk Dashboard */}
+            {report.risk_data ? (
+              <div className="col-span-12">
+                <RiskDashboard data={report.risk_data as RiskDataPayload} />
+              </div>
+            ) : null}
+
+            {/* Row 2.9: Bias & Conflict Report */}
+            {(report.bias_report || report.conflict_report) ? (
+              <div className="col-span-12">
+                <BiasReport
+                  biasReport={report.bias_report}
+                  conflictReport={report.conflict_report}
+                />
+              </div>
+            ) : null}
 
             {/* Row 3: Stock Chart */}
             <div className="col-span-12">
@@ -193,7 +246,7 @@ export default function DashboardPage() {
               Enter a ticker symbol to begin analysis
             </p>
             <p className="mt-1 text-sm text-slate-600">
-              The system will orchestrate 9 specialized AI agents to produce an
+              The system will orchestrate 20+ specialized AI agents to produce an
               evidence-based investment report
             </p>
           </div>

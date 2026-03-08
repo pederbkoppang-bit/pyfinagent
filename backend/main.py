@@ -12,7 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.analysis import router as analysis_router
 from backend.api.charts import router as charts_router
 from backend.api.investigate import router as investigate_router
+from backend.api.portfolio import router as portfolio_router
 from backend.api.reports import router as reports_router
+from backend.api.signals import router as signals_router
 from backend.config.settings import get_settings
 
 
@@ -58,7 +60,7 @@ app = FastAPI(
 # CORS — allow the Next.js frontend in dev and production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origin_regex=r"^http://localhost:\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -68,7 +70,9 @@ app.add_middleware(
 app.include_router(analysis_router)
 app.include_router(charts_router)
 app.include_router(investigate_router)
+app.include_router(portfolio_router)
 app.include_router(reports_router)
+app.include_router(signals_router)
 
 
 @app.get("/api/health")

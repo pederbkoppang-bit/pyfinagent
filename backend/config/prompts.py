@@ -148,6 +148,137 @@ def get_synthesis_prompt(
     )
 
 
+def get_insider_prompt(ticker: str, insider_data: dict) -> str:
+    """Prompt for insider trading analysis agent."""
+    return (
+        f"You are an Insider Activity Analyst for {ticker}.\n\n"
+        "--- INSIDER TRADING DATA ---\n"
+        f"{json.dumps(insider_data, indent=2)}\n"
+        "----------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Cluster Analysis**: Are multiple insiders buying/selling at the same time? Multi-exec cluster buys within 30 days are a strong conviction signal.\n"
+        "2. **Size Context**: Evaluate the dollar amounts relative to executive compensation. Are these material bets or routine exercises?\n"
+        "3. **Timing Signal**: Cross-reference the timing of trades with known events (earnings, product launches, FDA decisions).\n"
+        "4. **Historical Pattern**: Is this buying/selling pattern unusual compared to the company's norm?\n\n"
+        "Provide a clear BULLISH/BEARISH/NEUTRAL assessment with specific evidence."
+    )
+
+
+def get_options_prompt(ticker: str, options_data: dict) -> str:
+    """Prompt for options flow analysis agent."""
+    return (
+        f"You are an Options Flow Analyst for {ticker}.\n\n"
+        "--- OPTIONS FLOW DATA ---\n"
+        f"{json.dumps(options_data, indent=2)}\n"
+        "-------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Put/Call Ratio**: Analyze the overall P/C ratio. Below 0.7 suggests bullish sentiment; above 1.0 is bearish.\n"
+        "2. **Unusual Activity**: Identify strikes with volume significantly exceeding open interest (>3x), which indicates new institutional positioning.\n"
+        "3. **Skew Analysis**: Is the options market pricing more downside protection (puts) or upside speculation (calls)?\n"
+        "4. **Institutional Footprint**: Large block trades at specific strikes often signal informed money flow.\n\n"
+        "Provide a clear BULLISH/BEARISH/NEUTRAL conclusion with supporting data points."
+    )
+
+
+def get_social_sentiment_prompt(ticker: str, sentiment_data: dict) -> str:
+    """Prompt for social/news sentiment analysis agent."""
+    return (
+        f"You are a Social Intelligence Analyst for {ticker}.\n\n"
+        "--- SOCIAL & NEWS SENTIMENT DATA ---\n"
+        f"{json.dumps(sentiment_data, indent=2)}\n"
+        "------------------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Sentiment Velocity**: Is sentiment improving or deteriorating over time? Calculate the momentum.\n"
+        "2. **Source Divergence**: Do different sources (mainstream news, social media, financial press) agree or diverge?\n"
+        "3. **Narrative Analysis**: What are the dominant narratives? Are they forward-looking or backward-looking?\n"
+        "4. **Contrarian Signal**: If sentiment is overwhelmingly one-directional, consider contrarian risk.\n\n"
+        "Provide a score from -1.0 (max bearish) to +1.0 (max bullish) and explain the key drivers."
+    )
+
+
+def get_patent_prompt(ticker: str, patent_data: dict) -> str:
+    """Prompt for patent/innovation analysis agent."""
+    return (
+        f"You are an Innovation Intelligence Analyst for {ticker}.\n\n"
+        "--- PATENT & INNOVATION DATA ---\n"
+        f"{json.dumps(patent_data, indent=2)}\n"
+        "--------------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Patent Velocity**: Analyze year-over-year patent filing trends. Growth ≥20% signals innovation acceleration.\n"
+        "2. **Technology Domains**: Which technology areas are being patented? Are they core to the company's strategy?\n"
+        "3. **Moat Building**: Do these patents represent defensive (incremental) or offensive (category-creating) innovation?\n"
+        "4. **Commercialization Timeline**: Estimate when these innovations could impact revenue (1-2 years, 3-5 years, or 5+ years).\n\n"
+        "Determine if there is evidence of a breakthrough R&D pipeline or just business-as-usual filing."
+    )
+
+
+def get_earnings_tone_prompt(ticker: str, transcript_data: dict) -> str:
+    """Prompt for earnings call tone analysis agent."""
+    return (
+        f"You are an Earnings Call Tone Analyst for {ticker}.\n\n"
+        "--- EARNINGS CALL TRANSCRIPT EXCERPT ---\n"
+        f"{json.dumps(transcript_data, indent=2)}\n"
+        "---------------------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Management Confidence**: Rate management's tone from 1-10. Look for hedging language ('we hope', 'we believe') vs conviction language ('we will', 'we are confident').\n"
+        "2. **Forward Guidance Signals**: Extract any forward-looking statements about revenue, margins, or market conditions.\n"
+        "3. **Red Flags**: Identify any evasive answers, topic changes, or unusual qualifications in the Q&A section.\n"
+        "4. **Key Themes**: What are the top 3 themes management is emphasizing? Are they aligned with analyst concerns?\n\n"
+        "Provide a CONFIDENT/CAUTIOUS/EVASIVE rating with supporting evidence from the transcript."
+    )
+
+
+def get_enhanced_macro_prompt(ticker: str, av_data: dict, fred_data: dict) -> str:
+    """Enhanced macro prompt that includes FRED economic indicators."""
+    return (
+        f"You are a Macroeconomic Strategist. Analyze the economic landscape in the context of {ticker}.\n\n"
+        "--- MARKET DATA ---\n"
+        f"{json.dumps(av_data.get('macro_summary', {}))}\n"
+        "--- FRED ECONOMIC INDICATORS ---\n"
+        f"{json.dumps(fred_data, indent=2)}\n"
+        "---------------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Rate Environment**: Analyze the Fed Funds Rate trajectory and 10Y-2Y yield spread. Is the curve inverted (recession signal) or normalizing?\n"
+        "2. **Inflation vs Growth**: Cross-reference CPI trends with GDP growth. Is the economy in stagflation, goldilocks, or overheating?\n"
+        "3. **Consumer Health**: Evaluate unemployment trends and consumer sentiment. Is the consumer weakening?\n"
+        f"4. **Sector Impact**: How do these macro conditions specifically affect {ticker}'s business model and sector?\n"
+        "5. **Policy Outlook**: Based on current data, what is the likely Fed policy direction in the next 6-12 months?\n\n"
+        "Provide a FAVORABLE/NEUTRAL/UNFAVORABLE assessment for the company and explain the transmission mechanism."
+    )
+
+
+def get_alt_data_prompt(ticker: str, alt_data: dict) -> str:
+    """Prompt for alternative data (Google Trends, etc.) analysis agent."""
+    return (
+        f"You are an Alternative Data Analyst for {ticker}.\n\n"
+        "--- ALTERNATIVE DATA SIGNALS ---\n"
+        f"{json.dumps(alt_data, indent=2)}\n"
+        "--------------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Search Interest Trends**: Analyze Google Trends data for momentum. Is public interest accelerating?\n"
+        "2. **Lead/Lag Relationship**: Historically, search interest often leads revenue by 1-2 quarters. What does the current trend imply?\n"
+        "3. **Related Queries**: What related search terms are rising? Do they indicate new product interest, concerns, or competitor attention?\n"
+        "4. **Cross-validate**: Does the search interest trend align with or contradict the financial data and sentiment analysis?\n\n"
+        "Provide a RISING/STABLE/DECLINING assessment with a confidence interval."
+    )
+
+
+def get_sector_analysis_prompt(ticker: str, sector_data: dict) -> str:
+    """Prompt for sector relative strength and rotation analysis agent."""
+    return (
+        f"You are a Sector Rotation & Relative Strength Analyst for {ticker}.\n\n"
+        "--- SECTOR ANALYSIS DATA ---\n"
+        f"{json.dumps(sector_data, indent=2)}\n"
+        "----------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Sector Rotation**: Which sectors are in favor (outperforming S&P 500) vs out of favor? Where does {ticker}'s sector sit in the rotation cycle?\n"
+        "2. **Relative Strength**: Is {ticker} outperforming its sector ETF? Across what time frames (1M, 3M, 6M, 1Y)?\n"
+        "3. **Peer Comparison**: How does {ticker} compare to its peers on valuation (P/E), growth (revenue growth), profitability (margins, ROE), and market cap?\n"
+        "4. **Tailwind/Headwind**: Is the sector providing a tailwind (sector up, stock up) or is the stock fighting headwinds (sector down, stock flat/up)?\n\n"
+        "Provide a DOUBLE_TAILWIND/SECTOR_TAILWIND/STOCK_OUTPERFORMING/NEUTRAL/LAGGING assessment."
+    )
+
+
 def get_critic_prompt(ticker: str, draft_report: str, quant_data: dict) -> str:
     try:
         draft_obj_str = json.dumps(json.loads(draft_report), indent=2)
@@ -158,4 +289,149 @@ def get_critic_prompt(ticker: str, draft_report: str, quant_data: dict) -> str:
         ticker=ticker,
         quant_data=json.dumps(quant_data, indent=2),
         draft_report=draft_obj_str,
+    )
+
+
+# ── Debate Framework Prompts ────────────────────────────────────
+
+
+def get_bull_agent_prompt(ticker: str, signals_json: str, trace_json: str) -> str:
+    """Bull Agent: synthesize the strongest investment case."""
+    return (
+        f"You are the Bull Agent — an aggressive investment advocate for {ticker}. "
+        "Your job is to build the STRONGEST possible bullish case using the enrichment signals below.\n\n"
+        "--- ENRICHMENT SIGNALS ---\n"
+        f"{signals_json}\n"
+        "--- AGENT DECISION TRACES ---\n"
+        f"{trace_json}\n"
+        "----------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. Identify EVERY bullish signal across all data sources.\n"
+        "2. Build a coherent investment thesis explaining why this stock should be bought.\n"
+        "3. Assign a confidence score (0.0-1.0) to your overall bull case.\n"
+        "4. List your top 5 catalysts that could drive the stock higher.\n"
+        "5. For each catalyst, cite the specific data source and evidence.\n\n"
+        "**OUTPUT FORMAT (JSON):**\n"
+        '{"thesis": "...", "confidence": 0.XX, "key_catalysts": ["...", "..."], '
+        '"evidence": [{"source": "...", "data_point": "...", "interpretation": "..."}]}'
+    )
+
+
+def get_bear_agent_prompt(ticker: str, signals_json: str, trace_json: str) -> str:
+    """Bear Agent: synthesize the strongest risk case."""
+    return (
+        f"You are the Bear Agent — a skeptical risk analyst for {ticker}. "
+        "Your job is to build the STRONGEST possible bearish case using the enrichment signals below.\n\n"
+        "--- ENRICHMENT SIGNALS ---\n"
+        f"{signals_json}\n"
+        "--- AGENT DECISION TRACES ---\n"
+        f"{trace_json}\n"
+        "----------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. Identify EVERY bearish signal, risk factor, and red flag across all data sources.\n"
+        "2. Build a coherent risk thesis explaining why this stock should be avoided or sold.\n"
+        "3. Assign a confidence score (0.0-1.0) to your overall bear case.\n"
+        "4. List your top 5 threats that could drive the stock lower.\n"
+        "5. For each threat, cite the specific data source and evidence.\n\n"
+        "**OUTPUT FORMAT (JSON):**\n"
+        '{"thesis": "...", "confidence": 0.XX, "key_threats": ["...", "..."], '
+        '"evidence": [{"source": "...", "data_point": "...", "interpretation": "..."}]}'
+    )
+
+
+def get_moderator_prompt(ticker: str, bull_case: str, bear_case: str, signals_json: str) -> str:
+    """Moderator Agent: resolve contradictions and assign consensus."""
+    return (
+        f"You are the Moderator Agent for the {ticker} investment debate. "
+        "You have received arguments from both the Bull Agent and Bear Agent. "
+        "Your job is to evaluate both cases objectively and reach a consensus.\n\n"
+        "--- BULL CASE ---\n"
+        f"{bull_case}\n"
+        "--- BEAR CASE ---\n"
+        f"{bear_case}\n"
+        "--- RAW SIGNALS ---\n"
+        f"{signals_json}\n"
+        "-------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. Identify specific CONTRADICTIONS between the bull and bear cases.\n"
+        "2. For each contradiction, determine which side has stronger evidence.\n"
+        "3. Assign a final consensus recommendation: STRONG_BUY / BUY / HOLD / SELL / STRONG_SELL.\n"
+        "4. Assign a consensus confidence score (0.0-1.0).\n"
+        "5. Register any agents whose signals were overruled (dissent registry).\n\n"
+        "**OUTPUT FORMAT (JSON ONLY, no markdown):**\n"
+        "{\n"
+        '  "consensus": "BUY",\n'
+        '  "consensus_confidence": 0.72,\n'
+        '  "bull_case": {"thesis": "...", "confidence": 0.XX, "key_catalysts": [...]},\n'
+        '  "bear_case": {"thesis": "...", "confidence": 0.XX, "key_threats": [...]},\n'
+        '  "contradictions": [\n'
+        '    {"topic": "...", "bull_view": "...", "bear_view": "...", "resolution": "...", "winner": "bull|bear"}\n'
+        "  ],\n"
+        '  "dissent_registry": [\n'
+        '    {"agent": "...", "position": "...", "reason": "..."}\n'
+        "  ]\n"
+        "}"
+    )
+
+
+# ── New Enrichment Agent Prompts ────────────────────────────────
+
+
+def get_nlp_sentiment_prompt(ticker: str, nlp_data: dict) -> str:
+    """Prompt for transformer-based NLP sentiment analysis agent."""
+    return (
+        f"You are an NLP Sentiment Specialist for {ticker}, using transformer embeddings.\n\n"
+        "--- NLP SENTIMENT DATA ---\n"
+        f"{json.dumps(nlp_data, indent=2)}\n"
+        "--------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Contextual Sentiment**: Analyze the embedding-based sentiment scores. These capture nuance that keyword-based analysis misses.\n"
+        "2. **Source Reliability**: Weight sources by reliability (SEC filings > financial press > mainstream news > social media).\n"
+        "3. **Sentiment Divergence**: Do different article clusters show diverging sentiment? This could indicate uncertainty.\n"
+        "4. **Confidence Assessment**: How confident are you in the overall sentiment reading? Low article count or high variance = low confidence.\n\n"
+        "Provide a score from -1.0 (max bearish) to +1.0 (max bullish) with a confidence level (0.0-1.0).\n"
+        "**OUTPUT FORMAT (JSON):**\n"
+        '{"sentiment_score": 0.XX, "confidence": 0.XX, "key_themes": ["..."], "source_breakdown": {"...": 0.XX}}'
+    )
+
+
+def get_anomaly_detection_prompt(ticker: str, anomaly_data: dict) -> str:
+    """Prompt for statistical anomaly interpretation agent."""
+    return (
+        f"You are a Statistical Anomaly Analyst for {ticker}.\n\n"
+        "--- ANOMALY DETECTION RESULTS ---\n"
+        f"{json.dumps(anomaly_data, indent=2)}\n"
+        "---------------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **Interpret Anomalies**: For each metric with |Z-score| > 2, explain what it means in plain language.\n"
+        "2. **Classify**: Is each anomaly an OPPORTUNITY (mispricing, temporary dislocation) or a RISK (deteriorating fundamentals, structural break)?\n"
+        "3. **Prioritize**: Rank anomalies by severity and actionability.\n"
+        "4. **Cross-Reference**: Do multiple anomalies point to the same underlying thesis?\n\n"
+        "**OUTPUT FORMAT (JSON):**\n"
+        '{"anomalies": [{"metric": "...", "z_score": X.X, "classification": "OPPORTUNITY|RISK", '
+        '"explanation": "...", "actionability": "HIGH|MEDIUM|LOW"}], '
+        '"overall_signal": "ANOMALY_OPPORTUNITY|ANOMALY_RISK|NORMAL", '
+        '"summary": "..."}'
+    )
+
+
+def get_scenario_analysis_prompt(ticker: str, monte_carlo_data: dict) -> str:
+    """Prompt for Monte Carlo scenario interpretation agent."""
+    return (
+        f"You are a Risk Scenario Analyst for {ticker}.\n\n"
+        "--- MONTE CARLO SIMULATION RESULTS ---\n"
+        f"{json.dumps(monte_carlo_data, indent=2)}\n"
+        "--------------------------------------\n\n"
+        "**YOUR TASK:**\n"
+        "1. **VaR Interpretation**: Explain the 95% and 99% Value-at-Risk in practical terms. What is the maximum expected loss?\n"
+        "2. **Expected Shortfall**: What happens in the worst 5% of scenarios? How bad could it get?\n"
+        "3. **Probability Assessment**: What is the probability of a ≥20% gain vs ≥20% loss over different horizons?\n"
+        "4. **Position Sizing**: Based on these risk metrics, what position size would be appropriate for different risk tolerances (conservative/moderate/aggressive)?\n"
+        "5. **Distribution Shape**: Is the return distribution skewed? Fat tails? What does this imply?\n\n"
+        "**OUTPUT FORMAT (JSON):**\n"
+        '{"risk_profile": "LOW|MODERATE|HIGH|EXTREME", '
+        '"var_95_interpretation": "...", '
+        '"expected_shortfall_warning": "...", '
+        '"position_sizing": {"conservative": "X%", "moderate": "X%", "aggressive": "X%"}, '
+        '"summary": "..."}'
     )

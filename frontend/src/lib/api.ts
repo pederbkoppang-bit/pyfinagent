@@ -3,9 +3,12 @@
  */
 
 import type {
+  AllSignals,
   AnalysisResponse,
   AnalysisStatusResponse,
   PerformanceStats,
+  PortfolioPerformance,
+  PortfolioPosition,
   ReportSummary,
 } from "./types";
 
@@ -22,6 +25,12 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   } catch (err) {
     // Network-level failure (CORS, DNS, refused, etc.)
     const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+      throw new Error(
+        `Cannot reach backend at ${API_BASE}. ` +
+        "Make sure the FastAPI server is running (uvicorn backend.main:app --port 8000)."
+      );
+    }
     throw new Error(`Network error calling ${path}: ${msg}`);
   }
   if (!res.ok) {
@@ -31,6 +40,15 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       detail = body.detail ?? JSON.stringify(body);
     } catch {
       detail = await res.text();
+    }
+    if (res.status === 422) {
+      throw new Error(`Invalid request to ${path}: ${detail}`);
+    }
+    if (res.status === 500) {
+      throw new Error(`Server error on ${path}. Check the backend logs for details.`);
+    }
+    if (res.status === 404) {
+      throw new Error(`Endpoint not found: ${path}. The backend may be running an older version.`);
     }
     throw new Error(`API ${res.status} on ${path}: ${detail}`);
   }
@@ -79,4 +97,45 @@ export function evaluateOutcomes(): Promise<{
 
 export function healthCheck(): Promise<{ status: string; service: string }> {
   return apiFetch("/api/health");
+}
+
+// ── Signals ─────────────────────────────────────────────────────
+
+export function getAllSignals(ticker: string): Promise<AllSignals> {
+  return apiFetch(`/api/signals/${encodeURIComponent(ticker.toUpperCase())}`);
+}
+
+export function getSignal(ticker: string, signal: string): Promise<Record<string, unknown>> {
+  return apiFetch(`/api/signals/${encodeURIComponent(ticker.toUpperCase())}/${signal}`);
+}
+
+export function getMacroIndicators(): Promise<Record<string, unknown>> {
+  return apiFetch("/api/signals/macro/indicators");
+}
+
+// ── Portfolio ───────────────────────────────────────────────────
+
+export function listPortfolioPositions(): Promise<PortfolioPosition[]> {
+  return apiFetch("/api/portfolio/");
+}
+
+export function addPortfolioPosition(body: {
+  ticker: string;
+  quantity: number;
+  avg_entry_price: number;
+  recommendation?: string;
+  recommendation_score?: number;
+}): Promise<PortfolioPosition> {
+  return apiFetch("/api/portfolio/", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deletePortfolioPosition(id: string): Promise<{ message: string }> {
+  return apiFetch(`/api/portfolio/${id}`, { method: "DELETE" });
+}
+
+export function getPortfolioPerformance(): Promise<PortfolioPerformance> {
+  return apiFetch("/api/portfolio/performance");
 }

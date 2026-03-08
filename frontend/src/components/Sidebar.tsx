@@ -6,9 +6,11 @@ import { clsx } from "clsx";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: "🏠" },
+  { href: "/signals", label: "Signals", icon: "📡" },
   { href: "/reports", label: "Past Reports", icon: "📜" },
   { href: "/compare", label: "Compare", icon: "🔀" },
   { href: "/performance", label: "Performance", icon: "📈" },
+  { href: "/portfolio", label: "Portfolio", icon: "💼" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
