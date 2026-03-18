@@ -26,3 +26,6 @@ fpdf2>=2.7.0
 # Utilities
 python-dotenv>=1.0.0
 python-multipart>=0.0.9
+
+# Memory (BM25 lexical similarity for agent learning)
+rank-bm25>=0.2.2

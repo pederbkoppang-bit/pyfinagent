@@ -28,15 +28,22 @@ async def _resolve_cik(client: httpx.AsyncClient, ticker: str) -> str | None:
     if upper in _cik_cache:
         return _cik_cache[upper]
 
-    resp = await client.get(SEC_TICKERS_URL)
-    resp.raise_for_status()
+    for attempt in range(3):
+        resp = await client.get(SEC_TICKERS_URL)
+        if resp.status_code == 429:
+            wait = 2 ** attempt + 1
+            logger.warning("SEC 429 rate-limit on CIK fetch, retrying in %ds...", wait)
+            await asyncio.sleep(wait)
+            continue
+        resp.raise_for_status()
+        for entry in resp.json().values():
+            t = entry.get("ticker", "").upper()
+            cik = str(entry.get("cik_str", "")).zfill(10)
+            _cik_cache[t] = cik
+        return _cik_cache.get(upper)
 
-    for entry in resp.json().values():
-        t = entry.get("ticker", "").upper()
-        cik = str(entry.get("cik_str", "")).zfill(10)
-        _cik_cache[t] = cik
-
-    return _cik_cache.get(upper)
+    logger.error("SEC CIK fetch failed after 3 retries (429)")
+    return None
 
 
 def _parse_form4_xml(xml_text: str) -> list[dict]:
@@ -130,9 +137,15 @@ async def _fetch_form4(
 
     async with sem:
         try:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            return _parse_form4_xml(resp.text)
+            for attempt in range(3):
+                resp = await client.get(url)
+                if resp.status_code == 429:
+                    await asyncio.sleep(2 ** attempt + 1)
+                    continue
+                resp.raise_for_status()
+                return _parse_form4_xml(resp.text)
+            logger.debug("Form 4 %s: 429 after retries", accession)
+            return []
         except Exception as exc:
             logger.debug("Failed to fetch Form 4 %s: %s", accession, exc)
             return []
@@ -154,9 +167,20 @@ async def get_insider_trades(ticker: str, months: int = 6) -> dict:
                     "summary": f"Could not resolve CIK for {ticker}.",
                 }
 
-            resp = await client.get(SEC_SUBMISSIONS_URL.format(cik=cik))
-            resp.raise_for_status()
-            data = resp.json()
+            for attempt in range(3):
+                resp = await client.get(SEC_SUBMISSIONS_URL.format(cik=cik))
+                if resp.status_code == 429:
+                    logger.warning("SEC 429 on submissions API, retrying in %ds...", 2 ** attempt + 1)
+                    await asyncio.sleep(2 ** attempt + 1)
+                    continue
+                resp.raise_for_status()
+                data = resp.json()
+                break
+            else:
+                return {
+                    "ticker": ticker, "trades": [], "signal": "UNKNOWN",
+                    "summary": f"SEC rate limit (429) for {ticker} after retries.",
+                }
 
         # Gather Form 4 filing metadata
         recent = data.get("filings", {}).get("recent", {})
@@ -185,8 +209,8 @@ async def get_insider_trades(ticker: str, months: int = 6) -> dict:
                 "summary": f"No Form 4 filings for {ticker} in {months} months.",
             }
 
-        # Fetch Form 4 XMLs concurrently (max 5 at a time for SEC rate-limit)
-        sem = asyncio.Semaphore(5)
+        # Fetch Form 4 XMLs concurrently (max 3 at a time for SEC rate-limit)
+        sem = asyncio.Semaphore(3)
         async with httpx.AsyncClient(timeout=30, headers=SEC_HEADERS) as client:
             tasks = [
                 _fetch_form4(client, sem, cik, acc, doc)

@@ -73,6 +73,57 @@ async def evaluate_outcomes(settings: Settings = Depends(get_settings)):
         )
 
 
+@router.get("/cost-history")
+async def get_cost_history(limit: int = 50, bq: BigQueryClient = Depends(_get_bq)):
+    """Get cost/token usage history for past analyses."""
+    try:
+        return bq.get_cost_history(limit=limit)
+    except GoogleAPIError as exc:
+        logger.error("BigQuery error fetching cost history: %s", exc, exc_info=True)
+        raise HTTPException(status_code=502, detail=f"BigQuery error: {exc}")
+    except Exception as exc:
+        logger.error("Error fetching cost history: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch cost history: {type(exc).__name__}: {exc}",
+        )
+
+
+@router.get("/latest-cost-summary")
+async def get_latest_cost_summary(bq: BigQueryClient = Depends(_get_bq)):
+    """Get the per-agent cost breakdown from the most recent analysis.
+
+    This extracts the cost_summary object from full_report_json of the latest
+    report, providing real token counts per agent for the cost estimator.
+    """
+    try:
+        rows = bq.get_recent_reports(limit=1)
+        if not rows:
+            return {"agents": [], "total_cost_usd": 0, "total_tokens": 0}
+        latest = rows[0]
+        # Fetch the full report to get cost_summary from full_report_json
+        report = bq.get_report(latest["ticker"])
+        if not report:
+            return {"agents": [], "total_cost_usd": 0, "total_tokens": 0}
+        full_json = report.get("full_report_json")
+        if isinstance(full_json, dict):
+            cost_summary = full_json.get("cost_summary") or full_json.get("final_synthesis", {}).get("cost_summary")
+            if cost_summary:
+                cost_summary["ticker"] = latest["ticker"]
+                cost_summary["analysis_date"] = latest.get("analysis_date", "")
+                return cost_summary
+        return {"agents": [], "total_cost_usd": 0, "total_tokens": 0, "ticker": latest["ticker"]}
+    except GoogleAPIError as exc:
+        logger.error("BigQuery error fetching latest cost summary: %s", exc, exc_info=True)
+        raise HTTPException(status_code=502, detail=f"BigQuery error: {exc}")
+    except Exception as exc:
+        logger.error("Error fetching latest cost summary: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch latest cost summary: {type(exc).__name__}: {exc}",
+        )
+
+
 @router.get("/{ticker}")
 async def get_report(ticker: str, bq: BigQueryClient = Depends(_get_bq)):
     """Get the latest report for a specific ticker."""

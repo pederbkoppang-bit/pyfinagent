@@ -16,17 +16,18 @@ import { StockChart } from "@/components/StockChart";
 import { EvaluationTable } from "@/components/EvaluationTable";
 import { ValuationRange } from "@/components/ValuationRange";
 import { ResearchInvestigator } from "@/components/ResearchInvestigator";
-import { PdfDownload } from "@/components/PdfDownload";
 import { DebateView } from "@/components/DebateView";
 import type { DebateResult } from "@/components/DebateView";
-import { RiskDashboard } from "@/components/RiskDashboard";
+import { RiskDashboard, RiskAssessmentPanel } from "@/components/RiskDashboard";
 import type { RiskDataPayload } from "@/components/RiskDashboard";
 import { BiasReport } from "@/components/BiasReport";
+import { CostDashboard } from "@/components/CostDashboard";
 import { getAnalysisStatus, startAnalysis } from "@/lib/api";
 import type {
   AnalysisStatusResponse,
   SynthesisReport,
   EnrichmentSignals,
+  CostSummary,
   DecisionTrace,
 } from "@/lib/types";
 
@@ -141,7 +142,7 @@ export default function DashboardPage() {
 
         {/* Progress (while running) */}
         {status && !report && (
-          <div className="mb-8 max-w-md">
+          <div className="mb-8">
             <AnalysisProgress status={status} />
           </div>
         )}
@@ -152,19 +153,22 @@ export default function DashboardPage() {
           const debateResult = report.debate_result as DebateResult | undefined;
           const riskData = report.risk_data as RiskDataPayload | undefined;
           const decisionTraces = report.decision_traces as DecisionTrace[] | undefined;
+        const costSummary = report.cost_summary as CostSummary | undefined;
 
-          // Count badges for tabs
-          const signalCount = enrichmentSignals ? Object.keys(enrichmentSignals).length : 0;
-          const anomalyCount = (riskData?.anomalies?.anomaly_count) ?? 0;
-          const biasCount = (report.bias_report as Record<string, unknown> | undefined)?.bias_count as number | undefined;
+        // Count badges for tabs
+        const signalCount = enrichmentSignals ? Object.keys(enrichmentSignals).length : 0;
+        const anomalyCount = (riskData?.anomalies?.anomaly_count) ?? 0;
+        const biasCount = (report.bias_report as Record<string, unknown> | undefined)?.bias_count as number | undefined;
+        const costBadge = costSummary?.total_cost_usd != null ? `$${costSummary.total_cost_usd < 0.01 ? costSummary.total_cost_usd.toFixed(4) : costSummary.total_cost_usd.toFixed(2)}` : null;
 
-          const tabs: TabDef[] = [
-            { id: "overview", label: "Overview", icon: "📋" },
-            { id: "signals", label: "Signals", icon: "📡", badge: signalCount > 0 ? signalCount : null },
-            { id: "debate", label: "Debate", icon: "⚖️", badge: debateResult?.consensus || null },
-            { id: "risk", label: "Risk", icon: "🎯", badge: anomalyCount > 0 ? `${anomalyCount} anomalies` : null },
-            { id: "audit", label: "Audit", icon: "🔍", badge: biasCount != null && biasCount > 0 ? `${biasCount} flags` : null },
-          ];
+        const tabs: TabDef[] = [
+          { id: "overview", label: "Overview", icon: "📋" },
+          { id: "signals", label: "Signals", icon: "📡", badge: signalCount > 0 ? signalCount : null },
+          { id: "debate", label: "Debate", icon: "⚖️", badge: debateResult?.consensus || null },
+          { id: "risk", label: "Risk", icon: "🎯", badge: anomalyCount > 0 ? `${anomalyCount} anomalies` : null },
+          { id: "audit", label: "Audit", icon: "🔍", badge: biasCount != null && biasCount > 0 ? `${biasCount} flags` : null },
+          { id: "cost", label: "Cost", icon: "💰", badge: costBadge },
+        ];
 
           return (
             <div className="space-y-6">
@@ -206,12 +210,9 @@ export default function DashboardPage() {
                           <RisksCard risks={report.key_risks} />
                         </div>
 
-                        {/* Scoring Matrix + PDF */}
-                        <div className="col-span-12 md:col-span-8">
+                        {/* Scoring Matrix */}
+                        <div className="col-span-12">
                           <ScoringMatrixCard report={report} />
-                        </div>
-                        <div className="col-span-12 md:col-span-4 flex flex-col gap-4">
-                          <PdfDownload ticker={activeTicker} report={report} financials={financials} className="w-full" />
                         </div>
                       </div>
                     )}
@@ -252,6 +253,9 @@ export default function DashboardPage() {
                             Risk data not available for this analysis.
                           </div>
                         )}
+                        {report?.risk_assessment && (
+                          <RiskAssessmentPanel data={report.risk_assessment} />
+                        )}
                         <StockChart
                           ticker={activeTicker}
                           currentPrice={(financials as Record<string, Record<string, number>> | null)?.valuation?.["Current Price"] ?? undefined}
@@ -273,6 +277,11 @@ export default function DashboardPage() {
                           <ResearchInvestigator ticker={activeTicker} />
                         </div>
                       </div>
+                    )}
+
+                    {/* ── COST TAB ── */}
+                    {activeTab === "cost" && (
+                      <CostDashboard costSummary={costSummary} />
                     )}
                   </>
                 )}

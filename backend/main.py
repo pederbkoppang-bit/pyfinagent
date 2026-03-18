@@ -14,7 +14,9 @@ from backend.api.charts import router as charts_router
 from backend.api.investigate import router as investigate_router
 from backend.api.portfolio import router as portfolio_router
 from backend.api.reports import router as reports_router
+from backend.api.settings_api import router as settings_router
 from backend.api.signals import router as signals_router
+from backend.api.skills import router as skills_router
 from backend.config.settings import get_settings
 
 
@@ -72,7 +74,9 @@ app.include_router(charts_router)
 app.include_router(investigate_router)
 app.include_router(portfolio_router)
 app.include_router(reports_router)
+app.include_router(settings_router)
 app.include_router(signals_router)
+app.include_router(skills_router)
 
 
 @app.get("/api/health")

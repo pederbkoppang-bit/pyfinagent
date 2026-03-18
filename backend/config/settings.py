@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     gcp_credentials_json: str = Field("", description="Service account JSON string (optional, falls back to ADC)")
 
     # --- Vertex AI ---
-    gemini_model: str = Field("gemini-2.0-flash", description="Gemini model name")
+    gemini_model: str = Field("gemini-2.0-flash", description="Gemini model name for standard agents")
+    deep_think_model: str = Field("", description="Model for deep-think agents (Moderator, Risk Judge, Synthesis, Critic). Defaults to gemini_model if empty.")
     rag_data_store_id: str = Field(..., description="Vertex AI Search datastore ID")
 
     # --- BigQuery ---
@@ -62,6 +63,20 @@ class Settings(BaseSettings):
     weight_valuation: float = 0.20
     weight_sentiment: float = 0.15
     weight_governance: float = 0.10
+
+    # --- Debate Depth (configurable) ---
+    max_debate_rounds: int = Field(2, description="Number of Bull↔Bear exchange rounds (1-5)")
+    max_risk_debate_rounds: int = Field(1, description="Number of Agg/Con/Neu risk debate rounds (1-3)")
+
+    # --- Quality Gate Thresholds (configurable) ---
+    data_quality_min: float = Field(0.5, description="Minimum data quality score (0-1) before skipping debate/risk steps")
+    conflict_escalation_threshold: int = Field(5, description="Conflict count that triggers +1 debate round")
+    critic_major_issues_threshold: int = Field(3, description="Major Critic issues that trigger deep-think re-synthesis")
+
+    # --- Cost Controls ---
+    lite_mode: bool = Field(False, description="Cost-saving mode: skips deep dive, devil's advocate, reflection loop, and risk assessment (~50% fewer LLM calls)")
+    max_analysis_cost_usd: float = Field(0.50, description="Soft budget per analysis in USD. Logs warnings when exceeded; does not abort.")
+    max_synthesis_iterations: int = Field(2, ge=1, le=3, description="Maximum Synthesis↔Critic reflection loop iterations (1=no reflection)")
 
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}
 

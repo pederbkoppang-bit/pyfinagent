@@ -145,7 +145,7 @@ def _run_bq_query(pattern: str, start_date: int) -> dict:
     ]
 
     # 1. Get counts per year
-    count_config = bigquery.QueryJobConfig(query_parameters=params)
+    count_config = bigquery.QueryJobConfig(query_parameters=params, job_timeout_ms=30000)
     count_job = client.query(_COUNT_QUERY, job_config=count_config)
     by_year: dict[int, int] = {}
     total_citations = 0
@@ -154,7 +154,7 @@ def _run_bq_query(pattern: str, start_date: int) -> dict:
         total_citations += row.total_citations or 0
 
     # 2. Get recent patents for display
-    recent_config = bigquery.QueryJobConfig(query_parameters=params)
+    recent_config = bigquery.QueryJobConfig(query_parameters=params, job_timeout_ms=30000)
     recent_job = client.query(_RECENT_QUERY, job_config=recent_config)
     recent = []
     for row in recent_job.result():

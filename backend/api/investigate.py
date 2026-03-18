@@ -76,10 +76,18 @@ async def investigate(
                         )
                     )
 
+        # Grounded responses may have multiple content parts;
+        # response.text raises ValueError in that case.
+        try:
+            answer_text = response.text
+        except ValueError:
+            parts = response.candidates[0].content.parts
+            answer_text = "\n".join(p.text for p in parts if hasattr(p, "text") and p.text)
+
         return InvestigateResponse(
             ticker=ticker,
             question=question,
-            answer=response.text,
+            answer=answer_text,
             citations=citations,
         )
 

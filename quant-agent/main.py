@@ -2,6 +2,7 @@ import functions_framework
 import requests
 import json
 import sys
+import time
 import traceback
 import yfinance as yf
 import os
@@ -57,21 +58,27 @@ def get_cik_map():
         return _cik_map_cache
 
     logging.info("Fetching and caching SEC CIK map...")
-    try:
-        headers = {'User-Agent': f"PyFinAgent {YOUR_EMAIL}"}
-        response = requests.get(CIK_MAP_URL, headers=headers)
-        response.raise_for_status()
-        company_data = response.json()
-        _cik_map_cache = {
-            item['ticker']: str(item['cik_str']).zfill(10)
-            for item in company_data.values()
-        }
-        return _cik_map_cache
-    except Exception as e:
-        logging.error(f"Failed to fetch CIK map: {e}")
-        # Do not raise an exception here during startup.
-        # Instead, return None and let the calling function handle the error.
-        return None
+    headers = {'User-Agent': f"PyFinAgent {YOUR_EMAIL}"}
+    for attempt in range(3):
+        try:
+            response = requests.get(CIK_MAP_URL, headers=headers)
+            if response.status_code == 429:
+                wait = 2 ** attempt + 1
+                logging.warning(f"SEC 429 rate-limit on CIK map, retrying in {wait}s...")
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+            company_data = response.json()
+            _cik_map_cache = {
+                item['ticker']: str(item['cik_str']).zfill(10)
+                for item in company_data.values()
+            }
+            return _cik_map_cache
+        except Exception as e:
+            logging.error(f"Failed to fetch CIK map (attempt {attempt + 1}): {e}")
+            if attempt < 2:
+                time.sleep(2 ** attempt + 1)
+    return None
 
 def get_cik(ticker: str) -> str:
     """Gets a 10-digit CIK string for a given ticker."""

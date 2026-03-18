@@ -29,6 +29,9 @@ export interface SynthesisReport {
   risk_data?: RiskData;
   bias_report?: BiasReportData;
   conflict_report?: ConflictReportData;
+  risk_assessment?: RiskAssessment;
+  info_gap_report?: InfoGapReport;
+  cost_summary?: CostSummary;
 }
 
 export interface AnalysisResponse {
@@ -37,12 +40,21 @@ export interface AnalysisResponse {
   status: AnalysisStatus;
 }
 
+export interface StepLogEntry {
+  step: string;
+  status: string;
+  message: string;
+  timestamp: string;
+}
+
 export interface AnalysisStatusResponse {
   analysis_id: string;
   ticker: string;
   status: AnalysisStatus;
   current_step?: string;
   steps_completed: string[];
+  message?: string;
+  step_log?: StepLogEntry[];
   error?: string;
   report?: SynthesisReport;
 }
@@ -208,6 +220,26 @@ export interface DebateResult {
   contradictions: DebateContradiction[];
   dissent_registry: DebateDissent[];
   moderator_analysis?: string;
+  // Multi-round debate additions (backward-compatible)
+  debate_rounds?: DebateRound[];
+  total_rounds?: number;
+  devils_advocate?: DevilsAdvocate;
+}
+
+export interface DebateRound {
+  round: number;
+  bull_argument: string;
+  bear_argument: string;
+}
+
+export interface DevilsAdvocate {
+  challenges: string[];
+  hidden_risks?: string[];
+  bull_weakness?: string;
+  bear_weakness?: string;
+  groupthink_flag?: string;
+  confidence_adjustment?: number;
+  summary?: string;
 }
 
 // ── Risk & Monte Carlo Types ─────────────────────────────────────
@@ -299,4 +331,128 @@ export interface ConflictReportData {
   conflicts: KnowledgeConflict[];
   conflict_count: number;
   overall_reliability: string;
+}
+
+// ── Risk Assessment Team Types ───────────────────────────────────
+
+export interface RiskAnalystCase {
+  position: string;
+  confidence: number;
+  max_position_pct?: number;
+  [key: string]: unknown;
+}
+
+export interface RiskJudgeVerdict {
+  decision: string;
+  risk_adjusted_confidence: number;
+  recommended_position_pct: number;
+  risk_level: string;
+  reasoning: string;
+  risk_limits?: { stop_loss_pct?: number; max_drawdown_pct?: number };
+  unresolved_risks?: string[];
+  summary: string;
+}
+
+export interface RiskAssessment {
+  aggressive: RiskAnalystCase;
+  conservative: RiskAnalystCase;
+  neutral: RiskAnalystCase;
+  judge: RiskJudgeVerdict;
+  risk_debate_rounds?: RiskDebateRound[];
+  total_risk_rounds?: number;
+}
+
+export interface RiskDebateRound {
+  round: number;
+  aggressive_argument: string;
+  conservative_argument: string;
+  neutral_argument: string;
+}
+
+// ── Info-Gap Detection Types ─────────────────────────────────────
+
+export interface InfoGap {
+  source: string;
+  status: string;
+  criticality: string;
+  impact: string;
+}
+
+export interface InfoGapReport {
+  gaps: InfoGap[];
+  data_quality_score: number;
+  critical_gaps: string[];
+  recommendation_at_risk: boolean;
+  summary: string;
+}
+
+// ── Cost Tracking Types ──────────────────────────────────────────
+
+export interface AgentCostEntry {
+  agent_name: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cost_usd: number;
+  is_deep_think: boolean;
+}
+
+export interface ModelBreakdown {
+  calls: number;
+  tokens: number;
+  cost_usd: number;
+}
+
+export interface CostSummary {
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_tokens: number;
+  total_cost_usd: number;
+  total_calls: number;
+  deep_think_calls: number;
+  model_breakdown: Record<string, ModelBreakdown>;
+  agents: AgentCostEntry[];
+}
+
+export interface CostHistoryEntry {
+  ticker: string;
+  analysis_date: string;
+  total_tokens: number | null;
+  total_cost_usd: number | null;
+  deep_think_calls: number | null;
+}
+
+export interface ModelPricing {
+  model: string;
+  input_per_1m: number;
+  output_per_1m: number;
+}
+
+export interface ModelConfig {
+  gemini_model: string;
+  deep_think_model: string;
+  max_debate_rounds: number;
+  max_risk_debate_rounds: number;
+}
+
+export interface FullSettings {
+  gemini_model: string;
+  deep_think_model: string;
+  max_debate_rounds: number;
+  max_risk_debate_rounds: number;
+  weight_corporate: number;
+  weight_industry: number;
+  weight_valuation: number;
+  weight_sentiment: number;
+  weight_governance: number;
+  data_quality_min: number;
+  lite_mode: boolean;
+  max_analysis_cost_usd: number;
+  max_synthesis_iterations: number;
+}
+
+export interface LatestCostSummary extends CostSummary {
+  ticker?: string;
+  analysis_date?: string;
 }

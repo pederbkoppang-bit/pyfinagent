@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { clsx } from "clsx";
 
 interface Contradiction {
@@ -24,6 +25,22 @@ interface CaseDetail {
   evidence?: Array<{ source: string; data_point: string; interpretation: string }>;
 }
 
+interface DebateRound {
+  round: number;
+  bull_argument: string;
+  bear_argument: string;
+}
+
+interface DevilsAdvocate {
+  challenges?: string[];
+  hidden_risks?: string[];
+  bull_weakness?: string;
+  bear_weakness?: string;
+  groupthink_flag?: string;
+  confidence_adjustment?: number;
+  summary?: string;
+}
+
 export interface DebateResult {
   bull_case: CaseDetail;
   bear_case: CaseDetail;
@@ -32,6 +49,9 @@ export interface DebateResult {
   contradictions: Contradiction[];
   dissent_registry: Dissent[];
   moderator_analysis?: string;
+  debate_rounds?: DebateRound[];
+  total_rounds?: number;
+  devils_advocate?: DevilsAdvocate;
 }
 
 function ConfidenceBar({ value, color }: { value: number; color: string }) {
@@ -65,7 +85,12 @@ function ConsensusLabel({ consensus }: { consensus: string }) {
 }
 
 export function DebateView({ debate }: { debate: DebateResult }) {
+  const [showRounds, setShowRounds] = useState(false);
+
   if (!debate) return null;
+
+  const rounds = debate.debate_rounds || [];
+  const da = debate.devils_advocate;
 
   return (
     <div className="space-y-4">
@@ -77,7 +102,9 @@ export function DebateView({ debate }: { debate: DebateResult }) {
               ⚖️ Agent Debate Consensus
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              4-round adversarial debate: Bull vs Bear with Moderator resolution
+              {debate.total_rounds || 1}-round adversarial debate
+              {da ? " + Devil's Advocate" : ""}
+              {" "}with Moderator resolution
             </p>
           </div>
           <ConsensusLabel consensus={debate.consensus || "HOLD"} />
@@ -228,6 +255,97 @@ export function DebateView({ debate }: { debate: DebateResult }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Devil's Advocate */}
+      {da && (da.challenges?.length || da.hidden_risks?.length) && (
+        <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-5">
+          <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-violet-400">
+            <span>😈</span> Devil&apos;s Advocate
+            {da.confidence_adjustment !== undefined && da.confidence_adjustment !== 0 && (
+              <span className={clsx(
+                "ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                da.confidence_adjustment < 0
+                  ? "bg-rose-500/20 text-rose-400"
+                  : "bg-emerald-500/20 text-emerald-400"
+              )}>
+                {da.confidence_adjustment > 0 ? "+" : ""}{Math.round(da.confidence_adjustment * 100)}% confidence
+              </span>
+            )}
+          </h4>
+          {da.challenges && da.challenges.length > 0 && (
+            <div className="mb-2">
+              <span className="text-xs font-medium text-violet-400/70">Challenges</span>
+              <ul className="mt-1 space-y-1">
+                {da.challenges.map((c, i) => (
+                  <li key={i} className="text-xs text-slate-400">
+                    <span className="text-violet-500">⚡</span> {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {da.hidden_risks && da.hidden_risks.length > 0 && (
+            <div className="mb-2">
+              <span className="text-xs font-medium text-violet-400/70">Hidden Risks</span>
+              <ul className="mt-1 space-y-1">
+                {da.hidden_risks.map((r, i) => (
+                  <li key={i} className="text-xs text-slate-400">
+                    <span className="text-amber-500">⚠️</span> {r}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {da.groupthink_flag && (
+            <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-300">
+              <span className="font-medium">🔍 Groupthink Flag:</span> {da.groupthink_flag}
+            </div>
+          )}
+          {da.summary && (
+            <p className="mt-2 text-xs italic text-slate-500">{da.summary}</p>
+          )}
+        </div>
+      )}
+
+      {/* Multi-Round Debate Timeline */}
+      {rounds.length > 1 && (
+        <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+          <button
+            onClick={() => setShowRounds(!showRounds)}
+            className="flex w-full items-center justify-between text-sm font-semibold text-slate-300 hover:text-slate-100"
+          >
+            <span>🔄 Debate Rounds ({rounds.length} rounds)</span>
+            <span className="text-xs text-slate-500">{showRounds ? "▲ Hide" : "▼ Show"}</span>
+          </button>
+          {showRounds && (
+            <div className="mt-3 space-y-3">
+              {rounds.map((r) => (
+                <div key={r.round} className="rounded-lg border border-navy-700 bg-navy-900/50 p-3">
+                  <div className="mb-2 text-xs font-bold text-slate-400">Round {r.round}</div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div className="rounded-lg bg-emerald-500/5 p-2">
+                      <span className="text-[10px] font-bold text-emerald-400">🐂 Bull</span>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                        {r.bull_argument.length > 500
+                          ? r.bull_argument.slice(0, 500) + "..."
+                          : r.bull_argument}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-rose-500/5 p-2">
+                      <span className="text-[10px] font-bold text-rose-400">🐻 Bear</span>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                        {r.bear_argument.length > 500
+                          ? r.bear_argument.slice(0, 500) + "..."
+                          : r.bear_argument}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

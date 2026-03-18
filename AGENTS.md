@@ -31,21 +31,33 @@ PyFinAgent uses a **Next.js 15 + FastAPI** architecture:
 pyfinagent/
 ├── backend/
 │   ├── agents/
-│   │   ├── orchestrator.py      # Main 13-step analysis pipeline
-│   │   ├── debate.py            # Multi-agent debate framework (Bull/Bear/Moderator)
+│   │   ├── orchestrator.py      # Main 15-step analysis pipeline
+│   │   ├── debate.py            # Multi-round debate framework (Bull/Bear/Devil's Advocate/Moderator)
+│   │   ├── risk_debate.py       # Risk Assessment Team (Aggressive/Conservative/Neutral + Risk Judge)
+│   │   ├── info_gap.py          # AlphaQuanter-style info-gap detection + retry loop
+│   │   ├── memory.py            # BM25-based FinancialSituationMemory (learns from outcomes)
 │   │   ├── trace.py             # Decision trace logger (XAI)
 │   │   ├── bias_detector.py     # LLM bias detection (tech bias, confirmation bias)
-│   │   └── conflict_detector.py # Knowledge conflict detection (parametric vs real-time)
+│   │   ├── conflict_detector.py # Knowledge conflict detection (parametric vs real-time)
+│   │   ├── cost_tracker.py      # Per-agent token/cost tracking (dual LLM support)
+│   │   ├── skill_optimizer.py   # Autonomous skill optimization loop (autoresearch pattern)
+│   │   └── skills/              # Agent skills.md files (28 agents) + experiments/
 │   ├── config/
 │   │   ├── settings.py          # Pydantic settings (env vars)
-│   │   ├── prompts.py           # All LLM prompt templates (25+ prompts)
-│   │   └── synthesis_prompt.txt # Synthesis JSON schema template
+│   │   └── prompts.py           # Skill-loaded prompt wrappers (loads from skills/*.md)
 │   ├── api/
 │   │   ├── analysis.py          # POST /api/analysis/, GET /api/analysis/{id}
 │   │   ├── reports.py           # Reports CRUD + performance stats
 │   │   ├── charts.py            # Price chart + financials endpoints
 │   │   ├── signals.py           # Enrichment signals endpoints (11 routes)
-│   │   └── portfolio.py         # Portfolio tracking CRUD
+│   │   ├── portfolio.py         # Portfolio tracking CRUD
+│   │   ├── settings_api.py      # Model configuration + available models
+│   │   └── skills.py            # Skills optimization API endpoints
+│   ├── db/
+│   │   ├── bigquery_client.py    # BigQuery report persistence (67-column ML schema)
+│   │   └── __init__.py
+│   ├── services/
+│   │   └── outcome_tracker.py   # Evaluates past recs vs actual returns (feedback loop)
 │   ├── tools/
 │   │   ├── alphavantage.py      # Alpha Vantage news + competitor discovery
 │   │   ├── yfinance_tool.py     # Comprehensive financials + price history
@@ -81,11 +93,14 @@ pyfinagent/
 │   │   ├── MacroDashboard.tsx   # FRED indicator grid + warnings
 │   │   ├── StockChart.tsx       # Candlestick + SMA/RSI chart
 │   │   ├── EvaluationTable.tsx  # 5-pillar scoring matrix
-│   │   ├── AnalysisProgress.tsx # 13-step progress tracker
+│   │   ├── AnalysisProgress.tsx # 15-step progress tracker
+│   │   ├── CostDashboard.tsx    # LLM cost/token analytics dashboard
 │   │   └── Sidebar.tsx          # Navigation sidebar
 │   └── src/lib/
 │       ├── types.ts             # Full TypeScript type definitions
 │       └── api.ts               # API client (all endpoint calls)
+├── migrate_bq_schema.py         # Idempotent BQ schema migration (adds ML columns)
+├── migrate_agent_memories.py    # Idempotent BQ migration (creates agent_memories table)
 ├── quant-agent/                 # GCP Cloud Function
 ├── ingestion_agent/             # GCP Cloud Function
 ├── earnings-ingestion-agent/    # GCP Cloud Function
@@ -94,9 +109,9 @@ pyfinagent/
 
 ---
 
-## Analysis Pipeline (13 Steps)
+## Analysis Pipeline (15 Steps)
 
-The orchestrator (`backend/agents/orchestrator.py`) executes a 13-step pipeline. Steps 6 and 7 run in parallel using `asyncio.gather`. The debate framework (Steps 8-8b) implements adversarial validation before synthesis.
+The orchestrator (`backend/agents/orchestrator.py`) executes a 15-step pipeline with **4 design pattern enhancements**: (1) **Reflection Loop** — Synthesis↔Critic iterative refinement (max 2 iterations), (2) **Session Memory** — AnalysisContext accumulates key findings across steps, (3) **Quality Gates** — data quality threshold skips debate/risk when insufficient, (4) **Sector Routing** — sector-aware tool skipping saves compute. Steps 6 and 7 run in parallel using `asyncio.gather`. Step 6b implements AlphaQuanter-style ReAct info-gap detection with retry. Step 6 now uses sector routing to skip irrelevant tools. The debate framework (Step 8) runs multi-round adversarial Bull↔Bear debate with Devil's Advocate stress-testing (TradingAgents pattern), but is conditionally skipped by the data quality gate. Step 11+12 implements an Evaluator-Optimizer reflection loop where Critic feedback triggers Synthesis revision.
 
 | Step | Name | Agent/Tool | Description |
 |------|------|-----------|-------------|
@@ -106,14 +121,16 @@ The orchestrator (`backend/agents/orchestrator.py`) executes a 13-step pipeline.
 | 3 | Document Analysis | `RAG Agent` (Vertex AI Search) | Analyze 10-K/10-Q for moat, governance, risks with citations |
 | 4 | Sentiment Analysis | `Market Agent` (LLM) | Detect sentiment velocity, price-sentiment divergence, catalyst keywords |
 | 5 | Competitor Analysis | `Competitor Agent` (LLM) | Identify rivals from news co-occurrence, assess competitive positioning |
-| 6 | **Data Enrichment** | 11 tools in parallel | Insider trades, options flow, social sentiment, patents, earnings transcripts, FRED macro, Google Trends, sector data, NLP sentiment, anomaly scan, Monte Carlo simulation |
+| 6 | **Data Enrichment** | 11 tools in parallel | Insider trades, options flow, social sentiment, patents, earnings transcripts, FRED macro, Google Trends, sector data, NLP sentiment, anomaly scan, Monte Carlo simulation. **Sector routing** skips irrelevant tools (e.g., patents for Financial Services) |
+| 6b | **Info-Gap Detection** | `InfoGapDetector` (ReAct) | AlphaQuanter-style scan: assess sources for SUFFICIENT/PARTIAL/MISSING/SKIPPED status, retry critical failures (max 2 attempts), compute data quality score. SKIPPED tools excluded from quality score |
 | 7 | **Enrichment Analysis** | 11 LLM agents | Each tool's data analyzed by a specialized LLM agent |
-| 8 | **Agent Debate** | `Bull Agent` + `Bear Agent` + `Moderator Agent` | 4-round adversarial debate: positions → bull case → bear case → moderator consensus with contradiction resolution |
+| 8 | **Agent Debate** | `Bull` + `Bear` + `Devil's Advocate` + `Moderator` | Multi-round iterative debate: N rounds of Bull↔Bear rebuttal (each sees opponent's prior argument), Devil's Advocate stress-test (hidden risks, groupthink detection), Moderator consensus with full debate history. **Quality gate**: skipped when data quality < threshold |
 | 9 | Enhanced Macro | `Enhanced Macro Agent` (LLM + FRED) | Fed Funds, CPI, GDP, unemployment, yield curve, consumer sentiment analysis |
 | 10 | Deep Dive | `Deep Dive Agent` (LLM + RAG) | Identify 3 contradictions between sources, probe with targeted 10-K questions |
-| 11 | Synthesis | `Synthesis Agent` (LLM) | Combine all agent outputs + debate consensus into structured JSON report |
-| 12 | Critic | `Critic Agent` (LLM) | Validate for hallucinations, logic errors, factual consistency against quant data |
+| 11 | Synthesis | `Synthesis Agent` (LLM) | Combine all agent outputs + debate consensus + session memory into structured JSON report. **Reflection loop**: if Critic returns REVISE, re-runs with feedback (max 2 iterations) |
+| 12 | Critic | `Critic Agent` (LLM) | Returns structured verdict {PASS/REVISE} with typed issues. Validates for hallucinations, logic errors, factual consistency against quant data |
 | 12b | Bias Audit | `Bias Detector` + `Conflict Detector` | Check for tech-sector bias, confirmation bias, anchoring; flag knowledge conflicts |
+| 12c | **Risk Assessment** | `Aggressive` + `Conservative` + `Neutral` + `Risk Judge` | TradingAgents-style round-robin risk debate: each analyst argues position sizing, Risk Judge delivers final verdict with risk limits |
 
 ### Pipeline Data Flow
 
@@ -141,13 +158,18 @@ User Input (ticker)
     │   ├── anomaly_detector.py (Z-score detection)               │
     │   └── monte_carlo.py (1,000 GBM simulations)               │
     │                                                              │
+    ├─ Step 6b: Info-Gap Detection (AlphaQuanter ReAct) ──────────┤
+    │   ├── Scan 11 sources → SUFFICIENT/PARTIAL/MISSING          │
+    │   ├── Retry critical failures (max 2 attempts)              │
+    │   └── Compute data quality score                            │
+    │                                                              │
     ├─ Step 7: 11 LLM Enrichment Agents (analyze each dataset)   │
     │                                                              │
     ├─ Step 8: Agent Debate Framework ────────────────────────────┤
-    │   ├── Round 1: Each agent submits position + confidence     │
-    │   ├── Round 2: Bull Agent argues strongest bullish case     │
-    │   ├── Round 3: Bear Agent argues strongest bearish case     │
-    │   └── Round 4: Moderator resolves contradictions            │
+    │   ├── Round 1..N: Bull↔Bear iterative rebuttal              │
+    │   │   (each sees opponent's prior argument)                 │
+    │   ├── Devil's Advocate: hidden risks, groupthink detection  │
+    │   └── Moderator: consensus with full debate history         │
     │                                                              │
     ├─ Step 9: Enhanced Macro Agent (AV + FRED combined)          │
     ├─ Step 10: Deep Dive Agent (contradiction probing via RAG)   │
@@ -156,12 +178,19 @@ User Input (ticker)
     │   (all agent outputs + debate consensus → structured JSON)  │
     │                                                              │
     ├─ Step 12: Critic Agent (hallucination/logic check)          │
-    └─ Step 12b: Bias Audit (tech bias, confirmation bias, etc.)  │
+    ├─ Step 12b: Bias Audit (tech bias, confirmation bias, etc.)  │
+    └─ Step 12c: Risk Assessment Team ────────────────────────────┤
+        ├── Aggressive Analyst → position sizing argument         │
+        ├── Conservative Analyst → risk-focused argument          │
+        ├── Neutral Analyst → balanced synthesis                  │
+        └── Risk Judge → final verdict + risk limits              │
                                                                    │
     Final Output: Validated JSON report with:                      │
     ├── scoring_matrix (5 pillars, weighted)                      │
     ├── enrichment_signals (11 sources)                           │
-    ├── debate_result (bull/bear/consensus)                       │
+    ├── debate_result (bull/bear/DA/consensus)                    │
+    ├── risk_assessment (judge verdict + risk limits)             │
+    ├── info_gap_report (data quality + gap status)               │
     ├── decision_traces (full XAI audit trail)                    │
     ├── anomalies (statistical outliers)                          │
     ├── risk_scenarios (Monte Carlo VaR)                          │
@@ -212,9 +241,19 @@ All agents use `gemini-2.0-flash` via Vertex AI. Prompts are defined in `backend
 
 | Agent | Prompt Function | Role | Input | Output |
 |-------|----------------|------|-------|--------|
-| **Bull Agent** | `get_bull_agent_prompt()` | Synthesize all bullish signals into the strongest investment case | All enrichment agent outputs where signal is bullish | Structured bull thesis with evidence citations, confidence score, key catalysts |
-| **Bear Agent** | `get_bear_agent_prompt()` | Synthesize all bearish signals into the strongest bear case | All enrichment agent outputs where signal is bearish | Structured bear thesis with risk evidence, confidence score, key threats |
-| **Moderator Agent** | `get_moderator_prompt()` | Resolve contradictions, assign consensus, identify unresolved uncertainties | Bull case + Bear case + all raw signals | Final consensus (STRONG_BUY / BUY / HOLD / SELL / STRONG_SELL), contradiction map, confidence-weighted score, dissent registry |
+| **Bull Agent** | `get_bull_agent_prompt()` | Synthesize all bullish signals into the strongest investment case | All enrichment agent outputs where signal is bullish + opponent's prior argument (rounds 2+) | Structured bull thesis with evidence citations, confidence score, key catalysts |
+| **Bear Agent** | `get_bear_agent_prompt()` | Synthesize all bearish signals into the strongest bear case | All enrichment agent outputs where signal is bearish + opponent's prior argument (rounds 2+) | Structured bear thesis with risk evidence, confidence score, key threats |
+| **Devil's Advocate** | `get_devils_advocate_prompt()` | Stress-test both sides for hidden risks and groupthink | Bull case + Bear case + all enrichment signals | Challenges list, hidden risks, bull/bear weaknesses, groupthink flag, confidence adjustment |
+| **Moderator Agent** | `get_moderator_prompt()` | Resolve contradictions, assign consensus, identify unresolved uncertainties | Bull case + Bear case + Devil's Advocate + full debate history | Final consensus (STRONG_BUY / BUY / HOLD / SELL / STRONG_SELL), contradiction map, confidence-weighted score, dissent registry |
+
+#### Risk Assessment Agents (Step 12c)
+
+| Agent | Prompt Function | Role | Input | Output |
+|-------|----------------|------|-------|--------|
+| **Aggressive Analyst** | `get_aggressive_analyst_prompt()` | Argue for maximum position sizing based on upside potential | Synthesis result + enrichment signals | Position sizing argument with confidence, max position % |
+| **Conservative Analyst** | `get_conservative_analyst_prompt()` | Argue for minimum position sizing based on downside risk | Synthesis result + enrichment signals | Risk-focused argument with confidence, max position % |
+| **Neutral Analyst** | `get_neutral_analyst_prompt()` | Balanced synthesis of aggressive and conservative views | Synthesis + aggressive + conservative arguments | Balanced position with confidence, max position % |
+| **Risk Judge** | `get_risk_judge_prompt()` | Final verdict on position sizing and risk limits | All three analyst arguments | Decision, risk-adjusted confidence, recommended position %, risk level, risk limits |
 
 #### Validation Agents (Steps 10–12b)
 
@@ -294,7 +333,10 @@ All enrichment tools return:
   "consensus": "BUY",
   "consensus_confidence": 0.72,
   "contradictions": [ { "topic": "...", "bull_view": "...", "bear_view": "...", "resolution": "..." } ],
-  "dissent_registry": [ { "agent": "Options Flow", "position": "BEARISH", "reason": "..." } ]
+  "dissent_registry": [ { "agent": "Options Flow", "position": "BEARISH", "reason": "..." } ],
+  "debate_rounds": [ { "round": 1, "bull_argument": "...", "bear_argument": "..." }, { "round": 2, "bull_argument": "...", "bear_argument": "..." } ],
+  "total_rounds": 2,
+  "devils_advocate": { "challenges": [...], "hidden_risks": [...], "groupthink_flag": false, "confidence_adjustment": -0.05, "summary": "..." }
 }
 ```
 
@@ -339,13 +381,13 @@ This system's design is informed by leading research on AI in financial trading:
 
 | Route | File | Description |
 |-------|------|-------------|
-| `/` | `page.tsx` | **Dashboard**: Ticker input → real-time 13-step analysis → Alpha score card, investment thesis, 5-pillar evaluation, stock chart, enrichment signals, debate view, risk dashboard, bias report |
+| `/` | `page.tsx` | **Dashboard**: Ticker input → real-time 15-step analysis → Alpha score card, investment thesis, 5-pillar evaluation, stock chart, enrichment signals, debate view, risk dashboard, bias report |
 | `/signals` | `signals/page.tsx` | **Signals Explorer**: Enter ticker → view all 11 enrichment signals, consensus bar, sector dashboard, macro dashboard |
 | `/compare` | `compare/page.tsx` | **Compare**: Select 2-5 past reports → side-by-side price overlay, radar chart, pillar score bars |
 | `/reports` | `reports/page.tsx` | **Past Reports**: Searchable list of all completed analyses with quick-chip filters |
 | `/performance` | `performance/page.tsx` | **Performance**: Historical accuracy metrics |
 | `/portfolio` | `portfolio/page.tsx` | **Portfolio**: Position tracking, P&L, allocation pie chart, drawdown, recommendation accuracy scorecard |
-| `/settings` | `settings/page.tsx` | **Settings**: Pillar weight configuration |
+| `/settings` | `settings/page.tsx` | **Settings**: Model configuration, pillar weight configuration, debate depth |
 
 ### Key Components
 
@@ -360,7 +402,8 @@ This system's design is informed by leading research on AI in financial trading:
 | `MacroDashboard.tsx` | 7-indicator grid (current value + change), macro warnings section |
 | `StockChart.tsx` | Candlestick + volume with toggleable SMA50/SMA200/RSI, 5 period options (1M–2Y) |
 | `EvaluationTable.tsx` | 5-pillar horizontal bars with weights, individual pillar progress indicators |
-| `AnalysisProgress.tsx` | 13-step real-time tracker with % bar, current-step spinner, emoji status icons |
+| `AnalysisProgress.tsx` | 15-step real-time tracker with % bar, current-step spinner, emoji status icons |
+| `CostDashboard.tsx` | LLM cost analytics: 4 summary cards (total cost, tokens, calls, deep think), token distribution bar, cost by model, per-agent breakdown table |
 
 ---
 
@@ -410,6 +453,12 @@ API_NINJAS_KEY=<key>
 # Optional
 SLACK_WEBHOOK_URL=<optional>
 USE_CELERY=false
+MAX_DEBATE_ROUNDS=2          # Bull↔Bear rounds (1-5, default 2)
+MAX_RISK_DEBATE_ROUNDS=1     # Risk analyst rounds (1-3, default 1)
+DEEP_THINK_MODEL=            # Optional deep-think model (e.g., gemini-2.5-pro)
+LITE_MODE=false              # Skip deep dive, devil's advocate, risk assessment; 1 debate round
+MAX_ANALYSIS_COST_USD=0.50   # Per-analysis budget cap (warning logged when exceeded)
+MAX_SYNTHESIS_ITERATIONS=2   # Reflection loop iterations (1-3, default 2)
 ```
 
 ---
@@ -430,6 +479,8 @@ USE_CELERY=false
 | `GET` | `/api/reports/` | List all past reports |
 | `GET` | `/api/reports/{ticker}` | Get latest report for ticker |
 | `GET` | `/api/reports/performance` | Performance statistics |
+| `GET` | `/api/reports/cost-history` | LLM cost/token history per analysis |
+| `GET` | `/api/reports/latest-cost-summary` | Per-agent cost breakdown from most recent analysis (for live cost estimator) |
 
 ### Charts
 
@@ -463,11 +514,32 @@ USE_CELERY=false
 | `DELETE` | `/api/portfolio/{id}` | Remove a position |
 | `GET` | `/api/portfolio/performance` | P&L and recommendation accuracy |
 
+### Settings
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/settings/` | All configurable settings (models, debate, weights, cost controls) |
+| `PUT` | `/api/settings/` | Update any combination of settings (partial update, validates pillar weight sum) |
+| `GET` | `/api/settings/models` | Current model configuration (legacy, backward-compatible) |
+| `GET` | `/api/settings/models/available` | List of available Gemini models with pricing |
+
 ### Investigation
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/investigate` | Run RAG investigation query against 10-K documents |
+
+### Skills Optimization
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/skills/optimize` | Start autonomous skill optimization loop (background) |
+| `POST` | `/api/skills/stop` | Stop the optimization loop gracefully |
+| `GET` | `/api/skills/status` | Current loop status (running, experiments count, keep rate) |
+| `GET` | `/api/skills/experiments` | Full experiment history from skill_results.tsv |
+| `GET` | `/api/skills/analysis` | Summary stats, keep rates, delta chain, top hits |
+| `GET` | `/api/skills/agents` | List all optimizable agents with skill file status |
+| `GET` | `/api/skills/{agent_name}` | View an agent's current skills.md content |
 
 ---
 
@@ -499,11 +571,149 @@ Every LLM agent call must produce a `DecisionTrace` (defined in `backend/agents/
 *   Reasoning steps (chain of thought)
 
 ### Debate Protocol
-The debate framework follows a strict 4-round structure:
-1. **Position Round**: Each enrichment agent submits its signal, confidence (0-1), and top 3 evidence points
-2. **Bull Round**: Bull Agent synthesizes all bullish signals into the strongest possible investment case
-3. **Bear Round**: Bear Agent synthesizes all bearish signals into the strongest possible risk case
-4. **Moderation Round**: Moderator Agent identifies contradictions between bull/bear, resolves them using evidence weight, assigns final consensus with confidence score, and registers any unresolved dissents
+The debate framework implements a multi-round adversarial structure (TradingAgents pattern):
+1. **Round 1..N (Bull↔Bear Iterative Rebuttal)**: Bull and Bear agents alternate arguments. From round 2 onward, each agent receives the opponent's prior argument and must directly rebut it while strengthening their own case. Default: 2 rounds (configurable via `MAX_DEBATE_ROUNDS`, range 1-5).
+2. **Devil's Advocate Round**: After debate rounds complete, a Devil's Advocate agent stress-tests both sides — identifying hidden risks, groupthink patterns, weaknesses in bull/bear arguments, and proposing a confidence adjustment.
+3. **Moderation Round**: Moderator Agent receives the full debate history (all rounds), Devil's Advocate challenges, and resolves contradictions using evidence weight. Assigns final consensus with confidence score and registers any unresolved dissents.
+
+Bull, Bear, and Moderator agents all receive **past_memory** from `FinancialSituationMemory` (BM25-retrieved lessons from prior analyses with similar market situations).
+
+### Risk Assessment Protocol (Step 12c)
+The risk assessment follows a TradingAgents-style **multi-round** round-robin debate (configurable via `MAX_RISK_DEBATE_ROUNDS`, default 1, range 1-3):
+1. **Round 1..N (Aggressive → Conservative → Neutral)**: Each analyst argues their position. From round 2 onward, each analyst sees the other two's prior arguments and must directly rebut them.
+2. **Risk Judge**: Reviews all analyst arguments (full debate history when multi-round) and delivers final verdict with risk-adjusted confidence, recommended position size (%), risk level, and specific risk limits (stop loss, max drawdown)
+
+All risk analysts and the Risk Judge receive **past_memory** from `FinancialSituationMemory` (BM25-retrieved lessons from prior analyses with similar market situations).
+
+### Skills System (Autoresearch Pattern)
+Agent prompts are defined in skills.md files under `backend/agents/skills/`. Each file follows a standard template (SKILL_TEMPLATE.md) with sections: Goal, Identity, CAN/CANNOT boundaries, Data Inputs, Skills & Techniques, Anti-Patterns, Research Foundations, Evaluation Criteria, Output Format, Prompt Template, and Experiment Log.
+
+*   `prompts.py` loads the `## Prompt Template` section from each skills.md via `load_skill()` and injects runtime variables via `format_skill()` using `{{variable}}` placeholders
+*   Skill cache is keyed by file modification time — editing a skills.md file automatically picks up changes on next prompt call
+*   `SkillOptimizer` (backend/agents/skill_optimizer.py) implements an autonomous experiment loop: establish baseline → propose LLM-generated modification to Prompt Template → apply → measure metric → keep/discard/crash → repeat
+*   The single optimization metric is `risk_adjusted_return = avg(return_pct) * beat_benchmark_rate` from the outcome_tracking table
+*   Experiment results are logged to `backend/agents/skills/experiments/skill_results.tsv`
+*   **Fixed harness** (UNTOUCHABLE by optimizer): data tools, orchestrator pipeline, output JSON schemas, BQ schema, evaluation formula, function signatures
+*   **Modifiable** (the "train.py" equivalent): `## Prompt Template`, `## Skills & Techniques`, `## Anti-Patterns` sections of each skills.md
+
+### Cost Management
+The system implements multi-layered LLM cost controls:
+
+**Output Token Limits** (per agent type):
+| Agent Type | Max Output Tokens | Rationale |
+|-----------|-------------------|----------|
+| Enrichment agents (11) | 1,024 | Structured signal output, no prose needed |
+| Debate agents (Bull/Bear/DA) | 1,536 | Argument + evidence citations |
+| Moderator | 2,048 | Full consensus with contradiction map |
+| Synthesis | 4,096 | Complete structured JSON report |
+| Deep think (Critic) | 2,048 | Structured verdict + issues |
+| Risk analysts (3) | 1,024 | Position sizing argument |
+| Risk Judge | 1,536 | Final verdict + risk limits |
+
+**Lite Mode** (`LITE_MODE=true`):
+*   Skips Step 10 (Deep Dive Agent)
+*   Skips Devil's Advocate in debate
+*   Skips Step 12c (Risk Assessment Team)
+*   Forces 1 debate round regardless of `MAX_DEBATE_ROUNDS`
+*   Reduces LLM calls from ~39 → ~20 per analysis
+
+**Budget Warning**: After analysis completes, `CostTracker.check_budget(max_analysis_cost_usd)` logs a warning if the run exceeded the configured budget. The `budget_warning` field is included in the final report JSON.
+
+**Prompt Truncation**: In `run_synthesis_pipeline()`, each enrichment section is capped at 1,500 chars and the total market context at 12,000 chars to prevent unbounded input token costs.
+
+**Configurable Synthesis Iterations**: `MAX_SYNTHESIS_ITERATIONS` (1-3, default 2) controls how many Synthesis↔Critic reflection loops are allowed, trading quality for cost.
+
+### Info-Gap Detection Protocol (Step 6b)
+AlphaQuanter-style ReAct loop for data quality assurance:
+1. **Scan**: Assess all 11 enrichment sources against sector-specific criticality thresholds
+2. **Classify**: Each source rated as SUFFICIENT (data present + meaningful), PARTIAL (data present but incomplete), or MISSING (no data or error)
+3. **Retry**: Critical gaps (high-criticality sources with MISSING status) are retried up to 2 times
+4. **Score**: Compute overall data quality score (0-100) and flag if recommendation is at risk
+
+---
+
+## Data Persistence & ML Training
+
+### BigQuery Schema — `analysis_results` Table (68 columns)
+
+Every analysis run persists a **68-column row** to BigQuery (`financial_reports.analysis_results`). The schema is designed for ML model training — all quantitative features that drive the recommendation are stored as first-class columns (not buried in JSON), enabling direct `SELECT`-based training queries and BQ ML `CREATE MODEL` syntax.
+
+The schema is managed by `migrate_bq_schema.py` (idempotent — safe to re-run).
+
+| Category | Columns | Description |
+|----------|---------|-------------|
+| **Identity** | `ticker`, `company_name`, `analysis_date` | Primary key fields |
+| **Output** | `final_score`, `recommendation`, `summary`, `recommendation_justification` | LLM recommendation outputs |
+| **Pillar Scores** | `pillar_1_corporate`, `pillar_2_industry`, `pillar_3_valuation`, `pillar_4_sentiment`, `pillar_5_governance` | 5-pillar weighted scoring matrix (0-10 each) |
+| **Financial Fundamentals** | `price_at_analysis`, `market_cap`, `pe_ratio`, `peg_ratio`, `debt_equity`, `sector`, `industry` | Point-in-time market data from yfinance |
+| **Risk Metrics** | `annualized_volatility`, `var_95_6m`, `var_99_6m`, `expected_shortfall_6m`, `prob_positive_6m`, `anomaly_count` | Monte Carlo VaR + anomaly detection outputs |
+| **Debate Dynamics** | `debate_consensus`, `debate_confidence`, `bull_confidence`, `bear_confidence`, `bull_thesis`, `bear_thesis`, `contradiction_count`, `dissent_count`, `debate_rounds_count`, `devils_advocate_challenges` | Multi-agent debate meta-features including multi-round + DA metrics |
+| **Enrichment Signals** | `insider_signal`, `options_signal`, `social_sentiment_score`, `nlp_sentiment_score`, `patent_signal`, `earnings_confidence`, `sector_signal`, `enrichment_signals_summary` | Individual signal values + compact JSON summary |
+| **Validation** | `recommendation_confidence`, `critic_review`, `bias_flags`, `bias_count`, `bias_adjusted_score`, `conflict_count`, `overall_reliability`, `decision_trace_count`, `key_risks` | Bias audit, conflict detection, XAI completeness |
+| **Info-Gap Quality** | `info_gap_count`, `info_gap_resolved_count`, `data_quality_score` | AlphaQuanter-style data completeness tracking |
+| **Risk Assessment** | `risk_judge_decision`, `risk_adjusted_confidence`, `aggressive_analyst_confidence`, `conservative_analyst_confidence` | TradingAgents-style risk debate verdicts |
+| **Macro Context** | `fed_funds_rate`, `cpi_yoy`, `unemployment_rate`, `yield_curve_spread` | Point-in-time FRED macro indicators for regime-aware ML |
+| **Cost Metrics** | `total_tokens`, `total_cost_usd`, `deep_think_calls` | Per-analysis LLM cost tracking for dual-model architecture |
+| **Reflection Loop** | `synthesis_iterations` | Tracks Evaluator-Optimizer reflection loop count per analysis |
+| **Full Report** | `full_report_json` | Complete report dict (JSON) — fallback for feature engineering |
+
+### Research Rationale for Schema Design
+
+| Research Source | Schema Design Impact |
+|----------------|---------------------|
+| **Goldman Sachs** (127-dim anomaly detection) | `var_95_6m`, `var_99_6m`, `annualized_volatility`, `anomaly_count` as first-class columns |
+| **Stanford** (transformer embeddings) | `nlp_sentiment_score` (numeric 0-1), not just categorical labels |
+| **TradingAgents** (multi-agent debate) | `bull_confidence`, `bear_confidence`, `contradiction_count`, `dissent_count` as meta-features |
+| **TradingAgents** (risk assessment team) | `risk_judge_decision`, `risk_adjusted_confidence`, `aggressive_analyst_confidence`, `conservative_analyst_confidence` for position sizing ML |
+| **AlphaQuanter** (ReAct info-gap) | `info_gap_count`, `info_gap_resolved_count`, `data_quality_score` for data quality-aware training |
+| **arXiv LLM Bias Study** | `sector`, `market_cap`, `bias_count`, `bias_adjusted_score` for bias correction training |
+| **BlackRock** (regime-aware models) | `fed_funds_rate`, `cpi_yoy`, `unemployment_rate`, `yield_curve_spread` for macro context |
+
+### Outcome Tracking Table — `outcome_tracking`
+
+A separate table tracks actual price performance after each recommendation, enabling supervised learning:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ticker` | STRING | Stock symbol |
+| `analysis_date` | STRING | Links back to `analysis_results` |
+| `recommendation` | STRING | Original recommendation |
+| `price_at_recommendation` | FLOAT | Price when rec was made |
+| `current_price` | FLOAT | Price at evaluation time |
+| `return_pct` | FLOAT | Actual return (%) |
+| `holding_days` | INT | Days since recommendation |
+| `beat_benchmark` | BOOL | Did it beat SPY? |
+| `evaluated_at` | STRING | Evaluation timestamp |
+
+### Agent Memories Table — `agent_memories`
+
+Stores learned lessons from past outcomes, used by `FinancialSituationMemory` (BM25 retrieval). Managed by `migrate_agent_memories.py` (idempotent).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `agent_type` | STRING | Agent that generated the lesson (bull, bear, moderator, risk_judge) |
+| `ticker` | STRING | Stock symbol the lesson relates to |
+| `situation` | STRING | Textual description of the market situation |
+| `lesson` | STRING | LLM-generated lesson from outcome evaluation |
+| `created_at` | TIMESTAMP | When the memory was created |
+
+### ML Training Query Pattern
+
+```sql
+-- Join analysis features with outcome labels for supervised learning
+SELECT
+  a.ticker, a.sector, a.pe_ratio, a.peg_ratio, a.debt_equity,
+  a.var_95_6m, a.annualized_volatility, a.prob_positive_6m,
+  a.bull_confidence, a.bear_confidence, a.contradiction_count,
+  a.nlp_sentiment_score, a.social_sentiment_score,
+  a.fed_funds_rate, a.yield_curve_spread,
+  a.final_score, a.recommendation,
+  o.return_pct, o.beat_benchmark  -- labels
+FROM `financial_reports.analysis_results` a
+JOIN `financial_reports.outcome_tracking` o
+  ON a.ticker = o.ticker AND a.analysis_date = o.analysis_date
+WHERE a.price_at_analysis IS NOT NULL
+```
 
 ---
 
@@ -548,6 +758,203 @@ cd frontend && npm run build  # must produce 0 TypeScript errors
 ---
 
 ## Upgrade History
+
+### v2.7 — Cost Management + Settings UI Overhaul (March 2026)
+
+Multi-layered LLM cost controls, per-agent output token limits, lite mode, budget warnings, prompt truncation, and a complete Settings page overhaul with live cost estimation using real token data from the most recent analysis.
+
+**Cost Controls (Backend)**:
+*   `orchestrator.py` — 4 GenerationConfig tiers: `_enrichment_config` (1024 tokens), `_deep_think_config` (2048), `_synthesis_config` (4096), `_gen_config` (base, no limit)
+*   `orchestrator.py` — Lite mode: skips deep dive, devil's advocate, risk assessment; forces 1 debate round. Controlled by `LITE_MODE` env var
+*   `orchestrator.py` — Prompt truncation: `_MAX_SECTION=1500` per enrichment output, `_MAX_CONTEXT=12000` total market context in synthesis
+*   `orchestrator.py` — Configurable synthesis iterations via `MAX_SYNTHESIS_ITERATIONS` (1-3). New `self.synthesis_model` for synthesis calls (uses `_synthesis_config`)
+*   `orchestrator.py` — Budget warning: `CostTracker.check_budget()` after analysis completes, adds `budget_warning` to final report
+*   `cost_tracker.py` — New `total_cost` property (thread-safe sum) + `check_budget(max_cost_usd)` method
+*   `debate.py` — `_DEBATE_GEN_CONFIG` (1536 tokens), `_MODERATOR_GEN_CONFIG` (2048 tokens), `gen_config` parameter on `_generate_with_retry()`, `skip_devils_advocate` parameter
+*   `risk_debate.py` — `_RISK_GEN_CONFIG` (1024 tokens), `_JUDGE_GEN_CONFIG` (1536 tokens), `gen_config` parameter on `_generate_with_retry()`
+*   `settings.py` — 3 new fields: `lite_mode` (bool), `max_analysis_cost_usd` (float, default 0.50), `max_synthesis_iterations` (int, 1-3, default 2)
+
+**Settings API Overhaul**:
+*   `settings_api.py` — Complete rewrite: `FullSettings` model (13 readable fields), `SettingsUpdate` model (all optional, validated)
+*   `GET /api/settings/` returns all settings, `PUT /api/settings/` accepts partial updates with validation (model whitelist, pillar weight sum = 1.0)
+*   `_FIELD_TO_ENV` mapping persists changes to `.env` file. Legacy `/models` endpoints preserved
+*   `reports.py` — New `GET /api/reports/latest-cost-summary` returns per-agent cost breakdown from most recent analysis
+
+**Frontend Settings Overhaul**:
+*   `settings/page.tsx` — Complete rewrite with 6 BentoCards:
+    1. **Analysis Mode**: Full vs Lite toggle with descriptions
+    2. **Live Cost Estimator**: Uses real per-agent token counts from last analysis, scales by model pricing, debate rounds, synthesis iterations, lite mode. Shows $/analysis, total tokens, LLM calls
+    3. **Model Configuration**: Standard + Deep Think model dropdowns
+    4. **Cost Controls**: Budget slider ($0.05-$5.00), synthesis iterations (1-3), min data quality (0-100%)
+    5. **Debate Depth**: Bull↔Bear rounds (1-5), risk rounds (1-3) with lite mode override warning
+    6. **Pillar Weights**: 5 weight sliders (0-50%) with live total validation (must = 100%)
+*   Single "Save All Settings" button sends only changed fields as diff
+*   `types.ts` — New `FullSettings` + `LatestCostSummary` interfaces
+*   `api.ts` — New `getFullSettings()`, `updateSettings()`, `getLatestCostSummary()` functions
+
+**New Environment Variables**: `LITE_MODE`, `MAX_ANALYSIS_COST_USD`, `MAX_SYNTHESIS_ITERATIONS` (all optional, with defaults)
+
+### v2.6 — Agent Design Pattern Optimization (March 2026)
+
+Implements 4 design pattern enhancements derived from research analysis of Google Cloud, Andrew Ng, and Anthropic's AI agent design patterns: Reflection Loop (Evaluator-Optimizer), Session Memory, Quality Gates, and Sector Routing. BQ schema expanded from 67 → 68 columns.
+
+**Reflection Loop (Evaluator-Optimizer Pattern)**:
+*   `critic_agent.md` restructured: now returns structured `{verdict: "PASS"|"REVISE", issues: [...], corrected_report: {...}}` instead of just corrected JSON
+*   `orchestrator.py` `run_synthesis_pipeline()` rewritten: Synthesis → Critic → if REVISE and iteration < 2, re-run Synthesis with Critic's issues → Critic again. Max 2 iterations
+*   `prompts.py` — new `get_synthesis_revision_prompt()` function that prepends revision instruction block with Critic issues to the base synthesis template
+*   `get_critic_prompt()` now accepts optional `critic_feedback` parameter for iteration context
+
+**Session Memory (AnalysisContext)**:
+*   `trace.py` — new `AnalysisContext` dataclass: accumulates `key_findings`, `contradictions`, `signal_consensus` during a run (capped at 20 findings, each ≤100 chars)
+*   Populated after Steps 2 (quant), 4 (market), 6 (enrichment signals), 6b (info-gap), 8 (debate)
+*   Injected into Synthesis prompt via `format_for_prompt()` → prepended to market_context
+
+**Quality Gates (Conditional Pipeline)**:
+*   Data quality gate after Step 6b: if `data_quality_score < data_quality_min` (default 0.5), Steps 8 (debate) and 12c (risk assessment) are skipped with placeholder results
+*   Skipped debate returns `consensus: "HOLD"` with low confidence; skipped risk returns `decision: "REJECT"` with 0% position
+*   `settings.py` — 3 new configurable thresholds: `data_quality_min` (0.5), `conflict_escalation_threshold` (5), `critic_major_issues_threshold` (3)
+
+**Sector Routing (Tool Skipping)**:
+*   `orchestrator.py` — new `SECTOR_SKIP_MAP` dict: Financial Services skips patents, Utilities/Real Estate skip patents + alt_data
+*   Step 6 enrichment now conditionally runs `_skip_placeholder()` for sector-irrelevant tools
+*   `info_gap.py` — new `SKIPPED` status: skipped tools excluded from data quality denominator
+
+**BQ Schema Expansion (1 new column)**:
+*   `("synthesis_iterations", "INT64")` — tracks reflection loop count per analysis
+
+**New Environment Variables**: `DATA_QUALITY_MIN`, `CONFLICT_ESCALATION_THRESHOLD`, `CRITIC_MAJOR_ISSUES_THRESHOLD` (all optional, with defaults)
+
+### v2.5 — Skills System + Autonomous Optimization Loop (March 2026)
+
+Autoresearch-inspired skills architecture: each agent's prompt is defined in a skills.md file, loaded dynamically by a skill loader with mtime caching. An autonomous optimization loop (SkillOptimizer) proposes, tests, and keeps/discards prompt modifications using a single metric. Feedback loop wired: outcome evaluation now generates LLM reflections and persists them to BQ agent_memories table.
+
+**New Backend Modules (2)**:
+*   `backend/agents/skill_optimizer.py` — `SkillOptimizer` class: `establish_baseline()`, `analyze_agent_performance()`, `propose_skill_modification()`, `apply_modification()`, `revert_modification()`, `handle_crash()`, `think_harder()`, `run_loop()`. Uses git for experiment tracking. Simplicity criterion: ≥0.5% delta per 10 lines added.
+*   `backend/agents/skills/experiments/analyze_experiments.py` — Experiment analysis: keep rate (overall + per-agent), delta chain, running best chart data, top hits table, summary stats. CLI + importable.
+
+**New API Route (1)**:
+*   `backend/api/skills.py` — 7 endpoints: POST optimize/stop, GET status/experiments/analysis/agents/{agent_name}
+
+**Skills Architecture (28 files)**:
+*   `backend/agents/skills/*.md` — 28 agent skills files following SKILL_TEMPLATE.md format
+*   Each contains: Goal, Identity, CAN/CANNOT, Prompt Template (with `{{variable}}` placeholders), Experiment Log
+*   `backend/config/prompts.py` refactored: 950 lines of inline prompts → ~380 lines of thin wrappers using `load_skill()` + `format_skill()`
+
+**Feedback Loop Wired**:
+*   `outcome_tracker.py` — After evaluating outcomes, generates LLM reflections via `generate_reflection()` for 4 agent types (bull, bear, moderator, risk_judge) and persists to `agent_memories` table via `save_agent_memory()`
+*   Closes the learning loop: outcomes → reflections → BM25 memory → future agent prompts
+
+### v2.4 — Dual LLM Strategy + Cost Analytics (March 2026)
+
+Dual-model architecture with "deep think" model for judge agents (Moderator, Risk Judge, Synthesis, Critic), per-agent token/cost tracking across all LLM calls, Cost tab in dashboard, model configuration UI, and cost history on Performance page. BQ schema expanded from 64 → 67 columns.
+
+**New Backend Module (1)**:
+*   `backend/agents/cost_tracker.py` — `CostTracker` dataclass: thread-safe per-agent token recording from `response.usage_metadata`, `MODEL_PRICING` dict (Flash/2.5-Flash/2.5-Pro), `summarize()` produces JSON-serializable breakdown by model and agent
+
+**New API Route (1)**:
+*   `backend/api/settings_api.py` — `GET /api/settings/models` (current config), `GET /api/settings/models/available` (model list with pricing)
+
+**Dual LLM Architecture**:
+*   `settings.py` — New `deep_think_model` field (defaults to empty → falls back to `gemini_model`)
+*   `orchestrator.py` — Creates `self.deep_think_model` GenerativeModel, passes to debate/risk_debate; Synthesis + Critic use deep_think_model with `is_deep_think=True`
+*   `debate.py` — Moderator uses `deep_think_model or model`; Bull/Bear/DA use standard model
+*   `risk_debate.py` — Risk Judge uses `deep_think_model or model`; Aggressive/Conservative/Neutral use standard model
+*   All `_generate_with_retry` calls auto-record to `CostTracker` via `getattr(self, "_cost_tracker", None)`
+
+**BQ Schema Expansion (3 new columns)**:
+*   **Cost Metrics (+3)**: `total_tokens`, `total_cost_usd`, `deep_think_calls`
+
+**Frontend Enhancements**:
+*   `CostDashboard.tsx` — New component: 4 summary cards, token distribution bar, cost by model breakdown, per-agent table sorted by cost
+*   `page.tsx` — 6th tab "Cost" (💰) with badge showing total cost
+*   `settings/page.tsx` — "Model Configuration" BentoCard with Standard/Deep Think model dropdowns + pricing display
+*   `performance/page.tsx` — Cost history section: total spend, avg cost/analysis, per-analysis table from BQ
+*   `types.ts` — New interfaces: `AgentCostEntry`, `ModelBreakdown`, `CostSummary`, `CostHistoryEntry`, `ModelPricing`, `ModelConfig`
+*   `api.ts` — New functions: `getModelConfig()`, `getAvailableModels()`, `getCostHistory()`
+
+**New Environment Variable**: `DEEP_THINK_MODEL` (optional, e.g., `gemini-2.5-pro`)
+
+### v2.3 — FinancialSituationMemory + Prompt Hardening (March 2026)
+
+BM25-based agent memory that learns from past outcomes, anti-HOLD bias prompts, multi-round risk debate with cross-visibility, and configurable debate depth. Inspired by TradingAgents `FinancialSituationMemory` and prompt-hardening research.
+
+**New Backend Module (1)**:
+*   `backend/agents/memory.py` — `FinancialSituationMemory` class: BM25Okapi lexical similarity retrieval, 5 cold-start seed archetypes, `generate_reflection()` for LLM-based lesson extraction from outcome evaluations
+
+**Prompt Hardening (7 prompts updated)**:
+*   Anti-HOLD bias in Moderator: "Choose HOLD only if strongly justified by specific arguments — not as a fallback"
+*   Anti-HOLD bias in Risk Judge: "Choose REJECT only if strongly justified by specific downside evidence"
+*   Anti-hallucination guards in Aggressive/Conservative/Neutral: "do not hallucinate their arguments"
+*   `past_memory` parameter added to Bull, Bear, Moderator, all 3 Risk Analysts, and Risk Judge prompts
+
+**Risk Debate Rewrite**:
+*   `risk_debate.py` rewritten: single-pass → multi-round with cross-visibility (each analyst sees the other two's prior arguments)
+*   Risk Judge now receives full debate history when `max_risk_rounds > 1`
+*   Output includes `risk_debate_rounds` and `total_risk_rounds` fields
+
+**Configurable Debate Depth**:
+*   `max_debate_rounds` (default 2, range 1-5) — Bull↔Bear iterative rebuttal exchanges
+*   `max_risk_debate_rounds` (default 1, range 1-3) — Aggressive/Conservative/Neutral exchanges
+*   Controlled via `MAX_DEBATE_ROUNDS` and `MAX_RISK_DEBATE_ROUNDS` env vars
+
+**BQ Persistence**:
+*   New `agent_memories` table: `agent_type`, `ticker`, `situation`, `lesson`, `created_at`
+*   `migrate_agent_memories.py` — Idempotent table creation script
+*   `bigquery_client.py` — Added `get_agent_memories()` and `save_agent_memory()` methods
+
+**Frontend Enhancements**:
+*   `settings/page.tsx` — New "Debate Depth" BentoCard with Bull↔Bear and Risk Debate round sliders
+*   `types.ts` — Added `RiskDebateRound` interface + `risk_debate_rounds`/`total_risk_rounds` to `RiskAssessment`
+
+**New Dependency**: `rank-bm25>=0.2.2`
+
+### v2.2 — TradingAgents + AlphaQuanter Enhancement (March 2026)
+
+Implemented multi-round adversarial debate, Devil's Advocate stress-testing, round-robin Risk Assessment Team, and AlphaQuanter-style info-gap detection with retry. BQ schema expanded from 55 → 64 columns. Pipeline expanded from 13 → 15 steps.
+
+**New Backend Modules (2)**:
+*   `backend/agents/risk_debate.py` — TradingAgents-style round-robin: Aggressive → Conservative → Neutral → Risk Judge
+*   `backend/agents/info_gap.py` — AlphaQuanter ReAct loop: scan 11 sources, classify SUFFICIENT/PARTIAL/MISSING, retry critical gaps
+
+**Enhanced Debate Framework**:
+*   `debate.py` rewritten: single-round → multi-round iterative Bull↔Bear (each sees opponent's prior argument)
+*   New Devil's Advocate agent: stress-tests both sides for hidden risks + groupthink detection
+*   Moderator now receives full debate history + DA challenges
+*   7 new prompts in `prompts.py`: Devil's Advocate, 4 Risk Analysts, Info-Gap
+
+**New Pipeline Steps (2)**:
+*   Step 6b: Info-Gap Detection (between enrichment + enrichment analysis)
+*   Step 12c: Risk Assessment Team (after bias audit)
+
+**Frontend Enhancements (4 components)**:
+*   `DebateView.tsx` — DA section (violet theme), multi-round timeline
+*   `RiskDashboard.tsx` — New `RiskAssessmentPanel` component (judge verdict + analyst cards + risk limits)
+*   `AnalysisProgress.tsx` — 2 new steps (info_gap + risk_assessment)
+*   `types.ts` — 7 new interfaces (DebateRound, DevilsAdvocate, RiskAssessment, InfoGap, etc.)
+
+**BQ Schema Expansion (9 new columns across 3 categories)**:
+*   **Debate Dynamics (+2)**: `debate_rounds_count`, `devils_advocate_challenges`
+*   **Info-Gap Quality (+3)**: `info_gap_count`, `info_gap_resolved_count`, `data_quality_score`
+*   **Risk Assessment (+4)**: `risk_judge_decision`, `risk_adjusted_confidence`, `aggressive_analyst_confidence`, `conservative_analyst_confidence`
+
+### v2.1 — ML-Training-Ready BigQuery Schema (March 2026)
+
+Expanded BigQuery `analysis_results` table from 18 → 55 columns for ML model training. Every quantitative feature that drives the recommendation is now stored as a first-class column.
+
+**Schema Expansion (37 new columns across 6 categories)**:
+*   **Financial Fundamentals (7)**: `price_at_analysis`, `market_cap`, `pe_ratio`, `peg_ratio`, `debt_equity`, `sector`, `industry`
+*   **Risk Metrics (6)**: `annualized_volatility`, `var_95_6m`, `var_99_6m`, `expected_shortfall_6m`, `prob_positive_6m`, `anomaly_count`
+*   **Debate Dynamics (8)**: `bull_confidence`, `bear_confidence`, `bull_thesis`, `bear_thesis`, `contradiction_count`, `dissent_count`, `recommendation_confidence`, `key_risks`
+*   **Enrichment Signals (7)**: `insider_signal`, `options_signal`, `social_sentiment_score`, `nlp_sentiment_score`, `patent_signal`, `earnings_confidence`, `sector_signal`
+*   **Bias & Conflict Audit (5)**: `bias_count`, `bias_adjusted_score`, `conflict_count`, `overall_reliability`, `decision_trace_count`
+*   **Macro Context (4)**: `fed_funds_rate`, `cpi_yoy`, `unemployment_rate`, `yield_curve_spread`
+
+**New Files**:
+*   `migrate_bq_schema.py` — Idempotent schema migration script
+*   `backend/db/bigquery_client.py` — Expanded `save_report()` (55-field row insert)
+*   `backend/services/outcome_tracker.py` — Outcome evaluation with benchmark comparison
+
+**LLM Temperature Fix**: Set `temperature=0.2` on all Gemini model calls (orchestrator + debate) to reduce score variance across runs.
 
 ### v2.0 — AI Research-Driven Upgrade (March 2026)
 

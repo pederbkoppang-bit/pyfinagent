@@ -3,18 +3,21 @@
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { BentoCard } from "@/components/BentoCard";
-import { evaluateOutcomes, getPerformanceStats } from "@/lib/api";
-import type { PerformanceStats } from "@/lib/types";
+import { evaluateOutcomes, getPerformanceStats, getCostHistory } from "@/lib/api";
+import type { PerformanceStats, CostHistoryEntry } from "@/lib/types";
 
 export default function PerformancePage() {
   const [stats, setStats] = useState<PerformanceStats | null>(null);
+  const [costHistory, setCostHistory] = useState<CostHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getPerformanceStats()
-      .then(setStats)
+    Promise.all([
+      getPerformanceStats().then(setStats),
+      getCostHistory().then(setCostHistory),
+    ])
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -114,6 +117,106 @@ export default function PerformancePage() {
                 </p>
               </BentoCard>
             </div>
+          </div>
+        )}
+
+        {/* ── Cost History ──────────────────────────────────────── */}
+        {costHistory.length > 0 && (
+          <div className="mt-8">
+            <h3 className="mb-4 text-lg font-semibold text-slate-300">
+              💰 LLM Cost History
+            </h3>
+            <div className="grid grid-cols-12 gap-6 mb-6">
+              <div className="col-span-12 md:col-span-4">
+                <BentoCard>
+                  <p className="text-sm text-slate-400">Total Spend</p>
+                  <p className="mt-2 font-mono text-4xl font-bold text-amber-400">
+                    $
+                    {costHistory
+                      .reduce((s, r) => s + (r.total_cost_usd ?? 0), 0)
+                      .toFixed(4)}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    across {costHistory.length} analyses
+                  </p>
+                </BentoCard>
+              </div>
+              <div className="col-span-12 md:col-span-4">
+                <BentoCard>
+                  <p className="text-sm text-slate-400">Avg Cost / Analysis</p>
+                  <p className="mt-2 font-mono text-4xl font-bold text-sky-400">
+                    $
+                    {(
+                      costHistory.reduce(
+                        (s, r) => s + (r.total_cost_usd ?? 0),
+                        0
+                      ) / costHistory.length
+                    ).toFixed(4)}
+                  </p>
+                </BentoCard>
+              </div>
+              <div className="col-span-12 md:col-span-4">
+                <BentoCard>
+                  <p className="text-sm text-slate-400">Total Tokens</p>
+                  <p className="mt-2 font-mono text-4xl font-bold text-violet-400">
+                    {(
+                      costHistory.reduce(
+                        (s, r) => s + (r.total_tokens ?? 0),
+                        0
+                      ) / 1_000_000
+                    ).toFixed(2)}
+                    M
+                  </p>
+                </BentoCard>
+              </div>
+            </div>
+
+            <BentoCard>
+              <h4 className="mb-3 text-sm font-semibold text-slate-400">
+                Per-Analysis Cost
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700 text-slate-500">
+                      <th className="pb-2 pr-4">Ticker</th>
+                      <th className="pb-2 pr-4">Date</th>
+                      <th className="pb-2 pr-4 text-right">Tokens</th>
+                      <th className="pb-2 pr-4 text-right">Cost</th>
+                      <th className="pb-2 text-right">Deep Think</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {costHistory.map((row, i) => (
+                      <tr
+                        key={`${row.ticker}-${row.analysis_date}-${i}`}
+                        className="border-b border-slate-800 text-slate-300"
+                      >
+                        <td className="py-2 pr-4 font-medium text-slate-200">
+                          {row.ticker}
+                        </td>
+                        <td className="py-2 pr-4 text-slate-400">
+                          {row.analysis_date}
+                        </td>
+                        <td className="py-2 pr-4 text-right font-mono">
+                          {row.total_tokens != null
+                            ? (row.total_tokens / 1000).toFixed(1) + "K"
+                            : "—"}
+                        </td>
+                        <td className="py-2 pr-4 text-right font-mono text-amber-400">
+                          {row.total_cost_usd != null
+                            ? "$" + row.total_cost_usd.toFixed(4)
+                            : "—"}
+                        </td>
+                        <td className="py-2 text-right font-mono">
+                          {row.deep_think_calls ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </BentoCard>
           </div>
         )}
       </main>

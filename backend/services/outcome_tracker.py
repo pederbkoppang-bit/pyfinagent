@@ -1,10 +1,15 @@
 """
 Outcome tracker service — evaluates past recommendations against actual price changes.
 This is the core of the 'learning' capability.
+
+After evaluation, generates LLM reflections per agent type and persists them to the
+agent_memories BigQuery table for BM25-based retrieval in future analyses.
 """
 
+import json
 import logging
 from datetime import datetime, timedelta
+from typing import Optional
 
 from backend.config.settings import Settings
 from backend.db.bigquery_client import BigQueryClient
@@ -15,12 +20,16 @@ logger = logging.getLogger(__name__)
 # Evaluation windows (in days)
 EVAL_WINDOWS = [7, 30, 90, 180, 365]
 
+# Agent types that generate reflections from outcomes
+REFLECTION_AGENTS = ["bull", "bear", "moderator", "risk_judge"]
+
 
 class OutcomeTracker:
     """Evaluates historical recommendations against actual price performance."""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, model=None):
         self.bq = BigQueryClient(settings)
+        self._model = model
 
     def evaluate_recommendation(self, ticker: str, analysis_date: str,
                                 recommendation: str, price_at_rec: float) -> dict | None:
@@ -117,7 +126,58 @@ class OutcomeTracker:
             if outcome:
                 results.append(outcome)
 
+                # Generate reflections and persist as agent memories
+                if self._model:
+                    self._generate_and_persist_reflections(outcome, full)
+
         return results
+
+    def _generate_and_persist_reflections(self, outcome: dict, full_report: dict) -> None:
+        """
+        Generate LLM reflections for each agent type and save to agent_memories table.
+
+        This closes the feedback loop: outcomes → reflections → BM25 memory → future prompts.
+        """
+        from backend.agents.memory import generate_reflection, build_situation_description
+
+        ticker = outcome["ticker"]
+        recommendation = outcome["recommendation"]
+        return_pct = outcome["return_pct"]
+        holding_days = outcome["holding_days"]
+
+        # Build situation description from the original report data
+        enrichment_signals = full_report.get("enrichment_signals", {})
+        debate_result = full_report.get("debate_result", {})
+        sector = full_report.get("quant", {}).get("yf_data", {}).get("profile", {}).get("sector", "")
+
+        situation = build_situation_description(
+            ticker=ticker,
+            sector=sector,
+            enrichment_signals=enrichment_signals,
+            debate_result=debate_result,
+        )
+
+        for agent_type in REFLECTION_AGENTS:
+            try:
+                lesson = generate_reflection(
+                    model=self._model,
+                    agent_type=agent_type,
+                    ticker=ticker,
+                    original_recommendation=recommendation,
+                    actual_return_pct=return_pct,
+                    situation=situation,
+                    holding_days=holding_days,
+                )
+                if lesson:
+                    self.bq.save_agent_memory(
+                        agent_type=agent_type,
+                        ticker=ticker,
+                        situation=situation,
+                        lesson=lesson,
+                    )
+                    logger.info(f"Saved reflection for {agent_type} on {ticker}")
+            except Exception as e:
+                logger.warning(f"Failed to generate reflection for {agent_type}/{ticker}: {e}")
 
     def get_performance_summary(self) -> dict:
         """Get aggregated performance stats from BigQuery."""

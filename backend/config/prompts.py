@@ -1,108 +1,122 @@
 """
-Agent prompt templates, migrated from pyfinagent-app/agent_prompts.py.
-All Streamlit dependencies removed. Pure Python with string formatting.
+Agent prompt templates — skills.md-based architecture.
+
+Each agent's prompt is defined in a skills.md file under backend/agents/skills/.
+This module provides:
+  - load_skill(): reads and caches the ## Prompt Template section from skills.md
+  - format_skill(): injects runtime variables into {{template_variables}}
+  - reload_skills(): clears cache (used by skill_optimizer after modifications)
+  - All 29 original get_*_prompt() functions preserved as thin wrappers
 """
 
 import json
+import re
 from pathlib import Path
 
-# Load the synthesis prompt template from file
-SYNTHESIS_PROMPT_PATH = Path(__file__).parent / "synthesis_prompt.txt"
-SYNTHESIS_PROMPT_TEMPLATE = SYNTHESIS_PROMPT_PATH.read_text()
+# ── Skill Loader ────────────────────────────────────────────────
 
-CRITIC_PROMPT_TEMPLATE = """You are the Compliance & Quality Control Officer. Review the draft report for {ticker}.
+SKILLS_DIR = Path(__file__).parent.parent / "agents" / "skills"
 
---- HARD DATA (TRUTH) ---
-{quant_data}
+# In-memory cache: {agent_name: (mtime, template_str)}
+_skill_cache: dict[str, tuple[float, str]] = {}
 
---- DRAFT REPORT ---
-{draft_report}
 
-**YOUR TASK:**
-1. Check for **Hallucinations**: Does the draft mention numbers that contradict the Hard Data?
-2. Check for **Logic Errors**: Does a 'Strong Buy' recommendation accompany a low score (e.g., 3/10)?
-3. Check for **JSON Validity**: Is the structure correct?
+def load_skill(agent_name: str) -> str:
+    """Load the ## Prompt Template section from a skills.md file.
 
-If the report is good, output the JSON exactly as is.
-If there are errors, correct the JSON values and summary to match the Hard Data, then output the CORRECTED JSON.
-Do not output markdown code blocks, just the raw JSON string."""
+    Returns the raw template string with {{variable}} placeholders.
+    Caches by file modification time for performance.
+    """
+    skill_path = SKILLS_DIR / f"{agent_name}.md"
+    if not skill_path.exists():
+        raise FileNotFoundError(f"Skill file not found: {skill_path}")
+
+    mtime = skill_path.stat().st_mtime
+    cached = _skill_cache.get(agent_name)
+    if cached and cached[0] == mtime:
+        return cached[1]
+
+    content = skill_path.read_text(encoding="utf-8")
+
+    # Extract everything after "## Prompt Template" until the next "## " heading or EOF
+    match = re.search(
+        r"^## Prompt Template\s*\n(.*?)(?=^## |\Z)",
+        content,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not match:
+        raise ValueError(f"No '## Prompt Template' section found in {skill_path}")
+
+    template = match.group(1).strip()
+    _skill_cache[agent_name] = (mtime, template)
+    return template
+
+
+def format_skill(template: str, **kwargs: str) -> str:
+    """Replace {{variable}} placeholders in a skill template with runtime values.
+
+    Unmatched placeholders are left as-is (for conditional sections set to empty string).
+    """
+    result = template
+    for key, value in kwargs.items():
+        result = result.replace("{{" + key + "}}", str(value))
+    return result
+
+
+def reload_skills() -> None:
+    """Clear the skill cache. Called by skill_optimizer after modifying skills.md files."""
+    _skill_cache.clear()
+
+
+
+# ── Foundation Agent Prompts ────────────────────────────────────
 
 
 def get_rag_prompt(ticker: str) -> str:
-    return (
-        f"You are a specialized Financial Analyst focusing on 10-K and 10-Q filings for {ticker}. "
-        "Your goal is to extract factual, hard data regarding:\n"
-        "1. **Economic Moat**: specific competitive advantages.\n"
-        "2. **Governance**: Executive compensation alignment and shareholder structure.\n"
-        "3. **Risk Factors**: The specific risks listed in Item 1A.\n"
-        "**CRITICAL INSTRUCTION:** You MUST cite your sources. When you find a fact, "
-        "add a citation with the document and date in the format **[Source | YYYY-MM-DD]**. "
-        "For example: [2024 10-K | 2024-02-21]."
-    )
+    template = load_skill("rag_agent")
+    return format_skill(template, ticker=ticker)
 
 
 def get_market_prompt(ticker: str, av_data: dict) -> str:
-    return (
-        f"You are an advanced quantitative sentiment analyst for {ticker}. Your task is to detect early breakout signals by identifying sentiment-price divergence.\n"
-        "You will analyze up to 50 recent news articles to find evidence of an 'Accumulation Phase' where positive news sentiment is rising but the market has not yet priced it in.\n\n"
-        "--- RECENT NEWS SENTIMENT DATA ---\n"
-        f"{json.dumps(av_data.get('sentiment_summary', [])[:50])}\n"
-        "----------------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "Execute the following analysis and structure your output into the three sections specified below.\n\n"
-        "1.  **Calculate Sentiment Velocity**: Assess the momentum of sentiment. Is the average `sentiment_score` across the articles strongly positive (e.g., > 0.35)? Is the narrative strengthening over time?\n\n"
-        "2.  **Check for Divergence**: This is the critical signal. Search the news summaries for narratives suggesting the stock price is 'undervalued,' 'ignored,' 'flat,' 'range-bound,' or has 'not yet reacted.' If you find strongly positive sentiment combined with these price-suppression narratives, issue a 'Divergence Warning'.\n\n"
-        "3.  **Identify Catalyst Phrasing**: Scan the news summaries for specific, forward-looking institutional catalyst keywords. These are often associated with Q3 tech/cyclical breakouts. Keywords to look for include: 'inventory bottoming,' 'unmet demand,' 'supply chain recovery,' 'upgraded guidance,' 'new cycle,' 'pent-up demand.'\n\n"
-        "**OUTPUT STRUCTURE:**\n"
-        "Provide your analysis in the following format ONLY:\n\n"
-        "[1] Average Sentiment Momentum: <Your analysis of sentiment velocity and strength.>\n"
-        "[2] Divergence Analysis (Is this a hidden breakout?): <State whether you've found a divergence. If so, issue the 'Divergence Warning' and explain why. Otherwise, explain why not.>\n"
-        "[3] Key Institutional Catalysts: <List any catalyst keywords you found and the context in which they appeared. If none, state 'No specific catalysts identified.'>"
-    )
+    template = load_skill("market_agent")
+    sentiment_data = json.dumps(av_data.get("sentiment_summary", [])[:50])
+    return format_skill(template, ticker=ticker, sentiment_data=sentiment_data)
 
 
 def get_competitor_prompt(ticker: str, av_data: dict) -> str:
-    rivals = av_data.get('derived_competitors', [])
-    return (
-        f"You are a Competitor Intelligence Scout. Based on news co-occurrence, the following companies are frequently mentioned with {ticker}: {rivals}.\n\n"
-        "**TASK:**\n"
-        f"1. Confirm if these are true rivals or just partners/sector peers.\n"
-        f"2. Based on the news summaries provided in the context, what moves are these rivals making?\n"
-        f"3. Assess if {ticker} is mentioned in a 'winning' or 'losing' context relative to these peers."
-    )
+    rivals = av_data.get("derived_competitors", [])
+    template = load_skill("competitor_agent")
+    return format_skill(template, ticker=ticker, rivals=str(rivals))
 
 
 def get_sector_catalyst_prompt(ticker: str, innovation_data: dict, labor_data: dict) -> str:
-    patent_pct = innovation_data.get('patent_velocity_pct', 0) * 100
-    rd_pct = labor_data.get('rd_job_growth_pct', 0) * 100
-    return (
-        f"You are a Structural Forensics Expert for {ticker}, specializing in identifying R&D-driven breakthroughs from non-financial data.\n\n"
-        "--- INNOVATION & LABOR DATA ---\n"
-        f"Innovation Data: {json.dumps(innovation_data)}\n"
-        f"Labor Data: {json.dumps(labor_data)}\n"
-        "------------------------------\n\n"
-        "**YOUR TASK:**\n"
-        f"1.  **Analyze Patent Velocity**: The data shows patent filing growth of {patent_pct:.0f}%. Evaluate if this represents the formation of a true 'technological moat' (e.g., foundational patents in a new category) or merely a defensive/incremental filing strategy.\n\n"
-        f"2.  **Cross-Reference Labor Momentum**: The data shows R&D-specific job growth of {rd_pct:.0f}%. Cross-reference this hiring momentum with the company's known product cycle. Are they hiring for the next generation of a core product (e.g., a new chip architecture, a new drug platform), or is it general corporate growth?\n\n"
-        "3.  **Synthesize a Verdict**: Based on your analysis, is there evidence of a structural, R&D-driven breakout event on the horizon? State your conclusion clearly."
+    patent_pct = innovation_data.get("patent_velocity_pct", 0) * 100
+    rd_pct = labor_data.get("rd_job_growth_pct", 0) * 100
+    template = load_skill("sector_catalyst_agent")
+    return format_skill(
+        template,
+        ticker=ticker,
+        innovation_data=json.dumps(innovation_data),
+        labor_data=json.dumps(labor_data),
+        patent_pct=f"{patent_pct:.0f}",
+        rd_pct=f"{rd_pct:.0f}",
     )
 
 
 def get_supply_chain_prompt(ticker: str, co_occurrence_data: dict) -> str:
-    rivals = co_occurrence_data.get('derived_competitors', [])
-    return (
-        f"You are a Supply Chain Intelligence Analyst. Your goal is to determine if {ticker} is benefiting from a sector-wide tailwind or if its gains are unique.\n\n"
-        f"The following companies are frequently mentioned with {ticker}, suggesting they operate in the same ecosystem: {rivals}\n\n"
-        "**YOUR TASK:**\n"
-        f"Analyze the co-occurrence data and any implied narratives. Determine if the entire sector appears to be scaling up together (e.g., widespread reports of 'unmet demand,' 'capacity constraints,' or 'inventory depletion' across multiple names), which would confirm a structural tailwind. Conversely, if positive news is isolated to {ticker}, it may indicate market share capture. Provide your assessment."
-    )
+    rivals = co_occurrence_data.get("derived_competitors", [])
+    template = load_skill("supply_chain_agent")
+    return format_skill(template, ticker=ticker, rivals=str(rivals))
 
 
 def get_macro_prompt(ticker: str, av_data: dict) -> str:
+    # No dedicated skills.md — macro analysis is done by enhanced_macro_agent in the full pipeline.
+    # This legacy prompt is kept for the basic macro step.
+    macro_data = json.dumps(av_data.get("macro_summary", {}))
     return (
         f"You are a Macroeconomic Strategist. Analyze the provided economic indicators in the context of {ticker}.\n"
         "--- DATA ---\n"
-        f"{json.dumps(av_data.get('macro_summary', {}))}\n"
+        f"{macro_data}\n"
         "------------\n"
         "**TASK:**\n"
         f"1. **Economic Climate**: Based on CPI, Interest Rates, and GDP, what is the overall economic environment (e.g., inflationary, recessionary, growing)?\n"
@@ -112,19 +126,14 @@ def get_macro_prompt(ticker: str, av_data: dict) -> str:
 
 
 def get_deep_dive_prompt(ticker: str, quant_data: dict, rag_text: str, market_text: str, competitor_text: str) -> str:
-    return (
-        f"You are a Senior Investment Investigator. Your job is NOT to summarize, but to PROBE.\n"
-        f"I have four reports for {ticker} that may contain contradictions or gaps.\n\n"
-        "--- DATA SOURCES ---\n"
-        f"1. QUANT (Financials): {json.dumps(quant_data)}\n"
-        f"2. RAG (Filings): {rag_text[:3000]}...\n"
-        f"3. MARKET (Sentiment): {market_text[:3000]}...\n"
-        f"4. COMPETITOR (Rivals): {competitor_text[:3000]}...\n"
-        "--------------------\n\n"
-        "**TASK:**\n"
-        "Identify 3 critical 'tensions' or 'contradictions' between these sources. "
-        "Formulate 3 specific questions to resolve these tensions using the 10-K/10-Q."
-        "Output ONLY the numbered list of questions."
+    template = load_skill("deep_dive_agent")
+    return format_skill(
+        template,
+        ticker=ticker,
+        quant_data=json.dumps(quant_data),
+        rag_text=rag_text[:3000],
+        market_text=market_text[:3000],
+        competitor_text=competitor_text[:3000],
     )
 
 
@@ -137,7 +146,9 @@ def get_synthesis_prompt(
     supply_chain_report: str,
     deep_dive_analysis: str,
 ) -> str:
-    return SYNTHESIS_PROMPT_TEMPLATE.format(
+    template = load_skill("synthesis_agent")
+    return format_skill(
+        template,
         ticker=ticker,
         quant_report=json.dumps(quant_report, indent=2),
         rag_report=rag_report,
@@ -148,229 +159,463 @@ def get_synthesis_prompt(
     )
 
 
+def get_synthesis_revision_prompt(
+    ticker: str,
+    quant_report: dict,
+    rag_report: str,
+    market_report: str,
+    sector_catalyst_report: str,
+    supply_chain_report: str,
+    deep_dive_analysis: str,
+    critic_issues: list[dict],
+    previous_draft: str,
+) -> str:
+    """Build a Synthesis revision prompt that includes Critic feedback.
+
+    Re-uses the base synthesis template but prepends a revision instruction
+    block with the Critic's specific issues and the previous draft.
+    """
+    base_prompt = get_synthesis_prompt(
+        ticker, quant_report, rag_report, market_report,
+        sector_catalyst_report, supply_chain_report, deep_dive_analysis,
+    )
+
+    issues_text = "\n".join(
+        f"  - [{issue.get('severity', 'unknown').upper()}] {issue.get('type', 'unknown')}: {issue.get('description', '')}"
+        for issue in critic_issues
+    )
+
+    revision_header = (
+        "### ⚠️ REVISION REQUEST — CRITIC FEEDBACK ###\n"
+        "Your previous draft was reviewed by the Critic Agent and flagged for revision.\n"
+        "You MUST address ALL major issues listed below. Minor issues should also be fixed if possible.\n\n"
+        f"**Issues Found:**\n{issues_text}\n\n"
+        "--- YOUR PREVIOUS DRAFT (FOR REFERENCE) ---\n"
+        f"{previous_draft[:5000]}\n"
+        "---------------------------------------------\n\n"
+        "Generate a CORRECTED version of the report that addresses these issues.\n"
+        "Follow the same JSON output format as before.\n\n"
+    )
+
+    return revision_header + base_prompt
+
+
 def get_insider_prompt(ticker: str, insider_data: dict) -> str:
     """Prompt for insider trading analysis agent."""
-    return (
-        f"You are an Insider Activity Analyst for {ticker}.\n\n"
-        "--- INSIDER TRADING DATA ---\n"
-        f"{json.dumps(insider_data, indent=2)}\n"
-        "----------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Cluster Analysis**: Are multiple insiders buying/selling at the same time? Multi-exec cluster buys within 30 days are a strong conviction signal.\n"
-        "2. **Size Context**: Evaluate the dollar amounts relative to executive compensation. Are these material bets or routine exercises?\n"
-        "3. **Timing Signal**: Cross-reference the timing of trades with known events (earnings, product launches, FDA decisions).\n"
-        "4. **Historical Pattern**: Is this buying/selling pattern unusual compared to the company's norm?\n\n"
-        "Provide a clear BULLISH/BEARISH/NEUTRAL assessment with specific evidence."
-    )
+    template = load_skill("insider_agent")
+    return format_skill(template, ticker=ticker, insider_data=json.dumps(insider_data, indent=2))
 
 
 def get_options_prompt(ticker: str, options_data: dict) -> str:
     """Prompt for options flow analysis agent."""
-    return (
-        f"You are an Options Flow Analyst for {ticker}.\n\n"
-        "--- OPTIONS FLOW DATA ---\n"
-        f"{json.dumps(options_data, indent=2)}\n"
-        "-------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Put/Call Ratio**: Analyze the overall P/C ratio. Below 0.7 suggests bullish sentiment; above 1.0 is bearish.\n"
-        "2. **Unusual Activity**: Identify strikes with volume significantly exceeding open interest (>3x), which indicates new institutional positioning.\n"
-        "3. **Skew Analysis**: Is the options market pricing more downside protection (puts) or upside speculation (calls)?\n"
-        "4. **Institutional Footprint**: Large block trades at specific strikes often signal informed money flow.\n\n"
-        "Provide a clear BULLISH/BEARISH/NEUTRAL conclusion with supporting data points."
-    )
+    template = load_skill("options_agent")
+    return format_skill(template, ticker=ticker, options_data=json.dumps(options_data, indent=2))
 
 
 def get_social_sentiment_prompt(ticker: str, sentiment_data: dict) -> str:
     """Prompt for social/news sentiment analysis agent."""
-    return (
-        f"You are a Social Intelligence Analyst for {ticker}.\n\n"
-        "--- SOCIAL & NEWS SENTIMENT DATA ---\n"
-        f"{json.dumps(sentiment_data, indent=2)}\n"
-        "------------------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Sentiment Velocity**: Is sentiment improving or deteriorating over time? Calculate the momentum.\n"
-        "2. **Source Divergence**: Do different sources (mainstream news, social media, financial press) agree or diverge?\n"
-        "3. **Narrative Analysis**: What are the dominant narratives? Are they forward-looking or backward-looking?\n"
-        "4. **Contrarian Signal**: If sentiment is overwhelmingly one-directional, consider contrarian risk.\n\n"
-        "Provide a score from -1.0 (max bearish) to +1.0 (max bullish) and explain the key drivers."
-    )
+    template = load_skill("social_sentiment_agent")
+    return format_skill(template, ticker=ticker, sentiment_data=json.dumps(sentiment_data, indent=2))
 
 
 def get_patent_prompt(ticker: str, patent_data: dict) -> str:
     """Prompt for patent/innovation analysis agent."""
-    return (
-        f"You are an Innovation Intelligence Analyst for {ticker}.\n\n"
-        "--- PATENT & INNOVATION DATA ---\n"
-        f"{json.dumps(patent_data, indent=2)}\n"
-        "--------------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Patent Velocity**: Analyze year-over-year patent filing trends. Growth ≥20% signals innovation acceleration.\n"
-        "2. **Technology Domains**: Which technology areas are being patented? Are they core to the company's strategy?\n"
-        "3. **Moat Building**: Do these patents represent defensive (incremental) or offensive (category-creating) innovation?\n"
-        "4. **Commercialization Timeline**: Estimate when these innovations could impact revenue (1-2 years, 3-5 years, or 5+ years).\n\n"
-        "Determine if there is evidence of a breakthrough R&D pipeline or just business-as-usual filing."
-    )
+    template = load_skill("patent_agent")
+    return format_skill(template, ticker=ticker, patent_data=json.dumps(patent_data, indent=2))
 
 
 def get_earnings_tone_prompt(ticker: str, transcript_data: dict) -> str:
     """Prompt for earnings call tone analysis agent."""
-    return (
-        f"You are an Earnings Call Tone Analyst for {ticker}.\n\n"
-        "--- EARNINGS CALL TRANSCRIPT EXCERPT ---\n"
-        f"{json.dumps(transcript_data, indent=2)}\n"
-        "---------------------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Management Confidence**: Rate management's tone from 1-10. Look for hedging language ('we hope', 'we believe') vs conviction language ('we will', 'we are confident').\n"
-        "2. **Forward Guidance Signals**: Extract any forward-looking statements about revenue, margins, or market conditions.\n"
-        "3. **Red Flags**: Identify any evasive answers, topic changes, or unusual qualifications in the Q&A section.\n"
-        "4. **Key Themes**: What are the top 3 themes management is emphasizing? Are they aligned with analyst concerns?\n\n"
-        "Provide a CONFIDENT/CAUTIOUS/EVASIVE rating with supporting evidence from the transcript."
-    )
+    template = load_skill("earnings_tone_agent")
+    return format_skill(template, ticker=ticker, transcript_data=json.dumps(transcript_data, indent=2))
 
 
 def get_enhanced_macro_prompt(ticker: str, av_data: dict, fred_data: dict) -> str:
     """Enhanced macro prompt that includes FRED economic indicators."""
-    return (
-        f"You are a Macroeconomic Strategist. Analyze the economic landscape in the context of {ticker}.\n\n"
-        "--- MARKET DATA ---\n"
-        f"{json.dumps(av_data.get('macro_summary', {}))}\n"
-        "--- FRED ECONOMIC INDICATORS ---\n"
-        f"{json.dumps(fred_data, indent=2)}\n"
-        "---------------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Rate Environment**: Analyze the Fed Funds Rate trajectory and 10Y-2Y yield spread. Is the curve inverted (recession signal) or normalizing?\n"
-        "2. **Inflation vs Growth**: Cross-reference CPI trends with GDP growth. Is the economy in stagflation, goldilocks, or overheating?\n"
-        "3. **Consumer Health**: Evaluate unemployment trends and consumer sentiment. Is the consumer weakening?\n"
-        f"4. **Sector Impact**: How do these macro conditions specifically affect {ticker}'s business model and sector?\n"
-        "5. **Policy Outlook**: Based on current data, what is the likely Fed policy direction in the next 6-12 months?\n\n"
-        "Provide a FAVORABLE/NEUTRAL/UNFAVORABLE assessment for the company and explain the transmission mechanism."
+    template = load_skill("enhanced_macro_agent")
+    return format_skill(
+        template,
+        ticker=ticker,
+        macro_summary=json.dumps(av_data.get("macro_summary", {})),
+        fred_data=json.dumps(fred_data, indent=2),
     )
 
 
 def get_alt_data_prompt(ticker: str, alt_data: dict) -> str:
     """Prompt for alternative data (Google Trends, etc.) analysis agent."""
-    return (
-        f"You are an Alternative Data Analyst for {ticker}.\n\n"
-        "--- ALTERNATIVE DATA SIGNALS ---\n"
-        f"{json.dumps(alt_data, indent=2)}\n"
-        "--------------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Search Interest Trends**: Analyze Google Trends data for momentum. Is public interest accelerating?\n"
-        "2. **Lead/Lag Relationship**: Historically, search interest often leads revenue by 1-2 quarters. What does the current trend imply?\n"
-        "3. **Related Queries**: What related search terms are rising? Do they indicate new product interest, concerns, or competitor attention?\n"
-        "4. **Cross-validate**: Does the search interest trend align with or contradict the financial data and sentiment analysis?\n\n"
-        "Provide a RISING/STABLE/DECLINING assessment with a confidence interval."
-    )
+    template = load_skill("alt_data_agent")
+    return format_skill(template, ticker=ticker, alt_data=json.dumps(alt_data, indent=2))
 
 
 def get_sector_analysis_prompt(ticker: str, sector_data: dict) -> str:
     """Prompt for sector relative strength and rotation analysis agent."""
-    return (
-        f"You are a Sector Rotation & Relative Strength Analyst for {ticker}.\n\n"
-        "--- SECTOR ANALYSIS DATA ---\n"
-        f"{json.dumps(sector_data, indent=2)}\n"
-        "----------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Sector Rotation**: Which sectors are in favor (outperforming S&P 500) vs out of favor? Where does {ticker}'s sector sit in the rotation cycle?\n"
-        "2. **Relative Strength**: Is {ticker} outperforming its sector ETF? Across what time frames (1M, 3M, 6M, 1Y)?\n"
-        "3. **Peer Comparison**: How does {ticker} compare to its peers on valuation (P/E), growth (revenue growth), profitability (margins, ROE), and market cap?\n"
-        "4. **Tailwind/Headwind**: Is the sector providing a tailwind (sector up, stock up) or is the stock fighting headwinds (sector down, stock flat/up)?\n\n"
-        "Provide a DOUBLE_TAILWIND/SECTOR_TAILWIND/STOCK_OUTPERFORMING/NEUTRAL/LAGGING assessment."
-    )
+    template = load_skill("sector_analysis_agent")
+    return format_skill(template, ticker=ticker, sector_data=json.dumps(sector_data, indent=2))
 
 
-def get_critic_prompt(ticker: str, draft_report: str, quant_data: dict) -> str:
+def get_critic_prompt(ticker: str, draft_report: str, quant_data: dict, critic_feedback: str = "") -> str:
     try:
         draft_obj_str = json.dumps(json.loads(draft_report), indent=2)
     except json.JSONDecodeError:
         draft_obj_str = json.dumps({"error": "Could not parse draft report", "raw": draft_report})
 
-    return CRITIC_PROMPT_TEMPLATE.format(
+    # Build optional feedback section for re-review iterations
+    feedback_section = ""
+    if critic_feedback:
+        feedback_section = (
+            "--- PREVIOUS CRITIC FEEDBACK (ITERATION CONTEXT) ---\n"
+            "The Synthesis Agent has revised the report based on your prior feedback.\n"
+            "Focus on verifying that the previous issues have been addressed.\n"
+            f"{critic_feedback}\n"
+            "-----------------------------------------------------\n"
+        )
+
+    template = load_skill("critic_agent")
+    return format_skill(
+        template,
         ticker=ticker,
         quant_data=json.dumps(quant_data, indent=2),
         draft_report=draft_obj_str,
+        critic_feedback_section=feedback_section,
     )
 
 
 # ── Debate Framework Prompts ────────────────────────────────────
 
 
-def get_bull_agent_prompt(ticker: str, signals_json: str, trace_json: str) -> str:
-    """Bull Agent: synthesize the strongest investment case."""
+def _build_memory_section(past_memory: str) -> str:
+    """Build the past memory injection section for debate/risk agents."""
+    if not past_memory:
+        return ""
     return (
-        f"You are the Bull Agent — an aggressive investment advocate for {ticker}. "
-        "Your job is to build the STRONGEST possible bullish case using the enrichment signals below.\n\n"
-        "--- ENRICHMENT SIGNALS ---\n"
-        f"{signals_json}\n"
-        "--- AGENT DECISION TRACES ---\n"
-        f"{trace_json}\n"
-        "----------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. Identify EVERY bullish signal across all data sources.\n"
-        "2. Build a coherent investment thesis explaining why this stock should be bought.\n"
-        "3. Assign a confidence score (0.0-1.0) to your overall bull case.\n"
-        "4. List your top 5 catalysts that could drive the stock higher.\n"
-        "5. For each catalyst, cite the specific data source and evidence.\n\n"
-        "**OUTPUT FORMAT (JSON):**\n"
-        '{"thesis": "...", "confidence": 0.XX, "key_catalysts": ["...", "..."], '
-        '"evidence": [{"source": "...", "data_point": "...", "interpretation": "..."}]}'
+        "--- LESSONS FROM PAST SIMILAR SITUATIONS ---\n"
+        f"{past_memory[:2000]}\n"
+        "--------------------------------------------\n\n"
+        "Use these past reflections to improve your analysis and avoid repeating past mistakes.\n"
     )
 
 
-def get_bear_agent_prompt(ticker: str, signals_json: str, trace_json: str) -> str:
-    """Bear Agent: synthesize the strongest risk case."""
-    return (
-        f"You are the Bear Agent — a skeptical risk analyst for {ticker}. "
-        "Your job is to build the STRONGEST possible bearish case using the enrichment signals below.\n\n"
-        "--- ENRICHMENT SIGNALS ---\n"
-        f"{signals_json}\n"
-        "--- AGENT DECISION TRACES ---\n"
-        f"{trace_json}\n"
-        "----------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. Identify EVERY bearish signal, risk factor, and red flag across all data sources.\n"
-        "2. Build a coherent risk thesis explaining why this stock should be avoided or sold.\n"
-        "3. Assign a confidence score (0.0-1.0) to your overall bear case.\n"
-        "4. List your top 5 threats that could drive the stock lower.\n"
-        "5. For each threat, cite the specific data source and evidence.\n\n"
-        "**OUTPUT FORMAT (JSON):**\n"
-        '{"thesis": "...", "confidence": 0.XX, "key_threats": ["...", "..."], '
-        '"evidence": [{"source": "...", "data_point": "...", "interpretation": "..."}]}'
+def get_bull_agent_prompt(
+    ticker: str,
+    signals_json: str,
+    trace_json: str,
+    opponent_argument: str = None,
+    round_number: int = 1,
+    max_rounds: int = 2,
+    past_memory: str = "",
+) -> str:
+    """Bull Agent: build the strongest investment case, responding to Bear's arguments in later rounds."""
+    past_memory_section = _build_memory_section(past_memory)
+
+    if opponent_argument and round_number > 1:
+        rebuttal_section = (
+            "--- BEAR AGENT'S PREVIOUS ARGUMENT ---\n"
+            f"{opponent_argument[:3000]}\n"
+            "--------------------------------------\n\n"
+            "**YOUR TASK (REBUTTAL ROUND):**\n"
+            "1. Directly ADDRESS and COUNTER the Bear Agent's key threats listed above.\n"
+            "2. Identify weaknesses, exaggerations, or missing context in the bear case.\n"
+            "3. STRENGTHEN your bullish thesis by incorporating new evidence the bear case overlooked.\n"
+            "4. Update your confidence score (0.0-1.0) — did the bear arguments change your conviction?\n"
+            "5. List your top 5 catalysts with specific data source citations.\n"
+        )
+    else:
+        rebuttal_section = (
+            "**YOUR TASK:**\n"
+            "1. Identify EVERY bullish signal across all data sources.\n"
+            "2. Build a coherent investment thesis explaining why this stock should be bought.\n"
+            "3. Assign a confidence score (0.0-1.0) to your overall bull case.\n"
+            "4. List your top 5 catalysts that could drive the stock higher.\n"
+            "5. For each catalyst, cite the specific data source and evidence.\n"
+        )
+
+    template = load_skill("bull_agent")
+    return format_skill(
+        template,
+        ticker=ticker,
+        round_number=str(round_number),
+        max_rounds=str(max_rounds),
+        signals_json=signals_json,
+        trace_json=trace_json,
+        past_memory_section=past_memory_section,
+        rebuttal_section=rebuttal_section,
     )
 
 
-def get_moderator_prompt(ticker: str, bull_case: str, bear_case: str, signals_json: str) -> str:
-    """Moderator Agent: resolve contradictions and assign consensus."""
-    return (
-        f"You are the Moderator Agent for the {ticker} investment debate. "
-        "You have received arguments from both the Bull Agent and Bear Agent. "
-        "Your job is to evaluate both cases objectively and reach a consensus.\n\n"
-        "--- BULL CASE ---\n"
-        f"{bull_case}\n"
-        "--- BEAR CASE ---\n"
-        f"{bear_case}\n"
-        "--- RAW SIGNALS ---\n"
-        f"{signals_json}\n"
-        "-------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. Identify specific CONTRADICTIONS between the bull and bear cases.\n"
-        "2. For each contradiction, determine which side has stronger evidence.\n"
-        "3. Assign a final consensus recommendation: STRONG_BUY / BUY / HOLD / SELL / STRONG_SELL.\n"
-        "4. Assign a consensus confidence score (0.0-1.0).\n"
-        "5. Register any agents whose signals were overruled (dissent registry).\n\n"
-        "**OUTPUT FORMAT (JSON ONLY, no markdown):**\n"
-        "{\n"
-        '  "consensus": "BUY",\n'
-        '  "consensus_confidence": 0.72,\n'
-        '  "bull_case": {"thesis": "...", "confidence": 0.XX, "key_catalysts": [...]},\n'
-        '  "bear_case": {"thesis": "...", "confidence": 0.XX, "key_threats": [...]},\n'
-        '  "contradictions": [\n'
-        '    {"topic": "...", "bull_view": "...", "bear_view": "...", "resolution": "...", "winner": "bull|bear"}\n'
-        "  ],\n"
-        '  "dissent_registry": [\n'
-        '    {"agent": "...", "position": "...", "reason": "..."}\n'
-        "  ]\n"
-        "}"
+def get_bear_agent_prompt(
+    ticker: str,
+    signals_json: str,
+    trace_json: str,
+    opponent_argument: str = None,
+    round_number: int = 1,
+    max_rounds: int = 2,
+    past_memory: str = "",
+) -> str:
+    """Bear Agent: build the strongest risk case, responding to Bull's arguments in later rounds."""
+    past_memory_section = _build_memory_section(past_memory)
+
+    if opponent_argument:
+        rebuttal_section = (
+            "--- BULL AGENT'S ARGUMENT ---\n"
+            f"{opponent_argument[:3000]}\n"
+            "-----------------------------\n\n"
+            "**YOUR TASK (REBUTTAL ROUND):**\n"
+            "1. Directly ADDRESS and COUNTER the Bull Agent's key catalysts listed above.\n"
+            "2. Identify overoptimism, cherry-picked data, or ignored risks in the bull case.\n"
+            "3. STRENGTHEN your bearish thesis with evidence the bull case minimized or omitted.\n"
+            "4. Update your confidence score (0.0-1.0) — did the bull arguments change your conviction?\n"
+            "5. List your top 5 threats with specific data source citations.\n"
+        )
+    else:
+        rebuttal_section = (
+            "**YOUR TASK:**\n"
+            "1. Identify EVERY bearish signal, risk factor, and red flag across all data sources.\n"
+            "2. Build a coherent risk thesis explaining why this stock should be avoided or sold.\n"
+            "3. Assign a confidence score (0.0-1.0) to your overall bear case.\n"
+            "4. List your top 5 threats that could drive the stock lower.\n"
+            "5. For each threat, cite the specific data source and evidence.\n"
+        )
+
+    template = load_skill("bear_agent")
+    return format_skill(
+        template,
+        ticker=ticker,
+        round_number=str(round_number),
+        max_rounds=str(max_rounds),
+        signals_json=signals_json,
+        trace_json=trace_json,
+        past_memory_section=past_memory_section,
+        rebuttal_section=rebuttal_section,
+    )
+
+
+def get_moderator_prompt(
+    ticker: str,
+    bull_case: str,
+    bear_case: str,
+    signals_json: str,
+    devils_advocate: str = None,
+    debate_history: str = None,
+    past_memory: str = "",
+) -> str:
+    """Moderator Agent: resolve contradictions with DA input and multi-round context."""
+    past_memory_section = _build_memory_section(past_memory)
+
+    debate_history_section = ""
+    if debate_history:
+        debate_history_section = (
+            "--- DEBATE HISTORY (MULTI-ROUND) ---\n"
+            f"{debate_history[:6000]}\n"
+            "------------------------------------\n"
+        )
+
+    devils_advocate_section = ""
+    if devils_advocate:
+        devils_advocate_section = (
+            "--- DEVIL'S ADVOCATE CHALLENGES ---\n"
+            f"{devils_advocate[:3000]}\n"
+            "-----------------------------------\n"
+        )
+
+    template = load_skill("moderator_agent")
+    return format_skill(
+        template,
+        ticker=ticker,
+        bull_case=bull_case,
+        bear_case=bear_case,
+        signals_json=signals_json,
+        past_memory_section=past_memory_section,
+        debate_history_section=debate_history_section,
+        devils_advocate_section=devils_advocate_section,
+    )
+
+
+# ── Devil's Advocate Prompt ──────────────────────────────────────
+
+
+def get_devils_advocate_prompt(
+    ticker: str, bull_case: str, bear_case: str, signals_json: str
+) -> str:
+    """Devil's Advocate: stress-test both sides before moderator synthesis."""
+    template = load_skill("devils_advocate_agent")
+    return format_skill(
+        template,
+        ticker=ticker,
+        bull_case=bull_case[:3000],
+        bear_case=bear_case[:3000],
+        signals_json=signals_json,
+    )
+
+
+# ── Risk Assessment Team Prompts ────────────────────────────────
+
+
+def get_aggressive_analyst_prompt(
+    ticker: str, synthesis_json: str, signals_json: str,
+    conservative_arg: str = "", neutral_arg: str = "",
+    debate_context: str = "", past_memory: str = "",
+) -> str:
+    """Aggressive Risk Analyst: maximize upside potential."""
+    debate_context_section = ""
+    if debate_context:
+        debate_context_section = (
+            "--- DEBATE RESULT ---\n"
+            f"{debate_context[:3000]}\n"
+        )
+    conservative_arg_section = ""
+    if conservative_arg:
+        conservative_arg_section = (
+            "--- CONSERVATIVE ANALYST'S ARGUMENT ---\n"
+            f"{conservative_arg[:2000]}\n"
+        )
+    neutral_arg_section = ""
+    if neutral_arg:
+        neutral_arg_section = (
+            "--- NEUTRAL ANALYST'S ARGUMENT ---\n"
+            f"{neutral_arg[:2000]}\n"
+        )
+    past_memory_section = _build_memory_section(past_memory)
+
+    rebuttal_task = ""
+    if conservative_arg or neutral_arg:
+        rebuttal_task = (
+            "5. Directly ADDRESS and COUNTER the other analysts' key concerns.\n"
+            "6. Explain why their caution may miss critical opportunities.\n"
+        )
+
+    template = load_skill("aggressive_analyst")
+    return format_skill(
+        template,
+        ticker=ticker,
+        synthesis_json=synthesis_json[:4000],
+        signals_json=signals_json[:3000],
+        debate_context_section=debate_context_section,
+        conservative_arg_section=conservative_arg_section,
+        neutral_arg_section=neutral_arg_section,
+        past_memory_section=past_memory_section,
+        rebuttal_task=rebuttal_task,
+    )
+
+
+def get_conservative_analyst_prompt(
+    ticker: str, synthesis_json: str, signals_json: str,
+    aggressive_arg: str = "", neutral_arg: str = "",
+    debate_context: str = "", past_memory: str = "",
+) -> str:
+    """Conservative Risk Analyst: capital preservation focus."""
+    debate_context_section = ""
+    if debate_context:
+        debate_context_section = (
+            "--- DEBATE RESULT ---\n"
+            f"{debate_context[:3000]}\n"
+        )
+    aggressive_arg_section = ""
+    if aggressive_arg:
+        aggressive_arg_section = (
+            "--- AGGRESSIVE ANALYST'S ARGUMENT ---\n"
+            f"{aggressive_arg[:2000]}\n"
+        )
+    neutral_arg_section = ""
+    if neutral_arg:
+        neutral_arg_section = (
+            "--- NEUTRAL ANALYST'S ARGUMENT ---\n"
+            f"{neutral_arg[:2000]}\n"
+        )
+    past_memory_section = _build_memory_section(past_memory)
+
+    rebuttal_task = ""
+    if aggressive_arg or neutral_arg:
+        rebuttal_task = (
+            "5. Directly ADDRESS and COUNTER the other analysts' optimism.\n"
+            "6. Highlight where their assumptions may overlook potential threats.\n"
+        )
+
+    template = load_skill("conservative_analyst")
+    return format_skill(
+        template,
+        ticker=ticker,
+        synthesis_json=synthesis_json[:4000],
+        signals_json=signals_json[:3000],
+        debate_context_section=debate_context_section,
+        aggressive_arg_section=aggressive_arg_section,
+        neutral_arg_section=neutral_arg_section,
+        past_memory_section=past_memory_section,
+        rebuttal_task=rebuttal_task,
+    )
+
+
+def get_neutral_analyst_prompt(
+    ticker: str,
+    synthesis_json: str,
+    signals_json: str,
+    aggressive_arg: str,
+    conservative_arg: str,
+    debate_context: str = "",
+    past_memory: str = "",
+) -> str:
+    """Neutral Risk Analyst: balanced perspective after hearing both sides."""
+    debate_context_section = ""
+    if debate_context:
+        debate_context_section = (
+            "--- DEBATE RESULT ---\n"
+            f"{debate_context[:3000]}\n"
+        )
+    past_memory_section = _build_memory_section(past_memory)
+
+    template = load_skill("neutral_analyst")
+    return format_skill(
+        template,
+        ticker=ticker,
+        synthesis_json=synthesis_json[:4000],
+        aggressive_arg=aggressive_arg[:2000],
+        conservative_arg=conservative_arg[:2000],
+        signals_json=signals_json[:3000],
+        debate_context_section=debate_context_section,
+        past_memory_section=past_memory_section,
+    )
+
+
+def get_risk_judge_prompt(
+    ticker: str,
+    synthesis_json: str,
+    aggressive_arg: str,
+    conservative_arg: str,
+    neutral_arg: str,
+    debate_history: str = "",
+    past_memory: str = "",
+) -> str:
+    """Risk Judge: final risk assessment combining all three analyst perspectives."""
+    debate_history_section = ""
+    if debate_history:
+        debate_history_section = (
+            "--- RISK DEBATE HISTORY ---\n"
+            f"{debate_history[:4000]}\n"
+        )
+    past_memory_section = _build_memory_section(past_memory)
+
+    template = load_skill("risk_judge")
+    return format_skill(
+        template,
+        ticker=ticker,
+        synthesis_json=synthesis_json[:4000],
+        aggressive_arg=aggressive_arg[:2000],
+        conservative_arg=conservative_arg[:2000],
+        neutral_arg=neutral_arg[:2000],
+        debate_history_section=debate_history_section,
+        past_memory_section=past_memory_section,
+    )
+
+
+# ── Info-Gap Detection Prompt ───────────────────────────────────
+
+
+def get_info_gap_prompt(ticker: str, enrichment_status: dict) -> str:
+    """Info-Gap Detector: identify missing or low-quality data sources."""
+    template = load_skill("info_gap_agent")
+    return format_skill(
+        template,
+        ticker=ticker,
+        enrichment_status=json.dumps(enrichment_status, indent=2, default=str),
     )
 
 
@@ -379,59 +624,17 @@ def get_moderator_prompt(ticker: str, bull_case: str, bear_case: str, signals_js
 
 def get_nlp_sentiment_prompt(ticker: str, nlp_data: dict) -> str:
     """Prompt for transformer-based NLP sentiment analysis agent."""
-    return (
-        f"You are an NLP Sentiment Specialist for {ticker}, using transformer embeddings.\n\n"
-        "--- NLP SENTIMENT DATA ---\n"
-        f"{json.dumps(nlp_data, indent=2)}\n"
-        "--------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Contextual Sentiment**: Analyze the embedding-based sentiment scores. These capture nuance that keyword-based analysis misses.\n"
-        "2. **Source Reliability**: Weight sources by reliability (SEC filings > financial press > mainstream news > social media).\n"
-        "3. **Sentiment Divergence**: Do different article clusters show diverging sentiment? This could indicate uncertainty.\n"
-        "4. **Confidence Assessment**: How confident are you in the overall sentiment reading? Low article count or high variance = low confidence.\n\n"
-        "Provide a score from -1.0 (max bearish) to +1.0 (max bullish) with a confidence level (0.0-1.0).\n"
-        "**OUTPUT FORMAT (JSON):**\n"
-        '{"sentiment_score": 0.XX, "confidence": 0.XX, "key_themes": ["..."], "source_breakdown": {"...": 0.XX}}'
-    )
+    template = load_skill("nlp_sentiment_agent")
+    return format_skill(template, ticker=ticker, nlp_data=json.dumps(nlp_data, indent=2))
 
 
 def get_anomaly_detection_prompt(ticker: str, anomaly_data: dict) -> str:
     """Prompt for statistical anomaly interpretation agent."""
-    return (
-        f"You are a Statistical Anomaly Analyst for {ticker}.\n\n"
-        "--- ANOMALY DETECTION RESULTS ---\n"
-        f"{json.dumps(anomaly_data, indent=2)}\n"
-        "---------------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **Interpret Anomalies**: For each metric with |Z-score| > 2, explain what it means in plain language.\n"
-        "2. **Classify**: Is each anomaly an OPPORTUNITY (mispricing, temporary dislocation) or a RISK (deteriorating fundamentals, structural break)?\n"
-        "3. **Prioritize**: Rank anomalies by severity and actionability.\n"
-        "4. **Cross-Reference**: Do multiple anomalies point to the same underlying thesis?\n\n"
-        "**OUTPUT FORMAT (JSON):**\n"
-        '{"anomalies": [{"metric": "...", "z_score": X.X, "classification": "OPPORTUNITY|RISK", '
-        '"explanation": "...", "actionability": "HIGH|MEDIUM|LOW"}], '
-        '"overall_signal": "ANOMALY_OPPORTUNITY|ANOMALY_RISK|NORMAL", '
-        '"summary": "..."}'
-    )
+    template = load_skill("anomaly_agent")
+    return format_skill(template, ticker=ticker, anomaly_data=json.dumps(anomaly_data, indent=2))
 
 
 def get_scenario_analysis_prompt(ticker: str, monte_carlo_data: dict) -> str:
     """Prompt for Monte Carlo scenario interpretation agent."""
-    return (
-        f"You are a Risk Scenario Analyst for {ticker}.\n\n"
-        "--- MONTE CARLO SIMULATION RESULTS ---\n"
-        f"{json.dumps(monte_carlo_data, indent=2)}\n"
-        "--------------------------------------\n\n"
-        "**YOUR TASK:**\n"
-        "1. **VaR Interpretation**: Explain the 95% and 99% Value-at-Risk in practical terms. What is the maximum expected loss?\n"
-        "2. **Expected Shortfall**: What happens in the worst 5% of scenarios? How bad could it get?\n"
-        "3. **Probability Assessment**: What is the probability of a ≥20% gain vs ≥20% loss over different horizons?\n"
-        "4. **Position Sizing**: Based on these risk metrics, what position size would be appropriate for different risk tolerances (conservative/moderate/aggressive)?\n"
-        "5. **Distribution Shape**: Is the return distribution skewed? Fat tails? What does this imply?\n\n"
-        "**OUTPUT FORMAT (JSON):**\n"
-        '{"risk_profile": "LOW|MODERATE|HIGH|EXTREME", '
-        '"var_95_interpretation": "...", '
-        '"expected_shortfall_warning": "...", '
-        '"position_sizing": {"conservative": "X%", "moderate": "X%", "aggressive": "X%"}, '
-        '"summary": "..."}'
-    )
+    template = load_skill("scenario_agent")
+    return format_skill(template, ticker=ticker, monte_carlo_data=json.dumps(monte_carlo_data, indent=2))

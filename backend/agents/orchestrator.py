@@ -4,6 +4,7 @@ Migrated from pyfinagent-app/Home.py with all Streamlit dependencies removed.
 """
 
 import asyncio
+import concurrent.futures
 import json
 import logging
 import re
@@ -17,9 +18,17 @@ from google.oauth2 import service_account
 from vertexai.generative_models import GenerativeModel, Tool, grounding
 
 from backend.agents.bias_detector import detect_biases
+from backend.agents.cost_tracker import CostTracker
 from backend.agents.debate import run_debate
 from backend.agents.conflict_detector import detect_conflicts
-from backend.agents.trace import DecisionTrace, TraceCollector, hash_input
+from backend.agents.info_gap import detect_info_gaps, retry_critical_gaps
+from backend.agents.memory import (
+    FinancialSituationMemory,
+    build_situation_description,
+    generate_reflection,
+)
+from backend.agents.risk_debate import run_risk_debate
+from backend.agents.trace import AnalysisContext, DecisionTrace, TraceCollector, hash_input
 from backend.config import prompts
 from backend.config.settings import Settings
 from backend.tools import (
@@ -39,6 +48,28 @@ from backend.tools import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Sector-aware tool skipping map. Tools listed for a sector are skipped in Step 6.
+# This saves compute for sectors where certain enrichment signals are uninformative.
+SECTOR_SKIP_MAP = {
+    "Financial Services": {"patent"},          # Banks/insurers don't file meaningful patents
+    "Utilities": {"patent", "alt_data"},       # Regulated utilities - no patent/trend signal
+    "Real Estate": {"patent", "alt_data"},     # REITs - patents/trends irrelevant
+}
+
+
+def _extract_text(response) -> str:
+    """Safely extract text from a Vertex AI response that may have multiple content parts.
+
+    When using grounding (Vertex AI Search / RAG), the response candidate often
+    contains multiple content parts.  The built-in ``response.text`` accessor
+    raises ValueError in that case.  This helper concatenates all text parts.
+    """
+    try:
+        return response.text
+    except ValueError:
+        parts = response.candidates[0].content.parts
+        return "\n".join(p.text for p in parts if hasattr(p, "text") and p.text)
 
 
 def _clean_json_output(text: str) -> str:
@@ -91,16 +122,76 @@ class AnalysisOrchestrator:
             grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
         )
 
-        self.rag_model = GenerativeModel(settings.gemini_model, tools=[rag_tool])
-        self.general_model = GenerativeModel(settings.gemini_model)
+        _gen_config = {"temperature": 0.2}
+        _enrichment_config = {"temperature": 0.2, "max_output_tokens": 1024}
+        _synthesis_config = {"temperature": 0.2, "max_output_tokens": 4096}
+        _deep_think_config = {"temperature": 0.2, "max_output_tokens": 2048}
+        self.rag_model = GenerativeModel(settings.gemini_model, tools=[rag_tool], generation_config=_gen_config)
+        self.general_model = GenerativeModel(settings.gemini_model, generation_config=_enrichment_config)
+
+        # Deep-think model for Moderator, Risk Judge, Synthesis, Critic
+        deep_model_name = settings.deep_think_model or settings.gemini_model
+        self.deep_think_model = GenerativeModel(deep_model_name, generation_config=_deep_think_config)
+        # Separate synthesis model with higher token limit
+        self.synthesis_model = GenerativeModel(deep_model_name, generation_config=_synthesis_config)
+        self.deep_think_model_name = deep_model_name
+        self.general_model_name = settings.gemini_model
+
+        # Initialize agent memory instances (BM25-based, seeded with archetypes)
+        self.bull_memory = FinancialSituationMemory("bull")
+        self.bear_memory = FinancialSituationMemory("bear")
+        self.moderator_memory = FinancialSituationMemory("moderator")
+        self.risk_judge_memory = FinancialSituationMemory("risk_judge")
+
+        # Load persisted memories from BigQuery (if available)
+        self._load_memories_from_bq()
 
     # ── Helpers ──────────────────────────────────────────────────────
 
-    def _generate_with_retry(self, model, prompt: str, agent_name: str, max_retries: int = 3):
+    def _load_memories_from_bq(self):
+        """Load persisted agent memories from BigQuery on startup."""
+        try:
+            from backend.db.bigquery_client import BigQueryClient
+            bq = BigQueryClient(self.settings)
+            rows = bq.get_agent_memories(limit=200)
+            memory_map = {
+                "bull": self.bull_memory,
+                "bear": self.bear_memory,
+                "moderator": self.moderator_memory,
+                "risk_judge": self.risk_judge_memory,
+            }
+            for row in rows:
+                agent_type = row.get("agent_type", "")
+                mem = memory_map.get(agent_type)
+                if mem:
+                    mem.add_memory(
+                        row.get("situation", ""),
+                        row.get("lesson", ""),
+                        {"ticker": row.get("ticker"), "source": "bq", "timestamp": row.get("created_at")},
+                    )
+            if rows:
+                logger.info(f"Loaded {len(rows)} agent memories from BigQuery")
+        except Exception as e:
+            logger.warning(f"Could not load memories from BQ (non-fatal): {e}")
+
+    def _generate_with_retry(self, model, prompt: str, agent_name: str, max_retries: int = 3, timeout: int = 90,
+                              is_deep_think: bool = False):
         delay = 5
+        model_name = self.deep_think_model_name if is_deep_think else self.general_model_name
+        ct = getattr(self, "_cost_tracker", None)
         for attempt in range(max_retries):
             try:
-                return model.generate_content(prompt)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(model.generate_content, prompt)
+                    response = future.result(timeout=timeout)
+                if ct:
+                    ct.record(agent_name, model_name, response, is_deep_think=is_deep_think)
+                return response
+            except concurrent.futures.TimeoutError:
+                logger.error(f"{agent_name} timed out after {timeout}s (attempt {attempt+1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    continue
+                raise TimeoutError(f"{agent_name} timed out after {timeout}s")
             except (gcp_exceptions.ServiceUnavailable, gcp_exceptions.ResourceExhausted) as e:
                 if attempt < max_retries - 1:
                     logger.warning(f"{agent_name} {type(e).__name__}. Retry in {delay}s ({attempt+1}/{max_retries-1})")
@@ -170,7 +261,7 @@ class AnalysisOrchestrator:
             for cit in response.grounding_metadata.grounding_attributions:
                 citations.append({"uri": cit.web.uri, "title": cit.web.title})
 
-        return {"text": response.text, "citations": citations}
+        return {"text": _extract_text(response), "citations": citations}
 
     def run_market_agent(self, ticker: str, av_data: dict) -> dict:
         """Step 4: Market sentiment analysis."""
@@ -215,7 +306,7 @@ class AnalysisOrchestrator:
                     self.rag_model, f"Answer this using 10-K: {q}", "Deep Dive (Answers)"
                 )
                 time.sleep(2)  # Rate limit protection
-                answers.append(f"Q: {q}\nA: {ans.text}")
+                answers.append(f"Q: {q}\nA: {_extract_text(ans)}")
         return "\n\n".join(answers)
 
     # ── New Data-Enrichment Steps ────────────────────────────────────
@@ -350,52 +441,123 @@ class AnalysisOrchestrator:
     # ── Synthesis ────────────────────────────────────────────────────
 
     def run_synthesis_pipeline(self, ticker: str, report: dict) -> dict:
-        """Synthesis + Critic pipeline → final validated JSON."""
-        logger.info(f"Synthesis Agent: drafting report for {ticker}")
+        """Synthesis + Critic reflection loop → final validated JSON.
 
+        Implements Evaluator-Optimizer pattern: Synthesis drafts, Critic reviews
+        with structured verdict. If REVISE, Synthesis re-runs with critic feedback
+        (up to max_synthesis_iterations). First pass uses deep-think; re-runs also use deep-think.
+        """
+        max_iterations = self.settings.max_synthesis_iterations
+        logger.info(f"Synthesis Agent: drafting report for {ticker} (max {max_iterations} iterations)")
+
+        # Build market_context with per-section truncation guard
+        _MAX_SECTION = 1500
+        _MAX_CONTEXT = 12000
         market_context = (
-            f"Market News & Sentiment:\n{report.get('market', {}).get('text', '')}\n\n"
-            f"Competitor Analysis:\n{report.get('competitor', {}).get('text', 'No competitor data.')}\n\n"
-            f"Macroeconomic Outlook:\n{report.get('macro', {}).get('text', 'No macro data.')}\n\n"
-            f"Insider Activity:\n{report.get('insider', {}).get('text', 'No insider data.')}\n\n"
-            f"Options Flow:\n{report.get('options', {}).get('text', 'No options data.')}\n\n"
-            f"Social Sentiment:\n{report.get('social_sentiment', {}).get('text', 'No social data.')}\n\n"
-            f"Earnings Call Tone:\n{report.get('earnings_tone', {}).get('text', 'No earnings tone data.')}\n\n"
-            f"Alternative Data:\n{report.get('alt_data', {}).get('text', 'No alternative data.')}\n\n"
-            f"Sector Analysis:\n{report.get('sector_analysis', {}).get('text', 'No sector data.')}"
+            f"Market News & Sentiment:\n{report.get('market', {}).get('text', '')[:_MAX_SECTION]}\n\n"
+            f"Competitor Analysis:\n{report.get('competitor', {}).get('text', 'No competitor data.')[:_MAX_SECTION]}\n\n"
+            f"Macroeconomic Outlook:\n{report.get('macro', {}).get('text', 'No macro data.')[:_MAX_SECTION]}\n\n"
+            f"Insider Activity:\n{report.get('insider', {}).get('text', 'No insider data.')[:_MAX_SECTION]}\n\n"
+            f"Options Flow:\n{report.get('options', {}).get('text', 'No options data.')[:_MAX_SECTION]}\n\n"
+            f"Social Sentiment:\n{report.get('social_sentiment', {}).get('text', 'No social data.')[:_MAX_SECTION]}\n\n"
+            f"Earnings Call Tone:\n{report.get('earnings_tone', {}).get('text', 'No earnings tone data.')[:_MAX_SECTION]}\n\n"
+            f"Alternative Data:\n{report.get('alt_data', {}).get('text', 'No alternative data.')[:_MAX_SECTION]}\n\n"
+            f"Sector Analysis:\n{report.get('sector_analysis', {}).get('text', 'No sector data.')[:_MAX_SECTION]}"
         )
+        if len(market_context) > _MAX_CONTEXT:
+            market_context = market_context[:_MAX_CONTEXT]
 
-        # Build sector catalyst data from patent + innovation signals
         sector_catalyst = report.get("patent", {}).get("text", "No sector catalyst data.")
+        quant_data = report.get("quant", {})
 
-        draft_prompt = prompts.get_synthesis_prompt(
-            ticker,
-            report.get("quant", {}),
-            report.get("rag", {}).get("text", ""),
-            market_context,
-            sector_catalyst,
-            report.get("supply_chain", "No supply chain data."),
-            report.get("deep_dive", ""),
+        # Inject session context into market context
+        session_context = report.get("_session_context", "")
+        if session_context:
+            market_context = session_context + "\n\n" + market_context
+
+        # Shared synthesis prompt kwargs for both initial and revision calls
+        synthesis_kwargs = dict(
+            ticker=ticker,
+            quant_report=quant_data,
+            rag_report=report.get("rag", {}).get("text", ""),
+            market_report=market_context,
+            sector_catalyst_report=sector_catalyst,
+            supply_chain_report=report.get("supply_chain", "No supply chain data."),
+            deep_dive_analysis=report.get("deep_dive", ""),
         )
-        draft_response = self._generate_with_retry(self.general_model, draft_prompt, "Synthesis")
+
+        # Initial synthesis draft (uses synthesis_model with 4096 output token limit)
+        draft_prompt = prompts.get_synthesis_prompt(**synthesis_kwargs)
+        draft_response = self._generate_with_retry(self.synthesis_model, draft_prompt, "Synthesis", is_deep_think=True)
         draft_text = _clean_json_output(draft_response.text)
 
-        # Critic pass
-        logger.info(f"Critic Agent: reviewing draft for {ticker}")
-        critic_prompt = prompts.get_critic_prompt(ticker, draft_text, report.get("quant", {}))
-        final_response = self._generate_with_retry(self.general_model, critic_prompt, "Critic")
-        final_text = _clean_json_output(final_response.text)
+        synthesis_iterations = 1
+        critic_issues_log = []
 
-        final_data = _parse_json_with_fallback(final_text, "Critic")
+        for iteration in range(max_iterations):
+            # Critic review with structured verdict
+            logger.info(f"Critic Agent: reviewing draft for {ticker} (iteration {iteration + 1})")
+            critic_feedback_str = ""
+            if iteration > 0:
+                critic_feedback_str = json.dumps(critic_issues_log[-1], indent=2)
+
+            critic_prompt = prompts.get_critic_prompt(ticker, draft_text, quant_data, critic_feedback=critic_feedback_str)
+            critic_response = self._generate_with_retry(self.deep_think_model, critic_prompt, "Critic", is_deep_think=True)
+            critic_text = _clean_json_output(critic_response.text)
+
+            # Parse structured Critic verdict
+            critic_result = _parse_json_with_fallback(critic_text, "Critic")
+            if not critic_result:
+                logger.warning("Critic returned invalid JSON, treating as PASS with draft.")
+                break
+
+            verdict = critic_result.get("verdict", "PASS").upper()
+            issues = critic_result.get("issues", [])
+            corrected_report = critic_result.get("corrected_report")
+            major_issues = [i for i in issues if i.get("severity") == "major"]
+
+            logger.info(f"Critic verdict: {verdict} — {len(major_issues)} major, {len(issues) - len(major_issues)} minor issues")
+
+            if verdict == "PASS" or not major_issues:
+                # Accept the corrected report (or draft if no corrected_report)
+                if corrected_report and isinstance(corrected_report, dict):
+                    corrected_report["synthesis_iterations"] = synthesis_iterations
+                    corrected_report["critic_issues"] = issues
+                    return corrected_report
+                break
+
+            # REVISE: Check if we have iterations left
+            if iteration >= max_iterations - 1:
+                logger.info("Max synthesis iterations reached, accepting Critic's corrected report.")
+                if corrected_report and isinstance(corrected_report, dict):
+                    corrected_report["synthesis_iterations"] = synthesis_iterations
+                    corrected_report["critic_issues"] = issues
+                    return corrected_report
+                break
+
+            # Re-run Synthesis with Critic feedback
+            critic_issues_log.append(issues)
+            synthesis_iterations += 1
+            logger.info(f"Synthesis Agent: revising report for {ticker} (iteration {synthesis_iterations})")
+
+            revision_prompt = prompts.get_synthesis_revision_prompt(
+                **synthesis_kwargs,
+                critic_issues=issues,
+                previous_draft=draft_text,
+            )
+            revision_response = self._generate_with_retry(
+                self.synthesis_model, revision_prompt, f"Synthesis-Rev{synthesis_iterations}", is_deep_think=True
+            )
+            draft_text = _clean_json_output(revision_response.text)
+
+        # Fallback: parse whatever we have
+        final_data = _parse_json_with_fallback(draft_text, "Synthesis-Final")
         if final_data:
+            final_data["synthesis_iterations"] = synthesis_iterations
             return final_data
 
-        logger.warning("Critic returned invalid JSON, falling back to draft.")
-        draft_data = _parse_json_with_fallback(draft_text, "Synthesis")
-        if draft_data:
-            return draft_data
-
-        return {"error": "Failed to parse final report from both agents."}
+        logger.warning("Failed to parse final report, returning error.")
+        return {"error": "Failed to parse final report.", "synthesis_iterations": synthesis_iterations}
 
     def compute_weighted_score(self, scoring_matrix: dict) -> float:
         """Apply pillar weights to compute the final score."""
@@ -427,11 +589,28 @@ class AnalysisOrchestrator:
 
         report = {}
         traces = TraceCollector()
+        self._cost_tracker = CostTracker()
+        ctx = AnalysisContext()
+
+        # Lite mode overrides: reduce debate rounds, synthesis iterations
+        lite = self.settings.lite_mode
+        effective_debate_rounds = 1 if lite else self.settings.max_debate_rounds
+        effective_risk_rounds = self.settings.max_risk_debate_rounds
+        skip_deep_dive = lite
+        skip_da = lite  # skip Devil's Advocate
+        skip_risk_assessment = lite
 
         # Step 0: Fetch external data (Alpha Vantage + yfinance in parallel)
         step("market_intel", "started", "Fetching Alpha Vantage data...")
         av_data = await self.fetch_market_intel(ticker)
-        step("market_intel", "completed", f"Got {len(av_data.get('sentiment_summary', []))} articles")
+        n_articles = len(av_data.get('sentiment_summary', []))
+        av_source = av_data.get('source', 'alphavantage')
+        if av_data.get('rate_limited'):
+            step("market_intel", "completed", f"AV rate-limited — fell back to yfinance ({n_articles} articles)")
+        elif av_data.get('error'):
+            step("market_intel", "completed", f"Warning: {av_data['error']}")
+        else:
+            step("market_intel", "completed", f"Got {n_articles} articles from {av_source}")
 
         # Step 1: Ingestion agent
         step("ingestion", "started", "Checking for new filings...")
@@ -444,6 +623,16 @@ class AnalysisOrchestrator:
         company_name = report["quant"].get("company_name", ticker)
         step("quant", "completed", "Financial data collected")
 
+        # Session memory: capture key quant findings
+        quant = report["quant"]
+        if isinstance(quant, dict):
+            pe = quant.get("pe_ratio") or quant.get("valuation", {}).get("P/E Ratio")
+            if pe:
+                ctx.add_finding(f"P/E ratio: {pe}")
+            sector_name = quant.get("sector", "")
+            if sector_name:
+                ctx.add_finding(f"Sector: {sector_name}")
+
         # Step 3: RAG agent
         step("rag", "started", "Analyzing 10-K/10-Q documents...")
         report["rag"] = await asyncio.to_thread(self.run_rag_agent, ticker)
@@ -454,6 +643,15 @@ class AnalysisOrchestrator:
         report["market"] = await asyncio.to_thread(self.run_market_agent, ticker, av_data)
         step("market", "completed", "Sentiment analysis complete")
 
+        # Session memory: capture sentiment direction
+        market_text = report.get("market", {}).get("text", "")
+        if "Divergence Warning" in market_text:
+            ctx.add_finding("Sentiment-price divergence detected")
+        elif "bullish" in market_text.lower()[:200]:
+            ctx.add_finding("Overall market sentiment: bullish")
+        elif "bearish" in market_text.lower()[:200]:
+            ctx.add_finding("Overall market sentiment: bearish")
+
         # Step 5: Competitor agent
         step("competitor", "started", "Analyzing rivals...")
         report["competitor"] = await asyncio.to_thread(self.run_competitor_agent, ticker, av_data)
@@ -461,16 +659,26 @@ class AnalysisOrchestrator:
 
         # Step 6: Fetch enrichment data in parallel (11 non-LLM calls)
         step("data_enrichment", "started", "Fetching 11 enrichment data sources in parallel...")
+        _enrichment_done_count = 0
+        _enrichment_labels_done: list[str] = []
 
         async def _safe(coro_or_func, label, *args):
             """Run async or sync callable, return result or error dict."""
+            nonlocal _enrichment_done_count
             try:
                 if asyncio.iscoroutinefunction(coro_or_func):
-                    return await coro_or_func(*args)
+                    result = await coro_or_func(*args)
                 else:
-                    return await asyncio.to_thread(coro_or_func, *args)
+                    result = await asyncio.to_thread(coro_or_func, *args)
+                _enrichment_done_count += 1
+                _enrichment_labels_done.append(label)
+                step("data_enrichment", "running", f"[{_enrichment_done_count}/11] {label} data collected")
+                return result
             except Exception as e:
                 logger.warning(f"{label} data fetch failed: {e}")
+                _enrichment_done_count += 1
+                _enrichment_labels_done.append(f"{label} (error)")
+                step("data_enrichment", "running", f"[{_enrichment_done_count}/11] {label} failed: {e}")
                 return {"signal": "ERROR", "summary": f"Error: {e}"}
 
         articles = av_data.get("sentiment_summary", [])
@@ -496,6 +704,23 @@ class AnalysisOrchestrator:
             if fallback_articles:
                 logger.info("AV empty for %s — using %d yfinance articles as fallback", ticker, len(fallback_articles))
 
+        # Sector routing: determine which tools to skip
+        sector_for_routing = ""
+        if isinstance(report.get("quant"), dict):
+            sector_for_routing = report["quant"].get("sector", "")
+        skipped_tools = SECTOR_SKIP_MAP.get(sector_for_routing, set())
+        if skipped_tools:
+            logger.info(f"Sector routing: {sector_for_routing} → skipping tools: {skipped_tools}")
+            ctx.add_finding(f"Sector routing: skipping {', '.join(skipped_tools)} for {sector_for_routing}")
+
+        async def _skip_placeholder(label: str):
+            """Return a placeholder for skipped tools."""
+            nonlocal _enrichment_done_count
+            _enrichment_done_count += 1
+            _enrichment_labels_done.append(f"{label} (skipped)")
+            step("data_enrichment", "running", f"[{_enrichment_done_count}/11] {label} skipped (sector routing)")
+            return {"signal": "SKIPPED", "summary": f"Skipped: not relevant for {sector_for_routing} sector"}
+
         (
             insider_data, options_data, social_data, patent_data,
             earnings_data, fred_macro, alt_result, sector_data,
@@ -503,17 +728,94 @@ class AnalysisOrchestrator:
         ) = await asyncio.gather(
             _safe(self.fetch_insider_data, "Insider", ticker),
             _safe(self.fetch_options_data, "Options", ticker),
-            _safe(self.fetch_social_sentiment, "Social", ticker, fallback_articles or None),
-            _safe(self.fetch_patent_data, "Patent", ticker, company_name),
+            _safe(self.fetch_social_sentiment, "Social", ticker, articles or fallback_articles or None),
+            _skip_placeholder("Patent") if "patent" in skipped_tools else _safe(self.fetch_patent_data, "Patent", ticker, company_name),
             _safe(self.fetch_earnings_tone, "Earnings", ticker),
             _safe(self.fetch_fred_data, "FRED"),
-            _safe(self.fetch_alt_data, "AltData", ticker, company_name),
+            _skip_placeholder("AltData") if "alt_data" in skipped_tools else _safe(self.fetch_alt_data, "AltData", ticker, company_name),
             _safe(self.fetch_sector_data, "Sector", ticker),
             _safe(self.fetch_nlp_sentiment, "NLP", ticker, articles),
             _safe(self.fetch_anomaly_scan, "Anomaly", ticker),
             _safe(self.fetch_monte_carlo, "MonteCarlo", ticker),
         )
         step("data_enrichment", "completed", "All 11 enrichment data sources collected")
+
+        # Session memory: capture enrichment signals
+        for src, data in [("insider", insider_data), ("options", options_data),
+                          ("social", social_data), ("patent", patent_data),
+                          ("sector", sector_data), ("nlp", nlp_data),
+                          ("anomaly", anomaly_data), ("monte_carlo", mc_data)]:
+            sig = data.get("signal", "N/A") if isinstance(data, dict) else "N/A"
+            if sig != "N/A" and sig != "ERROR":
+                ctx.set_signal(src, sig)
+
+        # Step 6b: Info-Gap Detection (AlphaQuanter ReAct loop)
+        step("info_gap", "started", "Scanning data completeness...")
+        enrichment_raw = {
+            "insider": insider_data, "options": options_data,
+            "social_sentiment": social_data, "patent": patent_data,
+            "earnings_tone": earnings_data, "fred_macro": fred_macro,
+            "alt_data": alt_result, "sector": sector_data,
+            "nlp_sentiment": nlp_data, "anomaly": anomaly_data,
+            "monte_carlo": mc_data,
+        }
+        sector_name = ""
+        if isinstance(report.get("quant"), dict):
+            sector_name = report["quant"].get("sector", "")
+        info_gap_report = detect_info_gaps(enrichment_raw, sector=sector_name)
+        critical_gaps = info_gap_report.get("critical_gaps", [])
+
+        if critical_gaps:
+            step("info_gap", "running", f"Found {len(critical_gaps)} critical gaps: {', '.join(critical_gaps)}. Retrying...")
+            retry_funcs = {
+                "insider": lambda: self.fetch_insider_data(ticker),
+                "options": lambda: self.fetch_options_data(ticker),
+                "social_sentiment": lambda: self.fetch_social_sentiment(ticker, articles),
+                "patent": lambda: self.fetch_patent_data(ticker, company_name),
+                "earnings_tone": lambda: self.fetch_earnings_tone(ticker),
+                "fred_macro": lambda: self.fetch_fred_data(),
+                "alt_data": lambda: self.fetch_alt_data(ticker, company_name),
+                "sector": lambda: self.fetch_sector_data(ticker),
+                "nlp_sentiment": lambda: self.fetch_nlp_sentiment(ticker, articles),
+                "anomaly": lambda: self.fetch_anomaly_scan(ticker),
+                "monte_carlo": lambda: self.fetch_monte_carlo(ticker),
+            }
+            recovered = await retry_critical_gaps(
+                critical_gaps,
+                retry_funcs,
+                max_retries=2,
+                on_progress=lambda msg: step("info_gap", "running", msg),
+            )
+            # Update enrichment data with recovered sources
+            for key, new_data in recovered.items():
+                if new_data and new_data.get("signal") != "ERROR":
+                    enrichment_raw[key] = new_data
+                    # Update the local variables
+                    if key == "insider": insider_data = new_data
+                    elif key == "options": options_data = new_data
+                    elif key == "social_sentiment": social_data = new_data
+                    elif key == "patent": patent_data = new_data
+                    elif key == "earnings_tone": earnings_data = new_data
+                    elif key == "fred_macro": fred_macro = new_data
+                    elif key == "alt_data": alt_result = new_data
+                    elif key == "sector": sector_data = new_data
+                    elif key == "nlp_sentiment": nlp_data = new_data
+                    elif key == "anomaly": anomaly_data = new_data
+                    elif key == "monte_carlo": mc_data = new_data
+            # Re-assess after retries
+            info_gap_report = detect_info_gaps(enrichment_raw, sector=sector_name)
+            step("info_gap", "running", f"Recovered {len(recovered)} sources. Quality: {info_gap_report['data_quality_score']:.0%}")
+        step("info_gap", "completed", f"Data quality: {info_gap_report['data_quality_score']:.0%} — {len(info_gap_report.get('critical_gaps', []))} critical gaps remaining")
+
+        # Session memory: data quality
+        dq = info_gap_report.get("data_quality_score", 1.0)
+        if dq < 0.7:
+            ctx.add_finding(f"Data quality low ({dq:.0%}) — gaps in: {', '.join(info_gap_report.get('critical_gaps', []))}")
+
+        # Quality Gate 1: Data quality threshold
+        low_data_quality = dq < self.settings.data_quality_min
+        if low_data_quality:
+            ctx.add_finding(f"QUALITY GATE: Data quality {dq:.0%} below threshold {self.settings.data_quality_min:.0%} — debate/risk skipped")
 
         # Step 7: Run LLM enrichment agents (11 agents)
         step("enrichment_analysis", "started", "Running 11 enrichment analysis agents...")
@@ -536,37 +838,124 @@ class AnalysisOrchestrator:
             ))
             return result
 
-        report["insider"] = await asyncio.to_thread(_run_agent_with_trace, self.run_insider_agent, "Insider Activity", ticker, ticker, insider_data)
-        report["options"] = await asyncio.to_thread(_run_agent_with_trace, self.run_options_agent, "Options Flow", ticker, ticker, options_data)
-        report["social_sentiment"] = await asyncio.to_thread(_run_agent_with_trace, self.run_social_sentiment_agent, "Social Sentiment", ticker, ticker, social_data)
-        report["patent"] = await asyncio.to_thread(_run_agent_with_trace, self.run_patent_agent, "Patent Innovation", ticker, ticker, patent_data)
-        report["earnings_tone"] = await asyncio.to_thread(_run_agent_with_trace, self.run_earnings_tone_agent, "Earnings Tone", ticker, ticker, earnings_data)
-        report["alt_data"] = await asyncio.to_thread(_run_agent_with_trace, self.run_alt_data_agent, "Alt Data", ticker, ticker, alt_result)
-        report["sector_analysis"] = await asyncio.to_thread(_run_agent_with_trace, self.run_sector_analysis_agent, "Sector Analysis", ticker, ticker, sector_data)
-        report["nlp_sentiment"] = await asyncio.to_thread(_run_agent_with_trace, self.run_nlp_sentiment_agent, "NLP Sentiment", ticker, ticker, nlp_data)
-        report["anomaly"] = await asyncio.to_thread(_run_agent_with_trace, self.run_anomaly_agent, "Anomaly Detection", ticker, ticker, anomaly_data)
-        report["scenario"] = await asyncio.to_thread(_run_agent_with_trace, self.run_scenario_agent, "Scenario Analysis", ticker, ticker, mc_data)
-        step("enrichment_analysis", "completed", "All 11 enrichment agents complete")
+        _agent_list = [
+            ("insider", self.run_insider_agent, "Insider Activity", insider_data),
+            ("options", self.run_options_agent, "Options Flow", options_data),
+            ("social_sentiment", self.run_social_sentiment_agent, "Social Sentiment", social_data),
+            ("patent", self.run_patent_agent, "Patent Innovation", patent_data),
+            ("earnings_tone", self.run_earnings_tone_agent, "Earnings Tone", earnings_data),
+            ("alt_data", self.run_alt_data_agent, "Alt Data", alt_result),
+            ("sector_analysis", self.run_sector_analysis_agent, "Sector Analysis", sector_data),
+            ("nlp_sentiment", self.run_nlp_sentiment_agent, "NLP Sentiment", nlp_data),
+            ("anomaly", self.run_anomaly_agent, "Anomaly Detection", anomaly_data),
+            ("scenario", self.run_scenario_agent, "Scenario Analysis", mc_data),
+        ]
+        _done_count = 0
+        _total = len(_agent_list)
 
-        # Step 8: Agent Debate (Bull vs Bear vs Moderator)
-        step("debate", "started", "Running adversarial debate (Bull vs Bear)...")
-        enrichment_for_debate = {
-            "insider": {"signal": insider_data.get("signal", "N/A"), "summary": insider_data.get("summary", ""), "analysis": report["insider"].get("text", "")},
-            "options": {"signal": options_data.get("signal", "N/A"), "summary": options_data.get("summary", ""), "analysis": report["options"].get("text", "")},
-            "social_sentiment": {"signal": social_data.get("signal", "N/A"), "summary": social_data.get("summary", ""), "analysis": report["social_sentiment"].get("text", "")},
-            "patent": {"signal": patent_data.get("signal", "N/A"), "summary": patent_data.get("summary", ""), "analysis": report["patent"].get("text", "")},
-            "earnings_tone": {"signal": earnings_data.get("signal", "N/A"), "summary": earnings_data.get("summary", ""), "analysis": report["earnings_tone"].get("text", "")},
-            "alt_data": {"signal": alt_result.get("signal", "N/A"), "summary": alt_result.get("summary", ""), "analysis": report["alt_data"].get("text", "")},
-            "sector": {"signal": sector_data.get("signal", "N/A"), "summary": sector_data.get("summary", ""), "analysis": report["sector_analysis"].get("text", "")},
-            "nlp_sentiment": {"signal": nlp_data.get("signal", "N/A"), "summary": nlp_data.get("summary", ""), "analysis": report["nlp_sentiment"].get("text", "")},
-            "anomaly": {"signal": anomaly_data.get("signal", "N/A"), "summary": anomaly_data.get("summary", ""), "analysis": report["anomaly"].get("text", "")},
-            "scenario": {"signal": mc_data.get("signal", "N/A"), "summary": mc_data.get("summary", ""), "analysis": report["scenario"].get("text", "")},
-        }
-        debate_result = await asyncio.to_thread(
-            run_debate, self.general_model, ticker, enrichment_for_debate, traces.summary()
-        )
-        report["debate"] = debate_result
-        step("debate", "completed", f"Consensus: {debate_result.get('consensus', 'N/A')}")
+        async def _run_one(key, func, name, data):
+            nonlocal _done_count
+            step("enrichment_analysis", "running", f"Gemini analyzing {name}...")
+            try:
+                result = await asyncio.to_thread(_run_agent_with_trace, func, name, ticker, ticker, data)
+            except Exception as e:
+                logger.error(f"Enrichment agent {name} failed: {e}")
+                result = {"text": f"Error: {e}", "data": data}
+            _done_count += 1
+            signal = data.get('signal', 'N/A') if isinstance(data, dict) else 'done'
+            step("enrichment_analysis", "running", f"[{_done_count}/{_total}] {name} → {signal}")
+            return key, result
+
+        results = await asyncio.gather(*[
+            _run_one(key, func, name, data)
+            for key, func, name, data in _agent_list
+        ])
+        for key, result in results:
+            report[key] = result
+        step("enrichment_analysis", "completed", f"All {_total} enrichment agents complete")
+
+        # Step 8: Agent Debate (Multi-Round Bull vs Bear + Devil's Advocate + Moderator)
+        # Quality Gate: Skip debate if data quality is below threshold
+        if low_data_quality:
+            step("debate", "started", "Skipping debate — data quality below threshold...")
+            debate_result = {
+                "consensus": "HOLD",
+                "consensus_confidence": 0.3,
+                "bull_case": {"thesis": "Insufficient data for bull case", "confidence": 0.0},
+                "bear_case": {"thesis": "Insufficient data for bear case", "confidence": 0.0},
+                "contradictions": [],
+                "dissent_registry": [],
+                "debate_rounds": [],
+                "total_rounds": 0,
+                "devils_advocate": {"challenges": [], "summary": "Skipped: data quality gate"},
+                "skipped_reason": f"Data quality {dq:.0%} below threshold {self.settings.data_quality_min:.0%}",
+            }
+            report["debate"] = debate_result
+            # Still need situation_desc for risk assessment
+            sector_name = ""
+            if isinstance(report.get("quant"), dict):
+                sector_name = report["quant"].get("sector", "")
+            situation_desc = build_situation_description(ticker, sector_name, {})
+            step("debate", "completed", f"Skipped — data quality {dq:.0%} below threshold")
+        else:
+            step("debate", "started", "Running multi-round adversarial debate...")
+            step("debate", "running", "Collecting positions from all enrichment agents...")
+            enrichment_for_debate = {
+                "insider": {"signal": insider_data.get("signal", "N/A"), "summary": insider_data.get("summary", ""), "analysis": report["insider"].get("text", "")},
+                "options": {"signal": options_data.get("signal", "N/A"), "summary": options_data.get("summary", ""), "analysis": report["options"].get("text", "")},
+                "social_sentiment": {"signal": social_data.get("signal", "N/A"), "summary": social_data.get("summary", ""), "analysis": report["social_sentiment"].get("text", "")},
+                "patent": {"signal": patent_data.get("signal", "N/A"), "summary": patent_data.get("summary", ""), "analysis": report["patent"].get("text", "")},
+                "earnings_tone": {"signal": earnings_data.get("signal", "N/A"), "summary": earnings_data.get("summary", ""), "analysis": report["earnings_tone"].get("text", "")},
+                "alt_data": {"signal": alt_result.get("signal", "N/A"), "summary": alt_result.get("summary", ""), "analysis": report["alt_data"].get("text", "")},
+                "sector": {"signal": sector_data.get("signal", "N/A"), "summary": sector_data.get("summary", ""), "analysis": report["sector_analysis"].get("text", "")},
+                "nlp_sentiment": {"signal": nlp_data.get("signal", "N/A"), "summary": nlp_data.get("summary", ""), "analysis": report["nlp_sentiment"].get("text", "")},
+                "anomaly": {"signal": anomaly_data.get("signal", "N/A"), "summary": anomaly_data.get("summary", ""), "analysis": report["anomaly"].get("text", "")},
+                "scenario": {"signal": mc_data.get("signal", "N/A"), "summary": mc_data.get("summary", ""), "analysis": report["scenario"].get("text", "")},
+            }
+            # Build memory context for debate agents
+            sector_name = ""
+            if isinstance(report.get("quant"), dict):
+                sector_name = report["quant"].get("sector", "")
+            situation_desc = build_situation_description(
+                ticker, sector_name, {
+                    k: {"signal": v.get("signal", "N/A")}
+                    for k, v in enrichment_for_debate.items()
+                },
+            )
+            bull_memory_str = self.bull_memory.format_for_prompt(situation_desc)
+            bear_memory_str = self.bear_memory.format_for_prompt(situation_desc)
+            moderator_memory_str = self.moderator_memory.format_for_prompt(situation_desc)
+
+            debate_result = await asyncio.to_thread(
+                run_debate,
+                self.general_model,
+                ticker,
+                enrichment_for_debate,
+                traces.summary(),
+                max_debate_rounds=effective_debate_rounds,
+                on_progress=lambda msg: step("debate", "running", msg),
+                past_memories={"bull": bull_memory_str, "bear": bear_memory_str, "moderator": moderator_memory_str},
+                cost_tracker=self._cost_tracker,
+                deep_think_model=self.deep_think_model,
+                general_model_name=self.general_model_name,
+                deep_think_model_name=self.deep_think_model_name,
+                skip_devils_advocate=skip_da,
+            )
+            report["debate"] = debate_result
+            da_challenges = len(debate_result.get("devils_advocate", {}).get("challenges", []))
+            step("debate", "completed",
+                 f"Consensus: {debate_result.get('consensus', 'N/A')} "
+                 f"(confidence: {debate_result.get('consensus_confidence', 'N/A')}) — "
+                 f"{debate_result.get('total_rounds', 2)} rounds, "
+                 f"{da_challenges} DA challenges")
+
+            # Session memory: capture debate outcome
+            consensus = debate_result.get("consensus", "")
+            if consensus:
+                ctx.add_finding(f"Debate consensus: {consensus} (conf: {debate_result.get('consensus_confidence', 'N/A')})")
+            for c in debate_result.get("contradictions", [])[:3]:
+                if isinstance(c, dict):
+                    ctx.add_contradiction(c.get("topic", str(c))[:100])
 
         # Step 9: Enhanced macro (original macro + FRED data)
         step("macro", "started", "Analyzing macro economy with FRED data...")
@@ -574,13 +963,26 @@ class AnalysisOrchestrator:
         step("macro", "completed", "Macro analysis complete")
 
         # Step 10: Deep dive
-        step("deep_dive", "started", "Finding contradictions and probing...")
-        report["deep_dive"] = await asyncio.to_thread(self.run_deep_dive_agent, ticker, report)
-        step("deep_dive", "completed", "Deep dive complete")
+        if skip_deep_dive:
+            step("deep_dive", "started", "Skipping deep dive (lite mode)...")
+            report["deep_dive"] = "Skipped (lite mode)"
+            step("deep_dive", "completed", "Skipped (lite mode)")
+        else:
+            step("deep_dive", "started", "Finding contradictions and probing...")
+            report["deep_dive"] = await asyncio.to_thread(self.run_deep_dive_agent, ticker, report)
+            step("deep_dive", "completed", "Deep dive complete")
 
-        # Step 11+12: Synthesis + Critic
+        # Store session context in report for synthesis pipeline
+        report["_session_context"] = ctx.format_for_prompt()
+
+        # Step 11+12: Synthesis + Critic (with reflection loop)
         step("synthesis", "started", "Drafting final report...")
+        step("synthesis", "running", "Building synthesis prompt from all agent outputs...")
+        step("synthesis", "running", "Gemini generating structured JSON report (reflection loop enabled)...")
         final_json = await asyncio.to_thread(self.run_synthesis_pipeline, ticker, report)
+        iterations = final_json.get("synthesis_iterations", 1)
+        iter_msg = f" ({iterations} iteration{'s' if iterations > 1 else ''})" if iterations > 1 else ""
+        step("synthesis", "running", f"Parsing and validating report structure...{iter_msg}")
         scores = final_json.get("scoring_matrix", {})
         final_json["final_weighted_score"] = self.compute_weighted_score(scores)
 
@@ -611,11 +1013,15 @@ class AnalysisOrchestrator:
             "anomalies": anomaly_data,
         }
 
+        # Attach info-gap report
+        final_json["info_gap_report"] = info_gap_report
+
         report["final_synthesis"] = final_json
         step("synthesis", "completed", f"Score: {final_json.get('final_weighted_score', 'N/A')}")
 
         # Step 12b: Bias Audit
         step("bias_audit", "started", "Running bias and conflict detection...")
+        step("bias_audit", "running", "Checking for tech bias, confirmation bias, recency bias...")
         bias_report = detect_biases(
             ticker=ticker,
             recommendation=final_json.get("recommendation", {}).get("recommendation", "HOLD"),
@@ -624,6 +1030,7 @@ class AnalysisOrchestrator:
             debate_result=debate_result,
             quant_data=report.get("quant", {}),
         )
+        step("bias_audit", "running", f"Found {bias_report.get('bias_count', 0)} bias flags. Checking knowledge conflicts...")
         conflict_report = detect_conflicts(
             ticker=ticker,
             synthesis_report=final_json,
@@ -633,5 +1040,70 @@ class AnalysisOrchestrator:
         final_json["bias_report"] = bias_report
         final_json["conflict_report"] = conflict_report
         step("bias_audit", "completed", f"Bias flags: {bias_report.get('bias_count', 0)}, Conflicts: {conflict_report.get('conflict_count', 0)}")
+
+        # Step 12c: Risk Assessment Team (Aggressive / Conservative / Neutral + Risk Judge)
+        # Quality Gate: Skip risk assessment if data quality is below threshold or lite mode
+        if low_data_quality or skip_risk_assessment:
+            skip_reason = "lite mode" if skip_risk_assessment else f"data quality {dq:.0%} below threshold {self.settings.data_quality_min:.0%}"
+            step("risk_assessment", "started", f"Skipping risk assessment — {skip_reason}...")
+            risk_assessment = {
+                "aggressive": {"confidence": 0.0, "argument": "Insufficient data"},
+                "conservative": {"confidence": 0.0, "argument": "Insufficient data"},
+                "neutral": {"confidence": 0.0, "argument": "Insufficient data"},
+                "judge": {
+                    "decision": "REJECT",
+                    "risk_adjusted_confidence": 0.0,
+                    "recommended_position_pct": 0,
+                    "risk_level": "HIGH",
+                    "risk_limits": {},
+                },
+                "skipped_reason": skip_reason,
+            }
+            final_json["risk_assessment"] = risk_assessment
+            step("risk_assessment", "completed", f"Skipped — {skip_reason}")
+        else:
+            step("risk_assessment", "started", "Running risk assessment team debate...")
+            risk_judge_memory_str = self.risk_judge_memory.format_for_prompt(situation_desc)
+            risk_assessment = await asyncio.to_thread(
+                run_risk_debate,
+                self.general_model,
+                ticker,
+                final_json,
+                final_json.get("enrichment_signals", {}),
+                debate_result=debate_result,
+                max_risk_rounds=self.settings.max_risk_debate_rounds,
+                past_memories={
+                    "risk_aggressive": "",
+                    "risk_conservative": "",
+                    "risk_neutral": "",
+                    "risk_judge": risk_judge_memory_str,
+                },
+                on_progress=lambda msg: step("risk_assessment", "running", msg),
+                cost_tracker=self._cost_tracker,
+                deep_think_model=self.deep_think_model,
+                general_model_name=self.general_model_name,
+                deep_think_model_name=self.deep_think_model_name,
+            )
+            final_json["risk_assessment"] = risk_assessment
+            judge = risk_assessment.get("judge", {})
+            step("risk_assessment", "completed",
+                 f"Risk Judge: {judge.get('decision', 'N/A')} — "
+                 f"position {judge.get('recommended_position_pct', 'N/A')}% — "
+                 f"risk level: {judge.get('risk_level', 'N/A')}")
+
+        # Attach cost summary (token usage + cost breakdown)
+        cost_summary = self._cost_tracker.summarize()
+        final_json["cost_summary"] = cost_summary
+
+        # Budget check (soft warning only, does not abort)
+        if self._cost_tracker.check_budget(self.settings.max_analysis_cost_usd):
+            logger.warning(
+                "Analysis for %s exceeded cost budget: $%.4f > $%.2f",
+                ticker, cost_summary["total_cost_usd"], self.settings.max_analysis_cost_usd,
+            )
+            final_json["budget_warning"] = (
+                f"Analysis cost ${cost_summary['total_cost_usd']:.4f} exceeded "
+                f"budget of ${self.settings.max_analysis_cost_usd:.2f}"
+            )
 
         return report

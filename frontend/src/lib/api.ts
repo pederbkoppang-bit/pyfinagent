@@ -6,6 +6,11 @@ import type {
   AllSignals,
   AnalysisResponse,
   AnalysisStatusResponse,
+  CostHistoryEntry,
+  FullSettings,
+  LatestCostSummary,
+  ModelConfig,
+  ModelPricing,
   PerformanceStats,
   PortfolioPerformance,
   PortfolioPosition,
@@ -93,6 +98,10 @@ export function evaluateOutcomes(): Promise<{
   return apiFetch("/api/reports/evaluate", { method: "POST" });
 }
 
+export function getCostHistory(limit = 50): Promise<CostHistoryEntry[]> {
+  return apiFetch(`/api/reports/cost-history?limit=${limit}`);
+}
+
 // ── Health ───────────────────────────────────────────────────────
 
 export function healthCheck(): Promise<{ status: string; service: string }> {
@@ -138,4 +147,37 @@ export function deletePortfolioPosition(id: string): Promise<{ message: string }
 
 export function getPortfolioPerformance(): Promise<PortfolioPerformance> {
   return apiFetch("/api/portfolio/performance");
+}
+
+// ── Settings ────────────────────────────────────────────────────
+
+export function getModelConfig(): Promise<ModelConfig> {
+  return apiFetch("/api/settings/models");
+}
+
+export function getAvailableModels(): Promise<ModelPricing[]> {
+  return apiFetch("/api/settings/models/available");
+}
+
+export function updateModelConfig(body: { gemini_model?: string; deep_think_model?: string }): Promise<ModelConfig> {
+  return apiFetch("/api/settings/models", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function getFullSettings(): Promise<FullSettings> {
+  return apiFetch("/api/settings/");
+}
+
+export function updateSettings(body: Partial<FullSettings>): Promise<FullSettings> {
+  return apiFetch("/api/settings/", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function getLatestCostSummary(): Promise<LatestCostSummary> {
+  return apiFetch("/api/reports/latest-cost-summary");
 }

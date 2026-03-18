@@ -3,6 +3,9 @@ Decision trace logger — Explainable AI (XAI) audit trail.
 Every LLM agent call produces a DecisionTrace capturing inputs, outputs,
 reasoning steps, and evidence citations for full transparency.
 
+Also defines AnalysisContext — short-term session memory that accumulates
+key findings during a single analysis run.
+
 Research basis: Goldman Sachs XAI requirements (ref 16).
 """
 
@@ -14,6 +17,59 @@ from datetime import datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# ── Session Memory ──────────────────────────────────────────────
+
+MAX_FINDINGS = 20
+MAX_FINDING_LEN = 100
+
+
+@dataclass
+class AnalysisContext:
+    """Short-term session memory that accumulates key findings during a run.
+
+    Passed to later agents (Synthesis, Deep Dive, Critic) so they can build
+    on insights from earlier steps. Capped at MAX_FINDINGS entries of
+    MAX_FINDING_LEN chars each to avoid prompt bloat.
+    """
+
+    key_findings: list[str] = field(default_factory=list)
+    contradictions: list[str] = field(default_factory=list)
+    signal_consensus: dict[str, str] = field(default_factory=dict)
+
+    def add_finding(self, finding: str) -> None:
+        if len(self.key_findings) < MAX_FINDINGS:
+            self.key_findings.append(finding[:MAX_FINDING_LEN])
+
+    def add_contradiction(self, contradiction: str) -> None:
+        if len(self.contradictions) < MAX_FINDINGS:
+            self.contradictions.append(contradiction[:MAX_FINDING_LEN])
+
+    def set_signal(self, source: str, signal: str) -> None:
+        self.signal_consensus[source] = signal
+
+    def format_for_prompt(self) -> str:
+        """Format accumulated context as a prompt section."""
+        if not self.key_findings and not self.contradictions:
+            return ""
+        parts = ["--- ACCUMULATED ANALYSIS CONTEXT (Session Memory) ---"]
+        if self.key_findings:
+            parts.append("Key Findings So Far:")
+            for i, f in enumerate(self.key_findings, 1):
+                parts.append(f"  {i}. {f}")
+        if self.contradictions:
+            parts.append("Contradictions Detected:")
+            for c in self.contradictions:
+                parts.append(f"  - {c}")
+        if self.signal_consensus:
+            bullish = sum(1 for s in self.signal_consensus.values() if "BULL" in s.upper())
+            bearish = sum(1 for s in self.signal_consensus.values() if "BEAR" in s.upper())
+            parts.append(f"Signal Consensus: {bullish} bullish, {bearish} bearish, {len(self.signal_consensus) - bullish - bearish} neutral")
+        parts.append("----------------------------------------------------")
+        return "\n".join(parts)
+
+
+# ── Decision Trace ──────────────────────────────────────────────
 
 
 @dataclass

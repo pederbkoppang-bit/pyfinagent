@@ -56,6 +56,15 @@ class SynthesisReport(BaseModel):
     conflict_report: Optional[dict] = None
 
 
+# ── Step Log ─────────────────────────────────────────────────────────
+
+class StepLogEntry(BaseModel):
+    step: str
+    status: str
+    message: str
+    timestamp: str
+
+
 # ── API Models ───────────────────────────────────────────────────────
 
 class AnalysisRequest(BaseModel):
@@ -74,6 +83,8 @@ class AnalysisStatusResponse(BaseModel):
     status: AnalysisStatus
     current_step: Optional[str] = None
     steps_completed: list[str] = []
+    message: Optional[str] = None
+    step_log: list[StepLogEntry] = []
     error: Optional[str] = None
     report: Optional[SynthesisReport] = None
 

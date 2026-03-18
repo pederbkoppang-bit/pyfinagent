@@ -1,6 +1,7 @@
 "use client";
 
 import { clsx } from "clsx";
+import { PdfDownload } from "./PdfDownload";
 import type { SynthesisReport } from "@/lib/types";
 
 interface ReportHeaderProps {
@@ -116,6 +117,7 @@ export function ReportHeader({ ticker, report, financials }: ReportHeaderProps) 
             </span>
             <span className="text-[10px] text-slate-600">Recommendation</span>
           </div>
+          <PdfDownload ticker={ticker} report={report} financials={financials} />
         </div>
       </div>
 

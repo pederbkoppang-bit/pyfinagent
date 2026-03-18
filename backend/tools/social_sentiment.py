@@ -50,7 +50,13 @@ async def get_social_sentiment(ticker: str, api_key: str, fallback_articles: lis
             resp.raise_for_status()
             data = resp.json()
 
-        feed = data.get("feed", [])
+        # Detect rate limit responses
+        if "Information" in data or "Note" in data:
+            logger.warning("Alpha Vantage rate limit in social_sentiment for %s", ticker)
+            feed = []
+        else:
+            feed = data.get("feed", [])
+
         if not feed:
             # ── Fallback: keyword-based scoring on yfinance articles ──
             if fallback_articles:
