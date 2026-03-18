@@ -20,12 +20,43 @@ import type {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+async function getAuthToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const res = await fetch("/api/auth/session");
+    if (!res.ok) return null;
+    const session = await res.json();
+    // NextAuth JWT — the session cookie itself is the token
+    // For backend auth, we pass the raw session token cookie
+    const cookies = document.cookie.split(";").map((c) => c.trim());
+    const tokenCookie = cookies.find(
+      (c) => c.startsWith("__Secure-authjs.session-token=") || c.startsWith("authjs.session-token=")
+    );
+    if (tokenCookie) return tokenCookie.split("=").slice(1).join("=");
+    return session?.user ? "session-active" : null;
+  } catch {
+    return null;
+  }
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store",
+    ...Object.fromEntries(
+      Object.entries(init?.headers || {}).filter(([, v]) => v != null) as [string, string][]
+    ),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers,
     });
   } catch (err) {
     // Network-level failure (CORS, DNS, refused, etc.)
@@ -39,6 +70,13 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(`Network error calling ${path}: ${msg}`);
   }
   if (!res.ok) {
+    // 401 → redirect to login
+    if (res.status === 401) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      throw new Error("Session expired. Redirecting to login.");
+    }
     let detail: string;
     try {
       const body = await res.json();

@@ -299,7 +299,7 @@ def get_bull_agent_prompt(
     ticker: str,
     signals_json: str,
     trace_json: str,
-    opponent_argument: str = None,
+    opponent_argument: str | None = None,
     round_number: int = 1,
     max_rounds: int = 2,
     past_memory: str = "",
@@ -346,7 +346,7 @@ def get_bear_agent_prompt(
     ticker: str,
     signals_json: str,
     trace_json: str,
-    opponent_argument: str = None,
+    opponent_argument: str | None = None,
     round_number: int = 1,
     max_rounds: int = 2,
     past_memory: str = "",
@@ -394,8 +394,8 @@ def get_moderator_prompt(
     bull_case: str,
     bear_case: str,
     signals_json: str,
-    devils_advocate: str = None,
-    debate_history: str = None,
+    devils_advocate: str | None = None,
+    debate_history: str | None = None,
     past_memory: str = "",
 ) -> str:
     """Moderator Agent: resolve contradictions with DA input and multi-round context."""

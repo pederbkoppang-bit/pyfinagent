@@ -603,10 +603,11 @@ Multi-page Goldman Sachs-style PDF export using jsPDF.
 | `RisksCard` | `GlassBoxCards.tsx` | Rose-themed risk bullet list |
 | `ValuationRange` | `GlassBoxCards.tsx` | Valuation metric range visualization |
 | `ResearchInvestigator` | `ResearchInvestigator.tsx` | RAG-powered investigation query against 10-K documents |
-| `Sidebar` | `Sidebar.tsx` | Navigation sidebar for all routes |
+| `Sidebar` | `Sidebar.tsx` | Navigation sidebar for all routes + user auth UI (avatar, email, passkey registration, logout) |
 | `MacroDashboard` | `MacroDashboard.tsx` | 7-indicator FRED grid + macro warnings (used on /signals page) |
 | `SectorDashboard` | `SectorDashboard.tsx` | Sector rotation chart + relative strength table (used on /signals page) |
 | `CostDashboard` | `CostDashboard.tsx` | LLM cost analytics: 4 summary cards (total cost, tokens, calls, deep think), token distribution bar, cost by model breakdown, per-agent table sorted by cost |
+| `AuthProvider` | `AuthProvider.tsx` | SessionProvider wrapper with 15-minute refetch interval (wraps entire app in layout.tsx) |
 
 ---
 
@@ -1171,6 +1172,7 @@ The download button in the Overview tab generates a multi-page PDF containing al
 
 | Route | Page File | Key Components | Shares Report Data |
 |-------|-----------|---------------|-------------------|
+| `/login` | `login/page.tsx` | Google SSO + Passkey login, PyFinAgent branding | Auth gateway |
 | `/` | `page.tsx` | **Full Report Dashboard** — ReportHeader + 6 tabs | Primary analysis page |
 | `/signals` | `signals/page.tsx` | SignalDashboard, SectorDashboard, MacroDashboard | Standalone signal explorer |
 | `/compare` | `compare/page.tsx` | Multi-report comparison with radar chart | Past report comparison |
@@ -1280,3 +1282,67 @@ Save:
 - Never hardcode hex colors — use Tailwind utility classes only
 - Source badges use the `SOURCE_COLORS` map from `SignalDashboard.tsx`
 - All text uses `zinc-100` (primary) or `zinc-400` (secondary) — never `white` or `gray`
+
+---
+
+## Authentication UX (v2.8)
+
+### Login Page
+
+**File:** `frontend/src/app/login/page.tsx`
+
+Full-page login screen with PyFinAgent branding. Two authentication methods:
+
+| Method | Button | Flow |
+|--------|--------|------|
+| **Google SSO** | "Sign in with Google" (SVG icon) | NextAuth `signIn("google")` → Google OAuth → callback → redirect to `/` |
+| **Passkey/WebAuthn** | "Sign in with Passkey" (🔑) | `webAuthnSignIn()` → browser credential prompt → callback → redirect to `/` |
+
+**Visual:** Dark theme (`bg-zinc-950`), centered card, PyFinAgent logo + tagline "AI-Powered Financial Analysis", generic error messages (never leaks auth details).
+
+### Auth Middleware
+
+**File:** `frontend/src/middleware.ts`
+
+Route protection using Edge-compatible `auth.config.ts` (no Prisma adapter in Edge Runtime):
+- **Protected**: All routes by default
+- **Public**: `/login`, `/api/auth/*`, `/_next/*`, `/favicon.ico`
+- **Behavior**: Unauthenticated → redirect to `/login`
+
+### Sidebar Auth UI
+
+**File:** `frontend/src/components/Sidebar.tsx`
+
+Bottom section of the sidebar shows authenticated user info:
+- User avatar (from Google) or initials fallback
+- Display name + email
+- "Register Passkey" button (calls `webAuthnSignIn("register")`)
+- "Sign out" button (red hover, calls `signOut()`)
+
+### API Client Auth
+
+**File:** `frontend/src/lib/api.ts`
+
+All API calls include `Authorization: Bearer <session-token>` header. On 401 response, redirects to `/login`. Uses `Cache-Control: no-store` to prevent stale auth data.
+
+---
+
+## Slack Bot UX (v2.8)
+
+### Slash Commands
+
+| Command | Response | Block Kit Format |
+|---------|----------|-----------------|
+| `/analyze <TICKER>` | Starts analysis, polls 5s intervals, posts formatted result | Score badge emoji, recommendation, investment thesis, key risks, debate consensus |
+| `/portfolio` | Portfolio P&L summary | Total value, P&L with color, position list (up to 10) |
+| `/report <TICKER>` | Latest report card | Score, recommendation, date, summary |
+
+### Morning Digest
+
+Automated cron job (configurable hour, default 8 AM) posts to configured Slack channel:
+- Portfolio summary section (total value, P&L)
+- Recent analyses section (last 7 days, up to 5 reports)
+
+### Proactive Alerts
+
+After each analysis completes, `send_analysis_alert()` posts the result to the configured channel with score, recommendation, and key metrics.

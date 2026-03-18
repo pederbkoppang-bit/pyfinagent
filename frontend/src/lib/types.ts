@@ -2,6 +2,13 @@
  * Shared TypeScript types for the PyFinAgent frontend.
  */
 
+export interface AuthUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}
+
 export type AnalysisStatus = "pending" | "running" | "completed" | "failed";
 
 export interface ScoringMatrix {

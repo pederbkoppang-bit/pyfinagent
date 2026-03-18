@@ -15,7 +15,7 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from backend.config.prompts import SKILLS_DIR, load_skill, reload_skills
 from backend.config.settings import Settings
@@ -46,7 +46,7 @@ OPTIMIZABLE_AGENTS = [
 ]
 
 
-def _git(*args: str, cwd: str = None) -> str:
+def _git(*args: str, cwd: str | None = None) -> str:
     """Run a git command and return stdout. Raises on failure."""
     result = subprocess.run(
         ["git", *args],
@@ -58,7 +58,7 @@ def _git(*args: str, cwd: str = None) -> str:
     return result.stdout.strip()
 
 
-def _get_short_hash(cwd: str = None) -> str:
+def _get_short_hash(cwd: str | None = None) -> str:
     """Get current git short commit hash."""
     try:
         return _git("rev-parse", "--short", "HEAD", cwd=cwd)
@@ -264,12 +264,12 @@ class SkillOptimizer:
 
     # ── Read In-Scope Context ────────────────────────────────────
 
-    def read_in_scope_files(self, agent_name: str) -> dict:
+    def read_in_scope_files(self, agent_name: str) -> dict[str, Any]:
         """
         READ CONTEXT (autoresearch rule): gather everything relevant
         before proposing a modification.
         """
-        context = {"agent_name": agent_name}
+        context: dict[str, Any] = {"agent_name": agent_name}
 
         # 1. Current skill file
         try:

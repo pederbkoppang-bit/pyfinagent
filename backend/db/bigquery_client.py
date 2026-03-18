@@ -23,7 +23,13 @@ class BigQueryClient:
         credentials = None
         if settings.gcp_credentials_json:
             creds_info = json.loads(settings.gcp_credentials_json)
-            credentials = service_account.Credentials.from_service_account_info(creds_info)
+            credentials = service_account.Credentials.from_service_account_info(
+                creds_info,
+                scopes=["https://www.googleapis.com/auth/bigquery",
+                        "https://www.googleapis.com/auth/cloud-platform"],
+            )
+        else:
+            logger.warning("GCP_CREDENTIALS_JSON not set, falling back to Application Default Credentials")
 
         self.client = bigquery.Client(project=settings.gcp_project_id, credentials=credentials)
         self.reports_table = f"{settings.gcp_project_id}.{settings.bq_dataset_reports}.{settings.bq_table_reports}"
@@ -306,7 +312,7 @@ class BigQueryClient:
         if errors:
             logger.error(f"Memory insert errors: {errors}")
 
-    def get_agent_memories(self, agent_type: str = None, limit: int = 200) -> list[dict]:
+    def get_agent_memories(self, agent_type: str | None = None, limit: int = 200) -> list[dict]:
         """Retrieve agent memories from BigQuery."""
         table = f"{self.settings.gcp_project_id}.{self.settings.bq_dataset_reports}.agent_memories"
         try:

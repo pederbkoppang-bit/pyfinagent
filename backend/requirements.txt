@@ -29,3 +29,11 @@ python-multipart>=0.0.9
 
 # Memory (BM25 lexical similarity for agent learning)
 rank-bm25>=0.2.2
+
+# Authentication (JWE decryption for NextAuth.js tokens)
+cryptography>=42.0.0
+
+# Slack Bot
+slack-bolt[async]>=1.18.0
+slack-sdk>=3.27.0
+APScheduler>=3.10.0

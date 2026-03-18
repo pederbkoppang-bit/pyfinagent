@@ -77,7 +77,15 @@ class Settings(BaseSettings):
     lite_mode: bool = Field(False, description="Cost-saving mode: skips deep dive, devil's advocate, reflection loop, and risk assessment (~50% fewer LLM calls)")
     max_analysis_cost_usd: float = Field(0.50, description="Soft budget per analysis in USD. Logs warnings when exceeded; does not abort.")
     max_synthesis_iterations: int = Field(2, ge=1, le=3, description="Maximum Synthesis↔Critic reflection loop iterations (1=no reflection)")
+    # --- Authentication ---
+    auth_secret: str = Field("", description="NextAuth.js AUTH_SECRET for JWE decryption. Empty = auth disabled (dev mode).")
+    allowed_emails: str = Field("", description="Comma-separated email whitelist. Empty = allow all authenticated users.")
 
+    # --- Slack Bot ---
+    slack_bot_token: str = Field("", description="Slack Bot User OAuth Token (xoxb-...)")
+    slack_app_token: str = Field("", description="Slack App-Level Token for Socket Mode (xapp-...)")
+    slack_channel_id: str = Field("", description="Slack channel ID for proactive alerts and digests")
+    morning_digest_hour: int = Field(8, description="Hour (0-23) for daily morning digest in local timezone")
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

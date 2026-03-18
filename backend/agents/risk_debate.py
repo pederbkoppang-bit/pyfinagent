@@ -16,7 +16,7 @@ import json
 import logging
 import re
 import time
-from typing import Optional
+from typing import Callable, Optional
 
 from vertexai.generative_models import GenerativeModel
 from google.api_core import exceptions as gcp_exceptions
@@ -72,10 +72,10 @@ def run_risk_debate(
     ticker: str,
     synthesis_result: dict,
     enrichment_signals: dict,
-    debate_result: dict = None,
+    debate_result: dict | None = None,
     max_risk_rounds: int = 1,
-    past_memories: dict = None,
-    on_progress: Optional[callable] = None,
+    past_memories: dict | None = None,
+    on_progress: Optional[Callable[[str], None]] = None,
     cost_tracker: CostTracker | None = None,
     deep_think_model: GenerativeModel | None = None,
     general_model_name: str = "",
@@ -143,7 +143,8 @@ def run_risk_debate(
         )
         aggressive_response = _generate_with_retry(model, aggressive_prompt, f"Aggressive {round_label}",
                                                      cost_tracker=cost_tracker, model_name=general_model_name)
-        aggressive_text = aggressive_response.text.strip()
+        if aggressive_response:
+            aggressive_text = aggressive_response.text.strip()
 
         # ── Conservative Analyst ────────────────────────────────
         logger.info(f"Risk debate {round_label}: Conservative Analyst")
@@ -157,7 +158,8 @@ def run_risk_debate(
         )
         conservative_response = _generate_with_retry(model, conservative_prompt, f"Conservative {round_label}",
                                                        cost_tracker=cost_tracker, model_name=general_model_name)
-        conservative_text = conservative_response.text.strip()
+        if conservative_response:
+            conservative_text = conservative_response.text.strip()
 
         # ── Neutral Analyst ─────────────────────────────────────
         logger.info(f"Risk debate {round_label}: Neutral Analyst")
@@ -170,7 +172,8 @@ def run_risk_debate(
         )
         neutral_response = _generate_with_retry(model, neutral_prompt, f"Neutral {round_label}",
                                                    cost_tracker=cost_tracker, model_name=general_model_name)
-        neutral_text = neutral_response.text.strip()
+        if neutral_response:
+            neutral_text = neutral_response.text.strip()
 
         risk_rounds.append({
             "round": round_num,
@@ -217,7 +220,7 @@ def run_risk_debate(
                                            model_name=deep_think_model_name or general_model_name,
                                            is_deep_think=deep_think_model is not None,
                                            gen_config=_JUDGE_GEN_CONFIG)
-    judge_text = _clean_json(judge_response.text)
+    judge_text = _clean_json(judge_response.text) if judge_response else ""
     judge_result = _parse_json(judge_text, "Risk Judge")
     if not judge_result:
         judge_result = {

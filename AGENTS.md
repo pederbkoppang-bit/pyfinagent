@@ -47,6 +47,7 @@ pyfinagent/
 │   │   └── prompts.py           # Skill-loaded prompt wrappers (loads from skills/*.md)
 │   ├── api/
 │   │   ├── analysis.py          # POST /api/analysis/, GET /api/analysis/{id}
+│   │   ├── auth.py              # HKDF + JWE token decrypt, email whitelist
 │   │   ├── reports.py           # Reports CRUD + performance stats
 │   │   ├── charts.py            # Price chart + financials endpoints
 │   │   ├── signals.py           # Enrichment signals endpoints (11 routes)
@@ -54,10 +55,16 @@ pyfinagent/
 │   │   ├── settings_api.py      # Model configuration + available models
 │   │   └── skills.py            # Skills optimization API endpoints
 │   ├── db/
-│   │   ├── bigquery_client.py    # BigQuery report persistence (67-column ML schema)
+│   │   ├── bigquery_client.py    # BigQuery report persistence (68-column ML schema)
 │   │   └── __init__.py
 │   ├── services/
 │   │   └── outcome_tracker.py   # Evaluates past recs vs actual returns (feedback loop)
+│   ├── slack_bot/
+│   │   ├── app.py               # Slack bot entry point (Socket Mode)
+│   │   ├── commands.py          # /analyze, /portfolio, /report slash commands
+│   │   ├── scheduler.py         # Morning digest cron job + proactive alerts
+│   │   ├── formatters.py        # Block Kit message builders
+│   │   └── Dockerfile           # Standalone container for slack bot
 │   ├── tools/
 │   │   ├── alphavantage.py      # Alpha Vantage news + competitor discovery
 │   │   ├── yfinance_tool.py     # Comprehensive financials + price history
@@ -75,8 +82,12 @@ pyfinagent/
 │   │   └── slack.py             # Slack webhook notifications
 │   └── main.py                  # FastAPI app + router registration
 ├── frontend/
+│   ├── prisma/
+│   │   └── schema.prisma        # SQLite auth DB (User, Account, Session, Authenticator)
 │   ├── src/app/
 │   │   ├── page.tsx             # Dashboard (main analysis)
+│   │   ├── login/page.tsx       # Login page (Google SSO + Passkey)
+│   │   ├── api/auth/[...nextauth]/route.ts  # NextAuth catch-all handler
 │   │   ├── signals/page.tsx     # Signals exploration
 │   │   ├── compare/page.tsx     # Multi-stock comparison
 │   │   ├── reports/page.tsx     # Past reports
@@ -84,21 +95,27 @@ pyfinagent/
 │   │   ├── portfolio/page.tsx   # Portfolio tracking + P&L
 │   │   └── settings/page.tsx    # Configuration
 │   ├── src/components/
+│   │   ├── AuthProvider.tsx     # SessionProvider wrapper (15-min refetch)
 │   │   ├── DebateView.tsx       # Bull vs Bear debate visualization
 │   │   ├── RiskDashboard.tsx    # Monte Carlo fan chart + VaR + anomalies
 │   │   ├── SentimentDetail.tsx  # NLP sentiment deep-dive
 │   │   ├── BiasReport.tsx       # LLM bias flags + knowledge conflicts
-│   │   ├── SignalCards.tsx       # 8-signal enrichment grid + consensus bar
+│   │   ├── SignalCards.tsx       # 11-signal enrichment grid + consensus bar
 │   │   ├── SectorDashboard.tsx  # Sector rotation + relative strength
 │   │   ├── MacroDashboard.tsx   # FRED indicator grid + warnings
 │   │   ├── StockChart.tsx       # Candlestick + SMA/RSI chart
 │   │   ├── EvaluationTable.tsx  # 5-pillar scoring matrix
 │   │   ├── AnalysisProgress.tsx # 15-step progress tracker
 │   │   ├── CostDashboard.tsx    # LLM cost/token analytics dashboard
-│   │   └── Sidebar.tsx          # Navigation sidebar
-│   └── src/lib/
-│       ├── types.ts             # Full TypeScript type definitions
-│       └── api.ts               # API client (all endpoint calls)
+│   │   └── Sidebar.tsx          # Navigation sidebar + user auth UI
+│   ├── src/lib/
+│   │   ├── auth.config.ts       # Edge-compatible auth config (providers, callbacks)
+│   │   ├── auth.ts              # Full auth config (PrismaAdapter + WebAuthn)
+│   │   ├── prisma.ts            # Singleton Prisma client
+│   │   ├── types.ts             # Full TypeScript type definitions
+│   │   └── api.ts               # API client (Bearer token + 401 handling)
+│   └── src/middleware.ts        # Route protection (redirects unauthenticated → /login)
+├── docker-compose.yml           # 3 services: backend, frontend, slack-bot
 ├── migrate_bq_schema.py         # Idempotent BQ schema migration (adds ML columns)
 ├── migrate_agent_memories.py    # Idempotent BQ migration (creates agent_memories table)
 ├── quant-agent/                 # GCP Cloud Function
@@ -377,10 +394,11 @@ This system's design is informed by leading research on AI in financial trading:
 
 ## Frontend — Pages & Components
 
-### Pages (7 routes)
+### Pages (8 routes)
 
 | Route | File | Description |
 |-------|------|-------------|
+| `/login` | `login/page.tsx` | **Login**: Google SSO + Passkey authentication, PyFinAgent branding, error handling |
 | `/` | `page.tsx` | **Dashboard**: Ticker input → real-time 15-step analysis → Alpha score card, investment thesis, 5-pillar evaluation, stock chart, enrichment signals, debate view, risk dashboard, bias report |
 | `/signals` | `signals/page.tsx` | **Signals Explorer**: Enter ticker → view all 11 enrichment signals, consensus bar, sector dashboard, macro dashboard |
 | `/compare` | `compare/page.tsx` | **Compare**: Select 2-5 past reports → side-by-side price overlay, radar chart, pillar score bars |
@@ -397,13 +415,15 @@ This system's design is informed by leading research on AI in financial trading:
 | `RiskDashboard.tsx` | Monte Carlo fan chart (percentile bands over 1Y), VaR gauge (95%/99%), anomaly alert cards (red for risk, green for opportunity) |
 | `SentimentDetail.tsx` | Contextual keyword cloud (embedding-weighted), sentiment time-series (30d), source breakdown chart |
 | `BiasReport.tsx` | Bias flag cards with severity indicators, knowledge conflict table (LLM belief vs actual data), raw vs bias-adjusted score |
-| `SignalCards.tsx` | 8-card grid with color-coded badges (green=bullish, red=bearish, amber=neutral, gray=error). SignalSummaryBar shows consensus distribution |
+| `AuthProvider.tsx` | SessionProvider wrapper with 15-minute refetch interval |
+| `SignalCards.tsx` | 11-card grid with color-coded badges (green=bullish, red=bearish, amber=neutral, gray=error). SignalSummaryBar shows consensus distribution |
 | `SectorDashboard.tsx` | Sector rotation bar chart (11 SPDR ETFs by 3M return), relative performance table (stock/sector/SPY × 4 periods), peer comparison table |
 | `MacroDashboard.tsx` | 7-indicator grid (current value + change), macro warnings section |
 | `StockChart.tsx` | Candlestick + volume with toggleable SMA50/SMA200/RSI, 5 period options (1M–2Y) |
 | `EvaluationTable.tsx` | 5-pillar horizontal bars with weights, individual pillar progress indicators |
 | `AnalysisProgress.tsx` | 15-step real-time tracker with % bar, current-step spinner, emoji status icons |
 | `CostDashboard.tsx` | LLM cost analytics: 4 summary cards (total cost, tokens, calls, deep think), token distribution bar, cost by model, per-agent breakdown table |
+| `Sidebar.tsx` | Navigation sidebar + user auth UI (avatar, email, passkey registration, logout) |
 
 ---
 
@@ -415,6 +435,8 @@ This system's design is informed by leading research on AI in financial trading:
 *   Python 3.11+
 *   GCP project with Vertex AI and BigQuery enabled
 *   Application Default Credentials configured (`gcloud auth application-default login`)
+*   Google OAuth Client ID (for SSO authentication)
+*   Slack App with Socket Mode enabled (optional, for Slack bot)
 
 ### Quick Start
 
@@ -427,7 +449,11 @@ uvicorn backend.main:app --reload --port 8000
 # Frontend (separate terminal)
 cd frontend
 npm install
+npx prisma migrate dev   # Initialize auth SQLite DB
 npm run dev  # port 3001
+
+# Docker (all services)
+docker compose up --build
 ```
 
 ### Required Environment Variables
@@ -450,6 +476,16 @@ ALPHAVANTAGE_API_KEY=<key>
 FRED_API_KEY=<key>
 API_NINJAS_KEY=<key>
 
+# Authentication (must match frontend/.env.local)
+AUTH_SECRET=<base64-secret>  # openssl rand -base64 32
+ALLOWED_EMAILS=user@example.com  # Comma-separated email whitelist
+
+# Slack Bot (Socket Mode)
+SLACK_BOT_TOKEN=xoxb-...     # Bot User OAuth Token
+SLACK_APP_TOKEN=xapp-...     # App-Level Token (Socket Mode)
+SLACK_CHANNEL_ID=C0123...    # Channel for alerts/digests
+MORNING_DIGEST_HOUR=8        # Hour (0-23) for daily portfolio digest
+
 # Optional
 SLACK_WEBHOOK_URL=<optional>
 USE_CELERY=false
@@ -459,6 +495,16 @@ DEEP_THINK_MODEL=            # Optional deep-think model (e.g., gemini-2.5-pro)
 LITE_MODE=false              # Skip deep dive, devil's advocate, risk assessment; 1 debate round
 MAX_ANALYSIS_COST_USD=0.50   # Per-analysis budget cap (warning logged when exceeded)
 MAX_SYNTHESIS_ITERATIONS=2   # Reflection loop iterations (1-3, default 2)
+```
+
+Frontend uses `.env.local` file in `frontend/` directory:
+
+```env
+AUTH_SECRET=<same-as-backend> # Must match backend AUTH_SECRET
+AUTH_GOOGLE_ID=<google-oauth-client-id>
+AUTH_GOOGLE_SECRET=<google-oauth-client-secret>
+ALLOWED_EMAILS=user@example.com
+NEXT_PUBLIC_API_BASE=http://localhost:8000
 ```
 
 ---
@@ -748,9 +794,14 @@ cd frontend && npm run build  # must produce 0 TypeScript errors
 
 ## Security
 
+*   **Authentication**: NextAuth.js v5 with dual authentication (Google SSO + Passkey/WebAuthn). Frontend middleware redirects unauthenticated users to `/login`. Backend validates JWE tokens via HKDF key derivation + AES-256-CBC decryption. Email whitelist enforced on both frontend (NextAuth callback) and backend (`ALLOWED_EMAILS`).
+    *   **Frontend**: `auth.config.ts` (Edge-compatible, no Prisma) for middleware + `auth.ts` (PrismaAdapter + WebAuthn) for route handler. JWT strategy with 8h maxAge.
+    *   **Backend**: `auth.py` decrypts NextAuth JWE using `HKDF(AUTH_SECRET, info=b"Auth.js Generated Encryption Key", salt=b"", length=64)` → A256CBC-HS512/dir. Auth middleware skips `/api/health`, `/api/auth`, `/docs`, `/openapi.json`, `/redoc`.
+*   **OWASP Security Headers**: All responses include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, `Cache-Control: no-store`, `Permissions-Policy` (restricted).
+*   **CORS**: Allows `localhost:*` and Tailscale IPs (`100.x.y.z:*`) via regex pattern.
 *   **SEC EDGAR User-Agent**: When making requests to the SEC EDGAR database, you **MUST** declare a custom User-Agent string in the format `FirstName LastName email@domain.com`. Failure to do so will result in the IP address being blocked by the SEC. This is managed via secrets.
 *   **Secret Management**:
-    *   **Local**: Use the `backend/.env` file for local development.
+    *   **Local**: Use the `backend/.env` file and `frontend/.env.local` for local development.
     *   **Production**: All production secrets (API keys, service account keys) are managed using **Google Cloud Secret Manager**. Do not hardcode secrets in the source code.
 *   **Input Validation**: All API endpoints validate input parameters. Ticker symbols are sanitized. No raw user input is passed directly to LLM prompts without sanitization.
 *   **Rate Limiting**: External API calls (Alpha Vantage, FRED, SEC EDGAR, USPTO) respect rate limits with automatic retry and exponential backoff.
@@ -758,6 +809,47 @@ cd frontend && npm run build  # must produce 0 TypeScript errors
 ---
 
 ## Upgrade History
+
+### v2.8 — Auth + Slack Bot + Deployment (March 2026)
+
+End-to-end authentication (Google SSO + Passkey), Slack bot with slash commands and morning digest, Docker Compose overhaul, and OWASP security hardening.
+
+**Frontend Authentication (12 files)**:
+*   `prisma/schema.prisma` — SQLite database with 5 models: User, Account, Session, VerificationToken, Authenticator (WebAuthn)
+*   `src/lib/auth.config.ts` — Edge-compatible auth config: Google + Passkey providers, JWT strategy (8h maxAge), email whitelist callback, `authorized` callback for middleware
+*   `src/lib/auth.ts` — Full auth config extending auth.config with PrismaAdapter + `experimental: { enableWebAuthn: true }`
+*   `src/lib/prisma.ts` — Singleton Prisma client with global hot-reload safety
+*   `src/app/api/auth/[...nextauth]/route.ts` — NextAuth v5 catch-all route handler
+*   `src/components/AuthProvider.tsx` — SessionProvider wrapper with 15-minute refetch interval
+*   `src/app/login/page.tsx` — Login page: Google SSO button (SVG icon) + Passkey button (🔑), PyFinAgent branding, generic error messages, dark theme
+*   `src/middleware.ts` — Route protection: imports from `auth.config` (Edge-safe), redirects unauthenticated → `/login`, skips `/api/auth`, `/_next`, `/favicon`
+*   `src/lib/api.ts` — Added `getAuthToken()` (reads session cookie), Bearer token injection, 401 → redirect to `/login`, `Cache-Control: no-store`
+*   `src/lib/types.ts` — Added `AuthUser` interface
+*   `src/components/Sidebar.tsx` — Added user avatar/email display, passkey registration button, logout button
+*   `.env.local` — Added `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `ALLOWED_EMAILS`
+
+**Backend Authentication (3 files)**:
+*   `api/auth.py` — HKDF key derivation + JWE A256CBC-HS512/dir decryption using `cryptography` library. `get_current_user()` validates Bearer token, checks email whitelist + token expiry
+*   `main.py` — Auth middleware (skips public paths), OWASP security headers (6 headers), CORS updated for Tailscale IPs (`100.x.y.z`)
+*   `config/settings.py` — Added `auth_secret`, `allowed_emails`, `slack_bot_token`, `slack_app_token`, `slack_channel_id`, `morning_digest_hour`
+
+**Slack Bot Module (6 files in `backend/slack_bot/`)**:
+*   `app.py` — Entry point: AsyncApp + AsyncSocketModeHandler, registers slash commands, starts scheduler
+*   `commands.py` — 3 slash commands: `/analyze <TICKER>` (starts analysis, polls 5s intervals), `/portfolio` (P&L summary), `/report <TICKER>` (report card)
+*   `scheduler.py` — APScheduler AsyncIOScheduler: morning digest cron job (configurable hour), `send_analysis_alert()` for proactive alerts after analysis completes
+*   `formatters.py` — 4 Block Kit message builders: analysis result, portfolio summary, report card, morning digest
+*   `Dockerfile` — python:3.11-slim, non-root appuser, Socket Mode (no inbound ports)
+
+**Docker Compose Overhaul**:
+*   3 services: `backend`, `frontend`, `slack-bot` (removed redis + celery-worker)
+*   `slack-bot` service: depends on backend, Socket Mode (no ports exposed), `restart: unless-stopped`
+*   `auth-db` named volume for SQLite persistence across container restarts
+*   `restart: unless-stopped` on all services
+*   Frontend gets `env_file: ./frontend/.env.local` and volume mount for Prisma
+
+**New Dependencies**: `cryptography>=42.0.0`, `slack-bolt[async]>=1.18.0`, `slack-sdk>=3.27.0`, `APScheduler>=3.10.0`, `next-auth@5.0.0-beta.30`, `@prisma/client@6`, `@auth/prisma-adapter`, `@simplewebauthn/browser@9.0.1`, `@simplewebauthn/server@9.0.3`
+
+**New Environment Variables**: `AUTH_SECRET`, `ALLOWED_EMAILS`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `SLACK_CHANNEL_ID`, `MORNING_DIGEST_HOUR`
 
 ### v2.7 — Cost Management + Settings UI Overhaul (March 2026)
 

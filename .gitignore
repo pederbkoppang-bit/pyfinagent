@@ -14,3 +14,7 @@ __pycache__/
 # Node
 node_modules/
 .next/
+
+# Prisma SQLite auth database
+frontend/prisma/auth.db
+frontend/prisma/auth.db-journal

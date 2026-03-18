@@ -8,9 +8,14 @@ Run: python migrate_bq_schema.py
 import json
 import os
 import sys
+from pathlib import Path
 
+from dotenv import load_dotenv
 from google.cloud import bigquery
 from google.oauth2 import service_account
+
+# Load SA credentials from backend/.env (works regardless of ADC state)
+load_dotenv(Path(__file__).parent / "backend" / ".env")
 
 # ── Config ──────────────────────────────────────────────────────
 PROJECT_ID = "sunny-might-477607-p8"
@@ -82,13 +87,45 @@ NEW_COLUMNS = [
 ]
 
 
+OUTCOME_TRACKING_REF = f"{PROJECT_ID}.{DATASET}.outcome_tracking"
+OUTCOME_TRACKING_SCHEMA = [
+    bigquery.SchemaField("ticker", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("analysis_date", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("recommendation", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("price_at_recommendation", "FLOAT64", mode="NULLABLE"),
+    bigquery.SchemaField("current_price", "FLOAT64", mode="NULLABLE"),
+    bigquery.SchemaField("return_pct", "FLOAT64", mode="NULLABLE"),
+    bigquery.SchemaField("holding_days", "INT64", mode="NULLABLE"),
+    bigquery.SchemaField("beat_benchmark", "BOOL", mode="NULLABLE"),
+    bigquery.SchemaField("evaluated_at", "STRING", mode="NULLABLE"),
+]
+
+
+def ensure_outcome_tracking_table(client: bigquery.Client) -> None:
+    """Create outcome_tracking table if it doesn't exist (idempotent)."""
+    try:
+        client.get_table(OUTCOME_TRACKING_REF)
+        print(f"Table {OUTCOME_TRACKING_REF} already exists. Nothing to do.")
+    except Exception:
+        table = bigquery.Table(OUTCOME_TRACKING_REF, schema=OUTCOME_TRACKING_SCHEMA)
+        client.create_table(table)
+        print(f"Created table {OUTCOME_TRACKING_REF}")
+
+
 def main():
     # Build client
     creds_json = os.environ.get("GCP_CREDENTIALS_JSON", "")
     credentials = None
     if creds_json:
-        credentials = service_account.Credentials.from_service_account_info(json.loads(creds_json))
+        credentials = service_account.Credentials.from_service_account_info(
+            json.loads(creds_json),
+            scopes=["https://www.googleapis.com/auth/bigquery",
+                    "https://www.googleapis.com/auth/cloud-platform"],
+        )
     client = bigquery.Client(project=PROJECT_ID, credentials=credentials)
+
+    # Ensure outcome_tracking table exists
+    ensure_outcome_tracking_table(client)
 
     table = client.get_table(TABLE_REF)
     existing = {field.name for field in table.schema}

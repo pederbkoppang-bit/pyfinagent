@@ -14,12 +14,12 @@ Can be run standalone or imported by the API for JSON output.
 import csv
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 RESULTS_TSV = Path(__file__).parent / "skill_results.tsv"
 
 
-def load_experiments(tsv_path: Path = None) -> list[dict]:
+def load_experiments(tsv_path: Path | None = None) -> list[dict]:
     """Load all experiments from the TSV file."""
     path = tsv_path or RESULTS_TSV
     if not path.exists():
@@ -40,8 +40,8 @@ def load_experiments(tsv_path: Path = None) -> list[dict]:
 
 def compute_keep_rate(experiments: list[dict]) -> dict:
     """Compute overall and per-agent keep rates."""
-    overall = {"kept": 0, "discarded": 0, "crashed": 0, "pending": 0, "total": 0}
-    per_agent: dict[str, dict] = defaultdict(lambda: {"kept": 0, "discarded": 0, "crashed": 0, "total": 0})
+    overall: dict[str, int | float] = {"kept": 0, "discarded": 0, "crashed": 0, "pending": 0, "total": 0}
+    per_agent: dict[str, dict[str, int | float]] = defaultdict(lambda: {"kept": 0, "discarded": 0, "crashed": 0, "total": 0})
 
     for exp in experiments:
         status = exp.get("status", "")
@@ -63,7 +63,7 @@ def compute_keep_rate(experiments: list[dict]) -> dict:
         per_agent[agent]["total"] += 1
 
     decisions = overall["kept"] + overall["discarded"]
-    overall["keep_rate"] = round(overall["kept"] / decisions, 3) if decisions > 0 else 0.0
+    overall["keep_rate"] = round(overall["kept"] / decisions, 3) if decisions > 0 else 0
 
     agent_rates = {}
     for agent, counts in per_agent.items():
@@ -199,7 +199,7 @@ def compute_summary(experiments: list[dict]) -> dict:
     }
 
 
-def full_analysis(tsv_path: Path = None) -> dict:
+def full_analysis(tsv_path: Path | None = None) -> dict:
     """
     Run the complete analysis and return a JSON-serializable dict.
 

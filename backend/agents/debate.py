@@ -10,7 +10,7 @@ import json
 import logging
 import re
 import time
-from typing import Optional
+from typing import Callable, Optional
 
 from vertexai.generative_models import GenerativeModel
 from google.api_core import exceptions as gcp_exceptions
@@ -68,8 +68,8 @@ def run_debate(
     enrichment_signals: dict,
     trace_summary: dict,
     max_debate_rounds: int = 2,
-    on_progress: Optional[callable] = None,
-    past_memories: dict = None,
+    on_progress: Optional[Callable[[str], None]] = None,
+    past_memories: dict | None = None,
     cost_tracker: CostTracker | None = None,
     deep_think_model: GenerativeModel | None = None,
     general_model_name: str = "",
@@ -127,14 +127,15 @@ def run_debate(
         _progress(f"Round {round_num}/{max_debate_rounds}: Bull agent building case...")
         bull_prompt = prompts.get_bull_agent_prompt(
             ticker, signals_json, trace_json,
-            opponent_argument=bear_text if bear_text else None,
+            opponent_argument=bear_text or None,
             round_number=round_num,
             max_rounds=max_debate_rounds,
             past_memory=memories.get("bull", ""),
         )
         bull_response = _generate_with_retry(model, bull_prompt, f"Bull Agent R{round_num}",
                                                cost_tracker=cost_tracker, model_name=general_model_name)
-        bull_text = bull_response.text.strip()
+        if bull_response:
+            bull_text = bull_response.text.strip()
 
         # Bear Agent turn
         logger.info(f"Debate Round {round_num}: Bear Agent (round {round_num}/{max_debate_rounds})")
@@ -148,7 +149,8 @@ def run_debate(
         )
         bear_response = _generate_with_retry(model, bear_prompt, f"Bear Agent R{round_num}",
                                                cost_tracker=cost_tracker, model_name=general_model_name)
-        bear_text = bear_response.text.strip()
+        if bear_response:
+            bear_text = bear_response.text.strip()
 
         debate_rounds.append({
             "round": round_num,
@@ -174,7 +176,7 @@ def run_debate(
         )
         da_response = _generate_with_retry(model, da_prompt, "Devil's Advocate",
                                              cost_tracker=cost_tracker, model_name=general_model_name)
-        da_text = _clean_json(da_response.text)
+        da_text = _clean_json(da_response.text) if da_response else ""
         da_result = _parse_json(da_text, "Devil's Advocate")
         if not da_result:
             da_result = {
@@ -206,7 +208,7 @@ def run_debate(
                                                model_name=deep_think_model_name or general_model_name,
                                                is_deep_think=deep_think_model is not None,
                                                gen_config=_MODERATOR_GEN_CONFIG)
-    moderator_text = _clean_json(moderator_response.text)
+    moderator_text = _clean_json(moderator_response.text) if moderator_response else ""
 
     # Try to parse moderator output as structured JSON
     debate_result = _parse_json(moderator_text, "Moderator")

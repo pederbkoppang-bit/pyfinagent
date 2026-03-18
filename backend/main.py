@@ -6,10 +6,11 @@ import logging
 import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.analysis import router as analysis_router
+from backend.api.auth import get_current_user
 from backend.api.charts import router as charts_router
 from backend.api.investigate import router as investigate_router
 from backend.api.portfolio import router as portfolio_router
@@ -59,14 +60,39 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow the Next.js frontend in dev and production
+# CORS \u2014 allow the Next.js frontend in dev, production, and Tailscale
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^http://localhost:\d+$",
+    allow_origin_regex=r"^http://(localhost|100\.\d+\.\d+\.\d+):\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Paths that skip authentication
+_PUBLIC_PATHS = ("/api/health", "/api/auth", "/docs", "/openapi.json", "/redoc")
+
+
+@app.middleware("http")
+async def auth_and_security_middleware(request: Request, call_next):
+    """Authentication check + OWASP security headers on every response."""
+    path = request.url.path
+
+    # Skip auth for public paths
+    if not any(path.startswith(p) for p in _PUBLIC_PATHS):
+        await get_current_user(request)
+
+    response: Response = await call_next(request)
+
+    # OWASP security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "0"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+
+    return response
 
 # Routes
 app.include_router(analysis_router)
