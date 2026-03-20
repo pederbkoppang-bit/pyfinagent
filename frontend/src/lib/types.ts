@@ -457,6 +457,7 @@ export interface CostHistoryEntry {
 
 export interface ModelPricing {
   model: string;
+  provider?: string;
   input_per_1m: number;
   output_per_1m: number;
 }
@@ -488,6 +489,10 @@ export interface FullSettings {
   thinking_budget_moderator?: number;
   thinking_budget_risk_judge?: number;
   thinking_budget_synthesis?: number;
+  // v3.4 — Multi-provider key status (read-only; never exposes actual keys)
+  anthropic_key_configured?: boolean;
+  openai_key_configured?: boolean;
+  github_token_configured?: boolean;
 }
 
 export interface LatestCostSummary extends CostSummary {

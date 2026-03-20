@@ -15,9 +15,28 @@ logger = logging.getLogger(__name__)
 
 # Pricing per 1M tokens (input, output) — March 2026
 MODEL_PRICING: dict[str, tuple[float, float]] = {
+    # Gemini (Vertex AI)
     "gemini-2.0-flash": (0.10, 0.40),
     "gemini-2.5-flash": (0.15, 0.60),
     "gemini-2.5-pro": (1.25, 10.00),
+    # Anthropic Claude (direct or via GitHub Models)
+    "claude-3-5-haiku-20241022": (0.80, 4.00),
+    "claude-3-5-sonnet-20241022": (3.00, 15.00),
+    "claude-3-7-sonnet-20250219": (3.00, 15.00),
+    "claude-sonnet-4-6": (3.00, 15.00),
+    # OpenAI (direct or via GitHub Models)
+    "gpt-4o": (2.50, 10.00),
+    "gpt-4o-mini": (0.15, 0.60),
+    "o1": (15.00, 60.00),
+    "o1-mini": (3.00, 12.00),
+    "o3-mini": (1.10, 4.40),
+    # Meta Llama (via GitHub Models)
+    "meta-llama-3.1-405b-instruct": (5.00, 15.00),
+    "meta-llama-3.1-70b-instruct": (0.90, 0.90),
+    "meta-llama-3.1-8b-instruct": (0.18, 0.18),
+    # Mistral (via GitHub Models)
+    "mistral-large-2407": (3.00, 9.00),
+    "mistral-nemo": (0.30, 0.30),
 }
 
 # Fallback pricing if model not in table

@@ -30,6 +30,10 @@ python-multipart>=0.0.9
 # Memory (BM25 lexical similarity for agent learning)
 rank-bm25>=0.2.2
 
+# Multi-provider LLM support (v3.4)
+anthropic>=0.49.0
+openai>=1.50.0
+
 # Authentication (JWE decryption for NextAuth.js tokens)
 cryptography>=42.0.0
 

@@ -17,8 +17,23 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
-# Valid model names — whitelist to prevent arbitrary writes
-_VALID_MODELS = {"gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"}
+# Valid model names — whitelist to prevent arbitrary writes to .env
+# Includes Gemini (direct), GitHub Models catalog, Anthropic direct, OpenAI direct
+_VALID_MODELS = {
+    # Gemini (Vertex AI)
+    "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro",
+    # GitHub Models (OpenAI-compatible endpoint, served via Copilot Pro)
+    "gpt-4o", "gpt-4o-mini",
+    "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
+    "claude-3-7-sonnet-20250219", "claude-sonnet-4-6",
+    "meta-llama-3.1-405b-instruct", "meta-llama-3.1-70b-instruct", "meta-llama-3.1-8b-instruct",
+    "phi-4", "phi-3.5-moe-instruct", "phi-3.5-mini-instruct",
+    "mistral-large-2407", "mistral-nemo",
+    # Anthropic direct
+    # (claude-* already covered above via GitHub Models; same names work for both)
+    # OpenAI direct
+    "o1", "o1-mini", "o3-mini",
+}
 
 
 class ModelConfig(BaseModel):
@@ -49,6 +64,10 @@ class FullSettings(BaseModel):
     lite_mode: bool
     max_analysis_cost_usd: float
     max_synthesis_iterations: int
+    # Multi-provider key status (read-only; shows whether keys are configured)
+    anthropic_key_configured: bool = False
+    openai_key_configured: bool = False
+    github_token_configured: bool = False
 
 
 class SettingsUpdate(BaseModel):
@@ -77,14 +96,33 @@ class ModelConfigUpdate(BaseModel):
 class ModelPricing(BaseModel):
     """Per-model pricing info."""
     model: str
+    provider: str = "Gemini"
     input_per_1m: float
     output_per_1m: float
 
 
 AVAILABLE_MODELS = [
-    {"model": "gemini-2.0-flash", "input_per_1m": 0.10, "output_per_1m": 0.40},
-    {"model": "gemini-2.5-flash", "input_per_1m": 0.15, "output_per_1m": 0.60},
-    {"model": "gemini-2.5-pro", "input_per_1m": 1.25, "output_per_1m": 10.00},
+    # Gemini (Vertex AI) — always available via Application Default Credentials
+    {"model": "gemini-2.0-flash",  "provider": "Gemini", "input_per_1m": 0.10, "output_per_1m": 0.40},
+    {"model": "gemini-2.5-flash",  "provider": "Gemini", "input_per_1m": 0.15, "output_per_1m": 0.60},
+    {"model": "gemini-2.5-pro",    "provider": "Gemini", "input_per_1m": 1.25, "output_per_1m": 10.00},
+    # GitHub Models — requires GITHUB_TOKEN + Copilot Pro subscription
+    {"model": "gpt-4o",                       "provider": "GitHub Models", "input_per_1m": 2.50,  "output_per_1m": 10.00},
+    {"model": "gpt-4o-mini",                  "provider": "GitHub Models", "input_per_1m": 0.15,  "output_per_1m": 0.60},
+    {"model": "claude-3-5-sonnet-20241022",   "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00},
+    {"model": "claude-3-5-haiku-20241022",    "provider": "GitHub Models", "input_per_1m": 0.80,  "output_per_1m": 4.00},
+    {"model": "claude-3-7-sonnet-20250219",   "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00},
+    {"model": "claude-sonnet-4-6",            "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00},
+    {"model": "meta-llama-3.1-405b-instruct", "provider": "GitHub Models", "input_per_1m": 5.00,  "output_per_1m": 15.00},
+    {"model": "meta-llama-3.1-70b-instruct",  "provider": "GitHub Models", "input_per_1m": 0.90,  "output_per_1m": 0.90},
+    {"model": "phi-4",                        "provider": "GitHub Models", "input_per_1m": 0.07,  "output_per_1m": 0.14},
+    {"model": "mistral-large-2407",           "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 9.00},
+    # Anthropic direct — requires ANTHROPIC_API_KEY
+    # (claude-* models above also work via ANTHROPIC_API_KEY when GITHUB_TOKEN is not set)
+    # OpenAI direct — requires OPENAI_API_KEY
+    {"model": "o1",      "provider": "OpenAI", "input_per_1m": 15.00, "output_per_1m": 60.00},
+    {"model": "o1-mini", "provider": "OpenAI", "input_per_1m": 3.00,  "output_per_1m": 12.00},
+    {"model": "o3-mini", "provider": "OpenAI", "input_per_1m": 1.10,  "output_per_1m": 4.40},
 ]
 
 # Mapping from SettingsUpdate field names to .env variable names
@@ -137,6 +175,9 @@ def _settings_to_full(s: Settings) -> FullSettings:
         lite_mode=s.lite_mode,
         max_analysis_cost_usd=s.max_analysis_cost_usd,
         max_synthesis_iterations=s.max_synthesis_iterations,
+        anthropic_key_configured=bool(getattr(s, "anthropic_api_key", "")),
+        openai_key_configured=bool(getattr(s, "openai_api_key", "")),
+        github_token_configured=bool(getattr(s, "github_token", "")),
     )
 
 

@@ -1124,14 +1124,17 @@ interface ModelConfig {
 }
 
 // Available model pricing from /api/settings/models/available
+// v3.4: Added provider field for multi-provider grouping
 interface ModelPricing {
   model: string;
+  provider?: string;             // "Gemini" | "GitHub Models" | "Anthropic" | "OpenAI"
   input_per_1m: number;
   output_per_1m: number;
 }
 
 // v2.7: Full settings (GET /api/settings/)
 // v3.3: Added enable_thinking + thinking budget fields
+// v3.4: Added provider key-configured booleans (read-only; never exposes key values)
 interface FullSettings {
   gemini_model: string;
   deep_think_model: string;
@@ -1152,6 +1155,10 @@ interface FullSettings {
   thinking_budget_moderator: number;
   thinking_budget_risk_judge: number;
   thinking_budget_synthesis: number;
+  // v3.4 — Multi-provider key status (read-only)
+  anthropic_key_configured?: boolean;
+  openai_key_configured?: boolean;
+  github_token_configured?: boolean;
 }
 
 // v2.7: Latest cost summary for live cost estimator
@@ -1365,7 +1372,7 @@ Complete settings management page with 6 BentoCards. Loads current settings via 
 |------|---------|-------------|
 | **Analysis Mode** | Toggle Full vs Lite mode | Lite skips deep dive, DA, risk assessment; forces 1 debate round. Shows description of what each mode includes |
 | **Live Cost Estimator** | Preview cost before running analysis | Fetches real per-agent token counts from `GET /api/reports/latest-cost-summary`. Applies current model pricing, scales by debate rounds/synthesis iterations, applies lite mode agent skips. Shows estimated $/analysis, total tokens, LLM calls |
-| **Model Configuration** | Select Standard + Deep Think models | Dropdowns for `gemini_model` and `deep_think_model`. Shows pricing per model |
+| **Model Configuration** | Select Standard + Deep Think models | Dropdowns for `gemini_model` and `deep_think_model`. v3.4: Provider key status badges (Gemini/GitHub Models/Anthropic/OpenAI). Options grouped into `<optgroup>` by provider. Shows pricing per model |
 | **Cost Controls** | Budget cap, synthesis iterations, data quality | Budget slider ($0.05–$5.00), synthesis iterations (1–3), min data quality (0–100%). Budget triggers backend warning when exceeded |
 | **Debate Depth** | Configure debate round counts | Bull↔Bear rounds (1–5), Risk Assessment rounds (1–3). Shows warning when lite mode overrides these |
 | **Pillar Weights** | Configure 5-pillar scoring weights | 5 individual sliders (0–50%), live total display, red warning when total ≠ 100%. Backend validates sum = 1.0 |

@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     api_ninjas_key: str = Field("", description="API Ninjas key for earnings transcripts")
     patentsview_api_key: str = Field("", description="PatentsView API key (free at patentsview.org)")
 
+    # --- Multi-Provider LLM Keys (v3.4) ---
+    anthropic_api_key: str = Field("", description="Anthropic API key for direct Claude access (sk-ant-...)")
+    openai_api_key: str = Field("", description="OpenAI API key for direct GPT/o-series access (sk-...)")
+    github_token: str = Field("", description="GitHub PAT for GitHub Models (Copilot Pro). Routes GITHUB_MODELS_CATALOG models via models.inference.ai.azure.com")
+
     # --- GCS ---
     gcs_bucket_name: str = Field("10k-filling-data", description="GCS bucket for filings and transcripts")
 

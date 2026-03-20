@@ -913,6 +913,67 @@ cd frontend && npm run build  # must produce 0 TypeScript errors
 
 ## Upgrade History
 
+### v3.4 — Multi-Provider LLM Support (March 2026)
+
+Introduced a unified `LLMClient` abstraction layer supporting Gemini, GitHub Models (Copilot Pro), Anthropic Claude, and OpenAI GPT/o-series as drop-in LLM backends. Provider routing is transparent — the existing 2-slot model architecture (standard + deep-think) is preserved with zero pipeline changes.
+
+**New File: `backend/agents/llm_client.py`** (280 lines):
+- `UsageMeta(prompt_token_count, candidates_token_count, total_token_count)` — normalised usage dataclass compatible with `CostTracker.record()`
+- `LLMResponse(text, thoughts, usage_metadata, grounding_metadata)` — normalised response
+- `LLMClient` ABC with a single method `generate_content(prompt, generation_config) -> LLMResponse`
+- `GeminiClient` — wraps Vertex AI `GenerativeModel`; extracts grounding metadata + `part.thinking` for extended thinking
+- `OpenAIClient` — covers direct OpenAI AND GitHub Models (toggled by `base_url`); injects structured-output schema as system prompt for JSON mode
+- `ClaudeClient` — Anthropic direct; maps `max_output_tokens` → `max_tokens`; parses thinking blocks
+- `make_client(model_name, vertex_model, settings) -> LLMClient` — factory with priority routing:
+  1. If `model_name` is in `GITHUB_MODELS_CATALOG` AND `GITHUB_TOKEN` is set → `OpenAIClient` via `https://models.inference.ai.azure.com`
+  2. Elif starts with `claude-` AND `ANTHROPIC_API_KEY` is set → `ClaudeClient`
+  3. Elif starts with `gpt-` / `o1` / `o3-` AND `OPENAI_API_KEY` is set → `OpenAIClient`
+  4. Fallback → `GeminiClient` (existing Vertex AI path)
+- `GITHUB_MODELS_CATALOG` — set of 16+ model names routable via GitHub Models: GPT-4o, Claude 3.5/3.7, Meta Llama 3.1, Phi-4, Mistral Large
+
+**New Settings (`backend/config/settings.py`)**:
+```env
+ANTHROPIC_API_KEY=sk-ant-...   # Direct Anthropic access
+OPENAI_API_KEY=sk-...           # Direct OpenAI access
+GITHUB_TOKEN=ghp_...            # GitHub PAT (Copilot Pro) — primary testing path, ~150 req/day
+```
+
+**`backend/agents/orchestrator.py` Changes**:
+- Model instances replaced by `LLMClient` objects:
+  - `self.general_client`, `self.deep_think_client`, `self.synthesis_client` → provider-routed via `make_client()`
+  - `self.rag_client: GeminiClient` — always Gemini (Vertex AI Search is Google-only)
+  - `self.grounded_client: GeminiClient` — always Gemini (Google Search Grounding is Google-only)
+  - `self.supports_grounding: bool = isinstance(self.general_client, GeminiClient)` — when non-Gemini model selected, grounded agents fall back to `self.general_client` (text-only, no citations)
+- `_generate_with_retry()`: thinking injection guarded by `isinstance(model, GeminiClient)` — Claude/OpenAI handle their own thinking natively; added generic `except Exception` retry for non-GCP transient errors (rate limit, overload, unavailable)
+- `_extract_thoughts()` / `_extract_grounding_metadata()`: check `isinstance(response, LLMResponse)` first
+
+**`backend/agents/debate.py` + `backend/agents/risk_debate.py` Changes**:
+- `_generate_with_retry(model: LLMClient, ...)` — same thinking guard pattern
+- `run_debate(model: LLMClient, ..., deep_think_model: LLMClient | None = None, ...)`
+- `run_risk_debate()` same signature update
+
+**`backend/agents/cost_tracker.py` Changes**:
+- `MODEL_PRICING` expanded from 3 → 22 entries across all 4 providers:
+  - Gemini (3): `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
+  - Anthropic (4): `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`, `claude-3-7-sonnet-20250219`, `claude-sonnet-4-6`
+  - OpenAI (5): `gpt-4o`, `gpt-4o-mini`, `o1`, `o1-mini`, `o3-mini`
+  - Meta/Mistral/Github (5+): `meta-llama-3.1-405b-instruct`, `meta-llama-3.1-70b-instruct`, `meta-llama-3.1-8b-instruct`, `mistral-large-2407`, `mistral-nemo`
+
+**`backend/api/settings_api.py` Changes**:
+- `ModelPricing` class: added `provider: str = "Gemini"` field
+- `AVAILABLE_MODELS`: expanded to 19 entries grouped by provider (Gemini / GitHub Models / Anthropic / OpenAI)
+- `_VALID_MODELS` whitelist expanded to 21 names
+- `FullSettings`: added 3 read-only booleans: `anthropic_key_configured`, `openai_key_configured`, `github_token_configured` (populated from env without exposing the actual key values)
+
+**Frontend Changes**:
+- `frontend/src/lib/types.ts`: `ModelPricing.provider?: string`; `FullSettings` gets 3 new optional booleans
+- `frontend/src/app/settings/page.tsx`: Model Configuration BentoCard now shows provider key status badges (Gemini/GitHub Models/Anthropic/OpenAI) and groups `<select>` options into `<optgroup>` sections by provider
+
+**Constraints**:
+- `ENABLE_THINKING=true` still requires `DEEP_THINK_MODEL=gemini-2.5-flash` (or later) — thinking injection is silently skipped for non-Gemini deep-think models
+- Google Search Grounding (Step 4/5/9/10 agents) and Vertex AI Search RAG (Step 3) always remain on Gemini regardless of model selection
+- GitHub Models rate limit: ~150 requests/day on Copilot Pro — suitable for testing, not production analyses
+
 ### v3.3 — Gemini 2.5 Flash + Extended Thinking: Phase 5 (March 2026)
 
 Upgraded the deep-think model to `gemini-2.5-flash` and introduced opt-in extended thinking (chain-of-thought) for the four judge agents — Critic, Synthesis, Moderator, and Risk Judge. Tiered token budgets are set per agent. The feature is safe-defaulted to `false` so existing deployments on Gemini 2.0 are unaffected.

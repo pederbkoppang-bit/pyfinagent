@@ -22,6 +22,7 @@ from vertexai.generative_models import GenerativeModel
 from google.api_core import exceptions as gcp_exceptions
 
 from backend.agents.cost_tracker import CostTracker
+from backend.agents.llm_client import GeminiClient, LLMClient
 from backend.agents.schemas import RiskAnalystArgument, RiskJudgeVerdict
 from backend.config import prompts
 
@@ -43,23 +44,34 @@ _JUDGE_STRUCTURED_CONFIG = {
 }
 
 
-def _generate_with_retry(model: GenerativeModel, prompt: str, agent_name: str, max_retries: int = 3,
+def _generate_with_retry(model: LLMClient, prompt: str, agent_name: str, max_retries: int = 3,
                           cost_tracker: CostTracker | None = None, model_name: str = "",
                           is_deep_think: bool = False, gen_config: dict | None = None,
                           thinking_budget: int = 0):
     delay = 5
+    effective_model_name = model_name or model.model_name
     config = gen_config or _RISK_GEN_CONFIG
-    # Phase 5: Inject thinking config for Gemini 2.5 judge agents
-    if thinking_budget > 0:
+    # Phase 5: Inject thinking config for Gemini 2.5 judge agents (Gemini-specific)
+    if isinstance(model, GeminiClient) and thinking_budget > 0:
         config = {**config, "thinking": {"type": "enabled", "budget_tokens": thinking_budget}, "include_thoughts": True}
     for attempt in range(max_retries):
         try:
             response = model.generate_content(prompt, generation_config=config)
-            if cost_tracker and model_name:
-                cost_tracker.record(agent_name, model_name, response, is_deep_think=is_deep_think)
+            if cost_tracker and effective_model_name:
+                cost_tracker.record(agent_name, effective_model_name, response, is_deep_think=is_deep_think)
             return response
         except (gcp_exceptions.ServiceUnavailable, gcp_exceptions.ResourceExhausted) as e:
             if attempt < max_retries - 1:
+                logger.warning(f"{agent_name} {type(e).__name__}. Retry in {delay}s")
+                time.sleep(delay)
+                delay *= 2
+            else:
+                raise
+        except Exception as e:
+            # Non-GCP providers raise different exceptions
+            err_name = type(e).__name__.lower()
+            is_transient = any(x in err_name for x in ("ratelimit", "overload", "unavailable"))
+            if is_transient and attempt < max_retries - 1:
                 logger.warning(f"{agent_name} {type(e).__name__}. Retry in {delay}s")
                 time.sleep(delay)
                 delay *= 2
@@ -85,16 +97,16 @@ def _parse_json(text: str, label: str) -> Optional[dict]:
 
 
 def run_risk_debate(
-    model: GenerativeModel,
+    model: LLMClient,
     ticker: str,
     synthesis_result: dict,
     enrichment_signals: dict,
     debate_result: dict | None = None,
     max_risk_rounds: int = 1,
     past_memories: dict | None = None,
-    on_progress: Optional[Callable[[str], None]] = None,
+    on_progress=None,
     cost_tracker: CostTracker | None = None,
-    deep_think_model: GenerativeModel | None = None,
+    deep_think_model: LLMClient | None = None,
     general_model_name: str = "",
     deep_think_model_name: str = "",
     fact_ledger: str = "",

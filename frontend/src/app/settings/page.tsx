@@ -291,6 +291,33 @@ export default function SettingsPage() {
             <h3 className="mb-3 text-lg font-semibold text-slate-300">
               🧠 Model Configuration
             </h3>
+            {/* Provider key status */}
+            <div className="mb-4 flex flex-wrap gap-2">
+              <span className="rounded-full bg-sky-900/40 px-2 py-0.5 text-xs text-sky-300">
+                Gemini: Always available
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-xs ${
+                settings?.github_token_configured
+                  ? "bg-emerald-900/40 text-emerald-300"
+                  : "bg-slate-700 text-slate-400"
+              }`}>
+                GitHub Models: {settings?.github_token_configured ? "Configured" : "No token"}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-xs ${
+                settings?.anthropic_key_configured
+                  ? "bg-emerald-900/40 text-emerald-300"
+                  : "bg-slate-700 text-slate-400"
+              }`}>
+                Anthropic: {settings?.anthropic_key_configured ? "Configured" : "No key"}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-xs ${
+                settings?.openai_key_configured
+                  ? "bg-emerald-900/40 text-emerald-300"
+                  : "bg-slate-700 text-slate-400"
+              }`}>
+                OpenAI: {settings?.openai_key_configured ? "Configured" : "No key"}
+              </span>
+            </div>
             <div className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm text-slate-300">
@@ -301,11 +328,19 @@ export default function SettingsPage() {
                   value={form.gemini_model ?? ""}
                   onChange={(e) => updateForm("gemini_model", e.target.value)}
                 >
-                  {models.map((m) => (
-                    <option key={m.model} value={m.model}>
-                      {m.model} — ${m.input_per_1m}/${m.output_per_1m} per 1M
-                    </option>
-                  ))}
+                  {["Gemini", "GitHub Models", "Anthropic", "OpenAI"].map((provider) => {
+                    const group = models.filter((m) => (m.provider ?? "Gemini") === provider);
+                    if (!group.length) return null;
+                    return (
+                      <optgroup key={provider} label={provider}>
+                        {group.map((m) => (
+                          <option key={m.model} value={m.model}>
+                            {m.model} — ${m.input_per_1m}/{m.output_per_1m} per 1M
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
                 </select>
               </div>
               <div>
@@ -317,11 +352,19 @@ export default function SettingsPage() {
                   value={form.deep_think_model ?? ""}
                   onChange={(e) => updateForm("deep_think_model", e.target.value)}
                 >
-                  {models.map((m) => (
-                    <option key={m.model} value={m.model}>
-                      {m.model} — ${m.input_per_1m}/${m.output_per_1m} per 1M
-                    </option>
-                  ))}
+                  {["Gemini", "GitHub Models", "Anthropic", "OpenAI"].map((provider) => {
+                    const group = models.filter((m) => (m.provider ?? "Gemini") === provider);
+                    if (!group.length) return null;
+                    return (
+                      <optgroup key={provider} label={provider}>
+                        {group.map((m) => (
+                          <option key={m.model} value={m.model}>
+                            {m.model} — ${m.input_per_1m}/{m.output_per_1m} per 1M
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
                 </select>
               </div>
             </div>
