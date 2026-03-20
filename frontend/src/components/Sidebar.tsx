@@ -6,15 +6,22 @@ import { useSession, signOut } from "next-auth/react";
 import { signIn as webAuthnSignIn } from "next-auth/webauthn";
 import { clsx } from "clsx";
 import { useState } from "react";
+import {
+  NavDashboard, NavSignals, NavReports, NavCompare,
+  NavPerformance, NavPortfolio, NavPaperTrading, NavSettings,
+  LogoIcon, IconKey, IconSignOut,
+} from "@/lib/icons";
+import type { Icon } from "@phosphor-icons/react";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: "🏠" },
-  { href: "/signals", label: "Signals", icon: "📡" },
-  { href: "/reports", label: "Past Reports", icon: "📜" },
-  { href: "/compare", label: "Compare", icon: "🔀" },
-  { href: "/performance", label: "Performance", icon: "📈" },
-  { href: "/portfolio", label: "Portfolio", icon: "💼" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
+const NAV_ITEMS: { href: string; label: string; icon: Icon }[] = [
+  { href: "/", label: "Dashboard", icon: NavDashboard },
+  { href: "/signals", label: "Signals", icon: NavSignals },
+  { href: "/reports", label: "Past Reports", icon: NavReports },
+  { href: "/compare", label: "Compare", icon: NavCompare },
+  { href: "/performance", label: "Performance", icon: NavPerformance },
+  { href: "/portfolio", label: "Portfolio", icon: NavPortfolio },
+  { href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading },
+  { href: "/settings", label: "Settings", icon: NavSettings },
 ];
 
 export function Sidebar() {
@@ -37,7 +44,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-navy-700 bg-navy-800/50 px-4 py-6">
       <div className="mb-8 flex items-center gap-3 px-2">
-        <span className="text-2xl">🤖</span>
+        <LogoIcon size={28} weight="bold" className="text-sky-400" />
         <div>
           <h1 className="text-lg font-bold text-slate-100">PyFinAgent</h1>
           <p className="text-xs text-slate-500">AI Financial Analyst</p>
@@ -56,7 +63,7 @@ export function Sidebar() {
                 : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
             )}
           >
-            <span>{item.icon}</span>
+            <item.icon size={18} weight={pathname === item.href ? "fill" : "regular"} />
             {item.label}
           </Link>
         ))}
@@ -89,13 +96,13 @@ export function Sidebar() {
             className="flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-xs text-slate-400 hover:bg-slate-700 hover:text-slate-200 transition-colors"
             title="Register a passkey for quick login"
           >
-            🔑 Passkey
+            <IconKey size={14} className="inline mr-1" /> Passkey
           </button>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-xs text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition-colors"
           >
-            Logout
+            <IconSignOut size={14} className="inline mr-1" /> Logout
           </button>
         </div>
 

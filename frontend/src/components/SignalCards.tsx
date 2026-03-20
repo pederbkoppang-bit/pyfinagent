@@ -2,64 +2,70 @@
 
 import { clsx } from "clsx";
 import type { EnrichmentSignals } from "@/lib/types";
+import type { Icon } from "@phosphor-icons/react";
+import {
+  SignalInsider, SignalOptions, SignalSocial, SignalPatent,
+  SignalEarnings, SignalMacro, SignalAltData, SignalSector,
+  SignalNlp, SignalAnomaly, SignalMonteCarlo,
+} from "@/lib/icons";
 
 const SIGNAL_META: Record<
   keyof EnrichmentSignals,
-  { label: string; icon: string; description: string }
+  { label: string; icon: Icon; description: string }
 > = {
   insider: {
     label: "Insider Activity",
-    icon: "👔",
+    icon: SignalInsider,
     description: "SEC Form 4 insider trading patterns",
   },
   options: {
     label: "Options Flow",
-    icon: "📊",
+    icon: SignalOptions,
     description: "Put/Call ratio & unusual activity",
   },
   social_sentiment: {
     label: "Social Sentiment",
-    icon: "💬",
+    icon: SignalSocial,
     description: "News & social media sentiment velocity",
   },
   patent: {
     label: "Innovation",
-    icon: "💡",
+    icon: SignalPatent,
     description: "USPTO patent filing trends",
   },
   earnings_tone: {
     label: "Earnings Tone",
-    icon: "🎙️",
+    icon: SignalEarnings,
     description: "Management confidence from transcripts",
   },
   fred_macro: {
     label: "Macro Climate",
-    icon: "🏛️",
+    icon: SignalMacro,
     description: "FRED economic indicators",
   },
   alt_data: {
     label: "Alt Data",
-    icon: "📈",
+    icon: SignalAltData,
     description: "Google Trends & search interest",
   },
   sector: {
     label: "Sector Strength",
-    icon: "🏭",
+    icon: SignalSector,
     description: "Relative sector & peer performance",
   },
   nlp_sentiment: {
     label: "NLP Sentiment",
-    icon: "🧠",
+    icon: SignalNlp,
     description: "Transformer-based contextual sentiment",
   },
   anomaly: {
     label: "Anomaly Scan",
-    icon: "⚠️",
+    icon: SignalAnomaly,
     description: "Statistical anomaly detection (Z-score)",
   },
   monte_carlo: {
     label: "Risk Scenario",
-    icon: "🎲",
+    icon: SignalMonteCarlo,
     description: "Monte Carlo VaR simulation",
   },
 };
@@ -130,7 +136,7 @@ export function SignalCards({
           >
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-lg">{meta.icon}</span>
+                <meta.icon size={20} weight="duotone" className="text-slate-400" />
                 <span className="text-sm font-medium text-slate-300">
                   {meta.label}
                 </span>

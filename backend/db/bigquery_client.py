@@ -212,15 +212,43 @@ class BigQueryClient:
 
     def get_report(self, ticker: str, analysis_date: Optional[str] = None) -> Optional[dict]:
         if analysis_date:
-            query = f"""
-                SELECT * FROM `{self.reports_table}`
-                WHERE ticker = @ticker AND analysis_date = @analysis_date
-                LIMIT 1
-            """
-            job_config = bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
-                bigquery.ScalarQueryParameter("analysis_date", "STRING", analysis_date),
-            ])
+            # analysis_date column is TIMESTAMP in BQ — use a 1-second window
+            # to match the exact record regardless of microsecond formatting
+            from datetime import datetime, timedelta, timezone
+            # Parse ISO 8601 string (handles both "Z" and "+00:00" suffixes)
+            clean = analysis_date.replace("Z", "+00:00")
+            try:
+                ts = datetime.fromisoformat(clean)
+            except ValueError:
+                ts = None
+
+            if ts:
+                ts_start = ts - timedelta(seconds=1)
+                ts_end = ts + timedelta(seconds=1)
+                query = f"""
+                    SELECT * FROM `{self.reports_table}`
+                    WHERE ticker = @ticker
+                      AND analysis_date BETWEEN @ts_start AND @ts_end
+                    ORDER BY ABS(TIMESTAMP_DIFF(analysis_date, @ts_target, MICROSECOND))
+                    LIMIT 1
+                """
+                job_config = bigquery.QueryJobConfig(query_parameters=[
+                    bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
+                    bigquery.ScalarQueryParameter("ts_start", "TIMESTAMP", ts_start),
+                    bigquery.ScalarQueryParameter("ts_end", "TIMESTAMP", ts_end),
+                    bigquery.ScalarQueryParameter("ts_target", "TIMESTAMP", ts),
+                ])
+            else:
+                # Fallback: treat as latest
+                query = f"""
+                    SELECT * FROM `{self.reports_table}`
+                    WHERE ticker = @ticker
+                    ORDER BY analysis_date DESC
+                    LIMIT 1
+                """
+                job_config = bigquery.QueryJobConfig(query_parameters=[
+                    bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
+                ])
         else:
             query = f"""
                 SELECT * FROM `{self.reports_table}`
@@ -329,3 +357,125 @@ class BigQueryClient:
         except Exception as e:
             logger.warning(f"Could not load agent memories: {e}")
             return []
+
+    # ── Paper Trading ────────────────────────────────────────────
+
+    def _pt_table(self, name: str) -> str:
+        return f"{self.settings.gcp_project_id}.{self.settings.bq_dataset_reports}.{name}"
+
+    # -- Portfolio --
+
+    def get_paper_portfolio(self, portfolio_id: str = "default") -> Optional[dict]:
+        query = f"""
+            SELECT * FROM `{self._pt_table("paper_portfolio")}`
+            WHERE portfolio_id = @pid LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("pid", "STRING", portfolio_id),
+        ])
+        rows = list(self.client.query(query, job_config=job_config).result())
+        return dict(rows[0]) if rows else None
+
+    def upsert_paper_portfolio(self, row: dict) -> None:
+        table = self._pt_table("paper_portfolio")
+        pid = row["portfolio_id"]
+        # Delete existing row first (BQ streaming buffer eventually consistent, but DML is immediate)
+        delete_query = f"DELETE FROM `{table}` WHERE portfolio_id = @pid"
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("pid", "STRING", pid),
+        ])
+        self.client.query(delete_query, job_config=job_config).result()
+        errors = self.client.insert_rows_json(table, [row])
+        if errors:
+            logger.error(f"Paper portfolio upsert errors: {errors}")
+            raise RuntimeError(f"Failed to upsert paper portfolio: {errors}")
+
+    # -- Positions --
+
+    def get_paper_positions(self) -> list[dict]:
+        query = f"""
+            SELECT * FROM `{self._pt_table("paper_positions")}`
+            ORDER BY entry_date DESC
+        """
+        return [dict(r) for r in self.client.query(query).result()]
+
+    def get_paper_position(self, ticker: str) -> Optional[dict]:
+        query = f"""
+            SELECT * FROM `{self._pt_table("paper_positions")}`
+            WHERE ticker = @ticker LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
+        ])
+        rows = list(self.client.query(query, job_config=job_config).result())
+        return dict(rows[0]) if rows else None
+
+    def save_paper_position(self, row: dict) -> None:
+        table = self._pt_table("paper_positions")
+        errors = self.client.insert_rows_json(table, [row])
+        if errors:
+            logger.error(f"Paper position insert errors: {errors}")
+            raise RuntimeError(f"Failed to save paper position: {errors}")
+
+    def delete_paper_position(self, ticker: str) -> None:
+        table = self._pt_table("paper_positions")
+        query = f"DELETE FROM `{table}` WHERE ticker = @ticker"
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
+        ])
+        self.client.query(query, job_config=job_config).result()
+
+    def update_paper_position(self, ticker: str, updates: dict) -> None:
+        """Update specific fields of a paper position."""
+        table = self._pt_table("paper_positions")
+        set_clauses = ", ".join(f"{k} = @val_{k}" for k in updates)
+        params = [bigquery.ScalarQueryParameter("ticker", "STRING", ticker)]
+        for k, v in updates.items():
+            if isinstance(v, float):
+                params.append(bigquery.ScalarQueryParameter(f"val_{k}", "FLOAT64", v))
+            elif isinstance(v, int):
+                params.append(bigquery.ScalarQueryParameter(f"val_{k}", "INT64", v))
+            else:
+                params.append(bigquery.ScalarQueryParameter(f"val_{k}", "STRING", str(v)))
+        query = f"UPDATE `{table}` SET {set_clauses} WHERE ticker = @ticker"
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(query, job_config=job_config).result()
+
+    # -- Trades --
+
+    def save_paper_trade(self, row: dict) -> None:
+        table = self._pt_table("paper_trades")
+        errors = self.client.insert_rows_json(table, [row])
+        if errors:
+            logger.error(f"Paper trade insert errors: {errors}")
+            raise RuntimeError(f"Failed to save paper trade: {errors}")
+
+    def get_paper_trades(self, limit: int = 100) -> list[dict]:
+        query = f"""
+            SELECT * FROM `{self._pt_table("paper_trades")}`
+            ORDER BY created_at DESC
+            LIMIT @limit
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("limit", "INT64", limit),
+        ])
+        return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
+
+    # -- Snapshots --
+
+    def save_paper_snapshot(self, row: dict) -> None:
+        table = self._pt_table("paper_portfolio_snapshots")
+        errors = self.client.insert_rows_json(table, [row])
+        if errors:
+            logger.error(f"Paper snapshot insert errors: {errors}")
+
+    def get_paper_snapshots(self, limit: int = 365) -> list[dict]:
+        query = f"""
+            SELECT * FROM `{self._pt_table("paper_portfolio_snapshots")}`
+            ORDER BY snapshot_date DESC
+            LIMIT @limit
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("limit", "INT64", limit),
+        ])
+        return [dict(r) for r in self.client.query(query, job_config=job_config).result()]

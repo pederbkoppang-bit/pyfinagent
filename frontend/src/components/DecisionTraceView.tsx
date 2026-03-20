@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { clsx } from "clsx";
 import type { DecisionTrace } from "@/lib/types";
+import { TraceIcon } from "@/lib/icons";
 
 function confidenceColor(c: number): string {
   if (c >= 0.7) return "text-emerald-400";
@@ -101,7 +102,8 @@ export function DecisionTraceView({ traces }: { traces: DecisionTrace[] }) {
     <div className="space-y-4">
       <div className="rounded-2xl border border-navy-700 bg-navy-800/70 p-6 backdrop-blur-lg">
         <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
-          🔍 Decision Trace — Full Audit Trail
+          <TraceIcon size={20} weight="duotone" className="text-sky-400" />
+          Decision Trace — Full Audit Trail
         </h3>
         <p className="mt-1 text-sm text-slate-500">
           Every agent&apos;s inputs, reasoning, and outputs are visible below. Click any step to expand.

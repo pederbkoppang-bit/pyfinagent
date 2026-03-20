@@ -1,6 +1,12 @@
 "use client";
 
 import { clsx } from "clsx";
+import type { Icon } from "@phosphor-icons/react";
+import {
+  MacroFedFunds, MacroCpi, MacroUnemployment, MacroGdp,
+  MacroYieldSpread, MacroConsumer, MacroTreasury, MacroDefault,
+  IconWarning,
+} from "@/lib/icons";
 
 interface FredIndicator {
   name: string;
@@ -20,14 +26,14 @@ interface FredData {
   [key: string]: unknown;
 }
 
-const INDICATOR_META: Record<string, { label: string; icon: string; unit: string }> = {
-  fed_funds_rate: { label: "Fed Funds Rate", icon: "🏦", unit: "%" },
-  cpi_yoy: { label: "CPI (YoY)", icon: "💲", unit: "%" },
-  unemployment: { label: "Unemployment", icon: "👷", unit: "%" },
-  gdp_growth: { label: "GDP Growth", icon: "📊", unit: "%" },
-  yield_spread_10y2y: { label: "10Y-2Y Spread", icon: "📉", unit: "%" },
-  consumer_sentiment: { label: "Consumer Sentiment", icon: "🛒", unit: "" },
-  treasury_10y: { label: "10Y Treasury", icon: "🏛️", unit: "%" },
+const INDICATOR_META: Record<string, { label: string; icon: Icon; unit: string }> = {
+  fed_funds_rate: { label: "Fed Funds Rate", icon: MacroFedFunds, unit: "%" },
+  cpi_yoy: { label: "CPI (YoY)", icon: MacroCpi, unit: "%" },
+  unemployment: { label: "Unemployment", icon: MacroUnemployment, unit: "%" },
+  gdp_growth: { label: "GDP Growth", icon: MacroGdp, unit: "%" },
+  yield_spread_10y2y: { label: "10Y-2Y Spread", icon: MacroYieldSpread, unit: "%" },
+  consumer_sentiment: { label: "Consumer Sentiment", icon: MacroConsumer, unit: "" },
+  treasury_10y: { label: "10Y Treasury", icon: MacroTreasury, unit: "%" },
 };
 
 export function MacroDashboard({ data }: { data: FredData }) {
@@ -63,7 +69,7 @@ export function MacroDashboard({ data }: { data: FredData }) {
         {Object.entries(indicators).map(([key, ind]) => {
           const meta = INDICATOR_META[key] || {
             label: key,
-            icon: "📐",
+            icon: MacroDefault,
             unit: "",
           };
           const changeColor =
@@ -75,7 +81,7 @@ export function MacroDashboard({ data }: { data: FredData }) {
               className="rounded-lg border border-navy-700 bg-navy-800/40 p-3"
             >
               <div className="mb-1 flex items-center gap-1.5 text-xs text-slate-500">
-                <span>{meta.icon}</span>
+                <meta.icon size={14} className="text-slate-500" />
                 {meta.label}
               </div>
               <div className="text-lg font-bold text-slate-200">
@@ -94,8 +100,9 @@ export function MacroDashboard({ data }: { data: FredData }) {
       {/* Warnings */}
       {data.warnings && data.warnings.length > 0 && (
         <div className="rounded-lg border border-amber-900/50 bg-amber-950/30 p-3">
-          <h4 className="mb-1 text-xs font-medium text-amber-400">
-            ⚠️ Macro Warnings
+          <h4 className="mb-1 flex items-center gap-1 text-xs font-medium text-amber-400">
+            <IconWarning size={14} weight="fill" />
+            Macro Warnings
           </h4>
           <ul className="space-y-0.5 text-xs text-amber-200/80">
             {data.warnings.map((w, i) => (

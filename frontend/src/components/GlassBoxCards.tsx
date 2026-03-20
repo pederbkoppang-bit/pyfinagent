@@ -2,6 +2,10 @@
 
 import type { SynthesisReport, DebateResult } from "@/lib/types";
 import { BentoCard } from "./BentoCard";
+import { CitationList } from "./CitationBadge";
+import {
+  IconAlphaScore, IconSummary, IconScoringMatrix, IconKeyRisks,
+} from "@/lib/icons";
 
 function formatNumber(num: number | null | undefined): string {
   if (num == null) return "N/A";
@@ -27,7 +31,7 @@ export function AlphaScoreCard({ report }: { report: SynthesisReport }) {
     <BentoCard glow className="flex flex-col justify-between">
       <div>
         <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-400">
-          <span>🧠</span> Alpha Score
+          <IconAlphaScore size={20} weight="duotone" className="text-slate-400" /> Alpha Score
         </h3>
         <p className="mt-4 font-mono text-7xl font-bold text-sky-300">
           {score.toFixed(2)}
@@ -63,7 +67,7 @@ export function InvestmentThesisCard({
   return (
     <BentoCard className="flex flex-col">
       <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-400">
-        <span>🔬</span> Executive Summary
+        <IconSummary size={20} weight="duotone" className="text-slate-400" /> Executive Summary
       </h3>
 
       {/* Justification */}
@@ -79,6 +83,11 @@ export function InvestmentThesisCard({
           </p>
         ))}
       </div>
+
+      {/* Data citations (Phase 6) */}
+      {report.citations && report.citations.length > 0 && (
+        <CitationList citations={report.citations} />
+      )}
 
       {/* Catalysts vs Risks side-by-side */}
       {(catalysts.length > 0 || threats.length > 0) && (
@@ -165,7 +174,7 @@ export function ScoringMatrixCard({ report }: { report: SynthesisReport }) {
   return (
     <BentoCard>
       <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-400">
-        <span>📊</span> Scoring Matrix
+        <IconScoringMatrix size={20} weight="duotone" className="text-slate-400" /> Scoring Matrix
       </h3>
       <div className="space-y-3">
         {pillars.map((p) => {
@@ -201,7 +210,7 @@ export function RisksCard({ risks }: { risks: string[] }) {
   return (
     <BentoCard>
       <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-400">
-        <span>⚠️</span> Key Risks
+        <IconKeyRisks size={20} weight="fill" className="text-amber-400" /> Key Risks
       </h3>
       <ul className="space-y-3">
         {risks.map((risk, i) => (

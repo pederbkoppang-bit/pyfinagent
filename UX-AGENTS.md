@@ -19,6 +19,41 @@ The report dashboard follows a **"Glass Box" institutional analyst** design — 
 
 ---
 
+## Design System (v3.0)
+
+### Typography
+*   **Primary font:** Geist Sans (`geist/font/sans`) — self-hosted via `next/font`, applied as `var(--font-geist-sans)` CSS variable
+*   **Mono font:** Geist Mono (`geist/font/mono`) — applied as `var(--font-geist-mono)` CSS variable
+*   **Global:** `font-feature-settings: "tnum"` (tabular-nums for aligned financial numbers), `-webkit-font-smoothing: antialiased`
+
+### Icons — Phosphor Icons
+*   **Library:** `@phosphor-icons/react` v2.1.10 — 9000+ icons, 6 weights (thin/light/regular/bold/fill/duotone)
+*   **Centralized exports:** All icons imported via `frontend/src/lib/icons.ts` (~110 aliased re-exports)
+*   **TypeScript type:** `Icon` from `@phosphor-icons/react` used for all icon props in component interfaces
+*   **Rendering pattern:** `<meta.icon size={20} weight="duotone" className="text-slate-400" />` (JSX component, not string interpolation)
+*   **Active/inactive weight:** Tabs and nav use `weight={active ? "fill" : "regular"}` for state indication
+*   **Domain-prefixed aliases:** `Nav*`, `Step*`, `Signal*`, `Debate*`, `Risk*`, `Bias*`, `Pillar*`, `Macro*`, `Tab*`, `Icon*`
+*   **Tree-shaking:** Enabled via `next.config.js` → `experimental.optimizePackageImports: ["@phosphor-icons/react"]`
+
+### Animation (prepared, not yet applied)
+*   **Library:** Motion (`motion/react`) v12.38.0
+*   **Variants:** `fadeIn`, `slideUp`, `staggerContainer`, `staggerItem` in `frontend/src/lib/motion.ts`
+*   **Spring presets:** `springSnappy` (stiffness: 400, damping: 30), `springGentle` (stiffness: 120, damping: 20)
+
+### Tailwind Design Tokens
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `navy-500` | `#243352` | Alternative dark surface |
+| `navy-600` | `#1a2744` | Deeper dark surface |
+| `shadow-card` | `0 1px 3px rgba(0,0,0,.12), 0 0 0 1px rgba(255,255,255,.04)` | Card elevation |
+| `shadow-card-hover` | `0 4px 12px rgba(0,0,0,.2), 0 0 0 1px rgba(255,255,255,.06)` | Card hover state |
+| `rounded-card` | `12px` | Card border radius |
+| `rounded-button` | `8px` | Button border radius |
+| `rounded-badge` | `6px` | Badge border radius |
+
+---
+
 ## Page Layout & Tab Architecture
 
 The main dashboard (`/`) renders in three visual layers:
@@ -37,7 +72,7 @@ The main dashboard (`/`) renders in three visual layers:
 │  ReportTabs                                               │
 │  ┌────────┬────────┬────────┬────────┬────────┬────────┐ │
 │  │Overview│Signals │ Debate │  Risk  │ Audit  │  Cost  │ │
-│  │   📋   │ 📡 11  │⚖️ BUY │ 🎯 3  │ 🔍 1  │💰$0.12│ │
+│  │ [icon] │[icon]11│[icon]BUY│[icon]3 │[icon]1 │[icon]$ │ │
 │  └────────┴────────┴────────┴────────┴────────┴────────┘ │
 │                                                           │
 │  [ Active Tab Content ]                                   │
@@ -49,12 +84,12 @@ The main dashboard (`/`) renders in three visual layers:
 
 | Tab ID | Label | Icon | Badge Source | Components Rendered |
 |--------|-------|------|-------------|---------------------|
-| `overview` | Overview | 📋 | — | InvestmentThesisCard, EvaluationTable, ValuationRange, RisksCard, ScoringMatrixCard, PdfDownload |
-| `signals` | Signals | 📡 | Count of enrichment signals (0–11) | SignalDashboard |
-| `debate` | Debate | ⚖️ | Consensus label (e.g. "BUY") | DebateView |
-| `risk` | Risk | 🎯 | Anomaly count (e.g. "3 anomalies") | RiskDashboard, StockChart |
-| `audit` | Audit | 🔍 | Bias flag count (e.g. "1 flags") | BiasReport, DecisionTraceView, ResearchInvestigator |
-| `cost` | Cost | 💰 | Total cost (e.g. "$0.12") | CostDashboard |
+| `overview` | Overview | `TabOverview` (ClipboardText) | — | InvestmentThesisCard, EvaluationTable, ValuationRange, RisksCard, ScoringMatrixCard, PdfDownload |
+| `signals` | Signals | `TabSignals` (Broadcast) | Count of enrichment signals (0–11) | SignalDashboard |
+| `debate` | Debate | `TabDebate` (Scales) | Consensus label (e.g. "BUY") | DebateView |
+| `risk` | Risk | `TabRisk` (Crosshair) | Anomaly count (e.g. "3 anomalies") | RiskDashboard, StockChart |
+| `audit` | Audit | `TabAudit` (MagnifyingGlass) | Bias flag count (e.g. "1 flags") | BiasReport, DecisionTraceView, ResearchInvestigator |
+| `cost` | Cost | `TabCost` (CurrencyDollar) | Total cost (e.g. "$0.12") | CostDashboard |
 
 ---
 
@@ -96,6 +131,17 @@ Feedback Loop (wired in outcome_tracker.py)
     evaluate_all_pending() → generate_reflection() → save_agent_memory()
     │  (4 agent types: bull, bear, moderator, risk_judge)
     └── Persists to BQ agent_memories table → BM25 retrieval in future prompts
+
+Paper Trading (autonomous daily cycle)
+    │
+    ├── POST /api/paper-trading/start       → Initialize fund + start daily scheduler
+    ├── POST /api/paper-trading/stop        → Pause the daily scheduler
+    ├── GET /api/paper-trading/status       → NAV, P&L, scheduler state, loop status
+    ├── GET /api/paper-trading/portfolio    → All open positions with unrealized P&L
+    ├── GET /api/paper-trading/trades       → Trade history (buys/sells with reasons)
+    ├── GET /api/paper-trading/snapshots    → Daily NAV history (for LineChart)
+    ├── GET /api/paper-trading/performance  → Sharpe ratio, win rate, alpha, costs
+    └── POST /api/paper-trading/run-now     → Trigger manual daily cycle (async)
 
 AnalysisStatusResponse (GET /api/analysis/{id}, polled every 3s)
     │
@@ -197,6 +243,8 @@ The schema is managed by `migrate_bq_schema.py` (idempotent — safe to re-run).
 
 The agent memories table is managed by `migrate_agent_memories.py` (idempotent). Creates `financial_reports.agent_memories` with columns: `agent_type`, `ticker`, `situation`, `lesson`, `created_at`.
 
+The paper trading tables are managed by `migrate_paper_trading.py` (idempotent). Creates 4 tables: `paper_portfolio` (8 cols), `paper_positions` (14 cols), `paper_trades` (11 cols), `paper_portfolio_snapshots` (11 cols). See AGENTS.md for full column definitions.
+
 Financials (GET /api/charts/{ticker}/financials)
     │
     ├── company_name            → ReportHeader
@@ -284,14 +332,14 @@ Generic tab navigation wrapper. Uses a render-prop pattern — the parent passes
 
 ```typescript
 interface TabDef {
-  id: string;       // "overview" | "signals" | "debate" | "risk" | "audit"
+  id: string;       // "overview" | "signals" | "debate" | "risk" | "audit" | "cost"
   label: string;
-  icon: string;     // Emoji icon
+  icon: Icon;       // Phosphor Icon component (from @phosphor-icons/react)
   badge?: string | number | null;
 }
 ```
 
-**Styling:** Active tab uses `bg-sky-500/15 text-sky-400` with border highlight. Badges render inline with optional count/label.
+**Styling:** Active tab uses `bg-sky-500/15 text-sky-400` with border highlight. Icons render as `<tab.icon size={16} weight={active ? "fill" : "regular"} />`. Badges render inline with optional count/label.
 
 ---
 
@@ -382,11 +430,11 @@ Enhanced executive summary card that combines recommendation justification, thes
 
 | Pillar | Key | Weight | Icon | Contributing Sources |
 |--------|-----|--------|------|---------------------|
-| Corporate Profile | `pillar_1_corporate` | 35% | 🏢 | RAG Agent (10-K/10-Q), yfinance fundamentals |
-| Industry & Macro | `pillar_2_industry` | 20% | 🌐 | Sector Analysis, FRED Macro, Competitor Agent |
-| Valuation | `pillar_3_valuation` | 20% | 💰 | yfinance valuation metrics, quant-agent data |
-| Market Sentiment | `pillar_4_sentiment` | 15% | 📊 | NLP Sentiment, Social Sentiment, Insider Activity, Options Flow |
-| Governance | `pillar_5_governance` | 10% | 🏛️ | RAG Agent governance section, insider ownership |
+| Corporate Profile | `pillar_1_corporate` | 35% | `PillarCorporate` (Buildings) | RAG Agent (10-K/10-Q), yfinance fundamentals |
+| Industry & Macro | `pillar_2_industry` | 20% | `PillarIndustry` (GlobeHemisphereWest) | Sector Analysis, FRED Macro, Competitor Agent |
+| Valuation | `pillar_3_valuation` | 20% | `PillarValuation` (CurrencyDollar) | yfinance valuation metrics, quant-agent data |
+| Market Sentiment | `pillar_4_sentiment` | 15% | `PillarSentiment` (ChartBar) | NLP Sentiment, Social Sentiment, Insider Activity, Options Flow |
+| Governance | `pillar_5_governance` | 10% | `PillarGovernance` (Bank) | RAG Agent governance section, insider ownership |
 
 **Visual Features:**
 - Progress bar per pillar (color: emerald ≥8, sky ≥6, amber ≥4, rose <4)
@@ -407,10 +455,10 @@ Adversarial debate visualization showing the Bull vs Bear argument structure, De
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  Consensus: BUY  ████████████░░░░ 72% confidence     │
+│  [DebateConsensus] Consensus: BUY  ████████ 72%      │
 │  2 rounds · Devil's Advocate reviewed                 │
 ├─────────────────────────┬────────────────────────────┤
-│  🐂 BULL CASE (78%)    │  🐻 BEAR CASE (45%)       │
+│  [DebateBull] BULL (78%)│  [DebateBear] BEAR (45%)  │
 │  ─────────────────────  │  ─────────────────────     │
 │  Thesis paragraph...    │  Thesis paragraph...       │
 │                         │                            │
@@ -418,34 +466,36 @@ Adversarial debate visualization showing the Bull vs Bear argument structure, De
 │  • Catalyst 1           │  • Threat 1                │
 │  • Catalyst 2           │  • Threat 2                │
 │                         │                            │
-│  📎 Evidence:           │  📎 Evidence:              │
+│  Evidence:              │  Evidence:                 │
 │  [SEC EDGAR] data → ..  │  [yfinance] data → ..     │
 │  [USPTO] data → interp  │  [FRED] data → interp     │
 ├─────────────────────────┴────────────────────────────┤
-│  😈 Devil's Advocate (violet theme)                   │
+│  [DebateDevilsAdvocate] Devil's Advocate (violet)     │
 │  ┌──────────────────────────────────────────────────┐ │
 │  │  Challenges: [challenge 1], [challenge 2]        │ │
 │  │  Hidden Risks: [risk 1], [risk 2]                │ │
-│  │  Groupthink: ✅ No groupthink detected           │ │
+│  │  Groupthink: No groupthink detected              │ │
 │  │  Confidence Adjustment: -0.05                    │ │
 │  └──────────────────────────────────────────────────┘ │
 ├──────────────────────────────────────────────────────┤
-│  📜 Debate Timeline (collapsible)                     │
+│  [DebateRounds] Debate Timeline (collapsible)         │
 │  ┌──────────────────────────────────────────────────┐ │
-│  │  Round 1:  🐂 Bull argument  │  🐻 Bear argument│ │
-│  │  Round 2:  🐂 Rebuttal       │  🐻 Rebuttal     │ │
+│  │  Round 1:  Bull argument   │  Bear argument      │ │
+│  │  Round 2:  Bull rebuttal   │  Bear rebuttal      │ │
 │  └──────────────────────────────────────────────────┘ │
 ├──────────────────────────────────────────────────────┤
-│  ⚠️ Contradictions                                    │
+│  [DebateContradiction] Contradictions                 │
 │  ┌──────────┬──────────────┬──────────────┬────────┐ │
 │  │  Topic   │  Bull View   │  Bear View   │ Winner │ │
 │  ├──────────┼──────────────┼──────────────┼────────┤ │
 │  │ Margins  │ Expanding..  │ Pressure..   │ BULL   │ │
 │  └──────────┴──────────────┴──────────────┴────────┘ │
 ├──────────────────────────────────────────────────────┤
-│  Dissent: [Options Flow: BEARISH — "P/C ratio 1.4"]  │
+│  [DebateDissent] Dissent: [Options Flow: BEARISH]    │
 └──────────────────────────────────────────────────────┘
 ```
+
+**Note:** All debate icons are Phosphor Icons from `frontend/src/lib/icons.ts` (aliased as `Debate*` names). Rendered as JSX components with `weight="duotone"`.
 
 **New v2.2 Sections:**
 - **Devil's Advocate** (violet/purple theme): Challenges list, hidden risks, bull/bear weaknesses, groupthink flag (boolean), confidence adjustment badge
@@ -484,7 +534,7 @@ TradingAgents-style risk assessment team verdict panel. Rendered in the Risk tab
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  🏛️ Risk Assessment Team                             │
+│  [RiskJudge] Risk Assessment Team                     │
 ├──────────────────────────────────────────────────────┤
 │  Judge Verdict: MODERATE_POSITION                     │
 │  ┌─────────────┬─────────────┬─────────────┐        │
@@ -492,7 +542,7 @@ TradingAgents-style risk assessment team verdict panel. Rendered in the Risk tab
 │  └─────────────┴─────────────┴─────────────┘        │
 ├──────────────────────────────────────────────────────┤
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │
-│  │ 📈 Aggressive│ │ 📉 Conserv.  │ │ ⚖️ Neutral   │ │
+│  │[RiskAggr.]   │ │[RiskConserv.]│ │[RiskNeutral] │ │
 │  │ emerald theme│ │ rose theme   │ │ sky theme    │ │
 │  │ Position: 8% │ │ Position: 2% │ │ Position: 5% │ │
 │  │ Conf: 0.80   │ │ Conf: 0.65   │ │ Conf: 0.72   │ │
@@ -501,9 +551,11 @@ TradingAgents-style risk assessment team verdict panel. Rendered in the Risk tab
 ├──────────────────────────────────────────────────────┤
 │  Risk Limits: Stop Loss: -8% │ Max Drawdown: -15%   │
 ├──────────────────────────────────────────────────────┤
-│  Unresolved Risks: [risk1], [risk2]                  │
+│  [IconWarning] Unresolved Risks: [risk1], [risk2]    │
 └──────────────────────────────────────────────────────┘
 ```
+
+**Note:** Risk icons are Phosphor Icons from `frontend/src/lib/icons.ts`: `RiskAggressive` (Sword), `RiskConservative` (Shield), `RiskNeutral` (Scales), `RiskJudge` (Gavel).
 
 **Analyst Card Colors:** Aggressive=emerald, Conservative=rose, Neutral=sky
 
@@ -551,11 +603,11 @@ LLM bias detection flags and knowledge conflict table.
 
 | Bias Type | Icon | Description |
 |-----------|------|-------------|
-| `tech_bias` | 🖥️ | Systematic tech/large-cap favoritism |
-| `confirmation_bias` | 🔄 | Ignoring contradictory signals |
-| `recency_bias` | ⏰ | Over-weighting recent data |
-| `anchoring` | ⚓ | Over-relying on first data point |
-| `source_diversity` | 📊 | Insufficient source variety |
+| `tech_bias` | `BiasTech` (Monitor) | Systematic tech/large-cap favoritism |
+| `confirmation_bias` | `BiasConfirmation` (ArrowsClockwise) | Ignoring contradictory signals |
+| `recency_bias` | `BiasRecency` (Clock) | Over-weighting recent data |
+| `anchoring` | `BiasAnchoring` (Anchor) | Over-relying on first data point |
+| `source_diversity` | `BiasDiversity` (ChartBar) | Insufficient source variety |
 
 **Knowledge Conflicts Table:**
 
@@ -622,7 +674,7 @@ LLM cost and token analytics panel, rendered in the Cost tab. Shows per-agent br
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  💰 LLM Cost Analytics                                    │
+│  LLM Cost Analytics                                       │
 ├──────────────┬─────────────┬─────────────┬─────────────┤
 │ Total Cost   │ Total Tokens│  LLM Calls  │ Deep Think  │
 │  $0.1234     │   245.3K    │     37      │   4 calls   │
@@ -632,21 +684,21 @@ LLM cost and token analytics panel, rendered in the Cost tab. Shows per-agent br
 ├──────────────────────────────────────────────────────┤
 │  Cost by Model:                                          │
 │    gemini-2.0-flash:  $0.0834 (33 calls)                 │
-│    gemini-2.5-pro:    $0.0400 (4 calls 🧠)                │
+│    gemini-2.5-pro:    $0.0400 (4 calls [Sparkle])        │
 ├──────────────────────────────────────────────────────┤
 │  Per-Agent Breakdown (sorted by cost):                    │
 │  ┌──────────────────┬────────────┬───────┬─────────┐ │
 │  │ Agent            │ Model       │ Tokens│ Cost    │ │
 │  ├──────────────────┼────────────┼───────┼─────────┤ │
-│  │ Synthesis 🧠     │ 2.5-pro     │  12.1K│ $0.0150 │ │
-│  │ Moderator 🧠     │ 2.5-pro     │   8.3K│ $0.0120 │ │
+│  │ Synthesis [dt]   │ 2.5-pro     │  12.1K│ $0.0150 │ │
+│  │ Moderator [dt]   │ 2.5-pro     │   8.3K│ $0.0120 │ │
 │  │ Bull Agent       │ 2.0-flash   │  15.2K│ $0.0045 │ │
 │  │ ...              │ ...         │  ...  │ ...     │ │
 │  └──────────────────┴────────────┴───────┴─────────┘ │
 └──────────────────────────────────────────────────────┘
 ```
 
-**🧠 Model Badge:** Deep-think agents (Moderator, Risk Judge, Synthesis, Critic) display a brain emoji next to their model name.
+**Deep Think Badge:** Deep-think agents (Moderator, Risk Judge, Synthesis, Critic) display `IconDeepThink` (Sparkle) icon next to their model name.
 
 **Sections:**
 
@@ -673,37 +725,39 @@ LLM cost and token analytics panel, rendered in the Cost tab. Shows per-agent br
 │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░  │
 │  Running adversarial debate (Bull vs Bear)...            │
 ├──────────────────────────────────────────────────────────┤
-│  ✓ 🔍 Market Intel                              2.1s ▾  │
-│  ✓ 📥 Ingestion                                 1.8s ▸  │
-│  ✓ 📊 Quant Data                                3.2s ▸  │
-│  ✓ 📄 Document Analysis                         5.4s ▸  │
-│  ✓ 💬 Sentiment Analysis                        4.1s ▸  │
-│  ✓ 🏢 Competitor Analysis                       3.8s ▸  │
-│  ✓ 🔗 Data Enrichment                          12.3s ▾  │
+│  ✓ [Newspaper] Market Intel                      2.1s ▾  │
+│  ✓ [CloudArrowDown] Ingestion                    1.8s ▸  │
+│  ✓ [HashStraight] Quant Data                     3.2s ▸  │
+│  ✓ [FileText] Document Analysis                  5.4s ▸  │
+│  ✓ [Crosshair] Sentiment Analysis                4.1s ▸  │
+│  ✓ [Trophy] Competitor Analysis                  3.8s ▸  │
+│  ✓ [Broadcast] Data Enrichment                  12.3s ▾  │
 │  │  [14:32:01] [1/11] Insider data collected             │
 │  │  [14:32:02] [2/11] Options data collected             │
 │  │  [14:32:03] [3/11] Patent data collected              │
 │  │  ...                                                  │
-│  ● 🤖 Enrichment Analysis                           ▾   │
+│  ● [Brain] Enrichment Analysis                       ▾   │
 │  │  [14:32:15] [1/10] Gemini analyzing Insider...        │
 │  │  [14:32:18] [1/10] Insider Activity → BULLISH         │
 │  │  thinking...                                          │
-│  ○ ⚔️ Agent Debate                                  ▸   │
-│  ○ 🌐 Enhanced Macro                                ▸   │
-│  ○ 🔬 Deep Dive                                     ▸   │
-│  ○ 📝 Synthesis                                     ▸   │
-│  ○ ✅ Critic Review                                 ▸   │
+│  ○ [Scales] Agent Debate                             ▸   │
+│  ○ [Globe] Enhanced Macro                            ▸   │
+│  ○ [Binoculars] Deep Dive                            ▸   │
+│  ○ [Flask] Synthesis                                 ▸   │
+│  ○ [ShieldCheck] Critic Review                       ▸   │
 └──────────────────────────────────────────────────────────┘
 ```
+
+**Note:** All step icons are Phosphor Icons from `frontend/src/lib/icons.ts` (aliased as `Step*` names, e.g., `StepMarketIntel`, `StepIngestion`). Rendered as `<step.icon size={16} weight="duotone" />`.
 
 **Visual States:**
 
 | State | Icon | Style | Behavior |
 |-------|------|-------|----------|
-| Completed | `✓` | `text-emerald-400` | Green check, duration badge, click to expand/collapse log |
+| Completed | `CheckCircle` (Phosphor) | `text-emerald-400` | Green check, duration badge, click to expand/collapse log |
 | Active | `●` (pulsing) | `text-sky-400 bg-sky-500/10` | Blue ping dot, auto-expanded, `thinking...` pulse at bottom |
 | Pending | `○` | `text-zinc-600` | Dimmed, collapsed |
-| Error | `✕` | `text-rose-400` | Red X, auto-expanded |
+| Error | `XCircle` (Phosphor) | `text-rose-400` | Red X, auto-expanded |
 
 **Features:**
 - **Header:** Gemini 4-bar spinner animation + ticker name + elapsed timer (`⏱ 2m 34s`) + percentage
@@ -1077,6 +1131,7 @@ interface ModelPricing {
 }
 
 // v2.7: Full settings (GET /api/settings/)
+// v3.3: Added enable_thinking + thinking budget fields
 interface FullSettings {
   gemini_model: string;
   deep_think_model: string;
@@ -1091,12 +1146,107 @@ interface FullSettings {
   lite_mode: boolean;
   max_analysis_cost_usd: number;
   max_synthesis_iterations: number;
+  // v3.3 — Extended thinking (Gemini 2.5+)
+  enable_thinking: boolean;
+  thinking_budget_critic: number;
+  thinking_budget_moderator: number;
+  thinking_budget_risk_judge: number;
+  thinking_budget_synthesis: number;
 }
 
 // v2.7: Latest cost summary for live cost estimator
 interface LatestCostSummary extends CostSummary {
   ticker: string;
   analysis_date: string;
+}
+```
+
+### v2.9 Types — Paper Trading
+
+```typescript
+// Paper trading fund state
+interface PaperPortfolio {
+  portfolio_id: string;
+  starting_capital: number;
+  current_cash: number;
+  total_nav: number;
+  total_pnl_pct: number;
+  benchmark_return_pct: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Open position
+interface PaperPosition {
+  position_id: string;
+  ticker: string;
+  quantity: number;
+  avg_entry_price: number;
+  cost_basis: number;
+  current_price: number;
+  market_value: number;
+  unrealized_pnl: number;
+  unrealized_pnl_pct: number;
+  entry_date: string;
+  last_analysis_date: string;
+  recommendation: string;
+  risk_judge_position_pct: number;
+  stop_loss_price: number;
+}
+
+// Trade history entry
+interface PaperTrade {
+  trade_id: string;
+  ticker: string;
+  action: string;              // BUY | SELL
+  quantity: number;
+  price: number;
+  total_value: number;
+  reason: string;              // new_buy_signal | stop_loss | signal_flip | rebalance
+  analysis_id: string;
+  risk_judge_decision: string;
+  pnl_pct: number | null;     // Realized P&L % (sells only)
+  created_at: string;
+}
+
+// Daily NAV snapshot
+interface PaperSnapshot {
+  snapshot_date: string;
+  total_nav: number;
+  cash: number;
+  positions_value: number;
+  daily_pnl_pct: number;
+  cumulative_pnl_pct: number;
+  benchmark_pnl_pct: number;
+  alpha_pct: number;
+  position_count: number;
+  trades_today: number;
+  analysis_cost_today: number;
+}
+
+// Aggregated status response
+interface PaperTradingStatus {
+  portfolio: PaperPortfolio | null;
+  scheduler_running: boolean;
+  last_run: string | null;
+  last_result: string | null;
+  loop_running: boolean;
+}
+
+// Performance metrics
+interface PaperPerformance {
+  sharpe_ratio: number | null;
+  total_return_pct: number;
+  alpha_pct: number;
+  win_rate: number | null;
+  total_trades: number;
+  winning_trades: number;
+  losing_trades: number;
+  avg_win_pct: number | null;
+  avg_loss_pct: number | null;
+  max_drawdown_pct: number | null;
+  cumulative_cost_usd: number;
+  days_active: number;
 }
 ```
 
@@ -1179,6 +1329,7 @@ The download button in the Overview tab generates a multi-page PDF containing al
 | `/reports` | `reports/page.tsx` | Searchable report list | Historical reports |
 | `/performance` | `performance/page.tsx` | Historical accuracy metrics + LLM cost history | Performance tracking |
 | `/portfolio` | `portfolio/page.tsx` | Position tracking, P&L, allocation | Portfolio management |
+| `/paper-trading` | `paper-trading/page.tsx` | Autonomous fund dashboard, NAV chart, positions, trades | Paper trading management |
 | `/settings` | `settings/page.tsx` | 6 BentoCards: Analysis Mode, Live Cost Estimator, Model Config, Cost Controls, Debate Depth, Pillar Weights | User preferences |
 
 ---
@@ -1222,7 +1373,7 @@ Complete settings management page with 6 BentoCards. Loads current settings via 
 **Data Flow:**
 ```
 Page load:
-  GET /api/settings/              → form state (all 13 fields)
+  GET /api/settings/              → form state (all 19 fields incl. thinking budgets)
   GET /api/reports/latest-cost-summary → costData (per-agent tokens)
   GET /api/settings/models/available   → model list with pricing
 
@@ -1230,6 +1381,8 @@ Save:
   Compute diff (form vs saved settings) → PUT /api/settings/ (only changed fields)
   Backend validates, updates .env file, reloads Settings singleton
 ```
+
+**v3.3 — Extended Thinking toggle** (`enable_thinking`): Added to the **Model Configuration** BentoCard. When toggled on, reveals 4 thinking budget sliders (Critic, Moderator, Risk Judge, Synthesis). Only available when `deep_think_model` is set to `gemini-2.5-flash` or later; a warning is shown if enabled with `gemini-2.0-flash`.
 
 ### Modifying an Agent's Prompt (Skills System)
 
@@ -1296,7 +1449,7 @@ Full-page login screen with PyFinAgent branding. Two authentication methods:
 | Method | Button | Flow |
 |--------|--------|------|
 | **Google SSO** | "Sign in with Google" (SVG icon) | NextAuth `signIn("google")` → Google OAuth → callback → redirect to `/` |
-| **Passkey/WebAuthn** | "Sign in with Passkey" (🔑) | `webAuthnSignIn()` → browser credential prompt → callback → redirect to `/` |
+| **Passkey/WebAuthn** | "Sign in with Passkey" (Key icon) | `webAuthnSignIn()` → browser credential prompt → callback → redirect to `/` |
 
 **Visual:** Dark theme (`bg-zinc-950`), centered card, PyFinAgent logo + tagline "AI-Powered Financial Analysis", generic error messages (never leaks auth details).
 
@@ -1346,3 +1499,132 @@ Automated cron job (configurable hour, default 8 AM) posts to configured Slack c
 ### Proactive Alerts
 
 After each analysis completes, `send_analysis_alert()` posts the result to the configured channel with score, recommendation, and key metrics.
+
+---
+
+## Autonomous Paper Trading Dashboard (v2.9)
+
+### Overview
+
+**File:** `frontend/src/app/paper-trading/page.tsx`
+
+Full-page dashboard for managing the autonomous AI trading fund. Displays fund status, open positions, trade history, and NAV performance chart. Controls for initializing the fund, starting/stopping the daily scheduler, and triggering manual trading cycles.
+
+### Data Flow
+
+```
+Page load:
+  GET /api/paper-trading/status      → portfolio state, scheduler status
+  GET /api/paper-trading/portfolio    → open positions with unrealized P&L
+  GET /api/paper-trading/trades       → trade history (latest 50)
+  GET /api/paper-trading/snapshots    → daily NAV for chart data
+  GET /api/paper-trading/performance  → Sharpe, win rate, alpha, costs
+
+Actions:
+  POST /api/paper-trading/start      → Init fund ($10,000) + start cron scheduler
+  POST /api/paper-trading/stop        → Pause daily scheduler
+  POST /api/paper-trading/run-now     → Trigger immediate daily cycle (async)
+```
+
+### Layout
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  [NavPaperTrading] Autonomous Paper Trading                 │
+├──────────────────────────────────────────────────────────┤
+│  Status Banner                                            │
+│  Scheduler: Running ● │ Last Run: 2026-03-10 10:00       │
+│  [Initialize Fund] [Start Scheduler] [Pause] [Run Now]   │
+├──────────────────────────────────────────────────────────┤
+│  Summary Cards (6)                                        │
+│  ┌─────────┬─────────┬─────────┬──────────┬────────┬────┐│
+│  │  NAV    │  Cash   │  P&L    │  vs SPY  │ Sharpe │Pos ││
+│  │$10,432  │ $2,100  │ +4.32%  │ +1.2%    │  1.45  │ 5  ││
+│  └─────────┴─────────┴─────────┴──────────┴────────┴────┘│
+├──────────────────────────────────────────────────────────┤
+│  Tabs: [Positions] [Trades] [NAV Chart]                   │
+│                                                           │
+│  === Positions Tab ===                                    │
+│  ┌────────┬─────┬────────┬─────────┬──────┬─────┬──────┐ │
+│  │ Ticker │ Qty │Avg Cost│Mkt Value│ P&L  │ P&L%│ Days │ │
+│  ├────────┼─────┼────────┼─────────┼──────┼─────┼──────┤ │
+│  │ AAPL   │ 12  │$178.50 │$2,202   │+$60  │+2.8%│  14  │ │
+│  │ MSFT   │  8  │$415.00 │$3,400   │+$80  │+2.4%│   7  │ │
+│  └────────┴─────┴────────┴─────────┴──────┴─────┴──────┘ │
+│                                                           │
+│  === Trades Tab ===                                       │
+│  ┌────────┬────────┬─────┬────────┬───────┬────────────┐ │
+│  │ Date   │ Ticker │ Act │ Price  │ Value │ Reason     │ │
+│  ├────────┼────────┼─────┼────────┼───────┼────────────┤ │
+│  │ Mar 10 │ AAPL   │ BUY │$178.50 │$2,142 │ new_signal │ │
+│  │ Mar 09 │ TSLA   │SELL │$245.00 │$1,225 │ stop_loss  │ │
+│  └────────┴────────┴─────┴────────┴───────┴────────────┘ │
+│                                                           │
+│  === NAV Chart Tab ===                                    │
+│  Recharts LineChart (3 lines):                            │
+│  ── Portfolio NAV (sky-500)                               │
+│  ── SPY Benchmark (zinc-500)                              │
+│  ── Alpha (emerald-500)                                   │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Summary Cards (6)
+
+| Card | Value Source | Color Logic |
+|------|-------------|-------------|
+| Net Asset Value | `status.portfolio.total_nav` | Always sky |
+| Cash Available | `status.portfolio.current_cash` | Always slate |
+| Total P&L | `status.portfolio.total_pnl_pct` | emerald if positive, rose if negative |
+| vs SPY (Alpha) | `performance.alpha_pct` | emerald if positive, rose if negative |
+| Sharpe Ratio | `performance.sharpe_ratio` | emerald if ≥1, amber if ≥0, rose if <0 |
+| Positions | `positions.length` | Always violet |
+
+### Positions Table
+
+| Column | Source | Formatting |
+|--------|--------|------------|
+| Ticker | `position.ticker` | Bold, uppercase |
+| Quantity | `position.quantity` | 2 decimal places |
+| Avg Cost | `position.avg_entry_price` | Currency |
+| Market Value | `position.market_value` | Currency |
+| P&L | `position.unrealized_pnl` | Currency, green/red |
+| P&L % | `position.unrealized_pnl_pct` | Percentage, green/red |
+| Days Held | Computed from `position.entry_date` | Integer |
+
+### Trades Table
+
+| Column | Source | Formatting |
+|--------|--------|------------|
+| Date | `trade.created_at` | Short date |
+| Ticker | `trade.ticker` | Bold |
+| Action | `trade.action` | BUY = emerald badge, SELL = rose badge |
+| Price | `trade.price` | Currency |
+| Value | `trade.total_value` | Currency |
+| Reason | `trade.reason` | Styled pill (new_buy_signal, stop_loss, signal_flip, rebalance) |
+| P&L | `trade.pnl_pct` | Percentage, green/red (sells only) |
+
+### NAV Chart
+
+Recharts `LineChart` with responsive container. Three lines:
+- **Portfolio** (`sky-500`): `snapshot.total_nav / starting_capital * 100`
+- **SPY** (`zinc-500`): `100 + snapshot.benchmark_pnl_pct`
+- **Alpha** (`emerald-500`): `snapshot.alpha_pct`
+
+X-axis: `snapshot_date`, Y-axis: percentage return. Tooltip shows all three values.
+
+### Action Buttons
+
+| Button | Condition | Action | Style |
+|--------|-----------|--------|-------|
+| Initialize Fund | No portfolio exists | `POST /start` | sky (primary) |
+| Start Scheduler | Portfolio exists, scheduler stopped | `POST /start` | emerald |
+| Pause Scheduler | Scheduler running | `POST /stop` | amber |
+| Run Now | Portfolio exists | `POST /run-now` | violet |
+
+### Sidebar Entry
+
+```typescript
+{ href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading }
+```
+
+Added to `NAV_ITEMS` array in `Sidebar.tsx` after the Portfolio entry. All nav icons are Phosphor Icon components (type `Icon`) from `@/lib/icons`.

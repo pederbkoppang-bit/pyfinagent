@@ -1,6 +1,7 @@
 "use client";
 
 import { BentoCard } from "./BentoCard";
+import { IconValuation } from "@/lib/icons";
 
 interface ValuationMetric {
   label: string;
@@ -111,7 +112,7 @@ export function ValuationRange({ valuation, health }: ValuationRangeProps) {
   return (
     <BentoCard>
       <h3 className="mb-5 flex items-center gap-2 text-lg font-semibold text-slate-400">
-        <span>🏈</span> Valuation Football Field
+        <IconValuation size={20} weight="duotone" className="text-slate-400" /> Valuation Football Field
       </h3>
       <div className="space-y-3">
         {metrics.map((m) => (

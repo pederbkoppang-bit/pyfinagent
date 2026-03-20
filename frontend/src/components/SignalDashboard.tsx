@@ -3,10 +3,16 @@
 import { useState } from "react";
 import { clsx } from "clsx";
 import type { EnrichmentSignals } from "@/lib/types";
+import type { Icon } from "@phosphor-icons/react";
+import {
+  SignalInsider, SignalOptions, SignalSocial, SignalPatent,
+  SignalEarnings, SignalMacro, SignalAltData, SignalSector,
+  SignalNlp, SignalAnomaly, SignalMonteCarlo,
+} from "@/lib/icons";
 
 interface SignalMeta {
   label: string;
-  icon: string;
+  icon: Icon;
   description: string;
   source: string;
   sourceTag: string;
@@ -15,77 +21,77 @@ interface SignalMeta {
 const SIGNAL_META: Record<keyof EnrichmentSignals, SignalMeta> = {
   insider: {
     label: "Insider Activity",
-    icon: "👔",
+    icon: SignalInsider,
     description: "SEC Form 4 insider trading patterns — cluster buys, buy/sell ratio",
     source: "SEC EDGAR",
     sourceTag: "sec-edgar",
   },
   options: {
     label: "Options Flow",
-    icon: "📊",
+    icon: SignalOptions,
     description: "Put/call ratio, unusual activity (vol > 3× open interest), skew analysis",
     source: "yfinance Options Chain",
     sourceTag: "yfinance",
   },
   social_sentiment: {
     label: "Social Sentiment",
-    icon: "💬",
+    icon: SignalSocial,
     description: "News & social media sentiment velocity, source divergence detection",
     source: "Alpha Vantage News API",
     sourceTag: "alphavantage",
   },
   patent: {
     label: "Innovation",
-    icon: "💡",
+    icon: SignalPatent,
     description: "USPTO patent filing velocity, YoY growth, technology domain classification",
     source: "Google BigQuery Patents",
     sourceTag: "bigquery",
   },
   earnings_tone: {
     label: "Earnings Tone",
-    icon: "🎙️",
+    icon: SignalEarnings,
     description: "Management confidence analysis from earnings call transcripts",
     source: "API Ninjas / GCS Cache",
     sourceTag: "api-ninjas",
   },
   fred_macro: {
     label: "Macro Climate",
-    icon: "🏛️",
+    icon: SignalMacro,
     description: "Fed Funds, CPI, GDP, unemployment, yield curve, consumer sentiment",
     source: "Federal Reserve FRED",
     sourceTag: "fred",
   },
   alt_data: {
     label: "Alt Data",
-    icon: "📈",
+    icon: SignalAltData,
     description: "Google search interest momentum, lead/lag revenue relationship",
     source: "Google Trends",
     sourceTag: "google-trends",
   },
   sector: {
     label: "Sector Strength",
-    icon: "🏭",
+    icon: SignalSector,
     description: "Sector rotation positioning, relative strength vs sector ETF and SPY",
     source: "yfinance + 11 SPDR ETFs",
     sourceTag: "yfinance",
   },
   nlp_sentiment: {
     label: "NLP Sentiment",
-    icon: "🧠",
+    icon: SignalNlp,
     description: "Transformer-based contextual sentiment via Vertex AI embeddings",
     source: "Vertex AI text-embedding-005",
     sourceTag: "vertex-ai",
   },
   anomaly: {
     label: "Anomaly Scan",
-    icon: "⚠️",
+    icon: SignalAnomaly,
     description: "Multi-dimensional Z-score anomaly detection across 13+ metrics",
     source: "Multi-source (yfinance + enrichment)",
     sourceTag: "computed",
   },
   monte_carlo: {
     label: "Risk Scenario",
-    icon: "🎲",
+    icon: SignalMonteCarlo,
     description: "1,000 GBM path simulations — VaR (95%/99%), expected shortfall",
     source: "Monte Carlo Engine",
     sourceTag: "computed",
@@ -162,7 +168,7 @@ export function SignalDashboard({ signals }: { signals: EnrichmentSignals }) {
       {/* Consensus divergence bar */}
       <div className="rounded-2xl border border-navy-700 bg-navy-800/70 p-5 backdrop-blur-lg">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-200">📡 Signal Consensus</h3>
+          <h3 className="text-lg font-semibold text-slate-200">Signal Consensus</h3>
           <div className="flex items-center gap-3 text-xs">
             <span className="flex items-center gap-1">
               <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
@@ -210,7 +216,7 @@ export function SignalDashboard({ signals }: { signals: EnrichmentSignals }) {
               {/* Header row */}
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{meta.icon}</span>
+                  <meta.icon size={20} weight="duotone" className="text-slate-400" />
                   <span className="text-sm font-medium text-slate-300">{meta.label}</span>
                 </div>
                 <span

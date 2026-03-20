@@ -22,7 +22,8 @@ if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
     })
   );
 }
-providers.push(Passkey);
+// Passkey provider handled in auth.ts with experimental flag enabled
+// providers.push(Passkey);
 
 export default {
   providers,

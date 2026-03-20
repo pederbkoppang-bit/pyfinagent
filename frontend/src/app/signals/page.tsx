@@ -7,6 +7,7 @@ import { SectorDashboard } from "@/components/SectorDashboard";
 import { MacroDashboard } from "@/components/MacroDashboard";
 import { getAllSignals } from "@/lib/api";
 import type { AllSignals, EnrichmentSignals } from "@/lib/types";
+import { TabSignals } from "@/lib/icons";
 
 export default function SignalsPage() {
   const [ticker, setTicker] = useState("");
@@ -167,7 +168,7 @@ export default function SignalsPage() {
         {/* Empty state */}
         {!data && !loading && !error && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <span className="text-6xl">📡</span>
+            <TabSignals size={48} weight="duotone" className="text-slate-600" />
             <p className="mt-4 text-lg text-slate-400">
               Enter a ticker to view market signals
             </p>

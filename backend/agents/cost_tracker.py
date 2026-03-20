@@ -34,6 +34,7 @@ class AgentCostEntry:
     total_tokens: int = 0
     cost_usd: float = 0.0
     is_deep_think: bool = False
+    is_grounded: bool = False
 
 
 @dataclass
@@ -51,6 +52,7 @@ class CostTracker:
         model: str,
         response: object,
         is_deep_think: bool = False,
+        is_grounded: bool = False,
     ) -> Optional[AgentCostEntry]:
         """
         Extract token counts from a Vertex AI response and record the entry.
@@ -80,6 +82,7 @@ class CostTracker:
             total_tokens=total_tokens,
             cost_usd=round(cost, 6),
             is_deep_think=is_deep_think,
+            is_grounded=is_grounded,
         )
 
         with self._lock:
@@ -128,6 +131,8 @@ class CostTracker:
             bucket["tokens"] += e.total_tokens
             bucket["cost_usd"] = round(bucket["cost_usd"] + e.cost_usd, 6)
 
+        grounded_calls = sum(1 for e in entries if e.is_grounded)
+
         return {
             "total_input_tokens": total_input,
             "total_output_tokens": total_output,
@@ -135,6 +140,7 @@ class CostTracker:
             "total_cost_usd": round(total_cost, 6),
             "total_calls": len(entries),
             "deep_think_calls": deep_think_calls,
+            "grounded_calls": grounded_calls,
             "model_breakdown": model_breakdown,
             "agents": [
                 {
@@ -145,6 +151,7 @@ class CostTracker:
                     "total_tokens": e.total_tokens,
                     "cost_usd": e.cost_usd,
                     "is_deep_think": e.is_deep_think,
+                    "is_grounded": e.is_grounded,
                 }
                 for e in entries
             ],

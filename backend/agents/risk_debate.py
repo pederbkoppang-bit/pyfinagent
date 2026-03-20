@@ -22,19 +22,36 @@ from vertexai.generative_models import GenerativeModel
 from google.api_core import exceptions as gcp_exceptions
 
 from backend.agents.cost_tracker import CostTracker
+from backend.agents.schemas import RiskAnalystArgument, RiskJudgeVerdict
 from backend.config import prompts
 
 logger = logging.getLogger(__name__)
 
-_RISK_GEN_CONFIG = {"temperature": 0.2, "max_output_tokens": 1024}
-_JUDGE_GEN_CONFIG = {"temperature": 0.2, "max_output_tokens": 1536}
+_RISK_GEN_CONFIG = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1024}
+_JUDGE_GEN_CONFIG = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1536}
+
+# Structured output configs — Gemini JSON schema enforcement (Phase 3)
+_RISK_STRUCTURED_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 1024,
+    "response_mime_type": "application/json",
+    "response_schema": RiskAnalystArgument,
+}
+_JUDGE_STRUCTURED_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 1536,
+    "response_mime_type": "application/json",
+    "response_schema": RiskJudgeVerdict,
+}
 
 
 def _generate_with_retry(model: GenerativeModel, prompt: str, agent_name: str, max_retries: int = 3,
                           cost_tracker: CostTracker | None = None, model_name: str = "",
-                          is_deep_think: bool = False, gen_config: dict | None = None):
+                          is_deep_think: bool = False, gen_config: dict | None = None,
+                          thinking_budget: int = 0):
     delay = 5
     config = gen_config or _RISK_GEN_CONFIG
+    # Phase 5: Inject thinking config for Gemini 2.5 judge agents
+    if thinking_budget > 0:
+        config = {**config, "thinking": {"type": "enabled", "budget_tokens": thinking_budget}, "include_thoughts": True}
     for attempt in range(max_retries):
         try:
             response = model.generate_content(prompt, generation_config=config)
@@ -80,6 +97,9 @@ def run_risk_debate(
     deep_think_model: GenerativeModel | None = None,
     general_model_name: str = "",
     deep_think_model_name: str = "",
+    fact_ledger: str = "",
+    enable_thinking: bool = False,
+    thinking_budgets: dict | None = None,
 ) -> dict:
     """
     Execute multi-round round-robin risk assessment:
@@ -140,9 +160,11 @@ def run_risk_debate(
             neutral_arg=neutral_text[:2000] if neutral_text else "",
             debate_context=debate_context,
             past_memory=memories.get("risk_aggressive", ""),
+            fact_ledger=fact_ledger,
         )
         aggressive_response = _generate_with_retry(model, aggressive_prompt, f"Aggressive {round_label}",
-                                                     cost_tracker=cost_tracker, model_name=general_model_name)
+                                                     cost_tracker=cost_tracker, model_name=general_model_name,
+                                                     gen_config=_RISK_STRUCTURED_CONFIG)
         if aggressive_response:
             aggressive_text = aggressive_response.text.strip()
 
@@ -155,9 +177,11 @@ def run_risk_debate(
             neutral_arg=neutral_text[:2000] if neutral_text else "",
             debate_context=debate_context,
             past_memory=memories.get("risk_conservative", ""),
+            fact_ledger=fact_ledger,
         )
         conservative_response = _generate_with_retry(model, conservative_prompt, f"Conservative {round_label}",
-                                                       cost_tracker=cost_tracker, model_name=general_model_name)
+                                                       cost_tracker=cost_tracker, model_name=general_model_name,
+                                                       gen_config=_RISK_STRUCTURED_CONFIG)
         if conservative_response:
             conservative_text = conservative_response.text.strip()
 
@@ -169,9 +193,11 @@ def run_risk_debate(
             aggressive_text[:2000], conservative_text[:2000],
             debate_context=debate_context,
             past_memory=memories.get("risk_neutral", ""),
+            fact_ledger=fact_ledger,
         )
         neutral_response = _generate_with_retry(model, neutral_prompt, f"Neutral {round_label}",
-                                                   cost_tracker=cost_tracker, model_name=general_model_name)
+                                                   cost_tracker=cost_tracker, model_name=general_model_name,
+                                                   gen_config=_RISK_STRUCTURED_CONFIG)
         if neutral_response:
             neutral_text = neutral_response.text.strip()
 
@@ -213,13 +239,16 @@ def run_risk_debate(
         aggressive_text[:2000], conservative_text[:2000], neutral_text[:2000],
         debate_history=debate_history if max_risk_rounds > 1 else "",
         past_memory=memories.get("risk_judge", ""),
+        fact_ledger=fact_ledger,
     )
     _judge_model = deep_think_model or model
+    _judge_thinking_budget = (thinking_budgets or {}).get("Risk Judge", 0) if enable_thinking else 0
     judge_response = _generate_with_retry(_judge_model, judge_prompt, "Risk Judge",
                                            cost_tracker=cost_tracker,
                                            model_name=deep_think_model_name or general_model_name,
                                            is_deep_think=deep_think_model is not None,
-                                           gen_config=_JUDGE_GEN_CONFIG)
+                                           gen_config=_JUDGE_STRUCTURED_CONFIG,
+                                           thinking_budget=_judge_thinking_budget)
     judge_text = _clean_json(judge_response.text) if judge_response else ""
     judge_result = _parse_json(judge_text, "Risk Judge")
     if not judge_result:

@@ -16,9 +16,22 @@ from vertexai.generative_models import GenerativeModel
 from google.api_core import exceptions as gcp_exceptions
 
 from backend.agents.cost_tracker import CostTracker
+from backend.agents.schemas import DevilsAdvocateResult, ModeratorConsensus
 
-_DEBATE_GEN_CONFIG = {"temperature": 0.2, "max_output_tokens": 1536}
-_MODERATOR_GEN_CONFIG = {"temperature": 0.2, "max_output_tokens": 2048}
+_DEBATE_GEN_CONFIG = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1536}
+_MODERATOR_GEN_CONFIG = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 2048}
+
+# Structured output configs — Gemini JSON schema enforcement (Phase 3)
+_DA_STRUCTURED_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 1536,
+    "response_mime_type": "application/json",
+    "response_schema": DevilsAdvocateResult,
+}
+_MODERATOR_STRUCTURED_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 2048,
+    "response_mime_type": "application/json",
+    "response_schema": ModeratorConsensus,
+}
 
 from backend.config import prompts
 
@@ -27,9 +40,13 @@ logger = logging.getLogger(__name__)
 
 def _generate_with_retry(model: GenerativeModel, prompt: str, agent_name: str, max_retries: int = 3,
                           cost_tracker: CostTracker | None = None, model_name: str = "",
-                          is_deep_think: bool = False, gen_config: dict | None = None):
+                          is_deep_think: bool = False, gen_config: dict | None = None,
+                          thinking_budget: int = 0):
     delay = 5
     config = gen_config or _DEBATE_GEN_CONFIG
+    # Phase 5: Inject thinking config for Gemini 2.5 judge agents
+    if thinking_budget > 0:
+        config = {**config, "thinking": {"type": "enabled", "budget_tokens": thinking_budget}, "include_thoughts": True}
     for attempt in range(max_retries):
         try:
             response = model.generate_content(prompt, generation_config=config)
@@ -75,6 +92,9 @@ def run_debate(
     general_model_name: str = "",
     deep_think_model_name: str = "",
     skip_devils_advocate: bool = False,
+    fact_ledger: str = "",
+    enable_thinking: bool = False,
+    thinking_budgets: dict | None = None,
 ) -> dict:
     """
     Execute multi-round adversarial debate with Devil's Advocate.
@@ -131,6 +151,7 @@ def run_debate(
             round_number=round_num,
             max_rounds=max_debate_rounds,
             past_memory=memories.get("bull", ""),
+            fact_ledger=fact_ledger,
         )
         bull_response = _generate_with_retry(model, bull_prompt, f"Bull Agent R{round_num}",
                                                cost_tracker=cost_tracker, model_name=general_model_name)
@@ -146,6 +167,7 @@ def run_debate(
             round_number=round_num,
             max_rounds=max_debate_rounds,
             past_memory=memories.get("bear", ""),
+            fact_ledger=fact_ledger,
         )
         bear_response = _generate_with_retry(model, bear_prompt, f"Bear Agent R{round_num}",
                                                cost_tracker=cost_tracker, model_name=general_model_name)
@@ -172,10 +194,12 @@ def run_debate(
         logger.info("Debate: Devil's Advocate challenging consensus")
         _progress("Devil's Advocate stress-testing the emerging consensus...")
         da_prompt = prompts.get_devils_advocate_prompt(
-            ticker, bull_text, bear_text, signals_json
+            ticker, bull_text, bear_text, signals_json,
+            fact_ledger=fact_ledger,
         )
         da_response = _generate_with_retry(model, da_prompt, "Devil's Advocate",
-                                             cost_tracker=cost_tracker, model_name=general_model_name)
+                                             cost_tracker=cost_tracker, model_name=general_model_name,
+                                             gen_config=_DA_STRUCTURED_CONFIG)
         da_text = _clean_json(da_response.text) if da_response else ""
         da_result = _parse_json(da_text, "Devil's Advocate")
         if not da_result:
@@ -201,13 +225,16 @@ def run_debate(
         devils_advocate=json.dumps(da_result, default=str),
         debate_history=debate_history,
         past_memory=memories.get("moderator", ""),
+        fact_ledger=fact_ledger,
     )
     _moderator_model = deep_think_model or model
+    _moderator_thinking_budget = (thinking_budgets or {}).get("Moderator", 0) if enable_thinking else 0
     moderator_response = _generate_with_retry(_moderator_model, moderator_prompt, "Moderator",
                                                cost_tracker=cost_tracker,
                                                model_name=deep_think_model_name or general_model_name,
                                                is_deep_think=deep_think_model is not None,
-                                               gen_config=_MODERATOR_GEN_CONFIG)
+                                               gen_config=_MODERATOR_STRUCTURED_CONFIG,
+                                               thinking_budget=_moderator_thinking_budget)
     moderator_text = _clean_json(moderator_response.text) if moderator_response else ""
 
     # Try to parse moderator output as structured JSON

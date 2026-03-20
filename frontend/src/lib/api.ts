@@ -11,6 +11,12 @@ import type {
   LatestCostSummary,
   ModelConfig,
   ModelPricing,
+  PaperPerformance,
+  PaperPortfolio,
+  PaperPosition,
+  PaperSnapshot,
+  PaperTrade,
+  PaperTradingStatus,
   PerformanceStats,
   PortfolioPerformance,
   PortfolioPosition,
@@ -119,8 +125,9 @@ export function listReports(limit = 20): Promise<ReportSummary[]> {
   return apiFetch(`/api/reports/?limit=${limit}`);
 }
 
-export function getReport(ticker: string): Promise<Record<string, unknown>> {
-  return apiFetch(`/api/reports/${ticker}`);
+export function getReport(ticker: string, analysisDate?: string): Promise<Record<string, unknown>> {
+  const params = analysisDate ? `?analysis_date=${encodeURIComponent(analysisDate)}` : "";
+  return apiFetch(`/api/reports/${ticker}${params}`);
 }
 
 // ── Performance ──────────────────────────────────────────────────
@@ -218,4 +225,38 @@ export function updateSettings(body: Partial<FullSettings>): Promise<FullSetting
 
 export function getLatestCostSummary(): Promise<LatestCostSummary> {
   return apiFetch("/api/reports/latest-cost-summary");
+}
+
+// ── Paper Trading ───────────────────────────────────────────────
+
+export function startPaperTrading(): Promise<{ status: string; portfolio_id: string; starting_capital: number; scheduler_active: boolean }> {
+  return apiFetch("/api/paper-trading/start", { method: "POST" });
+}
+
+export function stopPaperTrading(): Promise<{ status: string; message?: string }> {
+  return apiFetch("/api/paper-trading/stop", { method: "POST" });
+}
+
+export function getPaperTradingStatus(): Promise<PaperTradingStatus> {
+  return apiFetch("/api/paper-trading/status");
+}
+
+export function getPaperPortfolio(): Promise<{ portfolio: PaperPortfolio; positions: PaperPosition[] }> {
+  return apiFetch("/api/paper-trading/portfolio");
+}
+
+export function getPaperTrades(limit = 100): Promise<{ trades: PaperTrade[]; count: number }> {
+  return apiFetch(`/api/paper-trading/trades?limit=${limit}`);
+}
+
+export function getPaperSnapshots(limit = 365): Promise<{ snapshots: PaperSnapshot[]; count: number }> {
+  return apiFetch(`/api/paper-trading/snapshots?limit=${limit}`);
+}
+
+export function getPaperPerformance(): Promise<PaperPerformance> {
+  return apiFetch("/api/paper-trading/performance");
+}
+
+export function triggerPaperTradingCycle(): Promise<{ status: string; message: string }> {
+  return apiFetch("/api/paper-trading/run-now", { method: "POST" });
 }

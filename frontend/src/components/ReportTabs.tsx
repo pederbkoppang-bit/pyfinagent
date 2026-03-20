@@ -2,11 +2,12 @@
 
 import { clsx } from "clsx";
 import { useState, type ReactNode } from "react";
+import type { Icon } from "@phosphor-icons/react";
 
 export interface TabDef {
   id: string;
   label: string;
-  icon: string;
+  icon: Icon;
   badge?: string | number | null;
 }
 
@@ -33,7 +34,7 @@ export function ReportTabs({ tabs, children }: ReportTabsProps) {
                 : "text-slate-500 hover:text-slate-300 hover:bg-navy-700/50"
             )}
           >
-            <span>{tab.icon}</span>
+            <tab.icon size={16} weight={active === tab.id ? "fill" : "regular"} />
             <span>{tab.label}</span>
             {tab.badge != null && (
               <span

@@ -13,6 +13,7 @@ from backend.api.analysis import router as analysis_router
 from backend.api.auth import get_current_user
 from backend.api.charts import router as charts_router
 from backend.api.investigate import router as investigate_router
+from backend.api.paper_trading import router as paper_trading_router, init_scheduler
 from backend.api.portfolio import router as portfolio_router
 from backend.api.reports import router as reports_router
 from backend.api.settings_api import router as settings_router
@@ -49,6 +50,20 @@ async def lifespan(app: FastAPI):
     setup_logging()
     settings = get_settings()
     logging.info(f"PyFinAgent backend starting (project={settings.gcp_project_id})")
+
+    # Start paper trading scheduler if enabled
+    if settings.paper_trading_enabled:
+        try:
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            scheduler = AsyncIOScheduler()
+            init_scheduler(scheduler)
+            scheduler.start()
+            logging.info("Paper trading scheduler started")
+        except ImportError:
+            logging.warning("APScheduler not installed, paper trading scheduler disabled")
+        except Exception as e:
+            logging.warning(f"Failed to start paper trading scheduler: {e}")
+
     yield
     logging.info("PyFinAgent backend shutting down")
 
@@ -98,6 +113,7 @@ async def auth_and_security_middleware(request: Request, call_next):
 app.include_router(analysis_router)
 app.include_router(charts_router)
 app.include_router(investigate_router)
+app.include_router(paper_trading_router)
 app.include_router(portfolio_router)
 app.include_router(reports_router)
 app.include_router(settings_router)

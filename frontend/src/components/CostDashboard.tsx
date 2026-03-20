@@ -2,6 +2,7 @@
 
 import { BentoCard } from "@/components/BentoCard";
 import type { CostSummary, AgentCostEntry } from "@/lib/types";
+import { IconDeepThink } from "@/lib/icons";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -20,7 +21,7 @@ function ModelBadge({ model, isDeepThink }: { model: string; isDeepThink: boolea
     : "bg-sky-500/20 text-sky-300 border-sky-500/30";
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${color}`}>
-      {isDeepThink && <span className="mr-1">🧠</span>}
+      {isDeepThink && <IconDeepThink size={14} weight="fill" className="mr-1" />}
       {model}
     </span>
   );
@@ -99,8 +100,8 @@ export function CostDashboard({ costSummary }: { costSummary: CostSummary | unde
             <p className="mt-1 font-mono text-3xl font-bold text-violet-400">
               {deep_think_calls}
             </p>
-            <p className="mt-0.5 text-xs text-slate-500">
-              🧠 Moderator, Risk Judge, Synthesis, Critic
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+              <IconDeepThink size={12} weight="fill" /> Moderator, Risk Judge, Synthesis, Critic
             </p>
           </BentoCard>
         </div>

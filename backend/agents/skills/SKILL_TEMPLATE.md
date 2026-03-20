@@ -37,6 +37,11 @@
 - Do NOT ignore contradictory signals
 - Do NOT anchor on a single data point
 }
+- Do NOT invent, compute, or round financial numbers — cite ONLY values from FACT_LEDGER verbatim
+- Do NOT use approximate language ("around", "roughly", "about") for FACT_LEDGER values — use exact figures
+- Do NOT reference metrics not present in FACT_LEDGER — say "data unavailable" instead
+- Do NOT contradict FACT_LEDGER values even if your training data suggests different numbers — flag the discrepancy explicitly
+- Do NOT hallucinate company names, ticker symbols, sector classifications, or industry labels — use ONLY what FACT_LEDGER provides
 
 ## Research Foundations
 {Academic/industry research backing this agent's approach, with citations from AGENTS.md research table.}
@@ -52,6 +57,7 @@
 {JSON schema — FIXED, do not modify. This is part of the evaluation harness.}
 
 ## Prompt Template
+{{fact_ledger_section}}
 {The actual LLM instructions sent to the model. THIS section is the "train.py" — the ONLY part the optimizer modifies.
 
 Uses {{variable}} double-brace syntax for runtime injection. Variables are replaced by the skill loader at call time.}

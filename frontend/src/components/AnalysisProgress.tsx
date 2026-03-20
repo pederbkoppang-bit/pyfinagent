@@ -2,23 +2,31 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { AnalysisStatusResponse, StepLogEntry } from "@/lib/types";
+import type { Icon } from "@phosphor-icons/react";
+import {
+  StepMarketIntel, StepIngestion, StepQuant, StepRag,
+  StepSentiment, StepCompetitor, StepEnrichment, StepInfoGap,
+  StepSignalAnalysis, StepDebate, StepMacro, StepDeepDive,
+  StepSynthesis, StepBiasAudit, StepRiskAssessment, IconTimer,
+  IconCheck, IconX, IconCaretDown, IconCaretRight,
+} from "@/lib/icons";
 
-const ALL_STEPS = [
-  { key: "market_intel", label: "Market Intel", icon: "📰" },
-  { key: "ingestion", label: "Ingestion", icon: "📥" },
-  { key: "quant", label: "Financials", icon: "🔢" },
-  { key: "rag", label: "Document Analysis", icon: "📄" },
-  { key: "market", label: "Sentiment", icon: "🎯" },
-  { key: "competitor", label: "Competitors", icon: "🏆" },
-  { key: "data_enrichment", label: "Data Enrichment", icon: "📡" },
-  { key: "info_gap", label: "Info-Gap Detection", icon: "🔎" },
-  { key: "enrichment_analysis", label: "Signal Analysis", icon: "🧠" },
-  { key: "debate", label: "Agent Debate", icon: "⚖️" },
-  { key: "macro", label: "Macro Economy", icon: "🌍" },
-  { key: "deep_dive", label: "Deep Dive", icon: "🔍" },
-  { key: "synthesis", label: "Synthesis", icon: "🧪" },
-  { key: "bias_audit", label: "Bias Audit", icon: "🛡️" },
-  { key: "risk_assessment", label: "Risk Assessment", icon: "🏛️" },
+const ALL_STEPS: { key: string; label: string; icon: Icon }[] = [
+  { key: "market_intel", label: "Market Intel", icon: StepMarketIntel },
+  { key: "ingestion", label: "Ingestion", icon: StepIngestion },
+  { key: "quant", label: "Financials", icon: StepQuant },
+  { key: "rag", label: "Document Analysis", icon: StepRag },
+  { key: "market", label: "Sentiment", icon: StepSentiment },
+  { key: "competitor", label: "Competitors", icon: StepCompetitor },
+  { key: "data_enrichment", label: "Data Enrichment", icon: StepEnrichment },
+  { key: "info_gap", label: "Info-Gap Detection", icon: StepInfoGap },
+  { key: "enrichment_analysis", label: "Signal Analysis", icon: StepSignalAnalysis },
+  { key: "debate", label: "Agent Debate", icon: StepDebate },
+  { key: "macro", label: "Macro Economy", icon: StepMacro },
+  { key: "deep_dive", label: "Deep Dive", icon: StepDeepDive },
+  { key: "synthesis", label: "Synthesis", icon: StepSynthesis },
+  { key: "bias_audit", label: "Bias Audit", icon: StepBiasAudit },
+  { key: "risk_assessment", label: "Risk Assessment", icon: StepRiskAssessment },
 ];
 
 function formatTime(seconds: number): string {
@@ -121,7 +129,7 @@ export function AnalysisProgress({
             Analyzing {status.ticker}
           </h3>
           <div className="flex items-center gap-4 text-sm">
-            <span className="text-zinc-400">⏱ {formatTime(elapsed)}</span>
+            <span className="text-zinc-400 flex items-center gap-1"><IconTimer size={14} /> {formatTime(elapsed)}</span>
             <span className="font-mono text-sky-400">{pct}%</span>
           </div>
         </div>
@@ -148,9 +156,9 @@ export function AnalysisProgress({
                   className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:bg-zinc-700/40 transition-colors"
                 >
                   <span className="text-[10px]">
-                    {showCompleted ? "▼" : "▶"}
+                    {showCompleted ? <IconCaretDown size={10} /> : <IconCaretRight size={10} />}
                   </span>
-                  <span className="text-emerald-400">✓</span>
+                  <IconCheck size={12} className="text-emerald-400" />
                   <span>
                     {completedSteps.length} completed
                   </span>
@@ -178,9 +186,9 @@ export function AnalysisProgress({
                               : "text-zinc-400 hover:bg-zinc-700/30"
                           }`}
                         >
-                          <span className="text-emerald-400 shrink-0">✓</span>
+                          <IconCheck size={12} className="text-emerald-400 shrink-0" />
                           <span className="w-4 text-center shrink-0">
-                            {step.icon}
+                            <step.icon size={14} />
                           </span>
                           <span className="truncate">{step.label}</span>
                           {duration && (
@@ -205,7 +213,7 @@ export function AnalysisProgress({
                     <span className="inline-flex h-1.5 w-1.5 rounded-full bg-sky-400" />
                   </span>
                   <span className="w-4 text-center text-sm shrink-0">
-                    {activeStep.icon}
+                    <activeStep.icon size={16} className="text-sky-300" />
                   </span>
                   <span className="font-medium text-sky-300 text-sm">
                     {activeStep.label}
@@ -225,9 +233,9 @@ export function AnalysisProgress({
                 key={step.key}
                 className="flex items-center gap-2 px-3 py-1 rounded-lg text-xs opacity-35"
               >
-                <span className="text-zinc-600 shrink-0">○</span>
-                <span className="w-4 text-center shrink-0 text-xs">
-                  {step.icon}
+                <span className="text-zinc-600 shrink-0">&#x25CB;</span>
+                <span className="w-4 text-center shrink-0">
+                  <step.icon size={14} />
                 </span>
                 <span className="text-zinc-600 truncate">{step.label}</span>
               </div>
@@ -247,9 +255,9 @@ export function AnalysisProgress({
                 onClick={() => setFilterStep(null)}
                 className="ml-2 flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] text-sky-300 hover:bg-sky-500/25 transition-colors"
               >
-                {ALL_STEPS.find((s) => s.key === filterStep)?.icon}{" "}
+                {(() => { const StepIcon = ALL_STEPS.find((s) => s.key === filterStep)?.icon; return StepIcon ? <StepIcon size={12} /> : null; })()}
                 {ALL_STEPS.find((s) => s.key === filterStep)?.label}
-                <span className="ml-0.5">✕</span>
+                <IconX size={10} className="ml-0.5" />
               </button>
             )}
             <span className="ml-auto text-[10px] text-zinc-600 font-mono">
@@ -285,7 +293,7 @@ export function AnalysisProgress({
                 if (isStepStart) {
                   return (
                     <div key={i} className="flex items-center gap-2 pt-2 pb-1">
-                      <span className="text-xs">{stepMeta?.icon ?? "▸"}</span>
+                      <span className="text-xs">{stepMeta ? <stepMeta.icon size={14} /> : <IconCaretRight size={14} />}</span>
                       <span className="text-xs font-medium text-zinc-300">
                         {stepMeta?.label ?? entry.step}
                       </span>
@@ -301,7 +309,7 @@ export function AnalysisProgress({
                 if (isStepDone) {
                   return (
                     <div key={i} className="flex items-center gap-2 pb-1 text-[11px]">
-                      <span className="text-emerald-400/70">✓</span>
+                      <IconCheck size={12} className="text-emerald-400/70" />
                       <span className="text-emerald-400/70">
                         {stepMeta?.label ?? entry.step} complete
                       </span>

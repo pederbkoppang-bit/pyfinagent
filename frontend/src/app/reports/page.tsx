@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { BentoCard } from "@/components/BentoCard";
 import { listReports } from "@/lib/api";
 import type { ReportSummary } from "@/lib/types";
+import { ArrowsLeftRight } from "@phosphor-icons/react";
 
 function scoreColor(recommendation: string): string {
   const lower = recommendation.toLowerCase();
@@ -51,7 +52,7 @@ export default function ReportsPage() {
             href="/compare"
             className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-400 transition-colors hover:bg-sky-500/20"
           >
-            🔀 Compare Reports
+            <ArrowsLeftRight size={16} className="inline" /> Compare Reports
           </Link>
         </div>
 

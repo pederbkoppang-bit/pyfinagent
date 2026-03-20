@@ -2,6 +2,12 @@
 
 import { clsx } from "clsx";
 import type { BiasReportData, ConflictReportData } from "@/lib/types";
+import type { Icon } from "@phosphor-icons/react";
+import {
+  BiasTech, BiasConfirmation, BiasRecency, BiasAnchoring,
+  BiasDiversity, BiasDefault, BiasShield, ConflictIcon,
+  SuggestionIcon,
+} from "@/lib/icons";
 
 function SeverityBadge({ severity }: { severity: string }) {
   const s = severity.toUpperCase();
@@ -20,14 +26,15 @@ function SeverityBadge({ severity }: { severity: string }) {
 }
 
 function BiasTypeIcon({ type }: { type: string }) {
-  const icons: Record<string, string> = {
-    tech_bias: "🖥️",
-    confirmation_bias: "🔄",
-    recency_bias: "⏰",
-    anchoring: "⚓",
-    source_diversity: "📊",
+  const icons: Record<string, Icon> = {
+    tech_bias: BiasTech,
+    confirmation_bias: BiasConfirmation,
+    recency_bias: BiasRecency,
+    anchoring: BiasAnchoring,
+    source_diversity: BiasDiversity,
   };
-  return <span className="text-lg">{icons[type] || "⚠️"}</span>;
+  const Ic = icons[type] || BiasDefault;
+  return <Ic size={20} weight="duotone" className="text-slate-400" />;
 }
 
 function ReliabilityBadge({ reliability }: { reliability: string }) {
@@ -62,7 +69,8 @@ export function BiasReport({
         <div className="rounded-2xl border border-navy-700 bg-navy-800/70 p-6 backdrop-blur-lg">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
-              🛡️ LLM Bias Audit
+              <BiasShield size={20} weight="duotone" className="text-sky-400" />
+              LLM Bias Audit
             </h3>
             <div className="flex items-center gap-3">
               {biasReport.raw_score != null && biasReport.adjusted_score != null && (
@@ -106,8 +114,8 @@ export function BiasReport({
                   <p className="mb-1 text-sm text-slate-300">{flag.description}</p>
                   <p className="text-xs text-slate-500">{flag.evidence}</p>
                   {flag.adjustment_suggestion && (
-                    <p className="mt-2 text-xs text-sky-400/80">
-                      💡 {flag.adjustment_suggestion}
+                    <p className="mt-2 flex items-center gap-1 text-xs text-sky-400/80">
+                      <SuggestionIcon size={12} /> {flag.adjustment_suggestion}
                     </p>
                   )}
                 </div>
@@ -122,7 +130,8 @@ export function BiasReport({
         <div className="rounded-2xl border border-navy-700 bg-navy-800/70 p-6 backdrop-blur-lg">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
-              ⚡ Knowledge Conflicts
+              <ConflictIcon size={20} weight="fill" className="text-amber-400" />
+              Knowledge Conflicts
             </h3>
             <ReliabilityBadge reliability={conflictReport.overall_reliability} />
           </div>

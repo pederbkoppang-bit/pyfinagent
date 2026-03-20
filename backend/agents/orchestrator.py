@@ -15,7 +15,7 @@ import httpx
 import vertexai
 from google.api_core import exceptions as gcp_exceptions
 from google.oauth2 import service_account
-from vertexai.generative_models import GenerativeModel, Tool, grounding
+from vertexai.generative_models import GenerativeModel, Tool, grounding, GenerationConfig
 
 from backend.agents.bias_detector import detect_biases
 from backend.agents.cost_tracker import CostTracker
@@ -28,6 +28,7 @@ from backend.agents.memory import (
     generate_reflection,
 )
 from backend.agents.risk_debate import run_risk_debate
+from backend.agents.schemas import SynthesisReport, CriticVerdict
 from backend.agents.trace import AnalysisContext, DecisionTrace, TraceCollector, hash_input
 from backend.config import prompts
 from backend.config.settings import Settings
@@ -57,6 +58,45 @@ SECTOR_SKIP_MAP = {
     "Real Estate": {"patent", "alt_data"},     # REITs - patents/trends irrelevant
 }
 
+# Structured output configs — Gemini JSON schema enforcement (Phase 3)
+_SYNTHESIS_STRUCTURED_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 4096,
+    "response_mime_type": "application/json",
+    "response_schema": SynthesisReport,
+}
+_CRITIC_STRUCTURED_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 2048,
+    "response_mime_type": "application/json",
+    "response_schema": CriticVerdict,
+}
+
+# Thinking configs for judge agents (Phase 5 — Gemini 2.5 Flash extended thinking)
+# Thinking overrides temperature on Gemini 2.5+; non-thinking agents keep temp=0.0
+_THINKING_CRITIC_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 2048,
+    "response_mime_type": "application/json",
+    "response_schema": CriticVerdict,
+    "thinking": {"type": "enabled", "budget_tokens": 8192},
+    "include_thoughts": True,
+}
+_THINKING_MODERATOR_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 2048,
+    "thinking": {"type": "enabled", "budget_tokens": 8192},
+    "include_thoughts": True,
+}
+_THINKING_RISK_JUDGE_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 1536,
+    "thinking": {"type": "enabled", "budget_tokens": 4096},
+    "include_thoughts": True,
+}
+_THINKING_SYNTHESIS_CONFIG = {
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 4096,
+    "response_mime_type": "application/json",
+    "response_schema": SynthesisReport,
+    "thinking": {"type": "enabled", "budget_tokens": 4096},
+    "include_thoughts": True,
+}
+
 
 def _extract_text(response) -> str:
     """Safely extract text from a Vertex AI response that may have multiple content parts.
@@ -70,6 +110,63 @@ def _extract_text(response) -> str:
     except ValueError:
         parts = response.candidates[0].content.parts
         return "\n".join(p.text for p in parts if hasattr(p, "text") and p.text)
+
+
+def _extract_thoughts(response) -> str:
+    """Extract thinking output from a Gemini 2.5 extended thinking response.
+    
+    When thinking is enabled, the response contains reasoning traces that are
+    valuable for XAI audit trails. This helper extracts them safely.
+    """
+    try:
+        candidate = response.candidates[0] if response.candidates else None
+        if not candidate:
+            return ""
+        parts = getattr(candidate.content, "parts", []) or []
+        # Look for thinking parts (should be first)
+        for part in parts:
+            if hasattr(part, "thinking"):
+                return str(part.thinking)[:2000]  # Cap at 2000 chars
+    except Exception as e:
+        logger.debug(f"Could not extract thinking output: {e}")
+    return ""
+
+
+def _extract_grounding_metadata(response) -> list[dict]:
+    """Extract Google Search grounding metadata from a Vertex AI response.
+
+    Returns a list of grounding source dicts with uri, title, and optionally
+    the text segments they support. Used for Glass Box citation rendering.
+    """
+    sources: list[dict] = []
+    try:
+        candidate = response.candidates[0] if response.candidates else None
+        if not candidate:
+            return sources
+        gm = getattr(candidate, "grounding_metadata", None)
+        if not gm:
+            return sources
+        # Extract grounding chunks (source URLs + titles)
+        for chunk in getattr(gm, "grounding_chunks", []) or []:
+            web = getattr(chunk, "web", None)
+            if web:
+                sources.append({
+                    "uri": getattr(web, "uri", ""),
+                    "title": getattr(web, "title", ""),
+                })
+        # Extract grounding supports (text→source mapping)
+        supports = getattr(gm, "grounding_supports", []) or []
+        for i, sup in enumerate(supports):
+            segment = getattr(sup, "segment", None)
+            text = getattr(segment, "text", "") if segment else ""
+            indices = getattr(sup, "grounding_chunk_indices", []) or []
+            if text and i < len(sources):
+                sources[i]["supported_text"] = text
+            elif text:
+                sources.append({"supported_text": text, "chunk_indices": list(indices)})
+    except Exception as e:
+        logger.debug(f"Could not extract grounding metadata: {e}")
+    return sources
 
 
 def _clean_json_output(text: str) -> str:
@@ -89,6 +186,54 @@ def _parse_json_with_fallback(json_string: str, agent_name: str) -> Optional[dic
     except json.JSONDecodeError:
         logger.warning(f"{agent_name} returned invalid JSON")
         return None
+
+
+def _build_fact_ledger(quant_data: dict) -> dict:
+    """Build typed fact dict from Step 2 quant + yfinance data.
+
+    Research: VeNRA achieves 1.2% hallucination rate with typed fact ledger.
+    All agents receive this as ground truth — no invented numbers allowed.
+    """
+    yf = quant_data.get("yf_data", {})
+    val = yf.get("valuation", {})
+    eff = yf.get("efficiency", {})
+    health = yf.get("health", {})
+    inst = yf.get("institutional", {})
+    return {
+        # Identity
+        "ticker": quant_data.get("ticker", ""),
+        "company_name": yf.get("company_name", quant_data.get("company_name", "")),
+        "sector": yf.get("sector", quant_data.get("sector", "")),
+        "industry": yf.get("industry", quant_data.get("industry", "")),
+        # Valuation (7)
+        "current_price": val.get("Current Price"),
+        "market_cap": val.get("Market Cap"),
+        "pe_ratio": val.get("P/E Ratio"),
+        "forward_pe": val.get("Forward P/E"),
+        "peg_ratio": val.get("PEG Ratio"),
+        "price_to_book": val.get("Price/Book"),
+        "dividend_yield_pct": val.get("Dividend Yield"),
+        # Efficiency (4)
+        "profit_margin_pct": eff.get("Profit Margin"),
+        "operating_margin_pct": eff.get("Operating Margin"),
+        "roe_pct": eff.get("Return on Equity (ROE)"),
+        "revenue_growth_pct": eff.get("Revenue Growth"),
+        # Financial Health (5)
+        "total_cash": health.get("Total Cash"),
+        "total_debt": health.get("Total Debt"),
+        "debt_equity": health.get("Debt/Equity Ratio"),
+        "current_ratio": health.get("Current Ratio"),
+        "free_cash_flow": health.get("Free Cash Flow"),
+        # Ownership (3)
+        "institutional_ownership_pct": inst.get("Inst. Ownership %"),
+        "insider_ownership_pct": inst.get("Insider Ownership %"),
+        "short_ratio": inst.get("Short Ratio"),
+        # Price Context (4)
+        "week_52_high": yf.get("week_52_high"),
+        "week_52_low": yf.get("week_52_low"),
+        "revenue": yf.get("revenue"),
+        "net_income": yf.get("net_income"),
+    }
 
 
 class AnalysisOrchestrator:
@@ -122,10 +267,10 @@ class AnalysisOrchestrator:
             grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
         )
 
-        _gen_config = {"temperature": 0.2}
-        _enrichment_config = {"temperature": 0.2, "max_output_tokens": 1024}
-        _synthesis_config = {"temperature": 0.2, "max_output_tokens": 4096}
-        _deep_think_config = {"temperature": 0.2, "max_output_tokens": 2048}
+        _gen_config = {"temperature": 0.0, "top_k": 1}
+        _enrichment_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1024}
+        _synthesis_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 4096}
+        _deep_think_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 2048}
         self.rag_model = GenerativeModel(settings.gemini_model, tools=[rag_tool], generation_config=_gen_config)
         self.general_model = GenerativeModel(settings.gemini_model, generation_config=_enrichment_config)
 
@@ -134,8 +279,25 @@ class AnalysisOrchestrator:
         self.deep_think_model = GenerativeModel(deep_model_name, generation_config=_deep_think_config)
         # Separate synthesis model with higher token limit
         self.synthesis_model = GenerativeModel(deep_model_name, generation_config=_synthesis_config)
+
+        # Google Search Grounding model for live web fact-checking (Phase 4)
+        # Constraint: Schema + Grounding cannot combine on Gemini 2.0 — separate instance
+        search_tool = Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())
+        self.grounded_model = GenerativeModel(
+            settings.gemini_model, tools=[search_tool], generation_config=_gen_config
+        )
+
         self.deep_think_model_name = deep_model_name
         self.general_model_name = settings.gemini_model
+
+        # Phase 5: Extended thinking configuration
+        self.enable_thinking = settings.enable_thinking
+        self.thinking_budgets = {
+            "Critic": settings.thinking_budget_critic,
+            "Moderator": settings.thinking_budget_moderator,
+            "Risk Judge": settings.thinking_budget_risk_judge,
+            "Synthesis": settings.thinking_budget_synthesis,
+        }
 
         # Initialize agent memory instances (BM25-based, seeded with archetypes)
         self.bull_memory = FinancialSituationMemory("bull")
@@ -175,17 +337,38 @@ class AnalysisOrchestrator:
             logger.warning(f"Could not load memories from BQ (non-fatal): {e}")
 
     def _generate_with_retry(self, model, prompt: str, agent_name: str, max_retries: int = 3, timeout: int = 90,
-                              is_deep_think: bool = False):
+                              is_deep_think: bool = False, generation_config: dict | None = None,
+                              is_grounded: bool = False):
         delay = 5
         model_name = self.deep_think_model_name if is_deep_think else self.general_model_name
         ct = getattr(self, "_cost_tracker", None)
+        
+        # Phase 5: Add thinking config for judge agents if enabled
+        final_config = generation_config
+        if self.enable_thinking and is_deep_think and agent_name in self.thinking_budgets:
+            thinking_budget = self.thinking_budgets[agent_name]
+            if generation_config:
+                # Merge thinking into existing config
+                final_config = generation_config.copy()
+                final_config["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
+                final_config["include_thoughts"] = True
+            else:
+                # Create thinking-only config
+                final_config = {
+                    "temperature": 0.0,
+                    "top_k": 1,
+                    "thinking": {"type": "enabled", "budget_tokens": thinking_budget},
+                    "include_thoughts": True,
+                }
+        
         for attempt in range(max_retries):
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(model.generate_content, prompt)
+                    gen_kwargs = {"generation_config": final_config} if final_config else {}
+                    future = executor.submit(model.generate_content, prompt, **gen_kwargs)
                     response = future.result(timeout=timeout)
                 if ct:
-                    ct.record(agent_name, model_name, response, is_deep_think=is_deep_think)
+                    ct.record(agent_name, model_name, response, is_deep_think=is_deep_think, is_grounded=is_grounded)
                 return response
             except concurrent.futures.TimeoutError:
                 logger.error(f"{agent_name} timed out after {timeout}s (attempt {attempt+1}/{max_retries})")
@@ -253,8 +436,10 @@ class AnalysisOrchestrator:
     def run_rag_agent(self, ticker: str) -> dict:
         """Step 3: RAG analysis on 10-K/10-Q documents."""
         logger.info(f"RAG Agent: analyzing documents for {ticker}")
-        prompt = prompts.get_rag_prompt(ticker)
+        prompt = prompts.get_rag_prompt(ticker, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.rag_model, prompt, "RAG")
+        if response is None:
+            return {"text": "", "citations": []}
 
         citations = []
         if hasattr(response, "grounding_metadata") and response.grounding_metadata:
@@ -264,29 +449,31 @@ class AnalysisOrchestrator:
         return {"text": _extract_text(response), "citations": citations}
 
     def run_market_agent(self, ticker: str, av_data: dict) -> dict:
-        """Step 4: Market sentiment analysis."""
-        logger.info(f"Market Agent: analyzing sentiment for {ticker}")
-        prompt = prompts.get_market_prompt(ticker, av_data)
-        response = self._generate_with_retry(self.general_model, prompt, "Market")
-        return {"text": response.text}
+        """Step 4: Market sentiment analysis (Google Search grounded)."""
+        logger.info(f"Market Agent: analyzing sentiment for {ticker} (grounded)")
+        prompt = prompts.get_market_prompt(ticker, av_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
+        response = self._generate_with_retry(self.grounded_model, prompt, "Market", is_grounded=True)
+        grounding_sources = _extract_grounding_metadata(response)
+        return {"text": _extract_text(response), "grounding_sources": grounding_sources}
 
     def run_competitor_agent(self, ticker: str, av_data: dict) -> dict:
-        """Step 5: Competitor analysis."""
-        logger.info(f"Competitor Agent: analyzing rivals for {ticker}")
-        prompt = prompts.get_competitor_prompt(ticker, av_data)
-        response = self._generate_with_retry(self.general_model, prompt, "Competitor")
-        return {"text": response.text}
+        """Step 5: Competitor analysis (Google Search grounded)."""
+        logger.info(f"Competitor Agent: analyzing rivals for {ticker} (grounded)")
+        prompt = prompts.get_competitor_prompt(ticker, av_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
+        response = self._generate_with_retry(self.grounded_model, prompt, "Competitor", is_grounded=True)
+        grounding_sources = _extract_grounding_metadata(response)
+        return {"text": _extract_text(response), "grounding_sources": grounding_sources}
 
     def run_macro_agent(self, ticker: str, av_data: dict) -> dict:
         """Step 6: Macroeconomic analysis."""
         logger.info(f"Macro Agent: analyzing economy for {ticker}")
         prompt = prompts.get_macro_prompt(ticker, av_data)
         response = self._generate_with_retry(self.general_model, prompt, "Macro")
-        return {"text": response.text}
+        return {"text": _extract_text(response)}
 
-    def run_deep_dive_agent(self, ticker: str, report: dict) -> str:
-        """Step 7: Find contradictions and probe with follow-up questions."""
-        logger.info(f"Deep Dive Agent: probing contradictions for {ticker}")
+    def run_deep_dive_agent(self, ticker: str, report: dict) -> dict:
+        """Step 7: Find contradictions and probe with follow-up questions (Google Search grounded)."""
+        logger.info(f"Deep Dive Agent: probing contradictions for {ticker} (grounded)")
 
         prompt = prompts.get_deep_dive_prompt(
             ticker,
@@ -294,9 +481,12 @@ class AnalysisOrchestrator:
             report.get("rag", {}).get("text", ""),
             report.get("market", {}).get("text", ""),
             report.get("competitor", {}).get("text", "No competitor data."),
+            fact_ledger=getattr(self, '_fact_ledger_json', ''),
         )
-        response = self._generate_with_retry(self.general_model, prompt, "Deep Dive (Questions)")
-        questions = response.text.strip().split("\n")
+        # Use grounded model to verify claims against public record
+        response = self._generate_with_retry(self.grounded_model, prompt, "Deep Dive (Questions)", is_grounded=True)
+        grounding_sources = _extract_grounding_metadata(response)
+        questions = _extract_text(response).strip().split("\n")
 
         answers = []
         for q in questions:
@@ -307,7 +497,7 @@ class AnalysisOrchestrator:
                 )
                 time.sleep(2)  # Rate limit protection
                 answers.append(f"Q: {q}\nA: {_extract_text(ans)}")
-        return "\n\n".join(answers)
+        return {"text": "\n\n".join(answers), "grounding_sources": grounding_sources}
 
     # ── New Data-Enrichment Steps ────────────────────────────────────
 
@@ -364,79 +554,80 @@ class AnalysisOrchestrator:
     def run_insider_agent(self, ticker: str, insider_data: dict) -> dict:
         """Analyze insider trading patterns."""
         logger.info(f"Insider Agent: analyzing Form 4 data for {ticker}")
-        prompt = prompts.get_insider_prompt(ticker, insider_data)
+        prompt = prompts.get_insider_prompt(ticker, insider_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "Insider")
-        return {"text": response.text, "data": insider_data}
+        return {"text": _extract_text(response), "data": insider_data}
 
     def run_options_agent(self, ticker: str, options_data: dict) -> dict:
         """Analyze options flow for institutional signals."""
         logger.info(f"Options Agent: analyzing flow for {ticker}")
-        prompt = prompts.get_options_prompt(ticker, options_data)
+        prompt = prompts.get_options_prompt(ticker, options_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "Options")
-        return {"text": response.text, "data": options_data}
+        return {"text": _extract_text(response), "data": options_data}
 
     def run_social_sentiment_agent(self, ticker: str, sentiment_data: dict) -> dict:
         """Analyze social media and news sentiment."""
         logger.info(f"Social Sentiment Agent: analyzing for {ticker}")
-        prompt = prompts.get_social_sentiment_prompt(ticker, sentiment_data)
+        prompt = prompts.get_social_sentiment_prompt(ticker, sentiment_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "Social Sentiment")
-        return {"text": response.text, "data": sentiment_data}
+        return {"text": _extract_text(response), "data": sentiment_data}
 
     def run_patent_agent(self, ticker: str, patent_data: dict) -> dict:
         """Analyze patent/innovation data."""
         logger.info(f"Patent Agent: analyzing innovation for {ticker}")
-        prompt = prompts.get_patent_prompt(ticker, patent_data)
+        prompt = prompts.get_patent_prompt(ticker, patent_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "Patent")
-        return {"text": response.text, "data": patent_data}
+        return {"text": _extract_text(response), "data": patent_data}
 
     def run_earnings_tone_agent(self, ticker: str, transcript_data: dict) -> dict:
         """Analyze earnings call tone."""
         logger.info(f"Earnings Tone Agent: analyzing transcript for {ticker}")
-        prompt = prompts.get_earnings_tone_prompt(ticker, transcript_data)
+        prompt = prompts.get_earnings_tone_prompt(ticker, transcript_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "Earnings Tone")
-        return {"text": response.text, "data": transcript_data}
+        return {"text": _extract_text(response), "data": transcript_data}
 
     def run_enhanced_macro_agent(self, ticker: str, av_data: dict, fred_macro: dict) -> dict:
-        """Enhanced macro analysis with FRED data."""
-        logger.info(f"Enhanced Macro Agent: analyzing economy for {ticker}")
-        prompt = prompts.get_enhanced_macro_prompt(ticker, av_data, fred_macro)
-        response = self._generate_with_retry(self.general_model, prompt, "Enhanced Macro")
-        return {"text": response.text, "fred_data": fred_macro}
+        """Enhanced macro analysis with FRED data (Google Search grounded)."""
+        logger.info(f"Enhanced Macro Agent: analyzing economy for {ticker} (grounded)")
+        prompt = prompts.get_enhanced_macro_prompt(ticker, av_data, fred_macro, fact_ledger=getattr(self, '_fact_ledger_json', ''))
+        response = self._generate_with_retry(self.grounded_model, prompt, "Enhanced Macro", is_grounded=True)
+        grounding_sources = _extract_grounding_metadata(response)
+        return {"text": _extract_text(response), "fred_data": fred_macro, "grounding_sources": grounding_sources}
 
     def run_alt_data_agent(self, ticker: str, alt_data_result: dict) -> dict:
         """Analyze alternative data signals."""
         logger.info(f"Alt Data Agent: analyzing trends for {ticker}")
-        prompt = prompts.get_alt_data_prompt(ticker, alt_data_result)
+        prompt = prompts.get_alt_data_prompt(ticker, alt_data_result, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "Alt Data")
-        return {"text": response.text, "data": alt_data_result}
+        return {"text": _extract_text(response), "data": alt_data_result}
 
     def run_sector_analysis_agent(self, ticker: str, sector_data: dict) -> dict:
         """Analyze sector relative strength and rotation."""
         logger.info(f"Sector Agent: analyzing sector for {ticker}")
-        prompt = prompts.get_sector_analysis_prompt(ticker, sector_data)
+        prompt = prompts.get_sector_analysis_prompt(ticker, sector_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "Sector")
-        return {"text": response.text, "data": sector_data}
+        return {"text": _extract_text(response), "data": sector_data}
 
     def run_nlp_sentiment_agent(self, ticker: str, nlp_data: dict) -> dict:
         """Analyze transformer-based NLP sentiment."""
         logger.info(f"NLP Sentiment Agent: analyzing for {ticker}")
-        prompt = prompts.get_nlp_sentiment_prompt(ticker, nlp_data)
+        prompt = prompts.get_nlp_sentiment_prompt(ticker, nlp_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "NLP Sentiment")
-        return {"text": response.text, "data": nlp_data}
+        return {"text": _extract_text(response), "data": nlp_data}
 
     def run_anomaly_agent(self, ticker: str, anomaly_data: dict) -> dict:
         """Analyze statistical anomalies."""
         logger.info(f"Anomaly Agent: analyzing for {ticker}")
-        prompt = prompts.get_anomaly_detection_prompt(ticker, anomaly_data)
+        prompt = prompts.get_anomaly_detection_prompt(ticker, anomaly_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "Anomaly")
-        return {"text": response.text, "data": anomaly_data}
+        return {"text": _extract_text(response), "data": anomaly_data}
 
     def run_scenario_agent(self, ticker: str, mc_data: dict) -> dict:
         """Analyze Monte Carlo scenario results."""
         logger.info(f"Scenario Agent: analyzing risk for {ticker}")
-        prompt = prompts.get_scenario_analysis_prompt(ticker, mc_data)
+        prompt = prompts.get_scenario_analysis_prompt(ticker, mc_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_model, prompt, "Scenario")
-        return {"text": response.text, "data": mc_data}
+        return {"text": _extract_text(response), "data": mc_data}
 
     # ── Synthesis ────────────────────────────────────────────────────
 
@@ -476,20 +667,25 @@ class AnalysisOrchestrator:
             market_context = session_context + "\n\n" + market_context
 
         # Shared synthesis prompt kwargs for both initial and revision calls
-        synthesis_kwargs = dict(
-            ticker=ticker,
-            quant_report=quant_data,
-            rag_report=report.get("rag", {}).get("text", ""),
-            market_report=market_context,
-            sector_catalyst_report=sector_catalyst,
-            supply_chain_report=report.get("supply_chain", "No supply chain data."),
-            deep_dive_analysis=report.get("deep_dive", ""),
-        )
+        fact_ledger_json = json.dumps(report.get("_fact_ledger", {}), indent=2, default=str)
+        synthesis_kwargs: dict = {
+            "ticker": ticker,
+            "quant_report": quant_data,
+            "rag_report": report.get("rag", {}).get("text", ""),
+            "market_report": market_context,
+            "sector_catalyst_report": sector_catalyst,
+            "supply_chain_report": report.get("supply_chain", "No supply chain data."),
+            "deep_dive_analysis": report.get("deep_dive", {}).get("text", "") if isinstance(report.get("deep_dive"), dict) else report.get("deep_dive", ""),
+            "fact_ledger": fact_ledger_json,
+        }
 
         # Initial synthesis draft (uses synthesis_model with 4096 output token limit)
         draft_prompt = prompts.get_synthesis_prompt(**synthesis_kwargs)
-        draft_response = self._generate_with_retry(self.synthesis_model, draft_prompt, "Synthesis", is_deep_think=True)
-        draft_text = _clean_json_output(draft_response.text)
+        draft_response = self._generate_with_retry(
+            self.synthesis_model, draft_prompt, "Synthesis",
+            is_deep_think=True, generation_config=_SYNTHESIS_STRUCTURED_CONFIG,
+        )
+        draft_text = _clean_json_output(_extract_text(draft_response))
 
         synthesis_iterations = 1
         critic_issues_log = []
@@ -501,9 +697,12 @@ class AnalysisOrchestrator:
             if iteration > 0:
                 critic_feedback_str = json.dumps(critic_issues_log[-1], indent=2)
 
-            critic_prompt = prompts.get_critic_prompt(ticker, draft_text, quant_data, critic_feedback=critic_feedback_str)
-            critic_response = self._generate_with_retry(self.deep_think_model, critic_prompt, "Critic", is_deep_think=True)
-            critic_text = _clean_json_output(critic_response.text)
+            critic_prompt = prompts.get_critic_prompt(ticker, draft_text, quant_data, critic_feedback=critic_feedback_str, fact_ledger=fact_ledger_json)
+            critic_response = self._generate_with_retry(
+                self.deep_think_model, critic_prompt, "Critic",
+                is_deep_think=True, generation_config=_CRITIC_STRUCTURED_CONFIG,
+            )
+            critic_text = _clean_json_output(_extract_text(critic_response))
 
             # Parse structured Critic verdict
             critic_result = _parse_json_with_fallback(critic_text, "Critic")
@@ -546,9 +745,10 @@ class AnalysisOrchestrator:
                 previous_draft=draft_text,
             )
             revision_response = self._generate_with_retry(
-                self.synthesis_model, revision_prompt, f"Synthesis-Rev{synthesis_iterations}", is_deep_think=True
+                self.synthesis_model, revision_prompt, f"Synthesis-Rev{synthesis_iterations}",
+                is_deep_think=True, generation_config=_SYNTHESIS_STRUCTURED_CONFIG,
             )
-            draft_text = _clean_json_output(revision_response.text)
+            draft_text = _clean_json_output(_extract_text(revision_response))
 
         # Fallback: parse whatever we have
         final_data = _parse_json_with_fallback(draft_text, "Synthesis-Final")
@@ -632,6 +832,13 @@ class AnalysisOrchestrator:
             sector_name = quant.get("sector", "")
             if sector_name:
                 ctx.add_finding(f"Sector: {sector_name}")
+
+        # Build fact ledger from quant data — injected into ALL agent prompts
+        # Research: VeNRA typed fact ledger achieves 1.2% hallucination rate
+        fact_ledger = _build_fact_ledger(report["quant"])
+        fact_ledger_json = json.dumps(fact_ledger, indent=2, default=str)
+        report["_fact_ledger"] = fact_ledger
+        self._fact_ledger_json = fact_ledger_json  # available to all agent methods
 
         # Step 3: RAG agent
         step("rag", "started", "Analyzing 10-K/10-Q documents...")
@@ -940,6 +1147,9 @@ class AnalysisOrchestrator:
                 general_model_name=self.general_model_name,
                 deep_think_model_name=self.deep_think_model_name,
                 skip_devils_advocate=skip_da,
+                fact_ledger=fact_ledger_json,
+                enable_thinking=self.enable_thinking,
+                thinking_budgets=self.thinking_budgets,
             )
             report["debate"] = debate_result
             da_challenges = len(debate_result.get("devils_advocate", {}).get("challenges", []))
@@ -1013,6 +1223,14 @@ class AnalysisOrchestrator:
             "anomalies": anomaly_data,
         }
 
+        # Attach grounding sources from Google Search grounded agents (Phase 4)
+        final_json["grounding_sources"] = {
+            "market": report.get("market", {}).get("grounding_sources", []) if isinstance(report.get("market"), dict) else [],
+            "competitor": report.get("competitor", {}).get("grounding_sources", []) if isinstance(report.get("competitor"), dict) else [],
+            "enhanced_macro": report.get("macro", {}).get("grounding_sources", []) if isinstance(report.get("macro"), dict) else [],
+            "deep_dive": report.get("deep_dive", {}).get("grounding_sources", []) if isinstance(report.get("deep_dive"), dict) else [],
+        }
+
         # Attach info-gap report
         final_json["info_gap_report"] = info_gap_report
 
@@ -1083,6 +1301,9 @@ class AnalysisOrchestrator:
                 deep_think_model=self.deep_think_model,
                 general_model_name=self.general_model_name,
                 deep_think_model_name=self.deep_think_model_name,
+                fact_ledger=fact_ledger_json,
+                enable_thinking=self.enable_thinking,
+                thinking_budgets=self.thinking_budgets,
             )
             final_json["risk_assessment"] = risk_assessment
             judge = risk_assessment.get("judge", {})

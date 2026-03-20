@@ -3,40 +3,45 @@
 import { useState } from "react";
 import { clsx } from "clsx";
 import type { ScoringMatrix } from "@/lib/types";
+import type { Icon } from "@phosphor-icons/react";
 import { BentoCard } from "./BentoCard";
+import {
+  PillarCorporate, PillarIndustry, PillarValuation,
+  PillarSentiment, PillarGovernance, DebateConsensus,
+} from "@/lib/icons";
 
 interface PillarConfig {
   key: keyof ScoringMatrix;
   label: string;
   weight: number;
-  icon: string;
+  icon: Icon;
   sources: string[];
   description: string;
 }
 
 const PILLARS: PillarConfig[] = [
   {
-    key: "pillar_1_corporate", label: "Corporate Profile", weight: 0.35, icon: "🏢",
+    key: "pillar_1_corporate", label: "Corporate Profile", weight: 0.35, icon: PillarCorporate,
     sources: ["RAG Agent (10-K/10-Q)", "yfinance Fundamentals", "Earnings Tone"],
     description: "Business model strength, moat durability, management quality, financial health",
   },
   {
-    key: "pillar_2_industry", label: "Industry & Macro", weight: 0.20, icon: "🌐",
+    key: "pillar_2_industry", label: "Industry & Macro", weight: 0.20, icon: PillarIndustry,
     sources: ["Competitor Agent", "Sector Analysis", "FRED Macro", "Alt Data"],
     description: "Competitive landscape, market share trajectory, sector tailwinds/headwinds",
   },
   {
-    key: "pillar_3_valuation", label: "Valuation", weight: 0.20, icon: "💰",
+    key: "pillar_3_valuation", label: "Valuation", weight: 0.20, icon: PillarValuation,
     sources: ["yfinance Fundamentals", "Monte Carlo VaR", "Quant Agent"],
     description: "P/E, PEG, FCF yield, price-to-book relative to growth, margin of safety",
   },
   {
-    key: "pillar_4_sentiment", label: "Market Sentiment", weight: 0.15, icon: "📊",
+    key: "pillar_4_sentiment", label: "Market Sentiment", weight: 0.15, icon: PillarSentiment,
     sources: ["Insider Activity", "Options Flow", "NLP Sentiment", "Social Sentiment"],
     description: "News/social sentiment, insider activity, options flow, institutional signals",
   },
   {
-    key: "pillar_5_governance", label: "Governance", weight: 0.10, icon: "🏛️",
+    key: "pillar_5_governance", label: "Governance", weight: 0.10, icon: PillarGovernance,
     sources: ["RAG Agent (10-K/10-Q)", "Insider Activity"],
     description: "Executive compensation alignment, board independence, shareholder structure",
   },
@@ -63,7 +68,7 @@ export function EvaluationTable({ scores, previousScores }: EvaluationTableProps
     <BentoCard>
       <div className="mb-5 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-400">
-          <span>⚖️</span> Evaluation Score Breakdown
+          <DebateConsensus size={20} weight="duotone" className="text-slate-400" /> Evaluation Score Breakdown
         </h3>
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500">Weighted Score:</span>
@@ -90,7 +95,7 @@ export function EvaluationTable({ scores, previousScores }: EvaluationTableProps
               )}
               onClick={() => setExpandedPillar(isExpanded ? null : p.key)}
             >
-              <span className="mb-1 text-xl">{p.icon}</span>
+              <p.icon size={22} weight="duotone" className="mb-1 text-slate-400" />
               <p className="text-center text-xs font-medium text-slate-400">
                 {p.label}
               </p>

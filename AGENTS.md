@@ -19,7 +19,7 @@ PyFinAgent uses a **Next.js 15 + FastAPI** architecture:
 
 | Layer | Technology | Port |
 |-------|-----------|------|
-| **Frontend** | Next.js 15 / React 19 / TypeScript 5.6 / Tailwind CSS / Recharts | 3001 |
+| **Frontend** | Next.js 15 / React 19 / TypeScript 5.6 / Tailwind CSS / Geist Font / Phosphor Icons / Motion / Recharts | 3001 |
 | **Backend** | FastAPI 0.115+ / Python 3.14 / Vertex AI (Gemini 2.0 Flash) | 8000 |
 | **Storage** | Google BigQuery (reports), Google Cloud Storage (10-K/10-Q filings) | — |
 | **AI Engine** | Google Vertex AI with Gemini model, RAG via Vertex AI Search datastore | — |
@@ -40,6 +40,7 @@ pyfinagent/
 │   │   ├── bias_detector.py     # LLM bias detection (tech bias, confirmation bias)
 │   │   ├── conflict_detector.py # Knowledge conflict detection (parametric vs real-time)
 │   │   ├── cost_tracker.py      # Per-agent token/cost tracking (dual LLM support)
+│   │   ├── schemas.py           # Pydantic output schemas for Gemini structured output (Phase 3)
 │   │   ├── skill_optimizer.py   # Autonomous skill optimization loop (autoresearch pattern)
 │   │   └── skills/              # Agent skills.md files (28 agents) + experiments/
 │   ├── config/
@@ -52,13 +53,17 @@ pyfinagent/
 │   │   ├── charts.py            # Price chart + financials endpoints
 │   │   ├── signals.py           # Enrichment signals endpoints (11 routes)
 │   │   ├── portfolio.py         # Portfolio tracking CRUD
+│   │   ├── paper_trading.py     # Autonomous paper trading endpoints (8 routes)
 │   │   ├── settings_api.py      # Model configuration + available models
 │   │   └── skills.py            # Skills optimization API endpoints
 │   ├── db/
-│   │   ├── bigquery_client.py    # BigQuery report persistence (68-column ML schema)
+│   │   ├── bigquery_client.py    # BigQuery report persistence (68-column ML schema) + paper trading CRUD
 │   │   └── __init__.py
 │   ├── services/
-│   │   └── outcome_tracker.py   # Evaluates past recs vs actual returns (feedback loop)
+│   │   ├── outcome_tracker.py   # Evaluates past recs vs actual returns (feedback loop)
+│   │   ├── paper_trader.py      # Virtual trade execution engine (buy/sell/MTM/snapshot)
+│   │   ├── portfolio_manager.py # Trade decision logic (sell-first-then-buy, Risk Judge sizing)
+│   │   └── autonomous_loop.py  # Daily autonomous trading cycle (screen→analyze→trade→learn)
 │   ├── slack_bot/
 │   │   ├── app.py               # Slack bot entry point (Socket Mode)
 │   │   ├── commands.py          # /analyze, /portfolio, /report slash commands
@@ -79,7 +84,8 @@ pyfinagent/
 │   │   ├── nlp_sentiment.py     # Transformer NLP via Vertex AI embeddings
 │   │   ├── anomaly_detector.py  # Multi-dimensional anomaly detection (Z-score)
 │   │   ├── monte_carlo.py       # Monte Carlo VaR simulation engine
-│   │   └── slack.py             # Slack webhook notifications
+│   │   ├── slack.py             # Slack webhook notifications
+│   │   └── screener.py          # S&P 500 quant screener (momentum, RSI, composite score)
 │   └── main.py                  # FastAPI app + router registration
 ├── frontend/
 │   ├── prisma/
@@ -93,6 +99,7 @@ pyfinagent/
 │   │   ├── reports/page.tsx     # Past reports
 │   │   ├── performance/page.tsx # Performance stats
 │   │   ├── portfolio/page.tsx   # Portfolio tracking + P&L
+│   │   ├── paper-trading/page.tsx # Autonomous paper trading dashboard
 │   │   └── settings/page.tsx    # Configuration
 │   ├── src/components/
 │   │   ├── AuthProvider.tsx     # SessionProvider wrapper (15-min refetch)
@@ -118,6 +125,7 @@ pyfinagent/
 ├── docker-compose.yml           # 3 services: backend, frontend, slack-bot
 ├── migrate_bq_schema.py         # Idempotent BQ schema migration (adds ML columns)
 ├── migrate_agent_memories.py    # Idempotent BQ migration (creates agent_memories table)
+├── migrate_paper_trading.py     # Idempotent BQ migration (4 paper trading tables)
 ├── quant-agent/                 # GCP Cloud Function
 ├── ingestion_agent/             # GCP Cloud Function
 ├── earnings-ingestion-agent/    # GCP Cloud Function
@@ -312,6 +320,7 @@ All tools are in `backend/tools/`. Each returns a consistent structure: `{ ticke
 | **Anomaly Detector** | `anomaly_detector.py` | Multi-dimensional (yfinance + all enrichment) | Z-score per metric, IQR outlier detection, > 2σ deviation flags | No | None |
 | **Monte Carlo VaR** | `monte_carlo.py` | yfinance daily returns | 1,000 GBM simulations, VaR (95%/99%), expected shortfall, P(±20%) over 3M/6M/1Y | No | None |
 | **Slack Notifications** | `slack.py` | Slack Webhook | Formatted message blocks with color coding | No | None |
+| **S&P 500 Screener** | `screener.py` | yfinance + Wikipedia | Momentum (1M/3M/6M), RSI_14, volatility, SMA distance, composite alpha score | No | None |
 
 ---
 
@@ -405,6 +414,7 @@ This system's design is informed by leading research on AI in financial trading:
 | `/reports` | `reports/page.tsx` | **Past Reports**: Searchable list of all completed analyses with quick-chip filters |
 | `/performance` | `performance/page.tsx` | **Performance**: Historical accuracy metrics |
 | `/portfolio` | `portfolio/page.tsx` | **Portfolio**: Position tracking, P&L, allocation pie chart, drawdown, recommendation accuracy scorecard |
+| `/paper-trading` | `paper-trading/page.tsx` | **Paper Trading**: Autonomous fund dashboard, NAV chart, positions table, trades history, start/stop/run controls |
 | `/settings` | `settings/page.tsx` | **Settings**: Model configuration, pillar weight configuration, debate depth |
 
 ### Key Components
@@ -421,9 +431,9 @@ This system's design is informed by leading research on AI in financial trading:
 | `MacroDashboard.tsx` | 7-indicator grid (current value + change), macro warnings section |
 | `StockChart.tsx` | Candlestick + volume with toggleable SMA50/SMA200/RSI, 5 period options (1M–2Y) |
 | `EvaluationTable.tsx` | 5-pillar horizontal bars with weights, individual pillar progress indicators |
-| `AnalysisProgress.tsx` | 15-step real-time tracker with % bar, current-step spinner, emoji status icons |
+| `AnalysisProgress.tsx` | 15-step real-time tracker with % bar, current-step spinner, Phosphor icon status indicators |
 | `CostDashboard.tsx` | LLM cost analytics: 4 summary cards (total cost, tokens, calls, deep think), token distribution bar, cost by model, per-agent breakdown table |
-| `Sidebar.tsx` | Navigation sidebar + user auth UI (avatar, email, passkey registration, logout) |
+| `Sidebar.tsx` | Navigation sidebar with Phosphor icons + user auth UI (avatar, email, passkey registration, logout) |
 
 ---
 
@@ -495,6 +505,18 @@ DEEP_THINK_MODEL=            # Optional deep-think model (e.g., gemini-2.5-pro)
 LITE_MODE=false              # Skip deep dive, devil's advocate, risk assessment; 1 debate round
 MAX_ANALYSIS_COST_USD=0.50   # Per-analysis budget cap (warning logged when exceeded)
 MAX_SYNTHESIS_ITERATIONS=2   # Reflection loop iterations (1-3, default 2)
+
+# Paper Trading (Autonomous Fund)
+PAPER_TRADING_ENABLED=false  # Enable autonomous paper trading loop
+PAPER_STARTING_CAPITAL=10000.0
+PAPER_MAX_POSITIONS=10
+PAPER_MIN_CASH_RESERVE_PCT=5.0
+PAPER_SCREEN_TOP_N=10        # Top candidates from quant screener
+PAPER_ANALYZE_TOP_N=5        # Candidates to run full analysis on
+PAPER_TRADING_HOUR=10        # Hour (0-23) for daily trading cycle
+PAPER_REEVAL_FREQUENCY_DAYS=3  # Days between holding re-evaluation
+PAPER_TRANSACTION_COST_PCT=0.1 # Simulated transaction cost (%)
+PAPER_MAX_DAILY_COST_USD=2.0   # Max LLM spend per daily cycle
 ```
 
 Frontend uses `.env.local` file in `frontend/` directory:
@@ -574,6 +596,19 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/investigate` | Run RAG investigation query against 10-K documents |
+
+### Paper Trading
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/paper-trading/start` | Initialize fund + start daily scheduler |
+| `POST` | `/api/paper-trading/stop` | Pause the daily scheduler |
+| `GET` | `/api/paper-trading/status` | NAV, P&L, scheduler state, loop status |
+| `GET` | `/api/paper-trading/portfolio` | All open positions with unrealized P&L |
+| `GET` | `/api/paper-trading/trades` | Trade history (buys/sells with reasons) |
+| `GET` | `/api/paper-trading/snapshots` | Daily NAV history for charting |
+| `GET` | `/api/paper-trading/performance` | Sharpe ratio, win rate, alpha, cumulative costs |
+| `POST` | `/api/paper-trading/run-now` | Trigger manual daily cycle (async) |
 
 ### Skills Optimization
 
@@ -743,6 +778,74 @@ Stores learned lessons from past outcomes, used by `FinancialSituationMemory` (B
 | `lesson` | STRING | LLM-generated lesson from outcome evaluation |
 | `created_at` | TIMESTAMP | When the memory was created |
 
+### Paper Trading Tables (4 tables)
+
+Managed by `migrate_paper_trading.py` (idempotent). Stores virtual fund state, positions, trades, and daily snapshots.
+
+#### `paper_portfolio` — Fund State
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `portfolio_id` | STRING | Always "default" (single fund) |
+| `starting_capital` | FLOAT64 | Initial capital (default $10,000) |
+| `current_cash` | FLOAT64 | Available cash |
+| `total_nav` | FLOAT64 | Cash + sum(position market values) |
+| `total_pnl_pct` | FLOAT64 | ((NAV - starting_capital) / starting_capital) * 100 |
+| `benchmark_return_pct` | FLOAT64 | SPY return over same period |
+| `created_at` | TIMESTAMP | Fund inception date |
+| `updated_at` | TIMESTAMP | Last update |
+
+#### `paper_positions` — Open Positions
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `position_id` | STRING | UUID |
+| `ticker` | STRING | Stock symbol |
+| `quantity` | FLOAT64 | Shares held (fractional OK) |
+| `avg_entry_price` | FLOAT64 | Weighted average cost |
+| `cost_basis` | FLOAT64 | quantity × avg_entry_price |
+| `current_price` | FLOAT64 | Last known price |
+| `market_value` | FLOAT64 | quantity × current_price |
+| `unrealized_pnl` | FLOAT64 | market_value - cost_basis |
+| `unrealized_pnl_pct` | FLOAT64 | % gain/loss |
+| `entry_date` | STRING | When first bought |
+| `last_analysis_date` | STRING | Last analysis that confirmed hold |
+| `recommendation` | STRING | Latest recommendation |
+| `risk_judge_position_pct` | FLOAT64 | Risk Judge's recommended allocation % |
+| `stop_loss_price` | FLOAT64 | Risk Judge's stop loss |
+
+#### `paper_trades` — Trade History
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `trade_id` | STRING | UUID |
+| `ticker` | STRING | Stock symbol |
+| `action` | STRING | BUY / SELL |
+| `quantity` | FLOAT64 | Shares traded |
+| `price` | FLOAT64 | Execution price (market close) |
+| `total_value` | FLOAT64 | quantity × price |
+| `reason` | STRING | "new_buy_signal", "stop_loss", "signal_flip", "rebalance" |
+| `analysis_id` | STRING | Links to analysis_results.analysis_date |
+| `risk_judge_decision` | STRING | Risk Judge verdict at time of trade |
+| `pnl_pct` | FLOAT64 | Realized P&L % (sells only) |
+| `created_at` | TIMESTAMP | Trade timestamp |
+
+#### `paper_portfolio_snapshots` — Daily NAV History
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `snapshot_date` | STRING | YYYY-MM-DD |
+| `total_nav` | FLOAT64 | Portfolio NAV |
+| `cash` | FLOAT64 | Available cash |
+| `positions_value` | FLOAT64 | Sum of all position market values |
+| `daily_pnl_pct` | FLOAT64 | Day-over-day change |
+| `cumulative_pnl_pct` | FLOAT64 | Since inception |
+| `benchmark_pnl_pct` | FLOAT64 | SPY cumulative return |
+| `alpha_pct` | FLOAT64 | cumulative_pnl - benchmark |
+| `position_count` | INT64 | Number of open positions |
+| `trades_today` | INT64 | Trades executed today |
+| `analysis_cost_today` | FLOAT64 | LLM cost for today's analyses |
+
 ### ML Training Query Pattern
 
 ```sql
@@ -809,6 +912,191 @@ cd frontend && npm run build  # must produce 0 TypeScript errors
 ---
 
 ## Upgrade History
+
+### v3.3 — Gemini 2.5 Flash + Extended Thinking: Phase 5 (March 2026)
+
+Upgraded the deep-think model to `gemini-2.5-flash` and introduced opt-in extended thinking (chain-of-thought) for the four judge agents — Critic, Synthesis, Moderator, and Risk Judge. Tiered token budgets are set per agent. The feature is safe-defaulted to `false` so existing deployments on Gemini 2.0 are unaffected.
+
+**New Settings (`backend/config/settings.py`)**:
+*   `deep_think_model` default changed from `""` → `"gemini-2.5-flash"`
+*   `enable_thinking: bool = False` — opt-in flag; must be `true` to activate thinking mode
+*   `thinking_budget_critic: int = 8192` — token budget for Critic Agent reasoning
+*   `thinking_budget_moderator: int = 8192` — token budget for Moderator Agent reasoning
+*   `thinking_budget_risk_judge: int = 4096` — token budget for Risk Judge reasoning
+*   `thinking_budget_synthesis: int = 4096` — token budget for Synthesis Agent reasoning
+
+**New Environment Variables**:
+```env
+ENABLE_THINKING=false           # Set to true when using gemini-2.5-flash or later
+THINKING_BUDGET_CRITIC=8192
+THINKING_BUDGET_MODERATOR=8192
+THINKING_BUDGET_RISK_JUDGE=4096
+THINKING_BUDGET_SYNTHESIS=4096
+```
+
+**`backend/agents/orchestrator.py` Changes**:
+*   Import: added `GenerationConfig` to vertexai imports
+*   4 module-level thinking config dicts: `_THINKING_CRITIC_CONFIG`, `_THINKING_MODERATOR_CONFIG`, `_THINKING_RISK_JUDGE_CONFIG`, `_THINKING_SYNTHESIS_CONFIG` — each merges the existing structured output config with `{"thinking": {"type": "enabled", "budget_tokens": N}, "include_thoughts": True}`
+*   `__init__`: stores `self.enable_thinking` and `self.thinking_budgets = {"Critic": N, "Moderator": N, "Risk Judge": N, "Synthesis": N}`
+*   `_generate_with_retry()`: new thinking injection block — when `enable_thinking=True` and `is_deep_think=True` and `agent_name in self.thinking_budgets`, merges thinking config into `generation_config` before the API call
+*   New `_extract_thoughts()` helper: safely reads `part.thinking` from Vertex AI response candidates; capped at 2000 chars for storage efficiency
+*   `run_debate()` call site: added `enable_thinking=self.enable_thinking, thinking_budgets=self.thinking_budgets`
+*   `run_risk_debate()` call site: added `enable_thinking=self.enable_thinking, thinking_budgets=self.thinking_budgets`
+
+**`backend/agents/debate.py` Changes**:
+*   `_generate_with_retry()`: added `thinking_budget: int = 0` parameter — when > 0, merges `{"thinking": {"type": "enabled", "budget_tokens": thinking_budget}, "include_thoughts": True}` into the config via dict spread
+*   `run_debate()` signature: added `enable_thinking: bool = False, thinking_budgets: dict | None = None`
+*   Moderator call: computes `_moderator_thinking_budget = (thinking_budgets or {}).get("Moderator", 0) if enable_thinking else 0` and passes it to `_generate_with_retry`
+
+**`backend/agents/risk_debate.py` Changes**:
+*   Same pattern as `debate.py`: `thinking_budget` in `_generate_with_retry`, new params on `run_risk_debate()`
+*   Risk Judge call: computes `_judge_thinking_budget = (thinking_budgets or {}).get("Risk Judge", 0) if enable_thinking else 0`
+
+**`backend/agents/trace.py` Change**:
+*   `DecisionTrace` dataclass: added `thoughts: str = ""` field — stores extended thinking output for Glass Box audit trail rendering
+
+**Tiered Thinking Budgets**:
+
+| Agent | Budget Tokens | Rationale |
+|-------|---------------|-----------|
+| Critic | 8,192 | Deepest reasoning — Chain-of-Verification requires meticulous claim checking |
+| Moderator | 8,192 | Must resolve Bull/Bear contradictions with full debate history |
+| Risk Judge | 4,096 | Risk sizing verdict; moderate depth needed |
+| Synthesis | 4,096 | Structured JSON output is constrained; budget limits runaway thinking |
+| All others | 0 (disabled) | Enrichment agents use tight token limits; thinking cost outweighs benefit |
+
+**Activation Requirement**: `ENABLE_THINKING=true` **requires** `DEEP_THINK_MODEL=gemini-2.5-flash` (or a later Gemini 2.5+ model). Do not enable on `gemini-2.0-flash` — the thinking config will be silently ignored or cause errors.
+
+### v3.2 — Google Search Grounding: Phase 4 (March 2026)
+
+Selective Google Search Grounding on 4 agents for live web fact-checking with source citations. Constraint: Schema + Grounding cannot combine on Gemini 2.0, so grounded agents use separate model instances and produce text responses (not structured output).
+
+**New Model Instance**:
+*   `orchestrator.py` — New `self.grounded_model = GenerativeModel(model, tools=[search_tool], generation_config=_gen_config)` using `Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())`
+
+**Grounded Agents (4)**:
+*   **Market Agent** (Step 4) — Breaking news supplement via Google Search
+*   **Competitor Agent** (Step 5) — Real-time M&A, partnerships, competitive dynamics
+*   **Enhanced Macro Agent** (Step 9) — Latest Fed speeches, policy context on top of FRED data
+*   **Deep Dive Agent** (Step 10) — Verify claims against public record
+
+**Grounding Metadata Extraction**:
+*   New `_extract_grounding_metadata()` helper in `orchestrator.py` — Extracts `groundingChunks` (source URLs + titles) and `groundingSupports` (text→source mapping) from Vertex AI responses
+*   All 4 grounded agent methods return `grounding_sources` in their output dict
+*   Final report includes `grounding_sources` dict with per-agent metadata for Glass Box rendering
+
+**DecisionTrace Extension (1 file)**:
+*   `trace.py` — New `grounding_sources: list[dict]` field on `DecisionTrace` dataclass
+
+**Cost Tracking Extension (1 file)**:
+*   `cost_tracker.py` — New `is_grounded: bool` field on `AgentCostEntry`, tracked through `record()` and exposed in `summarize()` output
+
+**Deep Dive Agent Return Type Change**:
+*   `run_deep_dive_agent()` now returns `dict` (was `str`) with `text` and `grounding_sources` keys
+*   Synthesis pipeline updated to extract `.text` from deep_dive dict
+
+### v3.1 — Anti-Hallucination Stack: Phases 1-3 (March 2026)
+
+Three-phase anti-hallucination system targeting temperature determinism, fact anchoring, and structured output enforcement. Research basis: VeNRA (Typed Fact Ledger), Chain-of-Verification (CoVe), OpenAI Structured Outputs, Google Gemini structured output.
+
+**Phase 1: Temperature Determinism**:
+*   All 8 generation configs set to `temperature=0.0, top_k=1` across `orchestrator.py`, `debate.py`, `risk_debate.py`
+*   Preserved creative temperatures for `memory.py` (0.3) and `skill_optimizer.py` (0.7, 0.9)
+
+**Phase 2: Fact Ledger + Prompt Hardening (11 files, 28 skills)**:
+*   `orchestrator.py` — New `_build_fact_ledger()` builds a 26-field typed fact dict from `quant_data["yf_data"]` after Step 2, stored as `self._fact_ledger_json`
+*   `prompts.py` — New `_build_fact_ledger_section()` helper; all 29 prompt functions accept `fact_ledger: str` and inject `{{fact_ledger_section}}` via `format_skill()`
+*   28 `backend/agents/skills/*.md` — All updated with `{{fact_ledger_section}}` placeholder + 5 anti-hallucination rules (cite FACT_LEDGER, flag discrepancies, never fabricate, etc.)
+*   `SKILL_TEMPLATE.md` — Updated with fact ledger section and anti-hallucination rules
+*   All 31 call sites wired: orchestrator agent methods (via `self._fact_ledger_json`), `run_debate()`, `run_risk_debate()`, synthesis pipeline
+*   `critic_agent.md` — Enhanced with Chain-of-Verification (CoVe) 3-step loop: extract claims → verify each against FACT_LEDGER → flag mismatches
+*   `synthesis_agent.md` — Pillar anchoring: each pillar lists specific FACT_LEDGER fields it must cite; scoring guardrails (score >7 requires PEG <1.5 or P/E <25)
+
+**Phase 3: Gemini Structured Output Enforcement (4 files)**:
+*   NEW: `backend/agents/schemas.py` — 10 Pydantic models: `SynthesisReport` (+ `ScoringMatrix`, `Recommendation`), `CriticVerdict` (+ `CriticIssue`), `DevilsAdvocateResult`, `ModeratorConsensus` (+ `Contradiction`, `Dissent`), `RiskAnalystArgument`, `RiskJudgeVerdict` (+ `RiskLimits`)
+*   Uses `Literal` type constraints on critical enum fields: `consensus` (5 values), `verdict` (PASS/REVISE), `decision` (4 values), `risk_level` (4 values)
+*   `orchestrator.py` — `_generate_with_retry()` extended with `generation_config` parameter; 3 call sites (Synthesis draft, Synthesis revision, Critic) pass `_SYNTHESIS_STRUCTURED_CONFIG` / `_CRITIC_STRUCTURED_CONFIG` with `response_mime_type="application/json"` + `response_schema`
+*   `debate.py` — New `_DA_STRUCTURED_CONFIG` and `_MODERATOR_STRUCTURED_CONFIG`; DA and Moderator calls use structured output schemas
+*   `risk_debate.py` — New `_RISK_STRUCTURED_CONFIG` and `_JUDGE_STRUCTURED_CONFIG`; all 3 analyst calls + Judge call use structured output schemas
+*   Existing `_clean_json_output` / `_parse_json_with_fallback` / `_clean_json` / `_parse_json` retained as safety fallbacks
+*   SDK pattern: `{"response_mime_type": "application/json", "response_schema": PydanticModel}` (requires `google-cloud-aiplatform>=1.60.0`)
+*   Constraint: Schema + Grounding cannot combine on Gemini 2.0 — structured output agents and grounded agents (Phase 4) use separate model instances
+
+### v3.0 — Design System Overhaul: Geist + Phosphor Icons (March 2026)
+
+Complete frontend design system migration: Geist self-hosted font replacing Google Fonts Inter, Phosphor Icons replacing all emoji icons across 20+ components and 9 pages, Motion animation library installed, and TradingView Lightweight Charts installed for future StockChart rewrite.
+
+**Design System Foundation (4 config files)**:
+*   `next.config.js` — Added `experimental.optimizePackageImports: ["@phosphor-icons/react"]` for tree-shaking
+*   `layout.tsx` — Geist font loading via `geist/font/sans` and `geist/font/mono`, applied as CSS variable classes on `<html>`
+*   `tailwind.config.js` — CSS variable font families (`var(--font-geist-sans/mono)`), navy color palette (`navy-500: "#243352"`, `navy-600: "#1a2744"`), shadow tokens (`card`, `card-hover`), border radius tokens (`card: 12px`, `button: 8px`, `badge: 6px`)
+*   `globals.css` — `tabular-nums`, antialiasing, `skeleton` shimmer keyframe in `@layer base`
+
+**Centralized Icon System (2 new files)**:
+*   `frontend/src/lib/icons.ts` — ~110 aliased Phosphor re-exports organized by domain: Navigation (8), Pipeline Steps (16), Signals (11), Debate (7), Risk Team (4), Bias/Audit (12), Evaluation Pillars (5), Macro Indicators (8), GlassBox (4), Tabs (6), Utility (20+). All icons use `Icon` type from `@phosphor-icons/react` for TypeScript safety
+*   `frontend/src/lib/motion.ts` — Shared motion variants (`fadeIn`, `slideUp`, `staggerContainer`, `staggerItem`) and spring presets (`springSnappy`, `springGentle`, `hoverTap`) for future animation integration
+
+**Emoji → Phosphor Icon Conversion (15 components, 5 pages)**:
+*   All emoji characters removed from entire frontend codebase (verified via grep: 0 matches)
+*   Icon data types changed from `icon: string` to `icon: Icon` in all component interfaces (`TabDef`, `SIGNAL_META`, `PillarConfig`, `ProbabilityCard`, etc.)
+*   Icon rendering changed from `{meta.icon}` string interpolation to `<meta.icon size={20} weight="duotone" />` JSX component rendering
+*   Components converted: SignalCards, SignalDashboard, MacroDashboard, BiasReport, DecisionTraceView, DebateView, RiskDashboard, GlassBoxCards, EvaluationTable, CostDashboard, ValuationRange, PdfDownload, StockChart, ReportTabs, ResearchInvestigator
+*   Pages converted: page.tsx, signals/page.tsx, compare/page.tsx, performance/page.tsx, reports/page.tsx
+*   Previously converted (prior session): Sidebar.tsx, AnalysisProgress.tsx
+
+**Package Changes**:
+*   Added: `geist@1.7.0`, `@phosphor-icons/react@2.1.10`, `motion@12.38.0`, `lightweight-charts`
+*   Removed: `lucide-react` (fully replaced by Phosphor Icons)
+
+**Icon Naming Convention**: All icons are aliased with domain prefixes for discoverability:
+*   Navigation: `Nav*` (NavDashboard, NavSignals, NavReports, …)
+*   Pipeline: `Step*` (StepMarketIntel, StepIngestion, StepQuant, …)
+*   Signals: `Signal*` (SignalInsider, SignalOptions, SignalSocial, …)
+*   Debate: `Debate*` (DebateBull, DebateBear, DebateConsensus, …)
+*   Risk: `Risk*` (RiskAggressive, RiskConservative, RiskNeutral, RiskJudge)
+*   Tabs: `Tab*` (TabOverview, TabSignals, TabDebate, TabRisk, TabAudit, TabCost)
+*   Utility: `Icon*` (IconWarning, IconSearch, IconDownload, IconChart, …)
+
+### v2.9 — Autonomous Paper Trading System (March 2026)
+
+Fully autonomous AI trading agent managing a virtual $10,000 portfolio. Daily cycle: quant screen S&P 500 → deep-analyze top candidates (lite mode) → execute virtual trades → track P&L vs SPY → learn from outcomes. Configurable via 11 new settings.
+
+**New Backend Modules (3)**:
+*   `backend/tools/screener.py` — S&P 500 quant screener: batch yfinance download, momentum/RSI/volatility/SMA filters, composite alpha score ranking. Zero LLM cost. Fallback 50-ticker list if Wikipedia scrape fails.
+*   `backend/services/paper_trader.py` — `PaperTrader` class: virtual trade execution engine backed by BigQuery. `execute_buy()` (position averaging, cash check, max positions), `execute_sell()` (full/partial exit), `mark_to_market()` (live yfinance prices + SPY benchmark), `check_stop_losses()`, `save_daily_snapshot()`.
+*   `backend/services/portfolio_manager.py` — `decide_trades()`: sell-first-then-buy logic. Sells on SELL/STRONG_SELL signal, signal downgrade (BUY→HOLD), or stop-loss hit. Buys sized by `min(risk_judge_pct * NAV, available_cash)`, sorted by final_score, respects max_positions and min_cash_reserve.
+*   `backend/services/autonomous_loop.py` — `run_daily_cycle()`: 9-step async orchestrator (screen → filter → analyze candidates → re-evaluate holdings → MTM → decide trades → execute → snapshot → learn from closed trades). Module-level state tracking.
+
+**New API Route (1)**:
+*   `backend/api/paper_trading.py` — 8 endpoints: `POST /start` (init fund + scheduler), `POST /stop` (pause scheduler), `GET /status` (NAV + scheduler state), `GET /portfolio` (positions), `GET /trades` (history), `GET /snapshots` (daily NAV), `GET /performance` (Sharpe, win rate, alpha), `POST /run-now` (manual trigger). APScheduler cron job wired into FastAPI lifespan.
+
+**BQ Schema (4 new tables)**:
+*   `paper_portfolio` (8 cols) — Fund state (cash, NAV, benchmark)
+*   `paper_positions` (14 cols) — Open positions with unrealized P&L
+*   `paper_trades` (11 cols) — Trade history with reasons and realized P&L
+*   `paper_portfolio_snapshots` (11 cols) — Daily NAV for charting and Sharpe calculation
+*   Managed by `migrate_paper_trading.py` (idempotent)
+
+**Frontend Dashboard (1 page)**:
+*   `frontend/src/app/paper-trading/page.tsx` — Full dashboard: 6 summary cards (NAV, Cash, P&L, vs SPY, Sharpe, Positions), status banner, 3-tab view (Positions table, Trades table, NAV Chart with Recharts LineChart showing Portfolio/SPY/Alpha lines), Initialize Fund / Start / Pause / Run Now action buttons.
+*   `frontend/src/lib/types.ts` — 6 new interfaces: `PaperPortfolio`, `PaperPosition`, `PaperTrade`, `PaperSnapshot`, `PaperTradingStatus`, `PaperPerformance`
+*   `frontend/src/lib/api.ts` — 8 new functions for paper trading endpoints
+*   `frontend/src/components/Sidebar.tsx` — "Paper Trading" (🤖) nav entry added
+
+**Modified Backend Files**:
+*   `backend/config/settings.py` — 11 new paper trading settings (capital, max positions, cash reserve, screen/analyze top N, trading hour, re-eval frequency, transaction cost, daily cost cap)
+*   `backend/db/bigquery_client.py` — ~150 lines of paper trading CRUD methods (get/upsert portfolio, positions, trades, snapshots)
+*   `backend/main.py` — Paper trading router registered, APScheduler init in lifespan startup
+
+**Daily Cycle Cost Estimate**:
+*   Screen: $0 (yfinance batch download)
+*   Analyze 5 new candidates (lite mode): ~$0.50
+*   Re-evaluate ~5 holdings (lite mode): ~$0.50
+*   Daily total: ~$1.00/day, configurable via `PAPER_MAX_DAILY_COST_USD`
+
+**New Environment Variables (11)**: `PAPER_TRADING_ENABLED`, `PAPER_STARTING_CAPITAL`, `PAPER_MAX_POSITIONS`, `PAPER_MIN_CASH_RESERVE_PCT`, `PAPER_SCREEN_TOP_N`, `PAPER_ANALYZE_TOP_N`, `PAPER_TRADING_HOUR`, `PAPER_REEVAL_FREQUENCY_DAYS`, `PAPER_TRANSACTION_COST_PCT`, `PAPER_MAX_DAILY_COST_USD`
+
+**New Dependencies**: `APScheduler>=3.10.0` (already present from v2.8 Slack bot)
 
 ### v2.8 — Auth + Slack Bot + Deployment (March 2026)
 

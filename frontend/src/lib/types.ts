@@ -29,6 +29,13 @@ export interface SynthesisReport {
   recommendation: RecommendationDetail;
   final_summary: string;
   key_risks: string[];
+  citations?: Citation[];
+  grounding_sources?: {
+    market?: GroundingSource[];
+    competitor?: GroundingSource[];
+    enhanced_macro?: GroundingSource[];
+    deep_dive?: GroundingSource[];
+  };
   final_weighted_score?: number;
   enrichment_signals?: EnrichmentSignals;
   debate_result?: DebateResult;
@@ -306,6 +313,24 @@ export interface DecisionTrace {
   reasoning_steps: string[];
   latency_ms: number;
   source_url?: string;
+  thoughts?: string;          // Phase 5: extended thinking output
+  grounding_sources?: GroundingSource[]; // Phase 4: web grounding sources
+}
+
+// ── Citation & Grounding Types (Phase 6) ────────────────────────
+
+/** A traceable data citation linking a synthesis claim to its source system. */
+export interface Citation {
+  claim: string;
+  source: string; // YFIN | SEC | FRED | AV | URL
+  value: string;
+}
+
+/** A web grounding source returned by Google Search Retrieval (Phase 4). */
+export interface GroundingSource {
+  title?: string;
+  uri?: string;
+  text?: string;
 }
 
 // ── Bias & Conflict Detection ────────────────────────────────────
@@ -457,9 +482,106 @@ export interface FullSettings {
   lite_mode: boolean;
   max_analysis_cost_usd: number;
   max_synthesis_iterations: number;
+  // Phase 5 — Extended thinking (Gemini 2.5+)
+  enable_thinking?: boolean;
+  thinking_budget_critic?: number;
+  thinking_budget_moderator?: number;
+  thinking_budget_risk_judge?: number;
+  thinking_budget_synthesis?: number;
 }
 
 export interface LatestCostSummary extends CostSummary {
   ticker?: string;
   analysis_date?: string;
+}
+
+// ── Paper Trading Types ──────────────────────────────────────────
+
+export interface PaperPortfolio {
+  portfolio_id: string;
+  starting_capital: number;
+  current_cash: number;
+  total_nav: number | null;
+  total_pnl_pct: number | null;
+  benchmark_return_pct: number | null;
+  inception_date: string;
+  updated_at: string | null;
+}
+
+export interface PaperPosition {
+  position_id: string;
+  ticker: string;
+  quantity: number;
+  avg_entry_price: number;
+  cost_basis: number | null;
+  current_price: number | null;
+  market_value: number | null;
+  unrealized_pnl: number | null;
+  unrealized_pnl_pct: number | null;
+  entry_date: string;
+  last_analysis_date: string | null;
+  recommendation: string | null;
+  risk_judge_position_pct: number | null;
+  stop_loss_price: number | null;
+}
+
+export interface PaperTrade {
+  trade_id: string;
+  ticker: string;
+  action: "BUY" | "SELL";
+  quantity: number;
+  price: number;
+  total_value: number | null;
+  transaction_cost: number | null;
+  reason: string | null;
+  analysis_id: string | null;
+  risk_judge_decision: string | null;
+  created_at: string;
+}
+
+export interface PaperSnapshot {
+  snapshot_date: string;
+  total_nav: number;
+  cash: number;
+  positions_value: number | null;
+  daily_pnl_pct: number | null;
+  cumulative_pnl_pct: number | null;
+  benchmark_pnl_pct: number | null;
+  alpha_pct: number | null;
+  position_count: number | null;
+  trades_today: number | null;
+  analysis_cost_today: number | null;
+}
+
+export interface PaperTradingStatus {
+  status: string;
+  portfolio: {
+    nav: number | null;
+    cash: number | null;
+    starting_capital: number | null;
+    pnl_pct: number | null;
+    benchmark_return_pct: number | null;
+    inception_date: string | null;
+    updated_at: string | null;
+  };
+  position_count: number;
+  scheduler_active: boolean;
+  loop: {
+    running: boolean;
+    last_run: string | null;
+    last_result: Record<string, unknown> | null;
+  };
+}
+
+export interface PaperPerformance {
+  nav: number | null;
+  starting_capital: number | null;
+  pnl_pct: number | null;
+  benchmark_return_pct: number | null;
+  alpha_pct: number | null;
+  sharpe_ratio: number;
+  total_sell_trades: number;
+  total_buy_trades: number;
+  total_analysis_cost: number;
+  days_active: number;
 }

@@ -23,6 +23,10 @@ import { Sidebar } from "@/components/Sidebar";
 import { BentoCard } from "@/components/BentoCard";
 import { listReports, getReport } from "@/lib/api";
 import type { ReportSummary, SynthesisReport } from "@/lib/types";
+import {
+  IconChart, IconStar, IconCheck, IconScoringMatrix, IconSearch,
+} from "@/lib/icons";
+import { Trophy, ChartPolar, NotePencil } from "@phosphor-icons/react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -105,9 +109,9 @@ export default function ComparePage() {
     const prices: Record<string, PriceRow[]> = {};
 
     for (const key of selected) {
-      const [ticker] = key.split("|");
+      const [ticker, analysisDate] = key.split("|");
       try {
-        const full = (await getReport(ticker)) as Record<string, any>;
+        const full = (await getReport(ticker, analysisDate)) as Record<string, any>;
         const synth =
           full.full_report_json?.final_synthesis ??
           full.full_report_json ??
@@ -176,10 +180,10 @@ export default function ComparePage() {
   const radarData = useMemo(() => {
     return pillars.map((p) => {
       const entry: Record<string, string | number> = { pillar: p.label };
-      for (const r of loaded) {
+      loaded.forEach((r, i) => {
         const sm = r.synthesis.scoring_matrix as unknown as Record<string, number>;
-        entry[r.ticker] = sm?.[p.key] ?? 0;
-      }
+        entry[`${r.ticker}-${i}`] = sm?.[p.key] ?? 0;
+      });
       return entry;
     });
   }, [loaded]);
@@ -242,7 +246,7 @@ export default function ComparePage() {
                             : "border-slate-600"
                         }`}
                       >
-                        {isSelected && "✓"}
+                        {isSelected && <IconCheck size={12} weight="bold" />}
                       </span>
                       <span className="font-mono font-bold text-slate-200">
                         {r.ticker}
@@ -300,7 +304,7 @@ export default function ComparePage() {
                 const c = PALETTE[i % PALETTE.length];
                 return (
                   <div
-                    key={r.ticker}
+                    key={`${r.ticker}-${i}`}
                     className={`flex items-center gap-2 rounded-full border px-4 py-1.5 ${c.bg}`}
                   >
                     <span
@@ -322,7 +326,7 @@ export default function ComparePage() {
             {normalizedChart.length > 0 && (
               <BentoCard>
                 <h3 className="mb-1 text-lg font-semibold text-slate-300">
-                  📈 Price Performance (% Change, 1Y)
+                  <IconChart size={20} weight="duotone" className="inline text-slate-400" /> Price Performance (% Change, 1Y)
                 </h3>
                 <p className="mb-4 text-xs text-slate-500">
                   Normalized to starting date — compare how each stock moved
@@ -377,7 +381,7 @@ export default function ComparePage() {
               {/* Overall score bars */}
               <BentoCard>
                 <h3 className="mb-4 text-lg font-semibold text-slate-300">
-                  🏆 Overall Score
+                  <Trophy size={20} weight="duotone" className="inline text-slate-400" /> Overall Score
                 </h3>
                 <ResponsiveContainer width="100%" height={loaded.length * 60 + 40}>
                   <BarChart
@@ -421,7 +425,7 @@ export default function ComparePage() {
               {/* Radar overlay */}
               <BentoCard>
                 <h3 className="mb-4 text-lg font-semibold text-slate-300">
-                  🕸️ Pillar Radar
+                  <ChartPolar size={20} weight="duotone" className="inline text-slate-400" /> Pillar Radar
                 </h3>
                 <ResponsiveContainer width="100%" height={280}>
                   <RadarChart data={radarData} outerRadius="75%">
@@ -437,9 +441,9 @@ export default function ComparePage() {
                     />
                     {loaded.map((r, i) => (
                       <Radar
-                        key={r.ticker}
-                        name={r.ticker}
-                        dataKey={r.ticker}
+                        key={`${r.ticker}-${i}`}
+                        name={`${r.ticker} (#${i + 1})`}
+                        dataKey={`${r.ticker}-${i}`}
                         stroke={PALETTE[i % PALETTE.length].line}
                         fill={PALETTE[i % PALETTE.length].line}
                         fillOpacity={0.15}
@@ -457,7 +461,7 @@ export default function ComparePage() {
             {/* ── 3. Score Comparison Table ──────── */}
             <BentoCard>
               <h3 className="mb-4 text-lg font-semibold text-slate-300">
-                📊 Detailed Score Comparison
+                <IconScoringMatrix size={20} weight="duotone" className="inline text-slate-400" /> Detailed Score Comparison
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -477,7 +481,7 @@ export default function ComparePage() {
                     {loaded.map((r, i) => {
                       const color = PALETTE[i % PALETTE.length];
                       return (
-                        <tr key={r.ticker} className="border-b border-slate-800">
+                        <tr key={`${r.ticker}-${i}`} className="border-b border-slate-800">
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-2">
                               <span
@@ -518,7 +522,7 @@ export default function ComparePage() {
                                   </div>
                                   <span className={`font-mono text-xs ${isMax ? "font-bold text-emerald-400" : "text-slate-300"}`}>
                                     {val?.toFixed(1) ?? "—"}
-                                    {isMax && " ★"}
+                                    {isMax && <IconStar size={12} weight="fill" className="ml-1 inline text-emerald-400" />}
                                   </span>
                                 </div>
                               </td>
@@ -535,13 +539,13 @@ export default function ComparePage() {
             {/* ── 4. Side-by-side Qualitative ───── */}
             <div>
               <h3 className="mb-4 text-lg font-semibold text-slate-300">
-                📝 Side-by-Side Analysis
+                <NotePencil size={20} weight="duotone" className="inline text-slate-400" /> Side-by-Side Analysis
               </h3>
               <div className={`grid gap-6 ${loaded.length === 2 ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}>
                 {loaded.map((r, i) => {
                   const color = PALETTE[i % PALETTE.length];
                   return (
-                    <BentoCard key={r.ticker}>
+                    <BentoCard key={`${r.ticker}-${i}`}>
                       <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span

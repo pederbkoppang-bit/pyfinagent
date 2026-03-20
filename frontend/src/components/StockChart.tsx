@@ -14,6 +14,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { BentoCard } from "./BentoCard";
+import { IconChart } from "@/lib/icons";
 
 interface OHLCVRow {
   Date: string;
@@ -136,7 +137,7 @@ export function StockChart({ ticker, currentPrice, analysisDate }: StockChartPro
     <BentoCard>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-400">
-          <span>📈</span> {ticker} Price Chart
+          <IconChart size={20} weight="duotone" className="text-slate-400" /> {ticker} Price Chart
         </h3>
 
         <div className="flex items-center gap-4">

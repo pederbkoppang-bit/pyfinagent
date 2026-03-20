@@ -22,6 +22,10 @@ import { RiskDashboard, RiskAssessmentPanel } from "@/components/RiskDashboard";
 import type { RiskDataPayload } from "@/components/RiskDashboard";
 import { BiasReport } from "@/components/BiasReport";
 import { CostDashboard } from "@/components/CostDashboard";
+import {
+  TabOverview, TabSignals, TabDebate, TabRisk, TabAudit, TabCost,
+  IconSearch,
+} from "@/lib/icons";
 import { getAnalysisStatus, startAnalysis } from "@/lib/api";
 import type {
   AnalysisStatusResponse,
@@ -162,12 +166,12 @@ export default function DashboardPage() {
         const costBadge = costSummary?.total_cost_usd != null ? `$${costSummary.total_cost_usd < 0.01 ? costSummary.total_cost_usd.toFixed(4) : costSummary.total_cost_usd.toFixed(2)}` : null;
 
         const tabs: TabDef[] = [
-          { id: "overview", label: "Overview", icon: "📋" },
-          { id: "signals", label: "Signals", icon: "📡", badge: signalCount > 0 ? signalCount : null },
-          { id: "debate", label: "Debate", icon: "⚖️", badge: debateResult?.consensus || null },
-          { id: "risk", label: "Risk", icon: "🎯", badge: anomalyCount > 0 ? `${anomalyCount} anomalies` : null },
-          { id: "audit", label: "Audit", icon: "🔍", badge: biasCount != null && biasCount > 0 ? `${biasCount} flags` : null },
-          { id: "cost", label: "Cost", icon: "💰", badge: costBadge },
+          { id: "overview", label: "Overview", icon: TabOverview },
+          { id: "signals", label: "Signals", icon: TabSignals, badge: signalCount > 0 ? signalCount : null },
+          { id: "debate", label: "Debate", icon: TabDebate, badge: debateResult?.consensus || null },
+          { id: "risk", label: "Risk", icon: TabRisk, badge: anomalyCount > 0 ? `${anomalyCount} anomalies` : null },
+          { id: "audit", label: "Audit", icon: TabAudit, badge: biasCount != null && biasCount > 0 ? `${biasCount} flags` : null },
+          { id: "cost", label: "Cost", icon: TabCost, badge: costBadge },
         ];
 
           return (
@@ -293,7 +297,7 @@ export default function DashboardPage() {
         {/* Empty state */}
         {!status && !report && !error && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <span className="text-6xl">🔍</span>
+            <IconSearch size={48} weight="duotone" className="text-slate-600" />
             <p className="mt-4 text-lg text-slate-400">
               Enter a ticker symbol to begin analysis
             </p>

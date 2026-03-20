@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { IconDownload } from "@/lib/icons";
 import type {
   SynthesisReport,
   EnrichmentSignals,
@@ -458,7 +459,7 @@ export function PdfDownload({ ticker, report, financials, className }: PdfDownlo
           Generating PDF...
         </span>
       ) : (
-        "📄 Download PDF"
+        <><IconDownload size={16} className="inline" /> Download PDF</>
       )}
     </button>
   );

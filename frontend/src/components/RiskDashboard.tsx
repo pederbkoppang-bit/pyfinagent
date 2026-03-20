@@ -1,6 +1,11 @@
 "use client";
 
 import { clsx } from "clsx";
+import type { Icon } from "@phosphor-icons/react";
+import {
+  IconTarget, IconTrendUp, IconRocket, IconWarning, AuditIcon,
+  RiskAggressive, RiskConservative, RiskNeutral, RiskJudge,
+} from "@/lib/icons";
 
 interface Anomaly {
   metric: string;
@@ -81,17 +86,17 @@ function VarGauge({ label, value }: { label: string; value: number }) {
 function ProbabilityCard({
   label,
   value,
-  icon,
+  icon: Ic,
   positive,
 }: {
   label: string;
   value: number;
-  icon: string;
+  icon: Icon;
   positive?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-navy-700 bg-navy-900/50 p-3 text-center">
-      <div className="text-lg">{icon}</div>
+      <Ic size={22} weight="duotone" className="mx-auto text-slate-400" />
       <div
         className={clsx(
           "text-xl font-bold",
@@ -145,7 +150,8 @@ export function RiskDashboard({ data }: { data: RiskDataPayload }) {
       {/* Header */}
       <div className="rounded-2xl border border-navy-700 bg-navy-800/70 p-6 backdrop-blur-lg">
         <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
-          🎯 Risk Dashboard
+          <IconTarget size={20} weight="duotone" className="text-sky-400" />
+          Risk Dashboard
         </h3>
         <p className="mt-1 text-sm text-slate-500">
           Monte Carlo VaR simulation ({mc?.signal === "ERROR" ? "unavailable" : "1,000 GBM paths"})
@@ -204,19 +210,19 @@ export function RiskDashboard({ data }: { data: RiskDataPayload }) {
                   <ProbabilityCard
                     label="P(Positive)"
                     value={h.prob_positive}
-                    icon="📈"
+                    icon={IconTrendUp}
                     positive
                   />
                   <ProbabilityCard
                     label="P(≥+20%)"
                     value={h.prob_gain_20_pct}
-                    icon="🚀"
+                    icon={IconRocket}
                     positive
                   />
                   <ProbabilityCard
                     label="P(≤−20%)"
                     value={h.prob_loss_20_pct}
-                    icon="⚠️"
+                    icon={IconWarning}
                   />
                 </div>
               </div>
@@ -230,7 +236,7 @@ export function RiskDashboard({ data }: { data: RiskDataPayload }) {
         <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-              <span>🔍</span> Statistical Anomalies
+              <AuditIcon size={16} /> Statistical Anomalies
             </h4>
             <span
               className={clsx(
@@ -317,8 +323,9 @@ export function RiskAssessmentPanel({ data }: { data: RiskAssessment }) {
       <div className="rounded-2xl border border-navy-700 bg-navy-800/70 p-6 backdrop-blur-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-200">
-              🏛️ Risk Assessment Team
+            <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
+              <RiskJudge size={20} weight="duotone" className="text-sky-400" />
+              Risk Assessment Team
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               Aggressive / Conservative / Neutral + Risk Judge verdict
@@ -354,7 +361,7 @@ export function RiskAssessmentPanel({ data }: { data: RiskAssessment }) {
         {/* Aggressive */}
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
           <h4 className="flex items-center gap-2 text-sm font-semibold text-emerald-400">
-            🔥 Aggressive
+            <RiskAggressive size={16} /> Aggressive
           </h4>
           <div className="mt-2 text-xs text-slate-400">
             <p>{typeof aggressive.position === "string" ? aggressive.position : JSON.stringify(aggressive.position)}</p>
@@ -370,7 +377,7 @@ export function RiskAssessmentPanel({ data }: { data: RiskAssessment }) {
         {/* Conservative */}
         <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
           <h4 className="flex items-center gap-2 text-sm font-semibold text-rose-400">
-            🛡️ Conservative
+            <RiskConservative size={16} /> Conservative
           </h4>
           <div className="mt-2 text-xs text-slate-400">
             <p>{typeof conservative.position === "string" ? conservative.position : JSON.stringify(conservative.position)}</p>
@@ -386,7 +393,7 @@ export function RiskAssessmentPanel({ data }: { data: RiskAssessment }) {
         {/* Neutral */}
         <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-4">
           <h4 className="flex items-center gap-2 text-sm font-semibold text-sky-400">
-            ⚖️ Neutral
+            <RiskNeutral size={16} /> Neutral
           </h4>
           <div className="mt-2 text-xs text-slate-400">
             <p>{typeof neutral.position === "string" ? neutral.position : JSON.stringify(neutral.position)}</p>
@@ -421,7 +428,7 @@ export function RiskAssessmentPanel({ data }: { data: RiskAssessment }) {
       {/* Unresolved Risks */}
       {judge.unresolved_risks && judge.unresolved_risks.length > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-navy-800/60 p-4">
-          <h4 className="mb-2 text-xs font-semibold text-amber-400">⚠️ Unresolved Risks</h4>
+          <h4 className="mb-2 flex items-center gap-1 text-xs font-semibold text-amber-400"><IconWarning size={14} /> Unresolved Risks</h4>
           <ul className="space-y-1">
             {judge.unresolved_risks.map((r, i) => (
               <li key={i} className="text-xs text-slate-400">

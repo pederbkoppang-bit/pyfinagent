@@ -25,7 +25,12 @@ class Settings(BaseSettings):
 
     # --- Vertex AI ---
     gemini_model: str = Field("gemini-2.0-flash", description="Gemini model name for standard agents")
-    deep_think_model: str = Field("", description="Model for deep-think agents (Moderator, Risk Judge, Synthesis, Critic). Defaults to gemini_model if empty.")
+    deep_think_model: str = Field("gemini-2.5-flash", description="Model for deep-think agents (Moderator, Risk Judge, Synthesis, Critic). Recommend gemini-2.5-flash for extended thinking.")
+    enable_thinking: bool = Field(False, description="Enable extended thinking on judge agents (requires gemini-2.5-flash or later)")
+    thinking_budget_critic: int = Field(8192, description="Thinking budget for Critic agent (tokens)")
+    thinking_budget_moderator: int = Field(8192, description="Thinking budget for Moderator agent (tokens)")
+    thinking_budget_risk_judge: int = Field(4096, description="Thinking budget for Risk Judge agent (tokens)")
+    thinking_budget_synthesis: int = Field(4096, description="Thinking budget for Synthesis agent (tokens)")
     rag_data_store_id: str = Field(..., description="Vertex AI Search datastore ID")
 
     # --- BigQuery ---
@@ -77,6 +82,18 @@ class Settings(BaseSettings):
     lite_mode: bool = Field(False, description="Cost-saving mode: skips deep dive, devil's advocate, reflection loop, and risk assessment (~50% fewer LLM calls)")
     max_analysis_cost_usd: float = Field(0.50, description="Soft budget per analysis in USD. Logs warnings when exceeded; does not abort.")
     max_synthesis_iterations: int = Field(2, ge=1, le=3, description="Maximum Synthesis↔Critic reflection loop iterations (1=no reflection)")
+    # --- Paper Trading ---
+    paper_trading_enabled: bool = Field(False, description="Enable autonomous paper trading scheduler")
+    paper_starting_capital: float = Field(10000.0, description="Initial virtual cash for paper portfolio")
+    paper_max_positions: int = Field(10, description="Maximum simultaneous open positions")
+    paper_min_cash_reserve_pct: float = Field(5.0, description="Minimum cash reserve as % of NAV")
+    paper_screen_top_n: int = Field(10, description="Number of candidates from quant screening")
+    paper_analyze_top_n: int = Field(5, description="Number of candidates to deep-analyze per day")
+    paper_trading_hour: int = Field(10, description="Hour (ET) to run daily trading cycle (0-23)")
+    paper_reeval_frequency_days: int = Field(3, description="Re-evaluate existing holdings every N days")
+    paper_transaction_cost_pct: float = Field(0.1, description="Simulated transaction cost per trade (%)")
+    paper_max_daily_cost_usd: float = Field(2.0, description="Maximum LLM cost per daily trading cycle (USD)")
+
     # --- Authentication ---
     auth_secret: str = Field("", description="NextAuth.js AUTH_SECRET for JWE decryption. Empty = auth disabled (dev mode).")
     allowed_emails: str = Field("", description="Comma-separated email whitelist. Empty = allow all authenticated users.")

@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { clsx } from "clsx";
+import {
+  DebateConsensus, DebateBull, DebateBear, DebateContradiction,
+  DebateDevilsAdvocate, DebateRounds, DebateDissent,
+  IconWarning, AuditIcon,
+} from "@/lib/icons";
 
 interface Contradiction {
   topic: string;
@@ -98,8 +103,9 @@ export function DebateView({ debate }: { debate: DebateResult }) {
       <div className="rounded-2xl border border-navy-700 bg-navy-800/70 p-6 backdrop-blur-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-200">
-              ⚖️ Agent Debate Consensus
+            <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
+              <DebateConsensus size={20} weight="duotone" className="text-sky-400" />
+              Agent Debate Consensus
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               {debate.total_rounds || 1}-round adversarial debate
@@ -124,7 +130,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="flex items-center gap-2 font-semibold text-emerald-400">
-              <span>🐂</span> Bull Case
+              <DebateBull size={18} /> Bull Case
             </h4>
             <span className="font-mono text-xs text-emerald-400/70">
               {Math.round((debate.bull_case?.confidence || 0) * 100)}%
@@ -174,7 +180,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
         <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-5">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="flex items-center gap-2 font-semibold text-rose-400">
-              <span>🐻</span> Bear Case
+              <DebateBear size={18} /> Bear Case
             </h4>
             <span className="font-mono text-xs text-rose-400/70">
               {Math.round((debate.bear_case?.confidence || 0) * 100)}%
@@ -225,7 +231,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
       {debate.contradictions && debate.contradictions.length > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-navy-800/60 p-5">
           <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-400">
-            <span>⚡</span> Contradictions Identified
+            <DebateContradiction size={16} /> Contradictions Identified
           </h4>
           <div className="space-y-3">
             {debate.contradictions.map((c, i) => (
@@ -262,7 +268,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
       {da && (da.challenges?.length || da.hidden_risks?.length) && (
         <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-5">
           <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-violet-400">
-            <span>😈</span> Devil&apos;s Advocate
+            <DebateDevilsAdvocate size={18} /> Devil&apos;s Advocate
             {da.confidence_adjustment !== undefined && da.confidence_adjustment !== 0 && (
               <span className={clsx(
                 "ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold",
@@ -280,7 +286,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
               <ul className="mt-1 space-y-1">
                 {da.challenges.map((c, i) => (
                   <li key={i} className="text-xs text-slate-400">
-                    <span className="text-violet-500">⚡</span> {c}
+                    <span className="text-violet-500"><DebateContradiction size={12} /></span> {c}
                   </li>
                 ))}
               </ul>
@@ -292,7 +298,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
               <ul className="mt-1 space-y-1">
                 {da.hidden_risks.map((r, i) => (
                   <li key={i} className="text-xs text-slate-400">
-                    <span className="text-amber-500">⚠️</span> {r}
+                    <span className="text-amber-500"><IconWarning size={12} /></span> {r}
                   </li>
                 ))}
               </ul>
@@ -300,7 +306,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
           )}
           {da.groupthink_flag && (
             <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-300">
-              <span className="font-medium">🔍 Groupthink Flag:</span> {da.groupthink_flag}
+              <span className="font-medium"><AuditIcon size={12} className="inline" /> Groupthink Flag:</span> {da.groupthink_flag}
             </div>
           )}
           {da.summary && (
@@ -316,7 +322,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
             onClick={() => setShowRounds(!showRounds)}
             className="flex w-full items-center justify-between text-sm font-semibold text-slate-300 hover:text-slate-100"
           >
-            <span>🔄 Debate Rounds ({rounds.length} rounds)</span>
+            <span><DebateRounds size={16} className="inline" /> Debate Rounds ({rounds.length} rounds)</span>
             <span className="text-xs text-slate-500">{showRounds ? "▲ Hide" : "▼ Show"}</span>
           </button>
           {showRounds && (
@@ -326,7 +332,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
                   <div className="mb-2 text-xs font-bold text-slate-400">Round {r.round}</div>
                   <div className="grid gap-2 md:grid-cols-2">
                     <div className="rounded-lg bg-emerald-500/5 p-2">
-                      <span className="text-[10px] font-bold text-emerald-400">🐂 Bull</span>
+                      <span className="text-[10px] font-bold text-emerald-400"><DebateBull size={12} className="inline" /> Bull</span>
                       <p className="mt-1 text-xs leading-relaxed text-slate-400">
                         {r.bull_argument.length > 500
                           ? r.bull_argument.slice(0, 500) + "..."
@@ -334,7 +340,7 @@ export function DebateView({ debate }: { debate: DebateResult }) {
                       </p>
                     </div>
                     <div className="rounded-lg bg-rose-500/5 p-2">
-                      <span className="text-[10px] font-bold text-rose-400">🐻 Bear</span>
+                      <span className="text-[10px] font-bold text-rose-400"><DebateBear size={12} className="inline" /> Bear</span>
                       <p className="mt-1 text-xs leading-relaxed text-slate-400">
                         {r.bear_argument.length > 500
                           ? r.bear_argument.slice(0, 500) + "..."
@@ -352,8 +358,8 @@ export function DebateView({ debate }: { debate: DebateResult }) {
       {/* Dissent Registry */}
       {debate.dissent_registry && debate.dissent_registry.length > 0 && (
         <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
-          <h4 className="mb-3 text-sm font-semibold text-slate-300">
-            📋 Dissent Registry
+          <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-300">
+            <DebateDissent size={16} /> Dissent Registry
           </h4>
           <div className="space-y-2">
             {debate.dissent_registry.map((d, i) => (

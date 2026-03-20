@@ -85,6 +85,8 @@ class DecisionTrace:
     reasoning_steps: list[str] = field(default_factory=list)
     raw_output: str = ""
     latency_ms: float = 0.0
+    grounding_sources: list[dict] = field(default_factory=list)  # Google Search grounding metadata
+    thoughts: str = ""  # Phase 5: Extracted from Gemini 2.5 thinking output; stores reasoning process
 
     def to_dict(self) -> dict:
         return asdict(self)

@@ -2,17 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-primary: #020617;
-  --bg-card: rgba(15, 23, 42, 0.7);
-  --border-card: #1e293b;
+@layer base {
+  :root {
+    --bg-primary: #020617;
+    --bg-card: rgba(15, 23, 42, 0.7);
+    --border-card: #1e293b;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: #e2e8f0;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
 }
 
-body {
-  background-color: var(--bg-primary);
-  color: #e2e8f0;
+/* ── Skeleton shimmer ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
+.skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* ── Alpha score glow ── */
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.3); }
   50% { box-shadow: 0 0 40px rgba(56, 189, 248, 0.5), 0 0 60px rgba(56, 189, 248, 0.2); }
@@ -22,6 +42,7 @@ body {
   animation: pulse-glow 3s infinite ease-in-out;
 }
 
+/* ── Slow spin ── */
 @keyframes spin-slow {
   to { transform: rotate(360deg); }
 }
@@ -30,7 +51,7 @@ body {
   animation: spin-slow 2s linear infinite;
 }
 
-/* Gemini-style animated spinner */
+/* ── Gemini-style animated spinner ── */
 .gemini-spinner {
   display: inline-flex;
   justify-content: center;
@@ -57,7 +78,7 @@ body {
   40% { transform: scaleY(1.0); opacity: 1.0; }
 }
 
-/* Custom scrollbar — always visible, slim, zinc-toned */
+/* ── Custom scrollbar ── */
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: #3f3f46 transparent;

@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { BentoCard } from "@/components/BentoCard";
 import { evaluateOutcomes, getPerformanceStats, getCostHistory } from "@/lib/api";
 import type { PerformanceStats, CostHistoryEntry } from "@/lib/types";
+import { IconDeepThink, TabCost } from "@/lib/icons";
 
 export default function PerformancePage() {
   const [stats, setStats] = useState<PerformanceStats | null>(null);
@@ -104,8 +105,8 @@ export default function PerformancePage() {
 
             <div className="col-span-12">
               <BentoCard>
-                <h3 className="mb-2 text-lg font-semibold text-slate-300">
-                  🧠 How the Learning Loop Works
+                <h3 className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-300">
+                  <IconDeepThink size={20} weight="duotone" /> How the Learning Loop Works
                 </h3>
                 <p className="text-sm leading-relaxed text-slate-400">
                   Click <strong>Evaluate Outcomes</strong> to compare each past
@@ -123,8 +124,8 @@ export default function PerformancePage() {
         {/* ── Cost History ──────────────────────────────────────── */}
         {costHistory.length > 0 && (
           <div className="mt-8">
-            <h3 className="mb-4 text-lg font-semibold text-slate-300">
-              💰 LLM Cost History
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-300">
+              <TabCost size={20} weight="duotone" /> LLM Cost History
             </h3>
             <div className="grid grid-cols-12 gap-6 mb-6">
               <div className="col-span-12 md:col-span-4">

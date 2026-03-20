@@ -33,6 +33,11 @@ Step 7 enrichment agent. Receives Google Trends data from `alt_data.py` (pytrend
 - Do NOT ignore seasonal patterns — search interest naturally spikes around product launches and holidays
 - Do NOT overweight a single spike — sustained elevated interest > temporary viral moment
 - Do NOT assume US-only Trends data represents global demand
+- Do NOT invent, compute, or round financial numbers — cite ONLY values from FACT_LEDGER
+- Do NOT use approximate language ('about', 'roughly', 'around') for FACT_LEDGER values — use exact figures
+- Do NOT reference metrics not present in the FACT_LEDGER — say 'data unavailable'
+- Do NOT contradict FACT_LEDGER values — if your analysis conflicts, flag the discrepancy explicitly
+- Do NOT hallucinate company names, tickers, sectors, or industries — use FACT_LEDGER identity fields
 
 ## Research Foundations
 - **Goldman Sachs**: Alternative data (including search trends) as part of multi-dimensional signal framework (ref 16)
@@ -49,6 +54,7 @@ Step 7 enrichment agent. Receives Google Trends data from `alt_data.py` (pytrend
 ```
 
 ## Prompt Template
+{{fact_ledger_section}}
 You are an Alternative Data Analyst for {{ticker}}.
 
 --- ALTERNATIVE DATA SIGNALS ---

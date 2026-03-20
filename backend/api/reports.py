@@ -5,7 +5,9 @@ Reports API routes — list past reports, get single report, performance stats.
 import logging
 import traceback
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from google.api_core.exceptions import GoogleAPIError
 
 from backend.api.models import PerformanceStats, ReportSummary
@@ -125,10 +127,14 @@ async def get_latest_cost_summary(bq: BigQueryClient = Depends(_get_bq)):
 
 
 @router.get("/{ticker}")
-async def get_report(ticker: str, bq: BigQueryClient = Depends(_get_bq)):
-    """Get the latest report for a specific ticker."""
+async def get_report(
+    ticker: str,
+    analysis_date: Optional[str] = Query(None, description="Fetch a specific report by analysis_date"),
+    bq: BigQueryClient = Depends(_get_bq),
+):
+    """Get a report for a specific ticker, optionally by analysis_date."""
     try:
-        report = bq.get_report(ticker.upper())
+        report = bq.get_report(ticker.upper(), analysis_date=analysis_date)
         if not report:
             raise HTTPException(status_code=404, detail=f"No report found for {ticker}")
         return report

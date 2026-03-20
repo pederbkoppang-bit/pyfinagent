@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { BentoCard } from "./BentoCard";
+import { IconSearch } from "@/lib/icons";
 
 interface Message {
   role: "user" | "assistant";
@@ -58,7 +59,7 @@ export function ResearchInvestigator({ ticker }: { ticker: string }) {
   return (
     <BentoCard className="flex h-full flex-col">
       <div className="mb-3 flex items-center gap-2">
-        <span className="text-sky-400">🔍</span>
+        <IconSearch size={20} weight="duotone" className="text-sky-400" />
         <h3 className="text-lg font-semibold text-slate-200">Research Investigator</h3>
       </div>
 
