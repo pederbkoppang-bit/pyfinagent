@@ -4,3 +4,4 @@ timestamp	endpoint	ttl_before	ttl_after	p95_before	p95_after	hit_rate	status
 2026-03-21T18:46:32	reports:list	30	33	28	2634	0.0	discard
 2026-03-21T18:47:32	paper:snapshots	120	116	28	1	0.0	keep
 2026-03-21T19:02:11	backtest:best	30	35	2	0	0.0	keep
+2026-03-21T19:03:11	backtest:best	35	40	0	0	0.0	discard
