@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { Sidebar } from "@/components/Sidebar";
+import { PageSkeleton } from "@/components/Skeleton";
 import {
   getPaperTradingStatus,
   getPaperPortfolio,
@@ -122,9 +123,16 @@ export default function PaperTradingPage() {
     try {
       await triggerPaperTradingCycle();
       setError(null);
-      // Poll status every 10s
+      // Lightweight status-only poll every 10s, full refresh after loop completes
       const interval = setInterval(async () => {
-        await refresh();
+        try {
+          const s = await getPaperTradingStatus();
+          setStatus(s);
+          if (!s.loop.running) {
+            clearInterval(interval);
+            await refresh();
+          }
+        } catch { /* swallow poll errors */ }
       }, 10000);
       setTimeout(() => clearInterval(interval), 300000);
     } catch (e) {
@@ -205,7 +213,7 @@ export default function PaperTradingPage() {
         )}
 
         {loading ? (
-          <div className="text-center text-slate-500 py-12">Loading...</div>
+          <PageSkeleton />
         ) : !isInitialized ? (
           <div className="rounded-xl border border-navy-700 bg-navy-800/70 p-12 text-center">
             <p className="text-lg text-slate-300 mb-2">No Paper Portfolio Initialized</p>

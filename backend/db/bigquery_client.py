@@ -216,6 +216,25 @@ class BigQueryClient:
         rows = self.client.query(query, job_config=job_config).result()
         return [dict(row) for row in rows]
 
+    def get_latest_report_json(self) -> Optional[dict]:
+        """Get the ticker, analysis_date, and full_report_json from the most recent report.
+
+        Single-query replacement for the two-call pattern (get_recent_reports + get_report).
+        """
+        query = f"""
+            SELECT ticker, analysis_date, full_report_json
+            FROM `{self.reports_table}`
+            ORDER BY analysis_date DESC
+            LIMIT 1
+        """
+        rows = list(self.client.query(query).result())
+        if not rows:
+            return None
+        row = dict(rows[0])
+        if row.get("full_report_json") and isinstance(row["full_report_json"], str):
+            row["full_report_json"] = json.loads(row["full_report_json"])
+        return row
+
     def get_report(self, ticker: str, analysis_date: Optional[str] = None) -> Optional[dict]:
         if analysis_date:
             # analysis_date column is TIMESTAMP in BQ — use a 1-second window

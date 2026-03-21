@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.config.settings import Settings, get_settings
+from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -234,7 +235,14 @@ def _settings_to_full(s: Settings) -> FullSettings:
 @router.get("/", response_model=FullSettings)
 async def get_all_settings(settings: Settings = Depends(get_settings)):
     """Get all configurable settings."""
-    return _settings_to_full(settings)
+    cache = get_api_cache()
+    cache_key = "settings:full"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    result = _settings_to_full(settings)
+    cache.set(cache_key, result, ENDPOINT_TTLS["settings:full"])
+    return result
 
 
 @router.put("/", response_model=FullSettings)
@@ -274,6 +282,7 @@ async def update_settings(body: SettingsUpdate):
 
     # Clear cache so next request picks up new values
     get_settings.cache_clear()
+    get_api_cache().invalidate("settings:*")
     settings = get_settings()
 
     logger.info("Settings updated: %s", list(updates.keys()))
@@ -323,4 +332,10 @@ async def update_model_config(body: ModelConfigUpdate):
 @router.get("/models/available")
 async def get_available_models():
     """Get list of available models with pricing."""
+    cache = get_api_cache()
+    cache_key = "settings:models"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    cache.set(cache_key, AVAILABLE_MODELS, ENDPOINT_TTLS["settings:models"])
     return AVAILABLE_MODELS

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from backend.config.settings import get_settings
 from backend.db.bigquery_client import BigQueryClient
+from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 from backend.services.autonomous_loop import run_daily_cycle, get_loop_status
 from backend.services.paper_trader import PaperTrader
 
@@ -66,6 +67,7 @@ async def start_paper_trading(req: StartRequest = StartRequest()):
 @router.post("/stop")
 async def stop_paper_trading():
     """Pause the autonomous trading scheduler."""
+    get_api_cache().invalidate("paper:*")
     if _scheduler:
         job = _scheduler.get_job(_scheduler_job_id)
         if job:
@@ -77,6 +79,12 @@ async def stop_paper_trading():
 @router.get("/status")
 async def get_status():
     """Current paper trading status: NAV, P&L, scheduler info."""
+    cache = get_api_cache()
+    cache_key = "paper:status"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     settings = get_settings()
     bq = BigQueryClient(settings)
     trader = PaperTrader(settings, bq)
@@ -92,7 +100,7 @@ async def get_status():
     if _scheduler and _scheduler.get_job(_scheduler_job_id):
         scheduler_active = True
 
-    return {
+    result = {
         "status": "active" if scheduler_active else "paused",
         "portfolio": {
             "nav": portfolio.get("total_nav"),
@@ -107,11 +115,19 @@ async def get_status():
         "scheduler_active": scheduler_active,
         "loop": loop_status,
     }
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:status"])
+    return result
 
 
 @router.get("/portfolio")
 async def get_portfolio():
     """All open positions with current prices."""
+    cache = get_api_cache()
+    cache_key = "paper:portfolio"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     settings = get_settings()
     bq = BigQueryClient(settings)
     trader = PaperTrader(settings, bq)
@@ -121,33 +137,54 @@ async def get_portfolio():
         raise HTTPException(404, "Paper portfolio not initialized")
 
     positions = trader.get_positions()
-    return {
+    result = {
         "portfolio": portfolio,
         "positions": positions,
     }
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:portfolio"])
+    return result
 
 
 @router.get("/trades")
 async def get_trades(limit: int = Query(100, ge=1, le=1000)):
     """Trade history."""
+    cache = get_api_cache()
+    cache_key = f"paper:trades:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
     settings = get_settings()
     bq = BigQueryClient(settings)
     trades = bq.get_paper_trades(limit=limit)
-    return {"trades": trades, "count": len(trades)}
+    result = {"trades": trades, "count": len(trades)}
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:trades"])
+    return result
 
 
 @router.get("/snapshots")
 async def get_snapshots(limit: int = Query(365, ge=1, le=3650)):
     """Daily NAV history for charting."""
+    cache = get_api_cache()
+    cache_key = f"paper:snapshots:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
     settings = get_settings()
     bq = BigQueryClient(settings)
     snapshots = bq.get_paper_snapshots(limit=limit)
-    return {"snapshots": snapshots, "count": len(snapshots)}
+    result = {"snapshots": snapshots, "count": len(snapshots)}
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:snapshots"])
+    return result
 
 
 @router.get("/performance")
 async def get_performance():
     """Performance metrics: win rate, avg return, alpha, Sharpe."""
+    cache = get_api_cache()
+    cache_key = "paper:performance"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
     settings = get_settings()
     bq = BigQueryClient(settings)
 
@@ -177,7 +214,7 @@ async def get_performance():
     std_daily = (sum((r - avg_daily_return) ** 2 for r in daily_returns) / max(len(daily_returns) - 1, 1)) ** 0.5 if daily_returns else 0
     sharpe = (avg_daily_return / std_daily * (252 ** 0.5)) if std_daily > 0 else 0
 
-    return {
+    result = {
         "nav": portfolio.get("total_nav"),
         "starting_capital": portfolio.get("starting_capital"),
         "pnl_pct": portfolio.get("total_pnl_pct"),
@@ -189,6 +226,8 @@ async def get_performance():
         "total_analysis_cost": round(total_cost, 2),
         "days_active": len(snapshots),
     }
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:performance"])
+    return result
 
 
 @router.post("/run-now")
@@ -198,6 +237,7 @@ async def run_now():
     if status["running"]:
         raise HTTPException(409, "A trading cycle is already in progress")
 
+    get_api_cache().invalidate("paper:*")
     settings = get_settings()
     # Run in background to avoid HTTP timeout
     asyncio.create_task(_run_cycle_background(settings))

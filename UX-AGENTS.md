@@ -45,11 +45,11 @@ Use this interpreter for backend imports, FastAPI startup, and editor diagnostic
 
 ### Icons — Phosphor Icons
 *   **Library:** `@phosphor-icons/react` v2.1.10 — 9000+ icons, 6 weights (thin/light/regular/bold/fill/duotone)
-*   **Centralized exports:** All icons imported via `frontend/src/lib/icons.ts` (~110 aliased re-exports)
+*   **Centralized exports:** All icons imported via `frontend/src/lib/icons.ts` (~120 aliased re-exports)
 *   **TypeScript type:** `Icon` from `@phosphor-icons/react` used for all icon props in component interfaces
 *   **Rendering pattern:** `<meta.icon size={20} weight="duotone" className="text-slate-400" />` (JSX component, not string interpolation)
 *   **Active/inactive weight:** Tabs and nav use `weight={active ? "fill" : "regular"}` for state indication
-*   **Domain-prefixed aliases:** `Nav*`, `Step*`, `Signal*`, `Debate*`, `Risk*`, `Bias*`, `Pillar*`, `Macro*`, `Tab*`, `Icon*`
+*   **Domain-prefixed aliases:** `Nav*`, `Step*`, `Signal*`, `Debate*`, `Risk*`, `Bias*`, `Pillar*`, `Macro*`, `Settings*`, `Tab*`, `Icon*`
 *   **Tree-shaking:** Enabled via `next.config.js` → `experimental.optimizePackageImports: ["@phosphor-icons/react"]`
 
 ### Animation (prepared, not yet applied)
@@ -690,6 +690,7 @@ Multi-page Goldman Sachs-style PDF export using jsPDF.
 | `MacroDashboard` | `MacroDashboard.tsx` | 7-indicator FRED grid + macro warnings (used on /signals page) |
 | `SectorDashboard` | `SectorDashboard.tsx` | Sector rotation chart + relative strength table (used on /signals page) |
 | `CostDashboard` | `CostDashboard.tsx` | LLM cost analytics: 4 summary cards (total cost, tokens, calls, deep think), token distribution bar, cost by model breakdown, per-agent table sorted by cost |
+| `Skeleton` | `Skeleton.tsx` | Reusable loading skeleton components: `SkeletonPulse` (atomic pulse), `SkeletonCard` (card-sized), `SkeletonGrid` (N-card grid), `PageSkeleton` (full page layout). Used in backtest, paper-trading, and settings pages |
 | `AuthProvider` | `AuthProvider.tsx` | SessionProvider wrapper with 15-minute refetch interval (wraps entire app in layout.tsx) |
 
 ---
@@ -1197,6 +1198,45 @@ interface LatestCostSummary extends CostSummary {
   ticker: string;
   analysis_date: string;
 }
+
+// v4.2: Performance monitoring types (GET /api/perf/*)
+interface EndpointLatency {
+  endpoint: string;
+  count: number;
+  p50: number;
+  p95: number;
+  p99: number;
+}
+
+interface PerfSummary {
+  endpoints: EndpointLatency[];
+  overall: { p50: number; p95: number; p99: number };
+}
+
+interface CacheStats {
+  entries: number;
+  hits: number;
+  misses: number;
+  hit_rate: number;
+}
+
+interface PerfOptimizerStatus {
+  running: boolean;
+  iterations: number;
+  kept: number;
+  discarded: number;
+}
+
+interface PerfExperiment {
+  iteration: number;
+  endpoint: string;
+  old_ttl: number;
+  new_ttl: number;
+  p95_before: number;
+  p95_after: number;
+  decision: string;
+  timestamp: string;
+}
 ```
 
 ### v2.9 Types — Paper Trading
@@ -1358,55 +1398,122 @@ The download button in the Overview tab generates a multi-page PDF containing al
 
 ## Page Routes Summary
 
-| Route | Page File | Key Components | Shares Report Data |
-|-------|-----------|---------------|-------------------|
+| Route | Page File | Key Components | Description |
+|-------|-----------|---------------|-------------|
 | `/login` | `login/page.tsx` | Google SSO + Passkey login, PyFinAgent branding | Auth gateway |
-| `/` | `page.tsx` | **Full Report Dashboard** — ReportHeader + 6 tabs | Primary analysis page |
+| `/` | `page.tsx` | **Home** — Portfolio Snapshot hero (4 cards), Recent Reports table, Quick Actions | Overview dashboard |
+| `/analyze` | `analyze/page.tsx` | **Deep Analysis** — 15-step pipeline, 6-tab report (Overview/Signals/Debate/Risk/Audit/Cost) | Primary analysis page |
 | `/signals` | `signals/page.tsx` | SignalDashboard, SectorDashboard, MacroDashboard | Standalone signal explorer |
-| `/compare` | `compare/page.tsx` | Multi-report comparison with radar chart | Past report comparison |
-| `/reports` | `reports/page.tsx` | Searchable report list | Historical reports |
+| `/reports` | `reports/page.tsx` | **Tabbed** — History (searchable report list) + Compare (multi-report radar/price/pillar) | Reports + comparison |
 | `/performance` | `performance/page.tsx` | Historical accuracy metrics + LLM cost history | Performance tracking |
 | `/portfolio` | `portfolio/page.tsx` | Position tracking, P&L, allocation | Portfolio management |
-| `/paper-trading` | `paper-trading/page.tsx` | Autonomous fund dashboard, NAV chart, positions, trades | Paper trading management |
-| `/settings` | `settings/page.tsx` | 6 BentoCards: Analysis Mode, Live Cost Estimator, Model Config, Cost Controls, Debate Depth, Pillar Weights | User preferences |
+| `/paper-trading` | `paper-trading/page.tsx` | Autonomous fund dashboard, NAV chart, positions, trades | Paper trading |
+| `/backtest` | `backtest/page.tsx` | **Walk-Forward Backtest** — 4 tabs (Results/Equity/Features/Optimizer), data ingestion, DSR guard | ML backtesting |
+| `/settings` | `settings/page.tsx` | **3-tab sub-navigation** (Models & Analysis \| Cost & Weights \| Performance): Model Config, Debate Depth, Cost Estimator, Pillar Weights, Cache Health, TTL Optimizer, API Latency | User preferences + monitoring |
+
+### Sidebar Navigation (Grouped)
+
+The sidebar uses grouped sections instead of a flat list:
+
+```
+Analyze
+  Home          /             NavHome (House)
+  Deep Analysis /analyze      NavAnalyze (Brain)
+  Signals       /signals      NavSignals (Broadcast)
+
+Reports
+  Reports       /reports      NavReports (Files)
+  Performance   /performance  NavPerformance (ChartLineUp)
+
+Trading
+  Portfolio     /portfolio    NavPortfolio (Wallet)
+  Paper Trading /paper-trading NavPaperTrading (Robot)
+  Backtest      /backtest     NavBacktest (ClockCounterClockwise)
+
+[pinned at bottom]
+  Settings      /settings     NavSettings (Gear)
+```
+
+Section headers render as `text-[10px] uppercase tracking-widest text-slate-600`. Settings is pinned above the user auth section.
 
 ---
 
 ## Conventions for Modifications
 
-### Settings Page (v2.7 Overhaul)
+### Settings Page (v4.2 — 3-Tab Sub-Navigation)
 
 **File:** `frontend/src/app/settings/page.tsx`
 
-Complete settings management page with 6 BentoCards. Loads current settings via `GET /api/settings/` and latest cost data via `GET /api/reports/latest-cost-summary`. Saves changed fields as a diff via `PUT /api/settings/`.
+Settings management page with 3-tab pill-style sub-navigation. Loads current settings via `GET /api/settings/` and latest cost data via `GET /api/reports/latest-cost-summary`. Performance tab loads from `GET /api/perf/*` endpoints. Saves changed fields as a diff via `PUT /api/settings/` (Models & Cost tabs only — Performance tab is read-only).
 
-**Layout:**
+**Tab Architecture:**
 
 ```
-┌─────────────────────────── Save All Settings ───────────────────────────┐
-├─────────────────────────┬──────────────────────────────┤
-│  Analysis Mode           │  Live Cost Estimator              │
-│  [Full] [Lite] toggle    │  Est. $/analysis, tokens, calls   │
-│                          │  (uses real data from last run)   │
-├─────────────────────────┼──────────────────────────────┤
-│  Model Configuration     │  Cost Controls                    │
-│  Standard + Deep Think   │  Budget, Synth Iters, Data Qual   │
-├─────────────────────────┼──────────────────────────────┤
-│  Debate Depth            │  Pillar Weights                   │
-│  Bull↔Bear + Risk rounds │  5 weight sliders (must = 100%)   │
-└─────────────────────────┴──────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  [Models & Analysis]  [Cost & Weights]  [Performance]         │
+│                                           Save All Settings ↗ │
+├──────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Tab: Models & Analysis                                        │
+│  ┌─────────────────────┬──────────────────────────────────────┐│
+│  │  Analysis Mode       │  Model Configuration (col-span-2)   ││
+│  │  [Full] [Lite]       │  ModelPicker + CostBadge             ││
+│  ├─────────────────────┤                                      ││
+│  │  Debate Depth        │  Standard + Deep Think pickers       ││
+│  │  Bull↔Bear + Risk    │                                      ││
+│  └─────────────────────┴──────────────────────────────────────┘│
+│                                                                │
+│  Tab: Cost & Weights                                           │
+│  ┌─────────────────────┬──────────────────────────────────────┐│
+│  │  Live Cost Estimator │  Pillar Weights (col-span-2)        ││
+│  │  Est. $/analysis     │  5 weight sliders (must = 100%)     ││
+│  ├─────────────────────┤                                      ││
+│  │  Cost Controls       │                                      ││
+│  │  Budget, Synth Iters │                                      ││
+│  └─────────────────────┴──────────────────────────────────────┘│
+│                                                                │
+│  Tab: Performance                                              │
+│  ┌─────────────────────┬──────────────────────────────────────┐│
+│  │  Cache Health        │  API Latency (col-span-2)           ││
+│  │  Hit/miss, clear btn │  Overall p50/p95/p99 + endpoint tbl ││
+│  ├─────────────────────┤                                      ││
+│  │  TTL Optimizer       │                                      ││
+│  │  Status + start/stop │                                      ││
+│  └─────────────────────┴──────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────┘
 ```
 
-**6 BentoCards:**
+**Tab Definitions:**
 
-| Card | Purpose | Key Behavior |
-|------|---------|-------------|
-| **Analysis Mode** | Toggle Full vs Lite mode | Lite skips deep dive, DA, risk assessment; forces 1 debate round. Shows description of what each mode includes |
-| **Live Cost Estimator** | Preview cost before running analysis | Fetches real per-agent token counts from `GET /api/reports/latest-cost-summary`. Applies current model pricing, scales by debate rounds/synthesis iterations, applies lite mode agent skips. Shows estimated $/analysis, total tokens, LLM calls |
-| **Model Configuration** | Select Standard + Deep Think models | v3.4: VS Code Copilot-style `ModelPicker` component (searchable list, checkmark on selected, collapsible "Other Models" section). `CostBadge` shows `{mult}x` Copilot quota multiplier for GitHub Models (green 0.33x / neutral 1x / amber 3x) or `$X.XX/1M` for direct providers. Provider key status badges (Gemini/GitHub Models/Anthropic/OpenAI). |
-| **Cost Controls** | Budget cap, synthesis iterations, data quality | Budget slider ($0.05–$5.00), synthesis iterations (1–3), min data quality (0–100%). Budget triggers backend warning when exceeded |
-| **Debate Depth** | Configure debate round counts | Bull↔Bear rounds (1–5), Risk Assessment rounds (1–3). Shows warning when lite mode overrides these |
-| **Pillar Weights** | Configure 5-pillar scoring weights | 5 individual sliders (0–50%), live total display, red warning when total ≠ 100%. Backend validates sum = 1.0 |
+| Tab ID | Label | Cards | Editable |
+|--------|-------|-------|----------|
+| `models` | Models & Analysis | Analysis Mode, Debate Depth, Model Configuration (col-span-2) | Yes (Save button visible) |
+| `cost` | Cost & Weights | Live Cost Estimator, Cost Controls, Pillar Weights (col-span-2) | Yes (Save button visible) |
+| `performance` | Performance | Cache Health, TTL Optimizer, Optimization Progress Chart (col-span-2), API Latency (col-span-2) | No (Save button hidden) |
+
+**Performance Tab Cards:**
+
+| Card | Icon | Data Source | Key Behavior |
+|------|------|-------------|-------------|
+| **Cache Health** | `SettingsCache` (Database) | `GET /api/perf/cache` | Hit/miss counts, hit rate %, entry count. Clear Cache button → `POST /api/perf/cache/clear` with confirmation feedback |
+| **TTL Optimizer** | `SettingsOptimizer` (GearSix) | `GET /api/perf/optimize/status` | Running/idle badge, iteration count, kept/discarded stats. Start → `POST /api/perf/optimize`, Stop → `POST /api/perf/optimize/stop` |
+| **Optimization Progress** | — (chart) | `GET /api/perf/optimize/experiments` | `PerfProgressChart` component (col-span-2). Autoresearch-style Recharts ComposedChart: green dots (kept), gray dots (discarded), green step line (running best p95). Hover tooltip shows endpoint, TTL change, p95 change. Click expands detail panel below chart with timestamp, TTL before→after, p95 before→after (color-coded), hit rate |
+| **API Latency** | `SettingsLatency` (Timer) | `GET /api/perf/summary` | 3 overall metric cards (p50/p95/p99 in ms), per-endpoint table sorted by p95 desc with color-coded latency badges (green <100ms, amber <500ms, red ≥500ms) |
+
+**Settings-Specific Icons (10 aliases in `icons.ts`):**
+
+| Alias | Phosphor Icon | Used In |
+|-------|--------------|--------|
+| `SettingsMode` | Lightning | Analysis Mode card header |
+| `SettingsDebate` | ChatTeardropDots | Debate Depth card header |
+| `SettingsModel` | Brain | Model Configuration card header |
+| `SettingsCostControls` | ShieldCheck | Cost Controls card header |
+| `SettingsEstimator` | CurrencyDollar | Cost Estimator card header |
+| `SettingsPillars` | ChartBar | Pillar Weights card header |
+| `SettingsCache` | Database | Cache Health card header |
+| `SettingsOptimizer` | GearSix | TTL Optimizer card header |
+| `SettingsLatency` | Timer | API Latency card header |
+| `SettingsRefresh` | ArrowClockwise | Refresh buttons (with `animate-spin` when loading) |
 
 **Data Flow:**
 ```
@@ -1415,7 +1522,15 @@ Page load:
   GET /api/reports/latest-cost-summary → costData (per-agent tokens)
   GET /api/settings/models/available   → model list with pricing
 
-Save:
+Performance tab switch:
+  Promise.all([
+    GET /api/perf/cache             → cacheStats
+    GET /api/perf/summary           → perfSummary (endpoints + overall)
+    GET /api/perf/optimize/status   → optimizerStatus
+    GET /api/perf/optimize/experiments → perfExperiments (for chart)
+  ])
+
+Save (Models & Cost tabs only):
   Compute diff (form vs saved settings) → PUT /api/settings/ (only changed fields)
   Backend validates, updates .env file, reloads Settings singleton
 ```
@@ -1668,7 +1783,9 @@ X-axis: `snapshot_date`, Y-axis: percentage return. Tooltip shows all three valu
 ### Sidebar Entry
 
 ```typescript
+// NAV_SECTIONS in Sidebar.tsx (grouped layout)
 { href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading }
+{ href: "/backtest", label: "Backtest", icon: NavBacktest }
 ```
 
-Added to `NAV_ITEMS` array in `Sidebar.tsx` after the Portfolio entry. All nav icons are Phosphor Icon components (type `Icon`) from `@/lib/icons`.
+Added to the **Trading** section in `NAV_SECTIONS` grouped array in `Sidebar.tsx`. All nav icons are Phosphor Icon components (type `Icon`) from `@/lib/icons`.

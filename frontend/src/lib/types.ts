@@ -594,3 +594,127 @@ export interface PaperPerformance {
   total_analysis_cost: number;
   days_active: number;
 }
+
+/* ── Backtest Types ── */
+
+export interface BacktestStatus {
+  status: "idle" | "running" | "completed" | "error";
+  run_id: string | null;
+  progress: string;
+  has_result: boolean;
+}
+
+export interface BacktestWindowResult {
+  window_id: number;
+  train_start: string;
+  train_end: string;
+  test_start: string;
+  test_end: string;
+  n_candidates: number;
+  n_features: number;
+  n_train_samples: number;
+  feature_importance_mda?: Record<string, number>;
+  feature_importance_mdi?: Record<string, number>;
+  predictions?: { ticker: string; prob: number; label: number; actual: number }[];
+  trades?: { ticker: string; entry: number; exit: number; pnl_pct: number; label: string }[];
+}
+
+export interface BacktestResults {
+  run_id: string;
+  config: Record<string, unknown>;
+  analytics: {
+    sharpe: number;
+    deflated_sharpe: number;
+    max_drawdown: number;
+    alpha: number;
+    hit_rate: number;
+    information_ratio: number;
+    total_return_pct: number;
+    n_trades: number;
+    n_windows: number;
+  };
+  baselines: {
+    spy: { total_return_pct: number; sharpe: number };
+    equal_weight: { total_return_pct: number; sharpe: number };
+    momentum: { total_return_pct: number; sharpe: number };
+  };
+  equity_curve: { date: string; equity: number }[];
+  per_window: BacktestWindowResult[];
+}
+
+export interface IngestionStatus {
+  historical_prices: number;
+  historical_fundamentals: number;
+  historical_macro: number;
+}
+
+export interface OptimizerStatus {
+  status: "idle" | "running" | "stopped" | "completed" | "error";
+  iterations: number;
+  best_sharpe: number | null;
+  best_dsr: number | null;
+  kept: number;
+  discarded: number;
+}
+
+export interface OptimizerExperiment {
+  iteration: string;
+  agent: string;
+  modification: string;
+  metric_before: string;
+  metric_after: string;
+  dsr: string;
+  status: string;
+  timestamp: string;
+}
+
+export interface OptimizerBest {
+  best_sharpe: number;
+  best_dsr: number;
+  best_experiment: Record<string, string>;
+}
+
+// ── API Cache & Latency ─────────────────────────────────────────
+
+export interface EndpointLatency {
+  count: number;
+  p50_ms: number;
+  p95_ms: number;
+}
+
+export interface PerfSummary {
+  window_seconds: number;
+  total_requests: number;
+  p50_ms: number;
+  p95_ms: number;
+  p99_ms: number;
+  cache_hit_rate_pct: number;
+  per_endpoint: Record<string, EndpointLatency>;
+}
+
+export interface CacheStats {
+  entries: number;
+  total_gets: number;
+  total_hits: number;
+  hit_rate_pct: number;
+  ttl_config: Record<string, number>;
+}
+
+export interface PerfOptimizerStatus {
+  status: "idle" | "running" | "stopped" | "error";
+  iterations: number;
+  best_p95_ms: number | null;
+  kept: number;
+  discarded: number;
+}
+
+export interface PerfExperiment {
+  timestamp: string;
+  endpoint: string;
+  ttl_before: string;
+  ttl_after: string;
+  p95_before: string;
+  p95_after: string;
+  hit_rate: string;
+  status: string;
+}

@@ -6,17 +6,28 @@ import type {
   AllSignals,
   AnalysisResponse,
   AnalysisStatusResponse,
+  BacktestResults,
+  BacktestStatus,
+  BacktestWindowResult,
+  CacheStats,
   CostHistoryEntry,
   FullSettings,
+  IngestionStatus,
   LatestCostSummary,
   ModelConfig,
   ModelPricing,
+  OptimizerBest,
+  OptimizerExperiment,
+  OptimizerStatus,
   PaperPerformance,
   PaperPortfolio,
   PaperPosition,
   PaperSnapshot,
   PaperTrade,
   PaperTradingStatus,
+  PerfExperiment,
+  PerfOptimizerStatus,
+  PerfSummary,
   PerformanceStats,
   PortfolioPerformance,
   PortfolioPosition,
@@ -259,4 +270,92 @@ export function getPaperPerformance(): Promise<PaperPerformance> {
 
 export function triggerPaperTradingCycle(): Promise<{ status: string; message: string }> {
   return apiFetch("/api/paper-trading/run-now", { method: "POST" });
+}
+
+// ── Backtest ────────────────────────────────────────────────────
+
+export function runBacktest(params?: Record<string, unknown>): Promise<{ status: string; run_id: string }> {
+  return apiFetch("/api/backtest/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params ?? {}),
+  });
+}
+
+export function getBacktestStatus(): Promise<BacktestStatus> {
+  return apiFetch("/api/backtest/status");
+}
+
+export function getBacktestResults(): Promise<BacktestResults> {
+  return apiFetch("/api/backtest/results");
+}
+
+export function getBacktestWindowDetail(windowId: number): Promise<BacktestWindowResult> {
+  return apiFetch(`/api/backtest/results/${windowId}`);
+}
+
+export function runDataIngestion(params?: { start_date?: string; end_date?: string }): Promise<{ status: string; result: Record<string, unknown> }> {
+  return apiFetch("/api/backtest/ingest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params ?? {}),
+  });
+}
+
+export function getIngestionStatus(): Promise<IngestionStatus> {
+  return apiFetch("/api/backtest/ingest/status");
+}
+
+export function startOptimizer(params?: { max_iterations?: number; use_llm?: boolean }): Promise<{ status: string; max_iterations: number }> {
+  return apiFetch("/api/backtest/optimize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params ?? {}),
+  });
+}
+
+export function stopOptimizer(): Promise<{ status: string }> {
+  return apiFetch("/api/backtest/optimize/stop", { method: "POST" });
+}
+
+export function getOptimizerStatus(): Promise<OptimizerStatus> {
+  return apiFetch("/api/backtest/optimize/status");
+}
+
+export function getOptimizerExperiments(): Promise<{ experiments: OptimizerExperiment[] }> {
+  return apiFetch("/api/backtest/optimize/experiments");
+}
+
+export function getOptimizerBest(): Promise<OptimizerBest> {
+  return apiFetch("/api/backtest/optimize/best");
+}
+
+// ── API Cache & Latency ─────────────────────────────────────────
+
+export function getPerfSummary(windowSeconds = 300): Promise<PerfSummary> {
+  return apiFetch(`/api/perf/summary?window_seconds=${windowSeconds}`);
+}
+
+export function getCacheStats(): Promise<CacheStats> {
+  return apiFetch("/api/perf/cache");
+}
+
+export function clearCache(): Promise<{ cleared: number }> {
+  return apiFetch("/api/perf/cache/clear", { method: "POST" });
+}
+
+export function startPerfOptimizer(): Promise<{ status: string }> {
+  return apiFetch("/api/perf/optimize", { method: "POST" });
+}
+
+export function stopPerfOptimizer(): Promise<{ status: string }> {
+  return apiFetch("/api/perf/optimize/stop", { method: "POST" });
+}
+
+export function getPerfOptimizerStatus(): Promise<PerfOptimizerStatus> {
+  return apiFetch("/api/perf/optimize/status");
+}
+
+export function getPerfOptimizerExperiments(): Promise<{ experiments: PerfExperiment[] }> {
+  return apiFetch("/api/perf/optimize/experiments");
 }

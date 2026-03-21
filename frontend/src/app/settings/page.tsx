@@ -3,13 +3,52 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { BentoCard } from "@/components/BentoCard";
+import { PageSkeleton } from "@/components/Skeleton";
 import {
   getFullSettings,
   getAvailableModels,
   updateSettings,
   getLatestCostSummary,
+  getPerfSummary,
+  getCacheStats,
+  clearCache,
+  startPerfOptimizer,
+  stopPerfOptimizer,
+  getPerfOptimizerStatus,
+  getPerfOptimizerExperiments,
 } from "@/lib/api";
-import type { FullSettings, ModelPricing, LatestCostSummary, AgentCostEntry } from "@/lib/types";
+import type {
+  FullSettings,
+  ModelPricing,
+  LatestCostSummary,
+  PerfSummary,
+  CacheStats,
+  PerfOptimizerStatus,
+  PerfExperiment,
+} from "@/lib/types";
+import { PerfProgressChart } from "@/components/PerfProgressChart";
+import {
+  SettingsMode,
+  SettingsDebate,
+  SettingsModel,
+  SettingsCostControls,
+  SettingsEstimator,
+  SettingsPillars,
+  SettingsCache,
+  SettingsOptimizer,
+  SettingsLatency,
+  SettingsRefresh,
+  IconWarning,
+  IconCheck,
+} from "@/lib/icons";
+
+// ── Sub-navigation tabs ───────────────────────────────────────────
+type SettingsTab = "models" | "cost" | "performance";
+const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
+  { id: "models", label: "Models & Analysis" },
+  { id: "cost", label: "Cost & Weights" },
+  { id: "performance", label: "Performance" },
+];
 
 // Which agents run in each mode — used for cost estimation
 const LITE_SKIP_AGENTS = new Set([
@@ -179,8 +218,8 @@ function ModelPicker({
       }`}
     >
       <div className="flex min-w-0 items-center gap-2">
-        <span className={`w-3 shrink-0 text-xs ${value === m.model ? checkClass : "text-transparent"}`}>
-          ✓
+        <span className={`w-3 shrink-0 ${value === m.model ? checkClass : "text-transparent"}`}>
+          <IconCheck size={12} weight="bold" />
         </span>
         <span
           className={`truncate ${
@@ -265,6 +304,17 @@ export default function SettingsPage() {
   // Local form state (mirrors settings for unsaved changes)
   const [form, setForm] = useState<Partial<FullSettings>>({});
 
+  // Sub-navigation
+  const [activeTab, setActiveTab] = useState<SettingsTab>("models");
+
+  // Performance tab state
+  const [perfSummary, setPerfSummary] = useState<PerfSummary | null>(null);
+  const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
+  const [optimizerStatus, setOptimizerStatus] = useState<PerfOptimizerStatus | null>(null);
+  const [perfLoading, setPerfLoading] = useState(false);
+  const [cacheClearMsg, setCacheClearMsg] = useState<string | null>(null);
+  const [perfExperiments, setPerfExperiments] = useState<PerfExperiment[]>([]);
+
   useEffect(() => {
     getFullSettings()
       .then((s) => {
@@ -275,6 +325,31 @@ export default function SettingsPage() {
     getAvailableModels().then(setModels).catch(() => {});
     getLatestCostSummary().then(setCostData).catch(() => {});
   }, []);
+
+  // Fetch performance data when Performance tab is active
+  const refreshPerfData = useCallback(async () => {
+    setPerfLoading(true);
+    try {
+      const [cache, summary, optStatus, expData] = await Promise.all([
+        getCacheStats(),
+        getPerfSummary(),
+        getPerfOptimizerStatus(),
+        getPerfOptimizerExperiments(),
+      ]);
+      setCacheStats(cache);
+      setPerfSummary(summary);
+      setOptimizerStatus(optStatus);
+      setPerfExperiments(expData.experiments);
+    } catch {
+      // silently ignore — tab will show empty state
+    } finally {
+      setPerfLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "performance") refreshPerfData();
+  }, [activeTab, refreshPerfData]);
 
   const updateForm = useCallback(
     <K extends keyof FullSettings>(key: K, value: FullSettings[K]) => {
@@ -419,7 +494,7 @@ export default function SettingsPage() {
       <div className="flex min-h-screen">
         <Sidebar />
         <main className="flex-1 p-8">
-          <p className="text-slate-400">Loading settings...</p>
+          <PageSkeleton />
         </main>
       </div>
     );
@@ -429,38 +504,59 @@ export default function SettingsPage() {
     <div className="flex min-h-screen">
       <Sidebar />
       <main className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-100">Settings</h2>
             <p className="text-sm text-slate-500">
-              Configure models, scoring weights, cost controls, and debate depth
+              Configure models, scoring weights, cost controls, and performance
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            {saveMsg && (
-              <span
-                className={`text-sm ${
-                  saveMsg.includes("saved") ? "text-emerald-400" : "text-rose-400"
-                }`}
+          {activeTab !== "performance" && (
+            <div className="flex items-center gap-3">
+              {saveMsg && (
+                <span
+                  className={`text-sm ${
+                    saveMsg.includes("saved") ? "text-emerald-400" : "text-rose-400"
+                  }`}
+                >
+                  {saveMsg}
+                </span>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={!hasChanges || saving}
+                className="rounded-lg bg-sky-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {saveMsg}
-              </span>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={!hasChanges || saving}
-              className="rounded-lg bg-sky-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {saving ? "Saving..." : "Save All Settings"}
-            </button>
-          </div>
+                {saving ? "Saving..." : "Save All Settings"}
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* Sub-navigation tabs */}
+        <div className="mb-6 flex gap-1 rounded-lg bg-slate-800/50 p-1 max-w-fit">
+          {SETTINGS_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? "bg-slate-700 text-slate-100 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Models & Analysis Tab ─────────────────────── */}
+        {activeTab === "models" && (
         <div className="grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2">
           {/* ── Analysis Mode ───────────────────────────────── */}
           <BentoCard>
             <h3 className="mb-3 text-lg font-semibold text-slate-300">
-              ⚡ Analysis Mode
+              <SettingsMode size={20} weight="duotone" className="inline -mt-0.5" /> Analysis Mode
             </h3>
             <div className="flex items-center gap-4">
               <button
@@ -496,51 +592,68 @@ export default function SettingsPage() {
             </p>
           </BentoCard>
 
-          {/* ── Live Cost Estimator ─────────────────────────── */}
+          {/* ── Debate Depth ────────────────────────────────── */}
           <BentoCard>
             <h3 className="mb-3 text-lg font-semibold text-slate-300">
-              💰 Cost Estimator
+              <SettingsDebate size={20} weight="duotone" className="inline -mt-0.5" /> Debate Depth
             </h3>
-            {estimatedCost ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
-                    <div className="text-lg font-bold text-sky-300">
-                      ${estimatedCost.totalCost.toFixed(4)}
-                    </div>
-                    <div className="text-xs text-slate-500">est. per analysis</div>
-                  </div>
-                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
-                    <div className="text-lg font-bold text-slate-200">
-                      {(estimatedCost.totalTokens / 1000).toFixed(0)}k
-                    </div>
-                    <div className="text-xs text-slate-500">tokens</div>
-                  </div>
-                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
-                    <div className="text-lg font-bold text-slate-200">
-                      {estimatedCost.calls}
-                    </div>
-                    <div className="text-xs text-slate-500">LLM calls</div>
-                  </div>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-slate-300">
+                    Bull↔Bear Rounds
+                  </label>
+                  <span className="font-mono text-sm text-violet-300">
+                    {form.max_debate_rounds ?? 2}
+                  </span>
                 </div>
-                {premiumRequests !== null && (
-                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
-                    <div className="text-lg font-bold text-emerald-300">
-                      ~{premiumRequests}
-                    </div>
-                    <div className="text-xs text-slate-500">Copilot premium req.</div>
-                  </div>
-                )}
-                <p className="text-xs text-slate-600">
-                  Based on real token usage from last analysis
-                  {costData?.ticker ? ` (${costData.ticker})` : ""}.
-                  Updates live as you change settings above.
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  step={1}
+                  value={form.max_debate_rounds ?? 2}
+                  onChange={(e) =>
+                    updateForm("max_debate_rounds", parseInt(e.target.value, 10))
+                  }
+                  className="mt-1 w-full accent-violet-500"
+                />
+                <p className="mt-1 text-xs text-slate-600">
+                  Iterative Bull vs Bear rebuttal exchanges
                 </p>
               </div>
-            ) : (
-              <p className="text-sm text-slate-500">
-                Run at least one analysis to enable real token-based cost
-                estimation.
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-slate-300">
+                    Risk Debate Rounds
+                  </label>
+                  <span className="font-mono text-sm text-violet-300">
+                    {form.max_risk_debate_rounds ?? 1}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={1}
+                  value={form.max_risk_debate_rounds ?? 1}
+                  onChange={(e) =>
+                    updateForm(
+                      "max_risk_debate_rounds",
+                      parseInt(e.target.value, 10)
+                    )
+                  }
+                  className="mt-1 w-full accent-violet-500"
+                />
+                <p className="mt-1 text-xs text-slate-600">
+                  Aggressive / Conservative / Neutral exchanges
+                </p>
+              </div>
+            </div>
+            {form.lite_mode && (
+              <p className="mt-3 text-xs text-amber-400/80">
+                <SettingsMode size={14} className="inline -mt-0.5" /> Lite mode overrides: 1 debate round, no Devil&apos;s Advocate,
+                no risk assessment.
               </p>
             )}
           </BentoCard>
@@ -548,7 +661,7 @@ export default function SettingsPage() {
           {/* ── Model Configuration ─────────────────────────── */}
           <BentoCard className="lg:col-span-2">
             <h3 className="mb-3 text-lg font-semibold text-slate-300">
-              🧠 Model Configuration
+              <SettingsModel size={20} weight="duotone" className="inline -mt-0.5" /> Model Configuration
             </h3>
             {/* Provider key status */}
             <div className="mb-4 flex flex-wrap gap-2">
@@ -607,7 +720,7 @@ export default function SettingsPage() {
             {/* Context-limited warning banner */}
             {models.find((m) => m.model === form.gemini_model)?.context_limited && (
               <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-amber-700/50 bg-amber-900/20 px-3.5 py-2.5 text-sm text-amber-300">
-                <span className="mt-0.5 shrink-0 text-base">⚠</span>
+                <IconWarning size={18} weight="fill" className="mt-0.5 shrink-0" />
                 <div>
                   <span className="font-medium">{MODEL_DISPLAY_NAMES[form.gemini_model ?? ""] ?? form.gemini_model}</span> has a small context window on GitHub Models (~4K–8K tokens).
                   {" "}Agent Debate prompts will be automatically compacted (summaries only, no full analysis text).
@@ -616,11 +729,65 @@ export default function SettingsPage() {
               </div>
             )}
           </BentoCard>
+        </div>
+        )}
+
+        {/* ── Cost & Weights Tab ────────────────────────── */}
+        {activeTab === "cost" && (
+        <div className="grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* ── Live Cost Estimator ─────────────────────────── */}
+          <BentoCard>
+            <h3 className="mb-3 text-lg font-semibold text-slate-300">
+              <SettingsEstimator size={20} weight="duotone" className="inline -mt-0.5" /> Cost Estimator
+            </h3>
+            {estimatedCost ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
+                    <div className="text-lg font-bold text-sky-300">
+                      ${estimatedCost.totalCost.toFixed(4)}
+                    </div>
+                    <div className="text-xs text-slate-500">est. per analysis</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
+                    <div className="text-lg font-bold text-slate-200">
+                      {(estimatedCost.totalTokens / 1000).toFixed(0)}k
+                    </div>
+                    <div className="text-xs text-slate-500">tokens</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
+                    <div className="text-lg font-bold text-slate-200">
+                      {estimatedCost.calls}
+                    </div>
+                    <div className="text-xs text-slate-500">LLM calls</div>
+                  </div>
+                </div>
+                {premiumRequests !== null && (
+                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
+                    <div className="text-lg font-bold text-emerald-300">
+                      ~{premiumRequests}
+                    </div>
+                    <div className="text-xs text-slate-500">Copilot premium req.</div>
+                  </div>
+                )}
+                <p className="text-xs text-slate-600">
+                  Based on real token usage from last analysis
+                  {costData?.ticker ? ` (${costData.ticker})` : ""}.
+                  Updates live as you change settings above.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Run at least one analysis to enable real token-based cost
+                estimation.
+              </p>
+            )}
+          </BentoCard>
 
           {/* ── Cost Controls ───────────────────────────────── */}
           <BentoCard>
             <h3 className="mb-3 text-lg font-semibold text-slate-300">
-              🛡️ Cost Controls
+              <SettingsCostControls size={20} weight="duotone" className="inline -mt-0.5" /> Cost Controls
             </h3>
             <div className="space-y-4">
               <div>
@@ -701,76 +868,10 @@ export default function SettingsPage() {
             </div>
           </BentoCard>
 
-          {/* ── Debate Depth ────────────────────────────────── */}
-          <BentoCard>
-            <h3 className="mb-3 text-lg font-semibold text-slate-300">
-              🗣️ Debate Depth
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="text-sm text-slate-300">
-                    Bull↔Bear Rounds
-                  </label>
-                  <span className="font-mono text-sm text-violet-300">
-                    {form.max_debate_rounds ?? 2}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={5}
-                  step={1}
-                  value={form.max_debate_rounds ?? 2}
-                  onChange={(e) =>
-                    updateForm("max_debate_rounds", parseInt(e.target.value, 10))
-                  }
-                  className="mt-1 w-full accent-violet-500"
-                />
-                <p className="mt-1 text-xs text-slate-600">
-                  Iterative Bull vs Bear rebuttal exchanges
-                </p>
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="text-sm text-slate-300">
-                    Risk Debate Rounds
-                  </label>
-                  <span className="font-mono text-sm text-violet-300">
-                    {form.max_risk_debate_rounds ?? 1}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={1}
-                  value={form.max_risk_debate_rounds ?? 1}
-                  onChange={(e) =>
-                    updateForm(
-                      "max_risk_debate_rounds",
-                      parseInt(e.target.value, 10)
-                    )
-                  }
-                  className="mt-1 w-full accent-violet-500"
-                />
-                <p className="mt-1 text-xs text-slate-600">
-                  Aggressive / Conservative / Neutral exchanges
-                </p>
-              </div>
-            </div>
-            {form.lite_mode && (
-              <p className="mt-3 text-xs text-amber-400/80">
-                ⚡ Lite mode overrides: 1 debate round, no Devil&apos;s Advocate,
-                no risk assessment.
-              </p>
-            )}
-          </BentoCard>
-
           {/* ── Pillar Weights ──────────────────────────────── */}
-          <BentoCard>
+          <BentoCard className="lg:col-span-2">
             <h3 className="mb-3 text-lg font-semibold text-slate-300">
-              📊 Pillar Weights
+              <SettingsPillars size={20} weight="duotone" className="inline -mt-0.5" /> Pillar Weights
             </h3>
             <div className="space-y-3">
               {([
@@ -813,6 +914,286 @@ export default function SettingsPage() {
             </p>
           </BentoCard>
         </div>
+        )}
+
+        {/* ── Performance Tab ───────────────────────────── */}
+        {activeTab === "performance" && (
+        <div className="grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* ── Cache Health ────────────────────────────────── */}
+          <BentoCard>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-300">
+                <SettingsCache size={20} weight="duotone" className="inline -mt-0.5" /> Cache Health
+              </h3>
+              <button
+                onClick={refreshPerfData}
+                disabled={perfLoading}
+                className="rounded-md px-2 py-1 text-xs text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-40"
+                title="Refresh"
+              >
+                {perfLoading ? <SettingsRefresh size={14} className="animate-spin" /> : <SettingsRefresh size={14} />}
+              </button>
+            </div>
+            {cacheStats ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
+                    <div className="text-lg font-bold text-slate-200">
+                      {cacheStats.entries}
+                    </div>
+                    <div className="text-xs text-slate-500">entries</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
+                    <div className="text-lg font-bold text-emerald-300">
+                      {cacheStats.hit_rate_pct}%
+                    </div>
+                    <div className="text-xs text-slate-500">hit rate</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
+                    <div className="text-lg font-bold text-slate-200">
+                      {cacheStats.total_gets}
+                    </div>
+                    <div className="text-xs text-slate-500">total gets</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
+                    <div className="text-lg font-bold text-slate-200">
+                      {cacheStats.total_hits}
+                    </div>
+                    <div className="text-xs text-slate-500">total hits</div>
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await clearCache();
+                      setCacheClearMsg(`Cleared ${res.cleared} entries`);
+                      setTimeout(() => setCacheClearMsg(null), 3000);
+                      refreshPerfData();
+                    } catch {
+                      setCacheClearMsg("Failed to clear cache");
+                      setTimeout(() => setCacheClearMsg(null), 3000);
+                    }
+                  }}
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-rose-600 hover:text-rose-300"
+                >
+                  Clear Cache
+                </button>
+                {cacheClearMsg && (
+                  <p className={`text-center text-xs ${
+                    cacheClearMsg.includes("Failed") ? "text-rose-400" : "text-emerald-400"
+                  }`}>
+                    {cacheClearMsg}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Loading cache stats...</p>
+            )}
+          </BentoCard>
+
+          {/* ── TTL Optimizer ───────────────────────────────── */}
+          <BentoCard>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-300">
+                <SettingsOptimizer size={20} weight="duotone" className="inline -mt-0.5" /> TTL Optimizer
+              </h3>
+              <button
+                onClick={async () => {
+                  const s = await getPerfOptimizerStatus();
+                  setOptimizerStatus(s);
+                }}
+                className="rounded-md px-2 py-1 text-xs text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+                title="Refresh status"
+              >
+                <SettingsRefresh size={14} />
+              </button>
+            </div>
+            {optimizerStatus ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-block h-2 w-2 rounded-full ${
+                      optimizerStatus.status === "running"
+                        ? "bg-emerald-400 animate-pulse"
+                        : optimizerStatus.status === "error"
+                        ? "bg-rose-400"
+                        : "bg-slate-500"
+                    }`}
+                  />
+                  <span className="text-sm font-medium capitalize text-slate-300">
+                    {optimizerStatus.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-slate-800/50 p-2.5 text-center">
+                    <div className="text-base font-bold text-slate-200">
+                      {optimizerStatus.iterations}
+                    </div>
+                    <div className="text-xs text-slate-500">iterations</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/50 p-2.5 text-center">
+                    <div className="text-base font-bold text-slate-200">
+                      {optimizerStatus.best_p95_ms?.toFixed(0) ?? "—"}
+                    </div>
+                    <div className="text-xs text-slate-500">best p95 ms</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/50 p-2.5 text-center">
+                    <div className="text-base font-bold text-emerald-300">
+                      {optimizerStatus.kept}
+                    </div>
+                    <div className="text-xs text-slate-500">kept</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/50 p-2.5 text-center">
+                    <div className="text-base font-bold text-slate-400">
+                      {optimizerStatus.discarded}
+                    </div>
+                    <div className="text-xs text-slate-500">discarded</div>
+                  </div>
+                </div>
+                {optimizerStatus.status === "running" ? (
+                  <button
+                    onClick={async () => {
+                      await stopPerfOptimizer();
+                      const s = await getPerfOptimizerStatus();
+                      setOptimizerStatus(s);
+                    }}
+                    className="w-full rounded-lg border border-amber-700/50 bg-amber-900/20 px-3 py-2 text-sm text-amber-300 transition-colors hover:bg-amber-900/40"
+                  >
+                    Stop Optimizer
+                  </button>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      await startPerfOptimizer();
+                      const s = await getPerfOptimizerStatus();
+                      setOptimizerStatus(s);
+                    }}
+                    className="w-full rounded-lg border border-emerald-700/50 bg-emerald-900/20 px-3 py-2 text-sm text-emerald-300 transition-colors hover:bg-emerald-900/40"
+                  >
+                    Start Optimizer
+                  </button>
+                )}
+                <p className="text-xs text-slate-600">
+                  Autoresearch loop that tunes per-endpoint cache TTL values.
+                  Each experiment takes ~60s.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Loading optimizer status...</p>
+            )}
+          </BentoCard>
+
+          {/* ── Optimization Progress Chart ──────────────────────── */}
+          <BentoCard className="lg:col-span-2">
+            <PerfProgressChart experiments={perfExperiments} />
+          </BentoCard>
+
+          {/* ── API Latency ─────────────────────────────────── */}
+          <BentoCard className="lg:col-span-2">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-300">
+                  <SettingsLatency size={20} weight="duotone" className="inline -mt-0.5" /> API Latency
+                </h3>
+                <p className="text-xs text-slate-500">Last 5 minutes</p>
+              </div>
+              <button
+                onClick={refreshPerfData}
+                disabled={perfLoading}
+                className="rounded-md px-2 py-1 text-xs text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-40"
+                title="Refresh"
+              >
+                {perfLoading ? <SettingsRefresh size={14} className="animate-spin" /> : <SettingsRefresh size={14} />}
+              </button>
+            </div>
+            {perfSummary ? (
+              perfSummary.total_requests > 0 ? (
+                <div className="space-y-4">
+                  {/* Overall stats */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="rounded-lg bg-slate-800/50 p-2.5 text-center">
+                      <div className="text-base font-bold text-slate-200">
+                        {perfSummary.total_requests}
+                      </div>
+                      <div className="text-xs text-slate-500">requests</div>
+                    </div>
+                    <div className="rounded-lg bg-slate-800/50 p-2.5 text-center">
+                      <div className="text-base font-bold text-slate-200">
+                        {perfSummary.p50_ms}
+                      </div>
+                      <div className="text-xs text-slate-500">p50 ms</div>
+                    </div>
+                    <div className="rounded-lg bg-slate-800/50 p-2.5 text-center">
+                      <div className="text-base font-bold text-amber-300">
+                        {perfSummary.p95_ms}
+                      </div>
+                      <div className="text-xs text-slate-500">p95 ms</div>
+                    </div>
+                    <div className="rounded-lg bg-slate-800/50 p-2.5 text-center">
+                      <div className="text-base font-bold text-rose-300">
+                        {perfSummary.p99_ms}
+                      </div>
+                      <div className="text-xs text-slate-500">p99 ms</div>
+                    </div>
+                  </div>
+                  {/* Per-endpoint table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-700 text-xs text-slate-500">
+                          <th className="pb-2 pr-4 font-medium">Endpoint</th>
+                          <th className="pb-2 pr-4 text-right font-medium">Requests</th>
+                          <th className="pb-2 pr-4 text-right font-medium">p50 ms</th>
+                          <th className="pb-2 text-right font-medium">p95 ms</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(perfSummary.per_endpoint)
+                          .sort(([, a], [, b]) => b.p95_ms - a.p95_ms)
+                          .slice(0, 20)
+                          .map(([ep, data]) => (
+                            <tr
+                              key={ep}
+                              className="border-b border-slate-800/50 text-slate-300"
+                            >
+                              <td className="py-1.5 pr-4 font-mono text-xs">
+                                {ep}
+                              </td>
+                              <td className="py-1.5 pr-4 text-right tabular-nums">
+                                {data.count}
+                              </td>
+                              <td className="py-1.5 pr-4 text-right tabular-nums">
+                                {data.p50_ms}
+                              </td>
+                              <td
+                                className={`py-1.5 text-right tabular-nums ${
+                                  data.p95_ms > 1000
+                                    ? "text-rose-400"
+                                    : data.p95_ms > 500
+                                    ? "text-amber-400"
+                                    : "text-slate-300"
+                                }`}
+                              >
+                                {data.p95_ms}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No requests recorded yet — load some pages first to generate
+                  traffic, then refresh.
+                </p>
+              )
+            ) : (
+              <p className="text-sm text-slate-500">Loading latency data...</p>
+            )}
+          </BentoCard>
+        </div>
+        )}
       </main>
     </div>
   );

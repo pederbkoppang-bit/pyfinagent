@@ -7,21 +7,38 @@ import { signIn as webAuthnSignIn } from "next-auth/webauthn";
 import { clsx } from "clsx";
 import { useState } from "react";
 import {
-  NavDashboard, NavSignals, NavReports, NavCompare,
-  NavPerformance, NavPortfolio, NavPaperTrading, NavSettings,
+  NavHome, NavAnalyze, NavSignals, NavReports,
+  NavPerformance, NavPortfolio, NavPaperTrading, NavBacktest, NavSettings,
   LogoIcon, IconKey, IconSignOut,
 } from "@/lib/icons";
 import type { Icon } from "@phosphor-icons/react";
 
-const NAV_ITEMS: { href: string; label: string; icon: Icon }[] = [
-  { href: "/", label: "Dashboard", icon: NavDashboard },
-  { href: "/signals", label: "Signals", icon: NavSignals },
-  { href: "/reports", label: "Past Reports", icon: NavReports },
-  { href: "/compare", label: "Compare", icon: NavCompare },
-  { href: "/performance", label: "Performance", icon: NavPerformance },
-  { href: "/portfolio", label: "Portfolio", icon: NavPortfolio },
-  { href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading },
-  { href: "/settings", label: "Settings", icon: NavSettings },
+interface NavItem { href: string; label: string; icon: Icon }
+
+const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Analyze",
+    items: [
+      { href: "/", label: "Home", icon: NavHome },
+      { href: "/analyze", label: "Deep Analysis", icon: NavAnalyze },
+      { href: "/signals", label: "Signals", icon: NavSignals },
+    ],
+  },
+  {
+    label: "Reports",
+    items: [
+      { href: "/reports", label: "Reports", icon: NavReports },
+      { href: "/performance", label: "Performance", icon: NavPerformance },
+    ],
+  },
+  {
+    label: "Trading",
+    items: [
+      { href: "/portfolio", label: "Portfolio", icon: NavPortfolio },
+      { href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading },
+      { href: "/backtest", label: "Backtest", icon: NavBacktest },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -51,23 +68,46 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1">
-        {NAV_ITEMS.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={clsx(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-              pathname === item.href
-                ? "bg-sky-500/10 font-medium text-sky-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-            )}
-          >
-            <item.icon size={18} weight={pathname === item.href ? "fill" : "regular"} />
-            {item.label}
-          </Link>
+      <nav className="flex-1 space-y-5 overflow-y-auto">
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.label}>
+            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+              {section.label}
+            </p>
+            <div className="space-y-0.5">
+              {section.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={clsx(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                    pathname === item.href
+                      ? "bg-sky-500/10 font-medium text-sky-400"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  )}
+                >
+                  <item.icon size={18} weight={pathname === item.href ? "fill" : "regular"} />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
+
+      {/* Settings — pinned above user section */}
+      <Link
+        href="/settings"
+        className={clsx(
+          "mb-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+          pathname === "/settings"
+            ? "bg-sky-500/10 font-medium text-sky-400"
+            : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+        )}
+      >
+        <NavSettings size={18} weight={pathname === "/settings" ? "fill" : "regular"} />
+        Settings
+      </Link>
 
       {/* User info + auth */}
       <div className="border-t border-navy-700 pt-4 space-y-3">

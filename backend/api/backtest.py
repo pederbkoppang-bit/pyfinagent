@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from backend.config.settings import get_settings
 from backend.db.bigquery_client import BigQueryClient
+from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
@@ -214,6 +215,11 @@ async def get_optimizer_status():
 @router.get("/optimize/experiments")
 async def get_optimizer_experiments():
     """Full experiment history from quant_results.tsv."""
+    cache = get_api_cache()
+    cache_key = "backtest:experiments"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
     import os
     tsv_path = os.path.join(
         os.path.dirname(__file__), "..", "backtest", "experiments", "quant_results.tsv"
@@ -229,12 +235,19 @@ async def get_optimizer_experiments():
             if len(values) == len(header):
                 experiments.append(dict(zip(header, values)))
 
-    return {"experiments": experiments}
+    result = {"experiments": experiments}
+    cache.set(cache_key, result, ENDPOINT_TTLS["backtest:experiments"])
+    return result
 
 
 @router.get("/optimize/best")
 async def get_optimizer_best():
     """Best strategy params + feature importance from latest optimization."""
+    cache = get_api_cache()
+    cache_key = "backtest:best"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
     import os
     tsv_path = os.path.join(
         os.path.dirname(__file__), "..", "backtest", "experiments", "quant_results.tsv"
@@ -263,11 +276,13 @@ async def get_optimizer_best():
     if not best_row:
         raise HTTPException(404, "No successful experiments found")
 
-    return {
+    result = {
         "best_sharpe": best_sharpe,
         "best_dsr": float(best_row.get("dsr", 0)),
         "best_experiment": best_row,
     }
+    cache.set(cache_key, result, ENDPOINT_TTLS["backtest:best"])
+    return result
 
 
 # ── Async Helpers ────────────────────────────────────────────────

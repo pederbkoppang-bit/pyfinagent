@@ -4,6 +4,7 @@ PyFinAgent Backend — FastAPI application entry point.
 
 import logging
 import json
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
@@ -15,12 +16,14 @@ from backend.api.backtest import router as backtest_router
 from backend.api.charts import router as charts_router
 from backend.api.investigate import router as investigate_router
 from backend.api.paper_trading import router as paper_trading_router, init_scheduler
+from backend.api.performance_api import router as performance_router
 from backend.api.portfolio import router as portfolio_router
 from backend.api.reports import router as reports_router
 from backend.api.settings_api import router as settings_router
 from backend.api.signals import router as signals_router
 from backend.api.skills import router as skills_router
 from backend.config.settings import get_settings
+from backend.services.perf_tracker import get_perf_tracker
 
 
 class JsonFormatter(logging.Formatter):
@@ -91,14 +94,27 @@ _PUBLIC_PATHS = ("/api/health", "/api/auth", "/docs", "/openapi.json", "/redoc")
 
 @app.middleware("http")
 async def auth_and_security_middleware(request: Request, call_next):
-    """Authentication check + OWASP security headers on every response."""
+    """Authentication check + OWASP security headers + latency tracking."""
     path = request.url.path
 
     # Skip auth for public paths
     if not any(path.startswith(p) for p in _PUBLIC_PATHS):
         await get_current_user(request)
 
+    start = time.perf_counter()
     response: Response = await call_next(request)
+    latency_ms = (time.perf_counter() - start) * 1000
+
+    # Latency tracking
+    cache_hit = response.headers.get("X-Cache") == "HIT"
+    get_perf_tracker().record(
+        endpoint=path,
+        method=request.method,
+        status_code=response.status_code,
+        latency_ms=round(latency_ms, 1),
+        cache_hit=cache_hit,
+    )
+    response.headers["X-Response-Time"] = f"{latency_ms:.0f}ms"
 
     # OWASP security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -116,6 +132,7 @@ app.include_router(backtest_router)
 app.include_router(charts_router)
 app.include_router(investigate_router)
 app.include_router(paper_trading_router)
+app.include_router(performance_router)
 app.include_router(portfolio_router)
 app.include_router(reports_router)
 app.include_router(settings_router)

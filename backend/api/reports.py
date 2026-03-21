@@ -13,6 +13,7 @@ from google.api_core.exceptions import GoogleAPIError
 from backend.api.models import PerformanceStats, ReportSummary
 from backend.config.settings import Settings, get_settings
 from backend.db.bigquery_client import BigQueryClient
+from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 from backend.services.outcome_tracker import OutcomeTracker
 
 logger = logging.getLogger(__name__)
@@ -27,8 +28,15 @@ def _get_bq(settings: Settings = Depends(get_settings)) -> BigQueryClient:
 async def list_reports(limit: int = 20, bq: BigQueryClient = Depends(_get_bq)):
     """List recent analysis reports."""
     try:
+        cache = get_api_cache()
+        cache_key = f"reports:list:{limit}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
         rows = bq.get_recent_reports(limit=limit)
-        return [ReportSummary(**r) for r in rows]
+        result = [ReportSummary(**r) for r in rows]
+        cache.set(cache_key, result, ENDPOINT_TTLS["reports:list"])
+        return result
     except GoogleAPIError as exc:
         logger.error("BigQuery error listing reports: %s", exc, exc_info=True)
         raise HTTPException(
@@ -79,7 +87,14 @@ async def evaluate_outcomes(settings: Settings = Depends(get_settings)):
 async def get_cost_history(limit: int = 50, bq: BigQueryClient = Depends(_get_bq)):
     """Get cost/token usage history for past analyses."""
     try:
-        return bq.get_cost_history(limit=limit)
+        cache = get_api_cache()
+        cache_key = f"reports:cost-history:{limit}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        result = bq.get_cost_history(limit=limit)
+        cache.set(cache_key, result, ENDPOINT_TTLS["reports:cost-history"])
+        return result
     except GoogleAPIError as exc:
         logger.error("BigQuery error fetching cost history: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail=f"BigQuery error: {exc}")
@@ -99,22 +114,26 @@ async def get_latest_cost_summary(bq: BigQueryClient = Depends(_get_bq)):
     report, providing real token counts per agent for the cost estimator.
     """
     try:
-        rows = bq.get_recent_reports(limit=1)
-        if not rows:
+        cache = get_api_cache()
+        cache_key = "reports:cost-summary"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        # Single BQ query instead of previous two-call pattern
+        row = bq.get_latest_report_json()
+        if not row:
             return {"agents": [], "total_cost_usd": 0, "total_tokens": 0}
-        latest = rows[0]
-        # Fetch the full report to get cost_summary from full_report_json
-        report = bq.get_report(latest["ticker"])
-        if not report:
-            return {"agents": [], "total_cost_usd": 0, "total_tokens": 0}
-        full_json = report.get("full_report_json")
+        full_json = row.get("full_report_json")
         if isinstance(full_json, dict):
             cost_summary = full_json.get("cost_summary") or full_json.get("final_synthesis", {}).get("cost_summary")
             if cost_summary:
-                cost_summary["ticker"] = latest["ticker"]
-                cost_summary["analysis_date"] = latest.get("analysis_date", "")
+                cost_summary["ticker"] = row["ticker"]
+                cost_summary["analysis_date"] = row.get("analysis_date", "")
+                cache.set(cache_key, cost_summary, ENDPOINT_TTLS["reports:cost-summary"])
                 return cost_summary
-        return {"agents": [], "total_cost_usd": 0, "total_tokens": 0, "ticker": latest["ticker"]}
+        result = {"agents": [], "total_cost_usd": 0, "total_tokens": 0, "ticker": row["ticker"]}
+        cache.set(cache_key, result, ENDPOINT_TTLS["reports:cost-summary"])
+        return result
     except GoogleAPIError as exc:
         logger.error("BigQuery error fetching latest cost summary: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail=f"BigQuery error: {exc}")
@@ -134,9 +153,15 @@ async def get_report(
 ):
     """Get a report for a specific ticker, optionally by analysis_date."""
     try:
+        cache = get_api_cache()
+        cache_key = f"reports:ticker:{ticker.upper()}:{analysis_date or 'latest'}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
         report = bq.get_report(ticker.upper(), analysis_date=analysis_date)
         if not report:
             raise HTTPException(status_code=404, detail=f"No report found for {ticker}")
+        cache.set(cache_key, report, ENDPOINT_TTLS["reports:ticker"])
         return report
     except HTTPException:
         raise

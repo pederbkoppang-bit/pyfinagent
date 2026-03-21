@@ -4,13 +4,14 @@
  */
 export {
   // ── Navigation ──
-  House as NavDashboard,
+  House as NavHome,
+  Brain as NavAnalyze,
   Broadcast as NavSignals,
   Files as NavReports,
-  ArrowsLeftRight as NavCompare,
   ChartLineUp as NavPerformance,
   Wallet as NavPortfolio,
   Robot as NavPaperTrading,
+  ClockCounterClockwise as NavBacktest,
   Gear as NavSettings,
   ChartLineUp as LogoIcon,
 
@@ -103,6 +104,18 @@ export {
   Crosshair as TabRisk,
   MagnifyingGlass as TabAudit,
   CurrencyDollar as TabCost,
+
+  // ── Settings Icons ──
+  Lightning as SettingsMode,
+  ChatTeardropDots as SettingsDebate,
+  Brain as SettingsModel,
+  ShieldCheck as SettingsCostControls,
+  CurrencyDollar as SettingsEstimator,
+  ChartBar as SettingsPillars,
+  Database as SettingsCache,
+  GearSix as SettingsOptimizer,
+  Timer as SettingsLatency,
+  ArrowClockwise as SettingsRefresh,
 
   // ── Utility ──
   DownloadSimple as IconDownload,
