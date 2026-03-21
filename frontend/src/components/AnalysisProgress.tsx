@@ -72,16 +72,28 @@ export function AnalysisProgress({
       ? Math.round((completed.size / ALL_STEPS.length) * 100)
       : 0;
 
-  // Elapsed timer
+  // Elapsed timer — stops when analysis completes or fails
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef<number>(Date.now());
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     startRef.current = Date.now();
-    const id = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 1000);
-    return () => clearInterval(id);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, []);
+  useEffect(() => {
+    if (
+      (status.status === "completed" || status.status === "failed") &&
+      timerRef.current
+    ) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [status.status]);
 
   // Left panel: completed accordion toggle
   const [showCompleted, setShowCompleted] = useState(false);

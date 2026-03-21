@@ -10,13 +10,21 @@ import json
 import logging
 import re
 import time
+from typing import Any
 from typing import Callable, Optional
 
 from vertexai.generative_models import GenerativeModel
 from google.api_core import exceptions as gcp_exceptions
 
 from backend.agents.cost_tracker import CostTracker
-from backend.agents.llm_client import GeminiClient, LLMClient
+from backend.agents.compaction import (
+    build_compact_debate_history,
+    compact_argument,
+    compact_da_result,
+    compact_text,
+    compact_trace_summary,
+)
+from backend.agents.llm_client import GeminiClient, LLMClient, get_model_max_input_chars
 from backend.agents.schemas import DevilsAdvocateResult, ModeratorConsensus
 
 _DEBATE_GEN_CONFIG = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1536}
@@ -141,8 +149,31 @@ def run_debate(
 
     logger.info(f"Debate: starting {max_debate_rounds}-round debate for {ticker}")
 
-    signals_json = json.dumps(enrichment_signals, indent=2, default=str)
-    trace_json = json.dumps(trace_summary, indent=2, default=str)
+    _model_limit = get_model_max_input_chars(getattr(model, "model_name", "") or general_model_name)
+    _tight_context = bool(_model_limit and _model_limit <= 14_000)
+    _compact_context = bool(_model_limit and _model_limit <= 30_000)
+    _json_kwargs: dict[str, Any] = {"default": str}
+    if _compact_context:
+        _json_kwargs["separators"] = (",", ":")
+    else:
+        _json_kwargs["indent"] = 2
+
+    trace_payload = trace_summary
+    if _compact_context:
+        trace_payload = compact_trace_summary(
+            trace_summary,
+            max_chars=700 if _tight_context else 1_600,
+            max_evidence_per_agent=1,
+            evidence_chars=90 if _tight_context else 120,
+        )
+        fact_ledger = compact_text(fact_ledger, 700 if _tight_context else 1_200)
+        logger.info(
+            f"Debate: compact mode enabled for {getattr(model, 'model_name', general_model_name)} "
+            f"(limit={_model_limit:,} chars, tight={_tight_context})"
+        )
+
+    signals_json = json.dumps(enrichment_signals, **_json_kwargs)
+    trace_json = json.dumps(trace_payload, **_json_kwargs)
 
     # ── Round 1: Position statements ────────────────────────────
     logger.info("Debate Round 1: Collecting agent positions")
@@ -159,7 +190,7 @@ def run_debate(
         _progress(f"Round {round_num}/{max_debate_rounds}: Bull agent building case...")
         bull_prompt = prompts.get_bull_agent_prompt(
             ticker, signals_json, trace_json,
-            opponent_argument=bear_text or None,
+            opponent_argument=compact_argument(bear_text, 900 if _tight_context else 1_400) if bear_text and _compact_context else bear_text or None,
             round_number=round_num,
             max_rounds=max_debate_rounds,
             past_memory=memories.get("bull", ""),
@@ -175,7 +206,7 @@ def run_debate(
         _progress(f"Round {round_num}/{max_debate_rounds}: Bear agent challenging with risk evidence...")
         bear_prompt = prompts.get_bear_agent_prompt(
             ticker, signals_json, trace_json,
-            opponent_argument=bull_text,
+            opponent_argument=compact_argument(bull_text, 900 if _tight_context else 1_400) if bull_text and _compact_context else bull_text,
             round_number=round_num,
             max_rounds=max_debate_rounds,
             past_memory=memories.get("bear", ""),
@@ -206,7 +237,10 @@ def run_debate(
         logger.info("Debate: Devil's Advocate challenging consensus")
         _progress("Devil's Advocate stress-testing the emerging consensus...")
         da_prompt = prompts.get_devils_advocate_prompt(
-            ticker, bull_text, bear_text, signals_json,
+            ticker,
+            compact_argument(bull_text, 1_000 if _tight_context else 1_800) if _compact_context else bull_text,
+            compact_argument(bear_text, 1_000 if _tight_context else 1_800) if _compact_context else bear_text,
+            signals_json,
             fact_ledger=fact_ledger,
         )
         da_response = _generate_with_retry(model, da_prompt, "Devil's Advocate",
@@ -227,14 +261,22 @@ def run_debate(
     _progress("Moderator resolving contradictions and assigning consensus...")
 
     # Build debate history for moderator context
-    debate_history = "\n".join(
-        f"--- ROUND {r['round']} ---\nBull: {r['bull_argument'][:1500]}\nBear: {r['bear_argument'][:1500]}"
-        for r in debate_rounds
+    debate_history = build_compact_debate_history(
+        debate_rounds,
+        max_chars=1_200 if _tight_context else 2_600 if _compact_context else 6_000,
+        per_argument_chars=220 if _tight_context else 420 if _compact_context else 1_500,
+    )
+
+    bull_for_moderator = compact_argument(bull_text, 1_000 if _tight_context else 1_800) if _compact_context else bull_text
+    bear_for_moderator = compact_argument(bear_text, 1_000 if _tight_context else 1_800) if _compact_context else bear_text
+    da_for_moderator = (
+        compact_da_result(da_result, max_chars=800 if _tight_context else 1_400)
+        if _compact_context else json.dumps(da_result, default=str)
     )
 
     moderator_prompt = prompts.get_moderator_prompt(
-        ticker, bull_text, bear_text, signals_json,
-        devils_advocate=json.dumps(da_result, default=str),
+        ticker, bull_for_moderator, bear_for_moderator, signals_json,
+        devils_advocate=da_for_moderator,
         debate_history=debate_history,
         past_memory=memories.get("moderator", ""),
         fact_ledger=fact_ledger,

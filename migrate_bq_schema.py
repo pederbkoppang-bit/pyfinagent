@@ -84,6 +84,9 @@ NEW_COLUMNS = [
     ("deep_think_calls", "INT64"),
     # Phase 9: Reflection loop + quality gates
     ("synthesis_iterations", "INT64"),
+    # Phase 10: Model tracking
+    ("standard_model", "STRING"),
+    ("deep_think_model", "STRING"),
 ]
 
 

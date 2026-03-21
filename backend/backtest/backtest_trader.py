@@ -1,0 +1,225 @@
+"""
+Backtest trader — in-memory portfolio simulator with inverse-volatility
+position sizing and meta-label probability weighting.
+No BQ writes during simulation; all state in-memory.
+"""
+
+import logging
+from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Position:
+    ticker: str
+    quantity: float
+    avg_entry_price: float
+    entry_date: str
+    label: int  # +1 BUY, -1 SELL, 0 HOLD
+
+
+@dataclass
+class Trade:
+    ticker: str
+    action: str  # "BUY" or "SELL"
+    quantity: float
+    price: float
+    date: str
+    label: int
+    probability: float
+
+
+@dataclass
+class DailySnapshot:
+    date: str
+    nav: float
+    cash: float
+    positions_value: float
+    num_positions: int
+
+
+class BacktestTrader:
+    """
+    In-memory portfolio simulator for backtesting.
+    Uses inverse-volatility × meta-label probability for position sizing (AQR).
+    """
+
+    def __init__(
+        self,
+        starting_capital: float = 100_000.0,
+        max_positions: int = 20,
+        transaction_cost_pct: float = 0.1,
+        target_vol: float = 0.15,
+        max_single_pct: float = 0.10,
+    ):
+        self.starting_capital = starting_capital
+        self.cash = starting_capital
+        self.max_positions = max_positions
+        self.transaction_cost_pct = transaction_cost_pct
+        self.target_vol = target_vol
+        self.max_single_pct = max_single_pct
+
+        self.positions: dict[str, Position] = {}
+        self.trades: list[Trade] = []
+        self.snapshots: list[DailySnapshot] = []
+
+    def size_position(self, probability: float, stock_vol: float, nav: float) -> float:
+        """
+        Inverse-volatility position sizing (AQR):
+        dollar_amount = probability × (target_vol / stock_vol) × nav / max_positions
+        Capped at max_single_pct × nav.
+        """
+        if stock_vol <= 0 or probability <= 0:
+            return 0.0
+
+        vol_scale = min(self.target_vol / stock_vol, 3.0)  # Cap at 3x to prevent extreme sizing
+        raw = probability * vol_scale * nav / self.max_positions
+        capped = min(raw, nav * self.max_single_pct)
+        return max(0.0, capped)
+
+    def execute_trades(
+        self,
+        signals: list[dict],
+        date: str,
+        prices: dict[str, float],
+    ) -> list[Trade]:
+        """
+        Execute trades based on ML signals.
+
+        signals: list of {"ticker", "label", "probability", "volatility"}
+        prices: dict of ticker → current price
+        """
+        executed = []
+        nav = self._compute_nav(prices)
+
+        # First: close positions where signal flipped to SELL (-1)
+        for sig in signals:
+            ticker = sig["ticker"]
+            label = sig["label"]
+            if label == -1 and ticker in self.positions:
+                pos = self.positions[ticker]
+                price = prices.get(ticker, pos.avg_entry_price)
+                proceeds = pos.quantity * price
+                cost = proceeds * self.transaction_cost_pct / 100
+                self.cash += proceeds - cost
+
+                trade = Trade(
+                    ticker=ticker, action="SELL", quantity=pos.quantity,
+                    price=price, date=date, label=label,
+                    probability=sig.get("probability", 0),
+                )
+                self.trades.append(trade)
+                executed.append(trade)
+                del self.positions[ticker]
+
+        # Second: open new BUY positions
+        buy_signals = [s for s in signals if s["label"] == 1 and s["ticker"] not in self.positions]
+        # Sort by probability (highest confidence first)
+        buy_signals.sort(key=lambda x: x.get("probability", 0), reverse=True)
+
+        for sig in buy_signals:
+            if len(self.positions) >= self.max_positions:
+                break
+
+            ticker = sig["ticker"]
+            price = prices.get(ticker)
+            if not price or price <= 0:
+                continue
+
+            probability = sig.get("probability", 0.5)
+            volatility = sig.get("volatility", 0.3)
+            dollar_amount = self.size_position(probability, volatility, nav)
+
+            if dollar_amount < 100:  # Minimum trade size
+                continue
+
+            # Check cash
+            cost_basis = dollar_amount
+            transaction_cost = cost_basis * self.transaction_cost_pct / 100
+            total_needed = cost_basis + transaction_cost
+
+            if total_needed > self.cash:
+                cost_basis = self.cash * 0.95  # Use 95% of remaining cash
+                transaction_cost = cost_basis * self.transaction_cost_pct / 100
+                total_needed = cost_basis + transaction_cost
+                if total_needed > self.cash or cost_basis < 100:
+                    continue
+
+            quantity = cost_basis / price
+            self.cash -= total_needed
+
+            self.positions[ticker] = Position(
+                ticker=ticker,
+                quantity=quantity,
+                avg_entry_price=price,
+                entry_date=date,
+                label=1,
+            )
+
+            trade = Trade(
+                ticker=ticker, action="BUY", quantity=quantity,
+                price=price, date=date, label=1,
+                probability=probability,
+            )
+            self.trades.append(trade)
+            executed.append(trade)
+
+        return executed
+
+    def mark_to_market(self, date: str, prices: dict[str, float]) -> float:
+        """Update positions with current prices and return NAV."""
+        nav = self._compute_nav(prices)
+        positions_value = nav - self.cash
+
+        self.snapshots.append(DailySnapshot(
+            date=date,
+            nav=nav,
+            cash=self.cash,
+            positions_value=positions_value,
+            num_positions=len(self.positions),
+        ))
+
+        return nav
+
+    def close_all_positions(self, date: str, prices: dict[str, float]):
+        """Liquidate all positions at end of test window."""
+        for ticker in list(self.positions.keys()):
+            pos = self.positions[ticker]
+            price = prices.get(ticker, pos.avg_entry_price)
+            proceeds = pos.quantity * price
+            cost = proceeds * self.transaction_cost_pct / 100
+            self.cash += proceeds - cost
+
+            self.trades.append(Trade(
+                ticker=ticker, action="SELL", quantity=pos.quantity,
+                price=price, date=date, label=0,
+                probability=0,
+            ))
+            del self.positions[ticker]
+
+    def get_returns_series(self) -> list[float]:
+        """Get daily return series from snapshots."""
+        if len(self.snapshots) < 2:
+            return []
+        returns = []
+        for i in range(1, len(self.snapshots)):
+            prev_nav = self.snapshots[i - 1].nav
+            curr_nav = self.snapshots[i].nav
+            if prev_nav > 0:
+                returns.append((curr_nav - prev_nav) / prev_nav)
+        return returns
+
+    def _compute_nav(self, prices: dict[str, float]) -> float:
+        positions_value = sum(
+            pos.quantity * prices.get(pos.ticker, pos.avg_entry_price)
+            for pos in self.positions.values()
+        )
+        return self.cash + positions_value
+
+    def reset(self):
+        """Reset for next window while carrying forward capital."""
+        # Capital carries forward (from cash after closing all positions)
+        self.positions.clear()
+        # Don't reset cash — it carries forward from closed positions
+        # Don't reset trades/snapshots — they accumulate across windows

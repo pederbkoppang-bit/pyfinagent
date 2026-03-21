@@ -9,7 +9,7 @@ pyfinagent-app/.streamlit/secrets.toml
 __pycache__/
 *.pyc
 *.egg-info/
-.venv/
+.venv312/
 
 # Node
 node_modules/

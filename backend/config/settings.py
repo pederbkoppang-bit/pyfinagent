@@ -87,6 +87,22 @@ class Settings(BaseSettings):
     lite_mode: bool = Field(False, description="Cost-saving mode: skips deep dive, devil's advocate, reflection loop, and risk assessment (~50% fewer LLM calls)")
     max_analysis_cost_usd: float = Field(0.50, description="Soft budget per analysis in USD. Logs warnings when exceeded; does not abort.")
     max_synthesis_iterations: int = Field(2, ge=1, le=3, description="Maximum Synthesis↔Critic reflection loop iterations (1=no reflection)")
+    # --- Backtest ---
+    backtest_start_date: str = Field("2023-01-01", description="Walk-forward backtest start date")
+    backtest_end_date: str = Field("2025-12-31", description="Walk-forward backtest end date")
+    backtest_train_window_months: int = Field(12, description="Initial training window in months (expanding)")
+    backtest_test_window_months: int = Field(3, description="Test window in months")
+    backtest_embargo_days: int = Field(5, description="Embargo gap between train/test (trading days)")
+    backtest_holding_days: int = Field(90, description="Triple Barrier time barrier (days)")
+    backtest_tp_pct: float = Field(10.0, description="Triple Barrier take-profit %")
+    backtest_sl_pct: float = Field(10.0, description="Triple Barrier stop-loss %")
+    backtest_frac_diff_d: float = Field(0.4, description="Fractional differentiation order (0.1-0.8)")
+    backtest_target_vol: float = Field(0.15, description="Inverse-vol sizing: target annualized volatility")
+    backtest_top_n_candidates: int = Field(50, description="Top N candidates per screening pass")
+    backtest_starting_capital: float = Field(100_000.0, description="Backtest starting capital ($)")
+    backtest_max_positions: int = Field(20, description="Maximum simultaneous positions")
+    backtest_transaction_cost_pct: float = Field(0.1, description="Simulated transaction cost per trade (%)")
+
     # --- Paper Trading ---
     paper_trading_enabled: bool = Field(False, description="Enable autonomous paper trading scheduler")
     paper_starting_capital: float = Field(10000.0, description="Initial virtual cash for paper portfolio")

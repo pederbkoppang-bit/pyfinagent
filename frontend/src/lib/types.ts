@@ -453,6 +453,8 @@ export interface CostHistoryEntry {
   total_tokens: number | null;
   total_cost_usd: number | null;
   deep_think_calls: number | null;
+  standard_model?: string;
+  deep_think_model?: string;
 }
 
 export interface ModelPricing {
@@ -460,6 +462,8 @@ export interface ModelPricing {
   provider?: string;
   input_per_1m: number;
   output_per_1m: number;
+  copilot_multiplier?: number;
+  context_limited?: boolean;  // True = GitHub Models enforces a small request body limit; debate prompts will be compacted
 }
 
 export interface ModelConfig {

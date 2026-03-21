@@ -18,9 +18,10 @@ from google.oauth2 import service_account
 from vertexai.generative_models import GenerativeModel, Tool, grounding, GenerationConfig
 
 from backend.agents.bias_detector import detect_biases
+from backend.agents.compaction import compact_quant_snapshot, compact_report_reference, compact_text
 from backend.agents.cost_tracker import CostTracker
 from backend.agents.debate import run_debate
-from backend.agents.llm_client import GeminiClient, LLMClient, LLMResponse, make_client
+from backend.agents.llm_client import GeminiClient, LLMClient, LLMResponse, get_model_max_input_chars, make_client
 from backend.agents.conflict_detector import detect_conflicts
 from backend.agents.info_gap import detect_info_gaps, retry_critical_gaps
 from backend.agents.memory import (
@@ -248,6 +249,15 @@ class AnalysisOrchestrator:
     Each public method corresponds to a step that can be tracked/reported.
     """
 
+    # Default Gemini model used for Google-only features (RAG, Search Grounding)
+    # when the user selects a non-Gemini provider as standard/deep-think model.
+    _GEMINI_FALLBACK = "gemini-2.0-flash"
+
+    @staticmethod
+    def _resolve_gemini(model_name: str) -> str:
+        """Return a valid Gemini model name; falls back when non-Gemini is selected."""
+        return model_name if model_name.startswith("gemini-") else AnalysisOrchestrator._GEMINI_FALLBACK
+
     def __init__(self, settings: Settings):
         self.settings = settings
 
@@ -264,6 +274,12 @@ class AnalysisOrchestrator:
             credentials=credentials,
         )
 
+        # Resolve Gemini model names for Google-only features (RAG, grounding, Vertex fallback)
+        # When user selects a non-Gemini model (Claude, GPT, etc.), these stay on gemini-2.0-flash
+        deep_model_name = settings.deep_think_model or settings.gemini_model
+        _gemini_standard = self._resolve_gemini(settings.gemini_model)
+        _gemini_deep = self._resolve_gemini(deep_model_name)
+
         # Build models
         datastore_path = (
             f"projects/{settings.gcp_project_id}/locations/global/collections/"
@@ -277,14 +293,13 @@ class AnalysisOrchestrator:
         _enrichment_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1024}
         _synthesis_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 4096}
         _deep_think_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 2048}
-        self.rag_model = GenerativeModel(settings.gemini_model, tools=[rag_tool], generation_config=_gen_config)
+        self.rag_model = GenerativeModel(_gemini_standard, tools=[rag_tool], generation_config=_gen_config)
 
         # --- v3.4 Multi-Provider LLM Clients ---
-        # Build Vertex AI base models (used as Gemini fallback or the actual model)
-        deep_model_name = settings.deep_think_model or settings.gemini_model
-        _general_vertex = GenerativeModel(settings.gemini_model, generation_config=_enrichment_config)
-        _dt_vertex = GenerativeModel(deep_model_name, generation_config=_deep_think_config)
-        _synth_vertex = GenerativeModel(deep_model_name, generation_config=_synthesis_config)
+        # Build Vertex AI base models (used as Gemini fallback when make_client routes to Gemini)
+        _general_vertex = GenerativeModel(_gemini_standard, generation_config=_enrichment_config)
+        _dt_vertex = GenerativeModel(_gemini_deep, generation_config=_deep_think_config)
+        _synth_vertex = GenerativeModel(_gemini_deep, generation_config=_synthesis_config)
 
         # Route each model through provider factory (may use Claude/OpenAI/GitHub Models)
         self.general_client: LLMClient = make_client(settings.gemini_model, _general_vertex, settings)
@@ -292,13 +307,16 @@ class AnalysisOrchestrator:
         self.synthesis_client: LLMClient = make_client(deep_model_name, _synth_vertex, settings)
 
         # RAG model always uses Gemini (Vertex AI Search constraint)
-        self.rag_client: GeminiClient = GeminiClient(self.rag_model, settings.gemini_model)
+        self.rag_client: GeminiClient = GeminiClient(self.rag_model, _gemini_standard)
 
         # Google Search Grounding model — always Gemini (grounding is a Google-specific feature)
         # Constraint: Schema + Grounding cannot combine on Gemini 2.0 — separate instance
-        search_tool = Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())
-        _grounded_vertex = GenerativeModel(settings.gemini_model, tools=[search_tool], generation_config=_gen_config)
-        self.grounded_client: GeminiClient = GeminiClient(_grounded_vertex, settings.gemini_model)
+        # Gemini 2.0+ requires `google_search` tool type; older models used `google_search_retrieval`.
+        # The SDK (v1.x) only exposes the old API, so we build the google_search tool from protobuf.
+        from google.cloud.aiplatform_v1beta1.types import tool as _tool_types
+        _google_search_tool = Tool.from_dict(_tool_types.Tool.to_dict(_tool_types.Tool(google_search={})))
+        _grounded_vertex = GenerativeModel(_gemini_standard, tools=[_google_search_tool], generation_config=_gen_config)
+        self.grounded_client: GeminiClient = GeminiClient(_grounded_vertex, _gemini_standard)
 
         # Grounded calls fall back to general_client when non-Gemini provider is selected
         self.supports_grounding = isinstance(self.general_client, GeminiClient)
@@ -661,9 +679,27 @@ class AnalysisOrchestrator:
         max_iterations = self.settings.max_synthesis_iterations
         logger.info(f"Synthesis Agent: drafting report for {ticker} (max {max_iterations} iterations)")
 
+        _synthesis_limit = get_model_max_input_chars(self.synthesis_client.model_name)
+        _critic_limit = get_model_max_input_chars(self.deep_think_client.model_name)
+        _tight_context = bool(
+            (_synthesis_limit is not None and _synthesis_limit <= 14_000)
+            or (_critic_limit is not None and _critic_limit <= 14_000)
+        )
+        _compact_context = bool(
+            (_synthesis_limit is not None and _synthesis_limit <= 30_000)
+            or (_critic_limit is not None and _critic_limit <= 30_000)
+        )
+
         # Build market_context with per-section truncation guard
-        _MAX_SECTION = 1500
-        _MAX_CONTEXT = 12000
+        if _tight_context:
+            _MAX_SECTION = 500
+            _MAX_CONTEXT = 4_500
+        elif _compact_context:
+            _MAX_SECTION = 800
+            _MAX_CONTEXT = 7_000
+        else:
+            _MAX_SECTION = 1500
+            _MAX_CONTEXT = 12000
         market_context = (
             f"Market News & Sentiment:\n{report.get('market', {}).get('text', '')[:_MAX_SECTION]}\n\n"
             f"Competitor Analysis:\n{report.get('competitor', {}).get('text', 'No competitor data.')[:_MAX_SECTION]}\n\n"
@@ -688,14 +724,35 @@ class AnalysisOrchestrator:
 
         # Shared synthesis prompt kwargs for both initial and revision calls
         fact_ledger_json = json.dumps(report.get("_fact_ledger", {}), indent=2, default=str)
+        if _compact_context:
+            fact_ledger_json = compact_text(fact_ledger_json, 700 if _tight_context else 1_200)
+
+        # Compact unbounded fields for small-context models
+        _rag_report = report.get("rag", {}).get("text", "")
+        _sector_catalyst = sector_catalyst
+        _supply_chain = report.get("supply_chain", "No supply chain data.")
+        _deep_dive = report.get("deep_dive", {}).get("text", "") if isinstance(report.get("deep_dive"), dict) else report.get("deep_dive", "")
+        _quant_for_synthesis = quant_data
+
+        if _compact_context:
+            _field_cap = 600 if _tight_context else 1_200
+            _quant_for_synthesis = compact_quant_snapshot(quant_data)
+            _rag_report = compact_text(_rag_report, _field_cap)
+            _sector_catalyst = compact_text(_sector_catalyst, _field_cap)
+            _supply_chain = compact_text(_supply_chain, _field_cap)
+            _deep_dive = compact_text(_deep_dive, _field_cap)
+            logger.info(
+                "Synthesis compaction active: quant=snapshot, field_cap=%d chars", _field_cap
+            )
+
         synthesis_kwargs: dict = {
             "ticker": ticker,
-            "quant_report": quant_data,
-            "rag_report": report.get("rag", {}).get("text", ""),
+            "quant_report": _quant_for_synthesis,
+            "rag_report": _rag_report,
             "market_report": market_context,
-            "sector_catalyst_report": sector_catalyst,
-            "supply_chain_report": report.get("supply_chain", "No supply chain data."),
-            "deep_dive_analysis": report.get("deep_dive", {}).get("text", "") if isinstance(report.get("deep_dive"), dict) else report.get("deep_dive", ""),
+            "sector_catalyst_report": _sector_catalyst,
+            "supply_chain_report": _supply_chain,
+            "deep_dive_analysis": _deep_dive,
             "fact_ledger": fact_ledger_json,
         }
 
@@ -709,6 +766,7 @@ class AnalysisOrchestrator:
 
         synthesis_iterations = 1
         critic_issues_log = []
+        critic_quant_data = compact_quant_snapshot(quant_data) if _compact_context else quant_data
 
         for iteration in range(max_iterations):
             # Critic review with structured verdict
@@ -717,7 +775,17 @@ class AnalysisOrchestrator:
             if iteration > 0:
                 critic_feedback_str = json.dumps(critic_issues_log[-1], indent=2)
 
-            critic_prompt = prompts.get_critic_prompt(ticker, draft_text, quant_data, critic_feedback=critic_feedback_str, fact_ledger=fact_ledger_json)
+            critic_draft_reference = compact_report_reference(
+                draft_text,
+                max_chars=2_000 if _tight_context else 3_500 if _compact_context else 8_000,
+            ) if _compact_context else draft_text
+            critic_prompt = prompts.get_critic_prompt(
+                ticker,
+                critic_draft_reference,
+                critic_quant_data,
+                critic_feedback=critic_feedback_str,
+                fact_ledger=fact_ledger_json,
+            )
             critic_response = self._generate_with_retry(
                 self.deep_think_client, critic_prompt, "Critic",
                 is_deep_think=True, generation_config=_CRITIC_STRUCTURED_CONFIG,
@@ -762,7 +830,10 @@ class AnalysisOrchestrator:
             revision_prompt = prompts.get_synthesis_revision_prompt(
                 **synthesis_kwargs,
                 critic_issues=issues,
-                previous_draft=draft_text,
+                previous_draft=compact_report_reference(
+                    draft_text,
+                    max_chars=2_200 if _tight_context else 4_000 if _compact_context else 5_000,
+                ),
             )
             revision_response = self._generate_with_retry(
                 self.synthesis_client, revision_prompt, f"Synthesis-Rev{synthesis_iterations}",
@@ -811,6 +882,9 @@ class AnalysisOrchestrator:
         traces = TraceCollector()
         self._cost_tracker = CostTracker()
         ctx = AnalysisContext()
+
+        # Model display name for progress messages
+        _model_label = self.settings.gemini_model
 
         # Lite mode overrides: reduce debate rounds, synthesis iterations
         lite = self.settings.lite_mode
@@ -1082,7 +1156,7 @@ class AnalysisOrchestrator:
 
         async def _run_one(key, func, name, data):
             nonlocal _done_count
-            step("enrichment_analysis", "running", f"Gemini analyzing {name}...")
+            step("enrichment_analysis", "running", f"{_model_label} analyzing {name}...")
             try:
                 result = await asyncio.to_thread(_run_agent_with_trace, func, name, ticker, ticker, data)
             except Exception as e:
@@ -1139,6 +1213,37 @@ class AnalysisOrchestrator:
                 "anomaly": {"signal": anomaly_data.get("signal", "N/A"), "summary": anomaly_data.get("summary", ""), "analysis": report["anomaly"].get("text", "")},
                 "scenario": {"signal": mc_data.get("signal", "N/A"), "summary": mc_data.get("summary", ""), "analysis": report["scenario"].get("text", "")},
             }
+
+            # Proactive compaction for small-context models (e.g. o3-mini: 4K token limit,
+            # gpt-4.1-mini: 8K token limit). Drops the verbose 'analysis' field and caps
+            # 'summary' to keep the JSON under budget.
+            # In Lite Mode the caps are halved further, and ERROR/UNAVAILABLE signals are
+            # stripped out so the debate only sees meaningful evidence.
+            _debate_max_chars = get_model_max_input_chars(self.general_client.model_name)
+            if _debate_max_chars and _debate_max_chars < 30_000:
+                _DEAD_SIGNALS = {"ERROR", "UNAVAILABLE", "N/A", ""}
+                # Lite mode: use tighter caps and strip dead signals to further reduce prompt size
+                if lite:
+                    _SUMMARY_CAP = 100    # ~25 tokens per source
+                    _LEDGER_CAP  = 800
+                elif _debate_max_chars <= 14_000:
+                    _SUMMARY_CAP = 120
+                    _LEDGER_CAP  = 900
+                else:
+                    _SUMMARY_CAP = 200    # ~50 tokens per source
+                    _LEDGER_CAP  = 1500
+                enrichment_for_debate = {
+                    k: {"signal": v["signal"], "summary": v["summary"][:_SUMMARY_CAP]}
+                    for k, v in enrichment_for_debate.items()
+                    if not (lite and v.get("signal", "").upper() in _DEAD_SIGNALS)
+                }
+                fact_ledger_json = fact_ledger_json[:_LEDGER_CAP] if fact_ledger_json else fact_ledger_json
+                logger.info(
+                    f"[Debate] Compacted enrichment_for_debate for small-context model "
+                    f"'{self.general_client.model_name}' (limit: {_debate_max_chars:,} chars, "
+                    f"lite={lite}, {len(enrichment_for_debate)} signals kept)"
+                )
+
             # Build memory context for debate agents
             sector_name = ""
             if isinstance(report.get("quant"), dict):
@@ -1206,9 +1311,10 @@ class AnalysisOrchestrator:
         report["_session_context"] = ctx.format_for_prompt()
 
         # Step 11+12: Synthesis + Critic (with reflection loop)
+        _synth_label = self.settings.deep_think_model or _model_label
         step("synthesis", "started", "Drafting final report...")
         step("synthesis", "running", "Building synthesis prompt from all agent outputs...")
-        step("synthesis", "running", "Gemini generating structured JSON report (reflection loop enabled)...")
+        step("synthesis", "running", f"{_synth_label} generating structured JSON report (reflection loop enabled)...")
         final_json = await asyncio.to_thread(self.run_synthesis_pipeline, ticker, report)
         iterations = final_json.get("synthesis_iterations", 1)
         iter_msg = f" ({iterations} iteration{'s' if iterations > 1 else ''})" if iterations > 1 else ""
@@ -1334,6 +1440,8 @@ class AnalysisOrchestrator:
 
         # Attach cost summary (token usage + cost breakdown)
         cost_summary = self._cost_tracker.summarize()
+        cost_summary["standard_model"] = self.settings.gemini_model
+        cost_summary["deep_think_model"] = self.settings.deep_think_model or self.settings.gemini_model
         final_json["cost_summary"] = cost_summary
 
         # Budget check (soft warning only, does not abort)

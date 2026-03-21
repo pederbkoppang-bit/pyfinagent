@@ -68,7 +68,7 @@ export default function PerformancePage() {
               <BentoCard glow>
                 <p className="text-sm text-slate-400">Win Rate</p>
                 <p className="mt-2 font-mono text-5xl font-bold text-emerald-400">
-                  {(stats.win_rate * 100).toFixed(1)}%
+                  {((stats.win_rate ?? 0) * 100).toFixed(1)}%
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   {stats.wins}W / {stats.losses}L of{" "}
@@ -82,11 +82,11 @@ export default function PerformancePage() {
                 <p className="text-sm text-slate-400">Avg Return</p>
                 <p
                   className={`mt-2 font-mono text-5xl font-bold ${
-                    stats.avg_return >= 0 ? "text-emerald-400" : "text-rose-400"
+                    (stats.avg_return ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"
                   }`}
                 >
-                  {stats.avg_return >= 0 ? "+" : ""}
-                  {stats.avg_return.toFixed(2)}%
+                  {(stats.avg_return ?? 0) >= 0 ? "+" : ""}
+                  {(stats.avg_return ?? 0).toFixed(2)}%
                 </p>
               </BentoCard>
             </div>
@@ -95,7 +95,7 @@ export default function PerformancePage() {
               <BentoCard>
                 <p className="text-sm text-slate-400">Beat Benchmark (SPY)</p>
                 <p className="mt-2 font-mono text-5xl font-bold text-sky-400">
-                  {(stats.benchmark_beat_rate * 100).toFixed(1)}%
+                  {((stats.benchmark_beat_rate ?? 0) * 100).toFixed(1)}%
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   of recommendations outperformed S&P 500
@@ -182,6 +182,7 @@ export default function PerformancePage() {
                     <tr className="border-b border-slate-700 text-slate-500">
                       <th className="pb-2 pr-4">Ticker</th>
                       <th className="pb-2 pr-4">Date</th>
+                      <th className="pb-2 pr-4">Model</th>
                       <th className="pb-2 pr-4 text-right">Tokens</th>
                       <th className="pb-2 pr-4 text-right">Cost</th>
                       <th className="pb-2 text-right">Deep Think</th>
@@ -198,6 +199,12 @@ export default function PerformancePage() {
                         </td>
                         <td className="py-2 pr-4 text-slate-400">
                           {row.analysis_date}
+                        </td>
+                        <td className="py-2 pr-4 text-xs text-slate-400">
+                          {row.standard_model || "—"}
+                          {row.deep_think_model && row.deep_think_model !== row.standard_model && (
+                            <span className="ml-1 text-violet-400">+ {row.deep_think_model}</span>
+                          )}
                         </td>
                         <td className="py-2 pr-4 text-right font-mono">
                           {row.total_tokens != null

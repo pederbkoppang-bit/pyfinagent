@@ -22,17 +22,26 @@ _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 _VALID_MODELS = {
     # Gemini (Vertex AI)
     "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro",
-    # GitHub Models (OpenAI-compatible endpoint, served via Copilot Pro)
-    "gpt-4o", "gpt-4o-mini",
+    # GitHub Models — OpenAI
+    "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
+    "gpt-5", "gpt-5-chat", "gpt-5-mini", "gpt-5-nano",
+    "o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o4-mini",
+    # GitHub Models — Anthropic
     "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
-    "claude-3-7-sonnet-20250219", "claude-sonnet-4-6",
-    "meta-llama-3.1-405b-instruct", "meta-llama-3.1-70b-instruct", "meta-llama-3.1-8b-instruct",
-    "phi-4", "phi-3.5-moe-instruct", "phi-3.5-mini-instruct",
-    "mistral-large-2407", "mistral-nemo",
+    "claude-3-7-sonnet-20250219", "claude-sonnet-4", "claude-opus-4",
     # Anthropic direct
-    # (claude-* already covered above via GitHub Models; same names work for both)
-    # OpenAI direct
-    "o1", "o1-mini", "o3-mini",
+    "claude-sonnet-4-6",
+    # GitHub Models — Meta
+    "meta-llama-3.1-405b-instruct", "meta-llama-3.1-8b-instruct",
+    "llama-3.3-70b-instruct", "llama-4-maverick", "llama-4-scout",
+    # GitHub Models — DeepSeek
+    "deepseek-r1", "deepseek-r1-0528", "deepseek-v3-0324",
+    # GitHub Models — xAI
+    "grok-3", "grok-3-mini",
+    # GitHub Models — Microsoft
+    "phi-4", "mai-ds-r1", "phi-4-mini-instruct", "phi-4-mini-reasoning", "phi-4-reasoning",
+    # GitHub Models — Mistral
+    "ministral-3b", "codestral-2501", "mistral-medium-2505", "mistral-small-2503",
 }
 
 
@@ -99,6 +108,8 @@ class ModelPricing(BaseModel):
     provider: str = "Gemini"
     input_per_1m: float
     output_per_1m: float
+    copilot_multiplier: Optional[float] = None  # Premium quota multiplier for GitHub Copilot (0.33x / 1x / 3x)
+    context_limited: bool = False  # True = GitHub Models enforces a small request body limit; debate prompts will be compacted
 
 
 AVAILABLE_MODELS = [
@@ -107,22 +118,59 @@ AVAILABLE_MODELS = [
     {"model": "gemini-2.5-flash",  "provider": "Gemini", "input_per_1m": 0.15, "output_per_1m": 0.60},
     {"model": "gemini-2.5-pro",    "provider": "Gemini", "input_per_1m": 1.25, "output_per_1m": 10.00},
     # GitHub Models — requires GITHUB_TOKEN + Copilot Pro subscription
-    {"model": "gpt-4o",                       "provider": "GitHub Models", "input_per_1m": 2.50,  "output_per_1m": 10.00},
-    {"model": "gpt-4o-mini",                  "provider": "GitHub Models", "input_per_1m": 0.15,  "output_per_1m": 0.60},
-    {"model": "claude-3-5-sonnet-20241022",   "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00},
-    {"model": "claude-3-5-haiku-20241022",    "provider": "GitHub Models", "input_per_1m": 0.80,  "output_per_1m": 4.00},
-    {"model": "claude-3-7-sonnet-20250219",   "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00},
-    {"model": "claude-sonnet-4-6",            "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00},
-    {"model": "meta-llama-3.1-405b-instruct", "provider": "GitHub Models", "input_per_1m": 5.00,  "output_per_1m": 15.00},
-    {"model": "meta-llama-3.1-70b-instruct",  "provider": "GitHub Models", "input_per_1m": 0.90,  "output_per_1m": 0.90},
-    {"model": "phi-4",                        "provider": "GitHub Models", "input_per_1m": 0.07,  "output_per_1m": 0.14},
-    {"model": "mistral-large-2407",           "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 9.00},
-    # Anthropic direct — requires ANTHROPIC_API_KEY
-    # (claude-* models above also work via ANTHROPIC_API_KEY when GITHUB_TOKEN is not set)
-    # OpenAI direct — requires OPENAI_API_KEY
-    {"model": "o1",      "provider": "OpenAI", "input_per_1m": 15.00, "output_per_1m": 60.00},
-    {"model": "o1-mini", "provider": "OpenAI", "input_per_1m": 3.00,  "output_per_1m": 12.00},
-    {"model": "o3-mini", "provider": "OpenAI", "input_per_1m": 1.10,  "output_per_1m": 4.40},
+    # copilot_multiplier = premium quota consumed per request (0.33x light / 1x standard / 3x premium)
+    #   based on GitHub Models rate-limit tiers: low→0.33x, high→1x, custom(8-10/day)→3x, custom(12+/day)→1x
+    # context_limited = True means GitHub Models enforces a small request body limit (~4K-8K tokens);
+    #   the orchestrator compacts enrichment_for_debate to fit — debate quality is somewhat reduced
+    # ── OpenAI ──
+    {"model": "gpt-4.1",       "provider": "GitHub Models", "input_per_1m": 2.00,  "output_per_1m": 8.00,   "copilot_multiplier": 1.0},
+    {"model": "gpt-4.1-mini",  "provider": "GitHub Models", "input_per_1m": 0.40,  "output_per_1m": 1.60,   "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "gpt-4.1-nano",  "provider": "GitHub Models", "input_per_1m": 0.10,  "output_per_1m": 0.40,   "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "gpt-4o",        "provider": "GitHub Models", "input_per_1m": 2.50,  "output_per_1m": 10.00,  "copilot_multiplier": 1.0},
+    {"model": "gpt-4o-mini",   "provider": "GitHub Models", "input_per_1m": 0.15,  "output_per_1m": 0.60,   "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "gpt-5",         "provider": "GitHub Models", "input_per_1m": 10.00, "output_per_1m": 40.00,  "copilot_multiplier": 3.0,  "context_limited": True},
+    {"model": "gpt-5-chat",    "provider": "GitHub Models", "input_per_1m": 5.00,  "output_per_1m": 20.00,  "copilot_multiplier": 1.0,  "context_limited": True},
+    {"model": "gpt-5-mini",    "provider": "GitHub Models", "input_per_1m": 2.00,  "output_per_1m": 8.00,   "copilot_multiplier": 1.0,  "context_limited": True},
+    {"model": "gpt-5-nano",    "provider": "GitHub Models", "input_per_1m": 0.50,  "output_per_1m": 2.00,   "copilot_multiplier": 1.0,  "context_limited": True},
+    {"model": "o1",            "provider": "GitHub Models", "input_per_1m": 15.00, "output_per_1m": 60.00,  "copilot_multiplier": 3.0},
+    {"model": "o1-mini",       "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 12.00,  "copilot_multiplier": 1.0,  "context_limited": True},
+    {"model": "o1-preview",    "provider": "GitHub Models", "input_per_1m": 15.00, "output_per_1m": 60.00,  "copilot_multiplier": 3.0,  "context_limited": True},
+    {"model": "o3",            "provider": "GitHub Models", "input_per_1m": 2.00,  "output_per_1m": 8.00,   "copilot_multiplier": 3.0},
+    {"model": "o3-mini",       "provider": "GitHub Models", "input_per_1m": 1.10,  "output_per_1m": 4.40,   "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "o4-mini",       "provider": "GitHub Models", "input_per_1m": 1.10,  "output_per_1m": 4.40,   "copilot_multiplier": 0.33},
+    # ── Anthropic (via GitHub Models) ──
+    {"model": "claude-3-5-sonnet-20241022",   "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00, "copilot_multiplier": 1.0},
+    {"model": "claude-3-5-haiku-20241022",    "provider": "GitHub Models", "input_per_1m": 0.80,  "output_per_1m": 4.00,  "copilot_multiplier": 0.33},
+    {"model": "claude-3-7-sonnet-20250219",   "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00, "copilot_multiplier": 1.0},
+    {"model": "claude-sonnet-4",              "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00, "copilot_multiplier": 1.0},
+    {"model": "claude-opus-4",                "provider": "GitHub Models", "input_per_1m": 15.00, "output_per_1m": 75.00, "copilot_multiplier": 3.0},
+    # ── Anthropic direct — requires ANTHROPIC_API_KEY ──
+    {"model": "claude-sonnet-4-6",            "provider": "Anthropic",     "input_per_1m": 3.00,  "output_per_1m": 15.00},
+    # ── Meta ──
+    {"model": "meta-llama-3.1-405b-instruct", "provider": "GitHub Models", "input_per_1m": 5.00,  "output_per_1m": 15.00, "copilot_multiplier": 1.0},
+    {"model": "meta-llama-3.1-8b-instruct",   "provider": "GitHub Models", "input_per_1m": 0.18,  "output_per_1m": 0.18,  "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "llama-3.3-70b-instruct",       "provider": "GitHub Models", "input_per_1m": 0.23,  "output_per_1m": 0.70,  "copilot_multiplier": 1.0},
+    {"model": "llama-4-maverick",             "provider": "GitHub Models", "input_per_1m": 0.19,  "output_per_1m": 0.85,  "copilot_multiplier": 1.0},
+    {"model": "llama-4-scout",                "provider": "GitHub Models", "input_per_1m": 0.11,  "output_per_1m": 0.40,  "copilot_multiplier": 1.0},
+    # ── DeepSeek ──
+    {"model": "deepseek-r1",      "provider": "GitHub Models", "input_per_1m": 0.55,  "output_per_1m": 2.19,  "copilot_multiplier": 3.0,  "context_limited": True},
+    {"model": "deepseek-r1-0528", "provider": "GitHub Models", "input_per_1m": 0.55,  "output_per_1m": 2.19,  "copilot_multiplier": 3.0,  "context_limited": True},
+    {"model": "deepseek-v3-0324", "provider": "GitHub Models", "input_per_1m": 0.27,  "output_per_1m": 1.10,  "copilot_multiplier": 1.0},
+    # ── xAI ──
+    {"model": "grok-3",      "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00, "copilot_multiplier": 1.0,  "context_limited": True},
+    {"model": "grok-3-mini", "provider": "GitHub Models", "input_per_1m": 0.30,  "output_per_1m": 0.50,  "copilot_multiplier": 0.33, "context_limited": True},
+    # ── Microsoft ──
+    {"model": "phi-4",                "provider": "GitHub Models", "input_per_1m": 0.07,  "output_per_1m": 0.14,  "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "mai-ds-r1",            "provider": "GitHub Models", "input_per_1m": 0.55,  "output_per_1m": 2.19,  "copilot_multiplier": 3.0,  "context_limited": True},
+    {"model": "phi-4-mini-instruct",  "provider": "GitHub Models", "input_per_1m": 0.07,  "output_per_1m": 0.14,  "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "phi-4-mini-reasoning", "provider": "GitHub Models", "input_per_1m": 0.10,  "output_per_1m": 0.20,  "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "phi-4-reasoning",      "provider": "GitHub Models", "input_per_1m": 0.10,  "output_per_1m": 0.40,  "copilot_multiplier": 0.33, "context_limited": True},
+    # ── Mistral ──
+    {"model": "ministral-3b",       "provider": "GitHub Models", "input_per_1m": 0.10,  "output_per_1m": 0.10,  "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "codestral-2501",     "provider": "GitHub Models", "input_per_1m": 0.30,  "output_per_1m": 0.90,  "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "mistral-medium-2505","provider": "GitHub Models", "input_per_1m": 2.00,  "output_per_1m": 6.00,  "copilot_multiplier": 0.33, "context_limited": True},
+    {"model": "mistral-small-2503", "provider": "GitHub Models", "input_per_1m": 0.10,  "output_per_1m": 0.30,  "copilot_multiplier": 0.33, "context_limited": True},
+    # Note: GitHub Models claude-* models also fall back to ANTHROPIC_API_KEY when GITHUB_TOKEN is not set.
 ]
 
 # Mapping from SettingsUpdate field names to .env variable names

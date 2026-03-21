@@ -102,9 +102,9 @@ class PerformanceStats(BaseModel):
     total_recommendations: int = 0
     wins: int = 0
     losses: int = 0
-    avg_return: float = 0
-    win_rate: float = 0
-    benchmark_beat_rate: float = 0
+    avg_return: Optional[float] = 0
+    win_rate: Optional[float] = 0
+    benchmark_beat_rate: Optional[float] = 0
 
 
 # ── Agent Step Events (for status streaming) ────────────────────────

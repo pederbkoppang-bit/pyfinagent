@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import get_current_user
+from backend.api.backtest import router as backtest_router
 from backend.api.charts import router as charts_router
 from backend.api.investigate import router as investigate_router
 from backend.api.paper_trading import router as paper_trading_router, init_scheduler
@@ -111,6 +112,7 @@ async def auth_and_security_middleware(request: Request, call_next):
 
 # Routes
 app.include_router(analysis_router)
+app.include_router(backtest_router)
 app.include_router(charts_router)
 app.include_router(investigate_router)
 app.include_router(paper_trading_router)

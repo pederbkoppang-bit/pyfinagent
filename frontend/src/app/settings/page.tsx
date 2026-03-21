@@ -29,6 +29,232 @@ function isRiskAgent(name: string): boolean {
   return /^(Aggressive|Conservative|Neutral|Risk Judge)/i.test(name);
 }
 
+// ── VS Code-style Model Picker ──────────────────────────────────────────
+
+const MODEL_DISPLAY_NAMES: Record<string, string> = {
+  "gemini-2.0-flash": "Gemini 2.0 Flash",
+  "gemini-2.5-flash": "Gemini 2.5 Flash",
+  "gemini-2.5-pro": "Gemini 2.5 Pro",
+  // OpenAI
+  "gpt-4o": "GPT-4o",
+  "gpt-4o-mini": "GPT-4o mini",
+  "gpt-4.1": "GPT-4.1",
+  "gpt-4.1-mini": "GPT-4.1 mini",
+  "gpt-4.1-nano": "GPT-4.1 nano",
+  "gpt-5": "GPT-5",
+  "gpt-5-chat": "GPT-5 chat",
+  "gpt-5-mini": "GPT-5 mini",
+  "gpt-5-nano": "GPT-5 nano",
+  "o1": "o1",
+  "o1-mini": "o1-mini",
+  "o1-preview": "o1-preview",
+  "o3": "o3",
+  "o3-mini": "o3-mini",
+  "o4-mini": "o4-mini",
+  // Anthropic
+  "claude-3-5-sonnet-20241022": "Claude 3.5 Sonnet",
+  "claude-3-5-haiku-20241022": "Claude 3.5 Haiku",
+  "claude-3-7-sonnet-20250219": "Claude 3.7 Sonnet",
+  "claude-sonnet-4": "Claude Sonnet 4",
+  "claude-opus-4": "Claude Opus 4",
+  "claude-sonnet-4-6": "Claude Sonnet 4.6",
+  // Meta
+  "meta-llama-3.1-405b-instruct": "Llama 3.1 405B",
+  "meta-llama-3.1-8b-instruct": "Llama 3.1 8B",
+  "llama-3.3-70b-instruct": "Llama 3.3 70B",
+  "llama-4-maverick": "Llama 4 Maverick",
+  "llama-4-scout": "Llama 4 Scout",
+  // DeepSeek
+  "deepseek-r1": "DeepSeek R1",
+  "deepseek-r1-0528": "DeepSeek R1 (0528)",
+  "deepseek-v3-0324": "DeepSeek V3",
+  // xAI
+  "grok-3": "Grok 3",
+  "grok-3-mini": "Grok 3 mini",
+  // Microsoft
+  "phi-4": "Phi-4",
+  "mai-ds-r1": "MAI DS R1",
+  "phi-4-mini-instruct": "Phi-4 mini",
+  "phi-4-mini-reasoning": "Phi-4 mini Reasoning",
+  "phi-4-reasoning": "Phi-4 Reasoning",
+  // Mistral
+  "ministral-3b": "Ministral 3B",
+  "codestral-2501": "Codestral 2501",
+  "mistral-medium-2505": "Mistral Medium",
+  "mistral-small-2503": "Mistral Small",
+};
+
+const PRIMARY_MODEL_NAMES = new Set([
+  "gemini-2.0-flash",
+  "gemini-2.5-flash",
+  "gpt-4.1",
+  "gpt-4o",
+  "gpt-5",
+  "claude-sonnet-4",
+  "claude-sonnet-4-6",
+  "claude-3-7-sonnet-20250219",
+  "deepseek-r1",
+  "llama-4-maverick",
+  "grok-3",
+  "o4-mini",
+  "o3-mini",
+]);
+
+function CostBadge({
+  model,
+  githubConfigured,
+}: {
+  model: ModelPricing;
+  githubConfigured: boolean;
+}) {
+  if (
+    model.provider === "GitHub Models" &&
+    githubConfigured &&
+    model.copilot_multiplier !== undefined
+  ) {
+    const mult = model.copilot_multiplier;
+    const colorClass =
+      mult <= 0.33
+        ? "bg-emerald-900/50 text-emerald-300"
+        : mult >= 3
+        ? "bg-amber-900/50 text-amber-300"
+        : "bg-slate-700/60 text-slate-300";
+    return (
+      <span className={`rounded px-1.5 py-0.5 font-mono text-xs ${colorClass}`}>
+        {mult}x
+      </span>
+    );
+  }
+  return (
+    <span className="font-mono text-xs text-slate-500">
+      ${model.input_per_1m}/{model.output_per_1m}
+    </span>
+  );
+}
+
+function ModelPicker({
+  label,
+  value,
+  models,
+  githubConfigured,
+  onChange,
+  accentColor = "sky",
+}: {
+  label: string;
+  value: string;
+  models: ModelPricing[];
+  githubConfigured: boolean;
+  onChange: (v: string) => void;
+  accentColor?: "sky" | "violet";
+}) {
+  const [search, setSearch] = useState("");
+  const [showOther, setShowOther] = useState(false);
+
+  const selected = models.find((m) => m.model === value);
+
+  const filtered = models.filter((m) => {
+    const display = (MODEL_DISPLAY_NAMES[m.model] ?? m.model).toLowerCase();
+    const q = search.toLowerCase();
+    return display.includes(q) || m.model.toLowerCase().includes(q);
+  });
+
+  // When searching, don't pin — show natural filtered order
+  // When not searching, pin selected to top and exclude from list body
+  const isSearching = search.trim().length > 0;
+  const listModels = isSearching ? filtered : filtered.filter((m) => m.model !== value);
+  const primary = listModels.filter((m) => PRIMARY_MODEL_NAMES.has(m.model));
+  const other = listModels.filter((m) => !PRIMARY_MODEL_NAMES.has(m.model));
+
+  const borderClass =
+    accentColor === "violet" ? "border-violet-600" : "border-sky-600";
+  const checkClass =
+    accentColor === "violet" ? "text-violet-400" : "text-sky-400";
+
+  const ModelRow = ({ m }: { m: ModelPricing }) => (
+    <button
+      key={m.model}
+      onClick={() => onChange(m.model)}
+      className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-slate-800 ${
+        value === m.model ? "bg-slate-800/80" : ""
+      }`}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={`w-3 shrink-0 text-xs ${value === m.model ? checkClass : "text-transparent"}`}>
+          ✓
+        </span>
+        <span
+          className={`truncate ${
+            value === m.model ? "font-medium text-slate-100" : "text-slate-300"
+          }`}
+        >
+          {MODEL_DISPLAY_NAMES[m.model] ?? m.model}
+        </span>
+        <span className="shrink-0 text-xs text-slate-600">
+          {m.provider ?? "Gemini"}
+        </span>
+        {m.context_limited && (
+          <span className="shrink-0 rounded px-1 py-0.5 text-xs bg-amber-900/40 text-amber-400">
+            ctx limit
+          </span>
+        )}
+      </div>
+      <CostBadge model={m} githubConfigured={githubConfigured} />
+    </button>
+  );
+
+  return (
+    <div>
+      <label className="mb-1.5 block text-sm text-slate-300">{label}</label>
+      <div
+        className={`overflow-hidden rounded-lg border bg-slate-900 ${
+          value ? borderClass : "border-slate-700"
+        }`}
+      >
+        {/* Search bar */}
+        <div className="border-b border-slate-800 px-3 py-2">
+          <input
+            type="text"
+            placeholder="Search models..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-transparent text-sm text-slate-300 placeholder-slate-600 focus:outline-none"
+          />
+        </div>
+        {/* Model rows */}
+        <div className="max-h-52 overflow-y-auto scrollbar-thin">
+          {/* Pinned selected model at top (when not searching) */}
+          {!isSearching && selected && (
+            <>
+              <ModelRow m={selected} />
+              <div className="mx-3 border-t border-slate-800" />
+            </>
+          )}
+          {primary.map((m) => (
+            <ModelRow key={m.model} m={m} />
+          ))}
+          {other.length > 0 && (
+            <>
+              <button
+                onClick={() => setShowOther((x) => !x)}
+                className="flex w-full items-center justify-between px-4 py-1.5 text-xs text-slate-500 transition-colors hover:text-slate-400"
+              >
+                <span>Other models ({other.length})</span>
+                <span>{showOther ? "▲" : "▼"}</span>
+              </button>
+              {showOther && other.map((m) => <ModelRow key={m.model} m={m} />)}
+            </>
+          )}
+          {primary.length === 0 && other.length === 0 && (
+            <p className="px-3 py-4 text-center text-sm text-slate-600">
+              No models match
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<FullSettings | null>(null);
   const [models, setModels] = useState<ModelPricing[]>([]);
@@ -163,6 +389,31 @@ export default function SettingsPage() {
     );
   }, [form]);
 
+  // Estimated Copilot premium requests consumed for this analysis
+  const premiumRequests = useMemo(() => {
+    if (!estimatedCost || !settings?.github_token_configured) return null;
+    const stdModel = models.find((m) => m.model === (form.gemini_model ?? ""));
+    const dtModel = models.find(
+      (m) => m.model === (form.deep_think_model ?? form.gemini_model ?? "")
+    );
+    if (
+      stdModel?.provider !== "GitHub Models" &&
+      dtModel?.provider !== "GitHub Models"
+    )
+      return null;
+    const stdMult =
+      stdModel?.provider === "GitHub Models"
+        ? (stdModel.copilot_multiplier ?? 1)
+        : 0;
+    const dtMult =
+      dtModel?.provider === "GitHub Models"
+        ? (dtModel.copilot_multiplier ?? 1)
+        : 0;
+    const dtCalls = costData?.deep_think_calls ?? 0;
+    const stdCalls = estimatedCost.calls - dtCalls;
+    return Math.round(stdCalls * stdMult + dtCalls * dtMult);
+  }, [estimatedCost, models, form, settings, costData]);
+
   if (!settings) {
     return (
       <div className="flex min-h-screen">
@@ -272,6 +523,14 @@ export default function SettingsPage() {
                     <div className="text-xs text-slate-500">LLM calls</div>
                   </div>
                 </div>
+                {premiumRequests !== null && (
+                  <div className="rounded-lg bg-slate-800/50 p-3 text-center">
+                    <div className="text-lg font-bold text-emerald-300">
+                      ~{premiumRequests}
+                    </div>
+                    <div className="text-xs text-slate-500">Copilot premium req.</div>
+                  </div>
+                )}
                 <p className="text-xs text-slate-600">
                   Based on real token usage from last analysis
                   {costData?.ticker ? ` (${costData.ticker})` : ""}.
@@ -287,7 +546,7 @@ export default function SettingsPage() {
           </BentoCard>
 
           {/* ── Model Configuration ─────────────────────────── */}
-          <BentoCard>
+          <BentoCard className="lg:col-span-2">
             <h3 className="mb-3 text-lg font-semibold text-slate-300">
               🧠 Model Configuration
             </h3>
@@ -296,78 +555,66 @@ export default function SettingsPage() {
               <span className="rounded-full bg-sky-900/40 px-2 py-0.5 text-xs text-sky-300">
                 Gemini: Always available
               </span>
-              <span className={`rounded-full px-2 py-0.5 text-xs ${
-                settings?.github_token_configured
-                  ? "bg-emerald-900/40 text-emerald-300"
-                  : "bg-slate-700 text-slate-400"
-              }`}>
-                GitHub Models: {settings?.github_token_configured ? "Configured" : "No token"}
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs ${
+                  settings?.github_token_configured
+                    ? "bg-emerald-900/40 text-emerald-300"
+                    : "bg-slate-700 text-slate-400"
+                }`}
+              >
+                GitHub Models:{" "}
+                {settings?.github_token_configured ? "Configured" : "No token"}
               </span>
-              <span className={`rounded-full px-2 py-0.5 text-xs ${
-                settings?.anthropic_key_configured
-                  ? "bg-emerald-900/40 text-emerald-300"
-                  : "bg-slate-700 text-slate-400"
-              }`}>
-                Anthropic: {settings?.anthropic_key_configured ? "Configured" : "No key"}
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs ${
+                  settings?.anthropic_key_configured
+                    ? "bg-emerald-900/40 text-emerald-300"
+                    : "bg-slate-700 text-slate-400"
+                }`}
+              >
+                Anthropic:{" "}
+                {settings?.anthropic_key_configured ? "Configured" : "No key"}
               </span>
-              <span className={`rounded-full px-2 py-0.5 text-xs ${
-                settings?.openai_key_configured
-                  ? "bg-emerald-900/40 text-emerald-300"
-                  : "bg-slate-700 text-slate-400"
-              }`}>
-                OpenAI: {settings?.openai_key_configured ? "Configured" : "No key"}
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs ${
+                  settings?.openai_key_configured
+                    ? "bg-emerald-900/40 text-emerald-300"
+                    : "bg-slate-700 text-slate-400"
+                }`}
+              >
+                OpenAI:{" "}
+                {settings?.openai_key_configured ? "Configured" : "No key"}
               </span>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm text-slate-300">
-                  Standard Model (all agents)
-                </label>
-                <select
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:border-sky-500 focus:outline-none"
-                  value={form.gemini_model ?? ""}
-                  onChange={(e) => updateForm("gemini_model", e.target.value)}
-                >
-                  {["Gemini", "GitHub Models", "Anthropic", "OpenAI"].map((provider) => {
-                    const group = models.filter((m) => (m.provider ?? "Gemini") === provider);
-                    if (!group.length) return null;
-                    return (
-                      <optgroup key={provider} label={provider}>
-                        {group.map((m) => (
-                          <option key={m.model} value={m.model}>
-                            {m.model} — ${m.input_per_1m}/{m.output_per_1m} per 1M
-                          </option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm text-slate-300">
-                  Deep Think Model (Moderator, Synthesis, Critic, Risk Judge)
-                </label>
-                <select
-                  className="w-full rounded-lg border border-violet-700/50 bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:border-violet-500 focus:outline-none"
-                  value={form.deep_think_model ?? ""}
-                  onChange={(e) => updateForm("deep_think_model", e.target.value)}
-                >
-                  {["Gemini", "GitHub Models", "Anthropic", "OpenAI"].map((provider) => {
-                    const group = models.filter((m) => (m.provider ?? "Gemini") === provider);
-                    if (!group.length) return null;
-                    return (
-                      <optgroup key={provider} label={provider}>
-                        {group.map((m) => (
-                          <option key={m.model} value={m.model}>
-                            {m.model} — ${m.input_per_1m}/{m.output_per_1m} per 1M
-                          </option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-              </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <ModelPicker
+                label="Standard Model (all agents)"
+                value={form.gemini_model ?? ""}
+                models={models}
+                githubConfigured={!!settings?.github_token_configured}
+                onChange={(v) => updateForm("gemini_model", v)}
+                accentColor="sky"
+              />
+              <ModelPicker
+                label="Deep Think Model (Moderator, Synthesis, Critic, Risk Judge)"
+                value={form.deep_think_model ?? ""}
+                models={models}
+                githubConfigured={!!settings?.github_token_configured}
+                onChange={(v) => updateForm("deep_think_model", v)}
+                accentColor="violet"
+              />
             </div>
+            {/* Context-limited warning banner */}
+            {models.find((m) => m.model === form.gemini_model)?.context_limited && (
+              <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-amber-700/50 bg-amber-900/20 px-3.5 py-2.5 text-sm text-amber-300">
+                <span className="mt-0.5 shrink-0 text-base">⚠</span>
+                <div>
+                  <span className="font-medium">{MODEL_DISPLAY_NAMES[form.gemini_model ?? ""] ?? form.gemini_model}</span> has a small context window on GitHub Models (~4K–8K tokens).
+                  {" "}Agent Debate prompts will be automatically compacted (summaries only, no full analysis text).
+                  {" "}For full-quality debate, use <span className="font-medium">GPT-4.1</span>, <span className="font-medium">GPT-4o</span>, or any Gemini/Claude model.
+                </div>
+              </div>
+            )}
           </BentoCard>
 
           {/* ── Cost Controls ───────────────────────────────── */}

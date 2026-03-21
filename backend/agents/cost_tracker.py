@@ -13,7 +13,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Pricing per 1M tokens (input, output) — March 2026
+# Pricing per 1M tokens (input, output) — June 2026
 MODEL_PRICING: dict[str, tuple[float, float]] = {
     # Gemini (Vertex AI)
     "gemini-2.0-flash": (0.10, 0.40),
@@ -23,20 +23,49 @@ MODEL_PRICING: dict[str, tuple[float, float]] = {
     "claude-3-5-haiku-20241022": (0.80, 4.00),
     "claude-3-5-sonnet-20241022": (3.00, 15.00),
     "claude-3-7-sonnet-20250219": (3.00, 15.00),
+    "claude-sonnet-4": (3.00, 15.00),
+    "claude-opus-4": (15.00, 75.00),
     "claude-sonnet-4-6": (3.00, 15.00),
     # OpenAI (direct or via GitHub Models)
     "gpt-4o": (2.50, 10.00),
     "gpt-4o-mini": (0.15, 0.60),
+    "gpt-4.1": (2.00, 8.00),
+    "gpt-4.1-mini": (0.40, 1.60),
+    "gpt-4.1-nano": (0.10, 0.40),
+    "gpt-5": (10.00, 40.00),
+    "gpt-5-chat": (5.00, 20.00),
+    "gpt-5-mini": (2.00, 8.00),
+    "gpt-5-nano": (0.50, 2.00),
     "o1": (15.00, 60.00),
     "o1-mini": (3.00, 12.00),
+    "o1-preview": (15.00, 60.00),
+    "o3": (2.00, 8.00),
     "o3-mini": (1.10, 4.40),
+    "o4-mini": (1.10, 4.40),
     # Meta Llama (via GitHub Models)
     "meta-llama-3.1-405b-instruct": (5.00, 15.00),
-    "meta-llama-3.1-70b-instruct": (0.90, 0.90),
     "meta-llama-3.1-8b-instruct": (0.18, 0.18),
+    "llama-3.3-70b-instruct": (0.23, 0.70),
+    "llama-4-maverick": (0.19, 0.85),
+    "llama-4-scout": (0.11, 0.40),
+    # DeepSeek (via GitHub Models)
+    "deepseek-r1": (0.55, 2.19),
+    "deepseek-r1-0528": (0.55, 2.19),
+    "deepseek-v3-0324": (0.27, 1.10),
+    # xAI (via GitHub Models)
+    "grok-3": (3.00, 15.00),
+    "grok-3-mini": (0.30, 0.50),
+    # Microsoft (via GitHub Models)
+    "phi-4": (0.07, 0.14),
+    "mai-ds-r1": (0.55, 2.19),
+    "phi-4-mini-instruct": (0.07, 0.14),
+    "phi-4-mini-reasoning": (0.10, 0.20),
+    "phi-4-reasoning": (0.10, 0.40),
     # Mistral (via GitHub Models)
-    "mistral-large-2407": (3.00, 9.00),
-    "mistral-nemo": (0.30, 0.30),
+    "ministral-3b": (0.10, 0.10),
+    "codestral-2501": (0.30, 0.90),
+    "mistral-medium-2505": (2.00, 6.00),
+    "mistral-small-2503": (0.10, 0.30),
 }
 
 # Fallback pricing if model not in table

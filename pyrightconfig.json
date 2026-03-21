@@ -1,0 +1,22 @@
+{
+  "venvPath": ".",
+  "venv": ".venv312",
+  "pythonVersion": "3.12",
+  "include": [
+    "backend",
+    "quant-agent",
+    "ingestion_agent",
+    "earnings-ingestion-agent"
+  ],
+  "extraPaths": [
+    ".",
+    "backend"
+  ],
+  "exclude": [
+    "**/.*",
+    "**/__pycache__",
+    "**/node_modules",
+    ".next",
+    ".venv312"
+  ]
+}

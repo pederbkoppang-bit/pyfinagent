@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/charts", tags=["charts"])
 @router.get("/{ticker}")
 async def get_price_history(
     ticker: str,
-    period: str = Query("1y", regex=r"^(1mo|3mo|6mo|1y|2y|5y|max)$"),
+    period: str = Query("1y", pattern=r"^(1mo|3mo|6mo|1y|2y|5y|max)$"),
 ):
     """Return OHLCV price history for the given ticker."""
     try:

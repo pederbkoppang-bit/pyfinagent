@@ -105,6 +105,9 @@ class BigQueryClient:
                     deep_think_calls: Optional[int] = None,
                     # ── Phase 9: Reflection loop + quality gates ──
                     synthesis_iterations: Optional[int] = None,
+                    # ── Phase 10: Model tracking ──
+                    standard_model: str = "",
+                    deep_think_model: str = "",
                     ) -> None:
         row = {
             "ticker": ticker,
@@ -188,6 +191,9 @@ class BigQueryClient:
             "deep_think_calls": deep_think_calls,
             # ── Phase 9: Reflection loop + quality gates ──
             "synthesis_iterations": synthesis_iterations,
+            # ── Phase 10: Model tracking ──
+            "standard_model": standard_model,
+            "deep_think_model": deep_think_model,
             # ── Full report ──
             "full_report_json": json.dumps(full_report),
         }
@@ -271,7 +277,8 @@ class BigQueryClient:
 
     def get_cost_history(self, limit: int = 50) -> list[dict]:
         query = f"""
-            SELECT ticker, analysis_date, total_tokens, total_cost_usd, deep_think_calls
+            SELECT ticker, analysis_date, total_tokens, total_cost_usd, deep_think_calls,
+                   standard_model, deep_think_model
             FROM `{self.reports_table}`
             WHERE total_cost_usd IS NOT NULL
             ORDER BY analysis_date DESC

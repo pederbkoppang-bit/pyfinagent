@@ -1,10 +1,7 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv312/Scripts/python.exe",
-  "python.linting.enabled": true,
-  "python.linting.pylintEnabled": false,
-  "python.analysis.typeCheckingMode": "basic",
-  "python.analysis.extraPaths": ["${workspaceFolder}"],
+  "python.venvPath": "${workspaceFolder}",
   "[python]": {
-    "editor.defaultFormatter": "ms-python.autopep8"
+    "editor.defaultFormatter": "ms-python.python"
   }
 }

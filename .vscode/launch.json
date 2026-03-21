@@ -2,17 +2,42 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Streamlit App",
+            "name": "Backend: FastAPI (.venv312)",
             "type": "python",
             "request": "launch",
-            "module": "streamlit",
+            "python": "${workspaceFolder}/.venv312/Scripts/python.exe",
+            "module": "uvicorn",
             "args": [
-                "run",
-                "${file}",
-                "--server.port",
-                "8081"
+                "backend.main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8000",
+                "--reload"
             ],
-            "jinja": true
+            "cwd": "${workspaceFolder}",
+            "jinja": true,
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Frontend: Next.js",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "npm run dev",
+            "cwd": "${workspaceFolder}/frontend"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Full Stack: Backend + Frontend",
+            "configurations": [
+                "Backend: FastAPI (.venv312)",
+                "Frontend: Next.js"
+            ],
+            "stopAll": true
         }
     ]
 }

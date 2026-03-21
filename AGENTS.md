@@ -55,7 +55,19 @@ pyfinagent/
 │   │   ├── portfolio.py         # Portfolio tracking CRUD
 │   │   ├── paper_trading.py     # Autonomous paper trading endpoints (8 routes)
 │   │   ├── settings_api.py      # Model configuration + available models
-│   │   └── skills.py            # Skills optimization API endpoints
+│   │   ├── skills.py            # Skills optimization API endpoints
+│   │   └── backtest.py          # Walk-forward backtest + quant optimizer endpoints (11 routes)
+│   ├── backtest/
+│   │   ├── analytics.py          # Sharpe, DSR, baselines, reporting
+│   │   ├── backtest_engine.py    # Walk-forward ML backtest orchestrator
+│   │   ├── backtest_trader.py    # In-memory portfolio simulator (inverse-vol sizing)
+│   │   ├── cache.py              # BQ query cache layer for historical data
+│   │   ├── candidate_selector.py # S&P 500 screening at historical dates
+│   │   ├── data_ingestion.py     # Bulk ingest prices/fundamentals/macro to BQ
+│   │   ├── historical_data.py    # ~43-feature vector builder (point-in-time)
+│   │   ├── quant_optimizer.py    # Autoresearch-style strategy optimization loop
+│   │   ├── walk_forward.py       # Expanding-window walk-forward scheduler
+│   │   └── experiments/          # quant_results.tsv experiment logs
 │   ├── db/
 │   │   ├── bigquery_client.py    # BigQuery report persistence (68-column ML schema) + paper trading CRUD
 │   │   └── __init__.py
@@ -126,6 +138,7 @@ pyfinagent/
 ├── migrate_bq_schema.py         # Idempotent BQ schema migration (adds ML columns)
 ├── migrate_agent_memories.py    # Idempotent BQ migration (creates agent_memories table)
 ├── migrate_paper_trading.py     # Idempotent BQ migration (4 paper trading tables)
+├── migrate_backtest_data.py     # Idempotent BQ migration (3 historical data tables)
 ├── quant-agent/                 # GCP Cloud Function
 ├── ingestion_agent/             # GCP Cloud Function
 ├── earnings-ingestion-agent/    # GCP Cloud Function
@@ -442,7 +455,7 @@ This system's design is informed by leading research on AI in financial trading:
 ### Prerequisites
 
 *   Node.js 18+
-*   Python 3.11+
+*   Python 3.12+ (workspace is standardized on `.venv312`)
 *   GCP project with Vertex AI and BigQuery enabled
 *   Application Default Credentials configured (`gcloud auth application-default login`)
 *   Google OAuth Client ID (for SSO authentication)
@@ -452,19 +465,22 @@ This system's design is informed by leading research on AI in financial trading:
 
 ```bash
 # Backend
-cd backend
-pip install -r requirements.txt
-uvicorn backend.main:app --reload --port 8000
+./.venv312/Scripts/python.exe -m pip install -r backend/requirements.txt
+./.venv312/Scripts/python.exe -m uvicorn backend.main:app --reload --port 8000
 
 # Frontend (separate terminal)
 cd frontend
 npm install
 npx prisma migrate dev   # Initialize auth SQLite DB
-npm run dev  # port 3001
+npm run dev  # port 3000
 
 # Docker (all services)
 docker compose up --build
 ```
+
+**Workspace note**: `.venv312` is the canonical backend environment for this repo and should be used for Pylance, debugging, and FastAPI startup.
+
+**VS Code launch configs**: `.vscode/launch.json` includes `Backend: FastAPI (.venv312)`, `Frontend: Next.js`, and a compound `Full Stack: Backend + Frontend` launch so local development can be started from a consistent workspace configuration.
 
 ### Required Environment Variables
 
@@ -621,6 +637,22 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000
 | `GET` | `/api/skills/analysis` | Summary stats, keep rates, delta chain, top hits |
 | `GET` | `/api/skills/agents` | List all optimizable agents with skill file status |
 | `GET` | `/api/skills/{agent_name}` | View an agent's current skills.md content |
+
+### Backtest
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/backtest/run` | Start walk-forward backtest (async background task) |
+| `GET` | `/api/backtest/status` | Poll backtest progress (status, run_id, progress) |
+| `GET` | `/api/backtest/results` | Full backtest results with per-window analytics |
+| `GET` | `/api/backtest/results/{window_id}` | Per-window detail (trades, predictions, feature importance) |
+| `POST` | `/api/backtest/ingest` | Ingest historical price, fundamental, and macro data into BigQuery |
+| `GET` | `/api/backtest/ingest/status` | Row counts for historical data tables |
+| `POST` | `/api/backtest/optimize` | Start quant strategy optimization loop (background) |
+| `POST` | `/api/backtest/optimize/stop` | Stop the optimization loop gracefully |
+| `GET` | `/api/backtest/optimize/status` | Current optimizer state (iterations, best Sharpe, kept/discarded) |
+| `GET` | `/api/backtest/optimize/experiments` | Full experiment history from quant_results.tsv |
+| `GET` | `/api/backtest/optimize/best` | Best strategy params + feature importance |
 
 ---
 
@@ -846,6 +878,50 @@ Managed by `migrate_paper_trading.py` (idempotent). Stores virtual fund state, p
 | `trades_today` | INT64 | Trades executed today |
 | `analysis_cost_today` | FLOAT64 | LLM cost for today's analyses |
 
+### Backtest Data Tables (3 tables)
+
+Managed by `migrate_backtest_data.py` (idempotent). Stores historical price, fundamental, and macro data downloaded once from yfinance and FRED for walk-forward backtesting.
+
+#### `historical_prices` — OHLCV Price History
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ticker` | STRING | Stock symbol |
+| `date` | STRING | Trading date (YYYY-MM-DD) |
+| `open` | FLOAT64 | Open price |
+| `high` | FLOAT64 | High price |
+| `low` | FLOAT64 | Low price |
+| `close` | FLOAT64 | Close price (adjusted) |
+| `volume` | INT64 | Trading volume |
+| `ingested_at` | TIMESTAMP | When the row was ingested |
+
+#### `historical_fundamentals` — Quarterly Financial Statements
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ticker` | STRING | Stock symbol |
+| `report_date` | STRING | Fiscal quarter end date |
+| `filing_date` | STRING | SEC filing date (point-in-time) |
+| `total_revenue` | FLOAT64 | Quarterly revenue |
+| `net_income` | FLOAT64 | Net income |
+| `total_debt` | FLOAT64 | Total debt |
+| `total_equity` | FLOAT64 | Shareholders' equity |
+| `total_assets` | FLOAT64 | Total assets |
+| `operating_cash_flow` | FLOAT64 | Cash from operations |
+| `shares_outstanding` | FLOAT64 | Diluted shares outstanding |
+| `sector` | STRING | GICS sector |
+| `industry` | STRING | GICS industry |
+| `ingested_at` | TIMESTAMP | When the row was ingested |
+
+#### `historical_macro` — FRED Macro Indicators
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `series_id` | STRING | FRED series ID (e.g., FEDFUNDS, CPIAUCSL) |
+| `date` | STRING | Observation date (YYYY-MM-DD) |
+| `value` | FLOAT64 | Indicator value |
+| `ingested_at` | TIMESTAMP | When the row was ingested |
+
 ### ML Training Query Pattern
 
 ```sql
@@ -872,7 +948,7 @@ WHERE a.price_at_analysis IS NOT NULL
 
 ```bash
 # Backend (with auto-reload)
-cd backend && uvicorn backend.main:app --reload --port 8000
+./.venv312/Scripts/python.exe -m uvicorn backend.main:app --reload --port 8000
 
 # Frontend (with hot-reload)
 cd frontend && npm run dev
@@ -913,6 +989,108 @@ cd frontend && npm run build  # must produce 0 TypeScript errors
 
 ## Upgrade History
 
+### v4.0 — Walk-Forward Backtesting Engine (March 2026)
+
+Research-driven walk-forward backtesting system with Triple Barrier labeling, fractional differentiation, Deflated Sharpe Ratio guard, and an autoresearch-style quant strategy optimizer. Implements findings from López de Prado (*Advances in Financial Machine Learning*), TradingAgents (arXiv:2412.20138), FinRL (arXiv:2011.09607), and Lopez-Lira & Tang (arXiv:2304.07619). Two-regime architecture: quant-only ($0 LLM cost) for historical backtests, full 20-agent pipeline for live forward tests. Two-loop optimization: fast QuantStrategyOptimizer (minutes/cycle, quant params) + slow SkillOptimizer (days/cycle, LLM prompts), bridged by MDA feature importance.
+
+**Design Principles**:
+- **No future leakage**: Walk-forward expanding windows with 5-day embargo between train/test
+- **No LLM contamination**: Historical regime uses only quant features + GradientBoosting (LLMs "know" historical outcomes)
+- **Download once, replay forever**: BigQuery stores all historical data permanently (FinRL pattern)
+- **Backtest overfitting guard**: Deflated Sharpe Ratio (Bailey & López de Prado 2014) penalizes multiple testing
+
+**New Backend Modules (8 in `backend/backtest/`)**:
+*   `data_ingestion.py` — `DataIngestionService`: bulk ingest yfinance OHLCV (batches of 50), quarterly financials, FRED 7-series macro into 3 BQ tables. `run_full_ingestion()`, `get_ingestion_status()`
+*   `cache.py` — Module-level BQ query cache with `init_cache()`, `cached_prices()`, `cached_fundamentals()`, `cached_macro()`. Prevents redundant BQ reads during walk-forward windows
+*   `historical_data.py` — `HistoricalDataProvider`: builds ~43-feature vectors at any historical cutoff date. Includes `fractional_diff(series, d=0.4)` (López de Prado Ch. 5), `compute_turbulence_index()` (Mahalanobis distance), `_compute_amihud_illiquidity()`, Monte Carlo VaR, RSI, anomaly count
+*   `candidate_selector.py` — `CandidateSelector`: S&P 500 screening at historical dates using composite score (momentum 40%, RSI 20%, volatility 20%, SMA distance 20%). 50-ticker fallback list for resilience
+*   `walk_forward.py` — `WalkForwardScheduler`: generates expanding walk-forward windows with configurable train/test periods and embargo days. `WalkForwardWindow` dataclass
+*   `backtest_engine.py` — `BacktestEngine`: central orchestrator. `run_backtest()` → per-window: screen candidates → build features → Triple Barrier labels (Ch. 3) → sample weights via average uniqueness (Ch. 4) → train `GradientBoostingClassifier(n_estimators=200, max_depth=4, min_samples_leaf=20)` → MDI + MDA feature importance (Ch. 8) → predict & trade. 31 numeric features, 5 non-stationary features get fractional differentiation
+*   `backtest_trader.py` — `BacktestTrader`: in-memory portfolio simulator with inverse-volatility position sizing (target_vol=15%), probability-weighted allocation, transaction costs, sell-first-then-buy execution
+*   `analytics.py` — `compute_sharpe()`, `compute_deflated_sharpe()` (Bailey & López de Prado 2014), `compute_max_drawdown()`, `compute_alpha()`, `compute_hit_rate()`, `compute_information_ratio()`, `compute_baseline_strategies()` (SPY + equal-weight + momentum), `generate_report()`
+
+**New Backend Module (1 in `backend/backtest/`)**:
+*   `quant_optimizer.py` — `QuantStrategyOptimizer`: autoresearch-style optimization loop. Proposes parameter modifications (random ±15% perturbation or LLM-guided via Gemini Flash), evaluates via full backtest, keeps improvements with DSR ≥ 0.95 guard. 15 tunable parameters with bounds. Logs to `quant_results.tsv` (8-column TSV). `think_harder()` widens exploration after 5 consecutive discards
+
+**New API Route (1)**:
+*   `backend/api/backtest.py` — 11 endpoints: `POST /run` (async backtest), `GET /status`, `GET /results`, `GET /results/{window_id}`, `POST /ingest` (BQ data ingestion), `GET /ingest/status`, `POST /optimize` (quant optimizer), `POST /optimize/stop`, `GET /optimize/status`, `GET /optimize/experiments`, `GET /optimize/best`
+
+**BQ Schema (3 new tables)**:
+*   `historical_prices` (8 cols) — OHLCV price history from yfinance
+*   `historical_fundamentals` (13 cols) — Quarterly financials from yfinance `.quarterly_financials` + `.quarterly_balance_sheet`
+*   `historical_macro` (4 cols) — FRED 7-series macro indicators
+*   Managed by `migrate_backtest_data.py` (idempotent)
+
+**Modified Backend Files**:
+*   `backend/config/settings.py` — 14 new backtest settings: `backtest_start_date` ("2023-01-01"), `backtest_end_date` ("2025-12-31"), `backtest_train_window_months` (12), `backtest_test_window_months` (3), `backtest_embargo_days` (5), `backtest_holding_days` (90), `backtest_tp_pct` (10.0), `backtest_sl_pct` (10.0), `backtest_frac_diff_d` (0.4), `backtest_target_vol` (0.15), `backtest_top_n_candidates` (50), `backtest_starting_capital` (100000.0), `backtest_max_positions` (20), `backtest_transaction_cost_pct` (0.1)
+*   `backend/main.py` — Backtest router registered
+*   `backend/requirements.txt` — Added `scikit-learn>=1.4.0`, `scipy>=1.12.0`
+
+**Research Alignment**:
+
+| Research Source | Implementation |
+|----------------|----------------|
+| **López de Prado** — Triple Barrier (Ch. 3) | `_compute_triple_barrier_label()` in `backtest_engine.py`: +1 (TP hit), -1 (SL hit), 0 (time expiry) |
+| **López de Prado** — Sample Weights (Ch. 4) | `_compute_sample_weights()`: average uniqueness for overlapping 90-day labels → `sample_weight` in `GradientBoosting.fit()` |
+| **López de Prado** — Fractional Differentiation (Ch. 5) | `fractional_diff(d=0.4)` in `historical_data.py`: applied to price, market_cap, revenue, debt, equity |
+| **López de Prado** — Purged Walk-Forward CV (Ch. 7) | `WalkForwardScheduler` with 5-day embargo, expanding windows |
+| **López de Prado** — MDI + MDA Feature Importance (Ch. 8) | `_compute_mda()` (permutation, primary) + MDI from `feature_importances_` (secondary) |
+| **Bailey & López de Prado (2014)** — Deflated Sharpe Ratio | `compute_deflated_sharpe()` in `analytics.py`: penalizes multiple testing; DSR ≥ 0.95 gate in optimizer |
+| **Lopez-Lira & Tang (2023)** — LLM Knowledge Contamination | Two-regime architecture: quant-only for historical, full LLM pipeline for live |
+| **FinRL (2020)** — Three-layer Architecture | Data layer (BQ) → Agent layer (ML model) → Analytics layer (Sharpe, DSR, baselines) |
+| **TradingAgents (2024)** — Multi-agent Debate | MDA feature importance bridges backtest insights → live agent prompt targeting |
+
+**Two-Loop Architecture**:
+```
+Fast Loop: QuantStrategyOptimizer (minutes/cycle)
+├── Propose parameter modification (random or LLM-guided)
+├── Run full walk-forward backtest
+├── Evaluate: Sharpe, DSR, alpha, hit rate
+├── Keep if DSR ≥ 0.95 AND metric improves
+└── Log to quant_results.tsv
+
+Slow Loop: SkillOptimizer (days/cycle, existing v2.5)
+├── MDA feature importance → identifies which features matter
+├── Maps features → responsible agents
+├── Targets prompt modifications at underperforming agents
+└── Evaluates via outcome_tracking table
+
+Bridge: MDA feature importance from fast loop informs slow loop targeting
+```
+
+**New Environment Variables (14)**:
+```env
+# Backtest
+BACKTEST_START_DATE=2023-01-01
+BACKTEST_END_DATE=2025-12-31
+BACKTEST_TRAIN_WINDOW_MONTHS=12
+BACKTEST_TEST_WINDOW_MONTHS=3
+BACKTEST_EMBARGO_DAYS=5
+BACKTEST_HOLDING_DAYS=90
+BACKTEST_TP_PCT=10.0
+BACKTEST_SL_PCT=10.0
+BACKTEST_FRAC_DIFF_D=0.4
+BACKTEST_TARGET_VOL=0.15
+BACKTEST_TOP_N_CANDIDATES=50
+BACKTEST_STARTING_CAPITAL=100000.0
+BACKTEST_MAX_POSITIONS=20
+BACKTEST_TRANSACTION_COST_PCT=0.1
+```
+
+**New Dependencies**: `scikit-learn>=1.4.0`, `scipy>=1.12.0`
+
+**~43 Feature Vector** (built at any historical cutoff date):
+| Category | Features |
+|----------|----------|
+| Price & Returns | `price_at_analysis`, `return_1m`/`3m`/`6m`/`12m`, `volatility_1m`/`3m` |
+| Technical | `rsi_14`, `sma_50_distance`, `sma_200_distance`, `volume_ratio_20d` |
+| Monte Carlo | `var_95_6m`, `var_99_6m`, `expected_shortfall_6m`, `prob_positive_6m` |
+| Anomaly | `anomaly_count` |
+| Fundamentals | `pe_ratio`, `pb_ratio`, `debt_equity`, `roe`, `revenue_growth_yoy`, `net_margin`, `current_ratio` |
+| Macro | `fed_funds_rate`, `cpi_yoy`, `unemployment_rate`, `gdp_growth`, `yield_curve_spread`, `consumer_sentiment`, `treasury_10y` |
+| Advanced | `amihud_illiquidity`, `turbulence_index` |
+| Fractionally Differenced | `frac_diff_price`, `frac_diff_market_cap`, `frac_diff_revenue`, `frac_diff_debt`, `frac_diff_equity` |
+
 ### v3.4 — Multi-Provider LLM Support (March 2026)
 
 Introduced a unified `LLMClient` abstraction layer supporting Gemini, GitHub Models (Copilot Pro), Anthropic Claude, and OpenAI GPT/o-series as drop-in LLM backends. Provider routing is transparent — the existing 2-slot model architecture (standard + deep-think) is preserved with zero pipeline changes.
@@ -927,9 +1105,9 @@ Introduced a unified `LLMClient` abstraction layer supporting Gemini, GitHub Mod
 - `make_client(model_name, vertex_model, settings) -> LLMClient` — factory with priority routing:
   1. If `model_name` is in `GITHUB_MODELS_CATALOG` AND `GITHUB_TOKEN` is set → `OpenAIClient` via `https://models.inference.ai.azure.com`
   2. Elif starts with `claude-` AND `ANTHROPIC_API_KEY` is set → `ClaudeClient`
-  3. Elif starts with `gpt-` / `o1` / `o3-` AND `OPENAI_API_KEY` is set → `OpenAIClient`
+  3. Elif starts with `gpt-` / `o1` / `o3` / `o4` AND `OPENAI_API_KEY` is set → `OpenAIClient`
   4. Fallback → `GeminiClient` (existing Vertex AI path)
-- `GITHUB_MODELS_CATALOG` — set of 16+ model names routable via GitHub Models: GPT-4o, Claude 3.5/3.7, Meta Llama 3.1, Phi-4, Mistral Large
+- `GITHUB_MODELS_CATALOG` — set of 25+ model names routable via GitHub Models: GPT-4o, GPT-4.1, o1/o3/o4-mini, Claude 3.5/3.7/Sonnet 4/Opus 4, Meta Llama 3.1, Phi-4, Mistral Large
 
 **New Settings (`backend/config/settings.py`)**:
 ```env
@@ -939,10 +1117,11 @@ GITHUB_TOKEN=ghp_...            # GitHub PAT (Copilot Pro) — primary testing p
 ```
 
 **`backend/agents/orchestrator.py` Changes**:
+- **Gemini Fallback**: `_resolve_gemini(model_name)` static method resolves all `GenerativeModel` instances to valid Gemini model names. When the user selects a non-Gemini model (Claude, GPT, etc.), RAG, grounding, and Vertex AI fallback models stay on `gemini-2.0-flash`. This prevents Vertex AI 404 errors when non-Gemini models are selected as standard/deep-think.
 - Model instances replaced by `LLMClient` objects:
   - `self.general_client`, `self.deep_think_client`, `self.synthesis_client` → provider-routed via `make_client()`
-  - `self.rag_client: GeminiClient` — always Gemini (Vertex AI Search is Google-only)
-  - `self.grounded_client: GeminiClient` — always Gemini (Google Search Grounding is Google-only)
+  - `self.rag_client: GeminiClient` — always Gemini (Vertex AI Search is Google-only), uses `_resolve_gemini()` fallback
+  - `self.grounded_client: GeminiClient` — always Gemini (Google Search Grounding is Google-only), uses `_resolve_gemini()` fallback
   - `self.supports_grounding: bool = isinstance(self.general_client, GeminiClient)` — when non-Gemini model selected, grounded agents fall back to `self.general_client` (text-only, no citations)
 - `_generate_with_retry()`: thinking injection guarded by `isinstance(model, GeminiClient)` — Claude/OpenAI handle their own thinking natively; added generic `except Exception` retry for non-GCP transient errors (rate limit, overload, unavailable)
 - `_extract_thoughts()` / `_extract_grounding_metadata()`: check `isinstance(response, LLMResponse)` first
@@ -953,26 +1132,117 @@ GITHUB_TOKEN=ghp_...            # GitHub PAT (Copilot Pro) — primary testing p
 - `run_risk_debate()` same signature update
 
 **`backend/agents/cost_tracker.py` Changes**:
-- `MODEL_PRICING` expanded from 3 → 22 entries across all 4 providers:
+- `MODEL_PRICING` expanded from 3 → 28 entries across all 4 providers:
   - Gemini (3): `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
-  - Anthropic (4): `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`, `claude-3-7-sonnet-20250219`, `claude-sonnet-4-6`
-  - OpenAI (5): `gpt-4o`, `gpt-4o-mini`, `o1`, `o1-mini`, `o3-mini`
+  - Anthropic (6): `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`, `claude-3-7-sonnet-20250219`, `claude-sonnet-4-6`, `claude-sonnet-4`, `claude-opus-4`
+  - OpenAI (9): `gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`, `o1`, `o1-mini`, `o3`, `o3-mini`, `o4-mini`
   - Meta/Mistral/Github (5+): `meta-llama-3.1-405b-instruct`, `meta-llama-3.1-70b-instruct`, `meta-llama-3.1-8b-instruct`, `mistral-large-2407`, `mistral-nemo`
 
 **`backend/api/settings_api.py` Changes**:
-- `ModelPricing` class: added `provider: str = "Gemini"` field
-- `AVAILABLE_MODELS`: expanded to 19 entries grouped by provider (Gemini / GitHub Models / Anthropic / OpenAI)
-- `_VALID_MODELS` whitelist expanded to 21 names
+- `ModelPricing` class: added `provider: str = "Gemini"` field; added `copilot_multiplier: Optional[float] = None` — GitHub Copilot Pro premium quota multiplier (0.33x light / 1x standard / 3x premium) for GitHub Models entries
+- `AVAILABLE_MODELS`: expanded to 24 entries grouped by provider (Gemini / GitHub Models / Anthropic). GitHub Models entries include `copilot_multiplier` values. o1/o1-mini/o3-mini reclassified from OpenAI direct to GitHub Models.
+- `_VALID_MODELS` whitelist: 25 names
 - `FullSettings`: added 3 read-only booleans: `anthropic_key_configured`, `openai_key_configured`, `github_token_configured` (populated from env without exposing the actual key values)
 
+**Copilot Premium Quota Multipliers** (GitHub Models only — shown in UI instead of $/1M pricing):
+| Multiplier | Models |
+|-----------|--------|
+| `0.33x` (light) | `claude-3-5-haiku-20241022`, `gpt-4o-mini`, `gpt-4.1-mini`, `o3-mini`, `o4-mini`, `meta-llama-3.1-70b-instruct`, `meta-llama-3.1-8b-instruct`, `phi-4`, `mistral-nemo` |
+| `1x` (standard) | `claude-3-5-sonnet-20241022`, `claude-3-7-sonnet-20250219`, `claude-sonnet-4`, `gpt-4o`, `gpt-4.1`, `o1-mini`, `meta-llama-3.1-405b-instruct`, `mistral-large-2407` |
+| `3x` (premium) | `o1`, `o3`, `claude-opus-4` |
+| N/A (price-based) | Gemini, `claude-sonnet-4-6` (Anthropic direct) — show `$X.XX/1M` instead |
+
 **Frontend Changes**:
-- `frontend/src/lib/types.ts`: `ModelPricing.provider?: string`; `FullSettings` gets 3 new optional booleans
-- `frontend/src/app/settings/page.tsx`: Model Configuration BentoCard now shows provider key status badges (Gemini/GitHub Models/Anthropic/OpenAI) and groups `<select>` options into `<optgroup>` sections by provider
+- `frontend/src/lib/types.ts`: `ModelPricing.provider?: string`; `ModelPricing.copilot_multiplier?: number`; `FullSettings` gets 3 new optional booleans
+- `frontend/src/app/settings/page.tsx`: Model Configuration BentoCard redesigned as VS Code GitHub Copilot-style model picker:
+  - **`ModelPicker` component**: Searchable list replacing `<select>/<optgroup>`. Grouped by provider with a collapsible "Other Models" section for non-primary models. Selected model shown with checkmark.
+  - **`CostBadge` component**: For GitHub Models when `github_token_configured`, shows `{multiplier}x` quota badge (green=0.33x, neutral=1x, amber=3x). For Gemini/Anthropic/OpenAI, shows `$X.XX/1M` in slate-500.
+  - **`PRIMARY_MODEL_NAMES` set**: Controls which models appear in the main list vs "Other Models" collapsible.
+  - **`MODEL_DISPLAY_NAMES`**: Human-readable names for all 24 models.
+  - **Live Cost Estimator update**: When GitHub Models are selected, shows estimated premium request count alongside dollar cost: `~N Copilot premium requests`.
 
 **Constraints**:
 - `ENABLE_THINKING=true` still requires `DEEP_THINK_MODEL=gemini-2.5-flash` (or later) — thinking injection is silently skipped for non-Gemini deep-think models
 - Google Search Grounding (Step 4/5/9/10 agents) and Vertex AI Search RAG (Step 3) always remain on Gemini regardless of model selection
 - GitHub Models rate limit: ~150 requests/day on Copilot Pro — suitable for testing, not production analyses
+
+**v3.4 Bug Fixes (post-release)**:
+
+**(1) o-series `max_completion_tokens` fix (`backend/agents/llm_client.py`)**:
+- OpenAI o1/o3/o4-series reasoning models reject `max_tokens` and `temperature` parameters
+- Fixed with `_is_reasoning = self.model_name.startswith(("o1", "o3", "o4"))` flag in `OpenAIClient.generate_content()`
+- Reasoning models use `max_completion_tokens` and omit `temperature`; all other models keep `max_tokens` + `temperature`
+
+**(2) Live activity message now shows selected model name (`backend/agents/orchestrator.py`)**:
+- Progress message was hardcoded as "Gemini analyzing {name}..." regardless of selected provider
+- Fixed: `_model_label = self.settings.gemini_model` captured at start of `run_full_analysis()` and injected into the enrichment_analysis step message
+
+**(3) Token limit guard for small-context models (`backend/agents/llm_client.py` + `backend/agents/orchestrator.py`)**:
+- GitHub Models enforces a ~4,000 token (~14K char) input limit on `o3-mini`; `enrichment_for_debate` passes 10 sources × full `analysis` text (6–18K tokens total) — causing 413 `tokens_limit_reached` errors
+- **`_MODEL_MAX_INPUT_CHARS` registry** added in `llm_client.py`: per-model character cap map (`o1-mini`/`o3-mini`: 13K, `o4-mini`: 56K, `gpt-4.1-mini`/`gpt-4o-mini`: 26K, small Phi/Mistral/Llama models: 14K)
+- **`get_model_max_input_chars(model_name)`** public helper exported from `llm_client.py`
+- **Safety-net** in `OpenAIClient.generate_content()`: before the API call, if total prompt chars exceed the model cap, truncates the last message to fit with a `[Context truncated — model input limit]` suffix and logs a warning
+- **Proactive compaction** in `orchestrator.py` after `enrichment_for_debate` is built: when `general_client` model limit < 30K chars, drops the `analysis` field from each enrichment entry and applies tiered caps based on `lite` flag before passing to `run_debate()`:
+  - Full Mode (non-lite): `summary` capped to 200 chars, `fact_ledger_json` to 1,500 chars
+  - Lite Mode: `summary` capped to 100 chars, `fact_ledger_json` to 800 chars, **plus** ERROR/UNAVAILABLE/N/A signals stripped entirely from debate input (dead signals add noise without evidence value)
+- Log message includes `lite=True/False` and final signal count for observability
+- **`context_limited: bool` field** added to `ModelPricing` (`settings_api.py`) and `ModelPricing` TypeScript interface: marks `gpt-4.1-mini`, `gpt-4o-mini`, `o1-mini`, `o3-mini`, `meta-llama-3.1-8b-instruct`, `phi-4`, `mistral-nemo` as context-limited
+- **`ModelPicker` UI warning**: context-limited models show an amber `ctx limit` chip in the dropdown; selecting a context-limited model as the Standard Model displays an amber info banner explaining debate compaction and recommending a full-context alternative
+
+**(4) GitHub Models API endpoint migration (`backend/agents/llm_client.py` + `backend/api/settings_api.py`)**:
+- GitHub Models migrated from `https://models.inference.ai.azure.com` (Azure-hosted) to `https://models.github.ai/inference` (new GitHub-native endpoint)
+- New endpoint requires **namespaced model IDs** in `{publisher}/{model_name}` format (e.g. `openai/gpt-4.1`, `anthropic/claude-sonnet-4`) — confirmed by [GitHub REST API docs](https://docs.github.com/en/rest/models/inference)
+- Newer models like `claude-sonnet-4` and `claude-opus-4` were added **only** to the new endpoint and returned `400 unknown_model` on the old Azure endpoint
+- **`base_url`** in `make_client()` changed to `"https://models.github.ai/inference"`
+- **`_GITHUB_MODELS_ID_MAP`** fully rewritten with namespaced IDs for all 29 models across 5 publishers: `openai/*`, `anthropic/*`, `meta/*`, `microsoft/*`, `mistral-ai/*`
+- **`GITHUB_MODELS_CATALOG`** restored: `claude-sonnet-4` and `claude-opus-4` added back (they ARE on GitHub Models)
+- **`settings_api.py`**: `claude-sonnet-4` and `claude-opus-4` reverted to `"provider": "GitHub Models"` with `copilot_multiplier` 1.0 and 3.0 respectively; `claude-sonnet-4-6` remains `"provider": "Anthropic"` (direct API only)
+
+**(5) GitHub Models catalog refresh — new models added (June 2026)**:
+Live catalog fetched from `GET https://models.github.ai/catalog/models`. Updated all three files: `llm_client.py`, `settings_api.py`, `cost_tracker.py`, and `frontend/.../settings/page.tsx`.
+
+**Models added**:
+| Model | Provider | Tier | Copilot Multiplier | Context Limited |
+|-------|----------|------|-------------------|----------------|
+| `gpt-4.1-nano` | OpenAI | low | 0.33x | ✓ |
+| `gpt-5` | OpenAI | custom (8/day) | 3x | ✓ |
+| `gpt-5-chat` | OpenAI | custom (12/day) | 1x | ✓ |
+| `gpt-5-mini` | OpenAI | custom (12/day) | 1x | ✓ |
+| `gpt-5-nano` | OpenAI | custom (12/day) | 1x | ✓ |
+| `o1-preview` | OpenAI | custom (8/day) | 3x | ✓ |
+| `deepseek-r1` | DeepSeek | custom (8/day) | 3x | ✓ |
+| `deepseek-r1-0528` | DeepSeek | custom (8/day) | 3x | ✓ |
+| `deepseek-v3-0324` | DeepSeek | high | 1x | |
+| `grok-3` | xAI | custom (15/day) | 1x | ✓ |
+| `grok-3-mini` | xAI | custom (30/day) | 0.33x | ✓ |
+| `llama-3.3-70b-instruct` | Meta | high | 1x | |
+| `llama-4-maverick` | Meta | high | 1x | |
+| `llama-4-scout` | Meta | high | 1x | |
+| `mai-ds-r1` | Microsoft | custom (8/day) | 3x | ✓ |
+| `phi-4-mini-instruct` | Microsoft | low | 0.33x | ✓ |
+| `phi-4-mini-reasoning` | Microsoft | low | 0.33x | ✓ |
+| `phi-4-reasoning` | Microsoft | low | 0.33x | ✓ |
+| `codestral-2501` | Mistral | low | 0.33x | ✓ |
+| `mistral-medium-2505` | Mistral | low | 0.33x | ✓ |
+| `mistral-small-2503` | Mistral | low | 0.33x | ✓ |
+
+**Models removed** (no longer in live catalog):
+- `meta-llama-3.1-70b-instruct` (superseded by `llama-3.3-70b-instruct`)
+- `mistral-large-2407`, `mistral-nemo` (superseded by `mistral-medium-2505`, `ministral-3b`)
+- `phi-3.5-moe-instruct`, `phi-3.5-mini-instruct`, `phi-3-medium-128k-instruct` (superseded by `phi-4*`)
+
+**Primary model list in settings UI** updated to surface `gpt-5`, `deepseek-r1`, `llama-4-maverick`, `grok-3` by default; all other new models appear in the collapsible "Other Models" section.
+
+**`_MODEL_MAX_INPUT_CHARS`** updated: all custom-tier models (gpt-5 family, o1-preview, deepseek-r1/r1-0528, grok-3/3-mini, mai-ds-r1) assigned 13,000-char limit to match 4,000-token GitHub Models cap; `gpt-4.1-nano` gets 26,000 chars (low tier, 8K limit); removed stale phi-3.x entries.
+
+**(6) Structured compaction for debate and revision flows (`backend/agents/compaction.py` + `backend/agents/debate.py` + `backend/agents/orchestrator.py`)**:
+- Live runs still hit `413 tokens_limit_reached` on GitHub Models `gpt-4.1` during the Moderator step because proactive compaction was keyed off canonical names like `gpt-4.1`, while GitHub requests use namespaced IDs like `openai/gpt-4.1`
+- Added `_normalize_model_name()` in `llm_client.py` so `get_model_max_input_chars()` resolves namespaced GitHub model IDs back to canonical keys before applying size budgets
+- Added explicit 26,000-char caps for standard 8K-input GitHub models such as `gpt-4.1` and `gpt-4o`; unresolved GitHub catalog entries now fall back to 26,000 chars instead of skipping compaction entirely
+- New `backend/agents/compaction.py` module provides deterministic compact-state helpers instead of replaying large raw transcripts: `compact_text()`, `compact_argument()`, `compact_trace_summary()`, `build_compact_debate_history()`, `compact_da_result()`, `compact_quant_snapshot()`, and `compact_report_reference()`
+- `debate.py` now switches to compact JSON for constrained models, trims trace payloads and fact ledgers, compacts Bull/Bear rebuttal carry-forward, compresses Devil's Advocate inputs, and gives the Moderator a bounded round summary instead of full prior arguments
+- `orchestrator.py` now applies compact-mode section budgets to Synthesis/Critic, sends a reduced quant snapshot to the Critic, and passes a compact typed reference of the prior draft into Critic + synthesis revision rather than the full report body
+- Design principle: use provider-agnostic structured compact state at stage boundaries, not "compacted conversation" transcripts; this preserves the highest-value evidence while keeping GitHub Models requests under hard limits
 
 ### v3.3 — Gemini 2.5 Flash + Extended Thinking: Phase 5 (March 2026)
 

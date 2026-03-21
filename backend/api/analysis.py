@@ -11,7 +11,7 @@ import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Protocol, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -30,6 +30,10 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 # ── In-memory task store (used when USE_CELERY=false) ────────────
 _tasks: dict[str, dict[str, Any]] = {}
+
+
+class _CeleryTaskProtocol(Protocol):
+    def delay(self, ticker: str) -> Any: ...
 
 
 async def _run_sync_analysis(task_id: str, ticker: str, settings: Settings):
@@ -237,6 +241,9 @@ async def _run_sync_analysis(task_id: str, ticker: str, settings: Settings):
                 deep_think_calls=cost_summary.get("deep_think_calls") if isinstance(cost_summary, dict) else None,
                 # Phase 9: Reflection loop + quality gates
                 synthesis_iterations=synthesis.get("synthesis_iterations"),
+                # Phase 10: Model tracking
+                standard_model=cost_summary.get("standard_model", "") if isinstance(cost_summary, dict) else "",
+                deep_think_model=cost_summary.get("deep_think_model", "") if isinstance(cost_summary, dict) else "",
             )
         except Exception as e:
             logger.error(f"Failed to save report to BigQuery: {e}")
@@ -263,10 +270,14 @@ async def _run_sync_analysis(task_id: str, ticker: str, settings: Settings):
         )
 
     except Exception as e:
-        logger.error(f"Analysis failed for {ticker}: {e}", exc_info=True)
+        # Include exception type + last step for actionable error messages
+        err_type = type(e).__name__
+        last_step = _tasks[task_id].get("current_step", "unknown")
+        detail = f"[{err_type}] Step '{last_step}': {e}"
+        logger.error(f"Analysis failed for {ticker}: {detail}", exc_info=True)
         _tasks[task_id].update(
             status=AnalysisStatus.FAILED,
-            error=str(e),
+            error=detail,
         )
 
 
@@ -279,7 +290,7 @@ async def start_analysis(req: AnalysisRequest, settings: Settings = Depends(get_
 
     if settings.use_celery:
         from backend.tasks.analysis import run_analysis_task
-        task = run_analysis_task.delay(ticker)
+        task = cast(_CeleryTaskProtocol, run_analysis_task).delay(ticker)
         task_id = task.id
     else:
         task_id = str(uuid.uuid4())

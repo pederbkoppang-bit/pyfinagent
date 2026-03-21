@@ -19,6 +19,23 @@ The report dashboard follows a **"Glass Box" institutional analyst** design — 
 
 ---
 
+## Workspace Environment
+
+The frontend and backend share one VS Code workspace, but the backend Python tooling is standardized on `.venv312`.
+
+| Concern | Canonical Setting |
+|--------|-------------------|
+| Backend interpreter | `.venv312/Scripts/python.exe` |
+| VS Code Python setting | `.vscode/settings.json` → `python.defaultInterpreterPath` |
+| Pyright/Pylance env | `pyrightconfig.json` → `venv = ".venv312"` |
+| Backend debug config | `.vscode/launch.json` → `Backend: FastAPI (.venv312)` |
+| Frontend debug config | `.vscode/launch.json` → `Frontend: Next.js` |
+| Full-stack launch | `.vscode/launch.json` → `Full Stack: Backend + Frontend` |
+
+Use this interpreter for backend imports, FastAPI startup, and editor diagnostics.
+
+---
+
 ## Design System (v3.0)
 
 ### Typography
@@ -142,6 +159,20 @@ Paper Trading (autonomous daily cycle)
     ├── GET /api/paper-trading/snapshots    → Daily NAV history (for LineChart)
     ├── GET /api/paper-trading/performance  → Sharpe ratio, win rate, alpha, costs
     └── POST /api/paper-trading/run-now     → Trigger manual daily cycle (async)
+
+Walk-Forward Backtesting (quant-only, $0 LLM cost)
+    │
+    ├── POST /api/backtest/run              → Start walk-forward backtest (async)
+    ├── GET /api/backtest/status            → Poll backtest progress
+    ├── GET /api/backtest/results           → Full results with per-window analytics
+    ├── GET /api/backtest/results/{id}      → Per-window detail (trades, feature importance)
+    ├── POST /api/backtest/ingest           → Bulk ingest historical data to BigQuery
+    ├── GET /api/backtest/ingest/status     → Row counts for historical data tables
+    ├── POST /api/backtest/optimize         → Start quant strategy optimizer (background)
+    ├── POST /api/backtest/optimize/stop    → Stop optimizer gracefully
+    ├── GET /api/backtest/optimize/status   → Optimizer state (iterations, best Sharpe)
+    ├── GET /api/backtest/optimize/experiments → Experiment history (quant_results.tsv)
+    └── GET /api/backtest/optimize/best     → Best strategy params + feature importance
 
 AnalysisStatusResponse (GET /api/analysis/{id}, polled every 3s)
     │
@@ -1372,7 +1403,7 @@ Complete settings management page with 6 BentoCards. Loads current settings via 
 |------|---------|-------------|
 | **Analysis Mode** | Toggle Full vs Lite mode | Lite skips deep dive, DA, risk assessment; forces 1 debate round. Shows description of what each mode includes |
 | **Live Cost Estimator** | Preview cost before running analysis | Fetches real per-agent token counts from `GET /api/reports/latest-cost-summary`. Applies current model pricing, scales by debate rounds/synthesis iterations, applies lite mode agent skips. Shows estimated $/analysis, total tokens, LLM calls |
-| **Model Configuration** | Select Standard + Deep Think models | Dropdowns for `gemini_model` and `deep_think_model`. v3.4: Provider key status badges (Gemini/GitHub Models/Anthropic/OpenAI). Options grouped into `<optgroup>` by provider. Shows pricing per model |
+| **Model Configuration** | Select Standard + Deep Think models | v3.4: VS Code Copilot-style `ModelPicker` component (searchable list, checkmark on selected, collapsible "Other Models" section). `CostBadge` shows `{mult}x` Copilot quota multiplier for GitHub Models (green 0.33x / neutral 1x / amber 3x) or `$X.XX/1M` for direct providers. Provider key status badges (Gemini/GitHub Models/Anthropic/OpenAI). |
 | **Cost Controls** | Budget cap, synthesis iterations, data quality | Budget slider ($0.05–$5.00), synthesis iterations (1–3), min data quality (0–100%). Budget triggers backend warning when exceeded |
 | **Debate Depth** | Configure debate round counts | Bull↔Bear rounds (1–5), Risk Assessment rounds (1–3). Shows warning when lite mode overrides these |
 | **Pillar Weights** | Configure 5-pillar scoring weights | 5 individual sliders (0–50%), live total display, red warning when total ≠ 100%. Backend validates sum = 1.0 |
@@ -1388,6 +1419,12 @@ Save:
   Compute diff (form vs saved settings) → PUT /api/settings/ (only changed fields)
   Backend validates, updates .env file, reloads Settings singleton
 ```
+
+**v3.4 — VS Code Copilot Model Picker + Quota Multipliers**: Model Configuration BentoCard redesigned. `<select>/<optgroup>` replaced with `ModelPicker` — a searchable list where the selected model shows a checkmark. `CostBadge` replaces raw price display: for GitHub Models shows Copilot premium quota multiplier (`0.33x` light / `1x` standard / `3x` premium), for Gemini/Anthropic shows `$X.XX/1M`. Live Cost Estimator gains `~N Copilot premium requests` estimate when a GitHub Models model is selected. 24 models total: GPT-4.1/4.1-mini, o1/o1-mini/o3/o3-mini/o4-mini, Claude Sonnet 4/Opus 4, plus existing models. o1/o1-mini/o3-mini reclassified from OpenAI direct → GitHub Models.
+
+**v3.4 Bug Fixes**: (1) Live activity step message "Gemini analyzing {name}..." now reflects the actual selected model (`_model_label = settings.gemini_model`). (2) o-series reasoning models (o1/o3/o4-prefix) use `max_completion_tokens` instead of `max_tokens` and omit `temperature` — fixes 400 errors from OpenAI/GitHub Models. (3) Small-context model token guard: `_MODEL_MAX_INPUT_CHARS` registry + proactive `enrichment_for_debate` compaction (drops `analysis` field, caps `summary` by mode) when model input limit < 30K chars; in Full Mode caps are 200 chars / 1,500 char fact ledger; in **Lite Mode** caps halve to 100 chars / 800 chars and ERROR/UNAVAILABLE/N/A signals are stripped entirely; safety-net truncation in `OpenAIClient` as a final fallback — fixes 413 `tokens_limit_reached` errors on o3-mini and gpt-4.1-mini. `context_limited: bool` added to `ModelPricing` (backend + TS types); `ModelPicker` shows amber `ctx limit` chip on restricted models and an amber warning banner when a context-limited model is selected as Standard Model.
+
+**v3.4 Additional Token Hardening**: Standard GitHub Models like `gpt-4.1` also needed model-aware compaction in later pipeline stages because the API uses namespaced IDs such as `openai/gpt-4.1`. `llm_client.py` now normalizes those names before applying input budgets, and constrained runs use deterministic compact state instead of replaying full conversation history. In practice this means the debate Moderator receives a compact round summary plus shortened Bull/Bear/Devil's Advocate payloads, while Critic and synthesis revision receive a typed compact draft reference and reduced quant snapshot. UX implication: analyses on GitHub Models should fail less often at the Moderator/Critic stages, but highly constrained models may still see a compressed debate context in exchange for staying within provider limits.
 
 **v3.3 — Extended Thinking toggle** (`enable_thinking`): Added to the **Model Configuration** BentoCard. When toggled on, reveals 4 thinking budget sliders (Critic, Moderator, Risk Judge, Synthesis). Only available when `deep_think_model` is set to `gemini-2.5-flash` or later; a warning is shown if enabled with `gemini-2.0-flash`.
 
