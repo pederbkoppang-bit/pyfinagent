@@ -3,5 +3,9 @@
   "python.venvPath": "${workspaceFolder}",
   "[python]": {
     "editor.defaultFormatter": "ms-python.python"
+  },
+  "chat.instructionsFilesLocations": {
+    ".github/instructions": true,
+    ".claude/rules": true
   }
 }

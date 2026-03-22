@@ -83,7 +83,9 @@ class FinancialSituationMemory:
         else:
             self.bm25 = None
 
-    def add_memory(self, situation: str, lesson: str, metadata: dict = None):
+    def add_memory(
+        self, situation: str, lesson: str, metadata: Optional[dict] = None
+    ):
         """Add a single situation-lesson pair."""
         self.documents.append(situation)
         self.lessons.append(lesson)
@@ -169,7 +171,7 @@ def build_situation_description(
     ticker: str,
     sector: str,
     enrichment_signals: dict,
-    debate_result: dict = None,
+    debate_result: dict | None = None,
 ) -> str:
     """
     Build a textual description of the current financial situation

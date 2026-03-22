@@ -102,7 +102,7 @@ pyfinagent/
 Backend: `backend/.env` -- GCP_PROJECT_ID, GEMINI_MODEL, API keys (AV, FRED, API_NINJAS), AUTH_SECRET, ALLOWED_EMAILS, debate/cost config.
 Frontend: `frontend/.env.local` -- AUTH_SECRET, AUTH_GOOGLE_ID/SECRET, ALLOWED_EMAILS, NEXT_PUBLIC_API_BASE.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full env var reference.
+See [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for full env var reference.
 
 ## Authentication
 
@@ -119,7 +119,7 @@ NextAuth.js v5 (Google SSO + Passkey/WebAuthn). Backend validates JWE tokens via
 
 | Document | Content |
 |----------|---------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Complete agent registry, API endpoints (70+ routes), BQ schemas (88 columns), data tools, research foundations |
-| [UX-AGENTS.md](UX-AGENTS.md) | Frontend component specs, design tokens, Phosphor icon conventions |
-| [trading_agent.md](trading_agent.md) | Autonomous trading optimization, 3-loop architecture, MDA->Agent bridge |
-| [CHANGELOG.md](CHANGELOG.md) | Version history with detailed migration notes |
+| [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) | Complete agent registry, API endpoints (70+ routes), BQ schemas (88 columns), data tools, research foundations |
+| [UX-AGENTS.md](../UX-AGENTS.md) | Frontend component specs, design tokens, Phosphor icon conventions |
+| [trading_agent.md](../trading_agent.md) | Autonomous trading optimization, 3-loop architecture, MDA->Agent bridge |
+| [CHANGELOG.md](../CHANGELOG.md) | Version history with detailed migration notes |

@@ -262,3 +262,62 @@ After each QuantOpt keep, the top-5 MDA features are logged to `quant_results.ts
 | 8.1 | MetaCoordinator wired to `autonomous_loop.py` | DONE |
 | 8.2 | MDA→Agent bridge live targeting | DONE |
 | 8.3 | Proxy validation (1-window backtest for SkillOpt) | DONE |
+
+### Phase 5D — Backtest BQ Client Type Fix + Schema Alignment (March 2026)
+
+| Step | Description | Status |
+|------|-------------|--------|
+| 9.1 | Fix `bq_client=bq` → `bq_client=bq.client` in `backend/api/backtest.py` (2 call sites) | DONE |
+| 9.2 | Defensive unwrap guard in `BacktestEngine.__init__()` | DONE |
+| 9.3 | Upgrade `logger.debug` → `logger.warning` in `candidate_selector.py` | DONE |
+| 9.4 | Backend `generate_report()` field alignment with frontend TS types (prior session) | DONE |
+| 9.5 | Update `trading_agent.md` + `AGENTS.md` + `UX-AGENTS.md` | DONE |
+
+---
+
+## 8. Known Issues & Fixes
+
+### BQ Client Type Mismatch — Zero Candidates Bug (v5.4)
+
+**Symptom**: Walk-forward backtest completed with dates but ALL windows showed Candidates=0, Samples=0, Features=0.
+
+**Root Cause**: `BigQueryClient` wrapper (which has no `.query()` method) was passed to `BacktestEngine` instead of the raw `google.cloud.bigquery.Client` (which does). Every `cached_prices()` call threw `AttributeError`, silently caught at `logger.debug()` level by `screen_at_date()`.
+
+**Data Flow Trace**:
+```
+POST /api/backtest/run
+→ bq = BigQueryClient(settings)          # wrapper object
+→ engine = BacktestEngine(bq_client=bq)  # BUG: passed wrapper
+  → cache.init_cache(bq_client, ...)     # stored wrapper as _bq_client
+  → FOR EACH window:
+    → candidate_selector.screen_at_date()
+      → cache.cached_prices(ticker, ...)
+        → _bq_client.query(...)          # AttributeError! wrapper has no .query()
+        → exception caught at logger.debug → ticker silently skipped
+      → 0 candidates → early-exit WindowResult with all zeros
+```
+
+**Why Ingestion Worked**: `POST /ingest` correctly passed `bq.client` (raw):
+```python
+service = DataIngestionService(bq.client, settings)  # ✅ raw client
+```
+
+**Fix Applied (3 files)**:
+1. `backend/api/backtest.py` — `bq_client=bq` → `bq_client=bq.client` at both `BacktestEngine()` call sites
+2. `backend/backtest/backtest_engine.py` — Defensive unwrap: `if hasattr(bq_client, 'client'): bq_client = bq_client.client`
+3. `backend/backtest/candidate_selector.py` — `logger.debug` → `logger.warning` so BQ failures are visible in logs
+
+**Lesson**: Python type annotations don't enforce types at runtime. The `BigQueryClient` wrapper was accepted without error, and `logger.debug()` in exception handlers hid the critical `AttributeError`. Always use `logger.warning()` for BQ/external service failures in screening loops.
+
+### Backend/Frontend Schema Alignment (v5.4)
+
+**Symptom**: Walk-Forward Windows table showed blank cells for dates, candidates, samples, features.
+
+**Root Cause**: `generate_report()` in `analytics.py` returned fields like `sharpe_ratio`, `max_dd`, and single `date_range` strings, while frontend TypeScript interfaces expected `sharpe`, `max_drawdown`, and split `train_start`/`train_end`/`test_start`/`test_end` fields.
+
+**Fix Applied (5 files)**:
+- `backend/backtest/analytics.py` — Field renames, split date fields, added per-window metrics
+- `backend/backtest/backtest_engine.py` — `WindowResult` dataclass: added `n_candidates`, `n_train_samples`, `n_features`
+- `frontend/src/lib/types.ts` — Aligned `BacktestWindowResult` interface
+- `frontend/src/app/backtest/page.tsx` — Updated table to render new field names
+- `backend/backtest/quant_optimizer.py` — Updated to consume new field names

@@ -7,6 +7,7 @@ Zero LLM cost.
 
 import json
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
@@ -163,6 +164,10 @@ class BacktestEngine:
         # Progress callback
         progress_callback=None,
     ):
+        # Defensive unwrap: accept BigQueryClient wrapper or raw bigquery.Client
+        if hasattr(bq_client, 'client'):
+            bq_client = bq_client.client
+
         # Initialize cache
         cache.init_cache(bq_client, project, dataset)
 
@@ -205,6 +210,9 @@ class BacktestEngine:
         )
 
         self.progress_callback = progress_callback
+        self._backtest_start_time: float = 0.0
+        self._total_windows: int = 0
+        self._current_window_id: int = 0
         self._strategy_params = {
             "start_date": start_date, "end_date": end_date,
             "train_window_months": train_window_months,
@@ -233,14 +241,27 @@ class BacktestEngine:
         self._auto_ingest_if_needed(universe_tickers)
 
         windows = self.scheduler.generate_windows()
+        self._total_windows = len(windows)
+        self._backtest_start_time = time.time()
         logger.info(f"Walk-forward: {len(windows)} windows, {len(universe_tickers)} tickers, strategy={self.strategy}")
+
+        # Bulk-preload all price and fundamental data (2 BQ queries instead of ~50,000)
+        self._report_progress("preloading", f"Loading data for {len(universe_tickers)} tickers")
+        global_start = (self.scheduler.start_date - timedelta(days=756)).isoformat()
+        global_end = (self.scheduler.end_date + timedelta(days=int(self.holding_days * 1.5))).isoformat()
+        cache.preload_prices(universe_tickers, global_start, global_end)
+        cache.preload_fundamentals(universe_tickers)
 
         result = BacktestResult(strategy_params=self._strategy_params)
         all_mdi = {}
         all_mda = {}
 
         for window in windows:
-            self._report_progress(f"Window {window.window_id}/{len(windows)}")
+            self._report_progress(
+                "screening",
+                f"Window {window.window_id}/{len(windows)} — screening candidates",
+                window=window.window_id,
+            )
             try:
                 wr = self._run_window(window, universe_tickers)
                 result.windows.append(wr)
@@ -284,11 +305,18 @@ class BacktestEngine:
             for s in self.trader.snapshots
         ]
 
+        self._report_progress(
+            "finalizing",
+            f"Aggregating results across {len(result.windows)} windows...",
+            window=self._total_windows,
+        )
         cache.clear_cache()
         return result
 
     def _run_window(self, window: WalkForwardWindow, universe_tickers: list[str]) -> WindowResult:
         """Process a single walk-forward window."""
+        wid = window.window_id
+        self._current_window_id = wid
         train_end_str = window.train_end.isoformat()
         test_start_str = window.test_start.isoformat()
         test_end_str = window.test_end.isoformat()
@@ -305,10 +333,16 @@ class BacktestEngine:
         )
         candidate_tickers = [c["ticker"] for c in candidates]
 
+        self._report_progress(
+            "screening",
+            f"{len(candidate_tickers)} candidates found",
+            window=wid, candidates_found=len(candidate_tickers),
+        )
+
         if len(candidate_tickers) < 10:
-            logger.warning(f"Window {window.window_id}: only {len(candidate_tickers)} candidates")
+            logger.warning(f"Window {wid}: only {len(candidate_tickers)} candidates")
             return WindowResult(
-                window_id=window.window_id,
+                window_id=wid,
                 train_start=window.train_start.isoformat(),
                 train_end=train_end_str,
                 test_start=test_start_str,
@@ -318,24 +352,32 @@ class BacktestEngine:
             )
 
         # 2. Build training data
+        self._report_progress("building_features", "Building training data", window=wid)
         train_features, train_labels, sample_weights = self._build_training_data(
             candidate_tickers, window.train_start.isoformat(), train_end_str,
         )
 
         if len(train_features) < 20:
-            logger.warning(f"Window {window.window_id}: insufficient training data ({len(train_features)} samples)")
+            logger.warning(f"Window {wid}: insufficient training data ({len(train_features)} samples)")
             return self._empty_window_result(window)
 
         # 3. Train ML model
+        self._report_progress(
+            "training",
+            f"Training GradientBoosting on {len(train_features)} samples",
+            window=wid, samples_built=len(train_features),
+        )
         model, feature_names = self._train_model(train_features, train_labels, sample_weights)
 
         # 4. MDI feature importance
         mdi = dict(zip(feature_names, model.feature_importances_))
 
         # 5. MDA feature importance (permutation importance)
+        self._report_progress("computing_mda", "Permutation importance", window=wid)
         mda = self._compute_mda(model, train_features, train_labels, feature_names)
 
         # 6. Predict on test period candidates
+        self._report_progress("predicting", f"Scoring test candidates at {test_start_str}", window=wid)
         test_candidates = self.candidate_selector.screen_at_date(
             test_start_str, universe_tickers, top_n=self.top_n_candidates,
             scoring_weights=scoring_weights if scoring_weights else None,
@@ -347,6 +389,11 @@ class BacktestEngine:
         )
 
         # 7. Execute trades in the test window
+        self._report_progress(
+            "trading",
+            f"Executing {len(signals) if signals else 0} trades",
+            window=wid,
+        )
         if signals:
             # Get prices at test_start for trading
             prices = {}
@@ -422,8 +469,12 @@ class BacktestEngine:
             sample_dates.append(current.strftime("%Y-%m-%d"))
             current += pd.DateOffset(weeks=2)
 
+        total_iterations = len(sample_dates) * len(tickers)
+        iteration_count = 0
+
         for sample_date in sample_dates:
             for ticker in tickers:
+                iteration_count += 1
                 try:
                     fv = self.data_provider.build_feature_vector(ticker, sample_date)
                     if not fv or fv.get("price_at_analysis") is None:
@@ -441,6 +492,16 @@ class BacktestEngine:
                     exit_dates.append(
                         pd.Timestamp(sample_date) + timedelta(days=self.holding_days)
                     )
+
+                    # Throttled progress: emit every 200 samples
+                    if len(features_list) % 200 == 0:
+                        self._report_progress(
+                            "building_features",
+                            f"{len(features_list)} samples built ({iteration_count}/{total_iterations} iterations)",
+                            window=self._current_window_id,
+                            samples_built=len(features_list),
+                            samples_total=total_iterations,
+                        )
                 except Exception:
                     continue
 
@@ -664,10 +725,25 @@ class BacktestEngine:
             max_drawdown_pct=0, hit_rate=0, num_trades=0,
         )
 
-    def _report_progress(self, message: str):
+    def _report_progress(self, step: str, detail: str = "", **kwargs):
+        stats = cache.get_cache_stats()
+        data = {
+            "window": kwargs.get("window", 0),
+            "total_windows": self._total_windows,
+            "step": step,
+            "step_detail": detail,
+            "candidates_found": kwargs.get("candidates_found", 0),
+            "samples_built": kwargs.get("samples_built", 0),
+            "samples_total": kwargs.get("samples_total", 0),
+            "elapsed_seconds": round(time.time() - self._backtest_start_time, 1)
+            if self._backtest_start_time
+            else 0,
+            "cache_hits": stats["hits"],
+            "cache_misses": stats["misses"],
+        }
         if self.progress_callback:
-            self.progress_callback(message)
-        logger.info(f"Backtest: {message}")
+            self.progress_callback(data)
+        logger.info("Backtest: [%s] %s", step, detail)
 
     # ── Strategy Label Dispatcher ────────────────────────────────
 

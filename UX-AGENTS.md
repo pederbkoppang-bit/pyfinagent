@@ -1,5 +1,7 @@
 # UX-agent.md — Comprehensive Report Dashboard
 
+> **For a quick overview**, see [AGENTS.md](AGENTS.md). For full backend architecture, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 This document describes the UX architecture, component inventory, data flow, and design conventions for the PyFinAgent comprehensive analysis report dashboard. It serves as a reference for AI agents and developers working on the frontend.
 
 ---
@@ -163,7 +165,7 @@ Paper Trading (autonomous daily cycle)
 Walk-Forward Backtesting (quant-only, $0 LLM cost, 5 strategies)
     │
     ├── POST /api/backtest/run              → Start walk-forward backtest (async, auto-ingests if BQ empty)
-    ├── GET /api/backtest/status            → Poll backtest progress
+    ├── GET /api/backtest/status            → Poll backtest progress (structured dict: window, step, detail, counts, elapsed, cache stats)
     ├── GET /api/backtest/results           → Full results with per-window analytics
     ├── GET /api/backtest/results/{id}      → Per-window detail (trades, feature importance)
     ├── POST /api/backtest/ingest           → Bulk ingest historical data to BigQuery
@@ -1444,7 +1446,7 @@ The download button in the Overview tab generates a multi-page PDF containing al
 | `/performance` | `performance/page.tsx` | Historical accuracy metrics + LLM cost history | Performance tracking |
 | `/portfolio` | `portfolio/page.tsx` | Position tracking, P&L, allocation | Portfolio management |
 | `/paper-trading` | `paper-trading/page.tsx` | Autonomous fund dashboard, NAV chart, positions, trades | Paper trading |
-| `/backtest` | `backtest/page.tsx` | **Walk-Forward Backtest** — 5 strategies, 4 tabs (Results/Equity/Features/Optimizer), auto-ingest, DSR guard, feature drift detection, ingestion result banner with row counts, cost info section, button tooltips | ML backtesting |
+| `/backtest` | `backtest/page.tsx` | **Walk-Forward Backtest** — 5 strategies, 4 tabs (Results/Equity/Features/Optimizer), auto-ingest, DSR guard, feature drift detection, ingestion result banner with row counts, cost info section, button tooltips, **vertical Jira-style workflow timeline** (8-step pipeline: preloading→screening→building_features→training→computing_mda→predicting→trading→finalizing; window rail with colored dots, client-side ticking elapsed timer, step detail + sample sub-progress, cache hit rate footer; poll interval 2000ms) | ML backtesting |
 | `/settings` | `settings/page.tsx` | **3-tab sub-navigation** (Models & Analysis \| Cost & Weights \| Performance): Model Config, Debate Depth, Cost Estimator, Pillar Weights, Cache Health, TTL Optimizer, API Latency | User preferences + monitoring |
 
 ### Sidebar Navigation (Grouped)
@@ -1926,3 +1928,9 @@ Styled as `text-xs text-zinc-500 mt-2`. Appears always (not conditional).
 ### Auto-Table Creation (v5.3)
 
 `POST /api/backtest/ingest` now auto-creates missing BQ tables (`historical_prices`, `historical_fundamentals`, `historical_macro`) before ingestion begins. No need to run `migrate_backtest_data.py` manually for new deployments. Existing tables get the new `dividends_per_share` column via the migration script.
+
+### Bug Fixes (v5.4)
+
+**Walk-Forward Windows Table — Zero Values**: All 8 windows displayed Candidates=0, Samples=0, Features=0 due to a backend BQ client type mismatch (wrapper object passed instead of raw client). Fixed in `backend/api/backtest.py`. After fix, windows display actual candidate counts, training samples, and feature dimensions. See `trading_agent.md` Section 8 for full root cause analysis.
+
+**Walk-Forward Windows Table — Blank Cells**: Date columns and per-window metrics rendered as blank cells due to field name mismatch between `generate_report()` output and frontend TypeScript interfaces. Fixed by aligning field names across `analytics.py`, `types.ts`, and `backtest/page.tsx`. Windows now render `train_start`/`train_end`/`test_start`/`test_end`, `sharpe`, `max_drawdown`, `n_candidates`, `n_train_samples`, `n_features`.

@@ -602,10 +602,23 @@ export interface PaperPerformance {
 
 /* ── Backtest Types ── */
 
+export interface BacktestProgress {
+  window: number;
+  total_windows: number;
+  step: string;
+  step_detail: string;
+  candidates_found?: number;
+  samples_built?: number;
+  samples_total?: number;
+  elapsed_seconds: number;
+  cache_hits: number;
+  cache_misses: number;
+}
+
 export interface BacktestStatus {
   status: "idle" | "running" | "completed" | "error";
   run_id: string | null;
-  progress: string;
+  progress: BacktestProgress | string;
   has_result: boolean;
 }
 

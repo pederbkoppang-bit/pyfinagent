@@ -77,7 +77,7 @@ class CandidateSelector:
                     "sma_50_distance_pct": round(sma_distance, 2),
                 })
             except Exception as e:
-                logger.debug(f"Skipping {ticker} in screen: {e}")
+                logger.warning(f"Skipping {ticker} in screen: {e}")
 
         # Rank by composite alpha score
         ranked = self._rank_candidates(results, **(scoring_weights or {}))

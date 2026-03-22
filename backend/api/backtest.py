@@ -5,6 +5,7 @@ Backtest API — walk-forward backtesting + quant optimizer endpoints.
 import asyncio
 import json
 import logging
+import time
 import uuid
 from typing import Optional
 
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 _backtest_state = {
     "status": "idle",  # idle | running | completed | error
     "run_id": None,
-    "progress": "",
+    "progress": {},
     "result": None,
     "error": None,
 }
@@ -79,7 +80,7 @@ async def run_backtest(req: BacktestRunRequest = BacktestRunRequest()):
     _backtest_state = {
         "status": "running",
         "run_id": run_id,
-        "progress": "Initializing...",
+        "progress": {"step": "initializing", "step_detail": "Starting backtest..."},
         "result": None,
         "error": None,
     }
@@ -298,11 +299,11 @@ async def _run_backtest_async(run_id: str, req: BacktestRunRequest):
         from backend.backtest.analytics import generate_report, compute_baseline_strategies
         from backend.backtest import cache as bt_cache
 
-        def progress_cb(msg: str):
-            _backtest_state["progress"] = msg
+        def progress_cb(data: dict):
+            _backtest_state["progress"] = data
 
         engine = BacktestEngine(
-            bq_client=bq,
+            bq_client=bq.client,
             project=settings.gcp_project_id,
             dataset=settings.bq_dataset_reports,
             start_date=req.start_date or settings.backtest_start_date,
@@ -321,10 +322,23 @@ async def _run_backtest_async(run_id: str, req: BacktestRunRequest):
 
         result = await asyncio.to_thread(engine.run_backtest)
 
-        # Compute baselines over the full test range
+        # Compute baselines — emit progress so UI shows activity during this phase
         baselines = None
         if result.windows:
             try:
+                elapsed = round(time.time() - engine._backtest_start_time, 1)
+                progress_cb({
+                    "window": engine._total_windows,
+                    "total_windows": engine._total_windows,
+                    "step": "finalizing",
+                    "step_detail": "Comparing vs SPY, equal-weight & momentum benchmarks...",
+                    "candidates_found": 0,
+                    "samples_built": 0,
+                    "samples_total": 0,
+                    "elapsed_seconds": elapsed,
+                    "cache_hits": 0,
+                    "cache_misses": 0,
+                })
                 test_start = result.windows[0].test_start
                 test_end = result.windows[-1].test_end
                 candidate_tickers = list({
@@ -336,6 +350,20 @@ async def _run_backtest_async(run_id: str, req: BacktestRunRequest):
             except Exception as e:
                 logger.warning(f"Baseline computation failed: {e}")
 
+        # Emit progress for report generation phase
+        elapsed = round(time.time() - engine._backtest_start_time, 1)
+        progress_cb({
+            "window": engine._total_windows,
+            "total_windows": engine._total_windows,
+            "step": "finalizing",
+            "step_detail": "Generating portfolio analytics report...",
+            "candidates_found": 0,
+            "samples_built": 0,
+            "samples_total": 0,
+            "elapsed_seconds": elapsed,
+            "cache_hits": 0,
+            "cache_misses": 0,
+        })
         report = generate_report(result, baselines=baselines)
         report["run_id"] = run_id
         report["config"] = {
@@ -364,7 +392,7 @@ async def _run_optimizer_async(max_iterations: int, use_llm: bool):
         from backend.backtest.quant_optimizer import QuantStrategyOptimizer
 
         engine = BacktestEngine(
-            bq_client=bq,
+            bq_client=bq.client,
             project=settings.gcp_project_id,
             dataset=settings.bq_dataset_reports,
             start_date=settings.backtest_start_date,
