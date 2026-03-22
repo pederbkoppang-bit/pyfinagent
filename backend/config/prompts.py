@@ -691,3 +691,9 @@ def get_scenario_analysis_prompt(ticker: str, monte_carlo_data: dict, fact_ledge
     """Prompt for Monte Carlo scenario interpretation agent."""
     template = load_skill("scenario_agent")
     return format_skill(template, ticker=ticker, monte_carlo_data=json.dumps(monte_carlo_data, indent=2), fact_ledger_section=_build_fact_ledger_section(fact_ledger))
+
+
+def get_quant_model_prompt(ticker: str, quant_model_data: dict, fact_ledger: str = "") -> str:
+    """Prompt for quant model factor interpretation agent."""
+    template = load_skill("quant_model_agent")
+    return format_skill(template, ticker=ticker, quant_model_data=json.dumps(quant_model_data, indent=2), fact_ledger_section=_build_fact_ledger_section(fact_ledger))

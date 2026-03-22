@@ -87,6 +87,31 @@ NEW_COLUMNS = [
     # Phase 10: Model tracking
     ("standard_model", "STRING"),
     ("deep_think_model", "STRING"),
+    # Phase 11: Autoresearch - FEATURE_TO_AGENT bridge features
+    ("consumer_sentiment", "FLOAT64"),
+    ("revenue_growth_yoy", "FLOAT64"),
+    ("quality_score", "FLOAT64"),
+    ("momentum_6m", "FLOAT64"),
+    ("rsi_14", "FLOAT64"),
+    # Phase 11: Autoresearch - enrichment signal parity
+    ("alt_data_signal", "STRING"),
+    ("alt_data_momentum_pct", "FLOAT64"),
+    ("anomaly_signal", "STRING"),
+    ("monte_carlo_signal", "STRING"),
+    ("quant_model_signal", "STRING"),
+    ("quant_model_score", "FLOAT64"),
+    ("social_sentiment_velocity", "FLOAT64"),
+    ("nlp_sentiment_confidence", "FLOAT64"),
+    # Phase 11: Autoresearch - risk assessment parity
+    ("risk_level", "STRING"),
+    ("recommended_position_pct", "FLOAT64"),
+    ("neutral_analyst_confidence", "FLOAT64"),
+    ("risk_debate_rounds_count", "INT64"),
+    # Phase 11: Autoresearch - debate parity
+    ("groupthink_flag", "BOOL"),
+    ("da_confidence_adjustment", "FLOAT64"),
+    # Phase 11: Autoresearch - cost parity
+    ("grounded_calls", "INT64"),
 ]
 
 

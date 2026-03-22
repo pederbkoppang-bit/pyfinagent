@@ -45,6 +45,7 @@ export {
   Brain as SignalNlp,
   Warning as SignalAnomaly,
   DiceFive as SignalMonteCarlo,
+  ChartPieSlice as SignalQuantModel,
 
   // ── Debate Icons ──
   TrendUp as DebateBull,

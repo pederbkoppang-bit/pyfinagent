@@ -38,7 +38,13 @@ def _run_optimization_loop(max_iterations: int = 0):
     optimizer = _get_optimizer()
     try:
         optimizer.establish_baseline()
-        optimizer.run_loop(max_iterations=max_iterations)
+
+        # Get MDA-targeted agents from MetaCoordinator if available
+        from backend.services.autonomous_loop import get_coordinator
+        coordinator = get_coordinator()
+        target_agents = coordinator._get_mda_target_agents() or None
+
+        optimizer.run_loop(max_iterations=max_iterations, target_agents=target_agents)
     except Exception as e:
         logger.error(f"Optimization loop crashed: {e}", exc_info=True)
 

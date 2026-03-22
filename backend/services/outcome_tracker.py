@@ -13,6 +13,7 @@ from typing import Optional
 
 from backend.config.settings import Settings
 from backend.db.bigquery_client import BigQueryClient
+from backend.services.perf_metrics import compute_return_pct, compute_benchmark_return, beat_benchmark as _beat_benchmark
 from backend.tools.yfinance_tool import get_comprehensive_financials
 
 logger = logging.getLogger(__name__)
@@ -45,11 +46,10 @@ class OutcomeTracker:
 
         rec_date = datetime.fromisoformat(analysis_date)
         holding_days = (datetime.utcnow() - rec_date).days
-        return_pct = ((current_price - price_at_rec) / price_at_rec) * 100
+        return_pct = compute_return_pct(current_price, price_at_rec)
 
-        # Simple benchmark: SPY average annual return ~10%
-        expected_benchmark_return = (10.0 / 365) * holding_days
-        beat_benchmark = return_pct > expected_benchmark_return
+        # Geometric benchmark comparison (canonical formula)
+        beat_benchmark_flag = _beat_benchmark(return_pct, holding_days)
 
         # Determine if recommendation was directionally correct
         is_buy = recommendation in ("Strong Buy", "Buy")
@@ -64,7 +64,7 @@ class OutcomeTracker:
             "current_price": current_price,
             "return_pct": round(return_pct, 2),
             "holding_days": holding_days,
-            "beat_benchmark": beat_benchmark,
+            "beat_benchmark": beat_benchmark_flag,
             "directionally_correct": directionally_correct,
         }
 
@@ -77,7 +77,7 @@ class OutcomeTracker:
             current_price=current_price,
             return_pct=return_pct,
             holding_days=holding_days,
-            beat_benchmark=beat_benchmark,
+            beat_benchmark=beat_benchmark_flag,
         )
 
         return outcome

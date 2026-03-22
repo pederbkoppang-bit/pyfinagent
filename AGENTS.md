@@ -42,6 +42,7 @@ pyfinagent/
 │   │   ├── cost_tracker.py      # Per-agent token/cost tracking (dual LLM support)
 │   │   ├── schemas.py           # Pydantic output schemas for Gemini structured output (Phase 3)
 │   │   ├── skill_optimizer.py   # Autonomous skill optimization loop (autoresearch pattern)
+│   │   ├── meta_coordinator.py  # Cross-loop sequencing for 3 optimization loops (MDA→Agent bridge)
 │   │   └── skills/              # Agent skills.md files (28 agents) + experiments/
 │   ├── config/
 │   │   ├── settings.py          # Pydantic settings (env vars)
@@ -51,7 +52,7 @@ pyfinagent/
 │   │   ├── auth.py              # HKDF + JWE token decrypt, email whitelist
 │   │   ├── reports.py           # Reports CRUD + performance stats
 │   │   ├── charts.py            # Price chart + financials endpoints
-│   │   ├── signals.py           # Enrichment signals endpoints (11 routes)
+│   │   ├── signals.py           # Enrichment signals endpoints (12 routes)
 │   │   ├── portfolio.py         # Portfolio tracking CRUD
 │   │   ├── paper_trading.py     # Autonomous paper trading endpoints (8 routes)
 │   │   ├── settings_api.py      # Model configuration + available models
@@ -65,7 +66,7 @@ pyfinagent/
 │   │   ├── cache.py              # BQ query cache layer for historical data
 │   │   ├── candidate_selector.py # S&P 500 screening at historical dates
 │   │   ├── data_ingestion.py     # Bulk ingest prices/fundamentals/macro to BQ
-│   │   ├── historical_data.py    # ~43-feature vector builder (point-in-time)
+│   │   ├── historical_data.py    # ~49-feature vector builder (point-in-time)
 │   │   ├── quant_optimizer.py    # Autoresearch-style strategy optimization loop
 │   │   ├── walk_forward.py       # Expanding-window walk-forward scheduler
 │   │   └── experiments/          # quant_results.tsv experiment logs
@@ -79,7 +80,8 @@ pyfinagent/
 │   │   ├── autonomous_loop.py  # Daily autonomous trading cycle (screen→analyze→trade→learn)
 │   │   ├── api_cache.py         # Thread-safe TTL response cache (in-memory, lazy eviction)
 │   │   ├── perf_tracker.py      # Per-endpoint latency recording (p50/p95/p99)
-│   │   └── perf_optimizer.py    # Autoresearch-style API cache TTL optimizer
+│   │   ├── perf_optimizer.py    # Autoresearch-style API cache TTL optimizer
+│   │   └── perf_metrics.py      # Canonical P&L + scalar metric (PerformanceSkill)
 │   ├── slack_bot/
 │   │   ├── app.py               # Slack bot entry point (Socket Mode)
 │   │   ├── commands.py          # /analyze, /portfolio, /report slash commands
@@ -101,7 +103,8 @@ pyfinagent/
 │   │   ├── anomaly_detector.py  # Multi-dimensional anomaly detection (Z-score)
 │   │   ├── monte_carlo.py       # Monte Carlo VaR simulation engine
 │   │   ├── slack.py             # Slack webhook notifications
-│   │   └── screener.py          # S&P 500 quant screener (momentum, RSI, composite score)
+│   │   ├── screener.py          # S&P 500 quant screener (momentum, RSI, composite score)
+│   │   └── quant_model.py       # MDA-weighted quant model signal (12th enrichment tool)
 │   └── main.py                  # FastAPI app + router registration
 ├── frontend/
 │   ├── prisma/
@@ -124,7 +127,7 @@ pyfinagent/
 │   │   ├── RiskDashboard.tsx    # Monte Carlo fan chart + VaR + anomalies
 │   │   ├── SentimentDetail.tsx  # NLP sentiment deep-dive
 │   │   ├── BiasReport.tsx       # LLM bias flags + knowledge conflicts
-│   │   ├── SignalCards.tsx       # 11-signal enrichment grid + consensus bar
+│   │   ├── SignalCards.tsx       # 12-signal enrichment grid + consensus bar
 │   │   ├── SectorDashboard.tsx  # Sector rotation + relative strength
 │   │   ├── MacroDashboard.tsx   # FRED indicator grid + warnings
 │   │   ├── StockChart.tsx       # Candlestick + SMA/RSI chart
@@ -148,6 +151,7 @@ pyfinagent/
 ├── quant-agent/                 # GCP Cloud Function
 ├── ingestion_agent/             # GCP Cloud Function
 ├── earnings-ingestion-agent/    # GCP Cloud Function
+├── trading_agent.md             # Living memory/instruction file for autonomous trading optimization
 └── AGENTS.md                    # This file
 ```
 
@@ -165,9 +169,9 @@ The orchestrator (`backend/agents/orchestrator.py`) executes a 15-step pipeline 
 | 3 | Document Analysis | `RAG Agent` (Vertex AI Search) | Analyze 10-K/10-Q for moat, governance, risks with citations |
 | 4 | Sentiment Analysis | `Market Agent` (LLM) | Detect sentiment velocity, price-sentiment divergence, catalyst keywords |
 | 5 | Competitor Analysis | `Competitor Agent` (LLM) | Identify rivals from news co-occurrence, assess competitive positioning |
-| 6 | **Data Enrichment** | 11 tools in parallel | Insider trades, options flow, social sentiment, patents, earnings transcripts, FRED macro, Google Trends, sector data, NLP sentiment, anomaly scan, Monte Carlo simulation. **Sector routing** skips irrelevant tools (e.g., patents for Financial Services) |
+| 6 | **Data Enrichment** | 12 tools in parallel | Insider trades, options flow, social sentiment, patents, earnings transcripts, FRED macro, Google Trends, sector data, NLP sentiment, anomaly scan, Monte Carlo simulation, quant model signal. **Sector routing** skips irrelevant tools (e.g., patents for Financial Services) |
 | 6b | **Info-Gap Detection** | `InfoGapDetector` (ReAct) | AlphaQuanter-style scan: assess sources for SUFFICIENT/PARTIAL/MISSING/SKIPPED status, retry critical failures (max 2 attempts), compute data quality score. SKIPPED tools excluded from quality score |
-| 7 | **Enrichment Analysis** | 11 LLM agents | Each tool's data analyzed by a specialized LLM agent |
+| 7 | **Enrichment Analysis** | 12 LLM agents | Each tool's data analyzed by a specialized LLM agent |
 | 8 | **Agent Debate** | `Bull` + `Bear` + `Devil's Advocate` + `Moderator` | Multi-round iterative debate: N rounds of Bull↔Bear rebuttal (each sees opponent's prior argument), Devil's Advocate stress-test (hidden risks, groupthink detection), Moderator consensus with full debate history. **Quality gate**: skipped when data quality < threshold |
 | 9 | Enhanced Macro | `Enhanced Macro Agent` (LLM + FRED) | Fed Funds, CPI, GDP, unemployment, yield curve, consumer sentiment analysis |
 | 10 | Deep Dive | `Deep Dive Agent` (LLM + RAG) | Identify 3 contradictions between sources, probe with targeted 10-K questions |
@@ -200,14 +204,15 @@ User Input (ticker)
     │   ├── sector_analysis.py (11 SPDR ETFs)                     │
     │   ├── nlp_sentiment.py (Vertex AI embeddings)               │
     │   ├── anomaly_detector.py (Z-score detection)               │
-    │   └── monte_carlo.py (1,000 GBM simulations)               │
+    │   ├── monte_carlo.py (1,000 GBM simulations)               │
+    │   └── quant_model.py (MDA-weighted factor score)           │
     │                                                              │
     ├─ Step 6b: Info-Gap Detection (AlphaQuanter ReAct) ──────────┤
-    │   ├── Scan 11 sources → SUFFICIENT/PARTIAL/MISSING          │
+    │   ├── Scan 12 sources → SUFFICIENT/PARTIAL/MISSING          │
     │   ├── Retry critical failures (max 2 attempts)              │
     │   └── Compute data quality score                            │
     │                                                              │
-    ├─ Step 7: 11 LLM Enrichment Agents (analyze each dataset)   │
+    ├─ Step 7: 12 LLM Enrichment Agents (analyze each dataset)   │
     │                                                              │
     ├─ Step 8: Agent Debate Framework ────────────────────────────┤
     │   ├── Round 1..N: Bull↔Bear iterative rebuttal              │
@@ -231,7 +236,7 @@ User Input (ticker)
                                                                    │
     Final Output: Validated JSON report with:                      │
     ├── scoring_matrix (5 pillars, weighted)                      │
-    ├── enrichment_signals (11 sources)                           │
+    ├── enrichment_signals (12 sources)                           │
     ├── debate_result (bull/bear/DA/consensus)                    │
     ├── risk_assessment (judge verdict + risk limits)             │
     ├── info_gap_report (data quality + gap status)               │
@@ -280,6 +285,7 @@ All agents use `gemini-2.0-flash` via Vertex AI. Prompts are defined in `backend
 | **NLP Sentiment Agent** | `get_nlp_sentiment_prompt()` | `nlp_sentiment.py` → Vertex AI text-embedding-005 | Contextual sentiment scoring (transformer embeddings, not keyword-based), semantic similarity to financial sentiment corpus, source reliability weighting | Score: -1.0 to +1.0 + confidence |
 | **Anomaly Detection Agent** | `get_anomaly_detection_prompt()` | `anomaly_detector.py` → multi-dimensional Z-score | Interpret statistical anomalies (> 2σ deviation), classify as opportunity vs risk, prioritize by severity and actionability | ANOMALY_OPPORTUNITY / ANOMALY_RISK / NORMAL |
 | **Scenario Analysis Agent** | `get_scenario_analysis_prompt()` | `monte_carlo.py` → 1,000 GBM simulations | Interpret VaR (95%/99%), expected shortfall, probability distributions, recommend position sizing based on risk tolerance | Risk profile classification |
+| **Quant Model Agent** | `get_quant_model_prompt()` | `quant_model.py` → MDA-weighted factor scoring | Interpret backtest-derived factor weights, flag momentum-quality alignment/divergence, assess MDA source freshness, extreme value detection | STRONG_BULLISH / BULLISH / NEUTRAL / BEARISH / STRONG_BEARISH |
 
 #### Debate Agents (Step 8)
 
@@ -340,6 +346,7 @@ All tools are in `backend/tools/`. Each returns a consistent structure: `{ ticke
 | **Monte Carlo VaR** | `monte_carlo.py` | yfinance daily returns | 1,000 GBM simulations, VaR (95%/99%), expected shortfall, P(±20%) over 3M/6M/1Y | No | None |
 | **Slack Notifications** | `slack.py` | Slack Webhook | Formatted message blocks with color coding | No | None |
 | **S&P 500 Screener** | `screener.py` | yfinance + Wikipedia | Momentum (1M/3M/6M), RSI_14, volatility, SMA distance, composite alpha score | No | None |
+| **Quant Model Signal** | `quant_model.py` | MDA cache + yfinance live features | MDA-weighted factor score, top contributing factors, signal classification | No | None |
 
 ---
 
@@ -429,7 +436,7 @@ This system's design is informed by leading research on AI in financial trading:
 | `/login` | `login/page.tsx` | **Login**: Google SSO + Passkey authentication, PyFinAgent branding, error handling |
 | `/` | `page.tsx` | **Home**: Portfolio snapshot hero (4 metric cards), recent reports table, quick actions (Run Analysis, View Signals, Run Backtest) |
 | `/analyze` | `analyze/page.tsx` | **Deep Analysis**: Ticker input → real-time 15-step analysis → Alpha score card, investment thesis, 5-pillar evaluation, stock chart, enrichment signals, debate view, risk dashboard, bias report |
-| `/signals` | `signals/page.tsx` | **Signals Explorer**: Enter ticker → view all 11 enrichment signals, consensus bar, sector dashboard, macro dashboard |
+| `/signals` | `signals/page.tsx` | **Signals Explorer**: Enter ticker → view all 12 enrichment signals, consensus bar, sector dashboard, macro dashboard |
 | `/reports` | `reports/page.tsx` | **Reports**: Tabbed — History (searchable list with filter chips) + Compare (select 2+ reports → side-by-side price overlay, radar chart, pillar score table, qualitative comparison) |
 | `/performance` | `performance/page.tsx` | **Performance**: Historical accuracy metrics |
 | `/portfolio` | `portfolio/page.tsx` | **Portfolio**: Position tracking, P&L, allocation pie chart, drawdown, recommendation accuracy scorecard |
@@ -446,7 +453,7 @@ This system's design is informed by leading research on AI in financial trading:
 | `SentimentDetail.tsx` | Contextual keyword cloud (embedding-weighted), sentiment time-series (30d), source breakdown chart |
 | `BiasReport.tsx` | Bias flag cards with severity indicators, knowledge conflict table (LLM belief vs actual data), raw vs bias-adjusted score |
 | `AuthProvider.tsx` | SessionProvider wrapper with 15-minute refetch interval |
-| `SignalCards.tsx` | 11-card grid with color-coded badges (green=bullish, red=bearish, amber=neutral, gray=error). SignalSummaryBar shows consensus distribution |
+| `SignalCards.tsx` | 12-card grid with color-coded badges (green=bullish, red=bearish, amber=neutral, gray=error). SignalSummaryBar shows consensus distribution |
 | `SectorDashboard.tsx` | Sector rotation bar chart (11 SPDR ETFs by 3M return), relative performance table (stock/sector/SPY × 4 periods), peer comparison table |
 | `MacroDashboard.tsx` | 7-indicator grid (current value + change), macro warnings section |
 | `StockChart.tsx` | Candlestick + volume with toggleable SMA50/SMA200/RSI, 5 period options (1M–2Y) |
@@ -454,7 +461,7 @@ This system's design is informed by leading research on AI in financial trading:
 | `AnalysisProgress.tsx` | 15-step real-time tracker with % bar, current-step spinner, Phosphor icon status indicators |
 | `CostDashboard.tsx` | LLM cost analytics: 4 summary cards (total cost, tokens, calls, deep think), token distribution bar, cost by model, per-agent breakdown table |
 | `Skeleton.tsx` | Reusable loading skeleton components: `SkeletonPulse` (atomic), `SkeletonCard` (card-sized), `SkeletonGrid` (N-card grid), `PageSkeleton` (full page: metric grid + content area) |
-| `PerfProgressChart.tsx` | Autoresearch-style optimization progress chart (Recharts ComposedChart): kept/discarded scatter dots, running-best step line, hover tooltip with experiment details, click-to-expand changelog panel |
+| `PerfProgressChart.tsx` | Autoresearch-style optimization progress chart (Recharts ComposedChart): kept/discarded scatter dots, running-best step line, text annotations on kept dots (karpathy/autoresearch style), hover tooltip with experiment details, click-to-expand changelog panel |
 | `Sidebar.tsx` | Navigation sidebar with Phosphor icons + user auth UI (avatar, email, passkey registration, logout) |
 
 ---
@@ -582,11 +589,11 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000
 | `GET` | `/api/charts/{ticker}` | Price chart data (OHLCV) |
 | `GET` | `/api/charts/{ticker}/financials` | Financial fundamentals |
 
-### Signals (11 routes)
+### Signals (12 routes)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/signals/{ticker}` | All 11 enrichment signals in parallel |
+| `GET` | `/api/signals/{ticker}` | All 12 enrichment signals in parallel |
 | `GET` | `/api/signals/{ticker}/insider` | SEC Form 4 insider trading data |
 | `GET` | `/api/signals/{ticker}/options` | Options flow analysis |
 | `GET` | `/api/signals/{ticker}/sentiment` | Social/news sentiment |
@@ -596,6 +603,7 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000
 | `GET` | `/api/signals/{ticker}/sector` | Sector rotation + relative strength |
 | `GET` | `/api/signals/{ticker}/nlp-sentiment` | Transformer NLP sentiment |
 | `GET` | `/api/signals/{ticker}/anomalies` | Multi-dimensional anomaly scan |
+| `GET` | `/api/signals/{ticker}/quant-model` | MDA-weighted quant model signal |
 | `GET` | `/api/signals/macro/indicators` | FRED macro indicators |
 
 ### Portfolio
@@ -726,7 +734,7 @@ Agent prompts are defined in skills.md files under `backend/agents/skills/`. Eac
 *   `prompts.py` loads the `## Prompt Template` section from each skills.md via `load_skill()` and injects runtime variables via `format_skill()` using `{{variable}}` placeholders
 *   Skill cache is keyed by file modification time — editing a skills.md file automatically picks up changes on next prompt call
 *   `SkillOptimizer` (backend/agents/skill_optimizer.py) implements an autonomous experiment loop: establish baseline → propose LLM-generated modification to Prompt Template → apply → measure metric → keep/discard/crash → repeat
-*   The single optimization metric is `risk_adjusted_return = avg(return_pct) * beat_benchmark_rate` from the outcome_tracking table
+*   The single optimization metric is `scalar = risk_adjusted_return × (1 − min(0.3, turnover_ratio × tx_cost_pct))` where `risk_adjusted_return = avg(return_pct) × beat_benchmark_rate`, computed by `perf_metrics.get_scalar_metric()`. Transaction cost penalty prevents churn alpha.
 *   Experiment results are logged to `backend/agents/skills/experiments/skill_results.tsv`
 *   **Fixed harness** (UNTOUCHABLE by optimizer): data tools, orchestrator pipeline, output JSON schemas, BQ schema, evaluation formula, function signatures
 *   **Modifiable** (the "train.py" equivalent): `## Prompt Template`, `## Skills & Techniques`, `## Anti-Patterns` sections of each skills.md
@@ -760,7 +768,7 @@ The system implements multi-layered LLM cost controls:
 
 ### Info-Gap Detection Protocol (Step 6b)
 AlphaQuanter-style ReAct loop for data quality assurance:
-1. **Scan**: Assess all 11 enrichment sources against sector-specific criticality thresholds
+1. **Scan**: Assess all 12 enrichment sources against sector-specific criticality thresholds
 2. **Classify**: Each source rated as SUFFICIENT (data present + meaningful), PARTIAL (data present but incomplete), or MISSING (no data or error)
 3. **Retry**: Critical gaps (high-criticality sources with MISSING status) are retried up to 2 times
 4. **Score**: Compute overall data quality score (0-100) and flag if recommendation is at risk
@@ -769,9 +777,9 @@ AlphaQuanter-style ReAct loop for data quality assurance:
 
 ## Data Persistence & ML Training
 
-### BigQuery Schema — `analysis_results` Table (68 columns)
+### BigQuery Schema — `analysis_results` Table (88 columns)
 
-Every analysis run persists a **68-column row** to BigQuery (`financial_reports.analysis_results`). The schema is designed for ML model training — all quantitative features that drive the recommendation are stored as first-class columns (not buried in JSON), enabling direct `SELECT`-based training queries and BQ ML `CREATE MODEL` syntax.
+Every analysis run persists an **88-column row** to BigQuery (`financial_reports.analysis_results`). The schema is designed for ML model training — all quantitative features that drive the recommendation are stored as first-class columns (not buried in JSON), enabling direct `SELECT`-based training queries and BQ ML `CREATE MODEL` syntax.
 
 The schema is managed by `migrate_bq_schema.py` (idempotent — safe to re-run).
 
@@ -790,6 +798,12 @@ The schema is managed by `migrate_bq_schema.py` (idempotent — safe to re-run).
 | **Macro Context** | `fed_funds_rate`, `cpi_yoy`, `unemployment_rate`, `yield_curve_spread` | Point-in-time FRED macro indicators for regime-aware ML |
 | **Cost Metrics** | `total_tokens`, `total_cost_usd`, `deep_think_calls` | Per-analysis LLM cost tracking for dual-model architecture |
 | **Reflection Loop** | `synthesis_iterations` | Tracks Evaluator-Optimizer reflection loop count per analysis |
+| **Model Tracking** | `standard_model`, `deep_think_model` | Which LLM models were used for this analysis run |
+| **Autoresearch Bridge** | `consumer_sentiment`, `revenue_growth_yoy`, `quality_score`, `momentum_6m`, `rsi_14` | FEATURE_TO_AGENT bridge features — enables MDA→Agent targeting in SkillOpt |
+| **Enrichment Signal Parity** | `alt_data_signal`, `alt_data_momentum_pct`, `anomaly_signal`, `monte_carlo_signal`, `quant_model_signal`, `quant_model_score`, `social_sentiment_velocity`, `nlp_sentiment_confidence` | Complete enrichment tool signal values for ML training |
+| **Risk Assessment Parity** | `risk_level`, `recommended_position_pct`, `neutral_analyst_confidence`, `risk_debate_rounds_count` | Full TradingAgents risk debate outputs for position sizing ML |
+| **Debate Parity** | `groupthink_flag`, `da_confidence_adjustment` | Devil's Advocate stress-test results |
+| **Cost Parity** | `grounded_calls` | Google Search Grounding call count per analysis |
 | **Full Report** | `full_report_json` | Complete report dict (JSON) — fallback for feature engineering |
 
 ### Research Rationale for Schema Design
@@ -931,6 +945,7 @@ Managed by `migrate_backtest_data.py` (idempotent). Stores historical price, fun
 | `total_assets` | FLOAT64 | Total assets |
 | `operating_cash_flow` | FLOAT64 | Cash from operations |
 | `shares_outstanding` | FLOAT64 | Diluted shares outstanding |
+| `dividends_per_share` | FLOAT64 | Quarterly dividends per share (from cash flow / shares) |
 | `sector` | STRING | GICS sector |
 | `industry` | STRING | GICS industry |
 | `ingested_at` | TIMESTAMP | When the row was ingested |
@@ -1011,6 +1026,241 @@ cd frontend && npm run build  # must produce 0 TypeScript errors
 
 ## Upgrade History
 
+### v5.3 — ML Training Pipeline Fixes + Backtest UX (July 2026)
+
+Fixed 3 dead/degraded ML features in the walk-forward backtest pipeline, doubled training sample density, added auto-table creation, and improved the backtest page UX with ingestion feedback and cost visibility.
+
+**Data Quality Fixes (3)**:
+1. **`revenue_growth_yoy` was always NULL (CRITICAL)**: `cached_fundamentals()` in `cache.py` returned only 1 quarter (`LIMIT 1`). Changed to `LIMIT 5` to return 5 most recent quarters. Added `_compute_revenue_growth_yoy()` in `historical_data.py` to compare current quarter revenue vs same quarter 4 periods ago (Q vs Q-4). Returns `None` when <5 quarters available.
+2. **`dividend_yield` never ingested**: `ingest_fundamentals()` in `data_ingestion.py` did not extract dividends from cash flow statements. Added `_compute_dividends_per_share()` method: extracts `Cash Dividends Paid` from quarterly cash flow, divides by shares outstanding. Added `dividends_per_share FLOAT64` column to `historical_fundamentals` BQ schema.
+3. **Monthly sampling — low training density**: `_build_training_data()` in `backtest_engine.py` sampled at monthly intervals (`pd.DateOffset(months=1)`), producing only ~12 samples/ticker/window for 36 features. Changed to biweekly (`pd.DateOffset(weeks=2)`), roughly doubling training set to ~26 samples/ticker/window.
+
+**Auto-Table Creation**:
+*   Added `_ensure_tables_exist()` to `DataIngestionService`: imports schemas from `migrate_backtest_data.py`, creates missing tables before ingestion. No more silent failures when `migrate_backtest_data.py` hasn't been run.
+
+**Frontend UX Improvements (Backtest Page)**:
+*   **Ingestion banner**: `handleIngest()` now captures POST response and displays an emerald success banner (with row counts) or rose error banner. Dismissable by user.
+*   **Cost info**: Inline text below row count metrics: "Data: yfinance + FRED (free) · BQ storage <$0.05 · Backtest: ML only, $0 LLM cost"
+*   **Button tooltips**: `title` attributes on Ingest Data and Run Backtest buttons explaining data sources, cost, and duration.
+
+**Modified Files (7)**:
+*   `backend/backtest/cache.py` — `cached_fundamentals()`: returns `list[dict]` (up to 5 quarters) instead of single `dict`
+*   `backend/backtest/historical_data.py` — `build_feature_vector()`: consumes list of fundamentals, computes `revenue_growth_yoy` from 5-quarter history. New `_compute_revenue_growth_yoy()` static method
+*   `backend/backtest/data_ingestion.py` — Added `_ensure_tables_exist()`, `_compute_dividends_per_share()`, `dividends_per_share` field in ingestion rows
+*   `backend/backtest/backtest_engine.py` — `_build_training_data()`: biweekly sampling
+*   `migrate_backtest_data.py` — Added `dividends_per_share FLOAT64` to `historical_fundamentals` schema (14 cols)
+*   `frontend/src/app/backtest/page.tsx` — Ingestion result banner, cost info section, button tooltips
+*   `AGENTS.md` — This entry + schema docs updated
+
+### v5.2 — BQ Schema Parity for Autoresearch Loops (July 2026)
+
+Comprehensive BQ audit identified 20 missing columns required for the Karpathy autoresearch optimization loops (QuantOpt → MDA → MetaCoordinator → SkillOpt) to work end-to-end. Fixed critical Celery task bug where only 6 of 88 params were passed to `save_report()`. BQ schema expanded from 68 → 88 columns.
+
+**Root Cause**: The `FEATURE_TO_AGENT` bridge in `MetaCoordinator` maps 27 MDA features to responsible agent skill files, but 5 of those features (`consumer_sentiment`, `revenue_growth_yoy`, `quality_score`, `momentum_6m`, `rsi_14`) had no corresponding BQ columns — they existed only in the backtest engine's `_NUMERIC_FEATURES` vector. Additionally, 15 enrichment/risk/debate/cost columns were missing parity coverage.
+
+**Bug Fixes (3)**:
+1. **Celery task `save_report()` (CRITICAL)**: `backend/tasks/analysis.py` was passing only 6 of 88 params (ticker, company_name, final_score, recommendation, summary, full_report). All 82+ ML-training columns were NULL when Celery workers ran. Fixed: full extraction logic mirrored from `api/analysis.py` (Phases 1–11, 85 kwargs).
+2. **FEATURE_TO_AGENT bridge columns missing**: 5 features in `meta_coordinator.py` FEATURE_TO_AGENT had no BQ columns. Added as first-class FLOAT64 columns.
+3. **Enrichment signal parity gap**: 15 enrichment tool signals, risk debate outputs, debate meta-features, and cost metrics had no BQ columns. Added for complete ML training coverage.
+
+**BQ Schema Expansion (20 new columns across 7 categories)**:
+*   **Autoresearch Bridge (+5)**: `consumer_sentiment`, `revenue_growth_yoy`, `quality_score`, `momentum_6m`, `rsi_14`
+*   **Enrichment Signal Parity (+8)**: `alt_data_signal`, `alt_data_momentum_pct`, `anomaly_signal`, `monte_carlo_signal`, `quant_model_signal`, `quant_model_score`, `social_sentiment_velocity`, `nlp_sentiment_confidence`
+*   **Risk Assessment Parity (+4)**: `risk_level`, `recommended_position_pct`, `neutral_analyst_confidence`, `risk_debate_rounds_count`
+*   **Debate Parity (+2)**: `groupthink_flag`, `da_confidence_adjustment`
+*   **Cost Parity (+1)**: `grounded_calls`
+
+**Modified Files (4)**:
+*   `migrate_bq_schema.py` — Added 20 columns in Phase 11 section
+*   `backend/db/bigquery_client.py` — Added 20 new params + row dict entries to `save_report()`
+*   `backend/api/analysis.py` — Added Phase 11 extraction variables + 20 new kwargs to `bq.save_report()` call
+*   `backend/tasks/analysis.py` — Complete rewrite: 6-param call → 85-kwarg call with full Phase 1–11 extraction logic
+
+### v5.1 — Phase 5B/5C: ML→Live Bridge + SkillOpt Iteration (July 2026)
+
+Bridged the walk-forward backtest ML system into the live analysis pipeline via a new 12th enrichment signal (Quant Model), and wired the MetaCoordinator to orchestrate the three optimization loops with MDA→Agent targeting and proxy validation.
+
+**Phase 5B — ML→Live Bridge (5 steps)**:
+
+*   **New data tool**: `backend/tools/quant_model.py` — 12th enrichment signal. Reads MDA feature importance from backtest cache, builds 17 live features from yfinance, computes MDA-weighted factor score, classifies signal (STRONG_BULLISH→STRONG_BEARISH). Falls back to equal weights when no backtest MDA exists.
+*   **MDA cache**: `backend/backtest/backtest_engine.py` — Added `_MDA_CACHE_PATH` (JSON), `get_latest_mda()`, `_save_mda_cache()`. Written after each backtest run.
+*   **Orchestrator wiring**: `backend/agents/orchestrator.py` — 12th signal in Step 6 gather (11→12), new `fetch_quant_model()` + `run_quant_model_agent()` methods, wired into enrichment_raw, retry_funcs, _agent_list, enrichment_for_debate.
+*   **Skill file**: `backend/agents/skills/quant_model_agent.md` — Factor decomposition, contradiction detection, MDA source awareness, extreme value flagging.
+*   **Prompt + signals**: `backend/config/prompts.py` — `get_quant_model_prompt()`. `backend/api/signals.py` — 12th gather slot + `/{ticker}/quant-model` endpoint.
+*   **Frontend**: `types.ts` (`quant_model: SignalSummary`), `icons.ts` (`ChartPieSlice as SignalQuantModel`), `SignalCards.tsx` (12th signal card).
+
+**Phase 5C — SkillOpt Iteration (3 steps)**:
+
+*   **MetaCoordinator wired to autonomous_loop**: `backend/services/autonomous_loop.py` — New Step 10 at end of daily cycle: `gather_health()` → `decide()` → logs coordinator decision (action, reason, target agents, health snapshot) to cycle summary. Module-level `_coordinator` instance exposed via `get_coordinator()`.
+*   **MDA→Agent bridge live targeting**: `backend/agents/skill_optimizer.py` — `_run_one_iteration()` and `run_loop()` accept `target_agents: list[str]` parameter. When MetaCoordinator provides MDA-targeted agents, overrides the weakest-agent heuristic with cycle-through of targeted agents. `backend/backtest/quant_optimizer.py` — `run_loop()` accepts `on_mda_update` callback; invoked after each kept experiment with fresh MDA importances. `backend/api/backtest.py` — Wires `coordinator.update_mda_features` as callback. `backend/api/skills.py` — Reads MDA targets from coordinator before starting SkillOpt loop.
+*   **Proxy validation**: `backend/agents/skill_optimizer.py` — New `_run_proxy_validation()` method delegates to `MetaCoordinator.run_proxy_validation()`. Called on pending experiments (delta==0) for fast quant-only feedback instead of waiting days for BQ outcome data.
+
+**Updated registries**:
+*   `meta_coordinator.py` — Added `quality_score`, `momentum_6m`, `rsi_14` → `quant_model_agent` in FEATURE_TO_AGENT (27 entries total)
+*   `skill_optimizer.py` — Added `quant_model_agent` to OPTIMIZABLE_AGENTS (26 agents total)
+
+### v5.0 — Phase 5A: Multi-Strategy Backtest Engine (July 2026)
+
+Expanded the walk-forward backtesting engine from a single Triple Barrier strategy to 5 research-backed strategies, added 6 new ML features, configurable screener weights, feature drift detection, model staleness tracking, and auto-ingestion at backtest start. Feature vector expanded from ~43 → ~49 features. QuantStrategyOptimizer now rotates strategies as a categorical hyperparameter.
+
+**Design Principles**:
+- **Strategy Registry**: Dispatch pattern maps strategy name → label method, enabling QuantOptimizer to explore strategy space
+- **Feature drift detection**: Log top-5 MDA changes between optimizer iterations to catch distribution shifts early
+- **Model staleness**: Timestamp-based guard warns when trained model is >7 days old
+- **Auto-ingest**: First backtest run auto-checks BQ tables and triggers ingestion if empty
+- **No BQ for testing**: Full mock-test suite exercises all 5 strategies via monkey-patched cache
+
+**Strategy Registry (5 strategies in `backtest_engine.py`)**:
+
+| Strategy | Label Method | Research Basis | Key Signals |
+|----------|-------------|----------------|-------------|
+| `triple_barrier` | `_compute_triple_barrier_label()` | López de Prado Ch. 3 | TP/SL/time barriers on price path |
+| `quality_momentum` | `_compute_quality_momentum_label()` | Asness et al. 2019 | 6M momentum × quality_score |
+| `mean_reversion` | `_compute_mean_reversion_label()` | Lo & MacKinlay 1990 | SMA50 deviation + RSI oversold/overbought |
+| `factor_model` | `_compute_factor_label()` | Fama-French 5-factor | Composite: value + momentum + low-vol + quality + yield |
+| `meta_label` | `_compute_triple_barrier_label()` | López de Prado Ch. 3 | Same labels, secondary model layer (future) |
+
+**New ML Features (6 in `historical_data.py`)**:
+
+| Feature | Computation | Used By |
+|---------|------------|--------|
+| `volume_ratio_20d` | current_volume / 20d_avg | All strategies (liquidity signal) |
+| `pb_ratio` | price / book_per_share | factor_model (value factor) |
+| `fcf_yield` | annualized OCF / market_cap | factor_model (yield factor) |
+| `dividend_yield` | dividends_per_share / price (from BQ fundamentals) | factor_model (yield factor) |
+| `quality_score` | ROE × profit_margin × (1 − norm_D/E) | quality_momentum |
+| `revenue_growth_yoy` | Q vs Q-4 revenue growth (from 5-quarter cache) | quality_momentum |
+
+**Modified Backend Files**:
+
+*   `backend/backtest/backtest_engine.py` — Added `STRATEGY_REGISTRY` (5 strategies), `strategy` param to `__init__`, `_compute_label()` dispatcher, 3 new label methods (`_compute_quality_momentum_label`, `_compute_mean_reversion_label`, `_compute_factor_label`), `_auto_ingest_if_needed()`, `model_trained_at` timestamp in `_train_model()`, configurable `scoring_weights` wired to candidate_selector, `_NUMERIC_FEATURES` expanded with 6 new features
+*   `backend/backtest/historical_data.py` — Added 6 new feature computations: `volume_ratio_20d`, `pb_ratio`, `fcf_yield`, `dividend_yield`, `quality_score`, `revenue_growth_yoy`
+*   `backend/backtest/candidate_selector.py` — Added `scoring_weights: dict | None = None` parameter to `screen_at_date()`, passes through to `_rank_candidates()`
+*   `backend/backtest/quant_optimizer.py` — Added `AVAILABLE_STRATEGIES` list, `_CATEGORICAL_PARAMS` dict for strategy rotation, `_prev_top5_mda` for drift tracking. Updated `_propose_random()` to handle categorical `strategy` param (20% chance). Updated `_apply_params_to_engine()` to set `engine.strategy`. Updated `_log_experiment()` with `top5_mda` column. Added `_extract_top5_mda()`, `_detect_feature_drift()`, `_check_model_staleness()` helpers. Updated `run_loop()` with baseline MDA extraction, staleness checks every 10 iterations, drift detection on keep
+*   `trading_agent.md` — Added Section 6 (Strategy Research) and Section 7 (Phase 5 Implementation Plan)
+
+**New Test File**:
+*   `t_backtest_mock.py` — Mock-test script: 20 synthetic tickers × 2y GBM prices, monkey-patched cache (no BQ), exercises all 5 strategies through full walk-forward pipeline, validates feature vectors, labels, candidate selection, optimizer helpers, and model staleness tracking. 6 test functions, all passing
+
+**Updated Feature Vector (~49 features)**:
+| Category | Features |
+|----------|----------|
+| Price & Returns | `price_at_analysis`, `momentum_1m`/`3m`/`6m`/`12m`, `annualized_volatility` |
+| Technical | `rsi_14`, `sma_50_distance`, `sma_200_distance`, `volume_ratio_20d` |
+| Monte Carlo | `var_95_6m`, `var_99_6m`, `expected_shortfall_6m`, `prob_positive_6m` |
+| Anomaly | `anomaly_count` |
+| Fundamentals | `pe_ratio`, `pb_ratio`, `debt_equity`, `roe`, `profit_margin`, `market_cap`, `total_revenue`, `net_income`, `total_debt`, `total_equity`, `total_assets`, `fcf_yield`, `dividend_yield`, `quality_score`, `revenue_growth_yoy` |
+| Macro | `fed_funds_rate`, `cpi_yoy`, `unemployment_rate`, `yield_curve_spread`, `consumer_sentiment`, `treasury_10y` |
+| Advanced | `amihud_illiquidity` |
+| Fractionally Differenced | `frac_diff_price`, `frac_diff_market_cap`, `frac_diff_revenue`, `frac_diff_debt`, `frac_diff_equity` |
+
+**QuantOptimizer Enhancements**:
+- 16 tunable parameters (15 numeric + 1 categorical `strategy`)
+- `_TSV_HEADER` now includes `top5_mda` column
+- Feature drift: top-5 MDA features compared between iterations; WARNING logged when set changes
+- Model staleness: checked every 10 iterations; WARNING if model >7 days old
+- Strategy rotation: `_propose_random()` has ~6% chance (1/16 params) of proposing a strategy change
+
+**Research Alignment**:
+
+| Research Source | Implementation |
+|----------------|----------------|
+| **Asness et al. (2019)** — Quality minus Junk | `_compute_quality_momentum_label()`: quality_score × 6M momentum composite |
+| **Lo & MacKinlay (1990)** — Mean Reversion | `_compute_mean_reversion_label()`: SMA50 deviation + RSI reversion bands |
+| **Fama-French 5-factor** | `_compute_factor_label()`: value + momentum + low-vol + quality + yield composite |
+| **López de Prado Ch. 3** | `_compute_triple_barrier_label()`: unchanged, still default strategy |
+| **Karpathy autoresearch** | QuantOptimizer now explores strategy space as categorical param |
+
+Unified P&L and portfolio metrics into a single `PerformanceSkill` module, eliminating formula duplication across 5 files. Created a `MetaCoordinator` to sequence the three optimization loops (QuantOpt, SkillOpt, PerfOpt) using portfolio health signals and MDA feature importance. Added `trading_agent.md` as a living memory file documenting the hybrid Karpathy/autoresearch approach, research foundations, and optimization architecture.
+
+**Design Principles**:
+- **Single source of truth**: All P&L, Sharpe, benchmark, and alpha formulas live in `perf_metrics.py`
+- **Scalar metric**: One unified metric for all optimizers: `risk_adjusted_return × (1 − tx_cost_drag)`
+- **MDA→Agent bridge**: QuantOpt's feature importance maps to responsible agents for targeted SkillOpt
+- **Proxy validation**: Single-window backtest for fast SkillOpt feedback (vs waiting days for outcomes)
+- **No circular imports**: `backtest_engine.py` delegates to `analytics.py` via lazy imports
+
+**New Backend Module (1 in `backend/services/`)**:
+*   `perf_metrics.py` — `PerformanceSkill`: canonical P&L, Sharpe, benchmark, alpha, turnover, and scalar metric. Functions: `compute_position_pnl()`, `compute_return_pct()`, `compute_portfolio_pnl()`, `compute_alpha()`, `compute_sharpe_from_snapshots()` (NAV→daily returns→canonical Sharpe), `compute_benchmark_return()` (geometric compounding), `beat_benchmark()`, `compute_turnover_ratio()`, `compute_tx_cost_drag()` (capped at 30%), `get_scalar_metric()` (THE unified metric), `get_scalar_metric_from_bq()`. `ScalarMetricInputs` dataclass for structured input.
+
+**New Backend Module (1 in `backend/agents/`)**:
+*   `meta_coordinator.py` — `MetaCoordinator`: cross-loop sequencing. `FEATURE_TO_AGENT` dict (20+ MDA features → agent skill files), `PortfolioHealth` dataclass (sharpe, accuracy, latency, data quality, days since last optimizations), `CoordinatorDecision` dataclass (action, reason, target_agents, priority). Methods: `decide()` (priority: latency→quant→skill→idle), `update_mda_features()`, `_get_mda_target_agents()` (MDA→Agent bridge — maps top 5 features to responsible agents), `gather_health()` (collects signals from BQ, PerfTracker, snapshots), `run_proxy_validation()` (single-window quant-only backtest for fast SkillOpt validation), `status()`.
+
+**New Root File (1)**:
+*   `trading_agent.md` — Living memory file for autonomous trading optimization. 5 sections: Agent Identity (mission, constraints, modifiable/fixed boundaries), Research Summary (43-feature vector, MDA, baselines, 10 research sources), Implementation Progress (phase checklist), Performance Skill API (function signatures), Iteration Loop (Karpathy-adapted hybrid rules, three-loop table, MetaCoordinator sequencing, MDA→Agent bridge).
+
+**P&L Deduplication (5 files modified)**:
+*   `backend/api/paper_trading.py` — Replaced 18-line inline Sharpe (no risk-free deduction, inflated by ~0.15-0.25) with 2-line `compute_sharpe_from_snapshots()` + `compute_alpha()` delegation
+*   `backend/backtest/backtest_engine.py` — `_sharpe()` and `_max_drawdown()` now delegate to `analytics.py` via lazy imports (avoids circular dependency with `analytics.py` importing `BacktestResult`)
+*   `backend/services/outcome_tracker.py` — `return_pct` uses `compute_return_pct()`, benchmark uses geometric `beat_benchmark()` (was arithmetic `10%/365 × days`), renamed variable to `beat_benchmark_flag` to avoid name collision
+*   `backend/api/portfolio.py` — `_enrich_position()` uses `compute_position_pnl()` instead of inline formula
+*   `backend/agents/skill_optimizer.py` — `compute_metric()` delegates to `perf_metrics.get_scalar_metric_from_bq()` (now includes transaction cost penalty)
+
+**Scalar Metric Formula**:
+```
+scalar = risk_adjusted_return × (1 − tx_cost_drag)
+
+where:
+    risk_adjusted_return = avg(return_pct) × beat_benchmark_rate
+    tx_cost_drag = min(0.3, turnover_ratio × tx_cost_pct)
+```
+Extends Karpathy's single-metric approach with transaction cost penalty that prevents discovery of "churn alpha" — strategies that look profitable on paper but lose to friction.
+
+**MetaCoordinator Three-Loop Sequencing**:
+```
+MetaCoordinator.decide(health) → priority-based:
+    Priority 3: p95 latency > 500ms      → PerfOpt  (fast, no cost)
+    Priority 2: Sharpe < 0.5             → QuantOpt (fast, no LLM cost)
+    Priority 1: Agent accuracy < 55%     → SkillOpt (slow, uses outcomes)
+    Priority 0: All within targets       → idle
+
+MDA→Agent Bridge (unique research contribution):
+    QuantOpt backtest → MDA feature importance
+    → FEATURE_TO_AGENT map (20+ features → agent skill files)
+    → SkillOpt targets the agents responsible for top features
+```
+
+**Three-Loop Architecture (updated from v4.0)**:
+```
+Fast Loop: QuantStrategyOptimizer (minutes/cycle)
+├── Propose parameter modification (random or LLM-guided)
+├── Run full walk-forward backtest
+├── Evaluate: Sharpe, DSR, alpha, hit rate
+├── Keep if DSR ≥ 0.95 AND metric improves
+├── Extract MDA feature importance → MetaCoordinator
+└── Log to quant_results.tsv
+
+Slow Loop: SkillOptimizer (days/cycle)
+├── MetaCoordinator targets top agents via MDA→Agent bridge
+├── Propose LLM-generated prompt modification
+├── Run proxy validation (single backtest window, quant-only)
+├── Evaluate via outcome_tracking table
+└── Log to skill_results.tsv
+
+Fast Loop: PerfOptimizer (minutes/cycle)
+├── Propose TTL modification (random ±20% perturbation)
+├── Measure p95 latency over 60s window
+├── Keep if ≥5% improvement
+└── Log to perf_results.tsv
+
+Coordinator: MetaCoordinator (on-demand)
+├── gather_health() — Sharpe from snapshots, accuracy from BQ, latency from PerfTracker
+├── decide(health) — priority routing to the right optimizer
+└── update_mda_features() — receives MDA from QuantOpt after each backtest
+```
+
+**Research Alignment**:
+
+| Research Source | Implementation |
+|----------------|----------------|
+| **Karpathy autoresearch** | Single scalar metric, keep/discard loop, LOOP FOREVER — all 3 optimizers follow this |
+| **FinRL three-layer** | Data→Agent→Analytics wired as MetaCoordinator feedback loop |
+| **BlackRock regime-aware** | Market conditions (Sharpe, accuracy, latency) determine optimizer priority |
+| **Lopez-Lira 2023** | Proxy validation is quant-only (no LLM contamination for historical data) |
+| **López de Prado Ch. 8** | MDA→Agent bridge maps feature importance to responsible agents |
+| **TradingAgents** | Multi-agent debate insights flow through debate features in MDA |
+| **Goldman Sachs 127-dim** | Risk features (VaR, volatility, anomaly) trackable through FEATURE_TO_AGENT |
+
 ### v4.2 — Settings Sub-Navigation + Performance Dashboard (March 2026)
 
 Restructured the Settings page from a flat 6-card layout to a 3-tab sub-navigation architecture. Added a new Performance tab exposing the v4.1 backend `/api/perf/*` endpoints in the frontend. Migrated all remaining emoji characters to Phosphor Icons per UX-AGENTS.md conventions. Fixed pre-existing reports page build failure.
@@ -1027,7 +1277,7 @@ Restructured the Settings page from a flat 6-card layout to a 3-tab sub-navigati
 *   **API Latency** — Overall p50/p95/p99 summary cards, per-endpoint latency table sorted by p95 descending, auto-refresh on tab switch
 
 **New Component (1)**:
-*   `PerfProgressChart.tsx` — Recharts `ComposedChart` with `Scatter` (kept/discarded dots) + `Line` (running best, stepAfter). Custom `TooltipProps` with click-to-select. Detail panel shows endpoint, timestamp, TTL before→after, p95 before→after (color-coded improvement/regression), hit rate. Data derived from `getPerfOptimizerExperiments()` API
+*   `PerfProgressChart.tsx` — Recharts `ComposedChart` with `Scatter` (kept/discarded dots) + `Line` (running best, stepAfter) + `LabelList` text annotations on kept dots (karpathy/autoresearch `analysis.ipynb` style). Custom `TooltipProps` with click-to-select. Detail panel shows endpoint, timestamp, TTL before→after, p95 before→after (color-coded improvement/regression), hit rate. Data derived from `getPerfOptimizerExperiments()` API
 
 **New Frontend Types (5 interfaces in `types.ts`)**:
 *   `EndpointLatency` — `endpoint`, `count`, `p50`, `p95`, `p99`
@@ -1102,7 +1352,7 @@ Research-driven walk-forward backtesting system with Triple Barrier labeling, fr
 **New Backend Modules (8 in `backend/backtest/`)**:
 *   `data_ingestion.py` — `DataIngestionService`: bulk ingest yfinance OHLCV (batches of 50), quarterly financials, FRED 7-series macro into 3 BQ tables. `run_full_ingestion()`, `get_ingestion_status()`
 *   `cache.py` — Module-level BQ query cache with `init_cache()`, `cached_prices()`, `cached_fundamentals()`, `cached_macro()`. Prevents redundant BQ reads during walk-forward windows
-*   `historical_data.py` — `HistoricalDataProvider`: builds ~43-feature vectors at any historical cutoff date. Includes `fractional_diff(series, d=0.4)` (López de Prado Ch. 5), `compute_turbulence_index()` (Mahalanobis distance), `_compute_amihud_illiquidity()`, Monte Carlo VaR, RSI, anomaly count
+*   `historical_data.py` — `HistoricalDataProvider`: builds ~49-feature vectors at any historical cutoff date. Includes `fractional_diff(series, d=0.4)` (López de Prado Ch. 5), `compute_turbulence_index()` (Mahalanobis distance), `_compute_amihud_illiquidity()`, Monte Carlo VaR, RSI, anomaly count, `volume_ratio_20d`, `pb_ratio`, `fcf_yield`, `dividend_yield`, `quality_score`, `revenue_growth_yoy`
 *   `candidate_selector.py` — `CandidateSelector`: S&P 500 screening at historical dates using composite score (momentum 40%, RSI 20%, volatility 20%, SMA distance 20%). 50-ticker fallback list for resilience
 *   `walk_forward.py` — `WalkForwardScheduler`: generates expanding walk-forward windows with configurable train/test periods and embargo days. `WalkForwardWindow` dataclass
 *   `backtest_engine.py` — `BacktestEngine`: central orchestrator. `run_backtest()` → per-window: screen candidates → build features → Triple Barrier labels (Ch. 3) → sample weights via average uniqueness (Ch. 4) → train `GradientBoostingClassifier(n_estimators=200, max_depth=4, min_samples_leaf=20)` → MDI + MDA feature importance (Ch. 8) → predict & trade. 31 numeric features, 5 non-stationary features get fractional differentiation
@@ -1117,7 +1367,7 @@ Research-driven walk-forward backtesting system with Triple Barrier labeling, fr
 
 **BQ Schema (3 new tables)**:
 *   `historical_prices` (8 cols) — OHLCV price history from yfinance
-*   `historical_fundamentals` (13 cols) — Quarterly financials from yfinance `.quarterly_financials` + `.quarterly_balance_sheet`
+*   `historical_fundamentals` (14 cols) — Quarterly financials from yfinance `.quarterly_financials` + `.quarterly_balance_sheet` + `.quarterly_cashflow`
 *   `historical_macro` (4 cols) — FRED 7-series macro indicators
 *   Managed by `migrate_backtest_data.py` (idempotent)
 
@@ -1179,14 +1429,14 @@ BACKTEST_TRANSACTION_COST_PCT=0.1
 
 **New Dependencies**: `scikit-learn>=1.4.0`, `scipy>=1.12.0`
 
-**~43 Feature Vector** (built at any historical cutoff date):
+**~49 Feature Vector** (built at any historical cutoff date):
 | Category | Features |
 |----------|----------|
-| Price & Returns | `price_at_analysis`, `return_1m`/`3m`/`6m`/`12m`, `volatility_1m`/`3m` |
+| Price & Returns | `price_at_analysis`, `momentum_1m`/`3m`/`6m`/`12m`, `annualized_volatility` |
 | Technical | `rsi_14`, `sma_50_distance`, `sma_200_distance`, `volume_ratio_20d` |
 | Monte Carlo | `var_95_6m`, `var_99_6m`, `expected_shortfall_6m`, `prob_positive_6m` |
 | Anomaly | `anomaly_count` |
-| Fundamentals | `pe_ratio`, `pb_ratio`, `debt_equity`, `roe`, `revenue_growth_yoy`, `net_margin`, `current_ratio` |
+| Fundamentals | `pe_ratio`, `pb_ratio`, `debt_equity`, `roe`, `profit_margin`, `market_cap`, `total_revenue`, `net_income`, `total_debt`, `total_equity`, `total_assets`, `fcf_yield`, `dividend_yield`, `quality_score`, `revenue_growth_yoy` |
 | Macro | `fed_funds_rate`, `cpi_yoy`, `unemployment_rate`, `gdp_growth`, `yield_curve_spread`, `consumer_sentiment`, `treasury_10y` |
 | Advanced | `amihud_illiquidity`, `turbulence_index` |
 | Fractionally Differenced | `frac_diff_price`, `frac_diff_market_cap`, `frac_diff_revenue`, `frac_diff_debt`, `frac_diff_equity` |
@@ -1464,7 +1714,7 @@ Complete frontend design system migration: Geist self-hosted font replacing Goog
 *   `globals.css` — `tabular-nums`, antialiasing, `skeleton` shimmer keyframe in `@layer base`
 
 **Centralized Icon System (2 new files)**:
-*   `frontend/src/lib/icons.ts` — ~110 aliased Phosphor re-exports organized by domain: Navigation (8), Pipeline Steps (16), Signals (11), Debate (7), Risk Team (4), Bias/Audit (12), Evaluation Pillars (5), Macro Indicators (8), GlassBox (4), Tabs (6), Utility (20+). All icons use `Icon` type from `@phosphor-icons/react` for TypeScript safety
+*   `frontend/src/lib/icons.ts` — ~110 aliased Phosphor re-exports organized by domain: Navigation (8), Pipeline Steps (16), Signals (12), Debate (7), Risk Team (4), Bias/Audit (12), Evaluation Pillars (5), Macro Indicators (8), GlassBox (4), Tabs (6), Utility (20+). All icons use `Icon` type from `@phosphor-icons/react` for TypeScript safety
 *   `frontend/src/lib/motion.ts` — Shared motion variants (`fadeIn`, `slideUp`, `staggerContainer`, `staggerItem`) and spring presets (`springSnappy`, `springGentle`, `hoverTap`) for future animation integration
 
 **Emoji → Phosphor Icon Conversion (15 components, 5 pages)**:

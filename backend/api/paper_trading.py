@@ -14,6 +14,7 @@ from backend.db.bigquery_client import BigQueryClient
 from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 from backend.services.autonomous_loop import run_daily_cycle, get_loop_status
 from backend.services.paper_trader import PaperTrader
+from backend.services.perf_metrics import compute_sharpe_from_snapshots, compute_alpha
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/paper-trading", tags=["paper-trading"])
@@ -203,24 +204,19 @@ async def get_performance():
     total_trades = len(sell_trades)
     total_cost = sum(t.get("analysis_cost_today", 0) for t in snapshots)
 
-    # Daily returns from snapshots for Sharpe ratio
-    daily_returns = []
-    for i in range(len(snapshots) - 1):
-        curr = snapshots[i].get("cumulative_pnl_pct", 0)
-        prev = snapshots[i + 1].get("cumulative_pnl_pct", 0)
-        daily_returns.append(curr - prev)
+    # Sharpe from NAV snapshots — delegates to canonical risk-free-adjusted formula
+    sharpe = compute_sharpe_from_snapshots(snapshots)
 
-    avg_daily_return = sum(daily_returns) / len(daily_returns) if daily_returns else 0
-    std_daily = (sum((r - avg_daily_return) ** 2 for r in daily_returns) / max(len(daily_returns) - 1, 1)) ** 0.5 if daily_returns else 0
-    sharpe = (avg_daily_return / std_daily * (252 ** 0.5)) if std_daily > 0 else 0
+    pnl_pct = portfolio.get("total_pnl_pct", 0) or 0
+    bench_pct = portfolio.get("benchmark_return_pct", 0) or 0
 
     result = {
         "nav": portfolio.get("total_nav"),
         "starting_capital": portfolio.get("starting_capital"),
-        "pnl_pct": portfolio.get("total_pnl_pct"),
-        "benchmark_return_pct": portfolio.get("benchmark_return_pct"),
-        "alpha_pct": (portfolio.get("total_pnl_pct", 0) or 0) - (portfolio.get("benchmark_return_pct", 0) or 0),
-        "sharpe_ratio": round(sharpe, 2),
+        "pnl_pct": pnl_pct,
+        "benchmark_return_pct": bench_pct,
+        "alpha_pct": compute_alpha(pnl_pct, bench_pct),
+        "sharpe_ratio": sharpe,
         "total_sell_trades": total_trades,
         "total_buy_trades": len(buy_trades),
         "total_analysis_cost": round(total_cost, 2),

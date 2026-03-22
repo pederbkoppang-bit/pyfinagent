@@ -36,8 +36,11 @@ class HistoricalDataProvider:
         df = cache.cached_prices(ticker, start, cutoff_date)
         return df
 
-    def get_point_in_time_fundamentals(self, ticker: str, cutoff_date: str) -> dict:
-        """Get most recent quarterly fundamentals as-of cutoff."""
+    def get_point_in_time_fundamentals(self, ticker: str, cutoff_date: str) -> list[dict]:
+        """Get up to 5 most recent quarterly fundamentals as-of cutoff.
+
+        Returns list ordered by report_date DESC (index 0 = most recent).
+        """
         return cache.cached_fundamentals(ticker, cutoff_date)
 
     def get_point_in_time_macro(self, cutoff_date: str) -> dict:
@@ -54,7 +57,8 @@ class HistoricalDataProvider:
         the full training set for consistency.
         """
         prices = self.get_point_in_time_prices(ticker, cutoff_date)
-        fundamentals = self.get_point_in_time_fundamentals(ticker, cutoff_date)
+        fundamentals_list = self.get_point_in_time_fundamentals(ticker, cutoff_date)
+        fundamentals = fundamentals_list[0] if fundamentals_list else {}
         macro = self.get_point_in_time_macro(cutoff_date)
 
         features: dict = {"ticker": ticker, "date": cutoff_date}
@@ -91,6 +95,12 @@ class HistoricalDataProvider:
         if len(close) >= 200:
             sma_200 = float(close.tail(200).mean())
             features["sma_200_distance"] = (current_price - sma_200) / sma_200
+
+        # Volume ratio (current vs 20d avg)
+        if volume is not None and len(volume) >= 20:
+            avg_vol_20d = float(volume.tail(20).mean())
+            if avg_vol_20d > 0:
+                features["volume_ratio_20d"] = float(volume.iloc[-1]) / avg_vol_20d
 
         # ── Monte Carlo VaR (from historical returns) ────────────
         if len(daily_returns) >= 60:
@@ -132,6 +142,38 @@ class HistoricalDataProvider:
 
             if revenue and revenue > 0:
                 features["profit_margin"] = (net_income / revenue) if net_income else None
+
+            # Price-to-Book ratio
+            if total_equity and total_equity > 0 and shares and shares > 0:
+                book_per_share = total_equity / shares
+                if book_per_share > 0:
+                    features["pb_ratio"] = current_price / book_per_share
+
+            # FCF yield = (operating_cash_flow - capex) / market_cap
+            ocf = fundamentals.get("operating_cash_flow")
+            market_cap = features.get("market_cap")
+            if ocf is not None and market_cap and market_cap > 0:
+                # Approximate capex as 0 when unavailable (conservative — FCF ≈ OCF)
+                fcf = ocf * 4  # Annualize quarterly
+                features["fcf_yield"] = fcf / market_cap
+
+            # Dividend yield (from fundamentals if available)
+            dividends = fundamentals.get("dividends_per_share")
+            if dividends and dividends > 0 and current_price > 0:
+                features["dividend_yield"] = dividends / current_price
+
+            # Quality score = ROE × profit_margin × (1 − normalized_D/E)
+            roe_val = features.get("roe")
+            pm_val = features.get("profit_margin")
+            de_val = features.get("debt_equity")
+            if roe_val is not None and pm_val is not None:
+                de_norm = min(1.0, max(0, (de_val or 0)) / 3.0)  # Cap at D/E=3
+                features["quality_score"] = max(0, (roe_val * pm_val * (1 - de_norm)))
+
+            # Revenue growth YoY: compare current quarter vs same quarter 4 periods ago
+            features["revenue_growth_yoy"] = self._compute_revenue_growth_yoy(
+                fundamentals_list, revenue
+            )
 
             features["sector"] = fundamentals.get("sector", "")
             features["industry"] = fundamentals.get("industry", "")
@@ -222,6 +264,22 @@ class HistoricalDataProvider:
         return result
 
     # ── Private helpers ──────────────────────────────────────────
+
+    @staticmethod
+    def _compute_revenue_growth_yoy(
+        fundamentals_list: list[dict], current_revenue: float | None
+    ) -> float | None:
+        """Compute YoY revenue growth from quarterly fundamentals history.
+
+        Compares the most recent quarter's revenue to the same quarter
+        4 periods ago (Q vs Q-4). Returns growth as a decimal (e.g., 0.15 = 15%).
+        """
+        if not current_revenue or not fundamentals_list or len(fundamentals_list) < 5:
+            return None
+        prior_revenue = fundamentals_list[4].get("total_revenue")
+        if not prior_revenue or prior_revenue == 0:
+            return None
+        return (current_revenue - prior_revenue) / abs(prior_revenue)
 
     @staticmethod
     def _pct_change(series: pd.Series, periods: int) -> float | None:

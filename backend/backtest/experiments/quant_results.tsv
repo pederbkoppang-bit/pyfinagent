@@ -1,0 +1,3 @@
+timestamp	run_id	param_changed	metric_before	metric_after	delta	status	dsr	top5_mda
+2026-03-22T13:07:56.874133+00:00	BASELINE	—	0.0000	0.0000	+0.0000	BASELINE	0.0000	
+2026-03-22T13:10:46.510859+00:00	BASELINE	—	0.0000	0.0000	+0.0000	BASELINE	0.0000	

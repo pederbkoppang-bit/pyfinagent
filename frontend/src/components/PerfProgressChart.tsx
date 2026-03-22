@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import type { PerfExperiment } from "@/lib/types";
 import {
-  ScatterChart,
   Scatter,
   XAxis,
   YAxis,
@@ -15,12 +14,34 @@ import {
   TooltipProps,
 } from "recharts";
 
+// ── Endpoint color palette (10 hues for dark backgrounds) ───────
+
+const ENDPOINT_COLORS = [
+  "#22d3ee", // cyan
+  "#a78bfa", // violet
+  "#f472b6", // pink
+  "#fb923c", // orange
+  "#34d399", // emerald
+  "#facc15", // yellow
+  "#60a5fa", // blue
+  "#f87171", // red
+  "#818cf8", // indigo
+  "#2dd4bf", // teal
+];
+
+function endpointColor(endpoint: string, endpoints: string[]): string {
+  const idx = endpoints.indexOf(endpoint);
+  return ENDPOINT_COLORS[idx % ENDPOINT_COLORS.length];
+}
+
 // ── Types ───────────────────────────────────────────────────────
 
 interface ChartPoint {
   index: number;
   p95: number;
+  p95Display: number; // clamped for display so outliers don't stretch axis
   status: "kept" | "discarded";
+  clamped: boolean; // true if p95 was clamped to ceiling
   endpoint: string;
   ttl_before: string;
   ttl_after: string;
@@ -41,23 +62,30 @@ interface Props {
 export function PerfProgressChart({ experiments }: Props) {
   const [selectedExp, setSelectedExp] = useState<ChartPoint | null>(null);
 
-  const { data, keptCount } = useMemo(() => {
+  const { data, keptCount, yMax, uniqueEndpoints } = useMemo(() => {
+    // Collect unique endpoints in order of first appearance
+    const endpointSet: string[] = [];
+    for (const exp of experiments) {
+      if (!endpointSet.includes(exp.endpoint)) endpointSet.push(exp.endpoint);
+    }
+
     let best = Infinity;
-    const points: ChartPoint[] = experiments.map((exp, i) => {
+    const raw: ChartPoint[] = experiments.map((exp, i) => {
       const p95 = parseFloat(exp.p95_after) || 0;
-      const isKept = exp.status.toLowerCase() === "kept";
+      const isKept = exp.status.toLowerCase() === "keep";
       if (isKept && p95 < best) best = p95;
 
       const ttlBefore = exp.ttl_before;
       const ttlAfter = exp.ttl_after;
-      const label = isKept
-        ? `${exp.endpoint} TTL ${ttlBefore}→${ttlAfter}`
-        : "";
+      const lbl = isKept ? `${exp.endpoint} ${ttlBefore}→${ttlAfter}` : "";
+      const label = lbl.length > 35 ? lbl.slice(0, 32) + "…" : lbl;
 
       return {
         index: i,
         p95,
-        status: isKept ? "kept" : "discarded",
+        p95Display: p95, // will clamp below
+        status: isKept ? ("kept" as const) : ("discarded" as const),
+        clamped: false,
         endpoint: exp.endpoint,
         ttl_before: ttlBefore,
         ttl_after: ttlAfter,
@@ -72,16 +100,44 @@ export function PerfProgressChart({ experiments }: Props) {
 
     // Fill running best line between kept points
     let lastBest: number | null = null;
-    for (const pt of points) {
+    for (const pt of raw) {
       if (pt.status === "kept") lastBest = pt.runningBest;
       else pt.runningBest = lastBest;
     }
 
+    // Compute smart Y ceiling: zoom into the "interesting region" (karpathy style)
+    // Use the max of: baseline (first experiment), or largest kept p95, with 50% margin
+    const keptPts = raw.filter((p) => p.status === "kept");
+    const firstP95 = raw.length > 0 ? raw[0].p95 : 100;
+    const maxKept = keptPts.length > 0 ? Math.max(...keptPts.map((p) => p.p95)) : firstP95;
+    const ceiling = Math.max(maxKept, firstP95) * 1.8 + 50; // 80% margin + 50ms padding
+
+    // Clamp outlier discarded dots to ceiling so they appear at the top edge
+    for (const pt of raw) {
+      if (pt.p95 > ceiling) {
+        pt.p95Display = ceiling;
+        pt.clamped = true;
+      }
+    }
+
     return {
-      data: points,
-      keptCount: points.filter((p) => p.status === "kept").length,
+      data: raw,
+      keptCount: keptPts.length,
+      yMax: Math.ceil(ceiling / 50) * 50, // round up to nearest 50
+      uniqueEndpoints: endpointSet,
     };
   }, [experiments]);
+
+  if (experiments.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-slate-500">
+        No experiments yet — start the TTL Optimizer to generate data.
+      </p>
+    );
+  }
+
+  const keptData = data.filter((d) => d.status === "kept");
+  const discardedData = data.filter((d) => d.status === "discarded");
 
   if (experiments.length === 0) {
     return (
@@ -102,11 +158,11 @@ export function PerfProgressChart({ experiments }: Props) {
       </div>
 
       {/* Chart */}
-      <div className="h-72">
+      <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={data}
-            margin={{ top: 12, right: 20, bottom: 24, left: 16 }}
+            margin={{ top: 40, right: 20, bottom: 24, left: 16 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -136,9 +192,12 @@ export function PerfProgressChart({ experiments }: Props) {
                 fill: "#64748b",
                 fontSize: 11,
               }}
-              domain={["auto", "auto"]}
+              domain={[0, yMax]}
             />
-            <Tooltip content={<CustomTooltip onSelect={setSelectedExp} />} />
+            <Tooltip
+              content={<CustomTooltip onSelect={setSelectedExp} endpoints={uniqueEndpoints} />}
+              cursor={{ stroke: "#334155", strokeWidth: 1 }}
+            />
 
             {/* Running best line */}
             <Line
@@ -147,43 +206,125 @@ export function PerfProgressChart({ experiments }: Props) {
               stroke="#22c55e"
               strokeWidth={2}
               dot={false}
+              activeDot={false}
               connectNulls
               isAnimationActive={false}
             />
 
-            {/* Discarded dots */}
+            {/* Discarded dots — colored by endpoint, clamped ones as triangles */}
             <Scatter
-              dataKey="p95"
-              data={data.filter((d) => d.status === "discarded")}
+              dataKey="p95Display"
+              data={discardedData}
               fill="#475569"
               fillOpacity={0.5}
-              r={3}
               isAnimationActive={false}
+              shape={(props: any) => {
+                const pt = props.payload as ChartPoint;
+                const color = endpointColor(pt.endpoint, uniqueEndpoints);
+                if (pt.clamped) {
+                  return (
+                    <polygon
+                      points={`${props.cx},${props.cy - 4} ${props.cx - 3},${props.cy + 2} ${props.cx + 3},${props.cy + 2}`}
+                      fill={color}
+                      fillOpacity={0.35}
+                    />
+                  );
+                }
+                return <circle cx={props.cx} cy={props.cy} r={3} fill={color} fillOpacity={0.35} />;
+              }}
             />
 
-            {/* Kept dots */}
+            {/* Kept dots — colored by endpoint with bright ring + staggered labels */}
             <Scatter
-              dataKey="p95"
-              data={data.filter((d) => d.status === "kept")}
+              dataKey="p95Display"
+              data={keptData}
               fill="#22c55e"
               r={5}
               isAnimationActive={false}
+              shape={(props: any) => {
+                const pt = props.payload as ChartPoint;
+                const color = endpointColor(pt.endpoint, uniqueEndpoints);
+                // Find this dot's rank among kept dots to stagger labels
+                const keptIdx = keptData.findIndex((k) => k.index === pt.index);
+                const goUp = keptIdx % 2 === 0;
+                const tier = Math.floor(keptIdx / 2);
+                const baseOffset = 14;
+                const tierSpacing = 12;
+                const yOffset = goUp
+                  ? -(baseOffset + tier * tierSpacing)
+                  : baseOffset + 6 + tier * tierSpacing;
+                return (
+                  <g>
+                    <circle
+                      cx={props.cx}
+                      cy={props.cy}
+                      r={5}
+                      fill={color}
+                      stroke="#fff"
+                      strokeWidth={1.5}
+                    />
+                    {pt.label && (
+                      <>
+                        {/* Leader line from dot to label */}
+                        <line
+                          x1={props.cx}
+                          y1={props.cy}
+                          x2={props.cx + 6}
+                          y2={props.cy + yOffset + (goUp ? 4 : -4)}
+                          stroke={color}
+                          strokeWidth={0.5}
+                          opacity={0.4}
+                        />
+                        <text
+                          x={props.cx + 8}
+                          y={props.cy + yOffset}
+                          fill={color}
+                          fontSize={8}
+                          opacity={0.85}
+                          textAnchor="start"
+                          dominantBaseline="auto"
+                        >
+                          {pt.label}
+                        </text>
+                      </>
+                    )}
+                  </g>
+                );
+              }}
             />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-5 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-full bg-slate-500 opacity-50" />
+      {/* Legend — endpoint colors + status indicators */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
+        {/* Endpoint colors */}
+        {uniqueEndpoints.map((ep) => {
+          const color = endpointColor(ep, uniqueEndpoints);
+          // Shorten long endpoint paths: "/api/paper-trading/snapshots" → "snapshots"
+          const short = ep.split("/").filter(Boolean).pop() || ep;
+          return (
+            <span key={ep} className="flex items-center gap-1">
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ backgroundColor: color }}
+              />
+              <span className="font-mono" title={ep}>{short}</span>
+            </span>
+          );
+        })}
+        {/* Separator */}
+        <span className="text-slate-700">|</span>
+        {/* Status indicators */}
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-full border border-white/80 bg-slate-600" />
+          Kept (ring)
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-full bg-slate-500 opacity-35" />
           Discarded
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
-          Kept
-        </span>
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1">
           <span className="inline-block h-0.5 w-4 bg-emerald-500" />
           Running best
         </span>
@@ -216,7 +357,11 @@ export function PerfProgressChart({ experiments }: Props) {
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <div>
               <span className="text-slate-500">Endpoint</span>
-              <p className="font-mono text-xs text-slate-300">
+              <p className="flex items-center gap-1.5 font-mono text-xs text-slate-300">
+                <span
+                  className="inline-block h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: endpointColor(selectedExp.endpoint, uniqueEndpoints) }}
+                />
                 {selectedExp.endpoint}
               </p>
             </div>
@@ -263,8 +408,10 @@ function CustomTooltip({
   active,
   payload,
   onSelect,
+  endpoints,
 }: TooltipProps<number, string> & {
   onSelect: (pt: ChartPoint) => void;
+  endpoints: string[];
 }) {
   if (!active || !payload?.length) return null;
 
@@ -274,6 +421,7 @@ function CustomTooltip({
   if (!entry) return null;
 
   const pt = entry.payload as ChartPoint;
+  const color = endpointColor(pt.endpoint, endpoints);
 
   return (
     <div
@@ -294,7 +442,10 @@ function CustomTooltip({
           {pt.status}
         </span>
       </div>
-      <p className="font-mono text-slate-400">{pt.endpoint}</p>
+      <p className="flex items-center gap-1.5 font-mono text-slate-400">
+        <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        {pt.endpoint}
+      </p>
       <p className="text-slate-400">
         TTL {pt.ttl_before}s → {pt.ttl_after}s
       </p>

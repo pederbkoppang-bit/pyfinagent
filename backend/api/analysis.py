@@ -168,6 +168,36 @@ async def _run_sync_analysis(task_id: str, ticker: str, settings: Settings):
                 entry = fred_indicators.get(series_id, {})
                 return entry.get("current") if isinstance(entry, dict) else None
 
+            # ── Phase 11: Autoresearch – FEATURE_TO_AGENT bridge features ──
+            qm_raw = report.get("quant_model", {})
+            qm_data_dict = qm_raw.get("data", {}) if isinstance(qm_raw, dict) else {}
+            qm_features = qm_data_dict.get("data", {}).get("features", {}) if isinstance(qm_data_dict, dict) else {}
+            if not isinstance(qm_features, dict):
+                qm_features = {}
+
+            alt_raw = report.get("alt_data", {})
+            alt_data_dict = alt_raw.get("data", {}) if isinstance(alt_raw, dict) else {}
+            if not isinstance(alt_data_dict, dict):
+                alt_data_dict = {}
+
+            anomaly_raw = report.get("anomaly", {})
+            anomaly_data_dict = anomaly_raw.get("data", {}) if isinstance(anomaly_raw, dict) else {}
+            if not isinstance(anomaly_data_dict, dict):
+                anomaly_data_dict = {}
+
+            scenario_raw = report.get("scenario", {})
+            scenario_data_dict = scenario_raw.get("data", {}) if isinstance(scenario_raw, dict) else {}
+            if not isinstance(scenario_data_dict, dict):
+                scenario_data_dict = {}
+
+            da_result = debate_result.get("devils_advocate", {}) if isinstance(debate_result, dict) else {}
+            if not isinstance(da_result, dict):
+                da_result = {}
+
+            neutral_analyst = risk_assessment.get("neutral", {}) if isinstance(risk_assessment, dict) else {}
+            if not isinstance(neutral_analyst, dict):
+                neutral_analyst = {}
+
             bq.save_report(
                 ticker=ticker,
                 company_name=quant.get("company_name", "N/A"),
@@ -244,6 +274,31 @@ async def _run_sync_analysis(task_id: str, ticker: str, settings: Settings):
                 # Phase 10: Model tracking
                 standard_model=cost_summary.get("standard_model", "") if isinstance(cost_summary, dict) else "",
                 deep_think_model=cost_summary.get("deep_think_model", "") if isinstance(cost_summary, dict) else "",
+                # Phase 11: Autoresearch – FEATURE_TO_AGENT bridge features
+                consumer_sentiment=_fred_val("UMCSENT"),
+                revenue_growth_yoy=qm_features.get("revenue_growth_yoy"),
+                quality_score=qm_features.get("quality_score"),
+                momentum_6m=qm_features.get("momentum_6m"),
+                rsi_14=qm_features.get("rsi_14"),
+                # Phase 11: Autoresearch – enrichment signal parity
+                alt_data_signal=alt_data_dict.get("signal", ""),
+                alt_data_momentum_pct=alt_data_dict.get("momentum_pct"),
+                anomaly_signal=anomaly_data_dict.get("signal", ""),
+                monte_carlo_signal=scenario_data_dict.get("signal", ""),
+                quant_model_signal=qm_data_dict.get("signal", ""),
+                quant_model_score=qm_data_dict.get("score"),
+                social_sentiment_velocity=social_data_dict.get("sentiment_velocity"),
+                nlp_sentiment_confidence=nlp_data_dict.get("confidence"),
+                # Phase 11: Autoresearch – risk assessment parity
+                risk_level=risk_judge.get("risk_level", "") if isinstance(risk_judge, dict) else "",
+                recommended_position_pct=risk_judge.get("recommended_position_pct") if isinstance(risk_judge, dict) else None,
+                neutral_analyst_confidence=neutral_analyst.get("confidence"),
+                risk_debate_rounds_count=risk_assessment.get("total_risk_rounds") if isinstance(risk_assessment, dict) else None,
+                # Phase 11: Autoresearch – debate parity
+                groupthink_flag=da_result.get("groupthink_flag"),
+                da_confidence_adjustment=da_result.get("confidence_adjustment"),
+                # Phase 11: Autoresearch – cost parity
+                grounded_calls=cost_summary.get("grounded_calls") if isinstance(cost_summary, dict) else None,
             )
         except Exception as e:
             logger.error(f"Failed to save report to BigQuery: {e}")

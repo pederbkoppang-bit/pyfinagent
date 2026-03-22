@@ -142,6 +142,7 @@ export interface EnrichmentSignals {
   nlp_sentiment: SignalSummary;
   anomaly: SignalSummary;
   monte_carlo: SignalSummary;
+  quant_model: SignalSummary;
 }
 
 export interface InsiderData {
@@ -200,6 +201,10 @@ export interface AllSignals {
   fred_macro: Record<string, unknown>;
   alt_data: Record<string, unknown>;
   sector: SectorData;
+  nlp_sentiment: Record<string, unknown>;
+  anomalies: Record<string, unknown>;
+  monte_carlo: Record<string, unknown>;
+  quant_model: Record<string, unknown>;
 }
 
 // ── Debate Types ─────────────────────────────────────────────────
@@ -633,7 +638,7 @@ export interface BacktestResults {
     n_trades: number;
     n_windows: number;
   };
-  baselines: {
+  baselines?: {
     spy: { total_return_pct: number; sharpe: number };
     equal_weight: { total_return_pct: number; sharpe: number };
     momentum: { total_return_pct: number; sharpe: number };

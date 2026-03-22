@@ -170,6 +170,7 @@ def compute_baseline_strategies(
 def generate_report(
     result: BacktestResult,
     num_trials: int = 1,
+    baselines: dict | None = None,
 ) -> dict:
     """
     Full backtest analytics report with DSR and baseline comparison.
@@ -205,28 +206,40 @@ def generate_report(
     mdi_sorted = sorted(result.feature_importance_mdi.items(), key=lambda x: x[1], reverse=True)[:15]
 
     report = {
-        "aggregate": {
-            "sharpe_ratio": result.aggregate_sharpe,
-            "deflated_sharpe_ratio": dsr,
+        "analytics": {
+            "sharpe": result.aggregate_sharpe,
+            "deflated_sharpe": dsr,
             "dsr_significant": dsr >= 0.95,
             "total_return_pct": result.aggregate_return_pct,
-            "alpha_pct": result.aggregate_alpha_pct,
-            "max_drawdown_pct": result.aggregate_max_drawdown_pct,
+            "alpha": result.aggregate_alpha_pct,
+            "max_drawdown": result.aggregate_max_drawdown_pct,
             "hit_rate": result.aggregate_hit_rate,
-            "total_trades": result.total_trades,
-            "num_windows": len(result.windows),
+            "n_trades": result.total_trades,
+            "n_windows": len(result.windows),
+            "information_ratio": 0.0,
             "num_trials": num_trials,
         },
         "per_window": [
             {
                 "window_id": w.window_id,
-                "train_period": f"{w.train_start} → {w.train_end}",
-                "test_period": f"{w.test_start} → {w.test_end}",
+                "train_start": w.train_start,
+                "train_end": w.train_end,
+                "test_start": w.test_start,
+                "test_end": w.test_end,
+                "n_candidates": w.n_candidates,
+                "n_train_samples": w.n_train_samples,
+                "n_features": w.n_features,
                 "sharpe_ratio": w.sharpe_ratio,
                 "total_return_pct": w.total_return_pct,
                 "max_drawdown_pct": w.max_drawdown_pct,
                 "hit_rate": w.hit_rate,
                 "num_trades": w.num_trades,
+                "feature_importance_mda": dict(
+                    sorted(w.feature_importance_mda.items(), key=lambda x: x[1], reverse=True)[:15]
+                ) if w.feature_importance_mda else {},
+                "feature_importance_mdi": dict(
+                    sorted(w.feature_importance_mdi.items(), key=lambda x: x[1], reverse=True)[:15]
+                ) if w.feature_importance_mdi else {},
             }
             for w in result.windows
         ],
@@ -234,8 +247,29 @@ def generate_report(
             "mda_top_15": [{"feature": f, "importance": round(v, 4)} for f, v in mda_sorted],
             "mdi_top_15": [{"feature": f, "importance": round(v, 4)} for f, v in mdi_sorted],
         },
+        "equity_curve": [
+            {"date": n.get("date", ""), "equity": n.get("nav", 0)}
+            for n in result.nav_history
+        ],
         "nav_history": result.nav_history,
         "strategy_params": result.strategy_params,
     }
+
+    # Add baselines if provided
+    if baselines:
+        report["baselines"] = {
+            "spy": {
+                "total_return_pct": baselines.get("spy_return_pct", 0),
+                "sharpe": 0,
+            },
+            "equal_weight": {
+                "total_return_pct": baselines.get("equal_weight_return_pct", 0),
+                "sharpe": 0,
+            },
+            "momentum": {
+                "total_return_pct": baselines.get("momentum_return_pct", 0),
+                "sharpe": 0,
+            },
+        }
 
     return report

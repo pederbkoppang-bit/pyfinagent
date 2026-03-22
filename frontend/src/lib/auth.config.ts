@@ -29,7 +29,7 @@ export default {
   providers,
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 hours (OWASP)
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
     signIn: "/login",

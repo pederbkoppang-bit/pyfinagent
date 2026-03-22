@@ -78,6 +78,7 @@ export default function BacktestPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ingestResult, setIngestResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -158,11 +159,23 @@ export default function BacktestPage() {
 
   const handleIngest = async () => {
     setActionLoading("ingest");
+    setIngestResult(null);
     try {
-      await runDataIngestion();
+      const res = await runDataIngestion();
+      const r = res?.result ?? {};
+      const prices = r.prices_inserted ?? 0;
+      const fundamentals = r.fundamentals_inserted ?? 0;
+      const macro = r.macro_inserted ?? 0;
+      setIngestResult({
+        type: "success",
+        message: `Ingestion complete — ${Number(prices).toLocaleString()} prices, ${Number(fundamentals).toLocaleString()} fundamentals, ${Number(macro).toLocaleString()} macro rows inserted`,
+      });
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ingestion failed");
+      setIngestResult({
+        type: "error",
+        message: e instanceof Error ? e.message : "Ingestion failed",
+      });
     } finally {
       setActionLoading(null);
     }
@@ -228,6 +241,7 @@ export default function BacktestPage() {
             <button
               onClick={handleIngest}
               disabled={!!actionLoading}
+              title="Downloads S&P 500 prices (yfinance), fundamentals, and FRED macro data into BigQuery. Free data sources, BQ cost <$0.05. Takes ~5-15 min."
               className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-sky-500/50 hover:text-sky-300 disabled:opacity-50"
             >
               <Database size={16} />
@@ -236,6 +250,7 @@ export default function BacktestPage() {
             <button
               onClick={handleRunBacktest}
               disabled={!!actionLoading || isRunning}
+              title="Runs walk-forward ML backtest on ingested data. Uses GradientBoosting (no LLM cost). BQ reads <$0.01. Takes ~2-5 min."
               className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:opacity-50"
             >
               <Play size={16} weight="fill" />
@@ -247,6 +262,26 @@ export default function BacktestPage() {
         {error && (
           <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
             <p className="text-sm text-rose-300">{error}</p>
+          </div>
+        )}
+
+        {/* Ingest result banner */}
+        {ingestResult && (
+          <div
+            className={`mb-4 rounded-lg border p-3 ${
+              ingestResult.type === "success"
+                ? "border-emerald-500/30 bg-emerald-950/30"
+                : "border-rose-500/30 bg-rose-950/30"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <p className={`text-sm ${ingestResult.type === "success" ? "text-emerald-300" : "text-rose-300"}`}>
+                {ingestResult.message}
+              </p>
+              <button onClick={() => setIngestResult(null)} className="ml-3 text-xs text-slate-500 hover:text-slate-300">
+                dismiss
+              </button>
+            </div>
           </div>
         )}
 
@@ -262,10 +297,15 @@ export default function BacktestPage() {
 
         {/* Data ingestion summary */}
         {ingestion && (
-          <div className="mb-6 grid grid-cols-3 gap-3">
-            <Metric label="Price Rows" value={ingestion.historical_prices.toLocaleString()} />
-            <Metric label="Fundamental Rows" value={ingestion.historical_fundamentals.toLocaleString()} />
-            <Metric label="Macro Rows" value={ingestion.historical_macro.toLocaleString()} />
+          <div className="mb-6">
+            <div className="grid grid-cols-3 gap-3">
+              <Metric label="Price Rows" value={ingestion.historical_prices.toLocaleString()} />
+              <Metric label="Fundamental Rows" value={ingestion.historical_fundamentals.toLocaleString()} />
+              <Metric label="Macro Rows" value={ingestion.historical_macro.toLocaleString()} />
+            </div>
+            <p className="mt-2 text-xs text-slate-600">
+              Data: yfinance + FRED (free) &middot; BQ storage &lt;$0.05 &middot; Backtest: ML only, $0 LLM cost
+            </p>
           </div>
         )}
 

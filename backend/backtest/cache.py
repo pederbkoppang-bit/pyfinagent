@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Module-level caches (cleared between backtest runs)
 _prices_cache: dict[tuple[str, str, str], pd.DataFrame] = {}
-_fundamentals_cache: dict[tuple[str, str], dict] = {}
+_fundamentals_cache: dict[tuple[str, str], list[dict]] = {}
 _macro_cache: dict[str, dict] = {}
 
 _bq_client: bigquery.Client | None = None
@@ -73,8 +73,12 @@ def cached_prices(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     return df
 
 
-def cached_fundamentals(ticker: str, cutoff_date: str) -> dict:
-    """Get most recent quarterly fundamentals as-of cutoff_date."""
+def cached_fundamentals(ticker: str, cutoff_date: str) -> list[dict]:
+    """Get up to 5 most recent quarterly fundamentals as-of cutoff_date.
+
+    Returns a list ordered by report_date DESC (index 0 = most recent).
+    Multiple quarters are needed for YoY revenue growth computation.
+    """
     key = (ticker, cutoff_date)
     if key in _fundamentals_cache:
         return _fundamentals_cache[key]
@@ -84,7 +88,7 @@ def cached_fundamentals(ticker: str, cutoff_date: str) -> dict:
         FROM `{_table("historical_fundamentals")}`
         WHERE ticker = @ticker AND report_date <= @cutoff
         ORDER BY report_date DESC
-        LIMIT 1
+        LIMIT 5
     """
     job_config = bigquery.QueryJobConfig(query_parameters=[
         bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
@@ -92,7 +96,7 @@ def cached_fundamentals(ticker: str, cutoff_date: str) -> dict:
     ])
     assert _bq_client is not None, "Cache not initialized — call init_cache() first"
     rows = list(_bq_client.query(query, job_config=job_config).result())
-    result = dict(rows[0]) if rows else {}
+    result = [dict(r) for r in rows]
 
     _fundamentals_cache[key] = result
     return result

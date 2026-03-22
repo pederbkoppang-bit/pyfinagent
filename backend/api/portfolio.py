@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from backend.services.perf_metrics import compute_position_pnl
 from backend.tools import yfinance_tool
 
 logger = logging.getLogger(__name__)
@@ -157,11 +158,11 @@ def _enrich_position(pos_id: str, pos: dict) -> dict:
         if current_price and isinstance(current_price, (int, float)):
             result["current_price"] = round(current_price, 2)
             result["market_value"] = round(pos["quantity"] * current_price, 2)
-            result["unrealized_pnl"] = round(result["market_value"] - pos["cost_basis"], 2)
-            if pos["cost_basis"] > 0:
-                result["unrealized_pnl_pct"] = round(
-                    result["unrealized_pnl"] / pos["cost_basis"] * 100, 2
-                )
+            pnl, pnl_pct = compute_position_pnl(
+                pos["quantity"], current_price, pos["cost_basis"]
+            )
+            result["unrealized_pnl"] = pnl
+            result["unrealized_pnl_pct"] = pnl_pct
     except Exception as e:
         logger.warning(f"Failed to fetch price for {pos['ticker']}: {e}")
     return result

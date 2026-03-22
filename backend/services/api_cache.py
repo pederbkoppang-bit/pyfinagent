@@ -113,17 +113,17 @@ def get_api_cache() -> APICache:
 # ── Default TTL registry (tunable by optimizer) ─────────────────
 
 ENDPOINT_TTLS: dict[str, float] = {
-    # Reports
-    "reports:list": 30.0,
-    "reports:cost-summary": 60.0,
-    "reports:cost-history": 120.0,
-    "reports:ticker": 60.0,
-    # Paper trading
-    "paper:status": 15.0,
-    "paper:portfolio": 15.0,
-    "paper:trades": 60.0,
-    "paper:snapshots": 120.0,
-    "paper:performance": 60.0,
+    # Reports (invalidated on new analysis)
+    "reports:list": 120.0,
+    "reports:cost-summary": 120.0,
+    "reports:cost-history": 300.0,
+    "reports:ticker": 120.0,
+    # Paper trading (invalidated on stop/run-now/trade execution)
+    "paper:status": 60.0,
+    "paper:portfolio": 60.0,
+    "paper:trades": 120.0,
+    "paper:snapshots": 300.0,
+    "paper:performance": 120.0,
     # Settings
     "settings:full": 300.0,
     "settings:models": 3600.0,

@@ -39,7 +39,7 @@ OPTIMIZABLE_AGENTS = [
     "insider_agent", "options_agent", "social_sentiment_agent",
     "patent_agent", "earnings_tone_agent", "enhanced_macro_agent",
     "alt_data_agent", "sector_analysis_agent", "nlp_sentiment_agent",
-    "anomaly_agent", "scenario_agent",
+    "anomaly_agent", "scenario_agent", "quant_model_agent",
     "bull_agent", "bear_agent", "devils_advocate_agent", "moderator_agent",
     "aggressive_analyst", "conservative_analyst", "neutral_analyst",
     "risk_judge", "synthesis_agent", "critic_agent", "deep_dive_agent",
@@ -110,16 +110,15 @@ class SkillOptimizer:
 
     def compute_metric(self) -> float:
         """
-        Compute the single optimization metric: risk_adjusted_return.
+        Compute the single optimization metric via PerformanceSkill.
 
-        risk_adjusted_return = avg(return_pct) * beat_benchmark_rate
+        Delegates to perf_metrics.get_scalar_metric_from_bq which computes:
+            risk_adjusted_return × (1 − tx_cost_drag)
 
         Higher is better. Returns 0.0 if no outcome data is available.
         """
-        stats = self.bq.get_performance_stats()
-        avg_return = stats.get("avg_return") or 0.0
-        benchmark_rate = stats.get("benchmark_beat_rate") or 0.0
-        return round(avg_return * benchmark_rate, 4)
+        from backend.services.perf_metrics import get_scalar_metric_from_bq
+        return get_scalar_metric_from_bq(self.bq)
 
     # ── Baseline ─────────────────────────────────────────────────
 
@@ -610,11 +609,12 @@ class SkillOptimizer:
 
     # ── Main Loop ────────────────────────────────────────────────
 
-    def run_loop(self, max_iterations: int = 0) -> None:
+    def run_loop(self, max_iterations: int = 0, target_agents: Optional[list[str]] = None) -> None:
         """
         LOOP FOREVER (until stopped or max_iterations reached).
 
         max_iterations=0 means loop indefinitely.
+        target_agents: if provided by MetaCoordinator, restricts optimization to these agents.
         """
         self._running = True
         iteration = 0
@@ -630,7 +630,7 @@ class SkillOptimizer:
             logger.info(f"=== Optimization iteration {iteration} ===")
 
             try:
-                self._run_one_iteration()
+                self._run_one_iteration(target_agents=target_agents)
             except Exception as e:
                 logger.error(f"Iteration {iteration} failed: {e}", exc_info=True)
                 time.sleep(10)
@@ -647,8 +647,13 @@ class SkillOptimizer:
     def is_running(self) -> bool:
         return self._running
 
-    def _run_one_iteration(self) -> None:
-        """Execute one full optimization cycle."""
+    def _run_one_iteration(self, target_agents: Optional[list[str]] = None) -> None:
+        """Execute one full optimization cycle.
+
+        Args:
+            target_agents: If provided (from MetaCoordinator MDA→Agent bridge),
+                overrides the weakest-agent heuristic and cycles through these agents.
+        """
         # 1. Evaluate pending outcomes
         logger.info("Step 1: Evaluating pending outcomes...")
         self.outcome_tracker.evaluate_all_pending()
@@ -663,13 +668,28 @@ class SkillOptimizer:
             logger.warning("No performance data available. Skipping iteration.")
             return
 
-        # Pick the weakest agent with enough data, or cycle through agents
+        # Pick target: MDA-targeted agents take priority over weakest-agent heuristic
         target = None
-        for agent_data in perf:
-            agent_name = agent_data["agent"]
-            if agent_data["sample_size"] >= 3 and agent_data["accuracy"] < 0.8:
-                target = agent_data
-                break
+        if target_agents:
+            # MetaCoordinator provided MDA-targeted agents — cycle through them
+            valid_targets = [a for a in target_agents if a in OPTIMIZABLE_AGENTS]
+            if valid_targets:
+                pick = valid_targets[iteration_counter(len(valid_targets))]
+                # Find this agent in perf data, or create a minimal entry
+                for agent_data in perf:
+                    if agent_data["agent"] == pick:
+                        target = agent_data
+                        break
+                if not target:
+                    target = {"agent": pick, "accuracy": 0.5, "sample_size": 0}
+                logger.info(f"MDA-targeted agent: {target['agent']}")
+
+        if not target:
+            for agent_data in perf:
+                agent_name = agent_data["agent"]
+                if agent_data["sample_size"] >= 3 and agent_data["accuracy"] < 0.8:
+                    target = agent_data
+                    break
 
         if not target:
             # All agents performing well or insufficient data — pick round-robin
@@ -734,15 +754,27 @@ class SkillOptimizer:
             self._consecutive_discards[agent_name] = 0
             logger.info(f"KEEP: {agent_name} delta={delta:+.4f}")
         elif delta == 0.0:
-            # No change yet — keep the modification live for now
-            self._log_experiment(
-                agent=agent_name,
-                metric_before=metric_before,
-                metric_after=metric_after,
-                delta=delta,
-                status="pending",
-                description=proposal.get("description", ""),
-            )
+            # No change yet — try proxy validation (1-window quant backtest)
+            proxy_sharpe = self._run_proxy_validation()
+            if proxy_sharpe is not None:
+                logger.info(f"Proxy validation Sharpe: {proxy_sharpe:.4f}")
+                self._log_experiment(
+                    agent=agent_name,
+                    metric_before=metric_before,
+                    metric_after=metric_after,
+                    delta=delta,
+                    status="pending",
+                    description=f"{proposal.get('description', '')} [proxy_sharpe={proxy_sharpe:.4f}]",
+                )
+            else:
+                self._log_experiment(
+                    agent=agent_name,
+                    metric_before=metric_before,
+                    metric_after=metric_after,
+                    delta=delta,
+                    status="pending",
+                    description=proposal.get("description", ""),
+                )
             logger.info(f"PENDING: {agent_name} delta=0 (awaiting new analyses)")
         else:
             # DISCARD
@@ -757,6 +789,22 @@ class SkillOptimizer:
             )
             self._consecutive_discards[agent_name] = consecutive + 1
             logger.info(f"DISCARD: {agent_name} delta={delta:+.4f}")
+
+    # ── Proxy Validation ────────────────────────────────────────
+
+    def _run_proxy_validation(self) -> Optional[float]:
+        """
+        Run a 1-window quant-only backtest as fast proxy feedback.
+
+        Returns Sharpe ratio or None on failure. Delegates to
+        MetaCoordinator.run_proxy_validation() — no LLM cost.
+        """
+        try:
+            from backend.agents.meta_coordinator import MetaCoordinator
+            return MetaCoordinator.run_proxy_validation(self.settings)
+        except Exception as e:
+            logger.debug(f"Proxy validation skipped: {e}")
+            return None
 
     # ── Status ───────────────────────────────────────────────────
 

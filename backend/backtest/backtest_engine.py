@@ -5,9 +5,11 @@ fractional differentiation, and meta-labeling position sizing.
 Zero LLM cost.
 """
 
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -22,20 +24,64 @@ from backend.backtest import cache
 
 logger = logging.getLogger(__name__)
 
+# ── Strategy Registry ────────────────────────────────────────────
+# Maps strategy name → label computation method name on BacktestEngine.
+# QuantOptimizer rotates among these as a categorical parameter.
+STRATEGY_REGISTRY: dict[str, str] = {
+    "triple_barrier": "_compute_triple_barrier_label",
+    "quality_momentum": "_compute_quality_momentum_label",
+    "mean_reversion": "_compute_mean_reversion_label",
+    "factor_model": "_compute_factor_label",
+    "meta_label": "_compute_triple_barrier_label",  # same labels, secondary model on top
+}
+
 # Numeric features used for ML training (excludes categorical: ticker, date, sector, industry)
 _NUMERIC_FEATURES = [
     "price_at_analysis", "momentum_1m", "momentum_3m", "momentum_6m", "momentum_12m",
     "rsi_14", "annualized_volatility", "sma_50_distance", "sma_200_distance",
     "var_95_6m", "var_99_6m", "expected_shortfall_6m", "prob_positive_6m",
-    "anomaly_count", "amihud_illiquidity",
-    "pe_ratio", "debt_equity", "roe", "profit_margin", "market_cap",
+    "anomaly_count", "amihud_illiquidity", "volume_ratio_20d",
+    "pe_ratio", "pb_ratio", "debt_equity", "roe", "profit_margin", "market_cap",
     "total_revenue", "net_income", "total_debt", "total_equity", "total_assets",
+    "fcf_yield", "dividend_yield", "quality_score", "revenue_growth_yoy",
     "fed_funds_rate", "cpi_yoy", "unemployment_rate", "yield_curve_spread",
     "consumer_sentiment", "treasury_10y",
 ]
 
 # Non-stationary features that need fractional differentiation
 _NON_STATIONARY = {"price_at_analysis", "market_cap", "total_revenue", "total_debt", "total_equity"}
+
+# ── MDA Cache ────────────────────────────────────────────────────
+# Persists the latest aggregate MDA weights so that the live quant_model
+# tool can read them without re-running a full backtest.
+_MDA_CACHE_PATH = Path(__file__).parent / "experiments" / "mda_cache.json"
+_latest_mda: dict[str, float] = {}
+
+
+def get_latest_mda() -> dict[str, float]:
+    """Return cached MDA weights. Reads JSON file if module-level cache is empty."""
+    global _latest_mda
+    if _latest_mda:
+        return dict(_latest_mda)
+    if _MDA_CACHE_PATH.exists():
+        try:
+            data = json.loads(_MDA_CACHE_PATH.read_text(encoding="utf-8"))
+            _latest_mda = {k: float(v) for k, v in data.items()}
+            return dict(_latest_mda)
+        except Exception:
+            pass
+    return {}
+
+
+def _save_mda_cache(mda: dict[str, float]) -> None:
+    """Persist MDA weights to JSON and module-level cache."""
+    global _latest_mda
+    _latest_mda = dict(mda)
+    try:
+        _MDA_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _MDA_CACHE_PATH.write_text(json.dumps(mda, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning("Failed to save MDA cache: %s", e)
 
 
 @dataclass
@@ -51,6 +97,9 @@ class WindowResult:
     max_drawdown_pct: float
     hit_rate: float
     num_trades: int
+    n_candidates: int = 0
+    n_train_samples: int = 0
+    n_features: int = 0
     feature_importance_mdi: dict[str, float] = field(default_factory=dict)
     feature_importance_mda: dict[str, float] = field(default_factory=dict)
     predictions: list[dict] = field(default_factory=list)
@@ -98,6 +147,8 @@ class BacktestEngine:
         sl_pct: float = 10.0,
         # Feature params
         frac_diff_d: float = 0.4,
+        # Strategy selection
+        strategy: str = "triple_barrier",
         # Portfolio params
         starting_capital: float = 100_000.0,
         max_positions: int = 20,
@@ -131,6 +182,13 @@ class BacktestEngine:
         self.sl_pct = sl_pct
         self.frac_diff_d = frac_diff_d
         self.top_n_candidates = top_n_candidates
+        self.strategy = strategy if strategy in STRATEGY_REGISTRY else "triple_barrier"
+        self.model_trained_at: str = ""  # ISO timestamp of last model training
+
+        # Store BQ refs for auto-ingest check
+        self._bq_client = bq_client
+        self._project = project
+        self._dataset = dataset
 
         self.ml_params = {
             "n_estimators": n_estimators,
@@ -154,19 +212,28 @@ class BacktestEngine:
             "embargo_days": embargo_days, "holding_days": holding_days,
             "tp_pct": tp_pct, "sl_pct": sl_pct, "frac_diff_d": frac_diff_d,
             "starting_capital": starting_capital, "max_positions": max_positions,
-            "top_n_candidates": top_n_candidates, **self.ml_params,
+            "top_n_candidates": top_n_candidates, "strategy": self.strategy,
+            **self.ml_params,
         }
+
+    def get_model_trained_at(self) -> str:
+        """Return ISO timestamp of last model training. Empty string if never trained."""
+        return self.model_trained_at
 
     def run_backtest(self, universe_tickers: list[str] | None = None) -> BacktestResult:
         """
         Run full walk-forward backtest. Main entry point.
+        Auto-checks BQ data availability and triggers ingestion if empty.
         Returns BacktestResult with per-window and aggregate metrics.
         """
         if universe_tickers is None:
             universe_tickers = self.candidate_selector.get_universe_tickers()
 
+        # Auto-ingest check: if historical_prices is empty, trigger ingestion
+        self._auto_ingest_if_needed(universe_tickers)
+
         windows = self.scheduler.generate_windows()
-        logger.info(f"Walk-forward: {len(windows)} windows, {len(universe_tickers)} tickers")
+        logger.info(f"Walk-forward: {len(windows)} windows, {len(universe_tickers)} tickers, strategy={self.strategy}")
 
         result = BacktestResult(strategy_params=self._strategy_params)
         all_mdi = {}
@@ -201,6 +268,10 @@ class BacktestEngine:
         result.feature_importance_mdi = {k: v / n_windows for k, v in all_mdi.items()}
         result.feature_importance_mda = {k: v / n_windows for k, v in all_mda.items()}
 
+        # Persist MDA cache for live quant_model tool
+        if result.feature_importance_mda:
+            _save_mda_cache(result.feature_importance_mda)
+
         # Aggregate hit rate
         all_preds = [p for w in result.windows for p in w.predictions]
         if all_preds:
@@ -223,8 +294,14 @@ class BacktestEngine:
         test_end_str = window.test_end.isoformat()
 
         # 1. Screen candidates at train_end
+        scoring_weights = {
+            k: self._strategy_params[k]
+            for k in ("momentum_weight", "rsi_weight", "volatility_weight", "sma_weight")
+            if k in self._strategy_params
+        }
         candidates = self.candidate_selector.screen_at_date(
             train_end_str, universe_tickers, top_n=self.top_n_candidates,
+            scoring_weights=scoring_weights if scoring_weights else None,
         )
         candidate_tickers = [c["ticker"] for c in candidates]
 
@@ -261,6 +338,7 @@ class BacktestEngine:
         # 6. Predict on test period candidates
         test_candidates = self.candidate_selector.screen_at_date(
             test_start_str, universe_tickers, top_n=self.top_n_candidates,
+            scoring_weights=scoring_weights if scoring_weights else None,
         )
         test_tickers = [c["ticker"] for c in test_candidates]
 
@@ -306,6 +384,9 @@ class BacktestEngine:
             max_drawdown_pct=self._max_drawdown(np.array(window_returns)) if window_returns else 0,
             hit_rate=sum(1 for p in predictions if p.get("correct")) / len(predictions) if predictions else 0,
             num_trades=len(signals) if signals else 0,
+            n_candidates=len(candidate_tickers),
+            n_train_samples=len(train_features),
+            n_features=len(feature_names),
             feature_importance_mdi=mdi,
             feature_importance_mda=mda,
             predictions=predictions,
@@ -331,14 +412,15 @@ class BacktestEngine:
         entry_dates = []
         exit_dates = []
 
-        # Sample at monthly intervals within the training window
-        current = pd.Timestamp(train_start) + pd.DateOffset(months=1)
+        # Sample at biweekly intervals within the training window
+        # (~26 samples/ticker/window vs ~12 with monthly — doubles training set)
+        current = pd.Timestamp(train_start) + pd.DateOffset(weeks=2)
         end = pd.Timestamp(train_end)
 
         sample_dates = []
         while current <= end:
             sample_dates.append(current.strftime("%Y-%m-%d"))
-            current += pd.DateOffset(months=1)
+            current += pd.DateOffset(weeks=2)
 
         for sample_date in sample_dates:
             for ticker in tickers:
@@ -347,7 +429,7 @@ class BacktestEngine:
                     if not fv or fv.get("price_at_analysis") is None:
                         continue
 
-                    label = self._compute_triple_barrier_label(ticker, sample_date)
+                    label = self._compute_label(ticker, sample_date)
                     if label is None:
                         continue
 
@@ -467,6 +549,8 @@ class BacktestEngine:
             random_state=42,
         )
         model.fit(X, y, sample_weight=sample_weights)
+        from datetime import datetime as _dt, timezone as _tz
+        self.model_trained_at = _dt.now(_tz.utc).isoformat()
         return model, list(X.columns)
 
     def _compute_mda(
@@ -538,7 +622,7 @@ class BacktestEngine:
                 })
 
                 # Check actual outcome for hit rate
-                actual_label = self._compute_triple_barrier_label(ticker, test_start)
+                actual_label = self._compute_label(ticker, test_start)
                 predictions.append({
                     "ticker": ticker,
                     "date": test_start,
@@ -557,22 +641,17 @@ class BacktestEngine:
 
     @staticmethod
     def _sharpe(returns: np.ndarray, risk_free_rate: float = 0.04) -> float:
-        if len(returns) < 5:
-            return 0.0
-        excess = returns - risk_free_rate / 252
-        std = excess.std()
-        if std == 0:
-            return 0.0
-        return float((excess.mean() / std) * np.sqrt(252))
+        # Lazy import to avoid circular dependency (analytics imports BacktestResult)
+        from backend.backtest.analytics import compute_sharpe
+        return compute_sharpe(returns, risk_free_rate)
 
     @staticmethod
     def _max_drawdown(returns: np.ndarray) -> float:
         if len(returns) == 0:
             return 0.0
         cumulative = np.cumprod(1 + returns)
-        peak = np.maximum.accumulate(cumulative)
-        drawdown = (cumulative - peak) / peak
-        return float(drawdown.min() * 100)
+        from backend.backtest.analytics import compute_max_drawdown
+        return compute_max_drawdown(cumulative)
 
     def _empty_window_result(self, window: WalkForwardWindow) -> WindowResult:
         return WindowResult(
@@ -589,3 +668,123 @@ class BacktestEngine:
         if self.progress_callback:
             self.progress_callback(message)
         logger.info(f"Backtest: {message}")
+
+    # ── Strategy Label Dispatcher ────────────────────────────────
+
+    def _compute_label(self, ticker: str, entry_date: str) -> int | None:
+        """Dispatch to the active strategy's label method."""
+        method_name = STRATEGY_REGISTRY.get(self.strategy, "_compute_triple_barrier_label")
+        method = getattr(self, method_name)
+        return method(ticker, entry_date)
+
+    # ── Alternative Label Methods ────────────────────────────────
+
+    def _compute_quality_momentum_label(self, ticker: str, entry_date: str) -> int | None:
+        """
+        Quality Momentum (Asness et al. 2019):
+        +1 if 6-month momentum > 0 AND quality_score > median, -1 if both negative, 0 otherwise.
+        """
+        fv = self.data_provider.build_feature_vector(ticker, entry_date)
+        if not fv or fv.get("price_at_analysis") is None:
+            return None
+
+        momentum_6m = fv.get("momentum_6m")
+        quality_score = fv.get("quality_score", 0) or 0
+
+        if momentum_6m is None:
+            return None
+
+        if momentum_6m > 5 and quality_score > 0.3:
+            return 1
+        if momentum_6m < -5 and quality_score < 0.1:
+            return -1
+        return 0
+
+    def _compute_mean_reversion_label(self, ticker: str, entry_date: str) -> int | None:
+        """
+        Mean Reversion (Lo & MacKinlay 1990):
+        +1 if price significantly below SMA (oversold bounce candidate),
+        -1 if significantly above SMA (overbought reversion candidate),
+        0 if within normal range.
+        """
+        fv = self.data_provider.build_feature_vector(ticker, entry_date)
+        if not fv or fv.get("price_at_analysis") is None:
+            return None
+
+        sma_dist = fv.get("sma_50_distance")
+        rsi = fv.get("rsi_14")
+        if sma_dist is None or rsi is None:
+            return None
+
+        # Oversold: price well below SMA50 + RSI < 30
+        if sma_dist < -0.05 and rsi < 35:
+            return 1
+        # Overbought: price well above SMA50 + RSI > 70
+        if sma_dist > 0.10 and rsi > 70:
+            return -1
+        return 0
+
+    def _compute_factor_label(self, ticker: str, entry_date: str) -> int | None:
+        """
+        Multi-Factor Composite (Fama-French 5-factor):
+        Score based on value (low P/E), momentum, quality (high ROE), low volatility.
+        +1 if composite > 0.6, -1 if composite < 0.3, 0 otherwise.
+        """
+        fv = self.data_provider.build_feature_vector(ticker, entry_date)
+        if not fv or fv.get("price_at_analysis") is None:
+            return None
+
+        # Normalize factors to 0-1 range
+        pe = fv.get("pe_ratio")
+        momentum = fv.get("momentum_6m")
+        vol = fv.get("annualized_volatility")
+        roe = fv.get("roe")
+        div_yield = fv.get("dividend_yield", 0) or 0
+
+        if pe is None or momentum is None or vol is None:
+            return None
+
+        # Value: lower P/E is better (capped 5-40)
+        value_score = max(0, min(1, 1 - (max(5, min(40, pe)) - 5) / 35))
+        # Momentum: positive is better (capped -30% to +50%)
+        mom_score = max(0, min(1, (max(-30, min(50, momentum)) + 30) / 80))
+        # Low vol: lower is better (capped 0.10 to 0.60)
+        vol_score = max(0, min(1, 1 - (max(0.10, min(0.60, vol)) - 0.10) / 0.50))
+        # Quality: higher ROE is better (capped 0-40%)
+        quality_score = max(0, min(1, (roe or 0) / 0.40))
+        # Yield
+        yield_score = max(0, min(1, div_yield / 0.05))
+
+        composite = (
+            value_score * 0.25 + mom_score * 0.25 + vol_score * 0.20
+            + quality_score * 0.20 + yield_score * 0.10
+        )
+
+        if composite > 0.6:
+            return 1
+        if composite < 0.3:
+            return -1
+        return 0
+
+    # ── Auto-Ingest ──────────────────────────────────────────────
+
+    def _auto_ingest_if_needed(self, universe_tickers: list[str]):
+        """Check BQ table row counts; auto-ingest if historical_prices is empty."""
+        try:
+            from backend.backtest.data_ingestion import DataIngestionService
+            from backend.config.settings import get_settings
+
+            settings = get_settings()
+            ingestion = DataIngestionService(self._bq_client, settings)
+            status = ingestion.get_ingestion_status()
+
+            prices_count = status.get("historical_prices", 0)
+            if prices_count == 0:
+                logger.warning("Auto-ingest: historical_prices is empty, triggering full ingestion...")
+                self._report_progress("Auto-ingesting historical data (first run)...")
+                ingestion.run_full_ingestion(universe_tickers[:100])
+                logger.info("Auto-ingest complete")
+            else:
+                logger.info(f"Auto-ingest check: {prices_count} price rows found, skipping ingestion")
+        except Exception as e:
+            logger.warning(f"Auto-ingest check failed (non-fatal): {e}")

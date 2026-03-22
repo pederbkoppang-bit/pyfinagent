@@ -108,6 +108,31 @@ class BigQueryClient:
                     # ── Phase 10: Model tracking ──
                     standard_model: str = "",
                     deep_think_model: str = "",
+                    # ── Phase 11: Autoresearch – FEATURE_TO_AGENT bridge ──
+                    consumer_sentiment: Optional[float] = None,
+                    revenue_growth_yoy: Optional[float] = None,
+                    quality_score: Optional[float] = None,
+                    momentum_6m: Optional[float] = None,
+                    rsi_14: Optional[float] = None,
+                    # ── Phase 11: Autoresearch – enrichment signal parity ──
+                    alt_data_signal: str = "",
+                    alt_data_momentum_pct: Optional[float] = None,
+                    anomaly_signal: str = "",
+                    monte_carlo_signal: str = "",
+                    quant_model_signal: str = "",
+                    quant_model_score: Optional[float] = None,
+                    social_sentiment_velocity: Optional[float] = None,
+                    nlp_sentiment_confidence: Optional[float] = None,
+                    # ── Phase 11: Autoresearch – risk assessment parity ──
+                    risk_level: str = "",
+                    recommended_position_pct: Optional[float] = None,
+                    neutral_analyst_confidence: Optional[float] = None,
+                    risk_debate_rounds_count: Optional[int] = None,
+                    # ── Phase 11: Autoresearch – debate parity ──
+                    groupthink_flag: Optional[bool] = None,
+                    da_confidence_adjustment: Optional[float] = None,
+                    # ── Phase 11: Autoresearch – cost parity ──
+                    grounded_calls: Optional[int] = None,
                     ) -> None:
         row = {
             "ticker": ticker,
@@ -194,6 +219,31 @@ class BigQueryClient:
             # ── Phase 10: Model tracking ──
             "standard_model": standard_model,
             "deep_think_model": deep_think_model,
+            # ── Phase 11: Autoresearch – FEATURE_TO_AGENT bridge ──
+            "consumer_sentiment": consumer_sentiment,
+            "revenue_growth_yoy": revenue_growth_yoy,
+            "quality_score": quality_score,
+            "momentum_6m": momentum_6m,
+            "rsi_14": rsi_14,
+            # ── Phase 11: Autoresearch – enrichment signal parity ──
+            "alt_data_signal": alt_data_signal,
+            "alt_data_momentum_pct": alt_data_momentum_pct,
+            "anomaly_signal": anomaly_signal,
+            "monte_carlo_signal": monte_carlo_signal,
+            "quant_model_signal": quant_model_signal,
+            "quant_model_score": quant_model_score,
+            "social_sentiment_velocity": social_sentiment_velocity,
+            "nlp_sentiment_confidence": nlp_sentiment_confidence,
+            # ── Phase 11: Autoresearch – risk assessment parity ──
+            "risk_level": risk_level,
+            "recommended_position_pct": recommended_position_pct,
+            "neutral_analyst_confidence": neutral_analyst_confidence,
+            "risk_debate_rounds_count": risk_debate_rounds_count,
+            # ── Phase 11: Autoresearch – debate parity ──
+            "groupthink_flag": groupthink_flag,
+            "da_confidence_adjustment": da_confidence_adjustment,
+            # ── Phase 11: Autoresearch – cost parity ──
+            "grounded_calls": grounded_calls,
             # ── Full report ──
             "full_report_json": json.dumps(full_report),
         }

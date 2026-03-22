@@ -77,6 +77,10 @@ export default function SignalsPage() {
           signal: (data as unknown as Record<string, Record<string, string>>).monte_carlo?.signal || "N/A",
           summary: (data as unknown as Record<string, Record<string, string>>).monte_carlo?.summary || "",
         },
+        quant_model: {
+          signal: (data as unknown as Record<string, Record<string, string>>).quant_model?.signal || "N/A",
+          summary: (data as unknown as Record<string, Record<string, string>>).quant_model?.summary || "",
+        },
       }
     : null;
 
@@ -89,7 +93,7 @@ export default function SignalsPage() {
             Market Signals & Intelligence
           </h2>
           <p className="text-sm text-slate-500">
-            Real-time enrichment data from 11 independent signal sources
+            Real-time enrichment data from 12 independent signal sources
           </p>
         </div>
 

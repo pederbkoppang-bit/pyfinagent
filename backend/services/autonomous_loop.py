@@ -10,6 +10,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
+from backend.agents.meta_coordinator import MetaCoordinator
 from backend.agents.orchestrator import AnalysisOrchestrator
 from backend.config.settings import Settings, get_settings
 from backend.db.bigquery_client import BigQueryClient
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 _running = False
 _last_run: Optional[str] = None
 _last_result: Optional[dict] = None
+_coordinator = MetaCoordinator()
 
 
 async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
@@ -204,6 +206,34 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
             except Exception as e:
                 logger.error(f"Learning step failed (non-fatal): {e}")
 
+        # ── Step 10: MetaCoordinator health check ────────────────
+        try:
+            snapshots = bq.get_paper_snapshots(limit=60)
+            from backend.services.perf_tracker import get_perf_tracker
+            health = MetaCoordinator.gather_health(
+                bq_client=bq,
+                perf_tracker=get_perf_tracker(),
+                paper_snapshots=snapshots,
+            )
+            decision = _coordinator.decide(health)
+            summary["coordinator"] = {
+                "action": decision.action,
+                "reason": decision.reason,
+                "target_agents": decision.target_agents,
+                "priority": decision.priority,
+                "health": {
+                    "sharpe": round(health.sharpe_ratio, 4),
+                    "accuracy": round(health.agent_accuracy, 4),
+                    "p95_latency_ms": round(health.p95_latency_ms, 1),
+                },
+            }
+            logger.info(
+                f"MetaCoordinator decision: {decision.action} "
+                f"(reason={decision.reason})"
+            )
+        except Exception as e:
+            logger.warning(f"MetaCoordinator step failed (non-fatal): {e}")
+
         # ── Done ─────────────────────────────────────────────────
         summary.update({
             "status": "completed",
@@ -291,3 +321,8 @@ def get_loop_status() -> dict:
         "last_run": _last_run,
         "last_result": _last_result,
     }
+
+
+def get_coordinator() -> MetaCoordinator:
+    """Return the module-level MetaCoordinator instance."""
+    return _coordinator

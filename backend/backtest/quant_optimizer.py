@@ -17,7 +17,7 @@ import logging
 import os
 import random
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -27,7 +27,10 @@ logger = logging.getLogger(__name__)
 
 _EXPERIMENTS_DIR = Path(__file__).parent / "experiments"
 _TSV_PATH = _EXPERIMENTS_DIR / "quant_results.tsv"
-_TSV_HEADER = "timestamp\trun_id\tparam_changed\tmetric_before\tmetric_after\tdelta\tstatus\tdsr\n"
+_TSV_HEADER = "timestamp\trun_id\tparam_changed\tmetric_before\tmetric_after\tdelta\tstatus\tdsr\ttop5_mda\n"
+
+# All available strategies (categorical param)
+AVAILABLE_STRATEGIES = ["triple_barrier", "quality_momentum", "mean_reversion", "factor_model", "meta_label"]
 
 # Strategy param bounds (min, max)
 _PARAM_BOUNDS = {
@@ -50,6 +53,11 @@ _PARAM_BOUNDS = {
 
 # Integer params (must be int after perturbation)
 _INT_PARAMS = {"holding_days", "n_estimators", "max_depth", "min_samples_leaf", "max_positions", "top_n_candidates"}
+
+# Categorical params (handled separately from numeric bounds)
+_CATEGORICAL_PARAMS = {
+    "strategy": AVAILABLE_STRATEGIES,
+}
 
 
 class QuantStrategyOptimizer:
@@ -75,6 +83,7 @@ class QuantStrategyOptimizer:
         self.num_trials = 0
         self.kept = 0
         self.discarded = 0
+        self._prev_top5_mda: list[str] = []  # Feature drift tracking
 
         _EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -87,21 +96,30 @@ class QuantStrategyOptimizer:
         max_iterations: int = 100,
         use_llm: bool = False,
         stop_check: Optional[Callable] = None,
+        on_mda_update: Optional[Callable[[list[dict]], None]] = None,
     ):
         """
         Main autoresearch loop:
         1. Establish baseline
         2. For each iteration: propose → apply → evaluate → keep/discard
+
+        Args:
+            on_mda_update: Callback invoked with MDA importances after each kept experiment.
+                Used by MetaCoordinator to update MDA→Agent bridge.
         """
         # 1. Baseline
         logger.info("QuantOptimizer: establishing baseline...")
         baseline_result = self.engine.run_backtest()
         baseline_report = generate_report(baseline_result, num_trials=1)
-        self.best_sharpe = baseline_report["aggregate"]["sharpe_ratio"]
-        self.best_dsr = baseline_report["aggregate"]["deflated_sharpe_ratio"]
+        self.best_sharpe = baseline_report["analytics"]["sharpe"]
+        self.best_dsr = baseline_report["analytics"]["deflated_sharpe"]
         self.num_trials = 1
 
-        self._log_experiment("BASELINE", "—", 0, self.best_sharpe, 0, "BASELINE", self.best_dsr)
+        # Extract baseline MDA top-5
+        top5_mda = self._extract_top5_mda(baseline_result)
+        self._prev_top5_mda = top5_mda
+
+        self._log_experiment("BASELINE", "—", 0, self.best_sharpe, 0, "BASELINE", self.best_dsr, top5_mda)
         self._report_status()
 
         # 2. Iteration loop
@@ -111,9 +129,13 @@ class QuantStrategyOptimizer:
                 logger.info(f"QuantOptimizer: stopped after {i} iterations")
                 break
 
+            # Model staleness check (every 10 iterations)
+            if i > 0 and i % 10 == 0:
+                self._check_model_staleness()
+
             self.num_trials += 1
 
-            # Propose modification
+            # Propose modification (numeric or categorical)
             think_harder = consecutive_discards >= 5
             if use_llm:
                 change = self._propose_llm(think_harder)
@@ -134,14 +156,15 @@ class QuantStrategyOptimizer:
             try:
                 result = self.engine.run_backtest()
                 report = generate_report(result, num_trials=self.num_trials)
-                trial_sharpe = report["aggregate"]["sharpe_ratio"]
-                trial_dsr = report["aggregate"]["deflated_sharpe_ratio"]
+                trial_sharpe = report["analytics"]["sharpe"]
+                trial_dsr = report["analytics"]["deflated_sharpe"]
+                trial_top5 = self._extract_top5_mda(result)
             except Exception as e:
                 logger.warning(f"QuantOptimizer: experiment crashed: {e}")
                 self._apply_params_to_engine(self.best_params)
                 self._log_experiment(
                     str(uuid.uuid4())[:8], change_desc,
-                    self.best_sharpe, 0, -self.best_sharpe, "crash", 0,
+                    self.best_sharpe, 0, -self.best_sharpe, "crash", 0, [],
                 )
                 consecutive_discards += 1
                 continue
@@ -156,22 +179,41 @@ class QuantStrategyOptimizer:
                 self.best_dsr = trial_dsr
                 self.kept += 1
                 consecutive_discards = 0
+
+                # Feature drift detection on keep
+                self._detect_feature_drift(trial_top5)
+                self._prev_top5_mda = trial_top5
+
+                # Notify MetaCoordinator with fresh MDA importances
+                if on_mda_update and result.feature_importance_mda:
+                    mda_list = [
+                        {"feature": k, "importance": v}
+                        for k, v in sorted(
+                            result.feature_importance_mda.items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )
+                    ]
+                    on_mda_update(mda_list)
+
                 logger.info(f"QuantOptimizer: KEEP {change_desc} (Sharpe {trial_sharpe:.4f}, DSR {trial_dsr:.4f})")
             elif delta > 0 and trial_dsr < self.dsr_threshold:
                 status = "dsr_reject"
                 self._apply_params_to_engine(self.best_params)
                 self.discarded += 1
                 consecutive_discards += 1
+                trial_top5 = []
                 logger.info(f"QuantOptimizer: DSR_REJECT {change_desc} (Sharpe ↑ but DSR {trial_dsr:.4f} < {self.dsr_threshold})")
             else:
                 status = "discard"
                 self._apply_params_to_engine(self.best_params)
                 self.discarded += 1
                 consecutive_discards += 1
+                trial_top5 = []
 
             self._log_experiment(
                 str(uuid.uuid4())[:8], change_desc,
-                self.best_sharpe, trial_sharpe, delta, status, trial_dsr,
+                self.best_sharpe, trial_sharpe, delta, status, trial_dsr, trial_top5,
             )
             self._report_status()
 
@@ -197,8 +239,22 @@ class QuantStrategyOptimizer:
         """
         Zero-cost random perturbation.
         think_harder=True widens the perturbation range (±30% instead of ±10%).
+        Handles both numeric (bounded) and categorical (strategy) params.
         """
-        param = random.choice(list(_PARAM_BOUNDS.keys()))
+        # 20% chance of proposing a strategy change
+        all_params = list(_PARAM_BOUNDS.keys()) + list(_CATEGORICAL_PARAMS.keys())
+        param = random.choice(all_params)
+
+        # Categorical param (strategy)
+        if param in _CATEGORICAL_PARAMS:
+            choices = _CATEGORICAL_PARAMS[param]
+            current = self.best_params.get(param, choices[0])
+            # Pick a different value
+            alternatives = [c for c in choices if c != current]
+            new_value = random.choice(alternatives) if alternatives else current
+            return {"param": param, "value": new_value}
+
+        # Numeric param
         lo, hi = _PARAM_BOUNDS[param]
         current = self.best_params.get(param, (lo + hi) / 2)
 
@@ -284,6 +340,8 @@ class QuantStrategyOptimizer:
             engine.trader.target_vol = params["target_vol"]
         if "max_positions" in params:
             engine.trader.max_positions = params["max_positions"]
+        if "strategy" in params:
+            engine.strategy = params["strategy"]
 
     # ── Logging ──────────────────────────────────────────────────
 
@@ -291,14 +349,16 @@ class QuantStrategyOptimizer:
         self, run_id: str, change: str,
         metric_before: float, metric_after: float,
         delta: float, status: str, dsr: float,
+        top5_mda: list[str] | None = None,
     ):
         """Append experiment to quant_results.tsv."""
         if not _TSV_PATH.exists():
             _TSV_PATH.write_text(_TSV_HEADER)
 
+        mda_str = ",".join(top5_mda) if top5_mda else ""
         row = (
-            f"{datetime.utcnow().isoformat()}\t{run_id}\t{change}\t"
-            f"{metric_before:.4f}\t{metric_after:.4f}\t{delta:+.4f}\t{status}\t{dsr:.4f}\n"
+            f"{datetime.now(timezone.utc).isoformat()}\t{run_id}\t{change}\t"
+            f"{metric_before:.4f}\t{metric_after:.4f}\t{delta:+.4f}\t{status}\t{dsr:.4f}\t{mda_str}\n"
         )
         with open(_TSV_PATH, "a") as f:
             f.write(row)
@@ -313,6 +373,47 @@ class QuantStrategyOptimizer:
         header = lines[0]
         recent = lines[-n:] if len(lines) > n else lines[1:]
         return header + "\n" + "\n".join(recent)
+
+    # ── Feature drift & model staleness ──────────────────────────
+
+    def _extract_top5_mda(self, result) -> list[str]:
+        """Extract top 5 features by MDA importance from a BacktestResult."""
+        mda = getattr(result, "feature_importance_mda", None)
+        if not mda:
+            return []
+        # mda is a dict[str, float] — sort descending by value
+        sorted_features = sorted(mda.items(), key=lambda kv: kv[1], reverse=True)
+        return [name for name, _ in sorted_features[:5]]
+
+    def _detect_feature_drift(self, new_top5: list[str]):
+        """Log a WARNING if the top-5 MDA features changed vs previous."""
+        if not self._prev_top5_mda or not new_top5:
+            return
+        old_set = set(self._prev_top5_mda)
+        new_set = set(new_top5)
+        if old_set != new_set:
+            added = new_set - old_set
+            removed = old_set - new_set
+            logger.warning(
+                "Feature drift detected — top-5 MDA changed: "
+                "+%s / -%s", sorted(added), sorted(removed),
+            )
+
+    def _check_model_staleness(self):
+        """Warn if backtest engine's trained model is >7 days old."""
+        trained_at = getattr(self.engine, "model_trained_at", "")
+        if not trained_at:
+            return
+        try:
+            ts = datetime.fromisoformat(trained_at)
+            age_days = (datetime.now(timezone.utc) - ts).days
+            if age_days > 7:
+                logger.warning(
+                    "Model staleness: trained %d days ago (%s). "
+                    "Consider retraining.", age_days, trained_at,
+                )
+        except (ValueError, TypeError):
+            pass
 
     def _report_status(self):
         """Report progress via callback."""

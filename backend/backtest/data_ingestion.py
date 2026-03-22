@@ -36,6 +36,42 @@ class DataIngestionService:
     def _table(self, name: str) -> str:
         return f"{self.project}.{self.dataset}.{name}"
 
+    def _ensure_tables_exist(self):
+        """Create historical data tables if they don't exist (idempotent)."""
+        from migrate_backtest_data import ALL_TABLES
+
+        for name, ref, schema in ALL_TABLES:
+            try:
+                self.client.get_table(ref)
+            except Exception:
+                table = bigquery.Table(ref, schema=schema)
+                self.client.create_table(table)
+                logger.info(f"Auto-created BQ table: {name}")
+
+    @staticmethod
+    def _compute_dividends_per_share(qcf, qbs, col_date) -> float | None:
+        """Compute per-share dividends from quarterly cash flow / balance sheet."""
+        if qcf is None or qcf.empty:
+            return None
+        # yfinance reports cash dividends paid as a negative number
+        for field in ["Cash Dividends Paid", "Common Stock Dividend Paid"]:
+            if field in qcf.index and col_date in qcf.columns:
+                val = qcf.loc[field, col_date]
+                if pd.notna(val) and val != 0:
+                    dividends_paid = abs(float(val))
+                    # Get shares outstanding from balance sheet
+                    shares = None
+                    if qbs is not None and not qbs.empty:
+                        for sf in ["Share Issued", "Ordinary Shares Number"]:
+                            if sf in qbs.index and col_date in qbs.columns:
+                                s = qbs.loc[sf, col_date]
+                                if pd.notna(s) and s > 0:
+                                    shares = float(s)
+                                    break
+                    if shares and shares > 0:
+                        return dividends_paid / shares
+        return None
+
     # ── Prices ───────────────────────────────────────────────────
 
     def _get_existing_price_dates(self, tickers: list[str]) -> set[tuple[str, str]]:
@@ -187,6 +223,7 @@ class DataIngestionService:
                         "total_assets": _get(qbs, "Total Assets"),
                         "operating_cash_flow": _get(qcf, "Operating Cash Flow") if qcf is not None else None,
                         "shares_outstanding": _get(qbs, "Share Issued") or _get(qbs, "Ordinary Shares Number"),
+                        "dividends_per_share": self._compute_dividends_per_share(qcf, qbs, col_date),
                         "sector": sector,
                         "industry": industry,
                         "ingested_at": now,
@@ -285,6 +322,9 @@ class DataIngestionService:
             end_date = datetime.utcnow().strftime("%Y-%m-%d")
 
         logger.info(f"Starting full ingestion: {len(tickers)} tickers, {start_date} → {end_date}")
+
+        # Auto-create BQ tables if they don't exist
+        self._ensure_tables_exist()
 
         prices = self.ingest_prices(tickers, start_date, end_date)
         fundamentals = self.ingest_fundamentals(tickers)

@@ -24,10 +24,12 @@ class CandidateSelector:
         top_n: int = 50,
         min_avg_volume: int = 100_000,
         min_price: float = 5.0,
+        scoring_weights: dict | None = None,
     ) -> list[dict]:
         """
         Screen and rank candidates using only data available as-of cutoff_date.
         Reuses the composite alpha scoring logic from screener.py.
+        scoring_weights: optional dict with momentum_weight, rsi_weight, volatility_weight, sma_weight.
         """
         cutoff = pd.Timestamp(cutoff_date)
         start = (cutoff - timedelta(days=180)).strftime("%Y-%m-%d")
@@ -78,7 +80,7 @@ class CandidateSelector:
                 logger.debug(f"Skipping {ticker} in screen: {e}")
 
         # Rank by composite alpha score
-        ranked = self._rank_candidates(results)
+        ranked = self._rank_candidates(results, **(scoring_weights or {}))
         return ranked[:top_n]
 
     def get_universe_tickers(self) -> list[str]:

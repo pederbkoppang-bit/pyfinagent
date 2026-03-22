@@ -295,7 +295,8 @@ async def _run_backtest_async(run_id: str, req: BacktestRunRequest):
         bq = BigQueryClient(settings)
 
         from backend.backtest.backtest_engine import BacktestEngine
-        from backend.backtest.analytics import generate_report
+        from backend.backtest.analytics import generate_report, compute_baseline_strategies
+        from backend.backtest import cache as bt_cache
 
         def progress_cb(msg: str):
             _backtest_state["progress"] = msg
@@ -319,7 +320,29 @@ async def _run_backtest_async(run_id: str, req: BacktestRunRequest):
         )
 
         result = await asyncio.to_thread(engine.run_backtest)
-        report = generate_report(result)
+
+        # Compute baselines over the full test range
+        baselines = None
+        if result.windows:
+            try:
+                test_start = result.windows[0].test_start
+                test_end = result.windows[-1].test_end
+                candidate_tickers = list({
+                    p.get("ticker", "") for w in result.windows for p in w.predictions if p.get("ticker")
+                })
+                baselines = compute_baseline_strategies(
+                    bt_cache.cached_prices, test_start, test_end, candidate_tickers,
+                )
+            except Exception as e:
+                logger.warning(f"Baseline computation failed: {e}")
+
+        report = generate_report(result, baselines=baselines)
+        report["run_id"] = run_id
+        report["config"] = {
+            "start_date": req.start_date or settings.backtest_start_date,
+            "end_date": req.end_date or settings.backtest_end_date,
+            "strategy": getattr(engine, "strategy", "triple_barrier"),
+        }
 
         _backtest_state["status"] = "completed"
         _backtest_state["result"] = report
@@ -359,11 +382,16 @@ async def _run_optimizer_async(max_iterations: int, use_llm: bool):
 
         optimizer = QuantStrategyOptimizer(engine, status_callback=status_cb)
 
+        # Wire MDA updates to MetaCoordinator for MDA→Agent bridge
+        from backend.services.autonomous_loop import get_coordinator
+        coordinator = get_coordinator()
+
         await asyncio.to_thread(
             optimizer.run_loop,
             max_iterations=max_iterations,
             use_llm=use_llm,
             stop_check=lambda: _optimizer_state["status"] != "running",
+            on_mda_update=coordinator.update_mda_features,
         )
 
         _optimizer_state["status"] = "completed"

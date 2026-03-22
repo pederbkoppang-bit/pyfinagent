@@ -102,7 +102,7 @@ The main dashboard (`/`) renders in three visual layers:
 | Tab ID | Label | Icon | Badge Source | Components Rendered |
 |--------|-------|------|-------------|---------------------|
 | `overview` | Overview | `TabOverview` (ClipboardText) | — | InvestmentThesisCard, EvaluationTable, ValuationRange, RisksCard, ScoringMatrixCard, PdfDownload |
-| `signals` | Signals | `TabSignals` (Broadcast) | Count of enrichment signals (0–11) | SignalDashboard |
+| `signals` | Signals | `TabSignals` (Broadcast) | Count of enrichment signals (0–12) | SignalDashboard |
 | `debate` | Debate | `TabDebate` (Scales) | Consensus label (e.g. "BUY") | DebateView |
 | `risk` | Risk | `TabRisk` (Crosshair) | Anomaly count (e.g. "3 anomalies") | RiskDashboard, StockChart |
 | `audit` | Audit | `TabAudit` (MagnifyingGlass) | Bias flag count (e.g. "1 flags") | BiasReport, DecisionTraceView, ResearchInvestigator |
@@ -123,7 +123,7 @@ SynthesisReport (Pydantic model, backend/api/models.py)
     ├── final_summary           → InvestmentThesisCard (multi-paragraph)
     ├── key_risks               → RisksCard
     ├── final_weighted_score    → ReportHeader (score ring)
-    ├── enrichment_signals      → SignalDashboard (11 signal cards + consensus bar)
+    ├── enrichment_signals      → SignalDashboard (12 signal cards + consensus bar)
     ├── debate_result           → DebateView (bull/bear/DA + multi-round timeline)
     ├── decision_traces         → DecisionTraceView (XAI timeline)
     ├── risk_data               → RiskDashboard (Monte Carlo + anomalies)
@@ -160,19 +160,44 @@ Paper Trading (autonomous daily cycle)
     ├── GET /api/paper-trading/performance  → Sharpe ratio, win rate, alpha, costs
     └── POST /api/paper-trading/run-now     → Trigger manual daily cycle (async)
 
-Walk-Forward Backtesting (quant-only, $0 LLM cost)
+Walk-Forward Backtesting (quant-only, $0 LLM cost, 5 strategies)
     │
-    ├── POST /api/backtest/run              → Start walk-forward backtest (async)
+    ├── POST /api/backtest/run              → Start walk-forward backtest (async, auto-ingests if BQ empty)
     ├── GET /api/backtest/status            → Poll backtest progress
     ├── GET /api/backtest/results           → Full results with per-window analytics
     ├── GET /api/backtest/results/{id}      → Per-window detail (trades, feature importance)
     ├── POST /api/backtest/ingest           → Bulk ingest historical data to BigQuery
     ├── GET /api/backtest/ingest/status     → Row counts for historical data tables
-    ├── POST /api/backtest/optimize         → Start quant strategy optimizer (background)
+    ├── POST /api/backtest/optimize         → Start quant strategy optimizer (background, rotates 5 strategies)
     ├── POST /api/backtest/optimize/stop    → Stop optimizer gracefully
-    ├── GET /api/backtest/optimize/status   → Optimizer state (iterations, best Sharpe)
-    ├── GET /api/backtest/optimize/experiments → Experiment history (quant_results.tsv)
+    ├── GET /api/backtest/optimize/status   → Optimizer state (iterations, best Sharpe, feature drift)
+    ├── GET /api/backtest/optimize/experiments → Experiment history (quant_results.tsv + top5_mda)
     └── GET /api/backtest/optimize/best     → Best strategy params + feature importance
+
+    Strategy Registry (5 strategies, configurable via QuantOptimizer):
+    │  triple_barrier  — López de Prado Ch. 3 (default)
+    │  quality_momentum — Asness et al. 2019 (6M momentum × quality_score)
+    │  mean_reversion   — Lo & MacKinlay 1990 (SMA50 + RSI reversion)
+    │  factor_model     — Fama-French 5-factor composite
+    └  meta_label       — Secondary model layer (future)
+
+MetaCoordinator (cross-loop sequencing, v4.3)
+    │
+    ├── gather_health()                     → Portfolio Sharpe, agent accuracy, API latency
+    ├── decide(health)                      → Priority routing to QuantOpt/SkillOpt/PerfOpt/idle
+    ├── update_mda_features(importances)    → Stores MDA from QuantOpt backtest
+    └── _get_mda_target_agents()            → MDA→Agent bridge (top features → skill files)
+
+PerformanceSkill (canonical metrics, v4.3)
+    │  All P&L, Sharpe, benchmark, alpha, and scalar metrics are computed via
+    │  backend/services/perf_metrics.py — single source of truth.
+    │
+    ├── compute_sharpe_from_snapshots()     → Paper trading Sharpe (risk-free adjusted)
+    ├── compute_alpha()                     → Portfolio return − benchmark return
+    ├── compute_position_pnl()              → Position-level unrealized P&L
+    ├── get_scalar_metric()                 → THE unified optimization metric
+    │       scalar = risk_adjusted_return × (1 − tx_cost_drag)
+    └── beat_benchmark()                    → Geometric benchmark comparison
 
 AnalysisStatusResponse (GET /api/analysis/{id}, polled every 3s)
     │
@@ -188,9 +213,9 @@ AnalysisStatusResponse (GET /api/analysis/{id}, polled every 3s)
 
 ---
 
-## Data Persistence: BigQuery (68-Column ML Schema)
+## Data Persistence: BigQuery (88-Column ML Schema)
 
-After the orchestrator completes and the `SynthesisReport` is returned to the frontend, `backend/api/analysis.py` extracts quantitative features from the full report dict and persists a **68-column row** to BigQuery (`financial_reports.analysis_results`). This runs in the backend — the frontend does not interact with BigQuery directly.
+After the orchestrator completes and the `SynthesisReport` is returned to the frontend, `backend/api/analysis.py` extracts quantitative features from the full report dict and persists an **88-column row** to BigQuery (`financial_reports.analysis_results`). This runs in the backend — the frontend does not interact with BigQuery directly. The same extraction logic is mirrored in `backend/tasks/analysis.py` for the Celery async path.
 
 ### Persistence Dataflow
 
@@ -234,8 +259,18 @@ backend/api/analysis.py :: _run_sync_analysis()
     └── Phase 9: Reflection Loop ← synthesis["synthesis_iterations"]
         synthesis_iterations
     │
+    ├── Phase 10: Model Tracking ← synthesis["cost_summary"]
+    │   standard_model, deep_think_model
+    │
+    └── Phase 11: Autoresearch Parity ← report["quant_model"], ["alt_data"], ["anomaly"], ["scenario"], debate DA, risk neutral
+        consumer_sentiment, revenue_growth_yoy, quality_score, momentum_6m, rsi_14,
+        alt_data_signal, alt_data_momentum_pct, anomaly_signal, monte_carlo_signal,
+        quant_model_signal, quant_model_score, social_sentiment_velocity, nlp_sentiment_confidence,
+        risk_level, recommended_position_pct, neutral_analyst_confidence, risk_debate_rounds_count,
+        groupthink_flag, da_confidence_adjustment, grounded_calls
+    │
     ▼
-backend/db/bigquery_client.py :: save_report()  →  BigQuery INSERT (68 fields)
+backend/db/bigquery_client.py :: save_report()  →  BigQuery INSERT (88 fields)
 ```
 
 ### Column Categories (68 total)
@@ -266,7 +301,7 @@ backend/db/bigquery_client.py :: save_report()  →  BigQuery INSERT (68 fields)
 | `/performance` — Historical accuracy | Joined with `outcome_tracking` table (return_pct, beat_benchmark) | Supervised feedback loop |
 | `/portfolio` — Recommendation accuracy | `recommendation`, `price_at_analysis` + outcome tracking | P&L attribution |
 | `/performance` — Cost history | `total_tokens`, `total_cost_usd`, `deep_think_calls` | Per-analysis cost table |
-| ML model training | All 68 columns joined with outcome labels | Direct `SELECT`-based BQ ML queries |
+| ML model training | All 88 columns joined with outcome labels | Direct `SELECT`-based BQ ML queries |
 
 ### Schema Migration
 
@@ -313,7 +348,7 @@ class SynthesisReport(BaseModel):
     key_risks: list[str]                      # Risk bullet points
     final_weighted_score: Optional[float]     # 0.0–10.0 weighted score
     # v2 enrichment fields
-    enrichment_signals: Optional[dict]        # 11 signal results
+    enrichment_signals: Optional[dict]        # 12 signal results
     debate_result: Optional[dict]             # Bull/Bear/DA/Moderator consensus
     decision_traces: Optional[list]           # Agent XAI audit trail
     risk_data: Optional[dict]                 # Monte Carlo + anomalies
@@ -379,7 +414,7 @@ interface TabDef {
 **File:** `frontend/src/components/SignalDashboard.tsx`
 **Props:** `{ signals: EnrichmentSignals }`
 
-FactSet-style panel showing all 11 enrichment signals with source attribution, expandable detail, and a consensus divergence bar.
+FactSet-style panel showing all 12 enrichment signals with source attribution, expandable detail, and a consensus divergence bar.
 
 **Layout:**
 
@@ -402,7 +437,7 @@ FactSet-style panel showing all 11 enrichment signals with source attribution, e
 └──────────────────────────────────────────────────────┘
 ```
 
-**11 Signal Cards:**
+**12 Signal Cards:**
 
 | Signal Key | Label | Source | Source Tag Color |
 |-----------|-------|--------|-----------------|
@@ -417,6 +452,7 @@ FactSet-style panel showing all 11 enrichment signals with source attribution, e
 | `nlp_sentiment` | NLP Sentiment | Vertex AI | teal |
 | `anomaly` | Anomaly Scan | Multi-dim Z-score | red |
 | `monte_carlo` | Risk Scenario | Monte Carlo VaR | slate |
+| `quant_model` | Quant Model | MDA + yfinance | sky |
 
 **Signal Color Mapping:**
 
@@ -805,8 +841,8 @@ LLM cost and token analytics panel, rendered in the Cost tab. Shows per-agent br
 
 | Pipeline Step | Example Messages |
 |---------------|------------------|
-| Data Enrichment (Step 6) | `[1/11] Insider data collected`, `[2/11] Options data collected`, ... `[11/11] Monte Carlo simulation complete`. **Sector routing**: irrelevant tools skipped (e.g., patents for Financial Services) with `[X/11] Patents skipped (sector routing)` |
-| Info-Gap Detection (Step 6b) | `Scanning 11 enrichment sources for data gaps...`, `Found N critical gaps, retrying...`, `Data quality score: 85/100` |
+| Data Enrichment (Step 6) | `[1/12] Insider data collected`, `[2/12] Options data collected`, ... `[12/12] Quant model signal complete`. **Sector routing**: irrelevant tools skipped (e.g., patents for Financial Services) with `[X/12] Patents skipped (sector routing)` |
+| Info-Gap Detection (Step 6b) | `Scanning 12 enrichment sources for data gaps...`, `Found N critical gaps, retrying...`, `Data quality score: 85/100` |
 | Enrichment Analysis (Step 7) | `[1/10] Gemini analyzing Insider Activity...`, `[1/10] Insider Activity → BULLISH` |
 | Agent Debate (Step 8) | `Round 1/2: Bull building strongest case...`, `Round 1/2: Bear challenging...`, `Round 2/2: Bull rebutting Bear's argument...`, `Devil's Advocate stress-testing both sides...`, `Moderator resolving contradictions with full debate history...`. **Quality gate**: if data quality < threshold, shows `Skipping debate (data quality too low)` |
 | Synthesis (Step 11) | `Building synthesis prompt from all agent outputs...`, `Gemini generating structured JSON report...`, `Parsing and validating report structure...`. **Reflection loop**: `Critic returned REVISE — re-running synthesis (iteration 2/2)...` |
@@ -1408,7 +1444,7 @@ The download button in the Overview tab generates a multi-page PDF containing al
 | `/performance` | `performance/page.tsx` | Historical accuracy metrics + LLM cost history | Performance tracking |
 | `/portfolio` | `portfolio/page.tsx` | Position tracking, P&L, allocation | Portfolio management |
 | `/paper-trading` | `paper-trading/page.tsx` | Autonomous fund dashboard, NAV chart, positions, trades | Paper trading |
-| `/backtest` | `backtest/page.tsx` | **Walk-Forward Backtest** — 4 tabs (Results/Equity/Features/Optimizer), data ingestion, DSR guard | ML backtesting |
+| `/backtest` | `backtest/page.tsx` | **Walk-Forward Backtest** — 5 strategies, 4 tabs (Results/Equity/Features/Optimizer), auto-ingest, DSR guard, feature drift detection, ingestion result banner with row counts, cost info section, button tooltips | ML backtesting |
 | `/settings` | `settings/page.tsx` | **3-tab sub-navigation** (Models & Analysis \| Cost & Weights \| Performance): Model Config, Debate Depth, Cost Estimator, Pillar Weights, Cache Health, TTL Optimizer, API Latency | User preferences + monitoring |
 
 ### Sidebar Navigation (Grouped)
@@ -1497,7 +1533,7 @@ Settings management page with 3-tab pill-style sub-navigation. Loads current set
 |------|------|-------------|-------------|
 | **Cache Health** | `SettingsCache` (Database) | `GET /api/perf/cache` | Hit/miss counts, hit rate %, entry count. Clear Cache button → `POST /api/perf/cache/clear` with confirmation feedback |
 | **TTL Optimizer** | `SettingsOptimizer` (GearSix) | `GET /api/perf/optimize/status` | Running/idle badge, iteration count, kept/discarded stats. Start → `POST /api/perf/optimize`, Stop → `POST /api/perf/optimize/stop` |
-| **Optimization Progress** | — (chart) | `GET /api/perf/optimize/experiments` | `PerfProgressChart` component (col-span-2). Autoresearch-style Recharts ComposedChart: green dots (kept), gray dots (discarded), green step line (running best p95). Hover tooltip shows endpoint, TTL change, p95 change. Click expands detail panel below chart with timestamp, TTL before→after, p95 before→after (color-coded), hit rate |
+| **Optimization Progress** | — (chart) | `GET /api/perf/optimize/experiments` | `PerfProgressChart` component (col-span-2). Autoresearch-style Recharts ComposedChart: green dots (kept), gray dots (discarded), green step line (running best p95), text annotations on kept dots (karpathy/autoresearch `analysis.ipynb` style). Hover tooltip shows endpoint, TTL change, p95 change. Click expands detail panel below chart with timestamp, TTL before→after, p95 before→after (color-coded), hit rate |
 | **API Latency** | `SettingsLatency` (Timer) | `GET /api/perf/summary` | 3 overall metric cards (p50/p95/p99 in ms), per-endpoint table sorted by p95 desc with color-coded latency badges (green <100ms, amber <500ms, red ≥500ms) |
 
 **Settings-Specific Icons (10 aliases in `icons.ts`):**
@@ -1789,3 +1825,104 @@ X-axis: `snapshot_date`, Y-axis: percentage return. Tooltip shows all three valu
 ```
 
 Added to the **Trading** section in `NAV_SECTIONS` grouped array in `Sidebar.tsx`. All nav icons are Phosphor Icon components (type `Icon`) from `@/lib/icons`.
+
+---
+
+## Walk-Forward Backtest Dashboard (v4.0 + v5.3)
+
+### Overview
+
+**File:** `frontend/src/app/backtest/page.tsx`
+
+Full-page dashboard for walk-forward ML backtesting. Displays ingestion status, backtest results with per-window analytics, equity curve, feature importance, and quant strategy optimizer. Data is sourced from yfinance + FRED (free), stored in BigQuery (<$0.05), and backtests are ML-only ($0 LLM cost).
+
+### Data Flow
+
+```
+Page load:
+  GET /api/backtest/status              → backtest progress (status, run_id)
+  GET /api/backtest/ingest/status       → row counts for 3 BQ tables
+  GET /api/backtest/results             → full results with per-window analytics
+  GET /api/backtest/optimize/status     → optimizer state
+  GET /api/backtest/optimize/experiments → experiment history
+  GET /api/backtest/optimize/best       → best strategy params
+
+Actions:
+  POST /api/backtest/ingest             → Bulk ingest historical data (auto-creates BQ tables)
+  POST /api/backtest/run                → Start walk-forward backtest (async)
+  POST /api/backtest/optimize           → Start quant strategy optimizer (background)
+  POST /api/backtest/optimize/stop      → Stop optimizer gracefully
+```
+
+### Layout
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  [NavBacktest] Walk-Forward Backtest                      │
+├──────────────────────────────────────────────────────────┤
+│  Ingestion Metrics (3 cards)                              │
+│  ┌──────────────┬──────────────────┬────────────────────┐│
+│  │ Prices Rows  │ Fundamentals Rows│  Macro Rows        ││
+│  │ 125,432      │ 4,200            │  2,100             ││
+│  └──────────────┴──────────────────┴────────────────────┘│
+│  Data: yfinance + FRED (free) · BQ storage <$0.05 ·      │
+│  Backtest: ML only, $0 LLM cost                          │
+├──────────────────────────────────────────────────────────┤
+│  [Ingest Data ⓘ] [Run Backtest ⓘ]                        │
+├──────────────────────────────────────────────────────────┤
+│  Ingestion Result Banner (conditional)                    │
+│  ┌─ ✓ emerald ─────────────────────────────────────── ×─┐│
+│  │ Ingestion complete: 125,432 prices, 4,200              │
+│  │ fundamentals, 2,100 macro rows inserted               ││
+│  └──────────────────────────────────────────────────────┘│
+│  ┌─ ✗ rose ─────────────────────────────────────── ×────┐│
+│  │ Ingestion failed: <error message>                     ││
+│  └──────────────────────────────────────────────────────┘│
+├──────────────────────────────────────────────────────────┤
+│  Tabs: [Results] [Equity Curve] [Features] [Optimizer]    │
+│                                                           │
+│  === Results Tab ===                                      │
+│  Analytics summary cards + per-window results table       │
+│                                                           │
+│  === Equity Curve Tab ===                                 │
+│  Recharts LineChart (portfolio vs baselines)              │
+│                                                           │
+│  === Features Tab ===                                     │
+│  Feature importance bar chart (MDA + MDI)                 │
+│                                                           │
+│  === Optimizer Tab ===                                    │
+│  PerfProgressChart + experiment table + best params       │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Ingestion Result Banner (v5.3)
+
+Displayed after `POST /api/backtest/ingest` completes. Managed by `ingestResult` state (`{ type: "success" | "error"; message: string } | null`).
+
+| State | Style | Content |
+|-------|-------|---------|
+| Success | `bg-emerald-500/10 border-emerald-500/30 text-emerald-400` | "Ingestion complete: X prices, Y fundamentals, Z macro rows inserted" |
+| Error | `bg-rose-500/10 border-rose-500/30 text-rose-400` | "Ingestion failed: {error message}" |
+
+Dismiss button (`×`) sets `ingestResult` to `null`.
+
+### Cost Info Section (v5.3)
+
+Inline text below ingestion metric cards:
+
+```
+Data: yfinance + FRED (free) · BQ storage <$0.05 · Backtest: ML only, $0 LLM cost
+```
+
+Styled as `text-xs text-zinc-500 mt-2`. Appears always (not conditional).
+
+### Button Tooltips (v5.3)
+
+| Button | Tooltip (`title` attribute) |
+|--------|----------------------------|
+| Ingest Data | "Download S&P 500 price history, quarterly fundamentals, and FRED macro data from yfinance + FRED (free APIs). Stores in BigQuery (<$0.05). Takes ~5-15 minutes on first run." |
+| Run Backtest | "Run walk-forward ML backtest using GradientBoosting. No LLM cost — uses only quantitative features. BQ reads <$0.01 per run. Takes ~2-5 minutes." |
+
+### Auto-Table Creation (v5.3)
+
+`POST /api/backtest/ingest` now auto-creates missing BQ tables (`historical_prices`, `historical_fundamentals`, `historical_macro`) before ingestion begins. No need to run `migrate_backtest_data.py` manually for new deployments. Existing tables get the new `dividends_per_share` column via the migration script.

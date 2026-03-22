@@ -7,7 +7,7 @@ import type { Icon } from "@phosphor-icons/react";
 import {
   SignalInsider, SignalOptions, SignalSocial, SignalPatent,
   SignalEarnings, SignalMacro, SignalAltData, SignalSector,
-  SignalNlp, SignalAnomaly, SignalMonteCarlo,
+  SignalNlp, SignalAnomaly, SignalMonteCarlo, SignalQuantModel,
 } from "@/lib/icons";
 
 interface SignalMeta {
@@ -94,6 +94,13 @@ const SIGNAL_META: Record<keyof EnrichmentSignals, SignalMeta> = {
     icon: SignalMonteCarlo,
     description: "1,000 GBM path simulations — VaR (95%/99%), expected shortfall",
     source: "Monte Carlo Engine",
+    sourceTag: "computed",
+  },
+  quant_model: {
+    label: "Quant Model",
+    icon: SignalQuantModel,
+    description: "MDA-weighted factor score from walk-forward backtest feature importance",
+    source: "Backtest MDA + yfinance",
     sourceTag: "computed",
   },
 };

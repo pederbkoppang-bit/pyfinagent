@@ -19,6 +19,7 @@ from backend.tools import (
     nlp_sentiment,
     options_flow,
     patent_tracker,
+    quant_model,
     sec_insider,
     sector_analysis,
     social_sentiment,
@@ -82,7 +83,7 @@ async def get_all_signals(ticker: str, settings: Settings = Depends(get_settings
         articles = fallback_articles  # feed into NLP
         logger.info("AV empty for %s — using %d yfinance articles as fallback", ticker, len(fallback_articles))
 
-    insider, options, social, patent, earnings, fred, alt, sector, nlp, anomalies, mc = await asyncio.gather(
+    insider, options, social, patent, earnings, fred, alt, sector, nlp, anomalies, mc, qm = await asyncio.gather(
         _safe(sec_insider.get_insider_trades, "insider", ticker),
         _safe(options_flow.get_options_flow, "options", ticker),
         _safe(social_sentiment.get_social_sentiment, "social", ticker, settings.alphavantage_api_key, fallback_articles),
@@ -94,6 +95,7 @@ async def get_all_signals(ticker: str, settings: Settings = Depends(get_settings
         _safe(nlp_sentiment.get_nlp_sentiment, "nlp_sentiment", ticker, articles, settings.gcp_project_id, settings.gcp_location),
         _safe(anomaly_detector.get_anomaly_scan, "anomalies", ticker),
         _safe(monte_carlo.get_monte_carlo_simulation, "monte_carlo", ticker),
+        _safe(quant_model.get_quant_model_signal, "quant_model", ticker),
     )
 
     return {
@@ -110,6 +112,7 @@ async def get_all_signals(ticker: str, settings: Settings = Depends(get_settings
         "nlp_sentiment": nlp,
         "anomalies": anomalies,
         "monte_carlo": mc,
+        "quant_model": qm,
     }
 
 
@@ -191,3 +194,9 @@ async def get_anomalies(ticker: str):
 async def get_monte_carlo(ticker: str):
     """Monte Carlo VaR simulation."""
     return await asyncio.to_thread(monte_carlo.get_monte_carlo_simulation, ticker.upper())
+
+
+@router.get("/{ticker}/quant-model")
+async def get_quant_model_signal(ticker: str):
+    """MDA-weighted quant factor signal from backtest ML."""
+    return await asyncio.to_thread(quant_model.get_quant_model_signal, ticker.upper())

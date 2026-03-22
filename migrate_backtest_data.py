@@ -49,6 +49,7 @@ HISTORICAL_FUNDAMENTALS_SCHEMA = [
     bigquery.SchemaField("total_assets", "FLOAT64", mode="NULLABLE"),
     bigquery.SchemaField("operating_cash_flow", "FLOAT64", mode="NULLABLE"),
     bigquery.SchemaField("shares_outstanding", "FLOAT64", mode="NULLABLE"),
+    bigquery.SchemaField("dividends_per_share", "FLOAT64", mode="NULLABLE"),
     bigquery.SchemaField("sector", "STRING", mode="NULLABLE"),
     bigquery.SchemaField("industry", "STRING", mode="NULLABLE"),
     bigquery.SchemaField("ingested_at", "TIMESTAMP", mode="NULLABLE"),

@@ -6,7 +6,7 @@ import type { Icon } from "@phosphor-icons/react";
 import {
   SignalInsider, SignalOptions, SignalSocial, SignalPatent,
   SignalEarnings, SignalMacro, SignalAltData, SignalSector,
-  SignalNlp, SignalAnomaly, SignalMonteCarlo,
+  SignalNlp, SignalAnomaly, SignalMonteCarlo, SignalQuantModel,
 } from "@/lib/icons";
 
 const SIGNAL_META: Record<
@@ -67,6 +67,11 @@ const SIGNAL_META: Record<
     label: "Risk Scenario",
     icon: SignalMonteCarlo,
     description: "Monte Carlo VaR simulation",
+  },
+  quant_model: {
+    label: "Quant Model",
+    icon: SignalQuantModel,
+    description: "MDA-weighted ML factor signal",
   },
 };
 

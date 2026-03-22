@@ -44,6 +44,7 @@ from backend.tools import (
     nlp_sentiment,
     options_flow,
     patent_tracker,
+    quant_model,
     sec_insider,
     sector_analysis,
     social_sentiment,
@@ -580,6 +581,10 @@ class AnalysisOrchestrator:
         """Fetch multi-dimensional anomaly scan."""
         return anomaly_detector.get_anomaly_scan(ticker)
 
+    def fetch_quant_model(self, ticker: str) -> dict:
+        """Fetch quant model signal using MDA-weighted factors."""
+        return quant_model.get_quant_model_signal(ticker)
+
     async def fetch_nlp_sentiment(self, ticker: str, articles: list[dict]) -> dict:
         """Fetch transformer NLP sentiment via Vertex AI embeddings."""
         return await nlp_sentiment.get_nlp_sentiment(
@@ -666,6 +671,13 @@ class AnalysisOrchestrator:
         prompt = prompts.get_scenario_analysis_prompt(ticker, mc_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.general_client, prompt, "Scenario")
         return {"text": _extract_text(response), "data": mc_data}
+
+    def run_quant_model_agent(self, ticker: str, qm_data: dict) -> dict:
+        """Analyze quant model MDA-weighted factor signal."""
+        logger.info(f"Quant Model Agent: analyzing factor signal for {ticker}")
+        prompt = prompts.get_quant_model_prompt(ticker, qm_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
+        response = self._generate_with_retry(self.general_client, prompt, "Quant Model")
+        return {"text": _extract_text(response), "data": qm_data}
 
     # ── Synthesis ────────────────────────────────────────────────────
 
@@ -958,8 +970,8 @@ class AnalysisOrchestrator:
         report["competitor"] = await asyncio.to_thread(self.run_competitor_agent, ticker, av_data)
         step("competitor", "completed", "Competitor analysis complete")
 
-        # Step 6: Fetch enrichment data in parallel (11 non-LLM calls)
-        step("data_enrichment", "started", "Fetching 11 enrichment data sources in parallel...")
+        # Step 6: Fetch enrichment data in parallel (12 non-LLM calls)
+        step("data_enrichment", "started", "Fetching 12 enrichment data sources in parallel...")
         _enrichment_done_count = 0
         _enrichment_labels_done: list[str] = []
 
@@ -973,13 +985,13 @@ class AnalysisOrchestrator:
                     result = await asyncio.to_thread(coro_or_func, *args)
                 _enrichment_done_count += 1
                 _enrichment_labels_done.append(label)
-                step("data_enrichment", "running", f"[{_enrichment_done_count}/11] {label} data collected")
+                step("data_enrichment", "running", f"[{_enrichment_done_count}/12] {label} data collected")
                 return result
             except Exception as e:
                 logger.warning(f"{label} data fetch failed: {e}")
                 _enrichment_done_count += 1
                 _enrichment_labels_done.append(f"{label} (error)")
-                step("data_enrichment", "running", f"[{_enrichment_done_count}/11] {label} failed: {e}")
+                step("data_enrichment", "running", f"[{_enrichment_done_count}/12] {label} failed: {e}")
                 return {"signal": "ERROR", "summary": f"Error: {e}"}
 
         articles = av_data.get("sentiment_summary", [])
@@ -1019,13 +1031,13 @@ class AnalysisOrchestrator:
             nonlocal _enrichment_done_count
             _enrichment_done_count += 1
             _enrichment_labels_done.append(f"{label} (skipped)")
-            step("data_enrichment", "running", f"[{_enrichment_done_count}/11] {label} skipped (sector routing)")
+            step("data_enrichment", "running", f"[{_enrichment_done_count}/12] {label} skipped (sector routing)")
             return {"signal": "SKIPPED", "summary": f"Skipped: not relevant for {sector_for_routing} sector"}
 
         (
             insider_data, options_data, social_data, patent_data,
             earnings_data, fred_macro, alt_result, sector_data,
-            nlp_data, anomaly_data, mc_data,
+            nlp_data, anomaly_data, mc_data, qm_data,
         ) = await asyncio.gather(
             _safe(self.fetch_insider_data, "Insider", ticker),
             _safe(self.fetch_options_data, "Options", ticker),
@@ -1038,14 +1050,16 @@ class AnalysisOrchestrator:
             _safe(self.fetch_nlp_sentiment, "NLP", ticker, articles),
             _safe(self.fetch_anomaly_scan, "Anomaly", ticker),
             _safe(self.fetch_monte_carlo, "MonteCarlo", ticker),
+            _safe(self.fetch_quant_model, "QuantModel", ticker),
         )
-        step("data_enrichment", "completed", "All 11 enrichment data sources collected")
+        step("data_enrichment", "completed", "All 12 enrichment data sources collected")
 
         # Session memory: capture enrichment signals
         for src, data in [("insider", insider_data), ("options", options_data),
                           ("social", social_data), ("patent", patent_data),
                           ("sector", sector_data), ("nlp", nlp_data),
-                          ("anomaly", anomaly_data), ("monte_carlo", mc_data)]:
+                          ("anomaly", anomaly_data), ("monte_carlo", mc_data),
+                          ("quant_model", qm_data)]:
             sig = data.get("signal", "N/A") if isinstance(data, dict) else "N/A"
             if sig != "N/A" and sig != "ERROR":
                 ctx.set_signal(src, sig)
@@ -1058,7 +1072,7 @@ class AnalysisOrchestrator:
             "earnings_tone": earnings_data, "fred_macro": fred_macro,
             "alt_data": alt_result, "sector": sector_data,
             "nlp_sentiment": nlp_data, "anomaly": anomaly_data,
-            "monte_carlo": mc_data,
+            "monte_carlo": mc_data, "quant_model": qm_data,
         }
         sector_name = ""
         if isinstance(report.get("quant"), dict):
@@ -1080,6 +1094,7 @@ class AnalysisOrchestrator:
                 "nlp_sentiment": lambda: self.fetch_nlp_sentiment(ticker, articles),
                 "anomaly": lambda: self.fetch_anomaly_scan(ticker),
                 "monte_carlo": lambda: self.fetch_monte_carlo(ticker),
+                "quant_model": lambda: self.fetch_quant_model(ticker),
             }
             recovered = await retry_critical_gaps(
                 critical_gaps,
@@ -1103,6 +1118,7 @@ class AnalysisOrchestrator:
                     elif key == "nlp_sentiment": nlp_data = new_data
                     elif key == "anomaly": anomaly_data = new_data
                     elif key == "monte_carlo": mc_data = new_data
+                    elif key == "quant_model": qm_data = new_data
             # Re-assess after retries
             info_gap_report = detect_info_gaps(enrichment_raw, sector=sector_name)
             step("info_gap", "running", f"Recovered {len(recovered)} sources. Quality: {info_gap_report['data_quality_score']:.0%}")
@@ -1119,7 +1135,7 @@ class AnalysisOrchestrator:
             ctx.add_finding(f"QUALITY GATE: Data quality {dq:.0%} below threshold {self.settings.data_quality_min:.0%} — debate/risk skipped")
 
         # Step 7: Run LLM enrichment agents (11 agents)
-        step("enrichment_analysis", "started", "Running 11 enrichment analysis agents...")
+        step("enrichment_analysis", "started", "Running 12 enrichment analysis agents...")
 
         def _run_agent_with_trace(agent_func, agent_name, t, *args):
             """Run an enrichment agent and record a decision trace."""
@@ -1150,6 +1166,7 @@ class AnalysisOrchestrator:
             ("nlp_sentiment", self.run_nlp_sentiment_agent, "NLP Sentiment", nlp_data),
             ("anomaly", self.run_anomaly_agent, "Anomaly Detection", anomaly_data),
             ("scenario", self.run_scenario_agent, "Scenario Analysis", mc_data),
+            ("quant_model", self.run_quant_model_agent, "Quant Model", qm_data),
         ]
         _done_count = 0
         _total = len(_agent_list)
@@ -1212,6 +1229,7 @@ class AnalysisOrchestrator:
                 "nlp_sentiment": {"signal": nlp_data.get("signal", "N/A"), "summary": nlp_data.get("summary", ""), "analysis": report["nlp_sentiment"].get("text", "")},
                 "anomaly": {"signal": anomaly_data.get("signal", "N/A"), "summary": anomaly_data.get("summary", ""), "analysis": report["anomaly"].get("text", "")},
                 "scenario": {"signal": mc_data.get("signal", "N/A"), "summary": mc_data.get("summary", ""), "analysis": report["scenario"].get("text", "")},
+                "quant_model": {"signal": qm_data.get("signal", "N/A"), "summary": qm_data.get("summary", ""), "analysis": report["quant_model"].get("text", "")},
             }
 
             # Proactive compaction for small-context models (e.g. o3-mini: 4K token limit,
