@@ -28,6 +28,7 @@ class Trade:
     date: str
     label: int
     probability: float
+    commission: float = 0.0
 
 
 @dataclass
@@ -52,6 +53,8 @@ class BacktestTrader:
         transaction_cost_pct: float = 0.1,
         target_vol: float = 0.15,
         max_single_pct: float = 0.10,
+        commission_model: str = "flat_pct",
+        commission_per_share: float = 0.005,
     ):
         self.starting_capital = starting_capital
         self.cash = starting_capital
@@ -59,10 +62,20 @@ class BacktestTrader:
         self.transaction_cost_pct = transaction_cost_pct
         self.target_vol = target_vol
         self.max_single_pct = max_single_pct
+        self.commission_model = commission_model
+        self.commission_per_share = commission_per_share
 
         self.positions: dict[str, Position] = {}
         self.trades: list[Trade] = []
         self.snapshots: list[DailySnapshot] = []
+        self.total_commission: float = 0.0
+
+    def _compute_commission(self, quantity: float, price: float) -> float:
+        """Compute commission based on the active model."""
+        if self.commission_model == "per_share":
+            return max(quantity * self.commission_per_share, 1.0)
+        # Default: flat percentage of notional
+        return abs(quantity * price) * self.transaction_cost_pct / 100
 
     def size_position(self, probability: float, stock_vol: float, nav: float) -> float:
         """
@@ -101,13 +114,15 @@ class BacktestTrader:
                 pos = self.positions[ticker]
                 price = prices.get(ticker, pos.avg_entry_price)
                 proceeds = pos.quantity * price
-                cost = proceeds * self.transaction_cost_pct / 100
+                cost = self._compute_commission(pos.quantity, price)
                 self.cash += proceeds - cost
+                self.total_commission += cost
 
                 trade = Trade(
                     ticker=ticker, action="SELL", quantity=pos.quantity,
                     price=price, date=date, label=label,
                     probability=sig.get("probability", 0),
+                    commission=cost,
                 )
                 self.trades.append(trade)
                 executed.append(trade)
@@ -136,18 +151,20 @@ class BacktestTrader:
 
             # Check cash
             cost_basis = dollar_amount
-            transaction_cost = cost_basis * self.transaction_cost_pct / 100
+            quantity = cost_basis / price
+            transaction_cost = self._compute_commission(quantity, price)
             total_needed = cost_basis + transaction_cost
 
             if total_needed > self.cash:
                 cost_basis = self.cash * 0.95  # Use 95% of remaining cash
-                transaction_cost = cost_basis * self.transaction_cost_pct / 100
+                quantity = cost_basis / price
+                transaction_cost = self._compute_commission(quantity, price)
                 total_needed = cost_basis + transaction_cost
                 if total_needed > self.cash or cost_basis < 100:
                     continue
 
-            quantity = cost_basis / price
             self.cash -= total_needed
+            self.total_commission += transaction_cost
 
             self.positions[ticker] = Position(
                 ticker=ticker,
@@ -161,6 +178,7 @@ class BacktestTrader:
                 ticker=ticker, action="BUY", quantity=quantity,
                 price=price, date=date, label=1,
                 probability=probability,
+                commission=transaction_cost,
             )
             self.trades.append(trade)
             executed.append(trade)
@@ -188,13 +206,15 @@ class BacktestTrader:
             pos = self.positions[ticker]
             price = prices.get(ticker, pos.avg_entry_price)
             proceeds = pos.quantity * price
-            cost = proceeds * self.transaction_cost_pct / 100
+            cost = self._compute_commission(pos.quantity, price)
             self.cash += proceeds - cost
+            self.total_commission += cost
 
             self.trades.append(Trade(
                 ticker=ticker, action="SELL", quantity=pos.quantity,
                 price=price, date=date, label=0,
                 probability=0,
+                commission=cost,
             ))
             del self.positions[ticker]
 

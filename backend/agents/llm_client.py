@@ -634,7 +634,7 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
     if model_name in GITHUB_MODELS_CATALOG:
         if github_token:
             api_model_id = _GITHUB_MODELS_ID_MAP.get(model_name, model_name)
-            logger.info(f"[LLMClient] Routing {model_name} → GitHub Models as '{api_model_id}'")
+            logger.info(f"[LLMClient] Routing {model_name} -> GitHub Models as '{api_model_id}'")
             return OpenAIClient(
                 model_name=api_model_id,
                 api_key=github_token,
@@ -649,7 +649,7 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
     # 2. Direct Anthropic
     if model_name.startswith("claude-"):
         if anthropic_key:
-            logger.info(f"[LLMClient] Routing {model_name} → Anthropic direct")
+            logger.info(f"[LLMClient] Routing {model_name} -> Anthropic direct")
             return ClaudeClient(model_name=model_name, api_key=anthropic_key)
         else:
             raise ValueError(
@@ -660,7 +660,7 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
     # 3. Direct OpenAI
     if model_name.startswith(("gpt-", "o1", "o3", "o4")):
         if openai_key:
-            logger.info(f"[LLMClient] Routing {model_name} → OpenAI direct")
+            logger.info(f"[LLMClient] Routing {model_name} -> OpenAI direct")
             return OpenAIClient(model_name=model_name, api_key=openai_key)
         else:
             raise ValueError(
@@ -669,5 +669,5 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
             )
 
     # 4. Default: Gemini via Vertex AI
-    logger.debug(f"[LLMClient] Routing {model_name} → Gemini (Vertex AI)")
+    logger.debug(f"[LLMClient] Routing {model_name} -> Gemini (Vertex AI)")
     return GeminiClient(model=vertex_model, model_name=model_name)

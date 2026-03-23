@@ -815,7 +815,7 @@ class AnalysisOrchestrator:
             corrected_report = critic_result.get("corrected_report")
             major_issues = [i for i in issues if i.get("severity") == "major"]
 
-            logger.info(f"Critic verdict: {verdict} — {len(major_issues)} major, {len(issues) - len(major_issues)} minor issues")
+            logger.info(f"Critic verdict: {verdict} -- {len(major_issues)} major, {len(issues) - len(major_issues)} minor issues")
 
             if verdict == "PASS" or not major_issues:
                 # Accept the corrected report (or draft if no corrected_report)
@@ -1015,7 +1015,7 @@ class AnalysisOrchestrator:
                 })
             articles = fallback_articles
             if fallback_articles:
-                logger.info("AV empty for %s — using %d yfinance articles as fallback", ticker, len(fallback_articles))
+                logger.info("AV empty for %s -- using %d yfinance articles as fallback", ticker, len(fallback_articles))
 
         # Sector routing: determine which tools to skip
         sector_for_routing = ""
@@ -1023,7 +1023,7 @@ class AnalysisOrchestrator:
             sector_for_routing = report["quant"].get("sector", "")
         skipped_tools = SECTOR_SKIP_MAP.get(sector_for_routing, set())
         if skipped_tools:
-            logger.info(f"Sector routing: {sector_for_routing} → skipping tools: {skipped_tools}")
+            logger.info(f"Sector routing: {sector_for_routing} -> skipping tools: {skipped_tools}")
             ctx.add_finding(f"Sector routing: skipping {', '.join(skipped_tools)} for {sector_for_routing}")
 
         async def _skip_placeholder(label: str):
@@ -1181,7 +1181,7 @@ class AnalysisOrchestrator:
                 result = {"text": f"Error: {e}", "data": data}
             _done_count += 1
             signal = data.get('signal', 'N/A') if isinstance(data, dict) else 'done'
-            step("enrichment_analysis", "running", f"[{_done_count}/{_total}] {name} → {signal}")
+            step("enrichment_analysis", "running", f"[{_done_count}/{_total}] {name} -> {signal}")
             return key, result
 
         results = await asyncio.gather(*[

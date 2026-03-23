@@ -11,7 +11,7 @@
 
 | Layer | Technology | Port |
 |-------|-----------|------|
-| **Frontend** | Next.js 15 / React 19 / TypeScript 5.6 / Tailwind CSS / Geist / Phosphor Icons / Recharts | 3001 |
+| **Frontend** | Next.js 15 / React 19 / TypeScript 5.6 / Tailwind CSS / Geist / Phosphor Icons / Recharts | 3000 |
 | **Backend** | FastAPI 0.115+ / Python 3.14 / Vertex AI (Gemini 2.0 Flash) | 8000 |
 | **Storage** | Google BigQuery (`financial_reports` dataset), Google Cloud Storage (10-K/10-Q filings) |
 | **AI** | Vertex AI (Gemini multi-provider via `llm_client.py`), RAG via Vertex AI Search, text-embedding-005 |
@@ -36,20 +36,22 @@ pyfinagent/
 +-- backend/
 |   +-- agents/         # Orchestrator, debate, risk_debate, bias, trace, memory, skills/
 |   +-- api/            # FastAPI routes (analysis, reports, signals, portfolio, backtest, etc.)
-|   +-- backtest/       # Walk-forward ML engine, quant optimizer, analytics
+|   +-- backtest/       # Walk-forward ML engine, quant optimizer, result persistence, analytics
 |   +-- config/         # Pydantic settings, skill-loaded prompts
 |   +-- db/             # BigQuery client (88-column ML schema)
 |   +-- services/       # Paper trader, outcome tracker, autonomous loop, perf metrics
+|   +-- slack_bot/      # Slack bot (commands, scheduler, formatters)
+|   +-- tasks/          # Background task runners (analysis)
 |   +-- tools/          # 16 data tools (yfinance, SEC, options, patents, FRED, Monte Carlo, etc.)
 |   +-- main.py         # FastAPI app + router registration
 +-- frontend/
 |   +-- src/app/        # 10 pages (analyze, signals, reports, backtest, paper-trading, etc.)
-|   +-- src/components/ # DebateView, RiskDashboard, SignalCards, StockChart, etc.
+|   +-- src/components/ # DebateView, RiskDashboard, SignalCards, OptimizerInsights, OptimizerProgressChart, etc.
 |   +-- src/lib/        # types.ts, api.ts, auth.ts, icons.ts
 +-- docs/ARCHITECTURE.md  # Full architecture reference (agent registry, API endpoints, BQ schemas)
 +-- UX-AGENTS.md          # Frontend UX conventions and component specs
 +-- trading_agent.md      # Autonomous trading optimization memory
-+-- CHANGELOG.md          # Version history (v1.0 -> v5.5)
++-- CHANGELOG.md          # Version history (v1.0 -> v5.9)
 ```
 
 ## 15-Step Analysis Pipeline

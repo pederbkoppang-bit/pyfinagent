@@ -76,7 +76,7 @@ def get_google_trends(ticker: str, company_name: str) -> dict:
         }
 
     except ImportError:
-        logger.warning("pytrends not installed — skipping Google Trends analysis")
+        logger.warning("pytrends not installed -- skipping Google Trends analysis")
         return {
             "ticker": ticker,
             "signal": "UNAVAILABLE",

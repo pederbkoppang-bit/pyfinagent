@@ -104,7 +104,7 @@ async def get_optimizer_experiments():
         return {"experiments": []}
 
     experiments = []
-    with open(tsv_path, "r") as f:
+    with open(tsv_path, "r", encoding="utf-8") as f:
         header = f.readline().strip().split("\t")
         for line in f:
             values = line.strip().split("\t")

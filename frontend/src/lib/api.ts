@@ -7,6 +7,7 @@ import type {
   AnalysisResponse,
   AnalysisStatusResponse,
   BacktestResults,
+  BacktestRunSummary,
   BacktestStatus,
   BacktestWindowResult,
   CacheStats,
@@ -18,6 +19,7 @@ import type {
   ModelPricing,
   OptimizerBest,
   OptimizerExperiment,
+  OptimizerInsights,
   OptimizerStatus,
   PaperPerformance,
   PaperPortfolio,
@@ -322,12 +324,29 @@ export function getOptimizerStatus(): Promise<OptimizerStatus> {
   return apiFetch("/api/backtest/optimize/status");
 }
 
-export function getOptimizerExperiments(): Promise<{ experiments: OptimizerExperiment[] }> {
-  return apiFetch("/api/backtest/optimize/experiments");
+export function getOptimizerExperiments(runId?: string): Promise<{ experiments: OptimizerExperiment[] }> {
+  const params = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  return apiFetch(`/api/backtest/optimize/experiments${params}`);
 }
 
 export function getOptimizerBest(): Promise<OptimizerBest> {
   return apiFetch("/api/backtest/optimize/best");
+}
+
+export function getOptimizerInsights(): Promise<OptimizerInsights> {
+  return apiFetch("/api/backtest/optimize/insights");
+}
+
+export function getBacktestRuns(): Promise<{ runs: BacktestRunSummary[] }> {
+  return apiFetch("/api/backtest/runs");
+}
+
+export function loadBacktestRun(runId: string): Promise<BacktestResults> {
+  return apiFetch(`/api/backtest/runs/${encodeURIComponent(runId)}`);
+}
+
+export function deleteBacktestRun(runId: string): Promise<{ status: string; run_id: string }> {
+  return apiFetch(`/api/backtest/runs/${encodeURIComponent(runId)}`, { method: "DELETE" });
 }
 
 // ── API Cache & Latency ─────────────────────────────────────────

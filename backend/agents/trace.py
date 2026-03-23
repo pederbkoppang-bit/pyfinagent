@@ -107,7 +107,7 @@ class TraceCollector:
     def add(self, trace: DecisionTrace) -> None:
         self._traces.append(trace)
         logger.info(
-            f"Trace: {trace.agent_name} → {trace.output_signal} "
+            f"Trace: {trace.agent_name} -> {trace.output_signal} "
             f"(confidence={trace.confidence:.2f}, latency={trace.latency_ms:.0f}ms)"
         )
 

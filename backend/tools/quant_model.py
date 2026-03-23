@@ -237,7 +237,7 @@ def get_quant_model_signal(ticker: str) -> dict:
         # Summary
         top_str = ", ".join(f"{f['feature']}({f['contribution']:+.3f})" for f in top_factors[:3])
         summary = (
-            f"Quant model score: {score:.4f} → {signal}. "
+            f"Quant model score: {score:.4f} -> {signal}. "
             f"MDA source: {mda_source}. Top factors: {top_str}"
         )
 

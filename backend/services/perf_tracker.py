@@ -115,7 +115,7 @@ class PerfTracker:
         path.parent.mkdir(parents=True, exist_ok=True)
         with self._lock:
             entries = list(self._entries)
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write("timestamp\tendpoint\tmethod\tstatus_code\tlatency_ms\tcache_hit\n")
             for e in entries:
                 f.write(f"{e.timestamp:.3f}\t{e.endpoint}\t{e.method}\t{e.status_code}\t{e.latency_ms:.1f}\t{e.cache_hit}\n")

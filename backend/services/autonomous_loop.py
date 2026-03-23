@@ -57,7 +57,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
 
     try:
         # ── Step 1: Screen universe (free) ───────────────────────
-        logger.info("Paper trading: Step 1 — Screening universe")
+        logger.info("Paper trading: Step 1 -- Screening universe")
         summary["steps"].append("screening")
 
         screen_data = screen_universe(period="6mo")
@@ -91,7 +91,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
         summary["reeval_tickers"] = len(reeval_tickers)
 
         # ── Step 3: Analyze candidates (lite mode) ───────────────
-        logger.info(f"Paper trading: Step 3 — Analyzing {len(analyze_tickers)} new + {len(reeval_tickers)} re-evals")
+        logger.info(f"Paper trading: Step 3 -- Analyzing {len(analyze_tickers)} new + {len(reeval_tickers)} re-evals")
         summary["steps"].append("analyzing")
 
         # Force lite mode for paper trading (cost control)
@@ -131,12 +131,12 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
         settings.lite_mode = original_lite
 
         # ── Step 5: Mark to market ───────────────────────────────
-        logger.info("Paper trading: Step 5 — Mark to market")
+        logger.info("Paper trading: Step 5 -- Mark to market")
         summary["steps"].append("mark_to_market")
         portfolio_state = trader.mark_to_market()
 
         # ── Step 6: Decide trades ────────────────────────────────
-        logger.info("Paper trading: Step 6 — Deciding trades")
+        logger.info("Paper trading: Step 6 -- Deciding trades")
         summary["steps"].append("deciding")
         positions = trader.get_positions()  # Refresh after MTM
         orders = decide_trades(
@@ -148,7 +148,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
         )
 
         # ── Step 7: Execute trades ───────────────────────────────
-        logger.info(f"Paper trading: Step 7 — Executing {len(orders)} trades")
+        logger.info(f"Paper trading: Step 7 -- Executing {len(orders)} trades")
         summary["steps"].append("executing")
         closed_tickers = []
 
@@ -190,7 +190,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
                 trades_executed += 1
 
         # ── Step 8: Final mark-to-market + snapshot ──────────────
-        logger.info("Paper trading: Step 8 — Final snapshot")
+        logger.info("Paper trading: Step 8 -- Final snapshot")
         summary["steps"].append("snapshot")
         final_state = trader.mark_to_market()
         snapshot = trader.save_daily_snapshot(

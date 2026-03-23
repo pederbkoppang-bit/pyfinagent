@@ -68,7 +68,7 @@ async def get_market_intel(ticker: str, api_key: str) -> dict:
     if not feed:
         yf_articles = _yfinance_fallback(ticker)
         if yf_articles:
-            logger.info("AV unavailable for %s — using %d yfinance articles", ticker, len(yf_articles))
+            logger.info("AV unavailable for %s -- using %d yfinance articles", ticker, len(yf_articles))
             return {
                 "target": ticker,
                 "derived_competitors": [],

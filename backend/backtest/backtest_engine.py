@@ -119,6 +119,7 @@ class BacktestResult:
     feature_importance_mda: dict[str, float] = field(default_factory=dict)
     nav_history: list[dict] = field(default_factory=list)
     strategy_params: dict = field(default_factory=dict)
+    all_trades: list[dict] = field(default_factory=list)
 
 
 class BacktestEngine:
@@ -146,6 +147,8 @@ class BacktestEngine:
         holding_days: int = 90,
         tp_pct: float = 10.0,
         sl_pct: float = 10.0,
+        # Mean Reversion params
+        mr_holding_days: int = 15,
         # Feature params
         frac_diff_d: float = 0.4,
         # Strategy selection
@@ -156,6 +159,8 @@ class BacktestEngine:
         transaction_cost_pct: float = 0.1,
         target_vol: float = 0.15,
         top_n_candidates: int = 50,
+        commission_model: str = "flat_pct",
+        commission_per_share: float = 0.005,
         # ML params
         n_estimators: int = 200,
         max_depth: int = 4,
@@ -183,6 +188,7 @@ class BacktestEngine:
         )
 
         self.holding_days = holding_days
+        self.mr_holding_days = mr_holding_days
         self.tp_pct = tp_pct
         self.sl_pct = sl_pct
         self.frac_diff_d = frac_diff_d
@@ -207,6 +213,8 @@ class BacktestEngine:
             max_positions=max_positions,
             transaction_cost_pct=transaction_cost_pct,
             target_vol=target_vol,
+            commission_model=commission_model,
+            commission_per_share=commission_per_share,
         )
 
         self.progress_callback = progress_callback
@@ -218,6 +226,7 @@ class BacktestEngine:
             "train_window_months": train_window_months,
             "test_window_months": test_window_months,
             "embargo_days": embargo_days, "holding_days": holding_days,
+            "mr_holding_days": mr_holding_days,
             "tp_pct": tp_pct, "sl_pct": sl_pct, "frac_diff_d": frac_diff_d,
             "starting_capital": starting_capital, "max_positions": max_positions,
             "top_n_candidates": top_n_candidates, "strategy": self.strategy,
@@ -228,11 +237,19 @@ class BacktestEngine:
         """Return ISO timestamp of last model training. Empty string if never trained."""
         return self.model_trained_at
 
-    def run_backtest(self, universe_tickers: list[str] | None = None) -> BacktestResult:
+    def run_backtest(
+        self,
+        universe_tickers: list[str] | None = None,
+        skip_cache_clear: bool = False,
+    ) -> BacktestResult:
         """
         Run full walk-forward backtest. Main entry point.
         Auto-checks BQ data availability and triggers ingestion if empty.
         Returns BacktestResult with per-window and aggregate metrics.
+
+        Args:
+            skip_cache_clear: If True, skip cache.clear_cache() at end.
+                Used by QuantStrategyOptimizer to keep warm cache across iterations.
         """
         if universe_tickers is None:
             universe_tickers = self.candidate_selector.get_universe_tickers()
@@ -249,7 +266,7 @@ class BacktestEngine:
         self._report_progress("preloading", f"Loading data for {len(universe_tickers)} tickers")
         global_start = (self.scheduler.start_date - timedelta(days=756)).isoformat()
         global_end = (self.scheduler.end_date + timedelta(days=int(self.holding_days * 1.5))).isoformat()
-        cache.preload_prices(universe_tickers, global_start, global_end)
+        cache.preload_prices(universe_tickers + ["SPY"], global_start, global_end)
         cache.preload_fundamentals(universe_tickers)
 
         result = BacktestResult(strategy_params=self._strategy_params)
@@ -305,12 +322,24 @@ class BacktestEngine:
             for s in self.trader.snapshots
         ]
 
+        # Extract individual trades (capped at 500 for JSON size)
+        result.all_trades = [
+            {
+                "ticker": t.ticker, "action": t.action, "quantity": round(t.quantity, 4),
+                "price": round(t.price, 2), "date": t.date, "label": t.label,
+                "probability": round(t.probability, 4), "commission": round(t.commission, 2),
+            }
+            for t in self.trader.trades[:500]
+        ]
+        logger.info(f"Backtest complete: {len(self.trader.trades)} actual trades recorded, {result.total_trades} signals processed")
+
         self._report_progress(
             "finalizing",
             f"Aggregating results across {len(result.windows)} windows...",
             window=self._total_windows,
         )
-        cache.clear_cache()
+        if not skip_cache_clear:
+            cache.clear_cache()
         return result
 
     def _run_window(self, window: WalkForwardWindow, universe_tickers: list[str]) -> WindowResult:
@@ -389,9 +418,12 @@ class BacktestEngine:
         )
 
         # 7. Execute trades in the test window
+        # Track actual trades executed (not just signal count)
+        trades_before = len(self.trader.trades)
+
         self._report_progress(
             "trading",
-            f"Executing {len(signals) if signals else 0} trades",
+            f"Processing {len(signals) if signals else 0} signals",
             window=wid,
         )
         if signals:
@@ -402,7 +434,8 @@ class BacktestEngine:
                 if not p.empty:
                     prices[ticker] = float(p["close"].iloc[-1])
 
-            self.trader.execute_trades(signals, test_start_str, prices)
+            executed = self.trader.execute_trades(signals, test_start_str, prices)
+            logger.info(f"Window {wid}: {len(executed)} trades from {len(signals)} signals (BUY={sum(1 for s in signals if s['label']==1)}, SELL={sum(1 for s in signals if s['label']==-1)}, HOLD={sum(1 for s in signals if s['label']==0)})")
 
         # 8. Mark to market at test end and close positions
         end_prices = {}
@@ -414,10 +447,11 @@ class BacktestEngine:
         self.trader.mark_to_market(test_end_str, end_prices)
         self.trader.close_all_positions(test_end_str, end_prices)
 
+        # Actual trades = entries + exits in this window
+        actual_trades = len(self.trader.trades) - trades_before
+
         # 9. Compute window metrics
         window_returns = self.trader.get_returns_series()
-        # Use only the returns from this window's snapshots
-        window_snapshot_count = len(signals) if signals else 0
 
         wr = WindowResult(
             window_id=window.window_id,
@@ -430,7 +464,7 @@ class BacktestEngine:
             alpha_pct=0,  # Computed at aggregate level
             max_drawdown_pct=self._max_drawdown(np.array(window_returns)) if window_returns else 0,
             hit_rate=sum(1 for p in predictions if p.get("correct")) / len(predictions) if predictions else 0,
-            num_trades=len(signals) if signals else 0,
+            num_trades=actual_trades,
             n_candidates=len(candidate_tickers),
             n_train_samples=len(train_features),
             n_features=len(feature_names),

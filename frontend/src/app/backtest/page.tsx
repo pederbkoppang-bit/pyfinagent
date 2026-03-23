@@ -15,15 +15,20 @@ import {
   getOptimizerStatus,
   getOptimizerExperiments,
   getOptimizerBest,
+  getBacktestRuns,
+  loadBacktestRun,
+  getOptimizerInsights,
 } from "@/lib/api";
 import type {
   BacktestStatus,
   BacktestProgress,
   BacktestResults,
+  BacktestRunSummary,
   IngestionStatus,
   OptimizerStatus,
   OptimizerExperiment,
   OptimizerBest,
+  OptimizerInsights,
 } from "@/lib/types";
 import {
   LineChart,
@@ -53,6 +58,8 @@ import {
   CloudArrowDown,
   CheckCircle,
 } from "@phosphor-icons/react";
+import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
+import { OptimizerInsightsView } from "@/components/OptimizerInsights";
 import type { Icon } from "@phosphor-icons/react";
 
 /* ── Backtest pipeline step definitions ── */
@@ -77,6 +84,15 @@ const STEP_META: Record<PipelineStepKey, { StepIcon: Icon; label: string }> = {
 };
 
 /* ── Helpers ── */
+function formatRunTimestamp(ts: string): string {
+  // Parse compact ISO like "20260323T081929Z" → human-readable local time
+  const m = ts.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/);
+  if (!m) return ts;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+  if (isNaN(d.getTime())) return ts;
+  return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 function Metric({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-4">
@@ -87,12 +103,13 @@ function Metric({ label, value, sub, color }: { label: string; value: string; su
   );
 }
 
-type Tab = "results" | "equity" | "features" | "optimizer";
+type Tab = "results" | "equity" | "features" | "optimizer" | "insights";
 const TABS: { id: Tab; label: string; icon: Icon }[] = [
   { id: "results", label: "Results", icon: Table },
   { id: "equity", label: "Equity Curve", icon: ChartLineUp },
   { id: "features", label: "Features", icon: TrendUp },
   { id: "optimizer", label: "Optimizer", icon: Lightning },
+  { id: "insights", label: "Insights", icon: MagnifyingGlass },
 ];
 
 export default function BacktestPage() {
@@ -102,28 +119,34 @@ export default function BacktestPage() {
   const [optStatus, setOptStatus] = useState<OptimizerStatus | null>(null);
   const [optExperiments, setOptExperiments] = useState<OptimizerExperiment[]>([]);
   const [optBest, setOptBest] = useState<OptimizerBest | null>(null);
+  const [runs, setRuns] = useState<BacktestRunSummary[]>([]);
+  const [insights, setInsights] = useState<OptimizerInsights | null>(null);
   const [tab, setTab] = useState<Tab>("results");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ingestResult, setIngestResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [localElapsed, setLocalElapsed] = useState(0);
+  const [tradePage, setTradePage] = useState(0);
+  const [tradeSort, setTradeSort] = useState<{ col: string; asc: boolean }>({ col: "entry_date", asc: true });
 
   const refresh = useCallback(async () => {
     try {
-      const [s, ing, opt] = await Promise.all([
+      const [s, ing, opt, runsRes] = await Promise.all([
         getBacktestStatus().catch(() => null),
         getIngestionStatus().catch(() => null),
         getOptimizerStatus().catch(() => null),
+        getBacktestRuns().catch(() => null),
       ]);
       if (s) setBtStatus(s);
       if (ing) setIngestion(ing);
       if (opt) setOptStatus(opt);
+      if (runsRes) setRuns(runsRes.runs);
 
       // Parallel fetch of conditional data
       const [r, exp, best] = await Promise.all([
         s?.has_result ? getBacktestResults().catch(() => null) : Promise.resolve(null),
-        getOptimizerExperiments().catch(() => null),
+        getOptimizerExperiments(opt?.run_id).catch(() => null),
         getOptimizerBest().catch(() => null),
       ]);
       if (r) setResults(r);
@@ -139,6 +162,7 @@ export default function BacktestPage() {
   }, []);
 
   // Lightweight status-only poll (no heavy data re-fetches)
+  // When optimizer is running, also poll experiments for live chart updates
   const refreshStatus = useCallback(async () => {
     try {
       const [s, opt] = await Promise.all([
@@ -147,6 +171,16 @@ export default function BacktestPage() {
       ]);
       if (s) setBtStatus(s);
       if (opt) setOptStatus(opt);
+
+      // Live experiment updates while optimizer is running
+      if (opt?.status === "running") {
+        const [exp, best] = await Promise.all([
+          getOptimizerExperiments(opt.run_id).catch(() => null),
+          getOptimizerBest().catch(() => null),
+        ]);
+        if (exp) setOptExperiments(exp.experiments);
+        if (best) setOptBest(best);
+      }
     } catch { /* swallow poll errors */ }
   }, []);
 
@@ -294,8 +328,8 @@ export default function BacktestPage() {
             </button>
             <button
               onClick={handleRunBacktest}
-              disabled={!!actionLoading || isRunning}
-              title="Runs walk-forward ML backtest on ingested data. Uses GradientBoosting (no LLM cost). BQ reads <$0.01. Takes ~2-5 min."
+              disabled={!!actionLoading || isRunning || isOptRunning}
+              title={isOptRunning ? "Optimizer is running - backtest unavailable" : "Runs walk-forward ML backtest on ingested data. Uses GradientBoosting (no LLM cost). BQ reads <$0.01. Takes ~2-5 min."}
               className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:opacity-50"
             >
               <Play size={16} weight="fill" />
@@ -307,6 +341,20 @@ export default function BacktestPage() {
         {error && (
           <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
             <p className="text-sm text-rose-300">{error}</p>
+          </div>
+        )}
+
+        {/* Backtest error with traceback */}
+        {btStatus?.status === "error" && btStatus.error && (
+          <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
+            <p className="text-sm font-medium text-rose-400">Backtest Error</p>
+            <p className="mt-1 font-mono text-xs text-rose-300/80">{btStatus.error}</p>
+            {btStatus.traceback && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-rose-400/70 hover:text-rose-400">Show traceback</summary>
+                <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2 font-mono text-[11px] leading-relaxed text-rose-300/70">{btStatus.traceback}</pre>
+              </details>
+            )}
           </div>
         )}
 
@@ -373,7 +421,7 @@ export default function BacktestPage() {
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
                     <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
                   </span>
-                  <span className="text-sm font-semibold text-slate-200">Walk-Forward Progress</span>
+                  <span className="text-sm font-semibold text-slate-200">Walk-Forward Progress{btStatus?.engine_source === "optimizer" ? " (via Optimizer)" : ""}</span>
                 </div>
                 <span className="font-mono text-sm text-slate-400">{elapsedStr} elapsed</span>
               </div>
@@ -573,6 +621,32 @@ export default function BacktestPage() {
 
         {loading && <PageSkeleton />}
 
+        {/* Run history selector */}
+        {runs.length > 1 && !loading && (
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-xs text-slate-500">Previous runs:</span>
+            <select
+              className="rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 focus:border-sky-500 focus:outline-none"
+              value={results?.run_id ?? ""}
+              onChange={async (e) => {
+                const rid = e.target.value;
+                if (!rid) return;
+                try {
+                  const data = await loadBacktestRun(rid);
+                  setResults(data);
+                  setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: true, run_id: rid } : prev);
+                } catch { /* ignore load errors */ }
+              }}
+            >
+              {runs.map((r) => (
+                <option key={r.run_id} value={r.run_id}>
+                  {formatRunTimestamp(r.timestamp)} -- {r.strategy} -- Sharpe {r.sharpe?.toFixed(2) ?? "?"}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Tab bar */}
         {!loading && (
           <>
@@ -672,6 +746,167 @@ export default function BacktestPage() {
                     </div>
                   </BentoCard>
                 )}
+
+                {/* ── Trade Statistics ── */}
+                {results?.trade_statistics && (() => {
+                  const ts = results.trade_statistics;
+                  return (
+                    <BentoCard>
+                      <h3 className="mb-4 text-lg font-semibold text-slate-300">Trade Statistics</h3>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        {/* Performance */}
+                        <div className="space-y-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Performance</p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            <span className="text-slate-400">Profit Factor</span>
+                            <span className="text-right font-mono text-slate-200">{ts.profit_factor.toFixed(2)}</span>
+                            <span className="text-slate-400">Win Rate</span>
+                            <span className="text-right font-mono text-slate-200">{(ts.win_rate * 100).toFixed(1)}%</span>
+                            <span className="text-slate-400">Payoff Ratio</span>
+                            <span className="text-right font-mono text-slate-200">{ts.payoff_ratio.toFixed(2)}</span>
+                            <span className="text-slate-400">Expectancy</span>
+                            <span className={`text-right font-mono ${ts.expectancy >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                              ${ts.expectancy.toFixed(2)}
+                            </span>
+                            <span className="text-slate-400">SQN</span>
+                            <span className="text-right font-mono text-slate-200">{ts.sqn.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        {/* Extremes */}
+                        <div className="space-y-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-amber-400">Extremes &amp; Streaks</p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            <span className="text-slate-400">Best Trade</span>
+                            <span className="text-right font-mono text-emerald-400">{(ts.best_trade * 100).toFixed(1)}%</span>
+                            <span className="text-slate-400">Worst Trade</span>
+                            <span className="text-right font-mono text-rose-400">{(ts.worst_trade * 100).toFixed(1)}%</span>
+                            <span className="text-slate-400">Win Streak</span>
+                            <span className="text-right font-mono text-slate-200">{ts.max_win_streak}</span>
+                            <span className="text-slate-400">Loss Streak</span>
+                            <span className="text-right font-mono text-slate-200">{ts.max_loss_streak}</span>
+                            <span className="text-slate-400">Avg Days (W)</span>
+                            <span className="text-right font-mono text-slate-200">{ts.avg_holding_days_win.toFixed(1)}</span>
+                            <span className="text-slate-400">Avg Days (L)</span>
+                            <span className="text-right font-mono text-slate-200">{ts.avg_holding_days_loss.toFixed(1)}</span>
+                          </div>
+                        </div>
+                        {/* Cost Impact */}
+                        <div className="space-y-2 rounded-lg border border-rose-500/20 bg-rose-500/5 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-rose-400">Cost Impact</p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            <span className="text-slate-400">Total Commission</span>
+                            <span className="text-right font-mono text-slate-200">${ts.total_commission.toFixed(0)}</span>
+                            <span className="text-slate-400">Comm % of Profit</span>
+                            <span className="text-right font-mono text-slate-200">{ts.commission_pct_of_profit.toFixed(1)}%</span>
+                            <span className="text-slate-400">Avg Cost/Trade</span>
+                            <span className="text-right font-mono text-slate-200">${ts.avg_cost_per_trade.toFixed(2)}</span>
+                            <span className="text-slate-400">Turnover</span>
+                            <span className="text-right font-mono text-slate-200">{ts.turnover_rate.toFixed(1)}</span>
+                            <span className="text-slate-400">Break-Even WR</span>
+                            <span className="text-right font-mono text-slate-200">{(ts.break_even_win_rate * 100).toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </BentoCard>
+                  );
+                })()}
+
+                {/* ── Trade List ── */}
+                {results?.trades && results.trades.length > 0 && (() => {
+                  const TRADES_PER_PAGE = 25;
+                  const sorted = [...results.trades].sort((a, b) => {
+                    const va = a[tradeSort.col as keyof typeof a];
+                    const vb = b[tradeSort.col as keyof typeof b];
+                    if (typeof va === "number" && typeof vb === "number") return tradeSort.asc ? va - vb : vb - va;
+                    return tradeSort.asc
+                      ? String(va).localeCompare(String(vb))
+                      : String(vb).localeCompare(String(va));
+                  });
+                  const totalPages = Math.ceil(sorted.length / TRADES_PER_PAGE);
+                  const page = Math.min(tradePage, totalPages - 1);
+                  const visible = sorted.slice(page * TRADES_PER_PAGE, (page + 1) * TRADES_PER_PAGE);
+                  const toggleSort = (col: string) =>
+                    setTradeSort((s) => ({ col, asc: s.col === col ? !s.asc : true }));
+                  const hdr = (label: string, col: string, right = false) => (
+                    <th
+                      className={`cursor-pointer px-2 py-2 text-slate-400 hover:text-slate-200 ${right ? "text-right" : "text-left"}`}
+                      onClick={() => toggleSort(col)}
+                    >
+                      {label}{tradeSort.col === col ? (tradeSort.asc ? " ▲" : " ▼") : ""}
+                    </th>
+                  );
+                  return (
+                    <BentoCard>
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-slate-300">
+                          Trade List <span className="text-sm font-normal text-slate-500">({results.trades.length} round-trips)</span>
+                        </h3>
+                        {totalPages > 1 && (
+                          <div className="flex items-center gap-2 text-sm text-slate-400">
+                            <button
+                              disabled={page === 0}
+                              onClick={() => setTradePage((p) => Math.max(0, p - 1))}
+                              className="rounded px-2 py-0.5 hover:bg-slate-700 disabled:opacity-30"
+                            >
+                              ← Prev
+                            </button>
+                            <span>{page + 1} / {totalPages}</span>
+                            <button
+                              disabled={page >= totalPages - 1}
+                              onClick={() => setTradePage((p) => Math.min(totalPages - 1, p + 1))}
+                              className="rounded px-2 py-0.5 hover:bg-slate-700 disabled:opacity-30"
+                            >
+                              Next →
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-700">
+                              <th className="px-2 py-2 text-left text-slate-400">#</th>
+                              {hdr("Ticker", "ticker")}
+                              {hdr("Entry", "entry_date")}
+                              {hdr("Exit", "exit_date")}
+                              {hdr("Entry $", "entry_price", true)}
+                              {hdr("Exit $", "exit_price", true)}
+                              {hdr("Qty", "quantity", true)}
+                              {hdr("P&L $", "net_pnl", true)}
+                              {hdr("P&L %", "pnl_pct", true)}
+                              {hdr("Days", "holding_days", true)}
+                              {hdr("Conf", "probability", true)}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visible.map((t, i) => (
+                              <tr
+                                key={`${t.ticker}-${t.entry_date}-${i}`}
+                                className={`border-b border-slate-800 ${t.net_pnl >= 0 ? "bg-emerald-500/5" : "bg-rose-500/5"}`}
+                              >
+                                <td className="px-2 py-1.5 font-mono text-slate-500">{page * TRADES_PER_PAGE + i + 1}</td>
+                                <td className="px-2 py-1.5 font-medium text-slate-200">{t.ticker}</td>
+                                <td className="px-2 py-1.5 text-slate-400">{t.entry_date}</td>
+                                <td className="px-2 py-1.5 text-slate-400">{t.exit_date}</td>
+                                <td className="px-2 py-1.5 text-right font-mono text-slate-300">${t.entry_price.toFixed(2)}</td>
+                                <td className="px-2 py-1.5 text-right font-mono text-slate-300">${t.exit_price.toFixed(2)}</td>
+                                <td className="px-2 py-1.5 text-right font-mono text-slate-300">{t.quantity}</td>
+                                <td className={`px-2 py-1.5 text-right font-mono ${t.net_pnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                                  {t.net_pnl >= 0 ? "+" : ""}{t.net_pnl.toFixed(2)}
+                                </td>
+                                <td className={`px-2 py-1.5 text-right font-mono ${t.pnl_pct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                                  {t.pnl_pct >= 0 ? "+" : ""}{(t.pnl_pct * 100).toFixed(1)}%
+                                </td>
+                                <td className="px-2 py-1.5 text-right font-mono text-slate-300">{t.holding_days}</td>
+                                <td className="px-2 py-1.5 text-right font-mono text-slate-400">{(t.probability * 100).toFixed(0)}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </BentoCard>
+                  );
+                })()}
 
                 {!results && !isRunning && (
                   <p className="text-slate-500">No backtest results yet. Click &quot;Run Backtest&quot; to start.</p>
@@ -774,7 +1009,8 @@ export default function BacktestPage() {
                   ) : (
                     <button
                       onClick={handleStartOptimizer}
-                      disabled={!!actionLoading}
+                      disabled={!!actionLoading || isRunning}
+                      title={isRunning ? "Backtest is running - optimizer unavailable" : undefined}
                       className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:opacity-50"
                     >
                       <Play size={16} weight="fill" />
@@ -792,31 +1028,72 @@ export default function BacktestPage() {
 
                 {/* Optimizer status */}
                 {optStatus && optStatus.status !== "idle" && (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-                    <Metric
-                      label="Status"
-                      value={optStatus.status.toUpperCase()}
-                      color={
-                        optStatus.status === "running"
-                          ? "text-sky-400"
-                          : optStatus.status === "completed"
-                            ? "text-emerald-400"
-                            : "text-slate-300"
-                      }
-                    />
-                    <Metric label="Iterations" value={String(optStatus.iterations)} />
-                    <Metric
-                      label="Best Sharpe"
-                      value={optStatus.best_sharpe?.toFixed(3) ?? "—"}
-                      color="text-sky-300"
-                    />
-                    <Metric
-                      label="Best DSR"
-                      value={optStatus.best_dsr?.toFixed(3) ?? "—"}
-                      color={optStatus.best_dsr != null && optStatus.best_dsr >= 0.95 ? "text-emerald-400" : "text-amber-400"}
-                    />
-                    <Metric label="Kept" value={String(optStatus.kept)} color="text-emerald-400" />
-                    <Metric label="Discarded" value={String(optStatus.discarded)} color="text-rose-400" />
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                      <Metric
+                        label="Status"
+                        value={optStatus.status.toUpperCase()}
+                        color={
+                          optStatus.status === "running"
+                            ? "text-sky-400"
+                            : optStatus.status === "completed"
+                              ? "text-emerald-400"
+                              : optStatus.status === "error"
+                                ? "text-rose-400"
+                                : "text-slate-300"
+                        }
+                      />
+                      <Metric label="Iterations" value={String(optStatus.iterations)} />
+                      <Metric
+                        label="Best Sharpe"
+                        value={optStatus.best_sharpe?.toFixed(3) ?? "—"}
+                        color="text-sky-300"
+                      />
+                      <Metric
+                        label="Best DSR"
+                        value={optStatus.best_dsr?.toFixed(3) ?? "—"}
+                        color={optStatus.best_dsr != null && optStatus.best_dsr >= 0.95 ? "text-emerald-400" : "text-amber-400"}
+                      />
+                      <Metric label="Kept" value={String(optStatus.kept)} color="text-emerald-400" />
+                      <Metric label="Discarded" value={String(optStatus.discarded)} color="text-rose-400" />
+                    </div>
+
+                    {/* Error banner */}
+                    {optStatus.status === "error" && optStatus.error && (
+                      <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
+                        <p className="text-sm font-medium text-rose-400">Optimizer Error</p>
+                        <p className="mt-1 font-mono text-xs text-rose-300/80">{optStatus.error}</p>
+                        {optStatus.traceback && (
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-xs text-rose-400/70 hover:text-rose-400">Show traceback</summary>
+                            <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2 font-mono text-[11px] leading-relaxed text-rose-300/70">{optStatus.traceback}</pre>
+                          </details>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Step indicator */}
+                    {optStatus.status === "running" && optStatus.current_step && (
+                      <div className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 px-4 py-2">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
+                        <span className="text-sm font-medium text-sky-300">
+                          {optStatus.current_step === "establishing_baseline"
+                            ? "Establishing Baseline"
+                            : optStatus.current_step === "running_experiment"
+                              ? "Running Experiment"
+                              : optStatus.current_step === "evaluated"
+                                ? "Evaluated"
+                                : optStatus.current_step === "baseline_complete"
+                                  ? "Baseline Complete"
+                                  : optStatus.current_step}
+                        </span>
+                        {optStatus.current_detail && (
+                          <span className="truncate text-xs text-slate-400">
+                            — {optStatus.current_detail}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -834,6 +1111,13 @@ export default function BacktestPage() {
                         <p className="font-mono text-lg font-bold text-sky-300">{optBest.best_dsr.toFixed(3)}</p>
                       </div>
                     </div>
+                  </BentoCard>
+                )}
+
+                {/* Karpathy progress chart */}
+                {optExperiments.length >= 2 && (
+                  <BentoCard>
+                    <OptimizerProgressChart experiments={optExperiments} />
                   </BentoCard>
                 )}
 
@@ -856,9 +1140,9 @@ export default function BacktestPage() {
                         <tbody>
                           {optExperiments.map((exp, i) => (
                             <tr key={i} className="border-b border-slate-800">
-                              <td className="px-3 py-2 font-mono text-xs text-slate-500">{exp.iteration}</td>
-                              <td className="max-w-xs truncate px-3 py-2 text-xs text-slate-400" title={exp.modification}>
-                                {exp.modification}
+                              <td className="px-3 py-2 font-mono text-xs text-slate-500">{exp.run_id}</td>
+                              <td className="max-w-xs truncate px-3 py-2 text-xs text-slate-400" title={exp.param_changed}>
+                                {exp.param_changed}
                               </td>
                               <td className="px-3 py-2 text-right font-mono text-xs text-slate-400">{parseFloat(exp.metric_before).toFixed(3)}</td>
                               <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">{parseFloat(exp.metric_after).toFixed(3)}</td>
@@ -888,6 +1172,17 @@ export default function BacktestPage() {
                   <p className="text-slate-500">No experiments yet. Click &quot;Start Optimizer&quot; to begin.</p>
                 )}
               </div>
+            )}
+
+            {/* ═══ INSIGHTS TAB ═══ */}
+            {tab === "insights" && (
+              <OptimizerInsightsView
+                insights={insights}
+                onRefresh={async () => {
+                  const data = await getOptimizerInsights().catch(() => null);
+                  if (data) setInsights(data);
+                }}
+              />
             )}
           </>
         )}

@@ -207,7 +207,7 @@ class MetaCoordinator:
                     seen.add(agent)
 
         if target_agents:
-            logger.info(f"MetaCoordinator: MDA→Agent bridge targets: {target_agents}")
+            logger.info(f"MetaCoordinator: MDA->Agent bridge targets: {target_agents}")
         return target_agents
 
     # ── Health Gathering ─────────────────────────────────────────

@@ -81,7 +81,7 @@ async def get_all_signals(ticker: str, settings: Settings = Depends(get_settings
         yf_news = await asyncio.to_thread(lambda: yf.Ticker(ticker).news)
         fallback_articles = _yf_news_to_articles(yf_news)
         articles = fallback_articles  # feed into NLP
-        logger.info("AV empty for %s — using %d yfinance articles as fallback", ticker, len(fallback_articles))
+        logger.info("AV empty for %s -- using %d yfinance articles as fallback", ticker, len(fallback_articles))
 
     insider, options, social, patent, earnings, fred, alt, sector, nlp, anomalies, mc, qm = await asyncio.gather(
         _safe(sec_insider.get_insider_trades, "insider", ticker),

@@ -620,6 +620,50 @@ export interface BacktestStatus {
   run_id: string | null;
   progress: BacktestProgress | string;
   has_result: boolean;
+  error?: string;
+  traceback?: string;
+  engine_source?: "backtest" | "optimizer" | null;
+}
+
+export interface BacktestRoundTrip {
+  ticker: string;
+  entry_date: string;
+  exit_date: string;
+  entry_price: number;
+  exit_price: number;
+  quantity: number;
+  gross_pnl: number;
+  commission: number;
+  net_pnl: number;
+  pnl_pct: number;
+  holding_days: number;
+  probability: number;
+}
+
+export interface TradeStatistics {
+  n_trades: number;
+  n_wins: number;
+  n_losses: number;
+  profit_factor: number;
+  win_rate: number;
+  avg_win: number;
+  avg_loss: number;
+  payoff_ratio: number;
+  expectancy: number;
+  sqn: number;
+  best_trade: number;
+  worst_trade: number;
+  avg_holding_days_win: number;
+  avg_holding_days_loss: number;
+  max_win_streak: number;
+  max_loss_streak: number;
+  total_commission: number;
+  commission_pct_of_profit: number;
+  avg_cost_per_trade: number;
+  turnover_rate: number;
+  break_even_win_rate: number;
+  gross_profit: number;
+  gross_loss: number;
 }
 
 export interface BacktestWindowResult {
@@ -658,6 +702,8 @@ export interface BacktestResults {
   };
   equity_curve: { date: string; equity: number }[];
   per_window: BacktestWindowResult[];
+  trades?: BacktestRoundTrip[];
+  trade_statistics?: TradeStatistics;
 }
 
 export interface IngestionStatus {
@@ -673,17 +719,23 @@ export interface OptimizerStatus {
   best_dsr: number | null;
   kept: number;
   discarded: number;
+  current_step: string;
+  current_detail: string;
+  run_id: string;
+  error?: string;
+  traceback?: string;
 }
 
 export interface OptimizerExperiment {
-  iteration: string;
-  agent: string;
-  modification: string;
+  timestamp: string;
+  run_id: string;
+  param_changed: string;
   metric_before: string;
   metric_after: string;
-  dsr: string;
+  delta: string;
   status: string;
-  timestamp: string;
+  dsr: string;
+  top5_mda: string;
 }
 
 export interface OptimizerBest {
@@ -735,4 +787,58 @@ export interface PerfExperiment {
   p95_after: string;
   hit_rate: string;
   status: string;
+}
+
+// ── Backtest Run Persistence ─────────────────────────────────────
+
+export interface BacktestRunSummary {
+  run_id: string;
+  timestamp: string;
+  strategy: string;
+  sharpe: number | null;
+  total_return_pct: number | null;
+  filename: string;
+}
+
+// ── Optimizer Insights ───────────────────────────────────────────
+
+export interface OptimizerInsightsWindow {
+  id: number;
+  train_start: string;
+  train_end: string;
+  test_start: string;
+  test_end: string;
+  n_candidates: number;
+  n_train_samples: number;
+}
+
+export interface OptimizerInsightsDataScope {
+  start_date: string | null;
+  end_date: string | null;
+  strategy: string;
+  n_windows: number;
+  n_features: number;
+  windows: OptimizerInsightsWindow[];
+}
+
+export interface OptimizerExperimentFull {
+  index: number;
+  run_id: string;
+  param_changed: string;
+  metric_before: number;
+  metric_after: number;
+  delta: number;
+  status: string;
+  dsr: number;
+  top5_mda: string[];
+  timestamp: string;
+  params_full: Record<string, number | string> | null;
+}
+
+export interface OptimizerInsights {
+  param_bounds: Record<string, [number, number]>;
+  int_params: string[];
+  categorical_params: Record<string, string[]>;
+  experiments: OptimizerExperimentFull[];
+  data_scope: OptimizerInsightsDataScope;
 }

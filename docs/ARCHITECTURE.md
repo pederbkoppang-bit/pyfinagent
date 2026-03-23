@@ -48,7 +48,7 @@ pyfinagent/
 │   │   ├── schemas.py           # Pydantic output schemas for Gemini structured output (Phase 3)
 │   │   ├── skill_optimizer.py   # Autonomous skill optimization loop (autoresearch pattern)
 │   │   ├── meta_coordinator.py  # Cross-loop sequencing for 3 optimization loops (MDA→Agent bridge)
-│   │   └── skills/              # Agent skills.md files (28 agents) + experiments/
+│   │   └── skills/              # Agent skills.md files (29 agents) + experiments/ + quant_strategy.md optimizer skill
 │   ├── config/
 │   │   ├── settings.py          # Pydantic settings (env vars)
 │   │   └── prompts.py           # Skill-loaded prompt wrappers (loads from skills/*.md)
@@ -62,17 +62,17 @@ pyfinagent/
 │   │   ├── paper_trading.py     # Autonomous paper trading endpoints (8 routes)
 │   │   ├── settings_api.py      # Model configuration + available models
 │   │   ├── skills.py            # Skills optimization API endpoints
-│   │   ├── backtest.py          # Walk-forward backtest + quant optimizer endpoints (11 routes)
+│   │   ├── backtest.py          # Walk-forward backtest + quant optimizer endpoints (11 routes); mutual exclusion (HTTP 409) prevents concurrent runs; engine_source tracks who started the engine; state dicts carry error+traceback for UI
 │   │   └── performance_api.py   # Performance monitoring + cache stats + TTL optimizer (8 routes)
 │   ├── backtest/
-│   │   ├── analytics.py          # Sharpe, DSR, baselines, reporting
-│   │   ├── backtest_engine.py    # Walk-forward ML backtest orchestrator — 8-step pipeline (preloading→screening→building_features→training→computing_mda→predicting→trading→finalizing), _current_window_id tracking fixes 0/N counter, emits finalizing step before cache.clear_cache()
-│   │   ├── backtest_trader.py    # In-memory portfolio simulator (inverse-vol sizing)
+│   │   ├── analytics.py          # Sharpe, DSR, baselines (SPY/equal-weight/momentum with real Sharpe), reporting, compute_round_trips (FIFO BUY→SELL matching), compute_trade_statistics (23-field: profit_factor/win_rate/expectancy/SQN/streaks/cost metrics)
+│   │   ├── backtest_engine.py    # Walk-forward ML backtest orchestrator — 8-step pipeline (preloading→screening→building_features→training→computing_mda→predicting→trading→finalizing), _current_window_id tracking fixes 0/N counter, emits finalizing step before cache.clear_cache(); skip_cache_clear param allows optimizer to keep warm cache across iterations; SPY preloaded alongside universe for baseline benchmarks; mr_holding_days param for mean reversion strategy; all_trades extraction (capped at 500) into BacktestResult; commission_model/commission_per_share forwarded to trader
+│   │   ├── backtest_trader.py    # In-memory portfolio simulator (inverse-vol sizing); per-trade commission tracking (flat_pct + per_share models); Trade dataclass includes commission field
 │   │   ├── cache.py              # BQ bulk-preload cache (2 queries for entire backtest) + hit/miss stats
 │   │   ├── candidate_selector.py # S&P 500 screening at historical dates
 │   │   ├── data_ingestion.py     # Bulk ingest prices/fundamentals/macro to BQ
 │   │   ├── historical_data.py    # ~49-feature vector builder (point-in-time)
-│   │   ├── quant_optimizer.py    # Autoresearch-style strategy optimization loop
+│   │   ├── quant_optimizer.py    # Autoresearch-style strategy optimization loop; 17 tunable params (including mr_holding_days); per-run UUID tagging, step-level progress (establishing_baseline/running_experiment/evaluated), skip_cache_clear for warm cache, explicit bq_cache.clear_cache() at end; LLM proposals load quant_strategy.md skill for research-backed guidance
 │   │   ├── walk_forward.py       # Expanding-window walk-forward scheduler
 │   │   └── experiments/          # quant_results.tsv experiment logs
 │   ├── db/
@@ -110,7 +110,7 @@ pyfinagent/
 │   │   ├── slack.py             # Slack webhook notifications
 │   │   ├── screener.py          # S&P 500 quant screener (momentum, RSI, composite score)
 │   │   └── quant_model.py       # MDA-weighted quant model signal (12th enrichment tool)
-│   └── main.py                  # FastAPI app + router registration
+│   └── main.py                  # FastAPI app + router registration; setup_logging() wraps stderr in UTF-8 TextIOWrapper
 ├── frontend/
 │   ├── prisma/
 │   │   └── schema.prisma        # SQLite auth DB (User, Account, Session, Authenticator)
@@ -446,7 +446,7 @@ This system's design is informed by leading research on AI in financial trading:
 | `/performance` | `performance/page.tsx` | **Performance**: Historical accuracy metrics |
 | `/portfolio` | `portfolio/page.tsx` | **Portfolio**: Position tracking, P&L, allocation pie chart, drawdown, recommendation accuracy scorecard |
 | `/paper-trading` | `paper-trading/page.tsx` | **Paper Trading**: Autonomous fund dashboard, NAV chart, positions table, trades history, start/stop/run controls |
-| `/backtest` | `backtest/page.tsx` | **Backtest**: Walk-forward ML backtest dashboard with 4 tabs (Results/Equity Curve/Features/Optimizer), data ingestion controls, analytics summary, strategy vs baselines; vertical Jira-style 8-step workflow timeline with window rail, client-side elapsed timer, sample sub-progress, cache hit rate footer |
+| `/backtest` | `backtest/page.tsx` | **Backtest**: Walk-forward ML backtest dashboard with 4 tabs (Results/Equity Curve/Features/Optimizer), data ingestion controls, analytics summary, strategy vs baselines; vertical Jira-style 8-step workflow timeline with window rail, client-side elapsed timer, sample sub-progress, cache hit rate footer; Optimizer tab has Karpathy progress chart (`OptimizerProgressChart`), live experiment polling, best strategy card |
 | `/settings` | `settings/page.tsx` | **Settings**: 3-tab sub-navigation (Models & Analysis \| Cost & Weights \| Performance). Performance tab exposes API cache stats, TTL optimizer controls, and per-endpoint latency percentiles |
 
 ### Key Components
@@ -467,6 +467,7 @@ This system's design is informed by leading research on AI in financial trading:
 | `CostDashboard.tsx` | LLM cost analytics: 4 summary cards (total cost, tokens, calls, deep think), token distribution bar, cost by model, per-agent breakdown table |
 | `Skeleton.tsx` | Reusable loading skeleton components: `SkeletonPulse` (atomic), `SkeletonCard` (card-sized), `SkeletonGrid` (N-card grid), `PageSkeleton` (full page: metric grid + content area) |
 | `PerfProgressChart.tsx` | Autoresearch-style optimization progress chart (Recharts ComposedChart): kept/discarded scatter dots, running-best step line, text annotations on kept dots (karpathy/autoresearch style), hover tooltip with experiment details, click-to-expand changelog panel |
+| `OptimizerProgressChart.tsx` | Karpathy-style Sharpe ratio progress chart for backtest optimizer: green running-best step line, kept/discarded/DSR-rejected dots, smart Y-axis scaling, staggered labels, clamped outlier triangles |
 | `Sidebar.tsx` | Navigation sidebar with Phosphor icons + user auth UI (avatar, email, passkey registration, logout) |
 
 ---
@@ -668,6 +669,9 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000
 | `GET` | `/api/backtest/status` | Poll backtest progress (status, run_id, progress) |
 | `GET` | `/api/backtest/results` | Full backtest results with per-window analytics |
 | `GET` | `/api/backtest/results/{window_id}` | Per-window detail (trades, predictions, feature importance) |
+| `GET` | `/api/backtest/runs` | List all persisted backtest runs (newest first) |
+| `GET` | `/api/backtest/runs/{run_id}` | Load a specific historical backtest result |
+| `DELETE` | `/api/backtest/runs/{run_id}` | Delete a specific backtest result from disk |
 | `POST` | `/api/backtest/ingest` | Ingest historical price, fundamental, and macro data into BigQuery |
 | `GET` | `/api/backtest/ingest/status` | Row counts for historical data tables |
 | `POST` | `/api/backtest/optimize` | Start quant strategy optimization loop (background) |
@@ -675,6 +679,7 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000
 | `GET` | `/api/backtest/optimize/status` | Current optimizer state (iterations, best Sharpe, kept/discarded) |
 | `GET` | `/api/backtest/optimize/experiments` | Full experiment history from quant_results.tsv |
 | `GET` | `/api/backtest/optimize/best` | Best strategy params + feature importance |
+| `GET` | `/api/backtest/optimize/insights` | Optimizer insights (param bounds, experiments with full params, data scope) |
 
 ### Performance
 

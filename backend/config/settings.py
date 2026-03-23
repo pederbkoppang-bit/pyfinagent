@@ -102,6 +102,8 @@ class Settings(BaseSettings):
     backtest_starting_capital: float = Field(100_000.0, description="Backtest starting capital ($)")
     backtest_max_positions: int = Field(20, description="Maximum simultaneous positions")
     backtest_transaction_cost_pct: float = Field(0.1, description="Simulated transaction cost per trade (%)")
+    backtest_commission_model: str = Field("flat_pct", description="Commission model: flat_pct or per_share")
+    backtest_commission_per_share: float = Field(0.005, description="Per-share commission when model=per_share ($)")
 
     # --- Paper Trading ---
     paper_trading_enabled: bool = Field(False, description="Enable autonomous paper trading scheduler")

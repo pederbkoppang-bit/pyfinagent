@@ -25,7 +25,7 @@ def start_scheduler(app: AsyncApp):
     settings = get_settings()
 
     if not settings.slack_channel_id:
-        logger.warning("SLACK_CHANNEL_ID not set — scheduled jobs disabled")
+        logger.warning("SLACK_CHANNEL_ID not set -- scheduled jobs disabled")
         return
 
     _scheduler = AsyncIOScheduler()

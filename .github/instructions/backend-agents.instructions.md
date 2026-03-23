@@ -25,8 +25,7 @@ applyTo: "backend/agents/**"
 - `meta_coordinator.py` — Cross-loop sequencing (QuantOpt → SkillOpt → PerfOpt)
 
 ## Skills System
-- Agent prompts in `skills/*.md`, loaded via `load_skill()` + `format_skill()` with `{{variable}}` placeholders
-- Skill cache keyed by file modification time — edits auto-picked up
+- Agent prompts in `skills/*.md`, loaded via `load_skill()` + `format_skill()` with `{{variable}}` placeholders- `quant_strategy.md` is an optimizer skill (not a pipeline agent) -- loaded directly by `quant_optimizer.py`'s `_propose_llm()` for research-backed parameter proposals- Skill cache keyed by file modification time — edits auto-picked up
 - SkillOptimizer modifiable sections: `## Prompt Template`, `## Skills & Techniques`, `## Anti-Patterns`
 - Fixed harness (UNTOUCHABLE): data tools, orchestrator pipeline, output schemas, BQ schema, evaluation formula
 

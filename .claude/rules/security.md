@@ -32,3 +32,7 @@ paths:
 - No raw user input passed directly to LLM prompts without sanitization
 - SEC EDGAR requires custom User-Agent (`FirstName LastName email@domain.com`)
 - External API calls respect rate limits with automatic retry and exponential backoff
+
+## Logging
+- **ASCII-only logger messages**: Never use Unicode characters (arrows `\u2192`, em dashes `\u2014`, etc.) in `logger.*()` calls. Windows cp1252 encoding in uvicorn handlers crashes on non-ASCII. Use `--`, `->`, plain English instead.
+- `setup_logging()` in `main.py` clears uvicorn handlers and forces UTF-8 `TextIOWrapper`. Still use ASCII for defense-in-depth.

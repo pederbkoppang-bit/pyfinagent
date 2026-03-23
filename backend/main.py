@@ -2,8 +2,10 @@
 PyFinAgent Backend — FastAPI application entry point.
 """
 
+import io
 import logging
 import json
+import sys
 import time
 from contextlib import asynccontextmanager
 
@@ -40,13 +42,19 @@ class JsonFormatter(logging.Formatter):
 
 
 def setup_logging():
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    if logger.hasHandlers():
-        logger.handlers.clear()
-    handler = logging.StreamHandler()
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    if root.hasHandlers():
+        root.handlers.clear()
+    stream = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    handler = logging.StreamHandler(stream)
     handler.setFormatter(JsonFormatter())
-    logger.addHandler(handler)
+    root.addHandler(handler)
+    # Prevent uvicorn from adding its own cp1252 handlers on Windows
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        uv_logger = logging.getLogger(name)
+        uv_logger.handlers.clear()
+        uv_logger.propagate = True
 
 
 @asynccontextmanager

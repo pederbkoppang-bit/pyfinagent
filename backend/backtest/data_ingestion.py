@@ -321,7 +321,7 @@ class DataIngestionService:
         if end_date is None:
             end_date = datetime.utcnow().strftime("%Y-%m-%d")
 
-        logger.info(f"Starting full ingestion: {len(tickers)} tickers, {start_date} → {end_date}")
+        logger.info(f"Starting full ingestion: {len(tickers)} tickers, {start_date} -> {end_date}")
 
         # Auto-create BQ tables if they don't exist
         self._ensure_tables_exist()

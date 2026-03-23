@@ -64,7 +64,7 @@ class PerfOptimizer:
                 # Think harder: try doubling TTL for maximum caching
                 new_ttl = min(old_ttl * 2.0, _MAX_TTL)
                 consecutive_discards = 0
-                logger.info("Perf optimizer: think_harder — doubling TTL for %s", endpoint_key)
+                logger.info("Perf optimizer: think_harder -- doubling TTL for %s", endpoint_key)
             else:
                 # Random ±20% perturbation
                 factor = random.uniform(0.8, 1.2)
@@ -97,7 +97,7 @@ class PerfOptimizer:
                 state["best_p95_ms"] = new_p95
                 consecutive_discards = 0
                 logger.info(
-                    "Perf optimizer: KEEP %s TTL %.0f→%.0f (p95 %.0f→%.0fms)",
+                    "Perf optimizer: KEEP %s TTL %.0f->%.0f (p95 %.0f->%.0fms)",
                     endpoint_key, old_ttl, new_ttl, prev_p95, new_p95,
                 )
             else:
@@ -106,7 +106,7 @@ class PerfOptimizer:
                 state["discarded"] += 1
                 consecutive_discards += 1
                 logger.info(
-                    "Perf optimizer: DISCARD %s TTL %.0f→%.0f (p95 %.0f→%.0fms)",
+                    "Perf optimizer: DISCARD %s TTL %.0f->%.0f (p95 %.0f->%.0fms)",
                     endpoint_key, old_ttl, new_ttl, prev_p95, new_p95,
                 )
 
@@ -124,8 +124,8 @@ def _log_experiment(
     """Append one row to perf_results.tsv."""
     _TSV_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not _TSV_PATH.exists():
-        _TSV_PATH.write_text(_TSV_HEADER)
-    with open(_TSV_PATH, "a") as f:
+        _TSV_PATH.write_text(_TSV_HEADER, encoding="utf-8")
+    with open(_TSV_PATH, "a", encoding="utf-8") as f:
         f.write(
             f"{time.strftime('%Y-%m-%dT%H:%M:%S')}\t{endpoint}\t"
             f"{ttl_before:.0f}\t{ttl_after:.0f}\t"

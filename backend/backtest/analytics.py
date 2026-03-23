@@ -4,6 +4,8 @@ All computations are purely numerical, zero LLM cost.
 """
 
 import math
+from datetime import datetime
+
 import numpy as np
 from scipy import stats
 
@@ -104,6 +106,159 @@ def compute_deflated_sharpe(
     return max(0.0, min(1.0, dsr))
 
 
+def compute_round_trips(all_trades: list[dict]) -> list[dict]:
+    """
+    Pair BUY→SELL trades into round-trips using FIFO matching by ticker.
+    Returns list of dicts with entry/exit prices, P&L, holding days, commission.
+    """
+    open_buys: dict[str, list[dict]] = {}  # ticker → list of BUY trades (FIFO)
+    round_trips: list[dict] = []
+
+    for trade in all_trades:
+        ticker = trade.get("ticker", "")
+        action = trade.get("action", "")
+        if action == "BUY":
+            open_buys.setdefault(ticker, []).append(trade)
+        elif action == "SELL":
+            buys = open_buys.get(ticker, [])
+            if not buys:
+                continue
+            buy = buys.pop(0)  # FIFO
+            entry_price = buy.get("price", 0)
+            exit_price = trade.get("price", 0)
+            quantity = trade.get("quantity", 0)
+            commission = buy.get("commission", 0) + trade.get("commission", 0)
+            gross_pnl = (exit_price - entry_price) * quantity
+            net_pnl = gross_pnl - commission
+
+            # Holding days
+            try:
+                d_entry = datetime.fromisoformat(buy.get("date", ""))
+                d_exit = datetime.fromisoformat(trade.get("date", ""))
+                holding_days = (d_exit - d_entry).days
+            except (ValueError, TypeError):
+                holding_days = 0
+
+            cost_basis = entry_price * quantity
+            pnl_pct = (net_pnl / cost_basis * 100) if cost_basis > 0 else 0.0
+
+            round_trips.append({
+                "ticker": ticker,
+                "entry_date": buy.get("date", ""),
+                "exit_date": trade.get("date", ""),
+                "entry_price": round(entry_price, 2),
+                "exit_price": round(exit_price, 2),
+                "quantity": round(quantity, 4),
+                "gross_pnl": round(gross_pnl, 2),
+                "commission": round(commission, 2),
+                "net_pnl": round(net_pnl, 2),
+                "pnl_pct": round(pnl_pct, 2),
+                "holding_days": holding_days,
+                "probability": round(buy.get("probability", 0), 4),
+            })
+
+    return round_trips
+
+
+def compute_trade_statistics(round_trips: list[dict], avg_nav: float = 100_000.0) -> dict:
+    """
+    TradingView-style trade performance statistics from round-trip trades.
+    Returns dict with profit_factor, win_rate, expectancy, SQN, cost metrics, etc.
+    """
+    if not round_trips:
+        return {}
+
+    pnls = [rt["net_pnl"] for rt in round_trips]
+    wins = [p for p in pnls if p > 0]
+    losses = [p for p in pnls if p <= 0]
+
+    n_trades = len(round_trips)
+    n_wins = len(wins)
+    gross_profit = sum(wins) if wins else 0.0
+    gross_loss = abs(sum(losses)) if losses else 0.0
+    total_commission = sum(rt["commission"] for rt in round_trips)
+    total_volume = sum(rt["entry_price"] * rt["quantity"] + rt["exit_price"] * rt["quantity"] for rt in round_trips)
+
+    # Profit factor
+    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else float("inf") if gross_profit > 0 else 0.0
+    if profit_factor == float("inf"):
+        profit_factor = 99.9  # Cap for display
+
+    # Win/loss averages
+    avg_win = float(np.mean(wins)) if wins else 0.0
+    avg_loss = float(np.mean(losses)) if losses else 0.0
+    payoff_ratio = (avg_win / abs(avg_loss)) if avg_loss != 0 else 99.9
+
+    # Expectancy
+    expectancy = float(np.mean(pnls))
+
+    # SQN — Van Tharp: sqrt(n) * mean(pnl) / std(pnl)
+    pnl_arr = np.array(pnls)
+    pnl_std = float(pnl_arr.std()) if n_trades > 1 else 0.0
+    sqn = (math.sqrt(n_trades) * expectancy / pnl_std) if pnl_std > 0 else 0.0
+
+    # Best / worst
+    best_trade = float(max(pnls)) if pnls else 0.0
+    worst_trade = float(min(pnls)) if pnls else 0.0
+
+    # Holding periods
+    win_holdings = [rt["holding_days"] for rt in round_trips if rt["net_pnl"] > 0]
+    loss_holdings = [rt["holding_days"] for rt in round_trips if rt["net_pnl"] <= 0]
+    avg_holding_days_win = float(np.mean(win_holdings)) if win_holdings else 0.0
+    avg_holding_days_loss = float(np.mean(loss_holdings)) if loss_holdings else 0.0
+
+    # Win/loss streaks
+    max_win_streak = 0
+    max_loss_streak = 0
+    current_streak = 0
+    last_was_win = None
+    for p in pnls:
+        is_win = p > 0
+        if is_win == last_was_win:
+            current_streak += 1
+        else:
+            current_streak = 1
+            last_was_win = is_win
+        if is_win:
+            max_win_streak = max(max_win_streak, current_streak)
+        else:
+            max_loss_streak = max(max_loss_streak, current_streak)
+
+    # Cost metrics
+    win_rate = n_wins / n_trades if n_trades > 0 else 0.0
+    commission_pct_of_profit = (total_commission / gross_profit * 100) if gross_profit > 0 else 0.0
+    avg_cost_per_trade = total_commission / n_trades if n_trades > 0 else 0.0
+    turnover_rate = total_volume / avg_nav if avg_nav > 0 else 0.0
+    # Break-even win rate: 1 / (1 + payoff_ratio)
+    break_even_win_rate = (1 / (1 + payoff_ratio)) if payoff_ratio > 0 else 1.0
+
+    return {
+        "n_trades": n_trades,
+        "n_wins": n_wins,
+        "n_losses": len(losses),
+        "profit_factor": round(profit_factor, 2),
+        "win_rate": round(win_rate, 4),
+        "avg_win": round(avg_win, 2),
+        "avg_loss": round(avg_loss, 2),
+        "payoff_ratio": round(payoff_ratio, 2),
+        "expectancy": round(expectancy, 2),
+        "sqn": round(sqn, 2),
+        "best_trade": round(best_trade, 2),
+        "worst_trade": round(worst_trade, 2),
+        "avg_holding_days_win": round(avg_holding_days_win, 1),
+        "avg_holding_days_loss": round(avg_holding_days_loss, 1),
+        "max_win_streak": max_win_streak,
+        "max_loss_streak": max_loss_streak,
+        "total_commission": round(total_commission, 2),
+        "commission_pct_of_profit": round(commission_pct_of_profit, 2),
+        "avg_cost_per_trade": round(avg_cost_per_trade, 2),
+        "turnover_rate": round(turnover_rate, 2),
+        "break_even_win_rate": round(break_even_win_rate, 4),
+        "gross_profit": round(gross_profit, 2),
+        "gross_loss": round(gross_loss, 2),
+    }
+
+
 def compute_baseline_strategies(
     prices_cache_fn,
     test_start: str,
@@ -115,55 +270,82 @@ def compute_baseline_strategies(
     1. Buy-and-hold SPY
     2. Equal-weight top candidates
     3. Momentum-only (top quartile by trailing 6M return)
+    Returns total return % and annualized Sharpe for each.
     """
-    from backend.backtest import cache
+    import pandas as pd
 
     # 1. SPY baseline
     spy_prices = prices_cache_fn("SPY", test_start, test_end)
     spy_return = 0.0
+    spy_sharpe = 0.0
     if not spy_prices.empty and len(spy_prices) > 1:
-        spy_return = float(
-            (spy_prices["close"].iloc[-1] / spy_prices["close"].iloc[0] - 1) * 100
-        )
+        spy_close = spy_prices["close"]
+        spy_return = float((spy_close.iloc[-1] / spy_close.iloc[0] - 1) * 100)
+        spy_daily = np.diff(spy_close.values) / spy_close.values[:-1]
+        spy_sharpe = compute_sharpe(spy_daily)
 
     # 2. Equal-weight all candidates
-    eq_returns = []
+    # Collect daily close series for each candidate, compute portfolio daily returns
+    eq_close_series = []
     for ticker in candidate_tickers[:50]:
         p = prices_cache_fn(ticker, test_start, test_end)
         if not p.empty and len(p) > 1:
-            ret = float(p["close"].iloc[-1] / p["close"].iloc[0] - 1)
-            eq_returns.append(ret)
-    eq_weight_return = float(np.mean(eq_returns) * 100) if eq_returns else 0.0
+            eq_close_series.append(p["close"].values)
+
+    eq_weight_return = 0.0
+    eq_weight_sharpe = 0.0
+    if eq_close_series:
+        # Align to the shortest series length, compute daily returns per stock
+        min_len = min(len(s) for s in eq_close_series)
+        if min_len > 1:
+            stock_returns = []
+            for series in eq_close_series:
+                trimmed = series[:min_len]
+                daily_ret = np.diff(trimmed) / trimmed[:-1]
+                stock_returns.append(daily_ret)
+            # Equal-weight portfolio daily return = mean across stocks
+            portfolio_daily = np.mean(stock_returns, axis=0)
+            eq_weight_return = float((np.prod(1 + portfolio_daily) - 1) * 100)
+            eq_weight_sharpe = compute_sharpe(portfolio_daily)
 
     # 3. Momentum-only (top quartile by 6M trailing return)
     momentum_scores = {}
     for ticker in candidate_tickers[:50]:
-        p = prices_cache_fn(ticker, test_start, test_start)
-        # Need lookback — get 6 months before test_start
-        import pandas as pd
         lookback_start = (pd.Timestamp(test_start) - pd.DateOffset(months=6)).strftime("%Y-%m-%d")
         p_lb = prices_cache_fn(ticker, lookback_start, test_start)
         if not p_lb.empty and len(p_lb) > 20:
             momentum_scores[ticker] = float(p_lb["close"].iloc[-1] / p_lb["close"].iloc[0] - 1)
 
-    # Top quartile by momentum
+    momentum_return = 0.0
+    momentum_sharpe = 0.0
     if momentum_scores:
         sorted_tickers = sorted(momentum_scores, key=lambda t: momentum_scores[t], reverse=True)
         top_quartile = sorted_tickers[: max(len(sorted_tickers) // 4, 1)]
-        mom_returns = []
+        mom_close_series = []
         for ticker in top_quartile:
             p = prices_cache_fn(ticker, test_start, test_end)
             if not p.empty and len(p) > 1:
-                ret = float(p["close"].iloc[-1] / p["close"].iloc[0] - 1)
-                mom_returns.append(ret)
-        momentum_return = float(np.mean(mom_returns) * 100) if mom_returns else 0.0
-    else:
-        momentum_return = 0.0
+                mom_close_series.append(p["close"].values)
+
+        if mom_close_series:
+            min_len = min(len(s) for s in mom_close_series)
+            if min_len > 1:
+                stock_returns = []
+                for series in mom_close_series:
+                    trimmed = series[:min_len]
+                    daily_ret = np.diff(trimmed) / trimmed[:-1]
+                    stock_returns.append(daily_ret)
+                portfolio_daily = np.mean(stock_returns, axis=0)
+                momentum_return = float((np.prod(1 + portfolio_daily) - 1) * 100)
+                momentum_sharpe = compute_sharpe(portfolio_daily)
 
     return {
         "spy_return_pct": spy_return,
+        "spy_sharpe": spy_sharpe,
         "equal_weight_return_pct": eq_weight_return,
+        "eq_weight_sharpe": eq_weight_sharpe,
         "momentum_return_pct": momentum_return,
+        "momentum_sharpe": momentum_sharpe,
     }
 
 
@@ -255,20 +437,28 @@ def generate_report(
         "strategy_params": result.strategy_params,
     }
 
+    # Round-trip trades + trade statistics (always include keys for frontend)
+    all_trades = getattr(result, "all_trades", None) or []
+    round_trips = compute_round_trips(all_trades) if all_trades else []
+    avg_nav = float(np.mean([n["nav"] for n in result.nav_history])) if result.nav_history else result.strategy_params.get("starting_capital", 100_000)
+    trade_stats = compute_trade_statistics(round_trips, avg_nav) if round_trips else {}
+    report["trades"] = round_trips
+    report["trade_statistics"] = trade_stats
+
     # Add baselines if provided
     if baselines:
         report["baselines"] = {
             "spy": {
                 "total_return_pct": baselines.get("spy_return_pct", 0),
-                "sharpe": 0,
+                "sharpe": baselines.get("spy_sharpe", 0),
             },
             "equal_weight": {
                 "total_return_pct": baselines.get("equal_weight_return_pct", 0),
-                "sharpe": 0,
+                "sharpe": baselines.get("eq_weight_sharpe", 0),
             },
             "momentum": {
                 "total_return_pct": baselines.get("momentum_return_pct", 0),
-                "sharpe": 0,
+                "sharpe": baselines.get("momentum_sharpe", 0),
             },
         }
 

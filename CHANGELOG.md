@@ -5,6 +5,301 @@ For architecture details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
+### v5.11.3 — Fix Missing Trades in Backtest Results (March 2026)
+
+**Bug: trades never appeared in report JSON or Results tab.**
+Root cause: two bugs prevented trade data from reaching the frontend.
+
+1. **`num_trades` counted ML signals, not actual trades** — `WindowResult.num_trades` was set to `len(signals)` which includes HOLD (label=0) signals that the trader ignores. With a typical Triple Barrier model, most predictions may be HOLD, so `analytics.n_trades` showed 320 while zero trades were actually executed.
+   - Fix: track `len(self.trader.trades)` delta before/after each window and use actual count.
+   - `execute_trades()` return value is now captured and logged (was previously discarded).
+
+2. **`generate_report()` omitted trade keys when empty** — the condition `if getattr(result, "all_trades", None):` evaluates `[]` as falsy, so `trades` and `trade_statistics` keys were never written to the report dict. Frontend checks `results?.trades` which is `undefined` → trade list + statistics panel hidden.
+   - Fix: always include `trades: []` and `trade_statistics: {}` in the report, even when no round-trips exist.
+
+3. **Added diagnostic logging** — per-window breakdown of signal labels (BUY/SELL/HOLD) and final summary comparing actual trades vs signals processed.
+
+Files changed:
+- `backend/backtest/backtest_engine.py` — actual trade counting, logging, use `execute_trades()` return
+- `backend/backtest/analytics.py` — always include `trades`/`trade_statistics` keys in report
+
+---
+
+### v5.11.2 — Human-Readable Timestamps + Optimizer Warm-Start from Standalone Backtest (March 2026)
+
+**Human-readable timestamps:**
+The "Previous runs" dropdown on the backtest page now shows human-readable local timestamps (e.g. `Mar 23, 2026, 8:19 AM`) instead of compact ISO (`20260323T081929Z`). Frontend-only change; no backend modifications.
+
+- Added `formatRunTimestamp()` helper in `frontend/src/app/backtest/page.tsx` that parses `%Y%m%dT%H%M%SZ` into `Date` and formats via `toLocaleString()` with the user's local timezone.
+- Cleaned up dropdown label: removed redundant `(run_id)` suffix.
+
+**Optimizer warm-start from standalone backtest (`backend/backtest/quant_optimizer.py`):**
+Previously, `_load_previous_best()` only checked `optimizer_best.json` (written by the optimizer itself). If you ran a standalone backtest first, the optimizer would ignore it and re-establish a baseline from scratch -- wasting minutes of compute.
+
+Now `_load_previous_best()` checks two sources in order:
+1. `optimizer_best.json` (optimizer's own saved best, same as before)
+2. `result_store.load_latest()` (most recent standalone backtest result)
+
+When source 2 is used, `strategy_params` are merged into `best_params` and `analytics.sharpe`/`analytics.deflated_sharpe` seed the optimizer's `best_sharpe`/`best_dsr`. Sets `_warm_started = True` so `run_loop()` skips the redundant baseline run.
+
+---
+
+### v5.11.1 — Optimizer Unicode Crash Fix + Logging Hardening (March 2026)
+
+Fixes optimizer crash at iteration 2 caused by Unicode arrow character `U+2191` (↑) in a `logger.info()` call on the DSR_REJECT code path. On Windows, uvicorn injects its own log handlers using cp1252 encoding which cannot encode non-ASCII characters, causing `UnicodeEncodeError`. Comprehensive logging hardening to prevent recurrence.
+
+**Bug fix (`backend/backtest/quant_optimizer.py`):**
+- Replaced `↑` (U+2191) with ASCII `"improved"` in DSR_REJECT logger message (line 244) -- root cause of `'charmap' codec can't encode character '\u2192'` crash.
+- Upgraded experiment crash logging: `exc_info=True` now logs full traceback per experiment, not just the error message. Iteration number and `change_desc` included for immediate context.
+- Crash details now pushed to `_current_detail` + `_report_status()` so failures are visible in optimizer status API/UI.
+
+**Logging hardening (`backend/main.py`):**
+- `setup_logging()` now clears uvicorn's default handlers (`uvicorn`, `uvicorn.error`, `uvicorn.access`) and sets `propagate=True` so all messages route through the UTF-8 `TextIOWrapper` handler. Prevents cp1252 encoding errors on Windows regardless of message content.
+
+**Defensive error handler (`backend/api/backtest.py`):**
+- Outer `_run_optimizer_async()` except block now wraps `logger.error()` in try/except to prevent double-crash if the error message itself contains non-ASCII. Falls back to `ascii(str(e))` encoding.
+
+**ASCII-only logger calls (10 files):**
+- Replaced all em dashes (`—`, U+2014) with `--` in logger calls across: `orchestrator.py`, `autonomous_loop.py` (6 occurrences), `perf_optimizer.py`, `scheduler.py`, `alt_data.py`, `alphavantage.py`, `signals.py`.
+
+---
+
+### v5.11 — Trade List + Trade Statistics + Commission Model (March 2026)
+
+TradingView-style trade visibility for backtests. Every round-trip trade is now tracked, matched (FIFO), and displayed with full P&L, holding period, and commission breakdown. Per-share commission model added alongside existing flat-percentage model.
+
+**Backend (`backend/backtest/backtest_trader.py`):**
+- Added `commission: float = 0.0` field to `Trade` dataclass.
+- New `_compute_commission(quantity, price)` method supporting two models: `flat_pct` (percentage of notional) and `per_share` ($0.005/share, $1.00 minimum).
+- `commission_model` and `commission_per_share` params in `__init__()`.
+- Commission recorded on every BUY, SELL, and `close_all_positions` trade.
+- `total_commission` accumulator tracks aggregate cost during simulation.
+
+**Backend (`backend/backtest/backtest_engine.py`):**
+- Added `all_trades: list[dict]` field to `BacktestResult` dataclass.
+- `commission_model` and `commission_per_share` forwarded from engine to trader.
+- After walk-forward loop, extracts `self.trader.trades[:500]` into `result.all_trades` (capped at 500 for JSON size).
+
+**Backend (`backend/backtest/analytics.py`):**
+- New `compute_round_trips(all_trades)`: FIFO BUY→SELL matching by ticker. Returns list of dicts with ticker, entry/exit dates/prices, quantity, gross/net P&L, commission, pnl_pct, holding_days, probability.
+- New `compute_trade_statistics(round_trips, avg_nav)`: 23-field dict — profit_factor, win_rate, payoff_ratio, expectancy, SQN (Van Tharp), best/worst trade, streaks, total_commission, commission_pct_of_profit, avg_cost_per_trade, turnover_rate, break_even_win_rate.
+- `generate_report()` now calls both functions and includes `trades` + `trade_statistics` keys in the report.
+
+**Backend (`backend/config/settings.py`):**
+- Added `backtest_commission_model: str` (default `"flat_pct"`) and `backtest_commission_per_share: float` (default `0.005`).
+
+**Backend (`backend/api/backtest.py`):**
+- Both `BacktestEngine()` constructor calls (backtest + optimizer) now pass `commission_model` and `commission_per_share` from settings.
+
+**Frontend (`types.ts`):**
+- New `BacktestRoundTrip` interface (12 fields: ticker, entry/exit dates/prices, quantity, gross_pnl, commission, net_pnl, pnl_pct, holding_days, probability).
+- New `TradeStatistics` interface (23 fields matching backend).
+- `BacktestResults` gains `trades?: BacktestRoundTrip[]` and `trade_statistics?: TradeStatistics`.
+
+**Frontend (`backtest/page.tsx`):**
+- Trade Statistics 3-column bento grid in Results tab: Performance (profit factor, win rate, payoff ratio, expectancy, SQN), Extremes & Streaks (best/worst trade, streaks, avg holding days), Cost Impact (total commission, comm % of profit, avg cost/trade, turnover, break-even WR). Color-coded emerald/amber/rose.
+- Trade List table with 11 columns (#, Ticker, Entry, Exit, Entry $, Exit $, Qty, P&L $, P&L %, Days, Conf). Sortable headers, pagination (25/page), green/red row coloring by P&L.
+
+---
+
+### v5.10 — Baseline Sharpe Fix + Strategy Research Skill + Hybrid Autoresearch (March 2026)
+
+Baseline strategy comparisons (SPY, Equal Weight, Momentum) now show real annualized Sharpe ratios instead of hardcoded 0.00. SPY is preloaded with the universe for correct benchmark data. New `quant_strategy.md` skill provides research-backed guidance to the optimizer's LLM-proposal path. Strategy-specific `mr_holding_days` param added for mean reversion.
+
+**Backend (`backend/backtest/analytics.py`):**
+- Rewrote `compute_baseline_strategies()`: computes daily-return-based Sharpe for all 3 baselines using existing `compute_sharpe()`. Returns `spy_sharpe`, `eq_weight_sharpe`, `momentum_sharpe` alongside total returns.
+- Equal Weight and Momentum baselines now build daily portfolio returns from aligned close series instead of simple period returns.
+- Fixed dead-code `prices_cache_fn(ticker, test_start, test_start)` same-date fetch in momentum baseline (removed unused variable, lookback now starts correctly).
+- Fixed `generate_report()` baselines: replaced hardcoded `"sharpe": 0` with actual Sharpe values from `compute_baseline_strategies()`.
+
+**Backend (`backend/backtest/backtest_engine.py`):**
+- `run_backtest()` now preloads SPY alongside universe tickers: `cache.preload_prices(universe_tickers + ["SPY"], ...)`. Fixes 0% SPY return caused by cache miss.
+- Added `mr_holding_days` param (default 15) to `BacktestEngine.__init__()` and `_strategy_params`. Mean reversion holding period separate from triple barrier's `holding_days`.
+
+**Backend (`backend/backtest/quant_optimizer.py`):**
+- Added `mr_holding_days: (5, 30)` to `_PARAM_BOUNDS` and `_INT_PARAMS`. Optimizer can now tune mean reversion holding period independently.
+- `_propose_llm()` loads `quant_strategy.md` skill file and appends research guide to the LLM prompt. Proposals are now research-informed (strategy documentation, param ranges, anti-patterns, experiment suggestions).
+- `_apply_params_to_engine()` now forwards `mr_holding_days` to engine.
+
+**New Skill (`backend/agents/skills/quant_strategy.md`):**
+- Comprehensive research-backed documentation for all 5 strategies:
+  - Triple Barrier (Lopez de Prado AFML Ch. 3) — vol-adjusted barriers, event-driven sampling, asymmetric TP/SL
+  - Quality Momentum (Asness et al. 2019 "QMJ") — quartile ranking, expanded quality composite, 12-1 momentum
+  - Mean Reversion (Lo & MacKinlay 1990) — short holding period (5-30d), Bollinger Bands, liquidity filter
+  - Factor Model (Fama-French 2015) — size/investment factors, percentile normalization, pb_ratio for value
+  - Meta-Label (Lopez de Prado Ch. 3.6) — two-stage architecture documented, stub status noted
+- Hybrid strategy concept: ensemble of strategy labels via blend weights
+- Parameter bounds with research justification for all 17 params
+- Anti-patterns (MR with long holds, symmetric barriers, single-strategy fixation)
+- 8 template experiment suggestions for optimizer
+
+---
+
+### v5.9.5 — Backtest/Optimizer Mutual Exclusion (March 2026)
+
+Backtest and optimizer can no longer run simultaneously. When one is running, the other is blocked with a clear status message. Optimizer engine progress now appears in the backtest progress panel (unified view), and results from either flow into both status endpoints.
+
+**Backend (`backend/api/backtest.py`):**
+- Added `_is_engine_busy()` helper checking both `_backtest_state` and `_optimizer_state`.
+- `run_backtest()` returns HTTP 409 if optimizer is running; `start_optimizer()` returns HTTP 409 if backtest is running.
+- New `engine_source` field (`"backtest"` | `"optimizer"` | `None`) in `_backtest_state` — identifies who started the engine.
+- `_run_optimizer_async()` now sets `_backtest_state["status"] = "running"` + mirrors `engine_progress_cb` data into `_backtest_state["progress"]` so the progress panel activates during optimizer runs.
+- On optimizer completion/error, `_backtest_state` is reset correctly (idle if no result, completed if `on_result` fired).
+- `get_backtest_status()` returns `engine_source` field.
+
+**Frontend (`types.ts`, `backtest/page.tsx`):**
+- `BacktestStatus` type gains `engine_source?: "backtest" | "optimizer" | null`.
+- Run Backtest button disabled + tooltip when optimizer is running.
+- Start Optimizer button disabled + tooltip when backtest is running.
+- Progress panel header shows "(via Optimizer)" when `engine_source === "optimizer"`.
+
+---
+
+### v5.9.4 — Traceback-in-UI + Charmap Defense-in-Depth (March 2026)
+
+Full Python tracebacks now surface in the frontend error banners (collapsible `<details>` block), and the recurring `charmap` codec error on Windows is fixed at the root (UTF-8 logging) plus all `→` replaced as defense-in-depth.
+
+**Traceback in UI:**
+- **backend/api/backtest.py**: Added `import traceback`; both `_backtest_state` and `_optimizer_state` now carry a `"traceback"` key populated via `traceback.format_exc()` on error. `get_backtest_status()` returns `error` + `traceback` fields.
+- **frontend/src/lib/types.ts**: Added `error?: string; traceback?: string` to `BacktestStatus`; added `traceback?: string` to `OptimizerStatus`.
+- **frontend/src/app/backtest/page.tsx**: New collapsible `<details>` traceback block in both optimizer and backtest error banners.
+
+**UTF-8 logging (root cause fix):**
+- **backend/main.py**: `setup_logging()` now wraps `sys.stderr.buffer` in `io.TextIOWrapper(encoding="utf-8", errors="replace")` — prevents all future charmap errors on Windows.
+
+**Replace `→` (U+2192) with `->` (defense-in-depth, 13 occurrences across 8 files):**
+- `backend/backtest/data_ingestion.py`, `backend/agents/orchestrator.py` (2), `backend/agents/llm_client.py` (4), `backend/agents/trace.py`, `backend/agents/meta_coordinator.py`, `backend/tools/quant_model.py`, `backend/services/perf_optimizer.py` (2), `backend/api/backtest.py` (1 comment).
+
+**Add `encoding="utf-8"` to open() calls (4 files):**
+- `backend/api/backtest.py` (insights TSV read), `backend/services/perf_optimizer.py` (`write_text` + append), `backend/api/performance_api.py` (TSV read), `backend/services/perf_tracker.py` (TSV write).
+
+---
+
+### v5.9.3 — Optimizer Warm-Start Baseline Skip (March 2026)
+
+When `optimizer_best.json` exists from a previous run, the optimizer now skips the expensive baseline walk-forward and starts experiments immediately using the stored Sharpe/DSR as the baseline.
+
+- **backend/backtest/quant_optimizer.py**: `_load_previous_best()` now restores `best_sharpe`, `best_dsr`, and sets `_warm_started` flag. `run_loop()` skips baseline `engine.run_backtest()` when warm-started, logging a synthetic "BASELINE (warm-start)" TSV entry instead. Status cards show previous best metrics immediately.
+- **backend/api/backtest.py**: Added `encoding="utf-8"` to TSV reads in experiments and best endpoints (matching the write-side fix from v5.9.2-charmap).
+
+---
+
+### v5.9.2 — Optimizer Results in Backtest Tabs (March 2026)
+
+Optimizer baseline and kept-experiment results now populate the Results, Equity Curve, and Features tabs.
+
+- **backend/backtest/quant_optimizer.py**: Added `on_result` callback param to `run_loop()`, called after baseline and each kept experiment with the report dict.
+- **backend/api/backtest.py**: Wired `on_result` callback to push optimizer reports into `_backtest_state["result"]` so all backtest tabs display live data.
+
+---
+
+### v5.9.1 — Optimizer Error Surfacing (March 2026)
+
+Fixed optimizer crash handling so errors are captured and displayed in the UI instead of silently showing "ERROR" with no message.
+
+- **backend/api/backtest.py**: Added `"error": None` to `_optimizer_state` init; store `str(e)` on exception.
+- **backend/backtest/quant_optimizer.py**: Widened try/except in iteration loop to cover `_propose_random`/`_apply_params_to_engine` — previously only wrapped `run_backtest`/`generate_report`, so proposal crashes escaped.
+- **frontend/src/lib/types.ts**: Added `error?: string` to `OptimizerStatus` interface.
+- **frontend/src/app/backtest/page.tsx**: Status pill turns red on error; new error banner shows the Python exception message.
+
+---
+
+### v5.9 — Backtest Persistence + Optimizer Insights Tab (March 2026)
+
+Backtest results now persist to disk so they survive app restarts. Added a 5th "Insights" tab showing optimizer data scope, parameter slice plots, parameter importance, feature stability, and decision log.
+
+**Part A — Backtest Results Persistence**:
+- Created `backend/backtest/result_store.py` — save/load/list/delete JSON results on disk at `experiments/results/{timestamp}_{run_id}.json`.
+- `_run_backtest_async()` now calls `result_store.save_result()` after completion.
+- On module init, `result_store.load_latest()` auto-populates `_backtest_state` so previous results display immediately on startup.
+- New endpoints: `GET /api/backtest/runs` (list all saved runs), `GET /api/backtest/runs/{run_id}` (load specific), `DELETE /api/backtest/runs/{run_id}` (delete specific).
+- Frontend run history selector dropdown above the tab bar when multiple runs exist.
+
+**Part B — Optimizer Insights Tab**:
+- Extended `quant_optimizer.py` — TSV now logs `params_json` column (full strategy params per experiment).
+- Optimizer saves `best_params` to `experiments/optimizer_best.json` at end of run; loads it on next start (warm-start).
+- New endpoint: `GET /api/backtest/optimize/insights` returning param_bounds, full experiments with params_full, and data_scope (walk-forward windows).
+- New `OptimizerInsights.tsx` component with 5 research-backed sections:
+  1. **Training Data Scope** — Gantt chart of walk-forward windows (train/test/embargo)
+  2. **Parameter Slice Plots** — 4×4 grid of mini scatters (param value vs Sharpe), colored by status
+  3. **Parameter Importance** — Horizontal bars ranking params by Sharpe variance (Optuna-style)
+  4. **Feature Stability Matrix** — Heatmap of MDA rank changes across kept experiments (López de Prado Ch. 8)
+  5. **Decision Log** — Annotated timeline of keep/discard/DSR-reject decisions with Glass Box detail
+- 5th "Insights" tab (MagnifyingGlass icon) added to `/backtest` page, lazy-loads data on tab selection.
+
+**New Files (2)**:
+- `backend/backtest/result_store.py` — JSON-on-disk persistence for backtest results.
+- `frontend/src/components/OptimizerInsights.tsx` — 5-section optimizer visualization.
+
+**Modified Files (6)**:
+- `backend/api/backtest.py` — Auto-load previous result on startup, save after completion, 4 new endpoints (/runs, /runs/{id}, DELETE /runs/{id}, /optimize/insights).
+- `backend/backtest/quant_optimizer.py` — `params_json` TSV column, `optimizer_best.json` save/load, warm-start from previous best.
+- `frontend/src/app/backtest/page.tsx` — 5th Insights tab, run history selector, new imports.
+- `frontend/src/lib/types.ts` — `BacktestRunSummary`, `OptimizerInsights`, `OptimizerExperimentFull`, `OptimizerInsightsDataScope`, `OptimizerInsightsWindow`.
+- `frontend/src/lib/api.ts` — `getBacktestRuns()`, `loadBacktestRun()`, `deleteBacktestRun()`, `getOptimizerInsights()`.
+- 6 instruction files + 3 doc files updated.
+
+---
+
+### v5.8 — Optimizer Cache Fix + Step Progress + Run Tagging (March 2026)
+
+Fixed the critical performance bug that caused the optimizer to never complete experiments, added step-level progress visibility, and introduced per-run experiment tagging.
+
+**Critical Bug Fix — Cache destroyed between experiments**:
+- `BacktestEngine.run_backtest()` called `cache.clear_cache()` at the end of every run, wiping all in-memory BQ price/fundamental data. Each optimizer experiment had to re-download everything from BigQuery (~5-10 min per experiment instead of <30s). The optimizer appeared "stuck" because users would stop it before the second experiment even started.
+- Fix: Added `skip_cache_clear: bool = False` parameter to `run_backtest()`. The optimizer passes `skip_cache_clear=True` for all iterations, then does an explicit `bq_cache.clear_cache()` once at the end of `run_loop()`. Standalone backtests are unaffected (default is `False`).
+
+**Step-Level Progress**:
+- Optimizer now reports `current_step` and `current_detail` at each phase: `establishing_baseline`, `baseline_complete`, `running_experiment`, `evaluated`.
+- Engine's `progress_callback` is wired into the optimizer state, forwarding sub-step detail (e.g., "W3/8 training: Building training data") so the UI shows exactly what's happening during long backtest runs.
+- Frontend shows a pulsing step indicator bar below the metric cards when the optimizer is running, with human-readable step name + detail text.
+
+**Per-Run Experiment Tagging**:
+- Each optimizer run generates a short UUID `run_id` (e.g., "a1b2c3d4") stored in `_optimizer_state`.
+- Experiments endpoint (`GET /api/backtest/optimize/experiments`) accepts optional `?run_id=` query param to filter to current run only.
+- Frontend passes `run_id` from optimizer status to experiments API, showing only the current run's experiments in both chart and table (avoids confusion from stale historical baselines).
+
+**Frontend Field Name Fix**:
+- `OptimizerExperiment` type fields now match the actual TSV column names (`run_id` instead of `iteration`, `param_changed` instead of `modification`). Previously the experiment table showed empty cells because field names didn't match.
+
+**Modified Files (6)**:
+- `backend/backtest/backtest_engine.py` — Added `skip_cache_clear` parameter to `run_backtest()`, guarded `cache.clear_cache()` call.
+- `backend/backtest/quant_optimizer.py` — Added `_run_id`, `_current_step`, `_current_detail` fields; `run_loop()` passes `skip_cache_clear=True`, reports step transitions, explicit `bq_cache.clear_cache()` at end; `_report_status()` extended with step/detail/run_id args.
+- `backend/api/backtest.py` — Extended `_optimizer_state` with `current_step`/`current_detail`/`run_id`; `status_cb` accepts new args; engine created with `progress_callback`; experiments endpoint accepts `run_id` filter with smart BASELINE inclusion.
+- `frontend/src/lib/types.ts` — Added `current_step`/`current_detail`/`run_id` to `OptimizerStatus`; fixed `OptimizerExperiment` fields to match TSV.
+- `frontend/src/lib/api.ts` — `getOptimizerExperiments()` accepts optional `runId` param.
+- `frontend/src/app/backtest/page.tsx` — Passes `run_id` to experiment fetches; added step indicator UI; fixed table field names.
+- `frontend/src/components/OptimizerProgressChart.tsx` — Uses `param_changed` field.
+
+---
+
+### v5.7 — Optimizer Karpathy Progress Chart + Live Polling Fix (March 2026)
+
+Added a Karpathy-style autoresearch progress chart to the Backtest Optimizer tab and fixed the optimizer appearing "stuck" during runs.
+
+**Bug Fixes**:
+1. **Optimizer experiments not updating during run** — Frontend polling loop only called `getOptimizerStatus()` (iteration counts) while running. Experiments table and best-strategy card never refreshed until completion. Fixed `refreshStatus` callback to also fetch `getOptimizerExperiments()` and `getOptimizerBest()` in parallel when optimizer is running.
+2. **Backend experiment cache stale** — `backtest:experiments` had 10s TTL but was never invalidated when new experiments completed. Added `get_api_cache().invalidate("backtest:experiments")` and `get_api_cache().invalidate("backtest:best")` in the optimizer's `status_cb` callback.
+
+**New: OptimizerProgressChart** (`frontend/src/components/OptimizerProgressChart.tsx`):
+- Karpathy autoresearch-style Recharts `ComposedChart` showing Sharpe ratio improvement over experiment iterations.
+- Green step-after "running best" line tracks the current best Sharpe.
+- Kept experiments: bright emerald dots with white stroke + staggered labels (alternating above/below to avoid overlap).
+- Baseline experiments: sky-blue dots.
+- Discarded experiments: faded slate dots. DSR-rejected: faded amber dots.
+- Smart Y-axis scaling: zooms into the interesting region around kept experiments, clamps extreme outlier discards.
+- Clamped outliers shown as triangles instead of circles.
+- Rich tooltip: experiment number, status badge, modification text, Sharpe, DSR, delta for kept experiments.
+- Legend bar with all status types.
+- Appears in Optimizer tab inside a BentoCard, between Best Strategy card and Experiment Log table.
+
+**Modified Files (3)**:
+- `backend/api/backtest.py` — Added cache invalidation in `status_cb` for `backtest:experiments` and `backtest:best`.
+- `frontend/src/app/backtest/page.tsx` — Enhanced `refreshStatus` to poll experiments while running; imported and rendered `OptimizerProgressChart` in Optimizer tab.
+- `frontend/src/components/OptimizerProgressChart.tsx` — **New file**: Karpathy progress chart component.
+
+---
+
 ### v5.6 — Backtest Vertical Timeline UI + Finalizing Phase Fix (March 2026)
 
 Resolved three UX bugs in the Walk-Forward Backtest progress panel and replaced the flat progress card with a Jira-style vertical workflow timeline.

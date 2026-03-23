@@ -1,0 +1,27 @@
+{
+  "params": {
+    "start_date": "2023-01-01",
+    "end_date": "2025-12-31",
+    "train_window_months": 12,
+    "test_window_months": 3,
+    "embargo_days": 5,
+    "holding_days": 90,
+    "tp_pct": 10.0,
+    "sl_pct": 10.0,
+    "frac_diff_d": 0.4,
+    "starting_capital": 100000.0,
+    "max_positions": 20,
+    "top_n_candidates": 50,
+    "strategy": "triple_barrier",
+    "n_estimators": 200,
+    "max_depth": 4,
+    "min_samples_leaf": 20,
+    "learning_rate": 0.1
+  },
+  "sharpe": 17.192373731193673,
+  "dsr": 0.0,
+  "run_id": "a0d9d0df",
+  "kept": 0,
+  "discarded": 0,
+  "saved_at": "2026-03-22T22:46:59.296274+00:00"
+}

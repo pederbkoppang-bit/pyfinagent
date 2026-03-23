@@ -23,6 +23,11 @@ paths:
 - **Color coding**: green=bullish, red=bearish, amber=neutral, gray=error/unavailable
 - **Parallel fetches**: Use `Promise.all()` for independent API calls, never sequential `await` chains
 - **Lightweight polling**: Poll status-only endpoints while tasks are running, full refresh on completion
+- **Run-scoped data**: Pass `run_id` from status endpoints to data-fetching endpoints (e.g., optimizer experiments) to show only current run's results
+- **Step indicators**: For long-running background tasks, show pulsing step indicator (sky dot + step name + detail) below status/metric cards
+- **Mutual exclusion**: Backtest and optimizer cannot run concurrently. Buttons are disabled with tooltip when the other process is active. Progress panel shows "(via Optimizer)" when `engine_source === "optimizer"`. Both processes use the same Walk-Forward Progress panel.
+- **Backtest persistence**: Previous backtest results auto-load on page mount. Run history selector (dropdown above tabs) lets users switch between saved runs. `OptimizerInsights.tsx` provides 5-section visualization (Data Scope Gantt, Slice Plots, Param Importance, Feature Stability, Decision Log) in a dedicated Insights tab.
+- **Trade visibility**: Results tab includes Trade Statistics (3-col bento: Performance/Extremes/Cost Impact) and Trade List (sortable paginated table, 25/page, green/red rows). Types: `BacktestRoundTrip` (12 fields), `TradeStatistics` (23 fields) in `types.ts`. State: `tradePage`, `tradeSort` for client-side pagination/sorting.
 
 ## Auth Flow
 - `src/middleware.ts` protects all routes except `/login` and `/api/auth/*`

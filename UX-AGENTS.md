@@ -164,17 +164,21 @@ Paper Trading (autonomous daily cycle)
 
 Walk-Forward Backtesting (quant-only, $0 LLM cost, 5 strategies)
     │
-    ├── POST /api/backtest/run              → Start walk-forward backtest (async, auto-ingests if BQ empty)
-    ├── GET /api/backtest/status            → Poll backtest progress (structured dict: window, step, detail, counts, elapsed, cache stats)
+    ├── POST /api/backtest/run              → Start walk-forward backtest (async, auto-ingests if BQ empty); returns 409 if optimizer running
+    ├── GET /api/backtest/status            → Poll backtest progress (structured dict: window, step, detail, counts, elapsed, cache stats, engine_source)
     ├── GET /api/backtest/results           → Full results with per-window analytics
     ├── GET /api/backtest/results/{id}      → Per-window detail (trades, feature importance)
+    ├── GET /api/backtest/runs              → List all persisted backtest runs (newest first)
+    ├── GET /api/backtest/runs/{run_id}     → Load a specific historical backtest result
+    ├── DELETE /api/backtest/runs/{run_id}  → Delete a specific backtest result from disk
     ├── POST /api/backtest/ingest           → Bulk ingest historical data to BigQuery
     ├── GET /api/backtest/ingest/status     → Row counts for historical data tables
-    ├── POST /api/backtest/optimize         → Start quant strategy optimizer (background, rotates 5 strategies)
+    ├── POST /api/backtest/optimize         → Start quant strategy optimizer (background, rotates 5 strategies); returns 409 if backtest running
     ├── POST /api/backtest/optimize/stop    → Stop optimizer gracefully
     ├── GET /api/backtest/optimize/status   → Optimizer state (iterations, best Sharpe, feature drift)
     ├── GET /api/backtest/optimize/experiments → Experiment history (quant_results.tsv + top5_mda)
-    └── GET /api/backtest/optimize/best     → Best strategy params + feature importance
+    ├── GET /api/backtest/optimize/best     → Best strategy params + feature importance
+    └── GET /api/backtest/optimize/insights  → Optimizer insights (param bounds, experiments with full params, data scope)
 
     Strategy Registry (5 strategies, configurable via QuantOptimizer):
     │  triple_barrier  — López de Prado Ch. 3 (default)
@@ -188,7 +192,7 @@ MetaCoordinator (cross-loop sequencing, v4.3)
     ├── gather_health()                     → Portfolio Sharpe, agent accuracy, API latency
     ├── decide(health)                      → Priority routing to QuantOpt/SkillOpt/PerfOpt/idle
     ├── update_mda_features(importances)    → Stores MDA from QuantOpt backtest
-    └── _get_mda_target_agents()            → MDA→Agent bridge (top features → skill files)
+    └── _get_mda_target_agents()            → MDA->Agent bridge (top features -> skill files)
 
 PerformanceSkill (canonical metrics, v4.3)
     │  All P&L, Sharpe, benchmark, alpha, and scalar metrics are computed via
@@ -1446,7 +1450,7 @@ The download button in the Overview tab generates a multi-page PDF containing al
 | `/performance` | `performance/page.tsx` | Historical accuracy metrics + LLM cost history | Performance tracking |
 | `/portfolio` | `portfolio/page.tsx` | Position tracking, P&L, allocation | Portfolio management |
 | `/paper-trading` | `paper-trading/page.tsx` | Autonomous fund dashboard, NAV chart, positions, trades | Paper trading |
-| `/backtest` | `backtest/page.tsx` | **Walk-Forward Backtest** — 5 strategies, 4 tabs (Results/Equity/Features/Optimizer), auto-ingest, DSR guard, feature drift detection, ingestion result banner with row counts, cost info section, button tooltips, **vertical Jira-style workflow timeline** (8-step pipeline: preloading→screening→building_features→training→computing_mda→predicting→trading→finalizing; window rail with colored dots, client-side ticking elapsed timer, step detail + sample sub-progress, cache hit rate footer; poll interval 2000ms) | ML backtesting |
+| `/backtest` | `backtest/page.tsx` | **Walk-Forward Backtest** — 5 strategies, 5 tabs (Results/Equity/Features/Optimizer/Insights), auto-ingest, DSR guard, feature drift detection, ingestion result banner with row counts, cost info section, button tooltips, **run history selector** (dropdown above tabs to load previous backtest runs from disk; timestamps formatted as human-readable local time e.g. `Mar 23, 2026, 8:19 AM` via `formatRunTimestamp()`), **vertical Jira-style workflow timeline** (8-step pipeline: preloading->screening->building_features->training->computing_mda->predicting->trading->finalizing; window rail with colored dots, client-side ticking elapsed timer, step detail + sample sub-progress, cache hit rate footer; poll interval 2000ms), **Karpathy progress chart** (`OptimizerProgressChart`) showing Sharpe improvement over experiments with running-best line, kept/discarded/DSR-rejected dots, smart Y-axis scaling, **step indicator bar** (pulsing dot + step name + sub-detail from engine progress_callback), per-run experiment filtering via `run_id`, **Optimizer Insights tab** (`OptimizerInsights.tsx`): 5 sections — Training Data Scope (Gantt), Parameter Slice Plots (4x4 grid), Parameter Importance (horizontal bars), Feature Stability Matrix (rank heatmap), Decision Log (annotated timeline), **Error banners with traceback** (collapsible `<details>` block showing full Python traceback for both backtest and optimizer errors), **Trade Statistics** (3-col bento: Performance/Extremes/Cost Impact with profit factor, win rate, SQN, expectancy, streaks, commission breakdown), **Trade List** (sortable paginated table: ticker, entry/exit dates & prices, qty, P&L $/%, holding days, confidence; green/red row coloring; 25/page) | ML backtesting |
 | `/settings` | `settings/page.tsx` | **3-tab sub-navigation** (Models & Analysis \| Cost & Weights \| Performance): Model Config, Debate Depth, Cost Estimator, Pillar Weights, Cache Health, TTL Optimizer, API Latency | User preferences + monitoring |
 
 ### Sidebar Navigation (Grouped)
@@ -1885,6 +1889,21 @@ Actions:
 │                                                           │
 │  === Results Tab ===                                      │
 │  Analytics summary cards + per-window results table       │
+│  Strategy vs Baselines table: SPY / Equal Weight /        │
+│  Momentum — each shows total return % and annualized      │
+│  Sharpe ratio (computed from daily returns, not hardcoded) │
+│                                                           │
+│  Trade Statistics 3-col bento grid:                       │
+│    Performance (emerald): profit factor, win rate, payoff │
+│    ratio, expectancy, SQN                                 │
+│    Extremes (amber): best/worst trade, win/loss streaks,  │
+│    avg holding days win/loss                              │
+│    Cost Impact (rose): total commission, comm % of profit,│
+│    avg cost/trade, turnover, break-even win rate          │
+│                                                           │
+│  Trade List table (sortable, paginated 25/page):          │
+│    #, Ticker, Entry, Exit, Entry$, Exit$, Qty, P&L$,     │
+│    P&L%, Days, Conf — green/red row coloring by P&L      │
 │                                                           │
 │  === Equity Curve Tab ===                                 │
 │  Recharts LineChart (portfolio vs baselines)              │
@@ -1893,7 +1912,8 @@ Actions:
 │  Feature importance bar chart (MDA + MDI)                 │
 │                                                           │
 │  === Optimizer Tab ===                                    │
-│  PerfProgressChart + experiment table + best params       │
+│  OptimizerProgressChart (Karpathy chart) + experiment log │
+│  + best strategy card                                     │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -1923,7 +1943,11 @@ Styled as `text-xs text-zinc-500 mt-2`. Appears always (not conditional).
 | Button | Tooltip (`title` attribute) |
 |--------|----------------------------|
 | Ingest Data | "Download S&P 500 price history, quarterly fundamentals, and FRED macro data from yfinance + FRED (free APIs). Stores in BigQuery (<$0.05). Takes ~5-15 minutes on first run." |
-| Run Backtest | "Run walk-forward ML backtest using GradientBoosting. No LLM cost — uses only quantitative features. BQ reads <$0.01 per run. Takes ~2-5 minutes." |
+| Run Backtest | "Run walk-forward ML backtest using GradientBoosting. No LLM cost — uses only quantitative features. BQ reads <$0.01 per run. Takes ~2-5 minutes." (disabled + "Optimizer is running - backtest unavailable" when optimizer active) |
+
+### Mutual Exclusion (v5.9.5)
+
+Backtest and optimizer share a single engine lock — only one can run at a time. When the other is active, the blocked button is disabled with a tooltip explaining why. Optimizer engine progress mirrors into `_backtest_state["progress"]` so the unified Walk-Forward Progress panel renders during optimizer runs. Header shows "(via Optimizer)" when `engine_source === "optimizer"`. HTTP 409 Conflict is returned if the conflicting endpoint is hit via API.
 
 ### Auto-Table Creation (v5.3)
 
