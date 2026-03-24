@@ -372,7 +372,7 @@ function DecisionLogSection({ experiments }: { experiments: OptimizerExperimentF
           </button>
         )}
       </div>
-      <div className="max-h-96 space-y-1.5 overflow-y-auto">
+      <div className="max-h-96 space-y-1.5 overflow-y-auto scrollbar-thin">
         {visible.map((e, i) => (
           <div
             key={i}

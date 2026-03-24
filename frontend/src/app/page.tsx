@@ -38,6 +38,7 @@ export default function HomePage() {
   const [ptStatus, setPtStatus] = useState<PaperTradingStatus | null>(null);
   const [positions, setPositions] = useState<PaperPosition[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +52,13 @@ export default function HomePage() {
       if (reps.status === "fulfilled") setReports(reps.value);
       if (status.status === "fulfilled") setPtStatus(status.value);
       if (portfolio.status === "fulfilled") setPositions(portfolio.value.positions ?? []);
+
+      // If ALL calls failed, show an error
+      const allFailed = reps.status === "rejected" && status.status === "rejected" && portfolio.status === "rejected";
+      if (allFailed) {
+        const reason = reps.reason instanceof Error ? reps.reason.message : "Cannot reach backend.";
+        setLoadError(reason);
+      }
       setLoaded(true);
     }
     load();
@@ -67,12 +75,23 @@ export default function HomePage() {
     <div className="flex min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
         {/* Page header */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-slate-100">Home</h2>
           <p className="text-sm text-slate-500">Portfolio overview &amp; quick actions</p>
         </div>
+
+        {loadError && (
+          <div className="mb-6 rounded-lg border border-rose-900 bg-rose-950/50 p-4">
+            <p className="text-sm font-medium text-rose-200">{loadError}</p>
+            {loadError.includes("Cannot reach") && (
+              <p className="mt-1 text-xs text-rose-300/60">
+                Run: <code className="rounded bg-rose-900/40 px-1.5 py-0.5 font-mono">uvicorn backend.main:app --port 8000</code>
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ─── Portfolio Snapshot (hero) ─── */}
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">

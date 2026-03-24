@@ -744,6 +744,15 @@ export interface OptimizerBest {
   best_experiment: Record<string, string>;
 }
 
+export interface OptimizerRunSummary {
+  index: number;
+  baseline_ts: string;
+  baseline_sharpe: string;
+  experiment_count: number;
+  kept: number;
+  discarded: number;
+}
+
 // ── API Cache & Latency ─────────────────────────────────────────
 
 export interface EndpointLatency {

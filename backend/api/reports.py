@@ -4,6 +4,7 @@ Reports API routes — list past reports, get single report, performance stats.
 
 import logging
 import traceback
+import asyncio
 
 from typing import Optional
 
@@ -33,7 +34,7 @@ async def list_reports(limit: int = 20, bq: BigQueryClient = Depends(_get_bq)):
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
-        rows = bq.get_recent_reports(limit=limit)
+        rows = await asyncio.to_thread(bq.get_recent_reports, limit=limit)
         result = [ReportSummary(**r) for r in rows]
         cache.set(cache_key, result, ENDPOINT_TTLS["reports:list"])
         return result
@@ -56,7 +57,7 @@ async def get_performance(settings: Settings = Depends(get_settings)):
     """Get aggregated recommendation performance statistics."""
     try:
         tracker = OutcomeTracker(settings)
-        return tracker.get_performance_summary()
+        return await asyncio.to_thread(tracker.get_performance_summary)
     except GoogleAPIError as exc:
         logger.error("BigQuery error fetching performance: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail=f"BigQuery error: {exc}")
@@ -73,7 +74,7 @@ async def evaluate_outcomes(settings: Settings = Depends(get_settings)):
     """Trigger evaluation of all pending recommendation outcomes."""
     try:
         tracker = OutcomeTracker(settings)
-        results = tracker.evaluate_all_pending()
+        results = await asyncio.to_thread(tracker.evaluate_all_pending)
         return {"evaluated": len(results), "outcomes": results}
     except Exception as exc:
         logger.error("Error evaluating outcomes: %s", exc, exc_info=True)
@@ -92,7 +93,7 @@ async def get_cost_history(limit: int = 50, bq: BigQueryClient = Depends(_get_bq
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
-        result = bq.get_cost_history(limit=limit)
+        result = await asyncio.to_thread(bq.get_cost_history, limit=limit)
         cache.set(cache_key, result, ENDPOINT_TTLS["reports:cost-history"])
         return result
     except GoogleAPIError as exc:
@@ -120,7 +121,7 @@ async def get_latest_cost_summary(bq: BigQueryClient = Depends(_get_bq)):
         if cached is not None:
             return cached
         # Single BQ query instead of previous two-call pattern
-        row = bq.get_latest_report_json()
+        row = await asyncio.to_thread(bq.get_latest_report_json)
         if not row:
             return {"agents": [], "total_cost_usd": 0, "total_tokens": 0}
         full_json = row.get("full_report_json")
@@ -158,7 +159,7 @@ async def get_report(
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
-        report = bq.get_report(ticker.upper(), analysis_date=analysis_date)
+        report = await asyncio.to_thread(bq.get_report, ticker.upper(), analysis_date=analysis_date)
         if not report:
             raise HTTPException(status_code=404, detail=f"No report found for {ticker}")
         cache.set(cache_key, report, ENDPOINT_TTLS["reports:ticker"])

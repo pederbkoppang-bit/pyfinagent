@@ -158,7 +158,7 @@ export default function PaperTradingPage() {
     <div className="flex min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-100">Paper Trading</h2>
@@ -209,6 +209,14 @@ export default function PaperTradingPage() {
         {error && (
           <div className="mb-6 rounded-lg border border-rose-900 bg-rose-950/50 p-4">
             <p className="text-sm font-medium text-rose-200">{error}</p>
+            {error.includes("Cannot reach") && (
+              <p className="mt-1 text-xs text-rose-300/60">
+                Make sure the backend is running: <code className="rounded bg-rose-900/40 px-1.5 py-0.5 font-mono">uvicorn backend.main:app --port 8000</code>
+              </p>
+            )}
+            <button onClick={() => { setError(null); setLoading(true); refresh(); }} className="mt-2 rounded bg-rose-900/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/60">
+              Retry
+            </button>
           </div>
         )}
 

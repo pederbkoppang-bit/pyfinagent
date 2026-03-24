@@ -18,3 +18,10 @@ node_modules/
 # Prisma SQLite auth database
 frontend/prisma/auth.db
 frontend/prisma/auth.db-journal
+
+# Generated server logs (restart.ps1)
+_backend.log
+_frontend.log
+_restart_log.txt
+_health_result.txt
+_cleanup.ps1

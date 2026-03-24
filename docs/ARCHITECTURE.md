@@ -55,24 +55,24 @@ pyfinagent/
 │   ├── api/
 │   │   ├── analysis.py          # POST /api/analysis/, GET /api/analysis/{id}
 │   │   ├── auth.py              # HKDF + JWE token decrypt, email whitelist
-│   │   ├── reports.py           # Reports CRUD + performance stats
-│   │   ├── charts.py            # Price chart + financials endpoints
+│   │   ├── reports.py           # Reports CRUD + performance stats; all BQ calls wrapped in asyncio.to_thread()
+│   │   ├── charts.py            # Price chart + financials endpoints; yfinance calls wrapped in asyncio.to_thread()
 │   │   ├── signals.py           # Enrichment signals endpoints (12 routes)
 │   │   ├── portfolio.py         # Portfolio tracking CRUD
-│   │   ├── paper_trading.py     # Autonomous paper trading endpoints (8 routes)
+│   │   ├── paper_trading.py     # Autonomous paper trading endpoints (8 routes); all BQ calls wrapped in asyncio.to_thread()
 │   │   ├── settings_api.py      # Model configuration + available models
 │   │   ├── skills.py            # Skills optimization API endpoints
-│   │   ├── backtest.py          # Walk-forward backtest + quant optimizer endpoints (11 routes); mutual exclusion (HTTP 409) prevents concurrent runs; engine_source tracks who started the engine; state dicts carry error+traceback for UI
-│   │   └── performance_api.py   # Performance monitoring + cache stats + TTL optimizer (8 routes)
+│   │   ├── backtest.py          # Walk-forward backtest + quant optimizer endpoints (13 routes); mutual exclusion (HTTP 409) prevents concurrent runs; engine_source tracks who started the engine; state dicts carry error+traceback for UI; sync-only endpoints use def (not async def) for automatic threadpool dispatch; _heavy_executor (ThreadPoolExecutor, max_workers=2) isolates backtest/optimizer from the default asyncio threadpool so API status endpoints stay responsive during long runs; lazy-loads result_store.load_latest() on first endpoint access (not module init) for faster --reload restarts; DELETE /optimize/history clears experiment TSV + optimizer_best.json + results/*.json, invalidates backtest:runs* cache, AND resets in-memory _backtest_state + _previous_result for fresh baselines; DELETE /runs/{run_id} also clears in-memory state if the deleted run matches the current result; GET /optimize/runs returns per-baseline summaries; GET /optimize/experiments supports run_index filtering (0=latest)
+│   │   └── performance_api.py   # Performance monitoring + cache stats + TTL optimizer (8 routes); sync TSV readers use def for threadpool dispatch
 │   ├── backtest/
-│   │   ├── analytics.py          # Sharpe, DSR, baselines (SPY/equal-weight/momentum with real Sharpe), reporting, compute_round_trips (FIFO BUY→SELL matching), compute_trade_statistics (23-field: profit_factor/win_rate/expectancy/SQN/streaks/cost metrics)
-│   │   ├── backtest_engine.py    # Walk-forward ML backtest orchestrator — 8-step pipeline (preloading→screening→building_features→training→computing_mda→predicting→trading→finalizing), _current_window_id tracking fixes 0/N counter, emits finalizing step before cache.clear_cache(); skip_cache_clear param allows optimizer to keep warm cache across iterations; SPY preloaded alongside universe for baseline benchmarks; mr_holding_days param for mean reversion strategy; all_trades extraction (capped at 500) into BacktestResult; commission_model/commission_per_share forwarded to trader
-│   │   ├── backtest_trader.py    # In-memory portfolio simulator (inverse-vol sizing); per-trade commission tracking (flat_pct + per_share models); Trade dataclass includes commission field
+│   │   ├── analytics.py          # Sharpe (frequency-aware: periods_per_year param, Lo 2002), DSR, baselines (SPY/equal-weight/momentum with real Sharpe), reporting, compute_round_trips (FIFO BUY→SELL matching), compute_trade_statistics (23-field: profit_factor/win_rate/expectancy/SQN/streaks/cost metrics)
+│   │   ├── backtest_engine.py    # Walk-forward ML backtest orchestrator — 8-step pipeline (preloading→screening→building_features→training→computing_mda→predicting→trading→finalizing); daily mark-to-market loop in trading step (pd.bdate_range) produces ~500+ NAV snapshots for valid Sharpe annualization (Lo 2002); full_reset() called before each run for optimizer independence (Bailey & LdP 2014); _current_window_id tracking fixes 0/N counter, emits finalizing step before cache.clear_cache(); skip_cache_clear param allows optimizer to keep warm cache across iterations; SPY preloaded alongside universe for baseline benchmarks; mr_holding_days param for mean reversion strategy; all_trades extraction (capped at 500) into BacktestResult; commission_model/commission_per_share forwarded to trader; stop_check: Callable[[], bool] | None attribute checked between windows for mid-backtest interruption
+│   │   ├── backtest_trader.py    # In-memory portfolio simulator (inverse-vol sizing); per-trade commission tracking (flat_pct + per_share models); Trade dataclass includes commission field; full_reset() resets all state (cash/positions/trades/snapshots/commission) for optimizer iteration independence
 │   │   ├── cache.py              # BQ bulk-preload cache (2 queries for entire backtest) + hit/miss stats
 │   │   ├── candidate_selector.py # S&P 500 screening at historical dates
 │   │   ├── data_ingestion.py     # Bulk ingest prices/fundamentals/macro to BQ
 │   │   ├── historical_data.py    # ~49-feature vector builder (point-in-time)
-│   │   ├── quant_optimizer.py    # Autoresearch-style strategy optimization loop; 17 tunable params (including mr_holding_days); per-run UUID tagging, step-level progress (establishing_baseline/running_experiment/evaluated), skip_cache_clear for warm cache, explicit bq_cache.clear_cache() at end; LLM proposals load quant_strategy.md skill for research-backed guidance
+│   │   ├── quant_optimizer.py    # Autoresearch-style strategy optimization loop; 17 tunable params (including mr_holding_days); per-run UUID tagging, step-level progress (establishing_baseline/running_experiment/evaluated), skip_cache_clear for warm cache, explicit bq_cache.clear_cache() at end; _log_experiment() serializes trial_params (not best_params) so TSV rows show actual tested params; LLM proposals load quant_strategy.md skill for research-backed guidance; wires stop_check to engine.stop_check at start of run_loop() + pre-baseline guard
 │   │   ├── walk_forward.py       # Expanding-window walk-forward scheduler
 │   │   └── experiments/          # quant_results.tsv experiment logs
 │   ├── db/
@@ -110,7 +110,7 @@ pyfinagent/
 │   │   ├── slack.py             # Slack webhook notifications
 │   │   ├── screener.py          # S&P 500 quant screener (momentum, RSI, composite score)
 │   │   └── quant_model.py       # MDA-weighted quant model signal (12th enrichment tool)
-│   └── main.py                  # FastAPI app + router registration; setup_logging() wraps stderr in UTF-8 TextIOWrapper
+│   └── main.py                  # FastAPI app + router registration; CompactFormatter (colored one-liner) + QuietAccessFilter (suppresses polling noise) + LOG_LEVEL env var
 ├── frontend/
 │   ├── prisma/
 │   │   └── schema.prisma        # SQLite auth DB (User, Account, Session, Authenticator)
@@ -146,7 +146,7 @@ pyfinagent/
 │   │   ├── auth.ts              # Full auth config (PrismaAdapter + WebAuthn)
 │   │   ├── prisma.ts            # Singleton Prisma client
 │   │   ├── types.ts             # Full TypeScript type definitions
-│   │   └── api.ts               # API client (Bearer token + 401 handling)
+│   │   └── api.ts               # API client (Bearer token + 401→login redirect + 30s AbortController timeout)
 │   └── src/middleware.ts        # Route protection (redirects unauthenticated → /login)
 ├── docker-compose.yml           # 3 services: backend, frontend, slack-bot
 ├── migrate_bq_schema.py         # Idempotent BQ schema migration (adds ML columns)
@@ -665,10 +665,10 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/backtest/run` | Start walk-forward backtest (async background task) |
-| `GET` | `/api/backtest/status` | Poll backtest progress (status, run_id, progress) |
-| `GET` | `/api/backtest/results` | Full backtest results with per-window analytics |
-| `GET` | `/api/backtest/results/{window_id}` | Per-window detail (trades, predictions, feature importance) |
+| `POST` | `/api/backtest/run` | Start walk-forward backtest (async background task). Stashes current result so metric cards remain populated during the run. |
+| `GET` | `/api/backtest/status` | Poll backtest progress (status, run_id, progress). `has_result` is true if current or stashed result exists. |
+| `GET` | `/api/backtest/results` | Full backtest results with per-window analytics. Falls back to stashed result during a new run. |
+| `GET` | `/api/backtest/results/{window_id}` | Per-window detail (trades, predictions, feature importance). Uses stashed result fallback. |
 | `GET` | `/api/backtest/runs` | List all persisted backtest runs (newest first) |
 | `GET` | `/api/backtest/runs/{run_id}` | Load a specific historical backtest result |
 | `DELETE` | `/api/backtest/runs/{run_id}` | Delete a specific backtest result from disk |

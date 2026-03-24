@@ -94,6 +94,7 @@ class QuantStrategyOptimizer:
         self._current_detail: str = ""
 
         _EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
+        logger.info("QuantOptimizer: TSV path = %s", _TSV_PATH.resolve())
 
     def _get_current_params(self) -> dict:
         """Extract current strategy params from engine."""
@@ -118,6 +119,10 @@ class QuantStrategyOptimizer:
             on_result: Callback invoked with the report dict after baseline and each kept experiment.
                 Used to populate backtest Results/Equity/Features tabs.
         """
+        # Wire stop_check into engine so mid-backtest stops work
+        self._stop_check = stop_check
+        self.engine.stop_check = stop_check
+
         # Generate run_id to tag all experiments in this run
         self._run_id = str(uuid.uuid4())[:8]
         logger.info(f"QuantOptimizer: starting run {self._run_id}")
@@ -129,10 +134,15 @@ class QuantStrategyOptimizer:
             self._current_detail = f"Warm-start Sharpe={self.best_sharpe:.4f}"
             self._report_status()
             self._log_experiment(
-                "BASELINE", "warm-start", 0, float(self.best_sharpe or 0), 0,
+                self._run_id, "warm-start", 0, float(self.best_sharpe or 0), 0,
                 "BASELINE", float(self.best_dsr or 0), [],
             )
         else:
+            # Check stop before starting baseline
+            if stop_check and stop_check():
+                logger.info("QuantOptimizer: stopped before baseline")
+                return
+
             logger.info("QuantOptimizer: establishing baseline...")
             self._current_step = "establishing_baseline"
             self._current_detail = "Running full walk-forward backtest..."
@@ -147,7 +157,7 @@ class QuantStrategyOptimizer:
             top5_mda = self._extract_top5_mda(baseline_result)
             self._prev_top5_mda = top5_mda
 
-            self._log_experiment("BASELINE", "--", 0, float(self.best_sharpe or 0), 0, "BASELINE", float(self.best_dsr or 0), top5_mda)
+            self._log_experiment(self._run_id, "--", 0, float(self.best_sharpe or 0), 0, "BASELINE", float(self.best_dsr or 0), top5_mda)
             if on_result:
                 on_result(baseline_report)
             self._current_step = "baseline_complete"
@@ -197,8 +207,9 @@ class QuantStrategyOptimizer:
                 logger.warning(f"QuantOptimizer: experiment {i+1} crashed ({change_desc}): {e}", exc_info=True)
                 self._apply_params_to_engine(self.best_params)
                 self._log_experiment(
-                    str(uuid.uuid4())[:8], change_desc,
+                    self._run_id, change_desc,
                     float(self.best_sharpe or 0), 0, -float(self.best_sharpe or 0), "crash", 0, [],
+                    trial_params=trial_params,
                 )
                 self._current_detail = f"experiment {i+1} CRASHED: {change_desc} -- {e}"
                 self._report_status()
@@ -252,8 +263,9 @@ class QuantStrategyOptimizer:
                 trial_top5 = []
 
             self._log_experiment(
-                str(uuid.uuid4())[:8], change_desc,
+                self._run_id, change_desc,
                 float(self.best_sharpe or 0), trial_sharpe, delta, status, trial_dsr, trial_top5,
+                trial_params=trial_params,
             )
             self._current_step = "evaluated"
             self._current_detail = f"{status}: {change_desc} (Sharpe {trial_sharpe:.4f})"
@@ -410,23 +422,30 @@ class QuantStrategyOptimizer:
         metric_before: float, metric_after: float,
         delta: float, status: str, dsr: float,
         top5_mda: list[str] | None = None,
+        trial_params: dict | None = None,
     ):
         """Append experiment to quant_results.tsv."""
-        if not _TSV_PATH.exists():
-            _TSV_PATH.write_text(_TSV_HEADER, encoding="utf-8")
-
-        mda_str = ",".join(top5_mda) if top5_mda else ""
-        # Serialize current best params as JSON for insights visualization
         try:
-            params_json = json.dumps(self.best_params, default=str)
-        except (TypeError, ValueError):
-            params_json = ""
-        row = (
-            f"{datetime.now(timezone.utc).isoformat()}\t{run_id}\t{change}\t"
-            f"{metric_before:.4f}\t{metric_after:.4f}\t{delta:+.4f}\t{status}\t{dsr:.4f}\t{mda_str}\t{params_json}\n"
-        )
-        with open(_TSV_PATH, "a", encoding="utf-8") as f:
-            f.write(row)
+            if not _TSV_PATH.exists():
+                _TSV_PATH.write_text(_TSV_HEADER, encoding="utf-8")
+
+            mda_str = ",".join(top5_mda) if top5_mda else ""
+            # Serialize the TRIAL params (not best_params) so each row shows what was actually tested
+            params_to_log = trial_params if trial_params is not None else self.best_params
+            try:
+                params_json = json.dumps(params_to_log, default=str)
+            except (TypeError, ValueError):
+                params_json = ""
+            row = (
+                f"{datetime.now(timezone.utc).isoformat()}\t{run_id}\t{change}\t"
+                f"{metric_before:.4f}\t{metric_after:.4f}\t{delta:+.4f}\t{status}\t{dsr:.4f}\t{mda_str}\t{params_json}\n"
+            )
+            with open(_TSV_PATH, "a", encoding="utf-8") as f:
+                f.write(row)
+                f.flush()
+            logger.debug("Logged experiment: run_id=%s status=%s change=%s", run_id, status, change)
+        except Exception as e:
+            logger.error("Failed to write experiment to TSV: %s (path=%s)", e, _TSV_PATH.resolve())
 
     def _load_recent_experiments(self, n: int = 20) -> str:
         """Load last N experiments as text for LLM context."""

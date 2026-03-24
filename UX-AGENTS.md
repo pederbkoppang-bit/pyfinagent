@@ -59,6 +59,9 @@ Use this interpreter for backend imports, FastAPI startup, and editor diagnostic
 *   **Variants:** `fadeIn`, `slideUp`, `staggerContainer`, `staggerItem` in `frontend/src/lib/motion.ts`
 *   **Spring presets:** `springSnappy` (stiffness: 400, damping: 30), `springGentle` (stiffness: 120, damping: 20)
 
+### Layout Blueprint
+See `.github/instructions/frontend-layout.instructions.md` (or `.claude/rules/frontend-layout.md`) for the complete page layout blueprint: 6-tier page anatomy, metric grids, tab bar conventions, collapsible `<details>` sections, empty states, and the 10 information hierarchy principles derived from Tufte, Few, Shneiderman, Cleveland & McGill, and Bach et al.
+
 ### Tailwind Design Tokens
 
 | Token | Value | Usage |
@@ -1450,7 +1453,7 @@ The download button in the Overview tab generates a multi-page PDF containing al
 | `/performance` | `performance/page.tsx` | Historical accuracy metrics + LLM cost history | Performance tracking |
 | `/portfolio` | `portfolio/page.tsx` | Position tracking, P&L, allocation | Portfolio management |
 | `/paper-trading` | `paper-trading/page.tsx` | Autonomous fund dashboard, NAV chart, positions, trades | Paper trading |
-| `/backtest` | `backtest/page.tsx` | **Walk-Forward Backtest** — 5 strategies, 5 tabs (Results/Equity/Features/Optimizer/Insights), auto-ingest, DSR guard, feature drift detection, ingestion result banner with row counts, cost info section, button tooltips, **run history selector** (dropdown above tabs to load previous backtest runs from disk; timestamps formatted as human-readable local time e.g. `Mar 23, 2026, 8:19 AM` via `formatRunTimestamp()`), **vertical Jira-style workflow timeline** (8-step pipeline: preloading->screening->building_features->training->computing_mda->predicting->trading->finalizing; window rail with colored dots, client-side ticking elapsed timer, step detail + sample sub-progress, cache hit rate footer; poll interval 2000ms), **Karpathy progress chart** (`OptimizerProgressChart`) showing Sharpe improvement over experiments with running-best line, kept/discarded/DSR-rejected dots, smart Y-axis scaling, **step indicator bar** (pulsing dot + step name + sub-detail from engine progress_callback), per-run experiment filtering via `run_id`, **Optimizer Insights tab** (`OptimizerInsights.tsx`): 5 sections — Training Data Scope (Gantt), Parameter Slice Plots (4x4 grid), Parameter Importance (horizontal bars), Feature Stability Matrix (rank heatmap), Decision Log (annotated timeline), **Error banners with traceback** (collapsible `<details>` block showing full Python traceback for both backtest and optimizer errors), **Trade Statistics** (3-col bento: Performance/Extremes/Cost Impact with profit factor, win rate, SQN, expectancy, streaks, commission breakdown), **Trade List** (sortable paginated table: ticker, entry/exit dates & prices, qty, P&L $/%, holding days, confidence; green/red row coloring; 25/page) | ML backtesting |
+| `/backtest` | `backtest/page.tsx` | **Walk-Forward Backtest** — 5 strategies, 5 tabs (Results/Equity/Features/Optimizer/Insights), auto-ingest, DSR guard, feature drift detection, ingestion result banner with row counts, cost info section, button tooltips, **run history selector** (dropdown above tabs to load previous backtest runs from disk; timestamps formatted as human-readable local time e.g. `Mar 23, 2026, 8:19 AM` via `formatRunTimestamp()`), **collapsible `<details>` progress panel** (8-step pipeline timeline: preloading->screening->building_features->training->computing_mda->predicting->trading->finalizing; window rail with colored dots, client-side ticking elapsed timer, step detail + sample sub-progress, cache hit rate footer; auto-opens when running, user collapsible via `<summary>` showing status dot + step count + elapsed; poll interval 2000ms), **ingestion metrics + analytics summary scoped to Results tab** (3 ingestion cards + 6 analytics cards render inside Results tab only, not above tab bar), **Karpathy progress chart** (`OptimizerProgressChart`) always visible on Optimizer tab (shows empty-state placeholder when <2 experiments, scatter+running-best line when data available), **step indicator bar** (pulsing dot + step name + sub-detail from engine progress_callback), per-run experiment filtering via `run_id`, **optimizer run selector** (dropdown in Optimizer tab to switch between historical runs, shows baseline timestamp + Sharpe + experiment count; hidden when only 1 run or optimizer running; `optRunIndex` state drives `getOptimizerExperiments(runIndex)` calls), **Clear History button** (Trash icon, rose accent, confirms before deleting all experiments + best params), **Optimizer Insights tab** (`OptimizerInsights.tsx`): 5 sections — Training Data Scope (Gantt), Parameter Slice Plots (4x4 grid), Parameter Importance (horizontal bars), Feature Stability Matrix (rank heatmap), Decision Log (annotated timeline), **Error banners with traceback** (collapsible `<details>` block showing full Python traceback for both backtest and optimizer errors), **Trade Statistics** (3-col bento: Performance/Extremes/Cost Impact with profit factor, win rate, SQN, expectancy, streaks, commission breakdown), **Trade List** (sortable paginated table: ticker, entry/exit dates & prices, qty, P&L $/%, holding days, confidence; green/red row coloring; 25/page) | ML backtesting |
 | `/settings` | `settings/page.tsx` | **3-tab sub-navigation** (Models & Analysis \| Cost & Weights \| Performance): Model Config, Debate Depth, Cost Estimator, Pillar Weights, Cache Health, TTL Optimizer, API Latency | User preferences + monitoring |
 
 ### Sidebar Navigation (Grouped)
@@ -1890,8 +1893,8 @@ Actions:
 │  === Results Tab ===                                      │
 │  Analytics summary cards + per-window results table       │
 │  Strategy vs Baselines table: SPY / Equal Weight /        │
-│  Momentum — each shows total return % and annualized      │
-│  Sharpe ratio (computed from daily returns, not hardcoded) │
+│  Momentum — 5 columns: Strategy, Return, Sharpe,          │
+│  Excess Return (Δ vs ML, emerald/rose), Sharpe Δ          │
 │                                                           │
 │  Trade Statistics 3-col bento grid:                       │
 │    Performance (emerald): profit factor, win rate, payoff │
@@ -1912,8 +1915,8 @@ Actions:
 │  Feature importance bar chart (MDA + MDI)                 │
 │                                                           │
 │  === Optimizer Tab ===                                    │
-│  OptimizerProgressChart (Karpathy chart) + experiment log │
-│  + best strategy card                                     │
+│  (running: "see progress above" + chart + log)            │
+│  (idle: Start btn + Metric cards + chart + log)           │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -1948,6 +1951,8 @@ Styled as `text-xs text-zinc-500 mt-2`. Appears always (not conditional).
 ### Mutual Exclusion (v5.9.5)
 
 Backtest and optimizer share a single engine lock — only one can run at a time. When the other is active, the blocked button is disabled with a tooltip explaining why. Optimizer engine progress mirrors into `_backtest_state["progress"]` so the unified Walk-Forward Progress panel renders during optimizer runs. Header shows "(via Optimizer)" when `engine_source === "optimizer"`. HTTP 409 Conflict is returned if the conflicting endpoint is hit via API.
+
+**"One Truth" progress (v5.12.10):** The Walk-Forward banner is the single command center for all running state. When `engine_source === "optimizer"`, the banner `<summary>` header shows: (1) optimizer step subtitle ("Establishing Baseline" / "Running Experiment" + detail), (2) compact inline metric pills (Iter, Sharpe, DSR, kept, discarded) using `font-mono text-[11px]` pill style, (3) a single Stop button. The Optimizer tab hides its Stop button, `<Metric>` grid, and step indicator while running (replaced with "see progress above" notice). Only the chart and experiment table remain in the tab during a run. On completion/error/stopped, the full `<Metric>` cards re-appear. `handleStartOptimizer()` auto-switches to the Optimizer tab.
 
 ### Auto-Table Creation (v5.3)
 

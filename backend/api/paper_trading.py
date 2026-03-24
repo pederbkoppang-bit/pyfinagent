@@ -47,7 +47,7 @@ async def start_paper_trading(req: StartRequest = StartRequest()):
     trader = PaperTrader(settings, bq)
 
     # Initialize portfolio (idempotent)
-    portfolio = trader.get_or_create_portfolio()
+    portfolio = await asyncio.to_thread(trader.get_or_create_portfolio)
 
     # Start scheduler if not already running
     scheduler_active = False
@@ -90,11 +90,11 @@ async def get_status():
     bq = BigQueryClient(settings)
     trader = PaperTrader(settings, bq)
 
-    portfolio = bq.get_paper_portfolio("default")
+    portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
     if not portfolio:
         return {"status": "not_initialized", "message": "Call POST /start first"}
 
-    positions = trader.get_positions()
+    positions = await asyncio.to_thread(trader.get_positions)
     loop_status = get_loop_status()
 
     scheduler_active = False
@@ -133,11 +133,11 @@ async def get_portfolio():
     bq = BigQueryClient(settings)
     trader = PaperTrader(settings, bq)
 
-    portfolio = bq.get_paper_portfolio("default")
+    portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
     if not portfolio:
         raise HTTPException(404, "Paper portfolio not initialized")
 
-    positions = trader.get_positions()
+    positions = await asyncio.to_thread(trader.get_positions)
     result = {
         "portfolio": portfolio,
         "positions": positions,
@@ -156,7 +156,7 @@ async def get_trades(limit: int = Query(100, ge=1, le=1000)):
         return cached
     settings = get_settings()
     bq = BigQueryClient(settings)
-    trades = bq.get_paper_trades(limit=limit)
+    trades = await asyncio.to_thread(bq.get_paper_trades, limit=limit)
     result = {"trades": trades, "count": len(trades)}
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:trades"])
     return result
@@ -172,7 +172,7 @@ async def get_snapshots(limit: int = Query(365, ge=1, le=3650)):
         return cached
     settings = get_settings()
     bq = BigQueryClient(settings)
-    snapshots = bq.get_paper_snapshots(limit=limit)
+    snapshots = await asyncio.to_thread(bq.get_paper_snapshots, limit=limit)
     result = {"snapshots": snapshots, "count": len(snapshots)}
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:snapshots"])
     return result
@@ -189,12 +189,12 @@ async def get_performance():
     settings = get_settings()
     bq = BigQueryClient(settings)
 
-    portfolio = bq.get_paper_portfolio("default")
+    portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
     if not portfolio:
         raise HTTPException(404, "Paper portfolio not initialized")
 
-    snapshots = bq.get_paper_snapshots(limit=365)
-    trades = bq.get_paper_trades(limit=1000)
+    snapshots = await asyncio.to_thread(bq.get_paper_snapshots, limit=365)
+    trades = await asyncio.to_thread(bq.get_paper_trades, limit=1000)
 
     # Compute metrics from trades
     sell_trades = [t for t in trades if t.get("action") == "SELL"]

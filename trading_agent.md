@@ -243,7 +243,7 @@ After each QuantOpt keep, the top-5 MDA features are logged to `quant_results.ts
 | 6.5 | `strategy` as 16th QuantOptimizer param + feature drift logging | DONE |
 | 6.6 | Model staleness tracking | DONE |
 | 6.7 | Auto-ingest check at backtest start | DONE |
-| 6.8 | Mock-test script (`t_backtest_mock.py`) | DONE |
+| 6.8 | Mock-test script (`dev/t_backtest_mock.py`) | DONE |
 
 ### Pending (Phase 5B — ML→Live Bridge)
 

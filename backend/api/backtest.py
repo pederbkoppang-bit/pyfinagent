@@ -8,6 +8,8 @@ import logging
 import time
 import traceback
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -31,14 +33,30 @@ _backtest_state = {
     "traceback": None,
     "engine_source": None,  # "backtest" | "optimizer" | None
 }
+# Stash the last completed result so metric cards stay populated during a new run
+_previous_result: dict | None = None
 
-# Auto-load latest backtest result on module init so results survive restarts
-_prev = result_store.load_latest()
-if _prev:
-    _backtest_state["status"] = "completed"
-    _backtest_state["run_id"] = _prev.get("run_id")
-    _backtest_state["result"] = _prev
-    logger.info("Auto-loaded previous backtest result (run_id=%s)", _prev.get("run_id"))
+# Lazy-load flag — avoids blocking module import with glob+sort on results dir
+_prev_loaded: bool = False
+
+
+def _ensure_prev_loaded() -> None:
+    """Lazy-load the latest persisted backtest result on first access."""
+    global _prev_loaded, _previous_result
+    if _prev_loaded:
+        return
+    _prev_loaded = True
+    _prev = result_store.load_latest()
+    if _prev:
+        _backtest_state["status"] = "completed"
+        _backtest_state["run_id"] = _prev.get("run_id")
+        _backtest_state["result"] = _prev
+        logger.info("Auto-loaded previous backtest result (run_id=%s)", _prev.get("run_id"))
+
+
+# Dedicated executor for heavy backtest/optimizer tasks so they don't starve
+# the default asyncio threadpool used by lightweight endpoints.
+_heavy_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="bt-heavy")
 
 # Module-level state for optimizer
 _optimizer_state = {
@@ -92,7 +110,7 @@ class OptimizerStartRequest(BaseModel):
 @router.post("/run")
 async def run_backtest(req: BacktestRunRequest = BacktestRunRequest()):
     """Start a walk-forward backtest (async background task)."""
-    global _backtest_state
+    global _backtest_state, _previous_result
 
     if _backtest_state["status"] == "running":
         raise HTTPException(400, "Backtest already running")
@@ -100,6 +118,8 @@ async def run_backtest(req: BacktestRunRequest = BacktestRunRequest()):
         raise HTTPException(409, "Optimizer is running - backtest unavailable")
 
     run_id = str(uuid.uuid4())[:8]
+    if _backtest_state["result"] is not None:
+        _previous_result = _backtest_state["result"]
     _backtest_state = {
         "status": "running",
         "run_id": run_id,
@@ -117,11 +137,12 @@ async def run_backtest(req: BacktestRunRequest = BacktestRunRequest()):
 @router.get("/status")
 async def get_backtest_status():
     """Poll backtest progress."""
+    _ensure_prev_loaded()
     return {
         "status": _backtest_state["status"],
         "run_id": _backtest_state["run_id"],
         "progress": _backtest_state["progress"],
-        "has_result": _backtest_state["result"] is not None,
+        "has_result": _backtest_state["result"] is not None or _previous_result is not None,
         "error": _backtest_state["error"],
         "traceback": _backtest_state["traceback"],
         "engine_source": _backtest_state.get("engine_source"),
@@ -131,20 +152,25 @@ async def get_backtest_status():
 @router.get("/results")
 async def get_backtest_results():
     """Full backtest results with analytics."""
-    if _backtest_state["result"] is None:
-        if _backtest_state["status"] == "running":
-            raise HTTPException(202, "Backtest still running")
-        raise HTTPException(404, "No backtest results available")
-    return _backtest_state["result"]
+    _ensure_prev_loaded()
+    if _backtest_state["result"] is not None:
+        return _backtest_state["result"]
+    # Serve stale result while a new run is in progress
+    if _previous_result is not None:
+        return _previous_result
+    if _backtest_state["status"] == "running":
+        raise HTTPException(202, "Backtest still running")
+    raise HTTPException(404, "No backtest results available")
 
 
 @router.get("/results/{window_id}")
 async def get_window_result(window_id: int):
     """Per-window detail."""
-    if _backtest_state["result"] is None:
+    active = _backtest_state["result"] or _previous_result
+    if active is None:
         raise HTTPException(404, "No backtest results available")
     
-    windows = _backtest_state["result"].get("per_window", [])
+    windows = active.get("per_window", [])
     for w in windows:
         if w.get("window_id") == window_id:
             return w
@@ -193,7 +219,7 @@ async def get_ingestion_status():
     service = DataIngestionService(bq.client, settings)
 
     try:
-        status = service.get_ingestion_status()
+        status = await asyncio.to_thread(service.get_ingestion_status)
         return status
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -248,15 +274,60 @@ async def get_optimizer_status():
     return _optimizer_state
 
 
+@router.get("/optimize/runs")
+def get_optimizer_runs():
+    """List optimizer runs (each BASELINE marks a new run). Returns summary per run, newest first."""
+    import os
+    tsv_path = os.path.join(
+        os.path.dirname(__file__), "..", "backtest", "experiments", "quant_results.tsv"
+    )
+    if not os.path.exists(tsv_path):
+        return {"runs": []}
+
+    # Parse TSV into groups: each BASELINE starts a new group
+    groups: list[dict] = []
+    with open(tsv_path, "r", encoding="utf-8") as f:
+        header = f.readline().strip().split("\t")
+        current_group: dict | None = None
+        for line in f:
+            values = line.strip().split("\t")
+            if len(values) < len(header):
+                continue
+            row = dict(zip(header, values))
+            if row.get("status") == "BASELINE":
+                current_group = {
+                    "baseline_ts": row.get("timestamp", ""),
+                    "baseline_sharpe": row.get("metric_after", "0"),
+                    "experiment_count": 0,
+                    "kept": 0,
+                    "discarded": 0,
+                }
+                groups.append(current_group)
+            elif current_group is not None:
+                current_group["experiment_count"] += 1
+                st = row.get("status", "")
+                if st == "keep":
+                    current_group["kept"] += 1
+                elif st in ("discard", "dsr_reject", "crash"):
+                    current_group["discarded"] += 1
+
+    # Assign index (0 = latest) and reverse so newest first
+    for i, g in enumerate(reversed(groups)):
+        g["index"] = i
+    groups.reverse()
+    return {"runs": groups}
+
+
 @router.get("/optimize/experiments")
-async def get_optimizer_experiments(run_id: str | None = None):
+def get_optimizer_experiments(run_id: str | None = None, run_index: int | None = None):
     """Full experiment history from quant_results.tsv.
 
     Args:
         run_id: If provided, filter to experiments from this optimizer run only.
+        run_index: If provided (0=latest), return experiments from that BASELINE group.
     """
     cache = get_api_cache()
-    cache_key = f"backtest:experiments:{run_id or 'all'}"
+    cache_key = f"backtest:experiments:{run_id or 'all'}:{run_index if run_index is not None else 'none'}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -272,32 +343,46 @@ async def get_optimizer_experiments(run_id: str | None = None):
         header = f.readline().strip().split("\t")
         for line in f:
             values = line.strip().split("\t")
-            if len(values) == len(header):
-                row = dict(zip(header, values))
-                if run_id and row.get("run_id") not in (run_id, "BASELINE"):
-                    # Include BASELINEs from this run (same run_id prefix won't match,
-                    # but we want the last BASELINE before this run's experiments).
-                    # Actually filter: only keep rows whose run_id matches, or BASELINE
-                    # rows that appear just before the first matching experiment.
-                    pass
-                experiments.append(row)
+            if len(values) >= len(header):
+                experiments.append(dict(zip(header, values)))
 
-    # If run_id filter requested, find experiments belonging to this run
-    if run_id:
+    # Group by BASELINE boundaries
+    if run_index is not None:
+        groups: list[list[dict]] = []
+        current: list[dict] = []
+        for exp in experiments:
+            if exp.get("status") == "BASELINE":
+                current = [exp]
+                groups.append(current)
+            else:
+                current.append(exp)
+        # run_index 0 = latest (last group)
+        actual_idx = len(groups) - 1 - run_index
+        if 0 <= actual_idx < len(groups):
+            experiments = groups[actual_idx]
+        else:
+            experiments = groups[-1] if groups else []
+    elif run_id:
         # Find the BASELINE that immediately precedes the first experiment with this run_id
-        run_experiments = []
+        # All rows in a run share the same run_id (including BASELINE), so filter directly
+        run_experiments = [exp for exp in experiments if exp.get("run_id") == run_id]
+        if not run_experiments:
+            # Fallback: return only the last BASELINE
+            last_baseline_idx = -1
+            for idx, exp in enumerate(experiments):
+                if exp.get("status") == "BASELINE":
+                    last_baseline_idx = idx
+            if last_baseline_idx >= 0:
+                run_experiments = [experiments[last_baseline_idx]]
+        experiments = run_experiments
+    else:
+        # Default: return only the latest run (last BASELINE + its experiments)
         last_baseline_idx = -1
         for idx, exp in enumerate(experiments):
-            if exp.get("run_id") == "BASELINE":
+            if exp.get("status") == "BASELINE":
                 last_baseline_idx = idx
-            elif exp.get("run_id") == run_id:
-                if not run_experiments and last_baseline_idx >= 0:
-                    run_experiments.append(experiments[last_baseline_idx])
-                run_experiments.append(exp)
-        # If only baseline found (run just started), show the latest baseline
-        if not run_experiments and last_baseline_idx >= 0:
-            run_experiments = [experiments[last_baseline_idx]]
-        experiments = run_experiments
+        if last_baseline_idx >= 0:
+            experiments = experiments[last_baseline_idx:]
 
     result = {"experiments": experiments}
     cache.set(cache_key, result, ENDPOINT_TTLS["backtest:experiments"])
@@ -305,7 +390,7 @@ async def get_optimizer_experiments(run_id: str | None = None):
 
 
 @router.get("/optimize/best")
-async def get_optimizer_best():
+def get_optimizer_best():
     """Best strategy params + feature importance from latest optimization."""
     cache = get_api_cache()
     cache_key = "backtest:best"
@@ -326,7 +411,7 @@ async def get_optimizer_best():
         header = f.readline().strip().split("\t")
         for line in f:
             values = line.strip().split("\t")
-            if len(values) == len(header):
+            if len(values) >= len(header):
                 row = dict(zip(header, values))
                 if row.get("status") in ("keep", "BASELINE"):
                     try:
@@ -352,13 +437,13 @@ async def get_optimizer_best():
 # ── Backtest Runs (Persistence) ──────────────────────────────────
 
 @router.get("/runs")
-async def list_backtest_runs():
+def list_backtest_runs():
     """List all persisted backtest results (newest first)."""
     return {"runs": result_store.list_runs()}
 
 
 @router.get("/runs/{run_id}")
-async def get_backtest_run(run_id: str):
+def get_backtest_run(run_id: str):
     """Load a specific historical backtest result."""
     data = result_store.load_result(run_id)
     if data is None:
@@ -367,18 +452,77 @@ async def get_backtest_run(run_id: str):
 
 
 @router.delete("/runs/{run_id}")
-async def delete_backtest_run(run_id: str):
+def delete_backtest_run(run_id: str):
     """Delete a specific backtest result from disk."""
+    global _previous_result
     deleted = result_store.delete_run(run_id)
     if not deleted:
         raise HTTPException(404, f"No saved result for run_id={run_id}")
+    # Clear in-memory state if the deleted run is the one currently displayed
+    if _backtest_state.get("run_id") == run_id:
+        _backtest_state["result"] = None
+        _backtest_state["status"] = "idle"
+        _backtest_state["run_id"] = None
+        _backtest_state["engine_source"] = None
+    if _previous_result and _previous_result.get("run_id") == run_id:
+        _previous_result = None
     return {"status": "deleted", "run_id": run_id}
+
+
+@router.delete("/optimize/history")
+def delete_optimizer_history():
+    """Delete optimizer experiment history (quant_results.tsv + optimizer_best.json).
+
+    Use this to clear stale baselines after code changes that affect Sharpe/DSR calculation.
+    """
+    import os
+
+    experiments_dir = os.path.join(
+        os.path.dirname(__file__), "..", "backtest", "experiments"
+    )
+    deleted_files: list[str] = []
+
+    tsv_path = os.path.join(experiments_dir, "quant_results.tsv")
+    if os.path.exists(tsv_path):
+        os.remove(tsv_path)
+        deleted_files.append("quant_results.tsv")
+
+    best_path = os.path.join(experiments_dir, "optimizer_best.json")
+    if os.path.exists(best_path):
+        os.remove(best_path)
+        deleted_files.append("optimizer_best.json")
+
+    # Also delete saved backtest results so optimizer doesn't warm-start from stale data
+    results_dir = os.path.join(experiments_dir, "results")
+    if os.path.isdir(results_dir):
+        import glob
+        for f in glob.glob(os.path.join(results_dir, "*.json")):
+            os.remove(f)
+            deleted_files.append(f"results/{os.path.basename(f)}")
+
+    # Clear cached API responses so next fetch sees empty state
+    cache = get_api_cache()
+    cache.invalidate("backtest:experiments*")
+    cache.invalidate("backtest:best")
+    cache.invalidate("backtest:insights")
+    cache.invalidate("backtest:runs*")
+
+    # Clear in-memory state so stale results don't survive file deletion
+    global _previous_result
+    _backtest_state["result"] = None
+    _backtest_state["status"] = "idle"
+    _backtest_state["run_id"] = None
+    _backtest_state["engine_source"] = None
+    _previous_result = None
+
+    logger.info("Deleted optimizer history: %s", deleted_files)
+    return {"status": "deleted", "files": deleted_files}
 
 
 # ── Optimizer Insights ───────────────────────────────────────────
 
 @router.get("/optimize/insights")
-async def get_optimizer_insights():
+def get_optimizer_insights():
     """Full optimizer context for the Insights tab: param bounds, experiments with full params, data scope."""
     import os
     from backend.backtest.quant_optimizer import _PARAM_BOUNDS, _INT_PARAMS, _CATEGORICAL_PARAMS
@@ -495,7 +639,8 @@ async def _run_backtest_async(run_id: str, req: BacktestRunRequest):
             commission_per_share=settings.backtest_commission_per_share,
         )
 
-        result = await asyncio.to_thread(engine.run_backtest)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(_heavy_executor, engine.run_backtest)
 
         # Compute baselines — emit progress so UI shows activity during this phase
         baselines = None
@@ -550,6 +695,7 @@ async def _run_backtest_async(run_id: str, req: BacktestRunRequest):
         _backtest_state["status"] = "completed"
         _backtest_state["result"] = report
         _backtest_state["engine_source"] = None
+        _previous_result = None  # fresh result available; discard stale copy
 
         # Persist to disk so results survive restarts
         try:
@@ -621,11 +767,17 @@ async def _run_optimizer_async(max_iterations: int, use_llm: bool):
 
         def on_result(report: dict):
             """Push optimizer baseline/kept results to backtest tabs."""
+            global _previous_result
             _backtest_state["status"] = "completed"
             _backtest_state["result"] = report
             _backtest_state["error"] = None
             _backtest_state["engine_source"] = None
+            _previous_result = None  # fresh result available
 
+        # Stash current result before clearing
+        global _previous_result
+        if _backtest_state["result"] is not None:
+            _previous_result = _backtest_state["result"]
         # Set backtest state so the unified progress panel activates
         _backtest_state["status"] = "running"
         _backtest_state["run_id"] = _optimizer_state.get("run_id") or "opt"
@@ -635,13 +787,17 @@ async def _run_optimizer_async(max_iterations: int, use_llm: bool):
         _backtest_state["traceback"] = None
         _backtest_state["engine_source"] = "optimizer"
 
-        await asyncio.to_thread(
-            optimizer.run_loop,
-            max_iterations=max_iterations,
-            use_llm=use_llm,
-            stop_check=lambda: _optimizer_state["status"] != "running",
-            on_mda_update=coordinator.update_mda_features,
-            on_result=on_result,
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            _heavy_executor,
+            partial(
+                optimizer.run_loop,
+                max_iterations=max_iterations,
+                use_llm=use_llm,
+                stop_check=lambda: _optimizer_state["status"] != "running",
+                on_mda_update=coordinator.update_mda_features,
+                on_result=on_result,
+            ),
         )
 
         _optimizer_state["status"] = "completed"

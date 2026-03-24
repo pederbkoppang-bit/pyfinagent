@@ -18,6 +18,9 @@ import {
   getBacktestRuns,
   loadBacktestRun,
   getOptimizerInsights,
+  deleteOptimizerHistory,
+  getOptimizerRuns,
+  deleteBacktestRun,
 } from "@/lib/api";
 import type {
   BacktestStatus,
@@ -29,6 +32,7 @@ import type {
   OptimizerExperiment,
   OptimizerBest,
   OptimizerInsights,
+  OptimizerRunSummary,
 } from "@/lib/types";
 import {
   LineChart,
@@ -57,6 +61,8 @@ import {
   ChartBarHorizontal,
   CloudArrowDown,
   CheckCircle,
+  Trash,
+  XCircle,
 } from "@phosphor-icons/react";
 import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
 import { OptimizerInsightsView } from "@/components/OptimizerInsights";
@@ -85,12 +91,16 @@ const STEP_META: Record<PipelineStepKey, { StepIcon: Icon; label: string }> = {
 
 /* ── Helpers ── */
 function formatRunTimestamp(ts: string): string {
-  // Parse compact ISO like "20260323T081929Z" → human-readable local time
+  // Parse compact ISO like "20260323T081929Z" or full ISO like "2026-03-23T18:50:16.400976+00:00"
   const m = ts.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/);
-  if (!m) return ts;
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
-  if (isNaN(d.getTime())) return ts;
-  return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  if (m) {
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+    if (!isNaN(d.getTime())) return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+  // Try standard ISO parse (handles full ISO 8601 with timezone)
+  const d = new Date(ts);
+  if (!isNaN(d.getTime())) return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  return ts;
 }
 
 function Metric({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
@@ -119,6 +129,8 @@ export default function BacktestPage() {
   const [optStatus, setOptStatus] = useState<OptimizerStatus | null>(null);
   const [optExperiments, setOptExperiments] = useState<OptimizerExperiment[]>([]);
   const [optBest, setOptBest] = useState<OptimizerBest | null>(null);
+  const [optRuns, setOptRuns] = useState<OptimizerRunSummary[]>([]);
+  const [optRunIndex, setOptRunIndex] = useState<number>(0);
   const [runs, setRuns] = useState<BacktestRunSummary[]>([]);
   const [insights, setInsights] = useState<OptimizerInsights | null>(null);
   const [tab, setTab] = useState<Tab>("results");
@@ -130,28 +142,44 @@ export default function BacktestPage() {
   const [tradePage, setTradePage] = useState(0);
   const [tradeSort, setTradeSort] = useState<{ col: string; asc: boolean }>({ col: "entry_date", asc: true });
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (retryCount = 0) => {
     try {
       const [s, ing, opt, runsRes] = await Promise.all([
-        getBacktestStatus().catch(() => null),
-        getIngestionStatus().catch(() => null),
-        getOptimizerStatus().catch(() => null),
-        getBacktestRuns().catch(() => null),
+        getBacktestStatus().catch((e) => { console.warn("getBacktestStatus:", e.message); return null; }),
+        getIngestionStatus().catch((e) => { console.warn("getIngestionStatus:", e.message); return null; }),
+        getOptimizerStatus().catch((e) => { console.warn("getOptimizerStatus:", e.message); return null; }),
+        getBacktestRuns().catch((e) => { console.warn("getBacktestRuns:", e.message); return null; }),
       ]);
+
+      // If ALL primary calls failed, auto-retry once after 2s (covers backend restart)
+      if (!s && !ing && !opt && !runsRes) {
+        if (retryCount < 1) {
+          await new Promise((r) => setTimeout(r, 2000));
+          return refresh(retryCount + 1);
+        }
+        setError("Cannot load backtest data — backend may be down or unresponsive.");
+        setLoading(false);
+        return;
+      }
+
       if (s) setBtStatus(s);
       if (ing) setIngestion(ing);
       if (opt) setOptStatus(opt);
       if (runsRes) setRuns(runsRes.runs);
 
       // Parallel fetch of conditional data
-      const [r, exp, best] = await Promise.all([
-        s?.has_result ? getBacktestResults().catch(() => null) : Promise.resolve(null),
-        getOptimizerExperiments(opt?.run_id).catch(() => null),
-        getOptimizerBest().catch(() => null),
+      const [r, exp, best, optRunsRes] = await Promise.all([
+        s?.has_result ? getBacktestResults().catch((e) => { console.warn("getBacktestResults:", e.message); return null; }) : Promise.resolve(null),
+        opt?.status === "running"
+          ? getOptimizerExperiments(opt.run_id).catch((e) => { console.warn("getOptimizerExperiments:", e.message); return null; })
+          : getOptimizerExperiments(undefined, optRunIndex).catch((e) => { console.warn("getOptimizerExperiments:", e.message); return null; }),
+        getOptimizerBest().catch((e) => { console.warn("getOptimizerBest:", e.message); return null; }),
+        getOptimizerRuns().catch((e) => { console.warn("getOptimizerRuns:", e.message); return null; }),
       ]);
       if (r) setResults(r);
       if (exp) setOptExperiments(exp.experiments);
       if (best) setOptBest(best);
+      if (optRunsRes) setOptRuns(optRunsRes.runs);
 
       setError(null);
     } catch (e) {
@@ -159,7 +187,7 @@ export default function BacktestPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [optRunIndex]);
 
   // Lightweight status-only poll (no heavy data re-fetches)
   // When optimizer is running, also poll experiments for live chart updates
@@ -181,7 +209,9 @@ export default function BacktestPage() {
         if (exp) setOptExperiments(exp.experiments);
         if (best) setOptBest(best);
       }
-    } catch { /* swallow poll errors */ }
+    } catch {
+      // Swallow poll errors — the initial refresh already set error state if needed
+    }
   }, []);
 
   useEffect(() => {
@@ -262,6 +292,7 @@ export default function BacktestPage() {
 
   const handleStartOptimizer = async () => {
     setActionLoading("optimizer");
+    setTab("optimizer");
     try {
       await startOptimizer({ max_iterations: 100 });
       await refresh();
@@ -278,6 +309,38 @@ export default function BacktestPage() {
       await refresh();
     } catch {
       /* ignore */
+    }
+  };
+
+  const handleDeleteRun = async (runId: string) => {
+    try {
+      await deleteBacktestRun(runId);
+      setRuns((prev) => prev.filter((r) => r.run_id !== runId));
+      // If we deleted the currently viewed run, load the next one or clear
+      if (results?.run_id === runId) {
+        const remaining = runs.filter((r) => r.run_id !== runId);
+        if (remaining.length > 0) {
+          const data = await loadBacktestRun(remaining[0].run_id);
+          setResults(data);
+        } else {
+          setResults(null);
+        }
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleClearHistory = async () => {
+    if (!confirm("Delete all optimizer experiments and best params? This cannot be undone.")) return;
+    setActionLoading("clear-history");
+    try {
+      await deleteOptimizerHistory();
+      setOptRuns([]);
+      setOptRunIndex(0);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to clear history");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -308,7 +371,7 @@ export default function BacktestPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-100">Walk-Forward Backtest</h2>
@@ -341,6 +404,14 @@ export default function BacktestPage() {
         {error && (
           <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
             <p className="text-sm text-rose-300">{error}</p>
+            {error.includes("Cannot") && (
+              <p className="mt-1 text-xs text-rose-300/60">
+                Make sure the backend is running: <code className="rounded bg-rose-900/40 px-1.5 py-0.5 font-mono">uvicorn backend.main:app --port 8000</code>
+              </p>
+            )}
+            <button onClick={() => { setError(null); setLoading(true); refresh(); }} className="mt-2 rounded bg-rose-900/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/60">
+              Retry
+            </button>
           </div>
         )}
 
@@ -413,19 +484,53 @@ export default function BacktestPage() {
             ? Math.round((prog.cache_hits / totalCacheOps) * 100) : 0;
 
           return (
-            <div className="mb-6 rounded-xl border border-slate-700/60 bg-[#080f1e] p-5 shadow-xl">
-              {/* Header row */}
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
-                  </span>
-                  <span className="text-sm font-semibold text-slate-200">Walk-Forward Progress{btStatus?.engine_source === "optimizer" ? " (via Optimizer)" : ""}</span>
+            <details open className="group mb-6 rounded-xl border border-slate-700/60 bg-[#080f1e] shadow-xl">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
+                    </span>
+                    <span className="text-sm font-semibold text-slate-200">Walk-Forward Progress{btStatus?.engine_source === "optimizer" ? " (via Optimizer)" : ""}</span>
+                    <span className="text-xs text-slate-500">Step {currentStepIdx + 1}/{STEP_ORDER.length}</span>
+                  </div>
+                  {/* Optimizer step subtitle + metric pills */}
+                  {btStatus?.engine_source === "optimizer" && isOptRunning && optStatus && (
+                    <div className="flex flex-wrap items-center gap-1.5 pl-[18px]">
+                      {optStatus.current_step && (
+                        <span className="text-xs text-slate-500">
+                          {optStatus.current_step === "establishing_baseline" ? "Establishing Baseline"
+                            : optStatus.current_step === "running_experiment" ? "Running Experiment"
+                            : optStatus.current_step === "baseline_complete" ? "Baseline Complete"
+                            : optStatus.current_step === "evaluated" ? "Evaluated"
+                            : optStatus.current_step}
+                          {optStatus.current_detail ? ` — ${optStatus.current_detail}` : ""}
+                        </span>
+                      )}
+                      <span className="mx-1 hidden text-slate-700 sm:inline">|</span>
+                      <span className="rounded-full border border-slate-700 bg-slate-800/60 px-2 py-0.5 font-mono text-[11px] text-slate-300">Iter {optStatus.iterations}</span>
+                      <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 font-mono text-[11px] text-sky-300">{optStatus.best_sharpe?.toFixed(3) ?? "—"} Sharpe</span>
+                      <span className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${optStatus.best_dsr != null && optStatus.best_dsr >= 0.95 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-400"}`}>{optStatus.best_dsr?.toFixed(3) ?? "—"} DSR</span>
+                      {optStatus.kept > 0 && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[11px] text-emerald-400">{optStatus.kept} kept</span>}
+                      {optStatus.discarded > 0 && <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 font-mono text-[11px] text-rose-400">{optStatus.discarded} disc</span>}
+                    </div>
+                  )}
                 </div>
-                <span className="font-mono text-sm text-slate-400">{elapsedStr} elapsed</span>
-              </div>
-
+                <div className="flex flex-shrink-0 items-center gap-3">
+                  <span className="font-mono text-sm text-slate-400">{elapsedStr} elapsed</span>
+                  {btStatus?.engine_source === "optimizer" && (
+                    <button
+                      onClick={(e) => { e.preventDefault(); handleStopOptimizer(); }}
+                      className="flex items-center gap-1 rounded-md bg-rose-600/80 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-rose-500"
+                    >
+                      <Stop size={12} weight="fill" />
+                      Stop
+                    </button>
+                  )}
+                </div>
+              </summary>
+              <div className="px-5 pb-5">
               {/* Window rail + overall bar */}
               {totalW > 0 && (
                 <div className="mb-5">
@@ -568,61 +673,15 @@ export default function BacktestPage() {
                   <span>{(prog.cache_misses || 0).toLocaleString()} misses</span>
                 </div>
               )}
-            </div>
+              </div>
+            </details>
           );
         })()}
 
-        {/* Data ingestion summary */}
-        {ingestion && (
-          <div className="mb-6">
-            <div className="grid grid-cols-3 gap-3">
-              <Metric label="Price Rows" value={ingestion.historical_prices.toLocaleString()} />
-              <Metric label="Fundamental Rows" value={ingestion.historical_fundamentals.toLocaleString()} />
-              <Metric label="Macro Rows" value={ingestion.historical_macro.toLocaleString()} />
-            </div>
-            <p className="mt-2 text-xs text-slate-600">
-              Data: yfinance + FRED (free) &middot; BQ storage &lt;$0.05 &middot; Backtest: ML only, $0 LLM cost
-            </p>
-          </div>
-        )}
-
-        {/* Analytics summary */}
-        {a && (
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-            <Metric
-              label="Sharpe Ratio"
-              value={a.sharpe.toFixed(2)}
-              color={a.sharpe >= 1 ? "text-emerald-400" : a.sharpe >= 0 ? "text-sky-300" : "text-rose-400"}
-            />
-            <Metric
-              label="Deflated Sharpe"
-              value={a.deflated_sharpe.toFixed(2)}
-              color={a.deflated_sharpe >= 0.95 ? "text-emerald-400" : "text-amber-400"}
-              sub={a.deflated_sharpe >= 0.95 ? "PASS" : "FAIL"}
-            />
-            <Metric
-              label="Total Return"
-              value={`${a.total_return_pct >= 0 ? "+" : ""}${a.total_return_pct.toFixed(1)}%`}
-              color={a.total_return_pct >= 0 ? "text-emerald-400" : "text-rose-400"}
-            />
-            <Metric label="Hit Rate" value={`${(a.hit_rate * 100).toFixed(1)}%`} />
-            <Metric
-              label="Max Drawdown"
-              value={`${a.max_drawdown.toFixed(1)}%`}
-              color="text-rose-400"
-            />
-            <Metric
-              label="Alpha"
-              value={`${a.alpha >= 0 ? "+" : ""}${a.alpha.toFixed(1)}%`}
-              color={a.alpha >= 0 ? "text-emerald-400" : "text-rose-400"}
-            />
-          </div>
-        )}
-
         {loading && <PageSkeleton />}
 
-        {/* Run history selector */}
-        {runs.length > 1 && !loading && (
+        {/* Run history selector — only for results/equity/features tabs */}
+        {runs.length > 1 && !loading && tab !== "optimizer" && tab !== "insights" && (
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-slate-500">Previous runs:</span>
             <select
@@ -644,6 +703,18 @@ export default function BacktestPage() {
                 </option>
               ))}
             </select>
+            <button
+              onClick={() => {
+                const rid = results?.run_id;
+                if (!rid) return;
+                if (!confirm("Delete this backtest run?")) return;
+                handleDeleteRun(rid);
+              }}
+              className="rounded p-1 text-rose-500/70 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+              title="Delete selected run"
+            >
+              <XCircle size={16} weight="fill" />
+            </button>
           </div>
         )}
 
@@ -670,6 +741,53 @@ export default function BacktestPage() {
             {/* ═══ RESULTS TAB ═══ */}
             {tab === "results" && (
               <div className="space-y-6">
+                {/* Data ingestion summary */}
+                {ingestion && (
+                  <div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <Metric label="Price Rows" value={ingestion.historical_prices.toLocaleString()} />
+                      <Metric label="Fundamental Rows" value={ingestion.historical_fundamentals.toLocaleString()} />
+                      <Metric label="Macro Rows" value={ingestion.historical_macro.toLocaleString()} />
+                    </div>
+                    <p className="mt-2 text-xs text-slate-600">
+                      Data: yfinance + FRED (free) &middot; BQ storage &lt;$0.05 &middot; Backtest: ML only, $0 LLM cost
+                    </p>
+                  </div>
+                )}
+
+                {/* Analytics summary */}
+                {a && (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                    <Metric
+                      label="Sharpe Ratio"
+                      value={a.sharpe.toFixed(2)}
+                      color={a.sharpe >= 1 ? "text-emerald-400" : a.sharpe >= 0 ? "text-sky-300" : "text-rose-400"}
+                    />
+                    <Metric
+                      label="Deflated Sharpe"
+                      value={a.deflated_sharpe.toFixed(2)}
+                      color={a.deflated_sharpe >= 0.95 ? "text-emerald-400" : "text-amber-400"}
+                      sub={a.deflated_sharpe >= 0.95 ? "PASS" : "FAIL"}
+                    />
+                    <Metric
+                      label="Total Return"
+                      value={`${a.total_return_pct >= 0 ? "+" : ""}${a.total_return_pct.toFixed(1)}%`}
+                      color={a.total_return_pct >= 0 ? "text-emerald-400" : "text-rose-400"}
+                    />
+                    <Metric label="Hit Rate" value={`${(a.hit_rate * 100).toFixed(1)}%`} />
+                    <Metric
+                      label="Max Drawdown"
+                      value={`${a.max_drawdown.toFixed(1)}%`}
+                      color="text-rose-400"
+                    />
+                    <Metric
+                      label="Alpha"
+                      value={`${a.alpha >= 0 ? "+" : ""}${a.alpha.toFixed(1)}%`}
+                      color={a.alpha >= 0 ? "text-emerald-400" : "text-rose-400"}
+                    />
+                  </div>
+                )}
+
                 {/* Baselines comparison */}
                 {results?.baselines && (
                   <BentoCard>
@@ -681,6 +799,8 @@ export default function BacktestPage() {
                             <th className="px-3 py-2 text-slate-400">Strategy</th>
                             <th className="px-3 py-2 text-right text-slate-400">Return</th>
                             <th className="px-3 py-2 text-right text-slate-400">Sharpe</th>
+                            <th className="px-3 py-2 text-right text-slate-400">Excess Return</th>
+                            <th className="px-3 py-2 text-right text-slate-400">Sharpe Δ</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -692,18 +812,30 @@ export default function BacktestPage() {
                             <td className="px-3 py-2 text-right font-mono text-slate-200">
                               {a?.sharpe.toFixed(2) ?? "—"}
                             </td>
+                            <td className="px-3 py-2 text-right text-slate-500">—</td>
+                            <td className="px-3 py-2 text-right text-slate-500">—</td>
                           </tr>
-                          {Object.entries(results.baselines).map(([key, val]) => (
-                            <tr key={key} className="border-b border-slate-800">
-                              <td className="px-3 py-2 text-slate-400 capitalize">{key.replace(/_/g, " ")}</td>
-                              <td className="px-3 py-2 text-right font-mono text-slate-300">
-                                {val.total_return_pct >= 0 ? "+" : ""}{val.total_return_pct.toFixed(1)}%
-                              </td>
-                              <td className="px-3 py-2 text-right font-mono text-slate-300">
-                                {val.sharpe.toFixed(2)}
-                              </td>
-                            </tr>
-                          ))}
+                          {Object.entries(results.baselines).map(([key, val]) => {
+                            const retDelta = a ? a.total_return_pct - val.total_return_pct : null;
+                            const sharpeDelta = a ? a.sharpe - val.sharpe : null;
+                            return (
+                              <tr key={key} className="border-b border-slate-800">
+                                <td className="px-3 py-2 text-slate-400 capitalize">{key.replace(/_/g, " ")}</td>
+                                <td className="px-3 py-2 text-right font-mono text-slate-300">
+                                  {val.total_return_pct >= 0 ? "+" : ""}{val.total_return_pct.toFixed(1)}%
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono text-slate-300">
+                                  {val.sharpe.toFixed(2)}
+                                </td>
+                                <td className={`px-3 py-2 text-right font-mono ${retDelta != null ? (retDelta >= 0 ? "text-emerald-400" : "text-rose-400") : "text-slate-500"}`}>
+                                  {retDelta != null ? `${retDelta >= 0 ? "+" : ""}${retDelta.toFixed(1)}%` : "—"}
+                                </td>
+                                <td className={`px-3 py-2 text-right font-mono ${sharpeDelta != null ? (sharpeDelta >= 0 ? "text-emerald-400" : "text-rose-400") : "text-slate-500"}`}>
+                                  {sharpeDelta != null ? `${sharpeDelta >= 0 ? "+" : ""}${sharpeDelta.toFixed(2)}` : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -999,13 +1131,10 @@ export default function BacktestPage() {
                 {/* Optimizer controls */}
                 <div className="flex items-center gap-3">
                   {isOptRunning ? (
-                    <button
-                      onClick={handleStopOptimizer}
-                      className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-500"
-                    >
-                      <Stop size={16} weight="fill" />
-                      Stop Optimizer
-                    </button>
+                    <div className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 px-4 py-2">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
+                      <span className="text-sm text-slate-400">Optimizer running — see progress above ↑</span>
+                    </div>
                   ) : (
                     <button
                       onClick={handleStartOptimizer}
@@ -1018,29 +1147,59 @@ export default function BacktestPage() {
                     </button>
                   )}
                   <button
-                    onClick={refresh}
+                    onClick={() => refresh()}
                     className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:border-slate-600"
                   >
                     <ArrowClockwise size={16} />
                     Refresh
                   </button>
+                  {optExperiments.length > 0 && (
+                    <button
+                      onClick={handleClearHistory}
+                      disabled={!!actionLoading || isOptRunning}
+                      className="flex items-center gap-1.5 rounded-lg border border-rose-700/50 px-3 py-2 text-sm text-rose-400 hover:border-rose-600 hover:bg-rose-500/10 disabled:opacity-50"
+                    >
+                      <Trash size={16} />
+                      {actionLoading === "clear-history" ? "Clearing..." : "Clear History"}
+                    </button>
+                  )}
                 </div>
 
-                {/* Optimizer status */}
-                {optStatus && optStatus.status !== "idle" && (
+                {/* Optimizer run selector */}
+                {optRuns.length > 1 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-slate-500">Run:</label>
+                    <select
+                      value={optRunIndex}
+                      onChange={(e) => {
+                        const idx = Number(e.target.value);
+                        setOptRunIndex(idx);
+                      }}
+                      disabled={isOptRunning}
+                      className="rounded-lg border border-slate-700 bg-navy-800 px-3 py-1.5 text-sm text-slate-300 focus:border-sky-500 focus:outline-none disabled:opacity-50"
+                    >
+                      {optRuns.map((run) => (
+                        <option key={run.index} value={run.index}>
+                          {formatRunTimestamp(run.baseline_ts)} — Sharpe {parseFloat(run.baseline_sharpe).toFixed(3)} — {run.experiment_count} experiments
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Optimizer status — full cards only when NOT running (completed/error/stopped) */}
+                {optStatus && optStatus.status !== "idle" && optStatus.status !== "running" && (
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
                       <Metric
                         label="Status"
                         value={optStatus.status.toUpperCase()}
                         color={
-                          optStatus.status === "running"
-                            ? "text-sky-400"
-                            : optStatus.status === "completed"
-                              ? "text-emerald-400"
-                              : optStatus.status === "error"
-                                ? "text-rose-400"
-                                : "text-slate-300"
+                          optStatus.status === "completed"
+                            ? "text-emerald-400"
+                            : optStatus.status === "error"
+                              ? "text-rose-400"
+                              : "text-slate-300"
                         }
                       />
                       <Metric label="Iterations" value={String(optStatus.iterations)} />
@@ -1066,66 +1225,24 @@ export default function BacktestPage() {
                         {optStatus.traceback && (
                           <details className="mt-2">
                             <summary className="cursor-pointer text-xs text-rose-400/70 hover:text-rose-400">Show traceback</summary>
-                            <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2 font-mono text-[11px] leading-relaxed text-rose-300/70">{optStatus.traceback}</pre>
+                            <pre className="mt-1 max-h-64 overflow-auto scrollbar-thin whitespace-pre-wrap rounded bg-black/40 p-2 font-mono text-[11px] leading-relaxed text-rose-300/70">{optStatus.traceback}</pre>
                           </details>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Step indicator */}
-                    {optStatus.status === "running" && optStatus.current_step && (
-                      <div className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 px-4 py-2">
-                        <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
-                        <span className="text-sm font-medium text-sky-300">
-                          {optStatus.current_step === "establishing_baseline"
-                            ? "Establishing Baseline"
-                            : optStatus.current_step === "running_experiment"
-                              ? "Running Experiment"
-                              : optStatus.current_step === "evaluated"
-                                ? "Evaluated"
-                                : optStatus.current_step === "baseline_complete"
-                                  ? "Baseline Complete"
-                                  : optStatus.current_step}
-                        </span>
-                        {optStatus.current_detail && (
-                          <span className="truncate text-xs text-slate-400">
-                            — {optStatus.current_detail}
-                          </span>
                         )}
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Best experiment */}
-                {optBest && (
-                  <BentoCard>
-                    <h3 className="mb-3 text-lg font-semibold text-slate-300">Best Strategy</h3>
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                      <div>
-                        <p className="text-xs text-slate-500">Sharpe</p>
-                        <p className="font-mono text-lg font-bold text-emerald-400">{optBest.best_sharpe.toFixed(3)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500">DSR</p>
-                        <p className="font-mono text-lg font-bold text-sky-300">{optBest.best_dsr.toFixed(3)}</p>
-                      </div>
-                    </div>
-                  </BentoCard>
-                )}
-
                 {/* Karpathy progress chart */}
-                {optExperiments.length >= 2 && (
-                  <BentoCard>
-                    <OptimizerProgressChart experiments={optExperiments} />
-                  </BentoCard>
-                )}
+                <BentoCard>
+                  <OptimizerProgressChart experiments={optExperiments} />
+                </BentoCard>
 
                 {/* Experiments table */}
                 {optExperiments.length > 0 && (
                   <BentoCard>
                     <h3 className="mb-4 text-lg font-semibold text-slate-300">Experiment Log</h3>
-                    <div className="max-h-96 overflow-y-auto">
+                    <div className="max-h-96 overflow-y-auto scrollbar-thin">
                       <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-navy-800">
                           <tr className="border-b border-slate-700 text-left">

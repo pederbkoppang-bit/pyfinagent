@@ -220,7 +220,7 @@ function ReportsContent() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-slate-100">Reports</h2>
           <p className="text-sm text-slate-500">Browse past analyses or compare companies side-by-side</p>

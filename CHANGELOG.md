@@ -5,6 +5,333 @@ For architecture details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
+### v5.12.10 — Unified "One Truth" Optimizer Progress UI (March 2026)
+
+**Two progress bars + two stop buttons → single command center. The Walk-Forward banner is now the one source of truth for all running state.**
+
+1. **Optimizer metric pills in banner** — When optimizer is running, the banner `<summary>` header shows compact inline pills: Iteration count, Best Sharpe, Best DSR, Kept, Discarded. Uses `font-mono text-[11px]` pill style with color-coded borders (sky=Sharpe, emerald/amber=DSR threshold, emerald=kept, rose=discarded). Zero extra height — pills sit in the existing flex row.
+2. **Optimizer step subtitle in banner** — "Establishing Baseline" / "Running Experiment" + detail text rendered below the title inside `<summary>`, always visible even when `<details>` is collapsed.
+3. **Removed duplicate Optimizer tab controls** — Stop Optimizer button replaced with "Optimizer running — see progress above ↑" notice. 6-cell `<Metric>` cards + step indicator bar hidden while running (still shown for completed/error/stopped states). Chart + experiment table remain.
+4. **Auto-switch to Optimizer tab** — `handleStartOptimizer()` now calls `setTab("optimizer")` so the Karpathy chart is visible immediately when the optimizer starts.
+
+Design principle: Banner = single command center (always visible regardless of active tab). Optimizer tab = data-only (chart + experiment log). No duplicate stop buttons.
+
+Files changed:
+- `frontend/src/app/backtest/page.tsx` — banner summary, optimizer tab controls, handleStartOptimizer
+
+---
+
+### v5.12.9 — Fix Optimizer Experiment Logging Pipeline (March 2026)
+
+**Optimizer experiments were running successfully (UI showed iteration counts) but never appeared in the Experiment Log. Two independent bugs fixed: `run_id` mismatch suppressed API results, and TSV writes lacked error handling.**
+
+Root cause 1: `_log_experiment()` passed the wrong `run_id` — BASELINE rows used literal `"BASELINE"`, experiment rows used a random per-row UUID. The frontend filters by `run_id` from status callback (`self._run_id`), so **no experiments ever matched** the filter. The API's `run_id` filter also compared `run_id` column to `"BASELINE"` to detect baselines, which broke once run_id became a UUID.
+
+Root cause 2: `_log_experiment()` had no try/except or flush, so write failures were silent. The stale `quant_results.tsv` was open in VS Code with an unsaved edit, causing editor buffer conflicts that overwrote appended rows.
+
+1. **`run_id` consistency** — All `_log_experiment()` calls now pass `self._run_id` (warm-start baseline, cold-start baseline, experiment, crash handler). Every row in a run shares the same UUID, enabling proper per-run filtering.
+2. **API filter fix** — `get_optimizer_experiments(run_id=...)` now filters all rows by `run_id` column directly (all rows in a run share the same UUID). Fallback to last BASELINE if no match. Removed broken `"BASELINE"` string comparison.
+3. **Hardened TSV writes** — `_log_experiment()` wrapped in try/except with `logger.error()` on failure. Added `f.flush()` after write for reliable persistence on Windows. Debug-level log confirms each write.
+4. **TSV path logging** — Optimizer `__init__` logs the resolved TSV path for diagnostics.
+5. **TSV cleanup** — Removed stray editor artifact (`x`) from `quant_results.tsv`.
+
+Files changed:
+- `backend/backtest/quant_optimizer.py` — `_log_experiment()` hardened; all 4 call sites use `self._run_id`; TSV path logged at init
+- `backend/api/backtest.py` — `get_optimizer_experiments()` run_id filter simplified
+- `backend/backtest/experiments/quant_results.tsv` — removed stray `x` line
+
+---
+
+### v5.12.8 — Root Cleanup & Terminal Pollution Fix (March 2026)
+
+**Cleaned up 14 stale files from project root, merged two restart scripts into one, moved test utilities to `dev/`, and fixed terminal pollution from server output.**
+
+1. **Terminal pollution fix** — `restart.ps1` now launches servers via `cmd.exe /c` wrapper with `CreateNoWindow=true` and native file redirection (`>> log 2>&1`). Server output routes to `_backend.log` / `_frontend.log` persistently (no event handlers that die with the script session). Process tree kill uses recursive `Kill-Tree` via `Win32_Process` CIM + `.NET Process.Kill()`. If a port can't be freed but the service is healthy, it's reused instead of failing.
+1b. **Frontend hang fix** — The original `.NET RedirectStandardOutput` + `Register-ObjectEvent` approach caused Next.js to hang during compilation (port open but HTTP unresponsive). Switched to `cmd.exe` wrapper with native `>>` redirection which preserves proper I/O context. Health check now also verifies HTTP response (not just TCP port) and waits for first page compilation.
+2. **Root cleanup** — Deleted 14 cruft files (stale output dumps, superseded scripts, empty files). Removed `_do_restart.ps1` (merged into `restart.ps1`) and `_check.ps1`/`_check.py` (superseded).
+3. **Test utilities moved to `dev/`** — `t_backtest_mock.py`, `t_api_check.py`, `t_schema_test.py`, `t_vertex.py`, `_health_check.py` → `dev/` with README.
+4. **`.gitignore` updated** — Added `_backend.log`, `_frontend.log`, `_restart_log.txt`, `_health_result.txt`, `_cleanup.ps1`.
+5. **Bug fix: `$args` reserved variable** — `Start-Detached` parameter was named `$args` (a PowerShell automatic variable), causing arguments to be silently dropped. Renamed to `$argString`.
+
+Files changed:
+- `restart.ps1` — Full rewrite: detached launch, per-process log files, recursive tree kill
+- `.gitignore` — Added generated log file patterns
+- `dev/README.md` — New: usage instructions for moved test scripts
+- `_cleanup.ps1` — One-time migration script (run then delete)
+- Deleted: `_do_restart.ps1`, `_check.ps1`, `_check.py`, `_check_out2.txt`, `_check_output.txt`, `_port8000.txt`, `_restart_log_copy.txt`, `restart_output.txt`, `_test.txt`, `build_errors.txt`, `_health_result.txt`, `_restart_log.txt`, `port_check.txt`, `_diag.txt`
+
+---
+
+### v5.12.7 — Threadpool Isolation & Resilient Refresh (March 2026)
+
+**Optimizer/backtest run on a dedicated thread pool so API endpoints stay responsive during long runs. Module startup is faster (lazy-load). Frontend auto-retries once before showing the "backend down" error.**
+
+Root cause: `asyncio.to_thread(optimizer.run_loop, ...)` held a thread from the default executor for minutes, potentially starving other `to_thread()` callers (e.g. `get_ingestion_status`). Additionally, module-level `result_store.load_latest()` blocked every `--reload` restart with glob+sort I/O.
+
+1. **Dedicated `_heavy_executor`** — `ThreadPoolExecutor(max_workers=2, thread_name_prefix="bt-heavy")` for backtest engine and optimizer. `_run_backtest_async` and `_run_optimizer_async` now use `loop.run_in_executor(_heavy_executor, ...)` instead of `asyncio.to_thread()`. Default pool stays free for lightweight `to_thread()` calls.
+2. **Lazy-load `result_store.load_latest()`** — Replaced module-level auto-load with `_ensure_prev_loaded()` guard, called on first access from `get_backtest_status()` and `get_backtest_results()`. Cuts `--reload` restart latency since glob+sort no longer blocks module import.
+3. **Frontend auto-retry** — `refresh()` retries once after 2 seconds when ALL primary API calls fail, covering the brief window during backend `--reload` restarts. Shows the error banner only after the retry also fails.
+
+Files changed:
+- `backend/api/backtest.py` — dedicated executor, lazy-load, `functools.partial` for optimizer kwargs
+- `frontend/src/app/backtest/page.tsx` — `refresh(retryCount=0)` with auto-retry
+
+---
+
+### v5.12.6 — Purge In-Memory State on Clear (March 2026)
+
+**Clearing optimizer history now also resets in-memory backtest state, eliminating stale Sharpe/trades after deletion.**
+
+Bug: `DELETE /optimize/history` and `DELETE /runs/{run_id}` deleted files and cache but never cleared the module-level `_backtest_state["result"]` and `_previous_result`. The old result (e.g. Sharpe 17.19) persisted in Python memory, so the UI kept showing stale data — including missing trades from results that predated the trades feature.
+
+1. **`delete_optimizer_history()`** — now resets `_backtest_state["result"]`, `status`, `run_id`, `engine_source` to idle, and sets `_previous_result = None`.
+2. **`delete_backtest_run()`** — if the deleted `run_id` matches the currently displayed result or `_previous_result`, clears them.
+
+Files changed:
+- `backend/api/backtest.py` — clear in-memory state in both delete endpoints
+
+---
+
+### v5.12.5 — Deep Stop & Clean Slate (March 2026)
+
+**Optimizer stop now interrupts mid-backtest (between windows), clear history deletes result store JSONs, and new UX controls for run deletion and progress-bar stop.**
+
+Two critical bugs: (1) clearing optimizer history still left `results/*.json` files, so `_load_previous_best()` warm-started from stale Sharpe via `result_store.load_latest()` fallback; (2) the stop button only took effect between optimizer iterations — a single backtest (8 windows, 3-5 min) couldn't be interrupted.
+
+1. **Clear history deletes result store** — `DELETE /optimize/history` now also removes all `experiments/results/*.json` files and invalidates `backtest:runs*` cache. Prevents warm-start from stale standalone backtest results.
+2. **Engine-level stop check** — `BacktestEngine` gains `stop_check: Callable[[], bool] | None` attribute, checked between windows in `run_backtest()`. Optimizer wires its `stop_check` to `engine.stop_check` at start of `run_loop()`, plus a pre-baseline guard.
+3. **Delete run button** — Red `XCircle` button next to "Previous runs" dropdown. Deletes the currently viewed run via `deleteBacktestRun()` with confirm dialog; updates state to show next available run.
+4. **Progress banner stop** — Walk-Forward Progress `<summary>` now shows a "Stop" button (rose accent) when `engine_source === "optimizer"`. Uses `e.preventDefault()` to avoid toggling the details panel.
+
+Files changed:
+- `backend/backtest/backtest_engine.py` — `stop_check` attribute + between-window break
+- `backend/backtest/quant_optimizer.py` — wires `stop_check` to engine, pre-baseline guard
+- `backend/api/backtest.py` — clear history deletes `results/*.json`, invalidates `backtest:runs*`
+- `frontend/src/app/backtest/page.tsx` — `XCircle` delete button, `handleDeleteRun()`, Stop button in progress banner
+
+---
+
+### v5.12.4 — Optimizer Run Selector (March 2026)
+
+**Experiment log and chart now filter to the selected optimizer run. Users can switch between historical runs via a dropdown.**
+
+Previously all experiments (across multiple baselines) were shown together. Now each BASELINE row marks the start of a new "run", and the UI defaults to the latest run. A dropdown lets users switch between runs to compare different optimization sessions.
+
+1. **Backend** — `GET /optimize/runs` returns run summaries (baseline timestamp, Sharpe, experiment count, kept/discarded). `GET /optimize/experiments` gains `run_index` parameter (0=latest); defaults to latest run when no filter specified.
+2. **Frontend types** — `OptimizerRunSummary` interface added.
+3. **Frontend API** — `getOptimizerRuns()` function; `getOptimizerExperiments()` updated to accept optional `runIndex`.
+4. **Frontend UI** — Run selector dropdown in Optimizer tab (shows when >1 run exists and optimizer is idle). Changing run re-fetches experiments + chart. During live runs, polling uses the current `run_id`; on completion, switches to indexed view.
+5. **Layout fix** — "Previous runs" dropdown (backtest runs) now hidden on Optimizer and Insights tabs to avoid confusion with the optimizer run selector. `formatRunTimestamp()` enhanced to handle full ISO 8601 timestamps (not just compact format).
+
+Files changed:
+- `backend/api/backtest.py` — `GET /optimize/runs`, rewritten `GET /optimize/experiments`
+- `frontend/src/lib/types.ts` — `OptimizerRunSummary` interface
+- `frontend/src/lib/api.ts` — `getOptimizerRuns()`, updated `getOptimizerExperiments()`
+- `frontend/src/app/backtest/page.tsx` — `optRuns`/`optRunIndex` state, run selector dropdown, filtered refresh
+
+---
+
+### v5.12.3 — Clear Optimizer History (March 2026)
+
+**Optimizer tab now has a "Clear History" button to delete stale baselines/experiments after code changes.**
+
+After the v5.12.2 Sharpe/DSR fixes, old baselines with inflated Sharpe (~17) and DSR=0.0 remain in the TSV log. Starting a new optimizer run would warm-start from these invalid values. This adds a way to wipe the slate clean.
+
+1. **Backend** — `DELETE /api/backtest/optimize/history` deletes `quant_results.tsv` and `optimizer_best.json`, then invalidates cached API responses.
+2. **Frontend API** — `deleteOptimizerHistory()` function in `api.ts`.
+3. **Frontend UI** — "Clear History" button (Trash icon, rose accent) appears in Optimizer tab when experiments exist and optimizer is not running. Confirms via `window.confirm()` before deleting.
+
+Files changed:
+- `backend/api/backtest.py` — new `DELETE /optimize/history` endpoint
+- `frontend/src/lib/api.ts` — `deleteOptimizerHistory()` function
+- `frontend/src/app/backtest/page.tsx` — Clear History button + handler
+
+---
+
+### v5.12.2 — Optimizer Fix: Daily Mark-to-Market, Frequency-Aware Sharpe, Trader State Reset (March 2026)
+
+**All optimizer experiments were discarded because Sharpe was inflated (~17 instead of ~1), DSR was always 0.0, and trader state leaked between iterations. Four interconnected bugs fixed, validated against academic literature (Lo 2002, Bailey & López de Prado 2014, Sharpe 1994).**
+
+#### Bug 1: Sparse NAV → Inflated Sharpe
+`_run_window()` called `mark_to_market()` only once at test-end, producing ~8 NAV snapshots across 8 windows. Applying √252 annualization to near-monthly returns inflated Sharpe by an order of magnitude (Lo 2002 proves √T rule requires IID returns at matching frequency).
+
+**Fix**: Daily mark-to-market loop — iterates every business day via `pd.bdate_range(test_start, test_end)`, fetches daily close prices from cache, and calls `mark_to_market()` for each day with active positions. Produces ~60-90 snapshots per window (~500+ total), making √252 annualization statistically valid.
+
+#### Bug 2: DSR Always 0.0 (Cascading from Bug 1)
+With only 8 total snapshots, `compute_deflated_sharpe()` hit its T<10 safety guard and returned 0.0. Every experiment failed the DSR ≥ 0.95 gate.
+
+**Fix**: With ~500+ daily returns from Bug 1 fix, T>>10 so DSR now computes meaningful values. No code change needed in DSR itself.
+
+#### Bug 3: Trader State Contamination Across Optimizer Iterations
+`reset()` only cleared positions but preserved `trades`, `snapshots`, and `total_commission`. Optimizer iterations appended returns on top of prior state, violating the independence assumption required by DSR (Bailey & López de Prado 2014).
+
+**Fix**: Added `full_reset()` to `BacktestTrader` (resets cash, positions, trades, snapshots, commission to initial state). Called at the start of every `run_backtest()` so each optimizer iteration starts with a clean slate. Between-window `reset()` kept intact.
+
+#### Bug 4: Optimizer Logged Wrong Params
+`_log_experiment()` always serialized `self.best_params` instead of the trial's actual params. Every TSV row showed identical params regardless of what was tested.
+
+**Fix**: `_log_experiment()` now accepts optional `trial_params` dict and serializes it when provided. Both success and crash call sites pass `trial_params=trial_params`.
+
+Files changed:
+- `backend/backtest/backtest_engine.py` — daily mark-to-market loop + `full_reset()` call
+- `backend/backtest/backtest_trader.py` — `full_reset()` method
+- `backend/backtest/analytics.py` — `periods_per_year` param on `compute_sharpe()`
+- `backend/backtest/quant_optimizer.py` — `trial_params` in `_log_experiment()`
+
+---
+
+### v5.12.1 — Event Loop Unblocking: Async-Safe API Endpoints (March 2026)
+
+**Backend no longer freezes when multiple API calls hit sync I/O simultaneously. Prevents the "backend port open but all HTTP requests hang" scenario.**
+
+Root cause: ~20 `async def` endpoints were calling synchronous BigQuery, yfinance, and file I/O directly on the event loop. When several requests arrived concurrently (e.g., dashboard polling), each sync call blocked the entire event loop for 200ms–5s, causing cascading timeouts and full server freezes.
+
+#### Fixes
+1. **`charts.py`** — Wrapped `yfinance_tool.get_price_history()` and `get_comprehensive_financials()` in `asyncio.to_thread()`.
+2. **`reports.py`** — Wrapped all BigQuery calls (`get_recent_reports`, `get_cost_history`, `get_latest_report_json`, `get_report`, `get_performance_summary`, `evaluate_all_pending`) in `asyncio.to_thread()`.
+3. **`paper_trading.py`** — Wrapped all BigQuery calls (`get_paper_portfolio`, `get_paper_trades`, `get_paper_snapshots`, `get_positions`, `get_or_create_portfolio`) in `asyncio.to_thread()`.
+4. **`backtest.py`** — Wrapped `get_ingestion_status()` in `asyncio.to_thread()`. Converted 6 sync-only endpoints (`get_optimizer_experiments`, `get_optimizer_best`, `list_backtest_runs`, `get_backtest_run`, `delete_backtest_run`, `get_optimizer_insights`) from `async def` → `def` so FastAPI auto-runs them in its threadpool.
+5. **`performance_api.py`** — Converted `get_optimizer_experiments` from `async def` → `def`.
+
+Files changed:
+- `backend/api/charts.py` — `asyncio.to_thread()` for yfinance calls
+- `backend/api/reports.py` — `asyncio.to_thread()` for BigQuery calls
+- `backend/api/paper_trading.py` — `asyncio.to_thread()` for BigQuery calls
+- `backend/api/backtest.py` — `asyncio.to_thread()` + `def` endpoints for sync I/O
+- `backend/api/performance_api.py` — `def` for sync TSV reader
+
+---
+
+### v5.12.0 — Error Visibility + Logging Cleanup (March 2026)
+
+**Pages no longer show blank skeletons forever when the backend is down or unresponsive. Backend terminal noise reduced.**
+
+#### Frontend — Error Surfacing
+1. **`apiFetch` 30s timeout** — Added `AbortController` with 30-second timeout to the central `apiFetch()` function. If the backend hangs (e.g. event loop blocked by CPU-bound backtest), requests now fail with a clear "timed out after 30 seconds" error instead of hanging forever.
+2. **Backtest page** — When ALL 4 primary API calls fail, shows error banner with retry button instead of blank data cards. Individual `.catch` still returns null for graceful degradation when only some endpoints fail.
+3. **Paper-trading page** — Added backend-hint text and retry button to the existing error banner.
+4. **Settings page** — Replaced 3 independent `.catch(() => {})` calls with `Promise.all` + `loadError` state. Shows error banner with retry instead of permanent skeleton when `getFullSettings()` fails.
+5. **Dashboard (Home)** — Added `loadError` state. When all 3 `Promise.allSettled` calls reject, shows error banner instead of silent dashes.
+6. **Analyze page** — Polling now counts consecutive failures; after 5 failures stops polling and shows error message instead of spinning forever.
+
+#### Backend — Logging Cleanup
+7. **`LOG_LEVEL` setting** — New `LOG_LEVEL` env var (default: `INFO`) controls backend verbosity. Set `LOG_LEVEL=WARNING` for quiet terminals.
+8. **Compact terminal formatter** — Replaced verbose JSON log format with a compact colored one-liner: `HH:MM:SS L [module] message`. JSON format retained when `DEBUG=true`.
+9. **Polling endpoint noise filter** — Uvicorn access logs now suppress high-frequency polling endpoints (`/api/backtest/status`, `/api/optimizer/status`, `/api/health`, etc.) that were flooding terminals with 6KB+ of noise during backtest runs.
+
+Files changed:
+- `frontend/src/lib/api.ts` — AbortController timeout
+- `frontend/src/app/backtest/page.tsx` — error detection + retry
+- `frontend/src/app/paper-trading/page.tsx` — retry button + hint
+- `frontend/src/app/settings/page.tsx` — loadError state + retry
+- `frontend/src/app/page.tsx` — loadError on dashboard
+- `frontend/src/app/analyze/page.tsx` — poll failure counter
+- `backend/main.py` — CompactFormatter, QuietAccessFilter, configurable log level
+- `backend/config/settings.py` — `log_level` setting
+
+---
+
+### v5.11.9 — Fix Optimizer Chart: TSV Column Mismatch (March 2026)
+
+**Optimizer Progress chart showed empty state despite 20+ experiments existing.**
+
+Root cause: The TSV writer (`quant_optimizer.py`) was updated to write 10 columns (added `params_json`), but the on-disk `quant_results.tsv` header still had 9 columns from a prior run. The API parser required `len(values) == len(header)`, silently dropping all 10-column rows.
+
+1. **TSV parser** — Changed `==` to `>=` in three places (`backtest.py` experiments + best, `performance_api.py`) so rows with extra columns are parsed (extra fields ignored by `zip`).
+2. **TSV header** — Updated on-disk `quant_results.tsv` header to include the `params_json` column, matching the writer's 10-column schema.
+
+Files changed:
+- `backend/api/backtest.py` — `>=` in experiments + best parsers
+- `backend/api/performance_api.py` — `>=` in experiments parser
+- `backend/backtest/experiments/quant_results.tsv` — header updated to 10 columns
+
+---
+
+### v5.11.8 — Backtest Layout Overhaul: Collapsible Progress, Tab-Scoped Metrics, Always-Visible Chart (March 2026)
+
+**Applies the Phase 6 layout blueprint to the backtest page — reclaims viewport, enforces the 6-tier page anatomy.**
+
+1. **Collapsible `<details>` progress panel** — The walk-forward progress timeline now uses native HTML `<details>`/`<summary>` instead of a static block. Auto-opens when running, user can collapse to a single summary line (status dot + "Walk-Forward Progress" + step count + elapsed time). Reclaims ~40% viewport that was previously locked to the timeline. Follows blueprint Section 5.
+2. **Ingestion metrics + analytics summary moved into Results tab** — The 3 ingestion cards (Price/Fundamental/Macro Rows) and 6 analytics cards (Sharpe, DSR, Return, Hit Rate, Max DD, Alpha) now render inside the Results tab content area instead of above the tab bar. When viewing Optimizer or other tabs, these irrelevant metrics no longer consume space. Follows blueprint Section 2 rule: "Only globally relevant content lives above the tab bar."
+3. **OptimizerProgressChart always visible** — Removed the `optExperiments.length > 0` guard so the chart's built-in empty-state placeholder (from v5.11.6) is always visible on the Optimizer tab, providing orientation before experiments start.
+
+Layout impact: Tab content now starts ~30% higher on the page. Optimizer tab chart is immediately visible without scrolling.
+
+Files changed:
+- `frontend/src/app/backtest/page.tsx` — collapsible details, tab-scoped metrics, chart guard removal
+
+---
+
+### v5.11.7 — Layout Blueprint Instruction File (March 2026)
+
+**New instruction file pair codifying research-backed layout rules for all frontend pages.**
+
+1. **`frontend-layout.instructions.md` + `.claude/rules/frontend-layout.md`** — 8-section layout blueprint covering: Page Shell, 6-Tier Page Anatomy, Metric Grids, Tab Bar conventions, Collapsible Sections (`<details>`/`<summary>`), Content Blocks, Empty States & Loading, and 10 Information Hierarchy Principles (Tufte, Few, Shneiderman, Cleveland & McGill, Bach et al., QuantConnect, FreqUI, Grafana).
+2. **New Page Template** — Copy-paste skeleton with all 6 tiers annotated.
+3. **Cross-references** — Added from `frontend.instructions.md`, `.claude/rules/frontend.md`, and `UX-AGENTS.md` Design System section.
+
+Files changed:
+- `.github/instructions/frontend-layout.instructions.md` (NEW)
+- `.claude/rules/frontend-layout.md` (NEW)
+- `.github/instructions/frontend.instructions.md`, `.claude/rules/frontend.md` — cross-reference added
+- `UX-AGENTS.md` — Layout Blueprint subsection in Design System
+
+---
+
+### v5.11.6 — Backtest UI Polish: Scrollbar Consistency, Delta Columns, Dedup (March 2026)
+
+**Research-backed UI cleanup applying Tufte, Cleveland & McGill, Shneiderman, and Bach et al. dashboard design principles.**
+
+1. **Global `scrollbar-thin`** — All 10 page `<main>` elements now use the custom `.scrollbar-thin` class from `globals.css` (6 px zinc-700 thumb, transparent track). Also added to the optimizer Experiment Log container and error traceback `<pre>`. Eliminates jarring browser-default scrollbars.
+2. **Baselines table delta columns** — "Strategy vs Baselines" table in the Results tab now has two new columns: **Excess Return** and **Sharpe Δ**. Each baseline row shows the delta vs the ML strategy, color-coded emerald (positive) / rose (negative). ML row shows "—" as the reference. Applies Cleveland & McGill's position-on-common-scale principle.
+3. **Removed redundant Best Strategy card** — Sharpe and DSR were displayed 3×: Analytics Summary, Optimizer Status Grid, and Best Strategy card. The standalone card was removed. Status Grid retains Best Sharpe + Best DSR metrics.
+4. **Optimizer chart empty-state** — `OptimizerProgressChart` now shows a dashed-border placeholder with icon and guidance text when < 2 experiments exist, instead of silently returning null (Shneiderman's "Overview first" mantra).
+
+Files changed:
+- `frontend/src/app/*/page.tsx` (all 10 pages) — `scrollbar-thin` on `<main>`
+- `frontend/src/app/backtest/page.tsx` — delta columns, Best Strategy card removal, inner scrollbar-thin
+- `frontend/src/components/OptimizerProgressChart.tsx` — empty-state placeholder
+- `UX-AGENTS.md`, `CHANGELOG.md`, `.claude/rules/frontend.md`
+
+---
+
+### v5.11.5 — Hardened restart.ps1 Script (March 2026)
+
+**Problem: restart script left zombie processes on port 3000 → `EADDRINUSE`; TCP-only health checks missed backend startup failures.**
+
+1. **HTTP health checks** — backend health verified via `GET /api/health` with per-request 5 s timeout (replaces TCP-only check). Frontend still uses TCP.
+2. **Backtest data validation** — new step 5 calls `/api/backtest/status` and confirms `has_result: true`, ensuring metric cards will display data after restart.
+3. **Aggressive kill retry** — `Wait-PortFree` retries `Kill-PortProcesses` every 2.5 s if port is still held; `Kill-PortProcesses` falls back to `Stop-Process` if `taskkill` fails.
+4. **Orphan cleanup** — kills stale `python` (uvicorn) and `node` (next dev) processes by command-line match, catching zombies that released the port but still occupy resources.
+5. **Port-guarded startup** — backend/frontend only launch if their port is confirmed free; previously would `Start-Process` into an `EADDRINUSE` error.
+
+---
+
+### v5.11.4 — Fix Empty Metric Cards During / After Backtest Run (March 2026)
+
+**Bug: backtest metric cards showed blank values while a run was in progress.**
+Root cause: when a new backtest (or optimizer) run starts, `_backtest_state["result"]`
+was set to `None`, causing `has_result=false` and the frontend to skip fetching
+results entirely — even though a previous result existed on disk.
+
+1. **Preserved previous result in `_previous_result` stash** — before clearing state
+   for a new run, the current result is stashed. `/api/backtest/status` reports
+   `has_result=true` as long as either current or stashed result exists, and
+   `/api/backtest/results` serves the stashed result as a fallback while the new
+   run is in progress.
+
+2. **`/results/{window_id}` also uses fallback** — per-window detail endpoint now
+   checks `_backtest_state["result"] or _previous_result`.
+
+3. **`_previous_result` cleared on completion** — once the new run completes and
+   sets a fresh result, the stale copy is discarded.
+
+Files changed:
+- `backend/api/backtest.py` — added `_previous_result` stash, updated `/status`,
+  `/results`, `/results/{window_id}`, `run_backtest()`, optimizer `on_result()`
+
+---
+
 ### v5.11.3 — Fix Missing Trades in Backtest Results (March 2026)
 
 **Bug: trades never appeared in report JSON or Results tab.**
@@ -498,7 +825,7 @@ Expanded the walk-forward backtesting engine from a single Triple Barrier strate
 *   `trading_agent.md` — Added Section 6 (Strategy Research) and Section 7 (Phase 5 Implementation Plan)
 
 **New Test File**:
-*   `t_backtest_mock.py` — Mock-test script: 20 synthetic tickers × 2y GBM prices, monkey-patched cache (no BQ), exercises all 5 strategies through full walk-forward pipeline, validates feature vectors, labels, candidate selection, optimizer helpers, and model staleness tracking. 6 test functions, all passing
+*   `dev/t_backtest_mock.py` (was `t_backtest_mock.py`) — Mock-test script: 20 synthetic tickers × 2y GBM prices, monkey-patched cache (no BQ), exercises all 5 strategies through full walk-forward pipeline, validates feature vectors, labels, candidate selection, optimizer helpers, and model staleness tracking. 6 test functions, all passing
 
 **Updated Feature Vector (~49 features)**:
 | Category | Features |

@@ -20,6 +20,7 @@ import type {
   OptimizerBest,
   OptimizerExperiment,
   OptimizerInsights,
+  OptimizerRunSummary,
   OptimizerStatus,
   PaperPerformance,
   PaperPortfolio,
@@ -71,13 +72,25 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // Timeout: abort fetch after 30 seconds to prevent infinite hangs
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...init,
       headers,
+      signal: init?.signal ?? controller.signal,
     });
   } catch (err) {
+    // Abort / timeout
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(
+        `Request to ${path} timed out after 30 seconds. ` +
+        "The backend may be overloaded or unresponsive."
+      );
+    }
     // Network-level failure (CORS, DNS, refused, etc.)
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
@@ -87,6 +100,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       );
     }
     throw new Error(`Network error calling ${path}: ${msg}`);
+  } finally {
+    clearTimeout(timeoutId);
   }
   if (!res.ok) {
     // 401 → redirect to login
@@ -324,13 +339,24 @@ export function getOptimizerStatus(): Promise<OptimizerStatus> {
   return apiFetch("/api/backtest/optimize/status");
 }
 
-export function getOptimizerExperiments(runId?: string): Promise<{ experiments: OptimizerExperiment[] }> {
-  const params = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+export function getOptimizerExperiments(runId?: string, runIndex?: number): Promise<{ experiments: OptimizerExperiment[] }> {
+  const qs = new URLSearchParams();
+  if (runId) qs.set("run_id", runId);
+  if (runIndex !== undefined) qs.set("run_index", String(runIndex));
+  const params = qs.toString() ? `?${qs}` : "";
   return apiFetch(`/api/backtest/optimize/experiments${params}`);
 }
 
 export function getOptimizerBest(): Promise<OptimizerBest> {
   return apiFetch("/api/backtest/optimize/best");
+}
+
+export function getOptimizerRuns(): Promise<{ runs: OptimizerRunSummary[] }> {
+  return apiFetch("/api/backtest/optimize/runs");
+}
+
+export function deleteOptimizerHistory(): Promise<{ status: string; files: string[] }> {
+  return apiFetch("/api/backtest/optimize/history", { method: "DELETE" });
 }
 
 export function getOptimizerInsights(): Promise<OptimizerInsights> {

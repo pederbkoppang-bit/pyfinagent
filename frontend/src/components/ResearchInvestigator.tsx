@@ -66,7 +66,7 @@ export function ResearchInvestigator({ ticker }: { ticker: string }) {
       {/* Messages area */}
       <div
         ref={scrollRef}
-        className="flex-1 space-y-3 overflow-y-auto rounded-lg bg-slate-900/50 p-3"
+        className="flex-1 space-y-3 overflow-y-auto scrollbar-thin rounded-lg bg-slate-900/50 p-3"
         style={{ maxHeight: "calc(100% - 6rem)", minHeight: 200 }}
       >
         {messages.length === 0 && (

@@ -8,6 +8,7 @@ Zero LLM cost.
 import json
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
@@ -218,6 +219,7 @@ class BacktestEngine:
         )
 
         self.progress_callback = progress_callback
+        self.stop_check: Callable[[], bool] | None = None
         self._backtest_start_time: float = 0.0
         self._total_windows: int = 0
         self._current_window_id: int = 0
@@ -257,6 +259,10 @@ class BacktestEngine:
         # Auto-ingest check: if historical_prices is empty, trigger ingestion
         self._auto_ingest_if_needed(universe_tickers)
 
+        # Reset trader for a clean independent run (critical for optimizer —
+        # each trial must be independent per Bailey & López de Prado, 2014)
+        self.trader.full_reset()
+
         windows = self.scheduler.generate_windows()
         self._total_windows = len(windows)
         self._backtest_start_time = time.time()
@@ -274,6 +280,11 @@ class BacktestEngine:
         all_mda = {}
 
         for window in windows:
+            # Check stop signal between windows
+            if self.stop_check and self.stop_check():
+                logger.info("BacktestEngine: stopped at window %d/%d", window.window_id, len(windows))
+                break
+
             self._report_progress(
                 "screening",
                 f"Window {window.window_id}/{len(windows)} — screening candidates",
@@ -437,14 +448,29 @@ class BacktestEngine:
             executed = self.trader.execute_trades(signals, test_start_str, prices)
             logger.info(f"Window {wid}: {len(executed)} trades from {len(signals)} signals (BUY={sum(1 for s in signals if s['label']==1)}, SELL={sum(1 for s in signals if s['label']==-1)}, HOLD={sum(1 for s in signals if s['label']==0)})")
 
-        # 8. Mark to market at test end and close positions
+        # 8. Daily mark-to-market through the test window
+        # Per Lo (2002): Sharpe annualization requires matching return frequency.
+        # We need daily NAV snapshots so √252 annualization is correct and DSR
+        # has sufficient T (Bailey & López de Prado, 2014).
+        active_tickers = list(set(list(self.trader.positions.keys()) + test_tickers))
+        test_days = pd.bdate_range(test_start_str, test_end_str)
+        for day in test_days:
+            day_str = day.strftime("%Y-%m-%d")
+            day_prices = {}
+            for ticker in active_tickers:
+                p = cache.cached_prices(ticker, day_str, day_str)
+                if not p.empty:
+                    day_prices[ticker] = float(p["close"].iloc[-1])
+            if day_prices and self.trader.positions:
+                self.trader.mark_to_market(day_str, day_prices)
+
+        # Final mark + close at test end
         end_prices = {}
-        for ticker in list(self.trader.positions.keys()) + test_tickers:
+        for ticker in active_tickers:
             p = cache.cached_prices(ticker, test_end_str, test_end_str)
             if not p.empty:
                 end_prices[ticker] = float(p["close"].iloc[-1])
 
-        self.trader.mark_to_market(test_end_str, end_prices)
         self.trader.close_all_positions(test_end_str, end_prices)
 
         # Actual trades = entries + exits in this window

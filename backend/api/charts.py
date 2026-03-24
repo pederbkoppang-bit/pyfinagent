@@ -2,6 +2,7 @@
 Charts API — price history and financial data for frontend visualization.
 """
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
@@ -19,7 +20,7 @@ async def get_price_history(
 ):
     """Return OHLCV price history for the given ticker."""
     try:
-        rows = yfinance_tool.get_price_history(ticker.upper(), period=period)
+        rows = await asyncio.to_thread(yfinance_tool.get_price_history, ticker.upper(), period=period)
         if not rows:
             raise HTTPException(status_code=404, detail=f"No price data for {ticker}")
         # Convert timestamps to ISO strings for JSON serialization
@@ -41,7 +42,7 @@ async def get_price_history(
 async def get_financials(ticker: str):
     """Return yfinance fundamental data (valuation, efficiency, health, institutional)."""
     try:
-        data = yfinance_tool.get_comprehensive_financials(ticker.upper())
+        data = await asyncio.to_thread(yfinance_tool.get_comprehensive_financials, ticker.upper())
         if "error" in data:
             raise HTTPException(status_code=502, detail=data["error"])
         return data

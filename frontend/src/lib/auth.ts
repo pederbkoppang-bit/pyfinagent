@@ -13,4 +13,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [...(authConfig.providers || []), Passkey],
   adapter: PrismaAdapter(prisma),
   experimental: { enableWebAuthn: true },
+  logger: {
+    error: (code, ...message) => console.error(`[auth][error][${code}]`, ...message),
+    warn: (code) => {
+      if (code === "experimental-webauthn") return; // suppress known noise
+      console.warn(`[auth][warn][${code}]`);
+    },
+  },
 });

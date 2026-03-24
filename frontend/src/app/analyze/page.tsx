@@ -67,9 +67,11 @@ export default function AnalyzePage() {
       setAnalysisId(res.analysis_id);
 
       // Start polling every 3 seconds
+      let pollFailures = 0;
       pollRef.current = setInterval(async () => {
         try {
           const s = await getAnalysisStatus(res.analysis_id);
+          pollFailures = 0; // reset on success
           setStatus(s);
 
           if (s.status === "completed") {
@@ -90,7 +92,13 @@ export default function AnalyzePage() {
             setLoading(false);
           }
         } catch (e) {
-          // Network hiccup — keep polling
+          pollFailures++;
+          if (pollFailures >= 5) {
+            clearInterval(pollRef.current!);
+            pollRef.current = null;
+            setError(e instanceof Error ? e.message : "Lost connection to backend. Please retry.");
+            setLoading(false);
+          }
         }
       }, 3000);
     } catch (e: unknown) {
@@ -103,7 +111,7 @@ export default function AnalyzePage() {
     <div className="flex min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
         {/* Compact header + ticker input */}
         <div className="mb-6 flex items-center gap-4">
           <h2 className="text-xl font-bold text-slate-100">Deep Analysis</h2>

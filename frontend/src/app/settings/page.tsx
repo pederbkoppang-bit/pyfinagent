@@ -300,6 +300,7 @@ export default function SettingsPage() {
   const [costData, setCostData] = useState<LatestCostSummary | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Local form state (mirrors settings for unsaved changes)
   const [form, setForm] = useState<Partial<FullSettings>>({});
@@ -315,16 +316,20 @@ export default function SettingsPage() {
   const [cacheClearMsg, setCacheClearMsg] = useState<string | null>(null);
   const [perfExperiments, setPerfExperiments] = useState<PerfExperiment[]>([]);
 
-  useEffect(() => {
-    getFullSettings()
-      .then((s) => {
-        setSettings(s);
-        setForm(s);
-      })
-      .catch(() => {});
-    getAvailableModels().then(setModels).catch(() => {});
-    getLatestCostSummary().then(setCostData).catch(() => {});
+  const loadSettings = useCallback(() => {
+    setLoadError(null);
+    Promise.all([
+      getFullSettings().then((s) => { setSettings(s); setForm(s); }),
+      getAvailableModels().then(setModels),
+      getLatestCostSummary().then(setCostData),
+    ]).catch((e) => {
+      setLoadError(e instanceof Error ? e.message : "Failed to load settings — backend may be down.");
+    });
   }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   // Fetch performance data when Performance tab is active
   const refreshPerfData = useCallback(async () => {
@@ -494,7 +499,21 @@ export default function SettingsPage() {
       <div className="flex min-h-screen">
         <Sidebar />
         <main className="flex-1 p-8">
-          <PageSkeleton />
+          {loadError ? (
+            <div className="rounded-lg border border-rose-900 bg-rose-950/50 p-4">
+              <p className="text-sm font-medium text-rose-200">{loadError}</p>
+              {loadError.includes("Cannot reach") && (
+                <p className="mt-1 text-xs text-rose-300/60">
+                  Make sure the backend is running: <code className="rounded bg-rose-900/40 px-1.5 py-0.5 font-mono">uvicorn backend.main:app --port 8000</code>
+                </p>
+              )}
+              <button onClick={loadSettings} className="mt-2 rounded bg-rose-900/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/60">
+                Retry
+              </button>
+            </div>
+          ) : (
+            <PageSkeleton />
+          )}
         </main>
       </div>
     );
@@ -503,7 +522,7 @@ export default function SettingsPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-100">Settings</h2>

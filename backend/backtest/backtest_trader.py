@@ -243,3 +243,16 @@ class BacktestTrader:
         self.positions.clear()
         # Don't reset cash — it carries forward from closed positions
         # Don't reset trades/snapshots — they accumulate across windows
+
+    def full_reset(self):
+        """Full reset for a new independent backtest run.
+
+        Per Bailey & López de Prado (2014), each optimizer trial must be an
+        independent measurement. This resets ALL state so successive
+        run_backtest() calls don't contaminate each other's returns.
+        """
+        self.cash = self.starting_capital
+        self.positions.clear()
+        self.trades.clear()
+        self.snapshots.clear()
+        self.total_commission = 0.0

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # --- Application ---
     app_name: str = "PyFinAgent"
     debug: bool = False
+    log_level: str = Field("INFO", description="Logging level: DEBUG, INFO, WARNING, ERROR. Use WARNING for quiet terminals.")
 
     # --- GCP ---
     gcp_project_id: str = Field(..., description="Google Cloud Project ID")

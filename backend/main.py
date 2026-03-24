@@ -28,7 +28,27 @@ from backend.config.settings import get_settings
 from backend.services.perf_tracker import get_perf_tracker
 
 
+# ── Logging ─────────────────────────────────────────────────────────
+
+class CompactFormatter(logging.Formatter):
+    """One-line colored log format for terminals. Falls back to plain for non-TTY."""
+    COLORS = {"DEBUG": "\033[90m", "INFO": "\033[36m", "WARNING": "\033[33m", "ERROR": "\033[31m", "CRITICAL": "\033[1;31m"}
+    RESET = "\033[0m"
+
+    def format(self, record):
+        ts = self.formatTime(record, "%H:%M:%S")
+        lvl = record.levelname[0]  # D/I/W/E/C
+        color = self.COLORS.get(record.levelname, "")
+        reset = self.RESET if color else ""
+        msg = record.getMessage()
+        base = f"{color}{ts} {lvl} [{record.module}]{reset} {msg}"
+        if record.exc_info:
+            base += "\n" + self.formatException(record.exc_info)
+        return base
+
+
 class JsonFormatter(logging.Formatter):
+    """Structured JSON logs for production / Cloud Logging."""
     def format(self, record):
         log_record = {
             "timestamp": self.formatTime(record, self.datefmt),
@@ -41,20 +61,44 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log_record)
 
 
+class QuietAccessFilter(logging.Filter):
+    """Suppress uvicorn access-log lines for high-frequency polling endpoints."""
+    _QUIET_PREFIXES = ("/api/backtest/status", "/api/optimizer/status", "/api/health",
+                       "/api/backtest/ingestion/status", "/api/paper-trading/status",
+                       "/api/perf-optimizer/status")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return not any(p in msg for p in self._QUIET_PREFIXES)
+
+
 def setup_logging():
+    settings = get_settings()
+    level = getattr(logging, settings.log_level.upper(), logging.INFO)
+
     root = logging.getLogger()
-    root.setLevel(logging.INFO)
+    root.setLevel(level)
     if root.hasHandlers():
         root.handlers.clear()
+
     stream = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
     handler = logging.StreamHandler(stream)
-    handler.setFormatter(JsonFormatter())
+
+    # Use compact format for local dev, JSON for production
+    if settings.debug:
+        handler.setFormatter(JsonFormatter())
+    else:
+        handler.setFormatter(CompactFormatter())
+
     root.addHandler(handler)
+
     # Prevent uvicorn from adding its own cp1252 handlers on Windows
+    # and suppress polling endpoint noise in access logs
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         uv_logger = logging.getLogger(name)
         uv_logger.handlers.clear()
         uv_logger.propagate = True
+    logging.getLogger("uvicorn.access").addFilter(QuietAccessFilter())
 
 
 @asynccontextmanager

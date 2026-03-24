@@ -60,7 +60,7 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/95 px-3 py-2 shadow-xl">
       <p className="mb-1 text-xs font-semibold text-slate-200">
-        Experiment #{pt.index}
+        {pt.status === "baseline" ? "Baseline" : `Experiment #${pt.index}`}
         <span
           className="ml-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium"
           style={{ color: statusColor(pt.status), backgroundColor: `${statusColor(pt.status)}20` }}
@@ -93,7 +93,18 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
 export function OptimizerProgressChart({ experiments }: Props) {
   const { data, keptCount, yMin, yMax } = useMemo(() => {
     let best = -Infinity;
-    const raw: ChartPoint[] = experiments.map((exp, i) => {
+
+    // Deduplicate baselines: keep only the LAST baseline row
+    const lastBaselineIdx = experiments.reduce(
+      (acc, exp, i) => (exp.status.toLowerCase() === "baseline" ? i : acc),
+      -1,
+    );
+    const deduped = experiments.filter(
+      (exp, i) => exp.status.toLowerCase() !== "baseline" || i === lastBaselineIdx,
+    );
+
+    // Build chart points: baseline = index 0, experiments = 1, 2, 3, ...
+    const raw: ChartPoint[] = deduped.map((exp, i) => {
       const sharpe = parseFloat(exp.metric_after) || 0;
       const dsr = parseFloat(exp.dsr) || 0;
       const status = exp.status.toLowerCase();
@@ -149,22 +160,35 @@ export function OptimizerProgressChart({ experiments }: Props) {
 
     return {
       data: raw,
-      keptCount: keptPts.length,
+      keptCount: raw.filter((p) => p.status === "keep").length,
       yMin: Math.floor(floor * 100) / 100,
       yMax: Math.ceil(ceiling * 100) / 100,
     };
   }, [experiments]);
 
-  if (experiments.length < 2) return null;
+  if (experiments.length < 2) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-700 py-12 text-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 256 256" className="mb-3 text-slate-500">
+          <path fill="currentColor" d="M232 208a8 8 0 0 1-8 8H32a8 8 0 0 1-8-8V48a8 8 0 0 1 16 0v108.69l50.34-50.35a8 8 0 0 1 11.32 0L128 132.69 180.69 80H160a8 8 0 0 1 0-16h40a8 8 0 0 1 8 8v40a8 8 0 0 1-16 0V91.31l-58.34 58.35a8 8 0 0 1-11.32 0L96 123.31l-56 56V200h184a8 8 0 0 1 0 8Z"/>
+        </svg>
+        <p className="text-sm font-medium text-slate-400">Optimization Progress</p>
+        <p className="mt-1 text-xs text-slate-500">
+          Chart appears after 2+ experiments complete
+        </p>
+      </div>
+    );
+  }
 
-  const keptData = data.filter((d) => d.status === "keep" || d.status === "baseline");
-  const discardedData = data.filter((d) => d.status !== "keep" && d.status !== "baseline");
+  const keptSet = new Set(
+    data.filter((d) => d.status === "keep" || d.status === "baseline").map((d) => d.index),
+  );
 
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
         <h4 className="text-sm font-semibold text-slate-300">
-          Optimization Progress: {experiments.length} Experiments, {keptCount} Improvements
+          Optimization Progress: {Math.max(0, data.length - 1)} Experiment{data.length - 1 !== 1 ? "s" : ""}, {keptCount} Improvement{keptCount !== 1 ? "s" : ""}
         </h4>
       </div>
 
@@ -176,6 +200,7 @@ export function OptimizerProgressChart({ experiments }: Props) {
               dataKey="index"
               type="number"
               domain={[0, "dataMax"]}
+              allowDecimals={false}
               tick={{ fill: "#64748b", fontSize: 11 }}
               label={{
                 value: "Experiment #",
@@ -188,7 +213,7 @@ export function OptimizerProgressChart({ experiments }: Props) {
             <YAxis
               tick={{ fill: "#64748b", fontSize: 11 }}
               label={{
-                value: "Sharpe Ratio",
+                value: "Sharpe Ratio (higher is better)",
                 angle: -90,
                 position: "insideLeft",
                 offset: -4,
@@ -214,36 +239,32 @@ export function OptimizerProgressChart({ experiments }: Props) {
               isAnimationActive={false}
             />
 
-            {/* Discarded dots */}
+            {/* All experiment dots — single Scatter using parent data to preserve X positioning */}
             <Scatter
               dataKey="sharpeDisplay"
-              data={discardedData}
               isAnimationActive={false}
               shape={(props: any) => {
                 const pt = props.payload as ChartPoint;
                 const color = statusColor(pt.status);
-                if (pt.clamped) {
-                  return (
-                    <polygon
-                      points={`${props.cx},${props.cy - 4} ${props.cx - 3},${props.cy + 2} ${props.cx + 3},${props.cy + 2}`}
-                      fill={color}
-                      fillOpacity={0.35}
-                    />
-                  );
-                }
-                return <circle cx={props.cx} cy={props.cy} r={3} fill={color} fillOpacity={0.35} />;
-              }}
-            />
+                const isKept = keptSet.has(pt.index);
 
-            {/* Kept dots with labels */}
-            <Scatter
-              dataKey="sharpeDisplay"
-              data={keptData}
-              isAnimationActive={false}
-              shape={(props: any) => {
-                const pt = props.payload as ChartPoint;
-                const color = statusColor(pt.status);
-                const keptIdx = keptData.findIndex((k) => k.index === pt.index);
+                if (!isKept) {
+                  // Discarded / DSR-rejected dot
+                  if (pt.clamped) {
+                    return (
+                      <polygon
+                        points={`${props.cx},${props.cy - 4} ${props.cx - 3},${props.cy + 2} ${props.cx + 3},${props.cy + 2}`}
+                        fill={color}
+                        fillOpacity={0.35}
+                      />
+                    );
+                  }
+                  return <circle cx={props.cx} cy={props.cy} r={3} fill={color} fillOpacity={0.35} />;
+                }
+
+                // Kept / Baseline dot with optional label
+                const keptArr = data.filter((d) => keptSet.has(d.index));
+                const keptIdx = keptArr.findIndex((k) => k.index === pt.index);
                 const goUp = keptIdx % 2 === 0;
                 const tier = Math.floor(keptIdx / 2);
                 const baseOffset = 14;

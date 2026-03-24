@@ -6,6 +6,7 @@
     "test_window_months": 3,
     "embargo_days": 5,
     "holding_days": 90,
+    "mr_holding_days": 15,
     "tp_pct": 10.0,
     "sl_pct": 10.0,
     "frac_diff_d": 0.4,
@@ -16,12 +17,13 @@
     "n_estimators": 200,
     "max_depth": 4,
     "min_samples_leaf": 20,
-    "learning_rate": 0.1
+    "learning_rate": 0.1,
+    "momentum_weight": 0.4819238964635454
   },
-  "sharpe": 17.192373731193673,
-  "dsr": 0.0,
-  "run_id": "a0d9d0df",
+  "sharpe": 3.3691784472366346,
+  "dsr": 0.9999999997422627,
+  "run_id": "0205cd1f",
   "kept": 0,
   "discarded": 0,
-  "saved_at": "2026-03-22T22:46:59.296274+00:00"
+  "saved_at": "2026-03-24T19:23:18.528534+00:00"
 }

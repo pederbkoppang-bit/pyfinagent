@@ -12,15 +12,21 @@ from scipy import stats
 from backend.backtest.backtest_engine import BacktestResult
 
 
-def compute_sharpe(returns: np.ndarray, risk_free_rate: float = 0.04) -> float:
-    """Annualized Sharpe ratio from daily returns."""
+def compute_sharpe(returns: np.ndarray, risk_free_rate: float = 0.04, periods_per_year: int = 252) -> float:
+    """
+    Annualized Sharpe ratio.
+
+    Per Lo (2002) and Sharpe (1994), the √T annualization factor must match
+    the actual return observation frequency. Default 252 (daily). Pass
+    periods_per_year=12 for monthly, =4 for quarterly, etc.
+    """
     if len(returns) < 5:
         return 0.0
-    excess = returns - risk_free_rate / 252
+    excess = returns - risk_free_rate / periods_per_year
     std = excess.std()
     if std == 0:
         return 0.0
-    return float((excess.mean() / std) * np.sqrt(252))
+    return float((excess.mean() / std) * np.sqrt(periods_per_year))
 
 
 def compute_max_drawdown(nav_series: np.ndarray) -> float:

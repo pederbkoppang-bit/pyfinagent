@@ -94,7 +94,7 @@ async def get_optimizer_status():
 
 
 @router.get("/optimize/experiments")
-async def get_optimizer_experiments():
+def get_optimizer_experiments():
     """Full experiment history from perf_results.tsv."""
     import os
     tsv_path = os.path.join(
@@ -108,7 +108,7 @@ async def get_optimizer_experiments():
         header = f.readline().strip().split("\t")
         for line in f:
             values = line.strip().split("\t")
-            if len(values) == len(header):
+            if len(values) >= len(header):
                 experiments.append(dict(zip(header, values)))
 
     return {"experiments": experiments}
