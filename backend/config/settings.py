@@ -89,7 +89,7 @@ class Settings(BaseSettings):
     max_analysis_cost_usd: float = Field(0.50, description="Soft budget per analysis in USD. Logs warnings when exceeded; does not abort.")
     max_synthesis_iterations: int = Field(2, ge=1, le=3, description="Maximum Synthesis↔Critic reflection loop iterations (1=no reflection)")
     # --- Backtest ---
-    backtest_start_date: str = Field("2023-01-01", description="Walk-forward backtest start date")
+    backtest_start_date: str = Field("2018-01-01", description="Walk-forward backtest start date")
     backtest_end_date: str = Field("2025-12-31", description="Walk-forward backtest end date")
     backtest_train_window_months: int = Field(12, description="Initial training window in months (expanding)")
     backtest_test_window_months: int = Field(3, description="Test window in months")

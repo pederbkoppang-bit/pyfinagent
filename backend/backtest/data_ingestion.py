@@ -118,12 +118,15 @@ class DataIngestionService:
 
             for ticker in batch:
                 try:
-                    if len(batch) == 1:
-                        ticker_df = data
-                    else:
-                        if ticker not in data.columns.get_level_values(0):
+                    if data.columns.nlevels > 1:
+                        # MultiIndex columns from group_by='ticker'
+                        if ticker in data.columns.get_level_values(0):
+                            ticker_df = data[ticker]
+                        else:
                             continue
-                        ticker_df = data[ticker]
+                    else:
+                        # Flat columns (shouldn't happen with group_by='ticker' but handle it)
+                        ticker_df = data
 
                     ticker_df = ticker_df.dropna(subset=["Close"])  # type: ignore[arg-type]
 
