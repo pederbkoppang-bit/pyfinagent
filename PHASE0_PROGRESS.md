@@ -5,69 +5,20 @@ Started: 2026-03-25
 
 ---
 
-## 0.1 Formula Validation
+## 0.1 Formula Validation — COMPLETE ✅
 
-### Sharpe Ratio
-- [ ] Cross-check with Sharpe (1994) "The Sharpe Ratio" — Journal of Portfolio Management
-- [ ] Cross-check with Lo (2002) "The Statistics of Sharpe Ratios" — Financial Analysts Journal
-- [ ] Verify risk-free rate handling (4% annualized / periods_per_year)
-- [ ] Verify √252 annualization is correct for daily returns
-- [ ] Source: analytics.py `compute_sharpe()`
-- **Finding**: (pending)
+All 8 core formulas validated against original academic papers. Full findings in PHASE0_FINDINGS.md.
 
-### Deflated Sharpe Ratio
-- [ ] Cross-check with Bailey & López de Prado (2014) "The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting, and Non-Normality" — Journal of Portfolio Management
-- [ ] Verify E[max(SR)] formula (Euler-Mascheroni approximation)
-- [ ] Verify standard error formula (non-normality adjustment)
-- [ ] Verify T < 10 guard is appropriate
-- [ ] Source: analytics.py `compute_deflated_sharpe()`
-- **Finding**: (pending)
-
-### Sample Weights (Average Uniqueness)
-- [ ] Cross-check with López de Prado AFML Ch. 4 "Sample Weights"
-- [ ] Verify overlap detection logic
-- [ ] Verify normalization (weights sum to n)
-- [ ] Check edge cases: non-overlapping labels should get weight ≈ 1
-- [ ] Source: backtest_engine.py `_compute_sample_weights()`
-- **Finding**: (pending)
-
-### Fractional Differentiation
-- [ ] Cross-check with López de Prado AFML Ch. 5 "Fractionally Differentiated Features"
-- [ ] Verify fixed-width window implementation
-- [ ] Verify weight computation formula
-- [ ] Consider: should we add ADF test to verify stationarity?
-- [ ] Source: historical_data.py `fractional_diff()`
-- **Finding**: (pending)
-
-### Triple Barrier Labels
-- [ ] Cross-check with López de Prado AFML Ch. 3 "Labeling"
-- [ ] Verify barrier hit logic (TP/SL/time)
-- [ ] Check: are we using calendar days or trading days for holding_days?
-- [ ] Document: labels don't account for transaction costs (known limitation)
-- [ ] Source: backtest_engine.py `_compute_triple_barrier_label()`
-- **Finding**: (pending)
-
-### Monte Carlo VaR
-- [ ] Verify GBM assumption appropriateness for equity returns
-- [ ] Document fat-tail limitation
-- [ ] Consider: Student-t or historical simulation as alternative/supplement
-- [ ] Source: historical_data.py `_compute_monte_carlo_var()`
-- **Finding**: (pending)
-
-### Position Sizing (Inverse Volatility)
-- [ ] Cross-check with AQR "Betting Against Beta" (Frazzini & Pedersen, 2014)
-- [ ] Verify formula: probability × (target_vol / stock_vol) × nav / max_positions
-- [ ] Check: is the 3x cap on vol_scale justified?
-- [ ] Check: max_single_pct × nav cap
-- [ ] Source: backtest_trader.py `size_position()`
-- **Finding**: (pending)
-
-### Scalar Metric
-- [ ] Document theoretical justification for tx cost penalty
-- [ ] Verify: risk_adjusted_return = avg_return × beat_benchmark_rate is meaningful
-- [ ] Check: 0.3 cap on tx drag — is this appropriate?
-- [ ] Source: perf_metrics.py `get_scalar_metric()`
-- **Finding**: (pending)
+| Formula | Verdict | Source |
+|---------|---------|--------|
+| Sharpe Ratio | ✅ Correct | Sharpe (1994), Lo (2002) |
+| Deflated Sharpe Ratio | ✅ Correct | Bailey & López de Prado (2014) |
+| Sample Weights | ⚠️ Simplified (directionally correct) | AFML Ch. 4 |
+| Fractional Differentiation | ✅ Correct | AFML Ch. 5 |
+| Triple Barrier Labels | ✅ Correct (now with tx cost adjustment) | AFML Ch. 3 |
+| Monte Carlo VaR | ✅ Correct (fat-tail limitation documented) | GBM standard |
+| Position Sizing | ⚠️ Custom hybrid (documented) | AQR + Kelly inspired |
+| Scalar Metric | ⚠️ Custom (functional, needs theoretical grounding) | Custom |
 
 ---
 
@@ -84,11 +35,11 @@ Started: 2026-03-25
 
 ## 0.3 Overfitting Diagnostics
 
-- [ ] Walk-forward leakage audit
-- [ ] Label leakage check
-- [ ] Feature importance stability test
-- [ ] Multi-seed DSR validation
-- [ ] Backtest vs reality gap documentation
+- [x] Walk-forward leakage audit — completed, no critical leakage found. Feature vectors correctly use cutoff_date bounds. BQ cache enforces temporal boundaries. See PHASE0_LEAKAGE_AUDIT.md.
+- [x] Label leakage check — labels look forward by holding_days (by design). Embargo < holding_days means overlap with test window; this is standard practice per AFML Ch. 7. Documented as known limitation.
+- [ ] Feature importance stability test — REQUIRES BACKTEST RUN (deferred to when BQ data is available)
+- [ ] Multi-seed DSR validation — REQUIRES BACKTEST RUN (deferred)
+- [x] Backtest vs reality gap documentation — completed. 10 gaps analyzed. Net assessment: backtest is moderately conservative. Survivorship bias is biggest unaddressed issue (Phase 1). See PHASE0_REALITY_GAP.md.
 
 ---
 
