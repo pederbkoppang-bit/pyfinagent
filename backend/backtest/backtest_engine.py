@@ -35,6 +35,7 @@ STRATEGY_REGISTRY: dict[str, str] = {
     "mean_reversion": "_compute_mean_reversion_label",
     "factor_model": "_compute_factor_label",
     "meta_label": "_compute_triple_barrier_label",  # uses TB labels; meta-labeling applied in _run_window
+    "blend": "_compute_blend_label",  # weighted vote across strategies (Dietterich 2000)
 }
 
 # Numeric features used for ML training (excludes categorical: ticker, date, sector, industry)
@@ -815,12 +816,14 @@ class BacktestEngine:
                     probability = meta_probability  # Use meta confidence for sizing
 
                 volatility = fv.get("annualized_volatility", 0.3) or 0.3
+                amihud = fv.get("amihud_illiquidity", 0.0) or 0.0
 
                 signals.append({
                     "ticker": ticker,
                     "label": pred_label,
                     "probability": probability,
                     "volatility": volatility,
+                    "amihud_illiquidity": amihud,
                 })
 
                 # Check actual outcome for hit rate
@@ -1171,6 +1174,53 @@ class BacktestEngine:
         if composite > 0.6:
             return 1
         if composite < 0.3:
+            return -1
+        return 0
+
+    def _compute_blend_label(self, ticker: str, entry_date: str) -> int | None:
+        """
+        Strategy Blending — weighted vote across base strategies.
+        Reference: Dietterich (2000) "Ensemble Methods in Machine Learning"
+
+        Computes labels from triple_barrier, quality_momentum, mean_reversion,
+        and factor_model, then takes a weighted average. Weights are tunable
+        parameters (tb_weight, qm_weight, mr_weight, fm_weight) that the
+        optimizer can search over.
+
+        Final label = sign(weighted_sum) rounded to {-1, 0, +1}.
+        """
+        # Get blend weights from strategy params (defaults: equal weight)
+        tb_w = self._strategy_params.get("tb_weight", 0.4)
+        qm_w = self._strategy_params.get("qm_weight", 0.2)
+        mr_w = self._strategy_params.get("mr_weight", 0.1)
+        fm_w = self._strategy_params.get("fm_weight", 0.3)
+
+        # Compute each strategy's label
+        labels = {}
+        labels["tb"] = self._compute_triple_barrier_label(ticker, entry_date)
+        labels["qm"] = self._compute_quality_momentum_label(ticker, entry_date)
+        labels["mr"] = self._compute_mean_reversion_label(ticker, entry_date)
+        labels["fm"] = self._compute_factor_label(ticker, entry_date)
+
+        # Weight only strategies that returned a valid label
+        weight_map = {"tb": tb_w, "qm": qm_w, "mr": mr_w, "fm": fm_w}
+        total_weight = 0.0
+        weighted_sum = 0.0
+
+        for key, label in labels.items():
+            if label is not None:
+                w = weight_map[key]
+                weighted_sum += label * w
+                total_weight += w
+
+        if total_weight == 0:
+            return None
+
+        # Normalize and threshold
+        normalized = weighted_sum / total_weight
+        if normalized > 0.3:
+            return 1
+        if normalized < -0.3:
             return -1
         return 0
 

@@ -80,6 +80,7 @@ class BacktestTrader:
     def size_position(
         self, probability: float, stock_vol: float, nav: float,
         turbulence: float = 0.0, turbulence_threshold: float = 1.0,
+        amihud_illiquidity: float = 0.0,
     ) -> float:
         """
         Inverse-volatility position sizing (AQR / Frazzini & Pedersen 2014):
@@ -90,6 +91,11 @@ class BacktestTrader:
         When turbulence > threshold, positions are scaled down proportionally.
         This reduces exposure during systemic market stress events (e.g., COVID crash,
         2022 bear market). turbulence=0 or threshold=0 disables this feature.
+
+        Amihud illiquidity filter (López de Prado AFML Ch. 18):
+        High Amihud = low liquidity = wider bid-ask spreads = higher execution costs.
+        Scales position down for illiquid stocks. Typical S&P 500 Amihud values
+        are 0.01-1.0 (×1e6 scaled). Values above 5.0 indicate illiquid stocks.
         """
         if stock_vol <= 0 or probability <= 0:
             return 0.0
@@ -103,6 +109,13 @@ class BacktestTrader:
             turbulence_ratio = turbulence / turbulence_threshold
             dampening = max(0.2, 1.0 / turbulence_ratio)
             raw *= dampening
+
+        # Amihud liquidity scaling: penalize illiquid stocks
+        # S&P 500 median Amihud ≈ 0.1-0.5. Above 2.0 is relatively illiquid.
+        # Scale: 1.0 for liquid (amihud ≤ 0.5), down to 0.3 for very illiquid (amihud ≥ 10)
+        if amihud_illiquidity and amihud_illiquidity > 0.5:
+            liquidity_scale = max(0.3, 1.0 / (1.0 + (amihud_illiquidity - 0.5) / 3.0))
+            raw *= liquidity_scale
 
         capped = min(raw, nav * self.max_single_pct)
         return max(0.0, capped)
@@ -160,7 +173,11 @@ class BacktestTrader:
 
             probability = sig.get("probability", 0.5)
             volatility = sig.get("volatility", 0.3)
-            dollar_amount = self.size_position(probability, volatility, nav)
+            amihud = sig.get("amihud_illiquidity", 0.0)
+            dollar_amount = self.size_position(
+                probability, volatility, nav,
+                amihud_illiquidity=amihud,
+            )
 
             if dollar_amount < 100:  # Minimum trade size
                 continue

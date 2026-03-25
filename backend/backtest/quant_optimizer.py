@@ -32,7 +32,7 @@ _BEST_PARAMS_PATH = _EXPERIMENTS_DIR / "optimizer_best.json"
 _TSV_HEADER = "timestamp\trun_id\tparam_changed\tmetric_before\tmetric_after\tdelta\tstatus\tdsr\ttop5_mda\tparams_json\n"
 
 # All available strategies (categorical param)
-AVAILABLE_STRATEGIES = ["triple_barrier", "quality_momentum", "mean_reversion", "factor_model", "meta_label"]
+AVAILABLE_STRATEGIES = ["triple_barrier", "quality_momentum", "mean_reversion", "factor_model", "meta_label", "blend"]
 
 # Strategy param bounds (min, max)
 _PARAM_BOUNDS = {
@@ -55,6 +55,11 @@ _PARAM_BOUNDS = {
     # Volatility-adjusted barriers (AFML Ch. 3): 0 = use fixed tp_pct/sl_pct,
     # >0 = barriers = daily_vol × multiplier. Typical range 1.0-5.0.
     "vol_barrier_multiplier": (0.0, 5.0),
+    # Strategy blend weights (Dietterich 2000): active when strategy="blend"
+    "tb_weight": (0.0, 1.0),
+    "qm_weight": (0.0, 1.0),
+    "mr_weight": (0.0, 1.0),
+    "fm_weight": (0.0, 1.0),
 }
 
 # Integer params (must be int after perturbation)
@@ -422,6 +427,11 @@ class QuantStrategyOptimizer:
         # (not a direct engine attribute), so update it there
         if "vol_barrier_multiplier" in params:
             engine._strategy_params["vol_barrier_multiplier"] = params["vol_barrier_multiplier"]
+
+        # Blend weights (read from _strategy_params by _compute_blend_label)
+        for key in ("tb_weight", "qm_weight", "mr_weight", "fm_weight"):
+            if key in params:
+                engine._strategy_params[key] = params[key]
 
     # ── Logging ──────────────────────────────────────────────────
 
