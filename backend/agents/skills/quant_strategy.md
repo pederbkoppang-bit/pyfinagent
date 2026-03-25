@@ -171,6 +171,11 @@ Optimizer skill — not a pipeline agent. Loaded by `quant_optimizer.py` when ge
 | rsi_weight | 0.0 | 1.0 | Candidate screening. RSI penalizes extremes (MR component in screening). |
 | volatility_weight | 0.0 | 1.0 | Candidate screening. Higher → prefer lower-vol stocks. |
 | sma_weight | 0.0 | 1.0 | Candidate screening. Positive SMA distance = above trend = bullish. |
+| vol_barrier_multiplier | 0.0 | 5.0 | AFML Ch. 3: 0 = use fixed tp_pct/sl_pct. >0 = barriers = daily_vol × multiplier. Typical 1.5-3.0. |
+| tb_weight | 0.0 | 1.0 | Blend weight for Triple Barrier strategy. Only active when strategy=blend. |
+| qm_weight | 0.0 | 1.0 | Blend weight for Quality Momentum strategy. |
+| mr_weight | 0.0 | 1.0 | Blend weight for Mean Reversion strategy. |
+| fm_weight | 0.0 | 1.0 | Blend weight for Factor Model strategy. |
 
 ---
 
@@ -185,36 +190,50 @@ Optimizer skill — not a pipeline agent. Loaded by `quant_optimizer.py` when ge
 
 ---
 
+### 6. Blend — Dietterich (2000) Ensemble Methods
+
+**Implementation**: `_compute_blend_label()` — computes labels from all 4 base strategies (TB, QM, MR, FM), then takes a weighted vote. Weights (`tb_weight`, `qm_weight`, `mr_weight`, `fm_weight`) are tunable params.
+
+**Academic basis**: Dietterich (2000) "Ensemble Methods in Machine Learning" — ensemble methods reduce variance and bias by combining multiple learners. Weighted voting is the simplest and most robust stacking approach.
+
+**Key experiment**: Try `strategy=blend, tb_weight=0.4, fm_weight=0.3, qm_weight=0.2, mr_weight=0.1` — this weights triple barrier highest (most data-driven) with factor model as secondary.
+
+---
+
 ## Experiment Suggestions
 
 When generating proposals, consider these high-value experiments in order:
 
 1. **Asymmetric barriers**: `tp_pct = 15, sl_pct = 8` (risk-reward = 1.88:1)
-2. **Strategy rotation**: If stuck on one strategy for 3+ experiments, switch to the least-tested strategy
-3. **MR with short hold**: `strategy=mean_reversion, mr_holding_days=10, tp_pct=5, sl_pct=4`
-4. **Factor model with low vol**: `strategy=factor_model, target_vol=0.10, max_positions=30`
-5. **Aggressive momentum**: `strategy=quality_momentum, holding_days=120, tp_pct=20, sl_pct=10`
-6. **Regularization sweep**: `max_depth=3, min_samples_leaf=30, learning_rate=0.05` (reduce overfitting)
-7. **Frac diff sensitivity**: Try `frac_diff_d=0.3` (more memory) vs `frac_diff_d=0.6` (more stationary)
-8. **Universe size**: `top_n_candidates=30` (concentrated) vs `top_n_candidates=80` (diversified)
+2. **Vol-adjusted barriers**: `vol_barrier_multiplier = 2.5` (barriers = 2.5 × daily vol, adapts to stock-specific risk)
+3. **Strategy blending**: `strategy=blend, tb_weight=0.4, fm_weight=0.3, qm_weight=0.2, mr_weight=0.1`
+4. **Strategy rotation**: If stuck on one strategy for 3+ experiments, switch to the least-tested strategy
+5. **MR with short hold**: `strategy=mean_reversion, mr_holding_days=10`
+6. **Factor model with low vol**: `strategy=factor_model, target_vol=0.10, max_positions=30`
+7. **Aggressive momentum**: `strategy=quality_momentum, holding_days=120, tp_pct=20, sl_pct=10`
+8. **Regularization sweep**: `max_depth=3, min_samples_leaf=30, learning_rate=0.05` (reduce overfitting)
+9. **Frac diff sensitivity**: Try `frac_diff_d=0.3` (more memory) vs `frac_diff_d=0.6` (more stationary)
+10. **Universe size**: `top_n_candidates=30` (concentrated) vs `top_n_candidates=80` (diversified)
+11. **Meta-label**: `strategy=meta_label` — secondary model filters bets, may reduce false signals
 
 ---
 
-## Feature Vector — 43 Features Available
+## Feature Vector — ~49 Features Available
 
 | Category | Features | Used By |
 |----------|----------|---------|
 | Price | price_at_analysis | All labels (entry price) |
-| Momentum | momentum_1m, 3m, 6m, 12m | Quality Momentum (6m), Factor (6m), Candidate screening |
-| Technical | rsi_14, sma_50_distance, sma_200_distance | Mean Reversion (RSI + SMA50), trend confirmation |
+| Momentum | momentum_1m, 3m, 6m, 12m, **momentum_12_1** | QM (6m), FM (12-1), screening. 12-1 avoids short-term reversal (Jegadeesh & Titman 1993) |
+| Technical | rsi_14, sma_50_distance, sma_200_distance, **bb_upper_distance**, **bb_lower_distance**, **bb_pct_b** | MR (RSI + SMA + Bollinger), trend confirmation |
 | Volume | volume_ratio_20d | Liquidity filter |
-| Risk | annualized_volatility, var_95/99_6m, expected_shortfall_6m | Position sizing, risk assessment |
+| Risk | annualized_volatility, **daily_volatility**, var_95/99_6m, expected_shortfall_6m, prob_positive_6m | Sizing, vol-adjusted barriers, risk assessment |
 | Anomaly | anomaly_count | Regime detection |
-| Liquidity | amihud_illiquidity | Execution risk (unused in labels — data gap) |
-| Fundamental | pe_ratio, pb_ratio, roe, profit_margin, debt_equity, market_cap | Factor Model, Quality score |
-| Cash Flow | fcf_yield | Quality composite (unused — data gap) |
-| Income | dividend_yield | Factor Model (yield), Quality (unused — data gap) |
-| Growth | revenue_growth_yoy | Investment factor proxy (unused — data gap) |
-| Balance Sheet | total_revenue, net_income, total_debt, total_equity, total_assets | Quality scoring inputs |
+| Liquidity | amihud_illiquidity | Position sizing filter (scales down illiquid stocks) |
+| Fundamental | pe_ratio, pb_ratio, roe, profit_margin, debt_equity, market_cap | Factor Model (P/B for value), Quality score |
+| Cash Flow | fcf_yield | Quality composite (payout dimension) |
+| Income | dividend_yield | Factor Model (yield factor), Quality (payout) |
+| Growth | revenue_growth_yoy | Quality composite (growth dimension) |
+| Balance Sheet | total_revenue, net_income, total_debt, total_equity, total_assets | Quality scoring, fundamental features |
+| Quality | quality_score | 4-dim QMJ composite (Asness 2019): profitability + growth + safety + payout |
 | Macro | fed_funds_rate, cpi_yoy, unemployment_rate, yield_curve_spread, consumer_sentiment, treasury_10y | Regime awareness |
-| Categorical | sector, industry | Not used in ML (excluded from training) |
+| Categorical | sector, industry | Not used in ML (excluded from numeric features) |

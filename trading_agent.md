@@ -1,323 +1,204 @@
-# trading_agent.md — Living Memory for PyFinAgent Trading Optimization
+# trading_agent.md — Autonomous Trading Optimization
 
-> This file is the persistent instruction set and memory for the autonomous trading
-> optimization system. It follows the Recursive Research Loop (RRL) pattern from
-> karpathy/autoresearch, extended with hybrid elements for multi-loop financial optimization.
+> Modeled after [karpathy/autoresearch](https://github.com/karpathy/autoresearch) `program.md`.
+> This file is the instruction set for the autonomous optimization system.
+> It is edited by humans. The optimizer modifies strategy params and skill prompts, never this file.
 
 ---
 
-## 1. Agent Identity
+## Mission
 
-**Mission**: Continuously improve PyFinAgent's trading recommendations by optimizing
-three interacting feedback loops — quant strategy parameters, LLM agent prompts, and
-API performance — while maintaining statistical rigor and avoiding overfitting.
+Maximize risk-adjusted returns on US equities (S&P 500 universe) through autonomous
+experimentation on quant strategy parameters and LLM agent prompts. Every decision
+must be evidence-based, backed by academic literature, and statistically validated.
 
-**Constraints (NEVER violate)**:
-- NEVER modify the fixed harness: orchestrator pipeline, output JSON schemas, BQ schema, evaluation formula, function signatures
-- NEVER use LLM models for historical backtests (Lopez-Lira 2023 contamination risk)
-- NEVER bypass the DSR ≥ 0.95 guard on quant experiments
-- NEVER deploy prompt changes without outcome validation (7+ day window)
-- NEVER exceed `MAX_ANALYSIS_COST_USD` or `PAPER_MAX_DAILY_COST_USD` budget caps
-- ALWAYS keep simplicity criterion: ≥0.5% delta per 10 lines added to skills.md
-- ALWAYS log every experiment to TSV (Karpathy rule: if it's not logged, it didn't happen)
+**Timeline**: Testing now → paper trading April → real money (Slack signals) May 2026.
+**Budget**: BigQuery (low), GitHub Models (free via Copilot Pro), Claude Max (via OpenClaw). Vertex AI avoided unless proven high-ROI.
 
-**What IS modifiable** (the "train.py" equivalent):
+---
+
+## What You CAN Modify
+
+These are the "train.py" equivalents — fair game for autonomous experimentation:
+
+### QuantOpt (fast loop, minutes/cycle, zero LLM cost)
+- **21 strategy parameters** in `QuantStrategyOptimizer` (all bounds-constrained):
+  - Triple Barrier: `tp_pct`, `sl_pct`, `holding_days`, `vol_barrier_multiplier`
+  - Mean Reversion: `mr_holding_days`
+  - Feature: `frac_diff_d`
+  - ML: `n_estimators`, `max_depth`, `min_samples_leaf`, `learning_rate`
+  - Portfolio: `target_vol`, `max_positions`, `top_n_candidates`
+  - Screening: `momentum_weight`, `rsi_weight`, `volatility_weight`, `sma_weight`
+  - Strategy: `strategy` (categorical: triple_barrier, quality_momentum, mean_reversion, factor_model, meta_label, blend)
+  - Blend weights: `tb_weight`, `qm_weight`, `mr_weight`, `fm_weight`
+
+### SkillOpt (slow loop, days/cycle, requires outcome data)
 - `## Prompt Template`, `## Skills & Techniques`, `## Anti-Patterns` sections of each `backend/agents/skills/*.md`
-- 15 quant strategy parameters in `QuantStrategyOptimizer` (with bounds)
+- 29 agent skills total; optimize highest-MDA-impact agents first
+
+### PerfOpt (fast loop, minutes/cycle)
 - API cache TTL values in `ENDPOINT_TTLS`
 
----
+## What You CANNOT Modify
 
-## 2. Research Summary
+Fixed harness — the "prepare.py" equivalent:
 
-### What We've Learned from Backtesting
-
-**~43 Feature Vector** built at any historical cutoff date:
-- Price & Returns: `price_at_analysis`, momentum (1M/3M/6M/12M), volatility (1M/3M)
-- Technical: RSI_14, SMA_50/200 distance, volume ratio
-- Monte Carlo: VaR (95%/99%), expected shortfall, P(positive)
-- Fundamentals: P/E, P/B, D/E, ROE, revenue growth, net margin, current ratio
-- Macro: Fed Funds, CPI, unemployment, GDP growth, yield curve, consumer sentiment
-- Advanced: Amihud illiquidity, turbulence index
-- Fractionally differenced: price, market_cap, revenue, debt, equity
-
-**MDA Feature Importance** (from walk-forward backtest, most→least predictive):
-- *(To be populated after first backtest run — this is the bridge to SkillOpt)*
-
-**Baseline Strategies** (from analytics.py):
-1. Buy-and-hold SPY
-2. Equal-weight top candidates
-3. Momentum-only (top quartile by trailing 6M return)
-
-**Research Foundations Powering the System**:
-
-| Source | What It Gives Us |
-|--------|-----------------|
-| Harvard NBER | Focus on non-routine 29% — debate, anomalies, contradictions |
-| Stanford Transformers | NLP sentiment via Vertex AI embeddings (not keyword) |
-| Goldman Sachs 127-dim | Anomaly detection (Z-score) + Monte Carlo VaR (1K sims) |
-| TradingAgents arXiv:2412.20138 | Bull/Bear/DA/Moderator debate + Risk Judge sizing |
-| López de Prado AFML | Triple Barrier, sample weights, frac diff, walk-forward, MDA |
-| Bailey & López de Prado 2014 | DSR overfitting guard (≥0.95 = statistically significant) |
-| Lopez-Lira & Tang 2023 | Two-regime: quant-only historical, full LLM for live |
-| FinRL arXiv:2011.09607 | Data→Agent→Analytics three-layer architecture |
-| BlackRock domain LLMs | Skill-based prompt engineering on financial domain |
-| VeNRA + CoVe | Fact ledger + chain-of-verification anti-hallucination |
+- Orchestrator pipeline order and step definitions (`orchestrator.py`)
+- Output JSON schemas (`schemas.py`)
+- BigQuery table schemas (88-column `analysis_results`, outcome tracking, paper trading)
+- Evaluation formulas (`analytics.py`: Sharpe, DSR, baselines)
+- Function signatures in `prompts.py`
+- Data tool implementations (`backend/tools/*`)
+- Walk-forward window generation logic (`walk_forward.py`)
+- This file (`trading_agent.md`)
 
 ---
 
-## 3. Implementation Progress
+## The Metric
 
-### Phase 1: PerformanceSkill ✅
-- [x] Created `backend/services/perf_metrics.py` with canonical formulas
-- [x] `compute_position_pnl()` — position-level P&L
-- [x] `compute_return_pct()` — simple return percentage
-- [x] `compute_sharpe_from_snapshots()` — NAV→daily returns→canonical Sharpe
-- [x] `compute_benchmark_return()` — geometric (not arithmetic) benchmark
-- [x] `get_scalar_metric()` — THE unified metric with tx cost penalty
-- [x] Deduplicated: paper_trading.py Sharpe → `compute_sharpe_from_snapshots`
-- [x] Deduplicated: backtest_engine._sharpe → delegates to `analytics.compute_sharpe`
-- [x] Deduplicated: outcome_tracker benchmark → geometric `compute_benchmark_return`
-- [x] Deduplicated: portfolio.py P&L → `compute_position_pnl`
-- [x] Wired: skill_optimizer.compute_metric → `get_scalar_metric_from_bq`
+**Primary**: Annualized Sharpe ratio (Sharpe 1994, Lo 2002)
+- Computed from daily NAV returns across walk-forward windows
+- √252 annualization, 4% risk-free rate
+- Source: `analytics.compute_sharpe()`
 
-### Phase 2: trading_agent.md ✅
-- [x] This file
+**Gate**: Deflated Sharpe Ratio ≥ 0.95 (Bailey & López de Prado 2014)
+- Rejects overfitted improvements even when Sharpe looks better
+- Accounts for number of trials, non-normality, sample length
+- Source: `analytics.compute_deflated_sharpe()`
 
-### Phase 3: MetaCoordinator
-- [x] Created `backend/agents/meta_coordinator.py`
-- [x] Loop sequencing: QuantOpt → MDA extraction → SkillOpt targeting
-- [x] Decision logic: low Sharpe → QuantOpt, low accuracy → SkillOpt, high latency → PerfOpt
-- [ ] Wire into autonomous_loop.py (requires testing)
+**Secondary** (for SkillOpt): `get_scalar_metric()` = risk-adjusted return × (1 − tx cost drag)
 
-### Phase 4: Docs
-- [ ] Update AGENTS.md with Phase 1-3 changes
-- [ ] Update UX-AGENTS.md
+**Simplicity criterion** (from Karpathy): A small improvement that adds complexity is not worth it. Removing something and getting equal or better results is a great outcome.
 
 ---
 
-## 4. Performance Skill API
+## The Loop
 
-**Module**: `backend/services/perf_metrics.py`
-
-### Position-Level
-```python
-compute_position_pnl(quantity, current_price, cost_basis) → (pnl, pnl_pct)
-compute_return_pct(current_price, entry_price) → float
-```
-
-### Portfolio-Level
-```python
-compute_portfolio_pnl(nav, starting_capital) → (pnl, pnl_pct)
-compute_alpha(portfolio_pnl_pct, benchmark_pnl_pct) → float
-compute_sharpe_from_snapshots(snapshots, nav_key, risk_free_rate) → float
-```
-
-### Benchmark
-```python
-compute_benchmark_return(holding_days, annual_rate=0.10) → float  # geometric
-beat_benchmark(return_pct, holding_days, annual_rate=0.10) → bool
-```
-
-### Turnover & Cost
-```python
-compute_turnover_ratio(trades, avg_nav, period_days=365) → float
-compute_tx_cost_drag(turnover_ratio, tx_cost_pct=0.001) → float
-```
-
-### Scalar Metric (THE metric all loops optimize)
-```python
-get_scalar_metric(ScalarMetricInputs) → float
-# = risk_adjusted_return × (1 − min(0.3, turnover_ratio × tx_cost_pct))
-# where risk_adjusted_return = avg_return_pct × benchmark_beat_rate
-
-get_scalar_metric_from_bq(bq_client, trades=None) → float  # convenience
-```
-
----
-
-## 5. Iteration Loop (Karpathy-Adapted Hybrid)
-
-### Core Loop Rules (from karpathy/autoresearch)
 ```
 LOOP FOREVER:
-  1. BASELINE FIRST — measure before modifying anything
-  2. PROPOSE one modification (random or LLM-guided)
-  3. APPLY the modification
-  4. MEASURE the scalar metric
-  5. KEEP if metric improved (with guards), DISCARD otherwise
-  6. LOG to TSV — every experiment, kept or discarded
-  7. NEVER STOP — the loop runs until externally stopped
+  1. BASELINE — run walk-forward backtest with current params, record Sharpe
+  2. PROPOSE — one modification (random perturbation or LLM-guided)
+  3. APPLY — set new param on engine
+  4. MEASURE — run walk-forward backtest, compute Sharpe + DSR
+  5. DECIDE:
+     - IF Sharpe improved AND DSR ≥ 0.95 → KEEP (advance)
+     - IF Sharpe improved BUT DSR < 0.95 → DSR_REJECT (revert)
+     - IF Sharpe worse → DISCARD (revert)
+     - IF crashed → CRASH (revert, log error)
+  6. LOG — every experiment to quant_results.tsv (kept or discarded)
+  7. NEVER STOP — run until externally stopped
 ```
 
-### Three Loops, One Metric
-
-| Loop | What It Modifies | Speed | Guard | Metric Source |
-|------|-----------------|-------|-------|---------------|
-| **QuantOpt** | 15 strategy params (bounds-constrained) | Minutes/cycle | DSR ≥ 0.95 | `analytics.compute_sharpe` on backtest |
-| **SkillOpt** | Prompt Template / Skills / Anti-Patterns in skills.md | Days/cycle | Simplicity criterion | `get_scalar_metric_from_bq` (outcome_tracking) |
-| **PerfOpt** | API cache TTL values | Minutes/cycle | ≥5% latency improvement | `perf_tracker.summarize` (p95 latency) |
-
-### MetaCoordinator Sequencing
-```
-1. Check portfolio health signals
-2. IF Sharpe < target         → run QuantOpt cycle
-3. IF agent accuracy < target → run SkillOpt cycle
-4. IF p95 latency > threshold → run PerfOpt cycle
-5. AFTER QuantOpt keep → extract MDA features → map to responsible agents → queue SkillOpt
-6. AFTER SkillOpt keep → queue 1-window backtest as fast validation proxy
-```
-
-### MDA→Agent Bridge (our unique innovation)
-When QuantOpt discovers that certain features matter more:
-- High MDA on `nlp_sentiment_score` → target NLP Sentiment Agent skill
-- High MDA on `insider_signal` → target Insider Activity Agent skill
-- High MDA on `yield_curve_spread` → target Enhanced Macro Agent skill
-
-This closes the loop: quant insights → prompt improvements → better recommendations.
-
-### What We DON'T Do (and why)
-- **No RL (Reinforcement Learning)**: Data volume too low. Prompt search is more sample-efficient at our scale.
-- **No fine-tuning**: Skills.md iteration is zero-cost vs fine-tuning GPU time. Correct choice.
-- **No real-time streaming**: Daily cycle + 7-day outcome window makes batch the right approach.
-- **No optimizer self-modification**: Optimizers modify agents, never themselves (Karpathy: "modify train.py, never program.md").
+**Warm start**: If `optimizer_best.json` exists, skip baseline and start from previous best.
+**Warm cache**: BQ data preloaded once (`skip_cache_clear=True`), reused across iterations.
+**Feature drift**: Top-5 MDA features logged per keep; WARNING on drift.
 
 ---
 
-## 6. Strategy Research
+## Three Loops, One Coordinator
 
-### Research-Backed Strategy Registry
+| Loop | Modifies | Speed | Guard | Metric |
+|------|----------|-------|-------|--------|
+| **QuantOpt** | 21 strategy params | Minutes | DSR ≥ 0.95 | Sharpe on backtest |
+| **SkillOpt** | Agent skill prompts | Days | Simplicity criterion | Scalar metric from outcome_tracking |
+| **PerfOpt** | Cache TTL values | Minutes | ≥5% latency gain | p95 latency |
 
-The backtest engine now supports multiple named strategies via `STRATEGY_REGISTRY`. The QuantOptimizer treats `strategy` as a categorical parameter, enabling autonomous strategy rotation.
+**MetaCoordinator** sequencing (`backend/agents/meta_coordinator.py`):
+1. Low Sharpe → QuantOpt
+2. Low accuracy → SkillOpt (target agents by MDA importance)
+3. High latency → PerfOpt
+4. After QuantOpt keep → extract MDA → map to responsible agents → queue SkillOpt
 
-| Strategy | Label Method | Key Features | Research Basis |
-|----------|-------------|--------------|----------------|
-| **triple_barrier** (default) | TP/SL/Time barriers | All 43 features | López de Prado Ch. 3 — original implementation |
-| **quality_momentum** | Momentum + quality filter | momentum_12m, roe, profit_margin, debt_equity, quality_score | Asness et al. (2019) "Quality Minus Junk", Novy-Marx (2013) — momentum alpha persists when filtered by quality |
-| **mean_reversion** | Z-score reversion bands | sma_50_distance, sma_200_distance, rsi_14, volume_ratio_20d, amihud_illiquidity | Poterba & Summers (1988), Lo & MacKinlay (1990) — mean-reversion strongest in liquid large-caps at 1-3 month horizon |
-| **factor_model** | Multi-factor composite | pe_ratio, pb_ratio, dividend_yield, momentum_6m, annualized_volatility | Fama-French 5-factor (2015), Carhart (1997) — value + momentum + low-vol anomaly composite |
-| **meta_label** | Triple Barrier meta-labeled | All features + primary model probability | López de Prado Ch. 3.6 — secondary model learns WHEN primary model is reliable |
-
-### New Features Added (historical_data.py)
-
-| Feature | Category | Computation | Used By Strategies |
-|---------|----------|-------------|-------------------|
-| `fcf_yield` | Fundamental | (operating_cash_flow − capex) / market_cap | factor_model, quality_momentum |
-| `dividend_yield` | Fundamental | dividends_per_share / price | factor_model |
-| `quality_score` | Composite | ROE × profit_margin × (1 − debt_equity_ratio_normalized) | quality_momentum |
-| `pb_ratio` | Fundamental | price / (total_equity / shares) | factor_model |
-| `volume_ratio_20d` | Technical | current_volume / 20d_avg_volume | mean_reversion |
-| `revenue_growth_yoy` | Fundamental | (current_Q_revenue − year_ago_Q_revenue) / year_ago_Q_revenue | quality_momentum |
-
-### Candidate Selector Weight Configurability
-
-`CandidateSelector.screen_at_date()` now accepts `scoring_weights: dict` parameter, allowing QuantOptimizer to tune `momentum_weight`, `rsi_weight`, `volatility_weight`, `sma_weight` as part of the fast loop.
-
-### Feature Drift Detection
-
-After each QuantOpt keep, the top-5 MDA features are logged to `quant_results.tsv` as `top5_mda` column. When the top-5 differs from the previous keep's top-5, a WARNING is logged for MetaCoordinator to act on via the MDA→Agent bridge.
-
-### Model Staleness Guards
-
-- `model_trained_at: str` timestamp stored on `BacktestEngine` after each `_train_model()` call
-- `get_model_trained_at()` public method for external staleness checks
-- After each QuantOpt keep, the engine retrains automatically (new params → new model)
-- Weekly staleness alert: if `model_trained_at` > 7 days old, QuantOptimizer logs a STALE_MODEL warning
-
-### Auto-Ingest at Backtest Start
-
-`run_backtest()` now checks BQ table row counts via `DataIngestionService.get_ingestion_status()` before the walk-forward loop. If `historical_prices` has 0 rows, auto-triggers `run_full_ingestion()` using the engine's BQ client and universe tickers. This removes the manual "ingest first" prerequisite — backtests self-bootstrap.
+**MDA→Agent Bridge**: QuantOpt discovers which features matter → MetaCoordinator targets the corresponding LLM agent's skill for optimization. Example: high MDA on `nlp_sentiment_score` → optimize NLP Sentiment Agent skill.
 
 ---
 
-## 7. Phase 5 Implementation Plan
+## 6 Strategies
 
-### Completed (Phase 5A — Strategy Research + Mock Testing)
-
-| Step | Description | Status |
-|------|-------------|--------|
-| 6.1 | Strategy research documented in Section 6 | DONE |
-| 6.2 | Strategy registry in `backtest_engine.py` (5 strategies) | DONE |
-| 6.3 | New features in `historical_data.py` (6 features) | DONE |
-| 6.4 | Configurable `candidate_selector.py` weights | DONE |
-| 6.5 | `strategy` as 16th QuantOptimizer param + feature drift logging | DONE |
-| 6.6 | Model staleness tracking | DONE |
-| 6.7 | Auto-ingest check at backtest start | DONE |
-| 6.8 | Mock-test script (`dev/t_backtest_mock.py`) | DONE |
-
-### Pending (Phase 5B — ML→Live Bridge)
-
-| Step | Description | Status |
-|------|-------------|--------|
-| 7.1 | Create `backend/tools/quant_model.py` (12th enrichment signal) | DONE |
-| 7.2 | Wire into `orchestrator.py` Step 6 (7 integration points) | DONE |
-| 7.3 | Add `quant_model_agent.md` skill file | DONE |
-| 7.4 | Wire into `prompts.py` + `signals.py` | DONE |
-| 7.5 | Frontend: add QuantModel signal card to SignalCards.tsx | DONE |
-
-### Pending (Phase 5C — SkillOpt Iteration)
-
-| Step | Description | Status |
-|------|-------------|--------|
-| 8.1 | MetaCoordinator wired to `autonomous_loop.py` | DONE |
-| 8.2 | MDA→Agent bridge live targeting | DONE |
-| 8.3 | Proxy validation (1-window backtest for SkillOpt) | DONE |
-
-### Phase 5D — Backtest BQ Client Type Fix + Schema Alignment (March 2026)
-
-| Step | Description | Status |
-|------|-------------|--------|
-| 9.1 | Fix `bq_client=bq` → `bq_client=bq.client` in `backend/api/backtest.py` (2 call sites) | DONE |
-| 9.2 | Defensive unwrap guard in `BacktestEngine.__init__()` | DONE |
-| 9.3 | Upgrade `logger.debug` → `logger.warning` in `candidate_selector.py` | DONE |
-| 9.4 | Backend `generate_report()` field alignment with frontend TS types (prior session) | DONE |
-| 9.5 | Update `trading_agent.md` + `AGENTS.md` + `UX-AGENTS.md` | DONE |
+| Strategy | Label Method | Research Basis |
+|----------|-------------|----------------|
+| **triple_barrier** | TP/SL/Time barriers (vol-adjusted) | López de Prado AFML Ch. 3; vol barriers per Ch. 3 recommendation |
+| **quality_momentum** | 6M momentum + QMJ quality filter | Asness et al. (2019) "Quality Minus Junk", Novy-Marx (2013) |
+| **mean_reversion** | SMA+RSI signal → forward reversion validation | Lo & MacKinlay (1990), Poterba & Summers (1988) |
+| **factor_model** | 5-factor composite (P/B, 12-1 mom, vol, QMJ, yield) | Fama & French (2015), Carhart (1997), Jegadeesh & Titman (1993) |
+| **meta_label** | TB labels + secondary model for bet sizing | López de Prado AFML Ch. 3.6 |
+| **blend** | Weighted vote across TB, QM, MR, FM | Dietterich (2000) "Ensemble Methods in ML" |
 
 ---
 
-## 8. Known Issues & Fixes
+## ~49 Feature Vector
 
-### BQ Client Type Mismatch — Zero Candidates Bug (v5.4)
+| Category | Features | Source |
+|----------|----------|--------|
+| Price | price_at_analysis | BQ historical_prices |
+| Momentum | momentum_1m/3m/6m/12m, momentum_12_1 | Jegadeesh & Titman (1993) |
+| Technical | rsi_14, sma_50/200_distance, bb_upper/lower_distance, bb_pct_b, volume_ratio_20d | Bollinger (1992) |
+| Volatility | annualized_volatility, daily_volatility | For inverse-vol sizing & vol-adjusted barriers |
+| Risk | var_95/99_6m, expected_shortfall_6m, prob_positive_6m | GBM Monte Carlo (1K sims) |
+| Anomaly | anomaly_count | Goldman Sachs 127-dim (Z-score proxy) |
+| Liquidity | amihud_illiquidity | López de Prado AFML Ch. 18 |
+| Fundamental | pe_ratio, pb_ratio, debt_equity, roe, profit_margin, market_cap, fcf_yield, dividend_yield, quality_score, revenue_growth_yoy | Fama-French (2015), Asness (2019) |
+| Balance Sheet | total_revenue, net_income, total_debt, total_equity, total_assets | BQ historical_fundamentals |
+| Macro | fed_funds_rate, cpi_yoy, unemployment_rate, yield_curve_spread, consumer_sentiment, treasury_10y | FRED 7-series |
+| Derived | fractionally differenced: price, market_cap, revenue, debt, equity | López de Prado AFML Ch. 5 (d=0.4) |
 
-**Symptom**: Walk-forward backtest completed with dates but ALL windows showed Candidates=0, Samples=0, Features=0.
+---
 
-**Root Cause**: `BigQueryClient` wrapper (which has no `.query()` method) was passed to `BacktestEngine` instead of the raw `google.cloud.bigquery.Client` (which does). Every `cached_prices()` call threw `AttributeError`, silently caught at `logger.debug()` level by `screen_at_date()`.
+## Position Sizing
 
-**Data Flow Trace**:
-```
-POST /api/backtest/run
-→ bq = BigQueryClient(settings)          # wrapper object
-→ engine = BacktestEngine(bq_client=bq)  # BUG: passed wrapper
-  → cache.init_cache(bq_client, ...)     # stored wrapper as _bq_client
-  → FOR EACH window:
-    → candidate_selector.screen_at_date()
-      → cache.cached_prices(ticker, ...)
-        → _bq_client.query(...)          # AttributeError! wrapper has no .query()
-        → exception caught at logger.debug → ticker silently skipped
-      → 0 candidates → early-exit WindowResult with all zeros
-```
+**Inverse-volatility** (AQR / Frazzini & Pedersen 2014):
+`size = probability × min(target_vol / stock_vol, 3.0) × nav / max_positions`
 
-**Why Ingestion Worked**: `POST /ingest` correctly passed `bq.client` (raw):
-```python
-service = DataIngestionService(bq.client, settings)  # ✅ raw client
-```
+**Three scaling filters** (applied multiplicatively):
+1. **Turbulence dampening** (FinRL): scale down when Mahalanobis distance exceeds threshold
+2. **Amihud liquidity** (AFML Ch. 18): scale down for illiquid stocks (Amihud > 0.5)
+3. **Meta-label confidence** (AFML Ch. 3.6): when strategy=meta_label, secondary model probability replaces primary
 
-**Fix Applied (3 files)**:
-1. `backend/api/backtest.py` — `bq_client=bq` → `bq_client=bq.client` at both `BacktestEngine()` call sites
-2. `backend/backtest/backtest_engine.py` — Defensive unwrap: `if hasattr(bq_client, 'client'): bq_client = bq_client.client`
-3. `backend/backtest/candidate_selector.py` — `logger.debug` → `logger.warning` so BQ failures are visible in logs
+Capped at `max_single_pct × nav` (default 10%).
 
-**Lesson**: Python type annotations don't enforce types at runtime. The `BigQueryClient` wrapper was accepted without error, and `logger.debug()` in exception handlers hid the critical `AttributeError`. Always use `logger.warning()` for BQ/external service failures in screening loops.
+---
 
-### Backend/Frontend Schema Alignment (v5.4)
+## Academic Sources
 
-**Symptom**: Walk-Forward Windows table showed blank cells for dates, candidates, samples, features.
+| Paper | Authors | Year | Used For |
+|-------|---------|------|----------|
+| The Sharpe Ratio | Sharpe, W.F. | 1994 | Sharpe formula (✅ validated) |
+| The Statistics of Sharpe Ratios | Lo, A.W. | 2002 | √T annualization (✅ validated) |
+| The Deflated Sharpe Ratio | Bailey, D.H. & López de Prado, M. | 2014 | DSR overfitting guard (✅ validated) |
+| Advances in Financial Machine Learning | López de Prado, M. | 2018 | TB labels, sample weights, frac diff, walk-forward, MDA (✅ validated) |
+| Quality Minus Junk | Asness, C. et al. | 2019 | Quality score: profitability + growth + safety + payout (✅ implemented) |
+| A Five-Factor Model | Fama, E. & French, K. | 2015 | Factor model: value (P/B) + momentum + quality + low-vol + yield (✅ implemented) |
+| Returns to Buying Winners/Selling Losers | Jegadeesh, N. & Titman, S. | 1993 | 12-1 momentum, momentum persistence (✅ implemented) |
+| When are Contrarian Profits Due to Overreaction? | Lo, A.W. & MacKinlay, A.C. | 1990 | Mean reversion at 1-4 week horizon (✅ implemented) |
+| Betting Against Beta | Frazzini, A. & Pedersen, L. | 2014 | Inverse-vol position sizing (✅ implemented) |
+| Ensemble Methods in Machine Learning | Dietterich, T. | 2000 | Strategy blending via weighted vote (✅ implemented) |
+| ...and the Cross-Section of Expected Returns | Harvey, C. et al. | 2016 | Multiple testing: t-stat > 3.0 for new factors |
+| Optimal Execution of Portfolio Transactions | Almgren, R. & Chriss, N. | 2000 | Transaction cost in TB barriers (✅ implemented) |
+| TradingAgents | arXiv:2412.20138 | 2024 | Bull/Bear/DA/Moderator debate + Risk Judge |
+| Lopez-Lira & Tang | 2023 | Two-regime: quant-only historical, full LLM live |
+| FinRL | arXiv:2011.09607 | 2020 | Data→Agent→Analytics architecture, turbulence index |
+| Why tree-based models still outperform deep learning on tabular data | Grinsztajn, L. et al. | 2022 | Justification for GradientBoosting over deep learning |
 
-**Root Cause**: `generate_report()` in `analytics.py` returned fields like `sharpe_ratio`, `max_dd`, and single `date_range` strings, while frontend TypeScript interfaces expected `sharpe`, `max_drawdown`, and split `train_start`/`train_end`/`test_start`/`test_end` fields.
+---
 
-**Fix Applied (5 files)**:
-- `backend/backtest/analytics.py` — Field renames, split date fields, added per-window metrics
-- `backend/backtest/backtest_engine.py` — `WindowResult` dataclass: added `n_candidates`, `n_train_samples`, `n_features`
-- `frontend/src/lib/types.ts` — Aligned `BacktestWindowResult` interface
-- `frontend/src/app/backtest/page.tsx` — Updated table to render new field names
-- `backend/backtest/quant_optimizer.py` — Updated to consume new field names
+## Data
+
+- **Prices**: 299K rows, 149 tickers, 2018-01 to 2025-12 (BQ `historical_prices`)
+- **Fundamentals**: 1,424 rows, 149 tickers (BQ `historical_fundamentals`, yfinance quarterly 2024+)
+- **Macro**: 4,412 rows, 7 FRED series, 2018-2025 (BQ `historical_macro`)
+- **Walk-forward**: ~24 expanding windows (12mo train + 3mo test + 5d embargo)
+- **Baselines**: Buy-and-hold SPY, equal-weight top candidates, momentum-only top quartile
+
+---
+
+## What We Don't Do (and why)
+
+- **No RL**: Data volume too low; prompt/param search is more sample-efficient at our scale
+- **No fine-tuning**: Skills.md iteration is zero-cost vs GPU fine-tuning
+- **No real-time streaming**: Daily cycle + 7-day outcome window → batch is correct
+- **No optimizer self-modification**: Optimizers modify agents, never themselves (Karpathy: "modify train.py, never program.md")
+- **No LLM in backtests**: Lopez-Lira (2023) contamination risk — quant-only for historical, full LLM for live
+
+---
+
+*Last updated: 2026-03-25 by Ford*
