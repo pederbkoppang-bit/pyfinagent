@@ -78,6 +78,13 @@ class HistoricalDataProvider:
         features["momentum_6m"] = self._pct_change(close, 126)
         features["momentum_12m"] = self._pct_change(close, 252)
 
+        # 12-1 Momentum — Jegadeesh & Titman (1993)
+        # 12-month return minus most recent month to avoid short-term reversal
+        mom_12m = features.get("momentum_12m")
+        mom_1m = features.get("momentum_1m")
+        if mom_12m is not None and mom_1m is not None:
+            features["momentum_12_1"] = mom_12m - mom_1m
+
         # RSI (14-day)
         features["rsi_14"] = self._compute_rsi(close, 14)
 
@@ -88,6 +95,10 @@ class HistoricalDataProvider:
         else:
             features["annualized_volatility"] = None
 
+        # Daily volatility (for volatility-adjusted barriers — AFML Ch. 3)
+        if len(daily_returns) > 20:
+            features["daily_volatility"] = float(daily_returns.tail(20).std())
+
         # SMA distance
         if len(close) >= 50:
             sma_50 = float(close.tail(50).mean())
@@ -95,6 +106,18 @@ class HistoricalDataProvider:
         if len(close) >= 200:
             sma_200 = float(close.tail(200).mean())
             features["sma_200_distance"] = (current_price - sma_200) / sma_200
+
+        # Bollinger Bands (20-day SMA ± 2σ) — for mean reversion
+        if len(close) >= 20:
+            bb_sma = float(close.tail(20).mean())
+            bb_std = float(close.tail(20).std())
+            if bb_std > 0:
+                bb_upper = bb_sma + 2 * bb_std
+                bb_lower = bb_sma - 2 * bb_std
+                features["bb_upper_distance"] = (current_price - bb_upper) / bb_upper
+                features["bb_lower_distance"] = (current_price - bb_lower) / bb_lower
+                # BB %B — position within bands (0 = lower, 1 = upper)
+                features["bb_pct_b"] = (current_price - bb_lower) / (bb_upper - bb_lower)
 
         # Volume ratio (current vs 20d avg)
         if volume is not None and len(volume) >= 20:

@@ -40,7 +40,10 @@ STRATEGY_REGISTRY: dict[str, str] = {
 # Numeric features used for ML training (excludes categorical: ticker, date, sector, industry)
 _NUMERIC_FEATURES = [
     "price_at_analysis", "momentum_1m", "momentum_3m", "momentum_6m", "momentum_12m",
-    "rsi_14", "annualized_volatility", "sma_50_distance", "sma_200_distance",
+    "momentum_12_1",  # Jegadeesh & Titman (1993): 12m minus 1m, avoids short-term reversal
+    "rsi_14", "annualized_volatility", "daily_volatility",
+    "sma_50_distance", "sma_200_distance",
+    "bb_upper_distance", "bb_lower_distance", "bb_pct_b",  # Bollinger Bands for mean reversion
     "var_95_6m", "var_99_6m", "expected_shortfall_6m", "prob_positive_6m",
     "anomaly_count", "amihud_illiquidity", "volume_ratio_20d",
     "pe_ratio", "pb_ratio", "debt_equity", "roe", "profit_margin", "market_cap",
@@ -52,6 +55,7 @@ _NUMERIC_FEATURES = [
 
 # Non-stationary features that need fractional differentiation
 _NON_STATIONARY = {"price_at_analysis", "market_cap", "total_revenue", "total_debt", "total_equity"}
+# Note: daily_volatility is NOT included — it's already a derived statistic (std of returns)
 
 # ── MDA Cache ────────────────────────────────────────────────────
 # Persists the latest aggregate MDA weights so that the live quant_model
