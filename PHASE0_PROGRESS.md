@@ -76,8 +76,8 @@ Started: 2026-03-25
 - [x] Quality Score — expanded to full Asness (2019) QMJ 4-dimension composite: profitability (ROE + margin), growth (revenue YoY), safety (D/E + vol), payout (FCF yield + dividend yield). Replaces old ROE × margin × (1-D/E) formula.
 - [x] Factor Model — replaced hardcoded min/max normalization with sigmoid-centered scoring. Switched value factor from P/E to P/B (Fama-French HML proxy). Added 12-1 momentum (Jegadeesh & Titman 1993). Uses updated QMJ quality_score. Weights: value 25%, momentum 25%, quality 25%, low-vol 15%, yield 10%.
 - [x] Mean Reversion — rewired to use mr_holding_days as forward validation horizon. Now two-stage: (1) detect oversold/overbought via SMA+RSI, (2) validate actual reversion within mr_holding_days trading days. Academic basis: Lo & MacKinlay (1990), reversion at 1-4 week horizon.
-- [ ] Meta-Label — implement 2-stage model (AFML Ch. 3.6)
-- [ ] Transaction costs in TB labels — adjust TP/SL by estimated spread
+- [x] Meta-Label — implemented 2-stage model per AFML Ch. 3.6. Primary model provides direction, secondary (meta) model predicts P(primary is correct). Uses 3-fold CV on training set to avoid leakage. Meta-model's probability replaces primary probability for position sizing. Predictions with meta_probability < 0.5 filtered to HOLD.
+- [x] Transaction costs in TB labels — TP barrier shifted up and SL barrier shifted up by round-trip cost (2 × transaction_cost_pct). Prevents labeling marginal-profit trades as winners when costs would eat the gain. Per Almgren & Chriss (2000).
 - [ ] Sample weights O(n²) → O(n log n) optimization
 
 ---

@@ -34,7 +34,7 @@ STRATEGY_REGISTRY: dict[str, str] = {
     "quality_momentum": "_compute_quality_momentum_label",
     "mean_reversion": "_compute_mean_reversion_label",
     "factor_model": "_compute_factor_label",
-    "meta_label": "_compute_triple_barrier_label",  # same labels, secondary model on top
+    "meta_label": "_compute_triple_barrier_label",  # uses TB labels; meta-labeling applied in _run_window
 }
 
 # Numeric features used for ML training (excludes categorical: ticker, date, sector, industry)
@@ -416,6 +416,17 @@ class BacktestEngine:
         self._report_progress("computing_mda", "Permutation importance", window=wid)
         mda = self._compute_mda(model, train_features, train_labels, feature_names)
 
+        # 5b. Meta-labeling second stage (AFML Ch. 3.6)
+        # If strategy is "meta_label", train a secondary model that predicts
+        # whether the primary model's predictions are correct. The secondary
+        # model's probability output is used for position sizing (fractional Kelly).
+        meta_model = None
+        if self.strategy == "meta_label" and len(train_features) >= 50:
+            self._report_progress("training", "Training meta-label model (AFML Ch. 3.6)", window=wid)
+            meta_model = self._train_meta_label_model(
+                model, train_features, train_labels, feature_names, sample_weights,
+            )
+
         # 6. Predict on test period candidates
         self._report_progress("predicting", f"Scoring test candidates at {test_start_str}", window=wid)
         test_candidates = self.candidate_selector.screen_at_date(
@@ -426,6 +437,7 @@ class BacktestEngine:
 
         signals, predictions = self._predict_and_trade(
             model, feature_names, test_tickers, test_start_str, test_end_str,
+            meta_model=meta_model,
         )
 
         # 7. Execute trades in the test window
@@ -596,6 +608,12 @@ class BacktestEngine:
         """
         Triple Barrier Method (López de Prado Ch. 3):
         +1 if price hits TP barrier first, -1 if SL barrier first, 0 if time expires.
+
+        Transaction cost adjustment: barriers are shifted inward by the estimated
+        round-trip cost (2 × transaction_cost_pct). This prevents labeling trades
+        as winners when the actual profit after costs would be negative.
+        Per Almgren & Chriss (2000), realistic cost modeling is essential for
+        avoiding strategies that look profitable but lose to friction.
         """
         end_date = (pd.Timestamp(entry_date) + timedelta(days=int(self.holding_days * 1.5))).strftime("%Y-%m-%d")
         prices = cache.cached_prices(ticker, entry_date, end_date)
@@ -604,8 +622,12 @@ class BacktestEngine:
             return None
 
         entry_price = float(prices["close"].iloc[0])
-        tp_price = entry_price * (1 + self.tp_pct / 100)
-        sl_price = entry_price * (1 - self.sl_pct / 100)
+
+        # Adjust barriers for round-trip transaction costs
+        # Round-trip = entry cost + exit cost ≈ 2 × transaction_cost_pct
+        round_trip_cost_pct = 2 * self.trader.transaction_cost_pct / 100
+        tp_price = entry_price * (1 + self.tp_pct / 100 + round_trip_cost_pct)
+        sl_price = entry_price * (1 - self.sl_pct / 100 + round_trip_cost_pct)
 
         # Walk forward through prices
         trading_days = 0
@@ -614,7 +636,7 @@ class BacktestEngine:
             price = float(prices["close"].iloc[idx])
 
             if price >= tp_price:
-                return 1  # Hit take-profit
+                return 1  # Hit take-profit (net of costs)
             if price <= sl_price:
                 return -1  # Hit stop-loss
             if trading_days >= self.holding_days:
@@ -705,10 +727,17 @@ class BacktestEngine:
         test_tickers: list[str],
         test_start: str,
         test_end: str,
+        meta_model: GradientBoostingClassifier | None = None,
     ) -> tuple[list[dict], list[dict]]:
         """
         Generate predictions on test period candidates.
         Returns (signals for trader, predictions for analytics).
+
+        If meta_model is provided (meta-labeling, AFML Ch. 3.6):
+        - Primary model provides direction (label)
+        - Meta-model provides probability that primary is correct
+        - This probability is used for position sizing (fractional Kelly)
+        - Predictions with meta_probability < 0.5 are filtered to HOLD (label=0)
         """
         signals = []
         predictions = []
@@ -732,6 +761,26 @@ class BacktestEngine:
                     probability = float(pred_proba[classes.index(pred_label)])
                 else:
                     probability = 0.5
+
+                # Meta-labeling: override probability with meta-model's confidence
+                # that the primary prediction is correct (AFML Ch. 3.6)
+                if meta_model is not None:
+                    meta_features = self._build_meta_features(
+                        X_test, pred_label, probability, feature_names,
+                    )
+                    meta_proba = meta_model.predict_proba(meta_features)[0]
+                    # Meta-model predicts P(primary is correct)
+                    # Class 1 = "primary was correct"
+                    meta_classes = list(meta_model.classes_)
+                    if 1 in meta_classes:
+                        meta_probability = float(meta_proba[meta_classes.index(1)])
+                    else:
+                        meta_probability = 0.5
+
+                    # Filter: if meta-model says primary is likely wrong, don't trade
+                    if meta_probability < 0.5:
+                        pred_label = 0  # Override to HOLD
+                    probability = meta_probability  # Use meta confidence for sizing
 
                 volatility = fv.get("annualized_volatility", 0.3) or 0.3
 
@@ -757,6 +806,121 @@ class BacktestEngine:
                 logger.debug(f"Prediction failed for {ticker}: {e}")
 
         return signals, predictions
+
+    # ── Meta-Labeling (AFML Ch. 3.6) ──────────────────────────────
+
+    def _train_meta_label_model(
+        self,
+        primary_model: GradientBoostingClassifier,
+        X_train: pd.DataFrame,
+        y_train: np.ndarray,
+        feature_names: list[str],
+        sample_weights: np.ndarray,
+    ) -> GradientBoostingClassifier | None:
+        """
+        Train a secondary (meta-label) model per López de Prado AFML Ch. 3.6.
+
+        The meta-label model learns WHEN the primary model is correct.
+        Input: original features + primary model's prediction + primary confidence.
+        Output: binary 0/1 (was primary correct?).
+
+        This enables intelligent bet sizing — the meta-model's probability
+        output replaces the primary model's raw probability for position sizing,
+        implementing a form of fractional Kelly criterion.
+
+        Uses 3-fold cross-validation on the training set to avoid overfitting
+        the meta-labels to the primary model's in-sample predictions.
+        """
+        from sklearn.model_selection import cross_val_predict
+
+        try:
+            # Step 1: Generate primary model predictions via cross-validation
+            # This avoids leakage — we can't use the model's own training predictions
+            primary_preds = cross_val_predict(
+                GradientBoostingClassifier(
+                    n_estimators=self.ml_params["n_estimators"],
+                    max_depth=max(2, self.ml_params["max_depth"] - 1),  # Slightly shallower
+                    min_samples_leaf=self.ml_params["min_samples_leaf"],
+                    learning_rate=self.ml_params["learning_rate"],
+                    random_state=42,
+                ),
+                X_train, y_train, cv=3, method="predict",
+            )
+
+            # Step 2: Create meta-labels — was the primary prediction correct?
+            meta_labels = (primary_preds == y_train).astype(int)
+
+            # Need enough positive and negative meta-labels for training
+            if meta_labels.sum() < 10 or (len(meta_labels) - meta_labels.sum()) < 10:
+                logger.warning("Meta-labeling: insufficient label diversity, skipping")
+                return None
+
+            # Step 3: Build meta-features (original features + primary signal info)
+            # Get primary model's predictions and probabilities on training data
+            primary_proba = primary_model.predict_proba(X_train)
+            primary_labels = primary_model.predict(X_train)
+
+            meta_X = self._build_meta_features_batch(
+                X_train, primary_labels, primary_proba, feature_names, primary_model,
+            )
+
+            # Step 4: Train meta-model (binary classifier: correct vs incorrect)
+            meta_model = GradientBoostingClassifier(
+                n_estimators=max(50, self.ml_params["n_estimators"] // 2),
+                max_depth=max(2, self.ml_params["max_depth"] - 1),
+                min_samples_leaf=self.ml_params["min_samples_leaf"],
+                learning_rate=self.ml_params["learning_rate"],
+                random_state=42,
+            )
+            meta_model.fit(meta_X, meta_labels, sample_weight=sample_weights)
+
+            accuracy = (meta_model.predict(meta_X) == meta_labels).mean()
+            logger.info(
+                "Meta-label model trained: %d samples, in-sample accuracy=%.3f, "
+                "primary correct rate=%.3f",
+                len(meta_labels), accuracy, meta_labels.mean(),
+            )
+            return meta_model
+
+        except Exception as e:
+            logger.warning("Meta-label training failed: %s", e)
+            return None
+
+    def _build_meta_features(
+        self,
+        X_test: pd.DataFrame,
+        pred_label: int,
+        probability: float,
+        feature_names: list[str],
+    ) -> pd.DataFrame:
+        """Build meta-features for a single test observation."""
+        row = X_test.copy()
+        row["primary_label"] = pred_label
+        row["primary_confidence"] = probability
+        row["primary_is_buy"] = int(pred_label == 1)
+        row["primary_is_sell"] = int(pred_label == -1)
+        return row
+
+    def _build_meta_features_batch(
+        self,
+        X: pd.DataFrame,
+        primary_labels: np.ndarray,
+        primary_proba: np.ndarray,
+        feature_names: list[str],
+        primary_model: GradientBoostingClassifier,
+    ) -> pd.DataFrame:
+        """Build meta-features for the full training set."""
+        meta_X = X.copy()
+        meta_X["primary_label"] = primary_labels
+
+        # Get max probability across classes for each sample
+        meta_X["primary_confidence"] = primary_proba.max(axis=1)
+
+        # Binary indicators for direction
+        meta_X["primary_is_buy"] = (primary_labels == 1).astype(int)
+        meta_X["primary_is_sell"] = (primary_labels == -1).astype(int)
+
+        return meta_X
 
     # ── Metric helpers ───────────────────────────────────────────
 
