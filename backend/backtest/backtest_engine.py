@@ -838,10 +838,19 @@ class BacktestEngine:
 
     def _compute_mean_reversion_label(self, ticker: str, entry_date: str) -> int | None:
         """
-        Mean Reversion (Lo & MacKinlay 1990):
-        +1 if price significantly below SMA (oversold bounce candidate),
-        -1 if significantly above SMA (overbought reversion candidate),
-        0 if within normal range.
+        Mean Reversion (Lo & MacKinlay 1990, Poterba & Summers 1988):
+        Two-stage label:
+          1. Signal: is the stock oversold or overbought? (SMA distance + RSI)
+          2. Validation: does the price actually revert within mr_holding_days?
+
+        Uses mr_holding_days (default 15, range 5-30) for the short reversion
+        horizon that the academic literature recommends. Mean reversion works
+        at 1-4 week horizons; longer horizons transition to momentum territory
+        (Jegadeesh & Titman 1993).
+
+        +1 if oversold AND price reverts up by ≥ half the SMA gap within mr_holding_days
+        -1 if overbought AND price reverts down by ≥ half the SMA gap within mr_holding_days
+        0 if no signal or reversion doesn't materialize
         """
         fv = self.data_provider.build_feature_vector(ticker, entry_date)
         if not fv or fv.get("price_at_analysis") is None:
@@ -852,48 +861,115 @@ class BacktestEngine:
         if sma_dist is None or rsi is None:
             return None
 
-        # Oversold: price well below SMA50 + RSI < 30
-        if sma_dist < -0.05 and rsi < 35:
-            return 1
-        # Overbought: price well above SMA50 + RSI > 70
-        if sma_dist > 0.10 and rsi > 70:
-            return -1
-        return 0
+        entry_price = fv["price_at_analysis"]
+
+        # Stage 1: Signal detection
+        is_oversold = sma_dist < -0.05 and rsi < 35
+        is_overbought = sma_dist > 0.10 and rsi > 70
+
+        if not is_oversold and not is_overbought:
+            return 0
+
+        # Stage 2: Forward validation — did the price actually revert?
+        end_date = (pd.Timestamp(entry_date) + timedelta(days=int(self.mr_holding_days * 2))).strftime("%Y-%m-%d")
+        prices = cache.cached_prices(ticker, entry_date, end_date)
+
+        if prices.empty or len(prices) < 3:
+            return None
+
+        # Check if price reverts toward SMA within mr_holding_days trading days
+        trading_days = 0
+        for idx in range(1, len(prices)):
+            trading_days += 1
+            if trading_days > self.mr_holding_days:
+                break
+            price = float(prices["close"].iloc[idx])
+
+            if is_oversold:
+                # Reversion target: recover at least half the gap to SMA
+                # If SMA dist was -8%, target is entry_price × (1 + 0.04)
+                reversion_target = entry_price * (1 + abs(sma_dist) / 2)
+                if price >= reversion_target:
+                    return 1
+            elif is_overbought:
+                # Reversion target: fall at least half the gap from SMA
+                reversion_target = entry_price * (1 - sma_dist / 2)
+                if price <= reversion_target:
+                    return -1
+
+        return 0  # Signal present but reversion didn't materialize
 
     def _compute_factor_label(self, ticker: str, entry_date: str) -> int | None:
         """
-        Multi-Factor Composite (Fama-French 5-factor):
-        Score based on value (low P/E), momentum, quality (high ROE), low volatility.
+        Multi-Factor Composite — Fama & French (2015) "A Five-Factor Model",
+        augmented with Carhart (1997) momentum and Novy-Marx (2013) profitability.
+
+        Factors and weights:
+          1. Value (25%): P/B ratio — Fama-French use book-to-market (HML).
+             P/B is the inverse; lower P/B = higher B/M = deeper value.
+          2. Momentum (25%): 12-1 month return — Jegadeesh & Titman (1993).
+             Uses 12m return minus 1m return to avoid short-term reversal.
+          3. Low Volatility (15%): Frazzini & Pedersen (2014) "Betting Against Beta".
+          4. Quality/Profitability (25%): Novy-Marx (2013), using the Asness (2019)
+             QMJ composite quality_score from build_feature_vector().
+          5. Yield (10%): Dividend yield as payout factor proxy.
+
+        Each factor uses a sigmoid-like normalization centered on typical S&P 500
+        values rather than hardcoded min/max caps, making it more robust across
+        market regimes. The old hardcoded ranges (P/E 5-40, vol 0.10-0.60) broke
+        for growth stocks and extreme market conditions.
+
         +1 if composite > 0.6, -1 if composite < 0.3, 0 otherwise.
         """
         fv = self.data_provider.build_feature_vector(ticker, entry_date)
         if not fv or fv.get("price_at_analysis") is None:
             return None
 
-        # Normalize factors to 0-1 range
+        # Use P/B (Fama-French HML proxy) instead of P/E for value factor
+        pb = fv.get("pb_ratio")
         pe = fv.get("pe_ratio")
-        momentum = fv.get("momentum_6m")
+        # 12-1 momentum: 12m return minus 1m to avoid short-term reversal
+        mom_12m = fv.get("momentum_12m")
+        mom_1m = fv.get("momentum_1m")
         vol = fv.get("annualized_volatility")
-        roe = fv.get("roe")
+        quality = fv.get("quality_score")  # Now uses full Asness (2019) QMJ
         div_yield = fv.get("dividend_yield", 0) or 0
 
-        if pe is None or momentum is None or vol is None:
+        # Need at least momentum and one valuation metric
+        if vol is None:
+            return None
+        if pb is None and pe is None:
+            return None
+        if mom_12m is None:
             return None
 
-        # Value: lower P/E is better (capped 5-40)
-        value_score = max(0, min(1, 1 - (max(5, min(40, pe)) - 5) / 35))
-        # Momentum: positive is better (capped -30% to +50%)
-        mom_score = max(0, min(1, (max(-30, min(50, momentum)) + 30) / 80))
-        # Low vol: lower is better (capped 0.10 to 0.60)
-        vol_score = max(0, min(1, 1 - (max(0.10, min(0.60, vol)) - 0.10) / 0.50))
-        # Quality: higher ROE is better (capped 0-40%)
-        quality_score = max(0, min(1, (roe or 0) / 0.40))
-        # Yield
-        yield_score = max(0, min(1, div_yield / 0.05))
+        # 1. Value: lower P/B is better. Sigmoid centered at P/B = 3 (S&P median)
+        # P/B < 1.5 → high value score, P/B > 6 → low value score
+        if pb is not None and pb > 0:
+            value_score = max(0, min(1, 1.0 / (1.0 + np.exp((pb - 3.0) / 1.5))))
+        elif pe is not None and pe > 0:
+            # Fallback to P/E if P/B unavailable. Centered at P/E = 20
+            value_score = max(0, min(1, 1.0 / (1.0 + np.exp((pe - 20.0) / 8.0))))
+        else:
+            value_score = 0.5  # Neutral if no valuation data
+
+        # 2. Momentum: 12-1 month return (Jegadeesh & Titman 1993)
+        mom_12_1 = mom_12m - (mom_1m or 0)
+        # Sigmoid centered at 0%: positive momentum → higher score
+        mom_score = max(0, min(1, 1.0 / (1.0 + np.exp(-mom_12_1 / 15.0))))
+
+        # 3. Low Volatility: lower is better. Sigmoid centered at 25% (S&P median)
+        vol_score = max(0, min(1, 1.0 / (1.0 + np.exp((vol - 0.25) / 0.10))))
+
+        # 4. Quality: use the Asness (2019) QMJ composite directly (already 0-1)
+        quality_score = quality if quality is not None else 0.5
+
+        # 5. Yield: dividend yield. Sigmoid centered at 2%
+        yield_score = max(0, min(1, 1.0 / (1.0 + np.exp(-(div_yield - 0.02) / 0.015)))) if div_yield > 0 else 0.3
 
         composite = (
-            value_score * 0.25 + mom_score * 0.25 + vol_score * 0.20
-            + quality_score * 0.20 + yield_score * 0.10
+            value_score * 0.25 + mom_score * 0.25 + vol_score * 0.15
+            + quality_score * 0.25 + yield_score * 0.10
         )
 
         if composite > 0.6:

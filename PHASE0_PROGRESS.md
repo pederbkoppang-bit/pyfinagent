@@ -73,9 +73,9 @@ Started: 2026-03-25
 
 ## 0.2 Bug Fixes
 
-- [ ] Quality Score — add fcf_yield, dividend_yield, revenue_growth_yoy (Asness 2019)
-- [ ] Factor Model — replace hardcoded normalization with cross-sectional percentile ranking
-- [ ] Mean Reversion — wire mr_holding_days into label function
+- [x] Quality Score — expanded to full Asness (2019) QMJ 4-dimension composite: profitability (ROE + margin), growth (revenue YoY), safety (D/E + vol), payout (FCF yield + dividend yield). Replaces old ROE × margin × (1-D/E) formula.
+- [x] Factor Model — replaced hardcoded min/max normalization with sigmoid-centered scoring. Switched value factor from P/E to P/B (Fama-French HML proxy). Added 12-1 momentum (Jegadeesh & Titman 1993). Uses updated QMJ quality_score. Weights: value 25%, momentum 25%, quality 25%, low-vol 15%, yield 10%.
+- [x] Mean Reversion — rewired to use mr_holding_days as forward validation horizon. Now two-stage: (1) detect oversold/overbought via SMA+RSI, (2) validate actual reversion within mr_holding_days trading days. Academic basis: Lo & MacKinlay (1990), reversion at 1-4 week horizon.
 - [ ] Meta-Label — implement 2-stage model (AFML Ch. 3.6)
 - [ ] Transaction costs in TB labels — adjust TP/SL by estimated spread
 - [ ] Sample weights O(n²) → O(n log n) optimization

@@ -162,13 +162,69 @@ class HistoricalDataProvider:
             if dividends and dividends > 0 and current_price > 0:
                 features["dividend_yield"] = dividends / current_price
 
-            # Quality score = ROE × profit_margin × (1 − normalized_D/E)
+            # Quality score — Asness, Frazzini & Pedersen (2019) "Quality Minus Junk"
+            # QMJ defines quality across 4 dimensions:
+            #   1. Profitability (ROE, profit margin)
+            #   2. Growth (revenue growth YoY)
+            #   3. Safety (low leverage, low volatility)
+            #   4. Payout (FCF yield, dividend yield)
+            # Each sub-score is normalized to [0, 1], then averaged.
+            # This replaces the previous ROE × margin × (1-D/E) formula which
+            # only captured profitability and safety.
             roe_val = features.get("roe")
             pm_val = features.get("profit_margin")
             de_val = features.get("debt_equity")
-            if roe_val is not None and pm_val is not None:
-                de_norm = min(1.0, max(0, (de_val or 0)) / 3.0)  # Cap at D/E=3
-                features["quality_score"] = max(0, (roe_val * pm_val * (1 - de_norm)))
+            fcf_val = features.get("fcf_yield")
+            div_val = features.get("dividend_yield")
+            rev_growth = features.get("revenue_growth_yoy")
+            vol_val = features.get("annualized_volatility")
+
+            quality_components = []
+
+            # 1. Profitability: average of ROE score and profit margin score
+            prof_scores = []
+            if roe_val is not None:
+                # ROE: 0-40% range → 0-1 (negative ROE → 0)
+                prof_scores.append(max(0.0, min(1.0, roe_val / 0.40)))
+            if pm_val is not None:
+                # Profit margin: 0-30% range → 0-1 (negative → 0)
+                prof_scores.append(max(0.0, min(1.0, pm_val / 0.30)))
+            if prof_scores:
+                quality_components.append(sum(prof_scores) / len(prof_scores))
+
+            # 2. Growth: revenue growth YoY
+            if rev_growth is not None:
+                # Revenue growth: -20% to +40% → 0-1
+                growth_score = max(0.0, min(1.0, (rev_growth + 0.20) / 0.60))
+                quality_components.append(growth_score)
+
+            # 3. Safety: low leverage + low volatility
+            safety_scores = []
+            if de_val is not None:
+                # D/E: lower is safer. 0 → 1.0, 3+ → 0.0
+                safety_scores.append(max(0.0, min(1.0, 1.0 - de_val / 3.0)))
+            if vol_val is not None:
+                # Volatility: lower is safer. 0.10 → 1.0, 0.60 → 0.0
+                safety_scores.append(max(0.0, min(1.0, 1.0 - (vol_val - 0.10) / 0.50)))
+            if safety_scores:
+                quality_components.append(sum(safety_scores) / len(safety_scores))
+
+            # 4. Payout: FCF yield + dividend yield
+            payout_scores = []
+            if fcf_val is not None:
+                # FCF yield: 0-10% → 0-1 (negative → 0)
+                payout_scores.append(max(0.0, min(1.0, fcf_val / 0.10)))
+            if div_val is not None:
+                # Dividend yield: 0-5% → 0-1
+                payout_scores.append(max(0.0, min(1.0, div_val / 0.05)))
+            if payout_scores:
+                quality_components.append(sum(payout_scores) / len(payout_scores))
+
+            # Final quality score: average of available dimensions
+            if quality_components:
+                features["quality_score"] = sum(quality_components) / len(quality_components)
+            else:
+                features["quality_score"] = None
 
             # Revenue growth YoY: compare current quarter vs same quarter 4 periods ago
             features["revenue_growth_yoy"] = self._compute_revenue_growth_yoy(
