@@ -19,7 +19,12 @@
 ## Quick Start
 
 ```bash
-# Backend
+# Backend (macOS — Python 3.13+)
+python3 -m venv .venv
+.venv/bin/pip install -r backend/requirements.txt
+.venv/bin/python -m uvicorn backend.main:app --reload --port 8000
+
+# Backend (Windows — Python 3.12+)
 ./.venv312/Scripts/python.exe -m pip install -r backend/requirements.txt
 ./.venv312/Scripts/python.exe -m uvicorn backend.main:app --reload --port 8000
 
@@ -27,7 +32,7 @@
 cd frontend && npm install && npx prisma migrate dev && npm run dev
 ```
 
-`.venv312` is the canonical Python environment. Use it for Pylance, debugging, and FastAPI startup.
+`.venv312` is the canonical Windows environment. On macOS, use `.venv` with system Python 3.13+.
 
 ## Directory Structure (Top Level)
 
@@ -50,8 +55,10 @@ pyfinagent/
 |   +-- src/lib/        # types.ts, api.ts, auth.ts, icons.ts
 +-- docs/ARCHITECTURE.md  # Full architecture reference (agent registry, API endpoints, BQ schemas)
 +-- UX-AGENTS.md          # Frontend UX conventions and component specs
-+-- trading_agent.md      # Autonomous trading optimization memory
-+-- CHANGELOG.md          # Version history (v1.0 -> v5.9)
++-- trading_agent.md      # Autonomous trading optimization (Karpathy autoresearch pattern)
++-- PLAN.md               # Ford's master optimization plan (Phase 0-4)
++-- PHASE0_FINDINGS.md    # Formula validation findings with academic citations
++-- CHANGELOG.md          # Version history (v1.0 -> v5.12)
 ```
 
 ## 15-Step Analysis Pipeline
@@ -98,6 +105,27 @@ pyfinagent/
 | Governance | 10% | Compensation, board independence |
 
 **Final Score** = Sum(pillar x weight) -> 0.0-10.0
+
+## Walk-Forward Backtest Engine
+
+Zero-LLM-cost ML backtest system. Trains GradientBoosting on ~49 features with walk-forward expanding windows.
+
+**Data**: 299K price rows, 149 tickers, 2018-2025. 4,412 macro data points (FRED 7-series). ~24 walk-forward windows.
+
+**6 Strategies** (optimizer rotates between these):
+
+| Strategy | Research Basis |
+|----------|----------------|
+| Triple Barrier (vol-adjusted) | López de Prado AFML Ch. 3, Almgren & Chriss (2000) tx cost |
+| Quality Momentum | Asness et al. (2019) QMJ, Novy-Marx (2013) |
+| Mean Reversion (2-stage) | Lo & MacKinlay (1990), uses `mr_holding_days` validation |
+| Factor Model (5-factor) | Fama & French (2015), Carhart (1997), Jegadeesh & Titman (1993) |
+| Meta-Label (2-stage) | López de Prado AFML Ch. 3.6, 3-fold CV secondary model |
+| Blend (weighted vote) | Dietterich (2000) ensemble methods |
+
+**Key techniques**: Sample weights (AFML Ch. 4), fractional differentiation (Ch. 5), DSR ≥ 0.95 guard (Bailey & LdP 2014), inverse-vol sizing (AQR), turbulence dampening (FinRL), Amihud liquidity filter.
+
+**Autoresearch pattern** (Karpathy): autonomous loop — baseline → propose → measure → keep/discard → log. See `trading_agent.md`.
 
 ## Environment Variables
 
