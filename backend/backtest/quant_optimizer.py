@@ -52,6 +52,9 @@ _PARAM_BOUNDS = {
     "rsi_weight": (0.0, 1.0),
     "volatility_weight": (0.0, 1.0),
     "sma_weight": (0.0, 1.0),
+    # Volatility-adjusted barriers (AFML Ch. 3): 0 = use fixed tp_pct/sl_pct,
+    # >0 = barriers = daily_vol × multiplier. Typical range 1.0-5.0.
+    "vol_barrier_multiplier": (0.0, 5.0),
 }
 
 # Integer params (must be int after perturbation)
@@ -414,6 +417,11 @@ class QuantStrategyOptimizer:
             engine.trader.max_positions = params["max_positions"]
         if "strategy" in params:
             engine.strategy = params["strategy"]
+
+        # Vol-adjusted barrier multiplier is read from _strategy_params dict
+        # (not a direct engine attribute), so update it there
+        if "vol_barrier_multiplier" in params:
+            engine._strategy_params["vol_barrier_multiplier"] = params["vol_barrier_multiplier"]
 
     # ── Logging ──────────────────────────────────────────────────
 

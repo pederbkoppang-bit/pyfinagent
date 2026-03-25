@@ -77,17 +77,33 @@ class BacktestTrader:
         # Default: flat percentage of notional
         return abs(quantity * price) * self.transaction_cost_pct / 100
 
-    def size_position(self, probability: float, stock_vol: float, nav: float) -> float:
+    def size_position(
+        self, probability: float, stock_vol: float, nav: float,
+        turbulence: float = 0.0, turbulence_threshold: float = 1.0,
+    ) -> float:
         """
-        Inverse-volatility position sizing (AQR):
+        Inverse-volatility position sizing (AQR / Frazzini & Pedersen 2014):
         dollar_amount = probability × (target_vol / stock_vol) × nav / max_positions
         Capped at max_single_pct × nav.
+
+        Turbulence scaling (FinRL architecture, Mahalanobis distance):
+        When turbulence > threshold, positions are scaled down proportionally.
+        This reduces exposure during systemic market stress events (e.g., COVID crash,
+        2022 bear market). turbulence=0 or threshold=0 disables this feature.
         """
         if stock_vol <= 0 or probability <= 0:
             return 0.0
 
         vol_scale = min(self.target_vol / stock_vol, 3.0)  # Cap at 3x to prevent extreme sizing
         raw = probability * vol_scale * nav / self.max_positions
+
+        # Turbulence dampening: scale down positions when market is stressed
+        if turbulence > 0 and turbulence_threshold > 0 and turbulence > turbulence_threshold:
+            # Scale factor: 1.0 at threshold, approaches 0.2 at 5× threshold
+            turbulence_ratio = turbulence / turbulence_threshold
+            dampening = max(0.2, 1.0 / turbulence_ratio)
+            raw *= dampening
+
         capped = min(raw, nav * self.max_single_pct)
         return max(0.0, capped)
 

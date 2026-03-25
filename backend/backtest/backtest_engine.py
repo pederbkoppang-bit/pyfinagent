@@ -613,11 +613,16 @@ class BacktestEngine:
         Triple Barrier Method (López de Prado Ch. 3):
         +1 if price hits TP barrier first, -1 if SL barrier first, 0 if time expires.
 
-        Transaction cost adjustment: barriers are shifted inward by the estimated
-        round-trip cost (2 × transaction_cost_pct). This prevents labeling trades
-        as winners when the actual profit after costs would be negative.
-        Per Almgren & Chriss (2000), realistic cost modeling is essential for
-        avoiding strategies that look profitable but lose to friction.
+        Supports two barrier modes:
+        1. Fixed percentage (default): tp_pct/sl_pct as configured
+        2. Volatility-adjusted (AFML recommended): barriers = daily_vol × multiplier
+           Activated when strategy_params contains 'vol_barrier_multiplier' > 0.
+           This adapts barriers to each stock's risk profile — a 40% vol stock
+           gets wider barriers than a 15% vol stock.
+
+        Transaction cost adjustment (Almgren & Chriss 2000): barriers are shifted
+        inward by the estimated round-trip cost to avoid labeling trades as winners
+        when actual profit after costs would be negative.
         """
         end_date = (pd.Timestamp(entry_date) + timedelta(days=int(self.holding_days * 1.5))).strftime("%Y-%m-%d")
         prices = cache.cached_prices(ticker, entry_date, end_date)
@@ -627,11 +632,34 @@ class BacktestEngine:
 
         entry_price = float(prices["close"].iloc[0])
 
+        # Determine barrier width
+        vol_multiplier = self._strategy_params.get("vol_barrier_multiplier", 0)
+
+        if vol_multiplier and vol_multiplier > 0:
+            # Volatility-adjusted barriers (AFML Ch. 3 recommended approach)
+            # Compute daily vol from recent prices (20-day lookback)
+            lookback_start = (pd.Timestamp(entry_date) - timedelta(days=40)).strftime("%Y-%m-%d")
+            lookback_prices = cache.cached_prices(ticker, lookback_start, entry_date)
+            if lookback_prices.empty or len(lookback_prices) < 10:
+                # Fallback to fixed barriers if insufficient lookback data
+                tp_pct_effective = self.tp_pct
+                sl_pct_effective = self.sl_pct
+            else:
+                daily_returns = lookback_prices["close"].pct_change().dropna()
+                daily_vol = float(daily_returns.std())
+                # Barrier = daily_vol × multiplier (as percentage)
+                # Typical multiplier range: 1.0-5.0
+                tp_pct_effective = daily_vol * vol_multiplier * 100
+                sl_pct_effective = daily_vol * vol_multiplier * 100
+        else:
+            # Fixed percentage barriers (original behavior)
+            tp_pct_effective = self.tp_pct
+            sl_pct_effective = self.sl_pct
+
         # Adjust barriers for round-trip transaction costs
-        # Round-trip = entry cost + exit cost ≈ 2 × transaction_cost_pct
         round_trip_cost_pct = 2 * self.trader.transaction_cost_pct / 100
-        tp_price = entry_price * (1 + self.tp_pct / 100 + round_trip_cost_pct)
-        sl_price = entry_price * (1 - self.sl_pct / 100 + round_trip_cost_pct)
+        tp_price = entry_price * (1 + tp_pct_effective / 100 + round_trip_cost_pct)
+        sl_price = entry_price * (1 - sl_pct_effective / 100 + round_trip_cost_pct)
 
         # Walk forward through prices
         trading_days = 0
