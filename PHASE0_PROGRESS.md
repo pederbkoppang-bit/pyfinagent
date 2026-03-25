@@ -1,0 +1,113 @@
+# Phase 0: Audit & Validate — Progress Tracker
+
+## Status: IN PROGRESS
+Started: 2026-03-25
+
+---
+
+## 0.1 Formula Validation
+
+### Sharpe Ratio
+- [ ] Cross-check with Sharpe (1994) "The Sharpe Ratio" — Journal of Portfolio Management
+- [ ] Cross-check with Lo (2002) "The Statistics of Sharpe Ratios" — Financial Analysts Journal
+- [ ] Verify risk-free rate handling (4% annualized / periods_per_year)
+- [ ] Verify √252 annualization is correct for daily returns
+- [ ] Source: analytics.py `compute_sharpe()`
+- **Finding**: (pending)
+
+### Deflated Sharpe Ratio
+- [ ] Cross-check with Bailey & López de Prado (2014) "The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting, and Non-Normality" — Journal of Portfolio Management
+- [ ] Verify E[max(SR)] formula (Euler-Mascheroni approximation)
+- [ ] Verify standard error formula (non-normality adjustment)
+- [ ] Verify T < 10 guard is appropriate
+- [ ] Source: analytics.py `compute_deflated_sharpe()`
+- **Finding**: (pending)
+
+### Sample Weights (Average Uniqueness)
+- [ ] Cross-check with López de Prado AFML Ch. 4 "Sample Weights"
+- [ ] Verify overlap detection logic
+- [ ] Verify normalization (weights sum to n)
+- [ ] Check edge cases: non-overlapping labels should get weight ≈ 1
+- [ ] Source: backtest_engine.py `_compute_sample_weights()`
+- **Finding**: (pending)
+
+### Fractional Differentiation
+- [ ] Cross-check with López de Prado AFML Ch. 5 "Fractionally Differentiated Features"
+- [ ] Verify fixed-width window implementation
+- [ ] Verify weight computation formula
+- [ ] Consider: should we add ADF test to verify stationarity?
+- [ ] Source: historical_data.py `fractional_diff()`
+- **Finding**: (pending)
+
+### Triple Barrier Labels
+- [ ] Cross-check with López de Prado AFML Ch. 3 "Labeling"
+- [ ] Verify barrier hit logic (TP/SL/time)
+- [ ] Check: are we using calendar days or trading days for holding_days?
+- [ ] Document: labels don't account for transaction costs (known limitation)
+- [ ] Source: backtest_engine.py `_compute_triple_barrier_label()`
+- **Finding**: (pending)
+
+### Monte Carlo VaR
+- [ ] Verify GBM assumption appropriateness for equity returns
+- [ ] Document fat-tail limitation
+- [ ] Consider: Student-t or historical simulation as alternative/supplement
+- [ ] Source: historical_data.py `_compute_monte_carlo_var()`
+- **Finding**: (pending)
+
+### Position Sizing (Inverse Volatility)
+- [ ] Cross-check with AQR "Betting Against Beta" (Frazzini & Pedersen, 2014)
+- [ ] Verify formula: probability × (target_vol / stock_vol) × nav / max_positions
+- [ ] Check: is the 3x cap on vol_scale justified?
+- [ ] Check: max_single_pct × nav cap
+- [ ] Source: backtest_trader.py `size_position()`
+- **Finding**: (pending)
+
+### Scalar Metric
+- [ ] Document theoretical justification for tx cost penalty
+- [ ] Verify: risk_adjusted_return = avg_return × beat_benchmark_rate is meaningful
+- [ ] Check: 0.3 cap on tx drag — is this appropriate?
+- [ ] Source: perf_metrics.py `get_scalar_metric()`
+- **Finding**: (pending)
+
+---
+
+## 0.2 Bug Fixes
+
+- [ ] Quality Score — add fcf_yield, dividend_yield, revenue_growth_yoy (Asness 2019)
+- [ ] Factor Model — replace hardcoded normalization with cross-sectional percentile ranking
+- [ ] Mean Reversion — wire mr_holding_days into label function
+- [ ] Meta-Label — implement 2-stage model (AFML Ch. 3.6)
+- [ ] Transaction costs in TB labels — adjust TP/SL by estimated spread
+- [ ] Sample weights O(n²) → O(n log n) optimization
+
+---
+
+## 0.3 Overfitting Diagnostics
+
+- [ ] Walk-forward leakage audit
+- [ ] Label leakage check
+- [ ] Feature importance stability test
+- [ ] Multi-seed DSR validation
+- [ ] Backtest vs reality gap documentation
+
+---
+
+## Academic Sources Registry
+
+| Paper | Authors | Year | Journal | Used For | Verified? |
+|-------|---------|------|---------|----------|-----------|
+| The Sharpe Ratio | Sharpe, W.F. | 1994 | J. Portfolio Mgmt | Sharpe formula | [ ] |
+| The Statistics of Sharpe Ratios | Lo, A.W. | 2002 | Financial Analysts J. | √T annualization | [ ] |
+| The Deflated Sharpe Ratio | Bailey, D.H. & López de Prado, M. | 2014 | J. Portfolio Mgmt | DSR overfitting guard | [ ] |
+| Advances in Financial Machine Learning | López de Prado, M. | 2018 | Book (Wiley) | TB labels, sample weights, frac diff, walk-forward | [ ] |
+| Quality Minus Junk | Asness, C., Frazzini, A. & Pedersen, L. | 2019 | J. Finance | Quality score definition | [ ] |
+| A Five-Factor Model | Fama, E. & French, K. | 2015 | J. Financial Economics | Factor model construction | [ ] |
+| Returns to Buying Winners/Selling Losers | Jegadeesh, N. & Titman, S. | 1993 | J. Finance | Momentum (12-1) | [ ] |
+| ...and the Cross-Section of Expected Returns | Harvey, C., Liu, Y. & Zhu, H. | 2016 | Review of Financial Studies | Multiple testing (t>3.0 threshold) | [ ] |
+| When are Contrarian Profits Due to Overreaction? | Lo, A.W. & MacKinlay, A.C. | 1990 | Review of Financial Studies | Mean reversion horizon | [ ] |
+| Betting Against Beta | Frazzini, A. & Pedersen, L. | 2014 | J. Financial Economics | Inverse-vol sizing | [ ] |
+| Optimal Execution of Portfolio Transactions | Almgren, R. & Chriss, N. | 2000 | J. Risk | Market impact / tx cost | [ ] |
+| Machine Learning for Asset Managers | López de Prado, M. | 2020 | Book (Cambridge) | Additional ML techniques | [ ] |
+| Why do tree-based models still outperform... | Grinsztajn, L. et al. | 2022 | NeurIPS | GBC vs deep learning for tabular | [ ] |
+| TradingAgents | arXiv:2412.20138 | 2024 | arXiv | Multi-agent debate framework | [ ] |
+| Ensemble Methods in Machine Learning | Dietterich, T. | 2000 | MCS Workshop | Strategy blending | [ ] |
