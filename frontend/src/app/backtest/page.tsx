@@ -92,9 +92,11 @@ const STEP_META: Record<PipelineStepKey, { StepIcon: Icon; label: string }> = {
 /* ── Helpers ── */
 function formatRunTimestamp(ts: string): string {
   // Parse compact ISO like "20260323T081929Z" or full ISO like "2026-03-23T18:50:16.400976+00:00"
-  const m = ts.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/);
+  const m = ts.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/);
   if (m) {
-    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+    const d = m[7] === "Z"
+      ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]))
+      : new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
     if (!isNaN(d.getTime())) return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
   }
   // Try standard ISO parse (handles full ISO 8601 with timezone)
