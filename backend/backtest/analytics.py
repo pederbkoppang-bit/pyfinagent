@@ -203,9 +203,17 @@ def compute_trade_statistics(round_trips: list[dict], avg_nav: float = 100_000.0
     pnl_std = float(pnl_arr.std()) if n_trades > 1 else 0.0
     sqn = (math.sqrt(n_trades) * expectancy / pnl_std) if pnl_std > 0 else 0.0
 
-    # Best / worst
-    best_trade = float(max(pnls)) if pnls else 0.0
-    worst_trade = float(min(pnls)) if pnls else 0.0
+    # Best / worst (as decimal ratio for frontend: 0.05 = 5%)
+    pnl_pcts = [rt["pnl_pct"] / 100 for rt in round_trips if "pnl_pct" in rt]
+    if not pnl_pcts:
+        # Fallback: compute from cost basis
+        pnl_pcts = [
+            rt["net_pnl"] / (rt["entry_price"] * rt["quantity"])
+            for rt in round_trips
+            if rt.get("entry_price", 0) * rt.get("quantity", 0) > 0
+        ]
+    best_trade = float(max(pnl_pcts)) if pnl_pcts else 0.0
+    worst_trade = float(min(pnl_pcts)) if pnl_pcts else 0.0
 
     # Holding periods
     win_holdings = [rt["holding_days"] for rt in round_trips if rt["net_pnl"] > 0]
