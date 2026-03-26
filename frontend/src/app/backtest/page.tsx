@@ -1221,10 +1221,10 @@ export default function BacktestPage() {
                         }}
                       >
                         {optBaselines.map((b, i) => {
-                          const children = runs.filter((r) => r.parent_run_id === b.run_id);
+                          const tsvChildren = optExperiments.filter((e) => e.parent_run_id === b.run_id && e.status !== "BASELINE");
                           return (
                             <option key={b.run_id} value={i}>
-                              {b.strategy} -- {formatRunTimestamp(b.timestamp)} -- Sharpe {b.sharpe?.toFixed(2) ?? "?"} -- {children.length} experiments
+                              {b.strategy} -- {formatRunTimestamp(b.timestamp)} -- Sharpe {b.sharpe?.toFixed(2) ?? "?"} -- {tsvChildren.length} experiments
                             </option>
                           );
                         })}
@@ -1303,9 +1303,13 @@ export default function BacktestPage() {
                         <tbody>
                           {optExperiments.map((exp, i) => (
                             <tr key={i} className="border-b border-slate-800">
-                              <td className="px-3 py-2 font-mono text-xs text-slate-500">{exp.run_id}</td>
+                              <td className="px-3 py-2 font-mono text-xs text-slate-500">
+                                {exp.status === "BASELINE" 
+                                  ? `${exp.run_id.slice(0,8)}`
+                                  : `${exp.parent_run_id?.slice(0,8) || "?"}-${String(i).padStart(2,"0")}`}
+                              </td>
                               <td className="max-w-xs truncate px-3 py-2 text-xs text-slate-400" title={exp.param_changed}>
-                                {exp.param_changed}
+                                {exp.status === "BASELINE" ? (exp.param_changed || "baseline") : (exp.param_changed || exp.run_id)}
                               </td>
                               <td className="px-3 py-2 text-right font-mono text-xs text-slate-400">{parseFloat(exp.metric_before).toFixed(3)}</td>
                               <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">{parseFloat(exp.metric_after).toFixed(3)}</td>
