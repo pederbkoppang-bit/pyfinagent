@@ -238,6 +238,10 @@ class BacktestEngine:
             "starting_capital": starting_capital, "max_positions": max_positions,
             "top_n_candidates": top_n_candidates, "strategy": self.strategy,
             "target_annual_vol": 0.10,  # Volatility targeting: 10% annualized
+            # Trailing stop: activate after +trigger% above entry, trail at -distance% below HWM
+            "trailing_stop_enabled": False,
+            "trailing_trigger_pct": 5.0,
+            "trailing_distance_pct": 3.0,
             **self.ml_params,
         }
 
@@ -472,6 +476,15 @@ class BacktestEngine:
         # has sufficient T (Bailey & López de Prado, 2014).
         active_tickers = list(set(list(self.trader.positions.keys()) + test_tickers))
         test_days = pd.bdate_range(test_start_str, test_end_str)
+
+        # Trailing stop state: track high-water mark and activation per position
+        trailing_enabled = bool(self._strategy_params.get("trailing_stop_enabled", False))
+        trailing_trigger_pct = self._strategy_params.get("trailing_trigger_pct", 5.0) / 100.0
+        trailing_distance_pct = self._strategy_params.get("trailing_distance_pct", 3.0) / 100.0
+        # hwm[ticker] = highest price since entry; activated[ticker] = True when trigger hit
+        hwm: dict[str, float] = {}
+        trailing_activated: dict[str, bool] = {}
+
         for day in test_days:
             day_str = day.strftime("%Y-%m-%d")
             day_prices = {}
@@ -479,6 +492,52 @@ class BacktestEngine:
                 p = cache.cached_prices(ticker, day_str, day_str)
                 if not p.empty:
                     day_prices[ticker] = float(p["close"].iloc[-1])
+
+            # Trailing stop check (before MTM so exits are reflected in today's NAV)
+            if trailing_enabled and day_prices and self.trader.positions:
+                tickers_to_close = []
+                for ticker, pos in self.trader.positions.items():
+                    price = day_prices.get(ticker)
+                    if price is None:
+                        continue
+
+                    # Update high-water mark
+                    current_hwm = hwm.get(ticker, pos.avg_entry_price)
+                    if price > current_hwm:
+                        current_hwm = price
+                    hwm[ticker] = current_hwm
+
+                    # Check activation: price moved +trigger% above entry
+                    if not trailing_activated.get(ticker, False):
+                        if price >= pos.avg_entry_price * (1 + trailing_trigger_pct):
+                            trailing_activated[ticker] = True
+                        continue  # Not yet activated, skip stop check
+
+                    # Trailing stop: close if price drops -distance% below HWM
+                    trailing_stop_price = current_hwm * (1 - trailing_distance_pct)
+                    if price <= trailing_stop_price:
+                        tickers_to_close.append(ticker)
+
+                # Execute trailing stop exits
+                for ticker in tickers_to_close:
+                    pos = self.trader.positions.get(ticker)
+                    if pos is None:
+                        continue
+                    price = day_prices[ticker]
+                    proceeds = pos.quantity * price
+                    cost = self.trader._compute_commission(pos.quantity, price)
+                    self.trader.cash += proceeds - cost
+                    self.trader.total_commission += cost
+                    from backend.backtest.backtest_trader import Trade
+                    self.trader.trades.append(Trade(
+                        ticker=ticker, action="SELL", quantity=pos.quantity,
+                        price=price, date=day_str, label=-1,
+                        probability=0, commission=cost,
+                    ))
+                    del self.trader.positions[ticker]
+                    hwm.pop(ticker, None)
+                    trailing_activated.pop(ticker, None)
+
             if day_prices and self.trader.positions:
                 self.trader.mark_to_market(day_str, day_prices)
 

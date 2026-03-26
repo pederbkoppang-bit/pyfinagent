@@ -62,6 +62,9 @@ _PARAM_BOUNDS = {
     "fm_weight": (0.0, 1.0),
     # Volatility targeting: scale positions to match target annual vol (0 = disabled)
     "target_annual_vol": (0.05, 0.25),
+    # Trailing stop: trigger activation threshold and trailing distance (%)
+    "trailing_trigger_pct": (2.0, 15.0),
+    "trailing_distance_pct": (1.0, 10.0),
 }
 
 # Integer params (must be int after perturbation)
@@ -70,6 +73,7 @@ _INT_PARAMS = {"holding_days", "mr_holding_days", "n_estimators", "max_depth", "
 # Categorical params (handled separately from numeric bounds)
 _CATEGORICAL_PARAMS = {
     "strategy": AVAILABLE_STRATEGIES,
+    "trailing_stop_enabled": [True, False],
 }
 
 
@@ -435,6 +439,11 @@ class QuantStrategyOptimizer:
         # Volatility targeting (read from _strategy_params by _compute_vol_target_scale)
         if "target_annual_vol" in params:
             engine._strategy_params["target_annual_vol"] = params["target_annual_vol"]
+
+        # Trailing stop params (read from _strategy_params in daily MTM loop)
+        for key in ("trailing_stop_enabled", "trailing_trigger_pct", "trailing_distance_pct"):
+            if key in params:
+                engine._strategy_params[key] = params[key]
 
         # Blend weights (read from _strategy_params by _compute_blend_label)
         for key in ("tb_weight", "qm_weight", "mr_weight", "fm_weight"):
