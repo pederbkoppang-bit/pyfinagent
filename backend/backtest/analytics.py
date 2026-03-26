@@ -146,7 +146,7 @@ def compute_round_trips(all_trades: list[dict]) -> list[dict]:
                 holding_days = 0
 
             cost_basis = entry_price * quantity
-            pnl_pct = (net_pnl / cost_basis * 100) if cost_basis > 0 else 0.0
+            pnl_pct = (net_pnl / cost_basis) if cost_basis > 0 else 0.0  # decimal ratio: 0.11 = 11%
 
             round_trips.append({
                 "ticker": ticker,
@@ -204,7 +204,7 @@ def compute_trade_statistics(round_trips: list[dict], avg_nav: float = 100_000.0
     sqn = (math.sqrt(n_trades) * expectancy / pnl_std) if pnl_std > 0 else 0.0
 
     # Best / worst (as decimal ratio for frontend: 0.05 = 5%)
-    pnl_pcts = [rt["pnl_pct"] / 100 for rt in round_trips if "pnl_pct" in rt]
+    pnl_pcts = [rt["pnl_pct"] for rt in round_trips if "pnl_pct" in rt]
     if not pnl_pcts:
         # Fallback: compute from cost basis
         pnl_pcts = [
