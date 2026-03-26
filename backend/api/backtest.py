@@ -293,7 +293,7 @@ def get_optimizer_runs():
             values = line.strip().split("\t")
             if len(values) < len(header):
                 continue
-            row = dict(zip(header, values))
+            row = dict(zip(header, values + [""] * (len(header) - len(values))))
             if row.get("status") == "BASELINE":
                 current_group = {
                     "baseline_ts": row.get("timestamp", ""),
@@ -343,8 +343,8 @@ def get_optimizer_experiments(run_id: str | None = None, run_index: int | None =
         header = f.readline().strip().split("\t")
         for line in f:
             values = line.strip().split("\t")
-            if len(values) >= len(header):
-                experiments.append(dict(zip(header, values)))
+            if len(values) >= len(header) - 1:  # tolerate missing trailing columns
+                experiments.append(dict(zip(header, values + [""] * (len(header) - len(values)))))
 
     # Group by parent_run_id (preferred) or positional BASELINE boundaries (fallback)
     baselines = [e for e in experiments if e.get("status") == "BASELINE"]
@@ -411,8 +411,8 @@ def get_optimizer_best():
         header = f.readline().strip().split("\t")
         for line in f:
             values = line.strip().split("\t")
-            if len(values) >= len(header):
-                row = dict(zip(header, values))
+            if len(values) >= len(header) - 1:  # tolerate missing trailing columns
+                row = dict(zip(header, values + [""] * (len(header) - len(values))))
                 if row.get("status") in ("keep", "BASELINE"):
                     try:
                         sharpe = float(row.get("metric_after", 0))
@@ -466,7 +466,7 @@ def list_backtest_runs():
             values = line.strip().split("\t")
             if len(values) < len(header):
                 values.extend([""] * (len(header) - len(values)))
-            row = dict(zip(header, values))
+            row = dict(zip(header, values + [""] * (len(header) - len(values))))
             rid = row.get("run_id", "")
             is_baseline = row.get("status") == "BASELINE"
             parent = row.get("parent_run_id", "")
@@ -618,8 +618,8 @@ def get_optimizer_insights():
             header = f.readline().strip().split("\t")
             for idx, line in enumerate(f):
                 values = line.strip().split("\t")
-                if len(values) >= len(header):
-                    row = dict(zip(header, values))
+                if len(values) >= len(header) - 1:  # tolerate missing trailing columns
+                    row = dict(zip(header, values + [""] * (len(header) - len(values))))
                     exp: dict = {
                         "index": idx,
                         "run_id": row.get("run_id", ""),
