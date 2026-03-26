@@ -64,7 +64,7 @@ import {
   MagnifyingGlass,
 } from "@phosphor-icons/react";
 import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
-import { OptimizerInsightsView } from "@/components/OptimizerInsights";
+// OptimizerInsightsView removed — consolidated into Overview tab
 import type { Icon } from "@phosphor-icons/react";
 
 /* ── Backtest pipeline step definitions ── */
@@ -141,6 +141,8 @@ export default function BacktestPage() {
   const [localElapsed, setLocalElapsed] = useState(0);
   const [tradePage, setTradePage] = useState(0);
   const [tradeSort, setTradeSort] = useState<{ col: string; asc: boolean }>({ col: "entry_date", asc: true });
+  const [tradeSearch, setTradeSearch] = useState("");
+  const [tradeFilter, setTradeFilter] = useState<"all" | "win" | "loss">("all");
 
   const refresh = useCallback(async (retryCount = 0) => {
     try {
@@ -1145,7 +1147,14 @@ export default function BacktestPage() {
                 {/* ── Trade List ── */}
                 {results?.trades && results.trades.length > 0 && (() => {
                   const TRADES_PER_PAGE = 25;
-                  const sorted = [...results.trades].sort((a, b) => {
+                  // Apply filters
+                  const filtered = results.trades.filter((t) => {
+                    if (tradeSearch && !t.ticker.toLowerCase().includes(tradeSearch.toLowerCase())) return false;
+                    if (tradeFilter === "win" && (t.pnl_pct ?? 0) <= 0) return false;
+                    if (tradeFilter === "loss" && (t.pnl_pct ?? 0) >= 0) return false;
+                    return true;
+                  });
+                  const sorted = [...filtered].sort((a, b) => {
                     const va = a[tradeSort.col as keyof typeof a];
                     const vb = b[tradeSort.col as keyof typeof b];
                     if (typeof va === "number" && typeof vb === "number") return tradeSort.asc ? va - vb : vb - va;
@@ -1168,9 +1177,10 @@ export default function BacktestPage() {
                   );
                   return (
                     <BentoCard>
-                      <div className="mb-3 flex items-center justify-between">
+                      <div className="mb-3 space-y-3">
+                        <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-slate-300">
-                          Trade List <span className="text-sm font-normal text-slate-500">({results.trades.length} round-trips)</span>
+                          Trade List <span className="text-sm font-normal text-slate-500">({filtered.length}{filtered.length !== results.trades.length ? ` of ${results.trades.length}` : ""} trades)</span>
                         </h3>
                         {totalPages > 1 && (
                           <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -1191,6 +1201,34 @@ export default function BacktestPage() {
                             </button>
                           </div>
                         )}
+                      </div>
+                        {/* Filters */}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <input
+                            type="text"
+                            placeholder="Search ticker..."
+                            value={tradeSearch}
+                            onChange={(e) => { setTradeSearch(e.target.value); setTradePage(0); }}
+                            className="rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
+                          />
+                          <div className="flex gap-1">
+                            {(["all", "win", "loss"] as const).map((f) => (
+                              <button
+                                key={f}
+                                onClick={() => { setTradeFilter(f); setTradePage(0); }}
+                                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                                  tradeFilter === f
+                                    ? f === "win" ? "bg-emerald-500/20 text-emerald-400"
+                                      : f === "loss" ? "bg-rose-500/20 text-rose-400"
+                                      : "bg-sky-500/10 text-sky-400"
+                                    : "text-slate-500 hover:text-slate-300"
+                                }`}
+                              >
+                                {f === "all" ? "All" : f === "win" ? "Winners" : "Losers"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs">
