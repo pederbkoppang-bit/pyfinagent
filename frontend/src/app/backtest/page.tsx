@@ -690,7 +690,11 @@ export default function BacktestPage() {
                   const rid = e.target.value;
                   if (!rid) return;
                   const run = runs.find((r) => r.run_id === rid);
-                  if (!run?.has_detail) return;
+                  if (!run?.has_detail) {
+                    // No full detail JSON — just update selection context
+                    setBtStatus((prev) => prev ? { ...prev, run_id: rid } : prev);
+                    return;
+                  }
                   try {
                     const data = await loadBacktestRun(rid);
                     setResults(data);
@@ -703,8 +707,8 @@ export default function BacktestPage() {
                   const bSharpe = b.sharpe?.toFixed(2) ?? "?";
                   return (
                     <optgroup key={b.run_id} label={`${b.strategy} -- Sharpe ${bSharpe}`}>
-                      <option value={b.run_id} disabled={!b.has_detail}>
-                        {b.has_detail ? "" : "[no detail] "}Baseline -- {formatRunTimestamp(b.timestamp)} -- Sharpe {bSharpe}
+                      <option value={b.run_id}>
+                        Baseline -- {formatRunTimestamp(b.timestamp)} -- Sharpe {bSharpe}{!b.has_detail ? " (summary)" : ""}
                       </option>
                       {children.map((c) => {
                         const delta = (b.sharpe != null && c.sharpe != null)
@@ -713,8 +717,8 @@ export default function BacktestPage() {
                         const deltaPrefix = c.sharpe != null && b.sharpe != null && c.sharpe >= b.sharpe ? "+" : "";
                         const statusTag = c.status === "keep" ? "[kept]" : c.status === "discard" ? "[disc]" : c.status === "dsr_reject" ? "[dsr]" : "";
                         return (
-                          <option key={c.run_id} value={c.run_id} disabled={!c.has_detail}>
-                            {c.has_detail ? "" : "[no detail] "}{statusTag} {c.param_changed || c.run_id} -- Sharpe {c.sharpe?.toFixed(2) ?? "?"} ({deltaPrefix}{delta})
+                          <option key={c.run_id} value={c.run_id}>
+                            {statusTag} {c.param_changed || c.run_id} -- Sharpe {c.sharpe?.toFixed(2) ?? "?"} ({deltaPrefix}{delta}){!c.has_detail ? " (summary)" : ""}
                           </option>
                         );
                       })}
@@ -727,8 +731,8 @@ export default function BacktestPage() {
                     {experiments
                       .filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id))
                       .map((e) => (
-                        <option key={e.run_id} value={e.run_id} disabled={!e.has_detail}>
-                          {e.has_detail ? "" : "[no detail] "}{e.run_id} -- Sharpe {e.sharpe?.toFixed(2) ?? "?"}
+                        <option key={e.run_id} value={e.run_id}>
+                          {e.run_id} -- Sharpe {e.sharpe?.toFixed(2) ?? "?"}{!e.has_detail ? " (summary)" : ""}
                         </option>
                       ))}
                   </optgroup>
@@ -1199,7 +1203,35 @@ export default function BacktestPage() {
                   )}
                 </div>
 
-                {/* Optimizer run selector removed — unified Tier 4 selector handles run context */}
+                {/* Optimizer run selector — shows optimization sessions from TSV */}
+                {runs.length > 0 && (() => {
+                  const optBaselines = runs.filter((r) => r.is_baseline);
+                  return optBaselines.length > 1 ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Optimization run:</span>
+                      <select
+                        className="max-w-md rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 focus:border-sky-500 focus:outline-none"
+                        onChange={async (e) => {
+                          const idx = parseInt(e.target.value, 10);
+                          if (isNaN(idx)) return;
+                          try {
+                            const data = await getOptimizerExperiments(undefined, idx);
+                            setOptExperiments(data.experiments);
+                          } catch { /* ignore */ }
+                        }}
+                      >
+                        {optBaselines.map((b, i) => {
+                          const children = runs.filter((r) => r.parent_run_id === b.run_id);
+                          return (
+                            <option key={b.run_id} value={i}>
+                              {b.strategy} -- {formatRunTimestamp(b.timestamp)} -- Sharpe {b.sharpe?.toFixed(2) ?? "?"} -- {children.length} experiments
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  ) : null;
+                })()}
 
                 {/* Optimizer status — full cards only when NOT running (completed/error/stopped) */}
                 {optStatus && optStatus.status !== "idle" && optStatus.status !== "running" && (
