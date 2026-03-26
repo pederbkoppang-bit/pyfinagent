@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--strategy", default="blend", help="Strategy to use (default: blend)")
     parser.add_argument("--iterations", type=int, default=50, help="Max optimizer iterations")
     parser.add_argument("--baseline-only", action="store_true", help="Just run baseline, no optimization")
+    parser.add_argument("--lock-strategy", action="store_true", default=True, help="Don't let optimizer change strategy")
     args = parser.parse_args()
 
     from dotenv import load_dotenv
@@ -104,6 +105,12 @@ def main():
             print(f"\n  Baseline: Sharpe={best_sharpe:.4f} DSR={best_dsr:.4f}")
 
     optimizer = QuantStrategyOptimizer(engine, status_callback=status_cb)
+
+    # Lock strategy — don't let optimizer randomly switch strategies
+    if args.lock_strategy and args.strategy:
+        optimizer.best_params["strategy"] = args.strategy
+        optimizer.lock_strategy = True
+        optimizer._apply_params_to_engine(optimizer.best_params)
 
     def on_result(report):
         a = report["analytics"]

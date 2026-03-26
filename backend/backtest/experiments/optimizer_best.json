@@ -13,16 +13,16 @@
     "starting_capital": 100000.0,
     "max_positions": 20,
     "top_n_candidates": 50,
-    "strategy": "blend",
+    "strategy": "triple_barrier",
     "n_estimators": 200,
     "max_depth": 4,
     "min_samples_leaf": 20,
     "learning_rate": 0.1
   },
-  "sharpe": 0.7386,
-  "dsr": 0.9990,
-  "run_id": "blend_baseline",
+  "sharpe": 0.9056,
+  "dsr": 0.9988,
+  "run_id": "a8e72807",
   "kept": 0,
   "discarded": 0,
-  "saved_at": "2026-03-26T08:53:10Z"
+  "saved_at": "2026-03-26T00:20:02Z"
 }

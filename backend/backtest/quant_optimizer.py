@@ -309,8 +309,10 @@ class QuantStrategyOptimizer:
         think_harder=True widens the perturbation range (±30% instead of ±10%).
         Handles both numeric (bounded) and categorical (strategy) params.
         """
-        # 20% chance of proposing a strategy change
+        # Build param list; exclude "strategy" if lock_strategy is set
         all_params = list(_PARAM_BOUNDS.keys()) + list(_CATEGORICAL_PARAMS.keys())
+        if getattr(self, "lock_strategy", False):
+            all_params = [p for p in all_params if p != "strategy"]
         param = random.choice(all_params)
 
         # Categorical param (strategy)
