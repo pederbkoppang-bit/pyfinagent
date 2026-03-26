@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 _EXPERIMENTS_DIR = Path(__file__).parent / "experiments"
 _TSV_PATH = _EXPERIMENTS_DIR / "quant_results.tsv"
 _BEST_PARAMS_PATH = _EXPERIMENTS_DIR / "optimizer_best.json"
-_TSV_HEADER = "timestamp\trun_id\tparam_changed\tmetric_before\tmetric_after\tdelta\tstatus\tdsr\ttop5_mda\tparams_json\n"
+_TSV_HEADER = "timestamp\trun_id\tparam_changed\tmetric_before\tmetric_after\tdelta\tstatus\tdsr\ttop5_mda\tparams_json\tparent_run_id\n"
 
 # All available strategies (categorical param)
 AVAILABLE_STRATEGIES = ["triple_barrier", "quality_momentum", "mean_reversion", "factor_model", "meta_label", "blend"]
@@ -456,9 +456,11 @@ class QuantStrategyOptimizer:
                 params_json = json.dumps(params_to_log, default=str)
             except (TypeError, ValueError):
                 params_json = ""
+            # parent_run_id: baselines have no parent; experiments link to their baseline's run_id
+            parent = "" if status == "BASELINE" else self._run_id
             row = (
                 f"{datetime.now(timezone.utc).isoformat()}\t{run_id}\t{change}\t"
-                f"{metric_before:.4f}\t{metric_after:.4f}\t{delta:+.4f}\t{status}\t{dsr:.4f}\t{mda_str}\t{params_json}\n"
+                f"{metric_before:.4f}\t{metric_after:.4f}\t{delta:+.4f}\t{status}\t{dsr:.4f}\t{mda_str}\t{params_json}\t{parent}\n"
             )
             with open(_TSV_PATH, "a", encoding="utf-8") as f:
                 f.write(row)

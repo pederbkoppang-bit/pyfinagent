@@ -438,8 +438,89 @@ def get_optimizer_best():
 
 @router.get("/runs")
 def list_backtest_runs():
-    """List all persisted backtest results (newest first)."""
-    return {"runs": result_store.list_runs()}
+    """List all runs from TSV master index (newest first).
+
+    Each row includes has_detail=True if a JSON result file exists on disk.
+    The TSV is the single source of truth for the run list; JSON files are
+    detail-only storage loaded via /runs/{run_id}.
+    """
+    import json as _json
+    import os
+    tsv_path = os.path.join(
+        os.path.dirname(__file__), "..", "backtest", "experiments", "quant_results.tsv"
+    )
+    if not os.path.exists(tsv_path):
+        return {"runs": []}
+
+    # Build set of run_ids that have JSON detail files
+    detail_ids: set[str] = set()
+    for entry in result_store.list_runs():
+        rid = entry.get("run_id")
+        if rid:
+            detail_ids.add(rid)
+
+    rows: list[dict] = []
+    with open(tsv_path, "r", encoding="utf-8") as f:
+        header = f.readline().strip().split("\t")
+        for line in f:
+            values = line.strip().split("\t")
+            if len(values) < len(header):
+                values.extend([""] * (len(header) - len(values)))
+            row = dict(zip(header, values))
+            rid = row.get("run_id", "")
+            is_baseline = row.get("status") == "BASELINE"
+            parent = row.get("parent_run_id", "")
+
+            # Extract strategy from params_json
+            strategy = "unknown"
+            pj = row.get("params_json", "")
+            if pj:
+                try:
+                    strategy = _json.loads(pj).get("strategy", "unknown")
+                except (ValueError, TypeError):
+                    pass
+
+            sharpe_str = row.get("metric_after", "")
+            try:
+                sharpe = float(sharpe_str)
+            except (ValueError, TypeError):
+                sharpe = None
+
+            rows.append({
+                "run_id": rid,
+                "timestamp": row.get("timestamp", ""),
+                "strategy": strategy,
+                "sharpe": sharpe,
+                "status": row.get("status", ""),
+                "param_changed": row.get("param_changed", ""),
+                "delta": row.get("delta", ""),
+                "dsr": row.get("dsr", ""),
+                "is_baseline": is_baseline,
+                "parent_run_id": parent if parent else None,
+                "has_detail": rid in detail_ids,
+            })
+
+    # Append JSON-only runs not in TSV (legacy standalone backtests)
+    tsv_ids = {r["run_id"] for r in rows}
+    for entry in result_store.list_runs():
+        rid = entry.get("run_id", "")
+        if rid and rid not in tsv_ids:
+            rows.append({
+                "run_id": rid,
+                "timestamp": entry.get("timestamp", ""),
+                "strategy": entry.get("strategy", "unknown"),
+                "sharpe": entry.get("sharpe"),
+                "status": "BASELINE",
+                "param_changed": "",
+                "delta": "",
+                "dsr": "",
+                "is_baseline": True,
+                "parent_run_id": None,
+                "has_detail": True,
+            })
+
+    rows.reverse()  # newest first
+    return {"runs": rows}
 
 
 @router.get("/runs/{run_id}")

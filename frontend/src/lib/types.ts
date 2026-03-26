@@ -805,10 +805,13 @@ export interface BacktestRunSummary {
   timestamp: string;
   strategy: string;
   sharpe: number | null;
-  total_return_pct: number | null;
-  filename: string;
-  is_baseline?: boolean;
-  parent_run_id?: string | null;
+  status: string;
+  param_changed: string;
+  delta: string;
+  dsr: string;
+  is_baseline: boolean;
+  parent_run_id: string | null;
+  has_detail: boolean;
 }
 
 // ── Optimizer Insights ───────────────────────────────────────────

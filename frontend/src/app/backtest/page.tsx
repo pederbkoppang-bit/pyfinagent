@@ -19,7 +19,6 @@ import {
   loadBacktestRun,
   getOptimizerInsights,
   deleteOptimizerHistory,
-  getOptimizerRuns,
   deleteBacktestRun,
 } from "@/lib/api";
 import type {
@@ -32,7 +31,6 @@ import type {
   OptimizerExperiment,
   OptimizerBest,
   OptimizerInsights,
-  OptimizerRunSummary,
 } from "@/lib/types";
 import {
   LineChart,
@@ -131,8 +129,7 @@ export default function BacktestPage() {
   const [optStatus, setOptStatus] = useState<OptimizerStatus | null>(null);
   const [optExperiments, setOptExperiments] = useState<OptimizerExperiment[]>([]);
   const [optBest, setOptBest] = useState<OptimizerBest | null>(null);
-  const [optRuns, setOptRuns] = useState<OptimizerRunSummary[]>([]);
-  const [optRunIndex, setOptRunIndex] = useState<number>(0);
+  // optRuns kept for experiment count display; optRunIndex removed (always latest=0)
   const [runs, setRuns] = useState<BacktestRunSummary[]>([]);
   const [insights, setInsights] = useState<OptimizerInsights | null>(null);
   const [tab, setTab] = useState<Tab>("results");
@@ -170,18 +167,16 @@ export default function BacktestPage() {
       if (runsRes) setRuns(runsRes.runs);
 
       // Parallel fetch of conditional data
-      const [r, exp, best, optRunsRes] = await Promise.all([
+      const [r, exp, best] = await Promise.all([
         s?.has_result ? getBacktestResults().catch((e) => { console.warn("getBacktestResults:", e.message); return null; }) : Promise.resolve(null),
         opt?.status === "running"
           ? getOptimizerExperiments(opt.run_id).catch((e) => { console.warn("getOptimizerExperiments:", e.message); return null; })
-          : getOptimizerExperiments(undefined, optRunIndex).catch((e) => { console.warn("getOptimizerExperiments:", e.message); return null; }),
+          : getOptimizerExperiments(undefined, 0).catch((e) => { console.warn("getOptimizerExperiments:", e.message); return null; }),
         getOptimizerBest().catch((e) => { console.warn("getOptimizerBest:", e.message); return null; }),
-        getOptimizerRuns().catch((e) => { console.warn("getOptimizerRuns:", e.message); return null; }),
       ]);
       if (r) setResults(r);
       if (exp) setOptExperiments(exp.experiments);
       if (best) setOptBest(best);
-      if (optRunsRes) setOptRuns(optRunsRes.runs);
 
       setError(null);
     } catch (e) {
@@ -189,7 +184,7 @@ export default function BacktestPage() {
     } finally {
       setLoading(false);
     }
-  }, [optRunIndex]);
+  }, []);
 
   // Lightweight status-only poll (no heavy data re-fetches)
   // When optimizer is running, also poll experiments for live chart updates
@@ -336,8 +331,6 @@ export default function BacktestPage() {
     setActionLoading("clear-history");
     try {
       await deleteOptimizerHistory();
-      setOptRuns([]);
-      setOptRunIndex(0);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to clear history");
@@ -682,20 +675,22 @@ export default function BacktestPage() {
 
         {loading && <PageSkeleton />}
 
-        {/* Run history selector — only for results/equity/features tabs */}
-        {runs.length > 1 && !loading && tab !== "optimizer" && tab !== "insights" && (() => {
-          const baselines = runs.filter((r) => r.is_baseline || !r.parent_run_id);
-          const experiments = runs.filter((r) => !r.is_baseline && r.parent_run_id);
+        {/* Unified run selector (Tier 4) — hidden on optimizer/insights tabs per layout spec */}
+        {runs.length > 0 && !loading && tab !== "optimizer" && tab !== "insights" && (() => {
+          const baselines = runs.filter((r) => r.is_baseline);
+          const experiments = runs.filter((r) => !r.is_baseline);
 
           return (
             <div className="mb-4 flex items-center gap-2">
               <span className="text-xs text-slate-500">Run:</span>
               <select
-                className="rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 focus:border-sky-500 focus:outline-none"
+                className="max-w-md rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 focus:border-sky-500 focus:outline-none"
                 value={results?.run_id ?? ""}
                 onChange={async (e) => {
                   const rid = e.target.value;
                   if (!rid) return;
+                  const run = runs.find((r) => r.run_id === rid);
+                  if (!run?.has_detail) return;
                   try {
                     const data = await loadBacktestRun(rid);
                     setResults(data);
@@ -707,48 +702,52 @@ export default function BacktestPage() {
                   const children = experiments.filter((e) => e.parent_run_id === b.run_id);
                   const bSharpe = b.sharpe?.toFixed(2) ?? "?";
                   return (
-                    <optgroup key={b.run_id} label={`${b.strategy} — Sharpe ${bSharpe}`}>
-                      <option value={b.run_id}>
-                        Baseline — {formatRunTimestamp(b.timestamp)} — Sharpe {bSharpe}
+                    <optgroup key={b.run_id} label={`${b.strategy} -- Sharpe ${bSharpe}`}>
+                      <option value={b.run_id} disabled={!b.has_detail}>
+                        {b.has_detail ? "" : "[no detail] "}Baseline -- {formatRunTimestamp(b.timestamp)} -- Sharpe {bSharpe}
                       </option>
                       {children.map((c) => {
                         const delta = (b.sharpe != null && c.sharpe != null)
                           ? (c.sharpe - b.sharpe).toFixed(2)
                           : "?";
                         const deltaPrefix = c.sharpe != null && b.sharpe != null && c.sharpe >= b.sharpe ? "+" : "";
+                        const statusTag = c.status === "keep" ? "[kept]" : c.status === "discard" ? "[disc]" : c.status === "dsr_reject" ? "[dsr]" : "";
                         return (
-                          <option key={c.run_id} value={c.run_id}>
-                            {c.run_id} — {formatRunTimestamp(c.timestamp)} — Sharpe {c.sharpe?.toFixed(2) ?? "?"} ({deltaPrefix}{delta})
+                          <option key={c.run_id} value={c.run_id} disabled={!c.has_detail}>
+                            {c.has_detail ? "" : "[no detail] "}{statusTag} {c.param_changed || c.run_id} -- Sharpe {c.sharpe?.toFixed(2) ?? "?"} ({deltaPrefix}{delta})
                           </option>
                         );
                       })}
                     </optgroup>
                   );
                 })}
+                {/* Experiments without a matching baseline parent */}
                 {experiments.filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id)).length > 0 && (
                   <optgroup label="Unlinked">
                     {experiments
                       .filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id))
                       .map((e) => (
-                        <option key={e.run_id} value={e.run_id}>
-                          {e.run_id} — {formatRunTimestamp(e.timestamp)} — Sharpe {e.sharpe?.toFixed(2) ?? "?"}
+                        <option key={e.run_id} value={e.run_id} disabled={!e.has_detail}>
+                          {e.has_detail ? "" : "[no detail] "}{e.run_id} -- Sharpe {e.sharpe?.toFixed(2) ?? "?"}
                         </option>
                       ))}
                   </optgroup>
                 )}
               </select>
-              <button
-                onClick={() => {
-                  const rid = results?.run_id;
-                  if (!rid) return;
-                  if (!confirm("Delete this backtest run?")) return;
-                  handleDeleteRun(rid);
-                }}
-                className="rounded p-1 text-rose-500/70 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-                title="Delete selected run"
-              >
-                <XCircle size={16} weight="fill" />
-              </button>
+              {results?.run_id && (
+                <button
+                  onClick={() => {
+                    const rid = results?.run_id;
+                    if (!rid) return;
+                    if (!confirm("Delete this backtest run?")) return;
+                    handleDeleteRun(rid);
+                  }}
+                  className="rounded p-1 text-rose-500/70 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                  title="Delete selected run"
+                >
+                  <XCircle size={16} weight="fill" />
+                </button>
+              )}
             </div>
           );
         })()}
@@ -1200,27 +1199,7 @@ export default function BacktestPage() {
                   )}
                 </div>
 
-                {/* Optimizer run selector */}
-                {optRuns.length > 1 && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-slate-500">Run:</label>
-                    <select
-                      value={optRunIndex}
-                      onChange={(e) => {
-                        const idx = Number(e.target.value);
-                        setOptRunIndex(idx);
-                      }}
-                      disabled={isOptRunning}
-                      className="rounded-lg border border-slate-700 bg-navy-800 px-3 py-1.5 text-sm text-slate-300 focus:border-sky-500 focus:outline-none disabled:opacity-50"
-                    >
-                      {optRuns.map((run) => (
-                        <option key={run.index} value={run.index}>
-                          {formatRunTimestamp(run.baseline_ts)} — Sharpe {parseFloat(run.baseline_sharpe).toFixed(3)} — {run.experiment_count} experiments
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                {/* Optimizer run selector removed — unified Tier 4 selector handles run context */}
 
                 {/* Optimizer status — full cards only when NOT running (completed/error/stopped) */}
                 {optStatus && optStatus.status !== "idle" && optStatus.status !== "running" && (
