@@ -1208,8 +1208,14 @@ export default function BacktestPage() {
                   // Group experiments by baseline from TSV data (single source of truth)
                   const tsvBaselines = optExperiments.filter((e) => e.status === "BASELINE");
                   const fallbackBaselines = runs.filter((r) => r.is_baseline);
-                  // Always use runs data for dropdown to show ALL optimization sessions
-                  const baselines = fallbackBaselines;
+                  // Deduplicate by run_id (some TSV entries share run_id between baseline/experiments)
+                  const seenIds = new Set();
+                  const uniqueBaselines = fallbackBaselines.filter((r) => {
+                    if (seenIds.has(r.run_id)) return false;
+                    seenIds.add(r.run_id);
+                    return true;
+                  });
+                  const baselines = uniqueBaselines;
                   // Show dropdown if either source has multiple baselines
                   const hasMultipleRuns = tsvBaselines.length > 1 || fallbackBaselines.length > 1;
                   return hasMultipleRuns ? (
