@@ -1209,7 +1209,9 @@ export default function BacktestPage() {
                   const tsvBaselines = optExperiments.filter((e) => e.status === "BASELINE");
                   const fallbackBaselines = runs.filter((r) => r.is_baseline);
                   const baselines = tsvBaselines.length > 0 ? tsvBaselines : fallbackBaselines;
-                  return baselines.length > 1 ? (
+                  // Show dropdown if either source has multiple baselines
+                  const hasMultipleRuns = tsvBaselines.length > 1 || fallbackBaselines.length > 1;
+                  return hasMultipleRuns ? (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-500">Optimization run:</span>
                       <select
