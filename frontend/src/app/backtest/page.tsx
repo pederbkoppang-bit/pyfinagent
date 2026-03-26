@@ -682,13 +682,12 @@ export default function BacktestPage() {
 
         {/* Run history selector — only for results/equity/features tabs */}
         {runs.length > 1 && !loading && tab !== "optimizer" && tab !== "insights" && (() => {
-          // Group runs: baselines with their child experiments
           const baselines = runs.filter((r) => r.is_baseline || !r.parent_run_id);
           const experiments = runs.filter((r) => !r.is_baseline && r.parent_run_id);
 
           return (
             <div className="mb-4 flex items-center gap-2">
-              <span className="text-xs text-slate-500">Runs:</span>
+              <span className="text-xs text-slate-500">Run:</span>
               <select
                 className="rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 focus:border-sky-500 focus:outline-none"
                 value={results?.run_id ?? ""}
@@ -706,9 +705,9 @@ export default function BacktestPage() {
                   const children = experiments.filter((e) => e.parent_run_id === b.run_id);
                   const bSharpe = b.sharpe?.toFixed(2) ?? "?";
                   return (
-                    <optgroup key={b.run_id} label={`📊 ${b.strategy} baseline — Sharpe ${bSharpe}`}>
+                    <optgroup key={b.run_id} label={`${b.strategy} — Sharpe ${bSharpe}`}>
                       <option value={b.run_id}>
-                        ★ Baseline: {formatRunTimestamp(b.timestamp)} — {b.strategy} — Sharpe {bSharpe}
+                        Baseline — {formatRunTimestamp(b.timestamp)} — Sharpe {bSharpe}
                       </option>
                       {children.map((c) => {
                         const delta = (b.sharpe != null && c.sharpe != null)
@@ -717,21 +716,20 @@ export default function BacktestPage() {
                         const deltaPrefix = c.sharpe != null && b.sharpe != null && c.sharpe >= b.sharpe ? "+" : "";
                         return (
                           <option key={c.run_id} value={c.run_id}>
-                            └ {c.run_id} — Sharpe {c.sharpe?.toFixed(2) ?? "?"} (△ {deltaPrefix}{delta})
+                            {c.run_id} — {formatRunTimestamp(c.timestamp)} — Sharpe {c.sharpe?.toFixed(2) ?? "?"} ({deltaPrefix}{delta})
                           </option>
                         );
                       })}
                     </optgroup>
                   );
                 })}
-                {/* Orphan experiments without a matching baseline */}
                 {experiments.filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id)).length > 0 && (
-                  <optgroup label="Unlinked experiments">
+                  <optgroup label="Unlinked">
                     {experiments
                       .filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id))
                       .map((e) => (
                         <option key={e.run_id} value={e.run_id}>
-                          {formatRunTimestamp(e.timestamp)} — {e.strategy} — Sharpe {e.sharpe?.toFixed(2) ?? "?"}
+                          {e.run_id} — {formatRunTimestamp(e.timestamp)} — Sharpe {e.sharpe?.toFixed(2) ?? "?"}
                         </option>
                       ))}
                   </optgroup>
