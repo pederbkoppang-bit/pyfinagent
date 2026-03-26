@@ -71,6 +71,54 @@
 
 ---
 
+## Phase 1.5: Sharpe-Specific Optimizations (Zero LLM Cost, Free Data)
+*Attack both sides of the Sharpe formula: increase returns AND decrease volatility.*
+*All data free (FRED API + existing BigQuery prices). All computation local CPU.*
+
+**Expected combined impact: +0.3 to +0.5 Sharpe (0.905 → 1.2-1.4)**
+
+### 1.5.1 Volatility Targeting (+0.2 to +0.4 Sharpe) — HIGHEST PRIORITY
+- [ ] Scale portfolio exposure to constant annual vol (e.g., 10%)
+- [ ] Daily sizing: `position_size *= target_vol / realized_vol_20d`
+- [ ] When market vol spikes → auto-reduce exposure → smoother returns → lower denominator
+- [ ] New optimizer param: `target_annual_vol` (0.05 - 0.25)
+
+### 1.5.2 Dynamic Risk-Free Rate (+0.02 to +0.05 Sharpe)
+- [ ] Pull historical 3-month T-bill rates from FRED (free API, no key)
+- [ ] Use period-matched risk-free rate instead of hardcoded 4%
+- [ ] More accurate Sharpe = better optimization signal for the optimizer
+
+### 1.5.3 Trailing Stop Loss (+0.1 to +0.2 Sharpe)
+- [ ] After +X% gain, move SL to breakeven
+- [ ] After +2X% gain, move SL to +X%
+- [ ] Locks in gains, reduces left-tail losses → lower vol → higher Sharpe
+- [ ] New params: `trailing_stop_enabled`, `trailing_trigger_pct`, `trailing_distance_pct`
+
+### 1.5.4 Drawdown Circuit Breaker (+0.05 to +0.15 Sharpe)
+- [ ] If portfolio drawdown > threshold, reduce all positions by 50%
+- [ ] Resume full size after recovery to within 2% of peak
+- [ ] Prevents deep drawdowns that destroy Sharpe numerator
+- [ ] Params: `dd_threshold` (5-20%), `dd_recovery_pct`
+
+### 1.5.5 Correlation-Aware Position Sizing (+0.1 to +0.2 Sharpe)
+- [ ] Compute rolling 60-day pairwise correlations from existing price data
+- [ ] Cluster highly correlated positions (>0.7 correlation)
+- [ ] Reduce cluster weight to avoid hidden concentration risk
+- [ ] Replace equal-weight with inverse-correlation weighting
+
+### 1.5.6 Multi-Parameter Proposals (+0.1 to +0.3 Sharpe)
+- [ ] Add coordinated proposal mode to optimizer (change 2-3 related params together)
+- [ ] Parameter groups: {tp_pct, sl_pct, holding_days}, {max_positions, top_n_candidates}, {n_estimators, max_depth, min_samples_leaf}
+- [ ] Captures interaction effects that single-param perturbation misses
+
+### 1.5.7 Lo (2002) Autocorrelation Correction (measurement accuracy)
+- [ ] Test daily returns for serial correlation (Ljung-Box test)
+- [ ] If significant, apply: `SR_adjusted = SR / sqrt(1 + 2*sum(rho_k))`
+- [ ] Report both raw and adjusted Sharpe for honest evaluation
+- [ ] Prevents false confidence in overstated Sharpe
+
+---
+
 ## Phase 2: Academic Research Deep Dive (Ongoing, parallel with Phase 1)
 *Every decision must be evidence-based. We are not guessing.*
 
