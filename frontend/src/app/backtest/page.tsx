@@ -689,7 +689,8 @@ export default function BacktestPage() {
                 onChange={async (e) => {
                   const rid = e.target.value;
                   if (!rid) return;
-                  const run = runs.find((r) => r.run_id === rid);
+                  // Look in both baselines and experiments
+                  const run = runs.find((r) => r.run_id === rid) || experiments.find((e) => e.run_id === rid);
                   if (!run?.has_detail) {
                     setResults(null);
                     setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: false, run_id: rid } : prev);
