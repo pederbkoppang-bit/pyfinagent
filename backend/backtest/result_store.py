@@ -82,10 +82,12 @@ def list_runs() -> list[dict]:
             runs.append({
                 "run_id": data.get("run_id", p.stem.split("_", 1)[-1]),
                 "timestamp": p.stem.split("_", 1)[0],
-                "strategy": config.get("strategy", "unknown"),
+                "strategy": config.get("strategy", data.get("strategy_params", {}).get("strategy", "unknown")),
                 "sharpe": analytics.get("sharpe"),
                 "total_return_pct": analytics.get("total_return_pct"),
                 "filename": p.name,
+                "is_baseline": data.get("is_baseline", False),
+                "parent_run_id": data.get("parent_run_id"),
             })
         except (json.JSONDecodeError, OSError) as e:
             logger.warning("Skipping corrupt result file %s: %s", p.name, e)

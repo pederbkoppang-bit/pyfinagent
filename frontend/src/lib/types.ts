@@ -807,6 +807,8 @@ export interface BacktestRunSummary {
   sharpe: number | null;
   total_return_pct: number | null;
   filename: string;
+  is_baseline?: boolean;
+  parent_run_id?: string | null;
 }
 
 // ── Optimizer Insights ───────────────────────────────────────────
