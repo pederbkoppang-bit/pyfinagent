@@ -61,6 +61,7 @@ import {
   Trash,
   XCircle,
   House,
+  MagnifyingGlass,
 } from "@phosphor-icons/react";
 import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
 import { OptimizerInsightsView } from "@/components/OptimizerInsights";
