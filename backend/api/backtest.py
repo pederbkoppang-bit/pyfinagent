@@ -346,37 +346,37 @@ def get_optimizer_experiments(run_id: str | None = None, run_index: int | None =
             if len(values) >= len(header):
                 experiments.append(dict(zip(header, values)))
 
-    # Group by BASELINE boundaries
+    # Group by parent_run_id (preferred) or positional BASELINE boundaries (fallback)
+    baselines = [e for e in experiments if e.get("status") == "BASELINE"]
+
     if run_index is not None:
-        groups: list[list[dict]] = []
-        current: list[dict] = []
-        for exp in experiments:
-            if exp.get("status") == "BASELINE":
-                current = [exp]
-                groups.append(current)
-            else:
-                current.append(exp)
-        # run_index 0 = latest (last group)
-        actual_idx = len(groups) - 1 - run_index
-        if 0 <= actual_idx < len(groups):
-            experiments = groups[actual_idx]
+        # run_index 0 = latest baseline
+        sorted_baselines = list(reversed(baselines))
+        if 0 <= run_index < len(sorted_baselines):
+            target = sorted_baselines[run_index]
+            target_id = target.get("run_id")
+            children = [e for e in experiments if e.get("parent_run_id") == target_id]
+            experiments = [target] + children
         else:
-            experiments = groups[-1] if groups else []
+            experiments = []
     elif run_id:
-        # Find the BASELINE that immediately precedes the first experiment with this run_id
-        # All rows in a run share the same run_id (including BASELINE), so filter directly
-        run_experiments = [exp for exp in experiments if exp.get("run_id") == run_id]
-        if not run_experiments:
-            # Fallback: return only the last BASELINE
-            last_baseline_idx = -1
-            for idx, exp in enumerate(experiments):
-                if exp.get("status") == "BASELINE":
-                    last_baseline_idx = idx
-            if last_baseline_idx >= 0:
-                run_experiments = [experiments[last_baseline_idx]]
-        experiments = run_experiments
+        # Return the baseline + its children
+        target_baseline = next((e for e in baselines if e.get("run_id") == run_id), None)
+        if target_baseline:
+            children = [e for e in experiments if e.get("parent_run_id") == run_id]
+            experiments = [target_baseline] + children
+        else:
+            # Maybe run_id is an experiment — return its parent group
+            target_exp = next((e for e in experiments if e.get("run_id") == run_id), None)
+            parent_id = target_exp.get("parent_run_id") if target_exp else None
+            if parent_id:
+                parent = next((e for e in baselines if e.get("run_id") == parent_id), None)
+                children = [e for e in experiments if e.get("parent_run_id") == parent_id]
+                experiments = ([parent] if parent else []) + children
+            else:
+                experiments = [target_exp] if target_exp else []
     else:
-        # Default: return only the latest run (last BASELINE + its experiments)
+        # Default: return latest baseline + its experiments
         last_baseline_idx = -1
         for idx, exp in enumerate(experiments):
             if exp.get("status") == "BASELINE":
