@@ -53,7 +53,6 @@ import {
   Table,
   TrendUp,
   Lightning,
-  MagnifyingGlass,
   Brain,
   ShoppingCart,
   ChartBarHorizontal,
@@ -61,6 +60,7 @@ import {
   CheckCircle,
   Trash,
   XCircle,
+  House,
 } from "@phosphor-icons/react";
 import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
 import { OptimizerInsightsView } from "@/components/OptimizerInsights";
@@ -113,13 +113,13 @@ function Metric({ label, value, sub, color }: { label: string; value: string; su
   );
 }
 
-type Tab = "results" | "equity" | "features" | "optimizer" | "insights";
+type Tab = "overview" | "results" | "equity" | "features" | "optimizer";
 const TABS: { id: Tab; label: string; icon: Icon }[] = [
+  { id: "overview", label: "Overview", icon: House },
   { id: "results", label: "Results", icon: Table },
-  { id: "equity", label: "Equity Curve", icon: ChartLineUp },
+  { id: "equity", label: "Equity", icon: ChartLineUp },
   { id: "features", label: "Features", icon: TrendUp },
   { id: "optimizer", label: "Optimizer", icon: Lightning },
-  { id: "insights", label: "Insights", icon: MagnifyingGlass },
 ];
 
 export default function BacktestPage() {
@@ -132,7 +132,7 @@ export default function BacktestPage() {
   // optRuns kept for experiment count display; optRunIndex removed (always latest=0)
   const [runs, setRuns] = useState<BacktestRunSummary[]>([]);
   const [insights, setInsights] = useState<OptimizerInsights | null>(null);
-  const [tab, setTab] = useState<Tab>("results");
+  const [tab, setTab] = useState<Tab>("overview");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -676,7 +676,7 @@ export default function BacktestPage() {
         {loading && <PageSkeleton />}
 
         {/* Unified run selector (Tier 4) — hidden on optimizer/insights tabs per layout spec */}
-        {runs.length > 0 && !loading && tab !== "optimizer" && tab !== "insights" && (() => {
+        {runs.length > 0 && !loading && tab !== "optimizer" && tab !== "overview" && (() => {
           const baselines = runs.filter((r) => r.is_baseline);
           const experiments = runs.filter((r) => !r.is_baseline);
 
@@ -757,10 +757,10 @@ export default function BacktestPage() {
           );
         })()}
 
-        {/* Tab bar */}
+        {/* Tab bar — sticky */}
         {!loading && (
           <>
-            <div className="mb-6 flex gap-1 rounded-lg bg-navy-800/60 p-1">
+            <div className="sticky top-0 z-20 -mx-6 mb-6 flex gap-1 rounded-lg bg-navy-900/95 p-1 px-6 backdrop-blur-sm md:-mx-8 md:px-8">
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -776,6 +776,144 @@ export default function BacktestPage() {
                 </button>
               ))}
             </div>
+
+            {/* ═══ OVERVIEW TAB ═══ */}
+            {tab === "overview" && (
+              <div className="space-y-6">
+                {/* Best Run Card */}
+                {(() => {
+                  const sortedBySharp = [...runs].filter(r => r.sharpe != null).sort((a, b) => (b.sharpe ?? 0) - (a.sharpe ?? 0));
+                  const best = sortedBySharp[0];
+                  return best ? (
+                    <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-5">
+                      <h3 className="mb-3 text-sm font-semibold text-sky-400">Best Run</h3>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                        <Metric label="Run" value={best.run_id.slice(0, 12)} color="text-sky-300" />
+                        <Metric label="Sharpe Ratio" value={best.sharpe?.toFixed(3) ?? "—"} color={best.sharpe != null && best.sharpe >= 1.0 ? "text-emerald-400" : "text-sky-300"} />
+                        <Metric label="Strategy" value={best.strategy ?? "—"} />
+                        <Metric label="Experiments" value={String(best.experiment_count ?? 0)} />
+                        <Metric label="Status" value={best.status ?? "—"} />
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Run Leaderboard */}
+                <div className="rounded-xl border border-slate-700/50 bg-navy-800/40 p-5">
+                  <h3 className="mb-3 text-sm font-semibold text-slate-300">Run Leaderboard</h3>
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-700 text-xs text-slate-500">
+                        <th className="px-3 py-2">Rank</th>
+                        <th className="px-3 py-2">Run</th>
+                        <th className="px-3 py-2">Strategy</th>
+                        <th className="px-3 py-2">Sharpe</th>
+                        <th className="px-3 py-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...runs]
+                        .filter(r => r.sharpe != null)
+                        .sort((a, b) => (b.sharpe ?? 0) - (a.sharpe ?? 0))
+                        .slice(0, 10)
+                        .map((run, i) => (
+                          <tr
+                            key={run.run_id}
+                            className="cursor-pointer border-b border-slate-800 transition-colors hover:bg-slate-800/50"
+                            onClick={async () => {
+                              if (!run.has_detail) return;
+                              try {
+                                const data = await loadBacktestRun(run.run_id);
+                                setResults(data);
+                                setTab("results");
+                              } catch { /* ignore */ }
+                            }}
+                          >
+                            <td className="px-3 py-2 text-xs text-slate-500">#{i + 1}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-slate-300">{run.run_id.slice(0, 12)}</td>
+                            <td className="px-3 py-2 text-xs text-slate-400">{run.strategy}</td>
+                            <td className={`px-3 py-2 font-mono text-xs font-bold ${(run.sharpe ?? 0) >= 1.0 ? "text-emerald-400" : (run.sharpe ?? 0) >= 0.8 ? "text-sky-300" : "text-slate-300"}`}>
+                              {run.sharpe?.toFixed(3)}
+                            </td>
+                            <td className="px-3 py-2 text-xs">
+                              <span className={`rounded-full px-2 py-0.5 text-xs ${
+                                run.status === "BASELINE" ? "bg-slate-700 text-slate-300"
+                                : run.status === "keep" ? "bg-emerald-900/40 text-emerald-400"
+                                : "bg-rose-900/40 text-rose-400"
+                              }`}>
+                                {run.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Optimizer Status */}
+                <div className="rounded-xl border border-slate-700/50 bg-navy-800/40 p-5">
+                  <h3 className="mb-3 text-sm font-semibold text-slate-300">Optimizer</h3>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <Metric
+                      label="Status"
+                      value={isOptRunning ? "Running" : (optStatus?.status ?? "Idle").toUpperCase()}
+                      color={isOptRunning ? "text-sky-400" : "text-slate-300"}
+                    />
+                    <Metric
+                      label="Iterations"
+                      value={String(optStatus?.iterations ?? 0)}
+                    />
+                    <Metric
+                      label="Best Sharpe"
+                      value={optStatus?.best_sharpe?.toFixed(3) ?? "—"}
+                      color="text-sky-300"
+                    />
+                    <Metric
+                      label="Experiments"
+                      value={String(optExperiments.length)}
+                    />
+                  </div>
+                </div>
+
+                {/* Strategy Comparison Bar Chart */}
+                {runs.length > 0 && (
+                  <div className="rounded-xl border border-slate-700/50 bg-navy-800/40 p-5">
+                    <h3 className="mb-3 text-sm font-semibold text-slate-300">Sharpe Ratio Comparison</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={[...runs].filter(r => r.sharpe != null).sort((a, b) => (b.sharpe ?? 0) - (a.sharpe ?? 0)).map(r => ({
+                        name: r.run_id.slice(0, 10),
+                        sharpe: r.sharpe,
+                        fill: (r.sharpe ?? 0) >= 1.0 ? "#34d399" : (r.sharpe ?? 0) >= 0.8 ? "#38bdf8" : "#94a3b8",
+                      }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                        <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: "8px" }}
+                          labelStyle={{ color: "#e2e8f0" }}
+                        />
+                        <Bar dataKey="sharpe" radius={[4, 4, 0, 0]}>
+                          {[...runs].filter(r => r.sharpe != null).sort((a, b) => (b.sharpe ?? 0) - (a.sharpe ?? 0)).map((r, i) => (
+                            <Cell key={i} fill={(r.sharpe ?? 0) >= 1.0 ? "#34d399" : (r.sharpe ?? 0) >= 0.8 ? "#38bdf8" : "#94a3b8"} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Budget Overview */}
+                <div className="rounded-xl border border-slate-700/50 bg-navy-800/40 p-5">
+                  <h3 className="mb-3 text-sm font-semibold text-slate-300">Monthly Budget</h3>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <Metric label="Claude Max" value="$125/mo" sub="incl. 25% tax" color="text-amber-300" />
+                    <Metric label="Google Cloud" value="~$10-25" sub="BigQuery + storage" color="text-amber-300" />
+                    <Metric label="Fixed Assets" value="$1,000" sub="Mac Mini M4" color="text-slate-300" />
+                    <Metric label="Monthly Burn" value="~$135-150" sub="all services" color="text-rose-400" />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ═══ RESULTS TAB ═══ */}
             {tab === "results" && (
@@ -824,6 +962,20 @@ export default function BacktestPage() {
                       value={`${a.alpha >= 0 ? "+" : ""}${a.alpha.toFixed(1)}%`}
                       color={a.alpha >= 0 ? "text-emerald-400" : "text-rose-400"}
                     />
+                    <Metric
+                      label="Total Trades"
+                      value={String(results?.trades?.length ?? 0)}
+                    />
+                    <Metric
+                      label="Profit Factor"
+                      value={(() => {
+                        const trades = results?.trades ?? [];
+                        const wins = trades.filter(t => (t.pnl_pct ?? 0) > 0).reduce((s, t) => s + (t.pnl_pct ?? 0), 0);
+                        const losses = Math.abs(trades.filter(t => (t.pnl_pct ?? 0) < 0).reduce((s, t) => s + (t.pnl_pct ?? 0), 0));
+                        return losses > 0 ? (wins / losses).toFixed(2) : "∞";
+                      })()}
+                      color="text-sky-300"
+                    />
                   </div>
                 )}
 
@@ -859,7 +1011,14 @@ export default function BacktestPage() {
                             const sharpeDelta = a ? a.sharpe - val.sharpe : null;
                             return (
                               <tr key={key} className="border-b border-slate-800">
-                                <td className="px-3 py-2 text-slate-400 capitalize">{key.replace(/_/g, " ")}</td>
+                                <td className="px-3 py-2 text-slate-400 capitalize" title={
+                                  key === "spy" ? "S&P 500 buy-and-hold. Total return if you held SPY for the entire backtest period."
+                                  : key === "equal_weight" ? "Equal-weighted portfolio of all stocks in universe, rebalanced monthly. Tests if stock picking adds value."
+                                  : key === "momentum" ? "Top 20% momentum stocks (12-month return), rebalanced monthly. Classic factor strategy benchmark."
+                                  : ""
+                                }>
+                                  <span className="cursor-help border-b border-dotted border-slate-600">{key.replace(/_/g, " ")}</span>
+                                </td>
                                 <td className="px-3 py-2 text-right font-mono text-slate-300">
                                   {val.total_return_pct >= 0 ? "+" : ""}{val.total_return_pct.toFixed(1)}%
                                 </td>
@@ -1357,15 +1516,7 @@ export default function BacktestPage() {
             )}
 
             {/* ═══ INSIGHTS TAB ═══ */}
-            {tab === "insights" && (
-              <OptimizerInsightsView
-                insights={insights}
-                onRefresh={async () => {
-                  const data = await getOptimizerInsights().catch(() => null);
-                  if (data) setInsights(data);
-                }}
-              />
-            )}
+            {/* Insights tab removed — consolidated into Overview */}
           </>
         )}
       </main>
