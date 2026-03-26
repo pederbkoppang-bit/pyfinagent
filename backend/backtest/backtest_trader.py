@@ -81,6 +81,7 @@ class BacktestTrader:
         self, probability: float, stock_vol: float, nav: float,
         turbulence: float = 0.0, turbulence_threshold: float = 1.0,
         amihud_illiquidity: float = 0.0,
+        vol_target_scale: float = 1.0,
     ) -> float:
         """
         Inverse-volatility position sizing (AQR / Frazzini & Pedersen 2014):
@@ -116,6 +117,11 @@ class BacktestTrader:
         if amihud_illiquidity and amihud_illiquidity > 0.5:
             liquidity_scale = max(0.3, 1.0 / (1.0 + (amihud_illiquidity - 0.5) / 3.0))
             raw *= liquidity_scale
+
+        # Volatility targeting: scale position to match target annual vol
+        # Computed by BacktestEngine._compute_vol_target_scale()
+        if vol_target_scale != 1.0:
+            raw *= vol_target_scale
 
         capped = min(raw, nav * self.max_single_pct)
         return max(0.0, capped)
@@ -174,9 +180,11 @@ class BacktestTrader:
             probability = sig.get("probability", 0.5)
             volatility = sig.get("volatility", 0.3)
             amihud = sig.get("amihud_illiquidity", 0.0)
+            vt_scale = sig.get("vol_target_scale", 1.0)
             dollar_amount = self.size_position(
                 probability, volatility, nav,
                 amihud_illiquidity=amihud,
+                vol_target_scale=vt_scale,
             )
 
             if dollar_amount < 100:  # Minimum trade size

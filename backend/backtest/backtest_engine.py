@@ -237,6 +237,7 @@ class BacktestEngine:
             "tp_pct": tp_pct, "sl_pct": sl_pct, "frac_diff_d": frac_diff_d,
             "starting_capital": starting_capital, "max_positions": max_positions,
             "top_n_candidates": top_n_candidates, "strategy": self.strategy,
+            "target_annual_vol": 0.10,  # Volatility targeting: 10% annualized
             **self.ml_params,
         }
 
@@ -818,12 +819,17 @@ class BacktestEngine:
                 volatility = fv.get("annualized_volatility", 0.3) or 0.3
                 amihud = fv.get("amihud_illiquidity", 0.0) or 0.0
 
+                # Volatility targeting: scale position by target_annual_vol / realized_vol
+                # Uses rolling 20-day realized vol at entry date for each stock
+                vol_target_scale = self._compute_vol_target_scale(ticker, test_start, volatility)
+
                 signals.append({
                     "ticker": ticker,
                     "label": pred_label,
                     "probability": probability,
                     "volatility": volatility,
                     "amihud_illiquidity": amihud,
+                    "vol_target_scale": vol_target_scale,
                 })
 
                 # Check actual outcome for hit rate
@@ -1003,6 +1009,43 @@ class BacktestEngine:
         if self.progress_callback:
             self.progress_callback(data)
         logger.info("Backtest: [%s] %s", step, detail)
+
+    # ── Volatility Targeting ────────────────────────────────────
+
+    def _compute_vol_target_scale(self, ticker: str, date: str, fallback_vol: float) -> float:
+        """
+        Compute volatility targeting scale factor for position sizing.
+
+        Uses rolling 20-day realized volatility of each stock, then scales:
+            scale = target_annual_vol / (realized_vol * sqrt(252))
+
+        Capped at 2.0 to prevent extreme leverage. Returns 1.0 if vol targeting
+        is disabled (target_annual_vol not set or 0).
+        """
+        target_annual_vol = self._strategy_params.get("target_annual_vol", 0)
+        if not target_annual_vol or target_annual_vol <= 0:
+            return 1.0
+
+        # Get rolling 20-day prices for realized vol computation
+        lookback_start = (pd.Timestamp(date) - timedelta(days=40)).strftime("%Y-%m-%d")
+        prices = cache.cached_prices(ticker, lookback_start, date)
+
+        if prices.empty or len(prices) < 10:
+            # Fallback: use the annualized vol from the feature vector
+            realized_annual_vol = fallback_vol if fallback_vol > 0 else 0.25
+        else:
+            daily_returns = prices["close"].pct_change().dropna()
+            if len(daily_returns) < 5:
+                realized_annual_vol = fallback_vol if fallback_vol > 0 else 0.25
+            else:
+                daily_vol = float(daily_returns.std())
+                realized_annual_vol = daily_vol * np.sqrt(252)
+
+        if realized_annual_vol <= 0:
+            return 1.0
+
+        scale = target_annual_vol / realized_annual_vol
+        return min(scale, 2.0)  # Cap at 2.0 to prevent extreme leverage
 
     # ── Strategy Label Dispatcher ────────────────────────────────
 

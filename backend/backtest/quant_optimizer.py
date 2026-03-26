@@ -60,6 +60,8 @@ _PARAM_BOUNDS = {
     "qm_weight": (0.0, 1.0),
     "mr_weight": (0.0, 1.0),
     "fm_weight": (0.0, 1.0),
+    # Volatility targeting: scale positions to match target annual vol (0 = disabled)
+    "target_annual_vol": (0.05, 0.25),
 }
 
 # Integer params (must be int after perturbation)
@@ -429,6 +431,10 @@ class QuantStrategyOptimizer:
         # (not a direct engine attribute), so update it there
         if "vol_barrier_multiplier" in params:
             engine._strategy_params["vol_barrier_multiplier"] = params["vol_barrier_multiplier"]
+
+        # Volatility targeting (read from _strategy_params by _compute_vol_target_scale)
+        if "target_annual_vol" in params:
+            engine._strategy_params["target_annual_vol"] = params["target_annual_vol"]
 
         # Blend weights (read from _strategy_params by _compute_blend_label)
         for key in ("tb_weight", "qm_weight", "mr_weight", "fm_weight"):
