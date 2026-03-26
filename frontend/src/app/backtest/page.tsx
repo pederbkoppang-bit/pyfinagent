@@ -1208,7 +1208,8 @@ export default function BacktestPage() {
                   // Group experiments by baseline from TSV data (single source of truth)
                   const tsvBaselines = optExperiments.filter((e) => e.status === "BASELINE");
                   const fallbackBaselines = runs.filter((r) => r.is_baseline);
-                  const baselines = tsvBaselines.length > 0 ? tsvBaselines : fallbackBaselines;
+                  // Always use runs data for dropdown to show ALL optimization sessions
+                  const baselines = fallbackBaselines;
                   // Show dropdown if either source has multiple baselines
                   const hasMultipleRuns = tsvBaselines.length > 1 || fallbackBaselines.length > 1;
                   return hasMultipleRuns ? (
@@ -1226,24 +1227,12 @@ export default function BacktestPage() {
                         }}
                       >
                         {baselines.map((baseline, i) => {
-                          if (tsvBaselines.length > 0) {
-                            // TSV data available - use it
-                            const expCount = optExperiments.filter((e) => e.parent_run_id === baseline.run_id && e.status !== "BASELINE").length;
-                            const strategy = baseline.params_json ? JSON.parse(baseline.params_json).strategy : "unknown";
-                            const sharpe = parseFloat(baseline.metric_after || "0");
-                            return (
-                              <option key={baseline.run_id} value={baseline.run_id}>
-                                {strategy} -- {baseline.timestamp.slice(0,16)} -- Sharpe {sharpe.toFixed(2)} -- {expCount} experiments
-                              </option>
-                            );
-                          } else {
-                            // Fallback to runs data while TSV loads
-                            return (
-                              <option key={baseline.run_id} value={i}>
-                                {baseline.strategy} -- {formatRunTimestamp(baseline.timestamp)} -- Sharpe {baseline.sharpe?.toFixed(2) ?? "?"} -- loading...
-                              </option>
-                            );
-                          }
+                          const expCount = optExperiments.filter((e) => e.parent_run_id === baseline.run_id && e.status !== "BASELINE").length;
+                          return (
+                            <option key={baseline.run_id} value={baseline.run_id}>
+                              {baseline.strategy} -- {formatRunTimestamp(baseline.timestamp)} -- Sharpe {baseline.sharpe?.toFixed(2) ?? "?"} -- {expCount} experiments
+                            </option>
+                          );
                         })}
                       </select>
                     </div>
