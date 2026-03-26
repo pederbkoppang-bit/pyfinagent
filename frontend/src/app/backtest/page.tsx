@@ -691,8 +691,8 @@ export default function BacktestPage() {
                   if (!rid) return;
                   const run = runs.find((r) => r.run_id === rid);
                   if (!run?.has_detail) {
-                    // No full detail JSON — just update selection context
-                    setBtStatus((prev) => prev ? { ...prev, run_id: rid } : prev);
+                    setResults(null);
+                    setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: false, run_id: rid } : prev);
                     return;
                   }
                   try {
