@@ -1232,11 +1232,14 @@ export default function BacktestPage() {
                           } catch { /* ignore */ }
                         }}
                       >
-                        {baselines.map((baseline, i) => {
+                        {baselines.map((baseline) => {
+                          const expCount = baseline.experiment_count || 0;
                           return (
-                            <option key={baseline.run_id} value={baseline.run_id}>
-                              {baseline.strategy} -- {formatRunTimestamp(baseline.timestamp)} -- Sharpe {baseline.sharpe?.toFixed(2) ?? "?"} -- {baseline.experiment_count || 0} experiments
-                            </option>
+                            <optgroup key={baseline.run_id} label={`${baseline.strategy} -- Sharpe ${baseline.sharpe?.toFixed(2) ?? "?"} -- ${expCount} experiments`}>
+                              <option value={baseline.run_id}>
+                                Baseline -- {formatRunTimestamp(baseline.timestamp)} -- Sharpe {baseline.sharpe?.toFixed(2) ?? "?"}
+                              </option>
+                            </optgroup>
                           );
                         })}
                       </select>
