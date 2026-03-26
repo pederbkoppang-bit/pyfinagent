@@ -3,13 +3,123 @@ Backtest analytics — Sharpe, Deflated Sharpe Ratio, baselines, reporting.
 All computations are purely numerical, zero LLM cost.
 """
 
+import csv
+import io
+import logging
 import math
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 from scipy import stats
 
 from backend.backtest.backtest_engine import BacktestResult
+
+logger = logging.getLogger(__name__)
+
+# ── Dynamic Risk-Free Rate (FRED 3-Month T-Bill) ────────────────
+
+_TBILL_CACHE_PATH = Path(__file__).parent / "data" / "tbill_rates.csv"
+_TBILL_RATES: list[tuple[str, float]] | None = None  # (date_str, annualized_rate)
+
+
+def fetch_risk_free_rates() -> bool:
+    """
+    Fetch 3-month T-bill rates from FRED and cache to disk.
+    Returns True if successful.
+    URL: FRED DTB3 series (daily, % annualized).
+    """
+    import urllib.request
+
+    url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTB3&cosd=2017-01-01&coed=2026-12-31"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "PyFinAgent/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = resp.read().decode("utf-8")
+
+        _TBILL_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _TBILL_CACHE_PATH.write_text(data, encoding="utf-8")
+        logger.info("Fetched T-bill rates from FRED (%d bytes)", len(data))
+
+        # Invalidate in-memory cache so next call reloads
+        global _TBILL_RATES
+        _TBILL_RATES = None
+        return True
+    except Exception as e:
+        logger.warning("Failed to fetch T-bill rates from FRED: %s", e)
+        return False
+
+
+def _load_tbill_rates() -> list[tuple[str, float]]:
+    """Load T-bill rates from cached CSV. Returns sorted (date, rate) pairs."""
+    global _TBILL_RATES
+    if _TBILL_RATES is not None:
+        return _TBILL_RATES
+
+    if not _TBILL_CACHE_PATH.exists():
+        # Try to fetch on first access
+        if not fetch_risk_free_rates():
+            _TBILL_RATES = []
+            return _TBILL_RATES
+
+    try:
+        text = _TBILL_CACHE_PATH.read_text(encoding="utf-8")
+        reader = csv.DictReader(io.StringIO(text))
+        rates = []
+        for row in reader:
+            date_str = row.get("DATE", "").strip()
+            value_str = row.get("DTB3", row.get("VALUE", "")).strip()
+            if not date_str or value_str == "." or not value_str:
+                continue  # FRED uses "." for missing data
+            try:
+                rate = float(value_str) / 100.0  # Convert from % to decimal
+                rates.append((date_str, rate))
+            except ValueError:
+                continue
+        rates.sort(key=lambda x: x[0])
+        _TBILL_RATES = rates
+        logger.info("Loaded %d T-bill rate observations from cache", len(rates))
+        return _TBILL_RATES
+    except Exception as e:
+        logger.warning("Failed to load T-bill rates from cache: %s", e)
+        _TBILL_RATES = []
+        return _TBILL_RATES
+
+
+def get_risk_free_rate(start_date: str | None = None, end_date: str | None = None) -> float:
+    """
+    Get the average annualized risk-free rate for a date range.
+
+    Uses 3-month T-bill rates from FRED (DTB3 series). Falls back to 0.04
+    if FRED data is unavailable.
+
+    Args:
+        start_date: ISO date string (YYYY-MM-DD). If None, uses all data.
+        end_date: ISO date string (YYYY-MM-DD). If None, uses all data.
+
+    Returns:
+        Annualized risk-free rate as a decimal (e.g., 0.05 = 5%).
+    """
+    rates = _load_tbill_rates()
+    if not rates:
+        return 0.04  # Fallback
+
+    # Filter to date range
+    if start_date or end_date:
+        filtered = []
+        for date_str, rate in rates:
+            if start_date and date_str < start_date:
+                continue
+            if end_date and date_str > end_date:
+                continue
+            filtered.append(rate)
+    else:
+        filtered = [r for _, r in rates]
+
+    if not filtered:
+        return 0.04  # Fallback
+
+    return float(np.mean(filtered))
 
 
 def compute_sharpe(returns: np.ndarray, risk_free_rate: float = 0.04, periods_per_year: int = 252) -> float:
