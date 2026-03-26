@@ -75,6 +75,17 @@ def load_latest() -> dict | None:
         return None
 
 
+def _extract_timestamp(stem: str) -> str:
+    """Extract ISO-like timestamp from filename stem, regardless of position."""
+    import re as _re
+    # Match patterns like 20260326T085310 or 20260325T225146Z
+    m = _re.search(r"(\d{8}T\d{6}Z?)", stem)
+    if m:
+        return m.group(1)
+    # Fallback: file modification time
+    return stem.split("_", 1)[0]
+
+
 def list_runs() -> list[dict]:
     """Return summary metadata for all saved backtest runs.
 
@@ -90,7 +101,7 @@ def list_runs() -> list[dict]:
             config = data.get("config", {})
             runs.append({
                 "run_id": data.get("run_id", p.stem.split("_", 1)[-1]),
-                "timestamp": p.stem.split("_", 1)[0],
+                "timestamp": _extract_timestamp(p.stem),
                 "strategy": config.get("strategy", data.get("strategy_params", {}).get("strategy", "unknown")),
                 "sharpe": analytics.get("sharpe"),
                 "total_return_pct": analytics.get("total_return_pct"),
