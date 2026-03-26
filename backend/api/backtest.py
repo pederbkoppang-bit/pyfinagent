@@ -486,6 +486,9 @@ def list_backtest_runs():
             except (ValueError, TypeError):
                 sharpe = None
 
+            # Count experiments for baselines
+            experiment_count = 0 if not is_baseline else len([r for r in experiments if r.get("parent_run_id") == rid])
+            
             rows.append({
                 "run_id": rid,
                 "timestamp": row.get("timestamp", ""),
@@ -498,6 +501,7 @@ def list_backtest_runs():
                 "is_baseline": is_baseline,
                 "parent_run_id": parent if parent else None,
                 "has_detail": rid in detail_ids,
+                "experiment_count": experiment_count,
             })
 
     # Append JSON-only runs not in TSV (legacy standalone backtests)
@@ -517,6 +521,7 @@ def list_backtest_runs():
                 "is_baseline": True,
                 "parent_run_id": None,
                 "has_detail": True,
+                "experiment_count": 0,  # JSON-only runs have no TSV experiments
             })
 
     rows.reverse()  # newest first

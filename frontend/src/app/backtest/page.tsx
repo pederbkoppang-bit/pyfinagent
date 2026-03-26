@@ -1227,10 +1227,9 @@ export default function BacktestPage() {
                         }}
                       >
                         {baselines.map((baseline, i) => {
-                          const expCount = optExperiments.filter((e) => e.parent_run_id === baseline.run_id && e.status !== "BASELINE").length;
                           return (
                             <option key={baseline.run_id} value={baseline.run_id}>
-                              {baseline.strategy} -- {formatRunTimestamp(baseline.timestamp)} -- Sharpe {baseline.sharpe?.toFixed(2) ?? "?"} -- {expCount} experiments
+                              {baseline.strategy} -- {formatRunTimestamp(baseline.timestamp)} -- Sharpe {baseline.sharpe?.toFixed(2) ?? "?"} -- {baseline.experiment_count || 0} experiments
                             </option>
                           );
                         })}
