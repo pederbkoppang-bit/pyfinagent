@@ -486,8 +486,19 @@ def list_backtest_runs():
             except (ValueError, TypeError):
                 sharpe = None
 
-            # Count experiments for baselines
-            experiment_count = 0 if not is_baseline else len([r for r in experiments if r.get("parent_run_id") == rid])
+            # Count experiments for baselines (read from same TSV data)
+            experiment_count = 0
+            if is_baseline:
+                # Count children in the same TSV that have this run as parent
+                with open(tsv_path, "r", encoding="utf-8") as exp_file:
+                    exp_header = exp_file.readline().strip().split("\t")
+                    child_count = 0
+                    for exp_line in exp_file:
+                        exp_values = exp_line.strip().split("\t") + [""] * max(0, len(exp_header) - len(exp_line.strip().split("\t")))
+                        exp_row = dict(zip(exp_header, exp_values))
+                        if exp_row.get("parent_run_id") == rid:
+                            child_count += 1
+                    experiment_count = child_count
             
             rows.append({
                 "run_id": rid,
