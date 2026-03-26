@@ -1,6 +1,6 @@
 {
   "params": {
-    "start_date": "2023-01-01",
+    "start_date": "2018-01-01",
     "end_date": "2025-12-31",
     "train_window_months": 12,
     "test_window_months": 3,
@@ -13,17 +13,16 @@
     "starting_capital": 100000.0,
     "max_positions": 20,
     "top_n_candidates": 50,
-    "strategy": "triple_barrier",
+    "strategy": "blend",
     "n_estimators": 200,
     "max_depth": 4,
     "min_samples_leaf": 20,
-    "learning_rate": 0.1,
-    "momentum_weight": 0.4819238964635454
+    "learning_rate": 0.1
   },
-  "sharpe": 3.3691784472366346,
-  "dsr": 0.9999999997422627,
-  "run_id": "0205cd1f",
+  "sharpe": 0.7386,
+  "dsr": 0.9990,
+  "run_id": "blend_baseline",
   "kept": 0,
   "discarded": 0,
-  "saved_at": "2026-03-24T19:23:18.528534+00:00"
+  "saved_at": "2026-03-26T08:53:10Z"
 }

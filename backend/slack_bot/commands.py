@@ -1,9 +1,12 @@
 """
 Slash command handlers: /analyze, /portfolio, /report
+Message handlers: status command, push approval reactions
 """
 
 import asyncio
 import logging
+import subprocess
+from pathlib import Path
 
 import httpx
 from slack_bolt.async_app import AsyncApp
@@ -13,8 +16,71 @@ from backend.slack_bot.formatters import format_analysis_result, format_portfoli
 
 logger = logging.getLogger(__name__)
 
-# Backend base URL (internal Docker network)
-_BACKEND_URL = "http://backend:8000"
+# Backend base URL (internal Docker network or localhost)
+_BACKEND_URL = "http://localhost:8000"
+
+# Ford approval channel
+_APPROVAL_CHANNEL = "C0ANTGNNK8D"
+
+# Project root
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
+def _read_status() -> str:
+    """Read current plan status from memory and plan files."""
+    lines = []
+
+    # Read today's memory
+    from datetime import date
+    today = date.today().isoformat()
+    mem_path = Path.home() / ".openclaw" / "workspace" / "memory" / f"{today}.md"
+    if mem_path.exists():
+        content = mem_path.read_text()
+        # Extract the last section (most recent work)
+        sections = content.split("## ")
+        if len(sections) > 1:
+            last = sections[-1][:500]
+            lines.append(f"*Today's work:*\n{last}")
+
+    # Read plan status
+    plan_path = _PROJECT_ROOT / "PLAN.md"
+    if plan_path.exists():
+        content = plan_path.read_text()
+        # Count checked vs unchecked items
+        checked = content.count("- [x]")
+        unchecked = content.count("- [ ]")
+        total = checked + unchecked
+        pct = int(checked / total * 100) if total > 0 else 0
+        lines.append(f"*Plan progress:* {checked}/{total} items ({pct}%)")
+
+    # Git status
+    try:
+        local_commits = subprocess.check_output(
+            ["git", "log", "origin/main..HEAD", "--oneline"],
+            cwd=str(_PROJECT_ROOT), text=True, timeout=5
+        ).strip()
+        if local_commits:
+            count = len(local_commits.splitlines())
+            lines.append(f"*Local commits waiting for push:* {count}\n```{local_commits}```")
+        else:
+            lines.append("*Git:* All pushed, up to date.")
+    except Exception:
+        pass
+
+    # Backtest status
+    try:
+        import urllib.request, json
+        req = urllib.request.Request(f"{_BACKEND_URL}/api/backtest/status")
+        resp = json.loads(urllib.request.urlopen(req, timeout=5).read())
+        if resp.get("status") == "running":
+            p = resp.get("progress", {})
+            lines.append(f"*Backtest running:* Window {p.get('window', '?')}/{p.get('total_windows', '?')} ({p.get('elapsed_seconds', 0):.0f}s)")
+        elif resp.get("status") == "completed" and resp.get("has_result"):
+            lines.append("*Backtest:* Completed ✅")
+    except Exception:
+        pass
+
+    return "\n\n".join(lines) if lines else "No status available."
 
 
 def register_commands(app: AsyncApp):
@@ -101,3 +167,51 @@ def register_commands(app: AsyncApp):
         except Exception as e:
             logger.exception(f"Error in /report for {ticker}")
             await respond(f":x: Error: {str(e)[:200]}")
+
+    # ── Channel message handlers ─────────────────────────────────
+
+    @app.message("status")
+    async def handle_status(message, say):
+        """Reply with current plan status when someone types 'status'."""
+        channel = message.get("channel", "")
+        if channel != _APPROVAL_CHANNEL:
+            return
+        # Don't respond to bot messages
+        if message.get("bot_id"):
+            return
+        logger.info("Status request received in #ford-approvals")
+        try:
+            status_text = _read_status()
+            await say(f"📊 *PyFinAgent Status*\n\n{status_text}")
+        except Exception as e:
+            logger.exception("Error generating status")
+            await say(f":x: Error generating status: {str(e)[:200]}")
+
+    @app.event("reaction_added")
+    async def handle_reaction(event, say):
+        """Handle ✅/❌ reactions on push approval messages."""
+        reaction = event.get("reaction", "")
+        item = event.get("item", {})
+        channel = item.get("channel", "")
+
+        if channel != _APPROVAL_CHANNEL:
+            return
+
+        if reaction == "white_check_mark":
+            # Approved — push to GitHub
+            logger.info("Push approved via ✅ reaction")
+            try:
+                result = subprocess.check_output(
+                    ["git", "push", "origin", "main"],
+                    cwd=str(_PROJECT_ROOT), text=True, timeout=30,
+                    stderr=subprocess.STDOUT
+                )
+                await say(f"✅ *Pushed to GitHub*\n```{result.strip()}```")
+            except subprocess.CalledProcessError as e:
+                await say(f"❌ *Push failed:*\n```{e.output[:500]}```")
+            except Exception as e:
+                await say(f"❌ *Push error:* {str(e)[:200]}")
+
+        elif reaction == "x":
+            logger.info("Push rejected via ❌ reaction")
+            await say("❌ Push rejected. Commits stay local.")

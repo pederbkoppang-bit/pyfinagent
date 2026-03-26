@@ -744,7 +744,7 @@ class BacktestEngine:
         """
         try:
             result = permutation_importance(
-                model, X, y, n_repeats=n_repeats, random_state=42, n_jobs=-1,
+                model, X, y, n_repeats=n_repeats, random_state=42, n_jobs=1,
             )
             return dict(zip(feature_names, result["importances_mean"]))
         except Exception as e:
