@@ -1,7 +1,7 @@
 # PyFinAgent — Optimization Plan (Ford's Master Plan)
 
 > **Goal**: Make money. Ship a validated, evidence-based trading signal system by May 2026.
-> **Budget**: BigQuery (low cost OK), GitHub Models (free via Copilot Pro), Claude Max (via OpenClaw/Ford), Vertex AI (avoid unless proven high-ROI).
+> **Budget**: TIGHT — currently negative cash flow (-$10K, $200/month costs). Every dollar must have ROI. BigQuery (low cost OK), GitHub Models (free via Copilot Pro), Claude Max (via OpenClaw/Ford), Vertex AI (avoid unless proven high-ROI). **⚠️ LLM API costs require Peder's explicit approval.**
 > **Timeline**: March-April = validate + fix + research. May = go live with real money (Slack signals → manual trading).
 
 ---
@@ -92,20 +92,52 @@
 
 ---
 
-## Phase 3: LLM Pipeline Optimization (Weeks 4-5, REQUIRES PEDER APPROVAL)
-*Only after quant engine is validated. LLM costs money.*
+## Phase 3: LLM-Guided Research & Pipeline Optimization (Weeks 4-5)
+### ⚠️ GATE: REQUIRES PEDER'S EXPLICIT APPROVAL BEFORE STARTING
+*Negative cash flow — every LLM call must justify its cost. Ford does NOT proceed without sign-off.*
 
-### 3.1 Skill Optimization (SkillOpt loop)
+### 3.0 LLM-as-Researcher (Karpathy-inspired autoresearch for trading)
+*Inspired by Karpathy's autoresearch + Kou et al. (2024) "Automate Strategy Finding with LLM in Quant Investment" (53% return on SSE50).*
+
+**The idea:** Instead of a dumb parameter sweep, use an LLM to reason about experiment results and hypothesize what to try next — like a quant researcher, not a grid search.
+
+**Our approach (budget-conscious):**
+- [ ] **Batch-then-reason:** Run 10-20 optimizer experiments (free CPU), then feed the log to an LLM once for analysis. Not a tight loop.
+- [ ] **Max 5-10 LLM reasoning calls per day** — analyze patterns in kept vs discarded experiments, suggest structural changes
+- [ ] **LLM can propose code changes** to strategy (new features, different blending weights, regime-aware params) — but Ford reviews before running
+- [ ] **Experiment log as context:** maintain structured TSV of all experiments so the LLM can spot patterns humans miss
+- [ ] **Overfitting guard:** DSR validation on every proposed change. If DSR drops, discard regardless of Sharpe improvement.
+
+**What this is NOT:**
+- ❌ Not a tight autoresearch loop (too expensive, ~$50+/day in API calls)
+- ❌ Not unreviewed code changes (overfitting factory)
+- ❌ Not a replacement for the current optimizer (complements it)
+
+**Cost estimate:** ~$2-5/day if throttled properly. Peder approves budget before starting.
+
+**Key references:**
+- Kou et al. (2024) — "Automate Strategy Finding with LLM in Quant Investment" [arXiv:2409.06289]
+- FactorEngine (March 2026) — LLM-driven alpha factor mining
+- AlphaForgeBench (Feb 2026) — benchmark for LLM trading strategy design
+
+### 3.1 Regime Detection (zero LLM cost, high ROI)
+*Classical quant — no API costs. This is the single highest-ROI improvement for market adaptation.*
+- [ ] **HMM-based regime detector** — identify 2-3 market regimes (bull, bear, high-vol) from returns + volatility
+- [ ] **Turbulence index switching** — already coded, wire into param selection: low turbulence → aggressive params, high → defensive
+- [ ] **Per-regime parameter sets** — optimizer finds best params for each regime independently
+- [ ] **Rolling re-optimization** — weekly/monthly re-run optimizer on latest N months (cron job, zero LLM cost)
+
+### 3.2 Skill Optimization (SkillOpt loop)
 - [ ] Run SkillOpt on each of the 29 agent skills, starting with highest-impact agents (Synthesis, Moderator, Risk Judge)
 - [ ] Use outcome_tracker feedback to identify which agents' signals correlate most with actual returns
 - [ ] Wire MetaCoordinator: MDA importance → Agent targeting (if MDA says `nlp_sentiment_score` matters, optimize NLP Sentiment Agent skill)
 
-### 3.2 Signal Quality Validation
+### 3.3 Signal Quality Validation
 - [ ] Run analysis on 20+ tickers, compare recommendations vs actual price movement over 30/60/90 days
 - [ ] Measure signal accuracy per enrichment tool — which tools actually add alpha?
 - [ ] Consider dropping tools that don't contribute (reduce cost, reduce noise)
 
-### 3.3 Model Selection
+### 3.4 Model Selection
 - [ ] Benchmark gpt-4.1 (current, via GitHub Models) vs alternatives on signal quality
 - [ ] Document cost per analysis for each model option
 - [ ] Evaluate if DEEP_THINK_MODEL justifies its cost for Critic/Synthesis
