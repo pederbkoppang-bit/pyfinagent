@@ -44,12 +44,21 @@ def save_result(run_id: str, report: dict) -> Path:
 def load_result(run_id: str) -> dict | None:
     """Load a specific backtest result by run_id."""
     _ensure_dir()
+    # First try filename-based lookup (fast path)
     safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", run_id)
     for p in _RESULTS_DIR.glob(f"*_{safe_id}.json"):
         try:
             return json.loads(p.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as e:
             logger.warning("Failed to read %s: %s", p.name, e)
+    # Fallback: scan all files for matching run_id field
+    for p in _RESULTS_DIR.glob("*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if data.get("run_id") == run_id:
+                return data
+        except (json.JSONDecodeError, OSError):
+            continue
     return None
 
 
@@ -102,4 +111,14 @@ def delete_run(run_id: str) -> bool:
         p.unlink()
         logger.info("Deleted backtest result %s", p.name)
         return True
+    # Fallback: scan all files for matching run_id field
+    for p in _RESULTS_DIR.glob("*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if data.get("run_id") == run_id:
+                p.unlink()
+                logger.info("Deleted backtest result %s", p.name)
+                return True
+        except (json.JSONDecodeError, OSError):
+            continue
     return False
