@@ -1221,10 +1221,11 @@ export default function BacktestPage() {
                         }}
                       >
                         {optBaselines.map((b, i) => {
-                          const tsvChildren = optExperiments.filter((e) => e.parent_run_id === b.run_id && e.status !== "BASELINE");
+                          // Count experiments belonging to this baseline from current optExperiments
+                          const expCount = optExperiments.filter((e) => e.parent_run_id === b.run_id && e.status !== "BASELINE").length;
                           return (
                             <option key={b.run_id} value={i}>
-                              {b.strategy} -- {formatRunTimestamp(b.timestamp)} -- Sharpe {b.sharpe?.toFixed(2) ?? "?"} -- {tsvChildren.length} experiments
+                              {b.strategy} -- {formatRunTimestamp(b.timestamp)} -- Sharpe {b.sharpe?.toFixed(2) ?? "?"} -- {expCount || "loading..."} experiments
                             </option>
                           );
                         })}
