@@ -115,6 +115,15 @@ def main():
     def on_result(report):
         a = report["analytics"]
         print(f"  → Result: Sharpe={a['sharpe']:.4f} Return={a['total_return_pct']:.1f}% DD={a['max_drawdown']:.1f}%")
+        
+        # Save JSON result for kept experiments so they're clickable in frontend
+        try:
+            from backend.backtest import result_store
+            run_id = report.get('run_id') or 'optimizer_result'
+            result_store.save_result(run_id, report)
+            print(f"  → Saved result JSON: {run_id}")
+        except Exception as e:
+            print(f"  → Warning: Failed to save result JSON: {e}")
 
     t0 = time.time()
     optimizer.run_loop(
