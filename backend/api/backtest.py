@@ -503,8 +503,10 @@ def list_backtest_runs():
                 try:
                     detail = result_store.load_result(rid)
                     if detail:
-                        strategy = detail.get("params", {}).get("strategy", 
-                                   detail.get("config", {}).get("strategy", "unknown"))
+                        strategy = (detail.get("params", {}).get("strategy") or
+                                   detail.get("config", {}).get("strategy") or
+                                   detail.get("strategy_params", {}).get("strategy") or
+                                   "unknown")
                 except Exception:
                     pass
 
