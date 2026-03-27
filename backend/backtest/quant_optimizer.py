@@ -246,10 +246,6 @@ class QuantStrategyOptimizer:
                 self._detect_feature_drift(trial_top5)
                 self._prev_top5_mda = trial_top5
 
-                # Push latest kept result to backtest tabs
-                if on_result:
-                    on_result(report)
-
                 # Notify MetaCoordinator with fresh MDA importances
                 if on_mda_update and result.feature_importance_mda:
                     mda_list = [
@@ -278,6 +274,15 @@ class QuantStrategyOptimizer:
                 trial_top5 = []
 
             exp_id = f"{self._run_id}-exp{i+1:02d}"
+            
+            # Save JSON for ALL experiments (keep, discard, dsr_reject) so they're viewable
+            report["run_id"] = exp_id
+            report["parent_run_id"] = self._run_id
+            report["experiment_status"] = status
+            report["param_changed"] = change_desc
+            if on_result:
+                on_result(report)
+            
             self._log_experiment(
                 exp_id, change_desc,
                 float(self.best_sharpe or 0), trial_sharpe, delta, status, trial_dsr, trial_top5,
