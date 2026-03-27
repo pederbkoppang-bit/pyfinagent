@@ -559,15 +559,18 @@ export default function BacktestPage() {
         {/* Simple progress bar */}
         {(isRunning || isOptRunning) && (() => {
           const prog = btStatus?.progress && typeof btStatus.progress === "object" ? btStatus.progress as BacktestProgress : null;
-          const step = prog?.step || (isOptRunning ? "optimizer" : "starting");
-          const currentW = prog?.current_window ?? 0;
-          const totalW = prog?.total_windows ?? 0;
+          // Use optimizer status for CLI runs, btStatus for API runs
+          const optW = (optStatus as Record<string, unknown>)?.current_window as number | undefined;
+          const optTotalW = (optStatus as Record<string, unknown>)?.total_windows as number | undefined;
+          const currentW = prog?.current_window ?? optW ?? 0;
+          const totalW = prog?.total_windows ?? optTotalW ?? 0;
           const pct = totalW > 0 ? Math.round((currentW / totalW) * 100) : 0;
-          const label = isOptRunning && !isRunning
-            ? `Optimizer running — ${optStatus?.iterations ?? 0} experiments completed`
-            : totalW > 0
-              ? `Window ${currentW}/${totalW} — ${prog?.label || step}`
-              : prog?.label || step;
+          const optDetail = (optStatus as Record<string, unknown>)?.detail as string | undefined;
+          const label = isRunning
+            ? totalW > 0
+              ? `Window ${currentW}/${totalW} — ${prog?.label || prog?.step || "processing"}`
+              : prog?.label || prog?.step || "starting"
+            : optDetail || `Optimizer running — ${optStatus?.iterations ?? 0} experiments completed`;
           return (
             <div className="mb-4 rounded-lg border border-sky-500/20 bg-sky-950/20 px-4 py-2.5">
               <div className="flex items-center gap-3">

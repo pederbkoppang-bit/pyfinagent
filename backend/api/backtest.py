@@ -279,15 +279,51 @@ async def get_optimizer_status():
             result = subprocess.run(["pgrep", "-f", "run_optimizer.py"], capture_output=True, text=True)
             if result.stdout.strip():
                 state["status"] = "running"
-                state["detail"] = "Running via CLI (run_optimizer.py)"
                 # Try to get latest experiment count from TSV
-                import os
+                import os, re
                 tsv_path = os.path.join(os.path.dirname(__file__), "..", "backtest", "experiments", "quant_results.tsv")
                 if os.path.exists(tsv_path):
                     with open(tsv_path) as f:
                         lines = f.readlines()
                     non_baseline = [l for l in lines[1:] if "BASELINE" not in l and l.strip()]
                     state["iterations"] = len(non_baseline)
+                # Parse last log line for real-time progress
+                log_path = "/tmp/optimizer_run3.log"
+                if not os.path.exists(log_path):
+                    # Try other common log paths
+                    for p in ["/tmp/optimizer_run2.log", "/tmp/optimizer_run.log"]:
+                        if os.path.exists(p):
+                            log_path = p
+                            break
+                if os.path.exists(log_path):
+                    try:
+                        with open(log_path, "rb") as f:
+                            f.seek(0, 2)
+                            size = f.tell()
+                            f.seek(max(0, size - 2000))
+                            tail = f.read().decode("utf-8", errors="ignore")
+                        last_line = tail.strip().split("\n")[-1]
+                        # Parse "[W/T] step: detail"
+                        m = re.search(r"\[(\d+)/(\d+)\]\s+(\w+):\s+(.+?)(?:\s{2,}|$)", last_line)
+                        if m:
+                            current_w = int(m.group(1))
+                            total_w = int(m.group(2))
+                            step = m.group(3)
+                            detail = m.group(4).strip()
+                            state["current_window"] = current_w
+                            state["total_windows"] = total_w
+                            state["current_step"] = step
+                            state["detail"] = f"Window {current_w}/{total_w} — {step}: {detail}"
+                        else:
+                            # Try to parse experiment results
+                            m2 = re.search(r"Result: Sharpe=([\d.]+)", last_line)
+                            if m2:
+                                state["detail"] = f"Last result: Sharpe={m2.group(1)}"
+                                state["best_sharpe"] = float(m2.group(1))
+                            else:
+                                state["detail"] = last_line[:100]
+                    except Exception:
+                        pass
         except Exception:
             pass
     return state
