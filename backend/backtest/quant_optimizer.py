@@ -586,8 +586,8 @@ class QuantStrategyOptimizer:
                         if key in prev_params:
                             self.best_params[key] = prev_params[key]
                     self._apply_params_to_engine(self.best_params)
-                    prev_sharpe = data.get("sharpe")
-                    prev_dsr = data.get("dsr")
+                    prev_sharpe = data.get("best_sharpe", data.get("sharpe"))
+                    prev_dsr = data.get("best_dsr", data.get("dsr"))
                     if prev_sharpe is not None:
                         self.best_sharpe = float(prev_sharpe)
                         self.best_dsr = float(prev_dsr) if prev_dsr is not None else 0.0
