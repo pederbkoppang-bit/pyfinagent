@@ -556,247 +556,36 @@ export default function BacktestPage() {
             </div>
         )}
 
-        {/* Progress panel — vertical Jira-style workflow timeline */}
-        {(isRunning || (isOptRunning && tab === "optimizer")) && (() => {
-          // If optimizer is running via CLI (no btStatus), show simple indicator
-          if (!isRunning && isOptRunning) {
-            return (
-              <div className="mb-4 rounded-xl border border-sky-500/30 bg-sky-950/20 p-4">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
-                  <span className="text-sm text-sky-300">
-                    Optimizer running via CLI — {optStatus?.iterations ?? 0} experiments completed
-                  </span>
-                </div>
-              </div>
-            );
-          }
-          const p = btStatus?.progress;
-          const prog: BacktestProgress | null =
-            p && typeof p === "object" ? (p as BacktestProgress) : null;
-
-          const mins = Math.floor(localElapsed / 60);
-          const secs = Math.floor(localElapsed % 60);
-          const elapsedStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-
-          if (!prog) {
-            return (
-              <div className="mb-4 rounded-xl border border-sky-500/30 bg-sky-950/20 p-4">
-                <div className="flex items-center gap-2">
-                  <ArrowClockwise size={16} className="animate-spin text-sky-400" />
-                  <span className="text-sm text-sky-300">
-                    {typeof p === "string" ? p : "Running backtest..."}
-                  </span>
-                  <span className="ml-auto font-mono text-xs text-slate-500">{elapsedStr} elapsed</span>
-                </div>
-              </div>
-            );
-          }
-
-          const isFinalizing = prog.step === "finalizing";
-          const totalW = prog.total_windows || 0;
-          const currentW = isFinalizing ? totalW + 1 : (prog.window || 0);
-          const windowPct = isFinalizing ? 100
-            : totalW > 0 ? Math.round(Math.max(0, (currentW - 1) / totalW) * 100) : 0;
-          const currentStepIdx = STEP_ORDER.indexOf(prog.step as PipelineStepKey);
-          const totalCacheOps = (prog.cache_hits || 0) + (prog.cache_misses || 0);
-          const cacheHitPct = totalCacheOps > 0
-            ? Math.round((prog.cache_hits / totalCacheOps) * 100) : 0;
-
+        {/* Simple progress bar */}
+        {(isRunning || isOptRunning) && (() => {
+          const prog = btStatus?.progress && typeof btStatus.progress === "object" ? btStatus.progress as BacktestProgress : null;
+          const step = prog?.step || (isOptRunning ? "optimizer" : "starting");
+          const currentW = prog?.current_window ?? 0;
+          const totalW = prog?.total_windows ?? 0;
+          const pct = totalW > 0 ? Math.round((currentW / totalW) * 100) : 0;
+          const label = isOptRunning && !isRunning
+            ? `Optimizer running — ${optStatus?.iterations ?? 0} experiments completed`
+            : totalW > 0
+              ? `Window ${currentW}/${totalW} — ${prog?.label || step}`
+              : prog?.label || step;
           return (
-            <details open className="group mb-6 rounded-xl border border-slate-700/60 bg-[#080f1e] shadow-xl">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
-                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
-                    </span>
-                    <span className="text-sm font-semibold text-slate-200">Walk-Forward Progress{btStatus?.engine_source === "optimizer" ? " (via Optimizer)" : ""}</span>
-                    <span className="text-xs text-slate-500">Step {currentStepIdx + 1}/{STEP_ORDER.length}</span>
-                  </div>
-                  {/* Optimizer step subtitle + metric pills */}
-                  {btStatus?.engine_source === "optimizer" && isOptRunning && optStatus && (
-                    <div className="flex flex-wrap items-center gap-1.5 pl-[18px]">
-                      {optStatus.current_step && (
-                        <span className="text-xs text-slate-500">
-                          {optStatus.current_step === "establishing_baseline" ? "Establishing Baseline"
-                            : optStatus.current_step === "running_experiment" ? "Running Experiment"
-                            : optStatus.current_step === "baseline_complete" ? "Baseline Complete"
-                            : optStatus.current_step === "evaluated" ? "Evaluated"
-                            : optStatus.current_step}
-                          {optStatus.current_detail ? ` — ${optStatus.current_detail}` : ""}
-                        </span>
-                      )}
-                      <span className="mx-1 hidden text-slate-700 sm:inline">|</span>
-                      <span className="rounded-full border border-slate-700 bg-slate-800/60 px-2 py-0.5 font-mono text-[11px] text-slate-300">Iter {optStatus.iterations}</span>
-                      <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 font-mono text-[11px] text-sky-300">{optStatus.best_sharpe?.toFixed(3) ?? "—"} Sharpe</span>
-                      <span className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${optStatus.best_dsr != null && optStatus.best_dsr >= 0.95 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-400"}`}>{optStatus.best_dsr?.toFixed(3) ?? "—"} DSR</span>
-                      {optStatus.kept > 0 && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[11px] text-emerald-400">{optStatus.kept} kept</span>}
-                      {optStatus.discarded > 0 && <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 font-mono text-[11px] text-rose-400">{optStatus.discarded} disc</span>}
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-shrink-0 items-center gap-3">
-                  <span className="font-mono text-sm text-slate-400">{elapsedStr} elapsed</span>
-                  {btStatus?.engine_source === "optimizer" && (
-                    <button
-                      onClick={(e) => { e.preventDefault(); handleStopOptimizer(); }}
-                      className="flex items-center gap-1 rounded-md bg-rose-600/80 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-rose-500"
-                    >
-                      <Stop size={12} weight="fill" />
-                      Stop
-                    </button>
-                  )}
-                </div>
-              </summary>
-              <div className="px-5 pb-5">
-              {/* Window rail + overall bar */}
+            <div className="mb-4 rounded-lg border border-sky-500/20 bg-sky-950/20 px-4 py-2.5">
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
+                <span className="text-xs text-sky-300">{label}</span>
+                {totalW > 0 && (
+                  <span className="ml-auto font-mono text-xs text-slate-500">{pct}%</span>
+                )}
+              </div>
               {totalW > 0 && (
-                <div className="mb-5">
-                  <div className="mb-2 flex items-center gap-2">
-                    <div className="flex flex-1 flex-wrap items-center gap-1.5">
-                      {Array.from({ length: totalW }, (_, i) => {
-                        const wn = i + 1;
-                        const wState = wn < currentW ? "done" : wn === currentW ? "active" : "pending";
-                        return (
-                          <div
-                            key={wn}
-                            title={`Window ${wn}`}
-                            className={`h-2.5 w-2.5 flex-shrink-0 rounded-full transition-all duration-300 ${
-                              wState === "done"
-                                ? "bg-emerald-500"
-                                : wState === "active"
-                                ? "bg-sky-400 ring-2 ring-sky-400/40 ring-offset-1 ring-offset-[#080f1e]"
-                                : "border border-slate-600 bg-transparent"
-                            }`}
-                          />
-                        );
-                      })}
-                    </div>
-                    <span className="ml-1 whitespace-nowrap font-mono text-xs font-medium text-slate-400">
-                      {isFinalizing ? `${totalW} / ${totalW}` : `${Math.max(0, prog.window || 0)} / ${totalW}`}
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-                    <div
-                      className="h-1.5 rounded-full bg-sky-500 transition-all duration-700"
-                      style={{ width: `${windowPct}%` }}
-                    />
-                  </div>
+                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-slate-800">
+                  <div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${pct}%` }} />
                 </div>
               )}
-
-              {/* Vertical timeline */}
-              <div>
-                {STEP_ORDER.map((stepName, idx) => {
-                  const isLastStep = idx === STEP_ORDER.length - 1;
-                  const stepIdx = STEP_ORDER.indexOf(stepName);
-                  const stepStatus: "done" | "active" | "pending" =
-                    stepIdx < currentStepIdx ? "done"
-                    : stepIdx === currentStepIdx ? "active"
-                    : "pending";
-                  const { StepIcon, label } = STEP_META[stepName];
-                  const isDone   = stepStatus === "done";
-                  const isActive = stepStatus === "active";
-
-                  return (
-                    <div key={stepName} className="relative flex gap-3">
-                      {/* Vertical connector */}
-                      {!isLastStep && (
-                        <div
-                          className={`absolute z-0 w-px ${
-                            isDone ? "bg-emerald-500/25" : "bg-slate-700/50"
-                          }`}
-                          style={{ left: 15, top: 32, bottom: 0 }}
-                        />
-                      )}
-
-                      {/* Step icon bubble */}
-                      <div
-                        className={`relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${
-                          isDone
-                            ? "border-emerald-500/70 bg-emerald-950/50 text-emerald-400"
-                            : isActive
-                            ? "border-sky-400 bg-sky-950/60 text-sky-300 shadow-[0_0_14px_rgba(56,189,248,0.2)]"
-                            : "border-slate-700/70 bg-[#060d1a] text-slate-700"
-                        }`}
-                      >
-                        {isDone
-                          ? <CheckCircle size={15} weight="fill" />
-                          : <StepIcon size={13} weight={isActive ? "bold" : "regular"} />
-                        }
-                      </div>
-
-                      {/* Step label + badge + detail */}
-                      <div className={`flex-1 min-w-0${!isLastStep ? " pb-4" : ""}`}>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm ${
-                            isDone    ? "text-slate-500" :
-                            isActive  ? "font-medium text-slate-100" :
-                                        "text-slate-700"
-                          }`}>
-                            {label}
-                          </span>
-                          <div className="flex-1" />
-                          {isDone && (
-                            <span className="text-[11px] text-emerald-600">Complete</span>
-                          )}
-                          {isActive && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-400">
-                              <ArrowClockwise size={9} className="animate-spin" />
-                              In Progress
-                            </span>
-                          )}
-                          {stepStatus === "pending" && (
-                            <span className="text-[11px] text-slate-700">Queued</span>
-                          )}
-                        </div>
-
-                        {isActive && prog.step_detail && (
-                          <p className="mt-0.5 truncate text-xs text-slate-500">{prog.step_detail}</p>
-                        )}
-
-                        {isActive && stepName === "building_features" && (prog.samples_built ?? 0) > 0 && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-800">
-                              <div
-                                className="h-1 rounded-full bg-sky-600/80 transition-all duration-300"
-                                style={{
-                                  width: `${Math.min(100, Math.round(
-                                    ((prog.samples_built ?? 0) / Math.max(1, prog.samples_total ?? 1)) * 100
-                                  ))}%`,
-                                }}
-                              />
-                            </div>
-                            <span className="whitespace-nowrap text-xs tabular-nums text-slate-600">
-                              {(prog.samples_built ?? 0).toLocaleString()} / {(prog.samples_total ?? 0).toLocaleString()} samples
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Footer: cache stats */}
-              {totalCacheOps > 0 && (
-                <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 pt-3 text-xs text-slate-600">
-                  <span className="text-slate-500">Cache</span>
-                  <span className={cacheHitPct >= 90 ? "text-emerald-600" : cacheHitPct >= 70 ? "text-amber-600" : "text-rose-600"}>
-                    {cacheHitPct}% hit rate
-                  </span>
-                  <span>·</span>
-                  <span>{(prog.cache_hits || 0).toLocaleString()} hits</span>
-                  <span>·</span>
-                  <span>{(prog.cache_misses || 0).toLocaleString()} misses</span>
-                </div>
-              )}
-              </div>
-            </details>
+            </div>
           );
         })()}
+
         {!loading && (
             <>
             {/* ═══ OVERVIEW TAB ═══ */}
@@ -1390,15 +1179,7 @@ export default function BacktestPage() {
               <div className="space-y-6">
                 {/* Optimizer controls */}
                 <div className="flex items-center gap-3">
-                  {isOptRunning ? (
-                    <div className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 px-4 py-2">
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
-                      <span className="text-sm text-slate-400">
-                        Optimizer running{optStatus?.iterations ? ` — ${optStatus.iterations} experiments completed` : ""}
-                        {optStatus?.detail ? ` — ${optStatus.detail}` : ""}
-                      </span>
-                    </div>
-                  ) : (
+                  {!isOptRunning && (
                     <button
                       onClick={handleStartOptimizer}
                       disabled={!!actionLoading || isRunning}
