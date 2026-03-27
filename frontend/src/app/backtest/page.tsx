@@ -447,8 +447,130 @@ export default function BacktestPage() {
           </div>
         )}
 
+
+        {loading && <PageSkeleton />}
+
+        {/* Unified run selector (Tier 4) — hidden on optimizer/insights tabs per layout spec */}
+        {runs.length > 0 && !loading && tab !== "optimizer" && tab !== "overview" && (() => {
+          // Only show baselines that have detail or have children with detail
+          const allBaselines = runs.filter((r) => r.is_baseline);
+          const experiments = runs.filter((r) => !r.is_baseline);
+          const baselines = allBaselines.filter((b) => 
+            b.has_detail || experiments.some((e) => e.parent_run_id === b.run_id && e.has_detail)
+          );
+
+          return (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-xs text-slate-500">Run:</span>
+              <select
+                className="max-w-md rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 focus:border-sky-500 focus:outline-none"
+                value={results?.run_id ?? ""}
+                onChange={async (e) => {
+                  const rid = e.target.value;
+                  if (!rid) return;
+                  // Look in both baselines and experiments
+                  const run = runs.find((r) => r.run_id === rid) || experiments.find((e) => e.run_id === rid);
+                  if (!run?.has_detail) {
+                    setResults(null);
+                    setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: false, run_id: rid } : prev);
+                    return;
+                  }
+                  try {
+                    const data = await loadBacktestRun(rid);
+                    setResults(data);
+                    setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: true, run_id: rid } : prev);
+                  } catch { /* ignore load errors */ }
+                }}
+              >
+                {baselines.map((b) => {
+                  const children = experiments.filter((e) => e.parent_run_id === b.run_id);
+                  const bSharpe = b.sharpe?.toFixed(2) ?? "?";
+                  return (
+                    <optgroup key={b.run_id} label={`${b.strategy} -- Sharpe ${bSharpe}`}>
+                      <option value={b.run_id}>
+                        Baseline -- {formatRunTimestamp(b.timestamp)} -- Sharpe {bSharpe}{!b.has_detail ? " (summary)" : ""}
+                      </option>
+                      {children.map((c) => {
+                        const delta = (b.sharpe != null && c.sharpe != null)
+                          ? (c.sharpe - b.sharpe).toFixed(2)
+                          : "?";
+                        const deltaPrefix = c.sharpe != null && b.sharpe != null && c.sharpe >= b.sharpe ? "+" : "";
+                        const statusTag = c.status === "keep" ? "[kept]" : c.status === "discard" ? "[disc]" : c.status === "dsr_reject" ? "[dsr]" : "";
+                        return (
+                          <option key={c.run_id} value={c.run_id}>
+                            {statusTag} {c.param_changed || c.run_id} -- Sharpe {c.sharpe?.toFixed(2) ?? "?"} ({deltaPrefix}{delta}){!c.has_detail ? " (summary)" : ""}
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  );
+                })}
+                {/* Experiments without a matching baseline parent */}
+                {experiments.filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id)).length > 0 && (
+                  <optgroup label="Unlinked">
+                    {experiments
+                      .filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id))
+                      .map((e) => (
+                        <option key={e.run_id} value={e.run_id}>
+                          {e.run_id} -- Sharpe {e.sharpe?.toFixed(2) ?? "?"}{!e.has_detail ? " (summary)" : ""}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+              </select>
+              {results?.run_id && (
+                <button
+                  onClick={() => {
+                    const rid = results?.run_id;
+                    if (!rid) return;
+                    if (!confirm("Delete this backtest run?")) return;
+                    handleDeleteRun(rid);
+                  }}
+                  className="rounded p-1 text-rose-500/70 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                  title="Delete selected run"
+                >
+                  <XCircle size={16} weight="fill" />
+                </button>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Tab bar — sticky */}
+        {!loading && (
+          <div className="sticky top-0 z-20 -mx-6 mb-6 flex gap-1 rounded-lg bg-navy-900/95 p-1 px-6 backdrop-blur-sm md:-mx-8 md:px-8">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                    tab === t.id
+                      ? "bg-sky-500/10 text-sky-400"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <t.icon size={16} weight={tab === t.id ? "fill" : "regular"} />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+        )}
+
         {/* Progress panel — vertical Jira-style workflow timeline */}
         {(isRunning || (isOptRunning && tab === "optimizer")) && (() => {
+          // If optimizer is running via CLI (no btStatus), show simple indicator
+          if (!isRunning && isOptRunning) {
+            return (
+              <div className="mb-4 rounded-xl border border-sky-500/30 bg-sky-950/20 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
+                  <span className="text-sm text-sky-300">
+                    Optimizer running via CLI — {optStatus?.iterations ?? 0} experiments completed
+                  </span>
+                </div>
+              </div>
+            );
+          }
           const p = btStatus?.progress;
           const prog: BacktestProgress | null =
             p && typeof p === "object" ? (p as BacktestProgress) : null;
@@ -675,115 +797,6 @@ export default function BacktestPage() {
             </details>
           );
         })()}
-
-        {loading && <PageSkeleton />}
-
-        {/* Unified run selector (Tier 4) — hidden on optimizer/insights tabs per layout spec */}
-        {runs.length > 0 && !loading && tab !== "optimizer" && tab !== "overview" && (() => {
-          // Only show baselines that have detail or have children with detail
-          const allBaselines = runs.filter((r) => r.is_baseline);
-          const experiments = runs.filter((r) => !r.is_baseline);
-          const baselines = allBaselines.filter((b) => 
-            b.has_detail || experiments.some((e) => e.parent_run_id === b.run_id && e.has_detail)
-          );
-
-          return (
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-xs text-slate-500">Run:</span>
-              <select
-                className="max-w-md rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 focus:border-sky-500 focus:outline-none"
-                value={results?.run_id ?? ""}
-                onChange={async (e) => {
-                  const rid = e.target.value;
-                  if (!rid) return;
-                  // Look in both baselines and experiments
-                  const run = runs.find((r) => r.run_id === rid) || experiments.find((e) => e.run_id === rid);
-                  if (!run?.has_detail) {
-                    setResults(null);
-                    setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: false, run_id: rid } : prev);
-                    return;
-                  }
-                  try {
-                    const data = await loadBacktestRun(rid);
-                    setResults(data);
-                    setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: true, run_id: rid } : prev);
-                  } catch { /* ignore load errors */ }
-                }}
-              >
-                {baselines.map((b) => {
-                  const children = experiments.filter((e) => e.parent_run_id === b.run_id);
-                  const bSharpe = b.sharpe?.toFixed(2) ?? "?";
-                  return (
-                    <optgroup key={b.run_id} label={`${b.strategy} -- Sharpe ${bSharpe}`}>
-                      <option value={b.run_id}>
-                        Baseline -- {formatRunTimestamp(b.timestamp)} -- Sharpe {bSharpe}{!b.has_detail ? " (summary)" : ""}
-                      </option>
-                      {children.map((c) => {
-                        const delta = (b.sharpe != null && c.sharpe != null)
-                          ? (c.sharpe - b.sharpe).toFixed(2)
-                          : "?";
-                        const deltaPrefix = c.sharpe != null && b.sharpe != null && c.sharpe >= b.sharpe ? "+" : "";
-                        const statusTag = c.status === "keep" ? "[kept]" : c.status === "discard" ? "[disc]" : c.status === "dsr_reject" ? "[dsr]" : "";
-                        return (
-                          <option key={c.run_id} value={c.run_id}>
-                            {statusTag} {c.param_changed || c.run_id} -- Sharpe {c.sharpe?.toFixed(2) ?? "?"} ({deltaPrefix}{delta}){!c.has_detail ? " (summary)" : ""}
-                          </option>
-                        );
-                      })}
-                    </optgroup>
-                  );
-                })}
-                {/* Experiments without a matching baseline parent */}
-                {experiments.filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id)).length > 0 && (
-                  <optgroup label="Unlinked">
-                    {experiments
-                      .filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id))
-                      .map((e) => (
-                        <option key={e.run_id} value={e.run_id}>
-                          {e.run_id} -- Sharpe {e.sharpe?.toFixed(2) ?? "?"}{!e.has_detail ? " (summary)" : ""}
-                        </option>
-                      ))}
-                  </optgroup>
-                )}
-              </select>
-              {results?.run_id && (
-                <button
-                  onClick={() => {
-                    const rid = results?.run_id;
-                    if (!rid) return;
-                    if (!confirm("Delete this backtest run?")) return;
-                    handleDeleteRun(rid);
-                  }}
-                  className="rounded p-1 text-rose-500/70 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-                  title="Delete selected run"
-                >
-                  <XCircle size={16} weight="fill" />
-                </button>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* Tab bar — sticky */}
-        {!loading && (
-          <div className="sticky top-0 z-20 -mx-6 mb-6 flex gap-1 rounded-lg bg-navy-900/95 p-1 px-6 backdrop-blur-sm md:-mx-8 md:px-8">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                    tab === t.id
-                      ? "bg-sky-500/10 text-sky-400"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <t.icon size={16} weight={tab === t.id ? "fill" : "regular"} />
-                  {t.label}
-                </button>
-              ))}
-            </div>
-        )}
-
         {!loading && (
             <>
             {/* ═══ OVERVIEW TAB ═══ */}
