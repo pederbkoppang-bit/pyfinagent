@@ -237,7 +237,7 @@ class BacktestEngine:
             "tp_pct": tp_pct, "sl_pct": sl_pct, "frac_diff_d": frac_diff_d,
             "starting_capital": starting_capital, "max_positions": max_positions,
             "top_n_candidates": top_n_candidates, "strategy": self.strategy,
-            "target_annual_vol": 0.10,  # Volatility targeting: 10% annualized
+            "target_annual_vol": 0,  # Volatility targeting: 0 = disabled (set >0 to enable, e.g. 0.10 for 10%)
             # Trailing stop: activate after +trigger% above entry, trail at -distance% below HWM
             "trailing_stop_enabled": False,
             "trailing_trigger_pct": 5.0,
