@@ -452,12 +452,11 @@ export default function BacktestPage() {
 
         {/* Unified run selector (Tier 4) — hidden on optimizer/insights tabs per layout spec */}
         {runs.length > 0 && !loading && tab !== "optimizer" && tab !== "overview" && (() => {
-          // Only show baselines that have detail or have children with detail
-          const allBaselines = runs.filter((r) => r.is_baseline);
-          const experiments = runs.filter((r) => !r.is_baseline);
-          const baselines = allBaselines.filter((b) => 
-            b.has_detail || experiments.some((e) => e.parent_run_id === b.run_id && e.has_detail)
-          );
+          // Only show runs with detail (clickable)
+          const allBaselines = runs.filter((r) => r.is_baseline && r.has_detail);
+          const allExperiments = runs.filter((r) => !r.is_baseline && r.has_detail);
+          const baselines = allBaselines;
+          const experiments = allExperiments;
 
           return (
             <div className="mb-4 flex items-center gap-2">
