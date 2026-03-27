@@ -643,7 +643,11 @@ export default function BacktestPage() {
                             }}
                           >
                             <td className="px-3 py-2 text-xs text-slate-500">#{i + 1}</td>
-                            <td className="px-3 py-2 font-mono text-xs text-slate-300">{run.run_id.slice(0, 12)}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-slate-300">
+                              {run.parent_run_id 
+                                ? <><span className="text-slate-500">{run.parent_run_id.slice(0,8)}/</span>{run.run_id.replace(run.parent_run_id + "-", "")}</>
+                                : run.run_id}
+                            </td>
                             <td className="px-3 py-2 text-xs text-slate-400">{run.strategy}</td>
                             <td className={`px-3 py-2 font-mono text-xs font-bold ${(run.sharpe ?? 0) >= 1.0 ? "text-emerald-400" : (run.sharpe ?? 0) >= 0.8 ? "text-sky-300" : "text-slate-300"}`}>
                               {run.sharpe?.toFixed(3)}
