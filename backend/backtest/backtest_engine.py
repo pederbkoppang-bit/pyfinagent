@@ -249,10 +249,23 @@ class BacktestEngine:
         """Return ISO timestamp of last model training. Empty string if never trained."""
         return self.model_trained_at
 
+    def get_cached_features(self) -> dict | None:
+        """Return cached per-window feature data, or None if not available."""
+        return getattr(self, "_feature_cache_data", None)
+
+    def set_cached_features(self, cache_data: dict):
+        """Pre-load feature cache so _build_training_data is skipped."""
+        self._feature_cache_data = cache_data
+
+    def clear_feature_cache(self):
+        """Clear any pre-loaded feature cache."""
+        self._feature_cache_data = None
+
     def run_backtest(
         self,
         universe_tickers: list[str] | None = None,
         skip_cache_clear: bool = False,
+        best_known_sharpe: float | None = None,
     ) -> BacktestResult:
         """
         Run full walk-forward backtest. Main entry point.
@@ -262,6 +275,8 @@ class BacktestEngine:
         Args:
             skip_cache_clear: If True, skip cache.clear_cache() at end.
                 Used by QuantStrategyOptimizer to keep warm cache across iterations.
+            best_known_sharpe: If set, enables early stopping. After window 10,
+                if interim Sharpe < 85% of this value, the backtest aborts early.
         """
         if universe_tickers is None:
             universe_tickers = self.candidate_selector.get_universe_tickers()
@@ -310,6 +325,28 @@ class BacktestEngine:
                     all_mdi[feat] = all_mdi.get(feat, 0) + imp
                 for feat, imp in wr.feature_importance_mda.items():
                     all_mda[feat] = all_mda.get(feat, 0) + imp
+
+                # Early stopping: after window 10, check interim Sharpe
+                if (best_known_sharpe is not None
+                        and best_known_sharpe > 0
+                        and len(result.windows) == 10):
+                    interim_returns = self.trader.get_returns_series()
+                    if interim_returns:
+                        interim_sharpe = self._sharpe(np.array(interim_returns))
+                        threshold = best_known_sharpe * 0.85
+                        if interim_sharpe < threshold:
+                            logger.info(
+                                "Early stopping at window %d/%d: interim Sharpe=%.4f "
+                                "< 85%% of best known %.4f (threshold=%.4f)",
+                                window.window_id, len(windows),
+                                interim_sharpe, best_known_sharpe, threshold,
+                            )
+                            self._report_progress(
+                                "trading",
+                                f"Early stop: interim Sharpe {interim_sharpe:.4f} < threshold {threshold:.4f}",
+                                window=window.window_id,
+                            )
+                            break
 
             except Exception as e:
                 logger.error(f"Window {window.window_id} failed: {e}")
@@ -401,11 +438,21 @@ class BacktestEngine:
                 max_drawdown_pct=0, hit_rate=0, num_trades=0,
             )
 
-        # 2. Build training data
-        self._report_progress("building_features", "Building training data", window=wid)
-        train_features, train_labels, sample_weights = self._build_training_data(
-            candidate_tickers, window.train_start.isoformat(), train_end_str,
-        )
+        # 2. Build training data (or reuse cached features for ML-only experiments)
+        cached = getattr(self, "_feature_cache_data", None)
+        if cached and wid in cached:
+            train_features, train_labels, sample_weights = cached[wid]
+            self._report_progress("building_features", "Using cached features (ML-only change)", window=wid)
+            logger.debug("Feature cache HIT for window %d", wid)
+        else:
+            self._report_progress("building_features", "Building training data", window=wid)
+            train_features, train_labels, sample_weights = self._build_training_data(
+                candidate_tickers, window.train_start.isoformat(), train_end_str,
+            )
+            # Store into cache dict if caching is active
+            if cached is not None:
+                cached[wid] = (train_features, train_labels, sample_weights)
+                logger.debug("Feature cache MISS for window %d -- cached", wid)
 
         if len(train_features) < 20:
             logger.warning(f"Window {wid}: insufficient training data ({len(train_features)} samples)")

@@ -12,6 +12,7 @@ Guard: Deflated Sharpe Ratio >= 0.95 rejects overfitted improvements.
 """
 
 import copy
+import hashlib
 import json
 import logging
 import os
@@ -107,6 +108,9 @@ class QuantStrategyOptimizer:
         self._current_step: str = ""  # Step-level progress
         self._current_detail: str = ""
 
+        # Feature caching: reuse features when only ML hyperparams change
+        self._feature_cache_key: str | None = None
+
         _EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
         logger.info("QuantOptimizer: TSV path = %s", _TSV_PATH.resolve())
 
@@ -178,6 +182,10 @@ class QuantStrategyOptimizer:
             self._current_detail = f"Baseline Sharpe={self.best_sharpe:.4f}"
             self._report_status()
 
+        # Initialize feature cache with current best params
+        self._feature_cache_key = self._compute_feature_cache_key(self.best_params)
+        self.engine.set_cached_features({})  # Activate caching (empty = will populate on first run)
+
         # 2. Iteration loop
         consecutive_discards = 0
         for i in range(max_iterations):
@@ -212,7 +220,13 @@ class QuantStrategyOptimizer:
                 trial_params[param_name] = new_value
                 self._apply_params_to_engine(trial_params)
 
-                result = self.engine.run_backtest(skip_cache_clear=True)
+                # Feature cache: reuse if only ML params changed
+                self._setup_feature_cache(trial_params)
+
+                result = self.engine.run_backtest(
+                    skip_cache_clear=True,
+                    best_known_sharpe=self.best_sharpe,
+                )
                 report = generate_report(result, num_trials=self.num_trials)
                 trial_sharpe = report["analytics"]["sharpe"]
                 trial_dsr = report["analytics"]["deflated_sharpe"]
@@ -241,6 +255,9 @@ class QuantStrategyOptimizer:
                 self.best_dsr = trial_dsr
                 self.kept += 1
                 consecutive_discards = 0
+
+                # Update feature cache key for the new best params
+                self._feature_cache_key = self._compute_feature_cache_key(trial_params)
 
                 # Feature drift detection on keep
                 self._detect_feature_drift(trial_top5)
@@ -292,7 +309,9 @@ class QuantStrategyOptimizer:
             self._current_detail = f"{status}: {change_desc} (Sharpe {trial_sharpe:.4f})"
             self._report_status()
 
-        # Clean up BQ cache after all iterations
+        # Clean up caches after all iterations
+        self.engine.clear_feature_cache()
+        self._feature_cache_key = None
         bq_cache.clear_cache()
 
         # Persist best params to disk for next run warm-start
@@ -456,6 +475,39 @@ class QuantStrategyOptimizer:
         for key in ("tb_weight", "qm_weight", "mr_weight", "fm_weight"):
             if key in params:
                 engine._strategy_params[key] = params[key]
+
+    # ── Feature caching ────────────────────────────────────────────
+
+    # Params that affect feature matrix / labels -- changing these invalidates the cache.
+    # Everything else (ML hyperparams, blend weights, screening weights) is safe to cache.
+    _DATA_AFFECTING_PARAMS = frozenset({
+        "tp_pct", "sl_pct", "holding_days", "mr_holding_days",
+        "frac_diff_d", "top_n_candidates", "max_positions",
+        "strategy", "target_annual_vol", "vol_barrier_multiplier",
+    })
+
+    @staticmethod
+    def _compute_feature_cache_key(params: dict) -> str:
+        """Hash only data-affecting params to determine if features can be reused."""
+        key_data = {
+            k: params.get(k)
+            for k in QuantStrategyOptimizer._DATA_AFFECTING_PARAMS
+        }
+        raw = json.dumps(key_data, sort_keys=True, default=str)
+        return hashlib.md5(raw.encode()).hexdigest()
+
+    def _setup_feature_cache(self, params: dict):
+        """Prepare engine feature cache if params allow reuse from previous run."""
+        new_key = self._compute_feature_cache_key(params)
+        if new_key == self._feature_cache_key:
+            # Data params unchanged -- keep existing cache on engine
+            logger.info("Feature cache: ML-only change detected, reusing cached features (key=%s)", new_key[:8])
+        else:
+            # Data params changed -- clear cache, engine will rebuild and populate
+            logger.info("Feature cache: data params changed (key %s -> %s), rebuilding features",
+                        (self._feature_cache_key or "none")[:8], new_key[:8])
+            self.engine.set_cached_features({})  # Empty dict signals "cache active but empty"
+            self._feature_cache_key = new_key
 
     # ── Logging ──────────────────────────────────────────────────
 
