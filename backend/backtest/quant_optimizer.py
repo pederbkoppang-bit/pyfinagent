@@ -595,7 +595,7 @@ class QuantStrategyOptimizer:
                         self._warm_started = True
                     logger.info(
                         "Warm-started optimizer from optimizer_best.json (Sharpe=%.4f, run=%s)",
-                        data.get("sharpe", 0), data.get("run_id", "?"),
+                        data.get("best_sharpe", data.get("sharpe", 0)), data.get("run_id", "?"),
                     )
                     return
             except Exception as e:
