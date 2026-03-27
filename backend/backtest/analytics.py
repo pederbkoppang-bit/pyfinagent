@@ -517,7 +517,7 @@ def generate_report(
             "deflated_sharpe": dsr,
             "dsr_significant": dsr >= 0.95,
             "total_return_pct": result.aggregate_return_pct,
-            "alpha": result.aggregate_alpha_pct,
+            "alpha": result.aggregate_return_pct - baselines.get("spy_return_pct", 0) if baselines else 0,
             "max_drawdown": result.aggregate_max_drawdown_pct,
             "hit_rate": result.aggregate_hit_rate,
             "n_trades": result.total_trades,

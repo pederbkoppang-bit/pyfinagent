@@ -106,10 +106,10 @@ function formatRunTimestamp(ts: string): string {
 
 function Metric({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-4">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={`mt-1 font-mono text-xl font-bold ${color ?? "text-slate-100"}`}>{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-slate-500">{sub}</p>}
+    <div className="rounded-lg border border-navy-700 bg-navy-800/60 px-3 py-2">
+      <p className="text-[10px] text-slate-500">{label}</p>
+      <p className={`font-mono text-sm font-bold ${color ?? "text-slate-100"}`}>{value}</p>
+      {sub && <p className="text-[10px] text-slate-500">{sub}</p>}
     </div>
   );
 }
@@ -369,7 +369,7 @@ export default function BacktestPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
+      <main className="flex-1 overflow-y-auto scroll-smooth scrollbar-thin p-6 md:p-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-100">Walk-Forward Backtest</h2>
@@ -762,8 +762,7 @@ export default function BacktestPage() {
 
         {/* Tab bar — sticky */}
         {!loading && (
-          <>
-            <div className="sticky top-0 z-20 -mx-6 mb-6 flex gap-1 rounded-lg bg-navy-900/95 p-1 px-6 backdrop-blur-sm md:-mx-8 md:px-8">
+          <div className="sticky top-0 z-20 -mx-6 mb-6 flex gap-1 rounded-lg bg-navy-900/95 p-1 px-6 backdrop-blur-sm md:-mx-8 md:px-8">
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -779,7 +778,10 @@ export default function BacktestPage() {
                 </button>
               ))}
             </div>
+        )}
 
+        {!loading && (
+            <>
             {/* ═══ OVERVIEW TAB ═══ */}
             {tab === "overview" && (
               <div className="space-y-6">
@@ -935,9 +937,11 @@ export default function BacktestPage() {
                   </div>
                 )}
 
+                {/* Analytics + Baselines side by side */}
+                <div className="flex flex-col gap-4 lg:flex-row">
                 {/* Analytics summary */}
                 {a && (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                  <div className="grid flex-1 grid-cols-3 gap-2 sm:grid-cols-4 lg:auto-rows-min lg:grid-cols-4">
                     <Metric
                       label="Sharpe Ratio"
                       value={a.sharpe.toFixed(2)}
@@ -982,7 +986,7 @@ export default function BacktestPage() {
                   </div>
                 )}
 
-                {/* Baselines comparison */}
+                {/* Baselines comparison — right side */}
                 {results?.baselines && (
                   <BentoCard>
                     <h3 className="mb-4 text-lg font-semibold text-slate-300">Strategy vs Baselines</h3>
@@ -1043,7 +1047,9 @@ export default function BacktestPage() {
                   </BentoCard>
                 )}
 
-                {/* Per-window summary */}
+                </div>{/* end analytics+baselines flex row */}
+
+                {/* Per-window summary — bottom of page */}
                 {results?.per_window && results.per_window.length > 0 && (
                   <BentoCard>
                     <h3 className="mb-4 text-lg font-semibold text-slate-300">Walk-Forward Windows</h3>
