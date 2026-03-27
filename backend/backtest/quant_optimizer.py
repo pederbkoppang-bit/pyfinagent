@@ -220,8 +220,9 @@ class QuantStrategyOptimizer:
             except Exception as e:
                 logger.warning(f"QuantOptimizer: experiment {i+1} crashed ({change_desc}): {e}", exc_info=True)
                 self._apply_params_to_engine(self.best_params)
+                exp_id = f"{self._run_id}-exp{i+1:02d}"
                 self._log_experiment(
-                    self._run_id, change_desc,
+                    exp_id, change_desc,
                     float(self.best_sharpe or 0), 0, -float(self.best_sharpe or 0), "crash", 0, [],
                     trial_params=trial_params,
                 )
@@ -276,8 +277,9 @@ class QuantStrategyOptimizer:
                 consecutive_discards += 1
                 trial_top5 = []
 
+            exp_id = f"{self._run_id}-exp{i+1:02d}"
             self._log_experiment(
-                self._run_id, change_desc,
+                exp_id, change_desc,
                 float(self.best_sharpe or 0), trial_sharpe, delta, status, trial_dsr, trial_top5,
                 trial_params=trial_params,
             )
