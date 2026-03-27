@@ -448,7 +448,7 @@ export default function BacktestPage() {
         )}
 
         {/* Progress panel — vertical Jira-style workflow timeline */}
-        {isRunning && (() => {
+        {(isRunning || (isOptRunning && tab === "optimizer")) && (() => {
           const p = btStatus?.progress;
           const prog: BacktestProgress | null =
             p && typeof p === "object" ? (p as BacktestProgress) : null;
@@ -1380,7 +1380,10 @@ export default function BacktestPage() {
                   {isOptRunning ? (
                     <div className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 px-4 py-2">
                       <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
-                      <span className="text-sm text-slate-400">Optimizer running — see progress above ↑</span>
+                      <span className="text-sm text-slate-400">
+                        Optimizer running{optStatus?.iterations ? ` — ${optStatus.iterations} experiments completed` : ""}
+                        {optStatus?.detail ? ` — ${optStatus.detail}` : ""}
+                      </span>
                     </div>
                   ) : (
                     <button
