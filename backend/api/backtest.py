@@ -270,8 +270,27 @@ async def stop_optimizer():
 
 @router.get("/optimize/status")
 async def get_optimizer_status():
-    """Current optimizer state."""
-    return _optimizer_state
+    """Current optimizer state. Also checks for CLI-launched optimizer."""
+    import subprocess
+    state = dict(_optimizer_state)
+    # Check if optimizer is running via CLI (run_optimizer.py)
+    if state.get("status") == "idle":
+        try:
+            result = subprocess.run(["pgrep", "-f", "run_optimizer.py"], capture_output=True, text=True)
+            if result.stdout.strip():
+                state["status"] = "running"
+                state["detail"] = "Running via CLI (run_optimizer.py)"
+                # Try to get latest experiment count from TSV
+                import os
+                tsv_path = os.path.join(os.path.dirname(__file__), "..", "backtest", "experiments", "quant_results.tsv")
+                if os.path.exists(tsv_path):
+                    with open(tsv_path) as f:
+                        lines = f.readlines()
+                    non_baseline = [l for l in lines[1:] if "BASELINE" not in l and l.strip()]
+                    state["iterations"] = len(non_baseline)
+        except Exception:
+            pass
+    return state
 
 
 @router.get("/optimize/runs")
@@ -471,13 +490,22 @@ def list_backtest_runs():
             is_baseline = row.get("status") == "BASELINE"
             parent = row.get("parent_run_id", "")
 
-            # Extract strategy from params_json
+            # Extract strategy from params_json, fall back to detail JSON
             strategy = "unknown"
             pj = row.get("params_json", "")
             if pj:
                 try:
                     strategy = _json.loads(pj).get("strategy", "unknown")
                 except (ValueError, TypeError):
+                    pass
+            if strategy == "unknown" and rid in detail_ids:
+                # Try to get strategy from the JSON result file
+                try:
+                    detail = result_store.load_result(rid)
+                    if detail:
+                        strategy = detail.get("params", {}).get("strategy", 
+                                   detail.get("config", {}).get("strategy", "unknown"))
+                except Exception:
                     pass
 
             sharpe_str = row.get("metric_after", "")
