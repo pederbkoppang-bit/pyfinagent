@@ -204,22 +204,55 @@ function RunSelector({
             baselines
               .map((b, index) => {
                 const children = experiments.filter((e) => e.parent_run_id === b.run_id);
-                const bSharpe = b.sharpe?.toFixed(2) ?? "?";
                 const timestamp = formatRunTimestamp(b.timestamp || "");
                 const childrenCount = children.length;
                 const isCollapsed = collapsedRuns.has(b.run_id);
                 
-                // Calculate delta against previous baseline (chronologically)
-                const prevBaseline = index < baselines.length - 1 ? baselines[index + 1] : null;
-                const delta = prevBaseline && b.sharpe != null && prevBaseline.sharpe != null 
-                  ? b.sharpe - prevBaseline.sharpe 
+                // Find the best result from this run (baseline or best kept experiment)
+                const keptExperiments = children.filter(c => c.status === "keep");
+                const bestKept = keptExperiments.length > 0 
+                  ? keptExperiments.reduce((best, exp) => 
+                      (exp.sharpe && exp.sharpe > (best.sharpe || 0)) ? exp : best
+                    )
                   : null;
-                const deltaText = delta !== null 
-                  ? ` (${delta >= 0 ? "+" : ""}${delta.toFixed(3)})` 
-                  : "";
-                const deltaColor = delta !== null 
-                  ? (delta >= 0 ? "text-emerald-400" : "text-rose-400")
-                  : "";
+                
+                // Use best kept experiment if available, otherwise baseline
+                const bestSharpe = bestKept?.sharpe ?? b.sharpe;
+                const bestSharpeText = bestSharpe?.toFixed(2) ?? "?";
+                const isImproved = bestKept && bestKept.sharpe && b.sharpe && bestKept.sharpe > b.sharpe;
+                
+                // Calculate delta against previous run's best result
+                const prevBaseline = index < baselines.length - 1 ? baselines[index + 1] : null;
+                let prevBestSharpe = prevBaseline?.sharpe;
+                if (prevBaseline) {
+                  const prevChildren = experiments.filter((e) => e.parent_run_id === prevBaseline.run_id);
+                  const prevKeptExperiments = prevChildren.filter(c => c.status === "keep");
+                  const prevBestKept = prevKeptExperiments.length > 0 
+                    ? prevKeptExperiments.reduce((best, exp) => 
+                        (exp.sharpe && exp.sharpe > (best.sharpe || 0)) ? exp : best
+                      )
+                    : null;
+                  prevBestSharpe = prevBestKept?.sharpe ?? prevBaseline.sharpe;
+                }
+                
+                const delta = prevBestSharpe && bestSharpe != null 
+                  ? bestSharpe - prevBestSharpe 
+                  : null;
+                
+                // Convert to percentage improvement and format with delta symbol
+                let deltaText = "";
+                let deltaColor = "";
+                if (delta !== null && Math.abs(delta) > 0.0001) { // Show even tiny differences
+                  const pctImprovement = prevBaseline.sharpe !== 0 ? (delta / prevBaseline.sharpe) * 100 : 0;
+                  if (Math.abs(pctImprovement) >= 0.01) { // Show if >= 0.01%
+                    deltaText = ` Δ${delta >= 0 ? "+" : ""}${pctImprovement.toFixed(2)}%`;
+                    deltaColor = delta >= 0 ? "text-emerald-400" : "text-rose-400";
+                  } else if (Math.abs(delta) > 0.0001) {
+                    // For very small differences, show raw Sharpe delta
+                    deltaText = ` Δ${delta >= 0 ? "+" : ""}${delta.toFixed(4)}`;
+                    deltaColor = delta >= 0 ? "text-emerald-400" : "text-rose-400";
+                  }
+                }
                 
                 // Filter out runs with 0 experiments
                 if (childrenCount === 0) return null;
@@ -254,8 +287,9 @@ function RunSelector({
                         selectedRunId === b.run_id ? "bg-sky-500/10 text-sky-300" : "text-slate-300"
                       }`}
                     >
-                      <strong>{timestamp}</strong> -- {b.strategy} -- Sharpe {bSharpe}
+                      <strong>{timestamp}</strong> -- {b.strategy} -- Sharpe {bestSharpeText}
                       <span className={deltaColor}>{deltaText}</span>
+                      {isImproved && <span className="text-emerald-400 ml-1">↑</span>}
                       {" "}({childrenCount} experiments)
                       {!b.has_detail && <span className="text-slate-500"> (summary)</span>}
                     </button>

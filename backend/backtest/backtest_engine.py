@@ -274,6 +274,7 @@ class BacktestEngine:
         global_end = (self.scheduler.end_date + timedelta(days=int(self.holding_days * 1.5))).isoformat()
         cache.preload_prices(universe_tickers + ["SPY"], global_start, global_end)
         cache.preload_fundamentals(universe_tickers)
+        cache.preload_macro()
 
         result = BacktestResult(strategy_params=self._strategy_params)
         all_mdi = {}
