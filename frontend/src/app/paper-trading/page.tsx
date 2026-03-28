@@ -155,7 +155,7 @@ export default function PaperTradingPage() {
   }));
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
 
       <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">

@@ -496,9 +496,9 @@ export default function SettingsPage() {
 
   if (!settings) {
     return (
-      <div className="flex min-h-screen">
+      <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <main className="flex-1 p-8">
+        <main className="flex-1 overflow-y-auto scrollbar-thin p-8">
           {loadError ? (
             <div className="rounded-lg border border-rose-900 bg-rose-950/50 p-4">
               <p className="text-sm font-medium text-rose-200">{loadError}</p>
@@ -520,7 +520,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
         <div className="mb-6 flex items-center justify-between">

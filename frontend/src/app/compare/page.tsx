@@ -197,7 +197,7 @@ export default function ComparePage() {
   }, [loaded]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
         <h2 className="mb-2 text-2xl font-bold text-slate-100">
