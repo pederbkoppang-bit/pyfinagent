@@ -576,6 +576,8 @@ Review and optimize all OpenClaw configuration sections for production readiness
 ### 2.6.2 Budget Intelligence Dashboard & Cost Autoresearch ✅ PASS (Phase A)
 > **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
 > **Completed:** 2026-03-28 23:30 | **Verdict:** PASS (Phase A: Visibility). Phase B (Cost Autoresearch) deferred.
+> **Cost cleanup:** 2026-03-28 23:48 — Deleted Redis ($76) + VPC connectors ($19). GCP $176→$5/mo.
+> **Note:** Redis/VPC may be re-added when scaling to cloud deployment if economically justified.
 
 *Give Peder full visibility into cash flow and an automated system to optimize costs down.*
 
