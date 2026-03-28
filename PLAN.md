@@ -76,11 +76,14 @@ For each plan step:
 
 **Why this matters:** Without evaluation, we ship broken things. Phase 1 proved this — the optimizer said Sharpe improved, but independent sub-period validation showed it actually destroyed the strategy (Sharpe -4.57). The harness caught it.
 
-**Concrete enforcement:**
-- Before starting any phase step → write `handoff/contract.md` with hypothesis + success criteria
+**Concrete enforcement — NO EXCEPTIONS:**
+- Before starting any phase step → deep research → write `handoff/contract.md` with hypothesis + success criteria
 - After completing the work → run independent validation (not just "it compiles")
 - After validation → write `handoff/evaluator_critique.md` with pass/fail + evidence
 - `run_harness.py` automates this for backtest work; for non-backtest work, Ford follows the same protocol manually
+- **Every step in this plan has a `> Harness:` tag.** If it doesn't, it's a bug in the plan.
+- **Ford cannot skip the harness.** If time pressure tempts skipping evaluation, that's exactly when evaluation matters most.
+- **Each step produces 3 handoff files minimum:** `contract.md`, `experiment_results.md`, `evaluator_critique.md`
 
 ---
 
@@ -340,6 +343,8 @@ From the article: "Context resets — clearing the context window entirely and s
 ---
 
 ### 2.6.0 Operational Resilience — Zero Downtime (FIRST PRIORITY)
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 *Ford must always be available. No excuses. If something breaks, fix it automatically and notify Peder on Slack.*
 
 **Principle:** The system self-heals. Ford stays online. Peder gets notified of every issue and every recovery.
@@ -394,6 +399,12 @@ From the article: "Context resets — clearing the context window entirely and s
   **Prevention:** What we changed to prevent recurrence
   ```
 
+**Harness deliverables for this step:**
+- `handoff/contract.md` — success criteria: gateway uptime >99.5%, Slack always reachable, all incidents auto-logged
+- `handoff/experiment_results.md` — what was built, configs deployed
+- `handoff/evaluator_critique.md` — test: crash gateway, verify auto-restart + Slack notification
+- RESEARCH.md updated with: system reliability patterns, launchd best practices
+
 **F. Recovery Playbook (automated)**
 | Component | Detection | Auto-Fix | Notify |
 |-----------|-----------|----------|--------|
@@ -407,6 +418,8 @@ From the article: "Context resets — clearing the context window entirely and s
 | Harness stuck | Heartbeat check (>2h) | Kill process, log state | Slack ⚠️ |
 
 ### 2.6.1 Backtest Page — Harness Dashboard
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 *Expose all autoresearch experiments and harness cycle results on the backtest page so Peder can see everything.*
 
 **Current state:** The backtest page already shows:
@@ -438,6 +451,7 @@ From the article: "Context resets — clearing the context window entirely and s
 - [ ] **New "Harness" tab** on backtest page (alongside Overview, Results, Equity, Features, Optimizer)
 
 ### 2.6.2 Budget Intelligence Dashboard & Cost Autoresearch
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
 
 *Give Peder full visibility into cash flow and an automated system to optimize costs down.*
 
@@ -518,6 +532,8 @@ From the article: "Context resets — clearing the context window entirely and s
 | GitHub Copilot Pro | $0 | Included for students? |
 
 ### 2.7 Paper Trading — Real-World Validation (Start Early April)
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 *Trade with fake money in the live market BEFORE going live in May. This is the ultimate test — backtest says Sharpe 1.17, but does it hold in real time?*
 
 **⚠️ START THIS AS EARLY AS POSSIBLE.** Every day of paper trading before May is data we can't get any other way. Backtests can be fooled. Live markets can't.
@@ -573,6 +589,8 @@ From the article: "Context resets — clearing the context window entirely and s
 - May: Go live (if paper trading passes)
 
 ### 2.8 Harness Hardening & Advanced Evaluator (After Paper Trading Starts)
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 *Enhance the automated harness with deeper statistical tests and generator capabilities.*
 
 - [ ] **Seed stability test:** Run best params with 5 random seeds, check Sharpe std < 0.1
@@ -587,6 +605,8 @@ From the article: "Context resets — clearing the context window entirely and s
 - [ ] **Position concentration limits:** Max position < 10% in evaluator checks
 
 ### 2.9 Multi-Market Abstractions (Lightweight)
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 *Prepare data layer for future market expansion (CA, EU, NO, KR) without building actual multi-market support. ~4 hours of work, zero risk to May launch.*
 
 - [ ] Add `market` STRING column to BQ tables (prices, fundamentals, macro) — default `'US'` for existing data
@@ -613,6 +633,8 @@ US:AAPL    NO:EQNR    CA:RY    DE:SAP    KR:005930
 ```
 
 ### 2.10 Karpathy Autoresearch Integration
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 *The Generator (QuantStrategyOptimizer) already follows Karpathy's autoresearch pattern for zero-cost param optimization. The harness adds the missing evaluation and planning layers. If the harness proves beneficial on pyfinAgent, apply the same three-agent pattern to the upstream [autoresearch](https://github.com/karpathy/autoresearch) optimizer — wrapping its research loop with independent evaluation and heuristic planning.*
 
 ---
@@ -623,6 +645,7 @@ US:AAPL    NO:EQNR    CA:RY    DE:SAP    KR:005930
 *With the harness in place, we can now add LLM reasoning to the Planner and Evaluator agents — and give them direct tool access to pyfinAgent via MCP.*
 
 ### 3.0 MCP Server Architecture
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
 
 **Key insight:** Instead of dumping experiment data as text into prompts, we expose pyfinAgent's capabilities as [MCP servers](https://platform.claude.com/docs/en/agents-and-tools/mcp-connector). Claude's MCP connector (beta: `mcp-client-2025-11-20`) lets the LLM Planner and Evaluator **directly call tools** — query experiments, trigger backtests, read results — through the Messages API. No separate MCP client needed.
 
@@ -803,11 +826,15 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 ```
 
 ### 3.3 Regime Detection (zero LLM cost)
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 - [ ] HMM-based regime detector (2-3 states from returns + volatility)
 - [ ] Per-regime parameter optimization
 - [ ] Rolling re-optimization via cron
 
 ### 3.4 Agent Skill Optimization — ⚠️ PARTIALLY BUILT
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 *Codebase audit finding: `backend/agents/skill_optimizer.py` (864 lines) already implements Karpathy-style autoresearch for prompt optimization. `backend/agents/meta_coordinator.py` (306 lines) already sequences QuantOpt → SkillOpt → PerfOpt with MDA→Agent bridge.*
 
 **Already implemented:**
@@ -822,6 +849,8 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 - [ ] Wire SkillOpt results into harness evaluator criteria
 
 ### 3.5 Enrichment MCP Server
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 *Wraps all 16 external data APIs behind a single MCP interface for LLM access.*
 
 | Tool | Source | Current Implementation |
@@ -875,6 +904,8 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 **What this means:** Phase 4 is ~60% built. The main gaps are MCP server wrappers, evaluator-gated signal publishing, and hardened risk limits.
 
 ### 4.1 Slack Signal Delivery (via MCP Signals Server)
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 - [ ] Deploy `pyfinagent-signals` MCP server wrapping existing `signals.py` + `autonomous_loop.py`
 - [ ] Wire existing `slack_bot/scheduler.py` morning digest → MCP `generate_signals` → `validate_signal` → Slack
 - [x] Alert format already defined in `slack_bot/formatters.py` (Block Kit)
@@ -882,6 +913,8 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 - [ ] Allowlist only `generate_signals` + `validate_signal` for automated runs; `publish_signal` requires human approval initially
 
 ### 4.2 Paper Trading (evaluator as live QA) — ⚠️ PROMOTED TO PHASE 2.7
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 *Paper trading moved earlier in the plan — see Phase 2.7. Start early April, don't wait until Phase 4.*
 *By Phase 4, paper trading should already have 2-4 weeks of data. This phase adds:*
 - [ ] Wire MCP evaluator: daily `get_portfolio` + `risk_check` comparison
@@ -890,6 +923,8 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 - [ ] If paper Sharpe < 0.7 × backtest Sharpe → auto-trigger STOP investigation via MCP `risk_check`
 
 ### 4.3 Risk Management
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 - [x] Position sizing exists in `portfolio_manager.py` (Risk Judge + inverse-volatility)
 - [ ] Harden: `risk_check` MCP tool enforces max portfolio size, max single position, max daily loss
 - [ ] Stop-loss monitoring with automatic position reduction
@@ -897,6 +932,8 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 - [ ] Kill switch: if drawdown > 15%, system goes to cash automatically (enforced in `risk_check`, not overridable by LLM)
 
 ### 4.4 Go-Live Checklist
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
 - [ ] All evaluator criteria passing (statistical validity, robustness, simplicity, reality gap)
 - [ ] DSR ≥ 0.95 on out-of-sample data
 - [ ] Paper trading matches backtest within 20% tolerance
