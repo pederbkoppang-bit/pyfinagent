@@ -448,10 +448,82 @@ Configure all automation panels for operational resilience:
 - [ ] **Plugins:**
   - Review available plugins for any useful additions
 
+**I. OpenClaw Config & Communications (Control UI → Settings + Communications)**
+
+Review and optimize all OpenClaw configuration sections for production readiness:
+
+- [ ] **Settings (Raw Config — openclaw.json):**
+  - [ ] `agents.defaults.model` — verify Sonnet as default, Opus for webchat, Haiku for heartbeats/cron
+  - [ ] `agents.defaults.heartbeat` — verify 30m interval, 07:00-23:00 Oslo active hours
+  - [ ] `agents.defaults.maxConcurrent` — verify 6 (agents) + 12 (subagents) sufficient
+  - [ ] `agents.defaults.compaction.mode` — verify `safeguard` is correct for our use case
+  - [ ] `session.dmScope` — verify `per-channel-peer` (isolate webchat vs Slack sessions)
+  - [ ] `session.reset.mode` — currently `idle` with 525600 min (1 year) — review if appropriate
+  - [ ] `session.maintenance` — verify pruneAfter, maxEntries, rotateBytes settings
+  - [ ] `messages.ackReactionScope` — currently `group-mentions`, review if we want `all` for Slack
+  - [ ] `messages.queue.mode` — review if `collect` or `steer` is better for our workflow
+  - [ ] `messages.inbound.debounceMs` — add Slack-specific debounce (1500ms recommended)
+  - [ ] `commands.native` — `auto` is fine, verify all needed commands available
+  - [ ] `commands.ownerDisplay` — currently `raw`, review if appropriate
+  - [ ] `tools.profile` — currently `coding`, verify this gives us all needed tools
+  - [ ] `tools.web.search` — verify Gemini provider + API key working
+
+- [ ] **Environment:**
+  - [ ] Verify all environment variables set correctly
+  - [ ] Check PATH includes Python venv, node, git
+
+- [ ] **Authentication:**
+  - [ ] Verify Anthropic API key valid and not expiring soon
+  - [ ] Verify Gemini/Google API key for web search
+  - [ ] Review auth profile configuration
+
+- [ ] **Meta:**
+  - [ ] Review version tracking, update check settings
+
+- [ ] **Logging:**
+  - [ ] Set appropriate log levels (info for production, debug for troubleshooting)
+  - [ ] Verify log rotation configured
+
+- [ ] **Diagnostics:**
+  - [ ] Review diagnostic flags
+  - [ ] Ensure `openclaw doctor` passes
+
+- [ ] **Secrets:**
+  - [ ] Verify all 4 redacted secrets are properly stored
+  - [ ] Ensure no secrets in plaintext logs
+
+- [ ] **Communications — Channels:**
+  - [ ] **Slack channel config:**
+    - [ ] Verify `mode: socket` with valid botToken + appToken
+    - [ ] `allowBots: true` — needed for our Slack bot integration
+    - [ ] `groupPolicy: allowlist` with `C0ANTGNNK8D` (#ford-approvals) enabled
+    - [ ] `requireMention: false` for #ford-approvals (Ford responds to all messages)
+    - [ ] Review `streaming: partial` + `nativeStreaming: true` settings
+    - [ ] Consider adding `typingReaction: "hourglass_flowing_sand"` for UX
+    - [ ] Consider adding `ackReaction` for message acknowledgment
+    - [ ] Review `thread.historyScope` and `thread.inheritParent` settings
+    - [ ] Consider enabling `actions.reactions` for lightweight acknowledgment
+    - [ ] Consider enabling `actions.pins` for important messages
+  - [ ] **Webchat config:**
+    - [ ] Verify webchat enabled and accessible
+    - [ ] Review heartbeat/reconnect settings
+
+- [ ] **Communications — Messages:**
+  - [ ] Review `ackReactionScope` — should Ford react to messages it's processing?
+  - [ ] Review `responsePrefix` — currently none, consider adding for Slack clarity
+  - [ ] Configure `queue.mode` for optimal message handling (collect vs steer)
+  - [ ] Set `inbound.debounceMs` per channel (Slack: 1500ms, webchat: 2000ms)
+
+- [ ] **Communications — Broadcast:**
+  - [ ] Review if broadcast groups needed (e.g., broadcast to Slack + iMessage simultaneously)
+
+- [ ] **Communications — Talk/Audio:**
+  - [ ] Review if voice/audio features needed (probably not for Phase 2.6.0)
+
 **Harness deliverables for this step:**
-- `handoff/contract.md` — success criteria: gateway uptime >99.5%, Slack always reachable, all incidents auto-logged
-- `handoff/experiment_results.md` — what was built, configs deployed
-- `handoff/evaluator_critique.md` — test: crash gateway, verify auto-restart + Slack notification
+- `handoff/contract.md` — success criteria: gateway uptime >99.5%, Slack always reachable, all incidents auto-logged, all config settings reviewed and optimized
+- `handoff/experiment_results.md` — what was built, configs deployed, settings changed
+- `handoff/evaluator_critique.md` — test: crash gateway, verify auto-restart + Slack notification; verify all config changes took effect
 - RESEARCH.md updated with: system reliability patterns, launchd best practices
 
 **F. Recovery Playbook (automated)**
