@@ -945,6 +945,10 @@ class BacktestEngine:
         signals = []
         predictions = []
 
+        # PHASE 1.3 IMPROVEMENT: Compute turbulence index for current date
+        # High turbulence → reduce position sizing during market stress
+        turbulence = self.data_provider.compute_turbulence_index(test_start, test_tickers)
+        
         for ticker in test_tickers:
             try:
                 fv = self.data_provider.build_feature_vector(ticker, test_start)
@@ -999,6 +1003,7 @@ class BacktestEngine:
                     "volatility": volatility,
                     "amihud_illiquidity": amihud,
                     "vol_target_scale": vol_target_scale,
+                    "turbulence": turbulence,  # PHASE 1.3: Market stress indicator for position sizing
                 })
 
                 # Check actual outcome for hit rate

@@ -181,8 +181,10 @@ class BacktestTrader:
             volatility = sig.get("volatility", 0.3)
             amihud = sig.get("amihud_illiquidity", 0.0)
             vt_scale = sig.get("vol_target_scale", 1.0)
+            turbulence = sig.get("turbulence", 0.0)  # PHASE 1.3: Market stress indicator
             dollar_amount = self.size_position(
                 probability, volatility, nav,
+                turbulence=turbulence,
                 amihud_illiquidity=amihud,
                 vol_target_scale=vt_scale,
             )
