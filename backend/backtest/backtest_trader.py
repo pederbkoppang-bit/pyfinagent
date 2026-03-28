@@ -69,6 +69,10 @@ class BacktestTrader:
         self.trades: list[Trade] = []
         self.snapshots: list[DailySnapshot] = []
         self.total_commission: float = 0.0
+        
+        # PHASE 1.7 IMPROVEMENT: Performance-based position scaling
+        self._recent_returns: list[float] = []  # Track last 20 trading days
+        self._performance_scale = 1.0  # Scale positions based on recent performance
 
     def _compute_commission(self, quantity: float, price: float) -> float:
         """Compute commission based on the active model."""
@@ -113,6 +117,10 @@ class BacktestTrader:
         kelly_fraction = kelly_base * 0.5  # Half Kelly for stability
         vol_scale = min(self.target_vol / stock_vol, 3.0)  # Cap at 3x to prevent extreme sizing
         raw = kelly_fraction * vol_scale * nav / self.max_positions
+
+        # PHASE 1.7 IMPROVEMENT: Performance-based scaling
+        # Scale down after losses, scale up after gains (with limits)
+        raw *= self._performance_scale
 
         # Turbulence dampening: scale down positions when market is stressed
         if turbulence > 0 and turbulence_threshold > 0 and turbulence > turbulence_threshold:
@@ -238,10 +246,39 @@ class BacktestTrader:
 
         return executed
 
+    def _update_performance_scaling(self, nav: float, prev_nav: float):
+        """
+        PHASE 1.7: Update position sizing based on recent performance.
+        Reduces positions after losses, increases after gains (within limits).
+        Based on behavioral portfolio theory + risk management best practices.
+        """
+        if prev_nav > 0:
+            daily_return = (nav - prev_nav) / prev_nav
+            self._recent_returns.append(daily_return)
+            
+            # Keep only last 20 trading days
+            if len(self._recent_returns) > 20:
+                self._recent_returns = self._recent_returns[-20:]
+            
+            # Compute rolling return over lookback period
+            if len(self._recent_returns) >= 5:  # Need at least 5 days
+                recent_performance = sum(self._recent_returns)
+                
+                # Scale factor: 0.5x after -10% drawdown, 1.5x after +10% gain
+                # Capped between 0.3 and 1.8 to prevent extreme sizing
+                scale = 1.0 + recent_performance * 2.0  # 2x leverage on recent performance
+                self._performance_scale = max(0.3, min(1.8, scale))
+            else:
+                self._performance_scale = 1.0
+
     def mark_to_market(self, date: str, prices: dict[str, float]) -> float:
         """Update positions with current prices and return NAV."""
         nav = self._compute_nav(prices)
         positions_value = nav - self.cash
+
+        # PHASE 1.7: Update performance scaling based on NAV change
+        prev_nav = self.snapshots[-1].nav if self.snapshots else self.starting_capital
+        self._update_performance_scaling(nav, prev_nav)
 
         self.snapshots.append(DailySnapshot(
             date=date,
