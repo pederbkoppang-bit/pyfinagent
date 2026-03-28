@@ -1,5 +1,6 @@
-INFO:     Started server process [54907]
+INFO:     Started server process [55144]
 INFO:     Waiting for application startup.
-[36m22:56:17 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
-[36m22:56:17 I [on][0m Application startup complete.
-[36m22:56:17 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[36m23:00:56 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
+[36m23:00:56 I [on][0m Application startup complete.
+[36m23:00:56 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[36m23:00:56 I [httptools_impl][0m 127.0.0.1:65187 - "GET /api/changelog HTTP/1.1" 200

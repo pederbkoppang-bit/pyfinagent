@@ -5,6 +5,27 @@ For architecture details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
+### v5.13.0 — Sharpe History Chart, Layout Overhaul & Sidebar Redesign (March 2026)
+
+**Major UI overhaul — fixed navigation, Sharpe tracking chart, OpenClaw-style sidebar, and version health indicator.**
+
+1. **Sharpe Ratio History chart** — New chart on the backtest Overview tab showing all experiments over time with a best-so-far envelope line. Color-coded dots (green=kept, blue=baseline, red=discarded) and summary cards showing improvement from 0.91 to 1.17 (+29%).
+2. **Sidebar redesign** — Matches OpenClaw pattern: fixed header (logo), scrollable nav with collapsible section groups (Analyze, Reports, Trading), fixed footer (Settings + user). Sections collapse/expand with caret toggle.
+3. **Fixed navigation** — Page header and tab bar no longer scroll off-screen. All pages use two-zone layout: fixed header zone + scrollable content zone. Sidebar stays locked to viewport.
+4. **Version indicator with health dot** — Sidebar footer shows version number with colored dot (green=backend running, red=backend down). Click to open changelog.
+5. **Changelog viewer** — Click version to see full changelog parsed from CHANGELOG.md. Clean, readable format with version badges, titles, and bullet points.
+6. **Layout instructions updated** — frontend-layout.md rewritten with h-screen overflow-hidden shell, two-zone main, sidebar three-zone spec, and no-emoji rule.
+
+Files changed:
+- `frontend/src/components/Sidebar.tsx` — Full rewrite with collapsible nav, health polling, changelog modal
+- `frontend/src/components/SharpeHistoryChart.tsx` — New component
+- `frontend/src/app/backtest/page.tsx` — Fixed header + scrollable content layout
+- `frontend/src/app/*/page.tsx` — All pages: h-screen overflow-hidden
+- `.claude/rules/frontend-layout.md` — Updated with new layout rules
+- `backend/main.py` — Added /api/changelog and version in /api/health
+
+---
+
 ### v5.12.10 — Unified "One Truth" Optimizer Progress UI (March 2026)
 
 **Two progress bars + two stop buttons → single command center. The Walk-Forward banner is now the one source of truth for all running state.**

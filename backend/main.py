@@ -7,6 +7,7 @@ import logging
 import json
 import sys
 import time
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
@@ -195,3 +196,63 @@ app.include_router(skills_router)
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "service": "pyfinagent-backend", "version": "5.13.0"}
+
+
+@app.get("/api/changelog")
+async def get_changelog():
+    """Parse CHANGELOG.md into structured entries for the frontend."""
+    import re
+    changelog_path = Path(__file__).parent.parent / "CHANGELOG.md"
+    if not changelog_path.exists():
+        return {"entries": []}
+
+    text = changelog_path.read_text(encoding="utf-8")
+    entries: list[dict] = []
+    # Split on version headers: ### v5.12.10 — Title (Date)
+    parts = re.split(r"^### (v[\d.]+)\s*—\s*(.+?)(?:\s*\(([^)]+)\))?\s*$", text, flags=re.MULTILINE)
+    # parts[0] is preamble, then groups of 4: version, title, date, body
+    i = 1
+    while i + 3 <= len(parts):
+        version = parts[i].lstrip("v")
+        title = parts[i + 1].strip()
+        date = (parts[i + 2] or "").strip()
+        body = parts[i + 3].strip()
+
+        # Extract human-readable summary: first bold paragraph or numbered items
+        # Simplify: take numbered items and strip markdown
+        changes: list[str] = []
+        for line in body.split("\n"):
+            line = line.strip()
+            # Numbered items like "1. **Title** — description"
+            m = re.match(r"^\d+[a-z]?\.\s+\*\*(.+?)\*\*\s*[-—]?\s*(.*)", line)
+            if m:
+                item_title = m.group(1).strip()
+                item_desc = m.group(2).strip()
+                if item_desc:
+                    changes.append(f"{item_title} — {item_desc}")
+                else:
+                    changes.append(item_title)
+                continue
+            # Bullet items like "- [ ] task" or "- description"
+            m2 = re.match(r"^-\s+\[.\]\s+(.*)", line)
+            if m2:
+                changes.append(m2.group(1).strip())
+                continue
+            m3 = re.match(r"^-\s+\*\*(.+?)\*\*\s*[-—]?\s*(.*)", line)
+            if m3:
+                changes.append(f"{m3.group(1).strip()} — {m3.group(2).strip()}" if m3.group(2).strip() else m3.group(1).strip())
+                continue
+            # First bold paragraph as summary
+            if line.startswith("**") and line.endswith("**") and not changes:
+                changes.append(re.sub(r"\*\*", "", line))
+
+        # Limit to 8 changes per entry for readability
+        entries.append({
+            "version": version,
+            "title": title,
+            "date": date,
+            "changes": changes[:8],
+        })
+        i += 4
+
+    return {"entries": entries}
