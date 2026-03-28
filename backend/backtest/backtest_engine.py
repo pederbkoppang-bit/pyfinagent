@@ -678,6 +678,7 @@ class BacktestEngine:
         labels_list = []
         entry_dates = []
         exit_dates = []
+        row_sample_dates = []  # Track actual sample date per row for cross-sectional ranking
 
         # Sample at biweekly intervals within the training window
         # (~26 samples/ticker/window vs ~12 with monthly — doubles training set)
@@ -706,6 +707,7 @@ class BacktestEngine:
 
                     features_list.append(fv)
                     labels_list.append(label)
+                    row_sample_dates.append(sample_date)
 
                     # Track entry/exit dates for sample weight computation
                     entry_dates.append(pd.Timestamp(sample_date))
@@ -747,14 +749,8 @@ class BacktestEngine:
                                      "momentum_12_1", "pb_ratio", "pe_ratio", "roe", "quality_score",
                                      "annualized_volatility", "rsi_14", "sma_50_distance", "volume_ratio_20d"]
         
-        # Group by sample date and compute percentile ranks within each date
-        # Reconstruct sample dates for each row (since we iterate sample_dates × tickers)
-        sample_dates_for_rows = []
-        for sample_date in sample_dates:
-            for _ in tickers:
-                sample_dates_for_rows.append(sample_date)
-        # Trim to actual number of rows (some may be skipped due to missing data)
-        X["_sample_date"] = sample_dates_for_rows[:len(X)]
+        # Use tracked row_sample_dates (1:1 with feature rows, handles skipped rows correctly)
+        X["_sample_date"] = row_sample_dates[:len(X)]
         
         for feature in cross_sectional_features:
             if feature in X.columns:
