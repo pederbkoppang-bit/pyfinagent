@@ -399,6 +399,32 @@ From the article: "Context resets — clearing the context window entirely and s
   **Prevention:** What we changed to prevent recurrence
   ```
 
+**G. OpenClaw Automation Settings (Control UI → Automation)**
+
+Configure all automation panels for operational resilience:
+
+- [ ] **Approvals:**
+  - Enable Forward Exec Approvals → ON
+  - Approval Agent Filter: `["main"]`
+  - Approval Forwarding Mode: `both` (session + targets for redundancy)
+  - Approval Forwarding Targets: Add Slack #ford-approvals so Peder can approve commands remotely
+  - Approval Session Filter: `["webchat", "slack"]`
+- [ ] **Commands:**
+  - `commands.bash`: enable (for quick host checks via Slack)
+  - `commands.config`: enable (for remote config inspection)
+  - `commands.debug`: enable (for runtime troubleshooting)
+- [ ] **Hooks:**
+  - All 4 bundled hooks already enabled ✅ (boot-md, bootstrap-extra-files, command-logger, session-memory)
+- [ ] **Bindings:**
+  - Review channel bindings for Slack ↔ main agent routing
+- [ ] **Cron:**
+  - Morning report (7am) ✅
+  - Evening summary (6pm) ✅
+  - Gateway watchdog (5min) ✅
+  - Add: Service health check (15min) — lighter than watchdog, just port checks
+- [ ] **Plugins:**
+  - Review available plugins for any useful additions
+
 **Harness deliverables for this step:**
 - `handoff/contract.md` — success criteria: gateway uptime >99.5%, Slack always reachable, all incidents auto-logged
 - `handoff/experiment_results.md` — what was built, configs deployed
