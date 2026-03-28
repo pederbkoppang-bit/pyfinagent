@@ -1,4 +1,4 @@
-# Evaluator Critique — Cycle 2, Direction C (Robustness Validation)
+# Evaluator Critique — Cycle 2, Direction C (Robustness Validation) — UPDATED
 
 **Date:** 2026-03-28
 **Strategy:** triple_barrier with Phase 1.2-1.9 enhancements
@@ -73,9 +73,34 @@ improve prediction accuracy.
 5. **Consider**: the pre-Phase-1.2 simple inverse-volatility sizing may be optimal 
    for this model's prediction quality
 
+## RESOLUTION: Pre-Phase-1.2 Code Validated ✅
+
+Re-ran the full 27-window backtest with pre-Phase-1.2 code (reverted from git):
+
+| Metric | Value |
+|--------|-------|
+| **Sharpe** | **1.0142** |
+| **DSR** | **1.0000** |
+| **Return** | **63.1%** |
+| **Max DD** | **-8.9%** |
+| **Trades** | **632** |
+
+**Verdict: The original strategy is VALID.** The Phase 1.2-1.9 "improvements" broke it.
+
+**Action taken:** Reverted main branch to pre-Phase-1.2 code. Phase 1 changes 
+preserved on `phase1-experimental` branch for potential selective re-introduction.
+
+**Evaluator recommendation for Planner:**
+1. Use pre-Phase-1.2 as the validated baseline (Sharpe 1.01, DSR 1.0)
+2. Add Phase 1 improvements ONE AT A TIME with validation after each
+3. Kelly sizing needs fundamental rethinking — too conservative for ML probability estimates
+4. Cross-sectional features may add value IF the date alignment bug is fixed first
+5. Run optimizer on the validated baseline code to search for further improvements
+
 ## Key Lesson
 The three-agent harness caught a catastrophic deployment failure:
 - Phase 1 "improvements" were never validated against the actual running system
 - Code was committed to disk while the optimizer was running on old code in memory
 - Without independent validation, we would have deployed a -1.28 Sharpe strategy 
   believing it was +1.17
+- **Independent validation saved us from shipping a broken strategy**
