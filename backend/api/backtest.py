@@ -1307,7 +1307,8 @@ def get_budget_summary():
         )
     for m in sorted(month_map.keys()):
         row = month_map[m]
-        row["claude_max"] = 200.00  # Fixed subscription
+        # Claude Max only started March 2026
+        row["claude_max"] = 200.00 if m >= "2026-03" else 0.00
         row["other_fixed"] = 35.00  # Mac Mini + domain
         row["total"] = round(row["gcp_net"] + row["claude_max"] + row["other_fixed"], 2)
         monthly_history.append(row)

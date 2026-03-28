@@ -1,15 +1,6 @@
-INFO:     Started server process [56422]
+INFO:     Started server process [56681]
 INFO:     Waiting for application startup.
-[36m23:32:59 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
-[36m23:32:59 I [on][0m Application startup complete.
-[36m23:32:59 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-[36m23:33:30 I [httptools_impl][0m 127.0.0.1:49250 - "GET /api/backtest/budget/summary HTTP/1.1" 200
-[36m23:33:30 I [backtest][0m Auto-loaded previous backtest result (run_id=exp_wider_barriers)
-[36m23:33:30 I [httptools_impl][0m 127.0.0.1:49263 - "GET /api/backtest/optimize/status HTTP/1.1" 200
-[36m23:33:31 I [httptools_impl][0m 127.0.0.1:49264 - "GET /api/backtest/runs HTTP/1.1" 200
-[36m23:33:32 I [httptools_impl][0m 127.0.0.1:49262 - "GET /api/backtest/ingest/status HTTP/1.1" 200
-[36m23:33:32 I [httptools_impl][0m 127.0.0.1:49261 - "GET /api/backtest/results HTTP/1.1" 200
-[36m23:33:32 I [httptools_impl][0m 127.0.0.1:49263 - "GET /api/backtest/optimize/experiments?run_index=0 HTTP/1.1" 200
-[36m23:33:32 I [httptools_impl][0m 127.0.0.1:49264 - "GET /api/backtest/optimize/best HTTP/1.1" 200
-[36m23:33:32 I [httptools_impl][0m 127.0.0.1:49262 - "GET /api/backtest/sharpe-history HTTP/1.1" 200
-[36m23:33:35 I [httptools_impl][0m 127.0.0.1:49261 - "GET /api/backtest/budget/summary HTTP/1.1" 200
+[36m23:38:31 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
+[36m23:38:31 I [on][0m Application startup complete.
+[36m23:38:31 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[36m23:38:33 I [httptools_impl][0m 127.0.0.1:49331 - "GET /api/backtest/budget/summary HTTP/1.1" 200
