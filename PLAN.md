@@ -74,43 +74,52 @@ Inspired by the article's four design criteria, adapted for quantitative finance
 
 ---
 
-## Phase 2: Three-Agent Harness (Weeks 3-4) — NOW
-*This is where we apply the Anthropic harness pattern. The solo optimizer found local optima. The harness finds structural improvements.*
+## Phase 2: Three-Agent Harness (Weeks 3-4) — ✅ CORE IMPLEMENTED
+*Automated harness loop operational. `run_harness.py` runs autonomous Planner → Generator → Evaluator cycles.*
 
-### 2.0 Harness Architecture
+### 2.0 Harness Architecture ✅ OPERATIONAL
+
+**Implementation:** `run_harness.py` (718 lines) — autonomous cycle orchestrator.
+
+```
+Usage: python run_harness.py [--cycles N] [--iterations-per-cycle N] [--dry-run]
+```
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    RESEARCH PLANNER                              │
-│  Reads: experiment_log.tsv, evaluator_critique.md, papers/      │
-│  Writes: research_plan.md (next research direction + hypothesis) │
-│  Runs: Once per cycle (every 15-20 experiments)                  │
+│                    RESEARCH PLANNER ✅                            │
+│  Reads: experiment_log.tsv, evaluator_critique.md               │
+│  Writes: research_plan.md, contract.md (sprint contract)        │
+│  Heuristic: plateau detection, param saturation, weak periods   │
+│  Runs: Once per cycle (automatic)                                │
 └──────────────────────────┬──────────────────────────────────────┘
-                           │ research_plan.md
+                           │ research_plan.md + contract.md
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                   STRATEGY GENERATOR                             │
-│  Reads: research_plan.md, current codebase, best params         │
-│  Does: Implements code changes, runs optimizer (15 iterations)   │
-│  Writes: experiment_results.md, code diffs, new params           │
-│  Runs: Continuous (hours of CPU time per cycle)                  │
+│                   STRATEGY GENERATOR ✅                           │
+│  Wraps: QuantStrategyOptimizer.run_loop() (Karpathy autoresearch)│
+│  Reads: optimizer_best.json, research_plan.md                    │
+│  Writes: experiment_results.md, updated optimizer_best.json      │
+│  Runs: N iterations per cycle (configurable, default 10)         │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ experiment_results.md
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    QUANT EVALUATOR                                │
-│  Reads: experiment_results.md, code diffs, backtest data         │
-│  Does: Independent validation, overfitting checks, critique      │
-│  Writes: evaluator_critique.md (pass/fail + detailed feedback)   │
-│  Grades: statistical_validity, robustness, simplicity, reality   │
-│  Runs: Once after each generator cycle                           │
+│                    QUANT EVALUATOR ✅                             │
+│  Runs: 5 INDEPENDENT backtests (separate engine instances)       │
+│  Tests: 3 sub-periods + 2× costs + full-period DSR              │
+│  Grades: 4 criteria independently (anti-leniency protocol)       │
+│  Writes: evaluator_critique.md (PASS/FAIL/CONDITIONAL + scores)  │
+│  Decision: PASS → save | FAIL → auto-revert | CONDITIONAL → warn │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ evaluator_critique.md
                            ▼
-                    (feeds back to Planner)
+                    (feeds back to Planner — next cycle)
 ```
 
-### 2.1 Handoff Artifacts (structured context between agents)
+**Cycle time:** ~25-40 minutes. Three cycles = ~2 hours autonomous work.
+
+### 2.1 Handoff Artifacts ✅ IMPLEMENTED
 
 Each agent communicates via files, not conversation. This is the key unlock from the article — files survive context resets and carry precise state.
 
@@ -146,11 +155,11 @@ Each agent communicates via files, not conversation. This is the key unlock from
 ### Suggestions for next cycle: [what the planner should consider]
 ```
 
-### 2.2 Research Planner Agent
+### 2.2 Research Planner Agent ✅ IMPLEMENTED (Heuristic)
 
 **Role:** The "quant researcher" who reads all experiment data and decides what to investigate next. This replaces random parameter perturbation with directed research.
 
-**Implementation:** Ford (me) acts as planner between optimization runs — reading experiment logs, analyzing patterns, proposing structural changes. For budget-approved LLM-guided research, this becomes a Claude agent with experiment context.
+**Implementation:** Heuristic rule-based planner in `run_harness.py`. Reads experiment TSV, detects plateaus (10+ discards), saturated params (5+ consecutive discards on same param), diminishing returns (<0.02 delta), and evaluator-flagged weak sub-periods. Writes sprint contracts. LLM planner upgrade deferred to Phase 3 (requires budget approval).
 
 **Planner reads:**
 - Full experiment TSV (40+ experiments with params, Sharpe, DSR, kept/discarded)
@@ -164,54 +173,58 @@ Each agent communicates via files, not conversation. This is the key unlock from
 - Whether to continue current direction or pivot (analogous to the article's "refine or pivot" decision)
 - Whether we've hit diminishing returns on current approach
 
-### 2.3 Strategy Generator Agent
+### 2.3 Strategy Generator Agent ✅ INTEGRATED
 
 **Role:** The "quant developer" who implements changes and runs experiments. This is our current optimizer, enhanced with the ability to make structural changes (not just param sweeps).
 
-**Implementation:** The existing `QuantStrategyOptimizer` for parameter exploration. For structural changes (new features, strategy logic), Ford implements code changes then runs the optimizer.
+**Implementation:** `run_generator()` in `run_harness.py` wraps `QuantStrategyOptimizer.run_loop()`. Creates fresh engine each cycle. Exports results to `handoff/experiment_results.md`. The optimizer itself is Karpathy autoresearch-style (zero LLM cost, param perturbation + walk-forward backtest).
 
 **Generator capabilities (expanding):**
-- [x] Single-parameter perturbation (current)
-- [ ] Multi-parameter coordinated proposals (param groups that interact)
-- [ ] Feature addition/removal experiments (add a feature, measure impact)
-- [ ] Strategy switching experiments (try blend vs triple_barrier vs quality_momentum)
-- [ ] Ablation studies (remove one improvement at a time, measure drop)
+- [x] Single-parameter perturbation (current, Karpathy autoresearch-style)
+- [x] Warm-start from previous best (skip baseline if optimizer_best.json exists)
+- [x] Feature caching (reuse features when only ML hyperparams change)
+- [x] Early stopping (abort experiments below 85% of best Sharpe)
+- [ ] Multi-parameter coordinated proposals (param groups that interact) — Phase 2.7
+- [ ] Feature addition/removal experiments (add a feature, measure impact) — Phase 2.7
+- [ ] Strategy switching experiments (try blend vs triple_barrier vs quality_momentum) — Phase 2.7
+- [ ] Ablation studies (remove one improvement at a time, measure drop) — Phase 2.7
 
-### 2.4 Quant Evaluator Agent
+### 2.4 Quant Evaluator Agent ✅ IMPLEMENTED
 
 **Role:** The "skeptical reviewer" who independently validates results. This is the key missing piece from our current system. The article's core insight: self-evaluation is unreliable; external evaluation drives real quality.
 
-**Implementation:** A separate validation pipeline that runs AFTER the optimizer, applying independent tests the generator didn't run.
+**Implementation:** `run_evaluator()` in `run_harness.py`. Runs 5 independent backtests with SEPARATE engine instances. Grades 4 criteria independently with anti-leniency protocol (score before verdict, never upgrade after). Writes `handoff/evaluator_critique.md` with pass/fail verdict and detailed scoring.
 
 **Evaluator checks (grading criteria):**
 
 #### Statistical Validity (weight: 40%)
-- [ ] DSR ≥ 0.95 on the kept result
-- [ ] Sharpe stable across 5 random seeds (std < 0.1)
-- [ ] No single window drives >30% of total return (concentration check)
-- [ ] Ljung-Box test on returns (reject if significant autocorrelation)
-- [ ] Compare raw vs Lo (2002) adjusted Sharpe
+- [x] DSR ≥ 0.95 on the kept result — **automated in evaluator**
+- [x] Full-period Sharpe check — **automated in evaluator**
+- [ ] Sharpe stable across 5 random seeds (std < 0.1) — Phase 2.7
+- [ ] No single window drives >30% of total return (concentration check) — Phase 2.7
+- [ ] Ljung-Box test on returns — Phase 2.7
+- [ ] Compare raw vs Lo (2002) adjusted Sharpe — Phase 2.7
 
 #### Robustness (weight: 30%)
-- [ ] Run backtest on 3 sub-periods: 2018-2020, 2020-2022, 2022-2025
-- [ ] Sharpe positive in all 3 sub-periods (not just aggregate)
-- [ ] Feature importance top-5 stable across sub-periods
-- [ ] Performance under 2x transaction costs (reality buffer)
+- [x] Run backtest on 3 sub-periods: 2018-2020, 2020-2022, 2023-2025 — **automated in evaluator**
+- [x] Sharpe positive in all 3 sub-periods (not just aggregate) — **automated in evaluator**
+- [ ] Feature importance top-5 stable across sub-periods — Phase 2.7
+- [x] Performance under 2x transaction costs (reality buffer) — **automated in evaluator**
 
 #### Simplicity (weight: 15%)
-- [ ] Count active parameters vs baseline (penalize complexity)
-- [ ] Each new parameter must contribute ≥ +0.05 Sharpe (ablation test)
-- [ ] Reject if improvement < t-stat 3.0 (Harvey, Liu & Zhu threshold)
+- [x] Count active parameters vs baseline (penalize complexity) — **automated in evaluator**
+- [ ] Each new parameter must contribute ≥ +0.05 Sharpe (ablation test) — Phase 2.7
+- [ ] Reject if improvement < t-stat 3.0 (Harvey, Liu & Zhu threshold) — Phase 2.7
 
 #### Reality Gap (weight: 15%)
-- [ ] Transaction costs ≥ 10 bps round-trip
-- [ ] No execution at exact close price (add 5 bps slippage)
-- [ ] Max position < 10% of portfolio
-- [ ] Universe includes at least some mid-cap stocks (not just mega-cap)
+- [x] Transaction costs ≥ 10 bps round-trip — **automated in evaluator (tests at 20 bps)**
+- [ ] No execution at exact close price (add 5 bps slippage) — Phase 2.7
+- [ ] Max position < 10% of portfolio — Phase 2.7
+- [ ] Universe includes at least some mid-cap stocks (not just mega-cap) — Phase 2.7
 
-### 2.5 Sprint Contracts (Experiment Contracts)
+### 2.5 Sprint Contracts (Experiment Contracts) ✅ IMPLEMENTED
 
-Before each optimization cycle, the planner and evaluator negotiate what "done" looks like. This prevents the generator from optimizing the wrong thing.
+Before each optimization cycle, the planner writes `handoff/contract.md` with hypothesis, current baseline, success criteria, and excluded params. This prevents the generator from optimizing the wrong thing.
 
 **Example contract:**
 ```markdown
@@ -227,7 +240,7 @@ Evaluator will verify:
 Fail conditions: DSR < 0.95, Sharpe improvement < +0.03, drawdown worsens.
 ```
 
-### 2.6 Context Management Strategy
+### 2.6 Context Management Strategy ✅ IMPLEMENTED
 
 From the article: "Context resets — clearing the context window entirely and starting a fresh agent, combined with a structured handoff — addresses both [coherence loss and context anxiety]."
 
@@ -246,6 +259,25 @@ From the article: "Context resets — clearing the context window entirely and s
 5. Execute research plan → run optimizer with new direction
 6. Write handoff/experiment_results.md → results for evaluator
 ```
+
+---
+
+### 2.7 Harness Hardening & Advanced Evaluator (Next)
+*Enhance the automated harness with deeper statistical tests and generator capabilities.*
+
+- [ ] **Seed stability test:** Run best params with 5 random seeds, check Sharpe std < 0.1
+- [ ] **Concentration check:** No single window drives >30% of total return
+- [ ] **Ljung-Box autocorrelation test** on returns
+- [ ] **Lo (2002) adjusted Sharpe** comparison
+- [ ] **Feature importance stability** across sub-periods
+- [ ] **Ablation studies:** Remove one Phase 1 improvement at a time, measure drop
+- [ ] **Multi-param proposals:** Coordinate param groups (e.g., tp_pct + sl_pct together)
+- [ ] **Strategy switching:** Generator can propose trying different strategies
+- [ ] **Slippage modeling:** 5 bps execution slippage on top of transaction costs
+- [ ] **Position concentration limits:** Max position < 10% in evaluator checks
+
+### 2.8 Karpathy Autoresearch Integration
+*The Generator (QuantStrategyOptimizer) already follows Karpathy's autoresearch pattern for zero-cost param optimization. The harness adds the missing evaluation and planning layers. If the harness proves beneficial on pyfinAgent, apply the same three-agent pattern to the upstream [autoresearch](https://github.com/karpathy/autoresearch) optimizer — wrapping its research loop with independent evaluation and heuristic planning.*
 
 ---
 
@@ -406,9 +438,12 @@ From the article: "Every component in a harness encodes an assumption about what
 | 2026-03-27 | Target achieved | 1.0391 | min_samples_leaf 20→18 |
 | 2026-03-28 | Phase 1 complete | 1.1705 | 9 improvements, +19% over baseline |
 | 2026-03-28 | v2 Plan (harness) | — | Three-agent architecture adopted |
+| 2026-03-28 | Sub-period validation | 1.01 | ALL pass: A=0.89, B=0.92, C=1.88, 2×costs=0.91 |
+| 2026-03-28 | Hang bug fixed | — | Macro preload + BQ timeouts, 5× speedup |
+| 2026-03-28 | **Phase 2 core** | 1.1705 | `run_harness.py` operational (Planner→Generator→Evaluator) |
 
 ---
 
 *This plan follows the Anthropic harness design pattern: Planner → Generator → Evaluator.*
 *"The space of interesting harness combinations doesn't shrink as models improve. Instead, it moves."*
-*Last updated: 2026-03-28 by Ford*
+*Last updated: 2026-03-28 17:15 by Ford — Phase 2 core implemented*
