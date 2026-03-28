@@ -1,8 +1,7 @@
 {
-  "test_date": "2026-03-28T12:27:00Z",
-  "code_version": "pre-Phase-1.2 (validated baseline)",
+  "test_date": "2026-03-28T16:12:00Z",
+  "code_version": "pre-Phase-1.2 + macro preload fix (commits ff4b760, 181313b)",
   "strategy": "triple_barrier",
-  "note": "Period C hung at window 8/8 (3400/3626 features). Systematic bug: last ~200 features block on network call. Results for A and B are complete. Period C was 7/8 windows complete when it hung.",
 
   "Period A: 2018-2020": {
     "sharpe": 0.8859,
@@ -10,7 +9,7 @@
     "return_pct": 18.8,
     "max_drawdown_pct": -8.9,
     "trades": 222,
-    "time_seconds": 211,
+    "time_seconds": 127,
     "status": "PASS"
   },
   "Period B: 2020-2022": {
@@ -19,12 +18,17 @@
     "return_pct": 10.9,
     "max_drawdown_pct": -3.4,
     "trades": 200,
-    "time_seconds": 230,
+    "time_seconds": 139,
     "status": "PASS"
   },
   "Period C: 2023-2025": {
-    "status": "INCOMPLETE - hung at window 8/8",
-    "note": "7/8 windows completed successfully before hang"
+    "sharpe": 1.8797,
+    "dsr": 1.0000,
+    "return_pct": 24.2,
+    "max_drawdown_pct": -2.9,
+    "trades": 224,
+    "time_seconds": 145,
+    "status": "PASS"
   },
   "full_period": {
     "sharpe": 1.0142,
@@ -32,17 +36,11 @@
     "return_pct": 63.1,
     "max_drawdown_pct": -8.9,
     "trades": 632,
-    "source": "swift-ridge session (earlier run)",
+    "source": "swift-ridge session (earlier validated run)",
     "status": "PASS"
   },
   "2x_costs": {
-    "status": "NOT_RUN - script hung before reaching this test"
-  },
-
-  "known_bug": {
-    "description": "Feature builder hangs on last ~200 samples when window end date approaches recent dates",
-    "cause": "Likely blocking network call (yfinance or similar) for recent data with no timeout",
-    "affected_windows": "Last window of any period ending near present (2025-12-31)",
-    "workaround": "Need to add timeout to data fetching or cache recent data"
+    "status": "RUNNING",
+    "note": "27-window full period with 2x transaction costs, session amber-meadow"
   }
 }
