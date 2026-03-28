@@ -276,6 +276,32 @@ From the article: "Context resets — clearing the context window entirely and s
 - [ ] **Slippage modeling:** 5 bps execution slippage on top of transaction costs
 - [ ] **Position concentration limits:** Max position < 10% in evaluator checks
 
+### 2.9 Multi-Market Abstractions (Lightweight)
+*Prepare data layer for future market expansion (CA, EU, NO, KR) without building actual multi-market support. ~4 hours of work, zero risk to May launch.*
+
+- [ ] Add `market` STRING column to BQ tables (prices, fundamentals, macro) — default `'US'` for existing data
+- [ ] Add `currency` STRING column to prices table — default `'USD'`
+- [ ] Namespace tickers: `{market}:{ticker}` format in universe table
+- [ ] Abstract trading calendar: `exchange_calendars` library (supports OSE, KRX, TSX, XETRA)
+- [ ] Add `market` filter to MCP server tools (default `'US'`)
+- [ ] Add `base_currency` param to portfolio/returns calculations (passthrough for now, always `'USD'`)
+- [ ] Document market expansion checklist in Phase 5
+
+**Target markets (future):**
+
+| Market | Exchange | Currency | Calendar | Notes |
+|--------|----------|----------|----------|-------|
+| US | NYSE/NASDAQ | USD | XNYS | Current (default) |
+| NO | Oslo Børs (OSE) | NOK | XOSL | Home market, Peder knows it well |
+| CA | TSX | CAD | XTSE | Similar market structure to US |
+| EU | XETRA (DE), Euronext | EUR | XETR/XPAR | Large cap European equities |
+| KR | KRX (KOSPI/KOSDAQ) | KRW | XKRX | High retail activity, different dynamics |
+
+**Ticker namespacing convention:**
+```
+US:AAPL    NO:EQNR    CA:RY    DE:SAP    KR:005930
+```
+
 ### 2.8 Karpathy Autoresearch Integration
 *The Generator (QuantStrategyOptimizer) already follows Karpathy's autoresearch pattern for zero-cost param optimization. The harness adds the missing evaluation and planning layers. If the harness proves beneficial on pyfinAgent, apply the same three-agent pattern to the upstream [autoresearch](https://github.com/karpathy/autoresearch) optimizer — wrapping its research loop with independent evaluation and heuristic planning.*
 
@@ -511,6 +537,40 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 
 ---
 
+## Phase 5: Multi-Market Expansion (Post-Launch)
+*After US is profitable and validated, expand to additional markets. Each market follows the same pattern: data pipeline → backtest validation → paper trade → go live.*
+
+### 5.1 Market Expansion Checklist (per market)
+- [ ] Data source identified and tested (Yahoo Finance, local exchange API, Bloomberg?)
+- [ ] BQ tables populated with historical prices, fundamentals, macro for target market
+- [ ] Trading calendar configured via `exchange_calendars`
+- [ ] FX rate feed operational (daily close, intraday for live)
+- [ ] Universe defined (which tickers, min market cap, min liquidity)
+- [ ] Backtest validated: Sharpe > 0.5 on target market with full evaluator suite
+- [ ] Transaction costs calibrated for local market (differ significantly by exchange)
+- [ ] Regulatory constraints documented (short-sell rules, position limits, T+N settlement)
+- [ ] Signal delivery adapted (timezone-aware scheduling)
+- [ ] Paper trading 2+ weeks on target market
+
+### 5.2 Market-Specific Considerations
+
+**Norway (OSE):** Small market, ~200 liquid stocks. Advantages: Peder knows it, energy sector heavy (EQNR, etc.), less algo competition than US. Risk: thin liquidity = slippage.
+
+**Canada (TSX):** Similar market structure to US, good for strategy validation. Resource-heavy (mining, energy). CAD/USD correlation means less FX risk.
+
+**Europe (XETRA/Euronext):** Large cap universe comparable to US. EUR base. Different sector composition (luxury, industrials, pharma). MiFID II data availability.
+
+**South Korea (KRX):** High retail participation creates different signal dynamics. KRW volatility adds FX risk. KOSDAQ has interesting small-cap opportunities. Market opens during US night.
+
+### 5.3 Cross-Market Features (Phase 5+)
+- [ ] Cross-market correlation analysis (diversification benefits)
+- [ ] FX-hedged vs unhedged portfolio comparison
+- [ ] Multi-market signal aggregation (same sector across markets)
+- [ ] Timezone-aware scheduling (KRX opens when NYSE sleeps → rolling signals)
+- [ ] Global macro regime detection across markets
+
+---
+
 ## Harness Simplification Principles
 
 From the article: "Every component in a harness encodes an assumption about what the model can't do on its own, and those assumptions are worth stress testing."
@@ -571,4 +631,4 @@ From the article: "Every component in a harness encodes an assumption about what
 
 *This plan follows the Anthropic harness design pattern: Planner → Generator → Evaluator.*
 *"The space of interesting harness combinations doesn't shrink as models improve. Instead, it moves."*
-*Last updated: 2026-03-28 17:30 by Ford — MCP connector integrated into Phase 3+4*
+*Last updated: 2026-03-28 19:25 by Ford — Multi-market abstractions (2.9) + Phase 5 expansion plan*

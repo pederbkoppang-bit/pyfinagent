@@ -2,6 +2,9 @@
 BQ query cache — in-memory cache for historical data queries.
 Supports bulk preloading (2-3 BQ queries for entire backtest) with
 per-ticker slicing, plus exact-match fallback for ad-hoc queries.
+
+Phase 2.9: market parameter added to preloaders (passthrough for now,
+all data is US. Phase 5 will filter by market column in BQ tables).
 """
 
 import logging
@@ -11,6 +14,9 @@ import pandas as pd
 from google.cloud import bigquery
 
 logger = logging.getLogger(__name__)
+
+# Default market — used when no market parameter is passed
+_DEFAULT_MARKET = "US"
 
 # ── Preloaded full-range data (keyed by ticker only, sliced on read) ─
 _prices_full: dict[str, pd.DataFrame] = {}
@@ -62,12 +68,15 @@ def clear_cache():
 
 # ── Bulk Preloaders ──────────────────────────────────────────────────
 
-def preload_prices(tickers: list[str], start_date: str, end_date: str) -> int:
+def preload_prices(tickers: list[str], start_date: str, end_date: str, market: str = _DEFAULT_MARKET) -> int:
     """Bulk-load all price data for tickers in a single BQ query.
 
     Stores per-ticker DataFrames in _prices_full.  Subsequent calls to
     cached_prices() slice from these rather than hitting BQ individually.
     Returns the total number of rows loaded.
+    
+    Phase 2.9: market param accepted but not filtered yet (all data is US).
+    Phase 5: will add WHERE market = @market to the query.
     """
     assert _bq_client is not None, "Cache not initialized — call init_cache() first"
     if not tickers:
@@ -107,11 +116,13 @@ def preload_prices(tickers: list[str], start_date: str, end_date: str) -> int:
     return total_rows
 
 
-def preload_fundamentals(tickers: list[str]) -> int:
+def preload_fundamentals(tickers: list[str], market: str = _DEFAULT_MARKET) -> int:
     """Bulk-load all fundamental data for tickers in a single BQ query.
 
     Stores per-ticker lists (sorted by report_date DESC) in _fundamentals_full.
     Returns the total number of rows loaded.
+    
+    Phase 2.9: market param accepted but not filtered yet.
     """
     assert _bq_client is not None, "Cache not initialized — call init_cache() first"
     if not tickers:

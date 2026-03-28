@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from backend.backtest import cache
+from backend.backtest.markets import DEFAULT_MARKET
 
 logger = logging.getLogger(__name__)
 
@@ -83,12 +84,23 @@ class CandidateSelector:
         ranked = self._rank_candidates(results, **(scoring_weights or {}))
         return ranked[:top_n]
 
-    def get_universe_tickers(self) -> list[str]:
+    def get_universe_tickers(self, market: str = DEFAULT_MARKET) -> list[str]:
         """
-        Return current S&P 500 list. Known survivorship bias limitation:
-        we use the current list for all historical dates because free
-        point-in-time constituent data is not available.
+        Return universe of tickers for a given market.
+        
+        Currently supports:
+        - US: S&P 500 from Wikipedia (known survivorship bias)
+        - Other markets: placeholder — returns empty list with warning
+        
+        Phase 5 will add: NO (OBX), CA (TSX60), DE (DAX), KR (KOSPI50)
         """
+        if market != "US":
+            logger.warning(
+                "Market '%s' not yet supported — returning empty universe. "
+                "Only 'US' is implemented (Phase 2.9 abstraction).", market
+            )
+            return []
+        
         try:
             tables = pd.read_html(
                 "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",

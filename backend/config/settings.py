@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     bq_dataset_outcomes: str = "financial_reports"
     bq_table_outcomes: str = "outcome_tracking"
 
+    # --- Multi-Market (Phase 2.9) ---
+    default_market: str = Field("US", description="Default market code (US, NO, CA, DE, KR)")
+    base_currency: str = Field("USD", description="Base currency for portfolio returns")
+
     # --- Cloud Function Agent URLs ---
     ingestion_agent_url: str = Field(..., description="Ingestion agent Cloud Function URL")
     quant_agent_url: str = Field(..., description="Quant agent Cloud Function URL")
