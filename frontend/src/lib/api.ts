@@ -178,7 +178,7 @@ export function getCostHistory(limit = 50): Promise<CostHistoryEntry[]> {
 
 // ── Health ───────────────────────────────────────────────────────
 
-export function healthCheck(): Promise<{ status: string; service: string }> {
+export function healthCheck(): Promise<{ status: string; service: string; version?: string }> {
   return apiFetch("/api/health");
 }
 

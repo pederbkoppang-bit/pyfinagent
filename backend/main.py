@@ -194,4 +194,4 @@ app.include_router(skills_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "pyfinagent-backend"}
+    return {"status": "ok", "service": "pyfinagent-backend", "version": "5.13.0"}
