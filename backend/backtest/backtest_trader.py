@@ -86,6 +86,7 @@ class BacktestTrader:
         turbulence: float = 0.0, turbulence_threshold: float = 1.0,
         amihud_illiquidity: float = 0.0,
         vol_target_scale: float = 1.0,
+        correlation_penalty: float = 1.0,
     ) -> float:
         """
         Inverse-volatility position sizing (AQR / Frazzini & Pedersen 2014):
@@ -101,6 +102,10 @@ class BacktestTrader:
         High Amihud = low liquidity = wider bid-ask spreads = higher execution costs.
         Scales position down for illiquid stocks. Typical S&P 500 Amihud values
         are 0.01-1.0 (×1e6 scaled). Values above 5.0 indicate illiquid stocks.
+        
+        Correlation penalty (Phase 1.8 - Portfolio Diversification):
+        Scales down positions for stocks highly correlated with existing holdings.
+        1.0 = no penalty, 0.5 = 50% reduction for highly correlated stocks.
         """
         if stock_vol <= 0 or probability <= 0:
             return 0.0
@@ -140,6 +145,10 @@ class BacktestTrader:
         # Computed by BacktestEngine._compute_vol_target_scale()
         if vol_target_scale != 1.0:
             raw *= vol_target_scale
+
+        # PHASE 1.8 IMPROVEMENT: Correlation-based diversification
+        # Reduce position size for stocks highly correlated with existing holdings
+        raw *= correlation_penalty
 
         capped = min(raw, nav * self.max_single_pct)
         return max(0.0, capped)
@@ -200,11 +209,17 @@ class BacktestTrader:
             amihud = sig.get("amihud_illiquidity", 0.0)
             vt_scale = sig.get("vol_target_scale", 1.0)
             turbulence = sig.get("turbulence", 0.0)  # PHASE 1.3: Market stress indicator
+            
+            # PHASE 1.8: Compute correlation penalty for diversification
+            existing_tickers = list(self.positions.keys())
+            corr_penalty = self._compute_correlation_penalty(ticker, existing_tickers)
+            
             dollar_amount = self.size_position(
                 probability, volatility, nav,
                 turbulence=turbulence,
                 amihud_illiquidity=amihud,
                 vol_target_scale=vt_scale,
+                correlation_penalty=corr_penalty,
             )
 
             if dollar_amount < 100:  # Minimum trade size
@@ -271,6 +286,46 @@ class BacktestTrader:
             else:
                 self._performance_scale = 1.0
 
+    def _compute_correlation_penalty(self, candidate_ticker: str, existing_positions: list[str]) -> float:
+        """
+        PHASE 1.8: Compute correlation penalty for portfolio diversification.
+        Returns scaling factor between 0.3 and 1.0 based on correlations with existing positions.
+        
+        Simple sector-based diversification for now (requires historical data for full correlation).
+        Can be enhanced with actual price correlation calculation.
+        """
+        if not existing_positions:
+            return 1.0
+            
+        # Simplified sector-based correlation penalty
+        # In production, would use actual price correlation from historical data
+        sector_mapping = {
+            # Tech stocks (typically correlated)
+            'AAPL': 'tech', 'MSFT': 'tech', 'GOOGL': 'tech', 'GOOG': 'tech', 'AMZN': 'tech',
+            'TSLA': 'tech', 'NVDA': 'tech', 'META': 'tech', 'NFLX': 'tech', 'CRM': 'tech',
+            # Financial (typically correlated)  
+            'JPM': 'financial', 'BAC': 'financial', 'WFC': 'financial', 'C': 'financial', 'GS': 'financial',
+            # Healthcare
+            'JNJ': 'healthcare', 'UNH': 'healthcare', 'PFE': 'healthcare', 'ABBV': 'healthcare',
+            # Energy
+            'XOM': 'energy', 'CVX': 'energy', 'COP': 'energy', 'SLB': 'energy',
+        }
+        
+        candidate_sector = sector_mapping.get(candidate_ticker, 'other')
+        same_sector_count = 0
+        
+        for ticker in existing_positions:
+            if sector_mapping.get(ticker, 'other') == candidate_sector and candidate_sector != 'other':
+                same_sector_count += 1
+        
+        # Scale down for same-sector concentration: 1 same-sector = 0.8x, 2+ = 0.5x
+        if same_sector_count == 0:
+            return 1.0
+        elif same_sector_count == 1:
+            return 0.8  # 20% reduction
+        else:
+            return 0.5  # 50% reduction for high sector concentration
+            
     def mark_to_market(self, date: str, prices: dict[str, float]) -> float:
         """Update positions with current prices and return NAV."""
         nav = self._compute_nav(prices)
