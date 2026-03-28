@@ -497,30 +497,93 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 - [ ] Per-regime parameter optimization
 - [ ] Rolling re-optimization via cron
 
-### 3.4 Agent Skill Optimization
-- [ ] SkillOpt on highest-impact agents (Synthesis, Moderator, Risk Judge)
-- [ ] MDA → Agent bridge (feature importance drives agent targeting)
+### 3.4 Agent Skill Optimization — ⚠️ PARTIALLY BUILT
+*Codebase audit finding: `backend/agents/skill_optimizer.py` (864 lines) already implements Karpathy-style autoresearch for prompt optimization. `backend/agents/meta_coordinator.py` (306 lines) already sequences QuantOpt → SkillOpt → PerfOpt with MDA→Agent bridge.*
+
+**Already implemented:**
+- [x] `SkillOptimizer` class — modifies `## Prompt Template` in skills.md, measures composite score, keep/discard
+- [x] `MetaCoordinator` — cross-loop sequencing, bridges MDA features → agent targeting
+- [x] `PerfOptimizer` (`backend/services/perf_optimizer.py`) — autoresearch loop for API cache TTL tuning
+- [x] Skills stored in `backend/agents/skills/` as .md files loaded by `backend/config/prompts.py`
+
+**Remaining work:**
+- [ ] Run SkillOpt on highest-impact agents (Synthesis, Moderator, Risk Judge) — needs LLM budget approval
+- [ ] Validate MDA → Agent bridge works end-to-end with harness output
+- [ ] Wire SkillOpt results into harness evaluator criteria
+
+### 3.5 Enrichment MCP Server
+*Wraps all 16 external data APIs behind a single MCP interface for LLM access.*
+
+| Tool | Source | Current Implementation |
+|------|--------|----------------------|
+| `search_news` | Alpha Vantage | `backend/tools/social_sentiment.py` |
+| `get_sec_filings` | SEC EDGAR | `backend/tools/sec_insider.py` |
+| `get_analyst_estimates` | Alpha Vantage | `backend/tools/alphavantage.py` |
+| `get_insider_trades` | SEC EDGAR | `backend/tools/sec_insider.py` |
+| `get_earnings_calendar` | Yahoo Finance | `backend/tools/earnings_tone.py` |
+| `get_sentiment` | NLP + social | `backend/tools/nlp_sentiment.py` + `social_sentiment.py` |
+| `get_macro_indicators` | FRED | `backend/tools/fred_data.py` |
+| `get_options_flow` | Yahoo Finance | `backend/tools/options_flow.py` |
+| `get_anomaly_scan` | Statistical | `backend/tools/anomaly_detector.py` |
+| `get_sector_analysis` | Yahoo Finance | `backend/tools/sector_analysis.py` |
+| `get_google_trends` | pytrends | `backend/tools/alt_data.py` |
+| `get_monte_carlo` | GBM simulation | `backend/tools/monte_carlo.py` |
+| `get_patent_data` | PatentsView | `backend/tools/patent_tracker.py` |
+| `get_quant_signal` | ML model | `backend/tools/quant_model.py` |
+| `get_financials` | Yahoo Finance | `backend/tools/yfinance_tool.py` |
+| `get_price_history` | Yahoo Finance | `backend/tools/yfinance_tool.py` |
+
+- [ ] Wrap all 16 tools as MCP server endpoints
+- [ ] Central rate limiting (one place for 429/retry/backoff)
+- [ ] Central caching (news 15min, SEC 24h, prices 5min)
+- [ ] Central auth (API keys in one place)
+- [ ] Cost tracking per API call through gateway
 
 ---
 
 ## Phase 4: Production Readiness (Week 6 — Late April)
 *Get ready for real money. The evaluator agent becomes the live QA system. MCP signals server goes live.*
 
+*⚠️ CODEBASE AUDIT FINDING: More of Phase 4 is already built than previously thought.*
+
+### Existing Infrastructure (from codebase audit)
+
+**Already implemented and working:**
+- [x] `backend/services/paper_trader.py` (361 lines) — full paper trading engine with BQ persistence, NAV tracking, virtual trades
+- [x] `backend/services/autonomous_loop.py` (328 lines) — daily cycle: Screen → Analyze → Decide → Trade → Snapshot → Learn
+- [x] `backend/services/portfolio_manager.py` (230 lines) — sell-first-then-buy logic with Risk Judge position sizing
+- [x] `backend/services/outcome_tracker.py` (184 lines) — evaluates past recs vs actual prices, generates LLM reflections, persists to BQ
+- [x] `backend/api/paper_trading.py` (284 lines) — API endpoints + APScheduler integration
+- [x] `backend/slack_bot/` — Socket mode bot with `/analyze`, `/portfolio`, `/report` commands
+- [x] `backend/slack_bot/scheduler.py` (107 lines) — morning digest + proactive anomaly alerts
+- [x] `backend/slack_bot/formatters.py` (227 lines) — Block Kit message formatting
+- [x] `backend/tools/screener.py` (213 lines) — quant-only universe screening (zero LLM cost)
+- [x] `backend/agents/orchestrator.py` (1477 lines) — full 15-step analysis pipeline with 20+ agents
+- [x] `backend/api/signals.py` (202 lines) — on-demand enrichment data endpoints
+- [x] `backend/services/perf_metrics.py` (224 lines) — canonical P&L and portfolio metrics
+
+**What this means:** Phase 4 is ~60% built. The main gaps are MCP server wrappers, evaluator-gated signal publishing, and hardened risk limits.
+
 ### 4.1 Slack Signal Delivery (via MCP Signals Server)
-- [ ] Deploy `pyfinagent-signals` MCP server with tools: `generate_signals`, `validate_signal`, `publish_signal`, `get_portfolio`, `risk_check`
-- [ ] Daily morning cron job: Claude calls `generate_signals` → `validate_signal` → `publish_signal` (Slack webhook)
-- [ ] Alert format: ticker, signal, confidence, reasons, risk level, position size
-- [ ] The LLM evaluator calls `validate_signal` before publishing (catch bad recommendations via MCP tool)
+- [ ] Deploy `pyfinagent-signals` MCP server wrapping existing `signals.py` + `autonomous_loop.py`
+- [ ] Wire existing `slack_bot/scheduler.py` morning digest → MCP `generate_signals` → `validate_signal` → Slack
+- [x] Alert format already defined in `slack_bot/formatters.py` (Block Kit)
+- [ ] Add LLM evaluator gate: calls `validate_signal` before publishing (catch bad recommendations)
 - [ ] Allowlist only `generate_signals` + `validate_signal` for automated runs; `publish_signal` requires human approval initially
 
-### 4.2 Paper Trading (evaluator as live QA)
-- [ ] Run paper trading 2+ weeks
-- [ ] Daily cron: Claude calls `get_portfolio` + `risk_check` via MCP, compares paper results vs backtest expectations
+### 4.2 Paper Trading (evaluator as live QA) — ⚠️ MOSTLY BUILT
+- [x] Paper trading engine exists (`paper_trader.py`) — needs validation run
+- [x] Autonomous daily cycle exists (`autonomous_loop.py`) — needs to be activated with validated strategy
+- [x] Outcome tracker exists (`outcome_tracker.py`) — learns from past recommendations
+- [ ] Activate paper trading with current validated params (Sharpe 1.17)
+- [ ] Run 2+ weeks, compare paper results vs backtest expectations
+- [ ] Wire evaluator: daily MCP `get_portfolio` + `risk_check` comparison
 - [ ] Track signal accuracy per enrichment tool → drop tools that don't add alpha
-- [ ] If paper Sharpe < 0.7 × backtest Sharpe → `risk_check` auto-triggers STOP investigation
+- [ ] If paper Sharpe < 0.7 × backtest Sharpe → auto-trigger STOP investigation
 
 ### 4.3 Risk Management
-- [ ] `risk_check` MCP tool enforces: max portfolio size, max single position, max daily loss
+- [x] Position sizing exists in `portfolio_manager.py` (Risk Judge + inverse-volatility)
+- [ ] Harden: `risk_check` MCP tool enforces max portfolio size, max single position, max daily loss
 - [ ] Stop-loss monitoring with automatic position reduction
 - [ ] Event calendar integration (earnings, FOMC → reduce exposure)
 - [ ] Kill switch: if drawdown > 15%, system goes to cash automatically (enforced in `risk_check`, not overridable by LLM)
@@ -568,6 +631,51 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 - [ ] Multi-market signal aggregation (same sector across markets)
 - [ ] Timezone-aware scheduling (KRX opens when NYSE sleeps → rolling signals)
 - [ ] Global macro regime detection across markets
+
+---
+
+## Dead/Stale Code to Clean Up (Low Priority)
+
+*Identified during full codebase audit (132 files, 27,453 lines). None of these block progress — clean up when convenient.*
+
+### Stale Applications
+| Path | Lines | What | Action |
+|------|-------|------|--------|
+| `pyfinagent-app/` | ~2,500 | Old Streamlit frontend (replaced by Next.js 15) | Archive to `archive/` or delete |
+| `pyfinagent-app/risk-management-agent/` | 1 file | Orphaned Cloud Function stub inside old app | Delete with parent |
+
+### Stale Virtual Environments
+| Path | What | Action |
+|------|------|--------|
+| `.venv312/` | Old Python 3.12 venv (current is `.venv/` on 3.14) | Delete (`rm -rf .venv312/`) — saves ~500MB disk |
+
+### Superseded Planning Documents
+| File | Lines | Replaced By | Action |
+|------|-------|-------------|--------|
+| `PHASE0_FINDINGS.md` | 290 | `PLAN.md` Phase 0 section | Move to `docs/archive/` |
+| `PHASE0_LEAKAGE_AUDIT.md` | 120 | Phase 0 audit results in PLAN.md | Move to `docs/archive/` |
+| `PHASE0_PROGRESS.md` | 64 | Phase 0 ✅ COMPLETE in PLAN.md | Move to `docs/archive/` |
+| `PHASE0_REALITY_GAP.md` | 164 | Phase 0 audit + evaluator criteria | Move to `docs/archive/` |
+| `OPTIMIZATION_PLAN.md` | 268 | `PLAN.md` Phase 1-2 sections | Move to `docs/archive/` |
+| `OPTIMIZER_SPEEDUP_PLAN.md` | 154 | Implemented (cache, early stopping) | Move to `docs/archive/` |
+| `DEEP_RESEARCH_OPTIMIZATION.md` | 568 | `PLAN.md` Phase 3 section | Move to `docs/archive/` |
+| `RESEARCH_OPTIMIZATION.md` | 239 | `PLAN.md` Phase 3 section | Move to `docs/archive/` |
+
+**Total stale docs:** ~1,867 lines across 8 files. Historical value only.
+
+### Cloud Function Stubs (deployed separately, not part of backend)
+| Path | Lines | What | Action |
+|------|-------|------|--------|
+| `ingestion_agent/` | ~180 | Cloud Function for data ingestion | Keep (deployed to GCF) |
+| `quant-agent/` | ~260 | Cloud Function for quant data | Keep (deployed to GCF) |
+| `earnings-ingestion-agent/` | ~170 | Cloud Function for earnings | Keep (deployed to GCF) |
+
+*These are separate deployments, not stale — just noting they exist outside the backend.*
+
+### Other Cleanup
+- [ ] Add `.venv312/` and `pyfinagent-app/` to `.gitignore` if not already excluded
+- [ ] Add `.DS_Store` to `.gitignore`
+- [ ] Archive 8 planning docs: `mkdir -p docs/archive && mv PHASE0_*.md OPTIMIZATION_PLAN.md OPTIMIZER_SPEEDUP_PLAN.md DEEP_RESEARCH_OPTIMIZATION.md RESEARCH_OPTIMIZATION.md docs/archive/`
 
 ---
 
@@ -626,9 +734,12 @@ From the article: "Every component in a harness encodes an assumption about what
 | 2026-03-28 | Sub-period validation | 1.01 | ALL pass: A=0.89, B=0.92, C=1.88, 2×costs=0.91 |
 | 2026-03-28 | Hang bug fixed | — | Macro preload + BQ timeouts, 5× speedup |
 | 2026-03-28 | **Phase 2 core** | 1.1705 | `run_harness.py` operational (Planner→Generator→Evaluator) |
+| 2026-03-28 | MCP integration | — | MCP connector added to Phase 3+4, enrichment server planned |
+| 2026-03-28 | Multi-market (2.9) | — | Market abstractions, ticker namespacing, exchange_calendars |
+| 2026-03-28 | **Codebase audit** | — | 132 files (27K lines) read. Phase 4 ~60% built. Stale code identified. |
 
 ---
 
 *This plan follows the Anthropic harness design pattern: Planner → Generator → Evaluator.*
 *"The space of interesting harness combinations doesn't shrink as models improve. Instead, it moves."*
-*Last updated: 2026-03-28 19:25 by Ford — Multi-market abstractions (2.9) + Phase 5 expansion plan*
+*Last updated: 2026-03-28 20:21 by Ford — Full codebase audit findings integrated, Phase 4 re-assessed, cleanup section added*
