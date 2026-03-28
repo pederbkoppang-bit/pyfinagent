@@ -4,7 +4,7 @@
 
  ✓ Starting...
  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
- ✓ Ready in 130ms
+ ✓ Ready in 140ms
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)

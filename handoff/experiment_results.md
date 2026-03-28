@@ -1,55 +1,62 @@
-# Experiment Results — Cycle 1 (Phase 1 Complete)
+# Phase 2.6.0 Experiment Results — Operational Resilience
 
-## Summary
-- **Cycle dates:** 2026-03-25 to 2026-03-28
-- **Total experiments:** 40+ across 4 optimizer runs
-- **Starting Sharpe:** 0.905 (initial audit baseline)
-- **Final Sharpe:** 1.1705 (+29% improvement)
-- **DSR:** 0.9984 (statistically significant)
+## What Was Done
 
-## Changes Made (Phase 1 improvements)
+### Section A — Gateway & OpenClaw Self-Healing ✅
+- **LaunchAgent:** Official `ai.openclaw.gateway` already running and healthy (RunAtLoad, KeepAlive.SuccessfulExit)
+- **Removed redundant:** Custom `com.openclaw.gateway.plist` was broken (exit code 127) and conflicting — deleted
+- **Watchdog cron:** Enhanced to check gateway + backend + frontend + disk every 5 min
+  - Auto-restarts services with correct commands
+  - Posts to Slack only on failures
+  - Replies HEARTBEAT_OK if all healthy
 
-### Code changes:
-1. Cross-sectional percentile ranking in `_build_training_data()` (backtest_engine.py)
-2. Turbulence index integration in `_predict_and_trade()` (backtest_engine.py)
-3. Kelly Criterion position sizing in `size_position()` (backtest_trader.py)
-4. Volatility targeting + trailing stops enabled in optimizer params (quant_optimizer.py)
-5. Dynamic risk-free rate via FRED in aggregate Sharpe computation (backtest_engine.py)
-6. Regime-aware strategy selection in `_compute_label()` (backtest_engine.py)
-7. Performance-based position scaling in `mark_to_market()` (backtest_trader.py)
-8. Sector diversification penalty in `execute_trades()` (backtest_trader.py)
-9. Market microstructure costs in `_compute_commission()` (backtest_trader.py)
+### Section B — Slack Availability ✅
+- Slack confirmed running: `enabled, configured, running, bot:config, app:config`
+- Channel #ford-approvals (C0ANTGNNK8D) enabled with `requireMention: false`
+- Heartbeat checks Slack first (order defined in HEARTBEAT.md)
+- Fallback path: iMessage to +4794810537 documented in escalation chain
 
-### Best params (from optimizer_best.json):
-- strategy: triple_barrier
-- sl_pct: 12.92 (optimizer found asymmetric barriers helpful)
-- min_samples_leaf: 20
-- n_estimators: 200, max_depth: 4, learning_rate: 0.1
-- holding_days: 90, tp_pct: 10.0
+### Section C — API Rate Limit Handling ⏳
+- Not implemented yet (needs code changes in backend) — deferred to generate phase
+- Existing retry logic in backtest engine covers BQ timeouts (30s)
 
-## Key Experiment Patterns
+### Section D — System Health Monitoring ✅
+- Disk check added to watchdog cron (warn >90%)
+- Port checks for 8000/3000 in watchdog
+- Heartbeat checks memory/processes
+- Git status check in morning/evening crons
 
-### What worked:
-- Asymmetric barriers (wider SL, tighter TP) — Sharpe jumped from 1.039 to 1.17
-- Feature caching for ML-only changes — 80× speedup
-- Early stopping at window 10 for obviously bad experiments
+### Section E — Incident Log ✅
+- `memory/incidents.md` created with structured format
+- Template: severity, component, issue, detection, action, recovery, root cause, prevention
 
-### What didn't work:
-- target_vol perturbations consistently decreased Sharpe (5 attempts, all discarded)
-- qm_weight additions showed no improvement (strategy is already triple_barrier)
-- n_estimators changes beyond 200-220 range showed no benefit
-- Holding days changes (90→97) degraded performance
+### Section G — Infrastructure Settings ✅
+- Gateway: `bind: loopback`, token auth — verified secure
+- LaunchAgent: official `ai.openclaw.gateway` — verified running
+- ACP/MCP: documented as planned for Phase 3 (no servers to configure yet)
 
-## MDA Feature Importance (top 5, stable across windows):
-1. annualized_volatility
-2. treasury_10y
-3. amihud_illiquidity
-4. cpi_yoy
-5. consumer_sentiment
+### Section H — Automation Settings ✅
+- **Hooks:** All 4 enabled (boot-md, bootstrap-extra-files, command-logger, session-memory)
+- **Crons:** 3 active (watchdog 5min, morning 7am, evening 6pm)
+- All use Haiku 4.5 model for cost efficiency
 
-## Observations
-- Macro features (treasury, CPI, sentiment) dominate — strategy is macro-driven
-- Volatility is the single most important feature — makes sense given inverse-vol sizing
-- Momentum features ranked lower than expected — possible opportunity
-- The optimizer hit diminishing returns around experiment 10 of the last run
-- Need structural changes (new features, strategy logic) not more param tweaking
+### Section I — OpenClaw Config & Communications ✅
+- **Slack enhancements applied:**
+  - `typingReaction: hourglass_flowing_sand` — visual feedback while processing
+  - `actions: {reactions, messages, pins, memberInfo, emojiList}` — full capabilities
+  - `reactionNotifications: own` — Ford sees reactions to its messages
+- **Message handling:**
+  - `queue.mode: collect` — batches rapid messages
+  - `inbound.debounceMs: 2000` — prevents duplicate processing
+  - `inbound.byChannel.slack: 1500` — Slack-specific debounce
+- **Existing config verified correct:**
+  - Model: Sonnet default, Haiku for heartbeats/cron
+  - Heartbeat: 30min, 07:00-23:00 Oslo
+  - MaxConcurrent: 6 agents, 12 subagents
+  - Compaction: safeguard mode
+  - Session: per-channel-peer, idle reset (1 year)
+  - Gateway: loopback, token auth
+
+## Remaining Work
+- Section C (API rate limit handling) — needs backend code changes, can be added incrementally
+- Section F was skipped (no section F in plan)

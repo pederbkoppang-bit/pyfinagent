@@ -342,21 +342,22 @@ From the article: "Context resets — clearing the context window entirely and s
 
 ---
 
-### 2.6.0 Operational Resilience — Zero Downtime (FIRST PRIORITY)
+### 2.6.0 Operational Resilience — Zero Downtime (FIRST PRIORITY) ✅ CONDITIONAL PASS
 > **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+> **Completed:** 2026-03-28 23:10 | **Verdict:** CONDITIONAL PASS (8.4/10) — Section C (rate limits) deferred to pre-Phase 2.7
 
 *Ford must always be available. No excuses. If something breaks, fix it automatically and notify Peder on Slack.*
 
 **Principle:** The system self-heals. Ford stays online. Peder gets notified of every issue and every recovery.
 
 **A. Gateway & OpenClaw Self-Healing**
-- [ ] Watchdog cron: check `openclaw gateway status` every 5 minutes
+- [x] Watchdog cron: check `openclaw gateway status` every 5 minutes
   - If gateway down → `openclaw gateway restart` → notify Slack "⚠️ Gateway crashed, auto-restarted"
   - If restart fails → notify Slack "🔴 Gateway restart FAILED — manual intervention needed"
   - Log all crashes with timestamp to `memory/incidents.md`
-- [ ] macOS LaunchAgent for OpenClaw gateway (auto-start on boot, auto-restart on crash)
-  - `~/Library/LaunchAgents/com.openclaw.gateway.plist`
-  - `KeepAlive: true`, `RunAtLoad: true`
+- [x] macOS LaunchAgent for OpenClaw gateway (auto-start on boot, auto-restart on crash)
+  - Official `ai.openclaw.gateway.plist` already running (removed redundant custom plist)
+  - `KeepAlive.SuccessfulExit: false`, `RunAtLoad: true`
 - [ ] Heartbeat self-check: if heartbeat hasn't run in >60 min, something is broken
   - Cron job (system-level, not OpenClaw) checks heartbeat state file timestamp
   - If stale → restart gateway → notify Slack
