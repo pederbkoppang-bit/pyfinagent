@@ -6,7 +6,7 @@ paths:
 
 # Frontend Layout Blueprint
 
-Research-backed layout rules for every page in PyFinAgent. Derived from Tufte, Few, Shneiderman, Cleveland & McGill, Bach et al., and peer project analysis (QuantConnect, FreqUI, Grafana). See `UX-AGENTS.md` for component-level specs and design tokens.
+Research-backed layout rules for every page in PyFinAgent. Derived from Tufte, Few, Shneiderman, Cleveland & McGill, Bach et al., and peer project analysis (QuantConnect, FreqUI, Grafana, OpenClaw). See `UX-AGENTS.md` for component-level specs and design tokens.
 
 ---
 
@@ -15,31 +15,81 @@ Research-backed layout rules for every page in PyFinAgent. Derived from Tufte, F
 Every page MUST use this exact outer structure — no exceptions:
 
 ```tsx
-<div className="flex min-h-screen">
+<div className="flex h-screen overflow-hidden">
   <Sidebar />
-  <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
-    {/* page content */}
+  <main className="flex flex-1 flex-col overflow-hidden">
+    {/* Fixed header zone */}
+    <div className="flex-shrink-0 px-6 pt-6 pb-0 md:px-8 md:pt-8">
+      {/* Tiers 1-5: header, banners, tabs — never scroll */}
+    </div>
+    {/* Scrollable content zone */}
+    <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
+      {/* Tier 6: tab content — scrolls independently */}
+    </div>
   </main>
 </div>
 ```
 
-- `Sidebar` is the fixed `w-64 h-screen` nav (never modify shell for individual pages)
-- `scrollbar-thin` is required on every `<main>` — defined in `globals.css`
-- `p-6 md:p-8` = 24px mobile, 32px desktop padding
+### Shell rules (non-negotiable)
 
-**Rule:** Never deviate from the shell. No nested scrollable wrappers around `<main>`.
+| Rule | Why |
+|------|-----|
+| Outer div: `h-screen overflow-hidden` | Constrains layout to viewport height. **Never use `min-h-screen`** — it lets the parent grow, pushing the sidebar off-screen. |
+| Sidebar: `h-screen flex-shrink-0` | Sidebar is viewport-locked. It never scrolls with page content. |
+| `<main>`: `flex flex-1 flex-col overflow-hidden` | Main is a flex column with two zones: fixed header + scrollable content. |
+| Fixed header: `flex-shrink-0` | Title, action buttons, and tab bar stay pinned. They never scroll. |
+| Scrollable content: `flex-1 overflow-y-auto scrollbar-thin` | Only tab content scrolls. |
+| `scrollbar-thin` on scrollable zone | Custom scrollbar styling as defined in `globals.css`. Never use browser defaults. |
+
+**Why this matters:** When using `min-h-screen`, the outer div grows with content, making the sidebar scroll with the page. Using `h-screen overflow-hidden` locks everything to the viewport. The sidebar stays fixed, the header stays fixed, and only content scrolls. This matches the OpenClaw control UI pattern.
 
 ---
 
-## 2. Page Anatomy (top-to-bottom order)
+## 2. Sidebar (matches OpenClaw pattern)
 
-Content inside `<main>` follows a strict 6-tier vertical hierarchy:
+The sidebar has three zones with independent scroll behavior:
 
 ```
+┌─────────────────────────┐
+│ Fixed header             │  ← Logo + app name, never scrolls
+│ (flex-shrink-0)          │
+├─────────────────────────┤
+│ Scrollable nav           │  ← Nav sections with collapsible groups
+│ (flex-1 overflow-y-auto) │     Uses CaretDown toggle per section
+│ (scrollbar-thin)         │     Click section header to collapse/expand
+├─────────────────────────┤
+│ Fixed footer             │  ← Settings + user info, never scrolls
+│ (flex-shrink-0)          │     Separated by border-t
+└─────────────────────────┘
+```
+
+### Sidebar rules
+- **Fixed header:** Logo + "PyFinAgent" title. `flex-shrink-0`, no scroll.
+- **Nav sections:** Collapsible groups (Analyze, Reports, Trading). Each has a `CaretDown` toggle icon that rotates `-rotate-90` when collapsed. State managed via `collapsedSections` record.
+- **Fixed footer:** Settings link + user avatar + auth buttons + version. `flex-shrink-0`, separated by `border-t border-navy-700`.
+- **Never** let the sidebar scroll with main page content. The sidebar is `h-screen` and viewport-locked.
+- **Icons:** Phosphor icons only. **No emoji anywhere in the UI.**
+
+---
+
+## 3. Page Anatomy (top-to-bottom order)
+
+Content inside `<main>` follows a strict 6-tier vertical hierarchy, split across two zones:
+
+### Fixed header zone (Tiers 1-5) — `flex-shrink-0`
+```
 ┌─────────────────────────────────────────────┐
-│ Tier 1: Page Header                         │  ← always visible
+│ Tier 1: Page Header                         │  ← always visible, never scrolls
 │   title + subtitle + optional action buttons│
 ├─────────────────────────────────────────────┤
+│ Tier 5: Tab Bar                             │  ← if page has tabs, never scrolls
+│   pill-style, Phosphor icons                │
+└─────────────────────────────────────────────┘
+```
+
+### Scrollable content zone (Tier 6) — `flex-1 overflow-y-auto`
+```
+┌─────────────────────────────────────────────┐
 │ Tier 2: Status Banners                      │  ← conditional (error/success)
 │   dismissible, rose/emerald borders         │
 ├─────────────────────────────────────────────┤
@@ -49,15 +99,14 @@ Content inside `<main>` follows a strict 6-tier vertical hierarchy:
 │ Tier 4: Global Controls                     │  ← filters, run selectors
 │   things that affect ALL tabs               │
 ├─────────────────────────────────────────────┤
-│ Tier 5: Tab Bar                             │  ← if page has tabs
-│   pill-style, Phosphor icons                │
-├─────────────────────────────────────────────┤
 │ Tier 6: Tab Content                         │  ← tab-scoped data
 │   metrics, grids, tables, charts            │
 └─────────────────────────────────────────────┘
 ```
 
-**Rule:** Only globally relevant content lives above the tab bar (Tiers 1-4). Tab-specific metrics, cards, and tables go INSIDE their tab (Tier 6). This prevents viewport waste and ensures tab content starts near the top. If a Tier 4 control is only relevant to a subset of tabs, conditionally hide it based on `tab` state (e.g. backtest "Previous runs" hidden on Optimizer/Insights tabs; optimizer run selector lives inside Optimizer tab content). *(Shneiderman "Overview first"; Bach et al. screen-fit over overflow; QuantConnect compact-banner-then-tabs pattern.)*
+**Rule:** Page header (Tier 1) and tab bar (Tier 5) are ALWAYS in the fixed zone — they never scroll off-screen. Status banners, progress panels, and tab content go in the scrollable zone. This ensures the user always knows what page they're on and can switch tabs without scrolling up. *(OpenClaw pattern; Shneiderman "Overview first"; Bach et al. screen-fit over overflow.)*
+
+**Rule:** Only globally relevant content lives above the tab bar (Tiers 1-4). Tab-specific metrics, cards, and tables go INSIDE their tab (Tier 6). This prevents viewport waste and ensures tab content starts near the top. If a Tier 4 control is only relevant to a subset of tabs, conditionally hide it based on `tab` state.
 
 ### Page header patterns
 
@@ -84,7 +133,7 @@ Header with action buttons:
 
 ---
 
-## 3. Metric Grids
+## 4. Metric Grids
 
 ### Hero metrics (up to 6 KPIs)
 
@@ -121,12 +170,12 @@ Header with action buttons:
 
 ---
 
-## 4. Tab Bar
+## 5. Tab Bar
 
-### Pill-style tabs (standard)
+### Pill-style tabs (standard) — inside fixed header zone
 
 ```tsx
-<div className="mb-6 flex gap-1 rounded-lg bg-navy-800/60 p-1">
+<div className="flex gap-1 rounded-lg bg-navy-800/60 p-1">
   {TABS.map((t) => (
     <button
       key={t.id}
@@ -143,6 +192,8 @@ Header with action buttons:
   ))}
 </div>
 ```
+
+**Rule:** Tab bar lives in the fixed header zone (`flex-shrink-0`). It never scrolls off-screen. Do NOT use `sticky top-0` hacks — use the proper two-zone flex layout instead.
 
 ### Tab definition pattern
 
@@ -169,7 +220,7 @@ Optional badges for count/status: append `badge?: string | number | null` to the
 
 ---
 
-## 5. Collapsible Sections
+## 6. Collapsible Sections
 
 Use native HTML `<details>`/`<summary>` — accessible, keyboard-navigable, no React state needed.
 
@@ -202,7 +253,7 @@ Use native HTML `<details>`/`<summary>` — accessible, keyboard-navigable, no R
 
 ---
 
-## 6. Content Blocks
+## 7. Content Blocks
 
 ### BentoCard (grouped content)
 
@@ -238,13 +289,13 @@ Use BentoCard to group related content (a table + its header, a chart + its lege
 
 - Always inside a BentoCard wrapper
 - Use Recharts (`ResponsiveContainer` at 100% width)
-- Provide an empty-state placeholder when data is missing (see Section 7)
+- Provide an empty-state placeholder when data is missing (see Section 8)
 
 **Rule:** Tables for lookup, charts for patterns (Few 2012). Both are needed, but each answers a different question — never duplicate between them. Use `overflow-x-auto` for wide tables on mobile.
 
 ---
 
-## 7. Empty States & Loading
+## 8. Empty States & Loading
 
 ### Empty state (no data yet)
 
@@ -286,7 +337,7 @@ Add `<details>` for tracebacks. Add a dismiss button for user-clearable errors.
 
 ---
 
-## 8. Information Hierarchy Principles
+## 9. Information Hierarchy Principles
 
 These are non-negotiable design constraints, not suggestions. Cite the source when explaining a layout decision in code review.
 
@@ -302,6 +353,8 @@ These are non-negotiable design constraints, not suggestions. Cite the source wh
 | Pre-attentive attributes for status | NNG, Cleveland & McGill | Color-coded status (green/red/amber/gray) processed in <250ms |
 | Screen-fit over overflow for analytic dashboards | Bach et al. 2022 | Tabs preferred; avoid scrolling that hides comparisons |
 | Consistent micro-interactions | Material Design 3, Apple HIG | Same scrollbar, same hover states, same transitions everywhere |
+| No emoji in UI | PyFinAgent convention | Use Phosphor icons (`@phosphor-icons/react`) exclusively |
+| Fixed navigation elements | OpenClaw pattern | Sidebar, page header, and tab bar never scroll off-screen |
 
 ---
 
@@ -317,24 +370,30 @@ import { Sidebar } from "@/components/Sidebar";
 
 export default function NewPage() {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
-        {/* Tier 1: Header */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-100">Page Title</h2>
-          <p className="text-sm text-slate-500">Descriptive subtitle</p>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        {/* ── Fixed header zone ── */}
+        <div className="flex-shrink-0 px-6 pt-6 pb-0 md:px-8 md:pt-8">
+          {/* Tier 1: Header */}
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-slate-100">Page Title</h2>
+            <p className="text-sm text-slate-500">Descriptive subtitle</p>
+          </div>
+
+          {/* Tier 5: Tab bar (if needed) */}
         </div>
 
-        {/* Tier 2: Status banners (conditional) */}
+        {/* ── Scrollable content zone ── */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
+          {/* Tier 2: Status banners (conditional) */}
 
-        {/* Tier 3: Collapsible progress (conditional) */}
+          {/* Tier 3: Collapsible progress (conditional) */}
 
-        {/* Tier 4: Global controls (conditional) */}
+          {/* Tier 4: Global controls (conditional) */}
 
-        {/* Tier 5: Tab bar (if needed) */}
-
-        {/* Tier 6: Content */}
+          {/* Tier 6: Tab content */}
+        </div>
       </main>
     </div>
   );
