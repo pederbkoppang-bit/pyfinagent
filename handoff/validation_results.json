@@ -1,0 +1,67 @@
+{
+  "Period A: 2018-2020 (pre-COVID + crash)": {
+    "sharpe": -3.7965669685681758,
+    "deflated_sharpe": 2.015391807883866e-15,
+    "dsr_significant": false,
+    "total_return_pct": 0.7711360714524051,
+    "alpha": 0,
+    "max_drawdown": -0.5699636443604384,
+    "hit_rate": 0.7137931034482758,
+    "n_trades": 110,
+    "n_windows": 6,
+    "information_ratio": 0.0,
+    "num_trials": 1
+  },
+  "Period B: 2020-2022 (recovery + bear)": {
+    "sharpe": -4.2541755443057445,
+    "deflated_sharpe": 7.861853061920199e-275,
+    "dsr_significant": false,
+    "total_return_pct": 0.6401867997928745,
+    "alpha": 0,
+    "max_drawdown": -0.9943203839536693,
+    "hit_rate": 0.5,
+    "n_trades": 152,
+    "n_windows": 6,
+    "information_ratio": 0.0,
+    "num_trials": 1
+  },
+  "Period C: 2023-2025 (recent)": {
+    "sharpe": -11.366578080364812,
+    "deflated_sharpe": 6.169771756776564e-21,
+    "dsr_significant": false,
+    "total_return_pct": 0.6987010005935268,
+    "alpha": 0,
+    "max_drawdown": -0.13219489892786673,
+    "hit_rate": 0.5102040816326531,
+    "n_trades": 62,
+    "n_windows": 8,
+    "information_ratio": 0.0,
+    "num_trials": 1
+  },
+  "full_period": {
+    "sharpe": -4.571609316169287,
+    "deflated_sharpe": 2.6240673971091516e-41,
+    "dsr_significant": false,
+    "total_return_pct": 3.959692827748551,
+    "alpha": 0,
+    "max_drawdown": -0.5699636443604384,
+    "hit_rate": 0.5959059893858984,
+    "n_trades": 520,
+    "n_windows": 27,
+    "information_ratio": 0.0,
+    "num_trials": 1
+  },
+  "2x_costs": {
+    "sharpe": -6.0502555698427,
+    "deflated_sharpe": 1.6759150014396003e-63,
+    "dsr_significant": false,
+    "total_return_pct": 2.7906689369609827,
+    "alpha": 0,
+    "max_drawdown": -0.6350079122157545,
+    "hit_rate": 0.5420773313115997,
+    "n_trades": 396,
+    "n_windows": 27,
+    "information_ratio": 0.0,
+    "num_trials": 1
+  }
+}

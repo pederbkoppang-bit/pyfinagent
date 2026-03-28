@@ -142,13 +142,18 @@ class BacktestTrader:
         # For binary outcomes with ML probability estimates:
         # - Assume symmetric TP/SL barriers → expected_win ≈ expected_loss
         # - Kelly becomes: f = 2p - 1 (where p = ML probability)
-        # - Use 1/2 Kelly (Thorp recommendation) for reduced volatility
-        # - Further scale by inverse volatility for risk-adjusted sizing
+        # - Blended approach: use Kelly for relative sizing but maintain
+        #   meaningful position sizes. Pure half-Kelly with ML probabilities
+        #   near 0.5-0.6 produces near-zero positions (validated empirically).
+        #   Blend with base probability to keep positions meaningful while
+        #   still penalizing low-confidence trades.
         
         kelly_base = max(0.0, 2 * probability - 1)  # Only size when p > 0.5
-        kelly_fraction = kelly_base * 0.5  # Half Kelly for stability
+        # Blend: 50% probability-scaled (old method) + 50% Kelly-scaled
+        # This ensures minimum position sizing while still using Kelly for risk management
+        blended_scale = 0.5 * probability + 0.5 * kelly_base
         vol_scale = min(self.target_vol / stock_vol, 3.0)  # Cap at 3x to prevent extreme sizing
-        raw = kelly_fraction * vol_scale * nav / self.max_positions
+        raw = blended_scale * vol_scale * nav / self.max_positions
 
         # PHASE 1.7 IMPROVEMENT: Performance-based scaling
         # Scale down after losses, scale up after gains (with limits)
