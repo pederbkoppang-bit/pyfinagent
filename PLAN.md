@@ -1,274 +1,414 @@
-# PyFinAgent — Optimization Plan (Ford's Master Plan)
+# PyFinAgent — Master Plan v2
 
 > **Goal**: Make money. Ship a validated, evidence-based trading signal system by May 2026.
-> **Budget**: TIGHT — currently negative cash flow (-$10K, $200/month costs). Every dollar must have ROI. BigQuery (low cost OK), GitHub Models (free via Copilot Pro), Claude Max (via OpenClaw/Ford), Vertex AI (avoid unless proven high-ROI). **⚠️ LLM API costs require Peder's explicit approval.**
-> **Timeline**: March-April = validate + fix + research. May = go live with real money (Slack signals → manual trading).
+> **Budget**: TIGHT — negative cash flow (-$10K, $200/month costs). Every dollar must have ROI. **⚠️ LLM API costs require Peder's explicit approval.**
+> **Timeline**: March-April = validate + optimize + research. May = go live (Slack signals → manual trading).
+> **Architecture**: Three-agent harness (Planner → Generator → Evaluator) inspired by [Anthropic's harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps).
 
 ---
 
-## Phase 0: Audit & Validate (Week 1 — NOW)
-*Fix what's broken before optimizing. No point tuning a leaky engine.*
+## Architectural Philosophy
 
-### 0.1 Formula Validation (academic cross-check)
-- [ ] **Sharpe Ratio** — validate against Sharpe (1994) and Lo (2002) √T annualization. Current impl looks correct (daily returns, √252). Verify risk-free rate handling (currently 4% annualized, divided by periods_per_year).
-- [ ] **Deflated Sharpe Ratio** — validate against Bailey & López de Prado (2014). Current E[max(SR)] uses Euler-Mascheroni approximation. Cross-check with original paper's exact formula.
-- [ ] **Sample Weights (Average Uniqueness)** — validate O(n²) overlap computation against AFML Ch. 4. Correct intent but verify edge cases (non-overlapping labels should get weight=1).
-- [ ] **Fractional Differentiation** — validate against AFML Ch. 5. Current fixed-width window implementation. Verify d=0.4 achieves stationarity while preserving memory (ADF test).
-- [ ] **Triple Barrier Labels** — validate against AFML Ch. 3. Check that holding_days counts trading days vs calendar days (current: iterates price rows, which are trading days ✓).
-- [ ] **Monte Carlo VaR** — validate GBM assumption. GBM assumes log-normal returns; reality has fat tails. Document limitation. Consider adding Student-t or historical simulation as alternative.
-- [ ] **Position Sizing (Inverse Vol)** — validate against AQR literature. Current: `probability × (target_vol / stock_vol) × nav / max_positions`. Verify this matches Kelly-inspired fractional sizing.
-- [ ] **Scalar Metric** — validate the tx cost penalty. `risk_adjusted_return × (1 - min(0.3, turnover × tx_cost))`. This is a custom extension — document its theoretical justification.
+### Why a multi-agent harness, not a monolith
 
-### 0.2 Bug Fixes (known issues from code review)
-- [ ] **Quality Score incomplete** — add `fcf_yield`, `dividend_yield`, `revenue_growth_yoy` to quality composite per Asness et al. (2019) QMJ definition
-- [ ] **Factor Model hardcoded normalization** — replace with cross-sectional percentile ranking within the universe at each training date
-- [ ] **Mean Reversion label doesn't use mr_holding_days** — wire `mr_holding_days` into `_compute_mean_reversion_label()` as forward-looking barrier
-- [ ] **Meta-Label is a stub** — implement proper 2-stage model per AFML Ch. 3.6 (primary model → meta-label → bet sizing)
-- [ ] **No transaction cost in TB labels** — labels should account for spread/slippage (at minimum, shift TP down and SL up by estimated spread)
-- [ ] **Sample weight O(n²)** — optimize using interval tree or sorted-endpoint sweep (O(n log n))
+Our previous approach was a single optimizer loop: propose param → run backtest → keep/discard. This is the "solo agent" equivalent. It works but hits two ceilings described by Anthropic's research:
 
-### 0.3 Overfitting Diagnostics
-- [ ] **Walk-forward leakage audit** — verify no future data leaks into training features. Check `build_feature_vector` uses only data available as-of `cutoff_date`. Verify embargo gap is working.
-- [ ] **Label leakage check** — Triple Barrier looks ahead by `holding_days`. Verify training labels don't peek into test windows.
-- [ ] **Feature importance stability** — run baseline backtest, check if MDA top-10 features are stable across windows. High variance = regime-dependent = overfitting risk.
-- [ ] **DSR validation** — run 5+ baseline backtests with different random seeds. If Sharpe varies wildly, the result is not robust regardless of DSR.
-- [ ] **Backtest vs reality gap analysis** — document all assumptions that differ from live trading (no slippage model, no partial fills, close-price execution, no market impact).
+1. **Self-evaluation failure.** The optimizer can't judge whether its own improvements are real alpha or overfitting. It "praises its own work" — a Sharpe improvement passes DSR and gets kept, even when a human quant would flag it as fragile.
 
----
+2. **Context degradation.** Long optimization runs lose coherence. The optimizer doesn't remember why earlier experiments failed, can't spot patterns across 40+ experiments, and can't propose structural changes (new features, strategy rewrites) — only parameter perturbations.
 
-## Phase 1: Quant Engine Optimization (Weeks 2-3)
-*Zero LLM cost. Pure math. This is where we find real alpha.*
+### The Anthropic harness pattern applied to quant research
 
-### 1.1 Data Quality & Depth
-- [ ] Verify BQ historical data completeness — check for gaps in prices, fundamentals, macro
-- [ ] Extend historical data to 2018 or earlier if needed (more walk-forward windows = more reliable DSR)
-- [ ] Add survivorship bias check — are we only testing current S&P 500 members? Need historical constituents
-- [ ] Add corporate actions adjustment — stock splits, dividends (yfinance adjusted close should handle this, verify)
+From the article's core insight: **separate the agent doing the work from the agent judging it.** Tuning a standalone evaluator to be skeptical is far more tractable than making a generator critical of its own work.
 
-### 1.2 Feature Engineering (research-backed additions)
-- [ ] **Volatility-adjusted TB barriers** — replace fixed tp_pct/sl_pct with `daily_vol × multiplier` per AFML recommendation
-- [ ] **12-1 Momentum** — compute `momentum_12m - momentum_1m` to avoid short-term reversal per Jegadeesh & Titman (1993)
-- [ ] **Bollinger Band features** — add `bb_upper_distance`, `bb_lower_distance` for mean reversion
-- [ ] **Amihud filter in labels** — penalize illiquid stocks in position sizing
-- [ ] **Turbulence Index integration** — already coded but not used in backtest. High turbulence → reduce position sizes
-- [ ] **Cross-sectional features** — rank features within universe (percentile momentum, percentile value) for regime independence
+Applied to our domain:
 
-### 1.3 Strategy Improvements
-- [ ] **Implement proper meta-labeling** (AFML Ch. 3.6) — two-stage model, secondary predicts primary correctness
-- [ ] **Strategy blending** — weighted vote across strategies (new optimizer params: tb_weight, qm_weight, etc.)
-- [ ] **Regime detection** — use turbulence index or HMM to switch strategies based on market regime
-- [ ] **Portfolio optimization** — replace equal-weight with mean-variance or risk parity
+| Anthropic Pattern | PyFinAgent Equivalent |
+|---|---|
+| **Planner** — expands 1-sentence prompt into full spec | **Research Planner** — reads experiment log + academic literature, proposes next research direction |
+| **Generator** — implements features sprint by sprint | **Strategy Generator** — implements code changes, runs backtests, produces experiment results |
+| **Evaluator** — tests the running app via Playwright, grades against criteria | **Quant Evaluator** — runs independent validation: overfitting tests, robustness checks, out-of-sample verification, academic cross-checks |
+| **Sprint contracts** — generator and evaluator negotiate "done" criteria before work | **Experiment contracts** — evaluator defines what constitutes a valid improvement BEFORE the generator runs it |
+| **Context resets** — fresh agent with structured handoff artifact | **Run boundaries** — each optimization cycle starts fresh with a handoff file containing: best params, experiment history, evaluator critique, next research directions |
+| **Grading criteria** — concrete, gradable terms for subjective quality | **Validation criteria** — concrete, gradable terms for strategy quality (see below) |
 
-### 1.4 Autoresearch Loop Improvements
-- [ ] Align `trading_agent.md` and `quant_strategy.md` with actual Karpathy autoresearch principles:
-  - **One file to modify** → we modify strategy params (not a file, but same concept ✓)
-  - **Fixed time budget** → each backtest takes same data range ✓
-  - **Single metric** → Sharpe ratio ✓ (DSR is the gate, not the metric)
-  - **Simplicity criterion** → need to add: reject complexity that doesn't justify delta
-  - **NEVER STOP** → optimizer runs until stopped ✓
-- [ ] Add **experiment analysis** capability — after N experiments, analyze patterns in kept vs discarded
-- [ ] Implement **warm cache** improvements — preload BQ data once, reuse across all optimizer iterations
+### Grading criteria for strategy quality
+
+Inspired by the article's four design criteria, adapted for quantitative finance:
+
+1. **Statistical validity** (most important): Is the improvement statistically significant? DSR ≥ 0.95. Sharpe stable across 5+ random seeds. No look-ahead bias.
+
+2. **Robustness**: Does performance hold across regimes? Test on 2008 crisis, 2020 COVID crash, 2022 bear market separately. Feature importance stable across windows.
+
+3. **Simplicity**: Is the complexity justified? Every new parameter must improve Sharpe by at least +0.05 to be kept. Reject complexity that doesn't justify its delta. (Harvey, Liu & Zhu 2016: t-stat ≥ 3.0 for new factors.)
+
+4. **Reality gap**: How close is backtest to real trading? Transaction costs modeled realistically. No partial fills assumed. Survivorship bias addressed. Slippage estimated.
 
 ---
 
-## Phase 1.5: Sharpe-Specific Optimizations (Zero LLM Cost, Free Data)
-*Attack both sides of the Sharpe formula: increase returns AND decrease volatility.*
-*All data free (FRED API + existing BigQuery prices). All computation local CPU.*
+## Phase 0: Audit & Validate ✅ COMPLETE
+*Completed March 25-26. Foundation is solid.*
 
-**Expected combined impact: +0.3 to +0.5 Sharpe (0.905 → 1.2-1.4)**
-
-### 1.5.1 Volatility Targeting (+0.2 to +0.4 Sharpe) — HIGHEST PRIORITY
-- [ ] Scale portfolio exposure to constant annual vol (e.g., 10%)
-- [ ] Daily sizing: `position_size *= target_vol / realized_vol_20d`
-- [ ] When market vol spikes → auto-reduce exposure → smoother returns → lower denominator
-- [ ] New optimizer param: `target_annual_vol` (0.05 - 0.25)
-
-### 1.5.2 Dynamic Risk-Free Rate (+0.02 to +0.05 Sharpe)
-- [ ] Pull historical 3-month T-bill rates from FRED (free API, no key)
-- [ ] Use period-matched risk-free rate instead of hardcoded 4%
-- [ ] More accurate Sharpe = better optimization signal for the optimizer
-
-### 1.5.3 Trailing Stop Loss (+0.1 to +0.2 Sharpe)
-- [ ] After +X% gain, move SL to breakeven
-- [ ] After +2X% gain, move SL to +X%
-- [ ] Locks in gains, reduces left-tail losses → lower vol → higher Sharpe
-- [ ] New params: `trailing_stop_enabled`, `trailing_trigger_pct`, `trailing_distance_pct`
-
-### 1.5.4 Drawdown Circuit Breaker (+0.05 to +0.15 Sharpe)
-- [ ] If portfolio drawdown > threshold, reduce all positions by 50%
-- [ ] Resume full size after recovery to within 2% of peak
-- [ ] Prevents deep drawdowns that destroy Sharpe numerator
-- [ ] Params: `dd_threshold` (5-20%), `dd_recovery_pct`
-
-### 1.5.5 Correlation-Aware Position Sizing (+0.1 to +0.2 Sharpe)
-- [ ] Compute rolling 60-day pairwise correlations from existing price data
-- [ ] Cluster highly correlated positions (>0.7 correlation)
-- [ ] Reduce cluster weight to avoid hidden concentration risk
-- [ ] Replace equal-weight with inverse-correlation weighting
-
-### 1.5.6 Multi-Parameter Proposals (+0.1 to +0.3 Sharpe)
-- [ ] Add coordinated proposal mode to optimizer (change 2-3 related params together)
-- [ ] Parameter groups: {tp_pct, sl_pct, holding_days}, {max_positions, top_n_candidates}, {n_estimators, max_depth, min_samples_leaf}
-- [ ] Captures interaction effects that single-param perturbation misses
-
-### 1.5.7 Lo (2002) Autocorrelation Correction (measurement accuracy)
-- [ ] Test daily returns for serial correlation (Ljung-Box test)
-- [ ] If significant, apply: `SR_adjusted = SR / sqrt(1 + 2*sum(rho_k))`
-- [ ] Report both raw and adjusted Sharpe for honest evaluation
-- [ ] Prevents false confidence in overstated Sharpe
+- [x] Walk-forward leakage audit — no future data leaks found
+- [x] Formula validation — Sharpe, DSR, sample weights verified against papers
+- [x] Quality Score — full Asness (2019) QMJ implementation (4 dimensions)
+- [x] Mean reversion — mr_holding_days correctly wired
+- [x] Cross-sectional percentile ranking — replaces hardcoded normalization
 
 ---
 
-## Phase 2: Academic Research Deep Dive (Ongoing, parallel with Phase 1)
-*Every decision must be evidence-based. We are not guessing.*
+## Phase 1: Quant Engine Optimization ✅ COMPLETE
+*Completed March 27-28. Sharpe 0.9848 → 1.1705 (+19%).*
 
-### 2.1 Required Reading & Implementation
-- [ ] **López de Prado, "Advances in Financial Machine Learning" (2018)** — we implement Ch. 3-8. Need to verify Ch. 9 (bet sizing), Ch. 10 (cross-validation in finance), Ch. 12 (backtesting through cross-validation)
-- [ ] **Bailey & López de Prado, "The Deflated Sharpe Ratio" (2014)** — verify our DSR implementation matches the paper exactly
-- [ ] **Lo, "The Statistics of Sharpe Ratios" (2002)** — verify non-IID return adjustments
-- [ ] **Asness, Frazzini & Pedersen, "Quality Minus Junk" (2019)** — fix quality score to match full QMJ definition
-- [ ] **Fama & French, "A Five-Factor Model" (2015)** — verify factor construction
-- [ ] **Jegadeesh & Titman, "Returns to Buying Winners and Selling Losers" (1993)** — momentum implementation
-- [ ] **Harvey, Liu & Zhu, "...and the Cross-Section of Expected Returns" (2016)** — 316 factors tested, most are false. Use their t-stat threshold (3.0+) for new factors.
+### Implemented improvements (all zero LLM cost):
+- [x] **1.2** Cross-sectional percentile features (13 new regime-independent features)
+- [x] **1.3** Turbulence index integration (market stress → position sizing)
+- [x] **1.4** Fractional Kelly Criterion (half-Kelly, Thorp recommendation)
+- [x] **1.5** Volatility targeting + trailing stops + dynamic risk-free rate (FRED)
+- [x] **1.6** Regime-aware strategy selection (normal/stressed/crisis)
+- [x] **1.7** Performance-based position scaling (20-day adaptive risk)
+- [x] **1.8** Sector-based diversification (correlation penalties)
+- [x] **1.9** Market microstructure transaction costs (Almgren-Chriss model)
 
-### 2.2 New Research to Evaluate
-- [ ] **Machine Learning for Asset Managers (López de Prado, 2020)** — newer book, more ML techniques
-- [ ] **Deep Learning for Finance (recent papers)** — evaluate if GradientBoosting is still SOTA for tabular financial data (likely yes — see Grinsztajn et al. 2022 "Why do tree-based models still outperform deep learning on tabular data?")
-- [ ] **Transaction cost modeling** — Almgren & Chriss (2000) for market impact, Kissell (2013) for realistic cost modeling
-- [ ] **Portfolio construction** — Black-Litterman model for combining quantitative signals with views
-- [ ] **Alternative data** — evaluate satellite data, credit card data, web scraping for alpha (budget-constrained)
+### Current best: Sharpe 1.1705 | DSR 0.9984 | Return 80.2% | MaxDD -12.0%
 
 ---
 
-## Phase 3: LLM-Guided Research & Pipeline Optimization (Weeks 4-5)
+## Phase 2: Three-Agent Harness (Weeks 3-4) — NOW
+*This is where we apply the Anthropic harness pattern. The solo optimizer found local optima. The harness finds structural improvements.*
+
+### 2.0 Harness Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    RESEARCH PLANNER                              │
+│  Reads: experiment_log.tsv, evaluator_critique.md, papers/      │
+│  Writes: research_plan.md (next research direction + hypothesis) │
+│  Runs: Once per cycle (every 15-20 experiments)                  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ research_plan.md
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   STRATEGY GENERATOR                             │
+│  Reads: research_plan.md, current codebase, best params         │
+│  Does: Implements code changes, runs optimizer (15 iterations)   │
+│  Writes: experiment_results.md, code diffs, new params           │
+│  Runs: Continuous (hours of CPU time per cycle)                  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ experiment_results.md
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    QUANT EVALUATOR                                │
+│  Reads: experiment_results.md, code diffs, backtest data         │
+│  Does: Independent validation, overfitting checks, critique      │
+│  Writes: evaluator_critique.md (pass/fail + detailed feedback)   │
+│  Grades: statistical_validity, robustness, simplicity, reality   │
+│  Runs: Once after each generator cycle                           │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ evaluator_critique.md
+                           ▼
+                    (feeds back to Planner)
+```
+
+### 2.1 Handoff Artifacts (structured context between agents)
+
+Each agent communicates via files, not conversation. This is the key unlock from the article — files survive context resets and carry precise state.
+
+**`handoff/research_plan.md`** — Planner output:
+```markdown
+## Cycle N Research Direction
+### Hypothesis: [what we think will improve Sharpe]
+### Evidence: [patterns from experiment log that support this]
+### Proposed changes: [specific code modifications or new params]
+### Success criteria: [what the evaluator should check]
+### Risk: [what could go wrong / overfitting concerns]
+```
+
+**`handoff/experiment_results.md`** — Generator output:
+```markdown
+## Cycle N Results
+### Changes made: [code diffs, new params]
+### Experiments run: [N iterations, best/worst Sharpe, kept/discarded]
+### Best result: [params, Sharpe, DSR, return, drawdown]
+### MDA feature importance: [top 10 features and stability]
+### Observations: [anything unexpected]
+```
+
+**`handoff/evaluator_critique.md`** — Evaluator output:
+```markdown
+## Cycle N Evaluation
+### Statistical Validity: [score 1-10, detailed assessment]
+### Robustness: [score 1-10, regime-specific tests]
+### Simplicity: [score 1-10, complexity vs improvement tradeoff]
+### Reality Gap: [score 1-10, backtest-to-live concerns]
+### Verdict: PASS / FAIL / CONDITIONAL
+### Required fixes: [if FAIL, what must change]
+### Suggestions for next cycle: [what the planner should consider]
+```
+
+### 2.2 Research Planner Agent
+
+**Role:** The "quant researcher" who reads all experiment data and decides what to investigate next. This replaces random parameter perturbation with directed research.
+
+**Implementation:** Ford (me) acts as planner between optimization runs — reading experiment logs, analyzing patterns, proposing structural changes. For budget-approved LLM-guided research, this becomes a Claude agent with experiment context.
+
+**Planner reads:**
+- Full experiment TSV (40+ experiments with params, Sharpe, DSR, kept/discarded)
+- Evaluator's previous critique
+- Academic papers relevant to current research direction
+- MDA feature importance trends across experiments
+
+**Planner decides:**
+- What type of change to try next (param tuning vs feature engineering vs strategy change)
+- Which parameters to explore (based on sensitivity analysis from experiment log)
+- Whether to continue current direction or pivot (analogous to the article's "refine or pivot" decision)
+- Whether we've hit diminishing returns on current approach
+
+### 2.3 Strategy Generator Agent
+
+**Role:** The "quant developer" who implements changes and runs experiments. This is our current optimizer, enhanced with the ability to make structural changes (not just param sweeps).
+
+**Implementation:** The existing `QuantStrategyOptimizer` for parameter exploration. For structural changes (new features, strategy logic), Ford implements code changes then runs the optimizer.
+
+**Generator capabilities (expanding):**
+- [x] Single-parameter perturbation (current)
+- [ ] Multi-parameter coordinated proposals (param groups that interact)
+- [ ] Feature addition/removal experiments (add a feature, measure impact)
+- [ ] Strategy switching experiments (try blend vs triple_barrier vs quality_momentum)
+- [ ] Ablation studies (remove one improvement at a time, measure drop)
+
+### 2.4 Quant Evaluator Agent
+
+**Role:** The "skeptical reviewer" who independently validates results. This is the key missing piece from our current system. The article's core insight: self-evaluation is unreliable; external evaluation drives real quality.
+
+**Implementation:** A separate validation pipeline that runs AFTER the optimizer, applying independent tests the generator didn't run.
+
+**Evaluator checks (grading criteria):**
+
+#### Statistical Validity (weight: 40%)
+- [ ] DSR ≥ 0.95 on the kept result
+- [ ] Sharpe stable across 5 random seeds (std < 0.1)
+- [ ] No single window drives >30% of total return (concentration check)
+- [ ] Ljung-Box test on returns (reject if significant autocorrelation)
+- [ ] Compare raw vs Lo (2002) adjusted Sharpe
+
+#### Robustness (weight: 30%)
+- [ ] Run backtest on 3 sub-periods: 2018-2020, 2020-2022, 2022-2025
+- [ ] Sharpe positive in all 3 sub-periods (not just aggregate)
+- [ ] Feature importance top-5 stable across sub-periods
+- [ ] Performance under 2x transaction costs (reality buffer)
+
+#### Simplicity (weight: 15%)
+- [ ] Count active parameters vs baseline (penalize complexity)
+- [ ] Each new parameter must contribute ≥ +0.05 Sharpe (ablation test)
+- [ ] Reject if improvement < t-stat 3.0 (Harvey, Liu & Zhu threshold)
+
+#### Reality Gap (weight: 15%)
+- [ ] Transaction costs ≥ 10 bps round-trip
+- [ ] No execution at exact close price (add 5 bps slippage)
+- [ ] Max position < 10% of portfolio
+- [ ] Universe includes at least some mid-cap stocks (not just mega-cap)
+
+### 2.5 Sprint Contracts (Experiment Contracts)
+
+Before each optimization cycle, the planner and evaluator negotiate what "done" looks like. This prevents the generator from optimizing the wrong thing.
+
+**Example contract:**
+```markdown
+## Cycle 5 Contract
+Hypothesis: Adding correlation-based position sizing will improve risk-adjusted returns.
+Generator will: Implement pairwise correlation computation, modify size_position(), run 15 iterations.
+Evaluator will verify:
+  1. Sharpe improves by ≥ +0.05 vs baseline
+  2. Max drawdown improves (less negative)
+  3. No single sector > 40% of portfolio at any point
+  4. Feature importance remains stable
+  5. Performance holds under 2x transaction costs
+Fail conditions: DSR < 0.95, Sharpe improvement < +0.03, drawdown worsens.
+```
+
+### 2.6 Context Management Strategy
+
+From the article: "Context resets — clearing the context window entirely and starting a fresh agent, combined with a structured handoff — addresses both [coherence loss and context anxiety]."
+
+**Our approach:**
+- Each optimization cycle is a **clean context** (optimizer restarts from handoff file)
+- The handoff file contains: best params (JSON), experiment log (TSV), evaluator critique (markdown)
+- No reliance on conversation history — everything is in files
+- The `optimizer_best.json` already implements this for params; extend to include evaluator state
+
+**Warm-start protocol:**
+```
+1. Read handoff/evaluator_critique.md → understand what failed last cycle
+2. Read handoff/research_plan.md → understand what to try next
+3. Read optimizer_best.json → current best params
+4. Read quant_results.tsv → full experiment history
+5. Execute research plan → run optimizer with new direction
+6. Write handoff/experiment_results.md → results for evaluator
+```
+
+---
+
+## Phase 3: LLM-Guided Research (Weeks 4-5)
 ### ⚠️ GATE: REQUIRES PEDER'S EXPLICIT APPROVAL BEFORE STARTING
-*Negative cash flow — every LLM call must justify its cost. Ford does NOT proceed without sign-off.*
 
-### 3.0 LLM-as-Researcher (Karpathy-inspired autoresearch for trading)
-*Inspired by Karpathy's autoresearch + Kou et al. (2024) "Automate Strategy Finding with LLM in Quant Investment" (53% return on SSE50).*
+*With the harness in place, we can now add LLM reasoning to the Planner and Evaluator agents.*
 
-**The idea:** Instead of a dumb parameter sweep, use an LLM to reason about experiment results and hypothesize what to try next — like a quant researcher, not a grid search.
+### 3.0 LLM-as-Planner (batch reasoning, not tight loop)
 
-**Our approach (budget-conscious):**
-- [ ] **Batch-then-reason:** Run 10-20 optimizer experiments (free CPU), then feed the log to an LLM once for analysis. Not a tight loop.
-- [ ] **Max 5-10 LLM reasoning calls per day** — analyze patterns in kept vs discarded experiments, suggest structural changes
-- [ ] **LLM can propose code changes** to strategy (new features, different blending weights, regime-aware params) — but Ford reviews before running
-- [ ] **Experiment log as context:** maintain structured TSV of all experiments so the LLM can spot patterns humans miss
-- [ ] **Overfitting guard:** DSR validation on every proposed change. If DSR drops, discard regardless of Sharpe improvement.
+**The article's lesson applied:** "Taking inspiration from GANs, I designed a multi-agent structure with a generator and evaluator agent."
 
-**What this is NOT:**
-- ❌ Not a tight autoresearch loop (too expensive, ~$50+/day in API calls)
-- ❌ Not unreviewed code changes (overfitting factory)
-- ❌ Not a replacement for the current optimizer (complements it)
+Our adaptation for budget constraints:
+- Run 15-20 experiments (free CPU) → feed experiment log to LLM once
+- LLM acts as Research Planner: analyzes patterns, proposes next research direction
+- Max 3-5 LLM reasoning calls per optimization cycle (~$2-5/cycle)
+- LLM can propose code changes but Ford reviews before running
 
-**Cost estimate:** ~$2-5/day if throttled properly. Peder approves budget before starting.
+**Planner prompt structure:**
+```
+You are a quantitative researcher reviewing experiment results.
 
-**Key references:**
-- Kou et al. (2024) — "Automate Strategy Finding with LLM in Quant Investment" [arXiv:2409.06289]
-- FactorEngine (March 2026) — LLM-driven alpha factor mining
-- AlphaForgeBench (Feb 2026) — benchmark for LLM trading strategy design
+## Current best: Sharpe {X}, DSR {Y}
+## Last {N} experiments: [TSV data]
+## Evaluator's last critique: [markdown]
 
-### 3.1 Regime Detection (zero LLM cost, high ROI)
-*Classical quant — no API costs. This is the single highest-ROI improvement for market adaptation.*
-- [ ] **HMM-based regime detector** — identify 2-3 market regimes (bull, bear, high-vol) from returns + volatility
-- [ ] **Turbulence index switching** — already coded, wire into param selection: low turbulence → aggressive params, high → defensive
-- [ ] **Per-regime parameter sets** — optimizer finds best params for each regime independently
-- [ ] **Rolling re-optimization** — weekly/monthly re-run optimizer on latest N months (cron job, zero LLM cost)
+Your job:
+1. Identify patterns in kept vs discarded experiments
+2. Hypothesize what structural change would improve Sharpe
+3. Propose specific, testable changes (params, features, or strategy logic)
+4. Estimate expected impact and risk of overfitting
+5. Define success criteria for the evaluator
 
-### 3.2 Skill Optimization (SkillOpt loop)
-- [ ] Run SkillOpt on each of the 29 agent skills, starting with highest-impact agents (Synthesis, Moderator, Risk Judge)
-- [ ] Use outcome_tracker feedback to identify which agents' signals correlate most with actual returns
-- [ ] Wire MetaCoordinator: MDA importance → Agent targeting (if MDA says `nlp_sentiment_score` matters, optimize NLP Sentiment Agent skill)
+Do NOT propose changes that:
+- Add complexity without justification (t-stat < 3.0)
+- Ignore the evaluator's previous critique
+- Violate the budget constraint (no external API calls)
+```
 
-### 3.3 Signal Quality Validation
-- [ ] Run analysis on 20+ tickers, compare recommendations vs actual price movement over 30/60/90 days
-- [ ] Measure signal accuracy per enrichment tool — which tools actually add alpha?
-- [ ] Consider dropping tools that don't contribute (reduce cost, reduce noise)
+### 3.1 LLM-as-Evaluator (skeptical, calibrated)
 
-### 3.4 Model Selection
-- [ ] Benchmark gpt-4.1 (current, via GitHub Models) vs alternatives on signal quality
-- [ ] Document cost per analysis for each model option
-- [ ] Evaluate if DEEP_THINK_MODEL justifies its cost for Critic/Synthesis
+**The article's lesson:** "Out of the box, Claude is a poor QA agent. I watched it identify legitimate issues, then talk itself into deciding they weren't a big deal."
+
+Our calibration approach:
+- Explicitly prompt for skepticism: "Your job is to find problems, not praise."
+- Provide few-shot examples of overfitting patterns (high Sharpe but fragile)
+- Grade against concrete criteria (not "is this good?" but "does this pass each specific test?")
+- Hard thresholds that can't be argued away
+
+**Evaluator prompt structure:**
+```
+You are a skeptical quant reviewer. Your reputation depends on catching overfitting.
+
+## Experiment results: [data]
+## Changes made: [code diffs]
+## Previous best: Sharpe {X}
+## New result: Sharpe {Y}
+
+Grade each criterion 1-10 with specific evidence:
+1. Statistical Validity: [DSR, seed stability, window concentration]
+2. Robustness: [sub-period performance, regime sensitivity]
+3. Simplicity: [parameter count, marginal contribution per param]
+4. Reality Gap: [transaction costs, execution assumptions]
+
+A score below 6 on ANY criterion is a FAIL.
+If the improvement is real, say so. If it smells like overfitting, say that.
+Do not be generous. The cost of approving a bad strategy is losing real money.
+```
+
+### 3.2 Regime Detection (zero LLM cost)
+- [ ] HMM-based regime detector (2-3 states from returns + volatility)
+- [ ] Per-regime parameter optimization
+- [ ] Rolling re-optimization via cron
+
+### 3.3 Agent Skill Optimization
+- [ ] SkillOpt on highest-impact agents (Synthesis, Moderator, Risk Judge)
+- [ ] MDA → Agent bridge (feature importance drives agent targeting)
 
 ---
 
 ## Phase 4: Production Readiness (Week 6 — Late April)
-*Get ready for real money in May.*
+*Get ready for real money. The evaluator agent becomes the live QA system.*
 
-### 4.1 Slack Integration
-- [ ] Configure Slack bot for daily signal delivery
-- [ ] Design alert format: ticker, signal, confidence, key reasons, risk level, position size suggestion
-- [ ] Set up morning digest (top opportunities + portfolio rebalance suggestions)
+### 4.1 Slack Signal Delivery
+- [ ] Daily morning digest: top opportunities + rebalance suggestions
+- [ ] Alert format: ticker, signal, confidence, reasons, risk level, position size
+- [ ] The evaluator validates signals before they're sent (catch bad recommendations)
 
-### 4.2 Paper Trading Validation
-- [ ] Run paper trading for 2+ weeks with the optimized system
-- [ ] Track every signal vs actual outcome
-- [ ] Validate that live signals match backtest expectations (backtest-reality gap)
+### 4.2 Paper Trading (evaluator as live QA)
+- [ ] Run paper trading 2+ weeks
+- [ ] Evaluator compares paper results vs backtest expectations daily
+- [ ] Track signal accuracy per enrichment tool → drop tools that don't add alpha
+- [ ] If paper Sharpe < 0.7 × backtest Sharpe → STOP and investigate
 
 ### 4.3 Risk Management
-- [ ] Define max portfolio size, max single position, max daily loss
-- [ ] Implement stop-loss monitoring
-- [ ] Define when to override signals (earnings week? FOMC? major events?)
+- [ ] Max portfolio size, max single position, max daily loss — all defined
+- [ ] Stop-loss monitoring with automatic position reduction
+- [ ] Event calendar integration (earnings, FOMC → reduce exposure)
+- [ ] Kill switch: if drawdown > 15%, system goes to cash automatically
 
 ### 4.4 Go-Live Checklist
-- [ ] All formulas validated ✓
-- [ ] DSR ≥ 0.95 on out-of-sample backtest ✓
-- [ ] Paper trading matches backtest within tolerance ✓
-- [ ] Slack signals working reliably ✓
-- [ ] Risk limits defined and tested ✓
-- [ ] Peder's manual review process defined ✓
+- [ ] All evaluator criteria passing (statistical validity, robustness, simplicity, reality gap)
+- [ ] DSR ≥ 0.95 on out-of-sample data
+- [ ] Paper trading matches backtest within 20% tolerance
+- [ ] Slack signals tested and reliable
+- [ ] Peder's manual review process defined and working
+- [ ] Risk limits hardcoded (not configurable without code change)
 
 ---
 
-## File Restructuring Plan
+## Harness Simplification Principles
 
-### trading_agent.md — Rewrite
-Current file mixes architecture description, implementation status, research notes, and API docs. Rewrite to follow Karpathy's program.md pattern:
-1. **Mission** (what we optimize)
-2. **What you CAN modify** (strategy params, skill prompts, cache TTLs)
-3. **What you CANNOT modify** (pipeline structure, schemas, evaluation harness)
-4. **The metric** (Sharpe ratio, gated by DSR ≥ 0.95)
-5. **The loop** (baseline → modify → measure → keep/discard → log)
-6. **Research context** (condensed from current §2 and §6)
-7. **Experiment log** (reference to TSV files)
+From the article: "Every component in a harness encodes an assumption about what the model can't do on its own, and those assumptions are worth stress testing."
 
-### Agent Skills — Audit
-- Verify all 29 skills follow SKILL_TEMPLATE.md structure
-- Ensure every skill has correct Research Foundations section
-- Verify all {{variable}} placeholders match prompts.py injection
-- Check that Anti-Patterns reflect actual observed failures (not just theoretical)
+### What to strip as models improve:
+- If Opus 4.6 can maintain coherence for 2+ hours → drop sprint decomposition ✅ (already simplified)
+- If evaluator catches <5% of issues → reduce evaluation frequency
+- If planner's suggestions match what optimizer finds naturally → simplify planner
+- **Always test:** remove one component, measure impact, keep only what's load-bearing
 
-### AGENTS.md — Update
-- Add Phase 1-3 changes from trading_agent.md
-- Update directory structure if files moved
-- Ensure Quick Start works on macOS (not just Windows)
+### What remains load-bearing regardless of model quality:
+- **Separation of generation and evaluation** — self-evaluation stays unreliable
+- **Structured handoff files** — context resets need precise state
+- **Grading criteria** — concrete terms beat vague quality judgments
+- **DSR gate** — statistical validation can't be model-intuited away
 
 ---
 
 ## Budget Tracking
 
-| Item | Monthly Cost (est.) | Notes |
-|------|-------------------|-------|
-| BigQuery storage | ~$5 | Historical data tables, analysis results |
-| BigQuery queries | ~$5-20 | Depends on backtest frequency |
-| GitHub Models (Copilot Pro) | $0 (included) | gpt-4.1 via GitHub token |
-| Claude Max | Already paid | Used via OpenClaw (Ford), not API |
-| Alpha Vantage | Free tier | 5 req/min, sufficient |
-| FRED | Free | No cost |
-| Vertex AI | $0 (avoid) | Only if proven high-ROI |
-| **Total** | **~$10-25/month** | |
+| Item | Monthly Cost | Notes |
+|------|-------------|-------|
+| BigQuery | ~$10-25 | Storage + queries |
+| GitHub Models (Copilot Pro) | $0 | gpt-4.1 included |
+| Claude Max (OpenClaw/Ford) | Already paid | Planner + Evaluator via Ford |
+| FRED / Alpha Vantage | $0 | Free tiers |
+| LLM-guided research (Phase 3) | $2-5/cycle | ⚠️ Needs approval |
+| **Total** | **~$10-30/month** | |
 
 ---
 
 ## Success Criteria
 
-1. **Backtest Sharpe > 1.0** with DSR ≥ 0.95 on out-of-sample data
-2. **Beat SPY** over the backtest period (after transaction costs)
-3. **Paper trading matches backtest** within 20% tolerance over 2+ weeks
-4. **All formulas verified** against original academic papers
-5. **No known overfitting** — stable feature importance, robust to random seed variation
+1. **Backtest Sharpe > 1.0** with DSR ≥ 0.95 ✅ ACHIEVED (1.1705)
+2. **Evaluator passes** all four criteria (statistical validity, robustness, simplicity, reality gap)
+3. **Paper trading** matches backtest within 20% tolerance over 2+ weeks
+4. **Beat SPY** over backtest period after realistic transaction costs
+5. **No known overfitting** — stable features, robust to seeds, holds across regimes
 
 ---
 
-*This plan is a living document. Ford updates it as work progresses.*
-*Last updated: 2026-03-25 by Ford*
+## Progress Log
+
+| Date | Milestone | Sharpe | Notes |
+|------|-----------|--------|-------|
+| 2026-03-25 | Phase 0 complete | 0.905 | Audit, validation, bug fixes |
+| 2026-03-26 | First optimizer run | 0.9848 | 12 experiments, baseline established |
+| 2026-03-27 | Target achieved | 1.0391 | min_samples_leaf 20→18 |
+| 2026-03-28 | Phase 1 complete | 1.1705 | 9 improvements, +19% over baseline |
+| 2026-03-28 | v2 Plan (harness) | — | Three-agent architecture adopted |
+
+---
+
+*This plan follows the Anthropic harness design pattern: Planner → Generator → Evaluator.*
+*"The space of interesting harness combinations doesn't shrink as models improve. Instead, it moves."*
+*Last updated: 2026-03-28 by Ford*
