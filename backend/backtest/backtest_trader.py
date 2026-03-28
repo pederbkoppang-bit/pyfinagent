@@ -101,8 +101,18 @@ class BacktestTrader:
         if stock_vol <= 0 or probability <= 0:
             return 0.0
 
+        # PHASE 1.4 IMPROVEMENT: Fractional Kelly Criterion position sizing
+        # Kelly fraction: f = (bp - q) / b
+        # For binary outcomes with ML probability estimates:
+        # - Assume symmetric TP/SL barriers → expected_win ≈ expected_loss
+        # - Kelly becomes: f = 2p - 1 (where p = ML probability)
+        # - Use 1/2 Kelly (Thorp recommendation) for reduced volatility
+        # - Further scale by inverse volatility for risk-adjusted sizing
+        
+        kelly_base = max(0.0, 2 * probability - 1)  # Only size when p > 0.5
+        kelly_fraction = kelly_base * 0.5  # Half Kelly for stability
         vol_scale = min(self.target_vol / stock_vol, 3.0)  # Cap at 3x to prevent extreme sizing
-        raw = probability * vol_scale * nav / self.max_positions
+        raw = kelly_fraction * vol_scale * nav / self.max_positions
 
         # Turbulence dampening: scale down positions when market is stressed
         if turbulence > 0 and turbulence_threshold > 0 and turbulence > turbulence_threshold:
