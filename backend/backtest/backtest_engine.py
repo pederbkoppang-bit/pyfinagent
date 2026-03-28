@@ -521,6 +521,9 @@ class BacktestEngine:
             scoring_weights=scoring_weights if scoring_weights else None,
         )
         test_tickers = [c["ticker"] for c in test_candidates]
+        
+        # Store test tickers for regime-aware strategy selection
+        self._current_test_tickers = test_tickers
 
         signals, predictions = self._predict_and_trade(
             model, feature_names, test_tickers, test_start_str, test_end_str,
@@ -1226,10 +1229,37 @@ class BacktestEngine:
     # ── Strategy Label Dispatcher ────────────────────────────────
 
     def _compute_label(self, ticker: str, entry_date: str) -> int | None:
-        """Dispatch to the active strategy's label method."""
-        method_name = STRATEGY_REGISTRY.get(self.strategy, "_compute_triple_barrier_label")
-        method = getattr(self, method_name)
-        return method(ticker, entry_date)
+        """
+        PHASE 1.6 IMPROVEMENT: Regime-aware strategy selection.
+        Dispatch to strategy based on market turbulence level.
+        High turbulence → defensive strategies, Low turbulence → aggressive strategies.
+        """
+        # For regime-aware selection, compute turbulence and switch strategy
+        if self.strategy == "blend" and hasattr(self, '_current_test_tickers'):
+            # During testing phase, compute turbulence to determine regime
+            turbulence = self.data_provider.compute_turbulence_index(entry_date, self._current_test_tickers)
+            
+            # Regime thresholds (based on historical S&P 500 analysis)
+            # Normal market: turbulence < 2.0
+            # Stressed market: turbulence 2.0-5.0  
+            # Crisis: turbulence > 5.0
+            if turbulence > 5.0:
+                # Crisis regime: favor mean reversion (panic selling creates opportunities)
+                regime_strategy = "_compute_mean_reversion_label"
+            elif turbulence > 2.0:
+                # Stressed regime: favor quality momentum (flight to quality)  
+                regime_strategy = "_compute_quality_momentum_label"
+            else:
+                # Normal regime: use triple barrier (trend following)
+                regime_strategy = "_compute_triple_barrier_label"
+            
+            method = getattr(self, regime_strategy)
+            return method(ticker, entry_date)
+        else:
+            # Standard single-strategy dispatch
+            method_name = STRATEGY_REGISTRY.get(self.strategy, "_compute_triple_barrier_label")
+            method = getattr(self, method_name)
+            return method(ticker, entry_date)
 
     # ── Alternative Label Methods ────────────────────────────────
 
