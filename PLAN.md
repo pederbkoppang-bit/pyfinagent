@@ -15,8 +15,12 @@ Research log: [`RESEARCH.md`](RESEARCH.md) — maintained alongside the plan.
 
 Before implementing any major feature:
 1. **Deep Research** — actively search the web for latest papers, blog posts, documentation. Don't rely on existing knowledge alone. Use `web_search` and `web_fetch` to find:
-   - Recent arXiv/SSRN papers on the specific technique
-   - Latest blog posts from Anthropic, OpenAI, Google DeepMind, Two Sigma, AQR, Man Group
+   - Google Scholar for peer-reviewed papers and citation networks
+   - arXiv/SSRN preprints on the specific technique
+   - University research groups (MIT Sloan, Stanford GSB, Oxford MFE, Princeton ORF, Chicago Booth, NYU Stern)
+   - Consulting & industry reports (McKinsey, BCG, Bain, Deloitte, Oliver Wyman — especially on AI in finance)
+   - Quant firm research (Two Sigma, AQR, Man Group/AHL, Citadel, Renaissance, DE Shaw, Bridgewater)
+   - AI lab engineering blogs (Anthropic, OpenAI, Google DeepMind, Meta FAIR, Microsoft Research)
    - GitHub repos and open-source implementations
    - Practitioner discussions and post-mortems
 2. **Read & Extract** — fetch and read the most relevant 3-5 sources. Extract concrete methods, thresholds, pitfalls.
@@ -25,21 +29,28 @@ Before implementing any major feature:
 5. **Validate** — evaluator criteria should use published thresholds (e.g., t-stat ≥ 3.0 from Harvey et al.)
 
 **Deep Research Sources (priority order):**
-1. Academic: arXiv, SSRN, NBER, Journal of Finance, Journal of Financial Economics
-2. Industry: Anthropic engineering blog, OpenAI research, Google DeepMind, Two Sigma, AQR, Man Group, Citadel
-3. Practitioner: López de Prado, Ernie Chan, Karpathy, Cliff Asness, QuantConnect forums
-4. Open-source: FinRL, TradingAgents, autoresearch, QuantLib, zipline-reloaded
-5. Regulatory: SEC, FINRA, MiFID II, Norwegian FSA
+1. Academic (peer-reviewed): Google Scholar, arXiv, SSRN, NBER, Journal of Finance, Journal of Financial Economics, Review of Financial Studies
+2. University research: MIT Sloan, Stanford GSB, Oxford MFE, Princeton ORF, Chicago Booth, NYU Stern, Imperial College, ETH Zurich
+3. AI labs: Anthropic engineering blog, OpenAI research, Google DeepMind, Meta FAIR, Microsoft Research
+4. Quant firms: Two Sigma, AQR Capital, Man Group/AHL, Citadel, Renaissance Technologies, DE Shaw, Bridgewater, WorldQuant
+5. Consulting & industry: McKinsey (QuantumBlack), BCG (GAMMA), Deloitte AI Institute, Oliver Wyman, Accenture Applied Intelligence
+6. Practitioner: López de Prado, Ernie Chan, Karpathy, Cliff Asness, QuantConnect forums
+7. Open-source: FinRL, TradingAgents, autoresearch, QuantLib, zipline-reloaded
+8. Regulatory: SEC, FINRA, MiFID II, Norwegian FSA (Finanstilsynet)
 
 **Deep Research Checklist (run for each plan step):**
 ```
-□ Searched arXiv for "[topic] financial machine learning" (last 2 years)
-□ Searched for "[topic]" on Anthropic/OpenAI/DeepMind engineering blogs
-□ Checked GitHub for recent implementations/repos
-□ Read 3-5 most relevant sources in full
+□ Google Scholar search: "[topic]" — sorted by relevance and recency (last 2 years)
+□ arXiv/SSRN search: "[topic] financial machine learning"
+□ University research groups: check relevant lab pages (MIT, Stanford, Oxford, etc.)
+□ AI lab blogs: Anthropic, OpenAI, DeepMind — searched for related techniques
+□ Quant firm publications: AQR, Two Sigma, Man Group whitepapers
+□ Consulting reports: McKinsey/BCG/Deloitte on AI in finance (if applicable)
+□ GitHub: recent implementations/repos
+□ Read 3-5 most relevant sources in full (not just abstracts)
 □ Documented findings in RESEARCH.md with URLs
 □ Identified concrete thresholds/methods to adopt
-□ Noted any warnings/pitfalls from literature
+□ Noted warnings/pitfalls from literature
 ```
 
 ---

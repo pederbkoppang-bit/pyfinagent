@@ -9,21 +9,28 @@
 **Every plan step starts with active research. Not from memory — from the web.**
 
 ### Process:
-1. **Web search** (`web_search`) for latest papers, blog posts, docs on the specific topic
-   - `"[topic] financial machine learning" site:arxiv.org` (last 2 years)
-   - `"[topic]" site:anthropic.com OR site:openai.com OR site:deepmind.google`
-   - `"[topic] trading system" site:github.com`
-2. **Fetch and read** (`web_fetch`) the 3-5 most relevant sources — read them, don't just cite titles
-3. **Extract** concrete methods, thresholds, parameters, pitfalls
-4. **Document** in the relevant section below with **URL**, citation, key insight, and how it applies
-5. **Reference** in PLAN.md and `handoff/contract.md` when justifying design choices
-6. **Re-research** when starting a new phase — papers from 6 months ago may be outdated
+1. **Google Scholar** — search `"[topic]"` sorted by relevance + recency. Follow citation networks.
+2. **arXiv/SSRN** — search `"[topic] financial machine learning"` (last 2 years)
+3. **University research** — check lab pages at MIT Sloan, Stanford GSB, Oxford MFE, Princeton ORF, Chicago Booth, NYU Stern
+4. **AI lab blogs** — search Anthropic, OpenAI, DeepMind, Meta FAIR, Microsoft Research
+5. **Quant firm whitepapers** — AQR, Two Sigma, Man Group/AHL, WorldQuant, Citadel
+6. **Consulting reports** — McKinsey (QuantumBlack), BCG (GAMMA), Deloitte AI Institute, Oliver Wyman
+7. **GitHub** — search for open-source implementations
+8. **Fetch and read** (`web_fetch`) the 3-5 most relevant sources — read full text, not just abstracts
+9. **Extract** concrete methods, thresholds, parameters, pitfalls
+10. **Document** in the relevant section below with **URL**, citation, key insight, and how it applies
+11. **Reference** in PLAN.md and `handoff/contract.md` when justifying design choices
+12. **Re-research** when starting a new phase — papers from 6 months ago may be outdated
 
 ### Deep Research Checklist (for each plan step):
 ```
-□ Searched arXiv for "[topic] financial machine learning" (last 2 years)
-□ Searched Anthropic/OpenAI/DeepMind engineering blogs
-□ Checked GitHub for recent implementations/repos
+□ Google Scholar: "[topic]" — relevance + recency (last 2 years), follow citation chains
+□ arXiv/SSRN: "[topic] financial machine learning"
+□ University research groups: MIT, Stanford, Oxford, Princeton, Chicago, NYU
+□ AI lab blogs: Anthropic, OpenAI, DeepMind, Meta FAIR, Microsoft Research
+□ Quant firm publications: AQR, Two Sigma, Man Group whitepapers
+□ Consulting/industry reports: McKinsey, BCG, Deloitte on AI in finance
+□ GitHub: recent implementations and repos
 □ Read 3-5 most relevant sources in full (not just abstracts)
 □ Documented findings in RESEARCH.md with URLs
 □ Identified concrete thresholds/methods to adopt
@@ -32,11 +39,14 @@
 ```
 
 ### Sources (priority order):
-1. Academic: arXiv, SSRN, NBER, Journal of Finance, Journal of Financial Economics
-2. Industry: Anthropic, OpenAI, Google DeepMind, Two Sigma, AQR, Man Group, Citadel
-3. Practitioner: Marcos López de Prado, Ernie Chan, Karpathy, Cliff Asness, QuantConnect
-4. Open-source: FinRL, TradingAgents, autoresearch, QuantLib, zipline-reloaded
-5. Regulatory: SEC, FINRA, MiFID II, Norwegian FSA
+1. Academic (peer-reviewed): Google Scholar, arXiv, SSRN, NBER, Journal of Finance, Journal of Financial Economics, Review of Financial Studies
+2. University research: MIT Sloan, Stanford GSB, Oxford MFE, Princeton ORF, Chicago Booth, NYU Stern, Imperial College, ETH Zurich
+3. AI labs: Anthropic, OpenAI, Google DeepMind, Meta FAIR, Microsoft Research
+4. Quant firms: Two Sigma, AQR Capital, Man Group/AHL, Citadel, Renaissance, DE Shaw, Bridgewater, WorldQuant
+5. Consulting & industry: McKinsey (QuantumBlack), BCG (GAMMA), Deloitte AI Institute, Oliver Wyman
+6. Practitioner: Marcos López de Prado, Ernie Chan, Karpathy, Cliff Asness, QuantConnect
+7. Open-source: FinRL, TradingAgents, autoresearch, QuantLib, zipline-reloaded
+8. Regulatory: SEC, FINRA, MiFID II, Norwegian FSA (Finanstilsynet)
 
 ---
 
