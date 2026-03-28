@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BentoCard } from "@/components/BentoCard";
 import {
   CurrencyDollar,
@@ -11,6 +11,20 @@ import {
   CheckCircle,
   Clock,
 } from "@phosphor-icons/react";
+import {
+  BarChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ComposedChart,
+  TooltipProps,
+  ReferenceLine,
+  Area,
+} from "recharts";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -214,6 +228,150 @@ export function BudgetDashboard() {
           )}
         </p>
       </BentoCard>
+
+      {/* Cash Flow Chart */}
+      {data.monthly_history.length > 0 && (() => {
+        // Build chart data: actual months + 3 months forecast
+        const history = data.monthly_history;
+        const lastMonths = history.slice(-3);
+        const avgBurn = lastMonths.reduce((sum, m) => sum + m.total, 0) / lastMonths.length;
+
+        // Parse last month to project forward
+        const lastMonth = history[history.length - 1];
+        const [lastY, lastM] = lastMonth.month.split("-").map(Number);
+
+        const chartData: { month: string; cashOut?: number; forecast?: number; budget: number; isForcast?: boolean }[] = [];
+
+        // Actual months
+        for (const m of history) {
+          chartData.push({
+            month: m.month,
+            cashOut: m.total,
+            budget: s.monthly_budget,
+          });
+        }
+
+        // Forecast 3 months ahead
+        for (let i = 1; i <= 3; i++) {
+          const fDate = new Date(lastY, lastM - 1 + i, 1);
+          const fMonth = `${fDate.getFullYear()}-${String(fDate.getMonth() + 1).padStart(2, "0")}`;
+          chartData.push({
+            month: fMonth,
+            forecast: Math.round(avgBurn),
+            budget: s.monthly_budget,
+            isForcast: true,
+          });
+        }
+
+        return (
+          <BentoCard>
+            <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-300">
+              <TrendDown size={16} className="text-red-400" />
+              Cash Flow
+              <span className="ml-auto text-[10px] font-normal text-slate-500">
+                Forecast based on {lastMonths.length}-month average: ${Math.round(avgBurn)}/mo
+              </span>
+            </h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 10, right: 20, bottom: 20, left: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fill: "#64748b", fontSize: 11 }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: "#64748b", fontSize: 11 }}
+                    tickFormatter={(v: number) => `$${v}`}
+                    label={{
+                      value: "USD / month",
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: -4,
+                      fill: "#64748b",
+                      fontSize: 11,
+                    }}
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }: TooltipProps<number, string>) => {
+                      if (!active || !payload?.length) return null;
+                      const isForecast = payload[0]?.payload?.isForcast;
+                      return (
+                        <div className="rounded-lg border border-slate-700 bg-slate-900/95 px-3 py-2 shadow-xl">
+                          <p className="mb-1 text-xs font-semibold text-slate-200">
+                            {label} {isForecast ? "(forecast)" : ""}
+                          </p>
+                          {payload.map((p) => (
+                            p.value != null && (
+                              <p key={p.dataKey as string} className="text-xs text-slate-400">
+                                {p.dataKey === "cashOut" ? "Actual" : p.dataKey === "forecast" ? "Forecast" : "Budget"}:{" "}
+                                <span className={`font-mono ${p.dataKey === "cashOut" ? "text-red-400" : p.dataKey === "forecast" ? "text-amber-400" : "text-slate-500"}`}>
+                                  ${Number(p.value).toFixed(0)}
+                                </span>
+                              </p>
+                            )
+                          ))}
+                        </div>
+                      );
+                    }}
+                  />
+
+                  {/* Budget line */}
+                  <ReferenceLine
+                    y={s.monthly_budget}
+                    stroke="#22c55e"
+                    strokeDasharray="4 4"
+                    strokeWidth={1.5}
+                    label={{
+                      value: `Budget $${s.monthly_budget}`,
+                      position: "right",
+                      fill: "#22c55e",
+                      fontSize: 10,
+                    }}
+                  />
+
+                  {/* Actual spend bars (red) */}
+                  <Bar
+                    dataKey="cashOut"
+                    fill="#ef4444"
+                    fillOpacity={0.7}
+                    radius={[4, 4, 0, 0]}
+                    name="Actual"
+                  />
+
+                  {/* Forecast bars (amber, dashed look via lower opacity) */}
+                  <Bar
+                    dataKey="forecast"
+                    fill="#f59e0b"
+                    fillOpacity={0.4}
+                    radius={[4, 4, 0, 0]}
+                    name="Forecast"
+                    strokeDasharray="4 4"
+                    stroke="#f59e0b"
+                    strokeWidth={1}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            {/* Legend */}
+            <div className="mt-2 flex items-center justify-center gap-6 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-4 rounded-sm bg-red-500/70" />
+                Actual spend
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-4 rounded-sm border border-amber-500 bg-amber-500/40" />
+                Forecast
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-emerald-500" />
+                Budget
+              </span>
+            </div>
+          </BentoCard>
+        );
+      })()}
 
       {/* Cost breakdown tables */}
       <div className="grid gap-6 lg:grid-cols-2">
