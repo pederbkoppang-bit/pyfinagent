@@ -59,6 +59,11 @@ _NUMERIC_FEATURES = [
     "fcf_yield", "dividend_yield", "quality_score", "revenue_growth_yoy",
     "fed_funds_rate", "cpi_yoy", "unemployment_rate", "yield_curve_spread",
     "consumer_sentiment", "treasury_10y",
+    # PHASE 1.2: Cross-sectional percentile features for regime independence
+    "momentum_1m_pctile", "momentum_3m_pctile", "momentum_6m_pctile", "momentum_12m_pctile",
+    "momentum_12_1_pctile", "pb_ratio_pctile", "pe_ratio_pctile", "roe_pctile", 
+    "quality_score_pctile", "annualized_volatility_pctile", "rsi_14_pctile", 
+    "sma_50_distance_pctile", "volume_ratio_20d_pctile",
 ]
 
 # Non-stationary features that need fractional differentiation
@@ -729,6 +734,29 @@ class BacktestEngine:
                 if len(series) > 10:
                     diffed = HistoricalDataProvider.fractional_diff(series, d=self.frac_diff_d)
                     X.loc[diffed.index, col] = diffed
+
+        # PHASE 1.2 IMPROVEMENT: Cross-sectional ranking for regime independence
+        # Rank features within universe at each sample date for regime-independent signals
+        cross_sectional_features = ["momentum_1m", "momentum_3m", "momentum_6m", "momentum_12m", 
+                                     "momentum_12_1", "pb_ratio", "pe_ratio", "roe", "quality_score",
+                                     "annualized_volatility", "rsi_14", "sma_50_distance", "volume_ratio_20d"]
+        
+        # Group by sample date and compute percentile ranks within each date
+        # Reconstruct sample dates for each row (since we iterate sample_dates × tickers)
+        sample_dates_for_rows = []
+        for sample_date in sample_dates:
+            for _ in tickers:
+                sample_dates_for_rows.append(sample_date)
+        # Trim to actual number of rows (some may be skipped due to missing data)
+        X["_sample_date"] = sample_dates_for_rows[:len(X)]
+        
+        for feature in cross_sectional_features:
+            if feature in X.columns:
+                # Create percentile rank version (0-1 scale)
+                X[f"{feature}_pctile"] = X.groupby("_sample_date")[feature].rank(pct=True)
+        
+        # Remove temporary date column
+        X = X.drop(columns=["_sample_date"], errors="ignore")
 
         # Fill NaN with median (robust to outliers)
         X = X.fillna(X.median())
