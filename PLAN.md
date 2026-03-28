@@ -517,7 +517,62 @@ From the article: "Context resets — clearing the context window entirely and s
 | FRED / Alpha Vantage | $0 | Free tiers |
 | GitHub Copilot Pro | $0 | Included for students? |
 
-### 2.7 Harness Hardening & Advanced Evaluator (Next)
+### 2.7 Paper Trading — Real-World Validation (Start Early April)
+*Trade with fake money in the live market BEFORE going live in May. This is the ultimate test — backtest says Sharpe 1.17, but does it hold in real time?*
+
+**⚠️ START THIS AS EARLY AS POSSIBLE.** Every day of paper trading before May is data we can't get any other way. Backtests can be fooled. Live markets can't.
+
+**Why this matters:**
+- Backtests are always better than reality (hindsight bias, execution assumptions, data quality)
+- Paper trading catches: slippage, partial fills, data delays, stale quotes, market impact
+- 2+ weeks minimum required before go-live checklist can pass
+- If paper Sharpe < 0.7× backtest Sharpe → we have a problem to fix before May
+
+**Infrastructure (already built — 60% done):**
+- [x] `backend/services/paper_trader.py` (361 lines) — full paper trading engine, BQ persistence, NAV tracking
+- [x] `backend/services/autonomous_loop.py` (328 lines) — daily cycle: Screen → Analyze → Decide → Trade → Snapshot → Learn
+- [x] `backend/services/portfolio_manager.py` (230 lines) — sell-first-then-buy, Risk Judge sizing
+- [x] `backend/services/outcome_tracker.py` (184 lines) — evaluates past recs vs actual prices, learns
+- [x] `backend/api/paper_trading.py` (284 lines) — API endpoints + APScheduler integration
+- [x] `backend/tools/screener.py` (213 lines) — quant-only universe screening (zero LLM cost)
+
+**Remaining to activate:**
+- [ ] **Validate paper trading engine** — run a test day, verify BQ writes, NAV tracking, trade logging
+- [ ] **Load current best params** (Sharpe 1.17) into paper trader config
+- [ ] **Activate autonomous daily cycle** via APScheduler cron (run at market open 9:30 ET)
+- [ ] **Paper Trading Dashboard** — new page or tab showing:
+  - Current paper portfolio (positions, P&L, NAV)
+  - Trade history (every simulated buy/sell with timestamp, price, reason)
+  - Performance vs backtest expectations (daily Sharpe comparison)
+  - Performance vs SPY (live benchmark)
+  - Drawdown tracking (kill switch at -15%)
+- [ ] **Daily Slack report** — morning: "Paper portfolio: $X NAV, Y positions, Sharpe Z (vs backtest 1.17)"
+- [ ] **Divergence alerts:**
+  - Paper Sharpe < 0.7× backtest → Slack 🔴 "Paper trading underperforming — investigate"
+  - Single-day loss > 3% → Slack ⚠️ "Large paper loss: -X%"
+  - Drawdown > 10% → Slack 🔴 "Paper drawdown approaching kill switch"
+  - Position concentration > 20% single stock → Slack ⚠️
+- [ ] **Weekly evaluation report** — compare paper results to backtest:
+  | Metric | Backtest | Paper | Delta | Status |
+  |--------|----------|-------|-------|--------|
+  | Sharpe | 1.17 | ? | ? | ✅/❌ |
+  | Return (annualized) | ~11% | ? | ? | ✅/❌ |
+  | Max DD | -12% | ? | ? | ✅/❌ |
+  | Hit Rate | ~55% | ? | ? | ✅/❌ |
+  | Avg Holding Days | ~45 | ? | ? | ✅/❌ |
+- [ ] **Go-live gate:** Paper trading must show:
+  - Sharpe ≥ 0.7× backtest (≥ 0.82) over 2+ weeks
+  - No kill switch triggered (drawdown < 15%)
+  - Signal generation reliable (no missed days)
+  - Execution assumptions validated (fills, timing, costs)
+
+**Timeline:**
+- Early April: Activate paper trading with current params
+- Mid April: First weekly evaluation
+- Late April: Go/no-go decision for May launch
+- May: Go live (if paper trading passes)
+
+### 2.8 Harness Hardening & Advanced Evaluator (After Paper Trading Starts)
 *Enhance the automated harness with deeper statistical tests and generator capabilities.*
 
 - [ ] **Seed stability test:** Run best params with 5 random seeds, check Sharpe std < 0.1
@@ -557,7 +612,7 @@ From the article: "Context resets — clearing the context window entirely and s
 US:AAPL    NO:EQNR    CA:RY    DE:SAP    KR:005930
 ```
 
-### 2.8 Karpathy Autoresearch Integration
+### 2.10 Karpathy Autoresearch Integration
 *The Generator (QuantStrategyOptimizer) already follows Karpathy's autoresearch pattern for zero-cost param optimization. The harness adds the missing evaluation and planning layers. If the harness proves beneficial on pyfinAgent, apply the same three-agent pattern to the upstream [autoresearch](https://github.com/karpathy/autoresearch) optimizer — wrapping its research loop with independent evaluation and heuristic planning.*
 
 ---
@@ -826,15 +881,13 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 - [ ] Add LLM evaluator gate: calls `validate_signal` before publishing (catch bad recommendations)
 - [ ] Allowlist only `generate_signals` + `validate_signal` for automated runs; `publish_signal` requires human approval initially
 
-### 4.2 Paper Trading (evaluator as live QA) — ⚠️ MOSTLY BUILT
-- [x] Paper trading engine exists (`paper_trader.py`) — needs validation run
-- [x] Autonomous daily cycle exists (`autonomous_loop.py`) — needs to be activated with validated strategy
-- [x] Outcome tracker exists (`outcome_tracker.py`) — learns from past recommendations
-- [ ] Activate paper trading with current validated params (Sharpe 1.17)
-- [ ] Run 2+ weeks, compare paper results vs backtest expectations
-- [ ] Wire evaluator: daily MCP `get_portfolio` + `risk_check` comparison
+### 4.2 Paper Trading (evaluator as live QA) — ⚠️ PROMOTED TO PHASE 2.7
+*Paper trading moved earlier in the plan — see Phase 2.7. Start early April, don't wait until Phase 4.*
+*By Phase 4, paper trading should already have 2-4 weeks of data. This phase adds:*
+- [ ] Wire MCP evaluator: daily `get_portfolio` + `risk_check` comparison
 - [ ] Track signal accuracy per enrichment tool → drop tools that don't add alpha
-- [ ] If paper Sharpe < 0.7 × backtest Sharpe → auto-trigger STOP investigation
+- [ ] LLM-powered daily evaluation of paper portfolio decisions
+- [ ] If paper Sharpe < 0.7 × backtest Sharpe → auto-trigger STOP investigation via MCP `risk_check`
 
 ### 4.3 Risk Management
 - [x] Position sizing exists in `portfolio_manager.py` (Risk Judge + inverse-volatility)
@@ -996,9 +1049,10 @@ From the article: "Every component in a harness encodes an assumption about what
 | 2026-03-28 | MCP integration | — | MCP connector added to Phase 3+4, enrichment server planned |
 | 2026-03-28 | Multi-market (2.9) | — | Market abstractions, ticker namespacing, exchange_calendars |
 | 2026-03-28 | **Codebase audit** | — | 132 files (27K lines) read. Phase 4 ~60% built. Stale code identified. |
+| 2026-03-28 | Plan v3 finalized | — | Added: resilience (2.6.0), harness dashboard (2.6.1), budget intelligence (2.6.2), paper trading promoted to 2.7, deep research protocol, evidence-based development |
 
 ---
 
 *This plan follows the Anthropic harness design pattern: Planner → Generator → Evaluator.*
 *"The space of interesting harness combinations doesn't shrink as models improve. Instead, it moves."*
-*Last updated: 2026-03-28 20:21 by Ford — Full codebase audit findings integrated, Phase 4 re-assessed, cleanup section added*
+*Last updated: 2026-03-28 21:16 by Ford — Plan v3: resilience, harness dashboard, budget intelligence, paper trading promoted, deep research, evidence-based development*
