@@ -362,7 +362,10 @@ class BacktestEngine:
         returns = self.trader.get_returns_series()
         if returns:
             returns_arr = np.array(returns)
-            result.aggregate_sharpe = self._sharpe(returns_arr)
+            # Phase 1.5: Dynamic risk-free rate (FRED T-bill data)
+            from backend.backtest.analytics import get_risk_free_rate
+            dynamic_rf_rate = get_risk_free_rate(self.start_date, self.end_date)
+            result.aggregate_sharpe = self._sharpe(returns_arr, risk_free_rate=dynamic_rf_rate)
             result.aggregate_return_pct = float((np.prod(1 + returns_arr) - 1) * 100)
             result.aggregate_max_drawdown_pct = self._max_drawdown(returns_arr)
 

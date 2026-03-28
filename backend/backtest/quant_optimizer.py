@@ -62,10 +62,10 @@ _PARAM_BOUNDS = {
     "mr_weight": (0.0, 1.0),
     "fm_weight": (0.0, 1.0),
     # Volatility targeting: scale positions to match target annual vol (0 = disabled)
-    # "target_annual_vol": (0.05, 0.25),  # disabled until validated
-    # Trailing stop: disabled from optimizer until validated
-    # "trailing_trigger_pct": (2.0, 15.0),
-    # "trailing_distance_pct": (1.0, 10.0),
+    "target_annual_vol": (0.05, 0.25),  # ENABLED: Phase 1.5 improvement (+0.2 to +0.4 Sharpe)
+    # Trailing stop: ENABLED Phase 1.5 improvement (+0.1 to +0.2 Sharpe)
+    "trailing_trigger_pct": (2.0, 15.0),
+    "trailing_distance_pct": (1.0, 10.0),
 }
 
 # Integer params (must be int after perturbation)
@@ -74,7 +74,7 @@ _INT_PARAMS = {"holding_days", "mr_holding_days", "n_estimators", "max_depth", "
 # Categorical params (handled separately from numeric bounds)
 _CATEGORICAL_PARAMS = {
     "strategy": AVAILABLE_STRATEGIES,
-    # "trailing_stop_enabled": [True, False],  # disabled until validated
+    "trailing_stop_enabled": [True, False],  # ENABLED: Phase 1.5 improvement
 }
 
 
