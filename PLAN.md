@@ -7,6 +7,27 @@
 
 ---
 
+## Evidence-Based Development
+
+**Every design decision traces back to a paper, industry practice, or empirical evidence.**
+
+Research log: [`RESEARCH.md`](RESEARCH.md) — maintained alongside the plan.
+
+Before implementing any major feature:
+1. **Research** — search academic papers, industry docs, peer implementations
+2. **Document** — add to RESEARCH.md with citation + key insight
+3. **Reference** — cite in PLAN.md and `handoff/contract.md` when justifying design
+4. **Validate** — evaluator criteria should use published thresholds (e.g., t-stat ≥ 3.0 from Harvey et al.)
+
+**Sources (priority order):**
+1. Academic: arXiv, SSRN, NBER, Journal of Finance
+2. Industry: Anthropic, OpenAI, Google DeepMind, Two Sigma, AQR, Man Group
+3. Practitioner: López de Prado, Ernie Chan, Karpathy, Cliff Asness
+4. Open-source: FinRL, TradingAgents, autoresearch
+5. Regulatory: SEC, FINRA, MiFID II
+
+---
+
 ## Harness-Driven Execution
 
 **Every phase of this plan follows the harness pattern — not just the optimizer.**
@@ -15,11 +36,12 @@ The same Planner → Generator → Evaluator cycle that runs backtests also gove
 
 ```
 For each plan step:
-  1. PLAN    — Define what "done" looks like (contract in handoff/contract.md)
+  0. RESEARCH — Search papers, industry docs, peer implementations. Update RESEARCH.md.
+  1. PLAN     — Define what "done" looks like (contract in handoff/contract.md, cite research)
   2. GENERATE — Do the work (code, config, research)
   3. EVALUATE — Independently verify it worked (tests, validation, review)
-  4. DECIDE  — PASS → move to next step | FAIL → revert and retry | CONDITIONAL → fix and re-evaluate
-  5. LOG     — Update PLAN.md progress log, HEARTBEAT.md, memory, Slack
+  4. DECIDE   — PASS → move to next step | FAIL → revert and retry | CONDITIONAL → fix and re-evaluate
+  5. LOG      — Update PLAN.md progress log, HEARTBEAT.md, memory, Slack
 ```
 
 **Why this matters:** Without evaluation, we ship broken things. Phase 1 proved this — the optimizer said Sharpe improved, but independent sub-period validation showed it actually destroyed the strategy (Sharpe -4.57). The harness caught it.
