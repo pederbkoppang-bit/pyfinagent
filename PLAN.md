@@ -281,35 +281,127 @@ From the article: "Context resets — clearing the context window entirely and s
 
 ---
 
-## Phase 3: LLM-Guided Research (Weeks 4-5)
+## Phase 3: LLM-Guided Research + MCP Integration (Weeks 4-5)
 ### ⚠️ GATE: REQUIRES PEDER'S EXPLICIT APPROVAL BEFORE STARTING
 
-*With the harness in place, we can now add LLM reasoning to the Planner and Evaluator agents.*
+*With the harness in place, we can now add LLM reasoning to the Planner and Evaluator agents — and give them direct tool access to pyfinAgent via MCP.*
 
-### 3.0 LLM-as-Planner (batch reasoning, not tight loop)
+### 3.0 MCP Server Architecture
+
+**Key insight:** Instead of dumping experiment data as text into prompts, we expose pyfinAgent's capabilities as [MCP servers](https://platform.claude.com/docs/en/agents-and-tools/mcp-connector). Claude's MCP connector (beta: `mcp-client-2025-11-20`) lets the LLM Planner and Evaluator **directly call tools** — query experiments, trigger backtests, read results — through the Messages API. No separate MCP client needed.
+
+**Why this matters for us:**
+- The heuristic planner (Phase 2) reads files. The LLM planner (Phase 3) can **interact** with the system.
+- The evaluator can run additional spot-checks on demand, not just the 5 predefined backtests.
+- Signal generation (Phase 4) gets a clean tool interface instead of fragile script wiring.
+
+#### MCP Servers to Build
+
+We expose pyfinAgent as **three remote MCP servers** (FastAPI + Streamable HTTP transport):
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Claude Messages API (with MCP connector beta)                        │
+│                                                                        │
+│  mcp_servers: [                                                        │
+│    { name: "pyfinagent-data",     url: "https://..." },               │
+│    { name: "pyfinagent-backtest", url: "https://..." },               │
+│    { name: "pyfinagent-signals",  url: "https://..." }                │
+│  ]                                                                     │
+│                                                                        │
+│  tools: [                                                              │
+│    { type: "mcp_toolset", mcp_server_name: "pyfinagent-data" },       │
+│    { type: "mcp_toolset", mcp_server_name: "pyfinagent-backtest",     │
+│      default_config: { enabled: false },                               │
+│      configs: { run_backtest: { enabled: true },                       │
+│                 get_experiments: { enabled: true } } },                 │
+│    { type: "mcp_toolset", mcp_server_name: "pyfinagent-signals",      │
+│      default_config: { enabled: false },                               │
+│      configs: { generate_signals: { enabled: true },                   │
+│                 validate_signal: { enabled: true } } }                  │
+│  ]                                                                     │
+└───────────────┬──────────────────┬──────────────────┬────────────────┘
+                │                  │                  │
+                ▼                  ▼                  ▼
+┌───────────────────┐ ┌────────────────────┐ ┌────────────────────┐
+│ pyfinagent-data   │ │ pyfinagent-backtest│ │ pyfinagent-signals │
+│                   │ │                    │ │                    │
+│ Tools:            │ │ Tools:             │ │ Tools:             │
+│ • query_prices    │ │ • run_backtest     │ │ • generate_signals │
+│ • query_fundmntls │ │ • get_experiments  │ │ • validate_signal  │
+│ • query_macro     │ │ • get_best_params  │ │ • publish_signal   │
+│ • get_universe    │ │ • run_subperiod    │ │ • get_portfolio    │
+│ • get_features    │ │ • compare_params   │ │ • risk_check       │
+│                   │ │ • run_ablation     │ │                    │
+│ Reads: BigQuery   │ │ Reads: backtest    │ │ Reads: latest      │
+│        + cache    │ │        engine      │ │        model +     │
+│                   │ │        + optimizer  │ │        market data │
+└───────────────────┘ └────────────────────┘ └────────────────────┘
+```
+
+**Implementation:** Each MCP server is a lightweight FastAPI app using `mcp` Python SDK with Streamable HTTP transport, deployed alongside our existing backend. Authentication via OAuth token or shared secret.
+
+**Security:** Allowlist pattern — only explicitly enabled tools per request. The LLM Planner gets read-only data + experiments. The Evaluator gets backtest tools. Signal generation is Phase 4 only.
+
+#### MCP Server Implementation Plan
+
+| Server | Tools | Phase | Cost |
+|--------|-------|-------|------|
+| **pyfinagent-data** | `query_prices`, `query_fundamentals`, `query_macro`, `get_universe`, `get_features` | 3.0 | $0 (just wraps existing BQ cache) |
+| **pyfinagent-backtest** | `run_backtest`, `get_experiments`, `get_best_params`, `run_subperiod`, `compare_params`, `run_ablation` | 3.0 | $0 (wraps existing engine) |
+| **pyfinagent-signals** | `generate_signals`, `validate_signal`, `publish_signal`, `get_portfolio`, `risk_check` | 4.1 | $0 (wraps existing pipeline) |
+
+### 3.1 LLM-as-Planner (with MCP tool access)
 
 **The article's lesson applied:** "Taking inspiration from GANs, I designed a multi-agent structure with a generator and evaluator agent."
 
+**Upgrade from heuristic planner:** The Phase 2 planner reads TSV files and applies rules. The Phase 3 planner is Claude with MCP tools — it can query experiment history, compare parameter sets, and propose research directions based on actual data analysis.
+
 Our adaptation for budget constraints:
-- Run 15-20 experiments (free CPU) → feed experiment log to LLM once
-- LLM acts as Research Planner: analyzes patterns, proposes next research direction
+- Run 15-20 experiments (free CPU) → call Claude with MCP tools once
+- Claude acts as Research Planner: queries experiments via `pyfinagent-backtest` tools, analyzes patterns, proposes next research direction
 - Max 3-5 LLM reasoning calls per optimization cycle (~$2-5/cycle)
 - LLM can propose code changes but Ford reviews before running
 
-**Planner prompt structure:**
+**Planner API call structure:**
+```python
+response = client.beta.messages.create(
+    model="claude-sonnet-4-20250514",  # Budget: Sonnet, not Opus
+    max_tokens=2000,
+    mcp_servers=[
+        {"type": "url", "url": MCP_BACKTEST_URL, "name": "pyfinagent-backtest",
+         "authorization_token": AUTH_TOKEN},
+        {"type": "url", "url": MCP_DATA_URL, "name": "pyfinagent-data",
+         "authorization_token": AUTH_TOKEN},
+    ],
+    tools=[
+        {"type": "mcp_toolset", "mcp_server_name": "pyfinagent-backtest",
+         "default_config": {"enabled": False},
+         "configs": {"get_experiments": {"enabled": True},
+                     "get_best_params": {"enabled": True},
+                     "compare_params": {"enabled": True}}},
+        {"type": "mcp_toolset", "mcp_server_name": "pyfinagent-data",
+         "default_config": {"enabled": False},
+         "configs": {"get_features": {"enabled": True}}},
+    ],
+    system=PLANNER_SYSTEM_PROMPT,
+    messages=[{"role": "user", "content": planner_context}],
+    betas=["mcp-client-2025-11-20"],
+)
 ```
-You are a quantitative researcher reviewing experiment results.
 
-## Current best: Sharpe {X}, DSR {Y}
-## Last {N} experiments: [TSV data]
-## Evaluator's last critique: [markdown]
+**Planner system prompt:**
+```
+You are a quantitative researcher with direct access to experiment data.
+Use your tools to query the experiment log, compare parameter sets, and analyze patterns.
 
 Your job:
-1. Identify patterns in kept vs discarded experiments
-2. Hypothesize what structural change would improve Sharpe
-3. Propose specific, testable changes (params, features, or strategy logic)
-4. Estimate expected impact and risk of overfitting
-5. Define success criteria for the evaluator
+1. Call get_experiments to review recent results
+2. Call compare_params to identify which parameters have the most impact
+3. Hypothesize what structural change would improve Sharpe
+4. Propose specific, testable changes (params, features, or strategy logic)
+5. Estimate expected impact and risk of overfitting
+6. Define success criteria for the evaluator
 
 Do NOT propose changes that:
 - Add complexity without justification (t-stat < 3.0)
@@ -317,24 +409,51 @@ Do NOT propose changes that:
 - Violate the budget constraint (no external API calls)
 ```
 
-### 3.1 LLM-as-Evaluator (skeptical, calibrated)
+### 3.2 LLM-as-Evaluator (with MCP backtest access)
 
 **The article's lesson:** "Out of the box, Claude is a poor QA agent. I watched it identify legitimate issues, then talk itself into deciding they weren't a big deal."
 
+**Upgrade from automated evaluator:** The Phase 2 evaluator runs 5 predefined backtests. The Phase 3 evaluator is Claude with `pyfinagent-backtest` tools — it can run **additional spot-checks** it decides are needed based on what it sees. "This Sharpe jump looks suspicious — let me run a sub-period test on just 2022 to check."
+
 Our calibration approach:
 - Explicitly prompt for skepticism: "Your job is to find problems, not praise."
+- Give it `run_subperiod` and `run_ablation` tools so it can investigate suspicions
 - Provide few-shot examples of overfitting patterns (high Sharpe but fragile)
 - Grade against concrete criteria (not "is this good?" but "does this pass each specific test?")
 - Hard thresholds that can't be argued away
 
-**Evaluator prompt structure:**
+**Evaluator API call structure:**
+```python
+response = client.beta.messages.create(
+    model="claude-sonnet-4-20250514",
+    max_tokens=3000,
+    mcp_servers=[
+        {"type": "url", "url": MCP_BACKTEST_URL, "name": "pyfinagent-backtest",
+         "authorization_token": AUTH_TOKEN},
+    ],
+    tools=[
+        {"type": "mcp_toolset", "mcp_server_name": "pyfinagent-backtest",
+         "default_config": {"enabled": False},
+         "configs": {"run_subperiod": {"enabled": True},
+                     "run_ablation": {"enabled": True},
+                     "get_experiments": {"enabled": True},
+                     "compare_params": {"enabled": True}}},
+    ],
+    system=EVALUATOR_SYSTEM_PROMPT,
+    messages=[{"role": "user", "content": evaluator_context}],
+    betas=["mcp-client-2025-11-20"],
+)
+```
+
+**Evaluator system prompt:**
 ```
 You are a skeptical quant reviewer. Your reputation depends on catching overfitting.
+You have direct access to the backtest engine — use it to verify claims.
 
-## Experiment results: [data]
-## Changes made: [code diffs]
-## Previous best: Sharpe {X}
-## New result: Sharpe {Y}
+If something looks suspicious:
+- Call run_subperiod to test specific date ranges
+- Call run_ablation to check if a parameter actually contributes
+- Call compare_params to see what changed
 
 Grade each criterion 1-10 with specific evidence:
 1. Statistical Validity: [DSR, seed stability, window concentration]
@@ -347,44 +466,48 @@ If the improvement is real, say so. If it smells like overfitting, say that.
 Do not be generous. The cost of approving a bad strategy is losing real money.
 ```
 
-### 3.2 Regime Detection (zero LLM cost)
+### 3.3 Regime Detection (zero LLM cost)
 - [ ] HMM-based regime detector (2-3 states from returns + volatility)
 - [ ] Per-regime parameter optimization
 - [ ] Rolling re-optimization via cron
 
-### 3.3 Agent Skill Optimization
+### 3.4 Agent Skill Optimization
 - [ ] SkillOpt on highest-impact agents (Synthesis, Moderator, Risk Judge)
 - [ ] MDA → Agent bridge (feature importance drives agent targeting)
 
 ---
 
 ## Phase 4: Production Readiness (Week 6 — Late April)
-*Get ready for real money. The evaluator agent becomes the live QA system.*
+*Get ready for real money. The evaluator agent becomes the live QA system. MCP signals server goes live.*
 
-### 4.1 Slack Signal Delivery
-- [ ] Daily morning digest: top opportunities + rebalance suggestions
+### 4.1 Slack Signal Delivery (via MCP Signals Server)
+- [ ] Deploy `pyfinagent-signals` MCP server with tools: `generate_signals`, `validate_signal`, `publish_signal`, `get_portfolio`, `risk_check`
+- [ ] Daily morning cron job: Claude calls `generate_signals` → `validate_signal` → `publish_signal` (Slack webhook)
 - [ ] Alert format: ticker, signal, confidence, reasons, risk level, position size
-- [ ] The evaluator validates signals before they're sent (catch bad recommendations)
+- [ ] The LLM evaluator calls `validate_signal` before publishing (catch bad recommendations via MCP tool)
+- [ ] Allowlist only `generate_signals` + `validate_signal` for automated runs; `publish_signal` requires human approval initially
 
 ### 4.2 Paper Trading (evaluator as live QA)
 - [ ] Run paper trading 2+ weeks
-- [ ] Evaluator compares paper results vs backtest expectations daily
+- [ ] Daily cron: Claude calls `get_portfolio` + `risk_check` via MCP, compares paper results vs backtest expectations
 - [ ] Track signal accuracy per enrichment tool → drop tools that don't add alpha
-- [ ] If paper Sharpe < 0.7 × backtest Sharpe → STOP and investigate
+- [ ] If paper Sharpe < 0.7 × backtest Sharpe → `risk_check` auto-triggers STOP investigation
 
 ### 4.3 Risk Management
-- [ ] Max portfolio size, max single position, max daily loss — all defined
+- [ ] `risk_check` MCP tool enforces: max portfolio size, max single position, max daily loss
 - [ ] Stop-loss monitoring with automatic position reduction
 - [ ] Event calendar integration (earnings, FOMC → reduce exposure)
-- [ ] Kill switch: if drawdown > 15%, system goes to cash automatically
+- [ ] Kill switch: if drawdown > 15%, system goes to cash automatically (enforced in `risk_check`, not overridable by LLM)
 
 ### 4.4 Go-Live Checklist
 - [ ] All evaluator criteria passing (statistical validity, robustness, simplicity, reality gap)
 - [ ] DSR ≥ 0.95 on out-of-sample data
 - [ ] Paper trading matches backtest within 20% tolerance
-- [ ] Slack signals tested and reliable
+- [ ] MCP servers deployed and authenticated (data + backtest + signals)
+- [ ] Slack signals tested and reliable via `publish_signal` MCP tool
 - [ ] Peder's manual review process defined and working
-- [ ] Risk limits hardcoded (not configurable without code change)
+- [ ] Risk limits hardcoded in `risk_check` (not configurable without code change)
+- [ ] MCP tool allowlists locked down (no `publish_signal` without human-in-the-loop initially)
 
 ---
 
@@ -414,8 +537,10 @@ From the article: "Every component in a harness encodes an assumption about what
 | GitHub Models (Copilot Pro) | $0 | gpt-4.1 included |
 | Claude Max (OpenClaw/Ford) | Already paid | Planner + Evaluator via Ford |
 | FRED / Alpha Vantage | $0 | Free tiers |
-| LLM-guided research (Phase 3) | $2-5/cycle | ⚠️ Needs approval |
-| **Total** | **~$10-30/month** | |
+| MCP servers hosting | $0 | Run alongside existing backend (same Mac Mini) |
+| LLM-guided research (Phase 3) | $2-5/cycle | ⚠️ Needs approval. Sonnet via API for Planner+Evaluator |
+| Signal generation (Phase 4) | ~$1-3/day | ⚠️ Needs approval. Daily Claude calls via MCP |
+| **Total** | **~$10-30/month** (Phase 2) → **~$40-120/month** (Phase 4) | |
 
 ---
 
@@ -446,4 +571,4 @@ From the article: "Every component in a harness encodes an assumption about what
 
 *This plan follows the Anthropic harness design pattern: Planner → Generator → Evaluator.*
 *"The space of interesting harness combinations doesn't shrink as models improve. Instead, it moves."*
-*Last updated: 2026-03-28 17:15 by Ford — Phase 2 core implemented*
+*Last updated: 2026-03-28 17:30 by Ford — MCP connector integrated into Phase 3+4*
