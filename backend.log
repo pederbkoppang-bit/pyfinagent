@@ -4,3 +4,12 @@ INFO:     Waiting for application startup.
 [36m23:38:31 I [on][0m Application startup complete.
 [36m23:38:31 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 [36m23:38:33 I [httptools_impl][0m 127.0.0.1:49331 - "GET /api/backtest/budget/summary HTTP/1.1" 200
+[36m23:39:45 I [backtest][0m Auto-loaded previous backtest result (run_id=exp_wider_barriers)
+[36m23:39:45 I [httptools_impl][0m 127.0.0.1:49353 - "GET /api/backtest/optimize/status HTTP/1.1" 200
+[36m23:39:46 I [httptools_impl][0m 127.0.0.1:49354 - "GET /api/backtest/runs HTTP/1.1" 200
+[36m23:39:46 I [httptools_impl][0m 127.0.0.1:49352 - "GET /api/backtest/ingest/status HTTP/1.1" 200
+[36m23:39:47 I [httptools_impl][0m 127.0.0.1:49346 - "GET /api/backtest/results HTTP/1.1" 200
+[36m23:39:47 I [httptools_impl][0m 127.0.0.1:49353 - "GET /api/backtest/optimize/experiments?run_index=0 HTTP/1.1" 200
+[36m23:39:47 I [httptools_impl][0m 127.0.0.1:49354 - "GET /api/backtest/optimize/best HTTP/1.1" 200
+[36m23:39:47 I [httptools_impl][0m 127.0.0.1:49352 - "GET /api/backtest/sharpe-history HTTP/1.1" 200
+[36m23:39:52 I [httptools_impl][0m 127.0.0.1:49346 - "GET /api/backtest/budget/summary HTTP/1.1" 200
