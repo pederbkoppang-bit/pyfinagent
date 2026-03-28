@@ -12,12 +12,15 @@ import {
   LogoIcon, IconKey, IconSignOut,
 } from "@/lib/icons";
 import type { Icon } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 
 interface NavItem { href: string; label: string; icon: Icon }
+interface NavSection { label: string; collapsible: boolean; items: NavItem[] }
 
-const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
+const NAV_SECTIONS: NavSection[] = [
   {
     label: "Analyze",
+    collapsible: true,
     items: [
       { href: "/", label: "Home", icon: NavHome },
       { href: "/analyze", label: "Deep Analysis", icon: NavAnalyze },
@@ -26,6 +29,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   },
   {
     label: "Reports",
+    collapsible: true,
     items: [
       { href: "/reports", label: "Reports", icon: NavReports },
       { href: "/performance", label: "Performance", icon: NavPerformance },
@@ -33,6 +37,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   },
   {
     label: "Trading",
+    collapsible: true,
     items: [
       { href: "/portfolio", label: "Portfolio", icon: NavPortfolio },
       { href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading },
@@ -41,11 +46,78 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
+function SectionGroup({
+  section,
+  pathname,
+  collapsed,
+  onToggle,
+}: {
+  section: NavSection;
+  pathname: string;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  const hasActiveItem = section.items.some((item) => item.href === pathname);
+
+  return (
+    <div>
+      {section.collapsible ? (
+        <button
+          onClick={onToggle}
+          className="mb-1.5 flex w-full items-center justify-between px-3 group"
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 group-hover:text-slate-400 transition-colors">
+            {section.label}
+          </span>
+          <CaretDown
+            size={12}
+            weight="bold"
+            className={clsx(
+              "text-slate-600 transition-transform duration-200 group-hover:text-slate-400",
+              collapsed && "-rotate-90"
+            )}
+          />
+        </button>
+      ) : (
+        <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+          {section.label}
+        </p>
+      )}
+      {(!collapsed || !section.collapsible) && (
+        <div className="space-y-0.5">
+          {section.items.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={clsx(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                pathname === item.href
+                  ? "bg-sky-500/10 font-medium text-sky-400"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+              )}
+            >
+              <item.icon size={18} weight={pathname === item.href ? "fill" : "regular"} />
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const version = process.env.NEXT_PUBLIC_APP_VERSION || "local";
   const [passkeyStatus, setPasskeyStatus] = useState<string | null>(null);
+
+  // Track collapsed state per section — all expanded by default
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (label: string) => {
+    setCollapsedSections((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
 
   const registerPasskey = async () => {
     setPasskeyStatus("Registering...");
@@ -59,8 +131,9 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-navy-700 bg-navy-800/50 px-4 py-6">
-      <div className="mb-8 flex items-center gap-3 px-2">
+    <aside className="flex h-screen w-64 flex-shrink-0 flex-col border-r border-navy-700 bg-navy-800/50">
+      {/* ── Fixed header ─────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-6 py-6">
         <LogoIcon size={28} weight="bold" className="text-sky-400" />
         <div>
           <h1 className="text-lg font-bold text-slate-100">PyFinAgent</h1>
@@ -68,49 +141,36 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto scrollbar-thin">
+      {/* ── Scrollable nav ───────────────────────────────── */}
+      <nav className="flex-1 space-y-5 overflow-y-auto px-4 scrollbar-thin">
         {NAV_SECTIONS.map((section) => (
-          <div key={section.label}>
-            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
-              {section.label}
-            </p>
-            <div className="space-y-0.5">
-              {section.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={clsx(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                    pathname === item.href
-                      ? "bg-sky-500/10 font-medium text-sky-400"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                  )}
-                >
-                  <item.icon size={18} weight={pathname === item.href ? "fill" : "regular"} />
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </div>
+          <SectionGroup
+            key={section.label}
+            section={section}
+            pathname={pathname}
+            collapsed={!!collapsedSections[section.label]}
+            onToggle={() => toggleSection(section.label)}
+          />
         ))}
       </nav>
 
-      {/* Settings — pinned above user section */}
-      <Link
-        href="/settings"
-        className={clsx(
-          "mb-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-          pathname === "/settings"
-            ? "bg-sky-500/10 font-medium text-sky-400"
-            : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-        )}
-      >
-        <NavSettings size={18} weight={pathname === "/settings" ? "fill" : "regular"} />
-        Settings
-      </Link>
+      {/* ── Fixed bottom ─────────────────────────────────── */}
+      <div className="border-t border-navy-700 px-4 py-4 space-y-3">
+        {/* Settings link */}
+        <Link
+          href="/settings"
+          className={clsx(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+            pathname === "/settings"
+              ? "bg-sky-500/10 font-medium text-sky-400"
+              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          )}
+        >
+          <NavSettings size={18} weight={pathname === "/settings" ? "fill" : "regular"} />
+          Settings
+        </Link>
 
-      {/* User info + auth */}
-      <div className="border-t border-navy-700 pt-4 space-y-3">
+        {/* User info + auth */}
         {session?.user && (
           <div className="flex items-center gap-2 px-2">
             {session.user.image ? (
