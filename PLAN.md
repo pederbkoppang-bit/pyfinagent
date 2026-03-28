@@ -14,17 +14,33 @@
 Research log: [`RESEARCH.md`](RESEARCH.md) — maintained alongside the plan.
 
 Before implementing any major feature:
-1. **Research** — search academic papers, industry docs, peer implementations
-2. **Document** — add to RESEARCH.md with citation + key insight
-3. **Reference** — cite in PLAN.md and `handoff/contract.md` when justifying design
-4. **Validate** — evaluator criteria should use published thresholds (e.g., t-stat ≥ 3.0 from Harvey et al.)
+1. **Deep Research** — actively search the web for latest papers, blog posts, documentation. Don't rely on existing knowledge alone. Use `web_search` and `web_fetch` to find:
+   - Recent arXiv/SSRN papers on the specific technique
+   - Latest blog posts from Anthropic, OpenAI, Google DeepMind, Two Sigma, AQR, Man Group
+   - GitHub repos and open-source implementations
+   - Practitioner discussions and post-mortems
+2. **Read & Extract** — fetch and read the most relevant 3-5 sources. Extract concrete methods, thresholds, pitfalls.
+3. **Document** — add to RESEARCH.md with URL, citation, key insight, and how it applies to our work
+4. **Reference** — cite in PLAN.md and `handoff/contract.md` when justifying design
+5. **Validate** — evaluator criteria should use published thresholds (e.g., t-stat ≥ 3.0 from Harvey et al.)
 
-**Sources (priority order):**
-1. Academic: arXiv, SSRN, NBER, Journal of Finance
-2. Industry: Anthropic, OpenAI, Google DeepMind, Two Sigma, AQR, Man Group
-3. Practitioner: López de Prado, Ernie Chan, Karpathy, Cliff Asness
-4. Open-source: FinRL, TradingAgents, autoresearch
-5. Regulatory: SEC, FINRA, MiFID II
+**Deep Research Sources (priority order):**
+1. Academic: arXiv, SSRN, NBER, Journal of Finance, Journal of Financial Economics
+2. Industry: Anthropic engineering blog, OpenAI research, Google DeepMind, Two Sigma, AQR, Man Group, Citadel
+3. Practitioner: López de Prado, Ernie Chan, Karpathy, Cliff Asness, QuantConnect forums
+4. Open-source: FinRL, TradingAgents, autoresearch, QuantLib, zipline-reloaded
+5. Regulatory: SEC, FINRA, MiFID II, Norwegian FSA
+
+**Deep Research Checklist (run for each plan step):**
+```
+□ Searched arXiv for "[topic] financial machine learning" (last 2 years)
+□ Searched for "[topic]" on Anthropic/OpenAI/DeepMind engineering blogs
+□ Checked GitHub for recent implementations/repos
+□ Read 3-5 most relevant sources in full
+□ Documented findings in RESEARCH.md with URLs
+□ Identified concrete thresholds/methods to adopt
+□ Noted any warnings/pitfalls from literature
+```
 
 ---
 
@@ -36,7 +52,10 @@ The same Planner → Generator → Evaluator cycle that runs backtests also gove
 
 ```
 For each plan step:
-  0. RESEARCH — Search papers, industry docs, peer implementations. Update RESEARCH.md.
+  0. RESEARCH — Deep research: web search for latest papers, industry docs, peer implementations.
+               Search arXiv, SSRN, Anthropic/OpenAI/DeepMind blogs, practitioner posts.
+               Fetch and read relevant papers. Update RESEARCH.md with findings.
+               This is NOT optional — every step must be grounded in current best practices.
   1. PLAN     — Define what "done" looks like (contract in handoff/contract.md, cite research)
   2. GENERATE — Do the work (code, config, research)
   3. EVALUATE — Independently verify it worked (tests, validation, review)

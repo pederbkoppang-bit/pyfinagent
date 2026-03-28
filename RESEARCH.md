@@ -4,20 +4,39 @@
 
 ---
 
-## Research Protocol
+## Research Protocol — Deep Research Required
 
-Before implementing any major feature or making architectural decisions:
-1. **Search** for relevant academic papers, industry documentation, and peer implementations
-2. **Document** findings in the relevant section below with citation + key insight
-3. **Reference** the research in PLAN.md when justifying a design choice
-4. **Update** this file when new evidence emerges that changes our approach
+**Every plan step starts with active research. Not from memory — from the web.**
 
-**Sources (priority order):**
-1. Academic papers (arXiv, SSRN, NBER, Journal of Finance, Journal of Financial Economics)
-2. Industry documentation (Anthropic, OpenAI, Google DeepMind, Two Sigma, AQR, Man Group)
-3. Practitioner blogs (Marcos López de Prado, Ernie Chan, Karpathy, AQR Cliff Asness)
-4. Open-source implementations (FinRL, TradingAgents, autoresearch)
-5. Regulatory guidance (SEC, FINRA, MiFID II)
+### Process:
+1. **Web search** (`web_search`) for latest papers, blog posts, docs on the specific topic
+   - `"[topic] financial machine learning" site:arxiv.org` (last 2 years)
+   - `"[topic]" site:anthropic.com OR site:openai.com OR site:deepmind.google`
+   - `"[topic] trading system" site:github.com`
+2. **Fetch and read** (`web_fetch`) the 3-5 most relevant sources — read them, don't just cite titles
+3. **Extract** concrete methods, thresholds, parameters, pitfalls
+4. **Document** in the relevant section below with **URL**, citation, key insight, and how it applies
+5. **Reference** in PLAN.md and `handoff/contract.md` when justifying design choices
+6. **Re-research** when starting a new phase — papers from 6 months ago may be outdated
+
+### Deep Research Checklist (for each plan step):
+```
+□ Searched arXiv for "[topic] financial machine learning" (last 2 years)
+□ Searched Anthropic/OpenAI/DeepMind engineering blogs
+□ Checked GitHub for recent implementations/repos
+□ Read 3-5 most relevant sources in full (not just abstracts)
+□ Documented findings in RESEARCH.md with URLs
+□ Identified concrete thresholds/methods to adopt
+□ Noted warnings/pitfalls from literature
+□ Updated handoff/contract.md success criteria with research-backed thresholds
+```
+
+### Sources (priority order):
+1. Academic: arXiv, SSRN, NBER, Journal of Finance, Journal of Financial Economics
+2. Industry: Anthropic, OpenAI, Google DeepMind, Two Sigma, AQR, Man Group, Citadel
+3. Practitioner: Marcos López de Prado, Ernie Chan, Karpathy, Cliff Asness, QuantConnect
+4. Open-source: FinRL, TradingAgents, autoresearch, QuantLib, zipline-reloaded
+5. Regulatory: SEC, FINRA, MiFID II, Norwegian FSA
 
 ---
 
