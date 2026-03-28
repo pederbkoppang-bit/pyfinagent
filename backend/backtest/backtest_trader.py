@@ -74,12 +74,39 @@ class BacktestTrader:
         self._recent_returns: list[float] = []  # Track last 20 trading days
         self._performance_scale = 1.0  # Scale positions based on recent performance
 
-    def _compute_commission(self, quantity: float, price: float) -> float:
-        """Compute commission based on the active model."""
+    def _compute_commission(self, quantity: float, price: float, amihud_illiquidity: float = 0.0) -> float:
+        """
+        PHASE 1.9: Enhanced transaction cost model (Almgren & Chriss 2000).
+        Includes: commission + bid-ask spread + market impact + illiquidity penalty.
+        """
+        notional = abs(quantity * price)
+        
         if self.commission_model == "per_share":
-            return max(quantity * self.commission_per_share, 1.0)
-        # Default: flat percentage of notional
-        return abs(quantity * price) * self.transaction_cost_pct / 100
+            base_commission = max(quantity * self.commission_per_share, 1.0)
+        else:
+            # Base commission: flat percentage
+            base_commission = notional * self.transaction_cost_pct / 100
+        
+        # PHASE 1.9 IMPROVEMENT: Market microstructure costs
+        
+        # 1. Bid-ask spread (depends on liquidity)
+        # S&P 500 average spread: ~0.01-0.05%. Illiquid stocks: 0.05-0.20%
+        base_spread = 0.02  # 2 bps for liquid stocks
+        spread_penalty = amihud_illiquidity * 0.5 if amihud_illiquidity else 0  # Scale with Amihud
+        bid_ask_spread = min(base_spread + spread_penalty, 0.20) / 100  # Cap at 20 bps
+        spread_cost = notional * bid_ask_spread / 2  # Half spread per side
+        
+        # 2. Market impact (Almgren-Chriss square-root model)
+        # Impact ∝ sqrt(trade_size / avg_volume). Simplified: larger trades cost more.
+        # For S&P 500: assume $100k trade has ~1bp impact, scales by sqrt
+        trade_size_factor = min(notional / 100_000, 10.0)  # Normalize to $100k, cap at 10x
+        market_impact = notional * 0.0001 * (trade_size_factor ** 0.5)  # Square-root scaling
+        
+        # 3. Additional illiquidity penalty for very illiquid stocks
+        illiq_penalty = notional * min(amihud_illiquidity * 0.001, 0.002) if amihud_illiquidity > 5.0 else 0
+        
+        total_cost = base_commission + spread_cost + market_impact + illiq_penalty
+        return total_cost
 
     def size_position(
         self, probability: float, stock_vol: float, nav: float,
@@ -176,7 +203,7 @@ class BacktestTrader:
                 pos = self.positions[ticker]
                 price = prices.get(ticker, pos.avg_entry_price)
                 proceeds = pos.quantity * price
-                cost = self._compute_commission(pos.quantity, price)
+                cost = self._compute_commission(pos.quantity, price, sig.get("amihud_illiquidity", 0.0))
                 self.cash += proceeds - cost
                 self.total_commission += cost
 
@@ -228,13 +255,13 @@ class BacktestTrader:
             # Check cash
             cost_basis = dollar_amount
             quantity = cost_basis / price
-            transaction_cost = self._compute_commission(quantity, price)
+            transaction_cost = self._compute_commission(quantity, price, amihud)
             total_needed = cost_basis + transaction_cost
 
             if total_needed > self.cash:
                 cost_basis = self.cash * 0.95  # Use 95% of remaining cash
                 quantity = cost_basis / price
-                transaction_cost = self._compute_commission(quantity, price)
+                transaction_cost = self._compute_commission(quantity, price, amihud)
                 total_needed = cost_basis + transaction_cost
                 if total_needed > self.cash or cost_basis < 100:
                     continue
