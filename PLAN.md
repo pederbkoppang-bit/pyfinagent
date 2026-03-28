@@ -370,6 +370,86 @@ From the article: "Context resets — clearing the context window entirely and s
   - `GET /api/backtest/harness/validation` — validation_results.json + subperiod_validation_results.json
 - [ ] **New "Harness" tab** on backtest page (alongside Overview, Results, Equity, Features, Optimizer)
 
+### 2.6.2 Budget Intelligence Dashboard & Cost Autoresearch
+
+*Give Peder full visibility into cash flow and an automated system to optimize costs down.*
+
+**Current state:**
+- ✅ `backend/agents/cost_tracker.py` — tracks per-agent LLM token costs per analysis run
+- ✅ `CostDashboard` component — shows per-analysis LLM costs on analyze page
+- ✅ BQ `INFORMATION_SCHEMA` available for GCP cost queries
+- ✅ Budget overview card on backtest page (static numbers)
+
+**Phase A: Budget Visibility (frontend + API)**
+
+- [ ] **Cash Flow Graph** — dual-axis line chart showing:
+  - **Cash Out (actual):** Monthly costs from BQ billing export + Claude Max subscription ($200/mo) + any other fixed costs
+  - **Cash In (actual):** Any income/funding (manual input or BQ table)
+  - **Cash Flow (forecast):** Projected burn rate extrapolated from trailing 3-month average, with confidence band
+  - **Break-even line:** When cash hits zero at current burn rate
+  - Time range selector (3mo, 6mo, 1yr, custom)
+- [ ] **Cost Breakdown** — pie/bar chart by category:
+  - Google Cloud (BQ queries, storage, Cloud Functions) — from BQ billing export
+  - Claude Max subscription ($200/mo fixed)
+  - LLM API costs (per-model breakdown from `cost_tracker.py`)
+  - Data APIs (Alpha Vantage, FRED — currently $0)
+  - Infrastructure (Mac Mini amortized)
+- [ ] **Monthly Trend** — stacked bar chart showing cost categories over time
+- [ ] **Budget Alerts** — configurable thresholds:
+  - Warn at 80% of monthly budget
+  - Alert at 100% (Slack notification)
+  - Auto-pause non-critical services at 120%
+- [ ] **API endpoints:**
+  - `GET /api/budget/summary` — current month costs, forecast, budget status
+  - `GET /api/budget/history` — monthly cost breakdown for cash flow graph
+  - `GET /api/budget/forecast` — projected costs based on usage trends
+  - `POST /api/budget/target` — set monthly budget target (persisted to settings)
+
+**Phase B: Cost Autoresearch (Karpathy-style cost optimization)**
+
+*Apply the same autoresearch pattern we use for Sharpe optimization — but for monthly cost.*
+
+- [ ] **Cost Optimizer loop** — same keep/discard pattern as `quant_optimizer.py`:
+  ```
+  1. Measure current monthly cost (baseline)
+  2. Propose a cost reduction (e.g., reduce BQ query frequency, cache more aggressively, batch API calls)
+  3. Implement the change
+  4. Measure new monthly cost (or projected cost)
+  5. Verify quality didn't degrade (Sharpe still ≥ threshold, analysis quality maintained)
+  6. KEEP if cost reduced AND quality maintained, DISCARD otherwise
+  ```
+- [ ] **Budget target adjustment** — user sets desired monthly budget on the dashboard
+  - If budget reduced → triggers cost autoresearch to find savings
+  - If budget increased → unlocks previously disabled features (more GCF calls, higher-tier models, etc.)
+- [ ] **Cost reduction strategies (autoresearch explores these):**
+  - [ ] BQ query batching (consolidate multiple small queries into fewer large ones)
+  - [ ] Aggressive caching TTLs (trade freshness for cost — prices: 15min→1hr, fundamentals: 1day→1week)
+  - [ ] Model downgrade for non-critical agents (use Flash instead of Pro for sentiment, use Haiku for formatting)
+  - [ ] Cloud Function call frequency (daily→weekly for non-time-sensitive data)
+  - [ ] Feature pruning (drop MDA-bottom features → fewer computations)
+  - [ ] Batch analysis runs (analyze 5 tickers at once instead of 1-by-1)
+  - [ ] Local model fallback for simple tasks (phi-4 for formatting, summarization)
+- [ ] **Quality gates** — cost optimizer cannot:
+  - Reduce Sharpe below 90% of current best
+  - Remove any evaluator-passing feature
+  - Disable risk management components
+  - Skip data freshness below configurable minimum
+- [ ] **Experiment log** — `experiments/cost_results.tsv` tracking:
+  - Change made, cost before, cost after, quality impact, keep/discard
+- [ ] **Dashboard integration:**
+  - "Optimize" button on budget dashboard → triggers cost autoresearch cycle
+  - Shows proposed savings with projected impact
+  - User approves/rejects each cost reduction before it's applied
+
+**Fixed costs to track:**
+| Item | Monthly | Source |
+|------|---------|--------|
+| Claude Max | $200 | Fixed subscription |
+| Google Cloud | ~$10-25 | BQ billing export |
+| Mac Mini (amortized) | ~$28 | $1,000 / 36 months |
+| FRED / Alpha Vantage | $0 | Free tiers |
+| GitHub Copilot Pro | $0 | Included for students? |
+
 ### 2.7 Harness Hardening & Advanced Evaluator (Next)
 *Enhance the automated harness with deeper statistical tests and generator capabilities.*
 
@@ -809,14 +889,18 @@ From the article: "Every component in a harness encodes an assumption about what
 
 | Item | Monthly Cost | Notes |
 |------|-------------|-------|
-| BigQuery | ~$10-25 | Storage + queries |
+| Claude Max subscription | $200 | Updated from $125. Ford + OpenClaw |
+| BigQuery | ~$10-25 | Storage + queries (tracked in BQ billing export) |
 | GitHub Models (Copilot Pro) | $0 | gpt-4.1 included |
-| Claude Max (OpenClaw/Ford) | Already paid | Planner + Evaluator via Ford |
 | FRED / Alpha Vantage | $0 | Free tiers |
 | MCP servers hosting | $0 | Run alongside existing backend (same Mac Mini) |
+| Mac Mini (amortized) | ~$28 | $1,000 / 36 months |
 | LLM-guided research (Phase 3) | $2-5/cycle | ⚠️ Needs approval. Sonnet via API for Planner+Evaluator |
 | Signal generation (Phase 4) | ~$1-3/day | ⚠️ Needs approval. Daily Claude calls via MCP |
-| **Total** | **~$10-30/month** (Phase 2) → **~$40-120/month** (Phase 4) | |
+| **Total** | **~$228-253/month** (Phase 2) → **~$268-348/month** (Phase 4) | |
+
+**Budget constraint:** Negative cash flow (-$10K). Phase 2.6.2 cost autoresearch aims to reduce this.
+**Cost visibility:** Phase 2.6.2 adds real-time dashboard with cash flow graph + forecast.
 
 ---
 
