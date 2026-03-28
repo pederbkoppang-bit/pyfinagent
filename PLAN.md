@@ -955,76 +955,264 @@ Do not be generous. The cost of approving a bad strategy is losing real money.
 ### 4.1 Slack Signal Delivery (via MCP Signals Server)
 > **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
 
-- [ ] Deploy `pyfinagent-signals` MCP server wrapping existing `signals.py` + `autonomous_loop.py`
-- [ ] Wire existing `slack_bot/scheduler.py` morning digest → MCP `generate_signals` → `validate_signal` → Slack
-- [x] Alert format already defined in `slack_bot/formatters.py` (Block Kit)
-- [ ] Add LLM evaluator gate: calls `validate_signal` before publishing (catch bad recommendations)
-- [ ] Allowlist only `generate_signals` + `validate_signal` for automated runs; `publish_signal` requires human approval initially
+*Daily trading signals delivered to Slack, validated by LLM evaluator before publishing.*
 
-### 4.2 Paper Trading (evaluator as live QA) — ⚠️ PROMOTED TO PHASE 2.7
+**4.1.1 Deploy pyfinagent-signals MCP Server**
+- [ ] Create `backend/mcp/signals_server.py` wrapping existing `signals.py` + `autonomous_loop.py`
+- [ ] Implement tools: `generate_signals`, `validate_signal`, `publish_signal`, `get_portfolio`, `risk_check`
+- [ ] Add Streamable HTTP transport on port 8001 (separate from main backend 8000)
+- [ ] Authentication: shared secret token (same as backtest MCP server)
+- [ ] Register in OpenClaw MCP config
+
+**4.1.2 Signal Generation Pipeline**
+- [ ] Morning cron (9:00 AM ET / 3:00 PM Oslo): trigger `generate_signals`
+  - Screener filters universe (zero LLM cost)
+  - ML model predicts probabilities for top candidates
+  - Generate signal list: ticker, direction (BUY/SELL/HOLD), confidence, position size
+- [ ] LLM evaluator gate: Claude calls `validate_signal` for each signal before publishing
+  - Checks: signal makes sense given recent news, no earnings within 2 days, not in excluded sectors
+  - Rejects signals that fail validation (logged, not published)
+- [ ] Wire existing `slack_bot/scheduler.py` morning digest → validated signals → Slack Block Kit message
+
+**4.1.3 Signal Format (Slack Block Kit)**
+- [x] Block Kit formatter already exists in `slack_bot/formatters.py` (227 lines)
+- [ ] Enhance signal card:
+  ```
+  📊 DAILY SIGNALS — March 28, 2026
+  ─────────────────────────────
+  🟢 BUY  NVDA  | Conf: 78% | Size: 5.2% | Reason: Strong momentum + positive earnings tone
+  🟢 BUY  MSFT  | Conf: 72% | Size: 4.8% | Reason: Quality score improving, sector rotation
+  🔴 SELL TSLA  | Conf: 65% | Size: 3.1% | Reason: Turbulence rising, insider selling
+  ─────────────────────────────
+  Portfolio: 12 positions | NAV: $104,230 | Day: +0.3% | Sharpe (30d): 1.05
+  ⚠️ Signals require manual review before trading
+  ```
+- [ ] Add "Approve" / "Reject" buttons on each signal (Slack interactive messages)
+- [ ] Peder approves → signal logged as "approved" in BQ
+- [ ] Track: approved vs rejected vs auto-filtered signals for evaluation
+
+**4.1.4 Signal Quality Tracking**
+- [ ] BQ table `signals_log`: timestamp, ticker, direction, confidence, approved/rejected, outcome (after N days)
+- [ ] Weekly accuracy report: what % of approved signals were profitable?
+- [ ] Per-enrichment-tool accuracy: which data sources actually add alpha to signals?
+- [ ] Drop enrichment tools that don't improve signal accuracy after 30 days
+
+### 4.2 Paper Trading Evaluation (LLM as Live QA) — ⚠️ Core Promoted to Phase 2.7
 > **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
 
-*Paper trading moved earlier in the plan — see Phase 2.7. Start early April, don't wait until Phase 4.*
-*By Phase 4, paper trading should already have 2-4 weeks of data. This phase adds:*
-- [ ] Wire MCP evaluator: daily `get_portfolio` + `risk_check` comparison
-- [ ] Track signal accuracy per enrichment tool → drop tools that don't add alpha
-- [ ] LLM-powered daily evaluation of paper portfolio decisions
-- [ ] If paper Sharpe < 0.7 × backtest Sharpe → auto-trigger STOP investigation via MCP `risk_check`
+*Paper trading starts in Phase 2.7. By Phase 4, we have 2-4 weeks of data. This phase adds LLM-powered evaluation.*
+
+**4.2.1 Daily LLM Portfolio Review**
+- [ ] Evening cron (4:30 PM ET): Claude calls `get_portfolio` + `risk_check` via MCP
+- [ ] LLM reviews: "Are we overweight in any sector? Any position violating risk limits? Any unexpected correlations?"
+- [ ] Posts daily evaluation to Slack: portfolio summary, risk flags, recommendations
+- [ ] If risk_check fails → auto-reduce positions to within limits next trading day
+
+**4.2.2 Signal Accuracy Tracking**
+- [ ] For each past signal: compare predicted direction vs actual price movement after holding period
+- [ ] Track per-enrichment-tool accuracy: `{tool: accuracy_pct}` — drop tools below 50% accuracy
+- [ ] Track per-sector accuracy: are we better at tech than healthcare?
+- [ ] Weekly Slack report: "Signal accuracy this week: 62% (vs 55% backtest hit rate)"
+
+**4.2.3 Paper vs Backtest Divergence Analysis**
+- [ ] Daily: compare paper portfolio metrics to expected backtest metrics
+- [ ] Track divergence over time: is paper consistently under/over-performing?
+- [ ] Root cause analysis when divergence > 20%:
+  - Execution timing (we assumed close price, actual execution at different time?)
+  - Data staleness (live data different quality than historical?)
+  - Universe drift (new stocks in universe not in backtest period?)
+- [ ] If paper Sharpe < 0.7 × backtest → auto-trigger STOP → investigate → Slack 🔴
 
 ### 4.3 Risk Management
 > **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
 
+*Hardened risk limits that the LLM cannot override. The kill switch is code, not a suggestion.*
+
+**4.3.1 Position Limits (hardcoded in risk_check MCP tool)**
 - [x] Position sizing exists in `portfolio_manager.py` (Risk Judge + inverse-volatility)
-- [ ] Harden: `risk_check` MCP tool enforces max portfolio size, max single position, max daily loss
-- [ ] Stop-loss monitoring with automatic position reduction
-- [ ] Event calendar integration (earnings, FOMC → reduce exposure)
-- [ ] Kill switch: if drawdown > 15%, system goes to cash automatically (enforced in `risk_check`, not overridable by LLM)
+- [ ] Max single position: 10% of portfolio (hardcoded, not configurable)
+- [ ] Max sector exposure: 30% of portfolio
+- [ ] Max correlated positions: no more than 3 stocks with correlation > 0.8
+- [ ] Min cash reserve: always hold 5% cash
+
+**4.3.2 Drawdown Protection**
+- [ ] Trailing drawdown tracker: continuously monitors peak-to-trough
+- [ ] Warning at -10% drawdown → Slack ⚠️ + reduce position sizes by 50%
+- [ ] Kill switch at -15% drawdown → liquidate all positions to cash → Slack 🔴 → iMessage
+- [ ] Kill switch is in `risk_check` code, NOT in LLM prompt — cannot be talked out of it
+- [ ] Manual override requires Peder to change code and redeploy
+
+**4.3.3 Event Calendar Integration**
+- [ ] Pull earnings calendar from Yahoo Finance (already in `earnings_tone.py`)
+- [ ] Pre-earnings rule: reduce position by 50% if earnings within 2 trading days
+- [ ] FOMC meeting dates: reduce overall exposure by 25% day before
+- [ ] Ex-dividend dates: factor into signal generation (avoid buying before ex-date for short-term trades)
+
+**4.3.4 Stop-Loss Monitoring**
+- [ ] Per-position stop-loss: exit if loss > 8% from entry
+- [ ] Portfolio stop-loss: if 3+ positions hit stop-loss in one day → pause new entries for 24h
+- [ ] Trailing stop: once position is +5%, trail stop at 3% below peak
 
 ### 4.4 Go-Live Checklist
 > **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
 
-- [ ] All evaluator criteria passing (statistical validity, robustness, simplicity, reality gap)
+*Every item must be checked and verified before May launch. No exceptions.*
+
+**4.4.1 Statistical Validation**
+- [ ] All evaluator criteria passing (statistical validity ≥ 6, robustness ≥ 6, simplicity ≥ 6, reality gap ≥ 6)
 - [ ] DSR ≥ 0.95 on out-of-sample data
-- [ ] Paper trading matches backtest within 20% tolerance
+- [ ] Sharpe stable across 5 random seeds (std < 0.1)
+- [ ] No single walk-forward window drives > 30% of total return
+
+**4.4.2 Paper Trading Validation**
+- [ ] Paper trading ran for ≥ 2 weeks (ideally 4 weeks)
+- [ ] Paper Sharpe ≥ 0.82 (70% of backtest 1.17)
+- [ ] Paper max drawdown < 15% (kill switch never triggered)
+- [ ] No missed trading days (signal generation reliable)
+- [ ] Paper vs backtest divergence < 20% on key metrics
+
+**4.4.3 Infrastructure Validation**
 - [ ] MCP servers deployed and authenticated (data + backtest + signals)
-- [ ] Slack signals tested and reliable via `publish_signal` MCP tool
-- [ ] Peder's manual review process defined and working
+- [ ] Slack signals tested end-to-end (generate → validate → publish → Block Kit message)
+- [ ] Gateway uptime > 99.5% over trailing 2 weeks
+- [ ] All monitoring crons operational (watchdog, morning, evening)
+- [ ] Incident log shows no unresolved P0 incidents
+
+**4.4.4 Risk Management Validation**
+- [ ] Kill switch tested: simulate -15% drawdown → verify auto-liquidation
+- [ ] Position limits tested: submit oversized position → verify rejection
+- [ ] Stop-loss tested: simulate loss > 8% → verify auto-exit
 - [ ] Risk limits hardcoded in `risk_check` (not configurable without code change)
-- [ ] MCP tool allowlists locked down (no `publish_signal` without human-in-the-loop initially)
+
+**4.4.5 Human Process Validation**
+- [ ] Peder's daily review process defined: check Slack signals, approve/reject, review portfolio
+- [ ] Escalation path defined: Ford alerts on Slack → iMessage → manual intervention
+- [ ] Weekly review meeting: paper trading results, signal accuracy, plan progress
+- [ ] Manual trading process: Peder executes approved signals through his broker
+- [ ] Documentation: "How to trade pyfinAgent signals" guide for Peder
+
+**4.4.6 Final Sign-Off**
+- [ ] Peder explicitly approves go-live (not Ford's decision)
+- [ ] Budget approved for Phase 4 operational costs (~$268-348/month)
+- [ ] First week: extra monitoring — daily review call, immediate Slack alerts
+- [ ] Rollback plan: if live Sharpe < 0.5 in first 2 weeks → stop signals, investigate
 
 ---
 
 ## Phase 5: Multi-Market Expansion (Post-Launch)
 *After US is profitable and validated, expand to additional markets. Each market follows the same pattern: data pipeline → backtest validation → paper trade → go live.*
 
-### 5.1 Market Expansion Checklist (per market)
+### 5.1 Market Expansion Framework
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG (per market)
+
+*Each new market follows the same validated pipeline. No shortcuts — the harness proved its value on US.*
+
+**5.1.1 Market Selection Criteria (choose next market based on):**
+- [ ] Data availability and quality (free vs paid sources)
+- [ ] Liquidity (can we realistically trade the signals?)
+- [ ] Regulatory complexity (short-selling rules, settlement, reporting)
+- [ ] Strategic value (diversification benefit, Peder's expertise)
+- [ ] Cost to add (data feeds, FX conversion, timezone handling)
+
+**Recommended order:** Norway → Canada → Europe → South Korea (risk-ordered)
+
+**5.1.2 Per-Market Expansion Checklist**
+Each market must complete ALL of these before going live:
+
+**Data Pipeline (Week 1-2)**
 - [ ] Data source identified and tested (Yahoo Finance, local exchange API, Bloomberg?)
-- [ ] BQ tables populated with historical prices, fundamentals, macro for target market
-- [ ] Trading calendar configured via `exchange_calendars`
-- [ ] FX rate feed operational (daily close, intraday for live)
-- [ ] Universe defined (which tickers, min market cap, min liquidity)
-- [ ] Backtest validated: Sharpe > 0.5 on target market with full evaluator suite
+- [ ] BQ tables populated with historical prices (≥5 years), fundamentals, macro for target market
+- [ ] Data quality audit: missing data, corporate actions, survivorship bias check
+- [ ] Trading calendar configured via `exchange_calendars` (handles holidays, early closes)
+- [ ] FX rate feed operational (daily close rates, from ECB or Yahoo Finance)
+- [ ] Universe defined: which tickers, min market cap, min liquidity thresholds
+
+**Backtest Validation (Week 2-3)**
+- [ ] Run full walk-forward backtest on target market data
+- [ ] Sharpe > 0.5 (lower bar than US — new market, different dynamics)
+- [ ] DSR ≥ 0.90 (slightly relaxed for new market with less data)
+- [ ] All sub-period tests pass (positive Sharpe in each)
 - [ ] Transaction costs calibrated for local market (differ significantly by exchange)
-- [ ] Regulatory constraints documented (short-sell rules, position limits, T+N settlement)
+- [ ] Feature importance analysis: which features transfer from US, which are market-specific?
+
+**Paper Trading (Week 3-5)**
+- [ ] Paper trading activated for target market (same engine, market-specific config)
+- [ ] Run ≥ 2 weeks paper trading
+- [ ] Paper Sharpe ≥ 0.7× backtest
+- [ ] No kill switch triggered
 - [ ] Signal delivery adapted (timezone-aware scheduling)
-- [ ] Paper trading 2+ weeks on target market
 
-### 5.2 Market-Specific Considerations
+**Go-Live (Week 5-6)**
+- [ ] Regulatory constraints documented (short-sell rules, position limits, T+N settlement)
+- [ ] Peder approves go-live for this market
+- [ ] Separate Slack channel or signal prefix for market identification
+- [ ] First week: extra monitoring
 
-**Norway (OSE):** Small market, ~200 liquid stocks. Advantages: Peder knows it, energy sector heavy (EQNR, etc.), less algo competition than US. Risk: thin liquidity = slippage.
+### 5.2 Market-Specific Research & Considerations
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
 
-**Canada (TSX):** Similar market structure to US, good for strategy validation. Resource-heavy (mining, energy). CAD/USD correlation means less FX risk.
+**5.2.1 Norway (OSE) — FIRST EXPANSION TARGET**
+- ~200 liquid stocks, dominated by energy (Equinor, Aker BP), seafood (Mowi, SalMar), finance (DNB)
+- Advantages: Peder knows the market, less algo competition, NOK/USD correlation with oil
+- Risks: thin liquidity (wide bid-ask spreads = higher slippage), small universe limits diversification
+- Data: Yahoo Finance covers OSE tickers, Oslo Børs has free delayed data
+- Regulatory: Norwegian FSA (Finanstilsynet) — no special algo trading requirements for manual execution
+- Transaction costs: typically 5-15 bps for liquid names, 20-50 bps for illiquid
+- Trading hours: 09:00-16:20 CET (overlap with US pre-market)
+- [ ] Deep research: OSE microstructure papers, Nordic factor models, liquidity studies
 
-**Europe (XETRA/Euronext):** Large cap universe comparable to US. EUR base. Different sector composition (luxury, industrials, pharma). MiFID II data availability.
+**5.2.2 Canada (TSX)**
+- Similar market structure to US, ~1,500 liquid stocks
+- Resource-heavy: mining (Barrick, Nutrien), energy (CNQ, Suncor), banks (RY, TD, BNS)
+- Advantages: CAD/USD correlation means less FX risk, market hours overlap with NYSE
+- Data: Yahoo Finance covers TSX fully, FRED has Canadian macro data
+- Transaction costs: similar to US (5-10 bps for large caps)
+- Trading hours: 09:30-16:00 ET (same as NYSE)
+- [ ] Deep research: TSX factor models, CAD/USD hedging costs, Canadian sector dynamics
 
-**South Korea (KRX):** High retail participation creates different signal dynamics. KRW volatility adds FX risk. KOSDAQ has interesting small-cap opportunities. Market opens during US night.
+**5.2.3 Europe (XETRA/Euronext)**
+- Large cap universe comparable to US: ~500 liquid stocks across Germany, France, Netherlands
+- Sector mix: luxury (LVMH, Hermès), industrials (Siemens, Airbus), pharma (Novo Nordisk, ASML)
+- MiFID II: extensive data availability requirements, best execution obligations
+- FX: EUR/USD is liquid and cheap to hedge
+- Transaction costs: 5-10 bps for major indices, higher for smaller exchanges
+- Trading hours: 09:00-17:30 CET
+- [ ] Deep research: European factor models, MiFID II compliance, cross-exchange arbitrage effects
 
-### 5.3 Cross-Market Features (Phase 5+)
-- [ ] Cross-market correlation analysis (diversification benefits)
-- [ ] FX-hedged vs unhedged portfolio comparison
-- [ ] Multi-market signal aggregation (same sector across markets)
-- [ ] Timezone-aware scheduling (KRX opens when NYSE sleeps → rolling signals)
-- [ ] Global macro regime detection across markets
+**5.2.4 South Korea (KRX)**
+- High retail participation creates momentum-driven dynamics
+- KOSPI (~800 stocks) + KOSDAQ (~1,500 stocks) — different dynamics
+- KRW volatility adds significant FX risk (unhedged)
+- Short-selling restrictions: retail can't short, institutional limits
+- T+2 settlement, different corporate governance culture
+- Trading hours: 09:00-15:30 KST (US night → rolling 24h signal generation)
+- [ ] Deep research: KRX microstructure, retail flow dynamics, chaebols governance, KRW hedging
+
+### 5.3 Cross-Market Intelligence
+> **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+
+**5.3.1 Correlation & Diversification**
+- [ ] Cross-market correlation matrix: US ↔ NO ↔ CA ↔ EU ↔ KR
+- [ ] Identify diversification benefits: which markets are most uncorrelated?
+- [ ] Portfolio optimization across markets (mean-variance with FX-adjusted returns)
+- [ ] Regime-dependent correlations: do markets become more correlated in crises?
+
+**5.3.2 FX Management**
+- [ ] FX-hedged vs unhedged portfolio comparison for each market
+- [ ] FX hedging cost estimation (forward premium/discount)
+- [ ] Decision framework: when to hedge, when to leave unhedged
+- [ ] FX rate data pipeline: daily close rates from ECB + Yahoo Finance
+
+**5.3.3 Global Signal Aggregation**
+- [ ] Same-sector signals across markets (e.g., energy in US, NO, CA — correlated?)
+- [ ] Global macro regime detection: VIX + currency volatility + yield curves → global risk-off/risk-on
+- [ ] Lead-lag relationships: do US signals predict European opens? Does KRX predict US?
+
+**5.3.4 Timezone-Aware Operations**
+- [ ] Rolling signal generation: KRX closes → generate Asian signals → EU opens → generate EU signals → US opens
+- [ ] 24h monitoring: cron jobs for each market's trading hours
+- [ ] Slack signal delivery adapted per timezone
+- [ ] Weekend processing: prepare weekly analysis for all markets before Monday opens
 
 ---
 
