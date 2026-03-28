@@ -610,35 +610,37 @@ export default function BacktestPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto scroll-smooth scrollbar-thin p-6 md:p-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-100">Walk-Forward Backtest</h2>
-            <p className="text-sm text-slate-500">
-              ML-driven backtesting with Triple Barrier labels &amp; Deflated Sharpe Ratio guard
-            </p>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        {/* ── Fixed header zone ─────────────────────────────── */}
+        <div className="flex-shrink-0 px-6 pt-6 pb-0 md:px-8 md:pt-8">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-100">Walk-Forward Backtest</h2>
+              <p className="text-sm text-slate-500">
+                ML-driven backtesting with Triple Barrier labels &amp; Deflated Sharpe Ratio guard
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleIngest}
+                disabled={!!actionLoading}
+                title="Downloads S&P 500 prices (yfinance), fundamentals, and FRED macro data into BigQuery. Free data sources, BQ cost <$0.05. Takes ~5-15 min."
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-sky-500/50 hover:text-sky-300 disabled:opacity-50"
+              >
+                <Database size={16} />
+                {actionLoading === "ingest" ? "Ingesting..." : "Ingest Data"}
+              </button>
+              <button
+                onClick={handleRunBacktest}
+                disabled={!!actionLoading || isRunning || isOptRunning}
+                title={isOptRunning ? "Optimizer is running - backtest unavailable" : "Runs walk-forward ML backtest on ingested data. Uses GradientBoosting (no LLM cost). BQ reads <$0.01. Takes ~2-5 min."}
+                className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:opacity-50"
+              >
+                <Play size={16} weight="fill" />
+                {actionLoading === "backtest" || isRunning ? "Running..." : "Run Backtest"}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleIngest}
-              disabled={!!actionLoading}
-              title="Downloads S&P 500 prices (yfinance), fundamentals, and FRED macro data into BigQuery. Free data sources, BQ cost <$0.05. Takes ~5-15 min."
-              className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-sky-500/50 hover:text-sky-300 disabled:opacity-50"
-            >
-              <Database size={16} />
-              {actionLoading === "ingest" ? "Ingesting..." : "Ingest Data"}
-            </button>
-            <button
-              onClick={handleRunBacktest}
-              disabled={!!actionLoading || isRunning || isOptRunning}
-              title={isOptRunning ? "Optimizer is running - backtest unavailable" : "Runs walk-forward ML backtest on ingested data. Uses GradientBoosting (no LLM cost). BQ reads <$0.01. Takes ~2-5 min."}
-              className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:opacity-50"
-            >
-              <Play size={16} weight="fill" />
-              {actionLoading === "backtest" || isRunning ? "Running..." : "Run Backtest"}
-            </button>
-          </div>
-        </div>
 
         {error && (
           <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
@@ -727,9 +729,9 @@ export default function BacktestPage() {
           );
         })()}
 
-        {/* Tab bar — sticky */}
+        {/* Tab bar — inside fixed header */}
         {!loading && (
-          <div className="sticky top-0 z-20 -mx-6 mb-6 flex gap-1 rounded-lg bg-navy-900/95 p-1 px-6 backdrop-blur-sm md:-mx-8 md:px-8">
+          <div className="flex gap-1 rounded-lg bg-navy-800/60 p-1">
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -746,6 +748,10 @@ export default function BacktestPage() {
               ))}
             </div>
         )}
+        </div>
+
+        {/* ── Scrollable content zone ───────────────────────── */}
+        <div className="flex-1 overflow-y-auto scroll-smooth scrollbar-thin px-6 py-6 md:px-8">
 
         {/* Simple progress bar */}
         {(isRunning || isOptRunning) && (() => {
@@ -1573,6 +1579,7 @@ export default function BacktestPage() {
             {/* Insights tab removed — consolidated into Overview */}
           </>
         )}
+        </div>
       </main>
     </div>
   );
