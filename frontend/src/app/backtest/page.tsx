@@ -67,6 +67,7 @@ import {
 import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
 import { SharpeHistoryChart } from "@/components/SharpeHistoryChart";
 import { HarnessDashboard } from "@/components/HarnessDashboard";
+import { BudgetDashboard } from "@/components/BudgetDashboard";
 // OptimizerInsightsView removed — consolidated into Overview tab
 import type { Icon } from "@phosphor-icons/react";
 
@@ -117,7 +118,7 @@ function Metric({ label, value, sub, color }: { label: string; value: string; su
   );
 }
 
-type Tab = "overview" | "results" | "equity" | "features" | "optimizer" | "harness";
+type Tab = "overview" | "results" | "equity" | "features" | "optimizer" | "harness" | "budget";
 const TABS: { id: Tab; label: string; icon: Icon }[] = [
   { id: "overview", label: "Overview", icon: House },
   { id: "results", label: "Results", icon: Table },
@@ -125,6 +126,7 @@ const TABS: { id: Tab; label: string; icon: Icon }[] = [
   { id: "features", label: "Features", icon: TrendUp },
   { id: "optimizer", label: "Optimizer", icon: Lightning },
   { id: "harness", label: "Harness", icon: ClockCounterClockwise },
+  { id: "budget", label: "Budget", icon: ShoppingCart },
 ];
 
 interface RunSelectorProps {
@@ -1581,6 +1583,11 @@ export default function BacktestPage() {
             {/* ═══ HARNESS TAB ═══ */}
             {tab === "harness" && (
               <HarnessDashboard />
+            )}
+
+            {/* ═══ BUDGET TAB ═══ */}
+            {tab === "budget" && (
+              <BudgetDashboard />
             )}
 
             {/* ═══ INSIGHTS TAB ═══ */}

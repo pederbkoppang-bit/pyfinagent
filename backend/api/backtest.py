@@ -1246,3 +1246,48 @@ def get_harness_criteria():
     if not content:
         return {"content": None}
     return {"content": content}
+
+
+# ── Budget Dashboard Endpoints ───────────────────────────────────
+
+@router.get("/budget/summary")
+def get_budget_summary():
+    """Return budget summary with known costs and projections."""
+    # Known fixed monthly costs
+    fixed_costs = [
+        {"category": "Claude Max Subscription", "monthly_usd": 200.00, "type": "fixed", "note": "Anthropic API access"},
+        {"category": "Google Cloud (BQ + Storage)", "monthly_usd": 15.00, "type": "estimated", "note": "~$0.50/day average"},
+        {"category": "Mac Mini (amortized)", "monthly_usd": 25.00, "type": "fixed", "note": "$600 / 24 months"},
+        {"category": "Domain & Infrastructure", "monthly_usd": 10.00, "type": "estimated", "note": "DNS, misc"},
+    ]
+
+    # Estimated variable costs (when paper trading activates)
+    variable_costs = [
+        {"category": "Gemini API (Paper Trading)", "monthly_usd": 75.00, "type": "projected", "note": "~$2-5/day when active"},
+        {"category": "Data APIs", "monthly_usd": 0.00, "type": "actual", "note": "Yahoo Finance + FRED (free)"},
+    ]
+
+    total_fixed = sum(c["monthly_usd"] for c in fixed_costs)
+    total_variable = sum(c["monthly_usd"] for c in variable_costs)
+    total_monthly = total_fixed + total_variable
+
+    # Budget constraints from Peder
+    monthly_budget = 350.00  # Peder's max comfort zone
+    cash_available = 2000.00  # Estimated operating cash (conservative)
+    runway_months = round(cash_available / total_monthly, 1) if total_monthly > 0 else 99
+
+    return {
+        "fixed_costs": fixed_costs,
+        "variable_costs": variable_costs,
+        "summary": {
+            "total_fixed_monthly": total_fixed,
+            "total_variable_monthly": total_variable,
+            "total_monthly": total_monthly,
+            "monthly_budget": monthly_budget,
+            "budget_utilization_pct": round(total_monthly / monthly_budget * 100, 1),
+            "cash_available": cash_available,
+            "runway_months": runway_months,
+        },
+        "status": "under_budget" if total_monthly <= monthly_budget else "over_budget",
+        "note": "Costs are estimates. Actual BQ billing data not yet integrated.",
+    }
