@@ -23,20 +23,29 @@ interface CostItem {
 
 interface BudgetSummary {
   total_fixed_monthly: number;
-  total_variable_monthly: number;
+  total_gcp_monthly: number;
   total_monthly: number;
   monthly_budget: number;
   budget_utilization_pct: number;
-  cash_available: number;
   runway_months: number;
+}
+
+interface MonthlyHistory {
+  month: string;
+  gcp_net: number;
+  claude_max: number;
+  other_fixed: number;
+  total: number;
+  services: Record<string, number>;
 }
 
 interface BudgetData {
   fixed_costs: CostItem[];
-  variable_costs: CostItem[];
+  gcp_costs: CostItem[];
+  monthly_history: MonthlyHistory[];
   summary: BudgetSummary;
   status: string;
-  note: string;
+  data_source: string;
 }
 
 // ── Type badge ──────────────────────────────────────────────────
@@ -129,13 +138,29 @@ export function BudgetDashboard() {
   return (
     <div className="space-y-6">
       {/* Hero metrics */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-3 py-2">
           <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            Monthly Burn
+            This Month
           </p>
           <p className="font-mono text-lg font-semibold text-slate-200">
             ${s.total_monthly.toFixed(0)}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">
+            GCP Actual
+          </p>
+          <p className="font-mono text-lg font-semibold text-sky-400">
+            ${s.total_gcp_monthly.toFixed(0)}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">
+            Fixed Costs
+          </p>
+          <p className="font-mono text-lg font-semibold text-slate-300">
+            ${s.total_fixed_monthly.toFixed(0)}
           </p>
         </div>
         <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-3 py-2">
@@ -168,30 +193,6 @@ export function BudgetDashboard() {
             }`}
           >
             {s.budget_utilization_pct.toFixed(0)}%
-          </p>
-        </div>
-        <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            Fixed
-          </p>
-          <p className="font-mono text-lg font-semibold text-slate-300">
-            ${s.total_fixed_monthly.toFixed(0)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            Variable
-          </p>
-          <p className="font-mono text-lg font-semibold text-slate-300">
-            ${s.total_variable_monthly.toFixed(0)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-sky-800/50 bg-sky-900/20 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-wider text-sky-500">
-            Runway
-          </p>
-          <p className="font-mono text-lg font-semibold text-sky-400">
-            {s.runway_months} mo
           </p>
         </div>
       </div>
@@ -260,42 +261,113 @@ export function BudgetDashboard() {
           </div>
         </BentoCard>
 
-        {/* Variable costs */}
+        {/* GCP costs (real billing data) */}
         <BentoCard>
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-300">
-            <Gauge size={16} className="text-amber-400" />
-            Variable Costs
+            <Gauge size={16} className="text-sky-400" />
+            GCP Costs (This Month)
+          </h3>
+          {data.gcp_costs.length > 0 ? (
+            <div className="overflow-hidden rounded-lg border border-navy-700">
+              <table className="w-full text-sm">
+                <thead className="border-b border-navy-700 bg-navy-800/80">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">
+                      Service
+                    </th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">
+                      Net Cost
+                    </th>
+                    <th className="px-3 py-2 text-xs font-medium text-slate-400">
+                      Source
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-navy-700/50">
+                  {data.gcp_costs.map((c) => (
+                    <tr
+                      key={c.category}
+                      className="transition-colors hover:bg-navy-700/40"
+                    >
+                      <td className="px-3 py-2">
+                        <p className="text-xs text-slate-200">{c.category}</p>
+                        <p className="text-[10px] text-slate-500">{c.note}</p>
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">
+                        ${c.monthly_usd.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <TypeBadge type={c.type} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="py-4 text-center text-xs text-slate-500">
+              No GCP charges this month
+            </p>
+          )}
+        </BentoCard>
+      </div>
+
+      {/* Monthly Trend */}
+      {data.monthly_history.length > 0 && (
+        <BentoCard>
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-300">
+            <Clock size={16} className="text-slate-400" />
+            Monthly Cost Trend
           </h3>
           <div className="overflow-hidden rounded-lg border border-navy-700">
             <table className="w-full text-sm">
               <thead className="border-b border-navy-700 bg-navy-800/80">
                 <tr>
                   <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">
-                    Category
+                    Month
                   </th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">
-                    Monthly
+                    GCP (net)
                   </th>
-                  <th className="px-3 py-2 text-xs font-medium text-slate-400">
-                    Type
+                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">
+                    Claude Max
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">
+                    Other
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">
+                    Total
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-700/50">
-                {data.variable_costs.map((c) => (
+                {data.monthly_history.map((m) => (
                   <tr
-                    key={c.category}
+                    key={m.month}
                     className="transition-colors hover:bg-navy-700/40"
                   >
-                    <td className="px-3 py-2">
-                      <p className="text-xs text-slate-200">{c.category}</p>
-                      <p className="text-[10px] text-slate-500">{c.note}</p>
+                    <td className="px-3 py-2 font-mono text-xs text-slate-300">
+                      {m.month}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">
-                      ${c.monthly_usd.toFixed(2)}
+                    <td className="px-3 py-2 text-right font-mono text-xs text-sky-400">
+                      ${m.gcp_net.toFixed(2)}
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      <TypeBadge type={c.type} />
+                    <td className="px-3 py-2 text-right font-mono text-xs text-slate-400">
+                      ${m.claude_max.toFixed(0)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-xs text-slate-400">
+                      ${m.other_fixed.toFixed(0)}
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right font-mono text-xs font-semibold ${
+                        m.total > 500
+                          ? "text-red-400"
+                          : m.total > 350
+                            ? "text-amber-400"
+                            : "text-emerald-400"
+                      }`}
+                    >
+                      ${m.total.toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -303,11 +375,11 @@ export function BudgetDashboard() {
             </table>
           </div>
         </BentoCard>
-      </div>
+      )}
 
-      {/* Note */}
+      {/* Data source */}
       <p className="text-center text-[10px] text-slate-600">
-        {data.note}
+        {data.data_source}
       </p>
     </div>
   );

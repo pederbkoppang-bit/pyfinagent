@@ -1252,42 +1252,105 @@ def get_harness_criteria():
 
 @router.get("/budget/summary")
 def get_budget_summary():
-    """Return budget summary with known costs and projections."""
-    # Known fixed monthly costs
+    """Return budget summary with REAL GCP billing data + known fixed costs."""
+    from backend.config.settings import get_settings
+    from backend.db.bigquery_client import BigQueryClient
+
+    # Query real GCP costs from billing export
+    gcp_monthly: list[dict] = []
+    gcp_current_month_total = 0.0
+    try:
+        settings = get_settings()
+        bq = BigQueryClient(settings)
+        q = """
+        SELECT
+          FORMAT_TIMESTAMP("%Y-%m", usage_start_time) as month,
+          service.description as service,
+          ROUND(SUM(cost), 2) as cost_usd,
+          ROUND(SUM(IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) c), 0)), 2) as credits_usd
+        FROM `sunny-might-477607-p8.all_billing_data.gcp_billing_export_v1_01BC3A_9EA188_0319ED`
+        WHERE usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
+        GROUP BY month, service
+        ORDER BY month DESC, cost_usd DESC
+        """
+        results = bq.client.query(q, timeout=30).result()
+        month_totals: dict[str, float] = {}
+        for row in results:
+            net = round(row.cost_usd + row.credits_usd, 2)
+            gcp_monthly.append({
+                "month": row.month,
+                "service": row.service,
+                "cost_usd": row.cost_usd,
+                "credits_usd": row.credits_usd,
+                "net_usd": net,
+            })
+            month_totals[row.month] = month_totals.get(row.month, 0) + net
+
+        # Current month
+        from datetime import datetime, timezone
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        gcp_current_month_total = round(month_totals.get(current_month, 0), 2)
+    except Exception as e:
+        logger.warning("Failed to query billing data: %s", e)
+
+    # Build monthly history for chart
+    monthly_history: list[dict] = []
+    month_map: dict[str, dict] = {}
+    for entry in gcp_monthly:
+        m = entry["month"]
+        if m not in month_map:
+            month_map[m] = {"month": m, "gcp_net": 0.0, "services": {}}
+        month_map[m]["gcp_net"] = round(month_map[m]["gcp_net"] + entry["net_usd"], 2)
+        svc = entry["service"]
+        month_map[m]["services"][svc] = round(
+            month_map[m]["services"].get(svc, 0) + entry["net_usd"], 2
+        )
+    for m in sorted(month_map.keys()):
+        row = month_map[m]
+        row["claude_max"] = 200.00  # Fixed subscription
+        row["other_fixed"] = 35.00  # Mac Mini + domain
+        row["total"] = round(row["gcp_net"] + row["claude_max"] + row["other_fixed"], 2)
+        monthly_history.append(row)
+
+    # Current month breakdown
+    current_gcp_services = []
+    for entry in gcp_monthly:
+        from datetime import datetime, timezone
+        cm = datetime.now(timezone.utc).strftime("%Y-%m")
+        if entry["month"] == cm and entry["net_usd"] > 0.005:
+            current_gcp_services.append({
+                "category": entry["service"],
+                "monthly_usd": entry["net_usd"],
+                "type": "actual",
+                "note": f"GCP (net of credits: ${entry['credits_usd']:.2f})",
+            })
+
+    # Non-GCP fixed costs
     fixed_costs = [
         {"category": "Claude Max Subscription", "monthly_usd": 200.00, "type": "fixed", "note": "Anthropic API access"},
-        {"category": "Google Cloud (BQ + Storage)", "monthly_usd": 15.00, "type": "estimated", "note": "~$0.50/day average"},
         {"category": "Mac Mini (amortized)", "monthly_usd": 25.00, "type": "fixed", "note": "$600 / 24 months"},
         {"category": "Domain & Infrastructure", "monthly_usd": 10.00, "type": "estimated", "note": "DNS, misc"},
     ]
 
-    # Estimated variable costs (when paper trading activates)
-    variable_costs = [
-        {"category": "Gemini API (Paper Trading)", "monthly_usd": 75.00, "type": "projected", "note": "~$2-5/day when active"},
-        {"category": "Data APIs", "monthly_usd": 0.00, "type": "actual", "note": "Yahoo Finance + FRED (free)"},
-    ]
-
     total_fixed = sum(c["monthly_usd"] for c in fixed_costs)
-    total_variable = sum(c["monthly_usd"] for c in variable_costs)
-    total_monthly = total_fixed + total_variable
+    total_gcp = gcp_current_month_total
+    total_monthly = round(total_fixed + total_gcp, 2)
 
-    # Budget constraints from Peder
-    monthly_budget = 350.00  # Peder's max comfort zone
-    cash_available = 2000.00  # Estimated operating cash (conservative)
-    runway_months = round(cash_available / total_monthly, 1) if total_monthly > 0 else 99
+    monthly_budget = 500.00
+    runway_months = 99
 
     return {
         "fixed_costs": fixed_costs,
-        "variable_costs": variable_costs,
+        "gcp_costs": current_gcp_services,
+        "monthly_history": monthly_history,
         "summary": {
             "total_fixed_monthly": total_fixed,
-            "total_variable_monthly": total_variable,
+            "total_gcp_monthly": total_gcp,
             "total_monthly": total_monthly,
             "monthly_budget": monthly_budget,
-            "budget_utilization_pct": round(total_monthly / monthly_budget * 100, 1),
-            "cash_available": cash_available,
+            "budget_utilization_pct": round(total_monthly / monthly_budget * 100, 1) if monthly_budget > 0 else 0,
             "runway_months": runway_months,
         },
         "status": "under_budget" if total_monthly <= monthly_budget else "over_budget",
-        "note": "Costs are estimates. Actual BQ billing data not yet integrated.",
+        "data_source": "BigQuery billing export (real data)",
     }
