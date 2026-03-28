@@ -1403,8 +1403,15 @@ From the article: "Every component in a harness encodes an assumption about what
 | 2026-03-28 | **Codebase audit** | — | 132 files (27K lines) read. Phase 4 ~60% built. Stale code identified. |
 | 2026-03-28 | Plan v3 finalized | — | Added: resilience (2.6.0), harness dashboard (2.6.1), budget intelligence (2.6.2), paper trading promoted to 2.7, deep research protocol, evidence-based development |
 
+| 2026-03-28 | **Phase 2.6.0** PASS | — | Operational resilience: watchdog, Slack, config optimized |
+| 2026-03-28 | **Phase 2.6.1** PASS | — | Harness dashboard: 5 API endpoints + Harness tab |
+| 2026-03-28 | **Phase 2.6.2** PASS | — | Budget dashboard with REAL BQ billing data + cash flow chart |
+| 2026-03-28 | GCP cost cleanup | — | Deleted Redis ($76) + VPC ($19) — GCP $176→$5/mo |
+| 2026-03-29 | **Phase 2.7** ACTIVATED | — | Paper trading live: $10K portfolio, XOM test trade, scheduler running |
+| 2026-03-29 | Phase 2.8 started | — | Seed stability test running (5 seeds) |
+
 ---
 
 *This plan follows the Anthropic harness design pattern: Planner → Generator → Evaluator.*
 *"The space of interesting harness combinations doesn't shrink as models improve. Instead, it moves."*
-*Last updated: 2026-03-28 21:16 by Ford — Plan v3: resilience, harness dashboard, budget intelligence, paper trading promoted, deep research, evidence-based development*
+*Last updated: 2026-03-29 00:30 by Ford — Phase 2.7 activated, Phase 2.8 seed stability running*
