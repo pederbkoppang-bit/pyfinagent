@@ -1,6 +1,34 @@
-INFO:     Started server process [55444]
+INFO:     Started server process [55739]
 INFO:     Waiting for application startup.
-[36m23:06:43 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
-[36m23:06:43 I [on][0m Application startup complete.
-[36m23:06:43 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-[36m23:07:38 I [httptools_impl][0m 127.0.0.1:65334 - "GET /api/changelog HTTP/1.1" 200
+[36m23:14:03 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
+[36m23:14:03 I [on][0m Application startup complete.
+[36m23:14:03 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[36m23:14:04 I [httptools_impl][0m 127.0.0.1:65375 - "GET /api/backtest/harness/log HTTP/1.1" 200
+[36m23:14:04 I [httptools_impl][0m 127.0.0.1:65377 - "GET /api/backtest/harness/validation HTTP/1.1" 200
+[36m23:14:04 I [httptools_impl][0m 127.0.0.1:65379 - "GET /api/backtest/harness/critique HTTP/1.1" 200
+[36m23:14:04 I [httptools_impl][0m 127.0.0.1:65381 - "GET /api/backtest/harness/contract HTTP/1.1" 200
+[36m23:14:08 I [httptools_impl][0m 127.0.0.1:65385 - "GET /api/changelog HTTP/1.1" 200
+[36m23:16:07 I [httptools_impl][0m 127.0.0.1:65401 - "OPTIONS /api/backtest/sharpe-history HTTP/1.1" 200
+[36m23:16:07 I [httptools_impl][0m 127.0.0.1:65401 - "GET /api/backtest/sharpe-history HTTP/1.1" 200
+[36m23:16:31 I [backtest][0m Auto-loaded previous backtest result (run_id=exp_wider_barriers)
+[36m23:16:31 I [httptools_impl][0m 127.0.0.1:65412 - "OPTIONS /api/backtest/ingest/status HTTP/1.1" 200
+[36m23:16:31 I [httptools_impl][0m 127.0.0.1:65412 - "OPTIONS /api/backtest/optimize/status HTTP/1.1" 200
+[36m23:16:31 I [httptools_impl][0m 127.0.0.1:65413 - "OPTIONS /api/backtest/runs HTTP/1.1" 200
+[36m23:16:31 I [httptools_impl][0m 127.0.0.1:65412 - "GET /api/backtest/optimize/status HTTP/1.1" 200
+[36m23:16:32 I [httptools_impl][0m 127.0.0.1:65413 - "GET /api/backtest/runs HTTP/1.1" 200
+[36m23:16:33 I [httptools_impl][0m 127.0.0.1:65411 - "GET /api/backtest/ingest/status HTTP/1.1" 200
+[36m23:16:33 I [httptools_impl][0m 127.0.0.1:65412 - "OPTIONS /api/backtest/results HTTP/1.1" 200
+[36m23:16:33 I [httptools_impl][0m 127.0.0.1:65413 - "GET /api/backtest/results HTTP/1.1" 200
+[36m23:16:33 I [httptools_impl][0m 127.0.0.1:65411 - "OPTIONS /api/backtest/optimize/experiments?run_index=0 HTTP/1.1" 200
+[36m23:16:33 I [httptools_impl][0m 127.0.0.1:65412 - "OPTIONS /api/backtest/optimize/best HTTP/1.1" 200
+[36m23:16:34 I [httptools_impl][0m 127.0.0.1:65413 - "GET /api/backtest/optimize/experiments?run_index=0 HTTP/1.1" 200
+[36m23:16:34 I [httptools_impl][0m 127.0.0.1:65411 - "GET /api/backtest/optimize/best HTTP/1.1" 200
+[36m23:16:34 I [httptools_impl][0m 127.0.0.1:65412 - "GET /api/backtest/sharpe-history HTTP/1.1" 200
+[36m23:16:35 I [httptools_impl][0m 127.0.0.1:65413 - "OPTIONS /api/backtest/harness/log HTTP/1.1" 200
+[36m23:16:35 I [httptools_impl][0m 127.0.0.1:65411 - "GET /api/backtest/harness/log HTTP/1.1" 200
+[36m23:16:35 I [httptools_impl][0m 127.0.0.1:65412 - "OPTIONS /api/backtest/harness/critique HTTP/1.1" 200
+[36m23:16:35 I [httptools_impl][0m 127.0.0.1:65413 - "GET /api/backtest/harness/critique HTTP/1.1" 200
+[36m23:16:35 I [httptools_impl][0m 127.0.0.1:65411 - "OPTIONS /api/backtest/harness/contract HTTP/1.1" 200
+[36m23:16:35 I [httptools_impl][0m 127.0.0.1:65412 - "GET /api/backtest/harness/contract HTTP/1.1" 200
+[36m23:16:35 I [httptools_impl][0m 127.0.0.1:65413 - "OPTIONS /api/backtest/harness/validation HTTP/1.1" 200
+[36m23:16:35 I [httptools_impl][0m 127.0.0.1:65411 - "GET /api/backtest/harness/validation HTTP/1.1" 200

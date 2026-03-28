@@ -859,6 +859,26 @@ export interface OptimizerInsights {
   data_scope: OptimizerInsightsDataScope;
 }
 
+// ── Harness Dashboard ───────────────────────────────────────────
+
+export interface HarnessCycle {
+  cycle: string;
+  timestamp: string;
+  hypothesis?: string;
+  generator?: string;
+  verdict?: string;
+  decision?: string;
+  duration?: string;
+  scores: Record<string, number>;
+  sub_periods?: string;
+  costs_2x_sharpe?: number;
+}
+
+export interface HarnessValidation {
+  validation: Record<string, Record<string, number>>;
+  subperiod: Record<string, Record<string, number | string | boolean>>;
+}
+
 // ── Sharpe History ──────────────────────────────────────────────
 
 export interface SharpeHistoryEntry {

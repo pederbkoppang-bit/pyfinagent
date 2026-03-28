@@ -376,6 +376,28 @@ export function deleteBacktestRun(runId: string): Promise<{ status: string; run_
   return apiFetch(`/api/backtest/runs/${encodeURIComponent(runId)}`, { method: "DELETE" });
 }
 
+// ── Harness Dashboard ───────────────────────────────────────────
+
+export function getHarnessLog(): Promise<{ cycles: import("./types").HarnessCycle[] }> {
+  return apiFetch("/api/backtest/harness/log");
+}
+
+export function getHarnessCritique(): Promise<{ content: string | null; raw: string | null }> {
+  return apiFetch("/api/backtest/harness/critique");
+}
+
+export function getHarnessContract(): Promise<{ content: string | null }> {
+  return apiFetch("/api/backtest/harness/contract");
+}
+
+export function getHarnessValidation(): Promise<import("./types").HarnessValidation> {
+  return apiFetch("/api/backtest/harness/validation");
+}
+
+export function getHarnessCriteria(): Promise<{ content: string | null }> {
+  return apiFetch("/api/backtest/harness/criteria");
+}
+
 export function getSharpeHistory(): Promise<SharpeHistoryResponse> {
   return apiFetch("/api/backtest/sharpe-history");
 }

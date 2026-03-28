@@ -62,9 +62,11 @@ import {
   XCircle,
   House,
   MagnifyingGlass,
+  ClockCounterClockwise,
 } from "@phosphor-icons/react";
 import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
 import { SharpeHistoryChart } from "@/components/SharpeHistoryChart";
+import { HarnessDashboard } from "@/components/HarnessDashboard";
 // OptimizerInsightsView removed — consolidated into Overview tab
 import type { Icon } from "@phosphor-icons/react";
 
@@ -115,13 +117,14 @@ function Metric({ label, value, sub, color }: { label: string; value: string; su
   );
 }
 
-type Tab = "overview" | "results" | "equity" | "features" | "optimizer";
+type Tab = "overview" | "results" | "equity" | "features" | "optimizer" | "harness";
 const TABS: { id: Tab; label: string; icon: Icon }[] = [
   { id: "overview", label: "Overview", icon: House },
   { id: "results", label: "Results", icon: Table },
   { id: "equity", label: "Equity", icon: ChartLineUp },
   { id: "features", label: "Features", icon: TrendUp },
   { id: "optimizer", label: "Optimizer", icon: Lightning },
+  { id: "harness", label: "Harness", icon: ClockCounterClockwise },
 ];
 
 interface RunSelectorProps {
@@ -1573,6 +1576,11 @@ export default function BacktestPage() {
                   <p className="text-slate-500">No experiments yet. Click &quot;Start Optimizer&quot; to begin.</p>
                 )}
               </div>
+            )}
+
+            {/* ═══ HARNESS TAB ═══ */}
+            {tab === "harness" && (
+              <HarnessDashboard />
             )}
 
             {/* ═══ INSIGHTS TAB ═══ */}

@@ -1124,3 +1124,125 @@ def get_sharpe_history():
             "discarded_count": discarded_count,
         },
     }
+
+
+# ── Harness Dashboard Endpoints ─────────────────────────────────
+
+import os as _os
+_HANDOFF_DIR = _os.path.join(_os.path.dirname(__file__), "..", "..", "handoff")
+
+
+def _read_handoff_file(filename: str) -> str | None:
+    """Read a handoff file, return contents or None."""
+    path = _os.path.join(_HANDOFF_DIR, filename)
+    if not _os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        logger.warning("Failed to read handoff/%s: %s", filename, e)
+        return None
+
+
+@router.get("/harness/log")
+def get_harness_log():
+    """Parse harness_log.md into structured cycle data."""
+    import re
+    content = _read_handoff_file("harness_log.md")
+    if not content:
+        return {"cycles": []}
+
+    cycles: list[dict] = []
+    # Split on cycle headers: ## Cycle N -- timestamp
+    parts = re.split(r"^## (Cycle \d+)\s*--\s*(.+)$", content, flags=re.MULTILINE)
+    i = 1
+    while i + 2 < len(parts):
+        cycle_name = parts[i].strip()
+        timestamp = parts[i + 1].strip()
+        body = parts[i + 2].strip()
+
+        cycle: dict = {"cycle": cycle_name, "timestamp": timestamp}
+
+        # Extract fields
+        for field, key in [
+            (r"\*\*Planner hypothesis:\*\*\s*(.+)", "hypothesis"),
+            (r"\*\*Generator:\*\*\s*(.+)", "generator"),
+            (r"\*\*Evaluator verdict:\*\*\s*(\w+)", "verdict"),
+            (r"\*\*Decision:\*\*\s*(.+)", "decision"),
+            (r"\*\*Total cycle time:\*\*\s*(.+)", "duration"),
+        ]:
+            m = re.search(field, body)
+            if m:
+                cycle[key] = m.group(1).strip()
+
+        # Extract scores
+        scores: dict = {}
+        for score_match in re.finditer(r"- (Statistical|Robustness|Simplicity|Reality Gap):\s*(\d+)/10", body):
+            scores[score_match.group(1).lower().replace(" ", "_")] = int(score_match.group(2))
+        cycle["scores"] = scores
+
+        # Extract sub-periods and 2x costs
+        sp = re.search(r"- Sub-periods:\s*(.+)", body)
+        if sp:
+            cycle["sub_periods"] = sp.group(1).strip()
+        costs = re.search(r"- 2x costs:\s*Sharpe=([0-9.]+)", body)
+        if costs:
+            cycle["costs_2x_sharpe"] = float(costs.group(1))
+
+        cycles.append(cycle)
+        i += 3
+
+    return {"cycles": cycles}
+
+
+@router.get("/harness/critique")
+def get_harness_critique():
+    """Return latest evaluator_critique.md as structured data."""
+    content = _read_handoff_file("evaluator_critique.md")
+    if not content:
+        return {"content": None, "raw": None}
+    return {"content": content, "raw": content}
+
+
+@router.get("/harness/contract")
+def get_harness_contract():
+    """Return current contract.md."""
+    content = _read_handoff_file("contract.md")
+    if not content:
+        return {"content": None}
+    return {"content": content}
+
+
+@router.get("/harness/validation")
+def get_harness_validation():
+    """Return validation results from JSON files."""
+    validation: dict = {}
+    subperiod: dict = {}
+
+    val_path = _os.path.join(_HANDOFF_DIR, "validation_results.json")
+    if _os.path.exists(val_path):
+        try:
+            with open(val_path, "r") as f:
+                validation = json.load(f)
+        except Exception:
+            pass
+
+    sub_path = _os.path.join(_HANDOFF_DIR, "subperiod_validation_results.json")
+    if _os.path.exists(sub_path):
+        try:
+            with open(sub_path, "r") as f:
+                subperiod = json.load(f)
+        except Exception:
+            pass
+
+    return {"validation": validation, "subperiod": subperiod}
+
+
+@router.get("/harness/criteria")
+def get_harness_criteria():
+    """Return evaluator criteria."""
+    content = _read_handoff_file("evaluator_criteria.md")
+    if not content:
+        return {"content": None}
+    return {"content": content}
