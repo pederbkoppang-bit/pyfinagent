@@ -790,7 +790,7 @@ export default function BacktestPage() {
                 {/* Sharpe History Chart — track improvement over time */}
                 <BentoCard>
                   <h3 className="mb-4 text-lg font-semibold text-slate-300">
-                    📈 Sharpe Ratio History
+                    Sharpe Ratio History
                   </h3>
                   <SharpeHistoryChart />
                 </BentoCard>
