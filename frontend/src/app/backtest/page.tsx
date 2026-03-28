@@ -244,7 +244,7 @@ function RunSelector({
                 let deltaText = "";
                 let deltaColor = "";
                 if (delta !== null && Math.abs(delta) > 0.0001) { // Show even tiny differences
-                  const pctImprovement = prevBaseline.sharpe !== 0 ? (delta / prevBaseline.sharpe) * 100 : 0;
+                  const pctImprovement = prevBaseline?.sharpe ? (delta / prevBaseline.sharpe) * 100 : 0;
                   if (Math.abs(pctImprovement) >= 0.01) { // Show if >= 0.01%
                     deltaText = ` Δ${delta >= 0 ? "+" : ""}${pctImprovement.toFixed(2)}%`;
                     deltaColor = delta >= 0 ? "text-emerald-400" : "text-rose-400";
@@ -751,16 +751,18 @@ export default function BacktestPage() {
         {(isRunning || isOptRunning) && (() => {
           const prog = btStatus?.progress && typeof btStatus.progress === "object" ? btStatus.progress as BacktestProgress : null;
           // Use optimizer status for CLI runs, btStatus for API runs
-          const optW = (optStatus as Record<string, unknown>)?.current_window as number | undefined;
-          const optTotalW = (optStatus as Record<string, unknown>)?.total_windows as number | undefined;
-          const currentW = prog?.current_window ?? optW ?? 0;
-          const totalW = prog?.total_windows ?? optTotalW ?? 0;
+          const optAny = optStatus as unknown as Record<string, unknown> | null;
+          const optW = optAny?.current_window as number | undefined;
+          const optTotalW = optAny?.total_windows as number | undefined;
+          const currentW = (prog as unknown as Record<string, unknown>)?.current_window as number ?? optW ?? 0;
+          const totalW = (prog as unknown as Record<string, unknown>)?.total_windows as number ?? optTotalW ?? 0;
           const pct = totalW > 0 ? Math.round((currentW / totalW) * 100) : 0;
-          const optDetail = (optStatus as Record<string, unknown>)?.detail as string | undefined;
+          const optDetail = optAny?.detail as string | undefined;
+          const progAny = prog as unknown as Record<string, unknown> | null;
           const label = isRunning
             ? totalW > 0
-              ? `Window ${currentW}/${totalW} — ${prog?.label || prog?.step || "processing"}`
-              : prog?.label || prog?.step || "starting"
+              ? `Window ${currentW}/${totalW} — ${progAny?.label || progAny?.step || "processing"}`
+              : (progAny?.label as string) || (progAny?.step as string) || "starting"
             : optDetail || `Optimizer running — ${optStatus?.iterations ?? 0} experiments completed`;
           return (
             <div className="mb-4 rounded-lg border border-sky-500/20 bg-sky-950/20 px-4 py-2.5">

@@ -736,6 +736,7 @@ export interface OptimizerExperiment {
   status: string;
   dsr: string;
   top5_mda: string;
+  parent_run_id?: string | null;
 }
 
 export interface OptimizerBest {
@@ -812,6 +813,7 @@ export interface BacktestRunSummary {
   is_baseline: boolean;
   parent_run_id: string | null;
   has_detail: boolean;
+  experiment_count: number;
 }
 
 // ── Optimizer Insights ───────────────────────────────────────────
