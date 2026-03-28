@@ -1,0 +1,6 @@
+INFO:     Started server process [46486]
+INFO:     Waiting for application startup.
+[36m11:05:16 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
+[36m11:05:16 I [on][0m Application startup complete.
+[36m11:05:16 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[36m11:05:17 I [httptools_impl][0m 127.0.0.1:62676 - "GET /api/backtest/optimize/status HTTP/1.1" 200

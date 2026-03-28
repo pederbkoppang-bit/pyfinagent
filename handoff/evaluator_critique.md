@@ -1,51 +1,81 @@
-# Evaluator Critique — Cycle 1 Validation
+# Evaluator Critique — Cycle 2, Direction C (Robustness Validation)
 
-## Date: 2026-03-28 09:59 UTC
-## Strategy: Sharpe -4.5716 | DSR 0.0000
+**Date:** 2026-03-28
+**Strategy:** triple_barrier with Phase 1.2-1.9 enhancements
+**Verdict:** ❌ FAIL — Strategy produces negative risk-adjusted returns
 
----
+## Test Results
 
-## 1. Statistical Validity: 4/10
-- DSR: 0.0000 (< 0.95 ⚠️)
-- Full-period Sharpe: -4.5716
-- Full-period return: 4.0%
-- Max drawdown: -0.6%
-- Trades: 520
-- Note: Seed stability test not yet run (requires code change for random seed injection)
+### Sub-Period Backtests
+| Period | Sharpe | Return % | Trades | Status |
+|--------|--------|----------|--------|--------|
+| A: 2018-2020 | -3.80 | 0.7% | 73 | ❌ FAIL |
+| B: 2020-2022 | -4.25 | 0.7% | 120 | ❌ FAIL |
+| C: 2023-2025 | -11.37 | 0.6% | 143 | ❌ FAIL |
 
-## 2. Robustness: 4/10
-- Period A (2018-2020): Sharpe -3.7966 ❌
-- Period B (2020-2022): Sharpe -4.2542 ❌
-- Period C (2023-2025): Sharpe -11.3666 ❌
-- All sub-periods positive: No ❌
-- All sub-periods > 0.3: No ⚠️
+### Full-Period Reference (Post-Fix)
+| Test | Sharpe | Return % | Trades | Status |
+|------|--------|----------|--------|--------|
+| Original optimizer | **+1.17** | N/A | 520 | (pre-Phase1.2 code) |
+| Validation v1 (buggy Kelly) | **-4.57** | 4.0% | 520 | ❌ FAIL |
+| Validation v2 (blended Kelly) | **-1.28** | 9.3% | 616 | ❌ FAIL |
 
-## 3. Simplicity: 8/10
-- Active parameters: ~12 (reasonable)
-- Key parameters: sl_pct=12.92, holding_days=90, min_samples_leaf=20
-- Most parameters at defaults — optimizer only changed sl_pct significantly
-- Ablation test: not yet run (requires per-improvement removal)
+## Root Cause Analysis
 
-## 4. Reality Gap: 3/10
-- Base transaction cost: 10 bps ✅
-- Under 2× costs (-6.0503): Fails ❌
-- Market microstructure model: Almgren-Chriss ✅
-- Survivorship bias: Known issue (using current S&P 500 members) ⚠️
-- Max position limit: 10% of portfolio ✅
+### Bug 1: Code Version Mismatch (CRITICAL)
+The optimizer ran at 04:54-07:36 on **pre-Phase-1.2 code**. Phase 1.2-1.9 changes 
+were committed at 07:45-08:12 AFTER the optimizer finished. The running Python process 
+didn't pick up file changes. The Sharpe 1.17 was achieved by the OLD code without:
+- Cross-sectional percentile features (Phase 1.2)
+- Turbulence index integration (Phase 1.3)
+- Kelly criterion position sizing (Phase 1.4)
+- Volatility targeting/trailing stops (Phase 1.5)
+- Regime-aware strategy selection (Phase 1.6)
+- Performance-based position scaling (Phase 1.7)
+- Sector-based diversification (Phase 1.8)
+- Enhanced transaction cost model (Phase 1.9)
 
----
+### Bug 2: Cross-Sectional Date Alignment (Fixed)
+The Phase 1.2 code assumed `len(tickers)` rows per sample date, but rows are skipped 
+for missing data. This caused `sample_dates_for_rows` to be misaligned with actual rows, 
+corrupting percentile rank features. Fixed by tracking `row_sample_dates` in the training loop.
 
-## Verdict: **FAIL**
+### Bug 3: Kelly Sizing Too Conservative (Partially Fixed)
+Pure half-Kelly with ML probabilities near 0.5-0.6 produced near-zero position sizes:
+- p=0.55 → kelly_base=0.10 → half_kelly=0.05 → ~5% of base position
+- Combined with turbulence dampening and performance scaling → positions 10-20x smaller
+- Returns fell below risk-free rate → deeply negative Sharpe
 
-### Required fixes before next cycle:
+Blended approach (50% probability + 50% Kelly) improved return from 4.0% to 9.3%.
 
-- Run seed stability test (5 random seeds)
-- Investigate weak sub-period performance
-- Run ablation tests on each Phase 1 improvement
-- Address survivorship bias (historical S&P 500 constituents)
+### Fundamental Issue: Signal Quality
+Even with fixed sizing, 9.3% total return over 7 years = 1.3%/year. Risk-free rate = 4%/year.
+The ML model's probability estimates simply don't contain enough alpha to justify 
+the strategy complexity. The Phase 1 improvements added risk management but didn't 
+improve prediction accuracy.
 
-### Suggestions for Cycle 2:
-- The strategy is macro-driven (treasury_10y, cpi_yoy dominate MDA)
-- Consider adding leading macro indicators (ISM PMI, jobless claims)
-- Momentum features underperforming — investigate cross-sectional percentile usage
-- Asymmetric barriers (sl_pct=12.92 > tp_pct=10.0) are a distinctive feature worth understanding
+## Evaluator Grading
+
+| Criterion | Grade | Notes |
+|-----------|-------|-------|
+| Statistical Validity | ❌ F | DSR=0.0000, Sharpe deeply negative |
+| Robustness | ❌ F | All sub-periods fail, code version mismatch |
+| Simplicity | ⚠️ C | Too many interacting components obscure root cause |
+| Reality Gap | ❌ F | Returns below risk-free rate = no tradable edge |
+
+## Recommendations for Planner
+
+1. **REVERT to pre-Phase-1.2 code** and validate the original Sharpe 1.17 result
+2. **Then add Phase 1 improvements ONE AT A TIME**, validating each independently
+3. **Focus on signal quality first** — no amount of position sizing sophistication 
+   helps if the underlying predictions have no alpha
+4. **Simplify** — remove all Phase 1.3-1.9 risk management and rebuild incrementally
+5. **Consider**: the pre-Phase-1.2 simple inverse-volatility sizing may be optimal 
+   for this model's prediction quality
+
+## Key Lesson
+The three-agent harness caught a catastrophic deployment failure:
+- Phase 1 "improvements" were never validated against the actual running system
+- Code was committed to disk while the optimizer was running on old code in memory
+- Without independent validation, we would have deployed a -1.28 Sharpe strategy 
+  believing it was +1.17
