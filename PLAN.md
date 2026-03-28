@@ -399,7 +399,30 @@ From the article: "Context resets — clearing the context window entirely and s
   **Prevention:** What we changed to prevent recurrence
   ```
 
-**G. OpenClaw Automation Settings (Control UI → Automation)**
+**G. OpenClaw Infrastructure Settings (Control UI → Infrastructure)**
+
+Configure all infrastructure panels:
+
+- [ ] **ACP (Agent Communication Protocol):**
+  - Set ACP Default Agent → `codex` (for coding task delegation)
+  - Add ACP Allowed Agents: `codex`, `claude-code` (so Ford can spawn coding sub-agents)
+- [ ] **MCP (Model Context Protocol):**
+  - Configure pyfinAgent MCP servers when Phase 3 starts:
+    - `pyfinagent-data` → localhost:8000/mcp/data
+    - `pyfinagent-backtest` → localhost:8000/mcp/backtest
+    - `pyfinagent-signals` → localhost:8000/mcp/signals (Phase 4)
+  - For now: document planned MCP config, implement when servers are built
+- [ ] **Gateway:**
+  - Verify `bind: loopback` (secure — local only)
+  - Verify auth token rotation schedule
+- [ ] **Browser:**
+  - Enable if needed for deep research (web_fetch may be sufficient)
+- [ ] **NodeHost:**
+  - Verify node configuration for Mac Mini
+- [ ] **Media:**
+  - Review media handling settings
+
+**H. OpenClaw Automation Settings (Control UI → Automation)**
 
 Configure all automation panels for operational resilience:
 
