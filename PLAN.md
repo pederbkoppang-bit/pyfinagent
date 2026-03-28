@@ -339,6 +339,37 @@ From the article: "Context resets — clearing the context window entirely and s
 
 ---
 
+### 2.6.1 Backtest Page — Harness Dashboard (Next)
+*Expose all autoresearch experiments and harness cycle results on the backtest page so Peder can see everything.*
+
+**Current state:** The backtest page already shows:
+- ✅ Run leaderboard (top 10 by Sharpe)
+- ✅ Sharpe comparison bar chart
+- ✅ Optimizer progress chart (Karpathy-style)
+- ✅ Experiment log table (param changed, before/after, DSR, keep/discard)
+- ✅ Run selector with parent/child grouping
+- ✅ Equity curve, feature importance (MDA), trade list
+
+**Missing — needs to be built:**
+- [ ] **Harness Cycle View:** Show RESEARCH→PLAN→GENERATE→EVALUATE→DECIDE→LOG cycles from `handoff/harness_log.md`
+  - Each cycle: hypothesis, generator results, evaluator verdict, scores (4 criteria), decision
+  - Timeline/accordion view of all cycles with pass/fail status
+- [ ] **Evaluator Critique Panel:** Render `handoff/evaluator_critique.md` as formatted HTML
+  - Sub-period results table (A/B/C + 2× costs)
+  - Grading cards (Statistical Validity, Robustness, Simplicity, Reality Gap) with scores
+  - Root cause analysis sections
+  - Key lessons highlighted
+- [ ] **Experiment Comparison:** Side-by-side parameter diff between any two experiments
+  - Show exactly which params changed and their impact
+  - Highlight the "kept" vs "discarded" experiments visually
+- [ ] **Harness API endpoints:**
+  - `GET /api/backtest/harness/log` — parsed harness_log.md as JSON
+  - `GET /api/backtest/harness/critique` — latest evaluator_critique.md as JSON
+  - `GET /api/backtest/harness/contract` — current contract.md as JSON
+  - `GET /api/backtest/harness/research-plan` — current research_plan.md as JSON
+  - `GET /api/backtest/harness/validation` — validation_results.json + subperiod_validation_results.json
+- [ ] **New "Harness" tab** on backtest page (alongside Overview, Results, Equity, Features, Optimizer)
+
 ### 2.7 Harness Hardening & Advanced Evaluator (Next)
 *Enhance the automated harness with deeper statistical tests and generator capabilities.*
 
