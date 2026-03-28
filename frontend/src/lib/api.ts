@@ -35,6 +35,7 @@ import type {
   PortfolioPerformance,
   PortfolioPosition,
   ReportSummary,
+  SharpeHistoryResponse,
 } from "./types";
 
 const API_BASE =
@@ -373,6 +374,10 @@ export function loadBacktestRun(runId: string): Promise<BacktestResults> {
 
 export function deleteBacktestRun(runId: string): Promise<{ status: string; run_id: string }> {
   return apiFetch(`/api/backtest/runs/${encodeURIComponent(runId)}`, { method: "DELETE" });
+}
+
+export function getSharpeHistory(): Promise<SharpeHistoryResponse> {
+  return apiFetch("/api/backtest/sharpe-history");
 }
 
 // ── API Cache & Latency ─────────────────────────────────────────

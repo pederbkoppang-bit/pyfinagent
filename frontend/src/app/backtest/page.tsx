@@ -64,6 +64,7 @@ import {
   MagnifyingGlass,
 } from "@phosphor-icons/react";
 import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
+import { SharpeHistoryChart } from "@/components/SharpeHistoryChart";
 // OptimizerInsightsView removed — consolidated into Overview tab
 import type { Icon } from "@phosphor-icons/react";
 
@@ -784,6 +785,14 @@ export default function BacktestPage() {
             {/* ═══ OVERVIEW TAB ═══ */}
             {tab === "overview" && (
               <div className="space-y-6">
+                {/* Sharpe History Chart — track improvement over time */}
+                <BentoCard>
+                  <h3 className="mb-4 text-lg font-semibold text-slate-300">
+                    📈 Sharpe Ratio History
+                  </h3>
+                  <SharpeHistoryChart />
+                </BentoCard>
+
                 {/* Best Run Card */}
                 {(() => {
                   const sortedBySharp = [...runs].filter(r => r.sharpe != null).sort((a, b) => (b.sharpe ?? 0) - (a.sharpe ?? 0));

@@ -856,3 +856,39 @@ export interface OptimizerInsights {
   experiments: OptimizerExperimentFull[];
   data_scope: OptimizerInsightsDataScope;
 }
+
+// ── Sharpe History ──────────────────────────────────────────────
+
+export interface SharpeHistoryEntry {
+  timestamp: string;
+  run_id: string;
+  sharpe: number;
+  dsr: number | null;
+  total_return_pct: number;
+  max_drawdown_pct: number;
+  n_trades: number;
+  is_baseline: boolean;
+  parent_run_id: string | null;
+  status: "kept" | "discarded" | "baseline" | "unknown";
+  best_sharpe_so_far: number;
+}
+
+export interface SharpeHistoryEnvelopePoint {
+  timestamp: string;
+  sharpe: number;
+}
+
+export interface SharpeHistorySummary {
+  initial_sharpe: number;
+  current_best_sharpe: number;
+  improvement_pct: number;
+  total_experiments: number;
+  kept_count: number;
+  discarded_count: number;
+}
+
+export interface SharpeHistoryResponse {
+  timeline: SharpeHistoryEntry[];
+  best_sharpe_envelope: SharpeHistoryEnvelopePoint[];
+  summary: SharpeHistorySummary;
+}

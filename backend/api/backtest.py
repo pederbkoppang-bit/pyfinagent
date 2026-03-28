@@ -990,3 +990,137 @@ async def _run_optimizer_async(max_iterations: int, use_llm: bool):
             _backtest_state["progress"] = {}
             _backtest_state["error"] = None
             _backtest_state["engine_source"] = None
+
+
+# ── Sharpe History Endpoint ────────────────────────────────────
+
+@router.get("/sharpe-history")
+def get_sharpe_history():
+    """Return a timeline of Sharpe ratio progression across all backtest runs.
+
+    Cross-references result JSON files with quant_results.tsv for kept/discarded status.
+    """
+    from pathlib import Path
+    import csv
+
+    results_dir = Path(__file__).parent.parent / "backtest" / "experiments" / "results"
+    tsv_path = Path(__file__).parent.parent / "backtest" / "experiments" / "quant_results.tsv"
+
+    # -- Load TSV status map: run_id -> {status, parent_run_id, dsr} --------
+    tsv_status: dict[str, dict] = {}
+    if tsv_path.exists():
+        try:
+            with open(tsv_path, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f, delimiter="\t")
+                for row in reader:
+                    rid = row.get("run_id", "").strip()
+                    if rid:
+                        raw_status = row.get("status", "").strip()
+                        tsv_status[rid] = {
+                            "status": raw_status,
+                            "parent_run_id": row.get("parent_run_id", "").strip() or None,
+                            "dsr": row.get("dsr", "").strip(),
+                        }
+        except Exception as e:
+            logger.warning("Failed to read quant_results.tsv: %s", e)
+
+    # -- Scan all result JSON files -----------------------------------------
+    timeline: list[dict] = []
+    if results_dir.exists():
+        for p in sorted(results_dir.glob("*.json")):
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("Skipping corrupt result %s: %s", p.name, e)
+                continue
+
+            analytics = data.get("analytics", {})
+            sharpe = analytics.get("sharpe")
+            if sharpe is None:
+                continue
+
+            run_id = data.get("run_id", p.stem.split("_", 1)[-1])
+            is_baseline = data.get("is_baseline", False)
+            parent_run_id = data.get("parent_run_id")
+
+            # Determine status from TSV
+            tsv_entry = tsv_status.get(run_id, {})
+            raw_status = tsv_entry.get("status", "")
+            if raw_status.upper() == "BASELINE":
+                status = "baseline"
+            elif raw_status.lower() in ("keep", "kept"):
+                status = "kept"
+            elif raw_status.lower() in ("discard", "discarded", "dsr_reject"):
+                status = "discarded"
+            elif raw_status:
+                status = raw_status.lower()
+            else:
+                status = "unknown"
+
+            # DSR: prefer TSV, fall back to JSON analytics
+            dsr_val = None
+            tsv_dsr = tsv_entry.get("dsr", "")
+            if tsv_dsr:
+                try:
+                    dsr_val = float(tsv_dsr)
+                except (ValueError, TypeError):
+                    pass
+            if dsr_val is None:
+                dsr_val = analytics.get("deflated_sharpe")
+
+            # Extract timestamp from filename (ISO-sortable)
+            ts_str = result_store._extract_timestamp(p.stem)
+            # Convert to ISO 8601 with dashes
+            if len(ts_str) >= 15 and "T" in ts_str:
+                # 20260325T225146Z -> 2026-03-25T22:51:46Z
+                raw = ts_str.replace("Z", "")
+                parts = raw.split("T")
+                if len(parts) == 2 and len(parts[0]) == 8 and len(parts[1]) == 6:
+                    d, t = parts
+                    ts_str = f"{d[:4]}-{d[4:6]}-{d[6:8]}T{t[:2]}:{t[2:4]}:{t[4:6]}Z"
+
+            timeline.append({
+                "timestamp": ts_str,
+                "run_id": run_id,
+                "sharpe": round(sharpe, 4),
+                "dsr": round(dsr_val, 4) if dsr_val is not None else None,
+                "total_return_pct": round(analytics.get("total_return_pct", 0), 2),
+                "max_drawdown_pct": round(analytics.get("max_drawdown", 0), 2),
+                "n_trades": analytics.get("n_trades", 0),
+                "is_baseline": is_baseline,
+                "parent_run_id": parent_run_id,
+                "status": status,
+            })
+
+    # Sort by timestamp
+    timeline.sort(key=lambda x: x["timestamp"])
+
+    # -- Compute best_sharpe_so_far and envelope ----------------------------
+    best_so_far = float("-inf")
+    envelope: list[dict] = []
+    for entry in timeline:
+        s = entry["sharpe"]
+        if s > best_so_far:
+            best_so_far = s
+            envelope.append({"timestamp": entry["timestamp"], "sharpe": s})
+        entry["best_sharpe_so_far"] = round(best_so_far, 4)
+
+    # -- Summary ------------------------------------------------------------
+    kept_count = sum(1 for e in timeline if e["status"] == "kept")
+    discarded_count = sum(1 for e in timeline if e["status"] == "discarded")
+    initial_sharpe = timeline[0]["sharpe"] if timeline else 0
+    current_best = best_so_far if best_so_far > float("-inf") else 0
+    improvement = round((current_best - initial_sharpe) / initial_sharpe * 100, 1) if initial_sharpe else 0
+
+    return {
+        "timeline": timeline,
+        "best_sharpe_envelope": envelope,
+        "summary": {
+            "initial_sharpe": initial_sharpe,
+            "current_best_sharpe": round(current_best, 4),
+            "improvement_pct": improvement,
+            "total_experiments": len(timeline),
+            "kept_count": kept_count,
+            "discarded_count": discarded_count,
+        },
+    }
