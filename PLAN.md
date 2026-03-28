@@ -339,7 +339,74 @@ From the article: "Context resets — clearing the context window entirely and s
 
 ---
 
-### 2.6.1 Backtest Page — Harness Dashboard (Next)
+### 2.6.0 Operational Resilience — Zero Downtime (FIRST PRIORITY)
+*Ford must always be available. No excuses. If something breaks, fix it automatically and notify Peder on Slack.*
+
+**Principle:** The system self-heals. Ford stays online. Peder gets notified of every issue and every recovery.
+
+**A. Gateway & OpenClaw Self-Healing**
+- [ ] Watchdog cron: check `openclaw gateway status` every 5 minutes
+  - If gateway down → `openclaw gateway restart` → notify Slack "⚠️ Gateway crashed, auto-restarted"
+  - If restart fails → notify Slack "🔴 Gateway restart FAILED — manual intervention needed"
+  - Log all crashes with timestamp to `memory/incidents.md`
+- [ ] macOS LaunchAgent for OpenClaw gateway (auto-start on boot, auto-restart on crash)
+  - `~/Library/LaunchAgents/com.openclaw.gateway.plist`
+  - `KeepAlive: true`, `RunAtLoad: true`
+- [ ] Heartbeat self-check: if heartbeat hasn't run in >60 min, something is broken
+  - Cron job (system-level, not OpenClaw) checks heartbeat state file timestamp
+  - If stale → restart gateway → notify Slack
+
+**B. Slack Availability — Non-Negotiable**
+- [ ] Slack bot health check in every heartbeat (first thing checked)
+  - Post a silent health ping to a test channel or check Slack API connectivity
+  - If Slack unreachable → log to `memory/incidents.md`, retry with exponential backoff
+- [ ] Fallback notification path: if Slack is down, send critical alerts via iMessage to Peder
+- [ ] Morning cron (7am) MUST post to Slack — if it doesn't, the system-level watchdog catches it
+
+**C. API Rate Limit Handling**
+- [ ] Global rate limit handler in backend:
+  - Detect 429/Retry-After from all external APIs (BQ, Alpha Vantage, FRED, Yahoo Finance, Vertex AI)
+  - Exponential backoff with jitter (1s → 2s → 4s → 8s → max 60s)
+  - After 3 consecutive 429s on same API → notify Slack: "⚠️ [API name] rate limited, backing off"
+  - After 10 consecutive failures → pause that data source, notify Slack: "🔴 [API name] suspended"
+  - Track rate limit incidents in `memory/incidents.md`
+- [ ] LLM cost/rate protection:
+  - If Claude API returns 429 → back off, notify Slack with estimated wait time
+  - If BQ billing exceeds daily threshold → pause non-critical queries, notify Slack
+  - Never silently fail — always notify
+
+**D. System Health Monitoring**
+- [ ] Disk space check in heartbeat (warn at <10GB free, alert at <5GB)
+- [ ] Memory usage check (warn if Python processes >4GB RSS)
+- [ ] Port check: backend (8000) and frontend (3000) — restart if down during active work
+- [ ] Git status check: uncommitted changes >24h old → notify Slack to review
+- [ ] Process zombie detection: check for orphaned Python workers, kill if found
+
+**E. Incident Log**
+- All incidents logged to `memory/incidents.md` with:
+  ```
+  ## YYYY-MM-DD HH:MM — [SEVERITY] [Component]
+  **Issue:** What broke
+  **Detection:** How it was caught (heartbeat/watchdog/cron)
+  **Action:** What was done automatically
+  **Recovery:** When it came back online
+  **Root cause:** Why it happened (if known)
+  **Prevention:** What we changed to prevent recurrence
+  ```
+
+**F. Recovery Playbook (automated)**
+| Component | Detection | Auto-Fix | Notify |
+|-----------|-----------|----------|--------|
+| Gateway down | 5min watchdog cron | `openclaw gateway restart` | Slack ⚠️ |
+| Gateway restart fails | watchdog retry (3x) | Log + escalate | Slack 🔴 + iMessage |
+| Backend (8000) down | Heartbeat check | `cd pyfinagent && source .venv/bin/activate && uvicorn backend.main:app --port 8000 &` | Slack ⚠️ |
+| Frontend (3000) down | Heartbeat check | `cd pyfinagent/frontend && npm run dev &` | Slack ⚠️ |
+| Slack unreachable | Heartbeat check | Retry with backoff, fallback to iMessage | iMessage 🔴 |
+| API rate limited | Request interceptor | Exponential backoff | Slack ⚠️ (after 3x) |
+| Disk space low | Heartbeat check | Clean caches, notify | Slack ⚠️ |
+| Harness stuck | Heartbeat check (>2h) | Kill process, log state | Slack ⚠️ |
+
+### 2.6.1 Backtest Page — Harness Dashboard
 *Expose all autoresearch experiments and harness cycle results on the backtest page so Peder can see everything.*
 
 **Current state:** The backtest page already shows:
