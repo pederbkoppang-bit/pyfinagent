@@ -69,119 +69,25 @@ class BacktestTrader:
         self.trades: list[Trade] = []
         self.snapshots: list[DailySnapshot] = []
         self.total_commission: float = 0.0
-        
-        # PHASE 1.7 IMPROVEMENT: Performance-based position scaling
-        self._recent_returns: list[float] = []  # Track last 20 trading days
-        self._performance_scale = 1.0  # Scale positions based on recent performance
 
-    def _compute_commission(self, quantity: float, price: float, amihud_illiquidity: float = 0.0) -> float:
-        """
-        PHASE 1.9: Enhanced transaction cost model (Almgren & Chriss 2000).
-        Includes: commission + bid-ask spread + market impact + illiquidity penalty.
-        """
-        notional = abs(quantity * price)
-        
+    def _compute_commission(self, quantity: float, price: float) -> float:
+        """Compute commission based on the active model."""
         if self.commission_model == "per_share":
-            base_commission = max(quantity * self.commission_per_share, 1.0)
-        else:
-            # Base commission: flat percentage
-            base_commission = notional * self.transaction_cost_pct / 100
-        
-        # PHASE 1.9 IMPROVEMENT: Market microstructure costs
-        
-        # 1. Bid-ask spread (depends on liquidity)
-        # S&P 500 average spread: ~0.01-0.05%. Illiquid stocks: 0.05-0.20%
-        base_spread = 0.02  # 2 bps for liquid stocks
-        spread_penalty = amihud_illiquidity * 0.5 if amihud_illiquidity else 0  # Scale with Amihud
-        bid_ask_spread = min(base_spread + spread_penalty, 0.20) / 100  # Cap at 20 bps
-        spread_cost = notional * bid_ask_spread / 2  # Half spread per side
-        
-        # 2. Market impact (Almgren-Chriss square-root model)
-        # Impact ∝ sqrt(trade_size / avg_volume). Simplified: larger trades cost more.
-        # For S&P 500: assume $100k trade has ~1bp impact, scales by sqrt
-        trade_size_factor = min(notional / 100_000, 10.0)  # Normalize to $100k, cap at 10x
-        market_impact = notional * 0.0001 * (trade_size_factor ** 0.5)  # Square-root scaling
-        
-        # 3. Additional illiquidity penalty for very illiquid stocks
-        illiq_penalty = notional * min(amihud_illiquidity * 0.001, 0.002) if amihud_illiquidity > 5.0 else 0
-        
-        total_cost = base_commission + spread_cost + market_impact + illiq_penalty
-        return total_cost
+            return max(quantity * self.commission_per_share, 1.0)
+        # Default: flat percentage of notional
+        return abs(quantity * price) * self.transaction_cost_pct / 100
 
-    def size_position(
-        self, probability: float, stock_vol: float, nav: float,
-        turbulence: float = 0.0, turbulence_threshold: float = 1.0,
-        amihud_illiquidity: float = 0.0,
-        vol_target_scale: float = 1.0,
-        correlation_penalty: float = 1.0,
-    ) -> float:
+    def size_position(self, probability: float, stock_vol: float, nav: float) -> float:
         """
-        Inverse-volatility position sizing (AQR / Frazzini & Pedersen 2014):
+        Inverse-volatility position sizing (AQR):
         dollar_amount = probability × (target_vol / stock_vol) × nav / max_positions
         Capped at max_single_pct × nav.
-
-        Turbulence scaling (FinRL architecture, Mahalanobis distance):
-        When turbulence > threshold, positions are scaled down proportionally.
-        This reduces exposure during systemic market stress events (e.g., COVID crash,
-        2022 bear market). turbulence=0 or threshold=0 disables this feature.
-
-        Amihud illiquidity filter (López de Prado AFML Ch. 18):
-        High Amihud = low liquidity = wider bid-ask spreads = higher execution costs.
-        Scales position down for illiquid stocks. Typical S&P 500 Amihud values
-        are 0.01-1.0 (×1e6 scaled). Values above 5.0 indicate illiquid stocks.
-        
-        Correlation penalty (Phase 1.8 - Portfolio Diversification):
-        Scales down positions for stocks highly correlated with existing holdings.
-        1.0 = no penalty, 0.5 = 50% reduction for highly correlated stocks.
         """
         if stock_vol <= 0 or probability <= 0:
             return 0.0
 
-        # PHASE 1.4 IMPROVEMENT: Fractional Kelly Criterion position sizing
-        # Kelly fraction: f = (bp - q) / b
-        # For binary outcomes with ML probability estimates:
-        # - Assume symmetric TP/SL barriers → expected_win ≈ expected_loss
-        # - Kelly becomes: f = 2p - 1 (where p = ML probability)
-        # - Blended approach: use Kelly for relative sizing but maintain
-        #   meaningful position sizes. Pure half-Kelly with ML probabilities
-        #   near 0.5-0.6 produces near-zero positions (validated empirically).
-        #   Blend with base probability to keep positions meaningful while
-        #   still penalizing low-confidence trades.
-        
-        kelly_base = max(0.0, 2 * probability - 1)  # Only size when p > 0.5
-        # Blend: 50% probability-scaled (old method) + 50% Kelly-scaled
-        # This ensures minimum position sizing while still using Kelly for risk management
-        blended_scale = 0.5 * probability + 0.5 * kelly_base
         vol_scale = min(self.target_vol / stock_vol, 3.0)  # Cap at 3x to prevent extreme sizing
-        raw = blended_scale * vol_scale * nav / self.max_positions
-
-        # PHASE 1.7 IMPROVEMENT: Performance-based scaling
-        # Scale down after losses, scale up after gains (with limits)
-        raw *= self._performance_scale
-
-        # Turbulence dampening: scale down positions when market is stressed
-        if turbulence > 0 and turbulence_threshold > 0 and turbulence > turbulence_threshold:
-            # Scale factor: 1.0 at threshold, approaches 0.2 at 5× threshold
-            turbulence_ratio = turbulence / turbulence_threshold
-            dampening = max(0.2, 1.0 / turbulence_ratio)
-            raw *= dampening
-
-        # Amihud liquidity scaling: penalize illiquid stocks
-        # S&P 500 median Amihud ≈ 0.1-0.5. Above 2.0 is relatively illiquid.
-        # Scale: 1.0 for liquid (amihud ≤ 0.5), down to 0.3 for very illiquid (amihud ≥ 10)
-        if amihud_illiquidity and amihud_illiquidity > 0.5:
-            liquidity_scale = max(0.3, 1.0 / (1.0 + (amihud_illiquidity - 0.5) / 3.0))
-            raw *= liquidity_scale
-
-        # Volatility targeting: scale position to match target annual vol
-        # Computed by BacktestEngine._compute_vol_target_scale()
-        if vol_target_scale != 1.0:
-            raw *= vol_target_scale
-
-        # PHASE 1.8 IMPROVEMENT: Correlation-based diversification
-        # Reduce position size for stocks highly correlated with existing holdings
-        raw *= correlation_penalty
-
+        raw = probability * vol_scale * nav / self.max_positions
         capped = min(raw, nav * self.max_single_pct)
         return max(0.0, capped)
 
@@ -208,7 +114,7 @@ class BacktestTrader:
                 pos = self.positions[ticker]
                 price = prices.get(ticker, pos.avg_entry_price)
                 proceeds = pos.quantity * price
-                cost = self._compute_commission(pos.quantity, price, sig.get("amihud_illiquidity", 0.0))
+                cost = self._compute_commission(pos.quantity, price)
                 self.cash += proceeds - cost
                 self.total_commission += cost
 
@@ -238,21 +144,7 @@ class BacktestTrader:
 
             probability = sig.get("probability", 0.5)
             volatility = sig.get("volatility", 0.3)
-            amihud = sig.get("amihud_illiquidity", 0.0)
-            vt_scale = sig.get("vol_target_scale", 1.0)
-            turbulence = sig.get("turbulence", 0.0)  # PHASE 1.3: Market stress indicator
-            
-            # PHASE 1.8: Compute correlation penalty for diversification
-            existing_tickers = list(self.positions.keys())
-            corr_penalty = self._compute_correlation_penalty(ticker, existing_tickers)
-            
-            dollar_amount = self.size_position(
-                probability, volatility, nav,
-                turbulence=turbulence,
-                amihud_illiquidity=amihud,
-                vol_target_scale=vt_scale,
-                correlation_penalty=corr_penalty,
-            )
+            dollar_amount = self.size_position(probability, volatility, nav)
 
             if dollar_amount < 100:  # Minimum trade size
                 continue
@@ -260,13 +152,13 @@ class BacktestTrader:
             # Check cash
             cost_basis = dollar_amount
             quantity = cost_basis / price
-            transaction_cost = self._compute_commission(quantity, price, amihud)
+            transaction_cost = self._compute_commission(quantity, price)
             total_needed = cost_basis + transaction_cost
 
             if total_needed > self.cash:
                 cost_basis = self.cash * 0.95  # Use 95% of remaining cash
                 quantity = cost_basis / price
-                transaction_cost = self._compute_commission(quantity, price, amihud)
+                transaction_cost = self._compute_commission(quantity, price)
                 total_needed = cost_basis + transaction_cost
                 if total_needed > self.cash or cost_basis < 100:
                     continue
@@ -293,79 +185,10 @@ class BacktestTrader:
 
         return executed
 
-    def _update_performance_scaling(self, nav: float, prev_nav: float):
-        """
-        PHASE 1.7: Update position sizing based on recent performance.
-        Reduces positions after losses, increases after gains (within limits).
-        Based on behavioral portfolio theory + risk management best practices.
-        """
-        if prev_nav > 0:
-            daily_return = (nav - prev_nav) / prev_nav
-            self._recent_returns.append(daily_return)
-            
-            # Keep only last 20 trading days
-            if len(self._recent_returns) > 20:
-                self._recent_returns = self._recent_returns[-20:]
-            
-            # Compute rolling return over lookback period
-            if len(self._recent_returns) >= 5:  # Need at least 5 days
-                recent_performance = sum(self._recent_returns)
-                
-                # Scale factor: 0.5x after -10% drawdown, 1.5x after +10% gain
-                # Capped between 0.3 and 1.8 to prevent extreme sizing
-                scale = 1.0 + recent_performance * 2.0  # 2x leverage on recent performance
-                self._performance_scale = max(0.3, min(1.8, scale))
-            else:
-                self._performance_scale = 1.0
-
-    def _compute_correlation_penalty(self, candidate_ticker: str, existing_positions: list[str]) -> float:
-        """
-        PHASE 1.8: Compute correlation penalty for portfolio diversification.
-        Returns scaling factor between 0.3 and 1.0 based on correlations with existing positions.
-        
-        Simple sector-based diversification for now (requires historical data for full correlation).
-        Can be enhanced with actual price correlation calculation.
-        """
-        if not existing_positions:
-            return 1.0
-            
-        # Simplified sector-based correlation penalty
-        # In production, would use actual price correlation from historical data
-        sector_mapping = {
-            # Tech stocks (typically correlated)
-            'AAPL': 'tech', 'MSFT': 'tech', 'GOOGL': 'tech', 'GOOG': 'tech', 'AMZN': 'tech',
-            'TSLA': 'tech', 'NVDA': 'tech', 'META': 'tech', 'NFLX': 'tech', 'CRM': 'tech',
-            # Financial (typically correlated)  
-            'JPM': 'financial', 'BAC': 'financial', 'WFC': 'financial', 'C': 'financial', 'GS': 'financial',
-            # Healthcare
-            'JNJ': 'healthcare', 'UNH': 'healthcare', 'PFE': 'healthcare', 'ABBV': 'healthcare',
-            # Energy
-            'XOM': 'energy', 'CVX': 'energy', 'COP': 'energy', 'SLB': 'energy',
-        }
-        
-        candidate_sector = sector_mapping.get(candidate_ticker, 'other')
-        same_sector_count = 0
-        
-        for ticker in existing_positions:
-            if sector_mapping.get(ticker, 'other') == candidate_sector and candidate_sector != 'other':
-                same_sector_count += 1
-        
-        # Scale down for same-sector concentration: 1 same-sector = 0.8x, 2+ = 0.5x
-        if same_sector_count == 0:
-            return 1.0
-        elif same_sector_count == 1:
-            return 0.8  # 20% reduction
-        else:
-            return 0.5  # 50% reduction for high sector concentration
-            
     def mark_to_market(self, date: str, prices: dict[str, float]) -> float:
         """Update positions with current prices and return NAV."""
         nav = self._compute_nav(prices)
         positions_value = nav - self.cash
-
-        # PHASE 1.7: Update performance scaling based on NAV change
-        prev_nav = self.snapshots[-1].nav if self.snapshots else self.starting_capital
-        self._update_performance_scaling(nav, prev_nav)
 
         self.snapshots.append(DailySnapshot(
             date=date,

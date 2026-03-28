@@ -123,6 +123,211 @@ const TABS: { id: Tab; label: string; icon: Icon }[] = [
   { id: "optimizer", label: "Optimizer", icon: Lightning },
 ];
 
+interface RunSelectorProps {
+  runs: BacktestRunSummary[];
+  experiments: BacktestRunSummary[];
+  baselines: BacktestRunSummary[];
+  selectedRunId?: string;
+  collapsedRuns: Set<string>;
+  setCollapsedRuns: (collapsed: Set<string>) => void;
+  onRunSelect: (runId: string) => void;
+  onRunDelete: (runId: string) => void;
+}
+
+function RunSelector({
+  runs,
+  experiments,
+  baselines,
+  selectedRunId,
+  collapsedRuns,
+  setCollapsedRuns,
+  onRunSelect,
+  onRunDelete,
+}: RunSelectorProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedRun = runs.find(r => r.run_id === selectedRunId);
+  const selectedLabel = selectedRun 
+    ? `${selectedRun.is_baseline ? "Baseline" : "Experiment"} -- ${formatRunTimestamp(selectedRun.timestamp)} -- Sharpe ${selectedRun.sharpe?.toFixed(2) ?? "?"}`
+    : "Select a run...";
+
+  return (
+    <div className="mb-4 relative">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-slate-500">Run:</span>
+        
+        {/* Custom Dropdown Trigger */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex-1 max-w-md rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 hover:border-sky-500 focus:border-sky-500 focus:outline-none text-left"
+        >
+          <span className="truncate">{selectedLabel}</span>
+          <span className="float-right">{isOpen ? "▲" : "▼"}</span>
+        </button>
+
+        {/* Bulk Controls */}
+        <button
+          onClick={() => setCollapsedRuns(new Set())}
+          className="rounded px-2 py-1 text-xs text-slate-500 hover:text-slate-300"
+          title="Expand all runs"
+        >
+          ▼ All
+        </button>
+        <button
+          onClick={() => setCollapsedRuns(new Set(baselines.map(b => b.run_id)))}
+          className="rounded px-2 py-1 text-xs text-slate-500 hover:text-slate-300"
+          title="Collapse all runs"
+        >
+          ▶ All
+        </button>
+
+        {/* Delete Button */}
+        {selectedRunId && (
+          <button
+            onClick={() => {
+              if (!confirm("Delete this backtest run?")) return;
+              onRunDelete(selectedRunId);
+            }}
+            className="rounded p-1 text-rose-500/70 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+            title="Delete selected run"
+          >
+            <XCircle size={16} weight="fill" />
+          </button>
+        )}
+      </div>
+
+      {/* Dropdown Content */}
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-navy-800 border border-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+          {baselines.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-slate-500">No runs available</div>
+          ) : (
+            baselines
+              .map((b, index) => {
+                const children = experiments.filter((e) => e.parent_run_id === b.run_id);
+                const bSharpe = b.sharpe?.toFixed(2) ?? "?";
+                const timestamp = formatRunTimestamp(b.timestamp || "");
+                const childrenCount = children.length;
+                const isCollapsed = collapsedRuns.has(b.run_id);
+                
+                // Calculate delta against previous baseline (chronologically)
+                const prevBaseline = index < baselines.length - 1 ? baselines[index + 1] : null;
+                const delta = prevBaseline && b.sharpe != null && prevBaseline.sharpe != null 
+                  ? b.sharpe - prevBaseline.sharpe 
+                  : null;
+                const deltaText = delta !== null 
+                  ? ` (${delta >= 0 ? "+" : ""}${delta.toFixed(3)})` 
+                  : "";
+                const deltaColor = delta !== null 
+                  ? (delta >= 0 ? "text-emerald-400" : "text-rose-400")
+                  : "";
+                
+                // Filter out runs with 0 experiments
+                if (childrenCount === 0) return null;
+                
+                return (
+                <div key={b.run_id} className="border-b border-slate-700 last:border-b-0">
+                  {/* Parent Row */}
+                  <div className="flex items-center">
+                    {/* Expand/Collapse Toggle */}
+                    <button
+                      onClick={() => {
+                        const newCollapsed = new Set(collapsedRuns);
+                        if (isCollapsed) {
+                          newCollapsed.delete(b.run_id);
+                        } else {
+                          newCollapsed.add(b.run_id);
+                        }
+                        setCollapsedRuns(newCollapsed);
+                      }}
+                      className="px-2 py-1 text-slate-400 hover:text-slate-200"
+                    >
+                      {isCollapsed ? "▶" : "▼"}
+                    </button>
+                    
+                    {/* Baseline Option */}
+                    <button
+                      onClick={() => {
+                        onRunSelect(b.run_id);
+                        setIsOpen(false);
+                      }}
+                      className={`flex-1 px-2 py-1 text-left text-xs hover:bg-slate-700 ${
+                        selectedRunId === b.run_id ? "bg-sky-500/10 text-sky-300" : "text-slate-300"
+                      }`}
+                    >
+                      <strong>{timestamp}</strong> -- {b.strategy} -- Sharpe {bSharpe}
+                      <span className={deltaColor}>{deltaText}</span>
+                      {" "}({childrenCount} experiments)
+                      {!b.has_detail && <span className="text-slate-500"> (summary)</span>}
+                    </button>
+                  </div>
+
+                  {/* Children Rows */}
+                  {!isCollapsed && children.map((c) => {
+                    const delta = (b.sharpe != null && c.sharpe != null)
+                      ? (c.sharpe - b.sharpe).toFixed(2)
+                      : "?";
+                    const deltaPrefix = c.sharpe != null && b.sharpe != null && c.sharpe >= b.sharpe ? "+" : "";
+                    const statusTag = c.status === "keep" ? "✓" : c.status === "discard" ? "✗" : c.status === "dsr_reject" ? "⚠" : "";
+                    
+                    return (
+                      <button
+                        key={c.run_id}
+                        onClick={() => {
+                          onRunSelect(c.run_id);
+                          setIsOpen(false);
+                        }}
+                        className={`w-full px-8 py-1 text-left text-xs hover:bg-slate-700 ${
+                          selectedRunId === c.run_id ? "bg-sky-500/10 text-sky-300" : "text-slate-400"
+                        }`}
+                      >
+                        {statusTag} {c.param_changed || c.run_id} -- Sharpe {c.sharpe?.toFixed(2) ?? "?"} ({deltaPrefix}{delta})
+                        {!c.has_detail && <span className="text-slate-500"> (summary)</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })
+            .filter(Boolean) // Remove null entries (runs with 0 experiments)
+          )}
+
+          {/* Unlinked Experiments */}
+          {experiments.filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id)).length > 0 && (
+            <div className="border-t border-slate-700 bg-slate-800/50">
+              <div className="px-3 py-1 text-xs text-slate-500 font-medium">Unlinked</div>
+              {experiments
+                .filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id))
+                .map((e) => (
+                  <button
+                    key={e.run_id}
+                    onClick={() => {
+                      onRunSelect(e.run_id);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full px-6 py-1 text-left text-xs hover:bg-slate-700 ${
+                      selectedRunId === e.run_id ? "bg-sky-500/10 text-sky-300" : "text-slate-400"
+                    }`}
+                  >
+                    {e.run_id} -- Sharpe {e.sharpe?.toFixed(2) ?? "?"}
+                    {!e.has_detail && <span className="text-slate-500"> (summary)</span>}
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Click outside to close */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function BacktestPage() {
   const [btStatus, setBtStatus] = useState<BacktestStatus | null>(null);
   const [results, setResults] = useState<BacktestResults | null>(null);
@@ -143,6 +348,7 @@ export default function BacktestPage() {
   const [tradeSort, setTradeSort] = useState<{ col: string; asc: boolean }>({ col: "entry_date", asc: true });
   const [tradeSearch, setTradeSearch] = useState("");
   const [tradeFilter, setTradeFilter] = useState<"all" | "win" | "loss">("all");
+  const [collapsedRuns, setCollapsedRuns] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(async (retryCount = 0) => {
     try {
@@ -452,86 +658,37 @@ export default function BacktestPage() {
 
         {/* Unified run selector (Tier 4) — hidden on optimizer/insights tabs per layout spec */}
         {runs.length > 0 && !loading && tab !== "optimizer" && tab !== "overview" && (() => {
-          // Only show runs with detail (clickable)
-          const allBaselines = runs.filter((r) => r.is_baseline && r.has_detail);
+          // Show all baselines (even without detail) to properly group experiments
+          // Only filter experiments by has_detail since they're the ones we actually click
+          const allBaselines = runs.filter((r) => r.is_baseline);
           const allExperiments = runs.filter((r) => !r.is_baseline && r.has_detail);
           const baselines = allBaselines;
           const experiments = allExperiments;
 
           return (
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-xs text-slate-500">Run:</span>
-              <select
-                className="max-w-md rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 focus:border-sky-500 focus:outline-none"
-                value={results?.run_id ?? ""}
-                onChange={async (e) => {
-                  const rid = e.target.value;
-                  if (!rid) return;
-                  // Look in both baselines and experiments
-                  const run = runs.find((r) => r.run_id === rid) || experiments.find((e) => e.run_id === rid);
-                  if (!run?.has_detail) {
-                    setResults(null);
-                    setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: false, run_id: rid } : prev);
-                    return;
-                  }
-                  try {
-                    const data = await loadBacktestRun(rid);
-                    setResults(data);
-                    setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: true, run_id: rid } : prev);
-                  } catch { /* ignore load errors */ }
-                }}
-              >
-                {baselines.map((b) => {
-                  const children = experiments.filter((e) => e.parent_run_id === b.run_id);
-                  const bSharpe = b.sharpe?.toFixed(2) ?? "?";
-                  return (
-                    <optgroup key={b.run_id} label={`${b.strategy} -- Sharpe ${bSharpe}`}>
-                      <option value={b.run_id}>
-                        Baseline -- {formatRunTimestamp(b.timestamp)} -- Sharpe {bSharpe}{!b.has_detail ? " (summary)" : ""}
-                      </option>
-                      {children.map((c) => {
-                        const delta = (b.sharpe != null && c.sharpe != null)
-                          ? (c.sharpe - b.sharpe).toFixed(2)
-                          : "?";
-                        const deltaPrefix = c.sharpe != null && b.sharpe != null && c.sharpe >= b.sharpe ? "+" : "";
-                        const statusTag = c.status === "keep" ? "[kept]" : c.status === "discard" ? "[disc]" : c.status === "dsr_reject" ? "[dsr]" : "";
-                        return (
-                          <option key={c.run_id} value={c.run_id}>
-                            {statusTag} {c.param_changed || c.run_id} -- Sharpe {c.sharpe?.toFixed(2) ?? "?"} ({deltaPrefix}{delta}){!c.has_detail ? " (summary)" : ""}
-                          </option>
-                        );
-                      })}
-                    </optgroup>
-                  );
-                })}
-                {/* Experiments without a matching baseline parent */}
-                {experiments.filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id)).length > 0 && (
-                  <optgroup label="Unlinked">
-                    {experiments
-                      .filter((e) => !baselines.some((b) => b.run_id === e.parent_run_id))
-                      .map((e) => (
-                        <option key={e.run_id} value={e.run_id}>
-                          {e.run_id} -- Sharpe {e.sharpe?.toFixed(2) ?? "?"}{!e.has_detail ? " (summary)" : ""}
-                        </option>
-                      ))}
-                  </optgroup>
-                )}
-              </select>
-              {results?.run_id && (
-                <button
-                  onClick={() => {
-                    const rid = results?.run_id;
-                    if (!rid) return;
-                    if (!confirm("Delete this backtest run?")) return;
-                    handleDeleteRun(rid);
-                  }}
-                  className="rounded p-1 text-rose-500/70 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-                  title="Delete selected run"
-                >
-                  <XCircle size={16} weight="fill" />
-                </button>
-              )}
-            </div>
+            <RunSelector
+              runs={runs}
+              experiments={experiments}
+              baselines={baselines}
+              selectedRunId={results?.run_id}
+              collapsedRuns={collapsedRuns}
+              setCollapsedRuns={setCollapsedRuns}
+              onRunSelect={async (rid) => {
+                if (!rid) return;
+                const run = runs.find((r) => r.run_id === rid) || experiments.find((e) => e.run_id === rid);
+                if (!run?.has_detail) {
+                  setResults(null);
+                  setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: false, run_id: rid } : prev);
+                  return;
+                }
+                try {
+                  const data = await loadBacktestRun(rid);
+                  setResults(data);
+                  setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: true, run_id: rid } : prev);
+                } catch { /* ignore load errors */ }
+              }}
+              onRunDelete={handleDeleteRun}
+            />
           );
         })()}
 
