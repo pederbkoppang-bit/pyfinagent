@@ -7,6 +7,31 @@
 
 ---
 
+## Harness-Driven Execution
+
+**Every phase of this plan follows the harness pattern — not just the optimizer.**
+
+The same Planner → Generator → Evaluator cycle that runs backtests also governs how we execute the master plan itself:
+
+```
+For each plan step:
+  1. PLAN    — Define what "done" looks like (contract in handoff/contract.md)
+  2. GENERATE — Do the work (code, config, research)
+  3. EVALUATE — Independently verify it worked (tests, validation, review)
+  4. DECIDE  — PASS → move to next step | FAIL → revert and retry | CONDITIONAL → fix and re-evaluate
+  5. LOG     — Update PLAN.md progress log, HEARTBEAT.md, memory, Slack
+```
+
+**Why this matters:** Without evaluation, we ship broken things. Phase 1 proved this — the optimizer said Sharpe improved, but independent sub-period validation showed it actually destroyed the strategy (Sharpe -4.57). The harness caught it.
+
+**Concrete enforcement:**
+- Before starting any phase step → write `handoff/contract.md` with hypothesis + success criteria
+- After completing the work → run independent validation (not just "it compiles")
+- After validation → write `handoff/evaluator_critique.md` with pass/fail + evidence
+- `run_harness.py` automates this for backtest work; for non-backtest work, Ford follows the same protocol manually
+
+---
+
 ## Architectural Philosophy
 
 ### Why a multi-agent harness, not a monolith
