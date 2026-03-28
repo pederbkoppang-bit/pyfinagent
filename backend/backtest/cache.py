@@ -216,8 +216,9 @@ def cached_prices(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
         _cache_stats["hits"] += 1
         return _prices_cache[key]
 
-    # 3. Fall back to individual BQ query
+    # 3. Fall back to individual BQ query (with timeout)
     _cache_stats["misses"] += 1
+    logger.debug("BQ fallback: prices for %s (%s to %s)", ticker, start_date, end_date)
     query = f"""
         SELECT date, open, high, low, close, volume
         FROM `{_table("historical_prices")}`
@@ -230,7 +231,11 @@ def cached_prices(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
         bigquery.ScalarQueryParameter("end", "STRING", end_date),
     ])
     assert _bq_client is not None, "Cache not initialized — call init_cache() first"
-    rows = list(_bq_client.query(query, job_config=job_config).result())
+    try:
+        rows = list(_bq_client.query(query, job_config=job_config).result(timeout=30))
+    except Exception as e:
+        logger.warning("BQ prices query timed out for %s: %s", ticker, e)
+        rows = []
     if rows:
         df = pd.DataFrame([dict(r) for r in rows])
         df["date"] = pd.to_datetime(df["date"])
@@ -261,8 +266,9 @@ def cached_fundamentals(ticker: str, cutoff_date: str) -> list[dict]:
         _cache_stats["hits"] += 1
         return _fundamentals_cache[key]
 
-    # 3. Fall back to individual BQ query
+    # 3. Fall back to individual BQ query (with timeout)
     _cache_stats["misses"] += 1
+    logger.debug("BQ fallback: fundamentals for %s (cutoff %s)", ticker, cutoff_date)
     query = f"""
         SELECT *
         FROM `{_table("historical_fundamentals")}`
@@ -275,7 +281,11 @@ def cached_fundamentals(ticker: str, cutoff_date: str) -> list[dict]:
         bigquery.ScalarQueryParameter("cutoff", "STRING", cutoff_date),
     ])
     assert _bq_client is not None, "Cache not initialized — call init_cache() first"
-    rows = list(_bq_client.query(query, job_config=job_config).result())
+    try:
+        rows = list(_bq_client.query(query, job_config=job_config).result(timeout=30))
+    except Exception as e:
+        logger.warning("BQ fundamentals query timed out for %s: %s", ticker, e)
+        rows = []
     result = [dict(r) for r in rows]
 
     _fundamentals_cache[key] = result
@@ -301,8 +311,9 @@ def cached_macro(cutoff_date: str) -> dict:
         _macro_cache[cutoff_date] = result
         return result
 
-    # 2. Fall back to individual BQ query
+    # 2. Fall back to individual BQ query (with timeout)
     _cache_stats["misses"] += 1
+    logger.debug("BQ fallback: macro (cutoff %s)", cutoff_date)
     query = f"""
         SELECT series_id, value, date
         FROM (
@@ -317,7 +328,11 @@ def cached_macro(cutoff_date: str) -> dict:
         bigquery.ScalarQueryParameter("cutoff", "STRING", cutoff_date),
     ])
     assert _bq_client is not None, "Cache not initialized — call init_cache() first"
-    rows = list(_bq_client.query(query, job_config=job_config).result())
+    try:
+        rows = list(_bq_client.query(query, job_config=job_config).result(timeout=30))
+    except Exception as e:
+        logger.warning("BQ macro query timed out: %s", e)
+        rows = []
     result = {r["series_id"]: {"value": r["value"], "date": r["date"]} for r in rows}
 
     _macro_cache[cutoff_date] = result
