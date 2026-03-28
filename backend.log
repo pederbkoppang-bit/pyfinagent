@@ -8,3 +8,12 @@ INFO:     Waiting for application startup.
 [36m00:01:42 I [main][0m Paper trading scheduler started
 [36m00:01:42 I [on][0m Application startup complete.
 [36m00:01:42 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49638 - "OPTIONS /api/backtest/harness/log HTTP/1.1" 200
+[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49642 - "OPTIONS /api/backtest/harness/critique HTTP/1.1" 200
+[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49638 - "GET /api/backtest/harness/log HTTP/1.1" 200
+[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49642 - "GET /api/backtest/harness/critique HTTP/1.1" 200
+[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49638 - "OPTIONS /api/backtest/harness/contract HTTP/1.1" 200
+[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49642 - "GET /api/backtest/harness/contract HTTP/1.1" 200
+[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49638 - "OPTIONS /api/backtest/harness/validation HTTP/1.1" 200
+[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49642 - "GET /api/backtest/harness/validation HTTP/1.1" 200
+[36m00:06:25 I [httptools_impl][0m 127.0.0.1:49669 - "GET /api/paper-trading/portfolio HTTP/1.1" 200

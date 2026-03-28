@@ -27,7 +27,12 @@ SECTOR_ETFS = {
 def get_sp500_tickers() -> list[str]:
     """Fetch current S&P 500 ticker list from Wikipedia."""
     try:
-        tables = pd.read_html(SP500_URL, header=0)
+        import io
+        import urllib.request
+        req = urllib.request.Request(SP500_URL, headers={"User-Agent": "Mozilla/5.0 pyfinagent/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8")
+        tables = pd.read_html(io.StringIO(html), header=0)
         df = tables[0]
         tickers = df["Symbol"].str.replace(".", "-", regex=False).tolist()
         logger.info(f"Loaded {len(tickers)} S&P 500 tickers")

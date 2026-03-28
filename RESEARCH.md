@@ -195,3 +195,31 @@ Every evaluator criterion should trace to a published threshold or documented be
 ---
 
 *Last updated: 2026-03-28 by Ford — Initial research log from codebase audit + accumulated references*
+
+## Phase 2.8 Research: Harness Hardening (2026-03-29)
+
+### Seed Stability
+- Monte Carlo analysis with multiple random seeds validates strategy isn't a fluke
+- Run best params with 5 seeds, Sharpe std < 0.1 indicates stability
+- Source: BuildAlpha robustness testing guide, QuantConnect PSR research
+
+### Ablation Studies
+- Systematically remove one component/parameter, measure Sharpe drop
+- Robust strategy shows "plateau" where broad param ranges give consistent results
+- Key: if removing one feature causes >20% Sharpe drop, that feature is critical AND fragile
+
+### Statistical Tests
+- Probabilistic Sharpe Ratio (PSR) — probability that Sharpe > benchmark, handles non-normality
+- Ljung-Box test for return autocorrelation (should be absent in efficient strategy)
+- Lo (2002) adjusted Sharpe — corrects for autocorrelation in returns
+- Walk-forward analysis (already implemented in our engine)
+
+### Slippage Modeling
+- Standard: 5 bps execution slippage on top of transaction costs
+- Conservative: 10 bps for small-cap or illiquid names
+- Our 2× cost stress test (Sharpe 0.91) already covers some of this
+
+### Key Insight
+- We already have DSR (Deflated Sharpe Ratio) which handles multiple testing bias
+- Adding seed stability + ablation would give us the full robustness picture
+- Slippage modeling is partially covered by our 2× cost test

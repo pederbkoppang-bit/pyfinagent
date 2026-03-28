@@ -657,8 +657,9 @@ Review and optimize all OpenClaw configuration sections for production readiness
 | FRED / Alpha Vantage | $0 | Free tiers |
 | GitHub Copilot Pro | $0 | Included for students? |
 
-### 2.7 Paper Trading — Real-World Validation (Start Early April)
+### 2.7 Paper Trading — Real-World Validation (Start Early April) ✅ ACTIVATED
 > **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG
+> **Activated:** 2026-03-29 00:02 | **Verdict:** PASS (8.8/10) — engine validated, scheduler running, first cycle Monday
 
 *Trade with fake money in the live market BEFORE going live in May. This is the ultimate test — backtest says Sharpe 1.17, but does it hold in real time?*
 
@@ -679,16 +680,16 @@ Review and optimize all OpenClaw configuration sections for production readiness
 - [x] `backend/tools/screener.py` (213 lines) — quant-only universe screening (zero LLM cost)
 
 **Remaining to activate:**
-- [ ] **Validate paper trading engine** — run a test day, verify BQ writes, NAV tracking, trade logging
+- [x] **Validate paper trading engine** — run a test day, verify BQ writes, NAV tracking, trade logging
 - [ ] **Load current best params** (Sharpe 1.17) into paper trader config
-- [ ] **Activate autonomous daily cycle** via APScheduler cron (run at market open 9:30 ET)
+- [x] **Activate autonomous daily cycle** via APScheduler cron (run at market open 9:30 ET)
 - [ ] **Paper Trading Dashboard** — new page or tab showing:
   - Current paper portfolio (positions, P&L, NAV)
   - Trade history (every simulated buy/sell with timestamp, price, reason)
   - Performance vs backtest expectations (daily Sharpe comparison)
   - Performance vs SPY (live benchmark)
   - Drawdown tracking (kill switch at -15%)
-- [ ] **Daily Slack report** — morning: "Paper portfolio: $X NAV, Y positions, Sharpe Z (vs backtest 1.17)"
+- [x] **Daily Slack report** — morning: "Paper portfolio: $X NAV, Y positions, Sharpe Z (vs backtest 1.17)"
 - [ ] **Divergence alerts:**
   - Paper Sharpe < 0.7× backtest → Slack 🔴 "Paper trading underperforming — investigate"
   - Single-day loss > 3% → Slack ⚠️ "Large paper loss: -X%"

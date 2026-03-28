@@ -1,24 +1,22 @@
-# Phase 2.7 Contract — Paper Trading Activation
+# Phase 2.8 Contract — Harness Hardening
 
 ## Hypothesis
-Activating the paper trading engine with our best params (Sharpe 1.17) gives us real-world validation data before the May go-live. Every day of paper trading is irreplaceable evidence.
+Adding seed stability tests, ablation studies, and slippage modeling will validate that our Sharpe 1.17 result is robust and not an artifact of a specific random seed or fragile feature combination.
 
 ## Success Criteria
-1. Paper portfolio initialized with $10,000 starting capital
-2. Screener runs successfully (zero LLM cost)
-3. At least one test cycle completes: Screen → Analyze → Decide → Trade
-4. BQ tables written: paper_portfolio, paper_positions, paper_trades, paper_portfolio_snapshots
-5. API endpoints return portfolio data
-6. Daily scheduler configured (10:00 ET / 16:00 Oslo)
+1. Seed stability: 5 random seeds, Sharpe std < 0.1, all seeds > 0.9
+2. Ablation: removing any single feature drops Sharpe < 20% (no fragile dependencies)
+3. Slippage: 5 bps slippage added, Sharpe > 0.85
+4. No single walk-forward window drives > 30% of total return
+5. All tests scripted and repeatable via run_harness.py
 
 ## Fail Conditions
-- Cycle hangs or crashes
-- BQ writes fail
-- LLM costs exceed $10 in a single cycle
-- Screener returns zero candidates
+- Sharpe varies > 0.2 across seeds (strategy is seed-dependent)
+- Removing one feature collapses Sharpe below 0.5 (fragile dependency)
+- Slippage test drops Sharpe below 0.7
 
-## Budget
-Approved by Peder: ~$2-5/day Gemini API for daily analysis cycles.
+## Cost
+Zero LLM cost — all tests are pure compute (ML + backtest engine).
 
 ## Started
-2026-03-28 23:58 Oslo
+2026-03-29 00:15 Oslo
