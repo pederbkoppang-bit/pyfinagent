@@ -40,36 +40,47 @@ Before implementing any major feature:
 
 **Deep Research Checklist (run for each plan step):**
 ```
-□ Google Scholar: "[topic]" — relevance + recency (last 2 years), follow citation chains
-□ arXiv/SSRN: "[topic] financial machine learning"
-□ University research groups: MIT, Stanford, Oxford, Princeton, Chicago, NYU
-□ AI lab blogs: Anthropic, OpenAI, DeepMind, Meta FAIR, Microsoft Research
-□ Quant firm publications: AQR, Two Sigma, Man Group whitepapers
-□ Consulting/industry reports: McKinsey, BCG, Deloitte on AI in finance
-□ GitHub: recent implementations and repos
-□ Read 3-5 most relevant sources in full (not just abstracts)
-□ Documented findings in RESEARCH.md with URLs
-□ Identified concrete thresholds/methods to adopt
-□ Noted warnings/pitfalls from literature
-□ Updated handoff/contract.md success criteria with research-backed thresholds
-```
 
 ### ⛔ RESEARCH GATE — MANDATORY (Peder's Rule, 2026-03-29)
 
 **NO phase step may proceed to GENERATE until this gate passes.**
 
-**Minimum requirements before writing ANY code:**
-1. **≥3 verifiable URLs** added to RESEARCH.md for this step (clickable, fetched, read)
-2. **≥10 sources/URLs** if the task requires deeper research (new techniques, statistical methods, infrastructure patterns)
-3. **3-5 sources read in full** (not just abstracts or summaries)
-4. **Concrete thresholds/methods extracted** and documented as actionable findings
-5. **Warnings/pitfalls noted** from literature (what NOT to do)
-6. **handoff/contract.md** success criteria updated with research-backed numbers
+**Step 1: SEARCH broadly (all 7 categories above — cast a wide net)**
+- Search EVERY category: Scholar, arXiv, universities, AI labs, quant firms, consulting, GitHub
+- Collect ≥10 candidate URLs (simple steps: ≥3)
+- Don't stop at the first result — follow citation chains, check "cited by" links
 
-**How to verify the gate passed:**
-- Count URLs in RESEARCH.md entries tagged to this phase step
-- If count < 3 (simple step) or < 10 (complex step) → STOP, do more research
-- If no actionable findings → STOP, the research was too shallow
+**Step 2: SELECT the best 3-5 sources from your candidates**
+- Pick the most relevant, recent, and authoritative
+- Prefer: peer-reviewed > preprints > blog posts > forum discussions
+- Must include at least 1 academic paper AND 1 practical implementation/guide
+
+**Step 3: READ those 3-5 sources IN FULL**
+- Not abstracts. Not summaries. The actual paper/post/README.
+- Extract: concrete methods, thresholds, parameters, formulas
+- Extract: warnings, pitfalls, failure modes (what NOT to do)
+- Extract: how this applies specifically to pyfinAgent
+
+**Step 4: DOCUMENT everything in RESEARCH.md**
+- ALL candidate URLs (even ones you didn't read in full)
+- Detailed notes from the 3-5 sources you read deeply
+- Actionable findings: "We should use X because paper Y found Z"
+- Pitfalls: "Paper Y warns against W because..."
+
+**Step 5: UPDATE handoff/contract.md**
+- Success criteria must reference research-backed thresholds
+- Example: "DSR > 0.95 per Bailey & López de Prado (2014)"
+- NOT: "DSR should be high" (no citation = not research-backed)
+
+**How to verify the gate passed (self-check before writing code):**
+- [ ] Searched all 7 source categories? (not just Google Scholar)
+- [ ] Collected ≥10 candidate URLs? (≥3 for simple steps)
+- [ ] Selected and read 3-5 best sources in full?
+- [ ] Documented findings in RESEARCH.md with URLs?
+- [ ] Extracted concrete thresholds/methods to adopt?
+- [ ] Noted warnings/pitfalls from literature?
+- [ ] Updated handoff/contract.md with research-backed criteria?
+- If ANY checkbox is unchecked → **STOP. Do more research.**
 
 **Why this gate exists:**
 - Phases 0-2.7 were built from general knowledge with zero papers fetched
