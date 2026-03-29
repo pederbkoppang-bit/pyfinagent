@@ -16,16 +16,38 @@ import json
 import logging
 import time
 from typing import Any, Dict, List, Optional
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Import backend modules
+try:
+    from backend.backtest.backtest_engine import BacktestEngine
+    from backend.db.bigquery_client import BigQueryClient
+    from backend.config.settings import get_settings
+    BACKTEST_AVAILABLE = True
+except ImportError:
+    BACKTEST_AVAILABLE = False
+    logger.warning("Backtest engine not available — backtest server in stub mode")
 
 
 class BacktestServer:
     """FastMCP backtest server for pyfinAgent."""
     
     def __init__(self):
-        self.engine = None  # Will be initialized by FastMCP framework
+        self.bq_client = None
+        self.settings = None
         self.timeout_seconds = 30  # Max time for backtest tool
+        
+        # Initialize backtest engine if available
+        if BACKTEST_AVAILABLE:
+            try:
+                self.settings = get_settings()
+                self.bq_client = BigQueryClient(self.settings)
+                logger.info("BacktestServer initialized with BQ client")
+            except Exception as e:
+                logger.error(f"Failed to initialize BacktestServer: {e}")
+                BACKTEST_AVAILABLE = False
     
     def run_backtest(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -57,13 +79,48 @@ class BacktestServer:
             }
         }
         """
-        logger.info(f"run_backtest({params})")
-        # TODO: Call BacktestEngine.run_backtest()
-        return {
-            "status": "PENDING_IMPLEMENTATION",
-            "sharpe": 0.0,
-            "dsr": 0.0,
-        }
+        logger.info(f"run_backtest(params={params})")
+        
+        if not BACKTEST_AVAILABLE:
+            return {
+                "status": "ERROR",
+                "error": "Backtest engine not available",
+            }
+        
+        try:
+            start = time.time()
+            
+            # Create backtest engine with provided params
+            engine = BacktestEngine(
+                bq_client=self.bq_client.client,
+                project=self.settings.gcp_project_id,
+                dataset=self.settings.bq_dataset_reports,
+                **params  # Pass params as kwargs
+            )
+            
+            # Run backtest with timeout
+            result = engine.run_backtest()
+            elapsed = time.time() - start
+            
+            # Extract key metrics from result
+            full_period = result.get("full_period", {})
+            
+            return {
+                "status": "PASS",
+                "run_id": result.get("run_id", "backtest_manual"),
+                "sharpe": full_period.get("sharpe", 0.0),
+                "dsr": full_period.get("dsr", 0.0),
+                "return_pct": full_period.get("return_pct", 0.0),
+                "max_drawdown_pct": full_period.get("max_drawdown_pct", 0.0),
+                "num_trades": full_period.get("num_trades", 0),
+                "elapsed_seconds": int(elapsed),
+            }
+        except Exception as e:
+            logger.error(f"Backtest failed: {e}", exc_info=True)
+            return {
+                "status": "ERROR",
+                "error": str(e),
+            }
     
     def run_single_feature_test(self, feature_code: str) -> Dict[str, Any]:
         """
@@ -136,9 +193,30 @@ class BacktestServer:
         }
         """
         logger.info("get_feature_importance()")
-        # TODO: Load from backtest results
+        
+        try:
+            # Try to load from most recent experiment result
+            results_dir = Path(__file__).parent.parent.parent / "backtest" / "experiments" / "results"
+            
+            if results_dir.exists():
+                # Find most recent result file
+                results = list(results_dir.glob("*.json"))
+                if results:
+                    latest = max(results, key=lambda p: p.stat().st_mtime)
+                    with open(latest, "r") as f:
+                        data = json.load(f)
+                    
+                    return {
+                        "status": "PASS",
+                        "importance_mdi": data.get("feature_importance_mdi", {}),
+                        "importance_mda": data.get("feature_importance_mda", {}),
+                        "source": str(latest),
+                    }
+        except Exception as e:
+            logger.error(f"Error loading feature importance: {e}")
+        
         return {
-            "status": "PENDING_IMPLEMENTATION",
+            "status": "NO_DATA",
             "importance_mdi": {},
             "importance_mda": {},
         }
