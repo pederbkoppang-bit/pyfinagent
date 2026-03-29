@@ -1,34 +1,25 @@
-INFO:     Started server process [57200]
+INFO:     Started server process [61834]
 INFO:     Waiting for application startup.
-[36m00:01:42 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
-[36m00:01:42 I [base][0m Adding job tentatively -- it will be properly scheduled when the scheduler starts
-[36m00:01:42 I [paper_trading][0m Paper trading scheduler active: daily at 10:00 ET
-[36m00:01:42 I [base][0m Added job "_scheduled_run" to job store "default"
-[36m00:01:42 I [base][0m Scheduler started
-[36m00:01:42 I [main][0m Paper trading scheduler started
-[36m00:01:42 I [on][0m Application startup complete.
-[36m00:01:42 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49638 - "OPTIONS /api/backtest/harness/log HTTP/1.1" 200
-[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49642 - "OPTIONS /api/backtest/harness/critique HTTP/1.1" 200
-[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49638 - "GET /api/backtest/harness/log HTTP/1.1" 200
-[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49642 - "GET /api/backtest/harness/critique HTTP/1.1" 200
-[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49638 - "OPTIONS /api/backtest/harness/contract HTTP/1.1" 200
-[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49642 - "GET /api/backtest/harness/contract HTTP/1.1" 200
-[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49638 - "OPTIONS /api/backtest/harness/validation HTTP/1.1" 200
-[36m00:03:08 I [httptools_impl][0m 127.0.0.1:49642 - "GET /api/backtest/harness/validation HTTP/1.1" 200
-[36m00:06:25 I [httptools_impl][0m 127.0.0.1:49669 - "GET /api/paper-trading/portfolio HTTP/1.1" 200
-[36m07:38:16 I [backtest][0m Auto-loaded previous backtest result (run_id=exp_wider_barriers)
-[36m07:38:16 I [httptools_impl][0m 127.0.0.1:50058 - "OPTIONS /api/backtest/optimize/status HTTP/1.1" 200
-[36m07:38:16 I [httptools_impl][0m 127.0.0.1:50059 - "OPTIONS /api/backtest/ingest/status HTTP/1.1" 200
-[36m07:38:16 I [httptools_impl][0m 127.0.0.1:50052 - "GET /api/backtest/optimize/status HTTP/1.1" 200
-[36m07:38:16 I [httptools_impl][0m 127.0.0.1:50059 - "OPTIONS /api/backtest/runs HTTP/1.1" 200
-[36m07:38:17 I [httptools_impl][0m 127.0.0.1:50060 - "GET /api/backtest/runs HTTP/1.1" 200
-[36m07:38:17 I [httptools_impl][0m 127.0.0.1:50058 - "GET /api/backtest/ingest/status HTTP/1.1" 200
-[36m07:38:17 I [httptools_impl][0m 127.0.0.1:50052 - "OPTIONS /api/backtest/results HTTP/1.1" 200
-[36m07:38:17 I [httptools_impl][0m 127.0.0.1:50059 - "OPTIONS /api/backtest/optimize/experiments?run_index=0 HTTP/1.1" 200
-[36m07:38:17 I [httptools_impl][0m 127.0.0.1:50060 - "OPTIONS /api/backtest/optimize/best HTTP/1.1" 200
-[36m07:38:17 I [httptools_impl][0m 127.0.0.1:50058 - "GET /api/backtest/results HTTP/1.1" 200
-[36m07:38:17 I [httptools_impl][0m 127.0.0.1:50052 - "GET /api/backtest/optimize/experiments?run_index=0 HTTP/1.1" 200
-[36m07:38:17 I [httptools_impl][0m 127.0.0.1:50059 - "GET /api/backtest/optimize/best HTTP/1.1" 200
-[36m07:38:17 I [httptools_impl][0m 127.0.0.1:50060 - "OPTIONS /api/backtest/sharpe-history HTTP/1.1" 200
-[36m07:38:18 I [httptools_impl][0m 127.0.0.1:50058 - "GET /api/backtest/sharpe-history HTTP/1.1" 200
+[36m07:52:07 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
+[36m07:52:07 I [base][0m Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[36m07:52:07 I [paper_trading][0m Paper trading scheduler active: daily at 10:00 ET
+[36m07:52:07 I [base][0m Added job "_scheduled_run" to job store "default"
+[36m07:52:07 I [base][0m Scheduler started
+[36m07:52:07 I [main][0m Paper trading scheduler started
+[36m07:52:07 I [on][0m Application startup complete.
+[36m07:52:07 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[36m09:20:52 I [backtest][0m Auto-loaded previous backtest result (run_id=exp_wider_barriers)
+[36m09:20:52 I [httptools_impl][0m 127.0.0.1:50262 - "OPTIONS /api/backtest/ingest/status HTTP/1.1" 200
+[36m09:20:52 I [httptools_impl][0m 127.0.0.1:50268 - "OPTIONS /api/backtest/optimize/status HTTP/1.1" 200
+[36m09:20:52 I [httptools_impl][0m 127.0.0.1:50269 - "OPTIONS /api/backtest/runs HTTP/1.1" 200
+[36m09:20:52 I [httptools_impl][0m 127.0.0.1:50268 - "GET /api/backtest/optimize/status HTTP/1.1" 200
+[36m09:20:52 I [httptools_impl][0m 127.0.0.1:50269 - "GET /api/backtest/runs HTTP/1.1" 200
+[36m09:20:53 I [httptools_impl][0m 127.0.0.1:50262 - "GET /api/backtest/ingest/status HTTP/1.1" 200
+[36m09:20:53 I [httptools_impl][0m 127.0.0.1:50268 - "OPTIONS /api/backtest/results HTTP/1.1" 200
+[36m09:20:53 I [httptools_impl][0m 127.0.0.1:50269 - "GET /api/backtest/results HTTP/1.1" 200
+[36m09:20:53 I [httptools_impl][0m 127.0.0.1:50262 - "OPTIONS /api/backtest/optimize/experiments?run_index=0 HTTP/1.1" 200
+[36m09:20:53 I [httptools_impl][0m 127.0.0.1:50268 - "OPTIONS /api/backtest/optimize/best HTTP/1.1" 200
+[36m09:20:53 I [httptools_impl][0m 127.0.0.1:50269 - "GET /api/backtest/optimize/best HTTP/1.1" 200
+[36m09:20:53 I [httptools_impl][0m 127.0.0.1:50268 - "GET /api/backtest/optimize/experiments?run_index=0 HTTP/1.1" 200
+[36m09:20:53 I [httptools_impl][0m 127.0.0.1:50262 - "OPTIONS /api/backtest/sharpe-history HTTP/1.1" 200
+[36m09:20:53 I [httptools_impl][0m 127.0.0.1:50269 - "GET /api/backtest/sharpe-history HTTP/1.1" 200

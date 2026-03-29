@@ -711,8 +711,10 @@ class BacktestEngine:
         MDA is the authoritative ranking.
         """
         try:
+            import platform
+            _n_jobs = 1 if platform.system() == "Darwin" else -1
             result = permutation_importance(
-                model, X, y, n_repeats=n_repeats, random_state=42, n_jobs=-1,
+                model, X, y, n_repeats=n_repeats, random_state=42, n_jobs=_n_jobs,
             )
             return dict(zip(feature_names, result["importances_mean"]))
         except Exception as e:
