@@ -300,12 +300,18 @@ def run_evaluator(params: dict, settings, bq) -> dict:
     logger.info("Evaluator: starting independent validation...")
     results = {}
 
-    # Sub-period backtests
+    # Sub-period backtests (use full reports for feature importance stability)
+    sub_period_features = {}
     for label, start, end in SUB_PERIODS:
         logger.info("  Evaluator: running %s (%s to %s)", label, start, end)
         try:
-            a = run_backtest(params, settings, bq, start_date=start, end_date=end)
+            sub_report = run_backtest_full(params, settings, bq, start_date=start, end_date=end)
+            a = sub_report["analytics"]
             results[label] = a
+            # Extract top features for stability check
+            fi = sub_report.get("feature_importance", {})
+            mda = fi.get("mda_top_15", [])
+            sub_period_features[label] = set(f["feature"] for f in mda[:10])
             logger.info("  %s: Sharpe=%.4f DSR=%.4f Return=%.1f%%",
                         label, a["sharpe"], a["deflated_sharpe"], a["total_return_pct"])
         except Exception as e:
@@ -388,6 +394,35 @@ def run_evaluator(params: dict, settings, bq) -> dict:
     except Exception as e:
         logger.error("  Slippage test: FAILED - %s", e)
         results["slippage_5bps"] = {"error": str(e), "sharpe": -999}
+
+    # 4. Feature importance stability across sub-periods
+    if len(sub_period_features) >= 2:
+        all_feature_sets = list(sub_period_features.values())
+        # Jaccard similarity between each pair
+        jaccard_scores = []
+        pairs = []
+        labels = list(sub_period_features.keys())
+        for i in range(len(labels)):
+            for j in range(i + 1, len(labels)):
+                a_set, b_set = all_feature_sets[i], all_feature_sets[j]
+                if a_set or b_set:
+                    jaccard = len(a_set & b_set) / len(a_set | b_set) if (a_set | b_set) else 0
+                    jaccard_scores.append(jaccard)
+                    pairs.append(f"{labels[i]} vs {labels[j]}")
+
+        if jaccard_scores:
+            avg_jaccard = sum(jaccard_scores) / len(jaccard_scores)
+            # Common features across ALL sub-periods
+            common_features = set.intersection(*all_feature_sets) if all_feature_sets else set()
+            results["feature_stability"] = {
+                "avg_jaccard": round(avg_jaccard, 3),
+                "pairs": {p: round(j, 3) for p, j in zip(pairs, jaccard_scores)},
+                "common_features": sorted(common_features),
+                "pass": avg_jaccard > 0.3,  # At least 30% overlap
+                "n_common": len(common_features),
+            }
+            logger.info("  Feature stability: avg Jaccard=%.3f, %d common features (%s)",
+                        avg_jaccard, len(common_features), "PASS" if avg_jaccard > 0.3 else "FAIL")
 
     # -- GRADE (anti-leniency: grade each criterion BEFORE verdict) --
     grades = _grade_results(results, params)
@@ -575,6 +610,14 @@ Composite Score: {grades['composite']}/10
     if slip and "error" not in slip:
         content += f"\n### Slippage Stress Test (+5bps)\n"
         content += f"- Sharpe: {slip.get('sharpe', 0):.4f} ({'PASS' if slip.get('survives') else 'FAIL'} — need >0.5)\n"
+
+    fs = results.get("feature_stability")
+    if fs:
+        content += f"\n### Feature Importance Stability\n"
+        content += f"- Average Jaccard similarity: {fs['avg_jaccard']:.3f} ({'PASS' if fs['pass'] else 'FAIL'} — need >0.3)\n"
+        content += f"- Common features across all sub-periods ({fs['n_common']}): {', '.join(fs['common_features'][:10])}\n"
+        for pair, score in fs.get("pairs", {}).items():
+            content += f"  - {pair}: {score:.3f}\n"
 
     content += f"""
 ## Decision
