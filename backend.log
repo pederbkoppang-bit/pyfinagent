@@ -90,3 +90,7 @@ INFO:     Waiting for application startup.
 [36m10:29:02 I [httptools_impl][0m 127.0.0.1:50875 - "GET /api/backtest/harness/seed-stability HTTP/1.1" 200
 [36m10:29:33 I [httptools_impl][0m 127.0.0.1:50880 - "GET /api/backtest/harness/seed-stability HTTP/1.1" 200
 [36m10:30:03 I [httptools_impl][0m 127.0.0.1:50891 - "GET /api/backtest/harness/seed-stability HTTP/1.1" 200
+[36m10:30:33 I [httptools_impl][0m 127.0.0.1:50901 - "OPTIONS /api/backtest/harness/seed-stability HTTP/1.1" 200
+[36m10:30:33 I [httptools_impl][0m 127.0.0.1:50901 - "GET /api/backtest/harness/seed-stability HTTP/1.1" 200
+[36m10:31:03 I [httptools_impl][0m 127.0.0.1:50904 - "GET /api/backtest/harness/seed-stability HTTP/1.1" 200
+[36m10:31:33 I [httptools_impl][0m 127.0.0.1:50908 - "GET /api/backtest/harness/seed-stability HTTP/1.1" 200

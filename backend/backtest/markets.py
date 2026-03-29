@@ -1,101 +1,120 @@
 """
-Market definitions and configurations for multi-market support.
+Multi-market abstractions for Phase 2.9 expansion.
 
-Phase 2.9: Lightweight preparation for future market expansion (CA, EU, NO, KR).
-Currently defaults to US; other markets are data structures only.
+Supports: US (default), NO, CA, EU, KR with proper calendars, currencies, and ticker namespacing.
+Ticker namespacing: {market}:{ticker}  (e.g., "US:AAPL", "NO:EQNR", "KR:005930")
 """
 
-from enum import Enum
-from typing import NamedTuple
+import logging
+from typing import Optional
 
+try:
+    import exchange_calendars as xcals
+except ImportError:
+    xcals = None
 
-class MarketConfig(NamedTuple):
-    """Market configuration tuple."""
-    code: str  # Market code (US, CA, EU, NO, KR)
-    currency: str  # Primary currency (USD, CAD, EUR, NOK, KRW)
-    exchange: str  # Primary exchange code (NYSE, TSX, XETRA, OSE, KRX)
-    timezone: str  # IANA timezone (e.g., America/New_York)
-    calendar: str  # exchange_calendars name (e.g., 'NYSE', 'TSX', 'XETRA', 'OSE', 'XKRX')
+logger = logging.getLogger(__name__)
 
-
-class Market(Enum):
-    """Supported markets and their configurations."""
-    
-    US = MarketConfig(
-        code="US",
-        currency="USD",
-        exchange="NYSE",
-        timezone="America/New_York",
-        calendar="NYSE"
-    )
-    
-    CA = MarketConfig(
-        code="CA",
-        currency="CAD",
-        exchange="TSX",
-        timezone="America/Toronto",
-        calendar="TSX"
-    )
-    
-    EU = MarketConfig(
-        code="EU",
-        currency="EUR",
-        exchange="XETRA",
-        timezone="Europe/Berlin",
-        calendar="XETRA"
-    )
-    
-    NO = MarketConfig(
-        code="NO",
-        currency="NOK",
-        exchange="OSE",
-        timezone="Europe/Oslo",
-        calendar="OSE"
-    )
-    
-    KR = MarketConfig(
-        code="KR",
-        currency="KRW",
-        exchange="KRX",
-        timezone="Asia/Seoul",
-        calendar="XKRX"
-    )
-
-
-# Default market (US only for now)
 DEFAULT_MARKET = "US"
-DEFAULT_MARKET_CONFIG = Market.US.value
+
+# Market configuration: exchange calendar, currency, timezone
+MARKET_CONFIG = {
+    "US": {
+        "exchange": "XNYS",
+        "currency": "USD",
+        "timezone": "America/New_York",
+        "description": "NYSE/NASDAQ (United States)",
+    },
+    "NO": {
+        "exchange": "XOSL",
+        "currency": "NOK",
+        "timezone": "Europe/Oslo",
+        "description": "Oslo Børs (Norway)",
+    },
+    "CA": {
+        "exchange": "XTSE",
+        "currency": "CAD",
+        "timezone": "America/Toronto",
+        "description": "Toronto Stock Exchange (Canada)",
+    },
+    "EU": {
+        "exchange": "XETR",  # XETRA (Germany) as primary
+        "currency": "EUR",
+        "timezone": "Europe/Berlin",
+        "description": "XETRA/Euronext (European equities)",
+    },
+    "KR": {
+        "exchange": "XKRX",
+        "currency": "KRW",
+        "timezone": "Asia/Seoul",
+        "description": "KRX - KOSPI/KOSDAQ (South Korea)",
+    },
+}
 
 
-def get_market_config(market: str) -> MarketConfig:
-    """Get configuration for a market code.
-    
-    Args:
-        market: Market code (e.g., 'US', 'CA')
-        
-    Returns:
-        MarketConfig with all settings
-        
-    Raises:
-        ValueError: If market is not supported
+def parse_namespaced_ticker(ticker: str) -> tuple[str, str]:
     """
+    Parse {market}:{ticker} format.
+
+    Args:
+        ticker: e.g., "US:AAPL" or just "AAPL" (defaults to US)
+
+    Returns:
+        (market, ticker) tuple
+    """
+    if ":" in ticker:
+        market, t = ticker.split(":", 1)
+        market = market.upper()
+        if market not in MARKET_CONFIG:
+            logger.warning(f"Unknown market: {market}, defaulting to US")
+            market = DEFAULT_MARKET
+        return market, t
+    return DEFAULT_MARKET, ticker
+
+
+def get_market_config(market: str = DEFAULT_MARKET) -> dict:
+    """Get configuration for a market."""
+    market = market.upper()
+    return MARKET_CONFIG.get(market, MARKET_CONFIG[DEFAULT_MARKET])
+
+
+def get_trading_calendar(market: str = DEFAULT_MARKET):
+    """
+    Get exchange trading calendar for market.
+
+    Args:
+        market: Market code (US, NO, CA, EU, KR)
+
+    Returns:
+        exchange_calendars calendar object, or None if xcals not installed
+    """
+    if not xcals:
+        logger.warning("exchange_calendars not installed, returning None")
+        return None
+
+    config = get_market_config(market)
+    exchange = config["exchange"]
+
     try:
-        return Market[market].value
-    except KeyError:
-        supported = ", ".join(m.name for m in Market)
-        raise ValueError(f"Unsupported market '{market}'. Supported: {supported}")
+        return xcals.get_calendar(exchange)
+    except Exception as e:
+        logger.error(f"Failed to load calendar for {exchange}: {e}")
+        return None
 
 
-def get_timezone(market: str) -> str:
-    """Get timezone for a market."""
-    return get_market_config(market).timezone
+def is_trading_day(date, market: str = DEFAULT_MARKET) -> bool:
+    """Check if date is a trading day in the specified market."""
+    cal = get_trading_calendar(market)
+    if cal is None:
+        return True  # Safe default if calendar unavailable
 
+    from datetime import datetime
 
-def get_calendar(market: str) -> str:
-    """Get exchange_calendars name for a market."""
-    return get_market_config(market).calendar
+    if isinstance(date, str):
+        date = datetime.fromisoformat(date).date()
 
-
-def get_currency(market: str) -> str:
-    """Get base currency for a market."""
-    return get_market_config(market).currency
+    try:
+        return date in cal.days
+    except Exception as e:
+        logger.warning(f"Calendar check failed: {e}, assuming trading day")
+        return True

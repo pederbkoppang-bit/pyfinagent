@@ -29,6 +29,8 @@ HISTORICAL_PRICES_REF = f"{PROJECT_ID}.{DATASET}.historical_prices"
 HISTORICAL_PRICES_SCHEMA = [
     bigquery.SchemaField("ticker", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("date", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("market", "STRING", mode="NULLABLE", default_value_expression="'US'"),
+    bigquery.SchemaField("currency", "STRING", mode="NULLABLE", default_value_expression="'USD'"),
     bigquery.SchemaField("open", "FLOAT64", mode="NULLABLE"),
     bigquery.SchemaField("high", "FLOAT64", mode="NULLABLE"),
     bigquery.SchemaField("low", "FLOAT64", mode="NULLABLE"),
@@ -40,6 +42,7 @@ HISTORICAL_PRICES_SCHEMA = [
 HISTORICAL_FUNDAMENTALS_REF = f"{PROJECT_ID}.{DATASET}.historical_fundamentals"
 HISTORICAL_FUNDAMENTALS_SCHEMA = [
     bigquery.SchemaField("ticker", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("market", "STRING", mode="NULLABLE", default_value_expression="'US'"),
     bigquery.SchemaField("report_date", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("filing_date", "STRING", mode="NULLABLE"),
     bigquery.SchemaField("total_revenue", "FLOAT64", mode="NULLABLE"),
@@ -58,6 +61,7 @@ HISTORICAL_FUNDAMENTALS_SCHEMA = [
 HISTORICAL_MACRO_REF = f"{PROJECT_ID}.{DATASET}.historical_macro"
 HISTORICAL_MACRO_SCHEMA = [
     bigquery.SchemaField("series_id", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("market", "STRING", mode="NULLABLE", default_value_expression="'US'"),
     bigquery.SchemaField("date", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("value", "FLOAT64", mode="NULLABLE"),
     bigquery.SchemaField("ingested_at", "TIMESTAMP", mode="NULLABLE"),
