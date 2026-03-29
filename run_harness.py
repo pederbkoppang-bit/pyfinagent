@@ -99,11 +99,27 @@ def make_engine(params: dict, settings, bq, start_date=None, end_date=None, tx_c
     )
 
 
+def _count_experiments() -> int:
+    """Count total experiments from TSV for DSR deflation.
+
+    Per Bailey & López de Prado (2014): DSR must account for ALL trials,
+    not just the final one. See RESEARCH.md for citations.
+    """
+    if TSV_PATH.exists():
+        try:
+            with open(TSV_PATH, "r") as f:
+                return max(sum(1 for line in f) - 1, 1)  # minus header
+        except Exception:
+            pass
+    return 1
+
+
 def run_backtest(params: dict, settings, bq, start_date=None, end_date=None, tx_cost_pct=None) -> dict:
     """Run a single backtest with a fresh engine. Returns analytics dict."""
     engine = make_engine(params, settings, bq, start_date, end_date, tx_cost_pct)
     result = engine.run_backtest()
-    report = generate_report(result, num_trials=1)
+    n_trials = _count_experiments()
+    report = generate_report(result, num_trials=n_trials)
     return report["analytics"]
 
 
@@ -111,7 +127,8 @@ def run_backtest_full(params: dict, settings, bq, start_date=None, end_date=None
     """Run backtest and return full report (analytics + per_window). Used by evaluator for hardening tests."""
     engine = make_engine(params, settings, bq, start_date, end_date, tx_cost_pct)
     result = engine.run_backtest()
-    report = generate_report(result, num_trials=1)
+    n_trials = _count_experiments()
+    report = generate_report(result, num_trials=n_trials)
     return report
 
 
