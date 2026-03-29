@@ -7,6 +7,7 @@ import {
   getHarnessCritique,
   getHarnessContract,
   getHarnessValidation,
+  getSeedStability,
 } from "@/lib/api";
 import type { HarnessCycle, HarnessValidation } from "@/lib/types";
 import {
@@ -186,6 +187,8 @@ export function HarnessDashboard() {
   const [critique, setCritique] = useState<string | null>(null);
   const [contract, setContract] = useState<string | null>(null);
   const [validation, setValidation] = useState<HarnessValidation | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [seedStability, setSeedStability] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -195,15 +198,23 @@ export function HarnessDashboard() {
       getHarnessCritique().catch(() => ({ content: null, raw: null })),
       getHarnessContract().catch(() => ({ content: null })),
       getHarnessValidation().catch(() => ({ validation: {}, subperiod: {} })),
+      getSeedStability().catch(() => null),
     ])
-      .then(([log, crit, cont, val]) => {
+      .then(([log, crit, cont, val, seed]) => {
         setCycles(log.cycles);
         setCritique(crit.content);
         setContract(cont.content);
         setValidation(val);
+        setSeedStability(seed);
       })
       .catch(() => setError("Failed to load harness data"))
       .finally(() => setLoading(false));
+
+    // Auto-refresh seed stability every 30s while running
+    const interval = setInterval(() => {
+      getSeedStability().then(setSeedStability).catch(() => {});
+    }, 30_000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -263,6 +274,123 @@ export function HarnessDashboard() {
             <ValidationTable data={validation} />
           </BentoCard>
         )}
+
+      {/* Seed Stability (Phase 2.8) */}
+      {seedStability && seedStability.status !== "not_started" && (
+        <BentoCard>
+          <div className="flex items-center gap-2 mb-3">
+            <Target size={18} className={
+              seedStability.status === "complete"
+                ? seedStability.results?.verdict === "PASS"
+                  ? "text-emerald-400"
+                  : "text-red-400"
+                : "text-amber-400"
+            } />
+            <h3 className="text-sm font-semibold text-slate-300">
+              Seed Stability Test
+            </h3>
+            {seedStability.status === "running" && (
+              <span className="ml-auto inline-flex items-center gap-1.5 text-[10px] text-amber-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                Running
+              </span>
+            )}
+            {seedStability.status === "complete" && (
+              <VerdictBadge verdict={seedStability.results?.verdict} />
+            )}
+            {seedStability.status === "crashed" && (
+              <span className="ml-auto text-[10px] text-red-400">Crashed</span>
+            )}
+          </div>
+
+          {/* Completed results */}
+          {seedStability.results && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-4 gap-3">
+                <div className="rounded-lg bg-navy-900/50 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">Mean Sharpe</p>
+                  <p className="text-lg font-mono font-bold text-slate-100">{seedStability.results.mean_sharpe?.toFixed(4)}</p>
+                </div>
+                <div className="rounded-lg bg-navy-900/50 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">Std Dev</p>
+                  <p className={`text-lg font-mono font-bold ${seedStability.results.pass_std_below_01 ? "text-emerald-400" : "text-red-400"}`}>{seedStability.results.std_sharpe?.toFixed(4)}</p>
+                </div>
+                <div className="rounded-lg bg-navy-900/50 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">Min</p>
+                  <p className={`text-lg font-mono font-bold ${seedStability.results.min_sharpe > 0.9 ? "text-emerald-400" : "text-red-400"}`}>{seedStability.results.min_sharpe?.toFixed(4)}</p>
+                </div>
+                <div className="rounded-lg bg-navy-900/50 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">Max</p>
+                  <p className="text-lg font-mono font-bold text-slate-100">{seedStability.results.max_sharpe?.toFixed(4)}</p>
+                </div>
+              </div>
+
+              {/* Per-seed results table */}
+              {seedStability.results.results && (
+                <div className="overflow-hidden rounded-xl border border-navy-700">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-navy-700 bg-navy-800/80">
+                      <tr>
+                        <th className="px-4 py-2 font-medium text-slate-400">Seed</th>
+                        <th className="px-4 py-2 text-right font-medium text-slate-400">Sharpe</th>
+                        <th className="px-4 py-2 text-right font-medium text-slate-400">Return</th>
+                        <th className="px-4 py-2 text-right font-medium text-slate-400">Max DD</th>
+                        <th className="px-4 py-2 text-right font-medium text-slate-400">Trades</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-navy-700/50">
+                      {seedStability.results.results.map((r: { seed: number; sharpe: number; return_pct: number; max_drawdown: number; trades: number; error?: string }, i: number) => (
+                        <tr key={i} className="transition-colors hover:bg-navy-700/40">
+                          <td className="px-4 py-2 font-mono text-xs text-slate-300">{r.seed}</td>
+                          <td className={`px-4 py-2 text-right font-mono text-xs ${r.sharpe > 0.9 ? "text-emerald-400" : r.sharpe > 0 ? "text-amber-400" : "text-red-400"}`}>
+                            {r.error ? "ERROR" : r.sharpe?.toFixed(4)}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono text-xs text-slate-300">{r.return_pct?.toFixed(1)}%</td>
+                          <td className="px-4 py-2 text-right font-mono text-xs text-slate-300">{r.max_drawdown?.toFixed(1)}%</td>
+                          <td className="px-4 py-2 text-right font-mono text-xs text-slate-300">{r.trades}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Live progress (running) */}
+          {seedStability.live_progress && !seedStability.results && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span>Seeds completed: {seedStability.live_progress.completed_seeds?.length || 0} / {seedStability.live_progress.total_seeds}</span>
+                {seedStability.live_progress.current_window && (
+                  <span className="text-slate-500">• Window {seedStability.live_progress.current_window}/27</span>
+                )}
+              </div>
+              {/* Progress bar */}
+              <div className="h-2 rounded-full bg-slate-700">
+                <div
+                  className="h-full rounded-full bg-sky-500 transition-all"
+                  style={{ width: `${((seedStability.live_progress.completed_seeds?.length || 0) / (seedStability.live_progress.total_seeds || 5)) * 100}%` }}
+                />
+              </div>
+              {/* Completed seed results so far */}
+              {seedStability.live_progress.completed_seeds?.length > 0 && (
+                <div className="space-y-1">
+                  {seedStability.live_progress.completed_seeds.map((s: { sharpe: number; return_pct: number; max_drawdown: number; trades: number }, i: number) => (
+                    <div key={i} className="flex items-center gap-3 text-xs">
+                      <span className="text-slate-500">Seed {i + 1}</span>
+                      <span className={`font-mono ${s.sharpe > 0.9 ? "text-emerald-400" : "text-amber-400"}`}>
+                        Sharpe: {s.sharpe?.toFixed(4)}
+                      </span>
+                      <span className="text-slate-400">Return: {s.return_pct?.toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </BentoCard>
+      )}
 
       {/* Evaluator Critique */}
       {critique && (

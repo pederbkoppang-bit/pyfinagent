@@ -398,6 +398,11 @@ export function getHarnessCriteria(): Promise<{ content: string | null }> {
   return apiFetch("/api/backtest/harness/criteria");
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getSeedStability(): Promise<any> {
+  return apiFetch("/api/backtest/harness/seed-stability");
+}
+
 export function getSharpeHistory(): Promise<SharpeHistoryResponse> {
   return apiFetch("/api/backtest/sharpe-history");
 }

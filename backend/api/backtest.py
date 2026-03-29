@@ -10,6 +10,7 @@ import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -1246,6 +1247,76 @@ def get_harness_criteria():
     if not content:
         return {"content": None}
     return {"content": content}
+
+
+@router.get("/harness/seed-stability")
+def get_seed_stability():
+    """Return seed stability test results (Phase 2.8)."""
+    import json
+    results_path = Path(__file__).parent.parent.parent / "handoff" / "seed_stability_results.json"
+    output_path = Path(__file__).parent.parent.parent / "handoff" / "seed_stability_output.txt"
+
+    data = {"status": "not_started", "results": None, "live_progress": None}
+
+    # Check for completed results
+    if results_path.exists():
+        try:
+            data["results"] = json.loads(results_path.read_text())
+            data["status"] = "complete"
+            return data
+        except Exception:
+            pass
+
+    # Check for in-progress output
+    if output_path.exists():
+        import subprocess
+        # Check if process is running
+        ps = subprocess.run(["pgrep", "-f", "run_seed_stability"], capture_output=True, text=True)
+        is_running = ps.returncode == 0
+
+        lines = output_path.read_text().strip().split("\n")
+        # Parse completed seeds from output
+        completed_seeds = []
+        current_seed = None
+        for line in lines:
+            if "--- Seed " in line:
+                current_seed = line.strip()
+            if "Sharpe:" in line and "|" in line and "Return:" in line:
+                # Parse: Sharpe: 1.0142 | Return: 63.1% | MaxDD: -8.9% | Trades: 632 | 2704s
+                parts = line.strip().split("|")
+                seed_result = {}
+                for part in parts:
+                    part = part.strip()
+                    if part.startswith("Sharpe:"):
+                        seed_result["sharpe"] = float(part.split(":")[1].strip())
+                    elif part.startswith("Return:"):
+                        seed_result["return_pct"] = float(part.split(":")[1].strip().rstrip("%"))
+                    elif part.startswith("MaxDD:"):
+                        seed_result["max_drawdown"] = float(part.split(":")[1].strip().rstrip("%"))
+                    elif part.startswith("Trades:"):
+                        seed_result["trades"] = int(part.split(":")[1].strip())
+                if seed_result:
+                    completed_seeds.append(seed_result)
+
+        # Get current window from last progress line
+        current_window = None
+        for line in reversed(lines):
+            if "[" in line and "/27]" in line:
+                try:
+                    current_window = line.strip().split("[")[1].split("/")[0]
+                except (IndexError, ValueError):
+                    pass
+                break
+
+        data["status"] = "running" if is_running else "crashed"
+        data["live_progress"] = {
+            "completed_seeds": completed_seeds,
+            "total_seeds": 5,
+            "current_window": current_window,
+            "is_running": is_running,
+        }
+
+    return data
 
 
 # ── Budget Dashboard Endpoints ───────────────────────────────────
