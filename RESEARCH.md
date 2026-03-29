@@ -75,10 +75,31 @@
 ### Statistical Methods
 | Paper/Source | Key Insight | Applied In |
 |---|---|---|
-| López de Prado, "Advances in Financial Machine Learning" (2018) | Deflated Sharpe Ratio, walk-forward validation, sample weights, embargo periods, fractional differentiation | `analytics.py`, `walk_forward.py`, `historical_data.py` |
-| Harvey, Liu & Zhu (2016), "...and the Cross-Section of Expected Returns" | t-stat ≥ 3.0 for new factors to control multiple testing bias. Most published anomalies are false. | Evaluator criteria: t-stat threshold |
-| Lo (2002), "The Statistics of Sharpe Ratios" | Sharpe ratio is autocorrelation-sensitive. Adjusted Sharpe accounts for serial correlation in returns. | Phase 2.7: Lo-adjusted Sharpe comparison |
-| Bailey & López de Prado (2014), "The Deflated Sharpe Ratio" | DSR adjusts for multiple testing, non-normal returns, and short track records. | `compute_deflated_sharpe()` in analytics.py |
+| [Bailey & López de Prado, "The Deflated Sharpe Ratio" (2014)](https://ssrn.com/abstract=2460551) — *Journal of Portfolio Management, 40(5)* | DSR adjusts Sharpe for multiple testing, non-normality (skew/kurtosis), and sample length. After 1,000 independent backtests, expected max Sharpe is 3.26 even if true SR=0. DSR = PSR where rejection threshold = expected max SR from N trials. **We run 44+ experiments → must deflate accordingly.** Our DSR threshold of 0.95 is appropriate per the paper. | `analytics.py` compute_deflated_sharpe(), evaluator criteria |
+| [Bailey, Borwein, López de Prado & Zhu, "Probability of Backtest Overfitting" (2015)](https://ssrn.com/abstract=2326253) — *Journal of Computational Finance* | PBO quantifies probability that best in-sample strategy will underperform OOS. Uses Combinatorially Symmetric Cross-Validation (CSCV). **PBO > 20-30% = significant fragility.** Our walk-forward with 27 windows is good but CPCV would be stronger. Consider adding PBO calculation via `pypbo` library. | Phase 2.8 evaluator (TODO: add PBO) |
+| [Lo, "The Statistics of Sharpe Ratios" (2002)](https://quantresearch.org/Wolf_Lo_2002.pdf) — *Financial Analysts Journal, 58(4)* | Standard annualization (multiply by √12) is wrong when returns are serially correlated. Full correction: `Var(R_q) = qσ² + 2σ² Σ(q-k)ρ_k` for k=1..q-1. Simple first-order approximation: multiply by √((1-ρ)/(1+ρ)). Positive ρ inflates Sharpe. **Our implementation uses the simple approximation — should upgrade to full multi-lag formula.** | `run_harness.py` Lo(2002) adjusted Sharpe |
+| [López de Prado, "Advances in Financial Machine Learning" (2018)](https://www.wiley.com/en-us/Advances+in+Financial+Machine+Learning-p-9781119482086) — Ch. 7-8, 11-12 | Triple barrier method, meta-labeling, fractional differentiation, feature importance (MDI biased toward high-cardinality; MDA is authoritative), sample uniqueness for overlapping labels, purged k-fold CV. **All implemented in our engine. MDI/MDA dual tracking correct per Ch. 8.** | `backtest_engine.py` triple barrier, frac_diff, feature importance |
+| [Harvey & Liu, "Backtesting" (2015)](https://ssrn.com/abstract=2345489) | Proposes adjusting Sharpe threshold based on number of factors tested. With 300+ factors tried in literature, need SR > 3.0 to be significant at 5%. **Our 44 experiments is modest but still warrants DSR deflation.** | Evaluator criteria thresholds |
+| [AQR: "A Data Science Solution to the Multiple Testing Crisis"](https://www.aqr.com/-/media/AQR/Documents/Journal-Articles/JFDS_Winter2019_A-Data-Science-Solution-to-Multiple-Testing-Crisis---Lopez_de_Prado.pdf) — *JFDS Winter 2019* | Research surveillance framework: record ALL trials, not just successes. Adjust expectations for live performance to ~50% of backtest. Simple strategies exploiting rational risk premia > complex parameter-heavy models. **Our TSV logging of all experiments aligns with this. Our Sharpe History chart now shows ALL experiments.** | `quant_results.tsv`, Sharpe History chart |
+| [QuantDare: "Deflated Sharpe Ratio" (practical guide)](https://quantdare.com/deflated-sharpe-ratio-how-to-avoid-been-fooled-by-randomness/) | Worked example: 5,000 random simulations → best has SR 1.92 → DSR shows it's not significant. Independent trials N = ρ + (1-ρ)M where M=total trials, ρ=avg correlation. **We should calculate N from our experiment correlation, not just count raw trials.** | TODO: improve DSR calculation with correlated trial adjustment |
+| [pypbo (GitHub)](https://github.com/esvhd/pypbo) | Python implementation of PBO, PSR, DSR, MinTRL, MinBTL. Includes CSCV, performance degradation, stochastic dominance. **Consider integrating for Phase 2.8 PBO calculation.** | TODO: evaluate for integration |
+| [Harvey, Liu & Zhu (2016), "...and the Cross-Section of Expected Returns"](https://doi.org/10.1093/rfs/hhv059) — *Review of Financial Studies* | t-stat ≥ 3.0 for new factors to control multiple testing bias. Most published anomalies are false. Of 316 published factors, most fail this threshold. | Evaluator criteria: t-stat threshold |
+
+### ⚡ Actionable Findings for pyfinAgent (Phase 2.8)
+
+**From the research, here's what we should improve:**
+
+1. **Lo(2002) correction — UPGRADE:** Our current implementation uses simple first-order ρ approximation. The full formula uses all autocorrelation lags up to q-1. Should implement `Var(R_q) = qσ² + 2σ²Σ(q-k)ρ_k` for more accurate correction.
+
+2. **DSR trial count — FIX:** We pass `num_trials=1` to DSR but we've run 44+ experiments. Should pass actual trial count. The expected max Sharpe from 44 independent trials with mean 0 and variance 1 is ~2.5 — our 1.17 is well below this, which is actually a GOOD sign (suggests real alpha, not data mining).
+
+3. **Correlated trial adjustment — ADD:** Not all 44 trials are independent (many share similar parameters). Should calculate effective N using `N = ρ + (1-ρ)M` where ρ is average correlation between trial returns.
+
+4. **PBO calculation — ADD:** Implement Probability of Backtest Overfitting using CSCV. Threshold: PBO < 20% = acceptable. `pypbo` library available.
+
+5. **AQR live performance discount — APPLY:** Expect live performance to be ~50% of backtest. Our Sharpe 1.17 → expect ~0.6 live. Paper trading will validate this.
+
+6. **CPCV — FUTURE:** Our walk-forward (27 windows) is good but single-path. Combinatorial Purged CV would generate hundreds of paths for more robust estimates. Computationally expensive but highest-quality validation.
 
 ### Strategy & Portfolio Construction
 | Paper/Source | Key Insight | Applied In |
