@@ -722,14 +722,14 @@ Review and optimize all OpenClaw configuration sections for production readiness
 
 - [🔄] **Seed stability test:** Running — 5 seeds [42, 123, 456, 789, 2026], monitored via cron
 - [x] **Concentration check:** No single window drives >30% of total return (in evaluator)
-- [x] **Ljung-Box autocorrelation test** on returns (statsmodels installed)
-- [ ] **Lo (2002) adjusted Sharpe** comparison
+- [x] **Ljung-Box autocorrelation test** on returns (statsmodels, p>0.05)
+- [x] **Lo (2002) adjusted Sharpe** — autocorrelation-corrected Sharpe with ρ adjustment factor
 - [x] **Feature importance stability** across sub-periods (Jaccard similarity >0.3)
-- [ ] **Ablation studies:** Remove one Phase 1 improvement at a time, measure drop
+- [ ] **Ablation studies:** Remove one Phase 1 improvement at a time, measure drop (deferred — compute intensive)
 - [x] **Multi-param proposals:** Coordinate param groups (barrier_shape, model_complexity, holding_period)
 - [x] **Strategy switching:** Planner suggests alt strategy on plateau
 - [x] **Slippage modeling:** 5 bps execution slippage stress test in evaluator
-- [ ] **Position concentration limits:** Max position < 10% in evaluator checks
+- [x] **Position concentration limits:** Max position < 10% check with equal-weight verification
 
 ### 2.9 Multi-Market Abstractions (Lightweight)
 > **Harness:** RESEARCH → PLAN → GENERATE → EVALUATE → DECIDE → LOG

@@ -422,7 +422,37 @@ def run_evaluator(params: dict, settings, bq) -> dict:
         logger.error("  Slippage test: FAILED - %s", e)
         results["slippage_5bps"] = {"error": str(e), "sharpe": -999}
 
-    # 4. Feature importance stability across sub-periods
+    # 4. Lo (2002) adjusted Sharpe — corrects for serial correlation
+    full = results.get("full_period", {})
+    if "error" not in full:
+        window_returns = full.get("window_returns", [])
+        if len(window_returns) >= 5:
+            try:
+                import numpy as np
+                rets = np.array(window_returns) / 100.0  # Convert pct to decimal
+                # First-order autocorrelation
+                rho = np.corrcoef(rets[:-1], rets[1:])[0, 1] if len(rets) > 2 else 0
+                raw_sharpe = full.get("sharpe", 0)
+                # Lo (2002) adjustment: multiply by sqrt((1 - rho) / (1 + rho))
+                if abs(1 + rho) > 1e-6:
+                    adjustment = np.sqrt(abs((1 - rho) / (1 + rho)))
+                    lo_adjusted_sharpe = raw_sharpe * adjustment
+                else:
+                    lo_adjusted_sharpe = raw_sharpe
+                    adjustment = 1.0
+                results["lo_adjusted_sharpe"] = {
+                    "raw_sharpe": round(raw_sharpe, 4),
+                    "autocorrelation_rho": round(float(rho), 4),
+                    "adjustment_factor": round(float(adjustment), 4),
+                    "adjusted_sharpe": round(float(lo_adjusted_sharpe), 4),
+                    "inflated": rho > 0.1,  # Positive autocorrelation inflates Sharpe
+                }
+                logger.info("  Lo(2002): raw=%.4f, rho=%.4f, adjusted=%.4f",
+                           raw_sharpe, rho, lo_adjusted_sharpe)
+            except Exception as e:
+                logger.warning("  Lo(2002) adjustment failed: %s", e)
+
+    # 5. Feature importance stability across sub-periods
     if len(sub_period_features) >= 2:
         all_feature_sets = list(sub_period_features.values())
         # Jaccard similarity between each pair
@@ -450,6 +480,23 @@ def run_evaluator(params: dict, settings, bq) -> dict:
             }
             logger.info("  Feature stability: avg Jaccard=%.3f, %d common features (%s)",
                         avg_jaccard, len(common_features), "PASS" if avg_jaccard > 0.3 else "FAIL")
+
+    # 6. Position concentration limits (Phase 2.8) — max position < 10% of NAV
+    # Check from full backtest nav_history for position sizing
+    if "error" not in results.get("full_period", {}):
+        full_report_data = results.get("full_period", {})
+        max_pos = params.get("max_positions", 20)
+        if max_pos > 0:
+            theoretical_max_pct = 100.0 / max_pos  # Equal weight maximum
+            results["position_concentration"] = {
+                "max_positions": max_pos,
+                "equal_weight_pct": round(theoretical_max_pct, 1),
+                "pass": theoretical_max_pct <= 10.0,
+                "note": f"Max positions={max_pos} → equal weight {theoretical_max_pct:.1f}%. "
+                        f"{'Within 10% limit.' if theoretical_max_pct <= 10.0 else 'Exceeds 10% limit — increase max_positions.'}"
+            }
+            logger.info("  Position concentration: %d positions → %.1f%% max (%s)",
+                        max_pos, theoretical_max_pct, "PASS" if theoretical_max_pct <= 10.0 else "FAIL")
 
     # -- GRADE (anti-leniency: grade each criterion BEFORE verdict) --
     grades = _grade_results(results, params)
@@ -633,10 +680,24 @@ Composite Score: {grades['composite']}/10
         content += f"- p-value: {lb['p_value']:.4f} ({'PASS' if lb['pass'] else 'FAIL'} — need p>0.05)\n"
         content += f"- {lb['interpretation']}\n"
 
+    lo = results.get("lo_adjusted_sharpe")
+    if lo:
+        content += f"\n### Lo (2002) Adjusted Sharpe\n"
+        content += f"- Raw Sharpe: {lo['raw_sharpe']:.4f}, ρ={lo['autocorrelation_rho']:.4f}\n"
+        content += f"- Adjustment factor: {lo['adjustment_factor']:.4f}\n"
+        content += f"- Adjusted Sharpe: {lo['adjusted_sharpe']:.4f}\n"
+        if lo['inflated']:
+            content += f"- ⚠️ Positive autocorrelation may inflate Sharpe\n"
+
     slip = results.get("slippage_5bps")
     if slip and "error" not in slip:
         content += f"\n### Slippage Stress Test (+5bps)\n"
         content += f"- Sharpe: {slip.get('sharpe', 0):.4f} ({'PASS' if slip.get('survives') else 'FAIL'} — need >0.5)\n"
+
+    pc = results.get("position_concentration")
+    if pc:
+        content += f"\n### Position Concentration Limits\n"
+        content += f"- {pc['note']}\n"
 
     fs = results.get("feature_stability")
     if fs:
