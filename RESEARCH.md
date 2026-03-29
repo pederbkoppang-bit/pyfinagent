@@ -244,3 +244,93 @@ Every evaluator criterion should trace to a published threshold or documented be
 - We already have DSR (Deflated Sharpe Ratio) which handles multiple testing bias
 - Adding seed stability + ablation would give us the full robustness picture
 - Slippage modeling is partially covered by our 2× cost test
+
+---
+
+## Phase 2.10 Research: Karpathy Autoresearch Integration (2026-03-29)
+
+### Autonomous Hyperparameter Search & AI-Driven Research
+| Paper/Source | Key Insight | Applied In |
+|---|---|---|
+| [Karpathy autoresearch GitHub](https://github.com/karpathy/autoresearch) | AI agents autonomously modify code (train.py), run experiments (5min fixed time), keep improvements, discard failures. No human intervention. Metric = validation loss; agent edits model architecture, hyperparams, optimizer. Discovered improvements humans missed. | Phase 2.10: Replace heuristic planner with autoresearch loop |
+| [Karpathy nanochat](https://github.com/karpathy/nanochat) | Minimalist end-to-end LLM training pipeline (single GPU, 4 hours). Shows that simple, focused training code + good experimentation outperforms complex pipelines. Core insight: simplicity + principled search > complexity. | Architecture philosophy for Phase 2.10 |
+| [DataCamp: Guide to AutoResearch](https://www.datacamp.com/tutorial/guide-to-autoresearch) | AutoResearch differs from traditional HPO (Optuna, Ray Tune) by allowing agents to modify arbitrary code, not just search predefined param space. Freedom to explore broader search space = discovery of architecture improvements, bug fixes, optimizer changes. | Justifies Phase 2.10 scope |
+| [MarkTechPost: Karpathy AutoResearch (2026)](https://www.marktechpost.com/2026/03/08/andrej-karpathy-open-sources-autoresearch-a-630-line-python-tool-letting-ai-agents-run-autonomous-ml-experiments-on-single-gpus/) | 630-line tool, Python, open-source, zero external dependencies. Agents propose changes, train for fixed budget, keep/discard based on improvement. Reproducible, auditable. | Low-complexity integration candidate for Phase 2.10 |
+| [Medium: Getting Started with AutoResearch (Neuralnotions)](https://medium.com/neuralnotions/getting-started-with-andrej-karpathys-autoresearch-full-guide-c2f3a80b9ce6) | Setup: prepare data (once), spin up agent (e.g., Claude), give agent program.md (instructions). Agent iterates. Log of experiments + final model. Key: high-level instructions in program.md, agent handles all code changes. | Pattern for Phase 2.10: our planner writes program.md, evaluator judges results |
+| [arXiv: Bayesian Optimization for Hyperparameter Tuning (Shapiro et al., 2024)](https://arxiv.org/abs/2410.21886) | BO uses Gaussian Process + acquisition function (UCB, EI) to balance exploration/exploitation. Efficient for expensive black-box functions. Superior to random search. Multi-fidelity BO uses cheap proxies (subsets of data) for faster convergence. | Theoretical foundation: autoresearch is local search variant of HPO landscape |
+| [arXiv: Multi-Fidelity Bayesian Optimization (2021)](https://arxiv.org/abs/2104.10201) | Multi-fidelity methods leverage cheap approximations (train on subset, fewer iterations) to accelerate tuning. Trades off model fidelity for speed. Applicable when full evaluations are expensive. | Parallels Phase 2.8: we do walk-forward (multiple fidelities) rather than single backtest |
+| [arXiv: Automatic Termination in BO (2020)](https://arxiv.org/abs/2104.08166) | When to stop optimization? Paper proposes criterion: halt when expected improvement drops below threshold, or when close to global optimum. Mitigates overfitting. | Success gate for Phase 2.10: when do we stop iterating params? |
+| [Honda Research: Gaussian Process Optimization for ML (2012)](https://www.honda-ri.de/pubs/pdf/5819.pdf) | GP-based BO outperforms grid/random search on neural network hyperparameter tuning. Requires fewer function evaluations. Historical paper, foundational for AutoML. | Establishes why structured search > random iteration |
+| [Medium: Karpathy's AutoResearch Analysis (Data Science Pocket)](https://medium.com/data-science-in-your-pocket/andrej-karpathys-autoresearch-bye-bye-researchers-76319a719630) | AutoResearch shifts research from humans-editing-code to humans-writing-instructions. Raises questions: can AI agents be better researchers than humans? Early results suggest yes, agents find improvements humans didn't. | Philosophical context: Phase 2.10 enables genuine autonomous research |
+| [Simon Willison: NanoChat & AutoResearch (Oct 2025)](https://simonwillison.net/2025/Oct/13/nanochat/) | Reflects on Karpathy's push toward fully autonomous ML research. Agents iterating on actual code (architecture, hyperparams, training loop) > traditional HPO. Practical example: agents can refactor code for clarity, not just tune numbers. | Broader context: why this matters for frontier research |
+
+### Key Findings (Phase 2.10)
+
+**What is AutoResearch?**
+- AI agent (Claude, Codex, etc.) given a codebase + instructions (program.md)
+- Agent proposes code changes (model, hyperparams, optimizer, etc.)
+- Runs experiment for fixed time budget (e.g., 5 min training)
+- Measures result (validation loss, Sharpe ratio, etc.)
+- Keeps changes if improvement, discards if not
+- Repeats autonomously (approx 100 experiments while human sleeps)
+
+**How it differs from traditional HPO:**
+- Traditional (Optuna, Ray Tune, Hyperband): Search *predefined parameter space*. Learn rates in [0.001, 0.1], batch sizes in [32, 256].
+- AutoResearch: Agent modifies *arbitrary code*. Architecture changes, optimizer changes, bug fixes, refactoring.
+- Result: Much broader search space = discovery of improvements humans didn't think to try.
+
+**Integration with Our Harness (Phase 2.10):**
+- Current (Phase 2): Heuristic Planner (if plateau detected, disable param X)
+- Phase 2.10: Replace heuristic planner with autoresearch framework
+  - AutoResearch = Generator agent (proposes + runs experiments)
+  - Our Evaluator = Keep/Discard logic (use DSR, Lo-adjusted Sharpe, not just raw SR)
+  - Our Planner = program.md instructions (e.g., "focus on barrier_shape param family this round")
+
+**Why it matters for pyfinAgent:**
+- Current heuristic planner uses ad-hoc rules (works but not principled)
+- AutoResearch provides principled local search (vs random iteration)
+- Potentially faster convergence to better parameters before May launch
+- Zero external dependencies (autoresearch is 630 lines Python)
+- Low integration cost (wrap existing harness logic)
+
+**Research Debt / TODOs:**
+- [ ] Clone autoresearch repo, understand architecture in detail
+- [ ] Verify it works with non-LLM-training objectives (we use backtest return, not model loss)
+- [ ] Design agent instructions (program.md) for financial strategy optimization
+- [ ] Implement evaluator callback: translate "keep if Sharpe > threshold" into feedback for agent
+- [ ] Test POC: run 5 iterations with single parameter, verify agent learns
+- [ ] Benchmark: does autoresearch + our evaluator converge faster than Phase 2 heuristic planner?
+
+### ⚡ Actionable Findings for pyfinAgent (Phase 2.10)
+
+1. **Architecture: Local Search + Principled Evaluation**
+   - AutoResearch does local search (small code changes, evaluate, keep best)
+   - Combine with our DSR/Lo-adjusted evaluator for more rigorous decisions
+   - Current heuristic = "if 5 fails, disable param" → AutoResearch + Evaluator = "try, measure Sharpe deflation, decide"
+
+2. **Integration Pattern**
+   - planner writes program.md: "This round, focus on barrier_shape and holding_period params"
+   - autoresearch agent iterates on train.py (our backtest_engine config)
+   - Our evaluator runs full DSR check, Lo correction, sub-period stability
+   - If DSR > 0.95, agent keeps change; else reverts
+
+3. **Code Modification Scope**
+   - Full freedom to modify backtest_engine.py? (Risky, might break things)
+   - Or constrain to config parameters only? (Safer, slower progress)
+   - Recommendation: Start with parameters only, then expand to architecture
+
+4. **Fixed Time Budget**
+   - AutoResearch uses 5min per experiment (wall clock)
+   - Our backtests: full 3yr = ~15-20min each
+   - Decision: Use quick test (100 days) for agent iterations, full backtest for final validation
+
+5. **Stopping Criterion**
+   - When do we stop optimizing? (per arXiv paper on automatic termination)
+   - Options: (a) plateau detected (EI < threshold), (b) time budget exhausted, (c) Sharpe plateaued
+   - Recommendation: Combine (a) + (c), use DSR > 0.95 as success threshold
+
+6. **Agent Instructions Quality**
+   - "Better program.md = better research" (Karpathy)
+   - Our planner needs to write clear, specific instructions for agent
+   - Example: ❌ "Make the model better" → ✅ "Try different barrier_shape values (adaptive, fixed, exponential) and measure DSR"
+
