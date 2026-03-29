@@ -5,6 +5,28 @@ For architecture details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
+### v5.14.0 — Paper Trading Activation & Budget Intelligence (March 2026)
+
+**Paper trading is live. Budget dashboard connected to real billing data. GCP costs slashed 97%.**
+
+1. **Paper trading activated** — Portfolio initialized ($10K), test trade verified (BUY XOM), APScheduler running daily at 10:00 ET. First real cycle Monday.
+2. **Budget dashboard with real data** — Queries BQ billing export for actual GCP costs. Shows per-service breakdown, monthly trend table, cash flow chart (actual red bars, forecast amber, budget green line).
+3. **GCP cost cleanup** — Deleted unused Redis ($76/mo) and VPC connectors ($19/mo). GCP costs: $176/mo → ~$5/mo.
+4. **Harness dashboard** — New "Harness" tab on backtest page with 5 API endpoints: cycles, critique, contract, validation, criteria.
+5. **Operational resilience** — Gateway watchdog (5min), Slack config optimized, incident logging, service auto-restart.
+6. **S&P 500 screener fix** — Wikipedia scrape fixed (User-Agent header), now fetches 503 tickers.
+
+Files changed:
+- `backend/api/backtest.py` — harness + budget endpoints
+- `backend/main.py` — /api/changelog, /api/health with version
+- `frontend/src/components/HarnessDashboard.tsx` — new
+- `frontend/src/components/BudgetDashboard.tsx` — new with cash flow chart
+- `frontend/src/components/Sidebar.tsx` — collapsible nav, health dot, changelog
+- `backend/tools/screener.py` — Wikipedia User-Agent fix
+- `backend/.env` — paper trading enabled
+
+---
+
 ### v5.13.0 — Sharpe History Chart, Layout Overhaul & Sidebar Redesign (March 2026)
 
 **Major UI overhaul — fixed navigation, Sharpe tracking chart, OpenClaw-style sidebar, and version health indicator.**
