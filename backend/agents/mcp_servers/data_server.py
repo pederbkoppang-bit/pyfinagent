@@ -19,13 +19,16 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Import backend modules for data access
+_CACHE_AVAILABLE = False
+_bq_client = None
+_settings = None
+
 try:
     from backend.backtest import cache
     from backend.db.bigquery_client import BigQueryClient
     from backend.config.settings import get_settings
-    CACHE_AVAILABLE = True
+    _CACHE_AVAILABLE = True
 except ImportError:
-    CACHE_AVAILABLE = False
     logger.warning("Cache module not available — MCP data server running in stub mode")
 
 
@@ -33,11 +36,13 @@ class DataServer:
     """FastMCP data server for pyfinAgent."""
     
     def __init__(self):
+        global _bq_client, _settings, _CACHE_AVAILABLE
+        
         self.bq_client = None
         self.settings = None
         
         # Initialize actual data access if available
-        if CACHE_AVAILABLE:
+        if _CACHE_AVAILABLE:
             try:
                 self.settings = get_settings()
                 self.bq_client = BigQueryClient(self.settings)
@@ -45,7 +50,7 @@ class DataServer:
                 logger.info("DataServer initialized with BQ cache")
             except Exception as e:
                 logger.error(f"Failed to initialize BQ cache: {e}")
-                CACHE_AVAILABLE = False
+                _CACHE_AVAILABLE = False
     
     def get_prices(self, ticker: str) -> Dict[str, Any]:
         """
@@ -62,7 +67,7 @@ class DataServer:
         """
         logger.info(f"get_prices({ticker})")
         
-        if not CACHE_AVAILABLE:
+        if not _CACHE_AVAILABLE:
             return {"ticker": ticker, "prices": []}
         
         try:
@@ -109,7 +114,7 @@ class DataServer:
         """
         logger.info(f"get_fundamentals({ticker})")
         
-        if not CACHE_AVAILABLE:
+        if not _CACHE_AVAILABLE:
             return {"ticker": ticker, "metrics": []}
         
         try:
@@ -144,7 +149,7 @@ class DataServer:
         """
         logger.info(f"get_macro({series})")
         
-        if not CACHE_AVAILABLE:
+        if not _CACHE_AVAILABLE:
             return {"series": series, "data": []}
         
         try:

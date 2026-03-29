@@ -21,13 +21,14 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Import backend modules
+_BACKTEST_AVAILABLE = False
+
 try:
     from backend.backtest.backtest_engine import BacktestEngine
     from backend.db.bigquery_client import BigQueryClient
     from backend.config.settings import get_settings
-    BACKTEST_AVAILABLE = True
+    _BACKTEST_AVAILABLE = True
 except ImportError:
-    BACKTEST_AVAILABLE = False
     logger.warning("Backtest engine not available — backtest server in stub mode")
 
 
@@ -35,19 +36,21 @@ class BacktestServer:
     """FastMCP backtest server for pyfinAgent."""
     
     def __init__(self):
+        global _BACKTEST_AVAILABLE
+        
         self.bq_client = None
         self.settings = None
         self.timeout_seconds = 30  # Max time for backtest tool
         
         # Initialize backtest engine if available
-        if BACKTEST_AVAILABLE:
+        if _BACKTEST_AVAILABLE:
             try:
                 self.settings = get_settings()
                 self.bq_client = BigQueryClient(self.settings)
                 logger.info("BacktestServer initialized with BQ client")
             except Exception as e:
                 logger.error(f"Failed to initialize BacktestServer: {e}")
-                BACKTEST_AVAILABLE = False
+                _BACKTEST_AVAILABLE = False
     
     def run_backtest(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -81,7 +84,7 @@ class BacktestServer:
         """
         logger.info(f"run_backtest(params={params})")
         
-        if not BACKTEST_AVAILABLE:
+        if not _BACKTEST_AVAILABLE:
             return {
                 "status": "ERROR",
                 "error": "Backtest engine not available",

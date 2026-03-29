@@ -17,3 +17,4 @@
   [1/27] training: Training GradientBoosting on 1200 samples        2026-03-29 11:38:56,129 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 1200 samples
   [1/27] computing_mda: Permutation importance        2026-03-29 11:38:57,728 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
   [1/27] predicting: Scoring test candidates at 2019-01-06        2026-03-29 11:38:58,429 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2019-01-06
+2026-03-29 15:58:25,487 [WARNING] backend.backtest.cache: BQ prices query timed out for TT: Timeout of 600.0s exceeded, last exception: Timeout of 600.0s exceeded, last exception: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))

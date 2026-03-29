@@ -23,13 +23,14 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Import backend modules
+_SIGNALS_AVAILABLE = False
+
 try:
     from backend.services.paper_trader import PaperTrader
     from backend.db.bigquery_client import BigQueryClient
     from backend.config.settings import get_settings
-    SIGNALS_AVAILABLE = True
+    _SIGNALS_AVAILABLE = True
 except ImportError:
-    SIGNALS_AVAILABLE = False
     logger.warning("Paper trader not available — signals server in stub mode")
 
 
@@ -55,6 +56,8 @@ class SignalsServer:
     """FastMCP signals server for pyfinAgent."""
     
     def __init__(self):
+        global _SIGNALS_AVAILABLE
+        
         self.portfolio = {}  # Current holdings
         self.risk_limits = {}  # Exposure limits
         self.signal_history = []  # All signals generated
@@ -63,7 +66,7 @@ class SignalsServer:
         self.paper_trader = None
         
         # Initialize paper trader if available
-        if SIGNALS_AVAILABLE:
+        if _SIGNALS_AVAILABLE:
             try:
                 self.settings = get_settings()
                 self.bq_client = BigQueryClient(self.settings)
@@ -71,7 +74,7 @@ class SignalsServer:
                 logger.info("SignalsServer initialized with PaperTrader")
             except Exception as e:
                 logger.error(f"Failed to initialize SignalsServer: {e}")
-                SIGNALS_AVAILABLE = False
+                _SIGNALS_AVAILABLE = False
     
     def generate_signal(self, ticker: str, date: str) -> Dict[str, Any]:
         """
@@ -189,7 +192,7 @@ class SignalsServer:
         """Get current portfolio holdings."""
         logger.info("get_portfolio()")
         
-        if not SIGNALS_AVAILABLE or not self.paper_trader:
+        if not _SIGNALS_AVAILABLE or not self.paper_trader:
             return {
                 "timestamp": "",
                 "total_value": 10000.0,
