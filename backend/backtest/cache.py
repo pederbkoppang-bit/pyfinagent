@@ -94,7 +94,7 @@ def preload_prices(tickers: list[str], start_date: str, end_date: str, market: s
         bigquery.ScalarQueryParameter("start", "STRING", start_date),
         bigquery.ScalarQueryParameter("end", "STRING", end_date),
     ])
-    rows = list(_bq_client.query(query, job_config=job_config).result())
+    rows = list(_bq_client.query(query, job_config=job_config).result(timeout=120))
 
     if not rows:
         logger.warning("preload_prices: 0 rows returned for %d tickers", len(tickers))
@@ -137,7 +137,7 @@ def preload_fundamentals(tickers: list[str], market: str = _DEFAULT_MARKET) -> i
     job_config = bigquery.QueryJobConfig(query_parameters=[
         bigquery.ArrayQueryParameter("tickers", "STRING", tickers),
     ])
-    rows = list(_bq_client.query(query, job_config=job_config).result())
+    rows = list(_bq_client.query(query, job_config=job_config).result(timeout=120))
 
     if not rows:
         logger.warning("preload_fundamentals: 0 rows returned for %d tickers", len(tickers))
@@ -179,7 +179,7 @@ def preload_macro() -> int:
         FROM `{_table("historical_macro")}`
         ORDER BY series_id, date DESC
     """
-    rows = list(_bq_client.query(query).result())
+    rows = list(_bq_client.query(query).result(timeout=60))
 
     if not rows:
         logger.warning("preload_macro: 0 rows returned")
