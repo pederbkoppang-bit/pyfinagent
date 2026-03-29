@@ -440,6 +440,9 @@ def run_evaluator(params: dict, settings, bq) -> dict:
         results["slippage_5bps"] = {"error": str(e), "sharpe": -999}
 
     # 4. Lo (2002) adjusted Sharpe — corrects for serial correlation
+    # Full multi-lag formula: Var(R_q) = qσ² + 2σ²Σ(q-k)ρ_k for k=1..q-1
+    # Reference: Lo, "The Statistics of Sharpe Ratios" (2002), FAJ 58(4)
+    # See RESEARCH.md for citation and actionable findings
     full = results.get("full_period", {})
     if "error" not in full:
         window_returns = full.get("window_returns", [])
@@ -447,25 +450,49 @@ def run_evaluator(params: dict, settings, bq) -> dict:
             try:
                 import numpy as np
                 rets = np.array(window_returns) / 100.0  # Convert pct to decimal
-                # First-order autocorrelation
-                rho = np.corrcoef(rets[:-1], rets[1:])[0, 1] if len(rets) > 2 else 0
+                q = len(rets)  # Number of periods
                 raw_sharpe = full.get("sharpe", 0)
-                # Lo (2002) adjustment: multiply by sqrt((1 - rho) / (1 + rho))
-                if abs(1 + rho) > 1e-6:
-                    adjustment = np.sqrt(abs((1 - rho) / (1 + rho)))
+
+                # Compute autocorrelations up to q-1 (or max 10 lags for stability)
+                max_lags = min(q - 2, 10)
+                autocorrs = []
+                for k in range(1, max_lags + 1):
+                    if len(rets) > k + 1:
+                        rho_k = np.corrcoef(rets[:-k], rets[k:])[0, 1]
+                        if not np.isnan(rho_k):
+                            autocorrs.append(rho_k)
+                        else:
+                            autocorrs.append(0.0)
+                    else:
+                        autocorrs.append(0.0)
+
+                rho_1 = autocorrs[0] if autocorrs else 0.0
+
+                # Lo(2002) full formula: adjusted variance ratio
+                # η(q) = q + 2 * Σ(q-k)ρ_k for k=1..q-1
+                # Sharpe_adjusted = Sharpe_raw * sqrt(q) / sqrt(η(q))
+                eta = q
+                for k, rho_k in enumerate(autocorrs, start=1):
+                    eta += 2 * (q - k) * rho_k
+
+                if eta > 0 and q > 0:
+                    adjustment = np.sqrt(q / eta)
                     lo_adjusted_sharpe = raw_sharpe * adjustment
                 else:
-                    lo_adjusted_sharpe = raw_sharpe
                     adjustment = 1.0
+                    lo_adjusted_sharpe = raw_sharpe
+
                 results["lo_adjusted_sharpe"] = {
                     "raw_sharpe": round(raw_sharpe, 4),
-                    "autocorrelation_rho": round(float(rho), 4),
+                    "autocorrelation_rho1": round(float(rho_1), 4),
+                    "n_lags_used": len(autocorrs),
+                    "eta_q": round(float(eta), 4),
                     "adjustment_factor": round(float(adjustment), 4),
                     "adjusted_sharpe": round(float(lo_adjusted_sharpe), 4),
-                    "inflated": rho > 0.1,  # Positive autocorrelation inflates Sharpe
+                    "inflated": rho_1 > 0.1,
                 }
-                logger.info("  Lo(2002): raw=%.4f, rho=%.4f, adjusted=%.4f",
-                           raw_sharpe, rho, lo_adjusted_sharpe)
+                logger.info("  Lo(2002) full: raw=%.4f, ρ₁=%.4f, η(q)=%.2f, adj=%.4f",
+                           raw_sharpe, rho_1, eta, lo_adjusted_sharpe)
             except Exception as e:
                 logger.warning("  Lo(2002) adjustment failed: %s", e)
 
