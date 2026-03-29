@@ -338,6 +338,7 @@ From the article: "Context resets — clearing the context window entirely and s
 4. Read quant_results.tsv → full experiment history
 5. Execute research plan → run optimizer with new direction
 6. Write handoff/experiment_results.md → results for evaluator
+7. **MANDATORY:** Save every backtest result to `experiments/results/<timestamp>_<run_id>.json` + append to `quant_results.tsv` → visible on Sharpe History chart. No invisible experiments.
 ```
 
 ---
