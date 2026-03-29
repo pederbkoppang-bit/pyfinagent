@@ -154,12 +154,12 @@ def main():
         "std_sharpe": float(std_sharpe),
         "min_sharpe": float(min(sharpes)),
         "max_sharpe": float(max(sharpes)),
-        "pass_all_above_09": all_above_09,
-        "pass_std_below_01": std_below_01,
+        "pass_all_above_09": bool(all_above_09),
+        "pass_std_below_01": bool(std_below_01),
         "verdict": "PASS" if all_above_09 and std_below_01 else "FAIL",
     }
     out_path = Path("handoff/seed_stability_results.json")
-    out_path.write_text(json.dumps(output, indent=2))
+    out_path.write_text(json.dumps(output, indent=2, default=str))
     print(f"\nResults saved to {out_path}")
 
 
