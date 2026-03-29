@@ -187,7 +187,34 @@ def run_planner(cycle: int, previous_critique: dict | None) -> dict:
             plan["hypothesis"] = "Previous cycle FAILED evaluation. Need defensive parameter changes."
             plan["suggestions"].append("REVERT: Consider reverting to last known-good baseline.")
 
-    # Rule 5: Default -- continue with random perturbation
+    # Rule 5: Coordinated param groups (Phase 2.8)
+    # Some params should move together for physically meaningful changes
+    PARAM_GROUPS = {
+        "barrier_shape": ["tp_pct", "sl_pct"],
+        "model_complexity": ["n_estimators", "max_depth", "learning_rate"],
+        "holding_period": ["holding_days", "mr_holding_days"],
+    }
+    for group_name, group_params in PARAM_GROUPS.items():
+        # If one param in the group was recently successful, suggest exploring the group
+        group_kept = sum(param_stats.get(p, {}).get("kept", 0) for p in group_params)
+        group_discarded = sum(param_stats.get(p, {}).get("discarded", 0) for p in group_params)
+        if group_kept > 0 and group_discarded > group_kept * 2:
+            plan["suggestions"].append(
+                f"COORDINATED: {group_name} group ({', '.join(group_params)}) has "
+                f"{group_kept} kept / {group_discarded} discarded. Try moving params together."
+            )
+
+    # Rule 6: Strategy switching (Phase 2.8)
+    if plan.get("strategy_change"):
+        current_strategy = load_best_params().get("params", {}).get("strategy", "triple_barrier")
+        alt_strategies = [s for s in ["triple_barrier", "mean_reversion"] if s != current_strategy]
+        if alt_strategies:
+            plan["suggestions"].append(
+                f"STRATEGY: Current={current_strategy}. Consider switching to {alt_strategies[0]} "
+                f"if plateau continues."
+            )
+
+    # Rule 7: Default -- continue with random perturbation
     if not plan["suggestions"]:
         plan["suggestions"].append("No strong signals. Continue random perturbation.")
         plan["hypothesis"] = "Random parameter search still has value at current iteration count."

@@ -720,15 +720,15 @@ Review and optimize all OpenClaw configuration sections for production readiness
 
 *Enhance the automated harness with deeper statistical tests and generator capabilities.*
 
-- [ ] **Seed stability test:** Run best params with 5 random seeds, check Sharpe std < 0.1
-- [ ] **Concentration check:** No single window drives >30% of total return
-- [ ] **Ljung-Box autocorrelation test** on returns
+- [🔄] **Seed stability test:** Running — 5 seeds [42, 123, 456, 789, 2026], monitored via cron
+- [x] **Concentration check:** No single window drives >30% of total return (in evaluator)
+- [x] **Ljung-Box autocorrelation test** on returns (statsmodels installed)
 - [ ] **Lo (2002) adjusted Sharpe** comparison
-- [ ] **Feature importance stability** across sub-periods
+- [x] **Feature importance stability** across sub-periods (Jaccard similarity >0.3)
 - [ ] **Ablation studies:** Remove one Phase 1 improvement at a time, measure drop
-- [ ] **Multi-param proposals:** Coordinate param groups (e.g., tp_pct + sl_pct together)
-- [ ] **Strategy switching:** Generator can propose trying different strategies
-- [ ] **Slippage modeling:** 5 bps execution slippage on top of transaction costs
+- [x] **Multi-param proposals:** Coordinate param groups (barrier_shape, model_complexity, holding_period)
+- [x] **Strategy switching:** Planner suggests alt strategy on plateau
+- [x] **Slippage modeling:** 5 bps execution slippage stress test in evaluator
 - [ ] **Position concentration limits:** Max position < 10% in evaluator checks
 
 ### 2.9 Multi-Market Abstractions (Lightweight)
