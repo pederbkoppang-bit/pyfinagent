@@ -18,13 +18,34 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Import backend modules for data access
+try:
+    from backend.backtest import cache
+    from backend.db.bigquery_client import BigQueryClient
+    from backend.config.settings import get_settings
+    CACHE_AVAILABLE = True
+except ImportError:
+    CACHE_AVAILABLE = False
+    logger.warning("Cache module not available — MCP data server running in stub mode")
+
 
 class DataServer:
     """FastMCP data server for pyfinAgent."""
     
     def __init__(self):
-        self.bq_client = None  # Will be initialized by FastMCP framework
-        self.cache = {}  # Simple in-memory cache for frequently-accessed data
+        self.bq_client = None
+        self.settings = None
+        
+        # Initialize actual data access if available
+        if CACHE_AVAILABLE:
+            try:
+                self.settings = get_settings()
+                self.bq_client = BigQueryClient(self.settings)
+                cache.init_cache(self.bq_client.client, self.settings.gcp_project_id, self.settings.bq_dataset_reports)
+                logger.info("DataServer initialized with BQ cache")
+            except Exception as e:
+                logger.error(f"Failed to initialize BQ cache: {e}")
+                CACHE_AVAILABLE = False
     
     def get_prices(self, ticker: str) -> Dict[str, Any]:
         """
@@ -39,12 +60,39 @@ class DataServer:
             ]
         }
         """
-        # TODO: Implement BQ query
         logger.info(f"get_prices({ticker})")
-        return {
-            "ticker": ticker,
-            "prices": [],  # Placeholder
-        }
+        
+        if not CACHE_AVAILABLE:
+            return {"ticker": ticker, "prices": []}
+        
+        try:
+            # Parse market from ticker (e.g., "NO:EQNR" → market="NO", ticker="EQNR")
+            market = "US"
+            if ":" in ticker:
+                market, ticker = ticker.split(":", 1)
+            
+            # Query prices from cache
+            df = cache.get_prices(ticker, market=market)
+            
+            if df is None or df.empty:
+                return {"ticker": ticker, "prices": []}
+            
+            # Convert to JSON-serializable format
+            prices = []
+            for _, row in df.iterrows():
+                prices.append({
+                    "date": str(row["date"]),
+                    "open": float(row["open"]),
+                    "high": float(row["high"]),
+                    "low": float(row["low"]),
+                    "close": float(row["close"]),
+                    "volume": int(row["volume"]),
+                })
+            
+            return {"ticker": ticker, "prices": prices}
+        except Exception as e:
+            logger.error(f"Error fetching prices for {ticker}: {e}")
+            return {"ticker": ticker, "prices": [], "error": str(e)}
     
     def get_fundamentals(self, ticker: str) -> Dict[str, Any]:
         """
@@ -59,12 +107,27 @@ class DataServer:
             ]
         }
         """
-        # TODO: Implement BQ query
         logger.info(f"get_fundamentals({ticker})")
-        return {
-            "ticker": ticker,
-            "metrics": [],  # Placeholder
-        }
+        
+        if not CACHE_AVAILABLE:
+            return {"ticker": ticker, "metrics": []}
+        
+        try:
+            # Parse market from ticker
+            market = "US"
+            if ":" in ticker:
+                market, ticker = ticker.split(":", 1)
+            
+            # Query fundamentals from cache
+            metrics = cache.get_fundamentals(ticker, market=market)
+            
+            if not metrics:
+                return {"ticker": ticker, "metrics": []}
+            
+            return {"ticker": ticker, "metrics": metrics}
+        except Exception as e:
+            logger.error(f"Error fetching fundamentals for {ticker}: {e}")
+            return {"ticker": ticker, "metrics": [], "error": str(e)}
     
     def get_macro(self, series: str) -> Dict[str, Any]:
         """
@@ -79,12 +142,30 @@ class DataServer:
             ]
         }
         """
-        # TODO: Implement FRED/Bloomberg query
         logger.info(f"get_macro({series})")
-        return {
-            "series": series,
-            "data": [],  # Placeholder
-        }
+        
+        if not CACHE_AVAILABLE:
+            return {"series": series, "data": []}
+        
+        try:
+            # Query macro from cache (series_id → FRED code, VIX, etc.)
+            macro_data = cache.get_macro(series)
+            
+            if not macro_data:
+                return {"series": series, "data": []}
+            
+            # Convert to JSON format
+            data = []
+            for item in macro_data:
+                data.append({
+                    "date": item.get("date", ""),
+                    "value": float(item.get("value", 0)),
+                })
+            
+            return {"series": series, "data": data}
+        except Exception as e:
+            logger.error(f"Error fetching macro {series}: {e}")
+            return {"series": series, "data": [], "error": str(e)}
     
     def get_universe(self, market: str) -> Dict[str, Any]:
         """
@@ -183,8 +264,27 @@ class DataServer:
             "max_drawdown_pct": -12.0
         }
         """
-        # TODO: Load from optimizer_best.json
         logger.info("get_best_params()")
+        
+        try:
+            # Load from backend/backtest/experiments/optimizer_best.json
+            import json
+            best_file = Path(__file__).parent.parent.parent / "backtest" / "experiments" / "optimizer_best.json"
+            
+            if best_file.exists():
+                with open(best_file, "r") as f:
+                    data = json.load(f)
+                return {
+                    "timestamp": data.get("timestamp", ""),
+                    "params": data.get("params", {}),
+                    "sharpe": data.get("sharpe", 0.0),
+                    "dsr": data.get("dsr", 0.0),
+                    "return_pct": data.get("return_pct", 0.0),
+                    "max_drawdown_pct": data.get("max_drawdown_pct", 0.0),
+                }
+        except Exception as e:
+            logger.error(f"Error loading best params: {e}")
+        
         return {
             "timestamp": "",
             "params": {},
