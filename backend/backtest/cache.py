@@ -82,11 +82,14 @@ def preload_prices(tickers: list[str], start_date: str, end_date: str, market: s
     if not tickers:
         return 0
 
+    # TODO (Phase 2.9): Add market filter when expanding to multi-market
+    # e.g., WHERE ticker IN UNNEST(@tickers) AND market = @market AND ...
     query = f"""
-        SELECT ticker, date, open, high, low, close, volume
+        SELECT ticker, date, open, high, low, close, volume, market
         FROM `{_table("historical_prices")}`
         WHERE ticker IN UNNEST(@tickers)
           AND date >= @start AND date <= @end
+          AND market = 'US'
         ORDER BY ticker, date ASC
     """
     job_config = bigquery.QueryJobConfig(query_parameters=[

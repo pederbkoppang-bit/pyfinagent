@@ -134,9 +134,16 @@ class DataIngestionService:
                         date_str = pd.Timestamp(idx).strftime("%Y-%m-%d")  # type: ignore[arg-type]
                         if (ticker, date_str) in existing:
                             continue
+                        # Extract market from ticker namespace (e.g., "US:AAPL" → "US", "AAPL" → "US")
+                        market = "US"
+                        clean_ticker = ticker
+                        if ":" in ticker:
+                            market, clean_ticker = ticker.split(":", 1)
                         rows.append({
-                            "ticker": ticker,
+                            "ticker": clean_ticker,
                             "date": date_str,
+                            "market": market,
+                            "currency": "USD" if market == "US" else "USD",  # TODO: lookup from MARKET_CONFIG
                             "open": float(row.get("Open", 0)) if pd.notna(row.get("Open")) else None,
                             "high": float(row.get("High", 0)) if pd.notna(row.get("High")) else None,
                             "low": float(row.get("Low", 0)) if pd.notna(row.get("Low")) else None,
@@ -215,8 +222,15 @@ class DataIngestionService:
                             return float(val) if pd.notna(val) else None
                         return None
 
+                    # Extract market from ticker (same logic as prices)
+                    market = "US"
+                    clean_ticker = ticker
+                    if ":" in ticker:
+                        market, clean_ticker = ticker.split(":", 1)
+                    
                     rows.append({
-                        "ticker": ticker,
+                        "ticker": clean_ticker,
+                        "market": market,
                         "report_date": report_date,
                         "filing_date": report_date,  # Approximation; true filing date not available from yfinance
                         "total_revenue": _get(qf, "Total Revenue"),
@@ -291,6 +305,7 @@ class DataIngestionService:
                         continue
                     rows.append({
                         "series_id": series_id,
+                        "market": "US",  # FRED is US macro data
                         "date": date_str,
                         "value": float(val),
                         "ingested_at": now,
