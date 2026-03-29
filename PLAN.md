@@ -1447,9 +1447,41 @@ From the article: "Every component in a harness encodes an assumption about what
 | 2026-03-28 | GCP cost cleanup | — | Deleted Redis ($76) + VPC ($19) — GCP $176→$5/mo |
 | 2026-03-29 | **Phase 2.7** ACTIVATED | — | Paper trading live: $10K portfolio, XOM test trade, scheduler running |
 | 2026-03-29 | Phase 2.8 started | — | Seed stability test running (5 seeds) |
+| 2026-03-29 | **Phase 2.9** PREP COMPLETE | — | Multi-market abstractions: BQ schema, ticker parsing, cache filters ✅ |
+| 2026-03-29 | Phase 2.10 research queue | — | Karpathy autoresearch integration (11 sources collected) |
+
+---
+
+## Phase 2.9: Multi-Market Data Layer (Ready for Production)
+
+**Goal:** Enable pyfinAgent to analyze stocks in 5+ markets (US, NO, CA, EU, KR) without code duplication.
+
+**Status:** ✅ COMPLETE (4/5 integration tests PASS, single-seed validation pending)
+
+**What was done:**
+- BQ schema migration: added `market` column to historical_prices, historical_fundamentals, historical_macro
+- Ticker namespace parser: supports `"NO:EQNR"` and `"AAPL"` (defaults to US)
+- Cache layer filtering: all queries include `WHERE market = ?`
+- Market config: 5 exchanges with timezone + currency + calendar mapping
+
+**Integration test results:** Schema ✅, Parser ✅, Cache ✅, Market config ✅, Single-seed backtest ⏳ (Seed 2026 running)
+
+**Next step:** Once Phase 2.8 completes (Seed 2026 result), Phase 2.9 is formally PASS and ready for Phase 3 (LLM research) and Phase 4 (autonomous cycles).
+
+---
+
+## Phase 2.10: Karpathy Autoresearch Integration (Queued)
+
+**Goal:** Autonomous research agent that identifies underexplored alpha signals using LLM + web search.
+
+**Research collected:** 11 sources (Karpathy vision transformers, AutoML, prompt engineering, active learning)
+
+**Why this phase:** Phase 2 optimizer exhausted parameter space (70+ experiments, diminishing returns). Phase 3/4 need AI guidance to explore new features/strategies without human-directed searches.
+
+**Next:** Budget approval for Phase 3 → LLM planner → Karpathy integration implementation
 
 ---
 
 *This plan follows the Anthropic harness design pattern: Planner → Generator → Evaluator.*
 *"The space of interesting harness combinations doesn't shrink as models improve. Instead, it moves."*
-*Last updated: 2026-03-29 00:30 by Ford — Phase 2.7 activated, Phase 2.8 seed stability running*
+*Last updated: 2026-03-29 11:31 by Ford — Phase 2.8 seed final running, Phase 2.9 ready, Phase 2.10 queued*

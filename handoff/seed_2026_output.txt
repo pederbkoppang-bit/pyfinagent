@@ -1,0 +1,8 @@
+=== Running ONLY Seed 2026 (5/5) ===
+2026-03-29 11:31:27,970 [INFO] backend.backtest.backtest_engine: Auto-ingest check: 301500 price rows found, skipping ingestion
+2026-03-29 11:31:27,971 [INFO] backend.backtest.backtest_engine: Walk-forward: 27 windows, 503 tickers, strategy=triple_barrier
+2026-03-29 11:31:27,971 [INFO] backend.backtest.backtest_engine: Backtest: [preloading] Loading data for 503 tickers
+2026-03-29 11:32:30,690 [INFO] backend.backtest.cache: Preloaded prices for 150 tickers (301,500 rows) in single BQ query
+2026-03-29 11:32:32,015 [INFO] backend.backtest.cache: Preloaded fundamentals for 149 tickers (1,424 rows) in single BQ query
+2026-03-29 11:32:33,279 [INFO] backend.backtest.cache: Preloaded macro for 7 series (4,412 rows) in single BQ query
+  [1/27] screening: Window 1/27 — screening candidates        2026-03-29 11:32:33,279 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 1/27 — screening candidates

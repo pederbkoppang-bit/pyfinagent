@@ -334,3 +334,91 @@ Every evaluator criterion should trace to a published threshold or documented be
    - Our planner needs to write clear, specific instructions for agent
    - Example: ❌ "Make the model better" → ✅ "Try different barrier_shape values (adaptive, fixed, exponential) and measure DSR"
 
+
+---
+
+## Phase 2.10 Research: Autonomous Feature Discovery & LLM-Guided Optimization
+
+**Status:** RESEARCH GATE CHECKPOINT (10 sources collected, 3 read in full)
+
+**Goal:** Enable the strategy generator to propose new features and parameter combinations based on LLM reasoning + web search, not just human-directed optimization.
+
+**Why Phase 2.10?** Phase 2 optimizer has hit diminishing returns (~70 experiments, param space well-explored). Phase 3+ need a research agent to autonomously discover new features that aren't obvious from current dataset analysis.
+
+### Deep Research Findings
+
+#### ✅ Source 1: Karpathy AutoResearch (2026, GitHub)
+- **URL:** https://github.com/karpathy/autoresearch
+- **Citation:** Karpathy, A. (2026). "AutoResearch: AI agents running research on single-GPU nanochat training automatically." GitHub.
+- **Key concept:** "Program the program, not the code" — give LLM agent access to `program.md` (instructions) and `train.py` (model code to modify). Agent proposes experiments iteratively, trains for fixed time budget (5 min), evaluates result, keeps/discards.
+- **Application to pyfinAgent:**
+  - Adapt pattern: `program.md` = research priorities (e.g., "test mean reversion on tech sector", "add volume-weighted features")
+  - `train.py` equivalent = `backend/agents/feature_generator.py` — agent modifies feature definitions, re-trains, evaluates Sharpe
+  - Fixed time budget = fixed-window backtest (~2-5 min per experiment)
+  - Success metric = Sharpe improvement (our equivalent to val_bpb)
+- **Pitfalls noted:** 
+  - "No one could tell if that's right or wrong as the code is now self-modifying" — need audit trail (handoff files essential)
+  - Fixed time budget assumes similar training speed across architectures; we'll need different budgets for different backtest windows
+- **Action:** Use this as template for autonomous feature proposer in Phase 3
+
+#### ✅ Source 2: FAMOSE — ReAct Feature Discovery (2026, arXiv)
+- **URL:** https://arxiv.org/html/2602.17641v1
+- **Citation:** FAMOSE: "Feature AugMentation and Optimal Selection agEnt" (2026). Leverages ReAct paradigm for automated feature engineering.
+- **Key findings:**
+  - ReAct agent (Reasoning + Acting) iteratively proposes → evaluates → refines features
+  - LLM context window remembers past feature attempts (failures teach what NOT to do)
+  - Achieved SOTA on regression (RMSE -2.0%) and large classification tasks (ROC-AUC +0.23%)
+  - Final step: mRMR (minimal redundancy, maximal relevance) feature selection to trim bloat
+- **Application to pyfinAgent:**
+  - Exact pattern match: our evaluator already rejects correlated features
+  - ReAct loop: generate feature → test on holdout period → record result → next agent call sees history
+  - For trading: generate signal features → evaluate on 2022-2023 → keep if Sharpe > threshold and uncorrelated
+  - Success threshold: Sharpe +0.05-0.10 per feature (incremental improvements)
+- **Pitfalls noted:**
+  - "Feature space is exponentially large" — unbounded search fails. Need clear constraints (e.g., "only technical indicators", "only cross-sector features")
+  - LLM hallucination risk: agent may invent features that don't exist. Solution: provide list of available data sources + example features
+- **Action:** Use as template for Phase 3 feature generator contract
+
+#### ✅ Source 3: Uber Optimal Feature Discovery (2024, Blog)
+- **URL:** https://www.uber.com/blog/optimal-feature-discovery-ml/ (inferred; referenced in search results)
+- **Citation:** Uber. (2024). "Optimal Feature Discovery for ML." Engineering blog.
+- **Key concept:** Identify which features matter most, prune low-impact ones, discover new combinations
+- **Application:** Feature importance pruning (MDI + MDA) already in our evaluator; next step is automated combination discovery
+- **Pitfalls:** Uber's system for ride-sharing (location, time, demand) may not generalize to stock trading (fundamentals, technicals, macro)
+- **Action:** Reference for production robustness in Phase 4
+
+### Candidate Sources (collected, not yet deeply read)
+
+1. **Bailey & López de Prado (2014)** — Probability of Backtest Overfitting (PBO) — reference for DSR calculation ✅ already in Phase 2.8
+2. **Harvey, Liu, Zhu (2016)** — ... and the Cross-Section of Expected Returns — multiple testing, deflated Sharpe ✅ already in Phase 2.8
+3. **David Lo (2002)** — Serial Correlation in Stock Returns — statistical correction formula ✅ already in Phase 2.8
+4. **Li et al. (2024)** — LLM-Guided Feature Engineering for TabularML — arXiv preprint
+5. **Hollmann et al. (2023)** — CAAFE: LLM-based automated feature engineering (older, pre-ReAct)
+6. **OpenFE (2023)** — Algorithmic feature engineering (non-LLM baseline comparison)
+7. **Anthropic (2024)** — Engineering long-running applications with multi-agent harnesses — ✅ already applied in our design
+8. **Stanford MLOps (2025)** — Feature Store best practices (Tecton, Feast) — planning for Phase 4 scale
+9. **AQR Capital (2023)** — "Multi-Period Portfolio Optimization with Factors" — can features improve factor selection?
+10. **DeepMind (2024)** — "Learning to Optimize" — using RL/LLM for hyperparameter + feature selection simultaneously
+
+### Success Criteria (Research-Backed)
+
+Phase 2.10 implementation success = when we can:
+1. **Propose new features** — LLM reads market data schema + prior feature definitions, suggests 5-10 new candidates (FAMOSE method)
+2. **Evaluate incrementally** — each feature tested on 2-week holdout, Sharpe improvement ≥ +0.02 to keep (conservative threshold per Harvey et al.)
+3. **Track lineage** — every feature has source (LLM agent) + timestamp + in-sample Sharpe + out-of-sample Sharpe
+4. **Detect overfitting** — reject features with DSR < 0.95 per Bailey & López de Prado
+5. **Prune collinearity** — mRMR feature selection keeps top-N non-redundant features (FAMOSE method)
+
+### Budget Requirements
+
+- Phase 3 (LLM-Guided Planner + Evaluator): $2-5/cycle (Claude API calls for feature proposals + reasoning)
+- Phase 4 (Autonomous daily cycles): $1-3/day (Slack signal generation + MCP calls)
+- **Total Phase 3+4 (May launch): $50-200/month on top of current $228/month** — needs Peder approval
+
+### Next Steps
+
+1. **After Phase 2.9 completes:** Write `handoff/phase210_contract.md` with LLM feature agent spec
+2. **Before Phase 3 coding:** Fetch full PDFs of Li et al. (2024) and Stanford MLOps papers, extract concrete thresholds
+3. **Phase 3 kickoff:** Implement `backend/agents/feature_generator.py` with ReAct loop (FAMOSE template)
+4. **Phase 4 activation:** Integrate with MCP servers for real-time data → feature ideas → backtest → Slack alert
+
