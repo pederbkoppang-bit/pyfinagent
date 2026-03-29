@@ -138,6 +138,8 @@ class BacktestEngine:
         bq_client,
         project: str,
         dataset: str,
+        # Market (Phase 2.9)
+        market: str = "US",
         # Walk-forward params
         start_date: str = "2023-01-01",
         end_date: str = "2025-12-31",
@@ -201,6 +203,7 @@ class BacktestEngine:
         self._bq_client = bq_client
         self._project = project
         self._dataset = dataset
+        self.market = market  # Phase 2.9: market code (default 'US')
 
         self.ml_params = {
             "n_estimators": n_estimators,
@@ -224,6 +227,7 @@ class BacktestEngine:
         self._total_windows: int = 0
         self._current_window_id: int = 0
         self._strategy_params = {
+            "market": market,  # Phase 2.9
             "start_date": start_date, "end_date": end_date,
             "train_window_months": train_window_months,
             "test_window_months": test_window_months,
