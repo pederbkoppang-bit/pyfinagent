@@ -76,8 +76,8 @@ class DataServer:
             if ":" in ticker:
                 market, ticker = ticker.split(":", 1)
             
-            # Query prices from cache
-            df = cache.get_prices(ticker, market=market)
+            # Query prices from cache (default: 2023-2025, can be customized)
+            df = cache.cached_prices(ticker, "2023-01-01", "2025-12-31")
             
             if df is None or df.empty:
                 return {"ticker": ticker, "prices": []}
@@ -124,7 +124,7 @@ class DataServer:
                 market, ticker = ticker.split(":", 1)
             
             # Query fundamentals from cache
-            metrics = cache.get_fundamentals(ticker, market=market)
+            metrics = cache.cached_fundamentals(ticker, "2025-12-31")
             
             if not metrics:
                 return {"ticker": ticker, "metrics": []}
@@ -154,7 +154,7 @@ class DataServer:
         
         try:
             # Query macro from cache (series_id → FRED code, VIX, etc.)
-            macro_data = cache.get_macro(series)
+            macro_data = cache.cached_macro("2025-12-31")
             
             if not macro_data:
                 return {"series": series, "data": []}
