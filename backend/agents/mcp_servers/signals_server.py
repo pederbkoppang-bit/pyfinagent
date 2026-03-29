@@ -18,8 +18,19 @@ import logging
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Import backend modules
+try:
+    from backend.services.paper_trader import PaperTrader
+    from backend.db.bigquery_client import BigQueryClient
+    from backend.config.settings import get_settings
+    SIGNALS_AVAILABLE = True
+except ImportError:
+    SIGNALS_AVAILABLE = False
+    logger.warning("Paper trader not available — signals server in stub mode")
 
 
 class SignalType(Enum):
@@ -47,6 +58,20 @@ class SignalsServer:
         self.portfolio = {}  # Current holdings
         self.risk_limits = {}  # Exposure limits
         self.signal_history = []  # All signals generated
+        self.bq_client = None
+        self.settings = None
+        self.paper_trader = None
+        
+        # Initialize paper trader if available
+        if SIGNALS_AVAILABLE:
+            try:
+                self.settings = get_settings()
+                self.bq_client = BigQueryClient(self.settings)
+                self.paper_trader = PaperTrader(bq_client=self.bq_client)
+                logger.info("SignalsServer initialized with PaperTrader")
+            except Exception as e:
+                logger.error(f"Failed to initialize SignalsServer: {e}")
+                SIGNALS_AVAILABLE = False
     
     def generate_signal(self, ticker: str, date: str) -> Dict[str, Any]:
         """
@@ -163,13 +188,35 @@ class SignalsServer:
     def get_portfolio(self) -> Dict[str, Any]:
         """Get current portfolio holdings."""
         logger.info("get_portfolio()")
-        # TODO: Load from paper trading service
-        return {
-            "timestamp": "",
-            "total_value": 10000.0,
-            "positions": {},  # ticker → {shares, entry_price, current_price, pnl}
-            "cash": 10000.0,
-        }
+        
+        if not SIGNALS_AVAILABLE or not self.paper_trader:
+            return {
+                "timestamp": "",
+                "total_value": 10000.0,
+                "positions": {},
+                "cash": 10000.0,
+            }
+        
+        try:
+            # Load portfolio from paper trader
+            portfolio = self.paper_trader.get_portfolio()
+            
+            return {
+                "timestamp": portfolio.get("timestamp", ""),
+                "total_value": portfolio.get("total_value", 10000.0),
+                "positions": portfolio.get("positions", {}),
+                "cash": portfolio.get("cash", 10000.0),
+                "trades_today": len(portfolio.get("trades_today", [])),
+            }
+        except Exception as e:
+            logger.error(f"Error fetching portfolio: {e}")
+            return {
+                "timestamp": "",
+                "total_value": 10000.0,
+                "positions": {},
+                "cash": 10000.0,
+                "error": str(e),
+            }
     
     def get_risk_constraints(self) -> Dict[str, Any]:
         """Get risk limits."""
