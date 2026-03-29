@@ -6,3 +6,14 @@
 2026-03-29 11:32:32,015 [INFO] backend.backtest.cache: Preloaded fundamentals for 149 tickers (1,424 rows) in single BQ query
 2026-03-29 11:32:33,279 [INFO] backend.backtest.cache: Preloaded macro for 7 series (4,412 rows) in single BQ query
   [1/27] screening: Window 1/27 — screening candidates        2026-03-29 11:32:33,279 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 1/27 — screening candidates
+  [1/27] screening: 50 candidates found        2026-03-29 11:38:53,064 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 50 candidates found
+  [1/27] building_features: Building training data        2026-03-29 11:38:53,064 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
+  [1/27] building_features: 200 samples built (300/1300 iterations)        2026-03-29 11:38:53,367 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (300/1300 iterations)
+  [1/27] building_features: 400 samples built (500/1300 iterations)        2026-03-29 11:38:53,876 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (500/1300 iterations)
+  [1/27] building_features: 600 samples built (700/1300 iterations)        2026-03-29 11:38:54,392 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (700/1300 iterations)
+  [1/27] building_features: 800 samples built (900/1300 iterations)        2026-03-29 11:38:54,910 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (900/1300 iterations)
+  [1/27] building_features: 1000 samples built (1100/1300 iterations)        2026-03-29 11:38:55,415 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1100/1300 iterations)
+  [1/27] building_features: 1200 samples built (1300/1300 iterations)        2026-03-29 11:38:55,928 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1300/1300 iterations)
+  [1/27] training: Training GradientBoosting on 1200 samples        2026-03-29 11:38:56,129 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 1200 samples
+  [1/27] computing_mda: Permutation importance        2026-03-29 11:38:57,728 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
+  [1/27] predicting: Scoring test candidates at 2019-01-06        2026-03-29 11:38:58,429 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2019-01-06
