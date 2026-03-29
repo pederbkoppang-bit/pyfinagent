@@ -107,6 +107,14 @@ def run_backtest(params: dict, settings, bq, start_date=None, end_date=None, tx_
     return report["analytics"]
 
 
+def run_backtest_full(params: dict, settings, bq, start_date=None, end_date=None, tx_cost_pct=None) -> dict:
+    """Run backtest and return full report (analytics + per_window). Used by evaluator for hardening tests."""
+    engine = make_engine(params, settings, bq, start_date, end_date, tx_cost_pct)
+    result = engine.run_backtest()
+    report = generate_report(result, num_trials=1)
+    return report
+
+
 # ── AGENT 1: Heuristic Planner ──────────────────────────────────
 
 def run_planner(cycle: int, previous_critique: dict | None) -> dict:
@@ -314,15 +322,72 @@ def run_evaluator(params: dict, settings, bq) -> dict:
         logger.error("  2x_costs: FAILED - %s", e)
         results["2x_costs"] = {"error": str(e), "sharpe": -999}
 
-    # Full-period baseline (for statistical validity)
+    # Full-period baseline (for statistical validity + hardening tests)
     logger.info("  Evaluator: running full-period baseline")
     try:
-        a_full = run_backtest(params, settings, bq)
+        full_report = run_backtest_full(params, settings, bq)
+        a_full = full_report["analytics"]
         results["full_period"] = a_full
+        # Store per-window returns for concentration and autocorrelation tests
+        results["full_period"]["window_returns"] = [
+            w["total_return_pct"] for w in full_report.get("per_window", [])
+        ]
         logger.info("  full_period: Sharpe=%.4f DSR=%.4f", a_full["sharpe"], a_full["deflated_sharpe"])
     except Exception as e:
         logger.error("  full_period: FAILED - %s", e)
         results["full_period"] = {"error": str(e), "sharpe": -999}
+
+    # -- Phase 2.8 Hardening Tests --
+
+    # 1. Window concentration check: no single window should drive >30% of total return
+    full = results.get("full_period", {})
+    if "error" not in full:
+        window_returns = full.get("window_returns", [])
+        if window_returns:
+            total_abs = sum(abs(r) for r in window_returns)
+            if total_abs > 0:
+                max_concentration = max(abs(r) / total_abs for r in window_returns)
+                results["window_concentration"] = {
+                    "max_concentration_pct": round(max_concentration * 100, 1),
+                    "pass": max_concentration < 0.3,
+                    "n_windows": len(window_returns),
+                }
+                logger.info("  Window concentration: %.1f%% (%s)",
+                           max_concentration * 100, "PASS" if max_concentration < 0.3 else "FAIL")
+
+    # 2. Ljung-Box autocorrelation test on returns
+    try:
+        from statsmodels.stats.diagnostic import acorr_ljungbox
+        import numpy as np
+        window_returns = full.get("window_returns", [])
+        if len(window_returns) >= 10:
+            lb_result = acorr_ljungbox(np.array(window_returns), lags=[5], return_df=True)
+            lb_pvalue = float(lb_result["lb_pvalue"].iloc[0])
+            results["ljung_box"] = {
+                "p_value": round(lb_pvalue, 4),
+                "pass": lb_pvalue > 0.05,  # p > 0.05 means no significant autocorrelation
+                "interpretation": "No autocorrelation (good)" if lb_pvalue > 0.05 else "Serial correlation detected (bad)",
+            }
+            logger.info("  Ljung-Box: p=%.4f (%s)", lb_pvalue,
+                        "PASS" if lb_pvalue > 0.05 else "FAIL")
+    except ImportError:
+        logger.warning("  Ljung-Box: statsmodels not installed, skipping")
+    except Exception as e:
+        logger.warning("  Ljung-Box: failed - %s", e)
+
+    # 3. Slippage stress test (5bps execution slippage on top of transaction costs)
+    logger.info("  Evaluator: running 5bps slippage stress test")
+    try:
+        base_tx = params.get("transaction_cost_pct", 0.1)
+        slippage_tx = base_tx + 0.05  # add 5bps execution slippage
+        a_slip = run_backtest(params, settings, bq, tx_cost_pct=slippage_tx)
+        results["slippage_5bps"] = a_slip
+        results["slippage_5bps"]["survives"] = a_slip.get("sharpe", 0) > 0.5
+        logger.info("  5bps slippage: Sharpe=%.4f (%s)",
+                    a_slip.get("sharpe", 0), "PASS" if a_slip.get("sharpe", 0) > 0.5 else "FAIL")
+    except Exception as e:
+        logger.error("  Slippage test: FAILED - %s", e)
+        results["slippage_5bps"] = {"error": str(e), "sharpe": -999}
 
     # -- GRADE (anti-leniency: grade each criterion BEFORE verdict) --
     grades = _grade_results(results, params)
@@ -406,15 +471,22 @@ def _grade_results(results: dict, params: dict) -> dict:
         simple_score = 4
         simple_notes = f"{active_count} active params (>20, over-parameterized)"
 
-    # 4. Reality Gap (weight 15%)
-    if cost_2x_sharpe > 0.7:
+    # 4. Reality Gap (weight 15%) — includes slippage test from Phase 2.8
+    slip = results.get("slippage_5bps", {})
+    slip_sharpe = slip.get("sharpe", -999) if "error" not in slip else -999
+    slip_survives = slip.get("survives", False)
+
+    if cost_2x_sharpe > 0.7 and slip_survives:
         reality_score = 9
-        reality_notes = f"2x costs Sharpe={cost_2x_sharpe:.4f} (>0.7)"
-    elif cost_2x_sharpe > 0.5:
+        reality_notes = f"2x costs Sharpe={cost_2x_sharpe:.4f}, +5bps slippage Sharpe={slip_sharpe:.4f}"
+    elif cost_2x_sharpe > 0.7:
         reality_score = 8
-        reality_notes = f"2x costs Sharpe={cost_2x_sharpe:.4f} (>0.5)"
+        reality_notes = f"2x costs Sharpe={cost_2x_sharpe:.4f} (>0.7), slippage={'untested' if slip_sharpe == -999 else f'{slip_sharpe:.4f}'}"
+    elif cost_2x_sharpe > 0.5:
+        reality_score = 7 if slip_survives else 6
+        reality_notes = f"2x costs Sharpe={cost_2x_sharpe:.4f} (>0.5), slippage={'untested' if slip_sharpe == -999 else f'{slip_sharpe:.4f}'}"
     elif cost_2x_sharpe > 0:
-        reality_score = 6
+        reality_score = 5
         reality_notes = f"2x costs Sharpe={cost_2x_sharpe:.4f} (positive but <0.5)"
     else:
         reality_score = 3
@@ -486,6 +558,23 @@ Composite Score: {grades['composite']}/10
         content += f"- 2x Costs: ERROR - {r2x['error']}\n"
     else:
         content += f"- 2x Costs: Sharpe={r2x.get('sharpe', 0):.4f}, Return={r2x.get('total_return_pct', 0):.1f}%\n"
+
+    # Phase 2.8 hardening results
+    conc = results.get("window_concentration")
+    if conc:
+        content += f"\n### Window Concentration\n"
+        content += f"- Max concentration: {conc['max_concentration_pct']:.1f}% ({'PASS' if conc['pass'] else 'FAIL'} — threshold: <30%)\n"
+
+    lb = results.get("ljung_box")
+    if lb:
+        content += f"\n### Ljung-Box Autocorrelation\n"
+        content += f"- p-value: {lb['p_value']:.4f} ({'PASS' if lb['pass'] else 'FAIL'} — need p>0.05)\n"
+        content += f"- {lb['interpretation']}\n"
+
+    slip = results.get("slippage_5bps")
+    if slip and "error" not in slip:
+        content += f"\n### Slippage Stress Test (+5bps)\n"
+        content += f"- Sharpe: {slip.get('sharpe', 0):.4f} ({'PASS' if slip.get('survives') else 'FAIL'} — need >0.5)\n"
 
     content += f"""
 ## Decision

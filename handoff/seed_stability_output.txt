@@ -32,3 +32,182 @@ Engine handles its own data preloading per seed run.
   [2/27] screening: 48 candidates found        2026-03-29 09:29:47,065 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 48 candidates found
   [2/27] building_features: Building training data        2026-03-29 09:29:47,065 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
   [2/27] building_features: 200 samples built (296/1536 iterations)        2026-03-29 09:29:47,378 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (296/1536 iterations)
+  [2/27] building_features: 400 samples built (496/1536 iterations)        2026-03-29 09:29:47,942 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (496/1536 iterations)
+  [2/27] building_features: 600 samples built (696/1536 iterations)        2026-03-29 09:29:48,490 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (696/1536 iterations)
+  [2/27] building_features: 800 samples built (896/1536 iterations)        2026-03-29 09:29:49,050 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (896/1536 iterations)
+  [2/27] building_features: 1000 samples built (1096/1536 iterations)        2026-03-29 09:29:49,569 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1096/1536 iterations)
+  [2/27] building_features: 1200 samples built (1296/1536 iterations)        2026-03-29 09:29:50,079 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1296/1536 iterations)
+  [2/27] building_features: 1400 samples built (1496/1536 iterations)        2026-03-29 09:29:50,612 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1400 samples built (1496/1536 iterations)
+  [2/27] training: Training GradientBoosting on 1440 samples        2026-03-29 09:29:51,013 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 1440 samples
+  [2/27] computing_mda: Permutation importance        2026-03-29 09:29:53,093 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
+  [2/27] predicting: Scoring test candidates at 2019-04-11        2026-03-29 09:29:53,881 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2019-04-11
+  [2/27] trading: Processing 48 signals        2026-03-29 09:29:55,407 [INFO] backend.backtest.backtest_engine: Backtest: [trading] Processing 48 signals
+2026-03-29 09:29:55,413 [INFO] backend.backtest.backtest_engine: Window 2: 20 trades from 48 signals (BUY=36, SELL=7, HOLD=5)
+  [3/27] screening: Window 3/27 — screening candidates        2026-03-29 09:29:55,816 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 3/27 — screening candidates
+  [3/27] screening: 48 candidates found        2026-03-29 09:29:56,838 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 48 candidates found
+  [3/27] building_features: Building training data        2026-03-29 09:29:56,838 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
+  [3/27] building_features: 200 samples built (296/1872 iterations)        2026-03-29 09:29:57,152 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (296/1872 iterations)
+  [3/27] building_features: 400 samples built (496/1872 iterations)        2026-03-29 09:29:57,688 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (496/1872 iterations)
+  [3/27] building_features: 600 samples built (696/1872 iterations)        2026-03-29 09:29:58,226 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (696/1872 iterations)
+  [3/27] building_features: 800 samples built (896/1872 iterations)        2026-03-29 09:29:58,759 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (896/1872 iterations)
+  [3/27] building_features: 1000 samples built (1096/1872 iterations)        2026-03-29 09:29:59,291 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1096/1872 iterations)
+  [3/27] building_features: 1200 samples built (1296/1872 iterations)        2026-03-29 09:29:59,850 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1296/1872 iterations)
+  [3/27] building_features: 1400 samples built (1496/1872 iterations)        2026-03-29 09:30:00,387 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1400 samples built (1496/1872 iterations)
+  [3/27] building_features: 1600 samples built (1696/1872 iterations)        2026-03-29 09:30:00,927 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1600 samples built (1696/1872 iterations)
+  [3/27] training: Training GradientBoosting on 1776 samples        2026-03-29 09:30:01,855 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 1776 samples
+  [3/27] computing_mda: Permutation importance        2026-03-29 09:30:04,639 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
+  [3/27] predicting: Scoring test candidates at 2019-07-16        2026-03-29 09:30:05,544 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2019-07-16
+  [3/27] trading: Processing 48 signals        2026-03-29 09:30:06,786 [INFO] backend.backtest.backtest_engine: Backtest: [trading] Processing 48 signals
+2026-03-29 09:30:06,792 [INFO] backend.backtest.backtest_engine: Window 3: 11 trades from 48 signals (BUY=11, SELL=3, HOLD=34)
+  [4/27] screening: Window 4/27 — screening candidates        2026-03-29 09:30:07,195 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 4/27 — screening candidates
+  [4/27] screening: 48 candidates found        2026-03-29 09:30:08,266 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 48 candidates found
+  [4/27] building_features: Building training data        2026-03-29 09:30:08,266 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
+  [4/27] building_features: 200 samples built (296/2208 iterations)        2026-03-29 09:30:08,554 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (296/2208 iterations)
+  [4/27] building_features: 400 samples built (496/2208 iterations)        2026-03-29 09:30:09,085 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (496/2208 iterations)
+  [4/27] building_features: 600 samples built (696/2208 iterations)        2026-03-29 09:30:09,622 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (696/2208 iterations)
+  [4/27] building_features: 800 samples built (896/2208 iterations)        2026-03-29 09:30:10,148 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (896/2208 iterations)
+  [4/27] building_features: 1000 samples built (1096/2208 iterations)        2026-03-29 09:30:10,670 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1096/2208 iterations)
+  [4/27] building_features: 1200 samples built (1296/2208 iterations)        2026-03-29 09:30:11,183 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1296/2208 iterations)
+  [4/27] building_features: 1400 samples built (1496/2208 iterations)        2026-03-29 09:30:11,731 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1400 samples built (1496/2208 iterations)
+  [4/27] building_features: 1600 samples built (1696/2208 iterations)        2026-03-29 09:30:12,268 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1600 samples built (1696/2208 iterations)
+  [4/27] building_features: 1800 samples built (1896/2208 iterations)        2026-03-29 09:30:12,812 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1800 samples built (1896/2208 iterations)
+  [4/27] building_features: 2000 samples built (2096/2208 iterations)        2026-03-29 09:30:13,364 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2000 samples built (2096/2208 iterations)
+  [4/27] training: Training GradientBoosting on 2112 samples        2026-03-29 09:30:14,295 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 2112 samples
+  [4/27] computing_mda: Permutation importance        2026-03-29 09:30:17,780 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
+  [4/27] predicting: Scoring test candidates at 2019-10-21        2026-03-29 09:30:18,778 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2019-10-21
+  [4/27] trading: Processing 48 signals        2026-03-29 09:30:20,365 [INFO] backend.backtest.backtest_engine: Backtest: [trading] Processing 48 signals
+2026-03-29 09:30:20,372 [INFO] backend.backtest.backtest_engine: Window 4: 20 trades from 48 signals (BUY=37, SELL=0, HOLD=11)
+  [5/27] screening: Window 5/27 — screening candidates        2026-03-29 09:30:20,790 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 5/27 — screening candidates
+  [5/27] screening: 49 candidates found        2026-03-29 09:30:21,853 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 49 candidates found
+  [5/27] building_features: Building training data        2026-03-29 09:30:21,853 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
+  [5/27] building_features: 200 samples built (298/2597 iterations)        2026-03-29 09:30:22,163 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (298/2597 iterations)
+  [5/27] building_features: 400 samples built (498/2597 iterations)        2026-03-29 09:30:22,698 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (498/2597 iterations)
+  [5/27] building_features: 600 samples built (698/2597 iterations)        2026-03-29 09:30:23,273 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (698/2597 iterations)
+  [5/27] building_features: 800 samples built (898/2597 iterations)        2026-03-29 09:30:23,806 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (898/2597 iterations)
+  [5/27] building_features: 1000 samples built (1098/2597 iterations)        2026-03-29 09:30:24,330 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1098/2597 iterations)
+  [5/27] building_features: 1200 samples built (1298/2597 iterations)        2026-03-29 09:30:24,846 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1298/2597 iterations)
+  [5/27] building_features: 1400 samples built (1498/2597 iterations)        2026-03-29 09:30:25,379 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1400 samples built (1498/2597 iterations)
+  [5/27] building_features: 1600 samples built (1698/2597 iterations)        2026-03-29 09:30:25,928 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1600 samples built (1698/2597 iterations)
+  [5/27] building_features: 1800 samples built (1898/2597 iterations)        2026-03-29 09:30:26,475 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1800 samples built (1898/2597 iterations)
+  [5/27] building_features: 2000 samples built (2098/2597 iterations)        2026-03-29 09:30:27,028 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2000 samples built (2098/2597 iterations)
+  [5/27] building_features: 2200 samples built (2298/2597 iterations)        2026-03-29 09:30:27,573 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2200 samples built (2298/2597 iterations)
+  [5/27] building_features: 2400 samples built (2498/2597 iterations)        2026-03-29 09:30:28,121 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2400 samples built (2498/2597 iterations)
+  [5/27] training: Training GradientBoosting on 2499 samples        2026-03-29 09:30:29,255 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 2499 samples
+  [5/27] computing_mda: Permutation importance        2026-03-29 09:30:33,549 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
+  [5/27] predicting: Scoring test candidates at 2020-01-26        2026-03-29 09:30:34,705 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2020-01-26
+  [5/27] trading: Processing 49 signals        2026-03-29 09:30:35,966 [INFO] backend.backtest.backtest_engine: Backtest: [trading] Processing 49 signals
+2026-03-29 09:30:35,975 [INFO] backend.backtest.backtest_engine: Window 5: 0 trades from 49 signals (BUY=9, SELL=39, HOLD=1)
+  [6/27] screening: Window 6/27 — screening candidates        2026-03-29 09:30:36,388 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 6/27 — screening candidates
+  [6/27] screening: 49 candidates found        2026-03-29 09:30:37,448 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 49 candidates found
+  [6/27] building_features: Building training data        2026-03-29 09:30:37,448 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
+  [6/27] building_features: 200 samples built (298/2940 iterations)        2026-03-29 09:30:37,759 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (298/2940 iterations)
+  [6/27] building_features: 400 samples built (498/2940 iterations)        2026-03-29 09:30:38,295 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (498/2940 iterations)
+  [6/27] building_features: 600 samples built (698/2940 iterations)        2026-03-29 09:30:38,836 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (698/2940 iterations)
+  [6/27] building_features: 800 samples built (898/2940 iterations)        2026-03-29 09:30:39,371 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (898/2940 iterations)
+  [6/27] building_features: 1000 samples built (1098/2940 iterations)        2026-03-29 09:30:39,899 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1098/2940 iterations)
+  [6/27] building_features: 1200 samples built (1298/2940 iterations)        2026-03-29 09:30:40,422 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1298/2940 iterations)
+  [6/27] building_features: 1400 samples built (1498/2940 iterations)        2026-03-29 09:30:40,958 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1400 samples built (1498/2940 iterations)
+  [6/27] building_features: 1600 samples built (1698/2940 iterations)        2026-03-29 09:30:41,503 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1600 samples built (1698/2940 iterations)
+  [6/27] building_features: 1800 samples built (1898/2940 iterations)        2026-03-29 09:30:42,053 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1800 samples built (1898/2940 iterations)
+  [6/27] building_features: 2000 samples built (2098/2940 iterations)        2026-03-29 09:30:42,614 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2000 samples built (2098/2940 iterations)
+  [6/27] building_features: 2200 samples built (2298/2940 iterations)        2026-03-29 09:30:43,162 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2200 samples built (2298/2940 iterations)
+  [6/27] building_features: 2400 samples built (2498/2940 iterations)        2026-03-29 09:30:43,715 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2400 samples built (2498/2940 iterations)
+  [6/27] building_features: 2600 samples built (2698/2940 iterations)        2026-03-29 09:30:44,240 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2600 samples built (2698/2940 iterations)
+  [6/27] building_features: 2800 samples built (2898/2940 iterations)        2026-03-29 09:30:44,739 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2800 samples built (2898/2940 iterations)
+  [6/27] training: Training GradientBoosting on 2842 samples        2026-03-29 09:30:45,986 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 2842 samples
+  [6/27] computing_mda: Permutation importance        2026-03-29 09:30:51,063 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
+  [6/27] predicting: Scoring test candidates at 2020-05-01        2026-03-29 09:30:52,336 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2020-05-01
+  [6/27] trading: Processing 49 signals        2026-03-29 09:30:53,683 [INFO] backend.backtest.backtest_engine: Backtest: [trading] Processing 49 signals
+2026-03-29 09:30:53,689 [INFO] backend.backtest.backtest_engine: Window 6: 20 trades from 49 signals (BUY=48, SELL=1, HOLD=0)
+  [7/27] screening: Window 7/27 — screening candidates        2026-03-29 09:30:54,103 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 7/27 — screening candidates
+  [7/27] screening: 49 candidates found        2026-03-29 09:30:55,206 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 49 candidates found
+  [7/27] building_features: Building training data        2026-03-29 09:30:55,207 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
+  [7/27] building_features: 200 samples built (298/3283 iterations)        2026-03-29 09:30:55,516 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (298/3283 iterations)
+  [7/27] building_features: 400 samples built (498/3283 iterations)        2026-03-29 09:30:56,057 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (498/3283 iterations)
+  [7/27] building_features: 600 samples built (698/3283 iterations)        2026-03-29 09:30:56,598 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (698/3283 iterations)
+  [7/27] building_features: 800 samples built (898/3283 iterations)        2026-03-29 09:30:57,134 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (898/3283 iterations)
+  [7/27] building_features: 1000 samples built (1098/3283 iterations)        2026-03-29 09:30:57,694 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1098/3283 iterations)
+  [7/27] building_features: 1200 samples built (1298/3283 iterations)        2026-03-29 09:30:58,219 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1298/3283 iterations)
+  [7/27] building_features: 1400 samples built (1498/3283 iterations)        2026-03-29 09:30:58,754 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1400 samples built (1498/3283 iterations)
+  [7/27] building_features: 1600 samples built (1698/3283 iterations)        2026-03-29 09:30:59,300 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1600 samples built (1698/3283 iterations)
+  [7/27] building_features: 1800 samples built (1898/3283 iterations)        2026-03-29 09:30:59,852 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1800 samples built (1898/3283 iterations)
+  [7/27] building_features: 2000 samples built (2098/3283 iterations)        2026-03-29 09:31:00,428 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2000 samples built (2098/3283 iterations)
+  [7/27] building_features: 2200 samples built (2298/3283 iterations)        2026-03-29 09:31:00,995 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2200 samples built (2298/3283 iterations)
+  [7/27] building_features: 2400 samples built (2498/3283 iterations)        2026-03-29 09:31:01,537 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2400 samples built (2498/3283 iterations)
+  [7/27] building_features: 2600 samples built (2698/3283 iterations)        2026-03-29 09:31:02,054 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2600 samples built (2698/3283 iterations)
+  [7/27] building_features: 2800 samples built (2898/3283 iterations)        2026-03-29 09:31:02,552 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2800 samples built (2898/3283 iterations)
+  [7/27] building_features: 3000 samples built (3098/3283 iterations)        2026-03-29 09:31:03,087 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 3000 samples built (3098/3283 iterations)
+  [7/27] training: Training GradientBoosting on 3185 samples        2026-03-29 09:31:05,002 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 3185 samples
+  [7/27] computing_mda: Permutation importance        2026-03-29 09:31:10,876 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
+  [7/27] predicting: Scoring test candidates at 2020-08-06        2026-03-29 09:31:12,322 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2020-08-06
+  [7/27] trading: Processing 49 signals        2026-03-29 09:31:13,996 [INFO] backend.backtest.backtest_engine: Backtest: [trading] Processing 49 signals
+2026-03-29 09:31:14,002 [INFO] backend.backtest.backtest_engine: Window 7: 20 trades from 49 signals (BUY=20, SELL=29, HOLD=0)
+  [8/27] screening: Window 8/27 — screening candidates        2026-03-29 09:31:14,420 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 8/27 — screening candidates
+  [8/27] screening: 49 candidates found        2026-03-29 09:31:15,463 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 49 candidates found
+  [8/27] building_features: Building training data        2026-03-29 09:31:15,463 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
+  [8/27] building_features: 200 samples built (298/3626 iterations)        2026-03-29 09:31:15,770 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (298/3626 iterations)
+  [8/27] building_features: 400 samples built (498/3626 iterations)        2026-03-29 09:31:16,319 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (498/3626 iterations)
+  [8/27] building_features: 600 samples built (698/3626 iterations)        2026-03-29 09:31:16,864 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (698/3626 iterations)
+  [8/27] building_features: 800 samples built (898/3626 iterations)        2026-03-29 09:31:17,404 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (898/3626 iterations)
+  [8/27] building_features: 1000 samples built (1098/3626 iterations)        2026-03-29 09:31:17,939 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1098/3626 iterations)
+  [8/27] building_features: 1200 samples built (1298/3626 iterations)        2026-03-29 09:31:18,467 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1298/3626 iterations)
+  [8/27] building_features: 1400 samples built (1498/3626 iterations)        2026-03-29 09:31:19,039 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1400 samples built (1498/3626 iterations)
+  [8/27] building_features: 1600 samples built (1698/3626 iterations)        2026-03-29 09:31:19,592 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1600 samples built (1698/3626 iterations)
+  [8/27] building_features: 1800 samples built (1898/3626 iterations)        2026-03-29 09:31:20,176 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1800 samples built (1898/3626 iterations)
+  [8/27] building_features: 2000 samples built (2098/3626 iterations)        2026-03-29 09:31:20,749 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2000 samples built (2098/3626 iterations)
+  [8/27] building_features: 2200 samples built (2298/3626 iterations)        2026-03-29 09:31:21,314 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2200 samples built (2298/3626 iterations)
+  [8/27] building_features: 2400 samples built (2498/3626 iterations)        2026-03-29 09:31:21,865 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2400 samples built (2498/3626 iterations)
+  [8/27] building_features: 2600 samples built (2698/3626 iterations)        2026-03-29 09:31:22,388 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2600 samples built (2698/3626 iterations)
+  [8/27] building_features: 2800 samples built (2898/3626 iterations)        2026-03-29 09:31:22,892 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2800 samples built (2898/3626 iterations)
+  [8/27] building_features: 3000 samples built (3098/3626 iterations)        2026-03-29 09:31:23,421 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 3000 samples built (3098/3626 iterations)
+  [8/27] building_features: 3200 samples built (3298/3626 iterations)        2026-03-29 09:31:23,956 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 3200 samples built (3298/3626 iterations)
+  [8/27] building_features: 3400 samples built (3498/3626 iterations)        2026-03-29 09:31:24,507 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 3400 samples built (3498/3626 iterations)
+  [8/27] training: Training GradientBoosting on 3528 samples        2026-03-29 09:31:26,598 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 3528 samples
+  [8/27] computing_mda: Permutation importance        2026-03-29 09:31:33,386 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
+  [8/27] predicting: Scoring test candidates at 2020-11-11        2026-03-29 09:31:34,947 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2020-11-11
+  [8/27] trading: Processing 49 signals        2026-03-29 09:31:36,364 [INFO] backend.backtest.backtest_engine: Backtest: [trading] Processing 49 signals
+2026-03-29 09:31:36,370 [INFO] backend.backtest.backtest_engine: Window 8: 20 trades from 49 signals (BUY=41, SELL=2, HOLD=6)
+  [9/27] screening: Window 9/27 — screening candidates        2026-03-29 09:31:36,799 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 9/27 — screening candidates
+  [9/27] screening: 49 candidates found        2026-03-29 09:31:37,876 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 49 candidates found
+  [9/27] building_features: Building training data        2026-03-29 09:31:37,876 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
+  [9/27] building_features: 200 samples built (298/3969 iterations)        2026-03-29 09:31:38,192 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (298/3969 iterations)
+  [9/27] building_features: 400 samples built (498/3969 iterations)        2026-03-29 09:31:38,762 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (498/3969 iterations)
+  [9/27] building_features: 600 samples built (698/3969 iterations)        2026-03-29 09:31:39,316 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (698/3969 iterations)
+  [9/27] building_features: 800 samples built (898/3969 iterations)        2026-03-29 09:31:39,862 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (898/3969 iterations)
+  [9/27] building_features: 1000 samples built (1098/3969 iterations)        2026-03-29 09:31:40,405 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1098/3969 iterations)
+  [9/27] building_features: 1200 samples built (1298/3969 iterations)        2026-03-29 09:31:40,938 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1298/3969 iterations)
+  [9/27] building_features: 1400 samples built (1498/3969 iterations)        2026-03-29 09:31:41,481 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1400 samples built (1498/3969 iterations)
+  [9/27] building_features: 1600 samples built (1698/3969 iterations)        2026-03-29 09:31:42,036 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1600 samples built (1698/3969 iterations)
+  [9/27] building_features: 1800 samples built (1898/3969 iterations)        2026-03-29 09:31:42,591 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1800 samples built (1898/3969 iterations)
+  [9/27] building_features: 2000 samples built (2098/3969 iterations)        2026-03-29 09:31:43,158 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2000 samples built (2098/3969 iterations)
+  [9/27] building_features: 2200 samples built (2298/3969 iterations)        2026-03-29 09:31:43,718 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2200 samples built (2298/3969 iterations)
+  [9/27] building_features: 2400 samples built (2498/3969 iterations)        2026-03-29 09:31:44,270 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2400 samples built (2498/3969 iterations)
+  [9/27] building_features: 2600 samples built (2698/3969 iterations)        2026-03-29 09:31:44,793 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2600 samples built (2698/3969 iterations)
+  [9/27] building_features: 2800 samples built (2898/3969 iterations)        2026-03-29 09:31:45,305 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2800 samples built (2898/3969 iterations)
+  [9/27] building_features: 3000 samples built (3098/3969 iterations)        2026-03-29 09:31:45,850 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 3000 samples built (3098/3969 iterations)
+  [9/27] building_features: 3200 samples built (3298/3969 iterations)        2026-03-29 09:31:46,425 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 3200 samples built (3298/3969 iterations)
+  [9/27] building_features: 3400 samples built (3498/3969 iterations)        2026-03-29 09:31:46,971 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 3400 samples built (3498/3969 iterations)
+  [9/27] building_features: 3600 samples built (3698/3969 iterations)        2026-03-29 09:31:47,513 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 3600 samples built (3698/3969 iterations)
+  [9/27] building_features: 3800 samples built (3898/3969 iterations)        2026-03-29 09:31:48,061 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 3800 samples built (3898/3969 iterations)
+  [9/27] training: Training GradientBoosting on 3871 samples        2026-03-29 09:31:50,363 [INFO] backend.backtest.backtest_engine: Backtest: [training] Training GradientBoosting on 3871 samples
+  [9/27] computing_mda: Permutation importance        2026-03-29 09:31:58,045 [INFO] backend.backtest.backtest_engine: Backtest: [computing_mda] Permutation importance
+  [9/27] predicting: Scoring test candidates at 2021-02-16        2026-03-29 09:31:59,742 [INFO] backend.backtest.backtest_engine: Backtest: [predicting] Scoring test candidates at 2021-02-16
+  [9/27] trading: Processing 49 signals        2026-03-29 09:32:02,478 [INFO] backend.backtest.backtest_engine: Backtest: [trading] Processing 49 signals
+2026-03-29 09:32:02,484 [INFO] backend.backtest.backtest_engine: Window 9: 20 trades from 49 signals (BUY=39, SELL=4, HOLD=6)
+  [10/27] screening: Window 10/27 — screening candidates        2026-03-29 09:32:02,894 [INFO] backend.backtest.backtest_engine: Backtest: [screening] Window 10/27 — screening candidates
+  [10/27] screening: 49 candidates found        2026-03-29 09:32:04,732 [INFO] backend.backtest.backtest_engine: Backtest: [screening] 49 candidates found
+  [10/27] building_features: Building training data        2026-03-29 09:32:04,732 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] Building training data
+  [10/27] building_features: 200 samples built (298/4263 iterations)        2026-03-29 09:32:05,045 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 200 samples built (298/4263 iterations)
+  [10/27] building_features: 400 samples built (498/4263 iterations)        2026-03-29 09:32:05,599 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 400 samples built (498/4263 iterations)
+  [10/27] building_features: 600 samples built (698/4263 iterations)        2026-03-29 09:32:06,155 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 600 samples built (698/4263 iterations)
+  [10/27] building_features: 800 samples built (898/4263 iterations)        2026-03-29 09:32:06,713 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 800 samples built (898/4263 iterations)
+  [10/27] building_features: 1000 samples built (1098/4263 iterations)        2026-03-29 09:32:07,257 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1000 samples built (1098/4263 iterations)
+  [10/27] building_features: 1200 samples built (1298/4263 iterations)        2026-03-29 09:32:07,792 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1200 samples built (1298/4263 iterations)
+  [10/27] building_features: 1400 samples built (1498/4263 iterations)        2026-03-29 09:32:08,347 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1400 samples built (1498/4263 iterations)
+  [10/27] building_features: 1600 samples built (1698/4263 iterations)        2026-03-29 09:32:08,907 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1600 samples built (1698/4263 iterations)
+  [10/27] building_features: 1800 samples built (1898/4263 iterations)        2026-03-29 09:32:09,466 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 1800 samples built (1898/4263 iterations)
+  [10/27] building_features: 2000 samples built (2098/4263 iterations)        2026-03-29 09:32:10,039 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2000 samples built (2098/4263 iterations)
+  [10/27] building_features: 2200 samples built (2298/4263 iterations)        2026-03-29 09:32:10,606 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2200 samples built (2298/4263 iterations)
+  [10/27] building_features: 2400 samples built (2498/4263 iterations)        2026-03-29 09:32:11,159 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2400 samples built (2498/4263 iterations)
+  [10/27] building_features: 2600 samples built (2698/4263 iterations)        2026-03-29 09:32:11,688 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2600 samples built (2698/4263 iterations)
+  [10/27] building_features: 2800 samples built (2898/4263 iterations)        2026-03-29 09:32:12,202 [INFO] backend.backtest.backtest_engine: Backtest: [building_features] 2800 samples built (2898/4263 iterations)
