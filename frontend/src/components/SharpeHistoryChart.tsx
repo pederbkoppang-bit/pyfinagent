@@ -45,6 +45,8 @@ function statusColor(status: string): string {
       return "#38bdf8";
     case "discarded":
       return "#ef4444";
+    case "seed_test":
+      return "#a78bfa"; // purple for seed tests
     default:
       return "#64748b";
   }
@@ -58,6 +60,8 @@ function statusLabel(status: string): string {
       return "BASELINE";
     case "discarded":
       return "DISCARDED";
+    case "seed_test":
+      return "SEED TEST";
     default:
       return status.toUpperCase();
   }
@@ -419,6 +423,10 @@ export function SharpeHistoryChart() {
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-full bg-red-500 opacity-50" />
           Discarded
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-full border border-white/80 bg-violet-400" />
+          Seed Test
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-full bg-slate-500 opacity-35" />

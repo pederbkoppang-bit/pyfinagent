@@ -56,6 +56,26 @@ def run_with_seed(params: dict, seed: int, settings, bq) -> dict:
         result = engine.run_backtest()
         report = generate_report(result, num_trials=1)
         a = report["analytics"]
+
+        # Save to experiments/results/ so it shows on Sharpe History chart
+        from datetime import datetime, timezone
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        run_id = f"seed_{seed}"
+        report["run_id"] = run_id
+        report["is_baseline"] = False
+        report["parent_run_id"] = "seed_stability"
+
+        results_dir = Path("backend/backtest/experiments/results")
+        results_dir.mkdir(parents=True, exist_ok=True)
+        result_path = results_dir / f"{ts}_{run_id}.json"
+        result_path.write_text(json.dumps(report, indent=2, default=str))
+
+        # Append to TSV
+        tsv_path = Path("backend/backtest/experiments/quant_results.tsv")
+        if tsv_path.exists():
+            with open(tsv_path, "a") as f:
+                f.write(f"{ts}\t{run_id}\tseed: {seed}\t0.0000\t{a['sharpe']:.4f}\t+0.0000\tseed_test\t{a['deflated_sharpe']:.4f}\t\t\tseed_stability\n")
+
         return {
             "seed": seed,
             "sharpe": a["sharpe"],
