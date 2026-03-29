@@ -40,18 +40,44 @@ Before implementing any major feature:
 
 **Deep Research Checklist (run for each plan step):**
 ```
-□ Google Scholar search: "[topic]" — sorted by relevance and recency (last 2 years)
-□ arXiv/SSRN search: "[topic] financial machine learning"
-□ University research groups: check relevant lab pages (MIT, Stanford, Oxford, etc.)
-□ AI lab blogs: Anthropic, OpenAI, DeepMind — searched for related techniques
+□ Google Scholar: "[topic]" — relevance + recency (last 2 years), follow citation chains
+□ arXiv/SSRN: "[topic] financial machine learning"
+□ University research groups: MIT, Stanford, Oxford, Princeton, Chicago, NYU
+□ AI lab blogs: Anthropic, OpenAI, DeepMind, Meta FAIR, Microsoft Research
 □ Quant firm publications: AQR, Two Sigma, Man Group whitepapers
-□ Consulting reports: McKinsey/BCG/Deloitte on AI in finance (if applicable)
-□ GitHub: recent implementations/repos
+□ Consulting/industry reports: McKinsey, BCG, Deloitte on AI in finance
+□ GitHub: recent implementations and repos
 □ Read 3-5 most relevant sources in full (not just abstracts)
 □ Documented findings in RESEARCH.md with URLs
 □ Identified concrete thresholds/methods to adopt
 □ Noted warnings/pitfalls from literature
+□ Updated handoff/contract.md success criteria with research-backed thresholds
 ```
+
+### ⛔ RESEARCH GATE — MANDATORY (Peder's Rule, 2026-03-29)
+
+**NO phase step may proceed to GENERATE until this gate passes.**
+
+**Minimum requirements before writing ANY code:**
+1. **≥3 verifiable URLs** added to RESEARCH.md for this step (clickable, fetched, read)
+2. **≥10 sources/URLs** if the task requires deeper research (new techniques, statistical methods, infrastructure patterns)
+3. **3-5 sources read in full** (not just abstracts or summaries)
+4. **Concrete thresholds/methods extracted** and documented as actionable findings
+5. **Warnings/pitfalls noted** from literature (what NOT to do)
+6. **handoff/contract.md** success criteria updated with research-backed numbers
+
+**How to verify the gate passed:**
+- Count URLs in RESEARCH.md entries tagged to this phase step
+- If count < 3 (simple step) or < 10 (complex step) → STOP, do more research
+- If no actionable findings → STOP, the research was too shallow
+
+**Why this gate exists:**
+- Phases 0-2.7 were built from general knowledge with zero papers fetched
+- Phase 2.8 (first phase with real research) immediately found 2 code bugs (DSR trial count, Lo(2002) formula)
+- Research-first execution produces measurably better code
+- "I already know how to do this" is not research — it's assumption
+
+**Retroactive debt:** Phases 0-2.7 have research debt. When revisiting any of those phases, backfill RESEARCH.md with proper citations before making changes.
 
 ---
 
