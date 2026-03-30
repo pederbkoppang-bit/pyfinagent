@@ -23,8 +23,14 @@ trap "rm -f $LOCK_FILE" EXIT
 # Load last processed timestamp
 LAST_TS=$(cat "$STATE_FILE" 2>/dev/null || echo "0")
 
+# Load Slack bot token from config if not set
+if [ -z "$SLACK_BOT_TOKEN" ]; then
+    SLACK_BOT_TOKEN=$(cat ~/.openclaw/openclaw.json 2>/dev/null | jq -r '.channels.slack.botToken' 2>/dev/null || echo "")
+fi
+
 # Query Slack for new messages (requires SLACK_BOT_TOKEN env var)
 if [ -z "$SLACK_BOT_TOKEN" ]; then
+    echo "[slack_mention_checker] SLACK_BOT_TOKEN not found" >> /tmp/slack_mention_checker.log
     exit 1
 fi
 
@@ -67,12 +73,8 @@ for MSG in $MESSAGES; do
                 2>/dev/null || echo "[slack_mention_checker] Failed to route mention" >> /tmp/slack_mention_checker.log
         fi
         
-        # Also react with eyes emoji to acknowledge we saw it
-        curl -s -X POST https://slack.com/api/reactions.add \
-            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"channel\": \"$CHANNEL_ID\", \"timestamp\": \"$TS\", \"emoji\": \"eyes\"}" \
-            2>/dev/null || true
+        # Log that we processed this mention
+        echo "[slack_mention_checker] Processed mention at $TS from user $USER" >> /tmp/slack_mention_checker.log
     fi
 done
 
