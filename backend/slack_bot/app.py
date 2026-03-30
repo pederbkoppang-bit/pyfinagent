@@ -95,24 +95,29 @@ def _install_signal_handlers(loop: asyncio.AbstractEventLoop) -> None:
 async def _run_with_reconnect(app: AsyncApp) -> None:
     """Connect to Slack Socket Mode with automatic reconnection on failure.
 
-    The inner ``handler.start_async()`` sleeps forever while the SDK
-    maintains the WebSocket.  If the connection drops in a way the SDK
-    cannot recover from (e.g. token rotation, prolonged network outage)
-    the call raises and we retry with exponential backoff.
+    The SDK's built-in auto-reconnect handles transient WebSocket drops.
+    This outer loop catches cases the SDK cannot recover from (e.g. token
+    rotation, prolonged outage) and retries with exponential backoff.
+
+    ``attempt`` resets after every successful connection so the retry
+    limit applies per connection cycle, not globally.
     """
     settings = get_settings()
     max_retries = settings.slack_reconnect_max_retries  # 0 = infinite
     attempt = 0
     backoff = _INITIAL_BACKOFF_S
 
+    # How often (seconds) to check if the WebSocket is still alive.
+    _HEALTH_CHECK_INTERVAL = 30
+
     while True:
         attempt += 1
         handler: AsyncSocketModeHandler | None = None
         try:
+            # Lower ping_interval = faster detection of stale connections
             handler = AsyncSocketModeHandler(
                 app,
                 settings.slack_app_token,
-                # Lower ping_interval -> faster detection of stale connections
             )
             # The underlying SocketModeClient exposes ping_interval; set it
             # via the client attribute that the handler wraps.
@@ -127,19 +132,44 @@ async def _run_with_reconnect(app: AsyncApp) -> None:
             await handler.connect_async()
             logger.info("Socket Mode connected successfully")
 
-            # Reset backoff on successful connection
+            # Reset backoff/attempt on successful connection (per-cycle limit)
             backoff = _INITIAL_BACKOFF_S
             attempt = 0
 
-            # Wait until either the handler closes or a shutdown signal arrives
-            if _shutdown_event is not None:
-                await _shutdown_event.wait()
-                logger.info("Shutdown event received -- closing Socket Mode handler")
-                await handler.close_async()
-                return
-            else:
-                # No signal handler (Windows fallback) -- sleep forever
-                await asyncio.sleep(float("inf"))
+            # Periodically verify the connection is alive.  If the SDK's
+            # internal reconnect fails silently, we detect it here and
+            # trigger the outer reconnection loop.
+            while True:
+                if _shutdown_event is not None and _shutdown_event.is_set():
+                    logger.info("Shutdown event received -- closing Socket Mode handler")
+                    await handler.close_async()
+                    return
+
+                # Check the underlying client connection state
+                client = getattr(handler, "client", None)
+                if client is not None and hasattr(client, "is_connected"):
+                    connected = await client.is_connected()
+                    if not connected:
+                        logger.warning(
+                            "Socket Mode health check: connection lost -- triggering reconnect"
+                        )
+                        break  # falls through to the reconnection path
+
+                # Interruptible sleep for the health check interval
+                if _shutdown_event is not None:
+                    try:
+                        await asyncio.wait_for(
+                            _shutdown_event.wait(),
+                            timeout=_HEALTH_CHECK_INTERVAL,
+                        )
+                        # shutdown_event was set during sleep
+                        logger.info("Shutdown event received -- closing Socket Mode handler")
+                        await handler.close_async()
+                        return
+                    except asyncio.TimeoutError:
+                        pass
+                else:
+                    await asyncio.sleep(_HEALTH_CHECK_INTERVAL)
 
         except asyncio.CancelledError:
             logger.info("Socket Mode task cancelled -- shutting down")
@@ -155,28 +185,29 @@ async def _run_with_reconnect(app: AsyncApp) -> None:
                 "Socket Mode connection lost (attempt %d)", attempt
             )
 
-            if 0 < max_retries <= attempt:
-                logger.error(
-                    "Reached max reconnect attempts (%d) -- giving up",
-                    max_retries,
+        # Check retry limit (attempt was already incremented at loop top)
+        if 0 < max_retries < attempt:
+            logger.error(
+                "Reached max reconnect attempts (%d) -- giving up",
+                max_retries,
+            )
+            return
+
+        logger.info("Reconnecting in %ds...", backoff)
+        # Interruptible sleep so shutdown signals are honoured during backoff
+        if _shutdown_event is not None:
+            try:
+                await asyncio.wait_for(
+                    _shutdown_event.wait(), timeout=backoff
                 )
+                logger.info("Shutdown during backoff -- exiting")
                 return
+            except asyncio.TimeoutError:
+                pass
+        else:
+            await asyncio.sleep(backoff)
 
-            logger.info("Reconnecting in %ds...", backoff)
-            # Interruptible sleep so shutdown signals are honoured
-            if _shutdown_event is not None:
-                try:
-                    await asyncio.wait_for(
-                        _shutdown_event.wait(), timeout=backoff
-                    )
-                    logger.info("Shutdown during backoff -- exiting")
-                    return
-                except asyncio.TimeoutError:
-                    pass
-            else:
-                await asyncio.sleep(backoff)
-
-            backoff = min(backoff * 2, _MAX_BACKOFF_S)
+        backoff = min(backoff * 2, _MAX_BACKOFF_S)
 
 
 async def main():
