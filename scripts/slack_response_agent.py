@@ -91,18 +91,39 @@ def main():
             response = f"✅ Acknowledged at {datetime.now().strftime('%H:%M:%S')}"
             say(text=response, thread_ts=ts)
     
-    # Start Socket Mode handler
+    # Start Socket Mode handler with auto-reconnect
     logger.info("Starting Socket Mode listener...")
     handler = SocketModeHandler(app, app_token)
     
-    try:
-        handler.start()
-    except KeyboardInterrupt:
-        logger.info("Shutting down gracefully...")
-        handler.close()
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        exit(1)
+    reconnect_count = 0
+    max_reconnects = 10
+    
+    while reconnect_count < max_reconnects:
+        try:
+            handler.start()
+        except KeyboardInterrupt:
+            logger.info("Shutting down gracefully...")
+            handler.close()
+            exit(0)
+        except ConnectionResetError as e:
+            reconnect_count += 1
+            logger.error(f"Connection reset. Reconnecting... ({reconnect_count}/{max_reconnects})")
+            logger.error(f"Details: {e}")
+            import time
+            time.sleep(min(2 ** reconnect_count, 60))  # Exponential backoff
+            handler = SocketModeHandler(app, app_token)
+        except BrokenPipeError as e:
+            reconnect_count += 1
+            logger.error(f"Broken pipe. Reconnecting... ({reconnect_count}/{max_reconnects})")
+            logger.error(f"Details: {e}")
+            import time
+            time.sleep(min(2 ** reconnect_count, 60))  # Exponential backoff
+            handler = SocketModeHandler(app, app_token)
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            exit(1)
+    
+    logger.error(f"Failed to reconnect after {max_reconnects} attempts")
 
 if __name__ == "__main__":
     main()
