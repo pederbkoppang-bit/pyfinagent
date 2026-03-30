@@ -121,6 +121,21 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logging.warning(f"Failed to start paper trading scheduler: {e}")
 
+    # Start Slack monitor (Phase 2.11: responsive Slack connection)
+    try:
+        from backend.slack_monitor import init_slack_monitor
+        from slack_sdk import WebClient
+        import os
+        slack_token = os.getenv("SLACK_BOT_TOKEN")
+        if slack_token:
+            slack_client = WebClient(token=slack_token)
+            await init_slack_monitor(slack_client)
+            logging.info("Slack monitor started (Phase 2.11)")
+        else:
+            logging.warning("SLACK_BOT_TOKEN not set, Slack monitor disabled")
+    except Exception as e:
+        logging.warning(f"Failed to start Slack monitor: {e}")
+
     yield
     logging.info("PyFinAgent backend shutting down")
 
