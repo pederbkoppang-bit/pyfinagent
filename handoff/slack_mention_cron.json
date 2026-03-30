@@ -1,0 +1,11 @@
+{
+  "id": "slack-mention-checker",
+  "name": "Slack Mention Checker",
+  "description": "Phase 2.11: Check #ford-approvals for Ford mentions every 2 minutes",
+  "schedule": "*/2 * * * *",
+  "command": "bash ~/.openclaw/workspace/pyfinagent/scripts/slack_mention_checker.sh",
+  "timeout_seconds": 30,
+  "environment": {
+    "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}"
+  }
+}
