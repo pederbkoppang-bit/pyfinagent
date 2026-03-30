@@ -1485,3 +1485,103 @@ From the article: "Every component in a harness encodes an assumption about what
 *This plan follows the Anthropic harness design pattern: Planner → Generator → Evaluator.*
 *"The space of interesting harness combinations doesn't shrink as models improve. Instead, it moves."*
 *Last updated: 2026-03-29 11:31 by Ford — Phase 2.8 seed final running, Phase 2.9 ready, Phase 2.10 queued*
+
+---
+
+## Phase 2.11: Slack Responsiveness & Active Monitoring (CRITICAL INFRASTRUCTURE)
+### ⚠️ NEW PHASE — HIGH PRIORITY (Peder request 2026-03-30 08:12)
+
+> **Goal**: Ensure Ford stays **actively responsive on Slack** #ford-approvals with frequent status updates, question answering, and real-time decision support. Current gap: Ford works offline, replies only at heartbeat intervals (30min).
+
+### ⛔ RESEARCH GATE — MANDATORY
+
+**Deep research on:**
+1. **OpenClaw Session Stability** — How to keep main Slack session always active?
+2. **Background Job Patterns** — Best practices for continuous monitoring in Python/Node
+3. **Gateway Heartbeat Architecture** — How to keep gateway alive 24/7 without compaction?
+4. **Slack Bot Response Patterns** — Industry best practices for responsive bots (Slack, Discord)
+5. **Context Window Management** — How to prevent session bloat from constant messages?
+
+**Research sources needed:**
+- OpenClaw documentation (sessions, compaction, memory)
+- Slack API best practices (socket mode, RTM, responding to events)
+- Python async frameworks (asyncio for background monitoring)
+- Industry examples (how other trading bots stay responsive)
+
+### Hypothesis
+
+By adding **persistent background monitoring** (cron job or async loop) that:
+1. Polls Slack #ford-approvals for new messages every 2-3 minutes
+2. Routes unhandled questions to Ford's main session for immediate reply
+3. Posts realtime status updates (harness progress, service health, blockers)
+4. Maintains session context across multiple rapid interactions
+
+**Result:** Ford appears "always online" with <5 min response time to questions.
+
+### Success Criteria
+
+**Primary (MUST HAVE):**
+- [ ] Response time to Slack mentions: <5 minutes (vs. current 30min heartbeat)
+- [ ] Slack message processing: Ford reads and replies to ALL questions in #ford-approvals
+- [ ] Service health updates: Posted realtime when services down/up (not just heartbeat)
+- [ ] No session interruptions: Slack session persists across gateway restarts (already true ✅)
+
+**Secondary (NICE TO HAVE):**
+- [ ] Threaded replies: Ford responds in-thread for clarity
+- [ ] Reaction acknowledgments: ✅ emoji when reading, 🔄 when working
+- [ ] Status indicators: 🟢 online, 🟡 busy, 🔴 blocked in Slack status
+- [ ] DM support: Ford can also receive direct messages (currently channel-only)
+
+### Fail Conditions
+1. Session crashes or compacts during active monitoring
+2. Slack token expires without rotation
+3. Response time >10 minutes on average
+4. Message queue backs up >5 messages without processing
+
+### Implementation Plan
+
+**Step 1: RESEARCH GATE (2-3 hours)**
+- Read OpenClaw session + compaction docs
+- Study Slack socket mode architecture
+- Review async monitoring patterns in Python
+- Document findings in RESEARCH.md
+
+**Step 2: PLAN (1 hour)**
+- Write handoff/contract.md with success criteria
+- Design monitoring loop architecture
+- Specify Slack event handling patterns
+- Define rate limiting + error recovery
+
+**Step 3: GENERATE (3-4 hours)**
+- Build background monitoring cron/loop (every 2-3 min)
+- Integrate Slack event listener
+- Create message routing logic (to main Ford session)
+- Add status update posting
+
+**Step 4: EVALUATE (1-2 hours)**
+- Test response times with manual Slack pings
+- Verify session doesn't crash
+- Check for message queue backups
+- Validate against success criteria
+
+**Step 5: DECIDE & LOG**
+- PASS: Deploy immediately
+- FAIL: Revert and diagnose
+- Commit + update HEARTBEAT.md
+
+### Timeline
+- **Total**: ~8-12 hours
+- **Execution window**: Parallel with Phase 3 MCP work (Ford can multitask)
+- **Priority**: CRITICAL — blocking Phase 3 effectiveness
+
+### Budget Impact
+- **Cost**: $0 (just orchestration, no external APIs)
+- **Complexity**: Medium (background job + event handling)
+- **Risk**: Low (doesn't affect main backtest engine)
+
+### Notes
+- This is **infrastructure**, not science. Must be bulletproof.
+- Session should feel like "Ford is always there" even when doing heavy compute
+- Phase 3 LLM agents depend on this being responsive (evaluator needs quick feedback)
+
+---
