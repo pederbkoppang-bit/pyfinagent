@@ -131,6 +131,9 @@ class Settings(BaseSettings):
     slack_app_token: str = Field("", description="Slack App-Level Token for Socket Mode (xapp-...)")
     slack_channel_id: str = Field("", description="Slack channel ID for proactive alerts and digests")
     morning_digest_hour: int = Field(8, description="Hour (0-23) for daily morning digest in local timezone")
+    slack_ping_interval: int = Field(10, description="Socket Mode WebSocket ping interval in seconds (lower = faster disconnect detection)")
+    slack_reconnect_max_retries: int = Field(0, description="Max consecutive reconnection attempts before giving up (0 = infinite)")
+    slack_backend_url: str = Field("http://localhost:8000", description="Backend URL for Slack bot internal API calls")
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
