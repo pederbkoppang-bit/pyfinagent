@@ -16,14 +16,16 @@ from backend.slack_bot.formatters import format_analysis_result, format_portfoli
 
 logger = logging.getLogger(__name__)
 
-# Backend base URL (internal Docker network or localhost)
-_BACKEND_URL = "http://localhost:8000"
-
 # Ford approval channel
 _APPROVAL_CHANNEL = "C0ANTGNNK8D"
 
 # Project root
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
+def _get_backend_url() -> str:
+    """Return the backend base URL from settings (works for both Docker and local/OpenClaw)."""
+    return get_settings().slack_backend_url
 
 
 def _read_status() -> str:
@@ -70,7 +72,7 @@ def _read_status() -> str:
     # Backtest status
     try:
         import urllib.request, json
-        req = urllib.request.Request(f"{_BACKEND_URL}/api/backtest/status")
+        req = urllib.request.Request(f"{_get_backend_url()}/api/backtest/status")
         resp = json.loads(urllib.request.urlopen(req, timeout=5).read())
         if resp.get("status") == "running":
             p = resp.get("progress", {})
@@ -101,14 +103,14 @@ def register_commands(app: AsyncApp):
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Start analysis
-                start_res = await client.post(f"{_BACKEND_URL}/api/analysis/", json={"ticker": ticker})
+                start_res = await client.post(f"{_get_backend_url()}/api/analysis/", json={"ticker": ticker})
                 start_res.raise_for_status()
                 analysis_id = start_res.json()["analysis_id"]
 
                 # Poll until complete (max 10 minutes)
                 for _ in range(120):
                     await asyncio.sleep(5)
-                    status_res = await client.get(f"{_BACKEND_URL}/api/analysis/{analysis_id}")
+                    status_res = await client.get(f"{_get_backend_url()}/api/analysis/{analysis_id}")
                     status_res.raise_for_status()
                     data = status_res.json()
 
@@ -133,7 +135,7 @@ def register_commands(app: AsyncApp):
 
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
-                res = await client.get(f"{_BACKEND_URL}/api/portfolio/performance")
+                res = await client.get(f"{_get_backend_url()}/api/portfolio/performance")
                 res.raise_for_status()
                 data = res.json()
                 blocks = format_portfolio_summary(data)
@@ -154,7 +156,7 @@ def register_commands(app: AsyncApp):
 
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
-                res = await client.get(f"{_BACKEND_URL}/api/reports/{ticker}")
+                res = await client.get(f"{_get_backend_url()}/api/reports/{ticker}")
                 res.raise_for_status()
                 data = res.json()
                 blocks = format_report_card(data, ticker)

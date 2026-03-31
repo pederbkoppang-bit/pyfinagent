@@ -5,6 +5,25 @@ For architecture details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
+### v5.14.1 — Slack Bot Connection Stability (March 2026)
+
+**Stable Slack Socket Mode for local/OpenClaw environments.**
+
+1. **Reconnection loop with exponential backoff** — `app.py` wraps the Socket Mode handler in an outer retry loop (2s → 120s backoff). Survives transient network failures and token rotation without manual restart.
+2. **Graceful signal handling** — SIGTERM/SIGINT triggers clean WebSocket close before exit, preventing orphaned connections that block reconnection.
+3. **Retry handlers on Slack web client** — `AsyncConnectionErrorRetryHandler` (connection resets) and rate-limit retry (HTTP 429) attached to the Bolt app client.
+4. **Configurable ping interval** — New `SLACK_PING_INTERVAL` setting (default 10s). Lower values detect stale connections faster on local networks.
+5. **Configurable backend URL** — New `SLACK_BACKEND_URL` setting (default `http://localhost:8000`). Fixes scheduler using Docker-only `http://backend:8000` which fails in local/OpenClaw setups.
+6. **Reconnection limit** — New `SLACK_RECONNECT_MAX_RETRIES` setting (default 0 = infinite) for environments that prefer bounded retries.
+
+Files changed:
+- `backend/slack_bot/app.py` — Reconnection loop, signal handlers, retry handlers, ping interval
+- `backend/slack_bot/scheduler.py` — Configurable backend URL via settings
+- `backend/slack_bot/commands.py` — Configurable backend URL via settings
+- `backend/config/settings.py` — `slack_ping_interval`, `slack_reconnect_max_retries`, `slack_backend_url`
+
+---
+
 ### v5.14.0 — Paper Trading Activation & Budget Intelligence (March 2026)
 
 **Paper trading is live. Budget dashboard connected to real billing data. GCP costs slashed 97%.**

@@ -15,8 +15,12 @@ from backend.slack_bot.formatters import format_morning_digest
 
 logger = logging.getLogger(__name__)
 
-_BACKEND_URL = "http://backend:8000"
 _scheduler: AsyncIOScheduler | None = None
+
+
+def _get_backend_url() -> str:
+    """Return the backend base URL from settings (works for both Docker and local/OpenClaw)."""
+    return get_settings().slack_backend_url
 
 
 def start_scheduler(app: AsyncApp):
@@ -50,13 +54,14 @@ async def _send_morning_digest(app: AsyncApp):
     settings = get_settings()
 
     try:
+        backend_url = _get_backend_url()
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Portfolio performance
-            portfolio_res = await client.get(f"{_BACKEND_URL}/api/portfolio/performance")
+            portfolio_res = await client.get(f"{backend_url}/api/portfolio/performance")
             portfolio_data = portfolio_res.json() if portfolio_res.status_code == 200 else {}
 
             # Recent reports
-            reports_res = await client.get(f"{_BACKEND_URL}/api/reports/?limit=5")
+            reports_res = await client.get(f"{backend_url}/api/reports/?limit=5")
             reports_data = reports_res.json() if reports_res.status_code == 200 else []
 
         blocks = format_morning_digest(portfolio_data, reports_data)
