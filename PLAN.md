@@ -1585,3 +1585,68 @@ By adding **persistent background monitoring** (cron job or async loop) that:
 - Phase 3 LLM agents depend on this being responsive (evaluator needs quick feedback)
 
 ---
+
+## Phase 2.12: Harness Optimization (Token Efficiency & Memory Reliability) — 🔄 IN PROGRESS
+
+**Start Date:** 2026-04-01 00:15 GMT+2
+**Approval:** Peder B. Koppang ✅
+**Status:** RESEARCH phase underway
+
+### Problem Statement
+
+Current multi-agent system experiencing:
+1. **Excessive token consumption** — Every heartbeat pollutes session context; session bloom forces frequent resets
+2. **Unreliable long-term memory** — Knowledge gained in one phase not accessible in next; no persistent learning
+3. **Daily context gaps** — HEARTBEAT.md updates are manual; PLAN.md doesn't capture operational insights
+4. **Over-allocation** — Spawning agents for simple tasks wastes resources
+
+### Hypothesis
+
+By implementing:
+1. **Resource Scaling Heuristics** — Calibrate subagent spawning based on query complexity
+2. **Context Engineering** — Prefix stability + just-in-time pruning to keep windows lean
+3. **Hierarchical Memory Systems** — Episodic (raw logs) + abstracted knowledge (stable facts)
+4. **Daily Context Management** — Cascading compression + observation masking for session continuity
+
+**Result:** Token efficiency 2-3x better, long-term memory reliable, daily context automatically managed.
+
+### Phase 1: RESEARCH (CURRENT)
+
+**Conducting deep research on:**
+- Resource Scaling Heuristics (preventing over-allocation)
+- Context Engineering (prefix stability, just-in-time pruning)
+- Hierarchical Memory Systems (episodic vs abstracted)
+- Daily Context Management (cascading compression, observation masking)
+
+**Research agent:** Sonnet 4.6 (session: 12679dc2-e45e-49c0-8b84-ecc178c75115)
+**Output:** RESEARCH_HARNESS_OPTIMIZATION.md
+**ETA:** 2-3 hours
+
+### Phase 2: IMPLEMENTATION
+
+**Based on research findings:**
+- Update claude-progress.txt persistence layer
+- Multi-session state handoff mechanism
+- Revised system prompts (Orchestrator, Researcher) with efficiency rules
+- Verification layer (task completion grounded in testing)
+
+**Timeline:** 4-6 hours post-research
+
+### Success Criteria
+
+- [ ] Token consumption reduced by 2x on same-scale workload
+- [ ] Long-term memory reliably accessible across agent sessions
+- [ ] Daily context automatically aggregated (no manual HEARTBEAT updates)
+- [ ] Subagent spawn logic based on query complexity (not default)
+- [ ] Session context window stays <70% capacity during normal operations
+
+### Integration with Master Plan
+
+**Positioning:** Optimize harness BEFORE Phase 3.0 scaling
+- Phase 2.12 runs in parallel with Slack Agent Audit (Phase 2.11B)
+- Results incorporated into Phase 3.0 MCP launch
+- Harness becomes more efficient before handling research agents + MCP tools
+
+**Dependency:** None (pure infrastructure optimization, doesn't block other work)
+
+---
