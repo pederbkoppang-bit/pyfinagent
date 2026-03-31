@@ -1,0 +1,36 @@
+INFO:     Started server process [93206]
+INFO:     Waiting for application startup.
+[36m08:02:12 I [main][0m PyFinAgent backend starting (project=sunny-might-477607-p8)
+[36m08:02:12 I [base][0m Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[36m08:02:12 I [paper_trading][0m Paper trading scheduler active: daily at 10:00 ET
+[36m08:02:12 I [base][0m Added job "_scheduled_run" to job store "default"
+[36m08:02:12 I [base][0m Scheduler started
+[36m08:02:12 I [main][0m Paper trading scheduler started
+[33m08:02:12 W [main][0m SLACK_BOT_TOKEN not set, Slack monitor disabled
+[36m08:02:12 I [on][0m Application startup complete.
+[36m08:02:12 I [server][0m Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[36m08:02:16 I [httptools_impl][0m 127.0.0.1:56200 - "GET /docs HTTP/1.1" 200
+[36m08:02:41 I [httptools_impl][0m 127.0.0.1:56206 - "GET /health HTTP/1.1" 404
+[36m08:18:04 I [httptools_impl][0m 127.0.0.1:56218 - "GET /docs HTTP/1.1" 200
+[36m08:18:30 I [httptools_impl][0m 127.0.0.1:56227 - "GET /health HTTP/1.1" 404
+[36m08:26:42 I [httptools_impl][0m 127.0.0.1:56240 - "GET /docs HTTP/1.1" 200
+[36m08:42:48 I [httptools_impl][0m 127.0.0.1:56251 - "GET /docs HTTP/1.1" 200
+[36m08:43:18 I [httptools_impl][0m 127.0.0.1:56258 - "GET /health HTTP/1.1" 404
+[36m08:47:47 I [httptools_impl][0m 127.0.0.1:56264 - "GET /docs HTTP/1.1" 200
+[36m08:48:37 I [httptools_impl][0m 127.0.0.1:56281 - "GET /health HTTP/1.1" 404
+[36m09:03:06 I [httptools_impl][0m 127.0.0.1:56297 - "GET /docs HTTP/1.1" 200
+[36m09:20:09 I [httptools_impl][0m 127.0.0.1:56376 - "GET /docs HTTP/1.1" 200
+[36m09:37:37 I [httptools_impl][0m 127.0.0.1:56386 - "GET /docs HTTP/1.1" 200
+[36m09:55:21 I [httptools_impl][0m 127.0.0.1:56409 - "GET /docs HTTP/1.1" 200
+[33m10:03:59 W [base][0m Run time of job "_scheduled_run (trigger: cron[day_of_week='mon-fri', hour='10', minute='0'], next run at: 2026-04-01 10:00:00 CEST)" was missed by 0:03:59.961179
+[36m10:04:05 I [httptools_impl][0m 127.0.0.1:56419 - "GET /docs HTTP/1.1" 200
+[36m10:20:40 I [httptools_impl][0m 127.0.0.1:56433 - "GET /docs HTTP/1.1" 200
+[36m10:27:11 I [httptools_impl][0m 127.0.0.1:56448 - "GET /docs HTTP/1.1" 200
+[36m10:28:46 I [httptools_impl][0m 127.0.0.1:56459 - "GET /health HTTP/1.1" 404
+[36m10:29:02 I [httptools_impl][0m 127.0.0.1:56466 - "GET /health HTTP/1.1" 404
+[36m10:45:19 I [httptools_impl][0m 127.0.0.1:56477 - "GET /docs HTTP/1.1" 200
+[36m10:45:49 I [httptools_impl][0m 127.0.0.1:56486 - "GET /health HTTP/1.1" 404
+[36m11:05:04 I [httptools_impl][0m 127.0.0.1:56505 - "GET /docs HTTP/1.1" 200
+[36m11:05:30 I [httptools_impl][0m 127.0.0.1:56514 - "GET /health HTTP/1.1" 404
+[36m11:05:44 I [httptools_impl][0m 127.0.0.1:56525 - "GET /health HTTP/1.1" 404
+[36m11:23:49 I [httptools_impl][0m 127.0.0.1:56544 - "GET /docs HTTP/1.1" 200
