@@ -34,3 +34,4 @@ INFO:     Waiting for application startup.
 [36m11:05:30 I [httptools_impl][0m 127.0.0.1:56514 - "GET /health HTTP/1.1" 404
 [36m11:05:44 I [httptools_impl][0m 127.0.0.1:56525 - "GET /health HTTP/1.1" 404
 [36m11:23:49 I [httptools_impl][0m 127.0.0.1:56544 - "GET /docs HTTP/1.1" 200
+[36m11:39:53 I [httptools_impl][0m 127.0.0.1:56562 - "GET /docs HTTP/1.1" 200

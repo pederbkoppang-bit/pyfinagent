@@ -66,26 +66,26 @@ def detect_question_type(message: str) -> str:
     """
     analytical_keywords = [
         "why", "should", "explain", "analyze", "trade-off", "decision",
-        "regression", "sharpe", "recommendation", "suggest", "improve",
+        "regression", "sharpe", "recommendation", "recommend", "suggest", "improve",
         "compare", "better", "worse", "review", "feedback", "thoughts"
     ]
     
     research_keywords = [
-        "research", "paper", "literature", "novel", "approach", "evidence",
+        "research", "paper", "literature", "evidence",
         "experiment", "hypothesis", "theory", "mechanism", "solution",
-        "study", "implementation", "baseline", "benchmark", "findings",
+        "study", "baseline", "benchmark", "findings",
         "investigate", "explore", "discover"
     ]
     
     msg_lower = message.lower()
     
-    # Check research first (more specific)
-    if any(kw in msg_lower for kw in research_keywords):
-        return "research"
-    
-    # Check analytical
+    # Check analytical first (more general, should match before research)
     if any(kw in msg_lower for kw in analytical_keywords):
         return "analytical"
+    
+    # Check research (more specific)
+    if any(kw in msg_lower for kw in research_keywords):
+        return "research"
     
     # Default to operational
     return "operational"
