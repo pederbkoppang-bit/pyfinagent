@@ -280,6 +280,29 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                 
                 logger.info(f"✅ Ticket #{ticket_number} resolved by {agent_type}: "
                            f"{response_text[:80]}...")
+                
+                # Step 5: Deliver response to user via Slack or iMessage
+                try:
+                    from backend.services.response_delivery import ResponseDelivery
+                    delivery = ResponseDelivery()
+                    
+                    delivery_success = delivery.send_response(
+                        ticket_id=ticket_id,
+                        response_text=response_text,
+                        source=ticket.get('source', 'slack'),
+                        channel_id=ticket.get('channel_id'),
+                        slack_thread_id=ticket.get('slack_thread_id')
+                    )
+                    
+                    if delivery_success:
+                        logger.info(f"✅ Response delivered for ticket #{ticket_number} to {ticket.get('source', 'slack')}")
+                    else:
+                        logger.warning(f"⚠️ Failed to deliver response for ticket #{ticket_number}")
+                        
+                except Exception as e:
+                    logger.error(f"Failed to deliver response for ticket #{ticket_number}: {e}")
+                    # Don't fail the ticket — response is stored, just not delivered yet
+                
                 return True
             else:
                 # Mark as failed with error
