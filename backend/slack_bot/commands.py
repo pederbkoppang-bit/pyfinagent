@@ -170,22 +170,30 @@ def register_commands(app: AsyncApp):
 
     # ── Channel message handlers ─────────────────────────────────
 
-    @app.message("status")
-    async def handle_status(message, say):
-        """Reply with current plan status when someone types 'status'."""
+    @app.message("")  # Catch all messages
+    async def handle_any_message(message, say, logger):
+        """Respond to any message in #ford-approvals."""
         channel = message.get("channel", "")
         if channel != _APPROVAL_CHANNEL:
             return
         # Don't respond to bot messages
         if message.get("bot_id"):
             return
-        logger.info("Status request received in #ford-approvals")
-        try:
-            status_text = _read_status()
-            await say(f"📊 *PyFinAgent Status*\n\n{status_text}")
-        except Exception as e:
-            logger.exception("Error generating status")
-            await say(f":x: Error generating status: {str(e)[:200]}")
+        
+        text = message.get("text", "").strip().lower()
+        logger.info(f"Message received in #ford-approvals: {text[:100]}")
+        
+        # Route based on content
+        if "status" in text:
+            try:
+                status_text = _read_status()
+                await say(f"📊 *PyFinAgent Status*\n\n{status_text}")
+            except Exception as e:
+                logger.exception("Error generating status")
+                await say(f":x: Error generating status: {str(e)[:200]}")
+        else:
+            # Generic acknowledgment for any message
+            await say(f"✅ Message received and logged. Timestamp: {message.get('ts')}")
 
     @app.event("reaction_added")
     async def handle_reaction(event, say):
