@@ -121,9 +121,9 @@ Please provide a helpful response. This will be sent back to the user via {ticke
     
     def _spawn_real_agent(self, agent_id: str, task: str, ticket_id: int, ticket_number: str) -> str:
         """
-        Spawn a real agent by calling Claude (Anthropic) via llm_client.
+        Spawn a real agent by calling Claude (Anthropic) directly.
         
-        Uses the existing llm_client infrastructure to invoke Claude agents,
+        Uses the Anthropic SDK to invoke Claude agents,
         matching the rest of the agentic architecture.
         
         Args:
@@ -138,11 +138,14 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         Raises:
             Exception: If LLM call fails
         """
-        from backend.agents.llm_client import make_client
+        import anthropic
+        from backend.config.settings import get_settings
         
         logger.debug(f"Invoking agent {agent_id} for ticket #{ticket_number}: {task[:100]}")
         
         try:
+            settings = get_settings()
+            
             # Select model based on agent type
             agent_model_map = {
                 "main": "claude-opus-4-6",           # Fast operational reasoning
@@ -152,8 +155,8 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             
             model_name = agent_model_map.get(agent_id, "claude-opus-4-6")
             
-            # Use existing llm_client to get Claude client
-            client = make_client(model_name)
+            # Create Anthropic client
+            client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
             
             # Build system prompt based on agent type
             system_prompts = {
@@ -167,7 +170,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             
             system = system_prompts.get(agent_id, "You are a helpful assistant.")
             
-            # Call Claude via llm_client (supports multiple providers)
+            # Call Claude directly via Anthropic SDK
             response = client.messages.create(
                 model=model_name,
                 max_tokens=1000,
