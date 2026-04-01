@@ -1,0 +1,192 @@
+2026-04-01 09:33:18,653 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-01 09:33:18,654 INFO apscheduler.scheduler: Added job "_send_morning_digest" to job store "default"
+2026-04-01 09:33:18,654 INFO apscheduler.scheduler: Scheduler started
+2026-04-01 09:33:18,654 INFO backend.slack_bot.scheduler: Scheduler started: morning digest at 8:00
+2026-04-01 09:33:18,654 INFO __main__: Slack bot starting in Socket Mode...
+2026-04-01 09:33:19,367 INFO slack_bolt.AsyncApp: A new session (s_279301608) has been established
+2026-04-01 09:33:19,367 INFO slack_bolt.AsyncApp: ⚡️ Bolt app is running!
+2026-04-01 09:35:28,929 INFO slack_bolt.AsyncApp: The session (s_279301608) seems to be stale. Reconnecting... reason: disconnected for 109+ seconds)
+2026-04-01 09:35:29,147 INFO slack_bolt.AsyncApp: The old session (s_279301608) has been abandoned
+2026-04-01 09:35:29,408 INFO slack_bolt.AsyncApp: A new session (s_279298753) has been established
+2026-04-01 09:39:19,699 INFO slack_bolt.AsyncApp: The session (s_279298753) seems to be stale. Reconnecting... reason: disconnected for 190+ seconds)
+2026-04-01 09:39:19,915 INFO slack_bolt.AsyncApp: The old session (s_279298753) has been abandoned
+2026-04-01 09:39:20,217 INFO slack_bolt.AsyncApp: A new session (s_279298653) has been established
+2026-04-01 09:39:45,823 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> continue with evaluation of the slack audit!
+2026-04-01 09:40:39,888 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> continue with evaluation of the slack audit!
+2026-04-01 09:40:51,611 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> continue with evaluation of the slack audit!
+2026-04-01 09:56:33,639 INFO slack_bolt.AsyncApp: The session (s_279298653) seems to be stale. Reconnecting... reason: disconnected for 915+ seconds)
+2026-04-01 09:56:34,365 INFO slack_bolt.AsyncApp: The old session (s_279298653) has been abandoned
+2026-04-01 09:56:34,654 INFO slack_bolt.AsyncApp: A new session (s_279242417) has been established
+2026-04-01 10:04:04,365 INFO slack_bolt.AsyncApp: The session (s_279242417) seems to be stale. Reconnecting... reason: disconnected for 409+ seconds)
+2026-04-01 10:04:04,578 INFO slack_bolt.AsyncApp: The old session (s_279242417) has been abandoned
+2026-04-01 10:04:04,867 INFO slack_bolt.AsyncApp: A new session (s_279242493) has been established
+2026-04-01 10:18:09,319 INFO slack_bolt.AsyncApp: The session (s_279242493) seems to be stale. Reconnecting... reason: disconnected for 804+ seconds)
+2026-04-01 10:18:09,538 INFO slack_bolt.AsyncApp: The old session (s_279242493) has been abandoned
+2026-04-01 10:18:09,795 INFO slack_bolt.AsyncApp: A new session (s_279225135) has been established
+2026-04-01 10:18:17,048 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 10:18:17,048 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 10:18:20,987 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 10:18:20,987 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 10:18:27,910 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> 30 minutes past. have is it going?
+2026-04-01 10:21:35,641 INFO slack_bolt.AsyncApp: The session (s_279225135) seems to be stale. Reconnecting... reason: disconnected for 165+ seconds)
+2026-04-01 10:21:35,857 INFO slack_bolt.AsyncApp: The old session (s_279225135) has been abandoned
+2026-04-01 10:21:36,120 INFO slack_bolt.AsyncApp: A new session (s_279320683) has been established
+2026-04-01 10:24:28,026 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 10:24:28,026 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 10:25:26,212 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0a13kxg4ts> how is this going ? are you done yet?
+2026-04-01 10:37:38,861 INFO slack_bolt.AsyncApp: The session (s_279320683) seems to be stale. Reconnecting... reason: disconnected for 732+ seconds)
+2026-04-01 10:37:39,075 INFO slack_bolt.AsyncApp: The old session (s_279320683) has been abandoned
+2026-04-01 10:37:39,341 INFO slack_bolt.AsyncApp: A new session (s_279320581) has been established
+2026-04-01 10:42:00,540 INFO slack_bolt.AsyncApp: The session (s_279320581) seems to be stale. Reconnecting... reason: disconnected for 221+ seconds)
+2026-04-01 10:42:00,771 INFO slack_bolt.AsyncApp: The old session (s_279320581) has been abandoned
+2026-04-01 10:42:01,089 INFO slack_bolt.AsyncApp: A new session (s_279320649) has been established
+2026-04-01 10:42:22,571 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate ?
+2026-04-01 10:43:49,979 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate ?
+2026-04-01 10:43:53,605 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate ?
+2026-04-01 10:46:53,423 INFO slack_bolt.AsyncApp: The session (s_279320649) seems to be already closed. Reconnecting...
+2026-04-01 10:46:53,423 INFO slack_bolt.AsyncApp: The session (s_279320649) seems to be stale. Reconnecting... reason: disconnected for 156+ seconds)
+2026-04-01 10:46:53,640 INFO slack_bolt.AsyncApp: The old session (s_279320649) has been abandoned
+2026-04-01 10:46:53,901 INFO slack_bolt.AsyncApp: A new session (s_279320615) has been established
+2026-04-01 10:48:41,564 INFO slack_bolt.AsyncApp: The session (s_279320615) seems to be stale. Reconnecting... reason: disconnected for 77+ seconds)
+2026-04-01 10:48:41,775 INFO slack_bolt.AsyncApp: The old session (s_279320615) has been abandoned
+2026-04-01 10:48:42,152 INFO slack_bolt.AsyncApp: A new session (s_279320581) has been established
+2026-04-01 10:48:43,132 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> status
+2026-04-01 10:49:09,879 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> pyfinagent proceed fixing the findings from evaluation. isn't it the q&amp;a to evalu
+2026-04-01 10:50:39,559 INFO slack_bolt.AsyncApp: The session (s_279320581) seems to be stale. Reconnecting... reason: disconnected for 77+ seconds)
+2026-04-01 10:50:39,775 INFO slack_bolt.AsyncApp: The old session (s_279320581) has been abandoned
+2026-04-01 10:50:40,090 INFO slack_bolt.AsyncApp: A new session (s_279320632) has been established
+2026-04-01 10:50:55,799 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate ?
+2026-04-01 10:52:36,654 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> pyfinagent proceed fixing the findings from evaluation. isn't it the q&amp;a to evalu
+2026-04-01 10:52:36,693 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> pyfinagent proceed fixing the findings from evaluation. isn't it the q&amp;a to evalu
+2026-04-01 10:52:39,738 INFO slack_bolt.AsyncApp: The session (s_279320632) seems to be already closed. Reconnecting...
+2026-04-01 10:52:39,738 INFO slack_bolt.AsyncApp: The session (s_279320632) seems to be stale. Reconnecting... reason: disconnected for 79+ seconds)
+2026-04-01 10:52:39,952 INFO slack_bolt.AsyncApp: The old session (s_279320632) has been abandoned
+2026-04-01 10:52:40,268 INFO slack_bolt.AsyncApp: A new session (s_279320802) has been established
+2026-04-01 10:52:55,527 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> status! proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate
+2026-04-01 10:53:15,720 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> <@b0anuu5ttfy> pyfinagent proceed fixing the findings from evaluation. isn't it the q
+2026-04-01 11:04:24,870 INFO slack_bolt.AsyncApp: The session (s_279320802) seems to be already closed. Reconnecting...
+2026-04-01 11:04:24,870 INFO slack_bolt.AsyncApp: The session (s_279320802) seems to be stale. Reconnecting... reason: disconnected for 664+ seconds)
+2026-04-01 11:04:25,079 INFO slack_bolt.AsyncApp: The old session (s_279320802) has been abandoned
+2026-04-01 11:04:25,334 INFO slack_bolt.AsyncApp: A new session (s_279320853) has been established
+2026-04-01 11:06:06,650 INFO slack_bolt.AsyncApp: The session (s_279320853) seems to be stale. Reconnecting... reason: disconnected for 71+ seconds)
+2026-04-01 11:06:07,451 INFO slack_bolt.AsyncApp: The old session (s_279320853) has been abandoned
+2026-04-01 11:06:07,780 INFO slack_bolt.AsyncApp: A new session (s_279320836) has been established
+2026-04-01 11:22:30,675 INFO slack_bolt.AsyncApp: The session (s_279320836) seems to be stale. Reconnecting... reason: disconnected for 942+ seconds)
+2026-04-01 11:22:30,898 INFO slack_bolt.AsyncApp: The old session (s_279320836) has been abandoned
+2026-04-01 11:22:31,185 INFO slack_bolt.AsyncApp: A new session (s_279320870) has been established
+2026-04-01 11:29:08,997 INFO slack_bolt.AsyncApp: The session (s_279320870) seems to be stale. Reconnecting... reason: disconnected for 357+ seconds)
+2026-04-01 11:29:09,208 INFO slack_bolt.AsyncApp: The old session (s_279320870) has been abandoned
+2026-04-01 11:29:09,472 INFO slack_bolt.AsyncApp: A new session (s_279320751) has been established
+2026-04-01 11:29:47,926 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0a13kxg4ts> status
+2026-04-01 11:33:09,167 INFO slack_bolt.AsyncApp: The session (s_279320751) seems to be stale. Reconnecting... reason: disconnected for 199+ seconds)
+2026-04-01 11:33:09,388 INFO slack_bolt.AsyncApp: The old session (s_279320751) has been abandoned
+2026-04-01 11:33:09,693 INFO slack_bolt.AsyncApp: A new session (s_279320768) has been established
+2026-04-01 11:39:20,648 INFO slack_bolt.AsyncApp: The session (s_279320768) seems to be already closed. Reconnecting...
+2026-04-01 11:39:20,648 INFO slack_bolt.AsyncApp: The session (s_279320768) seems to be stale. Reconnecting... reason: disconnected for 340+ seconds)
+2026-04-01 11:39:20,875 INFO slack_bolt.AsyncApp: The old session (s_279320768) has been abandoned
+2026-04-01 11:39:21,136 INFO slack_bolt.AsyncApp: A new session (s_279320921) has been established
+2026-04-01 11:40:03,573 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> give me an update on this underneath 
+
+:warning: *slack agent audit evaluate — condit
+2026-04-01 11:40:05,597 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 11:40:05,597 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 11:42:00,535 INFO slack_bolt.AsyncApp: The session (s_279320921) seems to be stale. Reconnecting... reason: disconnected for 89+ seconds)
+2026-04-01 11:42:00,755 INFO slack_bolt.AsyncApp: The old session (s_279320921) has been abandoned
+2026-04-01 11:42:01,026 INFO slack_bolt.AsyncApp: A new session (s_279320955) has been established
+2026-04-01 11:46:44,318 INFO slack_bolt.AsyncApp: The session (s_279320955) seems to be stale. Reconnecting... reason: disconnected for 243+ seconds)
+2026-04-01 11:46:44,545 INFO slack_bolt.AsyncApp: The old session (s_279320955) has been abandoned
+2026-04-01 11:46:44,808 INFO slack_bolt.AsyncApp: A new session (s_279320785) has been established
+2026-04-01 11:47:02,821 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 11:47:02,821 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 12:03:39,502 INFO slack_bolt.AsyncApp: The session (s_279320785) seems to be stale. Reconnecting... reason: disconnected for 984+ seconds)
+2026-04-01 12:03:39,706 INFO slack_bolt.AsyncApp: The old session (s_279320785) has been abandoned
+2026-04-01 12:03:40,001 INFO slack_bolt.AsyncApp: A new session (s_279321006) has been established
+2026-04-01 12:10:40,526 INFO slack_bolt.AsyncApp: The session (s_279321006) seems to be stale. Reconnecting... reason: disconnected for 380+ seconds)
+2026-04-01 12:10:40,739 INFO slack_bolt.AsyncApp: The old session (s_279321006) has been abandoned
+2026-04-01 12:10:41,041 INFO slack_bolt.AsyncApp: A new session (s_279320938) has been established
+2026-04-01 12:10:50,092 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 12:10:50,092 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 12:10:50,423 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> what's the verdict? and why do i need to hunt you for updates
+2026-04-01 12:14:14,105 INFO slack_bolt.AsyncApp: The session (s_279320938) seems to be stale. Reconnecting... reason: disconnected for 173+ seconds)
+2026-04-01 12:14:14,323 INFO slack_bolt.AsyncApp: The old session (s_279320938) has been abandoned
+2026-04-01 12:14:14,995 INFO slack_bolt.AsyncApp: A new session (s_279321074) has been established
+2026-04-01 12:17:39,469 INFO slack_bolt.AsyncApp: The session (s_279321074) seems to be stale. Reconnecting... reason: disconnected for 164+ seconds)
+2026-04-01 12:17:39,684 INFO slack_bolt.AsyncApp: The old session (s_279321074) has been abandoned
+2026-04-01 12:17:39,957 INFO slack_bolt.AsyncApp: A new session (s_279320938) has been established
+2026-04-01 12:17:51,063 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 12:17:51,064 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 12:17:54,872 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 12:17:54,873 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 12:21:32,898 INFO slack_bolt.AsyncApp: The session (s_279320938) seems to be stale. Reconnecting... reason: disconnected for 202+ seconds)
+2026-04-01 12:21:33,520 INFO slack_bolt.AsyncApp: The old session (s_279320938) has been abandoned
+2026-04-01 12:21:33,814 INFO slack_bolt.AsyncApp: A new session (s_279321091) has been established
+2026-04-01 12:21:36,850 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> fix the bugs found and investigate why you are not replaying back to my text. it feel
+2026-04-01 12:21:38,292 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 12:21:38,292 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 12:22:01,620 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> <@b0anuu5ttfy> fix the bugs found and investigate why you are not replaying back to m
+2026-04-01 12:23:07,275 INFO slack_bolt.AsyncApp: The session (s_279321091) seems to be stale. Reconnecting... reason: disconnected for 53+ seconds)
+2026-04-01 12:23:07,692 INFO slack_bolt.AsyncApp: The old session (s_279321091) has been abandoned
+2026-04-01 12:23:08,236 INFO slack_bolt.AsyncApp: A new session (s_279213023) has been established
