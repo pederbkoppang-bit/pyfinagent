@@ -138,7 +138,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         Raises:
             Exception: If LLM call fails
         """
-        from backend.llm_client import make_client
+        from backend.agents.llm_client import make_client
         
         logger.debug(f"Invoking agent {agent_id} for ticket #{ticket_number}: {task[:100]}")
         
