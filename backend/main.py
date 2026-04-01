@@ -2,6 +2,7 @@
 PyFinAgent Backend — FastAPI application entry point.
 """
 
+import asyncio
 import io
 import logging
 import json
@@ -136,8 +137,44 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.warning(f"Failed to start Slack monitor: {e}")
 
-    yield
-    logging.info("PyFinAgent backend shutting down")
+    # Start ticket queue processor (Phase 3.2.1: Agent coordination)
+    # Use APScheduler to run processor in background
+    processor_job = None
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from backend.services.ticket_queue_processor import get_queue_processor
+        import asyncio as aio_lib
+        
+        # Create a separate async scheduler just for the queue processor
+        queue_scheduler = AsyncIOScheduler()
+        
+        async def process_batch():
+            """Process one batch of tickets."""
+            processor = get_queue_processor()
+            try:
+                await processor.process_queue_batch(batch_size=10)
+            except Exception as e:
+                logging.warning(f"Queue processor batch error: {e}")
+        
+        # Schedule batch processing every 5 seconds
+        processor_job = queue_scheduler.add_job(process_batch, 'interval', seconds=5)
+        queue_scheduler.start()
+        logging.info("Ticket queue processor started (Phase 3.2.1)")
+    except Exception as e:
+        logging.warning(f"Failed to start ticket queue processor: {e}")
+
+    try:
+        yield
+    finally:
+        # Shutdown
+        logging.info("PyFinAgent backend shutting down")
+        
+        # Stop queue processor scheduler if it was started
+        try:
+            if 'queue_scheduler' in locals():
+                queue_scheduler.shutdown(wait=False)
+        except Exception:
+            pass
 
 
 app = FastAPI(

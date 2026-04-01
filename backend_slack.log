@@ -1,29 +1,69 @@
-2026-04-01 09:33:18,653 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-04-01 09:33:18,654 INFO apscheduler.scheduler: Added job "_send_morning_digest" to job store "default"
-2026-04-01 09:33:18,654 INFO apscheduler.scheduler: Scheduler started
-2026-04-01 09:33:18,654 INFO backend.slack_bot.scheduler: Scheduler started: morning digest at 8:00
-2026-04-01 09:33:18,654 INFO __main__: Slack bot starting in Socket Mode...
-2026-04-01 09:33:19,367 INFO slack_bolt.AsyncApp: A new session (s_279301608) has been established
-2026-04-01 09:33:19,367 INFO slack_bolt.AsyncApp: ⚡️ Bolt app is running!
-2026-04-01 09:35:28,929 INFO slack_bolt.AsyncApp: The session (s_279301608) seems to be stale. Reconnecting... reason: disconnected for 109+ seconds)
-2026-04-01 09:35:29,147 INFO slack_bolt.AsyncApp: The old session (s_279301608) has been abandoned
-2026-04-01 09:35:29,408 INFO slack_bolt.AsyncApp: A new session (s_279298753) has been established
-2026-04-01 09:39:19,699 INFO slack_bolt.AsyncApp: The session (s_279298753) seems to be stale. Reconnecting... reason: disconnected for 190+ seconds)
-2026-04-01 09:39:19,915 INFO slack_bolt.AsyncApp: The old session (s_279298753) has been abandoned
-2026-04-01 09:39:20,217 INFO slack_bolt.AsyncApp: A new session (s_279298653) has been established
-2026-04-01 09:39:45,823 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> continue with evaluation of the slack audit!
-2026-04-01 09:40:39,888 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> continue with evaluation of the slack audit!
-2026-04-01 09:40:51,611 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> continue with evaluation of the slack audit!
-2026-04-01 09:56:33,639 INFO slack_bolt.AsyncApp: The session (s_279298653) seems to be stale. Reconnecting... reason: disconnected for 915+ seconds)
-2026-04-01 09:56:34,365 INFO slack_bolt.AsyncApp: The old session (s_279298653) has been abandoned
-2026-04-01 09:56:34,654 INFO slack_bolt.AsyncApp: A new session (s_279242417) has been established
-2026-04-01 10:04:04,365 INFO slack_bolt.AsyncApp: The session (s_279242417) seems to be stale. Reconnecting... reason: disconnected for 409+ seconds)
-2026-04-01 10:04:04,578 INFO slack_bolt.AsyncApp: The old session (s_279242417) has been abandoned
-2026-04-01 10:04:04,867 INFO slack_bolt.AsyncApp: A new session (s_279242493) has been established
-2026-04-01 10:18:09,319 INFO slack_bolt.AsyncApp: The session (s_279242493) seems to be stale. Reconnecting... reason: disconnected for 804+ seconds)
-2026-04-01 10:18:09,538 INFO slack_bolt.AsyncApp: The old session (s_279242493) has been abandoned
-2026-04-01 10:18:09,795 INFO slack_bolt.AsyncApp: A new session (s_279225135) has been established
-2026-04-01 10:18:17,048 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+2026-04-01 12:30:37,500 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-01 12:30:37,500 INFO apscheduler.scheduler: Added job "_send_morning_digest" to job store "default"
+2026-04-01 12:30:37,500 INFO apscheduler.scheduler: Scheduler started
+2026-04-01 12:30:37,500 INFO backend.slack_bot.scheduler: Scheduler started: morning digest at 8:00
+2026-04-01 12:30:37,500 INFO __main__: 🎫 Ticket queue processor started as background task
+2026-04-01 12:30:37,500 INFO __main__: 🔍 SLA monitor started as background task
+2026-04-01 12:30:37,500 INFO __main__: Slack bot starting in Socket Mode...
+2026-04-01 12:30:37,501 INFO backend.db.tickets_db: Tickets database initialized at /Users/ford/.openclaw/workspace/pyfinagent/tickets.db
+2026-04-01 12:30:37,501 INFO backend.services.ticket_queue_processor: 🚀 Ticket queue processor started
+2026-04-01 12:30:37,501 INFO backend.services.sla_monitor: 🔍 SLA monitoring started
+2026-04-01 12:30:38,031 INFO slack_bolt.AsyncApp: A new session (s_279216784) has been established
+2026-04-01 12:30:38,031 INFO slack_bolt.AsyncApp: ⚡️ Bolt app is running!
+2026-04-01 12:31:23,633 INFO slack_bolt.AsyncApp: The session (s_279216784) seems to be stale. Reconnecting... reason: disconnected for 45+ seconds)
+2026-04-01 12:31:23,877 INFO slack_bolt.AsyncApp: The old session (s_279216784) has been abandoned
+2026-04-01 12:31:24,183 INFO slack_bolt.AsyncApp: A new session (s_279164869) has been established
+2026-04-01 12:33:51,499 INFO slack_bolt.AsyncApp: The session (s_279164869) seems to be stale. Reconnecting... reason: disconnected for 107+ seconds)
+2026-04-01 12:33:51,711 INFO slack_bolt.AsyncApp: The old session (s_279164869) has been abandoned
+2026-04-01 12:33:52,016 INFO slack_bolt.AsyncApp: A new session (s_279164609) has been established
+2026-04-01 12:34:18,441 INFO app.py:handle_any_message: Message received in #ford-approvals: <@U0A0CTMGF5J> 
+
+Push to GitHub
+2026-04-01 12:34:18,445 INFO backend.db.tickets_db: Created ticket #5012 (ID 12) from slack: <@U0A0CTMGF5J> 
+
+Push to GitHub 
+2026-04-01 12:34:18,446 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5012 [P1/operational]: <@U0A0CTMGF5J> 
+
+Push to GitHub 
+2026-04-01 12:34:18,448 INFO app.py:handle_any_message: Ticket #12 created and acknowledged
+2026-04-01 12:34:20,473 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 12:34:20,473 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5012 [operational/P1]
+2026-04-01 12:34:20,475 INFO backend.db.tickets_db: Updated ticket 12 status to ASSIGNED
+2026-04-01 12:34:20,477 INFO backend.db.tickets_db: Updated ticket 12 status to IN_PROGRESS
+2026-04-01 12:34:20,614 INFO backend.db.tickets_db: Updated ticket 12 status to RESOLVED
+2026-04-01 12:34:20,614 INFO backend.services.ticket_queue_processor: ✅ Ticket #5012 resolved by MAIN: 🔧 Operational response from MAIN agent for ticket #5012. Request processed succe...
+2026-04-01 12:34:20,614 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 12:36:30,762 INFO slack_bolt.AsyncApp: The session (s_279164609) seems to be stale. Reconnecting... reason: disconnected for 118+ seconds)
+2026-04-01 12:36:30,980 INFO slack_bolt.AsyncApp: The old session (s_279164609) has been abandoned
+2026-04-01 12:36:31,277 INFO slack_bolt.AsyncApp: A new session (s_279150561) has been established
+2026-04-01 12:37:04,415 INFO app.py:handle_any_message: Message received in #ford-approvals: <@B0A13KXG4TS> which messaging system triggered this action slack or iMessage?
+2026-04-01 12:37:04,418 INFO backend.db.tickets_db: Created ticket #5013 (ID 13) from slack: <@B0A13KXG4TS> which messaging system triggered th
+2026-04-01 12:37:04,419 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5013 [P1/operational]: <@B0A13KXG4TS> which messaging system triggered th
+2026-04-01 12:37:04,421 INFO app.py:handle_any_message: Ticket #13 created and acknowledged
+2026-04-01 12:37:06,899 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 12:37:06,900 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5013 [operational/P1]
+2026-04-01 12:37:06,902 INFO backend.db.tickets_db: Updated ticket 13 status to ASSIGNED
+2026-04-01 12:37:06,903 INFO backend.db.tickets_db: Updated ticket 13 status to IN_PROGRESS
+2026-04-01 12:37:07,128 INFO backend.db.tickets_db: Updated ticket 13 status to RESOLVED
+2026-04-01 12:37:07,128 INFO backend.services.ticket_queue_processor: ✅ Ticket #5013 resolved by MAIN: 🔧 Operational response from MAIN agent for ticket #5013. Request processed succe...
+2026-04-01 12:37:07,128 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 12:38:09,213 INFO slack_bolt.AsyncApp: The session (s_279150561) seems to be stale. Reconnecting... reason: disconnected for 57+ seconds)
+2026-04-01 12:38:09,495 ERROR slack_bolt.AsyncApp: Failed to retrieve WSS URL: The request to the Slack API failed. (url: https://slack.com/api/apps.connections.open, status: 200)
+The server responded with: {'ok': False, 'error': 'internal_error'}
+2026-04-01 12:38:09,496 ERROR slack_bolt.AsyncApp: Failed to check the current session (s_279150561) or reconnect to the server (error: SlackApiError, message: The request to the Slack API failed. (url: https://slack.com/api/apps.connections.open, status: 200)
+The server responded with: {'ok': False, 'error': 'internal_error'})
+2026-04-01 12:38:19,494 INFO slack_bolt.AsyncApp: The session (s_279150561) seems to be already closed. Reconnecting...
+2026-04-01 12:38:19,716 INFO slack_bolt.AsyncApp: The old session (s_279150561) has been abandoned
+2026-04-01 12:38:20,224 INFO slack_bolt.AsyncApp: A new session (s_279249925) has been established
+2026-04-01 12:39:27,223 INFO slack_bolt.AsyncApp: The session (s_279249925) seems to be already closed. Reconnecting...
+2026-04-01 12:39:27,224 INFO slack_bolt.AsyncApp: The session (s_279249925) seems to be stale. Reconnecting... reason: disconnected for 46+ seconds)
+2026-04-01 12:39:27,447 INFO slack_bolt.AsyncApp: The old session (s_279249925) has been abandoned
+2026-04-01 12:39:27,748 INFO slack_bolt.AsyncApp: A new session (s_279239919) has been established
+2026-04-01 12:39:57,998 INFO app.py:handle_any_message: Message received in #ford-approvals: <@B0A13KXG4TS> which messaging system triggered this action slack or iMessage?
+2026-04-01 12:39:58,003 INFO backend.db.tickets_db: Created ticket #5014 (ID 14) from slack: <@B0A13KXG4TS> which messaging system triggered th
+2026-04-01 12:39:58,004 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5014 [P1/operational]: <@B0A13KXG4TS> which messaging system triggered th
+2026-04-01 12:39:58,006 INFO app.py:handle_any_message: Ticket #14 created and acknowledged
+2026-04-01 12:39:58,414 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
 ---
 [Suggestion] You can handle this type of event with the following listener function:
 
@@ -31,8 +71,50 @@
 async def handle_message_events(body, logger):
     logger.info(body)
 
-2026-04-01 10:18:17,048 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
-2026-04-01 10:18:20,987 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+2026-04-01 12:39:58,414 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 12:39:59,614 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 12:39:59,615 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5014 [operational/P1]
+2026-04-01 12:39:59,617 INFO backend.db.tickets_db: Updated ticket 14 status to ASSIGNED
+2026-04-01 12:39:59,618 INFO backend.db.tickets_db: Updated ticket 14 status to IN_PROGRESS
+2026-04-01 12:39:59,829 INFO backend.db.tickets_db: Updated ticket 14 status to RESOLVED
+2026-04-01 12:39:59,829 INFO backend.services.ticket_queue_processor: ✅ Ticket #5014 resolved by MAIN: 🔧 Operational response from MAIN agent for ticket #5014. Request processed succe...
+2026-04-01 12:39:59,829 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 12:43:03,867 INFO slack_bolt.AsyncApp: The session (s_279239919) seems to be stale. Reconnecting... reason: disconnected for 136+ seconds)
+2026-04-01 12:43:04,085 INFO slack_bolt.AsyncApp: The old session (s_279239919) has been abandoned
+2026-04-01 12:43:04,387 INFO slack_bolt.AsyncApp: A new session (s_279220365) has been established
+2026-04-01 12:45:21,713 INFO slack_bolt.AsyncApp: The session (s_279220365) seems to be stale. Reconnecting... reason: disconnected for 49+ seconds)
+2026-04-01 12:45:21,924 INFO slack_bolt.AsyncApp: The old session (s_279220365) has been abandoned
+2026-04-01 12:45:22,228 INFO slack_bolt.AsyncApp: A new session (s_279220348) has been established
+2026-04-01 12:47:15,526 INFO slack_bolt.AsyncApp: The session (s_279220348) seems to be stale. Reconnecting... reason: disconnected for 73+ seconds)
+2026-04-01 12:47:15,735 INFO slack_bolt.AsyncApp: The old session (s_279220348) has been abandoned
+2026-04-01 12:47:16,104 INFO slack_bolt.AsyncApp: A new session (s_279220314) has been established
+2026-04-01 12:47:37,234 INFO app.py:handle_any_message: Message received in #ford-approvals: <@B0APBSBA63T> Check all tickets you have stored so far how many of them have you answered and close
+2026-04-01 12:47:37,236 INFO backend.db.tickets_db: Created ticket #5015 (ID 15) from slack: <@B0APBSBA63T> Check all tickets you have stored s
+2026-04-01 12:47:37,236 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5015 [P0/analytical]: <@B0APBSBA63T> Check all tickets you have stored s
+2026-04-01 12:47:37,237 INFO app.py:handle_any_message: Ticket #15 created and acknowledged
+2026-04-01 12:47:39,188 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 12:47:39,188 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5015 [analytical/P0]
+2026-04-01 12:47:39,189 INFO backend.db.tickets_db: Updated ticket 15 status to ASSIGNED
+2026-04-01 12:47:39,190 INFO backend.db.tickets_db: Updated ticket 15 status to IN_PROGRESS
+2026-04-01 12:47:39,437 INFO backend.db.tickets_db: Updated ticket 15 status to RESOLVED
+2026-04-01 12:47:39,437 INFO backend.services.ticket_queue_processor: ✅ Ticket #5015 resolved by Q&A: 🧠 Analysis from Q&A: Based on recent market data and our models, the primary dri...
+2026-04-01 12:47:39,437 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 12:56:20,907 INFO slack_bolt.AsyncApp: The session (s_279220314) seems to be stale. Reconnecting... reason: disconnected for 504+ seconds)
+2026-04-01 12:56:21,127 INFO slack_bolt.AsyncApp: The old session (s_279220314) has been abandoned
+2026-04-01 12:56:21,388 INFO slack_bolt.AsyncApp: A new session (s_279220399) has been established
+2026-04-01 13:06:49,168 INFO slack_bolt.AsyncApp: The session (s_279220399) seems to be stale. Reconnecting... reason: disconnected for 587+ seconds)
+2026-04-01 13:06:49,400 INFO slack_bolt.AsyncApp: The old session (s_279220399) has been abandoned
+2026-04-01 13:06:49,662 INFO slack_bolt.AsyncApp: A new session (s_279107551) has been established
+2026-04-01 13:18:20,820 INFO slack_bolt.AsyncApp: The session (s_279107551) seems to be stale. Reconnecting... reason: disconnected for 661+ seconds)
+2026-04-01 13:18:21,028 INFO slack_bolt.AsyncApp: The old session (s_279107551) has been abandoned
+2026-04-01 13:18:21,336 INFO slack_bolt.AsyncApp: A new session (s_279220416) has been established
+2026-04-01 13:34:30,720 INFO slack_bolt.AsyncApp: The session (s_279220416) seems to be stale. Reconnecting... reason: disconnected for 929+ seconds)
+2026-04-01 13:34:30,936 INFO slack_bolt.AsyncApp: The old session (s_279220416) has been abandoned
+2026-04-01 13:34:31,258 INFO slack_bolt.AsyncApp: A new session (s_279220314) has been established
+2026-04-01 13:38:46,129 INFO slack_bolt.AsyncApp: The session (s_279220314) seems to be stale. Reconnecting... reason: disconnected for 214+ seconds)
+2026-04-01 13:38:46,344 INFO slack_bolt.AsyncApp: The old session (s_279220314) has been abandoned
+2026-04-01 13:38:46,602 INFO slack_bolt.AsyncApp: A new session (s_279220297) has been established
+2026-04-01 13:40:00,727 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
 ---
 [Suggestion] You can handle this type of event with the following listener function:
 
@@ -40,12 +122,52 @@ async def handle_message_events(body, logger):
 async def handle_message_events(body, logger):
     logger.info(body)
 
-2026-04-01 10:18:20,987 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
-2026-04-01 10:18:27,910 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> 30 minutes past. have is it going?
-2026-04-01 10:21:35,641 INFO slack_bolt.AsyncApp: The session (s_279225135) seems to be stale. Reconnecting... reason: disconnected for 165+ seconds)
-2026-04-01 10:21:35,857 INFO slack_bolt.AsyncApp: The old session (s_279225135) has been abandoned
-2026-04-01 10:21:36,120 INFO slack_bolt.AsyncApp: A new session (s_279320683) has been established
-2026-04-01 10:24:28,026 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+2026-04-01 13:40:00,728 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 13:40:00,729 INFO app.py:handle_any_message: Message received in #ford-approvals: <@B0ANUU5TTFY> status
+2026-04-01 13:40:00,733 INFO backend.db.tickets_db: Created ticket #5016 (ID 16) from slack: <@B0ANUU5TTFY> status
+2026-04-01 13:40:00,733 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5016 [P1/operational]: <@B0ANUU5TTFY> status
+2026-04-01 13:40:00,735 INFO app.py:handle_any_message: Ticket #16 created and acknowledged
+2026-04-01 13:40:03,025 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 13:40:03,026 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5016 [operational/P1]
+2026-04-01 13:40:03,028 INFO backend.db.tickets_db: Updated ticket 16 status to ASSIGNED
+2026-04-01 13:40:03,030 INFO backend.db.tickets_db: Updated ticket 16 status to IN_PROGRESS
+2026-04-01 13:40:03,242 INFO backend.db.tickets_db: Updated ticket 16 status to RESOLVED
+2026-04-01 13:40:03,242 INFO backend.services.ticket_queue_processor: ✅ Ticket #5016 resolved by MAIN: ✅ Services Status:
+• Backend (port 8000): Running
+• Frontend (port 3000): Runnin...
+2026-04-01 13:40:03,242 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 13:40:04,294 INFO slack_bolt.AsyncApp: The session (s_279220297) seems to be already closed. Reconnecting...
+2026-04-01 13:40:04,514 INFO slack_bolt.AsyncApp: The old session (s_279220297) has been abandoned
+2026-04-01 13:40:04,832 INFO slack_bolt.AsyncApp: A new session (s_279220331) has been established
+2026-04-01 13:40:22,659 INFO app.py:handle_any_message: Message received in #ford-approvals: PyFinAgent Check all tickets you have stored so far how many of them have you answered and closed an
+2026-04-01 13:40:22,662 INFO backend.db.tickets_db: Created ticket #5017 (ID 17) from slack: PyFinAgent Check all tickets you have stored so fa
+2026-04-01 13:40:22,663 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5017 [P0/analytical]: PyFinAgent Check all tickets you have stored so fa
+2026-04-01 13:40:22,666 INFO app.py:handle_any_message: Ticket #17 created and acknowledged
+2026-04-01 13:40:25,764 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 13:40:25,764 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5017 [analytical/P0]
+2026-04-01 13:40:25,767 INFO backend.db.tickets_db: Updated ticket 17 status to ASSIGNED
+2026-04-01 13:40:25,768 INFO backend.db.tickets_db: Updated ticket 17 status to IN_PROGRESS
+2026-04-01 13:40:25,997 INFO backend.db.tickets_db: Updated ticket 17 status to RESOLVED
+2026-04-01 13:40:25,998 INFO backend.services.ticket_queue_processor: ✅ Ticket #5017 resolved by Q&A: 🧠 Analysis from Q&A: Based on recent market data and our models, the primary dri...
+2026-04-01 13:40:25,998 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 13:43:35,018 INFO slack_bolt.AsyncApp: The session (s_279220331) seems to be stale. Reconnecting... reason: disconnected for 160+ seconds)
+2026-04-01 13:43:35,225 INFO slack_bolt.AsyncApp: The old session (s_279220331) has been abandoned
+2026-04-01 13:43:35,548 INFO slack_bolt.AsyncApp: A new session (s_279107551) has been established
+2026-04-01 13:44:06,181 INFO app.py:handle_any_message: Message received in #ford-approvals: PyFinAgent Check all tickets you have stored so far how many of them have you answered and closed an
+2026-04-01 13:44:06,185 INFO backend.db.tickets_db: Created ticket #5018 (ID 18) from slack: PyFinAgent Check all tickets you have stored so fa
+2026-04-01 13:44:06,186 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5018 [P0/analytical]: PyFinAgent Check all tickets you have stored so fa
+2026-04-01 13:44:06,188 INFO app.py:handle_any_message: Ticket #18 created and acknowledged
+2026-04-01 13:44:08,724 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 13:44:08,725 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5018 [analytical/P0]
+2026-04-01 13:44:08,727 INFO backend.db.tickets_db: Updated ticket 18 status to ASSIGNED
+2026-04-01 13:44:08,729 INFO backend.db.tickets_db: Updated ticket 18 status to IN_PROGRESS
+2026-04-01 13:44:08,972 INFO backend.db.tickets_db: Updated ticket 18 status to RESOLVED
+2026-04-01 13:44:08,972 INFO backend.services.ticket_queue_processor: ✅ Ticket #5018 resolved by Q&A: 🧠 Analysis from Q&A: Based on recent market data and our models, the primary dri...
+2026-04-01 13:44:08,972 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 13:49:02,076 INFO slack_bolt.AsyncApp: The session (s_279107551) seems to be stale. Reconnecting... reason: disconnected for 286+ seconds)
+2026-04-01 13:49:02,287 INFO slack_bolt.AsyncApp: The old session (s_279107551) has been abandoned
+2026-04-01 13:49:02,543 INFO slack_bolt.AsyncApp: A new session (s_279220450) has been established
+2026-04-01 13:49:25,070 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
 ---
 [Suggestion] You can handle this type of event with the following listener function:
 
@@ -53,63 +175,14 @@ async def handle_message_events(body, logger):
 async def handle_message_events(body, logger):
     logger.info(body)
 
-2026-04-01 10:24:28,026 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
-2026-04-01 10:25:26,212 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0a13kxg4ts> how is this going ? are you done yet?
-2026-04-01 10:37:38,861 INFO slack_bolt.AsyncApp: The session (s_279320683) seems to be stale. Reconnecting... reason: disconnected for 732+ seconds)
-2026-04-01 10:37:39,075 INFO slack_bolt.AsyncApp: The old session (s_279320683) has been abandoned
-2026-04-01 10:37:39,341 INFO slack_bolt.AsyncApp: A new session (s_279320581) has been established
-2026-04-01 10:42:00,540 INFO slack_bolt.AsyncApp: The session (s_279320581) seems to be stale. Reconnecting... reason: disconnected for 221+ seconds)
-2026-04-01 10:42:00,771 INFO slack_bolt.AsyncApp: The old session (s_279320581) has been abandoned
-2026-04-01 10:42:01,089 INFO slack_bolt.AsyncApp: A new session (s_279320649) has been established
-2026-04-01 10:42:22,571 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate ?
-2026-04-01 10:43:49,979 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate ?
-2026-04-01 10:43:53,605 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate ?
-2026-04-01 10:46:53,423 INFO slack_bolt.AsyncApp: The session (s_279320649) seems to be already closed. Reconnecting...
-2026-04-01 10:46:53,423 INFO slack_bolt.AsyncApp: The session (s_279320649) seems to be stale. Reconnecting... reason: disconnected for 156+ seconds)
-2026-04-01 10:46:53,640 INFO slack_bolt.AsyncApp: The old session (s_279320649) has been abandoned
-2026-04-01 10:46:53,901 INFO slack_bolt.AsyncApp: A new session (s_279320615) has been established
-2026-04-01 10:48:41,564 INFO slack_bolt.AsyncApp: The session (s_279320615) seems to be stale. Reconnecting... reason: disconnected for 77+ seconds)
-2026-04-01 10:48:41,775 INFO slack_bolt.AsyncApp: The old session (s_279320615) has been abandoned
-2026-04-01 10:48:42,152 INFO slack_bolt.AsyncApp: A new session (s_279320581) has been established
-2026-04-01 10:48:43,132 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> status
-2026-04-01 10:49:09,879 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> pyfinagent proceed fixing the findings from evaluation. isn't it the q&amp;a to evalu
-2026-04-01 10:50:39,559 INFO slack_bolt.AsyncApp: The session (s_279320581) seems to be stale. Reconnecting... reason: disconnected for 77+ seconds)
-2026-04-01 10:50:39,775 INFO slack_bolt.AsyncApp: The old session (s_279320581) has been abandoned
-2026-04-01 10:50:40,090 INFO slack_bolt.AsyncApp: A new session (s_279320632) has been established
-2026-04-01 10:50:55,799 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate ?
-2026-04-01 10:52:36,654 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> pyfinagent proceed fixing the findings from evaluation. isn't it the q&amp;a to evalu
-2026-04-01 10:52:36,693 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> pyfinagent proceed fixing the findings from evaluation. isn't it the q&amp;a to evalu
-2026-04-01 10:52:39,738 INFO slack_bolt.AsyncApp: The session (s_279320632) seems to be already closed. Reconnecting...
-2026-04-01 10:52:39,738 INFO slack_bolt.AsyncApp: The session (s_279320632) seems to be stale. Reconnecting... reason: disconnected for 79+ seconds)
-2026-04-01 10:52:39,952 INFO slack_bolt.AsyncApp: The old session (s_279320632) has been abandoned
-2026-04-01 10:52:40,268 INFO slack_bolt.AsyncApp: A new session (s_279320802) has been established
-2026-04-01 10:52:55,527 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> status! proceed fixing the findings from evaluation. isn't it the q&amp;a to evaluate
-2026-04-01 10:53:15,720 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> <@b0anuu5ttfy> pyfinagent proceed fixing the findings from evaluation. isn't it the q
-2026-04-01 11:04:24,870 INFO slack_bolt.AsyncApp: The session (s_279320802) seems to be already closed. Reconnecting...
-2026-04-01 11:04:24,870 INFO slack_bolt.AsyncApp: The session (s_279320802) seems to be stale. Reconnecting... reason: disconnected for 664+ seconds)
-2026-04-01 11:04:25,079 INFO slack_bolt.AsyncApp: The old session (s_279320802) has been abandoned
-2026-04-01 11:04:25,334 INFO slack_bolt.AsyncApp: A new session (s_279320853) has been established
-2026-04-01 11:06:06,650 INFO slack_bolt.AsyncApp: The session (s_279320853) seems to be stale. Reconnecting... reason: disconnected for 71+ seconds)
-2026-04-01 11:06:07,451 INFO slack_bolt.AsyncApp: The old session (s_279320853) has been abandoned
-2026-04-01 11:06:07,780 INFO slack_bolt.AsyncApp: A new session (s_279320836) has been established
-2026-04-01 11:22:30,675 INFO slack_bolt.AsyncApp: The session (s_279320836) seems to be stale. Reconnecting... reason: disconnected for 942+ seconds)
-2026-04-01 11:22:30,898 INFO slack_bolt.AsyncApp: The old session (s_279320836) has been abandoned
-2026-04-01 11:22:31,185 INFO slack_bolt.AsyncApp: A new session (s_279320870) has been established
-2026-04-01 11:29:08,997 INFO slack_bolt.AsyncApp: The session (s_279320870) seems to be stale. Reconnecting... reason: disconnected for 357+ seconds)
-2026-04-01 11:29:09,208 INFO slack_bolt.AsyncApp: The old session (s_279320870) has been abandoned
-2026-04-01 11:29:09,472 INFO slack_bolt.AsyncApp: A new session (s_279320751) has been established
-2026-04-01 11:29:47,926 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0a13kxg4ts> status
-2026-04-01 11:33:09,167 INFO slack_bolt.AsyncApp: The session (s_279320751) seems to be stale. Reconnecting... reason: disconnected for 199+ seconds)
-2026-04-01 11:33:09,388 INFO slack_bolt.AsyncApp: The old session (s_279320751) has been abandoned
-2026-04-01 11:33:09,693 INFO slack_bolt.AsyncApp: A new session (s_279320768) has been established
-2026-04-01 11:39:20,648 INFO slack_bolt.AsyncApp: The session (s_279320768) seems to be already closed. Reconnecting...
-2026-04-01 11:39:20,648 INFO slack_bolt.AsyncApp: The session (s_279320768) seems to be stale. Reconnecting... reason: disconnected for 340+ seconds)
-2026-04-01 11:39:20,875 INFO slack_bolt.AsyncApp: The old session (s_279320768) has been abandoned
-2026-04-01 11:39:21,136 INFO slack_bolt.AsyncApp: A new session (s_279320921) has been established
-2026-04-01 11:40:03,573 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> give me an update on this underneath 
-
-:warning: *slack agent audit evaluate — condit
-2026-04-01 11:40:05,597 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+2026-04-01 13:49:25,071 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 13:53:45,643 INFO slack_bolt.AsyncApp: The session (s_279220450) seems to be stale. Reconnecting... reason: disconnected for 253+ seconds)
+2026-04-01 13:53:45,867 INFO slack_bolt.AsyncApp: The old session (s_279220450) has been abandoned
+2026-04-01 13:53:46,168 INFO slack_bolt.AsyncApp: A new session (s_279220416) has been established
+2026-04-01 13:56:54,664 INFO slack_bolt.AsyncApp: The session (s_279220416) seems to be stale. Reconnecting... reason: disconnected for 158+ seconds)
+2026-04-01 13:56:54,885 INFO slack_bolt.AsyncApp: The old session (s_279220416) has been abandoned
+2026-04-01 13:56:55,205 INFO slack_bolt.AsyncApp: A new session (s_279220450) has been established
+2026-04-01 13:57:23,516 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
 ---
 [Suggestion] You can handle this type of event with the following listener function:
 
@@ -117,14 +190,31 @@ async def handle_message_events(body, logger):
 async def handle_message_events(body, logger):
     logger.info(body)
 
-2026-04-01 11:40:05,597 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
-2026-04-01 11:42:00,535 INFO slack_bolt.AsyncApp: The session (s_279320921) seems to be stale. Reconnecting... reason: disconnected for 89+ seconds)
-2026-04-01 11:42:00,755 INFO slack_bolt.AsyncApp: The old session (s_279320921) has been abandoned
-2026-04-01 11:42:01,026 INFO slack_bolt.AsyncApp: A new session (s_279320955) has been established
-2026-04-01 11:46:44,318 INFO slack_bolt.AsyncApp: The session (s_279320955) seems to be stale. Reconnecting... reason: disconnected for 243+ seconds)
-2026-04-01 11:46:44,545 INFO slack_bolt.AsyncApp: The old session (s_279320955) has been abandoned
-2026-04-01 11:46:44,808 INFO slack_bolt.AsyncApp: A new session (s_279320785) has been established
-2026-04-01 11:47:02,821 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+2026-04-01 13:57:23,516 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 14:00:39,520 INFO slack_bolt.AsyncApp: The session (s_279220450) seems to be stale. Reconnecting... reason: disconnected for 184+ seconds)
+2026-04-01 14:00:39,758 INFO slack_bolt.AsyncApp: The old session (s_279220450) has been abandoned
+2026-04-01 14:00:40,067 INFO slack_bolt.AsyncApp: A new session (s_279220297) has been established
+2026-04-01 14:04:39,732 INFO slack_bolt.AsyncApp: The session (s_279220297) seems to be stale. Reconnecting... reason: disconnected for 199+ seconds)
+2026-04-01 14:04:39,948 INFO slack_bolt.AsyncApp: The old session (s_279220297) has been abandoned
+2026-04-01 14:04:40,218 INFO slack_bolt.AsyncApp: A new session (s_279220348) has been established
+2026-04-01 14:07:38,284 INFO slack_bolt.AsyncApp: The session (s_279220348) seems to be stale. Reconnecting... reason: disconnected for 138+ seconds)
+2026-04-01 14:07:38,509 INFO slack_bolt.AsyncApp: The old session (s_279220348) has been abandoned
+2026-04-01 14:07:38,980 INFO slack_bolt.AsyncApp: A new session (s_279107551) has been established
+2026-04-01 14:08:12,521 INFO app.py:handle_any_message: Message received in #ford-approvals: <@B0A13KXG4TS> yes fix it now as I have told you several times already!!!!
+2026-04-01 14:08:12,524 INFO backend.db.tickets_db: Created ticket #5019 (ID 19) from slack: <@B0A13KXG4TS> yes fix it now as I have told you s
+2026-04-01 14:08:12,525 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5019 [P1/operational]: <@B0A13KXG4TS> yes fix it now as I have told you s
+2026-04-01 14:08:12,527 INFO app.py:handle_any_message: Ticket #19 created and acknowledged
+2026-04-01 14:08:16,954 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 14:08:16,954 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5019 [operational/P1]
+2026-04-01 14:08:16,956 INFO backend.db.tickets_db: Updated ticket 19 status to ASSIGNED
+2026-04-01 14:08:16,958 INFO backend.db.tickets_db: Updated ticket 19 status to IN_PROGRESS
+2026-04-01 14:08:17,210 INFO backend.db.tickets_db: Updated ticket 19 status to RESOLVED
+2026-04-01 14:08:17,211 INFO backend.services.ticket_queue_processor: ✅ Ticket #5019 resolved by MAIN: 🔧 Operational response from MAIN agent for ticket #5019. Request processed succe...
+2026-04-01 14:08:17,211 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 14:10:55,447 INFO slack_bolt.AsyncApp: The session (s_279107551) seems to be stale. Reconnecting... reason: disconnected for 166+ seconds)
+2026-04-01 14:10:55,679 INFO slack_bolt.AsyncApp: The old session (s_279107551) has been abandoned
+2026-04-01 14:10:55,993 INFO slack_bolt.AsyncApp: A new session (s_279220501) has been established
+2026-04-01 14:10:56,914 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
 ---
 [Suggestion] You can handle this type of event with the following listener function:
 
@@ -132,14 +222,14 @@ async def handle_message_events(body, logger):
 async def handle_message_events(body, logger):
     logger.info(body)
 
-2026-04-01 11:47:02,821 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
-2026-04-01 12:03:39,502 INFO slack_bolt.AsyncApp: The session (s_279320785) seems to be stale. Reconnecting... reason: disconnected for 984+ seconds)
-2026-04-01 12:03:39,706 INFO slack_bolt.AsyncApp: The old session (s_279320785) has been abandoned
-2026-04-01 12:03:40,001 INFO slack_bolt.AsyncApp: A new session (s_279321006) has been established
-2026-04-01 12:10:40,526 INFO slack_bolt.AsyncApp: The session (s_279321006) seems to be stale. Reconnecting... reason: disconnected for 380+ seconds)
-2026-04-01 12:10:40,739 INFO slack_bolt.AsyncApp: The old session (s_279321006) has been abandoned
-2026-04-01 12:10:41,041 INFO slack_bolt.AsyncApp: A new session (s_279320938) has been established
-2026-04-01 12:10:50,092 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+2026-04-01 14:10:56,914 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 14:12:23,716 INFO slack_bolt.AsyncApp: The session (s_279220501) seems to be stale. Reconnecting... reason: disconnected for 47+ seconds)
+2026-04-01 14:12:23,931 INFO slack_bolt.AsyncApp: The old session (s_279220501) has been abandoned
+2026-04-01 14:12:24,225 INFO slack_bolt.AsyncApp: A new session (s_279107534) has been established
+2026-04-01 14:14:30,418 INFO slack_bolt.AsyncApp: The session (s_279107534) seems to be stale. Reconnecting... reason: disconnected for 86+ seconds)
+2026-04-01 14:14:30,634 INFO slack_bolt.AsyncApp: The old session (s_279107534) has been abandoned
+2026-04-01 14:14:30,935 INFO slack_bolt.AsyncApp: A new session (s_279220501) has been established
+2026-04-01 14:15:11,276 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
 ---
 [Suggestion] You can handle this type of event with the following listener function:
 
@@ -147,15 +237,11 @@ async def handle_message_events(body, logger):
 async def handle_message_events(body, logger):
     logger.info(body)
 
-2026-04-01 12:10:50,092 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
-2026-04-01 12:10:50,423 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b09v7t55k0x> what's the verdict? and why do i need to hunt you for updates
-2026-04-01 12:14:14,105 INFO slack_bolt.AsyncApp: The session (s_279320938) seems to be stale. Reconnecting... reason: disconnected for 173+ seconds)
-2026-04-01 12:14:14,323 INFO slack_bolt.AsyncApp: The old session (s_279320938) has been abandoned
-2026-04-01 12:14:14,995 INFO slack_bolt.AsyncApp: A new session (s_279321074) has been established
-2026-04-01 12:17:39,469 INFO slack_bolt.AsyncApp: The session (s_279321074) seems to be stale. Reconnecting... reason: disconnected for 164+ seconds)
-2026-04-01 12:17:39,684 INFO slack_bolt.AsyncApp: The old session (s_279321074) has been abandoned
-2026-04-01 12:17:39,957 INFO slack_bolt.AsyncApp: A new session (s_279320938) has been established
-2026-04-01 12:17:51,063 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+2026-04-01 14:15:11,276 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 14:18:46,368 INFO slack_bolt.AsyncApp: The session (s_279220501) seems to be stale. Reconnecting... reason: disconnected for 215+ seconds)
+2026-04-01 14:18:46,591 INFO slack_bolt.AsyncApp: The old session (s_279220501) has been abandoned
+2026-04-01 14:18:46,855 INFO slack_bolt.AsyncApp: A new session (s_279220450) has been established
+2026-04-01 14:19:20,358 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
 ---
 [Suggestion] You can handle this type of event with the following listener function:
 
@@ -163,8 +249,26 @@ async def handle_message_events(body, logger):
 async def handle_message_events(body, logger):
     logger.info(body)
 
-2026-04-01 12:17:51,064 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
-2026-04-01 12:17:54,872 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+2026-04-01 14:19:20,359 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 14:19:21,262 INFO app.py:handle_any_message: Message received in #ford-approvals: <@B0ANUU5TTFY> Go for option A it needs to be fixed
+2026-04-01 14:19:21,265 INFO backend.db.tickets_db: Created ticket #5020 (ID 20) from slack: <@B0ANUU5TTFY> Go for option A it needs to be fixe
+2026-04-01 14:19:21,266 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5020 [P1/operational]: <@B0ANUU5TTFY> Go for option A it needs to be fixe
+2026-04-01 14:19:21,269 INFO app.py:handle_any_message: Ticket #20 created and acknowledged
+2026-04-01 14:19:25,883 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 14:19:25,883 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5020 [operational/P1]
+2026-04-01 14:19:25,886 INFO backend.db.tickets_db: Updated ticket 20 status to ASSIGNED
+2026-04-01 14:19:25,887 INFO backend.db.tickets_db: Updated ticket 20 status to IN_PROGRESS
+2026-04-01 14:19:26,129 INFO backend.db.tickets_db: Updated ticket 20 status to RESOLVED
+2026-04-01 14:19:26,129 INFO backend.services.ticket_queue_processor: ✅ Ticket #5020 resolved by MAIN: 🔧 Operational response from MAIN agent for ticket #5020. Request processed succe...
+2026-04-01 14:19:26,129 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 14:28:08,487 INFO slack_bolt.AsyncApp: The session (s_279220450) seems to be already closed. Reconnecting...
+2026-04-01 14:28:08,488 INFO slack_bolt.AsyncApp: The session (s_279220450) seems to be stale. Reconnecting... reason: disconnected for 531+ seconds)
+2026-04-01 14:28:08,703 INFO slack_bolt.AsyncApp: The old session (s_279220450) has been abandoned
+2026-04-01 14:28:08,975 INFO slack_bolt.AsyncApp: A new session (s_279220501) has been established
+2026-04-01 14:31:16,017 INFO slack_bolt.AsyncApp: The session (s_279220501) seems to be stale. Reconnecting... reason: disconnected for 157+ seconds)
+2026-04-01 14:31:16,239 INFO slack_bolt.AsyncApp: The old session (s_279220501) has been abandoned
+2026-04-01 14:31:16,551 INFO slack_bolt.AsyncApp: A new session (s_279107534) has been established
+2026-04-01 14:32:00,926 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
 ---
 [Suggestion] You can handle this type of event with the following listener function:
 
@@ -172,12 +276,11 @@ async def handle_message_events(body, logger):
 async def handle_message_events(body, logger):
     logger.info(body)
 
-2026-04-01 12:17:54,873 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
-2026-04-01 12:21:32,898 INFO slack_bolt.AsyncApp: The session (s_279320938) seems to be stale. Reconnecting... reason: disconnected for 202+ seconds)
-2026-04-01 12:21:33,520 INFO slack_bolt.AsyncApp: The old session (s_279320938) has been abandoned
-2026-04-01 12:21:33,814 INFO slack_bolt.AsyncApp: A new session (s_279321091) has been established
-2026-04-01 12:21:36,850 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0anuu5ttfy> fix the bugs found and investigate why you are not replaying back to my text. it feel
-2026-04-01 12:21:38,292 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+2026-04-01 14:32:00,927 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 14:32:56,177 INFO slack_bolt.AsyncApp: The session (s_279107534) seems to be stale. Reconnecting... reason: disconnected for 59+ seconds)
+2026-04-01 14:32:56,392 INFO slack_bolt.AsyncApp: The old session (s_279107534) has been abandoned
+2026-04-01 14:32:56,718 INFO slack_bolt.AsyncApp: A new session (s_279220450) has been established
+2026-04-01 14:33:08,387 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
 ---
 [Suggestion] You can handle this type of event with the following listener function:
 
@@ -185,8 +288,151 @@ async def handle_message_events(body, logger):
 async def handle_message_events(body, logger):
     logger.info(body)
 
-2026-04-01 12:21:38,292 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
-2026-04-01 12:22:01,620 INFO app.py:handle_any_message: Message received in #ford-approvals: <@b0apbsba63t> <@b0anuu5ttfy> fix the bugs found and investigate why you are not replaying back to m
-2026-04-01 12:23:07,275 INFO slack_bolt.AsyncApp: The session (s_279321091) seems to be stale. Reconnecting... reason: disconnected for 53+ seconds)
-2026-04-01 12:23:07,692 INFO slack_bolt.AsyncApp: The old session (s_279321091) has been abandoned
-2026-04-01 12:23:08,236 INFO slack_bolt.AsyncApp: A new session (s_279213023) has been established
+2026-04-01 14:33:08,387 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 14:38:18,485 INFO slack_bolt.AsyncApp: The session (s_279220450) seems to be stale. Reconnecting... reason: disconnected for 281+ seconds)
+2026-04-01 14:38:18,739 INFO slack_bolt.AsyncApp: The old session (s_279220450) has been abandoned
+2026-04-01 14:38:19,029 INFO slack_bolt.AsyncApp: A new session (s_279220416) has been established
+2026-04-01 14:54:43,076 INFO slack_bolt.AsyncApp: The session (s_279220416) seems to be stale. Reconnecting... reason: disconnected for 944+ seconds)
+2026-04-01 14:54:43,315 INFO slack_bolt.AsyncApp: The old session (s_279220416) has been abandoned
+2026-04-01 14:54:43,578 INFO slack_bolt.AsyncApp: A new session (s_279220433) has been established
+2026-04-01 14:55:15,733 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 14:55:15,734 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 14:55:19,655 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 14:55:19,656 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 14:57:10,182 INFO slack_bolt.AsyncApp: The session (s_279220433) seems to be stale. Reconnecting... reason: disconnected for 96+ seconds)
+2026-04-01 14:57:10,395 INFO slack_bolt.AsyncApp: The old session (s_279220433) has been abandoned
+2026-04-01 14:57:10,691 INFO slack_bolt.AsyncApp: A new session (s_279220382) has been established
+2026-04-01 15:13:27,167 INFO slack_bolt.AsyncApp: The session (s_279220382) seems to be stale. Reconnecting... reason: disconnected for 936+ seconds)
+2026-04-01 15:13:27,381 INFO slack_bolt.AsyncApp: The old session (s_279220382) has been abandoned
+2026-04-01 15:13:27,652 INFO slack_bolt.AsyncApp: A new session (s_279220552) has been established
+2026-04-01 15:27:28,420 INFO slack_bolt.AsyncApp: The session (s_279220552) seems to be already closed. Reconnecting...
+2026-04-01 15:27:28,421 INFO slack_bolt.AsyncApp: The session (s_279220552) seems to be stale. Reconnecting... reason: disconnected for 810+ seconds)
+2026-04-01 15:27:28,648 INFO slack_bolt.AsyncApp: The old session (s_279220552) has been abandoned
+2026-04-01 15:27:28,916 INFO slack_bolt.AsyncApp: A new session (s_279107534) has been established
+2026-04-01 15:28:05,068 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 15:28:05,069 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 15:43:15,523 INFO slack_bolt.AsyncApp: The session (s_279107534) seems to be stale. Reconnecting... reason: disconnected for 916+ seconds)
+2026-04-01 15:43:15,736 INFO slack_bolt.AsyncApp: The old session (s_279107534) has been abandoned
+2026-04-01 15:43:16,031 INFO slack_bolt.AsyncApp: A new session (s_279107483) has been established
+2026-04-01 15:43:28,437 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 15:43:28,437 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5021 [operational/P1]
+2026-04-01 15:43:28,439 INFO backend.db.tickets_db: Updated ticket 21 status to ASSIGNED
+2026-04-01 15:43:28,441 INFO backend.db.tickets_db: Updated ticket 21 status to IN_PROGRESS
+2026-04-01 15:43:28,648 INFO backend.db.tickets_db: Updated ticket 21 status to RESOLVED
+2026-04-01 15:43:28,648 INFO backend.services.ticket_queue_processor: ✅ Ticket #5021 resolved by MAIN: ✅ Services Status:
+• Backend (port 8000): Running
+• Frontend (port 3000): Runnin...
+2026-04-01 15:43:28,648 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 15:52:02,978 INFO slack_bolt.AsyncApp: The session (s_279107483) seems to be stale. Reconnecting... reason: disconnected for 486+ seconds)
+2026-04-01 15:52:03,209 INFO slack_bolt.AsyncApp: The old session (s_279107483) has been abandoned
+2026-04-01 15:52:03,800 INFO slack_bolt.AsyncApp: A new session (s_279220603) has been established
+2026-04-01 15:52:29,501 INFO app.py:handle_any_message: Message received in #ford-approvals: <@B0ANUU5TTFY> go for option A
+2026-04-01 15:52:29,503 INFO backend.db.tickets_db: Created ticket #5022 (ID 22) from slack: <@B0ANUU5TTFY> go for option A
+2026-04-01 15:52:29,504 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5022 [P1/operational]: <@B0ANUU5TTFY> go for option A
+2026-04-01 15:52:29,505 INFO app.py:handle_any_message: Ticket #22 created and acknowledged
+2026-04-01 15:52:33,154 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 15:52:33,154 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5022 [operational/P1]
+2026-04-01 15:52:33,156 INFO backend.db.tickets_db: Updated ticket 22 status to ASSIGNED
+2026-04-01 15:52:33,158 INFO backend.db.tickets_db: Updated ticket 22 status to IN_PROGRESS
+2026-04-01 15:52:33,411 INFO backend.db.tickets_db: Updated ticket 22 status to RESOLVED
+2026-04-01 15:52:33,411 INFO backend.services.ticket_queue_processor: ✅ Ticket #5022 resolved by MAIN: 🔧 Operational response from MAIN agent for ticket #5022. Request processed succe...
+2026-04-01 15:52:33,411 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 16:04:29,106 INFO slack_bolt.AsyncApp: The session (s_279220603) seems to be stale. Reconnecting... reason: disconnected for 705+ seconds)
+2026-04-01 16:04:29,318 INFO slack_bolt.AsyncApp: The old session (s_279220603) has been abandoned
+2026-04-01 16:04:29,775 INFO slack_bolt.AsyncApp: A new session (s_279220382) has been established
+2026-04-01 16:08:47,397 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 16:08:47,397 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5023 [analytical/P2]
+2026-04-01 16:08:47,450 INFO backend.db.tickets_db: Updated ticket 23 status to ASSIGNED
+2026-04-01 16:08:47,451 INFO backend.db.tickets_db: Updated ticket 23 status to IN_PROGRESS
+2026-04-01 16:08:47,586 INFO backend.db.tickets_db: Updated ticket 23 status to RESOLVED
+2026-04-01 16:08:47,586 INFO backend.services.ticket_queue_processor: ✅ Ticket #5023 resolved by Q&A: 📈 Sharpe Ratio Analysis:
+Recent drop due to increased volatility in tech positio...
+2026-04-01 16:08:47,586 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 16:08:55,731 INFO slack_bolt.AsyncApp: The session (s_279220382) seems to be stale. Reconnecting... reason: disconnected for 225+ seconds)
+2026-04-01 16:08:56,153 INFO slack_bolt.AsyncApp: The old session (s_279220382) has been abandoned
+2026-04-01 16:08:56,718 INFO slack_bolt.AsyncApp: A new session (s_279220416) has been established
+2026-04-01 16:11:31,615 INFO slack_bolt.AsyncApp: The session (s_279220416) seems to be stale. Reconnecting... reason: disconnected for 124+ seconds)
+2026-04-01 16:11:31,837 INFO slack_bolt.AsyncApp: The old session (s_279220416) has been abandoned
+2026-04-01 16:11:32,228 INFO slack_bolt.AsyncApp: A new session (s_279220586) has been established
+2026-04-01 16:11:37,781 INFO app.py:handle_any_message: Message received in #ford-approvals: <@B0A13KXG4TS> Status, PyFinAgent go for option A
+2026-04-01 16:11:37,784 INFO backend.db.tickets_db: Created ticket #5024 (ID 24) from slack: <@B0A13KXG4TS> Status, PyFinAgent go for option A
+2026-04-01 16:11:37,785 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5024 [P1/operational]: <@B0A13KXG4TS> Status, PyFinAgent go for option A
+2026-04-01 16:11:37,787 INFO app.py:handle_any_message: Ticket #24 created and acknowledged
+2026-04-01 16:11:40,019 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 16:11:40,020 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5024 [operational/P1]
+2026-04-01 16:11:40,022 INFO backend.db.tickets_db: Updated ticket 24 status to ASSIGNED
+2026-04-01 16:11:40,023 INFO backend.db.tickets_db: Updated ticket 24 status to IN_PROGRESS
+2026-04-01 16:11:40,227 INFO backend.db.tickets_db: Updated ticket 24 status to RESOLVED
+2026-04-01 16:11:40,228 INFO backend.services.ticket_queue_processor: ✅ Ticket #5024 resolved by MAIN: ✅ Services Status:
+• Backend (port 8000): Running
+• Frontend (port 3000): Runnin...
+2026-04-01 16:11:40,228 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 16:12:07,922 INFO app.py:handle_any_message: Message received in #ford-approvals: Status, PyFinAgent go for option A
+2026-04-01 16:12:07,926 INFO backend.db.tickets_db: Created ticket #5025 (ID 25) from slack: Status, PyFinAgent go for option A
+2026-04-01 16:12:07,927 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5025 [P1/operational]: Status, PyFinAgent go for option A
+2026-04-01 16:12:07,929 INFO app.py:handle_any_message: Ticket #25 created and acknowledged
+2026-04-01 16:12:09,439 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 16:12:09,440 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 16:12:12,755 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 16:12:12,755 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5025 [operational/P1]
+2026-04-01 16:12:12,758 INFO backend.db.tickets_db: Updated ticket 25 status to ASSIGNED
+2026-04-01 16:12:12,760 INFO backend.db.tickets_db: Updated ticket 25 status to IN_PROGRESS
+2026-04-01 16:12:13,007 INFO backend.db.tickets_db: Updated ticket 25 status to RESOLVED
+2026-04-01 16:12:13,007 INFO backend.services.ticket_queue_processor: ✅ Ticket #5025 resolved by MAIN: ✅ Services Status:
+• Backend (port 8000): Running
+• Frontend (port 3000): Runnin...
+2026-04-01 16:12:13,008 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
+2026-04-01 16:14:32,783 INFO slack_bolt.AsyncApp: The session (s_279220586) seems to be stale. Reconnecting... reason: disconnected for 140+ seconds)
+2026-04-01 16:14:33,008 INFO slack_bolt.AsyncApp: The old session (s_279220586) has been abandoned
+2026-04-01 16:14:33,460 INFO slack_bolt.AsyncApp: A new session (s_279107534) has been established
+2026-04-01 16:16:20,818 INFO slack_bolt.AsyncApp: The session (s_279107534) seems to be stale. Reconnecting... reason: disconnected for 67+ seconds)
+2026-04-01 16:16:21,027 INFO slack_bolt.AsyncApp: The old session (s_279107534) has been abandoned
+2026-04-01 16:16:21,345 INFO slack_bolt.AsyncApp: A new session (s_279220586) has been established
+2026-04-01 16:16:32,727 INFO app.py:handle_any_message: Message received in #ford-approvals: <@B0APBSBA63T> go for option A
+2026-04-01 16:16:32,731 INFO backend.db.tickets_db: Created ticket #5026 (ID 26) from slack: <@B0APBSBA63T> go for option A
+2026-04-01 16:16:32,732 INFO backend.services.ticket_ingestion: ✅ Slack → Ticket #5026 [P1/operational]: <@B0APBSBA63T> go for option A
+2026-04-01 16:16:32,734 INFO app.py:handle_any_message: Ticket #26 created and acknowledged
+2026-04-01 16:16:33,455 INFO backend.services.ticket_queue_processor: 📥 Processing batch of 1 tickets
+2026-04-01 16:16:33,456 INFO backend.services.ticket_queue_processor: 🎫 Processing ticket #5026 [operational/P1]
+2026-04-01 16:16:33,457 INFO backend.db.tickets_db: Updated ticket 26 status to ASSIGNED
+2026-04-01 16:16:33,457 INFO backend.db.tickets_db: Updated ticket 26 status to IN_PROGRESS
+2026-04-01 16:16:33,528 WARNING slack_bolt.AsyncApp: Unhandled request ({'type': 'event_callback', 'event': {'type': 'message', 'subtype': 'message_changed'}})
+---
+[Suggestion] You can handle this type of event with the following listener function:
+
+@app.event("message")
+async def handle_message_events(body, logger):
+    logger.info(body)
+
+2026-04-01 16:16:33,528 INFO slack_bolt.AsyncApp: Unsuccessful Bolt execution result (status: 404, body: {"error": "unhandled request"})
+2026-04-01 16:16:33,601 INFO backend.db.tickets_db: Updated ticket 26 status to RESOLVED
+2026-04-01 16:16:33,601 INFO backend.services.ticket_queue_processor: ✅ Ticket #5026 resolved by MAIN: 🔧 Operational response from MAIN agent for ticket #5026. Request processed succe...
+2026-04-01 16:16:33,601 INFO backend.services.ticket_queue_processor: ✅ Batch complete: 1/1 succeeded
