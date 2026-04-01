@@ -1,6 +1,7 @@
 """
 Slash command handlers: /analyze, /portfolio, /report
 Message handlers: status command, push approval reactions
+Ticket ingestion: all messages in #ford-approvals are persisted as tickets
 """
 
 import asyncio
@@ -13,6 +14,7 @@ from slack_bolt.async_app import AsyncApp
 
 from backend.config.settings import get_settings
 from backend.slack_bot.formatters import format_analysis_result, format_portfolio_summary, format_report_card
+from backend.services.ticket_ingestion import get_ingestion_service
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +174,7 @@ def register_commands(app: AsyncApp):
 
     @app.message("")  # Catch all messages
     async def handle_any_message(message, say, logger):
-        """Respond to any message in #ford-approvals."""
+        """Respond to any message in #ford-approvals. Persists as ticket."""
         channel = message.get("channel", "")
         if channel != _APPROVAL_CHANNEL:
             return
@@ -180,20 +182,52 @@ def register_commands(app: AsyncApp):
         if message.get("bot_id"):
             return
         
-        text = message.get("text", "").strip().lower()
+        text = message.get("text", "").strip()
+        
+        # Validate: reject empty messages
+        if not text:
+            logger.debug("Empty message received, skipping")
+            return
+        
         logger.info(f"Message received in #ford-approvals: {text[:100]}")
         
-        # Route based on content
-        if "status" in text:
+        # ── Ticket ingestion ────────────────────────────────────
+        ingestion = get_ingestion_service()
+        ticket_id = None
+        try:
+            ticket_id = ingestion.ingest_slack_message(
+                event=message,
+                sender_id=message.get("user", "unknown"),
+                channel_id=channel,
+            )
+        except Exception as e:
+            logger.exception(f"Failed to ingest message as ticket: {e}")
+        
+        # Send acknowledgment with ticket info
+        if ticket_id is not None:
+            try:
+                ack_info = ingestion.acknowledge_ticket_immediately(ticket_id)
+                ack_msg = ack_info["message"]
+            except Exception as e:
+                logger.exception(f"Failed to acknowledge ticket: {e}")
+                ack_msg = f"✅ Message received (ticket created). Timestamp: {message.get('ts')}"
+        else:
+            ack_msg = None  # duplicate or ingestion failed silently
+        
+        # ── Route based on content (existing behavior) ──────────
+        text_lower = text.lower()
+        if "status" in text_lower:
             try:
                 status_text = _read_status()
                 await say(f"📊 *PyFinAgent Status*\n\n{status_text}")
             except Exception as e:
                 logger.exception("Error generating status")
                 await say(f":x: Error generating status: {str(e)[:200]}")
-        else:
-            # Generic acknowledgment for any message
-            await say(f"✅ Message received and logged. Timestamp: {message.get('ts')}")
+        elif ack_msg:
+            # Send ticket acknowledgment as thread reply if there's a thread,
+            # otherwise as a regular message
+            thread_ts = message.get("thread_ts") or message.get("ts")
+            await say(text=ack_msg, thread_ts=thread_ts)
 
     @app.event("reaction_added")
     async def handle_reaction(event, say):
