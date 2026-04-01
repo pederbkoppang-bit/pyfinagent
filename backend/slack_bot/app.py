@@ -3,6 +3,7 @@ Slack Bot entry point — Bolt async app with Socket Mode.
 
 Runs as a standalone service: python -m backend.slack_bot.app
 Uses Socket Mode (outbound WebSocket) — no public URL needed.
+Starts ticket queue processor and SLA monitor as background tasks.
 """
 
 import asyncio
@@ -14,6 +15,8 @@ from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 from backend.config.settings import get_settings
 from backend.slack_bot.commands import register_commands
 from backend.slack_bot.scheduler import start_scheduler
+from backend.services.ticket_queue_processor import start_queue_processor
+from backend.services.sla_monitor import start_sla_monitoring
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,14 @@ async def main():
 
     # Start scheduled jobs (morning digest, proactive alerts)
     start_scheduler(app)
+
+    # Start ticket queue processor in background (processes tickets every 5s)
+    asyncio.create_task(start_queue_processor(batch_interval=5.0))
+    logger.info("🎫 Ticket queue processor started as background task")
+
+    # Start SLA monitoring in background (checks every 5 minutes)
+    asyncio.create_task(start_sla_monitoring(check_interval=300))
+    logger.info("🔍 SLA monitor started as background task")
 
     handler = AsyncSocketModeHandler(app, settings.slack_app_token)
     logger.info("Slack bot starting in Socket Mode...")
