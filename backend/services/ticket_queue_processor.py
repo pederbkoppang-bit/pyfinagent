@@ -121,10 +121,10 @@ Please provide a helpful response. This will be sent back to the user via {ticke
     
     def _spawn_real_agent(self, agent_id: str, task: str, ticket_id: int, ticket_number: str) -> str:
         """
-        Spawn a real agent by calling Gemini (Vertex AI) directly.
+        Spawn a real agent by calling Claude (Anthropic) via llm_client.
         
-        Since we're running inside the backend process, we use Vertex AI Gemini
-        directly (no make_client complexity) to invoke the agent with the task.
+        Uses the existing llm_client infrastructure to invoke Claude agents,
+        matching the rest of the agentic architecture.
         
         Args:
             agent_id: Agent identifier (main, q-and-a, research)
@@ -138,52 +138,47 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         Raises:
             Exception: If LLM call fails
         """
-        import vertexai
-        from vertexai.generative_models import GenerativeModel, SafetySetting
-        from backend.config.settings import get_settings
+        from backend.llm_client import make_client
         
         logger.debug(f"Invoking agent {agent_id} for ticket #{ticket_number}: {task[:100]}")
         
         try:
-            settings = get_settings()
-            
-            # Initialize Vertex AI
-            if not vertexai.vertexai._is_initialized():
-                vertexai.init(project=settings.gcp_project_id, location="us-central1")
-            
             # Select model based on agent type
             agent_model_map = {
-                "main": "gemini-2.0-flash-exp",     # Fast for operational
-                "q-and-a": "gemini-2.0-flash-exp",  # Fast for Q&A
-                "research": "gemini-2.0-pro-exp"    # More capable for research
+                "main": "claude-opus-4-6",           # Fast operational reasoning
+                "q-and-a": "claude-opus-4-6",       # Fast Q&A analysis
+                "research": "claude-opus-4-6"       # Full reasoning for research
             }
             
-            model_name = agent_model_map.get(agent_id, "gemini-2.0-flash-exp")
-            model = GenerativeModel(model_name)
+            model_name = agent_model_map.get(agent_id, "claude-opus-4-6")
+            
+            # Use existing llm_client to get Claude client
+            client = make_client(model_name)
             
             # Build system prompt based on agent type
             system_prompts = {
                 "main": "You are Ford, the primary agent for operational tasks. "
-                        "Respond helpfully and directly to user requests.",
+                        "Respond helpfully and directly to user requests. Be concise.",
                 "q-and-a": "You are Q&A agent. Answer questions about the pyfinAgent system "
-                          "clearly and concisely.",
+                          "clearly and concisely. Provide factual, helpful responses.",
                 "research": "You are Research agent. Conduct thorough research and provide "
-                           "evidence-backed insights."
+                           "evidence-backed insights. Include sources and methodology."
             }
             
             system = system_prompts.get(agent_id, "You are a helpful assistant.")
             
-            # Call the LLM
-            response = model.generate_content(
-                [{"text": system + "\n\n" + task}],
-                safety_settings=[
-                    SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
-                    SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+            # Call Claude via llm_client (supports multiple providers)
+            response = client.messages.create(
+                model=model_name,
+                max_tokens=1000,
+                system=system,
+                messages=[
+                    {"role": "user", "content": task}
                 ]
             )
             
             # Extract text from response
-            response_text = response.text if hasattr(response, 'text') else str(response)
+            response_text = response.content[0].text if response.content else "No response"
             
             logger.info(f"✅ Agent {agent_id} completed for ticket #{ticket_number}: "
                        f"{response_text[:80]}...")
