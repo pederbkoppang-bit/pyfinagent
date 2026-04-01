@@ -204,15 +204,19 @@ def register_commands(app: AsyncApp):
             logger.exception(f"Failed to ingest message as ticket: {e}")
         
         # Send acknowledgment with ticket info
+        ack_msg = None
         if ticket_id is not None:
             try:
                 ack_info = ingestion.acknowledge_ticket_immediately(ticket_id)
                 ack_msg = ack_info["message"]
+                logger.info(f"Ticket #{ticket_id} created and acknowledged")
             except Exception as e:
                 logger.exception(f"Failed to acknowledge ticket: {e}")
-                ack_msg = f"✅ Message received (ticket created). Timestamp: {message.get('ts')}"
+                ack_msg = f"✅ Message received (ticket #{ticket_id} created). Timestamp: {message.get('ts')}"
         else:
-            ack_msg = None  # duplicate or ingestion failed silently
+            # Ingestion failed — always send acknowledgment
+            ack_msg = f"⚠️ Message received but failed to create ticket. Timestamp: {message.get('ts')}"
+            logger.warning(f"Failed to create ticket from message: {text[:100]}")
         
         # ── Route based on content (existing behavior) ──────────
         text_lower = text.lower()
@@ -223,11 +227,15 @@ def register_commands(app: AsyncApp):
             except Exception as e:
                 logger.exception("Error generating status")
                 await say(f":x: Error generating status: {str(e)[:200]}")
-        elif ack_msg:
-            # Send ticket acknowledgment as thread reply if there's a thread,
-            # otherwise as a regular message
+        
+        # Always send acknowledgment (either ticket confirmation or error)
+        if ack_msg:
             thread_ts = message.get("thread_ts") or message.get("ts")
-            await say(text=ack_msg, thread_ts=thread_ts)
+            try:
+                await say(text=ack_msg, thread_ts=thread_ts)
+                logger.debug(f"Acknowledgment sent for message: {text[:50]}")
+            except Exception as e:
+                logger.exception(f"Failed to send acknowledgment: {e}")
 
     @app.event("reaction_added")
     async def handle_reaction(event, say):
