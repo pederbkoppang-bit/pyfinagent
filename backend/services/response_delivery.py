@@ -73,35 +73,51 @@ class ResponseDeliveryService:
         ticket_number: int = None
     ) -> bool:
         """
-        Send response via Slack.
-        
+        Send response via Slack using AsyncWebClient.
+
         Args:
             channel_id: Slack channel ID
             message: Response message
             thread_ts: Thread timestamp for thread replies
             ticket_number: Optional ticket number for logging
-            
+
         Returns:
             bool: True if sent successfully
         """
         try:
-            # For now, simulate Slack sending since we don't have the actual client
-            # In production, this would use the Slack WebAPI client
-            
+            from slack_sdk.web.async_client import AsyncWebClient
+            from backend.config.settings import get_settings
+
+            settings = get_settings()
+            if not settings.slack_bot_token:
+                logger.error("SLACK_BOT_TOKEN not configured, cannot send Slack response")
+                return False
+
             # Add ticket footer
             if ticket_number:
-                message += f"\n\n💬 _Ticket #{ticket_number}_"
-            
-            # Simulate successful send
-            await asyncio.sleep(0.1)  # Simulate API call
-            
-            thread_info = f" (thread: {thread_ts})" if thread_ts else ""
-            logger.info(f"✅ Slack sent to {channel_id}{thread_info}: {message[:50]}...")
-            
-            return True
-            
+                message += f"\n\n_Ticket #{ticket_number}_"
+
+            client = AsyncWebClient(token=settings.slack_bot_token)
+
+            kwargs = {
+                "channel": channel_id,
+                "text": message,
+            }
+            if thread_ts:
+                kwargs["thread_ts"] = thread_ts
+
+            result = await client.chat_postMessage(**kwargs)
+
+            if result["ok"]:
+                thread_info = f" (thread: {thread_ts})" if thread_ts else ""
+                logger.info(f"Slack sent to {channel_id}{thread_info}: {message[:50]}...")
+                return True
+            else:
+                logger.error(f"Slack API error: {result.get('error', 'unknown')}")
+                return False
+
         except Exception as e:
-            logger.error(f"❌ Slack send error to {channel_id}: {e}")
+            logger.error(f"Slack send error to {channel_id}: {e}")
             return False
 
     async def deliver_ticket_response(self, ticket_id: int) -> bool:

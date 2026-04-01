@@ -33,6 +33,19 @@ class TicketQueueProcessor:
         self.running = False
         self.active_processors = {}  # ticket_id -> task
         
+    def _increment_retries(self, ticket_id: int):
+        """Increment the retry counter for a ticket."""
+        import sqlite3
+        try:
+            with sqlite3.connect(self.db.db_path) as conn:
+                conn.execute(
+                    "UPDATE tickets SET retries = COALESCE(retries, 0) + 1 WHERE id = ?",
+                    (ticket_id,)
+                )
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to increment retries for ticket {ticket_id}: {e}")
+
     def get_agent_for_classification(self, classification) -> str:
         """Map ticket classification to agent type."""
         # Handle both enum and string values
@@ -156,7 +169,13 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             model_name = agent_model_map.get(agent_id, "claude-opus-4-6")
             
             # Create Anthropic client
-            client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+            # Check for API key from environment or settings
+            import os
+            api_key = settings.anthropic_api_key or os.getenv('ANTHROPIC_API_KEY')
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY not found in settings or environment. Please configure ANTHROPIC_API_KEY.")
+            
+            client = anthropic.Anthropic(api_key=api_key)
             
             # Build system prompt based on agent type
             system_prompts = {
@@ -229,15 +248,27 @@ Please provide a helpful response. This will be sent back to the user via {ticke
     async def process_single_ticket(self, ticket: Dict[str, Any]) -> bool:
         """
         Process a single ticket through the full lifecycle.
-        
+
         Returns:
             bool: True if successfully processed, False otherwise
         """
         ticket_id = ticket['id']
         ticket_number = ticket['ticket_number']
-        
+
+        # BUG 2 FIX: Skip tickets that have exceeded max retries
+        max_retries = 3
+        retries = ticket.get('retries', 0) or 0
+        if retries >= max_retries:
+            logger.warning(f"Ticket #{ticket_number} exceeded max retries ({retries}/{max_retries}), closing")
+            self.db.update_ticket_status(
+                ticket_id,
+                TicketStatus.CLOSED,
+                error_message=f"Max retries ({max_retries}) exceeded"
+            )
+            return False
+
         try:
-            logger.info(f"🎫 Processing ticket #{ticket_number} [{ticket['classification']}/{ticket['priority']}]")
+            logger.info(f"Processing ticket #{ticket_number} [{ticket['classification']}/{ticket['priority']}] (retry {retries}/{max_retries})")
             
             # Step 1: Mark as assigned
             agent_type = self.get_agent_for_classification(ticket['classification'])
@@ -281,45 +312,43 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                 
                 # Step 5: Deliver response to user via Slack or iMessage
                 try:
-                    from backend.services.response_delivery import ResponseDelivery
-                    delivery = ResponseDelivery()
-                    
-                    delivery_success = delivery.send_response(
-                        ticket_id=ticket_id,
-                        response_text=response_text,
-                        source=ticket.get('source', 'slack'),
-                        channel_id=ticket.get('channel_id'),
-                        slack_thread_id=ticket.get('slack_thread_id')
+                    from backend.services.response_delivery import ResponseDeliveryService
+                    delivery = ResponseDeliveryService()
+
+                    delivery_success = await delivery.deliver_ticket_response(
+                        ticket_id=ticket_id
                     )
-                    
+
                     if delivery_success:
-                        logger.info(f"✅ Response delivered for ticket #{ticket_number} to {ticket.get('source', 'slack')}")
+                        logger.info(f"Response delivered for ticket #{ticket_number} to {ticket.get('source', 'slack')}")
                     else:
-                        logger.warning(f"⚠️ Failed to deliver response for ticket #{ticket_number}")
-                        
+                        logger.warning(f"Failed to deliver response for ticket #{ticket_number}")
+
                 except Exception as e:
                     logger.error(f"Failed to deliver response for ticket #{ticket_number}: {e}")
-                    # Don't fail the ticket — response is stored, just not delivered yet
+                    # Don't fail the ticket -- response is stored, just not delivered yet
                 
                 return True
             else:
-                # Mark as failed with error
+                # BUG 2 FIX: Increment retries and set back to OPEN for retry
+                self._increment_retries(ticket_id)
                 self.db.update_ticket_status(
                     ticket_id,
-                    TicketStatus.OPEN,  # Back to open for retry
+                    TicketStatus.OPEN,
                     error_message=agent_result['error']
                 )
-                
-                logger.error(f"❌ Ticket #{ticket_number} failed: {agent_result['error']}")
+
+                logger.error(f"Ticket #{ticket_number} failed (retry {retries + 1}/{max_retries}): {agent_result['error']}")
                 return False
-                
+
         except Exception as e:
-            logger.error(f"❌ Critical error processing ticket #{ticket_number}: {e}")
-            
-            # Mark ticket with error
+            logger.error(f"Critical error processing ticket #{ticket_number}: {e}")
+
+            # BUG 2 FIX: Increment retries and set back to OPEN for retry
+            self._increment_retries(ticket_id)
             self.db.update_ticket_status(
                 ticket_id,
-                TicketStatus.OPEN,  # Back to open for retry
+                TicketStatus.OPEN,
                 error_message=str(e)
             )
             return False
