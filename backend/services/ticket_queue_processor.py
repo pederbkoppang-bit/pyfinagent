@@ -161,12 +161,12 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             
             # Select model based on agent type
             agent_model_map = {
-                "main": "claude-opus-4-6",           # Fast operational reasoning
-                "q-and-a": "claude-opus-4-6",       # Fast Q&A analysis
-                "research": "claude-opus-4-6"       # Full reasoning for research
+                "main": "claude-3-5-sonnet-20241022",     # Fast operational reasoning
+                "q-and-a": "claude-3-5-sonnet-20241022", # Fast Q&A analysis 
+                "research": "claude-3-5-sonnet-20241022" # Full reasoning for research
             }
             
-            model_name = agent_model_map.get(agent_id, "claude-opus-4-6")
+            model_name = agent_model_map.get(agent_id, "claude-3-5-sonnet-20241022")
             
             # Create Anthropic client
             # Check for API key from environment or settings
@@ -283,6 +283,13 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             self.db.update_ticket_status(ticket_id, TicketStatus.IN_PROGRESS)
             
             # Step 3: Process with agent (run in thread to avoid blocking)
+            # Add exponential backoff to prevent rate limiting
+            retry_count = ticket.get('retries', 0)
+            if retry_count > 0:
+                wait_time = min(2 ** retry_count, 60)  # Exponential backoff: 2s, 4s, 8s, 16s, 32s, 60s max
+                logger.info(f"Waiting {wait_time}s before retry (attempt {retry_count + 1})")
+                await asyncio.sleep(wait_time)
+            
             loop = asyncio.get_event_loop()
             agent_result = await loop.run_in_executor(
                 None, 
