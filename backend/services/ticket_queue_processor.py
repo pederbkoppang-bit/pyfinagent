@@ -161,12 +161,12 @@ Please provide a helpful response. This will be sent back to the user via {ticke
 
             # Select model based on agent type
             agent_model_map = {
-                "main": "claude-3-haiku-20240307",     # Cheap, fast for operational
-                "q-and-a": "claude-3-haiku-20240307", # Cheap for Q&A
-                "research": "claude-3-haiku-20240307" # Cheap for research
+                "main": "claude-sonnet-4.6",     # Latest Sonnet model for operational reasoning
+                "q-and-a": "claude-sonnet-4.6", # Sonnet for Q&A analysis
+                "research": "claude-sonnet-4.6" # Sonnet for research synthesis
             }
             
-            model_name = agent_model_map.get(agent_id, "claude-3-haiku-20240307")
+            model_name = agent_model_map.get(agent_id, "claude-sonnet-4.6")
 
             # Create Anthropic client
             # Check for API key from environment or settings
