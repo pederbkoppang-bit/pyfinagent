@@ -234,7 +234,8 @@ class MessageIngestionService:
         
         # Get queue position
         queue_position = self.db.get_ticket_queue_position(ticket_id)
-        queue_str = f"\n📍 Queue position: #{queue_position}" if queue_position > 1 else ""
+        # Always show queue position so users can see their position
+        queue_str = f"\n📍 Queue position: #{queue_position}"
         
         ack_message = (
             f"{priority_emoji} Got it! Ticket #{ticket['ticket_number']} created, "
