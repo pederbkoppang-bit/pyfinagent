@@ -70,6 +70,7 @@ class TicketsDB:
                     status TEXT NOT NULL DEFAULT 'OPEN' CHECK(status IN ('OPEN', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'DUPLICATE')),
                     classification TEXT DEFAULT 'operational' CHECK(classification IN ('operational', 'analytical', 'research')),
                     assigned_agent TEXT,  -- Q&A, Research, MAIN, etc.
+                    queue_position INTEGER DEFAULT 0,  -- Dynamic position in queue (updates as tickets move)
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     acknowledged_at TIMESTAMP,
                     assigned_at TIMESTAMP,
@@ -411,6 +412,30 @@ class TicketsDB:
             """, (ticket_id, ticket_id))
             position = cursor.fetchone()[0]
             return position if position > 0 else 1
+
+    def update_queue_positions(self) -> None:
+        """
+        DYNAMIC QUEUE POSITIONING: Update queue_position for all OPEN/IN_PROGRESS/ASSIGNED tickets.
+        Called when queue state changes to reflect current position to users.
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            # Get all active tickets ordered by creation time
+            cursor = conn.execute("""
+                SELECT id FROM tickets
+                WHERE status IN ('OPEN', 'IN_PROGRESS', 'ASSIGNED')
+                ORDER BY created_at ASC, id ASC
+            """)
+            
+            rows = cursor.fetchall()
+            for position, (ticket_id,) in enumerate(rows, start=1):
+                conn.execute(
+                    "UPDATE tickets SET queue_position = ? WHERE id = ?",
+                    (position, ticket_id)
+                )
+            
+            if rows:
+                conn.commit()
+                logger.info(f"Updated queue positions for {len(rows)} active tickets")
 
 # Global instance
 _tickets_db: Optional[TicketsDB] = None

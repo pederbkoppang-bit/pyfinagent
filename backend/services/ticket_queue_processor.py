@@ -380,6 +380,9 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         Returns:
             int: Number of tickets processed successfully
         """
+        # DYNAMIC QUEUE POSITIONING: Update queue positions before processing
+        self.db.update_queue_positions()
+        
         # Get open tickets in priority order
         open_tickets = self.db.get_open_tickets(limit=batch_size)
 
