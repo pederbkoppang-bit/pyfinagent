@@ -232,16 +232,21 @@ class MessageIngestionService:
             "P3": "🕐"
         }.get(ticket['priority'], "📋")
         
+        # Get queue position
+        queue_position = self.db.get_ticket_queue_position(ticket_id)
+        queue_str = f"\n📍 Queue position: #{queue_position}" if queue_position > 1 else ""
+        
         ack_message = (
             f"{priority_emoji} Got it! Ticket #{ticket['ticket_number']} created, "
-            f"assigning to {agent}... (ETA: {self._get_sla_eta(ticket['priority'])})"
+            f"assigning to {agent}... (ETA: {self._get_sla_eta(ticket['priority'])}){queue_str}"
         )
         
         return {
             "message": ack_message,
             "agent_type": ticket['classification'],
             "ticket_number": ticket['ticket_number'],
-            "priority": ticket['priority']
+            "priority": ticket['priority'],
+            "queue_position": queue_position
         }
 
     def _get_sla_eta(self, priority: str) -> str:

@@ -398,6 +398,20 @@ class TicketsDB:
                 logger.info(f"Archived {archived_count} old tickets")
             return archived_count
 
+    def get_ticket_queue_position(self, ticket_id: int) -> int:
+        """Get queue position for a ticket (1-based index in OPEN/IN_PROGRESS queue)."""
+        with sqlite3.connect(self.db_path) as conn:
+            # Count how many OPEN/IN_PROGRESS/ASSIGNED tickets were created before this one
+            cursor = conn.execute("""
+                SELECT COUNT(*) 
+                FROM tickets t1
+                WHERE t1.status IN ('OPEN', 'IN_PROGRESS', 'ASSIGNED')
+                  AND t1.created_at <= (SELECT created_at FROM tickets WHERE id = ?)
+                  AND t1.id <= ?
+            """, (ticket_id, ticket_id))
+            position = cursor.fetchone()[0]
+            return position if position > 0 else 1
+
 # Global instance
 _tickets_db: Optional[TicketsDB] = None
 
