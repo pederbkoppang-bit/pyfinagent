@@ -161,12 +161,12 @@ Please provide a helpful response. This will be sent back to the user via {ticke
 
             # Select model based on agent type
             agent_model_map = {
-                "main": "claude-3-5-haiku-20241022",     # Cheaper, faster for operational
-                "q-and-a": "claude-3-5-haiku-20241022", # Cheaper for Q&A
-                "research": "claude-3-5-haiku-20241022" # Cheaper for research (will upgrade if needed)
+                "main": "claude-3-haiku-20240307",     # Cheap, fast for operational
+                "q-and-a": "claude-3-haiku-20240307", # Cheap for Q&A
+                "research": "claude-3-haiku-20240307" # Cheap for research
             }
             
-            model_name = agent_model_map.get(agent_id, "claude-3-5-haiku-20241022")
+            model_name = agent_model_map.get(agent_id, "claude-3-haiku-20240307")
 
             # Create Anthropic client
             # Check for API key from environment or settings
