@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class TicketQueueProcessor:
     """Processes tickets from the queue and routes to agents."""
 
-    def __init__(self, max_concurrent: int = 5):
+    def __init__(self, max_concurrent: int = 1):  # Reduced to 1 to avoid rate limiting spikes
         self.db = get_tickets_db()
         self.max_concurrent = max_concurrent
         self.running = False
