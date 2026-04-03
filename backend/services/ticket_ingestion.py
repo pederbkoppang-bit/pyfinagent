@@ -237,9 +237,13 @@ class MessageIngestionService:
         # Always show queue position so users can see their position
         queue_str = f"\n📍 Queue position: #{queue_position}"
         
+        # Add priority reasoning
+        priority_reasoning = self._get_priority_reasoning(ticket['message_text'], ticket['priority'])
+        
         ack_message = (
             f"{priority_emoji} Got it! Ticket #{ticket['ticket_number']} created, "
-            f"assigning to {agent}... (ETA: {self._get_sla_eta(ticket['priority'])}){queue_str}"
+            f"assigning to {agent}... (ETA: {self._get_sla_eta(ticket['priority'])}){queue_str}\n"
+            f"_Priority: {ticket['priority']} - {priority_reasoning}_"
         )
         
         return {
@@ -249,6 +253,26 @@ class MessageIngestionService:
             "priority": ticket['priority'],
             "queue_position": queue_position
         }
+
+    def _get_priority_reasoning(self, message_text: str, priority: str) -> str:
+        """Get reasoning for why this priority was assigned."""
+        msg_lower = message_text.lower()
+        
+        urgent_keywords = ["urgent", "critical", "error", "broken", "down", "failed", "emergency", "immediately", "asap"]
+        low_keywords = ["when you have time", "no rush", "fyi", "eventually"]
+        
+        if any(kw in msg_lower for kw in urgent_keywords):
+            return "Urgent keywords detected"
+        elif any(kw in msg_lower for kw in low_keywords):
+            return "Low priority indicators present"
+        elif priority == "P0":
+            return "Critical/operational issue"
+        elif priority == "P1":
+            return "Urgent - requires quick response"
+        elif priority == "P2":
+            return "Standard priority"
+        else:
+            return "Low priority - can wait"
 
     def _get_sla_eta(self, priority: str) -> str:
         """Get human-readable SLA ETA."""
