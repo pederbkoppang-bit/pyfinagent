@@ -450,6 +450,36 @@ class TicketsDB:
             
             return []
 
+    def clear_queue(self) -> Dict[str, Any]:
+        """
+        MANDATORY PURGE: Drop entire tickets table and reset counter to 0.
+        Used only in emergencies when queue is corrupted.
+        
+        Returns:
+            dict: Purge statistics (deleted_count, counter_reset)
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            # Get count before deletion
+            cursor = conn.execute("SELECT COUNT(*) FROM tickets")
+            deleted_count = cursor.fetchone()[0]
+            
+            # Drop and recreate tables
+            conn.execute("DROP TABLE IF EXISTS tickets")
+            conn.execute("DROP TABLE IF EXISTS ticket_counter")
+            
+            conn.commit()
+            
+            # Reinitialize with fresh schema
+            self._init_database()
+            
+            logger.warning(f"🚨 EMERGENCY PURGE: Cleared {deleted_count} tickets, reset counter to 0")
+            
+            return {
+                "deleted_count": deleted_count,
+                "counter_reset": True,
+                "new_starting_number": 1
+            }
+
 # Global instance
 _tickets_db: Optional[TicketsDB] = None
 

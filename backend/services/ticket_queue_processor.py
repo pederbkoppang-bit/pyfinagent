@@ -327,13 +327,15 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                 logger.info(f"✅ Ticket #{ticket_number} resolved by {agent_type}: "
                            f"{response_text[:80]}...")
 
-                # Step 5: Deliver response to user via Slack or iMessage
+                # Step 5: Deliver response to user via Slack or iMessage with PRIORITY + REASONING
                 try:
                     from backend.services.response_delivery import ResponseDeliveryService
                     delivery = ResponseDeliveryService()
 
                     delivery_success = await delivery.deliver_ticket_response(
-                        ticket_id=ticket_id
+                        ticket_id=ticket_id,
+                        priority=ticket['priority'],
+                        classification=ticket['classification']
                     )
 
                     if delivery_success:

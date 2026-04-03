@@ -97,3 +97,452 @@ Identify why you haven't answered my last tickets. You only gave it a
 [2026-04-02 22:41:28] 📥 Ticket created in 1.4ms (target: <100ms)
 [2026-04-02 22:41:28] ✅ Sent: ⚡ Got it! Ticket #5077 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
 [2026-04-02 22:41:28] ✅ Processed message → Ticket #5077 [P1/operational]
+[2026-04-03 08:48:12] 📱 INCOMING from +4794810537: Status 
+[2026-04-03 08:48:12] 📥 Ticket created in 4.8ms (target: <100ms)
+[2026-04-03 08:48:12] ✅ Sent: ⚡ Got it! Ticket #5078 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 08:48:12] ✅ Processed message → Ticket #5078 [P1/operational]
+[2026-04-03 08:56:59] 📱 INCOMING from +4794810537: Status
+[2026-04-03 08:56:59] 📥 Ticket created in 1.5ms (target: <100ms)
+[2026-04-03 08:56:59] ✅ Sent: ⚡ Got it! Ticket #5079 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 08:56:59] ✅ Processed message → Ticket #5079 [P1/operational]
+[2026-04-03 09:05:34] 📱 INCOMING from +4794810537: PyFinAgent commit all done work to GitHub 
+[2026-04-03 09:05:34] 📥 Ticket created in 1.4ms (target: <100ms)
+[2026-04-03 09:05:35] ✅ Sent: ⚡ Got it! Ticket #5080 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 09:05:35] ✅ Processed message → Ticket #5080 [P1/operational]
+[2026-04-03 09:12:40] 📱 INCOMING from +4794810537: PyFinAgent commit all done work to GitHub 
+[2026-04-03 09:12:40] 📥 Ticket created in 1.6ms (target: <100ms)
+[2026-04-03 09:12:40] ✅ Sent: ⚡ Got it! Ticket #5081 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 09:12:40] ✅ Processed message → Ticket #5081 [P1/operational]
+[2026-04-03 09:26:47] 📱 INCOMING from +4794810537: PyFinAgent question regarding slack token issue:
+
+Which token do you need? 
+
+App-Level Tokens
+
+Speci
+[2026-04-03 09:26:47] 📥 Ticket created in 2.7ms (target: <100ms)
+[2026-04-03 09:26:47] ✅ Sent: ⚡ Got it! Ticket #5082 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 09:26:47] ✅ Processed message → Ticket #5082 [P1/operational]
+[2026-04-03 09:31:32] 📱 INCOMING from +4794810537: PyFinAgent question regarding slack token issue:
+
+Which token do you need? 
+
+App-Level Tokens
+
+Speci
+[2026-04-03 09:31:32] 📥 Ticket created in 4.6ms (target: <100ms)
+[2026-04-03 09:31:32] ✅ Sent: ⚡ Got it! Ticket #5083 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 09:31:32] ✅ Processed message → Ticket #5083 [P1/operational]
+[2026-04-03 09:55:03] 📱 INCOMING from +4794810537: PyFinAgent question regarding slack token issue:
+
+Which token do you need? 
+
+App-Level Tokens
+
+Speci
+[2026-04-03 09:55:03] 📥 Ticket created in 5.1ms (target: <100ms)
+[2026-04-03 09:55:03] ✅ Sent: ⚡ Got it! Ticket #5084 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 09:55:03] ✅ Processed message → Ticket #5084 [P1/operational]
+[2026-04-03 09:57:38] 📱 INCOMING from +4794810537: Status
+[2026-04-03 09:57:38] 📥 Ticket created in 0.9ms (target: <100ms)
+[2026-04-03 09:57:39] ✅ Sent: ⚡ Got it! Ticket #5085 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 09:57:39] ✅ Processed message → Ticket #5085 [P1/operational]
+[2026-04-03 10:00:02] 📱 INCOMING from +4794810537: Status
+[2026-04-03 10:00:02] 📥 Ticket created in 1.4ms (target: <100ms)
+[2026-04-03 10:00:03] ✅ Sent: ⚡ Got it! Ticket #5086 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 10:00:03] ✅ Processed message → Ticket #5086 [P1/operational]
+[2026-04-03 10:13:00] 📱 INCOMING from +4794810537: Critical error you are not following up my messages!!!
+
+question regarding slack token issue:
+
+Which
+[2026-04-03 10:13:00] 📥 Ticket created in 3.4ms (target: <100ms)
+[2026-04-03 10:13:01] ✅ Sent: 🚨 Got it! Ticket #5087 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 10:13:01] ✅ Processed message → Ticket #5087 [P0/operational]
+[2026-04-03 10:14:41] 📱 INCOMING from +4794810537: PyFinAgent  Critical error you are not following up my messages!!!
+question regarding slack token is
+[2026-04-03 10:14:41] 📥 Ticket created in 2.4ms (target: <100ms)
+[2026-04-03 10:14:41] ✅ Sent: 🚨 Got it! Ticket #5088 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 10:14:41] ✅ Processed message → Ticket #5088 [P0/operational]
+[2026-04-03 11:00:21] 📱 INCOMING from +4794810537: Critical error: 
+
+PyFinAgent here is the new tokens!!!
+
+Slack app token: xapp-1-A0A05T38761-10833849
+[2026-04-03 11:00:21] 📥 Ticket created in 1.4ms (target: <100ms)
+[2026-04-03 11:00:21] ✅ Sent: 🚨 Got it! Ticket #5089 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 11:00:21] ✅ Processed message → Ticket #5089 [P0/operational]
+[2026-04-03 11:07:11] 📱 INCOMING from +4794810537: Critical error: 
+
+PyFinAgent here is the new tokens!!!
+
+Slack app token: xapp-1-A0A05T38761-10833849
+[2026-04-03 11:07:11] 📥 Ticket created in 4.7ms (target: <100ms)
+[2026-04-03 11:07:11] ✅ Sent: 🚨 Got it! Ticket #5090 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 11:07:11] ✅ Processed message → Ticket #5090 [P0/operational]
+[2026-04-03 11:08:02] 📱 INCOMING from +4794810537: Status
+[2026-04-03 11:08:02] 📥 Ticket created in 3.2ms (target: <100ms)
+[2026-04-03 11:08:02] ✅ Sent: ⚡ Got it! Ticket #5091 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:08:02] ✅ Processed message → Ticket #5091 [P1/operational]
+[2026-04-03 11:08:55] 📱 INCOMING from +4794810537: PyFinAgent here is the new tokens!!!
+
+Slack app token: xapp-1-A0A05T38761-10833849107939-f008101f3f2
+[2026-04-03 11:08:55] 📥 Ticket created in 2.5ms (target: <100ms)
+[2026-04-03 11:08:55] ✅ Sent: ⚡ Got it! Ticket #5092 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:08:55] ✅ Processed message → Ticket #5092 [P1/operational]
+[2026-04-03 11:11:03] 📱 INCOMING from +4794810537: Status
+[2026-04-03 11:11:03] 📥 Ticket created in 3.2ms (target: <100ms)
+[2026-04-03 11:11:03] ✅ Sent: ⚡ Got it! Ticket #5093 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:11:03] ✅ Processed message → Ticket #5093 [P1/operational]
+[2026-04-03 11:15:46] 📱 INCOMING from +4794810537: Tried to test slack mention pipeline and I didn’t get a ticket nor a reply 
+
+PyFinAgent testing comm
+[2026-04-03 11:15:46] 📥 Ticket created in 1.6ms (target: <100ms)
+[2026-04-03 11:15:46] ✅ Sent: ⚡ Got it! Ticket #5094 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:15:46] ✅ Processed message → Ticket #5094 [P1/operational]
+[2026-04-03 11:18:19] 📱 INCOMING from +4794810537: PyFinAgent Tried to test slack mention pipeline and I didn’t get a ticket nor a reply 
+PyFinAgent te
+[2026-04-03 11:18:19] 📥 Ticket created in 3.0ms (target: <100ms)
+[2026-04-03 11:18:19] ✅ Sent: ⚡ Got it! Ticket #5095 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:18:19] ✅ Processed message → Ticket #5095 [P1/operational]
+[2026-04-03 11:20:01] 📱 INCOMING from +4794810537: PyFinAgent Tried to test slack mention pipeline and I didn’t get a ticket nor a reply 
+PyFinAgent te
+[2026-04-03 11:20:01] 📥 Ticket created in 3.4ms (target: <100ms)
+[2026-04-03 11:20:01] ✅ Sent: ⚡ Got it! Ticket #5097 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:20:01] ✅ Processed message → Ticket #5097 [P1/operational]
+[2026-04-03 11:20:20] 📱 INCOMING from +4794810537: Critical!!!
+
+PyFinAgent Tried to test slack mention pipeline and I didn’t get a ticket nor a reply 
+
+[2026-04-03 11:20:20] 📥 Ticket created in 3.2ms (target: <100ms)
+[2026-04-03 11:20:20] ✅ Sent: 🚨 Got it! Ticket #5098 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 11:20:20] ✅ Processed message → Ticket #5098 [P0/operational]
+[2026-04-03 11:27:18] 📱 INCOMING from +4794810537: PyFinAgent
+
+Critical!!!
+PyFinAgent Tried to test slack mention pipeline and I didn’t get a ticket no
+[2026-04-03 11:27:18] 📥 Ticket created in 3.1ms (target: <100ms)
+[2026-04-03 11:27:18] ✅ Sent: 🚨 Got it! Ticket #5100 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 11:27:18] ✅ Processed message → Ticket #5100 [P0/operational]
+[2026-04-03 11:28:51] 📱 INCOMING from +4794810537: PyFinAgent
+
+Critical!!!
+PyFinAgent Tried to test slack mention pipeline and I didn’t get a ticket no
+[2026-04-03 11:28:51] 📥 Ticket created in 1.5ms (target: <100ms)
+[2026-04-03 11:28:51] ✅ Sent: 🚨 Got it! Ticket #5101 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 11:28:51] ✅ Processed message → Ticket #5101 [P0/operational]
+[2026-04-03 11:33:45] 📱 INCOMING from +4794810537: Status 
+[2026-04-03 11:33:45] 📥 Ticket created in 1.4ms (target: <100ms)
+[2026-04-03 11:33:45] ✅ Sent: ⚡ Got it! Ticket #5102 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:33:45] ✅ Processed message → Ticket #5102 [P1/operational]
+[2026-04-03 11:33:48] 📱 INCOMING from +4794810537: PyFinAgent status 
+
+PyFinAgent
+Critical!!!
+PyFinAgent Tried to test slack mention pipeline and I did
+[2026-04-03 11:33:48] 📥 Ticket created in 3.3ms (target: <100ms)
+[2026-04-03 11:33:48] ✅ Sent: 🚨 Got it! Ticket #5103 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 11:33:48] ✅ Processed message → Ticket #5103 [P0/operational]
+[2026-04-03 11:40:15] 📱 INCOMING from +4794810537: Status
+[2026-04-03 11:40:15] 📥 Ticket created in 1.5ms (target: <100ms)
+[2026-04-03 11:40:15] ✅ Sent: ⚡ Got it! Ticket #5105 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:40:15] ✅ Processed message → Ticket #5105 [P1/operational]
+[2026-04-03 11:45:02] 📱 INCOMING from +4794810537: **FOUND THE PROBLEM:**
+
+❌ **Model claude-3-5-sonnet-20241022 does not exist in Anthropic API**
+
+The 
+[2026-04-03 11:45:02] 📥 Ticket created in 1.8ms (target: <100ms)
+[2026-04-03 11:45:02] ✅ Sent: ⚡ Got it! Ticket #5106 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:45:02] ✅ Processed message → Ticket #5106 [P1/operational]
+[2026-04-03 11:52:52] 📱 INCOMING from +4794810537: Messages sent on slack 11:49am 
+
+No ticket replay died silently somewhere in the process 
+
+“PyFinAge
+[2026-04-03 11:52:52] 📥 Ticket created in 3.5ms (target: <100ms)
+[2026-04-03 11:52:52] ✅ Sent: ⚡ Got it! Ticket #5108 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:52:52] ✅ Processed message → Ticket #5108 [P1/operational]
+[2026-04-03 11:59:42] 📱 INCOMING from +4794810537: PyFinAgent swift to a cheaper model Claude 3.5 haiku as Claude 4.6 opus is hitting api limits
+
+The c
+[2026-04-03 11:59:42] 📥 Ticket created in 1.6ms (target: <100ms)
+[2026-04-03 11:59:42] ✅ Sent: ⚡ Got it! Ticket #5109 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 11:59:42] ✅ Processed message → Ticket #5109 [P1/operational]
+[2026-04-03 12:07:21] 📱 INCOMING from +4794810537: Critical!!!
+
+PyFinAgent swift to a cheaper model Claude 3.5 haiku as Claude 4.6 opus is hitting api 
+[2026-04-03 12:07:21] 📥 Ticket created in 2.9ms (target: <100ms)
+[2026-04-03 12:07:21] ✅ Sent: 🚨 Got it! Ticket #5111 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 12:07:21] ✅ Processed message → Ticket #5111 [P0/operational]
+[2026-04-03 12:13:06] 📱 INCOMING from +4794810537: PyFinAgent critical error!!! 
+
+swift to a cheaper model Claude 3.5 haiku as Claude 4.6 opus is hitti
+[2026-04-03 12:13:06] 📥 Ticket created in 3.2ms (target: <100ms)
+[2026-04-03 12:13:06] ✅ Sent: 🚨 Got it! Ticket #5113 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 12:13:06] ✅ Processed message → Ticket #5113 [P0/operational]
+[2026-04-03 12:14:28] 📱 INCOMING from +4794810537: PyFinAgent critical error!!! 
+
+swift to a cheaper model Claude 3.5 haiku as Claude 4.6 opus is hitti
+[2026-04-03 12:14:28] 📥 Ticket created in 2.6ms (target: <100ms)
+[2026-04-03 12:14:28] ✅ Sent: 🚨 Got it! Ticket #5114 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 12:14:28] ✅ Processed message → Ticket #5114 [P0/operational]
+[2026-04-03 12:17:19] 📱 INCOMING from +4794810537: PyFinAgent critical error!!! 
+
+swift to a cheaper model Claude 3.5 haiku as Claude 4.6 opus is hitti
+[2026-04-03 12:17:19] 📥 Ticket created in 1.4ms (target: <100ms)
+[2026-04-03 12:17:19] ✅ Sent: 🚨 Got it! Ticket #5118 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 12:17:19] ✅ Processed message → Ticket #5118 [P0/operational]
+[2026-04-03 12:20:10] 📱 INCOMING from +4794810537: Status 
+[2026-04-03 12:20:10] 📥 Ticket created in 2.1ms (target: <100ms)
+[2026-04-03 12:20:10] ✅ Sent: ⚡ Got it! Ticket #5120 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 12:20:10] ✅ Processed message → Ticket #5120 [P1/operational]
+[2026-04-03 12:28:39] 📱 INCOMING from +4794810537: PyFinAgent critical error!!! 
+
+swift to a cheaper model Claude 3.5 haiku as Claude 4.6 opus is hitti
+[2026-04-03 12:28:39] 📥 Ticket created in 1.9ms (target: <100ms)
+[2026-04-03 12:28:39] ✅ Sent: 🚨 Got it! Ticket #5122 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 12:28:39] ✅ Processed message → Ticket #5122 [P0/operational]
+[2026-04-03 12:32:17] 📱 INCOMING from +4794810537: PyFinAgent major critical error!!! 
+
+swift to a cheaper model Claude 3.5 haiku as Claude 4.6 opus is
+[2026-04-03 12:32:17] 📥 Ticket created in 1.8ms (target: <100ms)
+[2026-04-03 12:32:17] ✅ Sent: 🚨 Got it! Ticket #5124 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 12:32:17] ✅ Processed message → Ticket #5124 [P0/operational]
+[2026-04-03 12:33:05] 📱 INCOMING from +4794810537: Status
+[2026-04-03 12:33:05] 📥 Ticket created in 2.0ms (target: <100ms)
+[2026-04-03 12:33:05] ✅ Sent: ⚡ Got it! Ticket #5126 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 12:33:05] ✅ Processed message → Ticket #5126 [P1/operational]
+[2026-04-03 12:34:05] 📱 INCOMING from +4794810537: PyFinAgent 🚨🚨🚨🚨🚨PyFinAgent major critical error!!! 
+swift to a cheaper model Claude 3.5 haiku as Cla
+[2026-04-03 12:34:05] 📥 Ticket created in 2.7ms (target: <100ms)
+[2026-04-03 12:34:05] ✅ Sent: 🚨 Got it! Ticket #5129 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 12:34:05] ✅ Processed message → Ticket #5129 [P0/operational]
+[2026-04-03 12:36:20] 📱 INCOMING from +4794810537: PyFinAgent test with Haiku model instead 
+[2026-04-03 12:36:20] 📥 Ticket created in 3.9ms (target: <100ms)
+[2026-04-03 12:36:20] ✅ Sent: ⚡ Got it! Ticket #5130 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 12:36:20] ✅ Processed message → Ticket #5130 [P1/operational]
+[2026-04-03 12:41:24] 📱 INCOMING from +4794810537: PyFinAgent waiting on respons on: ⚡ Got it! Ticket #5131 created, assigning to MAIN (Ford)... (ETA: 
+[2026-04-03 12:41:24] 📥 Ticket created in 3.2ms (target: <100ms)
+[2026-04-03 12:41:24] ✅ Sent: 📋 Got it! Ticket #5132 created, assigning to Analyst... (ETA: 1 hour)
+[2026-04-03 12:41:24] ✅ Processed message → Ticket #5132 [P2/analytical]
+[2026-04-03 12:43:27] 📱 INCOMING from +4794810537: PyFinAgent new test. 
+[2026-04-03 12:43:27] 📥 Ticket created in 3.7ms (target: <100ms)
+[2026-04-03 12:43:27] ✅ Sent: ⚡ Got it! Ticket #5134 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 12:43:27] ✅ Processed message → Ticket #5134 [P1/operational]
+[2026-04-03 12:45:24] 📱 INCOMING from +4794810537: Still waiting on respons on ticket 
+
+⚡ Got it! Ticket #5135 created, assigning to MAIN (Ford)... (ET
+[2026-04-03 12:45:24] 📥 Ticket created in 2.7ms (target: <100ms)
+[2026-04-03 12:45:24] ✅ Sent: ⚡ Got it! Ticket #5136 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 12:45:24] ✅ Processed message → Ticket #5136 [P1/operational]
+[2026-04-03 12:48:00] 📱 INCOMING from +4794810537: PyFinAgent
+
+Still waiting on respons on ticket 
+⚡ Got it! Ticket #5135 created, assigning to MAIN (F
+[2026-04-03 12:48:00] 📥 Ticket created in 4.9ms (target: <100ms)
+[2026-04-03 12:48:00] ✅ Sent: 📋 Got it! Ticket #5137 created, assigning to Analyst... (ETA: 1 hour)
+[2026-04-03 12:48:00] ✅ Processed message → Ticket #5137 [P2/analytical]
+[2026-04-03 12:51:52] 📱 INCOMING from +4794810537: New test 
+[2026-04-03 12:51:52] 📥 Ticket created in 1.4ms (target: <100ms)
+[2026-04-03 12:51:52] ✅ Sent: ⚡ Got it! Ticket #5139 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 12:51:52] ✅ Processed message → Ticket #5139 [P1/operational]
+[2026-04-03 12:57:04] 📱 INCOMING from +4794810537: 🚨 **Even claude-3-haiku-20240307 doesn't exist in YOUR API**
+
+This means your Anthropic API key does
+[2026-04-03 12:57:04] 📥 Ticket created in 2.9ms (target: <100ms)
+[2026-04-03 12:57:04] ✅ Sent: 🚨 Got it! Ticket #5140 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 12:57:04] ✅ Processed message → Ticket #5140 [P0/operational]
+[2026-04-03 12:57:53] 📱 INCOMING from +4794810537: PyFinAgent use Claude sonnet 4.6 latest 
+[2026-04-03 12:57:53] 📥 Ticket created in 1.6ms (target: <100ms)
+[2026-04-03 12:57:53] ✅ Sent: ⚡ Got it! Ticket #5141 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 12:57:53] ✅ Processed message → Ticket #5141 [P1/operational]
+[2026-04-03 12:59:15] 📱 INCOMING from +4794810537: Major critical error!!! Haiku 20240307 is discontinued use the latest Claude sonnet 4.6 model availa
+[2026-04-03 12:59:15] 📥 Ticket created in 1.8ms (target: <100ms)
+[2026-04-03 12:59:15] ✅ Sent: 🚨 Got it! Ticket #5142 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 12:59:15] ✅ Processed message → Ticket #5142 [P0/operational]
+[2026-04-03 13:00:31] 📱 INCOMING from +4794810537: Major critical error!!! Haiku 20240307 is discontinued use the latest Claude sonnet 4.6 model availa
+[2026-04-03 13:00:31] 📥 Ticket created in 5.5ms (target: <100ms)
+[2026-04-03 13:00:31] ✅ Sent: 🚨 Got it! Ticket #5144 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 13:00:31] ✅ Processed message → Ticket #5144 [P0/operational]
+[2026-04-03 13:01:46] 📱 INCOMING from +4794810537: Major critical error!!! Haiku 20240307 is discontinued use the latest Claude sonnet 4.6 model availa
+[2026-04-03 13:01:46] 📥 Ticket created in 1.9ms (target: <100ms)
+[2026-04-03 13:01:46] ✅ Sent: 🚨 Got it! Ticket #5146 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 13:01:46] ✅ Processed message → Ticket #5146 [P0/operational]
+[2026-04-03 13:10:15] 📱 INCOMING from +4794810537: PyFinAgent Major critical error!!! Haiku 20240307 is discontinued use the latest Claude sonnet 4.6 m
+[2026-04-03 13:10:15] 📥 Ticket created in 3.2ms (target: <100ms)
+[2026-04-03 13:10:16] ✅ Sent: 🚨 Got it! Ticket #5147 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 13:10:16] ✅ Processed message → Ticket #5147 [P0/operational]
+[2026-04-03 13:23:23] 📱 INCOMING from +4794810537: PyFinAgent Major critical error!!! Haiku 20240307 is discontinued use the latest Claude sonnet 4.6 m
+[2026-04-03 13:23:23] 📥 Ticket created in 3.0ms (target: <100ms)
+[2026-04-03 13:23:23] ✅ Sent: 🚨 Got it! Ticket #5149 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 13:23:23] ✅ Processed message → Ticket #5149 [P0/operational]
+[2026-04-03 13:28:02] 📱 INCOMING from +4794810537: Test
+[2026-04-03 13:28:02] 📥 Ticket created in 3.7ms (target: <100ms)
+[2026-04-03 13:28:02] ✅ Sent: ⚡ Got it! Ticket #5150 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 13:28:02] ✅ Processed message → Ticket #5150 [P1/operational]
+[2026-04-03 13:38:24] 📱 INCOMING from +4794810537: Critical error: you still haven’t answered ticket ⚡ Got it! Ticket #5151 created, assigning to MAIN 
+[2026-04-03 13:38:24] 📥 Ticket created in 3.6ms (target: <100ms)
+[2026-04-03 13:38:24] ✅ Sent: 🚨 Got it! Ticket #5152 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 13:38:24] ✅ Processed message → Ticket #5152 [P0/operational]
+[2026-04-03 13:40:46] 📱 INCOMING from +4794810537: PyFinAgent test you haven't answered this messages underneath 
+
+🚨 Got it! Ticket #5152 created, assi
+[2026-04-03 13:40:46] 📥 Ticket created in 2.7ms (target: <100ms)
+[2026-04-03 13:40:46] ✅ Sent: ⚡ Got it! Ticket #5153 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 13:40:46] ✅ Processed message → Ticket #5153 [P1/operational]
+[2026-04-03 13:43:56] 📱 INCOMING from +4794810537: PyFinAgent great! If the session is already busy with another ticket or rate limit clears queue. Mak
+[2026-04-03 13:43:56] 📥 Ticket created in 2.9ms (target: <100ms)
+[2026-04-03 13:43:56] ✅ Sent: ⚡ Got it! Ticket #5155 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+[2026-04-03 13:43:56] ✅ Processed message → Ticket #5155 [P1/operational]
+[2026-04-03 13:47:11] 📱 INCOMING from +4794810537: Critical error!!!
+
+Check tickets underneath
+
+#5155 created
+#5156 created
+
+If the session is already 
+[2026-04-03 13:47:11] 📥 Ticket created in 3.1ms (target: <100ms)
+[2026-04-03 13:47:11] ✅ Sent: 🚨 Got it! Ticket #5157 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+[2026-04-03 13:47:11] ✅ Processed message → Ticket #5157 [P0/operational]
+[2026-04-03 13:48:57] 📱 INCOMING from +4794810537: PyFinAgent 
+
+Critical error!!!
+
+check why we didn't get any response on both of those tickets 
+
+Chec
+[2026-04-03 13:48:57] 📥 Ticket created in 3.6ms (target: <100ms)
+[2026-04-03 13:48:57] ✅ Sent: 🚨 Got it! Ticket #5158 created, assigning to Analyst... (ETA: 5 minutes)
+[2026-04-03 13:48:57] ✅ Processed message → Ticket #5158 [P0/analytical]
+[2026-04-03 13:50:13] 📱 INCOMING from +4794810537: PyFinAgent 
+
+Critical error!!!
+
+check why we didn't get any response on both of those tickets 
+
+Chec
+[2026-04-03 13:50:13] 📥 Ticket created in 3.6ms (target: <100ms)
+[2026-04-03 13:50:13] ✅ Sent: 🚨 Got it! Ticket #5159 created, assigning to Analyst... (ETA: 5 minutes)
+[2026-04-03 13:50:13] ✅ Processed message → Ticket #5159 [P0/analytical]
+[2026-04-03 13:51:23] 📱 INCOMING from +4794810537: PyFinAgent 
+
+Critical error!!!
+
+check why we didn't get any response on both of those tickets 
+
+Chec
+[2026-04-03 13:51:23] 📥 Ticket created in 5.5ms (target: <100ms)
+[2026-04-03 13:51:23] ✅ Sent: 🚨 Got it! Ticket #5162 created, assigning to Analyst... (ETA: 5 minutes)
+[2026-04-03 13:51:23] ✅ Processed message → Ticket #5162 [P0/analytical]
+[2026-04-03 13:53:14] 📱 INCOMING from +4794810537: PyFinAgent Major Critical error!!!
+check why we didn't get any response on both of those tickets 
+Ch
+[2026-04-03 13:53:14] 📥 Ticket created in 2.9ms (target: <100ms)
+[2026-04-03 13:53:14] ✅ Sent: 🚨 Got it! Ticket #5163 created, assigning to Analyst... (ETA: 5 minutes)
+[2026-04-03 13:53:14] ✅ Processed message → Ticket #5163 [P0/analytical]
+[2026-04-03 13:55:19] 📱 INCOMING from +4794810537: PyFinAgent Major Critical error!!!
+
+check why we didn't get any response on any of those tickets und
+[2026-04-03 13:55:19] 📥 Ticket created in 3.1ms (target: <100ms)
+[2026-04-03 13:55:19] ✅ Sent: 🚨 Got it! Ticket #5165 created, assigning to Analyst... (ETA: 5 minutes)
+[2026-04-03 13:55:19] ✅ Processed message → Ticket #5165 [P0/analytical]
+[2026-04-03 13:57:57] 📱 INCOMING from +4794810537: PyFinAgent Major Critical error!!!
+
+check why we didn't get any response on any of those tickets und
+[2026-04-03 13:57:57] 📥 Ticket created in 5.1ms (target: <100ms)
+[2026-04-03 13:57:57] ✅ Sent: 🚨 Got it! Ticket #5166 created, assigning to Analyst... (ETA: 5 minutes)
+[2026-04-03 13:57:57] ✅ Processed message → Ticket #5166 [P0/analytical]
+[2026-04-03 14:05:26] 📱 INCOMING from +4794810537: PyFinAgent continue working on our masterplan where you left off this morning. 
+
+
+Before you start m
+[2026-04-03 14:05:26] 📥 Ticket created in 3.2ms (target: <100ms)
+[2026-04-03 14:05:26] ✅ Sent: 📋 Got it! Ticket #5167 created, assigning to Researcher... (ETA: 1 hour)
+[2026-04-03 14:05:26] ✅ Processed message → Ticket #5167 [P2/research]
+[2026-04-03 14:15:53] 📱 INCOMING from +4794810537: PyFinAgent continue working on our masterplan where you left off this morning. 
+
+
+Before you start m
+[2026-04-03 14:15:53] 📥 Ticket created in 5.2ms (target: <100ms)
+[2026-04-03 14:15:53] ✅ Sent: 📋 Got it! Ticket #5168 created, assigning to Researcher... (ETA: 1 hour)
+[2026-04-03 14:15:53] ✅ Processed message → Ticket #5168 [P2/research]
+[2026-04-03 14:16:00] 📱 INCOMING from +4794810537: PyFinAgent continue working on our masterplan where you left off this morning. 
+
+
+Before you start m
+[2026-04-03 14:16:00] 📥 Ticket created in 1.0ms (target: <100ms)
+[2026-04-03 14:16:00] ✅ Sent: 📋 Got it! Ticket #5169 created, assigning to Researcher... (ETA: 1 hour)
+[2026-04-03 14:16:00] ✅ Processed message → Ticket #5169 [P2/research]
+[2026-04-03 14:19:29] 📱 INCOMING from +4794810537: PyFinAgent continue working on our masterplan where you left off this morning. 
+
+
+Before you start m
+[2026-04-03 14:19:29] 📥 Ticket created in 5.9ms (target: <100ms)
+[2026-04-03 14:19:29] ✅ Sent: 📋 Got it! Ticket #5170 created, assigning to Researcher... (ETA: 1 hour)
+[2026-04-03 14:19:29] ✅ Processed message → Ticket #5170 [P2/research]
+[2026-04-03 14:22:58] 📱 INCOMING from +4794810537: PyFinAgent critical error!!!! 
+
+Ticket from iMessage is not showing queue position 
+
+Look at ticket 
+[2026-04-03 14:22:58] 📥 Ticket created in 1.7ms (target: <100ms)
+[2026-04-03 14:22:58] ✅ Sent: 🚨 Got it! Ticket #5172 created, assigning to Researcher... (ETA: 5 minutes)
+[2026-04-03 14:22:58] ✅ Processed message → Ticket #5172 [P0/research]
+[2026-04-03 14:23:22] 📱 INCOMING from +4794810537: PyFinAgent critical error!!!! 
+
+Ticket from iMessage is not showing queue position 
+
+Look at ticket 
+[2026-04-03 14:23:22] 📥 Ticket created in 2.0ms (target: <100ms)
+[2026-04-03 14:23:22] ✅ Sent: 🚨 Got it! Ticket #5173 created, assigning to Researcher... (ETA: 5 minutes)
+[2026-04-03 14:23:22] ✅ Processed message → Ticket #5173 [P0/research]
+[2026-04-03 14:23:28] 📱 INCOMING from +4794810537: PyFinAgent critical error!!!! 
+
+Ticket from iMessage is not showing queue position 
+
+Look at ticket 
+[2026-04-03 14:23:28] 📥 Ticket created in 2.3ms (target: <100ms)
+[2026-04-03 14:23:28] ✅ Sent: 🚨 Got it! Ticket #5174 created, assigning to Researcher... (ETA: 5 minutes)
+[2026-04-03 14:23:28] ✅ Processed message → Ticket #5174 [P0/research]
+[2026-04-03 14:24:38] 📱 INCOMING from +4794810537: PyFinAgent critical error!!!! 
+
+Ticket from iMessage is not showing queue position 
+
+Look at ticket 
+[2026-04-03 14:24:38] 📥 Ticket created in 5.1ms (target: <100ms)
+[2026-04-03 14:24:38] ✅ Sent: 🚨 Got it! Ticket #5175 created, assigning to Researcher... (ETA: 5 minutes)
+[2026-04-03 14:24:38] ✅ Processed message → Ticket #5175 [P0/research]
+[2026-04-03 14:27:26] 📱 INCOMING from +4794810537: PyFinAgent critical error!!!! 
+
+Ticket from iMessage is not showing queue position 
+
+Look at ticket 
+[2026-04-03 14:27:26] 📥 Ticket created in 0.9ms (target: <100ms)
+[2026-04-03 14:27:26] ✅ Sent: 🚨 Got it! Ticket #5177 created, assigning to Researcher... (ETA: 5 minutes)
+[2026-04-03 14:27:26] ✅ Processed message → Ticket #5177 [P0/research]
+[2026-04-03 14:28:54] 📱 INCOMING from +4794810537: PyFinAgent continue working on our masterplan where you left off this morning. 
+
+
+Before you start m
+[2026-04-03 14:28:54] 📥 Ticket created in 2.4ms (target: <100ms)
+[2026-04-03 14:28:54] ✅ Sent: 📋 Got it! Ticket #5179 created, assigning to Researcher... (ETA: 1 hour)
+[2026-04-03 14:28:54] ✅ Processed message → Ticket #5179 [P2/research]
+[2026-04-03 14:29:30] 📱 INCOMING from +4794810537: PyFinAgent continue working on our masterplan where you left off this morning. 
+
+
+Before you start m
+[2026-04-03 14:29:30] 📥 Ticket created in 1.7ms (target: <100ms)
+[2026-04-03 14:29:30] ✅ Sent: 📋 Got it! Ticket #5180 created, assigning to Researcher... (ETA: 1 hour)
+[2026-04-03 14:29:30] ✅ Processed message → Ticket #5180 [P2/research]
+[2026-04-03 14:32:00] 📱 INCOMING from +4794810537: PyFinAgent continue working on our masterplan where you left off this morning. 
+Before you start mak
+[2026-04-03 14:32:00] 📥 Ticket created in 2.8ms (target: <100ms)
+[2026-04-03 14:32:00] ✅ Sent: 📋 Got it! Ticket #5181 created, assigning to Researcher... (ETA: 1 hour)
+[2026-04-03 14:32:00] ✅ Processed message → Ticket #5181 [P2/research]
+[2026-04-03 14:35:07] 📱 INCOMING from +4794810537: PyFinAgent continue working on our masterplan where you left off this morning. 
+Before you start mak
+[2026-04-03 14:35:07] 📥 Ticket created in 3.5ms (target: <100ms)
+[2026-04-03 14:35:07] ✅ Sent: 📋 Got it! Ticket #5183 created, assigning to Researcher... (ETA: 1 hour)
+[2026-04-03 14:35:07] ✅ Processed message → Ticket #5183 [P2/research]

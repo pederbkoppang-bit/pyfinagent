@@ -120,12 +120,39 @@ class ResponseDeliveryService:
             logger.error(f"Slack send error to {channel_id}: {e}")
             return False
 
-    async def deliver_ticket_response(self, ticket_id: int) -> bool:
+    def _get_priority_reasoning(self, message_text: str, priority: str) -> str:
+        """Get reasoning for why this priority was assigned."""
+        msg_lower = message_text.lower()
+        
+        urgent_keywords = ["urgent", "critical", "error", "broken", "down", "failed", "emergency", "immediately", "asap"]
+        low_keywords = ["when you have time", "no rush", "fyi", "eventually"]
+        
+        if any(kw in msg_lower for kw in urgent_keywords):
+            return "Urgent keywords detected"
+        elif any(kw in msg_lower for kw in low_keywords):
+            return "Low priority indicators present"
+        elif priority == "P0":
+            return "Critical/operational issue"
+        elif priority == "P1":
+            return "Urgent - requires quick response"
+        elif priority == "P2":
+            return "Standard priority"
+        else:
+            return "Low priority - can wait"
+
+    async def deliver_ticket_response(
+        self, 
+        ticket_id: int,
+        priority: str = None,
+        classification: str = None
+    ) -> bool:
         """
         Deliver the response for a resolved ticket back to the user.
         
         Args:
             ticket_id: ID of the resolved ticket
+            priority: Optional priority (overrides ticket priority)
+            classification: Optional classification
             
         Returns:
             bool: True if delivered successfully
@@ -144,25 +171,34 @@ class ResponseDeliveryService:
             logger.error(f"❌ Ticket {ticket_id} has no response text")
             return False
         
+        # Use provided priority/classification or fall back to ticket values
+        priority = priority or ticket['priority']
+        classification = classification or ticket['classification']
+        
         # Determine delivery method
         source = ticket['source']
         response_text = ticket['response_text']
         ticket_number = ticket['ticket_number']
         
+        # Add priority and reasoning footer
+        priority_reasoning = self._get_priority_reasoning(ticket['message_text'], priority)
+        priority_footer = f"\n\n_Priority: {priority} ({priority_reasoning})_"
+        full_response = response_text + priority_footer
+        
         try:
             if source == TicketSource.IMESSAGE.value:
-                # Deliver via iMessage
+                # Deliver via iMessage (include priority reasoning)
                 success = self.send_imessage_response(
                     phone_number=ticket['sender_id'],
-                    message=response_text,
+                    message=full_response,
                     ticket_number=ticket_number
                 )
                 
             elif source == TicketSource.SLACK.value:
-                # Deliver via Slack
+                # Deliver via Slack (include priority reasoning)
                 success = await self.send_slack_response(
                     channel_id=ticket['channel_id'],
-                    message=response_text,
+                    message=full_response,
                     thread_ts=ticket['slack_thread_id'],
                     ticket_number=ticket_number
                 )

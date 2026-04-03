@@ -17,13 +17,8 @@ class QueueNotificationService:
 
     def __init__(self):
         self.slack_client = None
-        try:
-            from slack_sdk import WebClient
-            from backend.config.settings import get_settings
-            settings = get_settings()
-            self.slack_client = WebClient(token=settings.slack_bot_token)
-        except Exception as e:
-            logger.warning(f"Slack client not available: {e}")
+        # NOTE: Client is lazy-loaded on first use to avoid duplicate instantiation
+        self._slack_client_initialized = False
 
     async def notify_queue_position_change(self, ticket: Dict[str, Any], new_position: int) -> bool:
         """
@@ -54,8 +49,23 @@ class QueueNotificationService:
             logger.error(f"Error notifying user of position change: {e}")
             return False
 
+    def _ensure_slack_client(self):
+        """Lazy-initialize Slack client to avoid duplicate instantiation."""
+        if not self._slack_client_initialized:
+            try:
+                from slack_sdk import WebClient
+                from backend.config.settings import get_settings
+                settings = get_settings()
+                self.slack_client = WebClient(token=settings.slack_bot_token)
+                self._slack_client_initialized = True
+                logger.debug("Slack client initialized")
+            except Exception as e:
+                logger.warning(f"Slack client not available: {e}")
+                self._slack_client_initialized = True  # Mark as attempted
+
     async def _notify_slack(self, ticket: Dict[str, Any], message: str, position: int) -> bool:
         """Send queue position update via Slack."""
+        self._ensure_slack_client()
         if not self.slack_client:
             logger.warning("Slack client not available")
             return False

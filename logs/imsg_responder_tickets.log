@@ -1,1 +1,208 @@
-nohup: python: No such file or directory
+[2026-04-03 16:06:41] === iMessage Tickets Responder Started ===
+[2026-04-03 16:06:41] Monitoring chat 1 for messages from +4794810537
+[2026-04-03 16:06:41] Creating tickets for all incoming messages...
+[2026-04-03 16:07:32] 📱 INCOMING from +4794810537: Test 
+[2026-04-03 16:07:32] 📥 Ticket created in 1.3ms (target: <100ms)
+[2026-04-03 16:07:32] ✅ Sent: ⚡ Got it! Ticket #5206 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+📍 
+[2026-04-03 16:07:32] ✅ Processed message → Ticket #5206 [P1/operational]
+[2026-04-03 16:09:22] 📱 INCOMING from +4794810537: Test 2
+[2026-04-03 16:09:22] 📥 Ticket created in 3.5ms (target: <100ms)
+[2026-04-03 16:09:23] ✅ Sent: ⚡ Got it! Ticket #5207 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+📍 
+[2026-04-03 16:09:23] ✅ Processed message → Ticket #5207 [P1/operational]
+[2026-04-03 16:19:24] 📱 INCOMING from +4794810537: PyFinAgent test 2
+[2026-04-03 16:19:24] 📥 Ticket created in 5.3ms (target: <100ms)
+[2026-04-03 16:19:24] ✅ Sent: ⚡ Got it! Ticket #5209 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+📍 
+[2026-04-03 16:19:24] ✅ Processed message → Ticket #5209 [P1/operational]
+[2026-04-03 16:23:10] 📱 INCOMING from +4794810537: Validate and confirm 
+
+1. Immediate Technical Corrections
+We have identified a critical error in the
+[2026-04-03 16:23:10] 📥 Ticket created in 3.5ms (target: <100ms)
+[2026-04-03 16:23:10] ✅ Sent: 🚨 Got it! Ticket #5210 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+📍 Q
+[2026-04-03 16:23:10] ✅ Processed message → Ticket #5210 [P0/operational]
+[2026-04-03 16:24:43] 📱 INCOMING from +4794810537: PyFinAgent
+
+ Critical error!! Must prioritise!!!!!!
+
+Validate and confirm 
+
+
+1. Immediate Technical 
+[2026-04-03 16:24:43] 📥 Ticket created in 1.3ms (target: <100ms)
+[2026-04-03 16:24:43] ✅ Sent: 🚨 Got it! Ticket #5212 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+📍 Q
+[2026-04-03 16:24:43] ✅ Processed message → Ticket #5212 [P0/operational]
+[2026-04-03 16:27:39] 📱 INCOMING from +4794810537: PyFinAgent
+
+ Critical error!! Must prioritise!!!!!!
+
+Validate and confirm 
+
+
+1. Immediate Technical 
+[2026-04-03 16:27:39] 📥 Ticket created in 1.5ms (target: <100ms)
+[2026-04-03 16:27:39] ✅ Sent: 🚨 Got it! Ticket #5214 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+📍 Q
+[2026-04-03 16:27:39] ✅ Processed message → Ticket #5214 [P0/operational]
+[2026-04-03 16:27:48] 📱 INCOMING from +4794810537: PyFinAgent
+
+ Critical error!! Must prioritise!!!!!!
+
+Validate and confirm 
+
+
+1. Immediate Technical 
+[2026-04-03 16:27:48] 📥 Ticket created in 2.5ms (target: <100ms)
+[2026-04-03 16:27:48] ✅ Sent: 🚨 Got it! Ticket #5215 created, assigning to MAIN (Ford)... (ETA: 5 minutes)
+📍 Q
+[2026-04-03 16:27:48] ✅ Processed message → Ticket #5215 [P0/operational]
+[2026-04-03 16:34:12] 📱 INCOMING from +4794810537: PyFinAgent investigate the last 5 tickets why didn't I receive any update there when the ticket move
+[2026-04-03 16:34:12] 📥 Ticket created in 2.0ms (target: <100ms)
+[2026-04-03 16:34:12] ✅ Sent: 📋 Got it! Ticket #5216 created, assigning to Analyst... (ETA: 1 hour)
+📍 Queue po
+[2026-04-03 16:34:12] ✅ Processed message → Ticket #5216 [P2/analytical]
+[2026-04-03 16:35:09] 📱 INCOMING from +4794810537: Critical error!!! 
+
+PyFinAgent investigate the last 5 tickets why didn't I receive any update there 
+[2026-04-03 16:35:09] 📥 Ticket created in 1.9ms (target: <100ms)
+[2026-04-03 16:35:09] ✅ Sent: 🚨 Got it! Ticket #5218 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:35:09] ✅ Processed message → Ticket #5218 [P0/analytical]
+[2026-04-03 16:36:38] 📱 INCOMING from +4794810537: 🚨🚨Major Critical error!!! 
+PyFinAgent investigate the last 5 tickets why didn't I receive any update
+[2026-04-03 16:36:39] 📥 Ticket created in 2.8ms (target: <100ms)
+[2026-04-03 16:36:39] ✅ Sent: 🚨 Got it! Ticket #5220 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:36:39] ✅ Processed message → Ticket #5220 [P0/analytical]
+[2026-04-03 16:37:32] 📱 INCOMING from +4794810537: 🚨🚨Major Critical error!!! 
+PyFinAgent investigate the last 5 tickets why didn't I receive any update
+[2026-04-03 16:37:32] 📥 Ticket created in 4.5ms (target: <100ms)
+[2026-04-03 16:37:32] ✅ Sent: 🚨 Got it! Ticket #5222 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:37:32] ✅ Processed message → Ticket #5222 [P0/analytical]
+[2026-04-03 16:39:33] 📱 INCOMING from +4794810537: 🚨Major Critical error!!! 🚨
+PyFinAgent investigate the last 5 tickets why didn't I receive any update
+[2026-04-03 16:39:33] 📥 Ticket created in 2.3ms (target: <100ms)
+[2026-04-03 16:39:33] ✅ Sent: 🚨 Got it! Ticket #5223 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:39:33] ✅ Processed message → Ticket #5223 [P0/analytical]
+[2026-04-03 16:43:39] 📱 INCOMING from +4794810537: 🚨🚨Major Critical error!!! 
+PyFinAgent investigate the last 5 tickets why didn't I receive any update
+[2026-04-03 16:43:39] 📥 Ticket created in 5.5ms (target: <100ms)
+[2026-04-03 16:43:39] ✅ Sent: 🚨 Got it! Ticket #5224 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:43:39] ✅ Processed message → Ticket #5224 [P0/analytical]
+[2026-04-03 16:47:26] 📱 INCOMING from +4794810537: 🚨🚨Major Critical error!!! 
+PyFinAgent investigate the last 5 tickets why didn't I receive any update
+[2026-04-03 16:47:26] 📥 Ticket created in 4.2ms (target: <100ms)
+[2026-04-03 16:47:27] ✅ Sent: 🚨 Got it! Ticket #5225 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:47:27] ✅ Processed message → Ticket #5225 [P0/analytical]
+[2026-04-03 16:51:15] 📱 INCOMING from +4794810537: 🚨Major Critical error!!! 🚨
+PyFinAgent investigate the last 5 tickets why didn't I receive any update
+[2026-04-03 16:51:15] 📥 Ticket created in 5.4ms (target: <100ms)
+[2026-04-03 16:51:15] ✅ Sent: 🚨 Got it! Ticket #5227 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:51:15] ✅ Processed message → Ticket #5227 [P0/analytical]
+[2026-04-03 16:53:26] 📱 INCOMING from +4794810537: 🚨Major Critical error!!! 🚨
+PyFinAgent investigate the last 5 tickets why didn't I receive any update
+[2026-04-03 16:53:26] 📥 Ticket created in 3.8ms (target: <100ms)
+[2026-04-03 16:53:26] ✅ Sent: 🚨 Got it! Ticket #5228 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:53:26] ✅ Processed message → Ticket #5228 [P0/analytical]
+[2026-04-03 16:56:57] 📱 INCOMING from +4794810537: 🚨Major Critical error!!! 🚨
+PyFinAgent investigate the last 10 tickets why didn't I receive any updat
+[2026-04-03 16:56:57] 📥 Ticket created in 3.8ms (target: <100ms)
+[2026-04-03 16:56:58] ✅ Sent: 🚨 Got it! Ticket #5229 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:56:58] ✅ Processed message → Ticket #5229 [P0/analytical]
+[2026-04-03 16:58:09] 📱 INCOMING from +4794810537: 🚨Major Critical error!!! 🚨
+PyFinAgent investigate the last 10 tickets why didn't I receive any updat
+[2026-04-03 16:58:09] 📥 Ticket created in 5.6ms (target: <100ms)
+[2026-04-03 16:58:09] ✅ Sent: 🚨 Got it! Ticket #5233 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 16:58:09] ✅ Processed message → Ticket #5233 [P0/analytical]
+[2026-04-03 17:04:04] 📱 INCOMING from +4794810537: PyFinAgent 
+
+Use both main and Q&A agent!!
+
+Subject: CRITICAL SYSTEM AUDIT, LOGIC CORRECTION & PRIOR
+[2026-04-03 17:04:04] 📥 Ticket created in 2.4ms (target: <100ms)
+[2026-04-03 17:04:05] ✅ Sent: 🚨 Got it! Ticket #5234 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:04:05] ✅ Processed message → Ticket #5234 [P0/analytical]
+[2026-04-03 17:09:03] 📱 INCOMING from +4794810537: PyFinAgent 
+
+Use both main and Q&A agent!!
+
+Subject: CRITICAL SYSTEM AUDIT, LOGIC CORRECTION & PRIOR
+[2026-04-03 17:09:03] 📥 Ticket created in 3.7ms (target: <100ms)
+[2026-04-03 17:09:04] ✅ Sent: 🚨 Got it! Ticket #5235 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:09:04] ✅ Processed message → Ticket #5235 [P0/analytical]
+[2026-04-03 17:10:16] 📱 INCOMING from +4794810537: PyFinAgent 
+
+Use both main and Q&A agent!!
+
+Subject: CRITICAL SYSTEM AUDIT, LOGIC CORRECTION & PRIOR
+[2026-04-03 17:10:16] 📥 Ticket created in 5.6ms (target: <100ms)
+[2026-04-03 17:10:16] ✅ Sent: 🚨 Got it! Ticket #5237 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:10:16] ✅ Processed message → Ticket #5237 [P0/analytical]
+[2026-04-03 17:12:32] 📱 INCOMING from +4794810537: PyFinAgent 
+Use both main and Q&A agent!!
+Subject: CRITICAL SYSTEM AUDIT, LOGIC CORRECTION & PRIORIT
+[2026-04-03 17:12:32] 📥 Ticket created in 5.7ms (target: <100ms)
+[2026-04-03 17:12:32] ✅ Sent: 🚨 Got it! Ticket #5238 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:12:32] ✅ Processed message → Ticket #5238 [P0/analytical]
+[2026-04-03 17:15:28] 📱 INCOMING from +4794810537: PyFinAgent 
+Use both main and Q&A agent!!
+Subject: CRITICAL SYSTEM AUDIT, LOGIC CORRECTION & PRIORIT
+[2026-04-03 17:15:28] 📥 Ticket created in 1.7ms (target: <100ms)
+[2026-04-03 17:15:28] ✅ Sent: 🚨 Got it! Ticket #5239 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:15:28] ✅ Processed message → Ticket #5239 [P0/analytical]
+[2026-04-03 17:18:26] 📱 INCOMING from +4794810537: PyFinAgent
+
+CRITICAL SYSTEM AUDIT – RESOLVING QUEUE BLOAT & LOGIC ERRORS
+1. Immediate Diagnostic & D
+[2026-04-03 17:18:26] 📥 Ticket created in 3.0ms (target: <100ms)
+[2026-04-03 17:18:26] ✅ Sent: 🚨 Got it! Ticket #5240 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:18:26] ✅ Processed message → Ticket #5240 [P0/analytical]
+[2026-04-03 17:18:55] 📱 INCOMING from +4794810537: PyFinAgent
+
+CRITICAL SYSTEM AUDIT – RESOLVING QUEUE BLOAT & LOGIC ERRORS
+1. Immediate Diagnostic & D
+[2026-04-03 17:18:55] 📥 Ticket created in 1.8ms (target: <100ms)
+[2026-04-03 17:18:55] ✅ Sent: 🚨 Got it! Ticket #5241 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:18:55] ✅ Processed message → Ticket #5241 [P0/analytical]
+[2026-04-03 17:20:30] 📱 INCOMING from +4794810537: PyFinAgent test real time update 
+[2026-04-03 17:20:30] 📥 Ticket created in 5.2ms (target: <100ms)
+[2026-04-03 17:20:30] ✅ Sent: ⚡ Got it! Ticket #5242 created, assigning to MAIN (Ford)... (ETA: 15 minutes)
+📍 
+[2026-04-03 17:20:30] ✅ Processed message → Ticket #5242 [P1/operational]
+[2026-04-03 17:22:18] 📱 INCOMING from +4794810537: CRITICAL FAILURE – REJECTING "DESIGN FEATURE" EXPLANATION & MANDATORY FLUSH
+1. Immediate Correction:
+[2026-04-03 17:22:18] 📥 Ticket created in 3.0ms (target: <100ms)
+[2026-04-03 17:22:19] ✅ Sent: 🚨 Got it! Ticket #5243 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:22:19] ✅ Processed message → Ticket #5243 [P0/analytical]
+[2026-04-03 17:24:24] 📱 INCOMING from +4794810537: PyFinAgent CRITICAL FAILURE – REJECTING "DESIGN FEATURE" EXPLANATION & MANDATORY FLUSH
+1. Immediate 
+[2026-04-03 17:24:24] 📥 Ticket created in 2.8ms (target: <100ms)
+[2026-04-03 17:24:24] ✅ Sent: 🚨 Got it! Ticket #5244 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:24:24] ✅ Processed message → Ticket #5244 [P0/analytical]
+[2026-04-03 17:25:20] 📱 INCOMING from +4794810537: PyFinAgent CRITICAL FAILURE – REJECTING "DESIGN FEATURE" EXPLANATION & MANDATORY FLUSH
+1. Immediate 
+[2026-04-03 17:25:20] 📥 Ticket created in 2.3ms (target: <100ms)
+[2026-04-03 17:25:20] ✅ Sent: 🚨 Got it! Ticket #5245 created, assigning to Analyst... (ETA: 5 minutes)
+📍 Queue
+[2026-04-03 17:25:20] ✅ Processed message → Ticket #5245 [P0/analytical]
