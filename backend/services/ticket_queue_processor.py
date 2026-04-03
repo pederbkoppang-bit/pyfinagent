@@ -381,7 +381,14 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             int: Number of tickets processed successfully
         """
         # DYNAMIC QUEUE POSITIONING: Update queue positions before processing
-        self.db.update_queue_positions()
+        position_changes = self.db.update_queue_positions()
+        
+        # NOTIFY USERS OF POSITION CHANGES
+        if position_changes:
+            logger.info(f"🔔 QUEUE MOVEMENT NOTIFICATIONS: {len(position_changes)} tickets moved")
+            # TODO: Send position update notifications to Slack/iMessage
+            # for change in position_changes:
+            #     await notify_user_of_position_change(change['ticket_id'], change['new_position'])
         
         # Get open tickets in priority order
         open_tickets = self.db.get_open_tickets(limit=batch_size)
