@@ -17,6 +17,7 @@ from backend.slack_bot.commands import register_commands
 from backend.slack_bot.scheduler import start_scheduler
 from backend.services.ticket_queue_processor import start_queue_processor
 from backend.services.sla_monitor import start_sla_monitoring
+from backend.services.stuck_task_reaper import start_stuck_task_reaper
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,10 @@ async def main():
     # Start SLA monitoring in background (checks every 5 minutes)
     asyncio.create_task(start_sla_monitoring(check_interval=300))
     logger.info("🔍 SLA monitor started as background task")
+    
+    # Start stuck-task reaper (checks every 60s for >15min hung tickets)
+    asyncio.create_task(start_stuck_task_reaper(check_interval=60))
+    logger.info("🔪 Stuck-Task Reaper started as background task")
 
     handler = AsyncSocketModeHandler(app, settings.slack_app_token)
     logger.info("Slack bot starting in Socket Mode...")
