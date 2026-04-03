@@ -159,14 +159,14 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         try:
             settings = get_settings()
 
-            # Select model based on agent type (per Peder's explicit spec: Claude 3.5)
+            # Select model based on agent type (per Peder's explicit spec)
             agent_model_map = {
-                "main": "claude-3-5-opus-20241022",       # Claude 3.5 Opus for main agent
-                "q-and-a": "claude-3-5-opus-20241022",   # Claude 3.5 Opus for Q&A agent
-                "research": "claude-3-5-sonnet-20241022" # Claude 3.5 Sonnet for research
+                "main": "claude-opus-4-6",       # Opus 4-6 for main agent (complex reasoning)
+                "q-and-a": "claude-opus-4-6",   # Opus 4-6 for Q&A agent (accuracy required)
+                "research": "claude-sonnet-4-6" # Sonnet 4-6 for research (cost efficient)
             }
             
-            model_name = agent_model_map.get(agent_id, "claude-3-5-opus-20241022")
+            model_name = agent_model_map.get(agent_id, "claude-opus-4-6")
 
             # Create Anthropic client
             # Check for API key from environment or settings
