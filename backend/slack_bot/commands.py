@@ -172,6 +172,15 @@ def register_commands(app: AsyncApp):
 
     # ── Channel message handlers ─────────────────────────────────
 
+    @app.event("message_deleted")
+    async def handle_message_deleted(event, logger):
+        """Handle deleted messages — DO NOT delete associated tickets."""
+        # When a user deletes their original message, we keep the ticket in the system
+        # This preserves queue position and processing state
+        message_ts = event.get("deleted_ts")
+        logger.info(f"Message {message_ts} was deleted, but ticket preserved in system")
+        # Tickets are NOT deleted — they continue processing and remain queryable
+
     @app.message("")  # Catch all messages
     async def handle_any_message(message, say, logger):
         """Respond to any message in #ford-approvals. Persists as ticket."""

@@ -385,10 +385,21 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         
         # NOTIFY USERS OF POSITION CHANGES
         if position_changes:
-            logger.info(f"🔔 QUEUE MOVEMENT NOTIFICATIONS: {len(position_changes)} tickets moved")
-            # TODO: Send position update notifications to Slack/iMessage
-            # for change in position_changes:
-            #     await notify_user_of_position_change(change['ticket_id'], change['new_position'])
+            logger.info(f"🔔 QUEUE MOVEMENT NOTIFICATIONS: {len(position_changes)} tickets moved up in queue")
+            from backend.services.queue_notification import get_queue_notification_service
+            notification_service = get_queue_notification_service()
+            
+            for change in position_changes:
+                try:
+                    ticket_id = change['ticket_id']
+                    new_position = change['new_position']
+                    
+                    # Get ticket details
+                    ticket = self.db.get_ticket(ticket_id)
+                    if ticket and new_position <= 5:  # Only notify if moving to top 5
+                        await notification_service.notify_queue_position_change(ticket, new_position)
+                except Exception as e:
+                    logger.error(f"Error sending position notification: {e}")
         
         # Get open tickets in priority order
         open_tickets = self.db.get_open_tickets(limit=batch_size)
