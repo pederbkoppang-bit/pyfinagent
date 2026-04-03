@@ -286,7 +286,8 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             # Add exponential backoff to prevent rate limiting
             retry_count = ticket.get('retries', 0)
             if retry_count > 0:
-                wait_time = min(2 ** retry_count, 60)  # Exponential backoff: 2s, 4s, 8s, 16s, 32s, 60s max
+                # Increased base to 10s (10s, 20s, 40s, max 120s) — Anthropic needs more spacing
+                wait_time = min(10 * (2 ** (retry_count - 1)), 120)
                 logger.info(f"Waiting {wait_time}s before retry (attempt {retry_count + 1})")
                 await asyncio.sleep(wait_time)
 
