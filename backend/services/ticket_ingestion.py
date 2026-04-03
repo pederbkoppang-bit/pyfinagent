@@ -234,8 +234,13 @@ class MessageIngestionService:
         
         # Get queue position
         queue_position = self.db.get_ticket_queue_position(ticket_id)
-        # Always show queue position so users can see their position
-        queue_str = f"\n📍 Queue position: #{queue_position}"
+        # ONLY show queue position if NOT at #1 (avoid duplicate with agent response)
+        # If at position #1, suppress this notification — agent response comes next
+        queue_str = ""
+        if queue_position > 1:
+            queue_str = f"\n📍 Queue position: #{queue_position}"
+        else:
+            queue_str = "\n⏳ Processing now..."  # More accurate at position #1
         
         # Add priority reasoning
         priority_reasoning = self._get_priority_reasoning(ticket['message_text'], ticket['priority'])
