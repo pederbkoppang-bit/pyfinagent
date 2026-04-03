@@ -83,6 +83,9 @@ class AgentCostEntry:
     cost_usd: float = 0.0
     is_deep_think: bool = False
     is_grounded: bool = False
+    # Phase 2.12: Prompt caching metrics
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
 
 
 @dataclass
@@ -119,8 +122,20 @@ class CostTracker:
         output_tokens = getattr(usage, "candidates_token_count", 0) or 0
         total_tokens = getattr(usage, "total_token_count", 0) or (input_tokens + output_tokens)
 
+        # Phase 2.12: Extract prompt caching metrics
+        cache_creation = getattr(usage, "cache_creation_input_tokens", 0) or 0
+        cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+
         pricing = MODEL_PRICING.get(model, _DEFAULT_PRICING)
-        cost = (input_tokens * pricing[0] + output_tokens * pricing[1]) / 1_000_000
+        # Anthropic prompt caching pricing: cache reads cost 90% less than regular input
+        if cache_read > 0:
+            regular_input = max(0, input_tokens - cache_read)
+            cached_cost = cache_read * pricing[0] * 0.1 / 1_000_000  # 90% discount
+            regular_cost = regular_input * pricing[0] / 1_000_000
+            output_cost = output_tokens * pricing[1] / 1_000_000
+            cost = cached_cost + regular_cost + output_cost
+        else:
+            cost = (input_tokens * pricing[0] + output_tokens * pricing[1]) / 1_000_000
 
         entry = AgentCostEntry(
             agent_name=agent_name,
@@ -131,6 +146,8 @@ class CostTracker:
             cost_usd=round(cost, 6),
             is_deep_think=is_deep_think,
             is_grounded=is_grounded,
+            cache_creation_input_tokens=cache_creation,
+            cache_read_input_tokens=cache_read,
         )
 
         with self._lock:
@@ -181,6 +198,12 @@ class CostTracker:
 
         grounded_calls = sum(1 for e in entries if e.is_grounded)
 
+        # Phase 2.12: Prompt caching aggregate stats
+        total_cache_creation = sum(e.cache_creation_input_tokens for e in entries)
+        total_cache_read = sum(e.cache_read_input_tokens for e in entries)
+        cache_hit_entries = sum(1 for e in entries if e.cache_read_input_tokens > 0)
+        cache_eligible = sum(1 for e in entries if e.cache_creation_input_tokens > 0 or e.cache_read_input_tokens > 0)
+
         return {
             "total_input_tokens": total_input,
             "total_output_tokens": total_output,
@@ -190,6 +213,15 @@ class CostTracker:
             "deep_think_calls": deep_think_calls,
             "grounded_calls": grounded_calls,
             "model_breakdown": model_breakdown,
+            # Phase 2.12: Prompt caching summary
+            "prompt_caching": {
+                "total_cache_creation_tokens": total_cache_creation,
+                "total_cache_read_tokens": total_cache_read,
+                "cache_hit_entries": cache_hit_entries,
+                "cache_eligible_entries": cache_eligible,
+                "cache_hit_rate": round(cache_hit_entries / cache_eligible, 3) if cache_eligible > 0 else 0.0,
+                "estimated_savings_pct": round(total_cache_read / total_input * 90, 1) if total_input > 0 and total_cache_read > 0 else 0.0,
+            },
             "agents": [
                 {
                     "agent_name": e.agent_name,
@@ -200,6 +232,8 @@ class CostTracker:
                     "cost_usd": e.cost_usd,
                     "is_deep_think": e.is_deep_think,
                     "is_grounded": e.is_grounded,
+                    "cache_creation_input_tokens": e.cache_creation_input_tokens,
+                    "cache_read_input_tokens": e.cache_read_input_tokens,
                 }
                 for e in entries
             ],

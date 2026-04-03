@@ -208,6 +208,9 @@ class UsageMeta:
     prompt_token_count: int = 0
     candidates_token_count: int = 0
     total_token_count: int = 0
+    # Anthropic prompt caching metrics (Phase 2.12)
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
 
 
 @dataclass
@@ -531,11 +534,23 @@ class OpenAIClient(LLMClient):
 # ---------------------------------------------------------------------------
 
 class ClaudeClient(LLMClient):
-    """Client for Anthropic Claude models via direct API."""
+    """Client for Anthropic Claude models via direct API.
 
-    def __init__(self, model_name: str, api_key: str):
+    Phase 2.12: Supports prompt caching via cache_control on system messages.
+    When enable_prompt_caching=True, the system prompt is sent with
+    cache_control={"type": "ephemeral"} to enable Anthropic's prompt caching.
+    This reduces cost by ~90% and latency by ~85% on repeated system prompts.
+    """
+
+    def __init__(self, model_name: str, api_key: str, enable_prompt_caching: bool = True):
         self.model_name = model_name
         self._api_key = api_key
+        self.enable_prompt_caching = enable_prompt_caching
+        # Phase 2.12: Track cache hit/miss statistics
+        self._cache_hits = 0
+        self._cache_misses = 0
+        self._total_cache_read_tokens = 0
+        self._total_cache_creation_tokens = 0
 
     def _get_client(self):
         try:
@@ -543,6 +558,25 @@ class ClaudeClient(LLMClient):
         except ImportError:
             raise ImportError("anthropic package not installed. Run: pip install anthropic>=0.49.0")
         return anthropic.Anthropic(api_key=self._api_key)
+
+    @property
+    def cache_hit_rate(self) -> float:
+        """Return prompt cache hit rate (0.0 - 1.0)."""
+        total = self._cache_hits + self._cache_misses
+        return self._cache_hits / total if total > 0 else 0.0
+
+    @property
+    def cache_stats(self) -> dict:
+        """Return comprehensive cache statistics."""
+        total = self._cache_hits + self._cache_misses
+        return {
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "total_requests": total,
+            "hit_rate": self.cache_hit_rate,
+            "total_cache_read_tokens": self._total_cache_read_tokens,
+            "total_cache_creation_tokens": self._total_cache_creation_tokens,
+        }
 
     def generate_content(self, prompt: str, generation_config: dict | None = None) -> LLMResponse:
         config = generation_config or {}
@@ -563,11 +597,24 @@ class ClaudeClient(LLMClient):
                 system_prompt += "\n\nYou MUST respond with a valid JSON object only."
 
         client = self._get_client()
+
+        # Phase 2.12: Prompt caching — send system as structured block with cache_control
+        if self.enable_prompt_caching:
+            system_arg = [
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ]
+        else:
+            system_arg = system_prompt
+
         kwargs: dict = {
             "model": self.model_name,
             "max_tokens": max_tokens,
             "temperature": temperature,
-            "system": system_prompt,
+            "system": system_arg,
             "messages": [{"role": "user", "content": prompt}],
         }
 
@@ -593,10 +640,33 @@ class ClaudeClient(LLMClient):
                 text += getattr(block, "text", "")
 
         usage = response.usage
+
+        # Phase 2.12: Track prompt caching metrics
+        cache_creation = getattr(usage, "cache_creation_input_tokens", 0) or 0
+        cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+        self._total_cache_creation_tokens += cache_creation
+        self._total_cache_read_tokens += cache_read
+
+        if cache_read > 0:
+            self._cache_hits += 1
+            logger.debug(
+                f"[ClaudeClient] Cache HIT: {cache_read} tokens read from cache "
+                f"(hit rate: {self.cache_hit_rate:.0%})"
+            )
+        else:
+            self._cache_misses += 1
+            if cache_creation > 0:
+                logger.debug(
+                    f"[ClaudeClient] Cache MISS (created): {cache_creation} tokens cached "
+                    f"(hit rate: {self.cache_hit_rate:.0%})"
+                )
+
         umeta = UsageMeta(
             prompt_token_count=getattr(usage, "input_tokens", 0) or 0,
             candidates_token_count=getattr(usage, "output_tokens", 0) or 0,
             total_token_count=(getattr(usage, "input_tokens", 0) or 0) + (getattr(usage, "output_tokens", 0) or 0),
+            cache_creation_input_tokens=cache_creation,
+            cache_read_input_tokens=cache_read,
         ) if usage else UsageMeta()
 
         return LLMResponse(text=text, thoughts=thoughts, usage_metadata=umeta)
