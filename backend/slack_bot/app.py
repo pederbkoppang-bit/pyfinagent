@@ -41,8 +41,8 @@ async def main():
     # Start scheduled jobs (morning digest, proactive alerts)
     start_scheduler(app)
 
-    # Start ticket queue processor in background (processes tickets every 5s)
-    asyncio.create_task(start_queue_processor(batch_interval=5.0))
+    # Start ticket queue processor in background (processes tickets every 15s to avoid rate limits)
+    asyncio.create_task(start_queue_processor(batch_interval=15.0))
     logger.info("🎫 Ticket queue processor started as background task")
 
     # Start SLA monitoring in background (checks every 5 minutes)
