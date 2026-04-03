@@ -413,29 +413,42 @@ class TicketsDB:
             position = cursor.fetchone()[0]
             return position if position > 0 else 1
 
-    def update_queue_positions(self) -> None:
+    def update_queue_positions(self) -> List[Dict[str, Any]]:
         """
         DYNAMIC QUEUE POSITIONING: Update queue_position for all OPEN/IN_PROGRESS/ASSIGNED tickets.
-        Called when queue state changes to reflect current position to users.
+        Returns list of tickets whose position CHANGED (for notification purposes).
         """
         with sqlite3.connect(self.db_path) as conn:
             # Get all active tickets ordered by creation time
             cursor = conn.execute("""
-                SELECT id FROM tickets
+                SELECT id, queue_position FROM tickets
                 WHERE status IN ('OPEN', 'IN_PROGRESS', 'ASSIGNED')
                 ORDER BY created_at ASC, id ASC
             """)
             
             rows = cursor.fetchall()
-            for position, (ticket_id,) in enumerate(rows, start=1):
-                conn.execute(
-                    "UPDATE tickets SET queue_position = ? WHERE id = ?",
-                    (position, ticket_id)
-                )
+            position_changes = []
+            
+            for position, (ticket_id, old_position) in enumerate(rows, start=1):
+                if old_position != position:  # Position changed
+                    conn.execute(
+                        "UPDATE tickets SET queue_position = ? WHERE id = ?",
+                        (position, ticket_id)
+                    )
+                    position_changes.append({
+                        "ticket_id": ticket_id,
+                        "old_position": old_position,
+                        "new_position": position
+                    })
             
             if rows:
                 conn.commit()
                 logger.info(f"Updated queue positions for {len(rows)} active tickets")
+                if position_changes:
+                    logger.info(f"⬆️ QUEUE MOVEMENT: {len(position_changes)} tickets changed position")
+                    return position_changes
+            
+            return []
 
 # Global instance
 _tickets_db: Optional[TicketsDB] = None
