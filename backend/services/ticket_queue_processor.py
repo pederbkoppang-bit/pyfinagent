@@ -277,6 +277,13 @@ Please provide a helpful response. This will be sent back to the user via {ticke
 
             # Step 1: Mark as assigned + log dispatch
             agent_type = self.get_agent_for_classification(ticket['classification'])
+            
+            # FAILOVER LOGIC: On retry, switch to lighter model
+            retry_count = ticket.get('retries', 0) or 0
+            if retry_count == 1:  # First retry failed → switch to Sonnet
+                original_agent = agent_type
+                agent_type = "research"  # Use Sonnet (lighter model)
+                logger.warning(f"⚠️ FAILOVER: Ticket #{ticket_number} switched from {original_agent} to {agent_type} (Sonnet) due to rate limits")
 
             self.db.update_ticket_status(
                 ticket_id,

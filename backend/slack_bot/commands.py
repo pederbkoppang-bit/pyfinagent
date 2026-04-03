@@ -229,6 +229,32 @@ def register_commands(app: AsyncApp):
         
         # ── Route based on content (existing behavior) ──────────
         text_lower = text.lower()
+        
+        # CLEAR QUEUE COMMAND - Hard reset
+        if "clear queue" in text_lower:
+            logger.warning("🚨 CLEAR QUEUE COMMAND RECEIVED - EXECUTING HARD RESET")
+            try:
+                import sqlite3
+                import subprocess
+                
+                # Kill all Python processes (subagents, workers)
+                subprocess.run(["pkill", "-9", "-f", "python"], timeout=5)
+                
+                # Drop database
+                db = get_ingestion_service().db
+                with sqlite3.connect(db.db_path) as conn:
+                    conn.execute("DELETE FROM tickets")
+                    conn.execute("DELETE FROM ticket_counter")
+                    conn.execute("INSERT INTO ticket_counter (id, current_number) VALUES (1, 0)")
+                    conn.commit()
+                
+                await say("🔄 HARD RESET COMPLETE\n✅ Database purged\n✅ Counter reset to #1\n✅ Ready for fresh start")
+                logger.info("✅ CLEAR QUEUE: Database reset, ticket counter at 0")
+            except Exception as e:
+                logger.error(f"Error executing clear queue: {e}")
+                await say(f"❌ Clear queue failed: {str(e)[:100]}")
+            return
+        
         if "status" in text_lower:
             try:
                 status_text = _read_status()
