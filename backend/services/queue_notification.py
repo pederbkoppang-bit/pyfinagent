@@ -20,6 +20,26 @@ class QueueNotificationService:
         # NOTE: Client is lazy-loaded on first use to avoid duplicate instantiation
         self._slack_client_initialized = False
 
+    async def send_failover_notification(self, ticket_number: int, from_agent: str, to_agent: str) -> bool:
+        """Notify user that we're failing over due to rate limit/timeout."""
+        message = (
+            f"⚠️ Model Failover: {from_agent} throttled/hanging. "
+            f"Switching to {to_agent} for faster response to Ticket #{ticket_number}..."
+        )
+        
+        try:
+            # Send to iMessage if we have the number
+            import subprocess
+            subprocess.run(
+                ["imsg", "send", "--to", "+4794810537", "--text", message],
+                timeout=5
+            )
+            logger.info(f"✅ Failover notification sent for ticket #{ticket_number}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send failover notification: {e}")
+            return False
+    
     async def notify_queue_position_change(self, ticket: Dict[str, Any], new_position: int) -> bool:
         """
         Notify user of queue position change.

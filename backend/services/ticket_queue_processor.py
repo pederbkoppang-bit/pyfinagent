@@ -189,26 +189,62 @@ Please provide a helpful response. This will be sent back to the user via {ticke
 
             system = system_prompts.get(agent_id, "You are a helpful assistant.")
 
-            # Call Claude directly via Anthropic SDK
-            response = client.messages.create(
-                model=model_name,
-                max_tokens=1000,
-                system=system,
-                messages=[
-                    {"role": "user", "content": task}
-                ]
-            )
-
-            # Extract text from response
-            response_text = response.content[0].text if response.content else "No response"
-
-            logger.info(f"✅ Agent {agent_id} completed for ticket #{ticket_number}: "
-                       f"{response_text[:80]}...")
-            return response_text
+            # 🔧 CRITICAL: Add 60-second timeout to prevent watchdog kills
+            import concurrent.futures
+            
+            def call_anthropic():
+                """Synchronous Anthropic call with heartbeat logging."""
+                start = time.time()
+                heartbeat_interval = 30  # Log every 30s
+                last_heartbeat = start
+                
+                try:
+                    # Heartbeat before call
+                    logger.info(f"🫀 HEARTBEAT: Ticket #{ticket_number} calling {agent_id}...")
+                    
+                    # Call Claude with timeout wrapped
+                    response = client.messages.create(
+                        model=model_name,
+                        max_tokens=1000,
+                        system=system,
+                        messages=[
+                            {"role": "user", "content": task}
+                        ]
+                    )
+                    
+                    # Extract text from response
+                    response_text = response.content[0].text if response.content else "No response"
+                    elapsed = time.time() - start
+                    
+                    logger.info(f"✅ Agent {agent_id} completed for ticket #{ticket_number} ({elapsed:.1f}s): "
+                               f"{response_text[:80]}...")
+                    return response_text
+                
+                except Exception as api_error:
+                    elapsed = time.time() - start
+                    logger.error(f"❌ Agent {agent_id} failed after {elapsed:.1f}s: {str(api_error)[:200]}")
+                    raise api_error
+            
+            # Execute with 60-second timeout
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(call_anthropic)
+                try:
+                    response_text = future.result(timeout=60)
+                    return response_text
+                except concurrent.futures.TimeoutError:
+                    logger.error(f"⏱️ TIMEOUT: Agent {agent_id} exceeded 60s for ticket #{ticket_number}")
+                    # TRIGGER FAILOVER
+                    raise Exception(f"Agent {agent_id} timeout (60s exceeded) - FAILOVER TRIGGERED")
 
         except Exception as e:
-            logger.error(f"Error invoking agent {agent_id}: {e}")
-            raise Exception(f"Agent {agent_id} failed: {str(e)[:500]}")
+            error_msg = str(e)[:500]
+            logger.error(f"Error invoking agent {agent_id}: {error_msg}")
+            
+            # Check if it's a timeout or 429 error
+            if "timeout" in error_msg.lower() or "429" in error_msg:
+                logger.warning(f"⚠️ FAILOVER ELIGIBLE: {agent_id} failed due to timeout/rate-limit")
+            
+            raise Exception(f"Agent {agent_id} failed: {error_msg}")
 
     def _simulate_agent_response(self, ticket: Dict[str, Any], agent_type: str, prompt: str) -> str:
         """
@@ -278,12 +314,22 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             # Step 1: Mark as assigned + log dispatch
             agent_type = self.get_agent_for_classification(ticket['classification'])
             
-            # FAILOVER LOGIC: On retry, switch to lighter model
+            # FAILOVER LOGIC: On timeout or 429, immediately switch to Sonnet
             retry_count = ticket.get('retries', 0) or 0
-            if retry_count == 1:  # First retry failed → switch to Sonnet
-                original_agent = agent_type
-                agent_type = "research"  # Use Sonnet (lighter model)
-                logger.warning(f"⚠️ FAILOVER: Ticket #{ticket_number} switched from {original_agent} to {agent_type} (Sonnet) due to rate limits")
+            if retry_count > 0:
+                # Check if previous failure was timeout/429
+                prev_agent = ticket.get('assigned_agent', 'MAIN')
+                if prev_agent in ['MAIN', 'Q&A']:  # Was on Opus
+                    original_agent = agent_type
+                    agent_type = "research"  # Use Sonnet (lighter model)
+                    logger.warning(f"⚠️ FAILOVER: Ticket #{ticket_number} switched from {original_agent} → {agent_type} (Sonnet)")
+                    
+                    # Notify user of failover
+                    from backend.services.queue_notification import get_queue_notification_service
+                    notification_service = get_queue_notification_service()
+                    asyncio.create_task(
+                        notification_service.send_failover_notification(ticket_number, original_agent, agent_type)
+                    )
 
             self.db.update_ticket_status(
                 ticket_id,
