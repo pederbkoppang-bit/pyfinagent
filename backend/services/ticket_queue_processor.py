@@ -295,10 +295,15 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             # Add exponential backoff to prevent rate limiting
             retry_count = ticket.get('retries', 0)
             if retry_count > 0:
-                # Increased base to 10s (10s, 20s, 40s, max 120s) — Anthropic needs more spacing
-                wait_time = min(10 * (2 ** (retry_count - 1)), 120)
-                logger.info(f"Waiting {wait_time}s before retry (attempt {retry_count + 1})")
+                # CRITICAL: Anthropic heavily rate limiting — need MASSIVE delays
+                # Formula: 60s base + exponential (60, 120, 240s max)
+                wait_time = min(60 * (2 ** (retry_count - 1)), 240)
+                logger.warning(f"⏸️ Rate limit detected. Waiting {wait_time}s before retry (attempt {retry_count + 1})")
                 await asyncio.sleep(wait_time)
+            else:
+                # First attempt: wait 10s to spread initial load
+                logger.info(f"Processing ticket #{ticket_number}, waiting 10s to spread load...")
+                await asyncio.sleep(10)
 
             loop = asyncio.get_event_loop()
             agent_result = await loop.run_in_executor(
@@ -385,7 +390,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         # DYNAMIC QUEUE POSITIONING: Update queue positions before processing
         position_changes = self.db.update_queue_positions()
         
-        # NOTIFY USERS OF POSITION CHANGES
+        # NOTIFY USERS OF POSITION CHANGES (but NOT position #1 — save for agent response)
         if position_changes:
             logger.info(f"🔔 QUEUE MOVEMENT NOTIFICATIONS: {len(position_changes)} tickets moved up in queue")
             from backend.services.queue_notification import get_queue_notification_service
@@ -398,8 +403,11 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                     
                     # Get ticket details
                     ticket = self.db.get_ticket(ticket_id)
-                    if ticket and new_position <= 5:  # Only notify if moving to top 5
+                    # Only notify if moving to positions 2-5 (skip #1 to avoid duplicate with agent response)
+                    if ticket and 2 <= new_position <= 5:
                         await notification_service.notify_queue_position_change(ticket, new_position)
+                    elif ticket and new_position == 1:
+                        logger.info(f"📍 Ticket #{ticket['ticket_number']} at position #1 — waiting for agent response")
                 except Exception as e:
                     logger.error(f"Error sending position notification: {e}")
         
