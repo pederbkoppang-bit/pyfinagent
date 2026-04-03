@@ -159,14 +159,14 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         try:
             settings = get_settings()
 
-            # Select model based on agent type
+            # Select model based on agent type (per Peder's spec)
             agent_model_map = {
-                "main": "claude-sonnet-4-6",     # Latest Sonnet model for operational reasoning
-                "q-and-a": "claude-sonnet-4-6", # Sonnet for Q&A analysis
-                "research": "claude-sonnet-4-6" # Sonnet for research synthesis
+                "main": "claude-opus-4-6",       # Opus 4-6 for main agent (complex reasoning)
+                "q-and-a": "claude-opus-4-6",   # Opus 4-6 for Q&A agent (accuracy required)
+                "research": "claude-sonnet-4-6" # Sonnet 4-6 for research (cost efficient)
             }
             
-            model_name = agent_model_map.get(agent_id, "claude-sonnet-4-6")
+            model_name = agent_model_map.get(agent_id, "claude-opus-4-6")
 
             # Create Anthropic client
             # Check for API key from environment or settings
