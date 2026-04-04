@@ -26,3 +26,4 @@ _restart_log.txt
 _health_result.txt
 _cleanup.ps1
 optimizer.log
+tickets.db
