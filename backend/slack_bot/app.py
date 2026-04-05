@@ -15,6 +15,7 @@ from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 from backend.config.settings import get_settings
 from backend.slack_bot.commands import register_commands
 from backend.slack_bot.scheduler import start_scheduler
+from backend.slack_bot.assistant_lifecycle import register_assistant_lifecycle
 from backend.services.ticket_queue_processor import start_queue_processor
 from backend.services.sla_monitor import start_sla_monitoring
 from backend.services.stuck_task_reaper import start_stuck_task_reaper
@@ -25,7 +26,11 @@ logger = logging.getLogger(__name__)
 def create_app() -> AsyncApp:
     settings = get_settings()
     app = AsyncApp(token=settings.slack_bot_token)
+    
+    # Register event handlers
     register_commands(app)
+    register_assistant_lifecycle(app)  # ← NEW: Slack AI Agent lifecycle
+    
     return app
 
 
