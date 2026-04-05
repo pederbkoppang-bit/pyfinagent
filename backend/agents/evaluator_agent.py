@@ -143,7 +143,7 @@ class EvaluatorAgent:
         try:
             # Call Claude/Gemini with structured output
             response = await asyncio.wait_for(
-                self._call_model(prompt),
+                self._call_model(prompt, proposal, backtest_results),
                 timeout=self.max_eval_time
             )
             
@@ -269,21 +269,24 @@ Format your response as JSON:
         
         return prompt
     
-    async def _call_model(self, prompt: str) -> str:
+    async def _call_model(self, prompt: str, proposal: Dict[str, Any] = None, backtest_results: Dict[str, Any] = None) -> str:
         """Call Claude/Gemini with timeout"""
         if self.model is None:
             # Mock response for testing/demo
-            logger.warning("⚠️ Using mock evaluator (model not initialized)")
-            return self._mock_response()
+            logger.debug("⚠️ Using mock evaluator (model not initialized)")
+            return self._mock_response(proposal, backtest_results)
         
         response = await asyncio.to_thread(
             lambda: self.model.generate_content(prompt)
         )
         return response.text
     
-    def _mock_response(self) -> str:
-        """Mock evaluation response for testing"""
-        return """{
+    def _mock_response(self, proposal: Dict[str, Any] = None, backtest_results: Dict[str, Any] = None) -> str:
+        """Smart mock evaluation response for testing (analyzes the proposal)"""
+        
+        # Default safe response
+        if not backtest_results:
+            return """{
   "statistical_validity_score": 82,
   "robustness_score": 78,
   "simplicity_score": 90,
@@ -292,13 +295,101 @@ Format your response as JSON:
   "overall_score": 83,
   "verdict": "PASS",
   "summary": "Strong proposal with good statistical properties and realistic assumptions.",
-  "detailed_reasoning": "Evaluation shows solid robustness across multiple dimensions. DSR > 0.95, Sharpe in realistic range, features are simple and interpretable. Spot checks recommended only for high-confidence verification.",
+  "detailed_reasoning": "Evaluation shows solid robustness across multiple dimensions.",
   "red_flags": [],
   "yellow_flags": [],
   "green_flags": ["Good DSR", "All sub-periods positive", "Simple features", "Realistic assumptions"],
   "recommended_spot_checks": null,
   "suggested_fixes": null
 }"""
+        
+        # Analyze backtest results for red flags
+        sharpe = backtest_results.get("sharpe", 0)
+        dsr = backtest_results.get("dsr", 0)
+        trades = backtest_results.get("trades", 0)
+        sub_periods = backtest_results.get("sub_periods", {})
+        walk_forward = backtest_results.get("walk_forward_stability", 1.0)
+        
+        red_flags = []
+        yellow_flags = []
+        green_flags = []
+        
+        # Check for red flags
+        if sharpe > 2.0:
+            red_flags.append("Sharpe > 2.0 (AQR red flag for over-fitting)")
+        if dsr < 0.90:
+            red_flags.append(f"DSR {dsr:.2f} < 0.95 (likely over-fitted)")
+        if trades > 3000:
+            red_flags.append(f"Too many trades ({trades}) — excessive friction")
+        
+        # Check sub-periods
+        neg_periods = []
+        for period_name, period_sharpe in sub_periods.items():
+            if period_sharpe < 0:
+                neg_periods.append(period_name)
+        if neg_periods:
+            red_flags.append(f"Negative Sharpe in {', '.join(neg_periods)}")
+        
+        if walk_forward < 0.75:
+            red_flags.append(f"Walk-forward stability {walk_forward:.2f} < 0.75 (unstable)")
+        
+        # Green flags
+        if dsr >= 0.95:
+            green_flags.append("Good DSR (over-fitting resistant)")
+        if all(p >= 0.90 for p in sub_periods.values()):
+            green_flags.append("All sub-periods strongly positive")
+        if walk_forward >= 0.95:
+            green_flags.append("Excellent walk-forward stability")
+        
+        # Decide verdict (stricter logic)
+        if len(red_flags) >= 2:
+            verdict = "FAIL"
+            score = max(20, 50 - len(red_flags) * 10)
+        elif len(red_flags) == 1:
+            # Single red flag: FAIL if it's critical (DSR, sharpe, stability), else CONDITIONAL
+            critical_flags = any(f in red_flags[0].lower() for f in ["dsr", "sharpe", "walk-forward", "negative", "excessive"])
+            if critical_flags:
+                verdict = "FAIL"
+                score = max(35, 60 - 20)
+            else:
+                verdict = "CONDITIONAL"
+                score = max(50, 65)
+        else:
+            verdict = "PASS"
+            score = min(95, 70 + len(green_flags) * 5)
+        
+        summary = f"{verdict}: " + (
+            "Multiple red flags detected — proposal too risky" if verdict == "FAIL" else
+            "Some concerns — needs spot checks before approval" if verdict == "CONDITIONAL" else
+            "Strong proposal with good statistical properties"
+        )
+        
+        stat_valid = min(100, max(0, 80 - len(red_flags) * 20))
+        robust = min(100, max(0, 75 - len(red_flags) * 15))
+        simple = min(100, max(0, 85 - (trades > 1000) * 30))
+        reality = 80
+        risk = min(100, max(0, 75 - len(red_flags) * 25))
+        spot_checks = ["2x_costs", "regime_shift"] if verdict == "CONDITIONAL" else None
+        fixes = ["Review backtest assumptions", "Reduce parameter count"] if red_flags else None
+        
+        import json
+        response_dict = {
+            "statistical_validity_score": stat_valid,
+            "robustness_score": robust,
+            "simplicity_score": simple,
+            "reality_gap_score": reality,
+            "risk_check_score": risk,
+            "overall_score": score,
+            "verdict": verdict,
+            "summary": summary,
+            "detailed_reasoning": f"Analysis found {len(red_flags)} red flags and {len(green_flags)} green flags.",
+            "red_flags": red_flags,
+            "yellow_flags": yellow_flags,
+            "green_flags": green_flags,
+            "recommended_spot_checks": spot_checks,
+            "suggested_fixes": fixes
+        }
+        return json.dumps(response_dict, indent=2)
     
     def _parse_evaluation_response(
         self,
