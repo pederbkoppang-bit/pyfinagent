@@ -207,7 +207,7 @@ function ChangelogModal({ onClose }: { onClose: () => void }) {
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const version = process.env.NEXT_PUBLIC_APP_VERSION || "local";
+  const [version, setVersion] = useState(process.env.NEXT_PUBLIC_APP_VERSION || "local");
   const [passkeyStatus, setPasskeyStatus] = useState<string | null>(null);
   const [backendUp, setBackendUp] = useState<boolean | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
@@ -224,7 +224,7 @@ export function Sidebar() {
     let mounted = true;
     const check = () => {
       healthCheck()
-        .then(() => { if (mounted) setBackendUp(true); })
+        .then((res) => { if (mounted) { setBackendUp(true); if (res.version) setVersion(res.version); } })
         .catch(() => { if (mounted) setBackendUp(false); });
     };
     check();

@@ -249,7 +249,15 @@ app.include_router(mas_events_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "pyfinagent-backend", "version": "6.0.0"}
+    # Read version from CHANGELOG.md first entry, fallback to hardcoded
+    try:
+        import re as _re
+        _cl = (Path(__file__).parent.parent / "CHANGELOG.md").read_text(encoding="utf-8")
+        _m = _re.search(r"### v([\d.]+)", _cl)
+        _ver = _m.group(1) if _m else "6.0.0"
+    except Exception:
+        _ver = "6.0.0"
+    return {"status": "ok", "service": "pyfinagent-backend", "version": _ver}
 
 
 @app.get("/api/changelog")
