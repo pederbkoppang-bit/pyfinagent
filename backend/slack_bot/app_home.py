@@ -26,7 +26,7 @@ def register_governance(app: App):
     # ═══════════════════════════════════════════════════════════════
 
     @app.event("app_home_opened")
-    def update_app_home(client: WebClient, event, logger):
+    async def update_app_home(client: WebClient, event, logger):
         """Render the App Home tab with full MAS dashboard."""
         user_id = event["user"]
 
@@ -279,12 +279,12 @@ def register_governance(app: App):
     # ── App Home Actions ────────────────────────────────────────
 
     @app.action("app_home_refresh")
-    def handle_refresh(ack, body, client):
+    async def handle_refresh(ack, body, client):
         ack()
-        update_app_home(client=client, event={"user": body["user"]["id"]}, logger=logger)
+        await update_app_home(client=client, event={"user": body["user"]["id"]}, logger=logger)
 
     @app.action("app_home_full_logs")
-    def handle_full_logs(ack, body, client):
+    async def handle_full_logs(ack, body, client):
         ack()
         from backend.slack_bot.governance import get_audit_logger
         audit = get_audit_logger()
@@ -313,7 +313,7 @@ def register_governance(app: App):
         )
 
     @app.action("app_home_settings")
-    def handle_settings(ack, body, client):
+    async def handle_settings(ack, body, client):
         ack()
         from backend.slack_bot.governance import get_token_tracker
         tracker = get_token_tracker()
@@ -357,7 +357,7 @@ def register_governance(app: App):
     # ═══════════════════════════════════════════════════════════════
 
     @app.command("/agent")
-    def handle_agent_command(ack, respond, command):
+    async def handle_agent_command(ack, respond, command):
         ack()
         subcommand = (command.get("text") or "help").strip().lower()
         user_id = command.get("user_id", "unknown")

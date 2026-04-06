@@ -16,6 +16,7 @@ from backend.config.settings import get_settings
 from backend.slack_bot.commands import register_commands
 from backend.slack_bot.scheduler import start_scheduler
 from backend.slack_bot.assistant_lifecycle import register_assistant_lifecycle
+from backend.slack_bot.app_home import register_governance
 from backend.services.ticket_queue_processor import start_queue_processor
 from backend.services.sla_monitor import start_sla_monitoring
 from backend.services.stuck_task_reaper import start_stuck_task_reaper
@@ -29,7 +30,8 @@ def create_app() -> AsyncApp:
     
     # Register event handlers
     register_commands(app)
-    register_assistant_lifecycle(app)  # ← NEW: Slack AI Agent lifecycle
+    register_assistant_lifecycle(app)
+    register_governance(app)  # App Home + /agent commands
     
     return app
 
