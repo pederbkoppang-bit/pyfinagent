@@ -186,11 +186,13 @@ class QuantStrategyOptimizer:
         self._feature_cache_key = self._compute_feature_cache_key(self.best_params)
         self.engine.set_cached_features({})  # Activate caching (empty = will populate on first run)
 
-        # 2. Iteration loop
+        # 2. Iteration loop (max_iterations=0 means run forever until stopped)
         consecutive_discards = 0
-        for i in range(max_iterations):
+        i = 0
+        while max_iterations == 0 or i < max_iterations:
+            i += 1
             if stop_check and stop_check():
-                logger.info(f"QuantOptimizer: stopped after {i} iterations")
+                logger.info(f"QuantOptimizer: stopped after {i-1} iterations")
                 break
 
             # Model staleness check (every 10 iterations)
@@ -213,7 +215,7 @@ class QuantStrategyOptimizer:
 
             # Apply modification + Evaluate
             self._current_step = "running_experiment"
-            self._current_detail = f"Experiment {i+1}: {change_desc}"
+            self._current_detail = f"Experiment {i}: {change_desc}"
             self._report_status()
             try:
                 trial_params = copy.deepcopy(self.best_params)
@@ -231,15 +233,15 @@ class QuantStrategyOptimizer:
                 trial_dsr = report["analytics"]["deflated_sharpe"]
                 trial_top5 = self._extract_top5_mda(result)
             except Exception as e:
-                logger.warning(f"QuantOptimizer: experiment {i+1} crashed ({change_desc}): {e}", exc_info=True)
+                logger.warning(f"QuantOptimizer: experiment {i} crashed ({change_desc}): {e}", exc_info=True)
                 self._apply_params_to_engine(self.best_params)
-                exp_id = f"{self._run_id}-exp{i+1:02d}"
+                exp_id = f"{self._run_id}-exp{i:02d}"
                 self._log_experiment(
                     exp_id, change_desc,
                     float(self.best_sharpe or 0), 0, -float(self.best_sharpe or 0), "crash", 0, [],
                     trial_params=trial_params,
                 )
-                self._current_detail = f"experiment {i+1} CRASHED: {change_desc} -- {e}"
+                self._current_detail = f"experiment {i} CRASHED: {change_desc} -- {e}"
                 self._report_status()
                 consecutive_discards += 1
                 continue
@@ -275,6 +277,9 @@ class QuantStrategyOptimizer:
                     on_mda_update(mda_list)
 
                 logger.info(f"QuantOptimizer: KEEP {change_desc} (Sharpe {trial_sharpe:.4f}, DSR {trial_dsr:.4f})")
+
+                # Git commit kept experiment (like Karpathy's autoresearch branch advance)
+                self._git_commit_kept(f"{self._run_id}-exp{i:02d}", change_desc, trial_sharpe, trial_dsr)
             elif delta > 0 and trial_dsr < self.dsr_threshold:
                 status = "dsr_reject"
                 self._apply_params_to_engine(self.best_params)
@@ -289,7 +294,7 @@ class QuantStrategyOptimizer:
                 consecutive_discards += 1
                 trial_top5 = []
 
-            exp_id = f"{self._run_id}-exp{i+1:02d}"
+            exp_id = f"{self._run_id}-exp{i:02d}"
             
             # Save JSON for ALL experiments (keep, discard, dsr_reject) so they're viewable
             report["run_id"] = exp_id
@@ -602,6 +607,27 @@ class QuantStrategyOptimizer:
                 self.kept, self.discarded,
                 self._current_step, self._current_detail, self._run_id,
             )
+
+    def _git_commit_kept(self, exp_id: str, change_desc: str, sharpe: float, dsr: float):
+        """Git commit after a kept experiment (like Karpathy's branch advance)."""
+        try:
+            import subprocess
+            project_root = Path(__file__).parent.parent.parent
+            # Stage optimizer_best.json and quant_results.tsv
+            subprocess.run(
+                ["git", "add",
+                 "backend/backtest/experiments/optimizer_best.json",
+                 "backend/backtest/experiments/quant_results.tsv"],
+                cwd=project_root, capture_output=True, timeout=10,
+            )
+            msg = f"Optimizer KEEP {exp_id}: {change_desc} (Sharpe {sharpe:.4f}, DSR {dsr:.4f})"
+            subprocess.run(
+                ["git", "commit", "-m", msg, "--no-verify"],
+                cwd=project_root, capture_output=True, timeout=10,
+            )
+            logger.info(f"Git committed: {msg[:80]}")
+        except Exception as e:
+            logger.debug(f"Git commit skipped: {e}")
 
     def _save_best_params(self):
         """Persist best_params + metrics to JSON for warm-start."""

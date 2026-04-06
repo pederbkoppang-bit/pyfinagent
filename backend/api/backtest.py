@@ -102,7 +102,7 @@ class IngestRequest(BaseModel):
 
 
 class OptimizerStartRequest(BaseModel):
-    max_iterations: int = Field(100, ge=1, le=1000)
+    max_iterations: int = Field(0, ge=0, le=10000, description="0 = run forever until stopped")
     use_llm: bool = Field(False, description="Use LLM proposals (costs ~$0.01/proposal) vs random perturbation ($0)")
 
 
@@ -229,7 +229,7 @@ async def get_ingestion_status():
 # ── Optimizer Endpoints ──────────────────────────────────────────
 
 @router.post("/optimize")
-async def start_optimizer(req: OptimizerStartRequest = OptimizerStartRequest(max_iterations=100, use_llm=False)):
+async def start_optimizer(req: OptimizerStartRequest = OptimizerStartRequest(max_iterations=0, use_llm=False)):
     """Start quant strategy optimization loop (background)."""
     global _optimizer_task, _optimizer_state
 
@@ -936,13 +936,19 @@ async def _run_optimizer_async(max_iterations: int, use_llm: bool):
         coordinator = get_coordinator()
 
         def on_result(report: dict):
-            """Push optimizer baseline/kept results to backtest tabs."""
+            """Push optimizer baseline/kept results to backtest tabs + persist to disk."""
             global _previous_result
             _backtest_state["status"] = "completed"
             _backtest_state["result"] = report
             _backtest_state["error"] = None
             _backtest_state["engine_source"] = None
             _previous_result = None  # fresh result available
+            # Persist each experiment so it appears in Run dropdown
+            exp_id = report.get("run_id") or report.get("parent_run_id", "opt")
+            try:
+                result_store.save_result(exp_id, report)
+            except Exception as save_err:
+                logger.debug(f"Failed to persist optimizer result {exp_id}: {save_err}")
 
         # Stash current result before clearing
         global _previous_result
