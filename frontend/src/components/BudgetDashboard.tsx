@@ -30,7 +30,9 @@ import {
 
 interface CostItem {
   category: string;
-  monthly_usd: number;
+  monthly_nok: number;
+  /** @deprecated Use monthly_nok */
+  monthly_usd?: number;
   type: "fixed" | "estimated" | "projected" | "actual";
   note: string;
 }
@@ -54,6 +56,8 @@ interface MonthlyHistory {
 }
 
 interface BudgetData {
+  currency: string;
+  currency_symbol: string;
   fixed_costs: CostItem[];
   gcp_costs: CostItem[];
   monthly_history: MonthlyHistory[];
@@ -148,6 +152,7 @@ export function BudgetDashboard() {
   }
 
   const s = data.summary;
+  const sym = data.currency_symbol || "kr";
 
   return (
     <div className="space-y-6">
@@ -158,7 +163,7 @@ export function BudgetDashboard() {
             This Month
           </p>
           <p className="font-mono text-lg font-semibold text-slate-200">
-            ${s.total_monthly.toFixed(0)}
+            {sym}{s.total_monthly.toFixed(0)}
           </p>
         </div>
         <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-3 py-2">
@@ -166,7 +171,7 @@ export function BudgetDashboard() {
             GCP Actual
           </p>
           <p className="font-mono text-lg font-semibold text-sky-400">
-            ${s.total_gcp_monthly.toFixed(0)}
+            {sym}{s.total_gcp_monthly.toFixed(0)}
           </p>
         </div>
         <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-3 py-2">
@@ -174,7 +179,7 @@ export function BudgetDashboard() {
             Fixed Costs
           </p>
           <p className="font-mono text-lg font-semibold text-slate-300">
-            ${s.total_fixed_monthly.toFixed(0)}
+            {sym}{s.total_fixed_monthly.toFixed(0)}
           </p>
         </div>
         <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-3 py-2">
@@ -182,7 +187,7 @@ export function BudgetDashboard() {
             Budget
           </p>
           <p className="font-mono text-lg font-semibold text-slate-300">
-            ${s.monthly_budget.toFixed(0)}
+            {sym}{s.monthly_budget.toFixed(0)}
           </p>
         </div>
         <div
@@ -218,12 +223,12 @@ export function BudgetDashboard() {
           {data.status === "under_budget" ? (
             <span className="flex items-center gap-1">
               <CheckCircle size={12} className="text-emerald-400" />
-              Under budget — ${(s.monthly_budget - s.total_monthly).toFixed(0)}/mo remaining
+              Under budget — {sym}{(s.monthly_budget - s.total_monthly).toFixed(0)}/mo remaining
             </span>
           ) : (
             <span className="flex items-center gap-1">
               <Warning size={12} className="text-red-400" />
-              Over budget by ${(s.total_monthly - s.monthly_budget).toFixed(0)}/mo
+              Over budget by {sym}{(s.total_monthly - s.monthly_budget).toFixed(0)}/mo
             </span>
           )}
         </p>
@@ -269,7 +274,7 @@ export function BudgetDashboard() {
               <TrendDown size={16} className="text-red-400" />
               Cash Flow
               <span className="ml-auto text-[10px] font-normal text-slate-500">
-                Forecast based on {lastMonths.length}-month average: ${Math.round(avgBurn)}/mo
+                Forecast based on {lastMonths.length}-month average: {sym}{Math.round(avgBurn)}/mo
               </span>
             </h3>
             <div className="h-64">
@@ -283,9 +288,9 @@ export function BudgetDashboard() {
                   />
                   <YAxis
                     tick={{ fill: "#64748b", fontSize: 11 }}
-                    tickFormatter={(v: number) => `$${v}`}
+                    tickFormatter={(v: number) => `${sym}${v}`}
                     label={{
-                      value: "USD / month",
+                      value: `${data.currency || "NOK"} / month`,
                       angle: -90,
                       position: "insideLeft",
                       offset: -4,
@@ -307,7 +312,7 @@ export function BudgetDashboard() {
                               <p key={p.dataKey as string} className="text-xs text-slate-400">
                                 {p.dataKey === "cashOut" ? "Actual" : p.dataKey === "forecast" ? "Forecast" : "Budget"}:{" "}
                                 <span className={`font-mono ${p.dataKey === "cashOut" ? "text-red-400" : p.dataKey === "forecast" ? "text-amber-400" : "text-slate-500"}`}>
-                                  ${Number(p.value).toFixed(0)}
+                                  {sym}{Number(p.value).toFixed(0)}
                                 </span>
                               </p>
                             )
@@ -324,7 +329,7 @@ export function BudgetDashboard() {
                     strokeDasharray="4 4"
                     strokeWidth={1.5}
                     label={{
-                      value: `Budget $${s.monthly_budget}`,
+                      value: `Budget ${sym}${s.monthly_budget}`,
                       position: "right",
                       fill: "#22c55e",
                       fontSize: 10,
@@ -407,7 +412,7 @@ export function BudgetDashboard() {
                       <p className="text-[10px] text-slate-500">{c.note}</p>
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">
-                      ${c.monthly_usd.toFixed(2)}
+                      {sym}{(c.monthly_nok ?? c.monthly_usd ?? 0).toFixed(2)}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <TypeBadge type={c.type} />
@@ -452,7 +457,7 @@ export function BudgetDashboard() {
                         <p className="text-[10px] text-slate-500">{c.note}</p>
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">
-                        ${c.monthly_usd.toFixed(2)}
+                        {sym}{(c.monthly_nok ?? c.monthly_usd ?? 0).toFixed(2)}
                       </td>
                       <td className="px-3 py-2 text-center">
                         <TypeBadge type={c.type} />
@@ -508,24 +513,24 @@ export function BudgetDashboard() {
                       {m.month}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-sky-400">
-                      ${m.gcp_net.toFixed(2)}
+                      {sym}{m.gcp_net.toFixed(2)}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-slate-400">
-                      ${m.claude_max.toFixed(0)}
+                      {sym}{m.claude_max.toFixed(0)}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-slate-400">
-                      ${m.other_fixed.toFixed(0)}
+                      {sym}{m.other_fixed.toFixed(0)}
                     </td>
                     <td
                       className={`px-3 py-2 text-right font-mono text-xs font-semibold ${
-                        m.total > 500
+                        m.total > 5400
                           ? "text-red-400"
-                          : m.total > 350
+                          : m.total > 3800
                             ? "text-amber-400"
                             : "text-emerald-400"
                       }`}
                     >
-                      ${m.total.toFixed(2)}
+                      {sym}{m.total.toFixed(2)}
                     </td>
                   </tr>
                 ))}

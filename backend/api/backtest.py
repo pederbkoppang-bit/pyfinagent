@@ -1323,11 +1323,16 @@ def get_seed_stability():
 
 @router.get("/budget/summary")
 def get_budget_summary():
-    """Return budget summary with REAL GCP billing data + known fixed costs."""
+    """Return budget summary with REAL GCP billing data + known fixed costs.
+
+    GCP billing export stores amounts in NOK (account billing currency).
+    All values returned are in NOK. Frontend displays with 'kr' prefix.
+    """
     from backend.config.settings import get_settings
     from backend.db.bigquery_client import BigQueryClient
 
     # Query real GCP costs from billing export
+    # NOTE: BQ billing export amounts are in NOK (account billing currency)
     gcp_monthly: list[dict] = []
     gcp_current_month_total = 0.0
     try:
@@ -1337,23 +1342,23 @@ def get_budget_summary():
         SELECT
           FORMAT_TIMESTAMP("%Y-%m", usage_start_time) as month,
           service.description as service,
-          ROUND(SUM(cost), 2) as cost_usd,
-          ROUND(SUM(IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) c), 0)), 2) as credits_usd
+          ROUND(SUM(cost), 2) as cost_nok,
+          ROUND(SUM(IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) c), 0)), 2) as credits_nok
         FROM `sunny-might-477607-p8.all_billing_data.gcp_billing_export_v1_01BC3A_9EA188_0319ED`
         WHERE usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
         GROUP BY month, service
-        ORDER BY month DESC, cost_usd DESC
+        ORDER BY month DESC, cost_nok DESC
         """
         results = bq.client.query(q, timeout=30).result()
         month_totals: dict[str, float] = {}
         for row in results:
-            net = round(row.cost_usd + row.credits_usd, 2)
+            net = round(row.cost_nok + row.credits_nok, 2)
             gcp_monthly.append({
                 "month": row.month,
                 "service": row.service,
-                "cost_usd": row.cost_usd,
-                "credits_usd": row.credits_usd,
-                "net_usd": net,
+                "cost_nok": row.cost_nok,
+                "credits_nok": row.credits_nok,
+                "net_nok": net,
             })
             month_totals[row.month] = month_totals.get(row.month, 0) + net
 
@@ -1371,16 +1376,16 @@ def get_budget_summary():
         m = entry["month"]
         if m not in month_map:
             month_map[m] = {"month": m, "gcp_net": 0.0, "services": {}}
-        month_map[m]["gcp_net"] = round(month_map[m]["gcp_net"] + entry["net_usd"], 2)
+        month_map[m]["gcp_net"] = round(month_map[m]["gcp_net"] + entry["net_nok"], 2)
         svc = entry["service"]
         month_map[m]["services"][svc] = round(
-            month_map[m]["services"].get(svc, 0) + entry["net_usd"], 2
+            month_map[m]["services"].get(svc, 0) + entry["net_nok"], 2
         )
     for m in sorted(month_map.keys()):
         row = month_map[m]
-        # Claude Max only started March 2026
-        row["claude_max"] = 200.00 if m >= "2026-03" else 0.00
-        row["other_fixed"] = 35.00  # Mac Mini + domain
+        # Claude Max only started March 2026 (~2,150 NOK/mo at current rates)
+        row["claude_max"] = 2150.00 if m >= "2026-03" else 0.00
+        row["other_fixed"] = 375.00  # Mac Mini (~270 NOK) + domain (~105 NOK)
         row["total"] = round(row["gcp_net"] + row["claude_max"] + row["other_fixed"], 2)
         monthly_history.append(row)
 
@@ -1389,29 +1394,31 @@ def get_budget_summary():
     for entry in gcp_monthly:
         from datetime import datetime, timezone
         cm = datetime.now(timezone.utc).strftime("%Y-%m")
-        if entry["month"] == cm and entry["net_usd"] > 0.005:
+        if entry["month"] == cm and entry["net_nok"] > 0.005:
             current_gcp_services.append({
                 "category": entry["service"],
-                "monthly_usd": entry["net_usd"],
+                "monthly_nok": entry["net_nok"],
                 "type": "actual",
-                "note": f"GCP (net of credits: ${entry['credits_usd']:.2f})",
+                "note": f"GCP (net of credits: kr{entry['credits_nok']:.2f})",
             })
 
-    # Non-GCP fixed costs
+    # Non-GCP fixed costs (all in NOK)
     fixed_costs = [
-        {"category": "Claude Max Subscription", "monthly_usd": 200.00, "type": "fixed", "note": "Anthropic API access"},
-        {"category": "Mac Mini (amortized)", "monthly_usd": 25.00, "type": "fixed", "note": "$600 / 24 months"},
-        {"category": "Domain & Infrastructure", "monthly_usd": 10.00, "type": "estimated", "note": "DNS, misc"},
+        {"category": "Claude Max Subscription", "monthly_nok": 2150.00, "type": "fixed", "note": "Anthropic API access (~$200 USD)"},
+        {"category": "Mac Mini (amortized)", "monthly_nok": 270.00, "type": "fixed", "note": "kr6,450 / 24 months"},
+        {"category": "Domain & Infrastructure", "monthly_nok": 105.00, "type": "estimated", "note": "DNS, misc"},
     ]
 
-    total_fixed = sum(c["monthly_usd"] for c in fixed_costs)
+    total_fixed = sum(c["monthly_nok"] for c in fixed_costs)
     total_gcp = gcp_current_month_total
     total_monthly = round(total_fixed + total_gcp, 2)
 
-    monthly_budget = 500.00
+    monthly_budget = 5400.00  # ~$500 USD in NOK
     runway_months = 99
 
     return {
+        "currency": "NOK",
+        "currency_symbol": "kr",
         "fixed_costs": fixed_costs,
         "gcp_costs": current_gcp_services,
         "monthly_history": monthly_history,
@@ -1424,5 +1431,5 @@ def get_budget_summary():
             "runway_months": runway_months,
         },
         "status": "under_budget" if total_monthly <= monthly_budget else "over_budget",
-        "data_source": "BigQuery billing export (real data)",
+        "data_source": "BigQuery billing export (real data, NOK)",
     }
