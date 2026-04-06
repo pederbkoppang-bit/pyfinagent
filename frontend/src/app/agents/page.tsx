@@ -568,7 +568,7 @@ export default function AgentsPage() {
                       {openclawData?.cron_jobs?.map((j, i) => (
                         <tr key={i} className="transition-colors hover:bg-navy-700/40">
                           <td className="px-4 py-2 text-slate-300">{j.name}</td>
-                          <td className="px-4 py-2 font-mono text-xs text-slate-400">{j.schedule}</td>
+                          <td className="px-4 py-2 font-mono text-xs text-slate-400">{typeof j.schedule === 'object' ? JSON.stringify(j.schedule) : String(j.schedule)}</td>
                           <td className="px-4 py-2 text-slate-500">{j.target}</td>
                           <td className="px-4 py-2 text-xs text-slate-500">{j.status}</td>
                         </tr>

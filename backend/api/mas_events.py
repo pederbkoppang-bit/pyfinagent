@@ -131,7 +131,7 @@ async def get_dashboard():
             try:
                 cron_data = _json.loads(cron_out.stdout)
                 openclaw["cron_jobs"] = [
-                    {"name": j.get("name", "?"), "schedule": j.get("schedule", "?"),
+                    {"name": j.get("name", "?"), "schedule": str(j.get("schedule", "?")),
                      "status": j.get("lastStatus", "?"), "target": j.get("sessionTarget", "?")}
                     for j in (cron_data if isinstance(cron_data, list) else cron_data.get("jobs", []))
                 ]
