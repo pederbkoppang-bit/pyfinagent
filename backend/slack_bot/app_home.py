@@ -1,8 +1,8 @@
 """
-App Home & Slash Commands — Governance controls and state inspection.
+App Home & Slash Commands — MAS Dashboard + Governance controls.
 
 Implements Slack governance features:
-- App Home: persistent dashboard with agent stats, recent activity, controls
+- App Home: MAS architecture diagram, agent stats, system health, recent activity
 - /agent logs  — view recent agent activity
 - /agent state — inspect current agent state (config, routing, budgets)
 - /agent settings — view/configure agent behavior
@@ -11,6 +11,7 @@ Reference: https://docs.slack.dev/ai/agent-governance#control
 """
 
 import logging
+import time
 from slack_bolt.app import App
 from slack_sdk import WebClient
 
@@ -26,12 +27,7 @@ def register_governance(app: App):
 
     @app.event("app_home_opened")
     def update_app_home(client: WebClient, event, logger):
-        """
-        Render the App Home tab with agent dashboard.
-
-        Shows: agent status, aggregate stats, per-agent breakdown,
-        recent activity log, and control buttons.
-        """
+        """Render the App Home tab with full MAS dashboard."""
         user_id = event["user"]
 
         try:
@@ -39,46 +35,120 @@ def register_governance(app: App):
 
             audit = get_audit_logger()
             tracker = get_token_tracker()
-
             stats = audit.get_stats()
             breakdown = audit.get_agent_breakdown()
-            recent = audit.get_recent(limit=8)
+            recent = audit.get_recent(limit=5)
             user_usage = tracker.get_usage(user_id)
 
-            # Build the view
             blocks = []
 
             # ── Header ──────────────────────────────────────────
             blocks.append({
                 "type": "header",
-                "text": {"type": "plain_text", "text": "pyfinAgent Dashboard"}
+                "text": {"type": "plain_text", "text": "pyfinAgent — Multi-Agent System"}
+            })
+            blocks.append({
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": (
+                    "Evidence-based trading signals · May 2026 go-live · "
+                    "<https://www.anthropic.com/engineering/multi-agent-research-system|Anthropic MAS pattern>"
+                )}],
+            })
+            blocks.append({"type": "divider"})
+
+            # ── MAS Architecture ────────────────────────────────
+            blocks.append({
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "*Multi-Agent Architecture*"},
             })
             blocks.append({
                 "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": (
-                        "Multi-agent system status and governance controls.\n"
-                        "Agents: *Ford* (main) · *Analyst* (Q&A) · *Researcher*"
-                    ),
-                },
+                "text": {"type": "mrkdwn", "text": (
+                    "```\n"
+                    "User (Slack / iMessage)\n"
+                    "    │\n"
+                    "    ▼\n"
+                    "┌─────────────────────────────────────────┐\n"
+                    "│  Communication Agent (Sonnet 4.6)       │\n"
+                    "│  Classifies → 3 tiers + routes          │\n"
+                    "└──────────────────┬──────────────────────┘\n"
+                    "         ┌─────────┼─────────┐\n"
+                    "         ▼         ▼         ▼\n"
+                    "     DIRECT    SIMPLE    COMPLEX\n"
+                    "     (local)  (1 agent) (parallel)\n"
+                    "                  │         │\n"
+                    "                  ▼         ▼\n"
+                    "           ┌──────────┐  ┌──────┐┌──────────┐\n"
+                    "           │Ford Opus │  │Q&A   ││Researcher│\n"
+                    "           │  4.6     │  │Opus  ││Sonnet 4.6│\n"
+                    "           └────┬─────┘  └──────┘└──────────┘\n"
+                    "                ▼\n"
+                    "        Quality Gate (Sonnet 4.6)\n"
+                    "        0.0-1.0 scoring rubric\n"
+                    "                ▼\n"
+                    "        CitationAgent (Sonnet 4.6)\n"
+                    "```\n"
+                )},
+            })
+
+            # ── Agent Inventory ─────────────────────────────────
+            blocks.append({
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": (
+                    "*Agent Inventory*\n"
+                    "• ⚙️ *Ford (Main)* — `claude-opus-4-6` — Orchestrator, planner, synthesizer\n"
+                    "• 📊 *Q&A Analyst* — `claude-opus-4-6` — Quantitative reasoning with harness tools\n"
+                    "• 🔬 *Researcher* — `claude-sonnet-4-6` — Literature & evidence search\n"
+                    "• 💬 *Communication* — `claude-sonnet-4-6` — Router + Quality Gate reviewer\n"
+                    "• 📚 *CitationAgent* — `claude-sonnet-4-6` — Source attribution\n"
+                )},
+            })
+            blocks.append({"type": "divider"})
+
+            # ── System Health ───────────────────────────────────
+            health_lines = []
+            try:
+                import httpx
+                be = httpx.get("http://localhost:8000/api/health", timeout=3)
+                health_lines.append(f"✅ Backend (8000): `{be.status_code}`")
+            except Exception:
+                health_lines.append("❌ Backend (8000): DOWN")
+
+            try:
+                import httpx
+                fe = httpx.get("http://localhost:3000/", timeout=3)
+                health_lines.append(f"✅ Frontend (3000): `{fe.status_code}`")
+            except Exception:
+                health_lines.append("❌ Frontend (3000): DOWN")
+
+            # MAS event bus stats
+            try:
+                from backend.agents.mas_events import get_event_bus
+                bus = get_event_bus()
+                bus_stats = bus.stats
+                health_lines.append(
+                    f"📡 Event Bus: {bus_stats['total_events']} events, "
+                    f"{bus_stats['subscribers']} subscribers"
+                )
+            except Exception:
+                health_lines.append("📡 Event Bus: unavailable")
+
+            blocks.append({
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "*System Health*\n" + "\n".join(health_lines)},
             })
             blocks.append({"type": "divider"})
 
             # ── Aggregate Stats ─────────────────────────────────
             blocks.append({
                 "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": (
-                        f"*Aggregate Stats*\n"
-                        f"• Total requests: *{stats['total_requests']}*\n"
-                        f"• Success rate: *{stats['success_rate']}%*\n"
-                        f"• Avg latency: *{stats['avg_latency_ms']:.0f}ms*\n"
-                        f"• Avg tokens/req: *{stats['avg_tokens_per_request']:.0f}*\n"
-                        f"• Total tokens used: *{stats['total_tokens_used']:,}*"
-                    ),
-                },
+                "text": {"type": "mrkdwn", "text": (
+                    f"*Session Stats*\n"
+                    f"• Total requests: *{stats['total_requests']}*\n"
+                    f"• Success rate: *{stats['success_rate']}%*\n"
+                    f"• Avg latency: *{stats['avg_latency_ms']:.0f}ms*\n"
+                    f"• Total tokens: *{stats['total_tokens_used']:,}*"
+                )},
             })
 
             # ── Per-Agent Breakdown ─────────────────────────────
@@ -87,68 +157,73 @@ def register_governance(app: App):
                 emoji_map = {"main": "⚙️", "qa": "📊", "research": "🔬", "direct": "⚡"}
                 for agent, data in breakdown.items():
                     emoji = emoji_map.get(agent, "🤖")
-                    fail_str = f" ({data['failures']} failed)" if data['failures'] else ""
                     agent_lines.append(
                         f"{emoji} *{agent}*: {data['count']} calls, "
-                        f"avg {data['avg_latency']:.0f}ms, "
-                        f"{data['tokens']:,} tokens{fail_str}"
+                        f"{data['avg_latency']:.0f}ms avg, "
+                        f"{data['tokens']:,} tokens"
                     )
                 blocks.append({
                     "type": "section",
-                    "text": {"type": "mrkdwn", "text": "*Per-Agent Breakdown*\n" + "\n".join(agent_lines)},
+                    "text": {"type": "mrkdwn", "text": "*Agent Breakdown*\n" + "\n".join(agent_lines)},
                 })
 
             # ── Your Usage ──────────────────────────────────────
             blocks.append({"type": "divider"})
             blocks.append({
                 "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": (
-                        f"*Your Usage Today*\n"
-                        f"• Tokens used: *{user_usage['tokens']:,}*\n"
-                        f"• Remaining budget: *{user_usage['remaining']:,}*"
-                    ),
-                },
+                "text": {"type": "mrkdwn", "text": (
+                    f"*Your Usage Today*\n"
+                    f"• Tokens: *{user_usage['tokens']:,}* / 50,000\n"
+                    f"• Remaining: *{user_usage['remaining']:,}*"
+                )},
             })
 
             # ── Recent Activity ─────────────────────────────────
             blocks.append({"type": "divider"})
             blocks.append({
-                "type": "header",
-                "text": {"type": "plain_text", "text": "Recent Activity"}
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "*Recent Activity*"},
             })
 
             if recent:
-                for record in recent[:8]:
+                for record in recent[:5]:
                     outcome_emoji = {"success": "✅", "partial": "⚠️", "failure": "❌"}.get(
                         record.get("outcome", ""), "❓"
                     )
-                    ts = record.get("timestamp", "")[:19]
+                    ts = record.get("timestamp", "")[:16]
                     agent = record.get("agent_id", "?")
                     latency = record.get("total_latency_ms", 0)
                     tokens = record.get("total_tokens", 0)
-                    query = record.get("query_preview", "")[:60]
-                    feedback_str = ""
-                    if record.get("feedback"):
-                        feedback_str = f" · {'👍' if record['feedback'] == 'positive' else '👎'}"
+                    query = record.get("query_preview", "")[:50]
 
                     blocks.append({
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": (
-                                f"{outcome_emoji} `{ts}` *{agent}* "
-                                f"({latency:.0f}ms, {tokens} tok{feedback_str})\n"
-                                f"_{query}_"
-                            ),
-                        },
+                        "type": "context",
+                        "elements": [{"type": "mrkdwn", "text": (
+                            f"{outcome_emoji} `{ts}` *{agent}* · "
+                            f"{latency:.0f}ms · {tokens} tok · _{query}_"
+                        )}],
                     })
             else:
                 blocks.append({
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": "_No activity recorded yet._"},
+                    "type": "context",
+                    "elements": [{"type": "mrkdwn", "text": "_No activity yet. Send a message to get started._"}],
                 })
+
+            # ── Key Features ────────────────────────────────────
+            blocks.append({"type": "divider"})
+            blocks.append({
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": (
+                    "*Key Features*\n"
+                    "• 🧠 *Interleaved thinking* — Subagents reason after each tool call\n"
+                    "• 🛡️ *Quality Gate* — 0.0-1.0 scoring rubric (Accuracy, Completeness, Groundedness, Conciseness)\n"
+                    "• 📚 *CitationAgent* — Adds source markers to research responses\n"
+                    "• 🔄 *Iterative research* — \"More research needed?\" loop (max 3 rounds)\n"
+                    "• 🗜️ *Observation masking* — ACON-inspired context compression at 60%\n"
+                    "• ⚡ *Parallel tools* — Multiple harness reads in parallel within turns\n"
+                    "• 📡 *Event bus* — Real-time observability at `/agents`"
+                )},
+            })
 
             # ── Controls ────────────────────────────────────────
             blocks.append({"type": "divider"})
@@ -162,7 +237,7 @@ def register_governance(app: App):
                     },
                     {
                         "type": "button",
-                        "text": {"type": "plain_text", "text": "📊 Full Logs"},
+                        "text": {"type": "plain_text", "text": "📋 Full Logs"},
                         "action_id": "app_home_full_logs",
                     },
                     {
@@ -173,7 +248,16 @@ def register_governance(app: App):
                 ],
             })
 
-            # Publish the view
+            # ── Footer ──────────────────────────────────────────
+            blocks.append({
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": (
+                    "pyfinAgent v5.14 · "
+                    "<https://www.anthropic.com/engineering/multi-agent-research-system|Research System> · "
+                    "<https://www.anthropic.com/engineering/harness-design-long-running-apps|Harness Design>"
+                )}],
+            })
+
             client.views_publish(
                 user_id=user_id,
                 view={"type": "home", "blocks": blocks},
@@ -197,12 +281,7 @@ def register_governance(app: App):
     @app.action("app_home_refresh")
     def handle_refresh(ack, body, client):
         ack()
-        # Re-trigger the app_home_opened event handler
-        update_app_home(
-            client=client,
-            event={"user": body["user"]["id"]},
-            logger=logger,
-        )
+        update_app_home(client=client, event={"user": body["user"]["id"]}, logger=logger)
 
     @app.action("app_home_full_logs")
     def handle_full_logs(ack, body, client):
@@ -222,8 +301,7 @@ def register_governance(app: App):
                         f"{outcome_emoji} `{r.get('timestamp', '')[:19]}` "
                         f"*{r.get('agent_id', '?')}* | {r.get('complexity', '?')} | "
                         f"{r.get('total_latency_ms', 0):.0f}ms | "
-                        f"{r.get('total_tokens', 0)} tok | "
-                        f"err={r.get('error_type', 'none')}\n"
+                        f"{r.get('total_tokens', 0)} tok\n"
                         f"_{r.get('query_preview', '')[:80]}_"
                     ),
                 },
@@ -231,7 +309,7 @@ def register_governance(app: App):
 
         client.views_open(
             trigger_id=body["trigger_id"],
-            view={"type": "modal", "title": {"type": "plain_text", "text": "Audit Log"}, "blocks": blocks},
+            view={"type": "modal", "title": {"type": "plain_text", "text": "Audit Log"}, "blocks": blocks[:50]},
         )
 
     @app.action("app_home_settings")
@@ -244,18 +322,28 @@ def register_governance(app: App):
         blocks = [
             {"type": "header", "text": {"type": "plain_text", "text": "Agent Settings"}},
             {"type": "section", "text": {"type": "mrkdwn", "text": (
-                "*Models*\n"
-                "• Lead classifier: local keyword (no API)\n"
-                "• Subagents: `claude-sonnet-4-6`\n\n"
-                "*Token Budgets*\n"
-                f"• Daily budget: *50,000* tokens/user\n"
-                f"• Your usage today: *{usage['tokens']:,}*\n"
-                f"• Remaining: *{usage['remaining']:,}*\n\n"
-                "*Agent Routing*\n"
-                "• Trivial → Direct responder (local, 0 tokens)\n"
-                "• Simple → Single agent (~500 tokens)\n"
-                "• Moderate → Single agent + context (~1,500 tokens)\n"
-                "• Complex → 2-3 agents parallel (~4,000 tokens)"
+                "*Models (Anthropic)*\n"
+                "• Communication (router): `claude-sonnet-4-6` (500 max tokens)\n"
+                "• Ford (main): `claude-opus-4-6` (1500 max tokens)\n"
+                "• Q&A Analyst: `claude-opus-4-6` (2500 max tokens)\n"
+                "• Researcher: `claude-sonnet-4-6` (3000 max tokens)\n"
+                "• Quality Gate: `claude-sonnet-4-6` (2000 max tokens)\n"
+                "• CitationAgent: `claude-sonnet-4-6` (2000 max tokens)\n\n"
+                "*Thinking*\n"
+                "• Subagent thinking budget: 2048 tokens/turn (interleaved)\n\n"
+                "*Quality Gate Rubric*\n"
+                "• Accuracy, Completeness, Groundedness, Conciseness (0.0-1.0)\n"
+                "• Threshold: any < 0.6 OR avg < 0.7 = FAIL\n"
+                "• Calibrated with 3 few-shot examples\n\n"
+                f"*Token Budget*\n"
+                f"• Daily: 50,000 tokens/user\n"
+                f"• Your usage: {usage['tokens']:,} / 50,000\n"
+                f"• Remaining: {usage['remaining']:,}\n\n"
+                "*Routing Tiers*\n"
+                "• TRIVIAL → Direct responder (local, 0 tokens)\n"
+                "• SIMPLE → Single agent (~500 tokens)\n"
+                "• MODERATE → Single agent + planning (~1,500 tokens)\n"
+                "• COMPLEX → 2-3 agents parallel (~4,000 tokens)"
             )}},
         ]
 
@@ -270,15 +358,6 @@ def register_governance(app: App):
 
     @app.command("/agent")
     def handle_agent_command(ack, respond, command):
-        """
-        /agent [subcommand]
-
-        Subcommands:
-          logs     — View recent agent activity
-          state    — Inspect current agent state and configuration
-          settings — View agent settings and token budgets
-          help     — Show available commands
-        """
         ack()
         subcommand = (command.get("text") or "help").strip().lower()
         user_id = command.get("user_id", "unknown")
@@ -292,12 +371,10 @@ def register_governance(app: App):
         else:
             respond(
                 "🤖 *pyfinAgent Commands*\n\n"
-                "• `/agent logs` — View recent agent activity and audit trail\n"
-                "• `/agent state` — Inspect current routing config and budgets\n"
-                "• `/agent settings` — View model settings and token limits\n"
+                "• `/agent logs` — Recent agent activity + audit trail\n"
+                "• `/agent state` — Routing config, agent breakdown, budgets\n"
+                "• `/agent settings` — Model settings, token limits, quality gate config\n"
             )
-
-    # ── Slash Command Handlers ──────────────────────────────────
 
     def _handle_agent_logs(respond, user_id):
         from backend.slack_bot.governance import get_audit_logger
@@ -306,12 +383,12 @@ def register_governance(app: App):
         stats = audit.get_stats()
 
         if not records:
-            respond("📋 No activity recorded yet. Send a message to the assistant to get started.")
+            respond("📋 No activity yet. Send a message to the assistant to get started.")
             return
 
         lines = [
-            f"📋 *Recent Agent Activity* ({stats['total_requests']} total, "
-            f"{stats['success_rate']}% success rate)\n"
+            f"📋 *Recent Activity* ({stats['total_requests']} total, "
+            f"{stats['success_rate']}% success)\n"
         ]
         for r in records[:10]:
             emoji = {"success": "✅", "partial": "⚠️", "failure": "❌"}.get(r.get("outcome", ""), "❓")
@@ -320,12 +397,10 @@ def register_governance(app: App):
                 f"{r.get('total_latency_ms', 0):.0f}ms, {r.get('total_tokens', 0)} tok — "
                 f"_{r.get('query_preview', '')[:50]}_"
             )
-
         respond("\n".join(lines))
 
     def _handle_agent_state(respond, user_id):
         from backend.slack_bot.governance import get_audit_logger, get_token_tracker
-
         audit = get_audit_logger()
         tracker = get_token_tracker()
         stats = audit.get_stats()
@@ -337,19 +412,22 @@ def register_governance(app: App):
         for agent, data in breakdown.items():
             emoji = emoji_map.get(agent, "🤖")
             agent_lines.append(
-                f"  {emoji} {agent}: {data['count']} calls, avg {data['avg_latency']:.0f}ms"
+                f"  {emoji} {agent}: {data['count']} calls, {data['avg_latency']:.0f}ms avg"
             )
 
         respond(
             f"🔍 *Agent State*\n\n"
-            f"*System*\n"
-            f"• Total requests: {stats['total_requests']}\n"
-            f"• Success rate: {stats['success_rate']}%\n"
+            f"*Models*\n"
+            f"• Ford: `claude-opus-4-6`\n"
+            f"• Q&A: `claude-opus-4-6`\n"
+            f"• Researcher: `claude-sonnet-4-6`\n"
+            f"• Communication: `claude-sonnet-4-6`\n\n"
+            f"*Stats*\n"
+            f"• Requests: {stats['total_requests']} ({stats['success_rate']}% success)\n"
             f"• Avg latency: {stats['avg_latency_ms']:.0f}ms\n\n"
-            f"*Agent Breakdown*\n" + ("\n".join(agent_lines) or "  No data yet") + "\n\n"
+            f"*Breakdown*\n" + ("\n".join(agent_lines) or "  No data yet") + "\n\n"
             f"*Your Budget*\n"
-            f"• Used today: {usage['tokens']:,} / 50,000 tokens\n"
-            f"• Remaining: {usage['remaining']:,}"
+            f"• Used: {usage['tokens']:,} / 50,000 tokens"
         )
 
     def _handle_agent_settings(respond, user_id):
@@ -359,19 +437,19 @@ def register_governance(app: App):
 
         respond(
             f"⚙️ *Agent Settings*\n\n"
-            f"*Models*\n"
-            f"• Classifier: local keyword matching (no API call)\n"
-            f"• Subagent model: `claude-sonnet-4-6`\n\n"
-            f"*Token Budgets*\n"
-            f"• Daily limit: 50,000 tokens/user\n"
-            f"• Your usage: {usage['tokens']:,} / 50,000\n\n"
-            f"*Routing Rules*\n"
-            f"• Trivial (status/ping) → Direct responder, 0 tokens\n"
-            f"• Simple (operational) → Ford, ~500 tokens\n"
-            f"• Moderate (analytical) → Analyst/Researcher, ~1,500 tokens\n"
-            f"• Complex (multi-faceted) → 2-3 agents parallel, ~4,000 tokens\n\n"
-            f"*Data Handling*\n"
-            f"• Messages sent to Anthropic API for processing\n"
-            f"• No message content stored beyond audit metadata\n"
-            f"• Audit logs retained for 30 days"
+            f"*Models (Anthropic)*\n"
+            f"• Ford (main): `claude-opus-4-6`\n"
+            f"• Q&A Analyst: `claude-opus-4-6`\n"
+            f"• Researcher: `claude-sonnet-4-6`\n"
+            f"• Communication: `claude-sonnet-4-6`\n"
+            f"• Quality Gate: `claude-sonnet-4-6` (0.0-1.0 rubric)\n"
+            f"• CitationAgent: `claude-sonnet-4-6`\n\n"
+            f"*Features*\n"
+            f"• Interleaved thinking: 2048 tok/turn\n"
+            f"• Quality Gate: 4-criterion rubric, threshold <0.6\n"
+            f"• Observation masking: 60% context window\n"
+            f"• Parallel tool execution: enabled\n\n"
+            f"*Budget*\n"
+            f"• Daily: 50,000 tokens/user\n"
+            f"• Your usage: {usage['tokens']:,} / 50,000"
         )
