@@ -27,3 +27,4 @@ _health_result.txt
 _cleanup.ps1
 optimizer.log
 tickets.db
+service-account.json

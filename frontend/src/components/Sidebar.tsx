@@ -12,7 +12,7 @@ import {
   LogoIcon, IconKey, IconSignOut,
 } from "@/lib/icons";
 import type { Icon } from "@phosphor-icons/react";
-import { CaretDown, X } from "@phosphor-icons/react";
+import { CaretDown, X, Robot } from "@phosphor-icons/react";
 import { healthCheck } from "@/lib/api";
 
 interface NavItem { href: string; label: string; icon: Icon }
@@ -43,6 +43,13 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/portfolio", label: "Portfolio", icon: NavPortfolio },
       { href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading },
       { href: "/backtest", label: "Backtest", icon: NavBacktest },
+    ],
+  },
+  {
+    label: "System",
+    collapsible: true,
+    items: [
+      { href: "/agents", label: "MAS Dashboard", icon: Robot },
     ],
   },
 ];
