@@ -58,6 +58,33 @@ async def get_stats():
     return bus.stats
 
 
+@router.post("/events/ingest")
+async def ingest_event(event: dict):
+    """Ingest an event from an external process (e.g. Slack bot).
+
+    POST /api/mas/events/ingest with a MASEvent-like JSON body.
+    This allows the Slack bot (separate process) to push events
+    into the backend's event bus for SSE streaming.
+    """
+    from backend.agents.mas_events import MASEvent
+    try:
+        mas_event = MASEvent(
+            event_type=event.get("event_type", "unknown"),
+            agent=event.get("agent", "unknown"),
+            run_id=event.get("run_id", ""),
+            data=event.get("data"),
+            duration_ms=event.get("duration_ms", 0),
+            tokens=event.get("tokens", {}),
+            iteration=event.get("iteration", 0),
+        )
+        bus = get_event_bus()
+        bus.emit(mas_event)
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Event ingest failed: {e}")
+        return {"ok": False, "error": str(e)}
+
+
 @router.get("/dashboard")
 async def get_dashboard():
     """Full MAS dashboard data for Slack App Home + frontend /agents page.

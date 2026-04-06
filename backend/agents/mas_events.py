@@ -34,7 +34,9 @@ References:
 import asyncio
 import json
 import logging
+import os
 import time
+import threading
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from typing import Optional
@@ -83,6 +85,10 @@ class MASEventBus:
         # Consumer (SSE endpoint):
         async for event in bus.subscribe():
             yield event.to_sse()
+
+    Set remote_url to forward events to the backend API (for Slack bot process):
+        bus = get_event_bus()
+        bus.remote_url = "http://127.0.0.1:8000"
     """
 
     def __init__(self):
@@ -90,11 +96,16 @@ class MASEventBus:
         self._buffer: deque[MASEvent] = deque(maxlen=_BUFFER_SIZE)
         self._lock = asyncio.Lock() if asyncio.get_event_loop().is_running() else None
         self._total_events = 0
+        self.remote_url: str | None = os.environ.get("MAS_EVENT_RELAY_URL")  # e.g. http://127.0.0.1:8000
 
     def emit(self, event: MASEvent) -> None:
-        """Emit an event to all subscribers + buffer."""
+        """Emit an event to all subscribers + buffer. Forwards to remote if configured."""
         self._buffer.append(event)
         self._total_events += 1
+
+        # Forward to remote backend if configured (Slack bot → backend)
+        if self.remote_url:
+            self._forward_remote(event)
 
         # Non-blocking push to all subscriber queues
         dead = []
@@ -117,6 +128,20 @@ class MASEventBus:
                 f"run={event.run_id[:8] if event.run_id else '?'} | "
                 f"{event.duration_ms:.0f}ms"
             )
+
+    def _forward_remote(self, event: MASEvent) -> None:
+        """Forward event to remote backend via HTTP POST (fire-and-forget)."""
+        def _send():
+            try:
+                import httpx
+                httpx.post(
+                    f"{self.remote_url}/api/mas/events/ingest",
+                    json=asdict(event),
+                    timeout=3.0,
+                )
+            except Exception as e:
+                logger.debug(f"Event relay failed: {e}")
+        threading.Thread(target=_send, daemon=True).start()
 
     async def subscribe(self, include_buffer: bool = True):
         """Subscribe to events. Yields MASEvent objects.
