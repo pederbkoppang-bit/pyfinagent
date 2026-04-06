@@ -239,6 +239,14 @@ class BacktestEngine:
             **self.ml_params,
         }
 
+    def set_cached_features(self, cache_dict: dict) -> None:
+        """Activate feature caching for optimizer runs. Empty dict = populate on first run."""
+        self._cached_features = cache_dict
+
+    def get_cached_features(self) -> dict | None:
+        """Return cached features if active, else None."""
+        return getattr(self, '_cached_features', None)
+
     def get_model_trained_at(self) -> str:
         """Return ISO timestamp of last model training. Empty string if never trained."""
         return self.model_trained_at
