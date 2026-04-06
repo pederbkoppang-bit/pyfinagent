@@ -163,6 +163,8 @@ function EventDetail({ event }: { event: MASEvent }) {
   }
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 // ── Main Page ────────────────────────────────────────────────────
 
 export default function AgentsPage() {
@@ -184,7 +186,7 @@ export default function AgentsPage() {
       eventSourceRef.current.close();
     }
 
-    const es = new EventSource("/api/mas/events?include_buffer=true");
+    const es = new EventSource(`${API_BASE}/api/mas/events?include_buffer=true`);
     eventSourceRef.current = es;
 
     es.onopen = () => {
@@ -238,7 +240,7 @@ export default function AgentsPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch("/api/mas/events/stats");
+        const res = await fetch(`${API_BASE}/api/mas/events/stats`);
         if (res.ok) setStats(await res.json());
       } catch {
         // silent
@@ -246,7 +248,7 @@ export default function AgentsPage() {
     };
     const fetchOpenClaw = async () => {
       try {
-        const res = await fetch("/api/mas/dashboard");
+        const res = await fetch(`${API_BASE}/api/mas/dashboard`);
         if (res.ok) {
           const data = await res.json();
           if (data.openclaw) setOpenclawData(data.openclaw);
