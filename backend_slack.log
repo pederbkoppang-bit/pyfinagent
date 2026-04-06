@@ -538,3 +538,50 @@ TypeError: Assistant.__init__() got an unexpected keyword argument 'threadStarte
 [2026-04-06 18:30:00] Slack bot is running.
 [2026-04-06 18:35:00] Slack bot is running.
 [2026-04-06 18:40:00] Slack bot is running.
+[2026-04-06 18:45:00] Slack bot is running.
+[2026-04-06 18:50:00] Slack bot is running.
+[2026-04-06 18:55:01] Slack bot not running. Restarting...
+[2026-04-06 18:55:01] Starting Slack bot...
+[2026-04-06 18:55:01] Slack bot started (PID: 21206)
+2026-04-06 18:55:01,573 WARNING dotenv.main: python-dotenv could not parse statement starting at line 61
+2026-04-06 18:55:01,574 WARNING dotenv.main: python-dotenv could not parse statement starting at line 62
+2026-04-06 18:55:01,616 INFO backend.slack_bot.assistant_lifecycle: ✅ Assistant lifecycle handlers registered
+2026-04-06 18:55:01,620 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-06 18:55:01,621 INFO apscheduler.scheduler: Added job "_send_morning_digest" to job store "default"
+2026-04-06 18:55:01,621 INFO apscheduler.scheduler: Scheduler started
+2026-04-06 18:55:01,621 INFO backend.slack_bot.scheduler: Scheduler started: morning digest at 8:00
+2026-04-06 18:55:01,621 INFO __main__: 🎫 Ticket queue processor started as background task
+2026-04-06 18:55:01,621 INFO __main__: 🔍 SLA monitor started as background task
+2026-04-06 18:55:01,621 INFO __main__: 🔪 Stuck-Task Reaper started as background task
+2026-04-06 18:55:01,621 INFO __main__: Slack bot starting in Socket Mode...
+2026-04-06 18:55:01,623 INFO backend.db.tickets_db: Tickets database initialized at /Users/ford/.openclaw/workspace/pyfinagent/tickets.db
+2026-04-06 18:55:01,623 INFO backend.services.ticket_queue_processor: 🚀 Ticket queue processor started
+2026-04-06 18:55:01,624 INFO backend.services.sla_monitor: 🔍 SLA monitoring started
+2026-04-06 18:55:01,625 INFO backend.services.stuck_task_reaper: 🔪 Stuck-Task Reaper started (15-minute timeout)
+2026-04-06 18:55:02,276 INFO slack_bolt.AsyncApp: A new session (s_276674255) has been established
+2026-04-06 18:55:02,276 INFO slack_bolt.AsyncApp: ⚡️ Bolt app is running!
+[2026-04-06 19:00:00] Slack bot is running.
+[2026-04-06 19:05:00] Slack bot is running.
+2026-04-06 19:25:08,745 INFO slack_bolt.AsyncApp: The session (s_276674255) seems to be stale. Reconnecting... reason: disconnected for 926+ seconds)
+2026-04-06 19:25:08,958 INFO slack_bolt.AsyncApp: The old session (s_276674255) has been abandoned
+2026-04-06 19:25:09,226 INFO slack_bolt.AsyncApp: A new session (s_276620029) has been established
+2026-04-06 19:41:16,952 INFO slack_bolt.AsyncApp: The session (s_276620029) seems to be stale. Reconnecting... reason: disconnected for 937+ seconds)
+2026-04-06 19:41:47,107 ERROR slack_bolt.AsyncApp: Failed to check the current session (s_276620029) or reconnect to the server (error: TimeoutError, message: )
+2026-04-06 19:41:57,110 INFO slack_bolt.AsyncApp: The session (s_276620029) seems to be already closed. Reconnecting...
+2026-04-06 19:42:28,108 ERROR slack_bolt.AsyncApp: Failed to check the current session (s_276620029) or reconnect to the server (error: TimeoutError, message: )
+2026-04-06 19:42:38,109 INFO slack_bolt.AsyncApp: The session (s_276620029) seems to be already closed. Reconnecting...
+2026-04-06 19:42:42,521 INFO slack_bolt.AsyncApp: The old session (s_276620029) has been abandoned
+2026-04-06 19:42:53,223 INFO slack_bolt.AsyncApp: A new session (s_276620209) has been established
+2026-04-06 19:44:23,238 INFO slack_bolt.AsyncApp: The session (s_276620209) seems to be already closed. Reconnecting...
+2026-04-06 19:44:50,388 INFO slack_bolt.AsyncApp: The old session (s_276620209) has been abandoned
+2026-04-06 19:44:51,160 INFO slack_bolt.AsyncApp: A new session (s_276708452) has been established
+[2026-04-06 19:45:00] Slack bot is running.
+2026-04-06 19:46:31,176 INFO slack_bolt.AsyncApp: The session (s_276708452) seems to be already closed. Reconnecting...
+2026-04-06 19:46:31,178 INFO slack_bolt.AsyncApp: The session (s_276708452) seems to be stale. Reconnecting... reason: disconnected for 40+ seconds)
+2026-04-06 19:47:02,111 ERROR slack_bolt.AsyncApp: Failed to check the current session (s_276708452) or reconnect to the server (error: TimeoutError, message: )
+2026-04-06 19:47:12,113 INFO slack_bolt.AsyncApp: The session (s_276708452) seems to be already closed. Reconnecting...
+2026-04-06 19:47:43,112 ERROR slack_bolt.AsyncApp: Failed to check the current session (s_276708452) or reconnect to the server (error: TimeoutError, message: )
+2026-04-06 19:47:53,114 INFO slack_bolt.AsyncApp: The session (s_276708452) seems to be already closed. Reconnecting...
+2026-04-06 19:47:54,493 INFO slack_bolt.AsyncApp: The old session (s_276708452) has been abandoned
+2026-04-06 19:47:54,870 INFO slack_bolt.AsyncApp: A new session (s_276708547) has been established
+[2026-04-06 19:50:00] Slack bot is running.

@@ -40,13 +40,23 @@ interface EventBusStats {
   subscribers: number;
 }
 
-type TabId = "live" | "history" | "agents";
+interface OpenClawData {
+  gateway: string;
+  cron_jobs: { name: string; schedule: string; status: string; target: string }[];
+  sessions: number;
+  session_list: { key: string; kind: string; model: string; lastActive: string; channel: string }[];
+  agents: string[];
+  error?: string;
+}
+
+type TabId = "live" | "history" | "agents" | "openclaw";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TABS: { id: TabId; label: string; icon: any }[] = [
   { id: "live", label: "Live Stream", icon: Broadcast },
   { id: "history", label: "Run History", icon: Timer },
   { id: "agents", label: "Agent Map", icon: TreeStructure },
+  { id: "openclaw", label: "OpenClaw", icon: Lightning },
 ];
 
 // ── Agent node config ────────────────────────────────────────────
@@ -162,6 +172,7 @@ export default function AgentsPage() {
   const [stats, setStats] = useState<EventBusStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeAgents, setActiveAgents] = useState<Set<string>>(new Set());
+  const [openclawData, setOpenclawData] = useState<OpenClawData | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const failCountRef = useRef(0);
@@ -222,7 +233,7 @@ export default function AgentsPage() {
     };
   }, [connect]);
 
-  // ── Fetch stats ─────────────────────────────────────────────
+  // ── Fetch stats + OpenClaw data ─────────────────────────────
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -233,8 +244,20 @@ export default function AgentsPage() {
         // silent
       }
     };
+    const fetchOpenClaw = async () => {
+      try {
+        const res = await fetch("/api/mas/dashboard");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.openclaw) setOpenclawData(data.openclaw);
+        }
+      } catch {
+        // silent
+      }
+    };
     fetchStats();
-    const interval = setInterval(fetchStats, 10000);
+    fetchOpenClaw();
+    const interval = setInterval(() => { fetchStats(); fetchOpenClaw(); }, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -439,6 +462,115 @@ export default function AgentsPage() {
                           </tr>
                         );
                       })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Tab: OpenClaw ── */}
+          {tab === "openclaw" && (
+            <div className="space-y-6">
+              {/* Gateway Status */}
+              <div className="rounded-xl border border-navy-700 bg-navy-800/30 p-6">
+                <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
+                  <Lightning size={20} weight="duotone" className="text-sky-400" />
+                  OpenClaw Gateway
+                </h3>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <div className="rounded-lg border border-navy-700 bg-navy-800/60 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Gateway</p>
+                    <p className={`mt-1 text-lg font-bold ${openclawData?.gateway === "running" ? "text-emerald-400" : "text-rose-400"}`}>
+                      {openclawData?.gateway ?? "Unknown"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-navy-700 bg-navy-800/60 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Sessions</p>
+                    <p className="mt-1 text-lg font-bold text-sky-400">{openclawData?.sessions ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-navy-700 bg-navy-800/60 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Cron Jobs</p>
+                    <p className="mt-1 text-lg font-bold text-amber-400">{openclawData?.cron_jobs?.length ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-navy-700 bg-navy-800/60 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Agents</p>
+                    <p className="mt-1 text-lg font-bold text-purple-400">{openclawData?.agents?.length ?? 0}</p>
+                  </div>
+                </div>
+                {openclawData?.error && (
+                  <p className="mt-3 text-sm text-rose-400">⚠️ {openclawData.error}</p>
+                )}
+              </div>
+
+              {/* Registered Agents */}
+              <div className="rounded-xl border border-navy-700 bg-navy-800/30 p-6">
+                <h3 className="text-lg font-semibold text-slate-200 mb-4">Registered Agents</h3>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {(openclawData?.agents ?? []).map((agent) => (
+                    <div key={agent} className="rounded-lg border border-navy-700 bg-navy-800/60 p-3 flex items-center gap-2">
+                      <Robot size={16} className="text-sky-400" />
+                      <span className="text-sm font-medium text-slate-200">{agent}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Active Sessions */}
+              {(openclawData?.session_list?.length ?? 0) > 0 && (
+                <div className="overflow-hidden rounded-xl border border-navy-700">
+                  <div className="border-b border-navy-700 bg-navy-800/80 px-4 py-3">
+                    <h3 className="text-sm font-semibold text-slate-300">Active Sessions</h3>
+                  </div>
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-navy-700 bg-navy-800/60">
+                      <tr>
+                        <th className="px-4 py-2 font-medium text-slate-500">Session Key</th>
+                        <th className="px-4 py-2 font-medium text-slate-500">Kind</th>
+                        <th className="px-4 py-2 font-medium text-slate-500">Model</th>
+                        <th className="px-4 py-2 font-medium text-slate-500">Channel</th>
+                        <th className="px-4 py-2 font-medium text-slate-500">Last Active</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-navy-700/50">
+                      {openclawData?.session_list?.map((s) => (
+                        <tr key={s.key} className="transition-colors hover:bg-navy-700/40">
+                          <td className="px-4 py-2 font-mono text-xs text-slate-300">{s.key}</td>
+                          <td className="px-4 py-2 text-slate-400">{s.kind}</td>
+                          <td className="px-4 py-2 font-mono text-xs text-slate-400">{s.model}</td>
+                          <td className="px-4 py-2 text-slate-500">{s.channel || "—"}</td>
+                          <td className="px-4 py-2 text-xs text-slate-500">{s.lastActive ? new Date(s.lastActive).toLocaleTimeString() : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Cron Jobs */}
+              {(openclawData?.cron_jobs?.length ?? 0) > 0 && (
+                <div className="overflow-hidden rounded-xl border border-navy-700">
+                  <div className="border-b border-navy-700 bg-navy-800/80 px-4 py-3">
+                    <h3 className="text-sm font-semibold text-slate-300">Cron Jobs</h3>
+                  </div>
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-navy-700 bg-navy-800/60">
+                      <tr>
+                        <th className="px-4 py-2 font-medium text-slate-500">Name</th>
+                        <th className="px-4 py-2 font-medium text-slate-500">Schedule</th>
+                        <th className="px-4 py-2 font-medium text-slate-500">Target</th>
+                        <th className="px-4 py-2 font-medium text-slate-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-navy-700/50">
+                      {openclawData?.cron_jobs?.map((j, i) => (
+                        <tr key={i} className="transition-colors hover:bg-navy-700/40">
+                          <td className="px-4 py-2 text-slate-300">{j.name}</td>
+                          <td className="px-4 py-2 font-mono text-xs text-slate-400">{j.schedule}</td>
+                          <td className="px-4 py-2 text-slate-500">{j.target}</td>
+                          <td className="px-4 py-2 text-xs text-slate-500">{j.status}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

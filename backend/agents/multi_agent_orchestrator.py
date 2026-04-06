@@ -153,6 +153,7 @@ class MultiAgentOrchestrator:
         return self._masker
 
     def _get_client(self):
+        """Get Anthropic client (used only for tool-loop calls that need native API features)."""
         if self._client is None:
             try:
                 import anthropic
@@ -165,6 +166,14 @@ class MultiAgentOrchestrator:
             except ImportError:
                 raise ImportError("pip install anthropic")
         return self._client
+
+    def _use_openclaw(self) -> bool:
+        """Check if OpenClaw Gateway is available for routing."""
+        try:
+            from backend.agents.openclaw_client import check_gateway_health
+            return check_gateway_health()
+        except Exception:
+            return False
 
     # ═══════════════════════════════════════════════════════════════
     # PUBLIC API

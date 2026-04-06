@@ -141,6 +141,27 @@ async def get_dashboard():
     except Exception as e:
         openclaw["error"] = str(e)[:100]
 
+    # OpenClaw sessions (live agent sessions visible to MAS)
+    try:
+        from backend.agents.openclaw_client import list_openclaw_sessions
+        oc_sessions = list_openclaw_sessions()
+        openclaw["sessions"] = len(oc_sessions)
+        openclaw["session_list"] = [
+            {
+                "key": s.get("key", "?"),
+                "kind": s.get("kind", "?"),
+                "model": s.get("model", "?"),
+                "lastActive": s.get("lastActiveAt", ""),
+                "channel": s.get("channel", ""),
+            }
+            for s in oc_sessions[:20]  # Limit to 20 most recent
+        ]
+    except Exception as sess_err:
+        logger.debug(f"Failed to fetch OpenClaw sessions: {sess_err}")
+
+    # OpenClaw registered agents
+    openclaw["agents"] = ["main", "qa", "research", "communication"]
+
     return {
         "agents": agents,
         "health": health,

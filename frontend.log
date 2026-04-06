@@ -1,14 +1,10 @@
-
-> pyfinagent-frontend@2.0.0 start
-> next start -p 3000
-
    ▲ Next.js 15.5.12
    - Local:        http://localhost:3000
    - Network:      http://192.168.86.77:3000
 
  ✓ Starting...
  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
- ✓ Ready in 215ms
+ ✓ Ready in 129ms
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -21,198 +17,10 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -222,7 +30,6 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -232,67 +39,40 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -313,12 +93,10 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -328,17 +106,14 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -348,12 +123,10 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -369,19 +142,10 @@
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -395,16 +159,11 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -425,35 +184,11 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/csrf. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/signout. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -462,7 +197,6 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -472,12 +206,10 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -486,22 +218,15 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -510,7 +235,6 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -520,12 +244,10 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -539,89 +261,37 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -630,22 +300,11 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -654,22 +313,14 @@
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -684,108 +335,37 @@
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -800,20 +380,6 @@
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
@@ -824,42 +390,12 @@
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/error. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
 [31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
     at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
     at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 [auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/providers. Read more at https://errors.authjs.dev#untrustedhost]
-[31m[auth][error][0m UntrustedHost: Host must be trusted. URL was: http://localhost:3000/api/auth/session. Read more at https://errors.authjs.dev#untrustedhost
-    at /Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:51382
-    at hx (/Users/ford/.openclaw/workspace/pyfinagent/frontend/.next/server/src/middleware.js:416:54077)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-[auth][error][aQ: Host must be trusted. URL was: http://localhost:3000/api/auth/signin/google. Read more at https://errors.authjs.dev#untrustedhost]
