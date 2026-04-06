@@ -31,6 +31,8 @@ from slack_sdk.models.messages.chunk import (
 
 from backend.agents.multi_agent_orchestrator import get_orchestrator
 from backend.agents.agent_definitions import (
+    classify_trivial,
+    ClassificationResult,
     AGENT_CONFIGS,
     AgentType,
     QueryComplexity,
@@ -100,7 +102,16 @@ async def handle_user_message_with_streaming(
 
         # ── Classify via Communication Agent (Sonnet 4.6) ────────
         orchestrator = get_orchestrator()
-        classification = orchestrator.classify_message_sync(user_text)
+        classification = classify_trivial(user_text)
+        if not classification:
+            try:
+                classification = await orchestrator._classify_via_llm(user_text)
+            except Exception as cls_err:
+                logger.error(f"Classification failed: {cls_err}")
+                classification = ClassificationResult(
+                    agent_type=AgentType.MAIN, complexity=QueryComplexity.SIMPLE,
+                    confidence=0.4, reasoning=f"Classification error: {cls_err}",
+                )
 
         logger.info(
             f"📋 → {classification.agent_type.value} "
@@ -109,8 +120,8 @@ async def handle_user_message_with_streaming(
 
         # ── DIRECT: instant local response ───────────────────────
         if classification.agent_type == AgentType.DIRECT:
-            result = orchestrator.execute_classified_sync(user_text, classification, user_id)
-            say(result.get("response", "👋 I'm here."))
+            result = orchestrator._handle_direct(user_text)
+            await say(result or "👋 I'm here.")
             return
 
         # ── COMPLEX: task plan with parallel agents ──────────────
@@ -132,7 +143,7 @@ async def handle_user_message_with_streaming(
         import traceback
         traceback.print_exc()
         try:
-            say(f"⚠️ Something went wrong — please try again. ({type(e).__name__})")
+            await say(f"⚠️ Something went wrong — please try again. ({type(e).__name__})")
         except Exception:
             pass
 
@@ -145,7 +156,7 @@ async def _stream_simple_response(
     start = time.time()
 
     # Execute via MAS (Ford + Quality Gate + CitationAgent)
-    result = orchestrator.execute_classified_sync(user_text, classification, user_id)
+    result = await orchestrator._execute_full_flow(user_text, classification, user_id)
     response_text = result.get("response", "No response generated.")
     tokens = result.get("token_usage", {})
     proc_ms = result.get("processing_time_ms", 0)
