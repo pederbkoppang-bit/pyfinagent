@@ -249,7 +249,7 @@ app.include_router(mas_events_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "pyfinagent-backend", "version": "5.13.0"}
+    return {"status": "ok", "service": "pyfinagent-backend", "version": "6.0.0"}
 
 
 @app.get("/api/changelog")

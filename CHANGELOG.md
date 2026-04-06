@@ -1,7 +1,64 @@
 ﻿# Changelog
 
 All notable changes to PyFinAgent are documented here.
-For architecture details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
+
+### v6.0.0 — Multi-Agent System + Full System Integration (April 2026)
+
+**38 agents across 4 layers. OpenClaw ↔ pyfinAgent ↔ Slack fully synchronized. MAS Dashboard live.**
+
+#### MAS Orchestrator (Layer 2) — 6 Claude agents
+1. **Agent definitions** — Communication (Sonnet 4.6), Ford (Opus 4.6), Q&A Analyst (Opus 4.6), Researcher (Sonnet 4.6), Quality Gate (Sonnet 4.6), CitationAgent (Sonnet 4.6)
+2. **Multi-agent orchestrator** — 3-tier routing (trivial/simple/complex), parallel subagent execution, iterative research loop (max 3 rounds)
+3. **Interleaved thinking** — 2048 token budget per subagent turn
+4. **Scoring rubric** — 4-criterion Quality Gate (Accuracy, Completeness, Groundedness, Conciseness), 0.0-1.0 with 3 few-shot calibration examples
+5. **Observation masking** — ACON-inspired context compression at 60% window
+6. **Event bus** — `mas_events.py` with SSE streaming at `/api/mas/events`
+
+#### Harness Agents (Layer 3) — Planner + Evaluator
+7. **LLM-as-Planner** (Phase 3.1) — Claude-powered parameter proposal with RESEARCH.md integration
+8. **LLM-as-Evaluator** (Phase 3.2) — Skeptical review with 10-proposal test suite (100% accuracy)
+9. **Spot checks** (Phase 3.2.1) — CostStress (2× validation), RegimeShift (walk-forward), ParamSweep (10-combo sensitivity σ≤5%)
+
+#### Slack AI Agent Upgrade
+10. **Assistant lifecycle** — AsyncAssistant with thread_started/user_message handlers
+11. **Streaming integration** — Real MAS orchestrator → word-by-word streaming via `chat_stream`
+12. **Task plan visualization** — Complex queries show parallel agent cards with model/latency/tokens
+13. **App Home dashboard** — Architecture diagram, agent inventory with model selectors, system health, OpenClaw cron jobs, MAS event bus stats, cost tracker
+14. **Model selectors** — Change agent models live from Slack dropdowns → updates `AGENT_CONFIGS` at runtime
+15. **Governance** — Audit logging, rate limiting, human-in-the-loop, token budgets (50K/user/day)
+16. **Queue resilience** — Stuck-task reaper (15min timeout), model failover (Opus 429 → Sonnet), SLA monitoring
+
+#### Frontend
+17. **MAS Dashboard** (`/agents`) — 3 tabs: Live Stream (SSE events), Run History, Agent Map (visual node graph)
+18. **Sidebar** — Added MAS Dashboard under System section
+
+#### System Integration
+19. **OpenClaw sync** — App Home shows gateway status, 8 cron jobs with status, session count
+20. **Dashboard API** — `GET /api/mas/dashboard` returns agents, health, events, costs, OpenClaw data
+21. **Model API** — `POST /api/mas/agents/{type}/model` for programmatic model changes
+22. **Architecture audit** — `ARCHITECTURE.md` rewritten: 4 layers, 38 agents, complete file map + sync points table
+
+#### Documentation Cleanup
+23. **Archived 15 stale .md files** → `docs/archive/` (Phase 0, Phase 2 plans, completed research)
+24. **CLAUDE.md rewritten** — 115 lines: commands, rules, architecture, conventions, testing
+25. **HEARTBEAT.md trimmed** — 12KB → 1.6KB (current status only, protocol → ARCHITECTURE.md)
+
+Files changed: 50+ files across backend/agents/, backend/slack_bot/, backend/api/, frontend/src/
+
+---
+
+### v5.15.0 — Slack AI Agent Foundation + MCP Servers (April 2026)
+
+**Slack AI Agent lifecycle, MCP server architecture, agentic coordination loop.**
+
+1. **MCP servers** (Phase 3.0) — Data server, backtest server, signals server in `backend/agents/mcp_servers/`
+2. **Agentic coordination loop** (Phase 3.2.1) — Message routing (100% accuracy, 21/21 tests), agent spawning (Q&A/Research/Slack), communication testing
+3. **Slack AI Agent Phase 1-6** — Assistant lifecycle, streaming handler skeleton, MCP integration, context management, governance framework
+4. **Queue system** — Ticket ingestion, queue processor (30s batch), SLA monitor, notification service
+5. **Model failover** — Opus 429 → auto-switch to Sonnet, 60s timeout on all agent calls
 
 ---
 
