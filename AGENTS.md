@@ -1,6 +1,9 @@
 ﻿# AGENTS.md for PyFinAgent
 
-> An agentic AI financial analyst orchestrating 20+ specialized agents through a 15-step pipeline:
+> See `ARCHITECTURE.md` for the complete 4-layer, 38-agent system map.
+> See `~/.openclaw/workspace/AGENTS.md` for OpenClaw operating instructions.
+
+> An agentic AI financial analyst orchestrating 38 specialized agents across 4 layers:
 > data collection -> parallel enrichment -> adversarial debate -> synthesis -> critic validation -> bias audit.
 
 **Design Philosophy**: "Glass Box" -- every agent's inputs, reasoning, and outputs are visible. No black-box decisions.
