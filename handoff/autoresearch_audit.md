@@ -67,10 +67,10 @@ We need pause because experiments cost money (API calls).
 
 ## Action Items (Priority Order)
 
-1. **UI: Run dropdown shows experiments under parent run** (immediate)
-2. **UI: Progress bar shows window detail during optimizer** (immediate)
-3. **UI: Pause/Stop buttons** (immediate)
-4. **Backend: max_iterations=0 for infinite loop** (Phase 4.1)
-5. **Backend: Git commit per kept experiment** (Phase 4.1)
-6. **Backend: Save each kept experiment as full run** (Phase 4.1)
-7. **Architecture: Move to program.md/SOUL.md pattern** (Phase 4.0)
+1. **UI: Run dropdown shows experiments under parent run** ✅ Done
+2. **UI: Progress bar shows window detail during optimizer** ✅ Done
+3. **UI: Pause/Stop buttons** ✅ Done
+4. **Backend: max_iterations=0 for infinite loop** ✅ Done — default is now 0 (forever)
+5. **Backend: Git commit per kept experiment** ✅ Done — commits optimizer_best.json + TSV
+6. **Backend: Save each kept experiment as full run** ✅ Done — on_result persists via result_store
+7. **Architecture: Move to program.md/SOUL.md pattern** → Phase 4.0 (planned, saved for later)
