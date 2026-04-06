@@ -10,3 +10,117 @@
 2026-04-03 17:42:14,901 INFO backend.services.sla_monitor: 🔍 SLA monitoring started
 2026-04-03 17:42:15,439 INFO slack_bolt.AsyncApp: A new session (s_276770448) has been established
 2026-04-03 17:42:15,439 INFO slack_bolt.AsyncApp: ⚡️ Bolt app is running!
+[2026-04-05 10:16:04] Slack bot is running.
+[2026-04-05 10:22:21] Slack bot is running.
+[2026-04-05 10:29:10] Slack bot is running.
+[2026-04-05 10:32:20] Slack bot is running.
+[2026-04-05 10:36:27] Slack bot is running.
+[2026-04-05 10:40:00] Slack bot is running.
+[2026-04-05 10:51:29] Slack bot is running.
+[2026-04-05 11:05:00] Slack bot is running.
+[2026-04-05 11:57:29] Slack bot is running.
+[2026-04-05 13:42:22] Slack bot is running.
+[2026-04-05 15:10:00] Slack bot is running.
+[2026-04-05 15:16:28] Slack bot is running.
+[2026-04-05 15:20:06] Slack bot is running.
+[2026-04-05 15:25:31] Slack bot is running.
+[2026-04-05 16:18:26] Slack bot is running.
+[2026-04-05 16:29:07] Slack bot is running.
+[2026-04-05 17:14:10] Slack bot is running.
+[2026-04-05 17:16:47] Slack bot is running.
+[2026-04-05 17:45:00] Slack bot is running.
+[2026-04-05 18:50:00] Slack bot is running.
+[2026-04-05 18:56:51] Slack bot is running.
+[2026-04-05 19:03:05] Slack bot is running.
+[2026-04-05 19:07:03] Slack bot is running.
+[2026-04-05 20:15:00] Slack bot is running.
+[2026-04-05 21:42:07] Slack bot is running.
+[2026-04-05 23:40:22] Slack bot is running.
+[2026-04-06 00:45:00] Slack bot is running.
+[2026-04-06 01:55:01] Slack bot is running.
+[2026-04-06 03:08:05] Slack bot is running.
+[2026-04-06 03:15:00] Slack bot is running.
+[2026-04-06 04:35:20] Slack bot is running.
+[2026-04-06 07:12:56] Slack bot is running.
+[2026-04-06 07:25:00] Slack bot is running.
+[2026-04-06 08:18:22] Slack bot is running.
+[2026-04-06 08:21:11] Slack bot is running.
+[2026-04-06 08:25:36] Slack bot is running.
+[2026-04-06 08:55:00] Slack bot not running. Restarting...
+[2026-04-06 08:55:00] Starting Slack bot...
+[2026-04-06 08:55:00] Slack bot started (PID: 8056)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/app.py", line 69, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/app.py", line 45, in main
+    app = create_app()
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/app.py", line 32, in create_app
+    register_assistant_lifecycle(app)  # ← NEW: Slack AI Agent lifecycle
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/assistant_lifecycle.py", line 175, in register_assistant_lifecycle
+    from slack_bolt.assistant import Assistant
+ModuleNotFoundError: No module named 'slack_bolt.assistant'
+[2026-04-06 09:39:23] Slack bot not running. Restarting...
+[2026-04-06 09:39:23] Starting Slack bot...
+[2026-04-06 09:39:23] Slack bot started (PID: 8404)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/app.py", line 69, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/app.py", line 45, in main
+    app = create_app()
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/app.py", line 32, in create_app
+    register_assistant_lifecycle(app)  # ← NEW: Slack AI Agent lifecycle
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/assistant_lifecycle.py", line 175, in register_assistant_lifecycle
+    from slack_bolt.assistant import Assistant
+ModuleNotFoundError: No module named 'slack_bolt.assistant'
+[2026-04-06 10:30:00] Slack bot not running. Restarting...
+[2026-04-06 10:30:00] Starting Slack bot...
+[2026-04-06 10:30:00] Slack bot started (PID: 8807)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/app.py", line 69, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/app.py", line 45, in main
+    app = create_app()
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/app.py", line 32, in create_app
+    register_assistant_lifecycle(app)  # ← NEW: Slack AI Agent lifecycle
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/assistant_lifecycle.py", line 175, in register_assistant_lifecycle
+    from slack_bolt.assistant import Assistant
+ModuleNotFoundError: No module named 'slack_bolt.assistant'
