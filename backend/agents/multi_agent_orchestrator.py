@@ -51,6 +51,7 @@ from backend.agents.agent_definitions import (
     parse_harness_trigger,
     strip_delegation_tag,
 )
+from backend.agents.mas_events import MASEvent, get_event_bus, make_run_id
 
 logger = logging.getLogger(__name__)
 
@@ -271,58 +272,93 @@ class MultiAgentOrchestrator:
         start = time.time()
         total_usage = {"input": 0, "output": 0}
         loop = asyncio.get_event_loop()
+        bus = get_event_bus()
+        run_id = make_run_id()
+
+        # ── Emit: classify ──────────────────────────────────────
+        bus.emit(MASEvent(
+            event_type="classify", agent="Communication", run_id=run_id,
+            data={
+                "primary": classification.agent_type.value,
+                "complexity": classification.complexity.value,
+                "confidence": classification.confidence,
+                "reasoning": classification.reasoning[:200],
+                "parallel_agents": [a.value for a in (classification.parallel_agents or [])],
+                "query_preview": message[:100],
+            },
+        ))
 
         # ── Step 1: think(plan approach) ────────────────────────
-        # Ford plans what subagents to create and what each should do
-        # This is NOT the same as the Communication Agent's routing —
-        # this is the LeadResearcher thinking about the research strategy
         plan = None
         if classification.complexity in (QueryComplexity.MODERATE, QueryComplexity.COMPLEX):
+            plan_start = time.time()
             plan, plan_usage = await self._think_plan(message, classification, context)
             total_usage["input"] += plan_usage.get("input", 0)
             total_usage["output"] += plan_usage.get("output", 0)
             logger.info(f"📋 Ford planned approach: {plan[:100]}...")
 
+            bus.emit(MASEvent(
+                event_type="plan", agent="Ford", run_id=run_id,
+                duration_ms=round((time.time() - plan_start) * 1000, 1),
+                tokens=plan_usage,
+                data={"plan_preview": plan[:300]},
+            ))
+
             # ── Step 2: save plan → Memory ──────────────────────
             self._save_to_memory(f"PLAN for query: {message[:80]}\n{plan}")
+            bus.emit(MASEvent(
+                event_type="memory_save", agent="Ford", run_id=run_id,
+                data={"type": "plan", "target": "episodic"},
+            ))
 
         # ── Step 3: retrieve context → harness state ────────────
         harness_ctx = self._get_harness_context(classification.agent_type)
 
         # ── Step 4-5-6: Execute with iterative loop ─────────────
+        exec_start = time.time()
         if classification.complexity == QueryComplexity.COMPLEX and classification.parallel_agents:
             response, exec_usage = await self._iterative_parallel_research(
-                message, classification, plan, context
+                message, classification, plan, context, run_id=run_id,
             )
         else:
             response, exec_usage = await self._single_with_delegation(
-                message, classification, plan, context
+                message, classification, plan, context, run_id=run_id,
             )
 
         total_usage["input"] += exec_usage.get("input", 0)
         total_usage["output"] += exec_usage.get("output", 0)
 
         # ── Step 7: Quality Gate — SEPARATE agent evaluates ─────
-        # Ford NEVER evaluates his own output. Communication Agent
-        # (Sonnet, different model/instance) does a quality check.
         if classification.complexity != QueryComplexity.TRIVIAL:
+            gate_start = time.time()
             checked_response, gate_usage = await self._quality_gate(
                 message, response, classification
             )
             total_usage["input"] += gate_usage.get("input", 0)
             total_usage["output"] += gate_usage.get("output", 0)
+
+            bus.emit(MASEvent(
+                event_type="quality_gate", agent="Quality Gate", run_id=run_id,
+                duration_ms=round((time.time() - gate_start) * 1000, 1),
+                tokens=gate_usage,
+                data={"passed": checked_response is None},
+            ))
             if checked_response:
                 response = checked_response
 
         # ── Step 8: CitationAgent — add source citations ──────────
-        # From diagram: CitationAgent processes documents + research
-        # report to identify locations for citations before returning.
+        cite_start = time.time()
         cited_response, cite_usage = await self._add_citations(
             response, classification
         )
         total_usage["input"] += cite_usage.get("input", 0)
         total_usage["output"] += cite_usage.get("output", 0)
         if cited_response:
+            bus.emit(MASEvent(
+                event_type="citation", agent="CitationAgent", run_id=run_id,
+                duration_ms=round((time.time() - cite_start) * 1000, 1),
+                tokens=cite_usage,
+            ))
             response = cited_response
 
         # ── Step 9: persist results → Memory ────────────────────
@@ -331,6 +367,18 @@ class MultiAgentOrchestrator:
             f"Agent: {classification.agent_type.value}\n"
             f"Response: {response[:300]}"
         )
+
+        # ── Emit: complete ──────────────────────────────────────
+        bus.emit(MASEvent(
+            event_type="complete", agent="Ford", run_id=run_id,
+            duration_ms=round((time.time() - start) * 1000, 1),
+            tokens=total_usage,
+            data={
+                "response_length": len(response),
+                "agent_type": classification.agent_type.value,
+                "complexity": classification.complexity.value,
+            },
+        ))
 
         return self._build_result(response, classification, start, total_usage)
 
@@ -369,7 +417,7 @@ class MultiAgentOrchestrator:
     # STEP 4-6: ITERATIVE PARALLEL RESEARCH
     # ═══════════════════════════════════════════════════════════════
 
-    async def _iterative_parallel_research(self, message, classification, plan=None, context=None):
+    async def _iterative_parallel_research(self, message, classification, plan=None, context=None, run_id=""):
         """
         Iterative research loop from the diagram:
           → spawn subagents → synthesize → "more research needed?" → loop or exit
@@ -380,6 +428,8 @@ class MultiAgentOrchestrator:
         all_findings = []
         total_usage = {"input": 0, "output": 0}
         loop = asyncio.get_event_loop()
+
+        bus = get_event_bus()
 
         for iteration in range(1, MAX_RESEARCH_ITERATIONS + 1):
             logger.info(f"🔄 Research iteration {iteration}/{MAX_RESEARCH_ITERATIONS}")
@@ -392,10 +442,18 @@ class MultiAgentOrchestrator:
                     message, agent_type, classification, context,
                     plan=plan, previous_findings=all_findings,
                 )
-                # Use tool loop — subagents can read harness data iteratively
                 tasks.append(
                     loop.run_in_executor(None, self._call_agent_with_tools, config, sub_task)
                 )
+                bus.emit(MASEvent(
+                    event_type="delegate", agent="Ford", run_id=run_id,
+                    iteration=iteration,
+                    data={
+                        "target_agent": agent_type.value,
+                        "target_name": config.name,
+                        "model": config.model,
+                    },
+                ))
 
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -406,6 +464,11 @@ class MultiAgentOrchestrator:
                 if isinstance(result, Exception):
                     logger.error(f"Agent {agent_type.value} failed: {result}")
                     iteration_findings.append(f"⚠️ {agent_type.value}: Error - {str(result)[:100]}")
+                    bus.emit(MASEvent(
+                        event_type="error", agent=agent_type.value, run_id=run_id,
+                        iteration=iteration,
+                        data={"error": str(result)[:200]},
+                    ))
                 else:
                     text, usage = result
                     clean = strip_delegation_tag(text)
@@ -423,6 +486,13 @@ class MultiAgentOrchestrator:
                 total_usage["input"] += decision_usage.get("input", 0)
                 total_usage["output"] += decision_usage.get("output", 0)
 
+                bus.emit(MASEvent(
+                    event_type="loop_check", agent="Ford", run_id=run_id,
+                    iteration=iteration,
+                    data={"needs_more": needs_more, "findings_count": len(all_findings)},
+                    tokens=decision_usage,
+                ))
+
                 if not needs_more:
                     logger.info(f"✅ Research complete after {iteration} iteration(s)")
                     break
@@ -432,9 +502,17 @@ class MultiAgentOrchestrator:
                 logger.info(f"⏱️ Max iterations reached ({MAX_RESEARCH_ITERATIONS})")
 
         # Synthesize all findings
+        synth_start = time.time()
         synthesis, synth_usage = await self._synthesize(message, agents, all_findings)
         total_usage["input"] += synth_usage.get("input", 0)
         total_usage["output"] += synth_usage.get("output", 0)
+
+        bus.emit(MASEvent(
+            event_type="synthesize", agent="Ford", run_id=run_id,
+            duration_ms=round((time.time() - synth_start) * 1000, 1),
+            tokens=synth_usage,
+            data={"findings_count": len(all_findings), "iterations": iteration},
+        ))
 
         return synthesis, total_usage
 
@@ -496,7 +574,7 @@ class MultiAgentOrchestrator:
     # SINGLE AGENT WITH DELEGATION
     # ═══════════════════════════════════════════════════════════════
 
-    async def _single_with_delegation(self, message, classification, plan=None, context=None):
+    async def _single_with_delegation(self, message, classification, plan=None, context=None, run_id=""):
         """Single agent with parent-driven delegation via [DELEGATE:xxx]."""
         config = AGENT_CONFIGS[classification.agent_type]
         task = self._build_task_prompt(message, classification, context, plan=plan)
@@ -716,6 +794,65 @@ class MultiAgentOrchestrator:
             return ""
 
     # ═══════════════════════════════════════════════════════════════
+    # CONTEXT RESET (Anthropic pattern for long sessions)
+    #
+    # From the article: "Context resets — clearing the context window
+    # entirely and starting a fresh agent, combined with a structured
+    # handoff that carries the previous agent's state and the next
+    # steps — addresses [context anxiety]."
+    #
+    # This differs from compaction. A reset gives a clean slate at
+    # the cost of needing a good handoff artifact.
+    # ═══════════════════════════════════════════════════════════════
+
+    def build_context_handoff(self, messages: list[dict], query: str) -> str:
+        """Build a structured handoff artifact from current conversation.
+
+        Used when context is approaching limits and we need to reset.
+        Captures: original query, key findings, decisions made, next steps.
+
+        Args:
+            messages: Current conversation messages
+            query: The original user query
+
+        Returns:
+            Structured handoff string for the next fresh agent.
+        """
+        # Extract key content from messages
+        findings = []
+        for msg in messages:
+            content = str(msg.get("content", ""))
+            role = msg.get("role", "")
+            if role == "assistant" and len(content) > 100:
+                findings.append(content[:300])
+
+        handoff = (
+            f"=== CONTEXT HANDOFF (reset from previous session) ===\n"
+            f"ORIGINAL QUERY: {query}\n\n"
+            f"FINDINGS FROM PREVIOUS SESSION ({len(findings)} messages):\n"
+        )
+        for i, f in enumerate(findings[-5:], 1):  # Last 5 substantive messages
+            handoff += f"  {i}. {f}\n"
+
+        handoff += (
+            f"\nINSTRUCTIONS:\n"
+            f"- You are continuing work from a previous session that was reset\n"
+            f"- The findings above summarize what was already discovered\n"
+            f"- Build on these findings, do NOT repeat the same searches\n"
+            f"- Focus on gaps and unanswered aspects\n"
+            f"=== END HANDOFF ===\n"
+        )
+        return handoff
+
+    def should_reset_context(self, messages: list[dict], model: str = "claude-opus-4-6") -> bool:
+        """Check if context should be reset (approaching 80% of window)."""
+        from backend.agents.harness_memory import approx_token_count, get_context_window
+        total = sum(approx_token_count(str(m.get("content", ""))) for m in messages)
+        window = get_context_window(model)
+        usage_pct = total / window if window > 0 else 0
+        return usage_pct >= 0.80
+
+    # ═══════════════════════════════════════════════════════════════
     # LLM CLASSIFICATION
     # ═══════════════════════════════════════════════════════════════
 
@@ -814,18 +951,45 @@ class MultiAgentOrchestrator:
             total_usage["output"] += response.usage.output_tokens if response.usage else 0
 
             if response.stop_reason == "tool_use":
-                # Agent wants to call tools — execute them
-                tool_results = []
-                tool_names_called = []
-                for block in response.content:
-                    if block.type == "tool_use":
-                        tool_names_called.append(block.name)
-                        result_text = self._execute_tool(block.name, block.input)
-                        tool_results.append({
+                # Agent wants to call tools — execute them in parallel
+                # (Gap 6 fix: parallel tool execution within turns)
+                tool_blocks = [b for b in response.content if b.type == "tool_use"]
+                tool_names_called = [b.name for b in tool_blocks]
+
+                if len(tool_blocks) > 1:
+                    # Multiple tools requested — run in parallel via threads
+                    from concurrent.futures import ThreadPoolExecutor
+                    with ThreadPoolExecutor(max_workers=len(tool_blocks)) as pool:
+                        futures = {
+                            b.id: pool.submit(self._execute_tool, b.name, b.input)
+                            for b in tool_blocks
+                        }
+                    tool_results = [
+                        {
                             "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": result_text,
-                        })
+                            "tool_use_id": b.id,
+                            "content": futures[b.id].result(),
+                        }
+                        for b in tool_blocks
+                    ]
+                else:
+                    # Single tool — no overhead
+                    tool_results = [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": b.id,
+                            "content": self._execute_tool(b.name, b.input),
+                        }
+                        for b in tool_blocks
+                    ]
+
+                # Emit tool_call events for dashboard
+                bus = get_event_bus()
+                for tn in tool_names_called:
+                    bus.emit(MASEvent(
+                        event_type="tool_call", agent=agent_config.name,
+                        data={"tool": tn, "turn": turn + 1},
+                    ))
 
                 logger.info(
                     f"  🔧 Turn {turn+1}: {agent_config.name} called "

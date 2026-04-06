@@ -26,6 +26,7 @@ from backend.api.reports import router as reports_router
 from backend.api.settings_api import router as settings_router
 from backend.api.signals import router as signals_router
 from backend.api.skills import router as skills_router
+from backend.api.mas_events import router as mas_events_router
 from backend.config.settings import get_settings
 from backend.services.perf_tracker import get_perf_tracker
 
@@ -243,6 +244,7 @@ app.include_router(reports_router)
 app.include_router(settings_router)
 app.include_router(signals_router)
 app.include_router(skills_router)
+app.include_router(mas_events_router)
 
 
 @app.get("/api/health")
