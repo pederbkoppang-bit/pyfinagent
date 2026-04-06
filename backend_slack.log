@@ -629,3 +629,75 @@ TypeError: Assistant.__init__() got an unexpected keyword argument 'threadStarte
 [2026-04-06 21:45:00] Slack bot is running.
 [2026-04-06 21:50:00] Slack bot is running.
 [2026-04-06 21:55:01] Slack bot is running.
+[2026-04-06 22:00:01] Slack bot is running.
+2026-04-06 22:00:44,255 INFO assistant:on_user_message: 💬 Message: user=U0A078KP4FQ, text=Let's test research agent
+2026-04-06 22:00:44,505 INFO assistant:on_user_message: 💬 Streaming message: user=U0A078KP4FQ, text=Let's test research agent
+2026-04-06 22:00:45,417 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:00:45,418 INFO anthropic._base_client: Retrying request to /v1/messages in 0.432803 seconds
+2026-04-06 22:00:47,409 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:00:47,410 INFO anthropic._base_client: Retrying request to /v1/messages in 0.895532 seconds
+2026-04-06 22:00:48,498 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:00:48,499 ERROR backend.agents.multi_agent_orchestrator: API call to Communication Agent (Lead) failed: RateLimitError: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo7U8tw9FDiziLDtERKy'}
+2026-04-06 22:00:48,500 ERROR assistant:on_user_message: Classification failed: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo7U8tw9FDiziLDtERKy'}
+2026-04-06 22:00:48,500 INFO assistant:on_user_message: 📋 → main (simple, 40%)
+2026-04-06 22:00:48,500 INFO backend.agents.mas_events: [MAS] classify | Communication | run=5f64d6dc | 0ms
+2026-04-06 22:00:48,506 INFO backend.agents.harness_memory: [HarnessMemory] Loaded semantic memory: 3676 chars (919 tokens)
+2026-04-06 22:00:48,506 INFO backend.agents.harness_memory: [HarnessMemory] Loaded semantic memory: 3676 chars (919 tokens)
+/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/multi_agent_orchestrator.py:944: UserWarning: Using Claude with claude-opus-4-6 and 'thinking.type=enabled' is deprecated. Use 'thinking.type=adaptive' instead which results in better model performance in our testing: https://platform.claude.com/docs/en/build-with-claude/adaptive-thinking
+  response = client.messages.create(
+2026-04-06 22:00:48,766 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:00:48,766 INFO anthropic._base_client: Retrying request to /v1/messages in 0.376520 seconds
+2026-04-06 22:00:49,508 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:00:49,508 INFO anthropic._base_client: Retrying request to /v1/messages in 0.774420 seconds
+2026-04-06 22:00:50,721 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:00:50,722 ERROR backend.agents.multi_agent_orchestrator: Tool-loop call failed on turn 0: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo7UHc4NasgpyaxSzWLf'}
+2026-04-06 22:00:50,722 ERROR assistant:on_user_message: ❌ Streaming handler failed: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo7UHc4NasgpyaxSzWLf'}
+Traceback (most recent call last):
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/streaming_integration.py", line 136, in handle_user_message_with_streaming
+    await _stream_simple_response(
+    ...<2 lines>...
+    )
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/streaming_integration.py", line 159, in _stream_simple_response
+    result = await orchestrator._execute_full_flow(user_text, classification, user_id)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/multi_agent_orchestrator.py", line 333, in _execute_full_flow
+    response, exec_usage = await self._single_with_delegation(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        message, classification, plan, context, run_id=run_id,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/multi_agent_orchestrator.py", line 593, in _single_with_delegation
+    response_text, usage = await loop.run_in_executor(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        None, self._call_agent_with_tools, config, task,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/multi_agent_orchestrator.py", line 944, in _call_agent_with_tools
+    response = client.messages.create(
+        model=agent_config.model,
+    ...<7 lines>...
+        },
+    )
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anthropic/resources/messages/messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anthropic/_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anthropic/_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.RateLimitError: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo7UHc4NasgpyaxSzWLf'}
+2026-04-06 22:00:51,464 INFO assistant:on_user_message: ✅ Message handled

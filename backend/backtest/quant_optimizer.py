@@ -225,7 +225,6 @@ class QuantStrategyOptimizer:
 
                 result = self.engine.run_backtest(
                     skip_cache_clear=True,
-                    best_known_sharpe=self.best_sharpe,
                 )
                 report = generate_report(result, num_trials=self.num_trials)
                 trial_sharpe = report["analytics"]["sharpe"]
