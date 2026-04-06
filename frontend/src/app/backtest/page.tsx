@@ -644,6 +644,15 @@ export default function BacktestPage() {
                 <Play size={16} weight="fill" />
                 {actionLoading === "backtest" || isRunning ? "Running..." : "Run Backtest"}
               </button>
+              <button
+                onClick={handleStartOptimizer}
+                disabled={!!actionLoading || isRunning || isOptRunning}
+                title={isRunning ? "Backtest is running - optimizer unavailable" : "Run parameter optimization loop. Proposes, tests, and keeps improvements."}
+                className="flex items-center gap-1.5 rounded-lg border border-sky-600 px-4 py-2 text-sm font-medium text-sky-300 transition-colors hover:bg-sky-600 hover:text-white disabled:opacity-50"
+              >
+                <Lightning size={16} />
+                {actionLoading === "optimizer" || isOptRunning ? "Optimizing..." : "Optimize"}
+              </button>
             </div>
           </div>
 
@@ -698,8 +707,8 @@ export default function BacktestPage() {
 
         {loading && <PageSkeleton />}
 
-        {/* Unified run selector (Tier 4) — hidden on optimizer/insights tabs per layout spec */}
-        {runs.length > 0 && !loading && tab !== "optimizer" && tab !== "overview" && (() => {
+        {/* Unified run selector (Tier 4) — visible on all tabs except overview */}
+        {runs.length > 0 && !loading && tab !== "overview" && (() => {
           // Show all baselines (even without detail) to properly group experiments
           // Only filter experiments by has_detail since they're the ones we actually click
           const allBaselines = runs.filter((r) => r.is_baseline);
@@ -1396,19 +1405,8 @@ export default function BacktestPage() {
             {/* ═══ OPTIMIZER TAB ═══ */}
             {tab === "optimizer" && (
               <div className="space-y-6">
-                {/* Optimizer controls */}
+                {/* Optimizer controls — Run/Optimize buttons are in the global header now */}
                 <div className="flex items-center gap-3">
-                  {!isOptRunning && (
-                    <button
-                      onClick={handleStartOptimizer}
-                      disabled={!!actionLoading || isRunning}
-                      title={isRunning ? "Backtest is running - optimizer unavailable" : undefined}
-                      className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:opacity-50"
-                    >
-                      <Play size={16} weight="fill" />
-                      {actionLoading === "optimizer" ? "Starting..." : "Start Optimizer"}
-                    </button>
-                  )}
                   <button
                     onClick={() => refresh()}
                     className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:border-slate-600"
@@ -1428,49 +1426,7 @@ export default function BacktestPage() {
                   )}
                 </div>
 
-                {/* Optimizer run selector — shows optimization sessions from TSV experiments */}
-                {(() => {
-                  // Group experiments by baseline from TSV data (single source of truth)
-                  const tsvBaselines = optExperiments.filter((e) => e.status === "BASELINE");
-                  const fallbackBaselines = runs.filter((r) => r.is_baseline);
-                  // Deduplicate by run_id (some TSV entries share run_id between baseline/experiments)
-                  const seenIds = new Set();
-                  const uniqueBaselines = fallbackBaselines.filter((r) => {
-                    if (seenIds.has(r.run_id)) return false;
-                    seenIds.add(r.run_id);
-                    return true;
-                  });
-                  const baselines = uniqueBaselines;
-                  // Show dropdown if either source has multiple baselines
-                  const hasMultipleRuns = tsvBaselines.length > 1 || fallbackBaselines.length > 1;
-                  return hasMultipleRuns ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">Optimization run:</span>
-                      <select
-                        className="max-w-md rounded-lg border border-slate-700 bg-navy-800/80 px-3 py-1.5 text-xs text-slate-300 focus:border-sky-500 focus:outline-none"
-                        onChange={async (e) => {
-                          const runId = e.target.value;
-                          if (!runId) return;
-                          try {
-                            const data = await getOptimizerExperiments(runId);
-                            setOptExperiments(data.experiments);
-                          } catch { /* ignore */ }
-                        }}
-                      >
-                        {baselines.map((baseline) => {
-                          const expCount = baseline.experiment_count || 0;
-                          return (
-                            <optgroup key={baseline.run_id} label={`${baseline.strategy} -- Sharpe ${baseline.sharpe?.toFixed(2) ?? "?"} -- ${expCount} experiments`}>
-                              <option value={baseline.run_id}>
-                                Baseline -- {formatRunTimestamp(baseline.timestamp)} -- Sharpe {baseline.sharpe?.toFixed(2) ?? "?"}
-                              </option>
-                            </optgroup>
-                          );
-                        })}
-                      </select>
-                    </div>
-                  ) : null;
-                })()}
+
 
                 {/* Optimizer status — full cards only when NOT running (completed/error/stopped) */}
                 {optStatus && optStatus.status !== "idle" && optStatus.status !== "running" && (

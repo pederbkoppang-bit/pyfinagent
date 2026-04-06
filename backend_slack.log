@@ -598,3 +598,30 @@ TypeError: Assistant.__init__() got an unexpected keyword argument 'threadStarte
 [2026-04-06 20:45:00] Slack bot is running.
 [2026-04-06 20:50:00] Slack bot is running.
 [2026-04-06 20:55:00] Slack bot is running.
+[2026-04-06 21:00:00] Slack bot is running.
+[2026-04-06 21:05:00] Slack bot is running.
+[2026-04-06 21:10:00] Slack bot is running.
+[2026-04-06 21:15:00] Slack bot is running.
+[2026-04-06 21:20:00] Slack bot is running.
+[2026-04-06 21:25:00] Slack bot not running. Restarting...
+[2026-04-06 21:25:00] Starting Slack bot...
+[2026-04-06 21:25:00] Slack bot started (PID: 31751)
+2026-04-06 21:25:01,033 WARNING dotenv.main: python-dotenv could not parse statement starting at line 61
+2026-04-06 21:25:01,034 WARNING dotenv.main: python-dotenv could not parse statement starting at line 62
+2026-04-06 21:25:01,079 INFO backend.slack_bot.assistant_lifecycle: ✅ Assistant lifecycle handlers registered
+2026-04-06 21:25:01,084 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-06 21:25:01,084 INFO apscheduler.scheduler: Added job "_send_morning_digest" to job store "default"
+2026-04-06 21:25:01,084 INFO apscheduler.scheduler: Scheduler started
+2026-04-06 21:25:01,084 INFO backend.slack_bot.scheduler: Scheduler started: morning digest at 8:00
+2026-04-06 21:25:01,084 INFO __main__: 🎫 Ticket queue processor started as background task
+2026-04-06 21:25:01,084 INFO __main__: 🔍 SLA monitor started as background task
+2026-04-06 21:25:01,084 INFO __main__: 🔪 Stuck-Task Reaper started as background task
+2026-04-06 21:25:01,085 INFO __main__: Slack bot starting in Socket Mode...
+2026-04-06 21:25:01,087 INFO backend.db.tickets_db: Tickets database initialized at /Users/ford/.openclaw/workspace/pyfinagent/tickets.db
+2026-04-06 21:25:01,087 INFO backend.services.ticket_queue_processor: 🚀 Ticket queue processor started
+2026-04-06 21:25:01,088 INFO backend.services.sla_monitor: 🔍 SLA monitoring started
+2026-04-06 21:25:01,089 INFO backend.services.stuck_task_reaper: 🔪 Stuck-Task Reaper started (15-minute timeout)
+2026-04-06 21:25:01,612 INFO slack_bolt.AsyncApp: A new session (s_276846287) has been established
+2026-04-06 21:25:01,613 INFO slack_bolt.AsyncApp: ⚡️ Bolt app is running!
+[2026-04-06 21:30:00] Slack bot is running.
+[2026-04-06 21:35:00] Slack bot is running.
