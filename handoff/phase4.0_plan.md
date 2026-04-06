@@ -1,135 +1,174 @@
-# Phase 4.0: Move MAS to OpenClaw — PLAN
+# Phase 4.0: Move MAS to OpenClaw — PLAN (Revised)
 
-**Date:** 2026-04-06 22:16 GMT+2  
-**Phase:** Phase 4.0 (PLAN phase)  
+**Date:** 2026-04-06 22:20 GMT+2  
+**Phase:** Phase 4.0 (PLAN phase — revised after Anthropic article review)  
 **Status:** Planning
 
-## Goal
+## Key Insight from Anthropic's Multi-Agent Research System
 
-Move the Multi-Agent System (MAS) from a standalone Python orchestrator to OpenClaw-native agents. pyfinAgent backend becomes a pure data/compute service. All agent intelligence lives in OpenClaw.
+> "Multi-agent systems work mainly because they help spend enough tokens to solve 
+> the problem. Token usage by itself explains 80% of the performance variance."
 
-## Current State (problems)
+The orchestrator-worker pattern is correct. We should NOT flatten to a single agent. 
+Instead, we move the orchestration FROM Python TO OpenClaw's native `sessions_spawn`.
 
-1. **Three separate processes:** OpenClaw gateway, pyfinAgent backend (uvicorn), Slack bot (socket mode)
-2. **Two orchestrators:** OpenClaw agent runtime + Python MultiAgentOrchestrator — duplicate logic
-3. **Same Slack bot token** shared between OpenClaw and pyfinAgent — can't run both simultaneously
-4. **Event relay hack** — MAS events forwarded via HTTP POST between processes
-5. **Direct Anthropic API calls** — MAS bypasses OpenClaw, no unified cost tracking
-6. **Slack unresponsive** when OpenClaw main agent is busy — no dedicated agent for pyfinAgent channel
+## Current State → Target State
 
-## Target State
-
+### Current (Python orchestrator)
 ```
-OpenClaw Gateway (single process)
-  ├── Agent: main (Ford) — personal assistant, webchat, iMessage
-  ├── Agent: pyfinagent — dedicated Slack channel agent
-  │   ├── System prompt: trading-focused orchestrator
-  │   ├── Tools: exec (backtest API calls), web_search
-  │   ├── Workspace: ~/.openclaw/workspace-pyfinagent
-  │   │   ├── SOUL.md — pyfinAgent persona
-  │   │   ├── AGENTS.md — agent behavior rules
-  │   │   ├── TOOLS.md — backtest API reference
-  │   │   └── memory/ — trading context
-  │   └── Sessions: isolated from main
-  │
-  ├── Channels:
-  │   ├── Slack C0ANTGNNK8D → bound to pyfinagent agent
-  │   ├── iMessage → bound to main agent
-  │   └── Webchat → bound to main agent
-  │
-  └── pyfinAgent Backend (localhost:8000) — data service only
-      ├── /api/backtest/* — run backtests, optimizer
-      ├── /api/mas/dashboard — system status
-      ├── /api/health — health check
-      └── Frontend (localhost:3000) — dashboard UI
+Slack msg → Python Slack Bot → MultiAgentOrchestrator (Python)
+  → anthropic.Anthropic().messages.create() × 4-6 agents
+  → Quality Gate → Citation → Response
 ```
 
-## What Gets Eliminated
+### Target (OpenClaw orchestrator)
+```
+Slack msg → OpenClaw Gateway → pyfinagent Lead Agent (Opus)
+  → sessions_spawn: QA subagent (Sonnet) — parallel
+  → sessions_spawn: Research subagent (Sonnet) — parallel
+  → Lead synthesizes findings
+  → Lead evaluates quality (or spawns quality-gate subagent)
+  → Lead adds citations
+  → Response to Slack
+```
 
-| Component | Current | After |
-|-----------|---------|-------|
-| `backend/slack_bot/` | Separate Python process, Socket Mode | **Deleted** — OpenClaw handles Slack natively |
-| `MultiAgentOrchestrator` | Python class, direct Anthropic calls | **Deleted** — OpenClaw sessions_spawn for sub-agents |
-| `streaming_integration.py` | Slack word-by-word streaming | **Deleted** — OpenClaw native streaming |
-| `mas_events.py` event relay | HTTP POST from Slack bot → backend | **Deleted** — OpenClaw sessions are native |
-| `openclaw_client.py` | Gateway HTTP client | **Deleted** — no longer needed |
-| `agent_definitions.py` agent configs | Python dataclasses | **Moved** → OpenClaw agent config + SOUL.md |
+## Architecture (matching Anthropic's diagram)
 
-## What Stays
+```
+User Query (Slack / iMessage / Webchat)
+         │
+         ▼
+┌─────────────────────────────┐
+│  Lead Agent (pyfinagent)    │  Opus — orchestrator
+│  think(plan approach)       │
+│  save plan → Memory         │
+│  retrieve context           │
+└──────────┬──────────────────┘
+           │ sessions_spawn (parallel)
+     ┌─────┴──────┐
+     ▼            ▼
+┌─────────┐  ┌──────────┐
+│ QA      │  │ Research  │  Sonnet subagents
+│ Subagent│  │ Subagent  │  (each: search → think → complete)
+└────┬────┘  └─────┬─────┘
+     │             │
+     └──────┬──────┘
+            ▼
+┌─────────────────────────────┐
+│  Lead Agent                 │
+│  think(synthesize results)  │
+│  "More research needed?"    │
+│  → if yes: spawn more       │
+│  → if no: quality check     │
+│  → add citations            │
+│  → return to user           │
+└─────────────────────────────┘
+```
 
-| Component | Why |
-|-----------|-----|
-| FastAPI backend on :8000 | Backtest engine, optimizer, BQ queries, portfolio API |
-| Frontend on :3000 | Dashboard, charts, UI |
-| BigQuery | Data storage |
-| `quant_optimizer.py` | Pure computation, no agent logic |
-| `backtest_engine.py` | Pure computation |
-| MAS Dashboard frontend | Shows OpenClaw sessions instead of custom event bus |
+### Key Anthropic Principles Applied
+
+1. **Teach the orchestrator how to delegate** — Lead agent's SOUL.md includes 
+   delegation patterns: objective, output format, tool guidance, task boundaries
+   
+2. **Scale effort to query complexity** — Simple fact → no subagents. 
+   Comparison → 2-3 subagents. Deep research → 5+ subagents with divided responsibilities.
+   
+3. **Interleaved thinking** — Subagents use extended thinking after tool results 
+   to evaluate quality, identify gaps, refine queries.
+   
+4. **Parallel tool calling** — Lead spawns 3-5 subagents in parallel via sessions_spawn.
+   Each subagent uses tools in parallel.
+   
+5. **Start wide, then narrow** — Subagents start with broad queries, evaluate landscape, 
+   then drill into specifics.
+
+## OpenClaw Agent Configuration
+
+### Lead Agent: `pyfinagent`
+- **Model:** anthropic/claude-opus-4-6
+- **Role:** Orchestrator — plans, delegates, synthesizes, evaluates
+- **Workspace:** `~/.openclaw/workspace-pyfinagent`
+- **Tools:** exec (backtest API), web_search, sessions_spawn (create subagents)
+- **Bound to:** Slack channel C0ANTGNNK8D
+- **System prompt themes:**
+  - You are the Lead Researcher for pyfinAgent trading system
+  - Classify query complexity → decide subagent count
+  - Decompose into subtasks with clear objectives per subagent
+  - Synthesize results, check quality, add citations
+  - Access harness data: experiments, plans, evaluator critiques
+
+### Subagents (spawned on-demand via sessions_spawn)
+- **Model:** anthropic/claude-sonnet-4-6 (cheaper, still capable)
+- **Mode:** `run` (one-shot, terminated after returning results)
+- **Each gets:** specific objective, output format, tool access, task boundary
+- **Types:**
+  - **QA Subagent** — quantitative analysis, harness data, experiment comparison
+  - **Research Subagent** — web search, literature, evidence gathering
+  - **Quality Gate** — skeptical review of lead's synthesis (separate generation from evaluation)
 
 ## Migration Steps
 
-### Step 1: Create pyfinagent OpenClaw agent
-- Create workspace at `~/.openclaw/workspace-pyfinagent`
-- Write SOUL.md with trading-focused persona (from current system prompts)
-- Write AGENTS.md with behavior rules
-- Write TOOLS.md with backtest API reference
-- Register in openclaw.json `agents.list`
+### Step 1: Create pyfinagent Lead Agent workspace
+- `~/.openclaw/workspace-pyfinagent/SOUL.md` — orchestrator persona + delegation rules
+- `~/.openclaw/workspace-pyfinagent/AGENTS.md` — workspace behavior
+- `~/.openclaw/workspace-pyfinagent/TOOLS.md` — backtest API reference + tool descriptions
+- Register in openclaw.json with Opus model
 
 ### Step 2: Configure Slack binding
-- Bind Slack channel C0ANTGNNK8D to `pyfinagent` agent
-- Set `requireMention: false` (respond to all messages)
-- Ensure main agent no longer receives pyfinAgent Slack messages
+- Bind Slack channel C0ANTGNNK8D → pyfinagent agent
+- Main agent keeps webchat + iMessage
+- pyfinagent agent is independent — never blocked by main
 
-### Step 3: Give pyfinagent agent tool access
-- Access to `exec` for calling backtest API via curl
-- Access to `web_search` for research tasks
-- Access to pyfinAgent workspace files (experiment results, PLAN.md)
+### Step 3: Write subagent prompt templates
+- QA subagent system prompt (quantitative focus, harness tools)
+- Research subagent system prompt (web search, evidence gathering)
+- Quality Gate prompt (skeptical reviewer, never self-evaluate)
+- These are passed via sessions_spawn task parameter
 
-### Step 4: Kill the separate Slack bot
-- Stop `python -m backend.slack_bot.app` process
-- Remove from startup scripts
-- Verify Slack messages route through OpenClaw
+### Step 4: Test with parallel queries
+- Simple: "What's our Sharpe?" → lead answers directly, no subagents
+- Medium: "Compare our strategy to buy-and-hold" → 2 subagents
+- Complex: "Research regime detection improvements" → 3+ subagents in parallel
 
-### Step 5: Update MAS Dashboard
-- Replace event bus SSE with OpenClaw sessions_list data
-- Show pyfinagent agent sessions as "MAS activity"
-- Keep backtest/optimizer status endpoints (they're backend, not agent)
+### Step 5: Kill old Slack bot + clean up
+- Stop separate Slack bot process
+- Delete `backend/slack_bot/`, `multi_agent_orchestrator.py`, event relay
+- Keep backend as data service
 
-### Step 6: Clean up dead code
-- Delete `backend/slack_bot/` directory
-- Delete `backend/agents/multi_agent_orchestrator.py`
-- Delete `backend/agents/openclaw_client.py`
-- Delete `backend/agents/mas_events.py` (event bus)
-- Keep `backend/agents/agent_definitions.py` only if needed for reference
+### Step 6: Update MAS Dashboard
+- Show OpenClaw sessions (lead + subagent runs)
+- Replace event bus with sessions_list polling
+
+## What Gets Eliminated vs Kept
+
+| Eliminated | Replaced By |
+|-----------|-------------|
+| Python MultiAgentOrchestrator | OpenClaw lead agent + sessions_spawn |
+| Direct Anthropic API calls | OpenClaw native model calls |
+| Python Slack bot (Socket Mode) | OpenClaw Slack channel |
+| Event bus + HTTP relay | OpenClaw native sessions |
+| classify_trivial() + _classify_via_llm() | Lead agent internal classification |
+| streaming_integration.py | OpenClaw native Slack streaming |
+
+| Kept | Why |
+|------|-----|
+| FastAPI backend :8000 | Pure data/compute service |
+| backtest_engine.py | Computation, no agent logic |
+| quant_optimizer.py | Computation, no agent logic |
+| Frontend :3000 | Dashboard UI |
+| agent_definitions.py | Reference for system prompts |
 
 ## Success Criteria
 
-1. **Slack responsive** — pyfinagent agent answers within 5s, never blocked by main agent
-2. **Backtest triggerable** — "run a backtest" on Slack → agent calls API → results
-3. **No separate processes** — only OpenClaw gateway + uvicorn backend + frontend
-4. **Cost tracking unified** — all agent calls visible in OpenClaw
-5. **MAS Dashboard updated** — shows OpenClaw sessions instead of event bus
-6. **Zero downtime** — old Slack bot killed only after new agent is verified working
-
-## Risk Assessment
-
-- **Low risk:** Steps 1-3 are additive, don't break anything existing
-- **Medium risk:** Step 4 (killing Slack bot) — verify thoroughly first
-- **Low risk:** Steps 5-6 are cleanup after migration is confirmed working
+1. **Slack responsive within 5s** — pyfinagent agent answers, never blocked by main
+2. **Subagents spawn in parallel** — complex queries use 2-5 parallel subagents
+3. **Quality maintained** — responses match or exceed old MAS quality
+4. **Token tracking unified** — all calls visible in OpenClaw
+5. **No separate processes** — gateway + backend + frontend only
+6. **Separation of generation and evaluation** — lead never evaluates own output
 
 ## Estimated Effort
-
-- Steps 1-3: ~30 minutes (config + workspace files)
-- Step 4: ~10 minutes (verify + kill)
-- Steps 5-6: ~1-2 hours (dashboard update + code cleanup)
-- Total: ~2-3 hours
-
-## Decision: Sub-agents or Single Agent?
-
-**Single pyfinagent agent** (recommended). The MAS had 4 agents (Communication, Ford, Q&A, Research) but the overhead of multi-agent classification + routing + quality gate costs more tokens than it saves. A single well-prompted agent with tool access can:
-- Classify internally (no separate Communication Agent call)
-- Answer Q&A directly (has access to backtest data)
-- Do research (has web_search)
-- Self-evaluate (cheaper than separate Quality Gate agent)
-
-If we later need specialized sub-agents, OpenClaw's `sessions_spawn` can create them on-demand — no need to pre-register them.
+- Steps 1-3: ~1 hour (workspace + config + prompts)
+- Step 4: ~30 min (testing)
+- Steps 5-6: ~1-2 hours (cleanup + dashboard)
+- Total: ~3-4 hours
