@@ -701,3 +701,75 @@ Traceback (most recent call last):
     raise self._make_status_error_from_response(err.response) from None
 anthropic.RateLimitError: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo7UHc4NasgpyaxSzWLf'}
 2026-04-06 22:00:51,464 INFO assistant:on_user_message: ✅ Message handled
+[2026-04-06 22:05:00] Slack bot is running.
+[2026-04-06 22:10:00] Slack bot is running.
+2026-04-06 22:10:11,357 INFO assistant:on_user_message: 💬 Message: user=U0A078KP4FQ, text=Test
+2026-04-06 22:10:11,582 INFO assistant:on_user_message: 💬 Streaming message: user=U0A078KP4FQ, text=Test
+2026-04-06 22:10:11,882 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:10:11,882 INFO anthropic._base_client: Retrying request to /v1/messages in 0.453737 seconds
+2026-04-06 22:10:12,571 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:10:12,572 INFO anthropic._base_client: Retrying request to /v1/messages in 0.765894 seconds
+2026-04-06 22:10:13,706 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:10:13,706 ERROR backend.agents.multi_agent_orchestrator: API call to Communication Agent (Lead) failed: RateLimitError: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo8Bnrr4d5BheeCrFbRw'}
+2026-04-06 22:10:13,707 ERROR assistant:on_user_message: Classification failed: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo8Bnrr4d5BheeCrFbRw'}
+2026-04-06 22:10:13,707 INFO assistant:on_user_message: 📋 → main (simple, 40%)
+2026-04-06 22:10:13,707 INFO backend.agents.mas_events: [MAS] classify | Communication | run=8c6669cd | 0ms
+2026-04-06 22:10:13,709 INFO backend.agents.harness_memory: [HarnessMemory] Loaded semantic memory: 3676 chars (919 tokens)
+2026-04-06 22:10:13,710 INFO backend.agents.harness_memory: [HarnessMemory] Loaded semantic memory: 3676 chars (919 tokens)
+2026-04-06 22:10:14,154 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:10:14,155 INFO anthropic._base_client: Retrying request to /v1/messages in 0.472359 seconds
+2026-04-06 22:10:14,929 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:10:14,930 INFO anthropic._base_client: Retrying request to /v1/messages in 0.997931 seconds
+2026-04-06 22:10:16,093 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 429 Too Many Requests"
+2026-04-06 22:10:16,093 ERROR backend.agents.multi_agent_orchestrator: Tool-loop call failed on turn 0: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo8ByWoAx2eKQpVp8xKZ'}
+2026-04-06 22:10:16,094 ERROR assistant:on_user_message: ❌ Streaming handler failed: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo8ByWoAx2eKQpVp8xKZ'}
+Traceback (most recent call last):
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/streaming_integration.py", line 136, in handle_user_message_with_streaming
+    await _stream_simple_response(
+    ...<2 lines>...
+    )
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/slack_bot/streaming_integration.py", line 159, in _stream_simple_response
+    result = await orchestrator._execute_full_flow(user_text, classification, user_id)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/multi_agent_orchestrator.py", line 333, in _execute_full_flow
+    response, exec_usage = await self._single_with_delegation(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        message, classification, plan, context, run_id=run_id,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/multi_agent_orchestrator.py", line 593, in _single_with_delegation
+    response_text, usage = await loop.run_in_executor(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        None, self._call_agent_with_tools, config, task,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/multi_agent_orchestrator.py", line 944, in _call_agent_with_tools
+    response = client.messages.create(
+        model=agent_config.model,
+    ...<7 lines>...
+        },
+    )
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anthropic/resources/messages/messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anthropic/_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anthropic/_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.RateLimitError: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': 'Error'}, 'request_id': 'req_011CZo8ByWoAx2eKQpVp8xKZ'}
+2026-04-06 22:10:16,633 INFO assistant:on_user_message: ✅ Message handled
+[2026-04-06 22:15:00] Slack bot is running.
