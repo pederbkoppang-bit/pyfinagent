@@ -21,7 +21,6 @@ from slack_sdk import WebClient
 from slack_sdk.models.messages.chunk import (
     MarkdownTextChunk,
     TaskUpdateChunk,
-    TaskStatus,
 )
 
 logger = logging.getLogger(__name__)
