@@ -653,6 +653,16 @@ export default function BacktestPage() {
                 <Lightning size={16} />
                 {actionLoading === "optimizer" || isOptRunning ? "Optimizing..." : "Optimize"}
               </button>
+              {(isRunning || isOptRunning) && (
+                <button
+                  onClick={isOptRunning ? handleStopOptimizer : undefined}
+                  title={isOptRunning ? "Stop optimizer after current experiment" : "Backtest will finish current window"}
+                  className="flex items-center gap-1.5 rounded-lg border border-rose-600/50 px-3 py-2 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-600/20 hover:text-rose-300"
+                >
+                  <Stop size={16} weight="fill" />
+                  Stop
+                </button>
+              )}
             </div>
           </div>
 
@@ -712,7 +722,7 @@ export default function BacktestPage() {
           // Show all baselines (even without detail) to properly group experiments
           // Only filter experiments by has_detail since they're the ones we actually click
           const allBaselines = runs.filter((r) => r.is_baseline);
-          const allExperiments = runs.filter((r) => !r.is_baseline && r.has_detail);
+          const allExperiments = runs.filter((r) => !r.is_baseline);
           const baselines = allBaselines;
           const experiments = allExperiments;
 
@@ -779,11 +789,17 @@ export default function BacktestPage() {
           const pct = totalW > 0 ? Math.round((currentW / totalW) * 100) : 0;
           const optDetail = optAny?.detail as string | undefined;
           const progAny = prog as unknown as Record<string, unknown> | null;
-          const label = isRunning
+          const optIter = optStatus?.iterations ?? 0;
+          const optStep = (optAny?.current_step as string) || "";
+          const optCurDetail = (optAny?.current_detail as string) || "";
+          // For optimizer: show window progress if available, else show experiment count
+          const label = isOptRunning && !isRunning
             ? totalW > 0
+              ? `Experiment ${optIter + 1} — Window ${currentW}/${totalW} — ${progAny?.step_detail || progAny?.step || "processing"}`
+              : optCurDetail || `Optimizer ${optStep || "running"} — ${optIter} experiments completed`
+            : totalW > 0
               ? `Window ${currentW}/${totalW} — ${progAny?.step_detail || progAny?.label || progAny?.step || "processing"}`
-              : (progAny?.step_detail as string) || (progAny?.label as string) || (progAny?.step as string) || "starting"
-            : optDetail || `Optimizer running — ${optStatus?.iterations ?? 0} experiments completed`;
+              : (progAny?.step_detail as string) || (progAny?.label as string) || (progAny?.step as string) || "starting";
           return (
             <div className="mb-4 rounded-lg border border-sky-500/20 bg-sky-950/20 px-4 py-2.5">
               <div className="flex items-center gap-3">
