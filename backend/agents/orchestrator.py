@@ -1,5 +1,14 @@
 """
-Agent orchestrator — drives the full analysis pipeline.
+Analysis Pipeline Orchestrator — drives the 15-step per-ticker analysis.
+
+NOT the MAS orchestrator. This is Layer 1 (Analysis Pipeline, Gemini-based).
+The MAS orchestrator is multi_agent_orchestrator.py (Anthropic pattern, Layer 2).
+
+Layers:
+  1. Analysis Pipeline (THIS FILE) — Gemini, 15 enrichment steps per ticker
+  2. MAS Orchestrator (multi_agent_orchestrator.py) — Anthropic, Slack/iMessage routing
+  3. Harness Loop (run_harness.py) — Planner → Generator → Evaluator backtest cycles
+
 Migrated from pyfinagent-app/Home.py with all Streamlit dependencies removed.
 """
 

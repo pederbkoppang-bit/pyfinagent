@@ -1,8 +1,13 @@
 """
-Autonomous Harness — Phase 4
+DEPRECATED — Phase 4 stub. Not part of the active MAS architecture.
 
-Self-driving backtest + optimization loop.
-Runs continuously, evaluates results, adjusts strategy.
+The active harness is run_harness.py (Planner → Generator → Evaluator pattern).
+The active MAS orchestrator is backend/agents/multi_agent_orchestrator.py.
+This file is a skeleton for future autonomous cycling and should not be extended
+until Phase 4 activates.
+
+Original purpose:
+Autonomous Harness — Self-driving backtest + optimization loop.
 """
 
 import asyncio

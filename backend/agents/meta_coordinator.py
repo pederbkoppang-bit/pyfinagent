@@ -1,6 +1,12 @@
 """
-MetaCoordinator — Cross-loop sequencing for the three optimization loops.
+DEPRECATED — Phase 4 stub. Not part of the active MAS architecture.
 
+The active MAS lives in multi_agent_orchestrator.py (Anthropic pattern).
+This file is kept for backward compatibility with autonomous_loop.py
+and skill_optimizer.py but should not be extended.
+
+Original purpose:
+MetaCoordinator — Cross-loop sequencing for the three optimization loops.
 Decides which optimizer to run next based on portfolio health signals,
 and bridges insights between loops (MDA features → agent targeting).
 

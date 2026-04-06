@@ -1986,3 +1986,432 @@ google.auth.exceptions.DefaultCredentialsError: Your default credentials were no
 [36m17:04:38 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:04:43 CEST)" (scheduled at 2026-04-06 17:04:38.931546+02:00)
 [36m17:04:38 I [tickets_db][0m Updated queue positions for 1 active tickets
 [36m17:04:38 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:04:43 CEST)" executed successfully
+[36m17:04:43 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:04:48 CEST)" (scheduled at 2026-04-06 17:04:43.931546+02:00)
+[36m17:04:43 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:04:43 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:04:48 CEST)" executed successfully
+[36m17:04:48 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:04:53 CEST)" (scheduled at 2026-04-06 17:04:48.931546+02:00)
+[36m17:04:48 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:04:48 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:04:53 CEST)" executed successfully
+[36m17:04:53 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:04:58 CEST)" (scheduled at 2026-04-06 17:04:53.931546+02:00)
+[36m17:04:53 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:04:53 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:04:58 CEST)" executed successfully
+[36m17:04:58 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:03 CEST)" (scheduled at 2026-04-06 17:04:58.931546+02:00)
+[36m17:04:58 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:04:58 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:03 CEST)" executed successfully
+[36m17:05:03 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:08 CEST)" (scheduled at 2026-04-06 17:05:03.931546+02:00)
+[36m17:05:03 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:03 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:08 CEST)" executed successfully
+[36m17:05:08 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:13 CEST)" (scheduled at 2026-04-06 17:05:08.931546+02:00)
+[36m17:05:08 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:08 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:13 CEST)" executed successfully
+[36m17:05:13 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:18 CEST)" (scheduled at 2026-04-06 17:05:13.931546+02:00)
+[36m17:05:13 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:13 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:18 CEST)" executed successfully
+[36m17:05:18 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:23 CEST)" (scheduled at 2026-04-06 17:05:18.931546+02:00)
+[36m17:05:18 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:18 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:23 CEST)" executed successfully
+[36m17:05:23 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:28 CEST)" (scheduled at 2026-04-06 17:05:23.931546+02:00)
+[36m17:05:23 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:23 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:28 CEST)" executed successfully
+[36m17:05:28 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:33 CEST)" (scheduled at 2026-04-06 17:05:28.931546+02:00)
+[36m17:05:28 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:28 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:33 CEST)" executed successfully
+[36m17:05:33 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:38 CEST)" (scheduled at 2026-04-06 17:05:33.931546+02:00)
+[36m17:05:33 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:33 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:38 CEST)" executed successfully
+[36m17:05:38 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:43 CEST)" (scheduled at 2026-04-06 17:05:38.931546+02:00)
+[36m17:05:38 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:38 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:43 CEST)" executed successfully
+[36m17:05:43 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:48 CEST)" (scheduled at 2026-04-06 17:05:43.931546+02:00)
+[36m17:05:43 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:43 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:48 CEST)" executed successfully
+[36m17:05:48 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:53 CEST)" (scheduled at 2026-04-06 17:05:48.931546+02:00)
+[36m17:05:48 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:48 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:53 CEST)" executed successfully
+[36m17:05:53 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:58 CEST)" (scheduled at 2026-04-06 17:05:53.931546+02:00)
+[36m17:05:53 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:53 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:05:58 CEST)" executed successfully
+[36m17:05:58 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:03 CEST)" (scheduled at 2026-04-06 17:05:58.931546+02:00)
+[36m17:05:58 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:05:58 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:03 CEST)" executed successfully
+[36m17:06:03 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:08 CEST)" (scheduled at 2026-04-06 17:06:03.931546+02:00)
+[36m17:06:03 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:03 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:08 CEST)" executed successfully
+[36m17:06:08 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:13 CEST)" (scheduled at 2026-04-06 17:06:08.931546+02:00)
+[36m17:06:08 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:08 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:13 CEST)" executed successfully
+[36m17:06:13 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:18 CEST)" (scheduled at 2026-04-06 17:06:13.931546+02:00)
+[36m17:06:13 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:13 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:18 CEST)" executed successfully
+[36m17:06:18 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:23 CEST)" (scheduled at 2026-04-06 17:06:18.931546+02:00)
+[36m17:06:18 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:18 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:23 CEST)" executed successfully
+[36m17:06:23 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:28 CEST)" (scheduled at 2026-04-06 17:06:23.931546+02:00)
+[36m17:06:23 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:23 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:28 CEST)" executed successfully
+[36m17:06:28 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:33 CEST)" (scheduled at 2026-04-06 17:06:28.931546+02:00)
+[36m17:06:28 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:28 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:33 CEST)" executed successfully
+[36m17:06:33 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:38 CEST)" (scheduled at 2026-04-06 17:06:33.931546+02:00)
+[36m17:06:33 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:33 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:38 CEST)" executed successfully
+[36m17:06:38 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:43 CEST)" (scheduled at 2026-04-06 17:06:38.931546+02:00)
+[36m17:06:38 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:38 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:43 CEST)" executed successfully
+[36m17:06:43 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:48 CEST)" (scheduled at 2026-04-06 17:06:43.931546+02:00)
+[36m17:06:43 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:43 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:48 CEST)" executed successfully
+[36m17:06:47 I [httptools_impl][0m 127.0.0.1:55804 - "OPTIONS /api/reports/?limit=5 HTTP/1.1" 200
+[36m17:06:47 I [httptools_impl][0m 127.0.0.1:55803 - "OPTIONS /api/paper-trading/portfolio HTTP/1.1" 200
+[33m17:06:47 W [bigquery_client][0m GCP_CREDENTIALS_JSON not set, falling back to Application Default Credentials
+[36m17:06:53 I [httptools_impl][0m 127.0.0.1:55803 - "GET /api/paper-trading/portfolio HTTP/1.1" 500
+[31m17:06:53 E [httptools_impl][0m Exception in ASGI application
+
+Traceback (most recent call last):
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/uvicorn/protocols/http/httptools_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/applications.py", line 1159, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/main.py", line 210, in auth_and_security_middleware
+    response: Response = await call_next(request)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/cors.py", line 96, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/cors.py", line 154, in simple_response
+    await self.app(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/api/paper_trading.py", line 133, in get_portfolio
+    bq = BigQueryClient(settings)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/db/bigquery_client.py", line 34, in __init__
+    self.client = bigquery.Client(project=settings.gcp_project_id, credentials=credentials)
+                  ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/cloud/bigquery/client.py", line 261, in __init__
+    super(Client, self).__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        project=project,
+        ^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        _http=_http,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/cloud/client/__init__.py", line 340, in __init__
+    Client.__init__(
+    ~~~~~~~~~~~~~~~^
+        self, credentials=credentials, client_options=client_options, _http=_http
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/cloud/client/__init__.py", line 197, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+                     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/auth/_default.py", line 752, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+[33m17:06:53 W [bigquery_client][0m GCP_CREDENTIALS_JSON not set, falling back to Application Default Credentials
+[33m17:06:56 W [base][0m Run time of job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:53 CEST)" was missed by 0:00:07.786263
+[33m17:06:56 W [bigquery_client][0m GCP_CREDENTIALS_JSON not set, falling back to Application Default Credentials
+[31m17:06:56 E [httptools_impl][0m Exception in ASGI application
+
+Traceback (most recent call last):
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/uvicorn/protocols/http/httptools_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/applications.py", line 1159, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/main.py", line 210, in auth_and_security_middleware
+    response: Response = await call_next(request)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/cors.py", line 96, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/cors.py", line 154, in simple_response
+    await self.app(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/api/paper_trading.py", line 90, in get_status
+    bq = BigQueryClient(settings)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/db/bigquery_client.py", line 34, in __init__
+    self.client = bigquery.Client(project=settings.gcp_project_id, credentials=credentials)
+                  ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/cloud/bigquery/client.py", line 261, in __init__
+    super(Client, self).__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        project=project,
+        ^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        _http=_http,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/cloud/client/__init__.py", line 340, in __init__
+    Client.__init__(
+    ~~~~~~~~~~~~~~~^
+        self, credentials=credentials, client_options=client_options, _http=_http
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/cloud/client/__init__.py", line 197, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+                     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/auth/_default.py", line 752, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+[33m17:06:56 W [base][0m Run time of job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:06:58 CEST)" was missed by 0:00:02.811414
+[36m17:06:56 I [httptools_impl][0m 127.0.0.1:55807 - "GET /api/changelog HTTP/1.1" 200
+[36m17:06:56 I [httptools_impl][0m 127.0.0.1:55808 - "GET /api/changelog HTTP/1.1" 200
+[36m17:06:58 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:07:03 CEST)" (scheduled at 2026-04-06 17:06:58.931546+02:00)
+[36m17:06:58 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:06:58 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:07:03 CEST)" executed successfully
+[36m17:06:59 I [httptools_impl][0m 127.0.0.1:55804 - "GET /api/reports/?limit=5 HTTP/1.1" 500
+[31m17:06:59 E [httptools_impl][0m Exception in ASGI application
+
+Traceback (most recent call last):
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/uvicorn/protocols/http/httptools_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/applications.py", line 1159, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.12_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/main.py", line 210, in auth_and_security_middleware
+    response: Response = await call_next(request)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/cors.py", line 96, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/cors.py", line 154, in simple_response
+    await self.app(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 457, in app
+    solved_result = await solve_dependencies(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/fastapi/dependencies/utils.py", line 680, in solve_dependencies
+    solved = await run_in_threadpool(call, **solved_result.values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/starlette/concurrency.py", line 32, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/api/reports.py", line 25, in _get_bq
+    return BigQueryClient(settings)
+  File "/Users/ford/.openclaw/workspace/pyfinagent/backend/db/bigquery_client.py", line 34, in __init__
+    self.client = bigquery.Client(project=settings.gcp_project_id, credentials=credentials)
+                  ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/cloud/bigquery/client.py", line 261, in __init__
+    super(Client, self).__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        project=project,
+        ^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        _http=_http,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/cloud/client/__init__.py", line 340, in __init__
+    Client.__init__(
+    ~~~~~~~~~~~~~~~^
+        self, credentials=credentials, client_options=client_options, _http=_http
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/cloud/client/__init__.py", line 197, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+                     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.13/site-packages/google/auth/_default.py", line 752, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+[36m17:07:01 I [httptools_impl][0m 127.0.0.1:55820 - "GET /docs HTTP/1.1" 200
+[36m17:07:03 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:07:08 CEST)" (scheduled at 2026-04-06 17:07:03.931546+02:00)
+[36m17:07:03 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:07:03 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:07:08 CEST)" executed successfully
+[36m17:07:08 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:07:13 CEST)" (scheduled at 2026-04-06 17:07:08.931546+02:00)
+[36m17:07:08 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:07:08 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:07:13 CEST)" executed successfully
+[36m17:07:13 I [base][0m Running job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:07:18 CEST)" (scheduled at 2026-04-06 17:07:13.931546+02:00)
+[36m17:07:13 I [tickets_db][0m Updated queue positions for 1 active tickets
+[36m17:07:13 I [base][0m Job "lifespan.<locals>.process_batch (trigger: interval[0:00:05], next run at: 2026-04-06 17:07:18 CEST)" executed successfully
+[36m17:07:17 I [server][0m Shutting down
+[36m17:07:17 I [on][0m Waiting for application shutdown.
+[36m17:07:17 I [main][0m PyFinAgent backend shutting down
+[36m17:07:17 I [base][0m Scheduler has been shut down
+[36m17:07:17 I [on][0m Application shutdown complete.
+[36m17:07:17 I [server][0m Finished server process [11850]
