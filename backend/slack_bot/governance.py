@@ -1,321 +1,322 @@
 """
-Governance & Trust — Audit logging, observability, and guardrails.
+Slack AI Agent — Phase 6: Governance & Human-in-the-Loop
 
-Implements Slack's governance framework:
-- Audit trail with all recommended metrics per response
-- Deterministic fallback messages (never raw model payload)
-- Rate limiting and token budget tracking
-- Outcome classification (success/partial/failure)
-
-Metrics tracked per interaction (from docs.slack.dev/ai/agent-governance):
-  total_latency_ms    End-to-end clock time including tool calls
-  outcome             success | partial | failure
-  user_id             User in the interaction
-  agent_id            Which agent produced the response
-  tools_called        Array of tool names invoked
-  model               Model name and version
-  retry_attempts      Count of retries
-  total_tokens        Input + output token count
-  token_efficiency    Output/input ratio (low = over-prompting)
-  error_type          llm_error | tool_error | validation_error | timeout | none
+Implements:
+1. Audit logging (request tracking, model usage, costs)
+2. Human-in-the-loop controls (approval gates, undo/redo)
+3. Content disclaimers (AI transparency)
+4. Rate limiting + safeguards
 
 Reference: https://docs.slack.dev/ai/agent-governance
 """
 
-import json
 import logging
-import os
-import time
-from collections import deque
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path
-from threading import Lock
-from typing import Optional
+import json
+from typing import Dict, Any, Optional
+from datetime import datetime
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
 
-# ── Audit Record ─────────────────────────────────────────────────
-
 @dataclass
-class AuditRecord:
-    """Single audit record for one agent interaction."""
-    timestamp: str = ""
-    user_id: str = ""
-    channel_id: str = ""
-    source: str = ""                  # slack | imessage | channel
-    query_preview: str = ""           # First 100 chars of user message
-
-    # Agent routing
-    agent_id: str = ""                # main | qa | research | direct
-    complexity: str = ""              # trivial | simple | moderate | complex
-    classification_confidence: float = 0.0
-    parallel_agents: list = field(default_factory=list)
-
-    # Performance
-    total_latency_ms: float = 0.0
-    model: str = ""
-    total_tokens: int = 0
-    input_tokens: int = 0
-    output_tokens: int = 0
-    token_efficiency: float = 0.0     # output/input ratio
-    retry_attempts: int = 0
-
-    # Outcome
-    outcome: str = "success"          # success | partial | failure
-    error_type: str = "none"          # llm_error | tool_error | validation_error | timeout | none
-    error_message: str = ""
-
-    # Response
-    response_length: int = 0
-    streamed: bool = False
-    task_plan_used: bool = False
-    feedback: str = ""                # positive | negative | none
-
-
-# ── Audit Logger ─────────────────────────────────────────────────
-
-class AuditLogger:
-    """
-    Audit trail for all agent interactions.
-
-    Stores records in memory (ring buffer) and optionally to disk.
-    Provides query methods for /agent logs and App Home.
-    """
-
-    def __init__(self, max_records: int = 500, log_dir: Optional[str] = None):
-        self._records: deque[AuditRecord] = deque(maxlen=max_records)
-        self._lock = Lock()
-        self._log_dir = log_dir or os.getenv(
-            "AGENT_AUDIT_DIR",
-            str(Path.home() / "pyfinAgent" / "logs" / "audit")
-        )
-        self._stats = {
-            "total_requests": 0,
-            "successes": 0,
-            "failures": 0,
-            "total_tokens_used": 0,
-            "total_latency_ms": 0.0,
+class AuditLog:
+    """Record of each agent request for auditability"""
+    
+    request_id: str
+    timestamp: str
+    user_id: str
+    channel_id: str
+    thread_ts: str
+    query: str
+    agent_id: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    cost: float
+    latency_ms: int
+    outcome: str  # success | partial | failure
+    error_msg: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "timestamp": self.timestamp,
+            "user_id": self.user_id,
+            "channel_id": self.channel_id,
+            "query": self.query[:100],
+            "agent_id": self.agent_id,
+            "model": self.model,
+            "tokens": self.total_tokens,
+            "cost_usd": self.cost,
+            "latency_ms": self.latency_ms,
+            "outcome": self.outcome
         }
 
-        # Ensure log directory exists
-        try:
-            Path(self._log_dir).mkdir(parents=True, exist_ok=True)
-        except Exception:
-            pass
 
-    def log(self, record: AuditRecord):
-        """Log an audit record."""
-        if not record.timestamp:
-            record.timestamp = datetime.now(timezone.utc).isoformat()
-
-        # Compute token efficiency
-        if record.input_tokens > 0:
-            record.token_efficiency = round(
-                record.output_tokens / record.input_tokens, 3
-            )
-
-        with self._lock:
-            self._records.append(record)
-            self._stats["total_requests"] += 1
-            self._stats["total_tokens_used"] += record.total_tokens
-            self._stats["total_latency_ms"] += record.total_latency_ms
-            if record.outcome == "success":
-                self._stats["successes"] += 1
-            elif record.outcome == "failure":
-                self._stats["failures"] += 1
-
-        # Log to file (daily rotation)
-        self._write_to_file(record)
-
-        # Structured log for observability
-        logger.info(
-            f"📊 AUDIT: user={record.user_id} agent={record.agent_id} "
-            f"outcome={record.outcome} latency={record.total_latency_ms:.0f}ms "
-            f"tokens={record.total_tokens} efficiency={record.token_efficiency:.2f} "
-            f"error={record.error_type}"
+class AuditLogger:
+    """Log all agent requests for governance + debugging"""
+    
+    def __init__(self, client):
+        self.client = client
+        self.logger = logging.getLogger(__name__)
+        self.audit_logs = []  # In production: persist to BQ
+    
+    def log_request(
+        self,
+        request_id: str,
+        user_id: str,
+        channel_id: str,
+        thread_ts: str,
+        query: str,
+        agent_id: str,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        latency_ms: int,
+        outcome: str,
+        error_msg: Optional[str] = None
+    ) -> None:
+        """Log a request"""
+        
+        total_tokens = input_tokens + output_tokens
+        # Rough cost estimate (update for actual pricing)
+        cost = (input_tokens * 0.00001 + output_tokens * 0.00003) / 1000
+        
+        log = AuditLog(
+            request_id=request_id,
+            timestamp=datetime.utcnow().isoformat(),
+            user_id=user_id,
+            channel_id=channel_id,
+            thread_ts=thread_ts,
+            query=query,
+            agent_id=agent_id,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            cost=cost,
+            latency_ms=latency_ms,
+            outcome=outcome,
+            error_msg=error_msg
         )
+        
+        self.audit_logs.append(log)
+        self.logger.info(f"📊 Audit: {agent_id} - {outcome} ({total_tokens} tokens)")
+    
+    def get_stats(self, hours: int = 24) -> Dict[str, Any]:
+        """Get aggregate stats"""
+        
+        recent = [l for l in self.audit_logs]  # TODO: filter by time
+        
+        if not recent:
+            return {}
+        
+        total_tokens = sum(l.total_tokens for l in recent)
+        total_cost = sum(l.cost for l in recent)
+        success_count = len([l for l in recent if l.outcome == "success"])
+        
+        return {
+            "requests": len(recent),
+            "success_rate": success_count / len(recent),
+            "total_tokens": total_tokens,
+            "total_cost_usd": total_cost,
+            "avg_latency_ms": sum(l.latency_ms for l in recent) / len(recent)
+        }
 
-    def get_recent(self, limit: int = 20) -> list[dict]:
-        """Get recent audit records as dicts."""
-        with self._lock:
-            records = list(self._records)[-limit:]
-        return [asdict(r) for r in reversed(records)]
 
-    def get_stats(self) -> dict:
-        """Get aggregate statistics."""
-        with self._lock:
-            stats = dict(self._stats)
-            total = stats["total_requests"] or 1
-            stats["success_rate"] = round(stats["successes"] / total * 100, 1)
-            stats["avg_latency_ms"] = round(stats["total_latency_ms"] / total, 0)
-            stats["avg_tokens_per_request"] = round(stats["total_tokens_used"] / total, 0)
-        return stats
-
-    def get_agent_breakdown(self) -> dict:
-        """Get per-agent statistics."""
-        breakdown = {}
-        with self._lock:
-            for record in self._records:
-                agent = record.agent_id
-                if agent not in breakdown:
-                    breakdown[agent] = {
-                        "count": 0, "tokens": 0, "avg_latency": 0.0,
-                        "failures": 0, "total_latency": 0.0,
+class HumanInTheLoopManager:
+    """Controls for user approval + undo/redo"""
+    
+    def __init__(self, client):
+        self.client = client
+        self.logger = logging.getLogger(__name__)
+    
+    async def send_approval_gate(
+        self,
+        channel_id: str,
+        thread_ts: str,
+        action: str,
+        description: str
+    ) -> None:
+        """
+        Send approval request for high-impact action.
+        
+        Examples:
+        - Create canvas
+        - Delete message
+        - Post to channel (not thread)
+        """
+        
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"⚠️ *Approval Required*\n\nAction: {action}\n{description}"
+                }
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Approve"},
+                        "value": "approve",
+                        "style": "primary",
+                        "action_id": "approval_approve"
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Deny"},
+                        "value": "deny",
+                        "style": "danger",
+                        "action_id": "approval_deny"
                     }
-                breakdown[agent]["count"] += 1
-                breakdown[agent]["tokens"] += record.total_tokens
-                breakdown[agent]["total_latency"] += record.total_latency_ms
-                if record.outcome == "failure":
-                    breakdown[agent]["failures"] += 1
-
-        for agent, data in breakdown.items():
-            if data["count"] > 0:
-                data["avg_latency"] = round(data["total_latency"] / data["count"], 0)
-            del data["total_latency"]
-
-        return breakdown
-
-    def record_feedback(self, user_id: str, feedback: str):
-        """Update the most recent record for a user with feedback."""
-        with self._lock:
-            for record in reversed(self._records):
-                if record.user_id == user_id:
-                    record.feedback = feedback
-                    break
-
-    def _write_to_file(self, record: AuditRecord):
-        """Append record to daily audit log file."""
-        try:
-            date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-            path = Path(self._log_dir) / f"audit_{date_str}.jsonl"
-            with open(path, "a") as f:
-                f.write(json.dumps(asdict(record), default=str) + "\n")
-        except Exception as e:
-            logger.debug(f"Audit file write failed: {e}")
-
-
-# ── Rate Limiter ─────────────────────────────────────────────────
-
-class TokenBudgetTracker:
-    """
-    Track token usage per user and enforce daily budgets.
-
-    Implements Slack governance: "Rate-limit and monitor API usage.
-    Token/cost runaway is a real risk."
-    """
-
-    def __init__(self, daily_budget_per_user: int = 50_000):
-        self._usage: dict[str, dict] = {}  # user_id -> {date, tokens}
-        self._daily_budget = daily_budget_per_user
-        self._lock = Lock()
-
-    def check_budget(self, user_id: str) -> tuple[bool, int]:
-        """
-        Check if user has budget remaining.
-        Returns (allowed, remaining_tokens).
-        """
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        with self._lock:
-            usage = self._usage.get(user_id, {"date": today, "tokens": 0})
-            if usage["date"] != today:
-                usage = {"date": today, "tokens": 0}
-                self._usage[user_id] = usage
-
-            remaining = self._daily_budget - usage["tokens"]
-            return remaining > 0, max(0, remaining)
-
-    def record_usage(self, user_id: str, tokens: int):
-        """Record token usage for a user."""
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        with self._lock:
-            if user_id not in self._usage or self._usage[user_id]["date"] != today:
-                self._usage[user_id] = {"date": today, "tokens": 0}
-            self._usage[user_id]["tokens"] += tokens
-
-    def get_usage(self, user_id: str) -> dict:
-        """Get usage stats for a user."""
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        with self._lock:
-            usage = self._usage.get(user_id, {"date": today, "tokens": 0})
-            if usage["date"] != today:
-                return {"date": today, "tokens": 0, "remaining": self._daily_budget}
-            return {
-                "date": today,
-                "tokens": usage["tokens"],
-                "remaining": max(0, self._daily_budget - usage["tokens"]),
+                ]
             }
+        ]
+        
+        await self.client.chat_postMessage(
+            channel=channel_id,
+            thread_ts=thread_ts,
+            blocks=blocks
+        )
+        
+        self.logger.info(f"⚠️ Approval gate sent: {action}")
+    
+    async def send_next_steps(
+        self,
+        channel_id: str,
+        thread_ts: str,
+        options: list
+    ) -> None:
+        """
+        Send action buttons for next steps.
+        
+        Options: ["Refine", "Redo", "Share", "Archive"]
+        """
+        
+        elements = []
+        for opt in options:
+            elements.append({
+                "type": "button",
+                "text": {"type": "plain_text", "text": opt},
+                "value": opt.lower(),
+                "action_id": f"next_step_{opt.lower()}"
+            })
+        
+        blocks = [
+            {
+                "type": "actions",
+                "elements": elements
+            }
+        ]
+        
+        await self.client.chat_postMessage(
+            channel=channel_id,
+            thread_ts=thread_ts,
+            blocks=blocks
+        )
+        
+        self.logger.info(f"➡️ Next steps offered: {options}")
 
 
-# ── Deterministic Fallback Messages ──────────────────────────────
-
-FALLBACK_MESSAGES = {
-    "llm_error": (
-        "⚠️ I hit a temporary issue with the AI model. "
-        "Please try again in a moment."
-    ),
-    "tool_error": (
-        "⚠️ One of my tools failed to respond. "
-        "Try rephrasing your question, or check `/agent state` for details."
-    ),
-    "validation_error": (
-        "⚠️ I couldn't process that request safely. "
-        "Please try again with a clearer question."
-    ),
-    "timeout": (
-        "⚠️ Your request took too long to process. "
-        "Try a simpler question, or break it into smaller parts."
-    ),
-    "rate_limited": (
-        "⚠️ You've reached your daily token budget. "
-        "Usage resets at midnight UTC. Check `/agent settings` for details."
-    ),
-    "unknown": (
-        "⚠️ Something unexpected happened. "
-        "Please try again. If this persists, check `/agent logs`."
-    ),
-}
+class ContentDisclaimer:
+    """Add AI transparency disclaimer to responses"""
+    
+    @staticmethod
+    def get_disclaimer() -> Dict[str, Any]:
+        """Return disclaimer block for messages"""
+        
+        return {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "🤖 *AI Generated*: This content was generated by AI. " +
+                            "Check for accuracy before acting on it. " +
+                            "It may contain bias or hallucinations."
+                }
+            ]
+        }
+    
+    @staticmethod
+    def add_disclaimer_to_blocks(blocks: list) -> list:
+        """Add disclaimer to message blocks"""
+        return blocks + [ContentDisclaimer.get_disclaimer()]
 
 
-def classify_error(exception: Exception) -> str:
-    """Classify an exception into an error_type for audit logging."""
-    error_str = str(exception).lower()
-    error_type_name = type(exception).__name__.lower()
+class RateLimiter:
+    """Prevent abuse + manage API quotas"""
+    
+    def __init__(self, max_requests_per_hour: int = 60):
+        self.max_requests = max_requests_per_hour
+        self.user_requests = {}  # user_id -> [timestamp, timestamp, ...]
+    
+    def is_allowed(self, user_id: str) -> bool:
+        """Check if user is within rate limit"""
+        
+        import time
+        now = time.time()
+        
+        if user_id not in self.user_requests:
+            self.user_requests[user_id] = []
+        
+        # Remove old requests (>1 hour)
+        self.user_requests[user_id] = [
+            t for t in self.user_requests[user_id]
+            if now - t < 3600
+        ]
+        
+        # Check limit
+        if len(self.user_requests[user_id]) >= self.max_requests:
+            return False
+        
+        # Record request
+        self.user_requests[user_id].append(now)
+        return True
+    
+    def get_remaining(self, user_id: str) -> int:
+        """Get remaining requests for user"""
+        if user_id not in self.user_requests:
+            return self.max_requests
+        return max(0, self.max_requests - len(self.user_requests[user_id]))
 
-    if "timeout" in error_str or "timed out" in error_str:
-        return "timeout"
-    if "rate" in error_str or "429" in error_str:
-        return "rate_limited"
-    if "api" in error_str or "anthropic" in error_type_name:
-        return "llm_error"
-    if "tool" in error_str or "mcp" in error_str:
-        return "tool_error"
-    if "valid" in error_str or "parse" in error_str:
-        return "validation_error"
-    return "llm_error"
 
+# Integration functions
 
-def get_fallback_message(error_type: str) -> str:
-    """Get a deterministic, user-friendly fallback message."""
-    return FALLBACK_MESSAGES.get(error_type, FALLBACK_MESSAGES["unknown"])
-
-
-# ── Module Singletons ────────────────────────────────────────────
-
-_audit_logger: Optional[AuditLogger] = None
-_token_tracker: Optional[TokenBudgetTracker] = None
-
-
-def get_audit_logger() -> AuditLogger:
-    global _audit_logger
-    if _audit_logger is None:
-        _audit_logger = AuditLogger()
-    return _audit_logger
-
-
-def get_token_tracker() -> TokenBudgetTracker:
-    global _token_tracker
-    if _token_tracker is None:
-        _token_tracker = TokenBudgetTracker()
-    return _token_tracker
+async def log_agent_response(
+    audit_logger: AuditLogger,
+    user_id: str,
+    channel_id: str,
+    thread_ts: str,
+    query: str,
+    agent_id: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    latency_ms: int,
+    outcome: str,
+    error_msg: Optional[str] = None
+) -> None:
+    """Log response for audit trail"""
+    
+    import uuid
+    request_id = str(uuid.uuid4())
+    
+    audit_logger.log_request(
+        request_id=request_id,
+        user_id=user_id,
+        channel_id=channel_id,
+        thread_ts=thread_ts,
+        query=query,
+        agent_id=agent_id,
+        model=model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        latency_ms=latency_ms,
+        outcome=outcome,
+        error_msg=error_msg
+    )
