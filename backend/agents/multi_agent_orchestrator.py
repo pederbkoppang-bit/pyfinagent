@@ -133,6 +133,23 @@ class MultiAgentOrchestrator:
 
     def __init__(self):
         self._client = None
+        self._masker = None
+
+    def _get_masker(self):
+        """Lazy-init ObservationMasker for context compression."""
+        if self._masker is None:
+            try:
+                from backend.agents.harness_memory import (
+                    ObservationMasker, HarnessMemory, create_masker, init_session_memory,
+                )
+                memory, _ = init_session_memory()
+                self._masker = create_masker(
+                    model_name="claude-opus-4-6",
+                    memory=memory,
+                )
+            except Exception as e:
+                logger.debug(f"ObservationMasker init failed: {e}")
+        return self._masker
 
     def _get_client(self):
         if self._client is None:
@@ -535,14 +552,20 @@ class MultiAgentOrchestrator:
         """
         CRITICAL: Ford NEVER evaluates his own output.
 
-        The Communication Agent (Sonnet, different model) does a quality check.
-        This is the diagram's separation of generation from evaluation.
+        The Communication Agent (Sonnet, different model) does a quality check
+        using a 0.0–1.0 scoring rubric (Anthropic's recommendation).
 
-        Checks:
-        - Does the response actually answer the question?
-        - Is it grounded in data (not hallucinated)?
-        - Does it acknowledge uncertainty where appropriate?
-        - Is it concise enough for Slack?
+        From the article: "A single LLM call with a single prompt outputting
+        scores from 0.0-1.0 and a pass-fail grade was the most consistent
+        and aligned with human judgements."
+
+        Criteria (adapted from Anthropic's research eval rubric):
+        - Accuracy: Do claims match harness data / sources?
+        - Completeness: Are all aspects of the question addressed?
+        - Groundedness: Does it reference real data, not hallucinate?
+        - Conciseness: Is it appropriate length for Slack (<400 words)?
+
+        Threshold: Any criterion < 0.6 = FAIL. Overall < 0.7 = FAIL.
 
         Returns (improved_response, usage) or (None, usage) if pass.
         """
@@ -550,24 +573,57 @@ class MultiAgentOrchestrator:
             f"QUALITY CHECK — You are reviewing another agent's response.\n\n"
             f"USER ASKED:\n{original_query}\n\n"
             f"AGENT ({classification.agent_type.value}) RESPONDED:\n{response[:1500]}\n\n"
-            f"EVALUATE (be skeptical — the agent that wrote this cannot judge its own work):\n"
-            f"1. Does this ACTUALLY answer what was asked? (not tangential)\n"
-            f"2. Are the specific claims grounded? (or does it sound confident about uncertain things)\n"
-            f"3. Is it concise enough for Slack? (under 400 words)\n"
-            f"4. Does it acknowledge what it DOESN'T know?\n\n"
-            f"If the response is GOOD: respond with exactly 'PASS'\n"
-            f"If it needs improvement: respond with the IMPROVED version (complete replacement).\n"
-            f"Do NOT praise or critique — either pass it or fix it."
+            f"SCORING RUBRIC (0.0 to 1.0 each):\n"
+            f"1. ACCURACY (0.0-1.0): Do the specific claims match reality? Are numbers correct?\n"
+            f"   0.0 = fabricated claims, 0.5 = some claims unverifiable, 1.0 = all claims grounded\n"
+            f"2. COMPLETENESS (0.0-1.0): Does it answer ALL aspects of the question?\n"
+            f"   0.0 = ignores the question, 0.5 = partial answer, 1.0 = fully addresses everything\n"
+            f"3. GROUNDEDNESS (0.0-1.0): Are claims backed by data/sources, or hand-wavy?\n"
+            f"   0.0 = pure opinion, 0.5 = some data cited, 1.0 = every claim has evidence\n"
+            f"4. CONCISENESS (0.0-1.0): Is it right-sized for Slack (<400 words)?\n"
+            f"   0.0 = massive wall of text, 0.5 = could be tighter, 1.0 = perfectly concise\n\n"
+            f"FEW-SHOT CALIBRATION EXAMPLES:\n\n"
+            f"Example A (PASS):\n"
+            f"  User: 'What's our current Sharpe?'\n"
+            f"  Response: 'Current best Sharpe is 1.1705 (DSR 0.9984) from run 52eb3ffe. "
+            f"Sub-periods: A=0.89, B=0.92, C=1.88. All positive. 2× cost stress test: 0.91.'\n"
+            f"  Scores: Accuracy=1.0, Completeness=0.9, Groundedness=1.0, Conciseness=1.0\n"
+            f"  Verdict: PASS (avg 0.975)\n\n"
+            f"Example B (FAIL):\n"
+            f"  User: 'Why did momentum fail robustness?'\n"
+            f"  Response: 'Momentum strategies can sometimes underperform in choppy markets. "
+            f"It's important to consider various factors when evaluating signal robustness.'\n"
+            f"  Scores: Accuracy=0.3, Completeness=0.2, Groundedness=0.1, Conciseness=0.8\n"
+            f"  Verdict: FAIL (avg 0.35 — vague, no data, doesn't answer the question)\n\n"
+            f"Example C (FAIL → IMPROVE):\n"
+            f"  User: 'Compare last 3 evaluator runs'\n"
+            f"  Response: 'The evaluator has been running well recently with good scores.'\n"
+            f"  Scores: Accuracy=0.4, Completeness=0.1, Groundedness=0.1, Conciseness=0.9\n"
+            f"  Verdict: FAIL (avg 0.375 — no specific data from actual runs)\n\n"
+            f"NOW EVALUATE THE RESPONSE ABOVE.\n\n"
+            f"Output format (EXACTLY this, nothing else):\n"
+            f"ACCURACY: <score>\n"
+            f"COMPLETENESS: <score>\n"
+            f"GROUNDEDNESS: <score>\n"
+            f"CONCISENESS: <score>\n"
+            f"VERDICT: PASS|FAIL\n"
+            f"If FAIL, add on the next line:\n"
+            f"IMPROVED: <your complete replacement response>\n"
         )
 
         comms_config = AGENT_CONFIGS[AgentType.COMMUNICATION]
-        # Use a slightly higher token limit for quality gate
         gate_config = type(comms_config)(
             agent_type=comms_config.agent_type,
             name="Quality Gate",
             model=comms_config.model,
-            system_prompt="You are a quality reviewer. Be skeptical. Your job is to catch bad responses before they reach the user.",
-            max_tokens=1500,
+            system_prompt=(
+                "You are a quality reviewer using a scoring rubric. Be skeptical — "
+                "the agent that wrote this cannot judge its own work. "
+                "Score each criterion independently BEFORE deciding the verdict. "
+                "Never upgrade a score after seeing the overall picture. "
+                "If uncertain between two scores, pick the LOWER one."
+            ),
+            max_tokens=2000,
         )
 
         loop = asyncio.get_event_loop()
@@ -575,11 +631,64 @@ class MultiAgentOrchestrator:
             None, self._call_agent, gate_config, gate_prompt,
         )
 
-        if gate_response.strip().upper() == "PASS":
+        # Parse scoring rubric response
+        response_upper = gate_response.strip().upper()
+        scores = {}
+        for line in gate_response.strip().split('\n'):
+            line_upper = line.strip().upper()
+            for criterion in ('ACCURACY', 'COMPLETENESS', 'GROUNDEDNESS', 'CONCISENESS'):
+                if line_upper.startswith(f"{criterion}:"):
+                    try:
+                        score_str = line_upper.split(':', 1)[1].strip()
+                        scores[criterion.lower()] = float(score_str)
+                    except (ValueError, IndexError):
+                        pass
+
+        # Log scores
+        if scores:
+            avg = sum(scores.values()) / len(scores)
+            score_str = ', '.join(f"{k}={v:.1f}" for k, v in scores.items())
+            logger.info(f"📋 Quality gate scores: {score_str} (avg={avg:.2f})")
+
+            # Check thresholds: any < 0.6 or avg < 0.7 = FAIL
+            any_below = any(v < 0.6 for v in scores.values())
+            if any_below or avg < 0.7:
+                # Extract improved response if present
+                improved = None
+                for marker in ('IMPROVED:', 'IMPROVED RESPONSE:'):
+                    if marker in gate_response.upper():
+                        idx = gate_response.upper().index(marker)
+                        improved = gate_response[idx + len(marker):].strip()
+                        break
+                if improved:
+                    logger.info(f"🔄 Quality gate: FAIL (avg={avg:.2f}) → improved")
+                    return improved, usage
+                else:
+                    logger.info(f"🔄 Quality gate: FAIL (avg={avg:.2f}) but no improvement provided")
+                    return None, usage
+            else:
+                logger.info(f"✅ Quality gate: PASS (avg={avg:.2f})")
+                return None, usage
+
+        # Fallback: old-style PASS/FAIL parsing
+        if 'VERDICT: PASS' in response_upper or response_upper == 'PASS':
             logger.info("✅ Quality gate: PASS")
             return None, usage
+        elif 'VERDICT: FAIL' in response_upper:
+            improved = None
+            for marker in ('IMPROVED:', 'IMPROVED RESPONSE:'):
+                if marker in gate_response.upper():
+                    idx = gate_response.upper().index(marker)
+                    improved = gate_response[idx + len(marker):].strip()
+                    break
+            if improved:
+                logger.info(f"🔄 Quality gate: FAIL → improved ({len(improved)} chars)")
+                return improved, usage
+            logger.info("🔄 Quality gate: FAIL but no improvement")
+            return None, usage
         else:
-            logger.info(f"🔄 Quality gate: IMPROVED ({len(gate_response)} chars)")
+            # If we can't parse, treat non-PASS as improvement
+            logger.info(f"🔄 Quality gate: unparseable, treating as improvement ({len(gate_response)} chars)")
             return gate_response, usage
 
     # ═══════════════════════════════════════════════════════════════
@@ -664,11 +773,14 @@ class MultiAgentOrchestrator:
 
     def _call_agent_with_tools(self, agent_config, task, max_turns=None):
         """
-        Call agent with tool-use loop. The agent can call harness_state_reader
-        tools to read experiment data, then think, then read more.
+        Call agent with tool-use loop + interleaved thinking.
 
-        This matches the diagram's subagent pattern:
-          search → think(evaluate) → search again → complete_task
+        From Anthropic's multi-agent research article:
+          "Subagents use interleaved thinking after tool results to evaluate
+           quality, identify gaps, and refine their next query. This makes
+           subagents more effective in adapting to any task."
+
+        Pattern: search → think(evaluate) → search again → complete_task
         """
         if max_turns is None:
             max_turns = MAX_TOOL_TURNS
@@ -679,12 +791,20 @@ class MultiAgentOrchestrator:
 
         for turn in range(max_turns):
             try:
+                # Interleaved thinking (Anthropic GAP fix):
+                # Extended thinking lets subagents plan after each tool result,
+                # evaluate quality, identify gaps, and decide next action.
+                # Budget of 2048 tokens per turn keeps costs reasonable.
                 response = client.messages.create(
                     model=agent_config.model,
-                    max_tokens=agent_config.max_tokens,
+                    max_tokens=agent_config.max_tokens + 2048,
                     system=agent_config.system_prompt,
                     tools=AGENT_TOOLS,
                     messages=messages,
+                    thinking={
+                        "type": "enabled",
+                        "budget_tokens": 2048,
+                    },
                 )
             except Exception as e:
                 logger.error(f"Tool-loop call failed on turn {turn}: {e}")
@@ -715,6 +835,17 @@ class MultiAgentOrchestrator:
                 # Add assistant response + tool results to conversation
                 messages.append({"role": "assistant", "content": response.content})
                 messages.append({"role": "user", "content": tool_results})
+
+                # Apply observation masking if context is growing large
+                # (ACON-inspired: compress older observations at 60% window)
+                masker = self._get_masker()
+                if masker and masker.should_mask(messages):
+                    messages, mask_report = masker.mask_observations(messages)
+                    if mask_report.get('masked'):
+                        logger.info(
+                            f"  🗜️ Observation masking: saved {mask_report['tokens_saved']} tokens "
+                            f"({mask_report['usage_pct_before']:.0%} → {mask_report['usage_pct_after']:.0%})"
+                        )
 
             else:
                 # Agent finished — stop_reason is "end_turn" or "max_tokens"
