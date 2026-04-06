@@ -62,7 +62,8 @@ async def get_stats():
 async def get_dashboard():
     """Full MAS dashboard data for Slack App Home + frontend /agents page.
 
-    Returns: agent configs, system health, event bus stats, cost summary.
+    Returns: agent configs, system health, event bus stats, cost summary,
+    OpenClaw gateway status, cron jobs, active sessions.
     """
     from backend.agents.agent_definitions import AGENT_CONFIGS, AgentType
     import httpx
@@ -109,12 +110,44 @@ async def get_dashboard():
     # Recent events
     recent_events = bus.get_buffer()[-10:]
 
+    # OpenClaw integration — pull gateway status, cron jobs, sessions
+    openclaw = {"gateway": "unknown", "cron_jobs": [], "sessions": 0, "agents": []}
+    try:
+        import subprocess, json as _json
+
+        # Gateway status
+        gw = subprocess.run(
+            ["openclaw", "gateway", "status"],
+            capture_output=True, text=True, timeout=10,
+        )
+        openclaw["gateway"] = "running" if gw.returncode == 0 else "stopped"
+
+        # Cron jobs
+        cron_out = subprocess.run(
+            ["openclaw", "cron", "list", "--json"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if cron_out.returncode == 0 and cron_out.stdout.strip():
+            try:
+                cron_data = _json.loads(cron_out.stdout)
+                openclaw["cron_jobs"] = [
+                    {"name": j.get("name", "?"), "schedule": j.get("schedule", "?"),
+                     "status": j.get("lastStatus", "?"), "target": j.get("sessionTarget", "?")}
+                    for j in (cron_data if isinstance(cron_data, list) else cron_data.get("jobs", []))
+                ]
+            except Exception:
+                pass
+
+    except Exception as e:
+        openclaw["error"] = str(e)[:100]
+
     return {
         "agents": agents,
         "health": health,
         "event_stats": event_stats,
         "cost_summary": cost_summary,
         "recent_events": recent_events,
+        "openclaw": openclaw,
     }
 
 

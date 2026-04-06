@@ -71,6 +71,51 @@ def _get_live_data():
         f"{event_stats.get('subscribers', 0)} subscribers"
     )
 
+    # OpenClaw gateway + cron
+    openclaw = {"gateway": "unknown", "cron_jobs": [], "sessions": 0}
+    try:
+        import subprocess, json as _json
+        gw = subprocess.run(
+            ["openclaw", "gateway", "status"],
+            capture_output=True, text=True, timeout=10,
+        )
+        openclaw["gateway"] = "running" if gw.returncode == 0 else "stopped"
+
+        cron_out = subprocess.run(
+            ["openclaw", "cron", "list", "--json"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if cron_out.returncode == 0 and cron_out.stdout.strip():
+            try:
+                cron_data = _json.loads(cron_out.stdout)
+                jobs = cron_data if isinstance(cron_data, list) else cron_data.get("jobs", [])
+                openclaw["cron_jobs"] = [
+                    {
+                        "name": j.get("name", "?"),
+                        "status": j.get("state", {}).get("lastStatus", "?"),
+                        "schedule": j.get("schedule", {}).get("kind", "?"),
+                        "target": j.get("sessionTarget", "?"),
+                        "enabled": j.get("enabled", True),
+                    }
+                    for j in jobs
+                ]
+            except Exception:
+                pass
+
+        # Session count
+        sess_out = subprocess.run(
+            ["openclaw", "sessions", "list", "--json"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if sess_out.returncode == 0 and sess_out.stdout.strip():
+            try:
+                sess_data = _json.loads(sess_out.stdout)
+                openclaw["sessions"] = len(sess_data) if isinstance(sess_data, list) else sess_data.get("count", 0)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     return {
         "configs": AGENT_CONFIGS,
         "AgentType": AgentType,
@@ -78,6 +123,7 @@ def _get_live_data():
         "recent_events": recent_events,
         "cost_summary": cost_summary,
         "health": health,
+        "openclaw": openclaw,
     }
 
 
@@ -89,6 +135,7 @@ def _build_home_blocks(data):
     recent_events = data["recent_events"]
     cost_summary = data["cost_summary"]
     health = data["health"]
+    openclaw = data.get("openclaw", {})
 
     blocks = []
 
@@ -162,11 +209,38 @@ def _build_home_blocks(data):
 
     # ── System Health ───────────────────────────────────────
     health_text = "\n".join(health.values())
+    # Add OpenClaw gateway status to health
+    gw_status = openclaw.get("gateway", "unknown")
+    gw_emoji = "✅" if gw_status == "running" else "❌"
+    health_text += f"\n{gw_emoji} OpenClaw Gateway: {gw_status}"
+    sess_count = openclaw.get("sessions", 0)
+    if sess_count:
+        health_text += f"\n📁 Sessions: {sess_count} active"
+
     blocks.append({
         "type": "section",
         "text": {"type": "mrkdwn", "text": f"*System Health*\n{health_text}"},
     })
     blocks.append({"type": "divider"})
+
+    # ── OpenClaw Cron Jobs ──────────────────────────────
+    cron_jobs = openclaw.get("cron_jobs", [])
+    if cron_jobs:
+        cron_lines = []
+        status_emoji = {"ok": "✅", "error": "❌", "skipped": "⏭️"}
+        for job in cron_jobs:
+            if not job.get("enabled", True):
+                continue
+            emoji = status_emoji.get(job.get("status", ""), "❓")
+            target = job.get("target", "?")
+            cron_lines.append(
+                f"{emoji} *{job.get('name', '?')}* · {job.get('schedule', '?')} · _{target}_"
+            )
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": "*OpenClaw Cron Jobs*\n" + "\n".join(cron_lines)},
+        })
+        blocks.append({"type": "divider"})
 
     # ── Live Stats (Event Bus + Cost Tracker) ───────────────
     stats_text = (
