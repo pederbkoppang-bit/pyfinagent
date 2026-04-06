@@ -1,22 +1,69 @@
 """
-Slack AI Agent — Phase 3: Streaming Integration
+Slack AI Agent — Streaming Integration with MAS Orchestrator.
 
-Integrates streaming API with assistant lifecycle.
-Updates assistant_lifecycle.py to use official chat.startStream/appendStream/stopStream.
+Connects the Slack assistant lifecycle to the real multi-agent system.
+Routes through Communication Agent (Sonnet 4.6) for classification,
+then Ford (Opus 4.6) / Q&A / Researcher for execution.
+
+Models:
+  Communication: claude-sonnet-4-6 (classification + quality gate)
+  Ford (Main):   claude-opus-4-6   (orchestration + synthesis)
+  Q&A Analyst:   claude-opus-4-6   (quantitative reasoning)
+  Researcher:    claude-sonnet-4-6 (literature + evidence)
+
+References:
+  https://www.anthropic.com/engineering/multi-agent-research-system
+  https://docs.slack.dev/ai/developing-agents#text-streaming
 """
 
-import asyncio
 import logging
-from typing import Dict, Any, Optional, List
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, Any
 
-from slack_bolt import Say, SetStatus
+from slack_bolt import Say
 from slack_sdk import WebClient
-from slack_sdk.models.messages.chunk import MarkdownTextChunk, TaskUpdateChunk
+from slack_sdk.models.messages.chunk import (
+    MarkdownTextChunk,
+    PlanUpdateChunk,
+    TaskUpdateChunk,
+)
 
 from backend.agents.multi_agent_orchestrator import get_orchestrator
-from backend.slack_bot.streaming_handler import StreamingHandler, TaskUpdate, TASK_TEMPLATES
+from backend.agents.agent_definitions import (
+    AGENT_CONFIGS,
+    AgentType,
+    QueryComplexity,
+)
 
 logger = logging.getLogger(__name__)
+
+
+# ── Agent task metadata for Slack task cards ─────────────────────
+
+AGENT_TASK_META = {
+    AgentType.MAIN: {
+        "task_id": "agent_main",
+        "title": "Ford — operational check",
+        "emoji": "⚙️",
+        "details_pending": "Scanning service health, git status, task queue",
+        "details_working": "Querying system state, evaluating configuration",
+    },
+    AgentType.QA: {
+        "task_id": "agent_qa",
+        "title": "Analyst — quantitative reasoning",
+        "emoji": "📊",
+        "details_pending": "Reviewing backtest metrics, feature importance, walk-forward windows",
+        "details_working": "Computing Sharpe analysis, evaluating sub-period robustness",
+    },
+    AgentType.RESEARCH: {
+        "task_id": "agent_research",
+        "title": "Researcher — searching literature",
+        "emoji": "🔬",
+        "details_pending": "Scanning arXiv, SSRN, Journal of Finance",
+        "details_working": "Reading papers, extracting methods and thresholds",
+    },
+}
 
 
 async def handle_user_message_with_streaming(
@@ -24,110 +71,282 @@ async def handle_user_message_with_streaming(
     client: WebClient,
     say: Say,
     set_status,
-    logger: logging.Logger
+    logger: logging.Logger,
 ) -> None:
     """
-    Phase 3: Complete streaming response with task cards.
-    
+    Full streaming response using real MAS orchestrator.
+
     Flow:
-    1. Extract message + context
-    2. Start stream with task display mode
-    3. Spawn agents (Operational, Research, Analyst)
-    4. Update tasks as agents complete
-    5. Stream final response with citations
-    6. Stop stream and clear status
+    1. Extract message
+    2. Classify via Communication Agent (Sonnet 4.6)
+    3. Route: DIRECT → instant | SIMPLE → stream | COMPLEX → task plan
+    4. Execute via Ford (Opus 4.6) with subagent delegation
+    5. Quality Gate (Sonnet 4.6) reviews response
+    6. Stream result with word-by-word or task cards
     """
-    
+    start = time.time()
+
     try:
-        # Extract message details
         message = body.get("event", {})
         channel_id = message.get("channel")
         thread_ts = message.get("thread_ts") or message.get("ts")
         user_id = message.get("user")
         user_text = message.get("text", "").strip()
-        action_token = message.get("action_token")
-        
-        logger.info(f"💬 Message: user={user_id}, text={user_text[:50]}")
-        
-        # Create streaming handler
-        streamer = StreamingHandler(client)
-        
-        # Initialize tasks
-        initial_tasks = [
-            TASK_TEMPLATES["operational"],
-            TASK_TEMPLATES["research"],
-            TASK_TEMPLATES["analyst"],
-        ]
-        
-        # Start stream with task display
-        message_ts = await streamer.stream_response(
-            channel_id=channel_id,
-            thread_ts=thread_ts,
-            task_display_mode="plan",
-            tasks=initial_tasks,
-            initial_text="🚀 PyFinAgent analyzing your query..."
-        )
-        
-        # Get orchestrator and run analysis
+
+        if not user_text:
+            return
+
+        logger.info(f"💬 Streaming message: user={user_id}, text={user_text[:50]}")
+
+        # ── Classify via Communication Agent (Sonnet 4.6) ────────
         orchestrator = get_orchestrator()
-        
-        # TODO: Phase 3.5 — Call orchestrator with workspace context
-        # analysis_result = await orchestrator.analyze(
-        #     query=user_text,
-        #     action_token=action_token,
-        #     channel_id=channel_id
-        # )
-        
-        # For now, demo response
-        demo_response = f"Query: *{user_text}*\n\nPhase 3 streaming integration complete. Ready for Phase 4 (MCP + context)."
-        
-        # Update tasks to complete
-        completed_tasks = [
-            TaskUpdate(
-                id="agent_operational",
-                title="Ford — System Status",
-                status="complete",
-                output="✅ All services operational",
-                sources=[{"type": "url", "url": "https://localhost:8000", "text": "Backend"}]
-            ),
-            TaskUpdate(
-                id="agent_research",
-                title="Research Agent",
-                status="complete",
-                output="✅ Research query analyzed",
-                sources=None
-            ),
-            TaskUpdate(
-                id="agent_analyst",
-                title="Analyst Agent",
-                status="complete",
-                output="✅ Analysis complete",
-                sources=None
-            ),
-        ]
-        
-        await streamer.append_tasks(channel_id, message_ts, thread_ts, completed_tasks)
-        
-        # Append final response
-        await streamer.append_text(
-            channel_id,
-            message_ts,
-            thread_ts,
-            f"\n{demo_response}"
+        classification = orchestrator.classify_message_sync(user_text)
+
+        logger.info(
+            f"📋 → {classification.agent_type.value} "
+            f"({classification.complexity.value}, {classification.confidence:.0%})"
         )
-        
-        # Stop stream
-        await streamer.stop_stream(
-            channel_id,
-            message_ts,
-            thread_ts,
-            final_text="✅ Analysis complete!"
+
+        # ── DIRECT: instant local response ───────────────────────
+        if classification.agent_type == AgentType.DIRECT:
+            result = orchestrator.execute_classified_sync(user_text, classification, user_id)
+            say(result.get("response", "👋 I'm here."))
+            return
+
+        # ── COMPLEX: task plan with parallel agents ──────────────
+        if classification.complexity == QueryComplexity.COMPLEX and classification.parallel_agents:
+            await _stream_complex_task_plan(
+                client, orchestrator, classification, user_text, user_id,
+                channel_id, thread_ts, body, logger,
+            )
+            return
+
+        # ── SIMPLE/MODERATE: word-by-word streaming ──────────────
+        await _stream_simple_response(
+            client, orchestrator, classification, user_text, user_id,
+            channel_id, thread_ts, body, logger,
         )
-        
-        logger.info(f"✅ Streaming response complete")
-        
+
     except Exception as e:
-        logger.error(f"❌ handle_user_message_with_streaming failed: {e}")
+        logger.error(f"❌ Streaming handler failed: {e}")
         import traceback
         traceback.print_exc()
-        raise
+        try:
+            say(f"⚠️ Something went wrong — please try again. ({type(e).__name__})")
+        except Exception:
+            pass
+
+
+async def _stream_simple_response(
+    client, orchestrator, classification, user_text, user_id,
+    channel_id, thread_ts, body, logger,
+):
+    """Stream a single-agent response word-by-word."""
+    start = time.time()
+
+    # Execute via MAS (Ford + Quality Gate + CitationAgent)
+    result = orchestrator.execute_classified_sync(user_text, classification, user_id)
+    response_text = result.get("response", "No response generated.")
+    tokens = result.get("token_usage", {})
+    proc_ms = result.get("processing_time_ms", 0)
+
+    agent_label = result.get("agent_type", "unknown")
+    agent_name = {"main": "Ford", "qa": "Analyst", "research": "Researcher"}.get(agent_label, agent_label)
+    model = AGENT_CONFIGS.get(classification.agent_type)
+    model_name = model.model if model else "claude-sonnet-4-6"
+
+    footer = (
+        f"\n\n_{agent_name} · {model_name} · "
+        f"{proc_ms:.0f}ms · {tokens.get('input', 0)}+{tokens.get('output', 0)} tokens_"
+    )
+    full = response_text + footer
+
+    # Stream word-by-word
+    team_id = body.get("event", {}).get("team", body.get("team_id"))
+    streamer = client.chat_stream(
+        channel=channel_id,
+        recipient_team_id=team_id,
+        recipient_user_id=user_id,
+        thread_ts=thread_ts,
+    )
+
+    for chunk in _split_chunks(full, 80):
+        streamer.append(markdown_text=chunk)
+        import asyncio
+        await asyncio.sleep(0.04)
+
+    streamer.stop()
+    logger.info(f"✅ Streamed {agent_name} ({len(full)} chars, {model_name}) in {(time.time()-start)*1000:.0f}ms")
+
+
+async def _stream_complex_task_plan(
+    client, orchestrator, classification, user_text, user_id,
+    channel_id, thread_ts, body, logger,
+):
+    """Stream multi-agent response with Slack task plan visualization."""
+    start = time.time()
+    agents = classification.parallel_agents or [classification.agent_type]
+    team_id = body.get("event", {}).get("team", body.get("team_id"))
+
+    # ── 1. Start stream with plan mode ───────────────────────────
+    streamer = client.chat_stream(
+        channel=channel_id,
+        recipient_team_id=team_id,
+        recipient_user_id=user_id,
+        thread_ts=thread_ts,
+        task_display_mode="plan",
+    )
+
+    # ── 2. Show pending agents ───────────────────────────────────
+    initial_chunks = [
+        PlanUpdateChunk(title=f"Research plan — {len(agents)} agents"),
+    ]
+    for agent_type in agents:
+        meta = AGENT_TASK_META.get(agent_type, {})
+        config = AGENT_CONFIGS.get(agent_type)
+        initial_chunks.append(
+            TaskUpdateChunk(
+                id=meta.get("task_id", agent_type.value),
+                title=f"{meta.get('title', agent_type.value)} ({config.model if config else 'sonnet'})",
+                status="pending",
+                details=meta.get("details_pending", ""),
+            )
+        )
+    streamer.append(chunks=initial_chunks)
+
+    import asyncio
+    await asyncio.sleep(0.5)
+
+    # ── 3. Mark in_progress ──────────────────────────────────────
+    progress_chunks = []
+    for agent_type in agents:
+        meta = AGENT_TASK_META.get(agent_type, {})
+        progress_chunks.append(
+            TaskUpdateChunk(
+                id=meta.get("task_id", agent_type.value),
+                title=meta.get("title", agent_type.value),
+                status="in_progress",
+                details=meta.get("details_working", "Working…"),
+            )
+        )
+    streamer.append(chunks=progress_chunks)
+
+    # ── 4. Run agents in parallel ────────────────────────────────
+    total_usage = {"input": 0, "output": 0}
+    agent_responses = {}
+
+    def _run_agent(agent_type):
+        return agent_type, orchestrator.call_single_agent_sync(
+            agent_type=agent_type,
+            message=user_text,
+            is_subtask=True,
+            classification=classification,
+        )
+
+    with ThreadPoolExecutor(max_workers=len(agents)) as pool:
+        futures = {pool.submit(_run_agent, at): at for at in agents}
+
+        for future in as_completed(futures):
+            agent_type = futures[future]
+            meta = AGENT_TASK_META.get(agent_type, {})
+            task_id = meta.get("task_id", agent_type.value)
+            config = AGENT_CONFIGS.get(agent_type)
+
+            try:
+                _, result = future.result()
+                response_text = result.get("response", "")
+                usage = result.get("token_usage", {})
+                proc_ms = result.get("processing_time_ms", 0)
+                has_error = "error" in result
+
+                total_usage["input"] += usage.get("input", 0)
+                total_usage["output"] += usage.get("output", 0)
+                agent_responses[agent_type] = response_text
+
+                lines = response_text.strip().split("\n")
+                output_summary = lines[0][:200] if lines else "Completed"
+
+                streamer.append(chunks=[
+                    TaskUpdateChunk(
+                        id=task_id,
+                        title=meta.get("title", agent_type.value),
+                        status="error" if has_error else "complete",
+                        details=(
+                            f"{config.model if config else 'unknown'} · "
+                            f"{proc_ms:.0f}ms · "
+                            f"{usage.get('input',0)}+{usage.get('output',0)} tokens"
+                        ),
+                        output=output_summary,
+                    ),
+                ])
+                logger.info(f"✅ {agent_type.value} ({config.model if config else '?'}) in {proc_ms:.0f}ms")
+
+            except Exception as e:
+                logger.error(f"❌ {agent_type.value} failed: {e}")
+                agent_responses[agent_type] = f"⚠️ Error: {str(e)[:150]}"
+                streamer.append(chunks=[
+                    TaskUpdateChunk(
+                        id=task_id,
+                        title=meta.get("title", agent_type.value),
+                        status="error",
+                        details=f"Failed: {str(e)[:100]}",
+                    ),
+                ])
+
+    # ── 5. Complete plan ─────────────────────────────────────────
+    streamer.append(chunks=[PlanUpdateChunk(title="All agents completed")])
+
+    # ── 6. Stream synthesized response ───────────────────────────
+    await asyncio.sleep(0.3)
+
+    synthesis_parts = []
+    emoji_map = {AgentType.QA: "📊", AgentType.RESEARCH: "🔬", AgentType.MAIN: "⚙️"}
+    for agent_type in agents:
+        response = agent_responses.get(agent_type, "No response")
+        config = AGENT_CONFIGS.get(agent_type)
+        label = config.name if config else agent_type.value
+        emoji = emoji_map.get(agent_type, "🤖")
+        synthesis_parts.append(f"{emoji} *{label}:*\n{response}")
+
+    full_synthesis = "\n\n---\n\n".join(synthesis_parts)
+    total_ms = (time.time() - start) * 1000
+
+    models_used = set()
+    for at in agents:
+        c = AGENT_CONFIGS.get(at)
+        if c:
+            models_used.add(c.model)
+
+    footer = (
+        f"\n\n_Multi-agent ({', '.join(a.value for a in agents)}) · "
+        f"Models: {', '.join(models_used)} · "
+        f"{total_ms:.0f}ms · {total_usage['input']}+{total_usage['output']} tokens_"
+    )
+    full_synthesis += footer
+
+    for chunk in _split_chunks(full_synthesis, 100):
+        streamer.append(chunks=[MarkdownTextChunk(text=chunk)])
+        await asyncio.sleep(0.04)
+
+    streamer.stop()
+
+    logger.info(
+        f"✅ Complex: {len(agents)} agents, models={models_used}, "
+        f"{total_ms:.0f}ms, {total_usage['input']}+{total_usage['output']} tok"
+    )
+
+
+def _split_chunks(text: str, size: int = 80) -> list:
+    """Split text into word-boundary chunks for smooth streaming."""
+    if len(text) <= size:
+        return [text]
+    chunks, current = [], ""
+    for word in text.split(" "):
+        if len(current) + len(word) + 1 > size and current:
+            chunks.append(current + " ")
+            current = word
+        else:
+            current = f"{current} {word}" if current else word
+    if current:
+        chunks.append(current)
+    return chunks
