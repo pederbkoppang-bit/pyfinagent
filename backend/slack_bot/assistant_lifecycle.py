@@ -170,20 +170,32 @@ class AssistantLifecycleHandler:
 
 
 def register_assistant_lifecycle(app):
-    """Register assistant lifecycle handlers with Bolt app"""
-    
-    from slack_bolt.assistant import Assistant
-    
+    """Register assistant lifecycle handlers with Bolt app."""
+    from slack_bolt.middleware.assistant.async_assistant import AsyncAssistant
+
     handler = AssistantLifecycleHandler(app.client)
-    
-    # Create Assistant instance (Bolt's built-in lifecycle manager)
-    assistant = Assistant(
-        threadStarted=handler.handle_thread_started,
-        threadContextChanged=handler.handle_context_changed,
-        userMessage=handler.handle_user_message
-    )
-    
-    # Register with app
+    assistant = AsyncAssistant()
+
+    @assistant.thread_started
+    async def on_thread_started(say, set_suggested_prompts, get_thread_context, logger):
+        await handler.handle_thread_started(
+            body={}, client=app.client, say=say,
+            set_status=lambda *a, **kw: None, logger=logger,
+        )
+
+    @assistant.thread_context_changed
+    async def on_context_changed(body, logger):
+        await handler.handle_context_changed(
+            body=body, client=app.client, say=lambda *a, **kw: None,
+            set_status=lambda *a, **kw: None, logger=logger,
+        )
+
+    @assistant.user_message
+    async def on_user_message(body, client, say, set_status, logger):
+        await handler.handle_user_message(
+            body=body, client=client, say=say,
+            set_status=set_status, logger=logger,
+        )
+
     app.use(assistant)
-    
     logger.info("✅ Assistant lifecycle handlers registered")
