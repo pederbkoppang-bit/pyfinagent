@@ -68,12 +68,12 @@ class CostStressTest:
     COST_MULTIPLIER = 2.0
     MIN_ROBUSTNESS = 0.9  # Strategy must retain ≥90% of baseline Sharpe
     
-    def __init__(self, backtest_engine):
+    def __init__(self, run_backtest_fn):
         """
         Args:
-            backtest_engine: Instance of BacktestEngine to run harness
+            run_backtest_fn: Callable that accepts (params_dict, tx_cost_pct=None) and returns analytics dict
         """
-        self.backtest_engine = backtest_engine
+        self.run_backtest_fn = run_backtest_fn
     
     def run(self, proposal_params: Dict) -> SpotCheckResult:
         """
@@ -88,18 +88,15 @@ class CostStressTest:
         logger.info("Starting Cost Stress Test (2× transaction costs)...")
         
         # Step 1: Baseline harness
-        baseline_result = self.backtest_engine.run_harness(proposal_params, cycles=1)
+        baseline_result = self.run_backtest_fn(proposal_params, tx_cost_pct=None)
         baseline_sharpe = baseline_result.get('sharpe', 0.0)
         logger.info(f"Baseline Sharpe: {baseline_sharpe:.4f}")
         
         # Step 2: 2× cost harness
-        cost_params = proposal_params.copy()
-        # Assume transaction_cost is in params; double it
-        if 'transaction_cost' not in cost_params:
-            cost_params['transaction_cost'] = 0.001  # Default: 10bps
-        cost_params['transaction_cost'] *= self.COST_MULTIPLIER
+        # Default tx_cost_pct is 0.1 (10 bps), so 2× = 0.2 (20 bps)
+        cost_tx_pct = 0.2  # 2× baseline
         
-        cost_result = self.backtest_engine.run_harness(cost_params, cycles=1)
+        cost_result = self.run_backtest_fn(proposal_params, tx_cost_pct=cost_tx_pct)
         cost_sharpe = cost_result.get('sharpe', 0.0)
         logger.info(f"2× Cost Sharpe: {cost_sharpe:.4f}")
         
@@ -142,13 +139,13 @@ class RegimeShiftTest:
     NAME = "regime_shift"
     MIN_ROBUSTNESS_REGIMES = 0.8  # Strategy must retain ≥80% in each regime
     
-    def __init__(self, backtest_engine, regime_detector=None):
+    def __init__(self, run_backtest_fn, regime_detector=None):
         """
         Args:
-            backtest_engine: Instance of BacktestEngine
-            regime_detector: Instance of RegimeDetector (HMM-based)
+            run_backtest_fn: Callable that accepts (params_dict, tx_cost_pct=None, start_date=None, end_date=None)
+            regime_detector: Instance of RegimeDetector (HMM-based), optional
         """
-        self.backtest_engine = backtest_engine
+        self.run_backtest_fn = run_backtest_fn
         self.regime_detector = regime_detector
     
     def run(self, proposal_params: Dict) -> SpotCheckResult:
@@ -171,8 +168,8 @@ class RegimeShiftTest:
             # Fallback: 2-regime split (before/after COVID crash March 2020)
             logger.warning("No regime detector available, using fallback 2-regime split")
             regimes = [
-                {'name': 'Pre-COVID', 'start': '2018-01-01', 'end': '2020-03-15'},
-                {'name': 'Post-COVID', 'start': '2020-03-16', 'end': '2025-12-31'},
+                {'name': 'Pre-COVID', 'start_date': '2018-01-01', 'end_date': '2020-03-15'},
+                {'name': 'Post-COVID', 'start_date': '2020-03-16', 'end_date': '2025-12-31'},
             ]
         
         # Step 2: Run harness for each regime (walk-forward)
@@ -183,14 +180,10 @@ class RegimeShiftTest:
         for i, regime in enumerate(regimes):
             logger.info(f"Testing regime {i+1}: {regime.get('name', f'Regime {i+1}')}")
             
-            # Adjust params for this regime's date range
-            regime_params = proposal_params.copy()
-            if 'start_date' in regime:
-                regime_params['start_date'] = regime['start_date']
-            if 'end_date' in regime:
-                regime_params['end_date'] = regime['end_date']
+            start_date = regime.get('start_date')
+            end_date = regime.get('end_date')
             
-            result = self.backtest_engine.run_harness(regime_params, cycles=1)
+            result = self.run_backtest_fn(proposal_params, tx_cost_pct=None, start_date=start_date, end_date=end_date)
             sharpe = result.get('sharpe', 0.0)
             
             if baseline_sharpe is None:
@@ -240,12 +233,12 @@ class ParamSweepTest:
     WARNING_SIGMA_PCT = 10.0  # Warning: σ > 10% indicates overfitting
     N_COMBOS = 10  # Number of random parameter combinations to test
     
-    def __init__(self, backtest_engine):
+    def __init__(self, run_backtest_fn):
         """
         Args:
-            backtest_engine: Instance of BacktestEngine
+            run_backtest_fn: Callable that accepts (params_dict, tx_cost_pct=None)
         """
-        self.backtest_engine = backtest_engine
+        self.run_backtest_fn = run_backtest_fn
     
     @staticmethod
     def _perturb_param(value: float, pct_range: float) -> float:
@@ -306,7 +299,7 @@ class ParamSweepTest:
         logger.info(f"Starting Parameter Sweep Test ({self.N_COMBOS} combos)...")
         
         # Step 1: Run baseline
-        baseline_result = self.backtest_engine.run_harness(proposal_params, cycles=1)
+        baseline_result = self.run_backtest_fn(proposal_params, tx_cost_pct=None)
         baseline_sharpe = baseline_result.get('sharpe', 0.0)
         logger.info(f"Baseline Sharpe: {baseline_sharpe:.4f}")
         
@@ -320,7 +313,7 @@ class ParamSweepTest:
         
         for i, combo_params in enumerate(nearby_combos):
             logger.info(f"Testing combo {i+1}/{self.N_COMBOS}...")
-            result = self.backtest_engine.run_harness(combo_params, cycles=1)
+            result = self.run_backtest_fn(combo_params, tx_cost_pct=None)
             sharpe = result.get('sharpe', 0.0)
             sharpes.append(sharpe)
             combo_results.append({'combo_idx': i, 'sharpe': sharpe})
@@ -366,16 +359,16 @@ class SpotCheckRunner:
     Master runner: executes all 3 spot checks and aggregates results.
     """
     
-    def __init__(self, backtest_engine, regime_detector=None):
+    def __init__(self, run_backtest_fn, regime_detector=None):
         """
         Args:
-            backtest_engine: BacktestEngine instance
+            run_backtest_fn: Callable that accepts (params_dict, tx_cost_pct=None, start_date=None, end_date=None)
             regime_detector: Optional RegimeDetector instance
         """
-        self.backtest_engine = backtest_engine
-        self.cost_test = CostStressTest(backtest_engine)
-        self.regime_test = RegimeShiftTest(backtest_engine, regime_detector)
-        self.param_test = ParamSweepTest(backtest_engine)
+        self.run_backtest_fn = run_backtest_fn
+        self.cost_test = CostStressTest(run_backtest_fn)
+        self.regime_test = RegimeShiftTest(run_backtest_fn, regime_detector)
+        self.param_test = ParamSweepTest(run_backtest_fn)
     
     def run_all(self, proposal_params: Dict) -> SpotChecksAggregated:
         """
