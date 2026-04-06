@@ -736,17 +736,15 @@ export default function BacktestPage() {
               setCollapsedRuns={setCollapsedRuns}
               onRunSelect={async (rid) => {
                 if (!rid) return;
-                const run = runs.find((r) => r.run_id === rid) || experiments.find((e) => e.run_id === rid);
-                if (!run?.has_detail) {
-                  setResults(null);
-                  setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: false, run_id: rid } : prev);
-                  return;
-                }
                 try {
                   const data = await loadBacktestRun(rid);
                   setResults(data);
                   setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: true, run_id: rid } : prev);
-                } catch { /* ignore load errors */ }
+                } catch {
+                  // No saved JSON for this run — show run_id but no detail
+                  setResults(null);
+                  setBtStatus((prev) => prev ? { ...prev, status: "completed", has_result: false, run_id: rid } : prev);
+                }
               }}
               onRunDelete={handleDeleteRun}
             />

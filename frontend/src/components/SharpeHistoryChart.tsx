@@ -37,8 +37,18 @@ interface ChartPoint {
 
 // ── Status colors ───────────────────────────────────────────────
 
+function normalizeStatus(status: string): string {
+  const s = status.toLowerCase();
+  if (s === "baseline") return "baseline";
+  if (s === "kept" || s === "keep") return "kept";
+  if (s === "discarded" || s === "discard") return "discarded";
+  if (s === "crash" || s === "crashed") return "discarded"; // crashes show as discarded
+  if (s === "seed_test") return "seed_test";
+  return s;
+}
+
 function statusColor(status: string): string {
-  switch (status) {
+  switch (normalizeStatus(status)) {
     case "kept":
       return "#22c55e";
     case "baseline":
@@ -46,20 +56,21 @@ function statusColor(status: string): string {
     case "discarded":
       return "#ef4444";
     case "seed_test":
-      return "#a78bfa"; // purple for seed tests
+      return "#a78bfa";
     default:
       return "#64748b";
   }
 }
 
 function statusLabel(status: string): string {
-  switch (status) {
+  const n = normalizeStatus(status);
+  switch (n) {
     case "kept":
       return "KEPT";
     case "baseline":
       return "BASELINE";
     case "discarded":
-      return "DISCARDED";
+      return status.toLowerCase() === "crash" ? "CRASHED" : "DISCARDED";
     case "seed_test":
       return "SEED TEST";
     default:
@@ -239,7 +250,7 @@ export function SharpeHistoryChart() {
 
     // Y-axis: zoom into the interesting region
     const keptSharpes = points
-      .filter((p) => p.status === "kept" || p.status === "baseline")
+      .filter((p) => normalizeStatus(p.status) === "kept" || normalizeStatus(p.status) === "baseline")
       .map((p) => p.sharpe);
     const allSharpes = points.map((p) => p.sharpe).filter((s) => s > 0);
 
@@ -389,7 +400,7 @@ export function SharpeHistoryChart() {
                 const pt = props.payload as ChartPoint;
                 const color = statusColor(pt.status);
                 const isKept =
-                  pt.status === "kept" || pt.status === "baseline";
+                  normalizeStatus(pt.status) === "kept" || normalizeStatus(pt.status) === "baseline";
                 const r = isKept ? 5 : 3;
                 const opacity = isKept ? 1 : 0.4;
 
