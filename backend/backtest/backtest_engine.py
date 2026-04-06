@@ -247,6 +247,10 @@ class BacktestEngine:
         """Return cached features if active, else None."""
         return getattr(self, '_cached_features', None)
 
+    def clear_feature_cache(self) -> None:
+        """Clear the feature cache between optimizer iterations."""
+        self._cached_features = None
+
     def get_model_trained_at(self) -> str:
         """Return ISO timestamp of last model training. Empty string if never trained."""
         return self.model_trained_at
