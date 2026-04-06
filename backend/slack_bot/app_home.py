@@ -12,13 +12,12 @@ Reference: https://docs.slack.dev/ai/agent-governance#control
 
 import logging
 import time
-from slack_bolt.app import App
 from slack_sdk import WebClient
 
 logger = logging.getLogger(__name__)
 
 
-def register_governance(app: App):
+def register_governance(app):
     """Register all governance features: App Home, slash commands, actions."""
 
     # ═══════════════════════════════════════════════════════════════
@@ -29,6 +28,7 @@ def register_governance(app: App):
     async def update_app_home(client: WebClient, event, logger):
         """Render the App Home tab with full MAS dashboard."""
         user_id = event["user"]
+        logger.info(f"🏠 App Home opened by {user_id}")
 
         try:
             # Try to load governance stats (may not be available)
@@ -96,18 +96,54 @@ def register_governance(app: App):
                 )},
             })
 
-            # ── Agent Inventory ─────────────────────────────────
+            # ── Agent Inventory (with model selectors) ─────────
+            from backend.agents.agent_definitions import AGENT_CONFIGS, AgentType
+
+            AVAILABLE_MODELS = [
+                "claude-opus-4-6",
+                "claude-sonnet-4-6",
+                "claude-haiku-4-5",
+                "claude-sonnet-4-20250514",
+                "claude-haiku-35-20241022",
+            ]
+
+            agent_display = [
+                (AgentType.MAIN, "⚙️ Ford (Main)", "Orchestrator, planner, synthesizer"),
+                (AgentType.QA, "📊 Q&A Analyst", "Quantitative reasoning + harness tools"),
+                (AgentType.RESEARCH, "🔬 Researcher", "Literature & evidence search"),
+                (AgentType.COMMUNICATION, "💬 Communication", "Router + Quality Gate reviewer"),
+            ]
+
             blocks.append({
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": (
-                    "*Agent Inventory*\n"
-                    "• ⚙️ *Ford (Main)* — `claude-opus-4-6` — Orchestrator, planner, synthesizer\n"
-                    "• 📊 *Q&A Analyst* — `claude-opus-4-6` — Quantitative reasoning with harness tools\n"
-                    "• 🔬 *Researcher* — `claude-sonnet-4-6` — Literature & evidence search\n"
-                    "• 💬 *Communication* — `claude-sonnet-4-6` — Router + Quality Gate reviewer\n"
-                    "• 📚 *CitationAgent* — `claude-sonnet-4-6` — Source attribution\n"
-                )},
+                "text": {"type": "mrkdwn", "text": "*Agent Inventory*  _(change models below)_"},
             })
+
+            for agent_type, label, desc in agent_display:
+                config = AGENT_CONFIGS.get(agent_type)
+                current_model = config.model if config else "claude-sonnet-4-6"
+                options = []
+                initial = None
+                for m in AVAILABLE_MODELS:
+                    opt = {"text": {"type": "plain_text", "text": m}, "value": m}
+                    options.append(opt)
+                    if m == current_model:
+                        initial = opt
+
+                blocks.append({
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": f"{label}\n_{desc}_\nCurrent: `{current_model}`"},
+                    "accessory": {
+                        "type": "static_select",
+                        "placeholder": {"type": "plain_text", "text": "Change model"},
+                        "action_id": f"agent_model_change_{agent_type.value}",
+                        "options": options,
+                        **({
+                            "initial_option": initial,
+                        } if initial else {}),
+                    },
+                })
+
             blocks.append({"type": "divider"})
 
             # ── System Health ───────────────────────────────────
@@ -283,14 +319,55 @@ def register_governance(app: App):
 
     # ── App Home Actions ────────────────────────────────────────
 
+    # ── Agent Model Change Handlers ─────────────────────────────
+
+    async def _handle_model_change(ack, body, client, agent_type_str):
+        """Handle model change for any agent."""
+        await ack()
+        from backend.agents.agent_definitions import AGENT_CONFIGS, AgentType
+
+        selected = body["actions"][0]["selected_option"]["value"]
+        user_id = body["user"]["id"]
+
+        # Map string to AgentType
+        type_map = {t.value: t for t in AgentType}
+        agent_type = type_map.get(agent_type_str)
+
+        if agent_type and agent_type in AGENT_CONFIGS:
+            old_model = AGENT_CONFIGS[agent_type].model
+            AGENT_CONFIGS[agent_type].model = selected
+            logger.info(
+                f"🔄 Agent model changed: {agent_type.value} "
+                f"{old_model} → {selected} (by {user_id})"
+            )
+
+        # Refresh the home view
+        await update_app_home(client=client, event={"user": user_id}, logger=logger)
+
+    @app.action("agent_model_change_main")
+    async def handle_model_main(ack, body, client):
+        await _handle_model_change(ack, body, client, "main")
+
+    @app.action("agent_model_change_qa")
+    async def handle_model_qa(ack, body, client):
+        await _handle_model_change(ack, body, client, "qa")
+
+    @app.action("agent_model_change_research")
+    async def handle_model_research(ack, body, client):
+        await _handle_model_change(ack, body, client, "research")
+
+    @app.action("agent_model_change_communication")
+    async def handle_model_comm(ack, body, client):
+        await _handle_model_change(ack, body, client, "communication")
+
     @app.action("app_home_refresh")
     async def handle_refresh(ack, body, client):
-        ack()
+        await ack()
         await update_app_home(client=client, event={"user": body["user"]["id"]}, logger=logger)
 
     @app.action("app_home_full_logs")
     async def handle_full_logs(ack, body, client):
-        ack()
+        await ack()
         audit = type('A', (), {'get_recent': lambda s,**k: [], 'get_stats': lambda s: {'total_requests':0,'success_rate':0}, 'get_agent_breakdown': lambda s: {}, 'record_feedback': lambda s,u,f: None})()
         records = audit.get_recent(limit=25)
 
@@ -318,7 +395,7 @@ def register_governance(app: App):
 
     @app.action("app_home_settings")
     async def handle_settings(ack, body, client):
-        ack()
+        await ack()
         usage = {'tokens': 0, 'remaining': 50000}
 
         blocks = [
@@ -360,7 +437,7 @@ def register_governance(app: App):
 
     @app.command("/agent")
     async def handle_agent_command(ack, respond, command):
-        ack()
+        await ack()
         subcommand = (command.get("text") or "help").strip().lower()
         user_id = command.get("user_id", "unknown")
 
