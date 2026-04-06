@@ -1134,15 +1134,41 @@ _HANDOFF_DIR = _os.path.join(_os.path.dirname(__file__), "..", "..", "handoff")
 
 
 def _read_handoff_file(filename: str) -> str | None:
-    """Read a handoff file, return contents or None."""
-    path = _os.path.join(_HANDOFF_DIR, filename)
-    if not _os.path.exists(path):
+    """Read a handoff file, return contents or None.
+
+    Auto-resolves to the latest phase-versioned file if available.
+    E.g., for 'contract.md', if 'phase3.3_contract.md' exists and is
+    newer than 'contract.md', it will be returned instead.
+    """
+    import glob
+
+    # 1. Find all phase-versioned variants (e.g., phase3.3_contract.md)
+    base = filename.replace(".md", "")
+    pattern = _os.path.join(_HANDOFF_DIR, f"*_{base}.md")
+    variants = glob.glob(pattern)
+
+    # Also check for pattern like phase3.3.1_contract.md
+    pattern2 = _os.path.join(_HANDOFF_DIR, f"phase*_{base}.md")
+    variants.extend(glob.glob(pattern2))
+    variants = list(set(variants))  # deduplicate
+
+    # 2. Include the base file itself
+    base_path = _os.path.join(_HANDOFF_DIR, filename)
+    if _os.path.exists(base_path):
+        variants.append(base_path)
+
+    if not variants:
         return None
+
+    # 3. Pick the most recently modified file
+    variants.sort(key=lambda p: _os.path.getmtime(p), reverse=True)
+    best = variants[0]
+
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(best, "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
-        logger.warning("Failed to read handoff/%s: %s", filename, e)
+        logger.warning("Failed to read %s: %s", best, e)
         return None
 
 
