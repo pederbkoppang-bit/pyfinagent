@@ -36,7 +36,18 @@ class CandidateSelector:
         start = (cutoff - timedelta(days=180)).strftime("%Y-%m-%d")
 
         results = []
-        for ticker in universe_tickers:
+        # Only screen tickers that were preloaded — skip BQ fallback per-ticker queries
+        # which can block for 30s each across 500+ tickers
+        preloaded = cache.get_preloaded_tickers()
+        if preloaded:
+            scannable = [t for t in universe_tickers if t in preloaded]
+            logger.info(f"screen_at_date: scanning {len(scannable)}/{len(universe_tickers)} preloaded tickers at {cutoff_date}")
+        else:
+            scannable = universe_tickers
+            logger.info(f"screen_at_date: scanning {len(scannable)} tickers at {cutoff_date} (no preload)")
+        for i, ticker in enumerate(scannable):
+            if i % 100 == 0 and i > 0:
+                logger.info(f"screen_at_date: progress {i}/{len(scannable)}")
             try:
                 prices = cache.cached_prices(ticker, start, cutoff_date)
                 if prices.empty or len(prices) < 20:

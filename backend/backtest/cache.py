@@ -212,6 +212,11 @@ def preload_macro() -> int:
 
 # ── Cached Accessors (preload-aware) ─────────────────────────────────
 
+def get_preloaded_tickers() -> set[str]:
+    """Return set of tickers that were bulk-preloaded (fast path only)."""
+    return set(_prices_full.keys())
+
+
 def cached_prices(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     """Get price data — slices from preloaded data if available, else BQ."""
     # 1. Try preloaded full-range data (fast path)
