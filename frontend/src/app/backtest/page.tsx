@@ -774,15 +774,15 @@ export default function BacktestPage() {
           const optAny = optStatus as unknown as Record<string, unknown> | null;
           const optW = optAny?.current_window as number | undefined;
           const optTotalW = optAny?.total_windows as number | undefined;
-          const currentW = (prog as unknown as Record<string, unknown>)?.current_window as number ?? optW ?? 0;
+          const currentW = (prog as unknown as Record<string, unknown>)?.window as number ?? (prog as unknown as Record<string, unknown>)?.current_window as number ?? optW ?? 0;
           const totalW = (prog as unknown as Record<string, unknown>)?.total_windows as number ?? optTotalW ?? 0;
           const pct = totalW > 0 ? Math.round((currentW / totalW) * 100) : 0;
           const optDetail = optAny?.detail as string | undefined;
           const progAny = prog as unknown as Record<string, unknown> | null;
           const label = isRunning
             ? totalW > 0
-              ? `Window ${currentW}/${totalW} — ${progAny?.label || progAny?.step || "processing"}`
-              : (progAny?.label as string) || (progAny?.step as string) || "starting"
+              ? `Window ${currentW}/${totalW} — ${progAny?.step_detail || progAny?.label || progAny?.step || "processing"}`
+              : (progAny?.step_detail as string) || (progAny?.label as string) || (progAny?.step as string) || "starting"
             : optDetail || `Optimizer running — ${optStatus?.iterations ?? 0} experiments completed`;
           return (
             <div className="mb-4 rounded-lg border border-sky-500/20 bg-sky-950/20 px-4 py-2.5">
