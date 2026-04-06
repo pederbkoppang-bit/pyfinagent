@@ -147,23 +147,18 @@ class AssistantLifecycleHandler:
             # Set visible status
             await set_status({"status": "Thinking..."})
             
-            # TODO: Phase 2-3: Call LLM with context
-            # TODO: Phase 3: Implement streaming with task cards
-            # TODO: Phase 4: Integrate Slack MCP server
-            # TODO: Phase 5: Implement workspace search
+            # Phase 3: Use streaming integration with task cards
+            from backend.slack_bot.streaming_integration import handle_user_message_with_streaming
             
-            # For now, send a simple response
-            response_text = (
-                f"You asked: *{user_text}*\n\n"
-                f"(Phase 2 - Assistant lifecycle handlers ready. "
-                f"Phase 3-6 implementation in progress...)"
+            await handle_user_message_with_streaming(
+                body=body,
+                client=client,
+                say=say,
+                set_status=set_status,
+                logger=logger
             )
             
-            await say({
-                "text": response_text
-            })
-            
-            # Clear status
+            # Clear status (handled in streaming_integration)
             await set_status({"status": ""})
             
             logger.info(f"✅ Message handled")
