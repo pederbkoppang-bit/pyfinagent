@@ -6,8 +6,11 @@ Designed to run as an APScheduler cron job.
 """
 
 import asyncio
+import json
 import logging
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from backend.agents.meta_coordinator import MetaCoordinator
@@ -19,6 +22,23 @@ from backend.services.portfolio_manager import decide_trades
 from backend.tools.screener import screen_universe, rank_candidates
 
 logger = logging.getLogger(__name__)
+
+# Path to optimizer best parameters
+_OPTIMIZER_BEST_PATH = Path(__file__).parent.parent / "backtest" / "experiments" / "optimizer_best.json"
+
+
+def load_best_params() -> dict:
+    """Load the best backtest parameters from optimizer_best.json."""
+    if not _OPTIMIZER_BEST_PATH.exists():
+        logger.warning("optimizer_best.json not found, using defaults")
+        return {}
+    with open(_OPTIMIZER_BEST_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    params = data.get("params", data)
+    sharpe = data.get("sharpe", "?")
+    logger.info(f"Loaded best params (Sharpe {sharpe}): {list(params.keys())}")
+    return params
+
 
 # Module-level state
 _running = False
@@ -54,6 +74,15 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
     total_analysis_cost = 0.0
     trades_executed = 0
     summary = {"status": "running", "steps": []}
+
+    # Load optimizer best params for strategy decisions
+    best_params = load_best_params()
+    if best_params:
+        summary["best_params_sharpe"] = best_params.get("sharpe", "?")
+        summary["strategy_params"] = {
+            k: best_params[k] for k in ["tp_pct", "sl_pct", "holding_days"]
+            if k in best_params
+        }
 
     try:
         # ── Step 1: Screen universe (free) ───────────────────────
