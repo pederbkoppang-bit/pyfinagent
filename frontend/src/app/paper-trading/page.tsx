@@ -271,6 +271,98 @@ export default function PaperTradingPage() {
               </div>
             </div>
 
+            {/* Backtest Comparison + Risk Monitor */}
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+              {/* Paper vs Backtest */}
+              <div className="rounded-xl border border-navy-700 bg-navy-800/70 p-4">
+                <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">Paper vs Backtest</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Sharpe</span>
+                    <span>
+                      <span className={`font-mono ${(perf?.sharpe_ratio ?? 0) >= 0.82 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {perf?.sharpe_ratio?.toFixed(2) ?? "—"}
+                      </span>
+                      <span className="text-slate-600 mx-1">/</span>
+                      <span className="text-slate-500">1.17</span>
+                      {(perf?.sharpe_ratio ?? 0) >= 0.82 ? (
+                        <span className="ml-2 text-xs text-emerald-400">OK</span>
+                      ) : (perf?.sharpe_ratio ?? 0) > 0 ? (
+                        <span className="ml-2 text-xs text-rose-400">BELOW 0.7x</span>
+                      ) : null}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Max DD</span>
+                    <span>
+                      <span className={`font-mono ${(perf?.max_drawdown_pct ?? 0) > -15 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {perf?.max_drawdown_pct?.toFixed(1) ?? "—"}%
+                      </span>
+                      <span className="text-slate-600 mx-1">/</span>
+                      <span className="text-slate-500">-12.0%</span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Snapshots</span>
+                    <span className="font-mono text-slate-300">{snapshots.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kill Switch Status */}
+              <div className="rounded-xl border border-navy-700 bg-navy-800/70 p-4">
+                <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">Risk Monitor</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Kill Switch (-15%)</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                      (perf?.max_drawdown_pct ?? 0) > -10 ? "bg-emerald-500/10 text-emerald-400" :
+                      (perf?.max_drawdown_pct ?? 0) > -13 ? "bg-amber-500/10 text-amber-400" :
+                      "bg-rose-500/10 text-rose-400"
+                    }`}>
+                      {(perf?.max_drawdown_pct ?? 0) > -10 ? "SAFE" :
+                       (perf?.max_drawdown_pct ?? 0) > -13 ? "WARNING" : "DANGER"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Max Position</span>
+                    <span className="font-mono text-slate-300">
+                      {positions.length > 0 && portfolio
+                        ? `${Math.max(...positions.map(p => ((p.quantity * (p.current_price ?? p.avg_entry_price)) / (portfolio.total_nav ?? 10000)) * 100)).toFixed(1)}%`
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Concentration</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                      positions.length > 0 && portfolio &&
+                      Math.max(...positions.map(p => ((p.quantity * (p.current_price ?? p.avg_entry_price)) / (portfolio.total_nav ?? 10000)) * 100)) > 20
+                        ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-emerald-400"
+                    }`}>
+                      {positions.length > 0 && portfolio &&
+                       Math.max(...positions.map(p => ((p.quantity * (p.current_price ?? p.avg_entry_price)) / (portfolio.total_nav ?? 10000)) * 100)) > 20
+                        ? "HIGH" : "OK"}
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                      <span>Drawdown</span>
+                      <span>{perf?.max_drawdown_pct?.toFixed(1) ?? "0"}% / -15%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-navy-700">
+                      <div
+                        className={`h-2 rounded-full ${
+                          (perf?.max_drawdown_pct ?? 0) > -10 ? "bg-emerald-500" :
+                          (perf?.max_drawdown_pct ?? 0) > -13 ? "bg-amber-500" : "bg-rose-500"
+                        }`}
+                        style={{ width: `${Math.min(100, Math.abs(perf?.max_drawdown_pct ?? 0) / 15 * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Status Banner */}
             <div className="mb-6 flex items-center gap-3 rounded-lg border border-navy-700 bg-navy-800/50 px-4 py-3">
               <div className={clsx(

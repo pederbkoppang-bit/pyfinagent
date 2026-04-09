@@ -598,6 +598,7 @@ export interface PaperPerformance {
   total_buy_trades: number;
   total_analysis_cost: number;
   days_active: number;
+  max_drawdown_pct?: number;
 }
 
 /* ── Backtest Types ── */
@@ -644,26 +645,26 @@ export interface TradeStatistics {
   n_trades: number;
   n_wins: number;
   n_losses: number;
-  profit_factor: number;
-  win_rate: number;
-  avg_win: number;
-  avg_loss: number;
-  payoff_ratio: number;
-  expectancy: number;
-  sqn: number;
-  best_trade: number;
-  worst_trade: number;
-  avg_holding_days_win: number;
-  avg_holding_days_loss: number;
-  max_win_streak: number;
-  max_loss_streak: number;
-  total_commission: number;
-  commission_pct_of_profit: number;
-  avg_cost_per_trade: number;
-  turnover_rate: number;
-  break_even_win_rate: number;
-  gross_profit: number;
-  gross_loss: number;
+  profit_factor: number | null;
+  win_rate: number | null;
+  avg_win: number | null;
+  avg_loss: number | null;
+  payoff_ratio: number | null;
+  expectancy: number | null;
+  sqn: number | null;
+  best_trade: number | null;
+  worst_trade: number | null;
+  avg_holding_days_win: number | null;
+  avg_holding_days_loss: number | null;
+  max_win_streak: number | null;
+  max_loss_streak: number | null;
+  total_commission: number | null;
+  commission_pct_of_profit: number | null;
+  avg_cost_per_trade: number | null;
+  turnover_rate: number | null;
+  break_even_win_rate: number | null;
+  gross_profit: number | null;
+  gross_loss: number | null;
 }
 
 export interface BacktestWindowResult {

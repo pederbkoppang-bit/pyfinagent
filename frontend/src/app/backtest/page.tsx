@@ -6,6 +6,7 @@ import { BentoCard } from "@/components/BentoCard";
 import { PageSkeleton } from "@/components/Skeleton";
 import {
   runBacktest,
+  stopBacktest,
   getBacktestStatus,
   getBacktestResults,
   getIngestionStatus,
@@ -227,34 +228,35 @@ function RunSelector({
                 const bestSharpeText = bestSharpe?.toFixed(2) ?? "?";
                 const isImproved = bestKept && bestKept.sharpe && b.sharpe && bestKept.sharpe > b.sharpe;
                 
-                // Calculate delta against previous run's best result
-                const prevBaseline = index < baselines.length - 1 ? baselines[index + 1] : null;
-                let prevBestSharpe = prevBaseline?.sharpe;
-                if (prevBaseline) {
-                  const prevChildren = experiments.filter((e) => e.parent_run_id === prevBaseline.run_id);
-                  const prevKeptExperiments = prevChildren.filter(c => c.status === "keep");
-                  const prevBestKept = prevKeptExperiments.length > 0 
-                    ? prevKeptExperiments.reduce((best, exp) => 
+                // Calculate delta against the OLDEST baseline (last in sorted array)
+                // so every run shows cumulative improvement from the original starting point
+                const firstBaseline = baselines[baselines.length - 1];
+                const originBaseline = firstBaseline !== b ? firstBaseline : null;
+                let originBestSharpe = originBaseline?.sharpe;
+                if (originBaseline) {
+                  const originChildren = experiments.filter((e) => e.parent_run_id === originBaseline.run_id);
+                  const originKeptExperiments = originChildren.filter(c => c.status === "keep");
+                  const originBestKept = originKeptExperiments.length > 0
+                    ? originKeptExperiments.reduce((best, exp) =>
                         (exp.sharpe && exp.sharpe > (best.sharpe || 0)) ? exp : best
                       )
                     : null;
-                  prevBestSharpe = prevBestKept?.sharpe ?? prevBaseline.sharpe;
+                  originBestSharpe = originBestKept?.sharpe ?? originBaseline.sharpe;
                 }
-                
-                const delta = prevBestSharpe && bestSharpe != null 
-                  ? bestSharpe - prevBestSharpe 
+
+                const delta = originBestSharpe && bestSharpe != null
+                  ? bestSharpe - originBestSharpe
                   : null;
-                
-                // Convert to percentage improvement and format with delta symbol
+
+                // Convert to percentage improvement from origin and format with delta symbol
                 let deltaText = "";
                 let deltaColor = "";
-                if (delta !== null && Math.abs(delta) > 0.0001) { // Show even tiny differences
-                  const pctImprovement = prevBaseline?.sharpe ? (delta / prevBaseline.sharpe) * 100 : 0;
-                  if (Math.abs(pctImprovement) >= 0.01) { // Show if >= 0.01%
+                if (delta !== null && originBestSharpe) {
+                  const pctImprovement = (delta / originBestSharpe) * 100;
+                  if (Math.abs(pctImprovement) >= 0.01) {
                     deltaText = ` Δ${delta >= 0 ? "+" : ""}${pctImprovement.toFixed(2)}%`;
                     deltaColor = delta >= 0 ? "text-emerald-400" : "text-rose-400";
                   } else if (Math.abs(delta) > 0.0001) {
-                    // For very small differences, show raw Sharpe delta
                     deltaText = ` Δ${delta >= 0 ? "+" : ""}${delta.toFixed(4)}`;
                     deltaColor = delta >= 0 ? "text-emerald-400" : "text-rose-400";
                   }
@@ -540,7 +542,7 @@ export default function BacktestPage() {
     setActionLoading("optimizer");
     setTab("optimizer");
     try {
-      await startOptimizer({ max_iterations: 100 });
+      await startOptimizer({ max_iterations: 0 });
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start optimizer");
@@ -551,7 +553,17 @@ export default function BacktestPage() {
 
   const handleStopOptimizer = async () => {
     try {
-      await stopOptimizer();
+      // Stop both optimizer and any in-flight backtest it spawned
+      await Promise.allSettled([stopOptimizer(), stopBacktest()]);
+      await refresh();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleStopBacktest = async () => {
+    try {
+      await stopBacktest();
       await refresh();
     } catch {
       /* ignore */
@@ -655,8 +667,8 @@ export default function BacktestPage() {
               </button>
               {(isRunning || isOptRunning) && (
                 <button
-                  onClick={isOptRunning ? handleStopOptimizer : undefined}
-                  title={isOptRunning ? "Stop optimizer after current experiment" : "Backtest will finish current window"}
+                  onClick={isOptRunning ? handleStopOptimizer : handleStopBacktest}
+                  title={isOptRunning ? "Stop optimizer after current experiment" : "Stop backtest after current window"}
                   className="flex items-center gap-1.5 rounded-lg border border-rose-600/50 px-3 py-2 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-600/20 hover:text-rose-300"
                 >
                   <Stop size={16} weight="fill" />
@@ -992,30 +1004,30 @@ export default function BacktestPage() {
                   <div className="grid flex-1 grid-cols-3 gap-2 sm:grid-cols-4 lg:auto-rows-min lg:grid-cols-4">
                     <Metric
                       label="Sharpe Ratio"
-                      value={a.sharpe.toFixed(2)}
-                      color={a.sharpe >= 1 ? "text-emerald-400" : a.sharpe >= 0 ? "text-sky-300" : "text-rose-400"}
+                      value={a.sharpe != null ? a.sharpe.toFixed(2) : "—"}
+                      color={(a.sharpe ?? 0) >= 1 ? "text-emerald-400" : (a.sharpe ?? 0) >= 0 ? "text-sky-300" : "text-rose-400"}
                     />
                     <Metric
                       label="Deflated Sharpe"
-                      value={a.deflated_sharpe.toFixed(2)}
-                      color={a.deflated_sharpe >= 0.95 ? "text-emerald-400" : "text-amber-400"}
-                      sub={a.deflated_sharpe >= 0.95 ? "PASS" : "FAIL"}
+                      value={a.deflated_sharpe != null ? a.deflated_sharpe.toFixed(2) : "—"}
+                      color={(a.deflated_sharpe ?? 0) >= 0.95 ? "text-emerald-400" : "text-amber-400"}
+                      sub={(a.deflated_sharpe ?? 0) >= 0.95 ? "PASS" : "FAIL"}
                     />
                     <Metric
                       label="Total Return"
-                      value={`${a.total_return_pct >= 0 ? "+" : ""}${a.total_return_pct.toFixed(1)}%`}
-                      color={a.total_return_pct >= 0 ? "text-emerald-400" : "text-rose-400"}
+                      value={a.total_return_pct != null ? `${a.total_return_pct >= 0 ? "+" : ""}${a.total_return_pct.toFixed(1)}%` : "—"}
+                      color={(a.total_return_pct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}
                     />
-                    <Metric label="Hit Rate" value={`${(a.hit_rate * 100).toFixed(1)}%`} />
+                    <Metric label="Hit Rate" value={a.hit_rate != null ? `${(a.hit_rate * 100).toFixed(1)}%` : "—"} />
                     <Metric
                       label="Max Drawdown"
-                      value={`${a.max_drawdown.toFixed(1)}%`}
+                      value={a.max_drawdown != null ? `${a.max_drawdown.toFixed(1)}%` : "—"}
                       color="text-rose-400"
                     />
                     <Metric
                       label="Alpha"
-                      value={`${a.alpha >= 0 ? "+" : ""}${a.alpha.toFixed(1)}%`}
-                      color={a.alpha >= 0 ? "text-emerald-400" : "text-rose-400"}
+                      value={a.alpha != null ? `${a.alpha >= 0 ? "+" : ""}${a.alpha.toFixed(1)}%` : "—"}
+                      color={(a.alpha ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}
                     />
                     <Metric
                       label="Total Trades"
@@ -1146,17 +1158,17 @@ export default function BacktestPage() {
                           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Performance</p>
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                             <span className="text-slate-400">Profit Factor</span>
-                            <span className="text-right font-mono text-slate-200">{ts.profit_factor.toFixed(2)}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.profit_factor != null ? ts.profit_factor.toFixed(2) : "—"}</span>
                             <span className="text-slate-400">Win Rate</span>
-                            <span className="text-right font-mono text-slate-200">{(ts.win_rate * 100).toFixed(1)}%</span>
+                            <span className="text-right font-mono text-slate-200">{ts.win_rate != null ? (ts.win_rate * 100).toFixed(1) + "%" : "—"}</span>
                             <span className="text-slate-400">Payoff Ratio</span>
-                            <span className="text-right font-mono text-slate-200">{ts.payoff_ratio.toFixed(2)}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.payoff_ratio != null ? ts.payoff_ratio.toFixed(2) : "—"}</span>
                             <span className="text-slate-400">Expectancy</span>
-                            <span className={`text-right font-mono ${ts.expectancy >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                              ${ts.expectancy.toFixed(2)}
+                            <span className={`text-right font-mono ${(ts.expectancy ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                              {ts.expectancy != null ? `$${ts.expectancy.toFixed(2)}` : "—"}
                             </span>
                             <span className="text-slate-400">SQN</span>
-                            <span className="text-right font-mono text-slate-200">{ts.sqn.toFixed(2)}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.sqn != null ? ts.sqn.toFixed(2) : "—"}</span>
                           </div>
                         </div>
                         {/* Extremes */}
@@ -1164,17 +1176,17 @@ export default function BacktestPage() {
                           <p className="text-xs font-semibold uppercase tracking-wide text-amber-400">Extremes &amp; Streaks</p>
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                             <span className="text-slate-400">Best Trade</span>
-                            <span className="text-right font-mono text-emerald-400">{(ts.best_trade * 100).toFixed(1)}%</span>
+                            <span className="text-right font-mono text-emerald-400">{ts.best_trade != null ? (ts.best_trade * 100).toFixed(1) + "%" : "—"}</span>
                             <span className="text-slate-400">Worst Trade</span>
-                            <span className="text-right font-mono text-rose-400">{(ts.worst_trade * 100).toFixed(1)}%</span>
+                            <span className="text-right font-mono text-rose-400">{ts.worst_trade != null ? (ts.worst_trade * 100).toFixed(1) + "%" : "—"}</span>
                             <span className="text-slate-400">Win Streak</span>
-                            <span className="text-right font-mono text-slate-200">{ts.max_win_streak}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.max_win_streak ?? "—"}</span>
                             <span className="text-slate-400">Loss Streak</span>
-                            <span className="text-right font-mono text-slate-200">{ts.max_loss_streak}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.max_loss_streak ?? "—"}</span>
                             <span className="text-slate-400">Avg Days (W)</span>
-                            <span className="text-right font-mono text-slate-200">{ts.avg_holding_days_win.toFixed(1)}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.avg_holding_days_win != null ? ts.avg_holding_days_win.toFixed(1) : "—"}</span>
                             <span className="text-slate-400">Avg Days (L)</span>
-                            <span className="text-right font-mono text-slate-200">{ts.avg_holding_days_loss.toFixed(1)}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.avg_holding_days_loss != null ? ts.avg_holding_days_loss.toFixed(1) : "—"}</span>
                           </div>
                         </div>
                         {/* Cost Impact */}
@@ -1182,15 +1194,15 @@ export default function BacktestPage() {
                           <p className="text-xs font-semibold uppercase tracking-wide text-rose-400">Cost Impact</p>
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                             <span className="text-slate-400">Total Commission</span>
-                            <span className="text-right font-mono text-slate-200">${ts.total_commission.toFixed(0)}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.total_commission != null ? `$${ts.total_commission.toFixed(0)}` : "—"}</span>
                             <span className="text-slate-400">Comm % of Profit</span>
-                            <span className="text-right font-mono text-slate-200">{ts.commission_pct_of_profit.toFixed(1)}%</span>
+                            <span className="text-right font-mono text-slate-200">{ts.commission_pct_of_profit != null ? ts.commission_pct_of_profit.toFixed(1) + "%" : "—"}</span>
                             <span className="text-slate-400">Avg Cost/Trade</span>
-                            <span className="text-right font-mono text-slate-200">${ts.avg_cost_per_trade.toFixed(2)}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.avg_cost_per_trade != null ? `$${ts.avg_cost_per_trade.toFixed(2)}` : "—"}</span>
                             <span className="text-slate-400">Turnover</span>
-                            <span className="text-right font-mono text-slate-200">{ts.turnover_rate.toFixed(1)}</span>
+                            <span className="text-right font-mono text-slate-200">{ts.turnover_rate != null ? ts.turnover_rate.toFixed(1) : "—"}</span>
                             <span className="text-slate-400">Break-Even WR</span>
-                            <span className="text-right font-mono text-slate-200">{(ts.break_even_win_rate * 100).toFixed(1)}%</span>
+                            <span className="text-right font-mono text-slate-200">{ts.break_even_win_rate != null ? (ts.break_even_win_rate * 100).toFixed(1) + "%" : "—"}</span>
                           </div>
                         </div>
                       </div>

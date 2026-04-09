@@ -300,6 +300,10 @@ export function runBacktest(params?: Record<string, unknown>): Promise<{ status:
   });
 }
 
+export function stopBacktest(): Promise<{ status: string }> {
+  return apiFetch("/api/backtest/stop", { method: "POST" });
+}
+
 export function getBacktestStatus(): Promise<BacktestStatus> {
   return apiFetch("/api/backtest/status");
 }
