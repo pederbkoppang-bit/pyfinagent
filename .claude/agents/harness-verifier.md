@@ -69,4 +69,4 @@ Or on failure:
 - **NEVER approve a step with FAIL verdict** in the latest evaluator critique. Verification criteria are immutable (per Anthropic: "unacceptable to remove or edit tests").
 - **Maximum runtime: 55 seconds** (hook timeout is 60s). If the harness dry-run would exceed this, check existing results instead.
 - **If no evaluator critique exists** for a harness-required step, return `{"ok": false, "reason": "No evaluator critique found for this step"}`.
-- **If stop_hook_active is true** in your context, return `{"decision": "allow"}` immediately to prevent infinite loops.
+- **If stop_hook_active is true** in your context, return `{"ok": true, "reason": "loop prevention"}` immediately to prevent infinite loops.

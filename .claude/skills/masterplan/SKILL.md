@@ -1,6 +1,8 @@
 ---
 name: masterplan
 description: Load current masterplan state, show progress, and guide execution of the next step
+allowed-tools: Bash(python3 *)
+argument-hint: "[step-id]"
 ---
 
 # /masterplan — PyFinAgent Master Plan Navigator
