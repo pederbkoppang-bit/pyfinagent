@@ -1,0 +1,443 @@
+{
+  "$schema": "masterplan-v1",
+  "project": "pyfinagent",
+  "goal": "Ship a validated, evidence-based trading signal system by May 2026",
+  "updated_at": "2026-04-13T21:13:27.912197+00:00",
+  "phases": [
+    {
+      "id": "phase-0",
+      "name": "Audit & Validate",
+      "status": "done",
+      "depends_on": [],
+      "gate": null,
+      "steps": []
+    },
+    {
+      "id": "phase-1",
+      "name": "Quant Engine Optimization",
+      "status": "done",
+      "depends_on": [
+        "phase-0"
+      ],
+      "gate": null,
+      "steps": []
+    },
+    {
+      "id": "phase-2",
+      "name": "Three-Agent Harness",
+      "status": "in-progress",
+      "depends_on": [
+        "phase-1"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "2.0",
+          "name": "Harness Architecture",
+          "status": "done",
+          "harness_required": false,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.1",
+          "name": "Handoff Artifacts",
+          "status": "done",
+          "harness_required": false,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.2",
+          "name": "Research Planner Agent",
+          "status": "done",
+          "harness_required": false,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.3",
+          "name": "Strategy Generator Agent",
+          "status": "done",
+          "harness_required": false,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.4",
+          "name": "Quant Evaluator Agent",
+          "status": "done",
+          "harness_required": false,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.5",
+          "name": "Sprint Contracts",
+          "status": "done",
+          "harness_required": false,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.6",
+          "name": "Context Management Strategy",
+          "status": "done",
+          "harness_required": false,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.6.0",
+          "name": "Operational Resilience",
+          "status": "done",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.6.1",
+          "name": "Backtest Page",
+          "status": "done",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.6.2",
+          "name": "Budget Intelligence Dashboard & Cost Autoresearch",
+          "status": "done",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.7",
+          "name": "Paper Trading",
+          "status": "done",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.8",
+          "name": "Harness Hardening & Advanced Evaluator",
+          "status": "done",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.9",
+          "name": "Multi-Market Data Layer",
+          "status": "done",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.10",
+          "name": "Karpathy Autoresearch Integration",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.11",
+          "name": "Slack Responsiveness & Active Monitoring",
+          "status": "done",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.12",
+          "name": "Harness Optimization",
+          "status": "in-progress",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "LLM-Guided Research + MCP Integration",
+      "status": "blocked",
+      "depends_on": [
+        "phase-2"
+      ],
+      "gate": {
+        "type": "approval",
+        "approver": "Peder",
+        "reason": "LLM API costs require Peder's explicit budget approval",
+        "approved": false
+      },
+      "steps": [
+        {
+          "id": "3.0",
+          "name": "MCP Server Architecture",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.1",
+          "name": "LLM-as-Planner",
+          "status": "pending",
+          "harness_required": false,
+          "verification": null,
+          "contract": "handoff/contract_phase_3_1.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.2",
+          "name": "LLM-as-Evaluator",
+          "status": "pending",
+          "harness_required": false,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.3",
+          "name": "Regime Detection",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.4",
+          "name": "Agent Skill Optimization",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.5",
+          "name": "Enrichment MCP Server",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Production Readiness",
+      "status": "in-progress",
+      "depends_on": [
+        "phase-3"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4.1",
+          "name": "Slack Signal Delivery",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.2",
+          "name": "Paper Trading Evaluation",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.3",
+          "name": "Risk Management",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.4",
+          "name": "Go-Live Checklist",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Multi-Market Expansion",
+      "status": "pending",
+      "depends_on": [
+        "phase-4"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "5.1",
+          "name": "Market Expansion Framework",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.2",
+          "name": "Market-Specific Research & Considerations",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.3",
+          "name": "Cross-Market Intelligence",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    }
+  ]
+}

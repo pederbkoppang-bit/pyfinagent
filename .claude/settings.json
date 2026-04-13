@@ -10,7 +10,52 @@
             "command": "bash .claude/hooks/post-commit-changelog.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write",
+        "if": "Write(.claude/masterplan.json)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/masterplan-memory-sync.sh"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "agent": "harness-verifier",
+            "prompt": "Cross-verify the just-completed task. Read .claude/masterplan.json, find the matching step, run verification checks in order: deterministic first (syntax, tests, file existence), then existing evaluator critiques, then harness dry-run if within timeout. Return JSON {ok, reason, violated_criteria, checks_run}."
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/teammate-idle-check.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "agent": "harness-verifier",
+            "prompt": "Before Claude stops, check .claude/masterplan.json for all 'in-progress' steps. For each, run cross-verification. If ANY in-progress step has unfinished verification criteria, return {\"decision\": \"block\", \"reason\": \"Step X.Y incomplete: [details]\"}. If stop_hook_active is true in your context, return {\"decision\": \"allow\"} to prevent infinite loop. Otherwise verify and return accordingly."
+          }
+        ]
       }
     ]
+  },
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   }
 }

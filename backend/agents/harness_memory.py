@@ -164,29 +164,48 @@ class HarnessMemory:
     # ── Layer 3: Semantic Memory ───────────────────────
 
     def load_semantic(self) -> str:
-        """Load semantic memory from MEMORY.md.
+        """Load semantic memory from MEMORY.md + masterplan phase status.
 
-        Returns the content of the MEMORY.md file or empty string.
+        Returns the content of the MEMORY.md file plus a summary of the
+        current masterplan state, or empty string.
         """
         if self._semantic_content is not None:
             return self._semantic_content
 
+        content = ""
         if self.memory_md.exists():
             try:
                 content = self.memory_md.read_text(encoding="utf-8")
-                self._semantic_content = content
                 logger.info(
                     f"[HarnessMemory] Loaded semantic memory: "
                     f"{len(content)} chars ({approx_token_count(content)} tokens)"
                 )
-                return content
             except Exception as e:
                 logger.warning(f"[HarnessMemory] Failed to load MEMORY.md: {e}")
-                return ""
         else:
             logger.debug("[HarnessMemory] No MEMORY.md found")
-            self._semantic_content = ""
-            return ""
+
+        # Load masterplan phase status into semantic layer
+        masterplan_path = self.workspace_root / ".claude" / "masterplan.json"
+        if masterplan_path.exists():
+            try:
+                import json
+                mp = json.loads(masterplan_path.read_text(encoding="utf-8"))
+                content += "\n\n## Current Masterplan State\n"
+                for phase in mp.get("phases", []):
+                    status_icon = {
+                        "done": "DONE", "in-progress": "ACTIVE",
+                        "pending": "PENDING", "blocked": "BLOCKED"
+                    }.get(phase["status"], "?")
+                    content += f"[{status_icon}] {phase['id']}: {phase['name']}\n"
+                logger.info("[HarnessMemory] Loaded masterplan phase status")
+            except Exception as e:
+                logger.warning(
+                    f"[HarnessMemory] Failed to load masterplan: {e}"
+                )
+
+        self._semantic_content = content
+        return content
 
     def refresh_semantic(self) -> str:
         """Force reload of semantic memory (e.g. after update)."""

@@ -33,6 +33,10 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 - **Every backtest result** → save to `backend/backtest/experiments/results/` + append to `quant_results.tsv`
 - **BQ timeout: 30s** on all fallback queries
 - **LLM API costs** require Peder's explicit approval
+- **Always read `.claude/masterplan.json`** before starting work — it's the machine-readable task tracker
+- **Use `/masterplan`** to see current state and next actionable step
+- **Never edit verification criteria** in masterplan.json — they are immutable
+- **Research Gate is mandatory** — no step proceeds to GENERATE without deep research (see PLAN.md lines 44-83)
 
 ## Architecture (see ARCHITECTURE.md for full details)
 
