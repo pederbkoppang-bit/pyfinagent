@@ -4,6 +4,7 @@ BigQuery client wrapper for report persistence and outcome tracking.
 
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Optional
 
@@ -452,15 +453,28 @@ class BigQueryClient:
         rows = list(self.client.query(query, job_config=job_config).result())
         return dict(rows[0]) if rows else None
 
+    def _run_dml_with_retry(self, query: str, job_config, max_retries: int = 3) -> None:
+        """Run a DML query with retry for BQ streaming buffer conflicts."""
+        for attempt in range(max_retries + 1):
+            try:
+                self.client.query(query, job_config=job_config).result()
+                return
+            except Exception as e:
+                if "streaming buffer" in str(e).lower() and attempt < max_retries:
+                    wait = 2 ** attempt * 5  # 5s, 10s, 20s
+                    logger.warning(f"BQ streaming buffer conflict (attempt {attempt + 1}/{max_retries}), retrying in {wait}s")
+                    time.sleep(wait)
+                else:
+                    raise
+
     def upsert_paper_portfolio(self, row: dict) -> None:
         table = self._pt_table("paper_portfolio")
         pid = row["portfolio_id"]
-        # Delete existing row first (BQ streaming buffer eventually consistent, but DML is immediate)
         delete_query = f"DELETE FROM `{table}` WHERE portfolio_id = @pid"
         job_config = bigquery.QueryJobConfig(query_parameters=[
             bigquery.ScalarQueryParameter("pid", "STRING", pid),
         ])
-        self.client.query(delete_query, job_config=job_config).result()
+        self._run_dml_with_retry(delete_query, job_config)
         errors = self.client.insert_rows_json(table, [row])
         if errors:
             logger.error(f"Paper portfolio upsert errors: {errors}")
@@ -499,7 +513,7 @@ class BigQueryClient:
         job_config = bigquery.QueryJobConfig(query_parameters=[
             bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
         ])
-        self.client.query(query, job_config=job_config).result()
+        self._run_dml_with_retry(query, job_config)
 
     def update_paper_position(self, ticker: str, updates: dict) -> None:
         """Update specific fields of a paper position."""
@@ -515,7 +529,7 @@ class BigQueryClient:
                 params.append(bigquery.ScalarQueryParameter(f"val_{k}", "STRING", str(v)))
         query = f"UPDATE `{table}` SET {set_clauses} WHERE ticker = @ticker"
         job_config = bigquery.QueryJobConfig(query_parameters=params)
-        self.client.query(query, job_config=job_config).result()
+        self._run_dml_with_retry(query, job_config)
 
     # -- Trades --
 
