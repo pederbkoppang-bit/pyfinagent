@@ -80,11 +80,12 @@ QUALITY CRITERIA (from evaluator_criteria.md — these define what "good" means)
 # Read-only enforcement for harness artifacts
 _HARNESS_READ_ONLY = """
 HARNESS ARTIFACTS (READ-ONLY — you may read but NEVER write to these):
-  - handoff/contract.md — current sprint contract (hypothesis, success criteria)
-  - handoff/evaluator_critique.md — latest evaluator scores and verdict
-  - handoff/experiment_results.md — last cycle's generator output
+  - handoff/current/contract.md — current sprint contract (hypothesis, success criteria)
+  - handoff/current/evaluator_critique.md — latest evaluator scores and verdict
+  - handoff/current/experiment_results.md — last cycle's generator output
   - handoff/research_plan.md — planner's next research direction
   - handoff/harness_log.md — history of all harness cycles
+  - handoff/archive/ — completed phase artifacts (organized by phase ID)
   - backend/backtest/experiments/optimizer_best.json — current best params
   - backend/backtest/experiments/quant_results.tsv — full experiment log
   The harness owns its own state. Your job is to READ and INTERPRET, never modify.

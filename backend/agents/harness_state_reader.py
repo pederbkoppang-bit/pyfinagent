@@ -50,13 +50,33 @@ class HarnessStateReader:
     def __init__(self, project_root: Path = None):
         self.root = project_root or _PROJECT_ROOT
         self.handoff = self.root / "handoff"
+        self.handoff_current = self.handoff / "current"
         self.experiments = self.root / "backend" / "backtest" / "experiments"
+
+    def _resolve_handoff_file(self, filename: str) -> Path | None:
+        """Find a handoff file: current/ first, then root, then archive/."""
+        # 1. Active cycle
+        path = self.handoff_current / filename
+        if path.exists():
+            return path
+        # 2. Root level (harness_log.md, research_plan.md)
+        path = self.handoff / filename
+        if path.exists():
+            return path
+        # 3. Archive (search all phase dirs, return newest)
+        import glob
+        archive = self.handoff / "archive"
+        matches = list(archive.rglob(filename))
+        if matches:
+            matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            return matches[0]
+        return None
 
     # ── Harness Artifacts (read-only) ────────────────────────────
 
     def get_evaluator_critique(self) -> dict:
         """Read latest evaluator_critique.md — scores, verdict, weak periods."""
-        path = self.handoff / "evaluator_critique.md"
+        path = self._resolve_handoff_file("evaluator_critique.md")
         if not path.exists():
             return {"available": False, "content": None}
 
@@ -73,7 +93,7 @@ class HarnessStateReader:
 
     def get_contract(self) -> dict:
         """Read current contract.md — hypothesis, success criteria."""
-        path = self.handoff / "contract.md"
+        path = self._resolve_handoff_file("contract.md")
         if not path.exists():
             return {"available": False, "content": None}
 
@@ -86,7 +106,7 @@ class HarnessStateReader:
 
     def get_experiment_results(self) -> dict:
         """Read latest experiment_results.md — what was tried, what happened."""
-        path = self.handoff / "experiment_results.md"
+        path = self._resolve_handoff_file("experiment_results.md")
         if not path.exists():
             return {"available": False, "content": None}
 
@@ -99,7 +119,7 @@ class HarnessStateReader:
 
     def get_research_plan(self) -> dict:
         """Read current research_plan.md — planner's next direction."""
-        path = self.handoff / "research_plan.md"
+        path = self._resolve_handoff_file("research_plan.md")
         if not path.exists():
             return {"available": False, "content": None}
 
@@ -112,7 +132,7 @@ class HarnessStateReader:
 
     def get_harness_log(self, last_n: int = 5) -> dict:
         """Read last N cycles from harness_log.md."""
-        path = self.handoff / "harness_log.md"
+        path = self._resolve_handoff_file("harness_log.md")
         if not path.exists():
             return {"available": False, "cycles": []}
 

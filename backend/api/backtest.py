@@ -1137,38 +1137,49 @@ def get_sharpe_history():
 
 import os as _os
 _HANDOFF_DIR = _os.path.join(_os.path.dirname(__file__), "..", "..", "handoff")
+_HANDOFF_CURRENT = _os.path.join(_HANDOFF_DIR, "current")
+_HANDOFF_ARCHIVE = _os.path.join(_HANDOFF_DIR, "archive")
 
 
 def _read_handoff_file(filename: str) -> str | None:
     """Read a handoff file, return contents or None.
 
-    Auto-resolves to the latest phase-versioned file if available.
-    E.g., for 'contract.md', if 'phase3.3_contract.md' exists and is
-    newer than 'contract.md', it will be returned instead.
+    Search order:
+    1. handoff/current/<filename> (active harness cycle)
+    2. handoff/<filename> (root-level files like harness_log.md)
+    3. handoff/archive/**/<filename> (phase-archived files, newest first)
     """
     import glob
 
-    # 1. Find all phase-versioned variants (e.g., phase3.3_contract.md)
+    candidates = []
+
+    # 1. Check current/ first (active cycle files)
+    current_path = _os.path.join(_HANDOFF_CURRENT, filename)
+    if _os.path.exists(current_path):
+        candidates.append(current_path)
+
+    # 2. Check root handoff/ (harness_log.md, research_plan.md)
+    root_path = _os.path.join(_HANDOFF_DIR, filename)
+    if _os.path.exists(root_path):
+        candidates.append(root_path)
+
+    # 3. Check archive/ subdirectories
+    archive_pattern = _os.path.join(_HANDOFF_ARCHIVE, "**", filename)
+    candidates.extend(glob.glob(archive_pattern, recursive=True))
+
+    # Also check for base name match (e.g., evaluator_critique.md in any archive dir)
     base = filename.replace(".md", "")
-    pattern = _os.path.join(_HANDOFF_DIR, f"*_{base}.md")
-    variants = glob.glob(pattern)
+    archive_pattern2 = _os.path.join(_HANDOFF_ARCHIVE, "**", f"*{base}*.md")
+    candidates.extend(glob.glob(archive_pattern2, recursive=True))
 
-    # Also check for pattern like phase3.3.1_contract.md
-    pattern2 = _os.path.join(_HANDOFF_DIR, f"phase*_{base}.md")
-    variants.extend(glob.glob(pattern2))
-    variants = list(set(variants))  # deduplicate
+    candidates = list(set(candidates))  # deduplicate
 
-    # 2. Include the base file itself
-    base_path = _os.path.join(_HANDOFF_DIR, filename)
-    if _os.path.exists(base_path):
-        variants.append(base_path)
-
-    if not variants:
+    if not candidates:
         return None
 
-    # 3. Pick the most recently modified file
-    variants.sort(key=lambda p: _os.path.getmtime(p), reverse=True)
-    best = variants[0]
+    # Pick the most recently modified file
+    candidates.sort(key=lambda p: _os.path.getmtime(p), reverse=True)
+    best = candidates[0]
 
     try:
         with open(best, "r", encoding="utf-8") as f:
@@ -1285,8 +1296,8 @@ def get_harness_criteria():
 def get_seed_stability():
     """Return seed stability test results (Phase 2.8)."""
     import json
-    results_path = Path(__file__).parent.parent.parent / "handoff" / "seed_stability_results.json"
-    output_path = Path(__file__).parent.parent.parent / "handoff" / "seed_stability_output.txt"
+    results_path = Path(__file__).parent.parent.parent / "handoff" / "data" / "seed_stability_results.json"
+    output_path = Path(__file__).parent.parent.parent / "handoff" / "archive" / "misc" / "seed_stability_output.txt"
 
     data = {"status": "not_started", "results": None, "live_progress": None}
 

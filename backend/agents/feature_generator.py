@@ -163,7 +163,7 @@ def accept_feature(evaluation: dict) -> bool:
 
 def log_proposal(feature: dict, evaluation: dict) -> None:
     """Append to feature discovery audit trail."""
-    log_file = Path(__file__).parent.parent.parent / "handoff" / "feature_discovery_log.tsv"
+    log_file = Path(__file__).parent.parent.parent / "handoff" / "data" / "feature_discovery_log.tsv"
     
     # CSV header: timestamp, feature_name, proposal_source, test_result, sharpe_delta, verdict, reason
     # Implemented in Phase 2.10 execution
