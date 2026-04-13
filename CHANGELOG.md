@@ -3,6 +3,11 @@
 All notable changes to PyFinAgent are documented here.
 For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+### Recent Activity
+
+| Date | Commit | Change |
+|------|--------|--------|
+
 ---
 
 ### v6.3.0 — Project Restructure + BQ Fix + GitHub Actions (April 13, 2026)
