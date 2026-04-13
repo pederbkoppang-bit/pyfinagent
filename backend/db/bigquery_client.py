@@ -475,10 +475,20 @@ class BigQueryClient:
             bigquery.ScalarQueryParameter("pid", "STRING", pid),
         ])
         self._run_dml_with_retry(delete_query, job_config)
-        errors = self.client.insert_rows_json(table, [row])
-        if errors:
-            logger.error(f"Paper portfolio upsert errors: {errors}")
-            raise RuntimeError(f"Failed to upsert paper portfolio: {errors}")
+        # Use DML INSERT (not streaming) to avoid buffer conflicts
+        cols = ", ".join(row.keys())
+        vals = ", ".join(f"@v_{k}" for k in row.keys())
+        insert_query = f"INSERT INTO `{table}` ({cols}) VALUES ({vals})"
+        params = []
+        for k, v in row.items():
+            if isinstance(v, float):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "FLOAT64", v))
+            elif isinstance(v, int):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
+            else:
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v) if v is not None else None))
+        insert_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(insert_query, job_config=insert_config).result()
 
     # -- Positions --
 
@@ -501,11 +511,21 @@ class BigQueryClient:
         return dict(rows[0]) if rows else None
 
     def save_paper_position(self, row: dict) -> None:
+        """Insert position via DML (not streaming) to avoid buffer conflicts with UPDATE/DELETE."""
         table = self._pt_table("paper_positions")
-        errors = self.client.insert_rows_json(table, [row])
-        if errors:
-            logger.error(f"Paper position insert errors: {errors}")
-            raise RuntimeError(f"Failed to save paper position: {errors}")
+        cols = ", ".join(row.keys())
+        vals = ", ".join(f"@v_{k}" for k in row.keys())
+        query = f"INSERT INTO `{table}` ({cols}) VALUES ({vals})"
+        params = []
+        for k, v in row.items():
+            if isinstance(v, float):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "FLOAT64", v))
+            elif isinstance(v, int):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
+            else:
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v) if v is not None else None))
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(query, job_config=job_config).result()
 
     def delete_paper_position(self, ticker: str) -> None:
         table = self._pt_table("paper_positions")
