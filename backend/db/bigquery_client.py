@@ -554,11 +554,21 @@ class BigQueryClient:
     # -- Trades --
 
     def save_paper_trade(self, row: dict) -> None:
+        """Insert trade via DML to avoid streaming buffer conflicts."""
         table = self._pt_table("paper_trades")
-        errors = self.client.insert_rows_json(table, [row])
-        if errors:
-            logger.error(f"Paper trade insert errors: {errors}")
-            raise RuntimeError(f"Failed to save paper trade: {errors}")
+        cols = ", ".join(row.keys())
+        vals = ", ".join(f"@v_{k}" for k in row.keys())
+        query = f"INSERT INTO `{table}` ({cols}) VALUES ({vals})"
+        params = []
+        for k, v in row.items():
+            if isinstance(v, float):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "FLOAT64", v))
+            elif isinstance(v, int):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
+            else:
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v) if v is not None else None))
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(query, job_config=job_config).result()
 
     def get_paper_trades(self, limit: int = 100) -> list[dict]:
         query = f"""
@@ -574,10 +584,21 @@ class BigQueryClient:
     # -- Snapshots --
 
     def save_paper_snapshot(self, row: dict) -> None:
+        """Insert snapshot via DML to avoid streaming buffer conflicts."""
         table = self._pt_table("paper_portfolio_snapshots")
-        errors = self.client.insert_rows_json(table, [row])
-        if errors:
-            logger.error(f"Paper snapshot insert errors: {errors}")
+        cols = ", ".join(row.keys())
+        vals = ", ".join(f"@v_{k}" for k in row.keys())
+        query = f"INSERT INTO `{table}` ({cols}) VALUES ({vals})"
+        params = []
+        for k, v in row.items():
+            if isinstance(v, float):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "FLOAT64", v))
+            elif isinstance(v, int):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
+            else:
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v) if v is not None else None))
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(query, job_config=job_config).result()
 
     def get_paper_snapshots(self, limit: int = 365) -> list[dict]:
         query = f"""
