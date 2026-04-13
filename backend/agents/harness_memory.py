@@ -29,7 +29,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# ── Configuration ───────────────────────────────────────────────
+# ── Configuration ───────────────────────────────────
 
 # Default paths (relative to workspace root)
 _WORKSPACE_ROOT = Path(os.environ.get("OPENCLAW_WORKSPACE", os.path.expanduser("~/.openclaw/workspace")))
@@ -79,9 +79,9 @@ def approx_token_count(text: str) -> int:
     return max(1, (len(text) + 3) // 4)
 
 
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 # 4-TIER MEMORY SYSTEM
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 
 class HarnessMemory:
     """4-tier memory manager for the harness system.
@@ -109,7 +109,7 @@ class HarnessMemory:
         self._episodic_date: Optional[date] = None
         self._load_timestamp: Optional[datetime] = None
 
-    # ── Layer 2: Episodic Memory ────────────────────────────────
+    # ── Layer 2: Episodic Memory ───────────────────────
 
     def load_episodic(self, target_date: date | None = None) -> str:
         """Load episodic memory for a given date (default: today).
@@ -161,7 +161,7 @@ class HarnessMemory:
         except Exception as e:
             logger.warning(f"[HarnessMemory] Failed to append episodic entry: {e}")
 
-    # ── Layer 3: Semantic Memory ────────────────────────────────
+    # ── Layer 3: Semantic Memory ───────────────────────
 
     def load_semantic(self) -> str:
         """Load semantic memory from MEMORY.md.
@@ -193,7 +193,7 @@ class HarnessMemory:
         self._semantic_content = None
         return self.load_semantic()
 
-    # ── Session Initialization ──────────────────────────────────
+    # ── Session Initialization ─────────────────────────
 
     def load_all_layers(self) -> dict:
         """Load all memory layers at session start.
@@ -277,9 +277,9 @@ class HarnessMemory:
         return "\n".join(parts)
 
 
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 # OBSERVATION MASKING (ACON-inspired)
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 
 class ObservationMasker:
     """Masks older observations in the message history to keep context lean.
@@ -441,7 +441,7 @@ class ObservationMasker:
 
         logger.info(
             f"[ObservationMasker] Masked {observations_masked} observations, "
-            f"saved {tokens_saved} tokens. Context: {usage_pct_before:.1%} → {usage_pct_after:.1%}"
+            f"saved {tokens_saved} tokens. Context: {usage_pct_before:.1%} -> {usage_pct_after:.1%}"
         )
 
         return masked_messages, {
@@ -456,9 +456,9 @@ class ObservationMasker:
         }
 
 
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 # CONVENIENCE FUNCTIONS
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 
 def init_session_memory(
     workspace_root: str | Path | None = None,
