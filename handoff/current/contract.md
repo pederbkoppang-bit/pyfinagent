@@ -1,71 +1,38 @@
-# Phase 2.11: Resilient Background Job Monitoring — Contract
+# Step 2.13: Claude Code Configuration Audit — Sprint Contract
 
 ## Hypothesis
-Implementing production-grade resilience patterns will prevent session compaction from killing long-running processes and ensure pyfinAgent's autonomous systems (harness, paper trading, Slack bot) survive infrastructure disruptions and maintain operational continuity.
+Auditing all Claude Code configuration files against official documentation ensures the MAS harness system works correctly for autonomous operation. Misconfigurations (wrong field names, missing timeouts, invalid schemas) silently break hooks and agent spawning.
 
 ## Success Criteria (Research-Backed)
 
-### Primary Criteria (Based on 2.11 Deep Research)
+1. **All hooks valid schema** — per https://code.claude.com/docs/en/hooks
+   - No invalid fields (e.g., `agent` field in agent-type hooks)
+   - All agent hooks have explicit `timeout`
+   - Stop hook returns `{ok: bool}` not `{decision: string}`
+   - All command hooks reference existing executable scripts
 
-1. **OpenClaw Session Compaction Survival:**
-   - All critical state persisted to `MEMORY.md` and daily memory files (NOT conversation context)
-   - Pre-compaction memory flush implemented with `NO_REPLY` pattern
-   - Main session remains responsive during long-running operations (no blocking poll loops)
-   - Context budgeting: 20k+ token reserve for housekeeping operations
-   - ✅ Evidence: Harness/backtest can survive session compaction without losing progress
+2. **All agents have required frontmatter** — per https://code.claude.com/docs/en/sub-agents
+   - `name`, `description`, `tools`, `model` present
+   - `maxTurns` set to prevent infinite loops
+   - `memory: project` for cross-session learning
 
-2. **Background Job Resilience Architecture:**
-   - **Heartbeat Monitoring**: All long-running jobs ping healthchecks.io or equivalent on completion
-   - **Process Isolation**: Long-running work launched with `nohup` + detached monitoring
-   - **Cron Survival**: Critical monitoring (health checks, progress reporting) via cron jobs
-   - **Status Persistence**: Job status tracked in Redis/files, not in-memory session state
-   - ✅ Evidence: Paper trading + harness continue through gateway restarts, session compaction
+3. **MCP config exists and valid** — per https://code.claude.com/docs/en/mcp
+   - `.mcp.json` at project root (project-scoped, version controlled)
+   - Slack server configured with `${VAR}` env expansion
 
-3. **Slack Socket Mode Resilience:**
-   - **Connection Recovery**: Automatic reconnection with exponential backoff
-   - **Event Acknowledgment**: All events `ack()`-ed within 3 seconds (no Slack retries)
-   - **Async Processing**: Non-blocking event handlers using `AsyncApp` pattern
-   - **Buffer During Disconnects**: Queue events during connection loss, replay on recovery
-   - ✅ Evidence: Slack bot maintains responsiveness during high load + network issues
+4. **Permissions allow autonomous operation** — per settings.json docs
+   - `Agent(researcher)`, `Agent(qa-evaluator)`, `Agent(harness-verifier)` allowed
 
-4. **Production Monitoring Patterns:**
-   - **Circuit Breakers**: Protect external API calls (BigQuery, Vertex AI) with `pybreaker`
-   - **Health Check Layers**: Process health + application health + business metrics
-   - **Distributed Lock Pattern**: Prevent duplicate job execution using Redis locks
-   - **Graceful Cancellation**: Long-running tasks implement cancellation points
-   - ✅ Evidence: System remains available during external service failures
+5. **4-tier memory wired** — per CoALA (Princeton 2023)
+   - Tier 2 Episodic: `.claude/context/sessions/*.md`
+   - Tier 3 Semantic: `.claude/context/*.md`
+   - Tier 4 Procedural: CLAUDE.md + agents + skills + rules
 
-### Secondary Criteria
-- [ ] **Memory Management**: Daily memory files rotated, `MEMORY.md` stays under 50KB
-- [ ] **Observability**: Prometheus metrics for job duration, failure rates, queue depth
-- [ ] **Resource Limits**: Background jobs have CPU/memory limits to prevent resource exhaustion
-- [ ] **Incident Response**: Automated escalation path (Slack → iMessage → memory/incidents.md)
+6. **Remote trigger prompt has full MAS protocol**
+   - 4-tier memory instructions, subagent spawn templates, 12 critical rules
 
-## Fail Conditions (Research-Backed Anti-Patterns)
-1. **Session Compaction Kills Operations**: Long-running processes die when context compacted
-2. **Event Loop Blocking**: Synchronous operations in async code cause hangs/timeouts
-3. **Polling Loops in Main Session**: Active monitoring blocks session, dies on compaction
-4. **In-Memory State Loss**: Critical status stored in conversation context, lost on reset
-5. **Cascade Failures**: Single external service failure brings down entire system
-6. **Resource Exhaustion**: Background jobs monopolize CPU/memory, crash host
-
-## Timeline  
-- **Research:** 3 hours (COMPLETE ✅) — Deep research into resilience patterns
-- **Generation:** 6-8 hours — Implement resilience architecture, monitoring, background job patterns
-- **Evaluation:** 2-3 hours — Stress testing, session compaction simulation, failure injection
-- **Total:** ~11-14 hours (can span 2-3 calendar days with integration testing)
-
-## Budget Impact
-- **External Monitoring:** $5-10/month (healthchecks.io Pro for team features)
-- **Redis Instance:** $0 (use existing local Redis for distributed locks)
-- **No API Cost Impact:** Resilience patterns reduce external API failures, may save money
-- **Infrastructure:** No additional cost (patterns run on existing backend/gateway)
-
-## References (Research Citations)
-- [OpenClaw Session Management Deep Dive](https://docs.openclaw.ai/reference/session-management-compaction)
-- [Slack Bolt-Python Socket Mode](https://docs.slack.dev/tools/bolt-python/concepts/socket-mode/)
-- [ArXiv: Fault-tolerance in Distributed Systems](https://arxiv.org/abs/2106.08545)
-- [Healthchecks.io Heartbeat Monitoring](https://healthchecks.io/docs/monitoring_cron_jobs/)
-- [Circuit Breaker Pattern Best Practices](https://pypi.org/project/pybreaker/)
-- **Microsoft Azure Background Jobs Guide** — Idempotency, distributed locks, resource limits
-- **Production Python Async Monitoring Patterns 2024** — asyncio task management, monitoring integration
+## Fail Conditions
+- Any hook with invalid schema that would crash at runtime
+- Any agent missing `name` or `description`
+- Missing `.mcp.json` (remote agent has no Slack)
+- Remote trigger missing `Agent` in allowed_tools

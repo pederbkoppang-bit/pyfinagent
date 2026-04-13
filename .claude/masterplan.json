@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship a validated, evidence-based trading signal system by May 2026",
-  "updated_at": "2026-04-13T21:13:27.912197+00:00",
+  "updated_at": "2026-04-13T22:18:51.613365+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -200,6 +200,26 @@
             ]
           },
           "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.13",
+          "name": "Claude Code Configuration Audit",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python3 -c \"import json; s=json.load(open('.claude/settings.json')); assert 'TaskCompleted' in s['hooks']; assert 'Stop' in s['hooks']; assert len(s.get('permissions',{}).get('allow',[])) >= 5; print('PASS')\"",
+            "success_criteria": [
+              "all_hooks_valid_schema",
+              "all_agents_have_required_frontmatter",
+              "mcp_json_exists_and_valid",
+              "permissions_allow_agent_spawning",
+              "4tier_memory_wired",
+              "remote_trigger_prompt_has_mas_protocol"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3
         }

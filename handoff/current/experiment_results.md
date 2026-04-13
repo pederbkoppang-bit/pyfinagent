@@ -1,39 +1,69 @@
-# Phase 2.7 Experiment Results — Paper Trading Activation
+# Step 2.13: Claude Code Configuration Audit — Experiment Results
 
 ## What Was Done
 
-### Engine Validation ✅
-- Portfolio initialized: $10,000 starting capital in BQ
-- Test trade executed: BUY 2.92 XOM @ $170.99 ($500 investment + $0.50 tx cost)
-- BQ tables verified: paper_portfolio, paper_positions, paper_trades, paper_portfolio_snapshots
-- Cash balance correctly updated: $10,000 → $9,499.50
+### Research (65+ sources)
+- Read official Claude Code docs: hooks, sub-agents, skills, agent-teams, MCP (5 pages in full)
+- Read academic papers: CoALA (Princeton), SEVerA, ACON, Generative Agents, MemGPT (8 papers)
+- Read industry: Anthropic engineering blog (4 articles), Mem0, OpenAI Agents SDK, CrewAI
+- Documented all findings in RESEARCH.md (2 new sections, ~400 lines)
 
-### Screener Fix ✅
-- S&P 500 Wikipedia scrape was getting 403 (no User-Agent header)
-- Fixed with urllib.request + User-Agent header → now fetches 503 tickers
-- Screener runs in ~3 seconds, zero LLM cost
+### Fixes Applied
 
-### Configuration ✅
-- `PAPER_TRADING_ENABLED=true` in backend/.env
-- Starting capital: $10,000
-- Screen top N: 10, Analyze top N: 3
-- Trading hour: 10:00 ET (16:00 Oslo)
-- Transaction cost: 0.1%
+| Fix | File | Change |
+|-----|------|--------|
+| Invalid `agent` field in hooks | settings.json | Removed; agent hooks use `prompt` only |
+| Missing timeout on Stop hook | settings.json | Added `timeout: 55` |
+| Wrong JSON format in Stop hook | settings.json | `{decision: block}` -> `{ok: false}` |
+| Wrong loop prevention format | harness-verifier.md | `{decision: allow}` -> `{ok: true}` |
+| Missing statusMessage | settings.json | Added to all hooks |
+| Missing allowed-tools on skill | SKILL.md | Added `Bash(python3 *)` |
+| Missing researcher agent | agents/ | Created researcher.md (Sonnet, 15 turns) |
+| Missing QA evaluator agent | agents/ | Created qa-evaluator.md (Sonnet, worktree) |
+| Incomplete harness-verifier | agents/ | Added maxTurns, memory, color |
+| No project MCP config | .mcp.json | Created with Slack server |
+| No autonomous permissions | settings.json | Added 9 allow rules |
+| No remote agent memory | .claude/context/ | Created 4 semantic + sessions/ episodic |
+| Remote trigger missing Agent tool | trigger config | Added Agent to allowed_tools |
+| Remote trigger no MAS protocol | trigger prompt | Full 4-tier memory + harness protocol |
+| Phase 4 wrong dependency | masterplan.json | phase-3 -> phase-2 |
+| Handoff folder chaos (69 flat files) | handoff/ | Restructured: current/ + archive/ + data/ |
+| CLAUDE.md wrong harness path | CLAUDE.md | Fixed 3 path references |
+| Backend API broken paths | backtest.py | Updated _read_handoff_file for new structure |
+| harness_state_reader broken paths | harness_state_reader.py | Added _resolve_handoff_file |
+| run_harness.py wrong paths | run_harness.py | PROJECT_ROOT-based, writes to current/ |
 
-### Scheduler ✅
-- APScheduler configured for daily cycle at 10:00 ET weekdays
-- Scheduler confirmed active via /api/paper-trading/status
+### Files Created (10)
+- `.claude/agents/researcher.md`
+- `.claude/agents/qa-evaluator.md`
+- `.claude/context/project.md`
+- `.claude/context/mas-architecture.md`
+- `.claude/context/research-gate.md`
+- `.claude/context/owner.md`
+- `.claude/context/sessions/README.md`
+- `.claude/masterplan.json`
+- `.claude/skills/masterplan/SKILL.md`
+- `.mcp.json`
 
-### Monitoring ✅
-- Daily Slack report cron: 4:30 PM ET weekdays (after market close)
-- Reports NAV, positions, trades, alerts to #ford-approvals
+### Files Modified (12)
+- `.claude/settings.json` (hooks + permissions)
+- `.claude/agents/harness-verifier.md` (full frontmatter)
+- `CLAUDE.md` (masterplan ref + context ref + path fixes)
+- `RESEARCH.md` (2 new sections)
+- `backend/api/backtest.py` (handoff paths)
+- `backend/agents/harness_state_reader.py` (resolve paths)
+- `backend/agents/harness_memory.py` (semantic layer + masterplan)
+- `backend/agents/agent_definitions.py` (handoff paths)
+- `backend/agents/feature_generator.py` (log path)
+- `scripts/harness/run_harness.py` (PROJECT_ROOT paths)
+- `scripts/generate_masterplan.py` (new)
+- `handoff/` (restructured 69 files)
 
-### Dashboard ✅
-- Paper trading page already existed (509 lines) with positions, trades, chart tabs
-- Portfolio data flowing from BQ through API to frontend
-
-## What's Remaining (Phase 2.7 continuation)
-- Divergence alerts (paper vs backtest comparison) — needs 2+ weeks of data first
-- Weekly evaluation report — needs data accumulation
-- Go-live gate criteria — needs paper trading data
-- Load best params into paper trader config — autonomous loop uses its own analysis, not backtest params directly
+## Commits
+- `eb50540` — Machine-readable masterplan + memory integration (10 files)
+- `25cc33e` — Audit fixes: handoff restructure, Phase 4 dependency
+- `f670bba` — Backend API paths for handoff restructure
+- `86c6411` — Critical hook schema fixes per docs audit
+- `5faa2f0` — MAS agents + MCP + permissions
+- `a0cacaf` — Context files for remote agent memory
+- `544458b` — Episodic memory (session logs)
