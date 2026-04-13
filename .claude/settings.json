@@ -60,5 +60,18 @@
   },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Agent(researcher)",
+      "Agent(qa-evaluator)",
+      "Agent(harness-verifier)",
+      "Bash(python3 *)",
+      "Bash(source .venv/bin/activate *)",
+      "Bash(git *)",
+      "Read",
+      "Grep",
+      "Glob"
+    ]
   }
 }

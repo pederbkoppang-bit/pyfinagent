@@ -7,6 +7,10 @@ tools:
   - Glob
   - Grep
 model: sonnet
+maxTurns: 10
+effort: medium
+memory: project
+color: blue
 ---
 
 # Harness Verifier Agent
