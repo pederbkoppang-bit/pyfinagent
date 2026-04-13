@@ -37,6 +37,7 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 - **Use `/masterplan`** to see current state and next actionable step
 - **Never edit verification criteria** in masterplan.json — they are immutable
 - **Research Gate is mandatory** — no step proceeds to GENERATE without deep research (see PLAN.md lines 44-83)
+- **Read `.claude/context/`** for project memory: project.md, mas-architecture.md, research-gate.md, owner.md
 
 ## Architecture (see ARCHITECTURE.md for full details)
 
