@@ -317,4 +317,22 @@ async def get_changelog():
         })
         i += 4
 
-    return {"entries": entries}
+    # Auto-generate recent commits from git
+    recent_commits: list[dict] = []
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["git", "log", "--oneline", "--no-decorate", "-20"],
+            capture_output=True, text=True, timeout=5,
+            cwd=str(changelog_path.parent)
+        )
+        if result.returncode == 0:
+            for line in result.stdout.strip().split("\n"):
+                if line:
+                    parts_c = line.split(" ", 1)
+                    if len(parts_c) == 2:
+                        recent_commits.append({"hash": parts_c[0], "message": parts_c[1]})
+    except Exception:
+        pass
+
+    return {"entries": entries, "recent_commits": recent_commits}

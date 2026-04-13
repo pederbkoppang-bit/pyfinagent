@@ -5,6 +5,39 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
+### v6.2.0 — Autonomous Operations + 500+ Experiments (April 13, 2026)
+
+**Autoresearch running 24/7. Paper trading live. MAS architecture upgraded to Anthropic multi-agent pattern.**
+
+#### Autonomous Optimizer
+1. **Continuous autoresearch** — 288 new experiments (runs 8f69ec75 + ab354536), parameter space exhaustively explored
+2. **Total experiments** — 674+ in quant_results.tsv, Sharpe stable at 1.1705
+3. **Autoresearch audit** — All 6 identified gaps resolved
+
+#### Paper Trading (Phase 2.7)
+4. **Scheduler enabled** — APScheduler cron at 14:00 UTC (9am ET market open)
+5. **Best params loading** — `load_best_params()` reads optimizer_best.json into daily cycle
+6. **Risk monitor dashboard** — Paper vs Backtest comparison, kill switch status (-15% drawdown bar), position concentration check
+7. **Portfolio active** — $9,952 NAV, XOM position, daily snapshots
+
+#### Harness Hardening (Phase 2.8)
+8. **Seed stability** — 4/5 seeds PASS (Sharpe sigma=0.99%, exceptional)
+9. **Advanced evaluator tests** — Ljung-Box, Lo(2002), feature stability, slippage modeling all PASS
+10. **Evaluator critique** — CONDITIONAL PASS (8.5/10)
+
+#### MAS Architecture Upgrade
+11. **Agent models** — Ford/QA upgraded to Opus 4.6 in OpenClaw configs
+12. **Generate-QA-Revise loop** — Anti-leniency evaluator with structured JSON verdicts
+13. **System prompts** — Full Anthropic multi-agent research pattern encoded
+14. **SOUL.md** — Added coding workflow tier with sprint contracts
+
+#### Remote Agent
+15. **Scheduled remote worker** — Opus 4.6 every 2 hours, works on master plan autonomously
+16. **Slack integration** — Posts status updates to #ford-approvals via MCP connector
+17. **Multi-agent subagents** — Researcher, QA Evaluator, Explorer spawned per task
+
+---
+
 ### v6.0.0 — Multi-Agent System + Full System Integration (April 2026)
 
 **38 agents across 4 layers. OpenClaw ↔ pyfinAgent ↔ Slack fully synchronized. MAS Dashboard live.**
