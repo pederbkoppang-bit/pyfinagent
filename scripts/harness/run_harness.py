@@ -40,10 +40,12 @@ from backend.backtest.analytics import generate_report
 from backend.backtest.quant_optimizer import QuantStrategyOptimizer
 
 # -- Paths --
-HANDOFF_DIR = Path(__file__).parent / "handoff"
-BEST_PARAMS_PATH = Path(__file__).parent / "backend" / "backtest" / "experiments" / "optimizer_best.json"
-TSV_PATH = Path(__file__).parent / "backend" / "backtest" / "experiments" / "quant_results.tsv"
-HARNESS_LOG = HANDOFF_DIR / "harness_log.md"
+PROJECT_ROOT = Path(__file__).parent.parent.parent  # pyfinagent/
+HANDOFF_DIR = PROJECT_ROOT / "handoff" / "current"
+HANDOFF_ROOT = PROJECT_ROOT / "handoff"
+BEST_PARAMS_PATH = PROJECT_ROOT / "backend" / "backtest" / "experiments" / "optimizer_best.json"
+TSV_PATH = PROJECT_ROOT / "backend" / "backtest" / "experiments" / "quant_results.tsv"
+HARNESS_LOG = HANDOFF_ROOT / "harness_log.md"
 
 # -- Sub-periods for evaluator --
 SUB_PERIODS = [
@@ -829,7 +831,7 @@ Evaluator verdict: {grades['verdict']} (composite {grades['composite']}/10)
 - 2x costs Sharpe > 0.7
 """
 
-    (HANDOFF_DIR / "research_plan.md").write_text(content, encoding="utf-8")
+    (HANDOFF_ROOT / "research_plan.md").write_text(content, encoding="utf-8")
     logger.info("Updated handoff/research_plan.md for cycle %d", cycle + 1)
 
 

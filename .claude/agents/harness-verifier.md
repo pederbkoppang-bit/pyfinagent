@@ -23,9 +23,10 @@ Per SEVerA (arXiv:2603.25111) and Kleppmann: "it doesn't matter if they hallucin
    - Test suites: run relevant tests if they exist
 
 2. **Existing results check:**
-   - Read `handoff/evaluator_critique*.md` for latest PASS/FAIL/CONDITIONAL verdict
+   - Read `handoff/current/evaluator_critique.md` for latest PASS/FAIL/CONDITIONAL verdict
+   - Fallback: check `handoff/archive/phase-*/evaluator_critique.md` for phase-specific verdicts
    - Check `backend/backtest/experiments/` for recent experiment results
-   - Read `handoff/experiment_results.md` if applicable
+   - Read `handoff/current/experiment_results.md` if applicable
 
 3. **Harness dry-run** (only if within 55s timeout budget):
    - `source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1`

@@ -241,7 +241,7 @@
           "status": "pending",
           "harness_required": false,
           "verification": null,
-          "contract": "handoff/contract_phase_3_1.md",
+          "contract": "handoff/archive/phase-3.1/contract.md",
           "retry_count": 0,
           "max_retries": 3
         },
@@ -310,7 +310,7 @@
       "name": "Production Readiness",
       "status": "in-progress",
       "depends_on": [
-        "phase-3"
+        "phase-2"
       ],
       "gate": null,
       "steps": [

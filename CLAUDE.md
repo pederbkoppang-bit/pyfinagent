@@ -13,7 +13,7 @@ cd frontend && npm run dev  # port 3000
 
 # Harness (autonomous optimization)
 source .venv/bin/activate
-python run_harness.py [--cycles N] [--iterations-per-cycle N] [--dry-run]
+python scripts/harness/run_harness.py [--cycles N] [--iterations-per-cycle N] [--dry-run]
 
 # Slack bot (standalone process)
 source .venv/bin/activate
@@ -43,7 +43,7 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 4 layers, 38 agents:
 1. **Analysis Pipeline** (28 Gemini agents) — `backend/agents/orchestrator.py`
 2. **MAS Orchestrator** (6 Claude agents) — `backend/agents/multi_agent_orchestrator.py`
-3. **Harness** (4 Claude agents) — `run_harness.py`, `backend/autonomous_harness.py`
+3. **Harness** (4 Claude agents) — `scripts/harness/run_harness.py`, `backend/autonomous_harness.py`
 4. **Services** — Paper trading, ticket queue, SLA monitor, Slack bot
 
 ## Stack
@@ -83,7 +83,7 @@ python -c "import ast; ast.parse(open('backend/path/file.py').read())"
 cd frontend && npm run build
 
 # Run harness with dry-run
-python run_harness.py --dry-run --cycles 1
+python scripts/harness/run_harness.py --dry-run --cycles 1
 ```
 
 ## Frontend Conventions
