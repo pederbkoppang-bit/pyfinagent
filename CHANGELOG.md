@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-13 | `77cf462` | Add PostToolUse hook: auto-update changelog on every commit |
 
 ---
 
