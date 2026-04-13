@@ -42,7 +42,11 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 from backend.config.settings import get_settings
 from backend.db.bigquery_client import BigQueryClient
-from run_harness import run_backtest
+import sys
+from pathlib import Path
+# Add project root to path so scripts/harness imports work
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from scripts.harness.run_harness import run_backtest
 from backend.backtest.spot_checks import SpotCheckRunner
 
 

@@ -1,30 +1,49 @@
-pyfinagent-app/.streamlit/secrets.toml
-
-# Environment files (secrets)
+# Environment & secrets
 .env
 !.env.example
 .env.local
+service-account.json
+*.pem
 
 # Python
 __pycache__/
 *.pyc
 *.egg-info/
-.venv312/
+.venv/
+.venv*/
+*.egg
 
 # Node
 node_modules/
 .next/
 
+# Logs
+*.log
+logs/
+
+# Data files
+*.db
+tickets.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+
 # Prisma SQLite auth database
 frontend/prisma/auth.db
 frontend/prisma/auth.db-journal
 
-# Generated server logs (restart.ps1)
+# Generated files
 _backend.log
 _frontend.log
 _restart_log.txt
 _health_result.txt
 _cleanup.ps1
-optimizer.log
-tickets.db
-service-account.json
+
+# Archived/stale
+pyfinagent-app/.streamlit/secrets.toml
