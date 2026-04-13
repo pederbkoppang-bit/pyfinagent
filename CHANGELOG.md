@@ -5,6 +5,30 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
+### v6.3.0 — Project Restructure + BQ Fix + GitHub Actions (April 13, 2026)
+
+**Clean root directory (44 to 10 files). BQ streaming buffer fix. Remote agent can push. GitHub CI/CD.**
+
+#### Project Restructure
+1. **Root cleanup** — Moved 34 files into organized subdirectories (scripts/, tests/, functions/, docs/)
+2. **scripts/harness/** — run_harness.py, run_optimizer.py and 6 other harness scripts
+3. **scripts/migrations/** — 5 migration scripts (migrate_*.py, extend_historical_data.py)
+4. **functions/** — Cloud Functions consolidated (ingestion, earnings, quant)
+5. **docs/archive/** — Legacy Streamlit app moved from root
+6. **Removed .venv312** — 11,828 tracked files deleted from git
+7. **Updated .gitignore** — Comprehensive coverage (*.log, .DS_Store, *.db, .venv*/)
+
+#### Bug Fixes
+8. **BQ streaming buffer fix** — All paper trading inserts converted from streaming API to DML INSERT, preventing UPDATE/DELETE conflicts
+9. **Paper trading run-now timeout** — Daily cycle now runs in ThreadPoolExecutor, endpoint returns instantly
+10. **Changelog auto-commits** — API returns recent git commits alongside version entries
+
+#### CI/CD
+11. **GitHub Actions** — Claude Code Review + PR Assistant workflows added by remote agent
+12. **Remote agent push access** — GitHub token configured, commits now persist between runs
+
+---
+
 ### v6.2.0 — Autonomous Operations + 500+ Experiments (April 13, 2026)
 
 **Autoresearch running 24/7. Paper trading live. MAS architecture upgraded to Anthropic multi-agent pattern.**

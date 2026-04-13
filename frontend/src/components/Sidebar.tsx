@@ -63,6 +63,11 @@ interface ChangelogEntry {
   changes: string[];
 }
 
+interface RecentCommit {
+  hash: string;
+  message: string;
+}
+
 // ── Section Group ─────────────────────────────────────────────
 
 function SectionGroup({
@@ -127,13 +132,17 @@ function SectionGroup({
 
 function ChangelogModal({ onClose }: { onClose: () => void }) {
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
+  const [recentCommits, setRecentCommits] = useState<RecentCommit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/changelog`)
       .then((r) => r.json())
-      .then((data) => setEntries(data.entries || []))
+      .then((data) => {
+        setEntries(data.entries || []);
+        setRecentCommits(data.recent_commits || []);
+      })
       .catch(() => setError("Could not load changelog"))
       .finally(() => setLoading(false));
   }, []);
@@ -194,6 +203,21 @@ function ChangelogModal({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
               ))}
+
+              {/* Recent Commits (auto-generated from git) */}
+              {recentCommits.length > 0 && (
+                <div className="mt-6 border-t border-slate-800 pt-4">
+                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Recent Commits</h3>
+                  <div className="space-y-1.5">
+                    {recentCommits.slice(0, 10).map((c) => (
+                      <div key={c.hash} className="flex gap-2 text-xs">
+                        <span className="flex-shrink-0 font-mono text-sky-400/60">{c.hash}</span>
+                        <span className="text-slate-400 truncate">{c.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
