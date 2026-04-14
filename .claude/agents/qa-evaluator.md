@@ -2,7 +2,7 @@
 name: qa-evaluator
 description: Independent QA evaluator for cross-verification of completed work. Verifies success criteria, tests, and harness results. Use after implementation to verify quality before marking steps done.
 tools: Read, Bash, Glob, Grep
-model: sonnet
+model: opus
 maxTurns: 10
 effort: medium
 memory: project
