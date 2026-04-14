@@ -74,6 +74,11 @@ class SignalsServer:
         self._recent_responses: Dict[str, Dict[str, Any]] = {}
         self._recent_responses_limit = 50
 
+        # Phase 4.3: trailing drawdown state. Running peak-equity high-water
+        # mark for the drawdown tier computation in track_drawdown(). In-memory
+        # only this session; durable cross-restart persistence is Phase 4.2.
+        self._peak_equity: Optional[float] = None
+
         # Initialize paper trader if available
         if _SIGNALS_AVAILABLE:
             try:
@@ -339,17 +344,11 @@ class SignalsServer:
 
         # ---- Step 5: portfolio snapshot + risk_check --------------------
         portfolio = self.get_portfolio()
-        # v1 sizing: cash*0.05 capped at $1000 if signal doesn't carry size_usd.
-        # Real sizing (Kelly / Risk Judge) is Phase 4.3. Documented in contract.
-        try:
-            cash = float(portfolio.get("cash", 0.0) or 0.0)
-        except (ValueError, TypeError):
-            cash = 0.0
-        default_amount = min(cash * 0.05, 1000.0) if cash > 0 else 0.0
-        try:
-            amount_usd = float(signal.get("size_usd", default_amount) or default_amount)
-        except (ValueError, TypeError):
-            amount_usd = default_amount
+        # Phase 4.3 sizing: hybrid lite-formula via size_position(), which
+        # takes the min of (hard pct cap, half-Kelly confidence-weighted,
+        # inverse-vol) with graceful degradation. Explicit signal.size_usd
+        # still overrides (preserves the 4.1 contract).
+        amount_usd = self.size_position(signal, portfolio)
 
         # Estimate shares for the risk_check predicate. Price resolution:
         # signal.price -> position.price -> 1.0 (degraded, same as the
@@ -723,7 +722,318 @@ class SignalsServer:
             "conflicts": list(conflicts),
             "reason": reason,
         }
-    
+
+    def size_position(self, signal: Dict[str, Any], portfolio: Dict[str, Any]) -> float:
+        """Hybrid lite-formula position sizing (Phase 4.3).
+
+        Returns the recommended USD notional for a proposed BUY, as the
+        minimum of up to three independent caps:
+
+          (a) Hard percent-of-equity cap: min(equity * max_position_pct/100,
+              max_position_usd). Always computed. Preserves the v1 worst-case
+              bound.
+          (b) Confidence-weighted half-Kelly arm: 0.5 * confidence * equity.
+              Only considered when signal.confidence is a numeric in [0, 1].
+              Degrades gracefully when mu_hat / var_hat are not available --
+              we don't synthesise fake edge estimates (anti-leniency rule 6).
+          (c) Inverse-vol arm: (target_vol_pct/100) * equity / annualized_vol.
+              Only considered when signal.annualized_vol is a positive float.
+              Target vol defaults to max_position_pct if not supplied.
+
+        Justification (research.md sections 1-2):
+          * Half-Kelly captures ~75% of full-Kelly growth at ~50% variance
+            (CFA Institute 2018).
+          * Inverse-vol sizing decouples size from edge estimate quality
+            (Alvarez Quant Trading).
+          * Hard percent cap is the regulatory/15c3-5-style fatal bound
+            (pre-trade credit-threshold equivalent for a paper trader).
+
+        Pure, never raises, never mutates inputs. Returns 0.0 on any degraded
+        path (non-dict, non-BUY, zero equity, all arms skipped).
+
+        Args:
+            signal: dict matching validate_signal's schema. Optional extra
+                keys: size_usd (hard override, bypasses formula), confidence
+                (float in [0,1]), annualized_vol (positive float), mu_hat
+                and var_hat (reserved for future full-Kelly arm).
+            portfolio: dict matching get_portfolio's shape. Uses total_value
+                if present, else cash.
+
+        Returns:
+            float USD amount. 0.0 means "do not trade".
+        """
+        if not isinstance(signal, dict) or not isinstance(portfolio, dict):
+            return 0.0
+
+        action = str(signal.get("signal", "") or "").upper()
+        if action != "BUY":
+            return 0.0
+
+        # Explicit override bypasses the formula -- preserves the 4.1 contract
+        # where callers can pass an already-sized signal through publish_signal.
+        try:
+            explicit = signal.get("size_usd", None)
+            if explicit is not None:
+                explicit_val = float(explicit)
+                if explicit_val > 0.0:
+                    return explicit_val
+        except (ValueError, TypeError):
+            pass
+
+        try:
+            equity = float(portfolio.get("total_value", 0.0) or 0.0)
+        except (ValueError, TypeError):
+            equity = 0.0
+        if equity <= 0.0:
+            try:
+                equity = float(portfolio.get("cash", 0.0) or 0.0)
+            except (ValueError, TypeError):
+                equity = 0.0
+        if equity <= 0.0:
+            return 0.0
+
+        limits = self.get_risk_constraints()
+        try:
+            max_pos_pct = float(limits.get("max_position_pct", 5.0))
+        except (ValueError, TypeError):
+            max_pos_pct = 5.0
+        try:
+            max_pos_usd = float(limits.get("max_position_usd", 1000.0))
+        except (ValueError, TypeError):
+            max_pos_usd = 1000.0
+
+        # (a) Hard percent cap -- always included in the min().
+        hard_cap = min(equity * (max_pos_pct / 100.0), max_pos_usd)
+        candidates: List[float] = [hard_cap]
+
+        # (b) Confidence-weighted half-Kelly arm -- include only when
+        # confidence is a valid numeric in [0, 1]. We use the degraded-edge
+        # form 0.5 * confidence * equity since real mu_hat/var_hat are not
+        # plumbed yet (Phase 3.2 follow-up, per contract).
+        confidence_val: Optional[float] = None
+        try:
+            raw_conf = signal.get("confidence", None)
+            if raw_conf is not None:
+                confidence_val = float(raw_conf)
+                if confidence_val < 0.0 or confidence_val > 1.0:
+                    confidence_val = None
+        except (ValueError, TypeError):
+            confidence_val = None
+        if confidence_val is not None:
+            kelly_arm = 0.5 * confidence_val * equity
+            if kelly_arm > 0.0:
+                candidates.append(kelly_arm)
+
+        # (c) Inverse-vol arm -- only when annualized_vol is a positive
+        # float. Target-vol defaults to max_position_pct (conservative).
+        try:
+            ann_vol_raw = signal.get("annualized_vol", None)
+            ann_vol = float(ann_vol_raw) if ann_vol_raw is not None else 0.0
+        except (ValueError, TypeError):
+            ann_vol = 0.0
+        if ann_vol > 0.0:
+            try:
+                target_vol_pct = float(signal.get("target_vol_pct", max_pos_pct))
+            except (ValueError, TypeError):
+                target_vol_pct = max_pos_pct
+            vol_arm = (target_vol_pct / 100.0) * equity / ann_vol
+            if vol_arm > 0.0:
+                candidates.append(vol_arm)
+
+        sized = min(candidates) if candidates else 0.0
+        if sized < 0.0:
+            sized = 0.0
+        return float(sized)
+
+    def check_stop_loss(self, portfolio: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Detect positions at the per-position fixed or trailing stop.
+
+        Post-trade SOFT check (FINRA 15c3-5 hierarchy -- stops generate
+        liquidating orders, they are NOT pre-trade fatal blocks). Returns
+        the list of positions the caller should exit; does NOT emit trades
+        itself (caller wiring is a Phase 4.3 follow-up -- see contract).
+
+        Triggers, per research.md section 2:
+          * fixed_stop: (current_price - entry_price) / entry_price <= -stop_loss_pct/100
+                        Default 8% -- O'Neil / CAN SLIM canonical.
+          * trailing_stop: (current_price - peak_price) / peak_price <= -trail_stop_pct/100
+                        Default 3% -- Chandelier-lite.
+
+        Pure function over the portfolio snapshot; never mutates input;
+        never raises. Malformed position records are skipped (not raised).
+
+        Args:
+            portfolio: dict matching get_portfolio's shape. Each position in
+                portfolio["positions"][ticker] must have entry_price (or
+                price) and current_price (or mark_price) for the checks to
+                fire. peak_price is optional -- defaults to max(entry,
+                current) if missing.
+
+        Returns:
+            List of dicts, one per triggered stop. Each has keys: ticker,
+            reason ("fixed_stop" | "trailing_stop"), entry_price,
+            current_price, peak_price, loss_pct.
+            Empty list means "no action".
+        """
+        if not isinstance(portfolio, dict):
+            return []
+
+        positions = portfolio.get("positions", {})
+        if not isinstance(positions, dict) or not positions:
+            return []
+
+        limits = self.get_risk_constraints()
+        try:
+            stop_pct = float(limits.get("stop_loss_pct", 8.0))
+        except (ValueError, TypeError):
+            stop_pct = 8.0
+        try:
+            trail_pct = float(limits.get("trail_stop_pct", 3.0))
+        except (ValueError, TypeError):
+            trail_pct = 3.0
+
+        # Convert to negative fractional bounds once (e.g. -0.08, -0.03).
+        fixed_floor = -(stop_pct / 100.0)
+        trail_floor = -(trail_pct / 100.0)
+
+        triggered: List[Dict[str, Any]] = []
+        for ticker, pos in positions.items():
+            if not isinstance(ticker, str) or not ticker:
+                continue
+            if not isinstance(pos, dict):
+                continue
+            try:
+                entry = float(pos.get("entry_price", pos.get("price", 0.0)) or 0.0)
+            except (ValueError, TypeError):
+                entry = 0.0
+            try:
+                current = float(pos.get("current_price", pos.get("mark_price", 0.0)) or 0.0)
+            except (ValueError, TypeError):
+                current = 0.0
+            if entry <= 0.0 or current <= 0.0:
+                # Missing price data -- can't evaluate, skip silently.
+                continue
+            try:
+                peak = float(pos.get("peak_price", 0.0) or 0.0)
+            except (ValueError, TypeError):
+                peak = 0.0
+            if peak <= 0.0:
+                peak = max(entry, current)
+
+            # Fixed stop: loss vs entry.
+            fixed_loss = (current - entry) / entry
+            if fixed_loss <= fixed_floor:
+                triggered.append({
+                    "ticker": ticker,
+                    "reason": "fixed_stop",
+                    "entry_price": entry,
+                    "current_price": current,
+                    "peak_price": peak,
+                    "loss_pct": fixed_loss * 100.0,
+                })
+                continue  # one reason per position
+
+            # Trailing stop: loss vs running peak (only relevant when the
+            # position has run up past entry).
+            if peak > entry and peak > 0.0:
+                trail_loss = (current - peak) / peak
+                if trail_loss <= trail_floor:
+                    triggered.append({
+                        "ticker": ticker,
+                        "reason": "trailing_stop",
+                        "entry_price": entry,
+                        "current_price": current,
+                        "peak_price": peak,
+                        "loss_pct": trail_loss * 100.0,
+                    })
+
+        return triggered
+
+    def track_drawdown(self, portfolio: Dict[str, Any]) -> Dict[str, Any]:
+        """Update the trailing drawdown state and return the current tier.
+
+        The canonical equity-curve drawdown, mirroring QuantConnect's
+        MaximumDrawdownPercentPortfolio model (research.md section 3):
+
+            peak_t      = max(peak_{t-1}, equity_t)
+            drawdown_t  = (equity_t - peak_t) / peak_t       (always <= 0)
+            tier        = ok | warning | derisk | kill
+
+        Tier thresholds read from get_risk_constraints(). Industry-standard
+        5/10/15 ladder: -5% log-only warning, -10% halve sizes, -15% full
+        kill switch (liquidate + manual reset required).
+
+        Stateful: mutates self._peak_equity. Lazily initialised on first
+        call. In-memory only; durable cross-restart persistence is Phase 4.2
+        territory.
+
+        Args:
+            portfolio: dict matching get_portfolio's shape. Uses total_value.
+
+        Returns:
+            {
+                "peak":         float,
+                "equity":       float,
+                "drawdown_pct": float,   # signed, 0 or negative
+                "tier":         str,     # "ok" | "warning" | "derisk" | "kill"
+                "kill_switch":  bool,    # True iff tier == "kill"
+            }
+        """
+        if not isinstance(portfolio, dict):
+            return {
+                "peak": 0.0,
+                "equity": 0.0,
+                "drawdown_pct": 0.0,
+                "tier": "ok",
+                "kill_switch": False,
+            }
+
+        try:
+            equity = float(portfolio.get("total_value", 0.0) or 0.0)
+        except (ValueError, TypeError):
+            equity = 0.0
+
+        if self._peak_equity is None or equity > self._peak_equity:
+            self._peak_equity = equity
+        peak = self._peak_equity or 0.0
+
+        if peak > 0.0:
+            drawdown_pct = ((equity - peak) / peak) * 100.0
+        else:
+            drawdown_pct = 0.0
+
+        limits = self.get_risk_constraints()
+        try:
+            warn_pct = float(limits.get("drawdown_warning_pct", -5.0))
+        except (ValueError, TypeError):
+            warn_pct = -5.0
+        try:
+            derisk_pct = float(limits.get("drawdown_derisk_pct", -10.0))
+        except (ValueError, TypeError):
+            derisk_pct = -10.0
+        try:
+            kill_pct = float(limits.get("max_drawdown_pct", -15.0))
+        except (ValueError, TypeError):
+            kill_pct = -15.0
+
+        # Canonical tier cascade: check most severe first.
+        if drawdown_pct <= kill_pct:
+            tier = "kill"
+        elif drawdown_pct <= derisk_pct:
+            tier = "derisk"
+        elif drawdown_pct <= warn_pct:
+            tier = "warning"
+        else:
+            tier = "ok"
+
+        return {
+            "peak": float(peak),
+            "equity": float(equity),
+            "drawdown_pct": float(drawdown_pct),
+            "tier": tier,
+            "kill_switch": tier == "kill",
+        }
+
     def get_portfolio(self) -> Dict[str, Any]:
         """Get current portfolio holdings."""
         logger.info("get_portfolio()")
@@ -758,14 +1068,27 @@ class SignalsServer:
             }
     
     def get_risk_constraints(self) -> Dict[str, Any]:
-        """Get risk limits."""
+        """Get risk limits.
+
+        Phase 4.3 extension: adds 6 new keys for position sizing, stop-loss,
+        and trailing-drawdown tiers. Existing keys are preserved unchanged so
+        risk_check and any prior callers keep working.
+        """
         logger.info("get_risk_constraints()")
         return {
+            # Phase 3.0 risk_check predicates (unchanged)
             "max_exposure_per_ticker_pct": 10.0,
             "max_total_exposure_pct": 100.0,
             "max_drawdown_pct": -15.0,
             "min_sharpe": 0.9,
             "max_daily_trades": 5,
+            # Phase 4.3 position sizing + stop-loss + drawdown ladder
+            "max_position_pct": 5.0,           # hard cap arm: equity * 5%
+            "max_position_usd": 1000.0,        # absolute $ cap on a single trade
+            "stop_loss_pct": 8.0,              # O'Neil 7-8% canonical per-position stop
+            "trail_stop_pct": 3.0,             # Chandelier-lite trailing stop (peak - 3%)
+            "drawdown_warning_pct": -5.0,      # log-only warning tier
+            "drawdown_derisk_pct": -10.0,      # halve new sizes tier (kill at -15%)
         }
     
     def get_signal_history(self) -> Dict[str, Any]:

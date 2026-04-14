@@ -1,106 +1,154 @@
-# Experiment Results — Phase 4.1 Slack Signal Delivery
+# Phase 4.3 Risk Management — Experiment Results
 
-**Step**: 4.1 Slack Signal Delivery
-**Session**: 2026-04-14 ~09:00 UTC (Ford, Opus 4.6, remote)
-**Status**: GENERATE complete — handing off to QA
+**Date:** 2026-04-14
+**Session:** Ford remote, Opus 4.6
+**Step:** 4.3 Risk Management (code-only subset)
+**Status:** GENERATE complete, all 20 assertions PASS
 
-## Starting state
-- `backend/agents/mcp_servers/signals_server.py::publish_signal` was a 22-line stub returning `{published: False, reason: "PENDING_IMPLEMENTATION"}`
-- `backend/slack_bot/formatters.py` had `format_analysis_result`, `format_portfolio_summary`, `format_report_card`, `format_morning_digest` but no signal-alert helper
-- `SignalsServer.__init__` had a latent bug on line 73: `PaperTrader(bq_client=self.bq_client)` missing the required `settings` arg — would crash on any session where `_SIGNALS_AVAILABLE=True`
+## What was built
 
-## Changes shipped
+Three new public methods on `SignalsServer`, plus an extension to
+`get_risk_constraints()`, plus a localised change to step 5 of `publish_signal`.
+Everything in `backend/agents/mcp_servers/signals_server.py`. Stdlib-only.
 
-### `backend/slack_bot/formatters.py` (+123 lines)
-- New `_signal_emoji(action)` helper — green/red/yellow circle by action
-- New `format_signal_alert(signal, trade=None)` — pure Block Kit builder
-  - Header: `{emoji} {TICKER} {ACTION}`
-  - Section fields (2x2): Confidence / Price / Size / Stop — each shows "N/A" fallback if missing
-  - Section mrkdwn: `*Thesis:* {reason_truncated_500}` — reuses existing `_truncate`
-  - Divider
-  - Context footer: `:robot_face: PyFinAgent | {date} | signal_id: {...} | {timestamp}`
-- Tolerates non-dict `signal`, non-dict `trade`, missing/malformed numeric fields (ValueError/TypeError swallowed to "N/A")
-- Never raises
+1. **`size_position(signal, portfolio) -> float`** — hybrid lite-formula
+   sizing. Takes the minimum of up to three independent caps:
+   (a) hard percent-of-equity cap (`equity * max_position_pct/100`, then
+   floored to `max_position_usd`),
+   (b) confidence-weighted half-Kelly arm (`0.5 * confidence * equity`,
+   degraded-edge form),
+   (c) inverse-vol arm (`target_vol_pct/100 * equity / annualized_vol`).
+   Only (a) is always computed; (b) and (c) are skipped when their inputs
+   are missing / invalid (no fake substitutes). Explicit `signal.size_usd`
+   still overrides. Returns 0.0 for non-BUY actions, non-dict input, or
+   zero equity. Never raises.
 
-### `backend/agents/mcp_servers/signals_server.py` (+346 / -22 lines)
-- **New imports**: `hashlib`, `datetime`, `timezone` (stdlib only — stub-mode invariant preserved)
-- **Init bug fix**: `PaperTrader(bq_client=...)` → `PaperTrader(settings=self.settings, bq_client=...)`
-- **New instance state**:
-  - `self._seen_signal_ids: set` — unbounded dedup key set (cheap: 16-char sha1 prefixes)
-  - `self._recent_responses: dict` — FIFO-bounded response cache, limit 50
-  - `self._recent_responses_limit = 50`
-- **New `@staticmethod _signal_id(signal)`**:
-  - Returns sha1 prefix of `f"{ticker}|{date}|{signal}|{round(conf,2)}"`
-  - `usedforsecurity=False` flag on the hash (we use it as a dedup key, not a MAC)
-  - Returns `""` on any exception (defensive; never raises)
-- **New `_empty_response()` + `_remember()`** helpers — uniform return shape, FIFO eviction
-- **`publish_signal()` rewrite (stub → full 9-step pipeline)**:
-  1. Schema coerce (non-dict → `invalid_input`)
-  2. `validate_signal` delegate (`validation_failed:<first_viol>`)
-  3. signal_id compute + dedup check (returns cached response with `deduped: true`)
-  4. Stub-mode gate (`backend_unavailable`, `stub: true`)
-  5. `get_portfolio` + `risk_check` (`risk_rejected:<first_conflict>`)
-  6. Trade execution via `paper_trader.execute_buy/execute_sell`; HOLD short-circuits; `None` return → `trade_rejected`
-  7. Lazy-import Slack SDK + formatter; missing token/channel → `slack_not_configured`
-  8. `SlackApiError` / `ImportError` / generic `Exception` → structured `slack_api_error:<code>` degradation
-  9. Build success response, cache via `_remember`
-- **Lazy imports** (inside the method body, NOT at module scope):
-  - `from slack_sdk import WebClient`
-  - `from slack_sdk.errors import SlackApiError`
-  - `from backend.slack_bot.formatters import format_signal_alert`
-- **Return-shape invariant**: every code path returns a dict with at least
-  `published, signal_id, trade_executed, slack_posted, timestamp, reason`
-- **ASCII `text=` fallback**: `f"{action} {ticker} conf={conf:.2f}"` — no unicode, safe for Windows cp1252 log paths
-- **All other methods untouched**: `generate_signal`, `validate_signal`, `risk_check`, `get_portfolio`, `get_risk_constraints`, `get_signal_history`, `_risk_response`, `create_signals_server`
+2. **`check_stop_loss(portfolio) -> list[dict]`** — pure detector of
+   positions breaching per-position fixed stop (8% from entry, O'Neil
+   canonical) or trailing stop (3% off running peak, Chandelier-lite).
+   Returns `[{ticker, reason, entry_price, current_price, peak_price,
+   loss_pct}, ...]`. Does NOT emit liquidating orders — that wiring is a
+   Phase 4.3 follow-up documented in the contract. Malformed positions
+   are skipped silently. Never raises.
 
-## Self-verification (39 checks, all PASS)
+3. **`track_drawdown(portfolio) -> dict`** — equity-curve drawdown tracker.
+   Lazily initialises `self._peak_equity`, updates it on new highs,
+   computes `(equity - peak)/peak * 100` and classifies into the
+   5%/10%/15% ladder: `ok` / `warning` / `derisk` / `kill`. Mirrors
+   QuantConnect's `MaximumDrawdownPercentPortfolio` reference model.
+   Returns `{peak, equity, drawdown_pct, tier, kill_switch}`. In-memory
+   only this session; durable state is Phase 4.2.
 
-Ran a deterministic battery before handoff. Full output is in the session log, abbreviated here:
+4. **`get_risk_constraints()` extension** — added 6 new keys (the existing
+   5 keys are unchanged):
+   `max_position_pct=5.0`, `max_position_usd=1000.0`, `stop_loss_pct=8.0`,
+   `trail_stop_pct=3.0`, `drawdown_warning_pct=-5.0`, `drawdown_derisk_pct=-10.0`.
+   `max_drawdown_pct=-15.0` stays as the kill switch.
 
-| Category | Count | Result |
+5. **`publish_signal` step 5 update** — replaced the inline v1 sizing
+   (`min(cash*0.05, 1000.0)`) with a call to `self.size_position(signal,
+   portfolio)`. Steps 1-4 and 6-9 are untouched. Explicit `size_usd`
+   override path is preserved inside `size_position` itself.
+
+6. **`__init__` state add** — `self._peak_equity: Optional[float] = None`.
+   Zero side-effects at construction (lazy init on first `track_drawdown`
+   call).
+
+## Deterministic assertions (20/20 PASS)
+
+Run directly against the real `SignalsServer` instance in stub mode (no
+LLM, no backend deps, no network).
+
+| # | name | expected | actual | result |
+|---|------|----------|--------|--------|
+| 1 | size_position_a1 (zero equity) | 0.0 | 0.0 | PASS |
+| 2 | size_position_a2 (hard cap at conf=1.0) | 500.0 | 500.0 | PASS |
+| 3 | size_position_a3 (kelly arm bounded by hard cap) | 500.0 | 500.0 | PASS |
+| 4 | size_position_a4 (vol arm, hard cap still dominant) | 1000.0 | 1000.0 | PASS |
+| 5 | size_position_a5 (HOLD action) | 0.0 | 0.0 | PASS |
+| 6 | size_position_a6 (non-dict signal) | 0.0 | 0.0 | PASS |
+| 7 | size_position explicit size_usd override | 250.0 | 250.0 | PASS |
+| 8 | check_stop_loss_a1 (empty positions) | [] | [] | PASS |
+| 9 | check_stop_loss_a2 (9% loss triggers fixed_stop) | fixed_stop -9.0% | fixed_stop -9.0% | PASS |
+| 10 | check_stop_loss_a3 (7% loss, no trigger) | [] | [] | PASS |
+| 11 | check_stop_loss_a4 (peak 120 -> current 116) | trailing_stop -3.33% | trailing_stop -3.33% | PASS |
+| 12 | check_stop_loss_a5 (non-dict portfolio) | [] | [] | PASS |
+| 13 | track_drawdown_a1 (first call sets peak) | peak=10000 dd=0 ok | peak=10000 dd=0 ok | PASS |
+| 14 | track_drawdown_a2 (equity=9500 -> warning) | dd=-5.0 warning | dd=-5.0 warning | PASS |
+| 15 | track_drawdown_a3 (equity=8900 -> derisk) | dd=-11.0 derisk | dd=-11.0 derisk | PASS |
+| 16 | track_drawdown_a4 (equity=8400 -> kill) | dd=-16.0 kill kill_switch=True | dd=-16.0 kill kill_switch=True | PASS |
+| 17 | track_drawdown_a5 (equity=11000 -> new high) | peak=11000 dd=0 ok | peak=11000 dd=0 ok | PASS |
+| 18 | constraints_a1 (6 new keys present) | all present | all present | PASS |
+| 19 | publish_signal_a1 (stub path preserved) | reason=backend_unavailable | reason=backend_unavailable | PASS |
+| 20 | ast_logger_ascii | 0 violations | 0 violations | PASS |
+
+## Static verification
+
+- `python3 -c "import ast; ast.parse(...)"` — CLEAN
+- `python3 -m py_compile` — CLEAN
+- AST logger ASCII scan — 0 non-ASCII chars in any logger call
+- Module import in stub mode — CLEAN (stub banner logged as expected)
+
+## Diff stats
+
+```
+ backend/agents/mcp_servers/signals_server.py | 349 +++++++++++++++++++++++++-
+ 1 file changed, 336 insertions(+), 13 deletions(-)
+```
+
+**Soft note on line bound:** Contract budgeted `< 300` added lines; actual
+is 336 (+12%). The overage is entirely in docstrings — each new method
+carries the research-justification paragraph the anti-leniency rules
+require. I flag it here rather than hide it; QA may accept or reject.
+
+## Scope compliance
+
+- Files touched: `backend/agents/mcp_servers/signals_server.py` — the only
+  one the contract permits.
+- No imports added. Stdlib only. No pandas / numpy / pydantic / backend
+  module imports.
+- `risk_check`, `validate_signal`, `generate_signal`, `get_portfolio`,
+  `get_signal_history`, `_risk_response`, `_signal_id`, `_empty_response`,
+  `_remember` — all UNCHANGED.
+- `publish_signal` steps 1-4 and 6-9 — UNCHANGED. Step 5's 10-line sizing
+  block collapsed to a 1-line `size_position()` call.
+- `__init__` gains one attribute (`_peak_equity`); no signature change.
+- `get_risk_constraints()` gains 6 keys; no existing key mutated.
+
+## Out-of-scope deferrals (with explicit reasoning)
+
+| Deferred item | Why | Target phase |
 |---|---|---|
-| AST parse + py_compile | 2 | PASS |
-| No top-level slack_sdk / formatters imports | 1 | PASS |
-| AST logger non-ASCII scan | 2 | PASS (0 violations each) |
-| Stub-mode import + instantiation | 4 | PASS |
-| Return shape invariant | 1 | PASS |
-| Stub-mode publish_signal smoke | 2 | PASS |
-| Dedup behavioral (same id, flag, seen set growth) | 3 | PASS |
-| `_signal_id` determinism + round collapse + special-char tickers | 3 | PASS |
-| Input fuzz (`None`, `""`, `int`, `list`, `{}`, partial dict, invalid values) | 7 | PASS |
-| `validate_signal` / `risk_check` regression replay | 4 | PASS |
-| `format_signal_alert` purity + blocks shape + header/context presence | 5 | PASS |
-| `format_signal_alert` trade=None fallback + N/A fields + non-dict input | 3 | PASS |
-| **Total** | **39** | **39 PASS / 0 FAIL** |
+| BQ persistence of `_peak_equity` | needs schema migration | 4.2 |
+| Real mu_hat / var_hat from backtest for full-Kelly | needs backtest query | 3.2 follow-up |
+| ATR-based trailing stop (Chandelier full form) | needs historical price series | 3.2 follow-up |
+| Emit liquidating orders on stop-loss trigger | needs paper_trader wiring | 4.3 follow-up |
+| Consecutive-stop counter for pause | needs persistent state | 4.3 follow-up |
+| Event calendar (earnings / FOMC) integration | needs earnings_tone plumbing | 4.3.3 |
+| Sector exposure 30% cap | needs sector mapping in portfolio | 4.3.1 follow-up |
 
-## Budget accounting
+## Research citations (justification, not ornament)
 
-- Plan bound: 500 lines (revised up from an initial 350 — documented in contract.md)
-- Actual: 446 insertions + 22 deletions on the two code files (`git diff --shortstat HEAD`)
-- Percentage under revised bound: 10.8%
+- Kaminski & Lo (2014), "When Do Stop-Loss Rules Stop Losses?" — stops
+  only add value under momentum; our backtest exhibits the persistence,
+  so keeping stops is justified.
+- CFA Institute (2018), "The Kelly Criterion: You Don't Know the Half of
+  It" — half-Kelly captures ~75% growth at ~50% variance; justifies the
+  0.5 coefficient on the Kelly arm.
+- William O'Neil, "How to Make Money in Stocks" — 7-8% stop rule as the
+  canonical per-position fixed-stop floor.
+- QuantConnect LEAN `MaximumDrawdownPercentPortfolio.py` — reference
+  implementation for the equity-curve drawdown tracker; our tier cascade
+  (ok/warning/derisk/kill) is the tiered-extension convention found across
+  QuantifiedStrategies / Robot Wealth / QuantVPS practitioner literature.
+- 17 CFR 240.15c3-5 / SEC 34-63241 — stops are post-trade SOFT triggers,
+  NOT pre-trade fatal blocks; this justifies their placement outside the
+  `risk_check` predicate hierarchy. (`risk_check` keeps the pre-trade
+  fatal checks; `check_stop_loss` is called post-fill by the caller.)
 
-## Filename whitelist
-`git diff --name-only HEAD`:
-- `CHANGELOG.md` (auto-hook drift from earlier chore commit, already resolved)
-- `backend/agents/mcp_servers/signals_server.py` (in-scope)
-- `backend/slack_bot/formatters.py` (in-scope)
-- `handoff/current/contract.md` (this session's contract)
-- `handoff/current/research.md` (researcher subagent output, created this session)
-- `handoff/current/experiment_results.md` (this file)
+## Next
 
-All on the whitelist.
-
-## Deliberate non-actions
-- Did NOT create a BQ `signal_history` table. Phase 4.2.
-- Did NOT wire the async Bolt app. Bolt is a separate process.
-- Did NOT touch the 4 unchanged signal-server methods, the 5 unchanged formatters, or the `create_signals_server` FastMCP factory.
-- Did NOT implement real position sizing. v1 uses `min(cash*0.05, 1000.0)` with a flag in the contract deferring to Phase 4.3.
-
-## Bonus bug fixed
-PaperTrader init signature bug flagged by the researcher (research.md §12):
-`PaperTrader(bq_client=...)` → `PaperTrader(settings=self.settings, bq_client=...)`.
-Without this, `_SIGNALS_AVAILABLE=True` paths would crash on server boot.
-Fix is a single-line correction inside the existing try block.
-
-## Next handoff
-QA evaluator should run the 16 success criteria in contract.md independently. The self-check battery above is informational only; QA re-runs everything deterministically per the anti-leniency protocol.
+EVALUATE phase — hand off to qa-evaluator (Opus) for independent
+cross-verification. Assertions above are reproducible; the QA run should
+re-execute them in an isolated Python process, audit the code for the
+anti-leniency rules, and return a verdict.
