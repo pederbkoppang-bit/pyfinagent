@@ -1,209 +1,160 @@
-# Contract: Phase 4.2.3.1 Formatter Hardening (SN1 + SN2)
+# Contract -- Phase 4.2.3.2 / SN4 `since_date` Lexicographic Trap Fix
 
-**Step:** Phase 4.2.3.1 -- harden `format_accuracy_report` per prior session soft notes
-**Target:** `backend/slack_bot/formatters.py` (narrow-scope edit to `_coerce_float` + n=0 fields list)
-**Scope:** Two micro-fixes, one file, additive + internal.
-**Date:** 2026-04-14
-**Author:** Ford remote agent (Opus 4.6)
-**Research gate:** PASSED -- `handoff/current/research.md` (20+ URLs, 7 categories)
-**Supersedes contract for:** Phase 4.2.3 (archived in git history)
+**Step ID:** 4.2.3.2 (SN4 micro-fix, follow-on to Phase 4.2.2 soft note SN4)
+**Target file:** `backend/agents/mcp_servers/signals_server.py`
+**Target function:** `SignalsServer.get_signal_history` (+ new private helper)
+**Base commit:** `2494d10` (origin/main HEAD as of 2026-04-14T2200Z)
 
-## Hypothesis
+## Problem statement
 
-IF we apply two defensive fixes to `backend/slack_bot/formatters.py`:
+Phase 4.2.2 `get_signal_history` compares `since_date` against stored
+signal dates using Python string `>=`. This is a **lexicographic**
+compare, which is only equivalent to chronological compare when BOTH
+sides are strictly zero-padded canonical ISO-8601 (`YYYY-MM-DD`).
 
-1. **SN1 fix**: `_coerce_float` gains a `math.isfinite` guard that
-   maps NaN / +Inf / -Inf to `0.0`, ensuring the downstream `_pct`
-   and `f"{x * 100.0:.1f}%"` renders never contain `nan%` or `inf%`.
-2. **SN2 fix**: in `format_accuracy_report`, the `scored_count <= 0`
-   fields list replaces the `mean_forward_return` and
-   `median_forward_return` field values with the canonical string
-   `"Scoring pending"` (same as the hit-rate row in that branch).
+Concrete failure cases:
 
-THEN the weekly accuracy report never presents fake-zero forward
-returns on n=0 samples and never leaks IEEE 754 non-finite values to
-the Slack channel, satisfying CFA III(D) fair presentation for the
-display layer.
+- `since_date="2026-4-1"` (unpadded), stored `date="2026-04-15"`
+  (padded): `"2026-04-15" >= "2026-4-1"` is **False** (because `"0" < "4"`
+  at index 5), so a valid April 15 record is **spuriously excluded**.
+- `since_date="2026-04-01"` (padded), stored `date="2026-1-15"`
+  (unpadded): `"2026-1-15" >= "2026-04-01"` is **True** (because `"1" > "0"`
+  at index 5), so a January 15 record is **spuriously included** when
+  the caller asked for "since April 1".
 
-## In-Scope Changes
+Documented as soft note SN4 in the Phase 4.2.2 QA critique, and again
+in the Phase 4.2.3 / 4.2.3.1 session logs. This contract closes SN4.
 
-- **File:** `backend/slack_bot/formatters.py`
-- **Change 1 (SN1):** Add `import math` to top-of-file imports. Modify
-  `_coerce_float` body to add a finiteness guard before return.
-- **Change 2 (SN2):** In `format_accuracy_report`, inside the
-  `if scored_count <= 0:` branch, change the field values for
-  "Mean forward return" and "Median forward return" from `mean_str`
-  and `median_str` to `"Scoring pending"`.
+## Fix approach (locked by research.md)
 
-That is the entire scope. No new functions, no helper rename, no
-signature changes, no branch reorganization.
+1. Add `date` to the existing `from datetime import datetime, timezone`
+   line (one-word addition, no new import statement).
+2. Add a private `@staticmethod _parse_iso_date(s) -> Optional[date]`
+   on `SignalsServer` that:
+   - Returns `None` for any non-string or empty input.
+   - Tries `date.fromisoformat(s)` first (canonical fast path).
+   - On failure, splits on `"-"`, re-pads each component with
+     `f"{int(x):02d}"`, retries `date.fromisoformat`.
+   - Catches `ValueError` + `TypeError`, returns `None` on any failure.
+3. Replace the lex-compare block in `get_signal_history` with a
+   `date`-object compare using the new helper on both `since_date`
+   (once) and each record's `date` field (per iteration).
 
-## Out of Scope (Intentionally Deferred)
+## Success criteria (25 deterministic assertions)
 
-1. **SN4 `since_date` lex trap** in `signals_server.get_signal_history`
-   -- different file, different research gate.
-2. **Phase 4.2.4 BQ durable persistence** -- remote env blocker.
-3. **Phase 4.2.4 scheduler wiring** -- needs APScheduler.
-4. **Touching `_pct`, `_coerce_int`, the 1..4 scored branch, the >=5
-   scored branch, the per-group loop** -- stable Phase 4.2.3 scaffold.
-5. **Renaming `_coerce_float`** -- API contract preserved.
-6. **Adding new success criteria sub-modes** (e.g., "data stale" vs
-   "data pending") -- single placeholder string by design.
-7. **Changes to any of the 9 pre-4.2.3 public formatters** -- must
-   remain AST byte-identical.
+### Group A -- Helper happy path (SC1-SC6)
 
-## Anti-Leniency Rules (MUST enforce in QA)
+- **SC1:** `_parse_iso_date("2026-04-01") == date(2026, 4, 1)`
+- **SC2:** `_parse_iso_date("2026-04-15") == date(2026, 4, 15)`
+- **SC3:** `_parse_iso_date("2000-01-01") == date(2000, 1, 1)`
+- **SC4:** `_parse_iso_date("2026-4-1") == date(2026, 4, 1)` (unpadded)
+- **SC5:** `_parse_iso_date("2026-4-15") == date(2026, 4, 15)` (unpadded month)
+- **SC6:** `_parse_iso_date("2026-12-1") == date(2026, 12, 1)` (unpadded day)
 
-1. **Top-of-file imports: exactly one addition.** The new import set
-   is `from datetime import datetime` + `import math`. Nothing else.
-2. **No touches to `signals_server.py`, `backtest_server.py`,
-   `data_server.py`, or any MCP server code.**
-3. **No changes to the 9 pre-4.2.3 public formatters**
-   (`_truncate`, `_score_emoji`, `_rec_color`, `format_analysis_result`,
-   `format_portfolio_summary`, `_signal_emoji`, `format_signal_alert`,
-   `format_report_card`, `format_morning_digest`). AST byte-identical.
-4. **No changes to `_pct` or `_coerce_int`.** AST byte-identical.
-5. **No changes to `format_accuracy_report` branches for
-   `scored_count >= 1`** (the 1..4 preliminary branch and the >=5 CI
-   branch). AST byte-identical in those branches.
-6. **Never raise.** Same invariant as Phase 4.2.3:
-   `format_accuracy_report(None)`, `({})`, `({"hits": "bad"})`,
-   `({"mean_forward_return_pct": float('nan')})`,
-   `({"mean_forward_return_pct": float('inf')})` all return a
-   `list[dict]` without exception.
-7. **No non-ASCII in new code.**
-8. **Diff budget:** `<= 20` added lines, `<= 5` deleted lines.
-   This is a surgical micro-fix cycle, not a rewrite.
-9. **Canonical placeholder string is `"Scoring pending"`** -- do
-   NOT introduce `"N/A"`, `"--"`, `"pending"`, `"tbd"`, or any
-   other synonym.
+### Group B -- Helper reject path (SC7-SC12)
 
-## Success Criteria (QA must run these)
+- **SC7:** `_parse_iso_date(None) is None`
+- **SC8:** `_parse_iso_date("") is None`
+- **SC9:** `_parse_iso_date("not-a-date") is None`
+- **SC10:** `_parse_iso_date(20260401) is None` (int, wrong type)
+- **SC11:** `_parse_iso_date("2026-13-01") is None` (invalid month)
+- **SC12:** `_parse_iso_date("2026-04-32") is None` (invalid day)
 
-### SC1-SC5: SN1 NaN/Inf Filter in `_coerce_float`
+### Group C -- get_signal_history SN4 semantics (SC13-SC18)
 
-- **SC1:** `_coerce_float({"x": float('nan')}, "x") == 0.0`
-- **SC2:** `_coerce_float({"x": float('inf')}, "x") == 0.0`
-- **SC3:** `_coerce_float({"x": float('-inf')}, "x") == 0.0`
-- **SC4:** `_coerce_float({"x": 1.5}, "x") == 1.5` (happy path
-  unchanged)
-- **SC5:** `_coerce_float({"x": "bad"}, "x") == 0.0` (prior bad-input
-  fallback unchanged)
+- **SC13:** With `signal_history = [{"date": "2026-04-15", ...}]` and
+  `since_date="2026-4-1"`, the result includes the April 15 signal.
+  (Previously excluded by lex compare.)
+- **SC14:** With `signal_history = [{"date": "2026-1-15", ...}]` and
+  `since_date="2026-04-01"`, the result **excludes** the January 15
+  signal. (Previously included by lex compare.)
+- **SC15:** With a canonical padded since_date and padded stored dates,
+  the filter behavior is unchanged from pre-fix (back-compat).
+- **SC16:** `since_date=None` returns all signals (no filter applied).
+- **SC17:** `since_date="not-a-date"` returns all signals (parse failure
+  degrades to unfiltered, never raises).
+- **SC18:** A stored signal with `date="not-a-date"` is silently
+  dropped from the filtered result when `since_date` is a valid date.
 
-### SC6-SC10: Downstream rendering no longer leaks `nan%`/`inf%`
+### Group D -- Never-raise + edge cases (SC19-SC22)
 
-- **SC6:** Fixture with `mean_forward_return_pct = float('nan')` and
-  `scored_count >= 5` -- rendered fields contain NO `nan%` substring.
-  Mean field renders `"+0.00%"` (the neutral display after sanitization).
-- **SC7:** Fixture with `median_forward_return_pct = float('inf')`
-  and `scored_count >= 5` -- rendered fields contain NO `inf%`
-  substring. Median field renders `"+0.00%"`.
-- **SC8:** Fixture with `hit_rate_ci_low = float('nan')` and
-  `scored_count >= 5` -- CI string contains no `nan` substring.
-  (Prior clamp to `[0, 1]` still applies; the new `isfinite` guard
-  pre-empts it.)
-- **SC9:** Group with `mean_forward_return_pct = float('nan')` --
-  rendered group line contains no `nan%` substring.
-- **SC10:** 10 consecutive invocations with random non-finite
-  values never raise and never produce `"nan"` or `"inf"` substrings
-  anywhere in the serialized block text.
+- **SC19:** `get_signal_history(since_date={"x": 1})` does not raise,
+  returns a valid dict with all keys.
+- **SC20:** `get_signal_history(since_date=42)` does not raise
+  (int input).
+- **SC21:** A signal record that is not a dict (e.g. `None`) is
+  tolerated by the filter loop and skipped.
+- **SC22:** Calling `get_signal_history(limit=5, since_date="2026-4-1")`
+  returns a dict with the correct `month`, `count`, `signals`,
+  `total_count` keys.
 
-### SC11-SC15: SN2 n=0 "Scoring pending" expansion
+### Group E -- Scope discipline (SC23-SC25)
 
-- **SC11:** Fixture with `total_count=5, scored_count=0,
-  mean_forward_return_pct=0.0` -- the "Mean forward return" field
-  value is exactly `"Scoring pending"`, NOT `"+0.00%"`.
-- **SC12:** Same fixture -- the "Median forward return" field value
-  is exactly `"Scoring pending"`, NOT `"+0.00%"`.
-- **SC13:** Same fixture -- the "Hit rate" field value is still
-  exactly `"Scoring pending"` (unchanged from Phase 4.2.3).
-- **SC14:** Same fixture -- the fields list length is still 4 (even),
-  <= 10.
-- **SC15:** `scored_count=1` fixture -- "Mean forward return" and
-  "Median forward return" fields still render as signed percents
-  (e.g., `"+1.24%"`), NOT `"Scoring pending"`. SN2 fix is strictly
-  gated to the n=0 branch.
+- **SC23:** The only lines changed in `signals_server.py` are (a) the
+  `from datetime import ...` line (adds `date`), (b) the new
+  `_parse_iso_date` helper, and (c) the `since_date` block in
+  `get_signal_history`. No other function changes.
+- **SC24:** `ast.dump()` of every `SignalsServer` method other than
+  `get_signal_history` (and `_parse_iso_date` which is new) is
+  byte-identical pre-fix vs post-fix. Preserved method list (min):
+  `_signal_id`, `_empty_response`, `_remember`, `_risk_response`,
+  `generate_signal`, `validate_signal`, `risk_check`, `size_position`,
+  `check_stop_loss`, `track_drawdown`, `get_portfolio`,
+  `get_risk_constraints`, `publish_signal`, `track_signal_accuracy`,
+  `get_accuracy_report`, `_wilson_ci`, `_append_signal_history`.
+- **SC25:** Diff bound: `<= 50` added / `<= 15` deleted lines. One
+  file touched. Zero new top-level imports beyond adding `date` to
+  the existing `from datetime import ...`.
 
-### SC16-SC20: Byte-identity preservation
+## Adversarial probes (10, for qa-evaluator)
 
-- **SC16:** All 9 pre-4.2.3 public formatters are AST byte-identical
-  to `origin/main` HEAD (`eeea983`).
-- **SC17:** `_pct` and `_coerce_int` are AST byte-identical.
-- **SC18:** `format_accuracy_report` branch body for
-  `elif scored_count < 5:` is AST-equivalent (field labels + values
-  unchanged).
-- **SC19:** `format_accuracy_report` `else:` branch (`scored_count >= 5`)
-  is AST-equivalent.
-- **SC20:** Top-of-file imports are exactly `from datetime import
-  datetime` + `import math`, in that order or module-pep8 order.
+1. `_parse_iso_date("2026-4-1T00:00:00")` -- datetime form, should
+   return `None` (out of scope per research).
+2. `_parse_iso_date("2026/04/01")` -- wrong separator, should return
+   `None`.
+3. `_parse_iso_date("20260401")` -- basic ISO form. Python 3.11+
+   `fromisoformat` accepts this in the strict path, so it should
+   parse successfully. (Documented expected behavior.)
+4. `_parse_iso_date("  2026-04-01  ")` -- whitespace-padded. Strict
+   path fails, split path succeeds because `int()` strips whitespace
+   on each component; returns `date(2026, 4, 1)`. (Lenient but safe:
+   whitespace is never a chronological ambiguity.)
+5. `_parse_iso_date("2026-4-1 ")` -- trailing space. Split path
+   `int("1 ")` succeeds for the same reason; returns `date(2026, 4, 1)`.
+6. 100-record fuzz: mix of padded / unpadded / garbage records +
+   unpadded `since_date` -- filter correctly selects only records
+   with `parsed_date >= since_dt`, never raises.
+7. `since_date` passed as a `date` object directly (not a string) --
+   `_parse_iso_date` returns `None` (isinstance check fails),
+   degrades to unfiltered. No raise.
+8. `since_date = "2026-04-01"` and one signal has
+   `date = "2026-04-01"` -- inclusive boundary, should be INCLUDED
+   (`>=`, not `>`).
+9. `get_signal_history(since_date="2026-1-1")` called twice in a row
+   on the same state -- deterministic, same result both times.
+10. Mutation safety: the returned `signals` list is a new list; mutating
+    it does not affect `self.signal_history`.
 
-### SC21-SC25: Contract bounds + defensive invariants
+## Anti-leniency rules
 
-- **SC21:** Diff `<= 20` added lines, `<= 5` deleted lines against
-  `origin/main` HEAD.
-- **SC22:** `ast.parse` and `py_compile` both clean.
-- **SC23:** `format_accuracy_report(None)` still returns `list[dict]`.
-- **SC24:** AST walk of every string literal in changed code: 0
-  non-ASCII.
-- **SC25:** No references to `signals_server`, `backtest_server`,
-  `data_server`, or `mcp_servers` in changed code.
+- **Only the helper + the one call-site may change.** If QA finds a
+  touched line outside these two regions, REJECT.
+- **No emoji, no Unicode.** ASCII only throughout.
+- **No new top-level imports except `date`.** The existing
+  `from datetime import datetime, timezone` line becomes
+  `from datetime import datetime, timezone, date`.
+- **Never add a `raise` statement.** All date-parse errors are caught
+  and degrade to `None`.
+- **No dateutil, no pendulum, no arrow, no third-party date lib.**
+- **Helper name is exactly `_parse_iso_date`.**
+- **Diff bound hard-capped.** `<= 50` added / `<= 15` deleted.
+- **Byte-identity preserved** for every `SignalsServer` method other
+  than `get_signal_history` and the new `_parse_iso_date`.
 
-## Verification Command Block
+## Out of scope
 
-```bash
-# Sanity
-python3 -c "import ast; ast.parse(open('backend/slack_bot/formatters.py').read())"
-python3 -m py_compile backend/slack_bot/formatters.py
-
-# Contract smoke
-python3 - <<'PY'
-import importlib.util, ast
-spec = importlib.util.spec_from_file_location("fmt", "backend/slack_bot/formatters.py")
-m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-
-# SN1: _coerce_float filters non-finite
-assert m._coerce_float({"x": float('nan')}, "x") == 0.0
-assert m._coerce_float({"x": float('inf')}, "x") == 0.0
-assert m._coerce_float({"x": float('-inf')}, "x") == 0.0
-assert m._coerce_float({"x": 1.5}, "x") == 1.5
-assert m._coerce_float({"x": "bad"}, "x") == 0.0
-
-# SN2: n=0 branch shows "Scoring pending" for mean/median
-blocks = m.format_accuracy_report({"total_count": 5, "scored_count": 0,
-    "hits": 0, "mean_forward_return_pct": 0.0,
-    "median_forward_return_pct": 0.0})
-ser = str(blocks)
-assert "Scoring pending" in ser
-# Prior fake-zero substrings must not appear in the n=0 fields
-fields = [b for b in blocks if b.get("type") == "section"
-          and "fields" in b]
-for fb in fields:
-    for f in fb["fields"]:
-        if "Mean forward return" in f["text"] or "Median forward return" in f["text"]:
-            assert "Scoring pending" in f["text"], f["text"]
-
-# Gate SC15: scored_count=1 still renders percents (not "Scoring pending")
-blocks2 = m.format_accuracy_report({"total_count": 5, "scored_count": 1,
-    "hits": 1, "hit_rate": 1.0, "mean_forward_return_pct": 1.24,
-    "median_forward_return_pct": 0.85})
-ser2 = str(blocks2)
-assert "+1.24%" in ser2 or "1.24%" in ser2
-assert "Mean forward return" in ser2
-
-# SN1 downstream: nan doesn't leak
-blocks3 = m.format_accuracy_report({"total_count": 20, "scored_count": 12,
-    "hits": 7, "hit_rate": 0.5833,
-    "hit_rate_ci_low": 0.3056, "hit_rate_ci_high": 0.8043,
-    "mean_forward_return_pct": float('nan'),
-    "median_forward_return_pct": float('inf')})
-ser3 = str(blocks3)
-assert "nan" not in ser3.lower() or "nan" not in ser3  # explicit
-assert "inf%" not in ser3
-print("smoke PASS", len(blocks), "+", len(blocks2), "+", len(blocks3), "blocks")
-PY
-```
-
-## Rollback
-
-`git revert <commit>` on the GENERATE commit. Single-file, small-diff
-reversion is clean.
+- Hardening `_append_signal_history` to normalize date-on-write.
+- Parsing full datetime strings or other locale formats.
+- Any Phase 4.2.4 BQ persistence work.
+- Any re-touch of formatters.py (Phase 4.2.3.1 scaffold).
+- masterplan.json status sync (separate task).

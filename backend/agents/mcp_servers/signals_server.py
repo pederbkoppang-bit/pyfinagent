@@ -20,7 +20,7 @@ import logging
 import math
 import statistics
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -1185,6 +1185,28 @@ class SignalsServer:
             "drawdown_derisk_pct": -10.0,      # halve new sizes tier (kill at -15%)
         }
     
+    @staticmethod
+    def _parse_iso_date(s: Any) -> Optional[date]:
+        """Parse an ISO-8601 calendar date, tolerating unpadded month/day.
+
+        Closes SN4: lex compare of mixed padded/unpadded ISO date strings
+        diverges from chronological order. Accepts canonical "YYYY-MM-DD"
+        via ``date.fromisoformat``; also tolerates unpadded "YYYY-M-D" by
+        re-padding each component. Returns None on any parse failure or
+        non-string input. Never raises.
+        """
+        if not isinstance(s, str) or not s:
+            return None
+        try:
+            return date.fromisoformat(s)
+        except (ValueError, TypeError):
+            pass
+        try:
+            yr, mo, dy = s.split("-")
+            return date.fromisoformat(f"{int(yr):04d}-{int(mo):02d}-{int(dy):02d}")
+        except (ValueError, TypeError):
+            return None
+
     def get_signal_history(
         self,
         limit: Optional[int] = None,
@@ -1216,18 +1238,19 @@ class SignalsServer:
 
         signals = list(self.signal_history)  # shallow copy, decouples view
 
-        # since_date filter -- tolerate non-string, invalid date, missing date.
-        if since_date is not None and isinstance(since_date, str) and since_date:
-            try:
-                filtered: List[Dict[str, Any]] = []
-                for sig in signals:
-                    sdate = sig.get("date", "") if isinstance(sig, dict) else ""
-                    if isinstance(sdate, str) and sdate and sdate >= since_date:
-                        filtered.append(sig)
-                signals = filtered
-            except Exception:
-                # Degrade to unfiltered -- never raise from a read API.
-                pass
+        # since_date filter -- parse both sides to datetime.date to avoid
+        # the SN4 lexicographic-compare trap (mixed padded/unpadded ISO
+        # strings diverge from chronological order). Tolerate non-string,
+        # invalid date, missing date. Never raise from a read API.
+        since_dt = self._parse_iso_date(since_date)
+        if since_dt is not None:
+            filtered: List[Dict[str, Any]] = []
+            for sig in signals:
+                sdate = sig.get("date", "") if isinstance(sig, dict) else ""
+                sig_dt = self._parse_iso_date(sdate)
+                if sig_dt is not None and sig_dt >= since_dt:
+                    filtered.append(sig)
+            signals = filtered
 
         # Tail limit.
         if isinstance(limit, int) and limit > 0:
