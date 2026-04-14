@@ -7,7 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
-| 2026-04-14 | `d512cf8` | Phase 2.12: Logger ASCII hardening on 12 harness-critical files |
+| 2026-04-14 | `a97156c` | Phase 2.12: Logger ASCII hardening on 12 harness-critical files |
 | 2026-04-14 | `0050a1c` | chore: auto-changelog backfill for 5628d2d |
 | 2026-04-14 | `5628d2d` | chore: auto-changelog hook entry for 90bc308 |
 | 2026-04-14 | `90bc308` | Phase 2.12 session log + patch artifact for commit 02aed8f |
