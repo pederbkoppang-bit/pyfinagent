@@ -373,7 +373,9 @@ export default function PaperTradingPage() {
                 {isActive ? "Scheduler active" : "Scheduler paused"} —{" "}
                 {status?.loop.last_run
                   ? `Last run: ${new Date(status.loop.last_run).toLocaleString()}`
-                  : "Never run"}
+                  : status?.next_run
+                    ? `Next run: ${new Date(status.next_run).toLocaleString()}`
+                    : "Never run"}
               </span>
               {perf && (
                 <span className="ml-auto text-xs text-slate-500">

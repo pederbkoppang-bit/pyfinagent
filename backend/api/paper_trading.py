@@ -101,6 +101,13 @@ async def get_status():
     if _scheduler and _scheduler.get_job(_scheduler_job_id):
         scheduler_active = True
 
+    # Get next scheduled run time
+    next_run = None
+    if _scheduler:
+        job = _scheduler.get_job(_scheduler_job_id)
+        if job and job.next_run_time:
+            next_run = job.next_run_time.isoformat()
+
     result = {
         "status": "active" if scheduler_active else "paused",
         "portfolio": {
@@ -114,6 +121,7 @@ async def get_status():
         },
         "position_count": len(positions),
         "scheduler_active": scheduler_active,
+        "next_run": next_run,
         "loop": loop_status,
     }
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:status"])
@@ -240,9 +248,13 @@ async def run_now():
     return {"status": "started", "message": "Daily cycle triggered"}
 
 
+_last_cycle_error: Optional[str] = None
+
+
 async def _run_cycle_background(settings):
     """Run daily cycle in a thread to avoid blocking the event loop."""
     import concurrent.futures
+    global _last_cycle_error
     _paper_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="paper")
     loop = asyncio.get_event_loop()
     try:
@@ -251,8 +263,10 @@ async def _run_cycle_background(settings):
             lambda: asyncio.run(run_daily_cycle(settings))
         )
         logger.info(f"Manual paper trading cycle result: {result.get('status')}")
+        _last_cycle_error = None
     except Exception as e:
         logger.error(f"Manual cycle failed: {e}", exc_info=True)
+        _last_cycle_error = f"{type(e).__name__}: {e}"
     finally:
         _paper_executor.shutdown(wait=False)
 

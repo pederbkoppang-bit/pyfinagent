@@ -580,6 +580,7 @@ export interface PaperTradingStatus {
   };
   position_count: number;
   scheduler_active: boolean;
+  next_run: string | null;
   loop: {
     running: boolean;
     last_run: string | null;
