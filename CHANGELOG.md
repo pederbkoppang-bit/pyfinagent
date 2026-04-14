@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `3d70b7b` | chore: changelog drift backfill for 4171a46 |
 | 2026-04-14 | `4171a46` | Phase 4.2.2 GENERATE: Signal Accuracy Tracking |
 | 2026-04-14 | `8637af7` | chore: changelog drift backfill for fa7ef5e |
 | 2026-04-14 | `fa7ef5e` | chore: auto-changelog hook entry for d096501 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `0050a1c` | chore: auto-changelog backfill for 5628d2d |
 | 2026-04-14 | `5628d2d` | chore: auto-changelog hook entry for 90bc308 |
 | 2026-04-14 | `90bc308` | Phase 2.12 session log + patch artifact for commit 02aed8f |
-| 2026-04-14 | `02aed8f` | Phase 2.12: ASCII-harden 21 logger calls in multi_agent_orchestrator.py |
 
 ---
 
