@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `fa7ef5e` | chore: auto-changelog hook entry for d096501 |
 | 2026-04-14 | `d096501` | Phase 4.3 LOG: session log + QA critique + changelog drift |
 | 2026-04-14 | `9cb21ff` | chore: auto-changelog hook entry for 0a17c5c |
 | 2026-04-14 | `be3accb` | Phase 4.3 Risk Management: size_position + check_stop_loss + track_drawdown |
