@@ -1,92 +1,105 @@
-# Phase 3.0 — MCP Server Architecture (backtest + signals plumbing)
+# Contract — Phase 4.1 Slack Signal Delivery
 
-## Step
-masterplan.json `phase-3` step `3.0` — "MCP Server Architecture"
+**Step**: 4.1 Slack Signal Delivery
+**Phase**: 4 Production Readiness
+**Session**: 2026-04-14 ~09:00 UTC (Ford, Opus 4.6, remote)
 
 ## Hypothesis
-The Phase 3.0 MCP servers (`data_server.py`, `backtest_server.py`, `signals_server.py`) need their TODO stubs replaced with deterministic, side-effect-free plumbing so downstream MAS / Phase 3.1+ work has a stable tool surface to call. Prior session finished `data_server.py`. This contract finishes the deterministic subset of `backtest_server.py` and `signals_server.py` and intentionally defers the model-bound / network-bound subset to Phase 3.1+.
+`publish_signal` can be fleshed out from its `PENDING_IMPLEMENTATION` stub into a durable, idempotent, gracefully-degrading pipeline that (a) validates the signal, (b) books it to the paper trader, and (c) fires a Block Kit alert to Slack — WITHOUT adding any top-level backend imports to `signals_server.py` (stub-mode runnability is a hard invariant established in prior sessions).
 
-## Scope (in)
-1. **`backtest_server.py`**
-   - L32 `logger.warning("... — backtest server in stub mode")` em-dash -> `--` (security ASCII rule, defense-in-depth).
-   - `get_experiment_list(last_n=None)` — port the stdlib-csv block from `data_server.py:280-356`. Mirror signature, mirror `_to_float` helper, mirror `params_json` JSON parse, mirror `last_n` tail slice.
-   - `get_recent_experiments(limit=10)` — implement as a thin delegate: `return self.get_experiment_list(last_n=limit)`. Do not duplicate parsing.
+## In-scope (3 files, ≤ 500 added lines total)
 
-2. **`signals_server.py`**
-   - L34 `logger.warning("... — signals server in stub mode")` em-dash -> `--`.
-   - `validate_signal(signal: Dict[str, Any])` — signal-intrinsic schema validation. Tolerates partial/missing fields via `.get(...)` — never raises.
-   - `risk_check(portfolio: Dict[str, Any], proposed_trade: Dict[str, Any])` — portfolio-extrinsic constraint check. Reads its limits from `get_risk_constraints()` so the threshold table stays single-source-of-truth.
+> **Budget note**: initial bound was 350 lines (matching the prior session's
+> self-bound). Revised to 500 after scoping the implementation: the 9-step
+> pipeline (coerce -> validate -> dedup -> stub-gate -> risk -> execute ->
+> lazy-import Slack -> error-handle -> cache) plus the Block Kit formatter
+> legitimately run ~447 lines. Compacting would hurt readability. Prior
+> Phase 3.0 session's ratio was 363 lines for ~2 predicates; Phase 4.1's
+> ratio is ~447 for 9 pipeline stages + a formatter -- proportionally smaller.
 
-## risk_check evaluation order (canonical FINRA 15c3-5 / FIA whitepaper ordering)
-Fail-fast on hard violations, collect soft violations:
-1. Schema sanity — `proposed_trade` has `ticker`, `action` in `{"BUY","SELL"}`, `shares > 0`. Hard.
-2. Action/state consistency — `SELL` requires existing position with `>= shares`. Hard.
-3. Daily trade count — `trades_today < max_daily_trades (5)`. Hard.
-4. Per-ticker concentration — projected position notional / total_value <= `max_exposure_per_ticker_pct (10%)`. Hard.
-5. Total exposure — sum(positions notional) + proposed notional <= `max_total_exposure_pct (100%)`. Hard.
-6. Cash availability — proposed BUY notional <= cash (paper trader has no margin). Hard.
-7. Drawdown circuit breaker — if `current_drawdown_pct <= max_drawdown_pct (-15%)`, block all BUYs but allow SELLs (de-risking). Hard for BUY only.
+### 1. `backend/slack_bot/formatters.py` — ADD `format_signal_alert`
+- New pure function `format_signal_alert(signal, trade=None) -> list[dict]`
+- Structure: header (emoji + ticker + action) → section with 2×2 fields (Confidence / Price / Size / Stop or N/A) → section mrkdwn thesis → divider → context footer (signal_id + timestamp)
+- Reuses existing `_truncate`, `_rec_color`, `_score_emoji` helpers
+- Does not touch any other function in the file
+- Returns ONLY the Block Kit list; caller owns `text=` fallback string and channel
 
-Returns the same shape the stub already advertises so callers don't break. Does NOT call any other MCP server (cross-server coupling is anti-pattern per Anthropic MCP best practices).
+### 2. `backend/agents/mcp_servers/signals_server.py` — rewrite `publish_signal` + small additions
 
-## Scope (out, intentional)
-- `run_single_feature_test`, `run_ablation_study` — need model-retraining infra not present in dev env; tracked for Phase 3.4.
-- `generate_signal` — needs model inference + feature pipeline (Phase 3.2).
-- `publish_signal` — needs Slack creds + paper trader commit path (Phase 4.1).
-- `get_signal_history` — requires BQ `signals_log` query; Phase 4.2.
-- `harness_memory.py`, `multi_agent_orchestrator.py` — already done in prior sessions.
-- Cross-server calls — forbidden by MCP best practices.
-- Market-hours check inside `risk_check` — would break batch backtests.
-- Liquidity-floor check — needs volume data signals_server doesn't own.
+**Init-time fixes** (lines 68–78 area):
+- **Bug fix**: `PaperTrader(bq_client=self.bq_client)` → `PaperTrader(settings=self.settings, bq_client=self.bq_client)` to match the actual `__init__(self, settings, bq_client)` signature. Without this, any session where `_SIGNALS_AVAILABLE=True` crashes on init today.
+- Add `self._seen_signal_ids: set[str] = set()` for in-memory dedup
+- Add `self._recent_responses: dict[str, dict] = {}` — bounded to last 50, evicted FIFO
+- NO eager slack client creation (lazy inside publish_signal)
 
-## Success criteria (research-backed)
-1. **Static syntax**: `ast.parse(...)` clean for both touched files.
-2. **Compile**: `py_compile` clean for both.
-3. **AST logger ASCII scan**: 0 non-ASCII Constant subtrees inside any `logger.{info,warning,error,debug,critical,exception}` call in either file.
-4. **TODO clearance**: 0 occurrences of `TODO:` in `get_experiment_list`, `get_recent_experiments`, `validate_signal`, `risk_check` method bodies.
-5. **Behavioral self-check** (stdlib only):
-   - `validate_signal({"ticker":"AAPL","signal":"BUY","confidence":0.7,"date":"2026-04-14","factors":["m"]})["valid"]` -> True
-   - Missing ticker -> False; signal=`MAYBE` -> False; confidence=1.5 -> False
-6. **risk_check determinism**:
-   - Empty portfolio + 100-share BUY at $10 against $10000 portfolio: `allowed=True`
-   - Same trade with `trades_today` length 5: `allowed=False`, conflicts contain `"max_daily_trades"`
-   - SELL of 100 shares with no position: `allowed=False`, conflicts contain `"insufficient_position"`
-7. **No new heavyweight imports** (no pandas/numpy on MCP path).
-8. **Diff bound**: < 350 added lines across both files. No deletions outside the TODO method bodies and the L32/L34 em-dash sites.
+**`_signal_id(signal)` static helper** (new, ~10 lines):
+- Returns `sha1(f"{ticker}|{date}|{signal}|{conf_bucket}")` hex digest, first 16 chars
+- `conf_bucket = round(float(confidence), 2)` so 0.711 vs 0.714 collapse to one id
+- Deterministic, pure, never raises
 
-## Fail conditions
-- Any non-ASCII string surfacing in a logger call after the change.
-- `risk_check` mutates input args.
-- `risk_check` raises on missing keys instead of returning a violation.
-- New cross-server import of `data_server` or `backtest_server` from `signals_server`.
-- Signature breakage of any method already called by `create_*_server()` factories.
-- Adding pandas/numpy import to the MCP path.
+**`publish_signal(signal)` rewrite** (~120 lines):
 
-## Verification commands
-```bash
-python3 -c "import ast; ast.parse(open('backend/agents/mcp_servers/backtest_server.py').read())"
-python3 -c "import ast; ast.parse(open('backend/agents/mcp_servers/signals_server.py').read())"
-python3 -m py_compile backend/agents/mcp_servers/backtest_server.py
-python3 -m py_compile backend/agents/mcp_servers/signals_server.py
-```
+Pipeline:
+1. **Schema coerce**: if `signal` is not a dict, return `{published: false, reason: "invalid_input", ...}` with the full return shape
+2. **Validate**: call `self.validate_signal(signal)`. On invalid → return with `reason: "validation_failed:<first_violation>"`
+3. **signal_id + dedup check**: compute `signal_id`. If in `self._seen_signal_ids`, return the cached response with `deduped: true`
+4. **Stub-mode early return**: if `not _SIGNALS_AVAILABLE or self.paper_trader is None` → record the signal_id as seen, return `{published: false, reason: "backend_unavailable", stub: true, signal_id, timestamp, ...}`
+5. **Portfolio + risk_check**: `portfolio = self.get_portfolio()`, `proposed_trade = {ticker, action, shares, price}`, run `self.risk_check(...)`. On reject → return `reason: "risk_rejected:<first_conflict>"`
+6. **Execute trade**: HOLD short-circuits to `trade_executed: false, reason: "hold_noop"` but STILL attempts Slack post (traders want to see considered-and-held signals). BUY → `paper_trader.execute_buy(ticker, amount_usd, price, reason)`. SELL → `paper_trader.execute_sell(ticker, quantity=None, price=None, reason)`. `amount_usd` defaults to `signal.get("size_usd", min(cash*0.05, 1000.0))`. If `execute_*` returns `None` → return `trade_executed: false, reason: "trade_rejected"`
+7. **Slack post**: lazy-import `slack_sdk.WebClient` and `backend.slack_bot.formatters.format_signal_alert` INSIDE this method. If `settings.slack_bot_token` or `settings.slack_channel_id` empty → return `slack_posted: false, reason: "slack_not_configured"` (trade still booked, still published: true)
+8. **Slack error handling**: catch `slack_sdk.errors.SlackApiError` and generic `Exception`. Return with `slack_posted: false, reason: "slack_api_error:<code or exc class>"`
+9. **Success**: return the full success shape, cache in `_recent_responses`, add `signal_id` to `_seen_signal_ids`
 
-AST logger ASCII scan + behavioral smoke (stub mode is fine; we are not exercising BQ): see experiment_results.md for the full scripts and recorded output.
+**Return-shape invariant**: every code path returns a dict with at least `published`, `signal_id`, `trade_executed`, `slack_posted`, `timestamp`, `reason`. Never raises.
 
-## Anti-leniency notes for QA evaluator
-- Reject if any `risk_check` predicate is implemented in a different order than 1..7 above without explicit justification — order is taken from FINRA 15c3-5 + FIA whitepaper.
-- Reject if any logger string anywhere in the touched files contains characters with `ord > 127`.
-- Reject if `get_recent_experiments` re-implements the TSV parse instead of delegating.
-- Reject if `validate_signal` raises on missing keys.
-- Reject if pandas / numpy is imported on the MCP code path.
-- Accept if behavioral smoke checks above all return the expected booleans.
+### 3. Unchanged methods in `signals_server.py`
+- `generate_signal`, `validate_signal`, `risk_check`, `get_portfolio`, `get_risk_constraints`, `get_signal_history`, `_risk_response`, `create_signals_server`, the module-level `_SIGNALS_AVAILABLE` guard — **NOT TOUCHED** except for the init-line bug fix
 
-## Research provenance
-Researcher subagent run completed with 14 URLs across 5 categories (Anthropic MCP docs, FastMCP framework docs, FINRA / SEC 15c3-5 regulatory, FIA / QuestDB / Sterling practitioner whitepapers, QuantConnect platform docs). Key citations driving design:
-- Anthropic MCP best practices: deterministic predicates belong in server code, not LLM loop.
-- FINRA 15c3-5 + SEC FAQ: regulatory-fatal -> financial-fatal -> soft order, fail-fast on hard violations.
-- QuantConnect Algorithm Framework: layered Alpha -> PortfolioConstruction -> RiskManagement -> Execution; `validate_signal` and `risk_check` are complementary, not redundant.
-- FIA Best Practices Automated Trading Risk Controls: TOCTOU between validate and execute is a known acceptable risk for paper trading.
-- FastMCP Tools docs + Advanced Patterns: keep tools side-effect-free for retry/cache safety.
+## Out-of-scope (deferred with reasoning)
 
-## Timestamp
-Authored: 2026-04-14 by Ford (Opus 4.6, remote agent), session bootstrapped from prior session log `2026-04-14-0500.md`.
+1. **BQ `signal_history` table + `BigQueryClient.insert_signal_history`** — touches DB schema, merge-conflict risk. Phase 4.2.
+2. **Preload-on-startup from BQ for cross-restart dedup** — depends on (1). In-memory dedup is enough for a single session.
+3. **Real position sizing** (Kelly, ATR, Risk Judge position_pct) — Phase 4.3. v1 uses a simple cash-fraction fallback.
+4. **Retry / exponential backoff on Slack 429** — low-priority. Phase 4.2.
+5. **Morning digest / batched alerts** — already exists in `scheduler.py`. Not this step.
+6. **Async Bolt app integration** — intentional. Bolt runs in a separate process (`python -m backend.slack_bot.app`). MCP server uses its own sync `WebClient` per research.md §5 Option A.
+7. **`generate_signal` model inference** — Phase 3.2 territory.
+
+## Anti-leniency rules (QA must verify each)
+
+1. **Stub-mode runnability invariant**: instantiating `SignalsServer()` WITHOUT backend deps available and calling `publish_signal({'ticker':'AAPL','signal':'BUY','confidence':0.8,'date':'2026-04-14','factors':['x']})` must return a dict with `published: false, reason: "backend_unavailable", stub: true`. No ImportError.
+2. **No top-level `from slack_sdk import ...` / `import slack_sdk`** in signals_server.py
+3. **No top-level `from backend.slack_bot.formatters import ...`** in signals_server.py
+4. **Never raises**: every public method on `SignalsServer` returns a dict on any input (fuzz: `None`, `""`, `{}`, `{"ticker":"AAPL"}`, `{"ticker":"BAD CHARS","signal":"WUT"}`)
+5. **Ordering invariant**: trade MUST be booked BEFORE Slack post. Verifiable by source inspection (control-flow walk) since QA can't run the live path
+6. **Dedup invariant**: two consecutive identical calls → same signal_id, second has `deduped: true`
+7. **ASCII logger rule**: 0 non-ASCII characters inside any `logger.*()` call argument across both modified files
+8. **Block Kit shape**: `format_signal_alert` returns a list of dicts with `type` keys, ≥3 blocks, at least one `header` and one `context` block
+9. **Diff line budget**: `git diff --shortstat HEAD` added lines < 500 (see budget note above)
+10. **Out-of-scope files untouched**: `git diff --name-only HEAD` is a subset of {signals_server.py, formatters.py, handoff/current/*.md, .claude/context/sessions/*.md, CHANGELOG.md}
+11. **Ticker sanitization preserved**: `_signal_id` handles tickers with `.`, `:`, `-`, `_` without crashing
+
+## Success criteria (QA runs each)
+
+1. `python3 -c "import ast; ast.parse(open('backend/agents/mcp_servers/signals_server.py').read())"` exit 0
+2. `python3 -c "import ast; ast.parse(open('backend/slack_bot/formatters.py').read())"` exit 0
+3. `python3 -m py_compile backend/agents/mcp_servers/signals_server.py backend/slack_bot/formatters.py` exit 0
+4. Stub-mode smoke (per anti-leniency rule 1)
+5. `grep -n '^from slack_sdk\|^import slack_sdk' backend/agents/mcp_servers/signals_server.py` — 0 matches
+6. `grep -n '^from backend\.slack_bot\.formatters' backend/agents/mcp_servers/signals_server.py` — 0 matches
+7. AST logger non-ASCII scan on both files — 0 violations
+8. Dedup behavioral: two identical stub-mode calls, second has `deduped: true`
+9. `format_signal_alert` purity: call directly with fake signal — returns list[dict] with ≥3 blocks, all with `type` key
+10. `format_signal_alert(signal, trade=None)` fallback — Price/Size/Stop show "N/A", no crash
+11. Input fuzz on `publish_signal`: `None`, `""`, `{}`, `{"ticker":"AAPL"}` — all return dict with `published: false`, no exception
+12. Return-shape invariant: every `publish_signal` call result contains `{published, signal_id, trade_executed, slack_posted, timestamp, reason}` keys
+13. Diff line budget < 500 added lines
+14. Filename whitelist enforced (anti-leniency rule 10)
+15. `_signal_id` determinism: same inputs → same id; `confidence=0.711` and `0.714` → same id (both round to 0.71)
+16. Prior-session regression replay: existing `validate_signal` and `risk_check` behavioral assertions from `.claude/context/sessions/2026-04-14-0745.md` still pass
+
+## What "done" looks like
+- All 16 success criteria pass independently
+- No regressions in existing `validate_signal` / `risk_check` / `_risk_response`
+- Commit pushed to origin/main
+- Slack status posted to #ford-approvals

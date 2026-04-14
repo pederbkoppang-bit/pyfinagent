@@ -144,6 +144,129 @@ def format_portfolio_summary(data: dict) -> list[dict]:
     return blocks
 
 
+def _signal_emoji(action: str) -> str:
+    """Green for BUY, red for SELL, yellow for HOLD. Matches _rec_color semantics."""
+    action_upper = (action or "").upper()
+    if "BUY" in action_upper:
+        return ":green_circle:"
+    if "SELL" in action_upper:
+        return ":red_circle:"
+    return ":large_yellow_circle:"
+
+
+def format_signal_alert(signal: dict, trade: dict | None = None) -> list[dict]:
+    """Format a published trading signal as Block Kit blocks.
+
+    Called by `backend/agents/mcp_servers/signals_server.py::publish_signal`
+    after the signal has been validated, risk-checked, and (for BUY/SELL)
+    booked to the paper trader. Pure function; returns only the block list.
+    Caller owns channel routing and the ASCII `text=` push-preview fallback.
+
+    Layout follows the research-gate consensus (handoff/current/research.md
+    sections 1 and 6): header (subject) -- section fields (conf/price/size/
+    stop) -- section thesis -- divider -- context (signal_id, timestamp).
+    Reuses _truncate and _signal_emoji to stay consistent with the other
+    formatters in this module. Never raises; missing fields show "N/A".
+
+    Args:
+        signal: {"ticker", "signal" ("BUY"/"SELL"/"HOLD"), "confidence",
+                 "date", "factors", "reason" (optional), "size_usd" (optional),
+                 "stop_price" (optional), "signal_id" (optional)}
+        trade:  Paper-trader trade record with "price", "total_value",
+                "quantity", "trade_id" -- or None if stub/HOLD/dry-run
+
+    Returns:
+        Block Kit list[dict]. At minimum: header, fields section, context.
+    """
+    if not isinstance(signal, dict):
+        signal = {}
+    if trade is not None and not isinstance(trade, dict):
+        trade = None
+
+    ticker = str(signal.get("ticker", "UNKNOWN")).upper()
+    action = str(signal.get("signal", "HOLD")).upper()
+    try:
+        confidence = float(signal.get("confidence", 0.0) or 0.0)
+    except (ValueError, TypeError):
+        confidence = 0.0
+    reason_text = str(signal.get("reason", "") or "")
+    sdate = str(signal.get("date", "") or "")
+    signal_id = str(signal.get("signal_id", "") or "")
+
+    emoji = _signal_emoji(action)
+
+    # Price / size / stop resolution: explicit signal fields win, else trade
+    # record, else "N/A". Formatting is paper-trader friendly -- USD only.
+    price_str = "N/A"
+    size_str = "N/A"
+    stop_str = "N/A"
+    if trade:
+        try:
+            tp = float(trade.get("price", 0.0) or 0.0)
+            if tp > 0.0:
+                price_str = f"${tp:,.2f}"
+        except (ValueError, TypeError):
+            pass
+        try:
+            tv = float(trade.get("total_value", 0.0) or 0.0)
+            if tv > 0.0:
+                size_str = f"${tv:,.2f}"
+        except (ValueError, TypeError):
+            pass
+    try:
+        sig_stop = float(signal.get("stop_price", 0.0) or 0.0)
+        if sig_stop > 0.0:
+            stop_str = f"${sig_stop:,.2f}"
+    except (ValueError, TypeError):
+        pass
+
+    conf_str = f"{confidence:.2f}"
+
+    blocks: list[dict] = [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f"{emoji} {ticker} {action}",
+                "emoji": True,
+            },
+        },
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Confidence:* {conf_str}"},
+                {"type": "mrkdwn", "text": f"*Price:* {price_str}"},
+                {"type": "mrkdwn", "text": f"*Size:* {size_str}"},
+                {"type": "mrkdwn", "text": f"*Stop:* {stop_str}"},
+            ],
+        },
+    ]
+
+    if reason_text:
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Thesis:* {_truncate(reason_text, 500)}",
+            },
+        })
+
+    blocks.append({"type": "divider"})
+
+    footer_parts = [":robot_face: PyFinAgent"]
+    if sdate:
+        footer_parts.append(sdate)
+    if signal_id:
+        footer_parts.append(f"signal_id: `{signal_id[:16]}`")
+    footer_parts.append(datetime.now().strftime("%Y-%m-%d %H:%M"))
+    blocks.append({
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": " | ".join(footer_parts)}],
+    })
+
+    return blocks
+
+
 def format_report_card(data: dict, ticker: str) -> list[dict]:
     """Format a stored report as Block Kit blocks."""
     score = data.get("final_score", 0)

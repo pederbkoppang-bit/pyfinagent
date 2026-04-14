@@ -13,8 +13,10 @@ Resources:
 - signals://history → All generated signals this month
 """
 
+import hashlib
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -57,20 +59,30 @@ class SignalsServer:
     
     def __init__(self):
         global _SIGNALS_AVAILABLE
-        
+
         self.portfolio = {}  # Current holdings
         self.risk_limits = {}  # Exposure limits
         self.signal_history = []  # All signals generated
         self.bq_client = None
         self.settings = None
         self.paper_trader = None
-        
+
+        # In-memory idempotency state for publish_signal. Cleared on process
+        # restart; cross-restart dedup is Phase 4.2 territory (durable BQ
+        # signal_history table). Response cache is bounded FIFO.
+        self._seen_signal_ids: set = set()
+        self._recent_responses: Dict[str, Dict[str, Any]] = {}
+        self._recent_responses_limit = 50
+
         # Initialize paper trader if available
         if _SIGNALS_AVAILABLE:
             try:
                 self.settings = get_settings()
                 self.bq_client = BigQueryClient(self.settings)
-                self.paper_trader = PaperTrader(bq_client=self.bq_client)
+                # PaperTrader.__init__ signature is (settings, bq_client).
+                # Prior revision missed the settings arg -- any path where
+                # _SIGNALS_AVAILABLE was True would crash on construction.
+                self.paper_trader = PaperTrader(settings=self.settings, bq_client=self.bq_client)
                 logger.info("SignalsServer initialized with PaperTrader")
             except Exception as e:
                 logger.error(f"Failed to initialize SignalsServer: {e}")
@@ -193,29 +205,319 @@ class SignalsServer:
             "reason": reason,
         }
     
-    def publish_signal(self, signal: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def _signal_id(signal: Dict[str, Any]) -> str:
+        """Deterministic, stable signal identity for dedup.
+
+        Hash over (ticker, date, signal_type, confidence_bucket). Rounding
+        confidence to 2 decimals means a 0.711 vs 0.714 variant collapses to
+        one id -- two model reruns on the same day should not fire twice.
+        Pure, never raises. Returns a 16-char hex prefix of sha1.
         """
-        Publish a validated signal to Slack and portfolio.
-        
-        Args:
-            signal: Validated signal dict
-        
-        Returns:
-        {
-            "published": True,
-            "slack_id": "ts_1234567890.123456",
-            "timestamp": "2026-03-29T10:30:00Z",
-            "portfolio_updated": True
-        }
-        """
-        logger.info(f"publish_signal({signal['ticker']})")
-        # TODO: Post to Slack + update portfolio
+        try:
+            ticker = str(signal.get("ticker", "") or "").upper()
+            sdate = str(signal.get("date", "") or "")
+            stype = str(signal.get("signal", "") or "").upper()
+            try:
+                conf_bucket = round(float(signal.get("confidence", 0.0) or 0.0), 2)
+            except (ValueError, TypeError):
+                conf_bucket = 0.0
+            key = f"{ticker}|{sdate}|{stype}|{conf_bucket}"
+            return hashlib.sha1(key.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
+        except Exception:
+            # Never raise from an id helper -- degrade to empty string so
+            # the caller can still build a non-deduped response.
+            return ""
+
+    def _empty_response(self, signal_id: str = "", timestamp: str = "") -> Dict[str, Any]:
+        """Uniform return shape for publish_signal. Every field present; callers
+        override only what they know. Preserves the return-shape invariant
+        (anti-leniency rule 11 from contract.md)."""
+        if not timestamp:
+            timestamp = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
         return {
             "published": False,
-            "slack_id": "",
-            "timestamp": "",
-            "reason": "PENDING_IMPLEMENTATION",
+            "deduped": False,
+            "signal_id": signal_id,
+            "trade_executed": False,
+            "trade_id": "",
+            "slack_posted": False,
+            "slack_ts": "",
+            "slack_channel": "",
+            "timestamp": timestamp,
+            "reason": "",
         }
+
+    def _remember(self, signal_id: str, response: Dict[str, Any]) -> None:
+        """Add signal_id to the seen-set and cache its response for dedup hits.
+        Bounded FIFO on the response cache -- the seen-set itself is unbounded
+        but cheap (sha1 prefixes). Cache eviction keeps memory stable."""
+        if not signal_id:
+            return
+        self._seen_signal_ids.add(signal_id)
+        self._recent_responses[signal_id] = response
+        if len(self._recent_responses) > self._recent_responses_limit:
+            # Drop the oldest entry. dict preserves insertion order in 3.7+.
+            oldest = next(iter(self._recent_responses))
+            self._recent_responses.pop(oldest, None)
+
+    def publish_signal(self, signal: Dict[str, Any]) -> Dict[str, Any]:
+        """Publish a validated signal to the paper trader and (optionally) Slack.
+
+        Pipeline (ordering is non-negotiable, see research.md section 3 --
+        trade is booked BEFORE Slack, never the reverse):
+            1. schema coerce                  -> invalid_input
+            2. validate_signal                -> validation_failed:<viol>
+            3. signal_id + dedup check        -> deduped:true on hit
+            4. stub-mode gate                 -> backend_unavailable
+            5. get_portfolio + risk_check     -> risk_rejected:<conflict>
+            6. paper_trader.execute_buy/sell  -> trade_rejected (BUY/SELL)
+                                                 hold_noop      (HOLD)
+            7. slack_sdk.WebClient post       -> slack_not_configured
+                                                 slack_api_error:<code>
+            8. success                        -> reason:"ok"
+
+        Graceful-degradation ladder returns structured dicts for every rung;
+        never raises (anti-leniency rule 4). Lazy-imports slack_sdk and the
+        formatters module so the stub-mode import path stays zero-dep.
+
+        Args:
+            signal: dict matching validate_signal's schema (ticker, signal,
+                    confidence, date, factors). Optional: size_usd, stop_price,
+                    reason.
+
+        Returns:
+            Dict with the full return-shape invariant (see _empty_response).
+        """
+        # ---- Step 1: schema coerce --------------------------------------
+        if not isinstance(signal, dict):
+            logger.warning("publish_signal called with non-dict input")
+            resp = self._empty_response()
+            resp["reason"] = "invalid_input"
+            return resp
+
+        ticker = str(signal.get("ticker", "") or "")
+        action = str(signal.get("signal", "") or "").upper()
+        logger.info(f"publish_signal({ticker}, {action})")
+
+        # ---- Step 2: validate_signal ------------------------------------
+        validation = self.validate_signal(signal)
+        if not validation.get("valid", False):
+            violations = validation.get("violations") or []
+            first_viol = violations[0] if violations else "unknown"
+            resp = self._empty_response()
+            resp["reason"] = f"validation_failed:{first_viol}"
+            return resp
+
+        # ---- Step 3: signal_id + dedup check ----------------------------
+        signal_id = self._signal_id(signal)
+        if signal_id and signal_id in self._seen_signal_ids:
+            cached = self._recent_responses.get(signal_id)
+            if isinstance(cached, dict):
+                # Return a copy with deduped:true so the caller can tell
+                # this was a re-fire without mutating the cache entry.
+                resp = dict(cached)
+                resp["deduped"] = True
+                resp["reason"] = cached.get("reason", "ok") + " (deduped)"
+                return resp
+            # Cache miss but seen -- synthesize a minimal dedup response.
+            resp = self._empty_response(signal_id=signal_id)
+            resp["published"] = True
+            resp["deduped"] = True
+            resp["reason"] = "deduped"
+            return resp
+
+        # ---- Step 4: stub-mode gate -------------------------------------
+        # Run BEFORE any backend calls. Records the signal_id as seen so a
+        # retry in the same stub-mode session dedups cleanly.
+        if not _SIGNALS_AVAILABLE or self.paper_trader is None:
+            resp = self._empty_response(signal_id=signal_id)
+            resp["reason"] = "backend_unavailable"
+            resp["stub"] = True
+            self._remember(signal_id, resp)
+            return resp
+
+        # ---- Step 5: portfolio snapshot + risk_check --------------------
+        portfolio = self.get_portfolio()
+        # v1 sizing: cash*0.05 capped at $1000 if signal doesn't carry size_usd.
+        # Real sizing (Kelly / Risk Judge) is Phase 4.3. Documented in contract.
+        try:
+            cash = float(portfolio.get("cash", 0.0) or 0.0)
+        except (ValueError, TypeError):
+            cash = 0.0
+        default_amount = min(cash * 0.05, 1000.0) if cash > 0 else 0.0
+        try:
+            amount_usd = float(signal.get("size_usd", default_amount) or default_amount)
+        except (ValueError, TypeError):
+            amount_usd = default_amount
+
+        # Estimate shares for the risk_check predicate. Price resolution:
+        # signal.price -> position.price -> 1.0 (degraded, same as the
+        # risk_check scaffold). Shares is only used for the predicate; the
+        # paper trader resolves real prices on execute.
+        try:
+            price = float(signal.get("price", 0.0) or 0.0)
+        except (ValueError, TypeError):
+            price = 0.0
+        if price <= 0.0:
+            positions = portfolio.get("positions", {}) or {}
+            if isinstance(positions, dict):
+                pos = positions.get(ticker, {})
+                if isinstance(pos, dict):
+                    try:
+                        price = float(pos.get("price", 0.0) or 0.0)
+                    except (ValueError, TypeError):
+                        price = 0.0
+        proposed_shares = 1
+        if price > 0.0 and amount_usd > 0.0:
+            proposed_shares = max(1, int(amount_usd // price))
+
+        if action in ("BUY", "SELL"):
+            proposed_trade = {
+                "ticker": ticker,
+                "action": action,
+                "shares": proposed_shares,
+                "price": price if price > 0.0 else None,
+            }
+            risk = self.risk_check(portfolio, proposed_trade)
+            if not risk.get("allowed", False):
+                conflicts = risk.get("conflicts") or []
+                first_conflict = conflicts[0] if conflicts else "unknown"
+                resp = self._empty_response(signal_id=signal_id)
+                resp["reason"] = f"risk_rejected:{first_conflict}"
+                self._remember(signal_id, resp)
+                return resp
+
+        # ---- Step 6: execute trade --------------------------------------
+        trade: Optional[Dict[str, Any]] = None
+        trade_executed = False
+        reason_text = str(signal.get("reason", "") or "mcp_publish_signal")
+        if action == "BUY":
+            try:
+                trade = self.paper_trader.execute_buy(
+                    ticker=ticker,
+                    amount_usd=amount_usd,
+                    price=price if price > 0.0 else 0.0,
+                    reason=reason_text,
+                )
+            except Exception as e:
+                logger.error(f"paper_trader.execute_buy failed: {e}")
+                trade = None
+            if trade is None:
+                resp = self._empty_response(signal_id=signal_id)
+                resp["reason"] = "trade_rejected"
+                self._remember(signal_id, resp)
+                return resp
+            trade_executed = True
+        elif action == "SELL":
+            try:
+                trade = self.paper_trader.execute_sell(
+                    ticker=ticker,
+                    quantity=None,
+                    price=price if price > 0.0 else None,
+                    reason=reason_text,
+                )
+            except Exception as e:
+                logger.error(f"paper_trader.execute_sell failed: {e}")
+                trade = None
+            if trade is None:
+                resp = self._empty_response(signal_id=signal_id)
+                resp["reason"] = "trade_rejected"
+                self._remember(signal_id, resp)
+                return resp
+            trade_executed = True
+        else:
+            # HOLD -- no trade, but still continue to Slack so traders see
+            # the considered-and-held decision.
+            trade = None
+            trade_executed = False
+
+        # ---- Step 7: Slack post (lazy import) ---------------------------
+        # Hard invariant: nothing above this line imports slack_sdk or
+        # backend.slack_bot.formatters. Stub-mode gate at step 4 already
+        # returned if we got here without backend availability.
+        slack_posted = False
+        slack_ts = ""
+        slack_channel = ""
+        slack_reason = ""
+        slack_token = getattr(self.settings, "slack_bot_token", "") if self.settings else ""
+        slack_channel_cfg = getattr(self.settings, "slack_channel_id", "") if self.settings else ""
+        if not slack_token or not slack_channel_cfg:
+            slack_reason = "slack_not_configured"
+        else:
+            try:
+                from slack_sdk import WebClient  # noqa: PLC0415 -- lazy by design
+                from slack_sdk.errors import SlackApiError  # noqa: PLC0415
+                from backend.slack_bot.formatters import format_signal_alert  # noqa: PLC0415
+
+                signal_for_format = dict(signal)
+                signal_for_format["signal_id"] = signal_id
+                blocks = format_signal_alert(signal_for_format, trade)
+                try:
+                    conf_val = float(signal.get("confidence", 0.0) or 0.0)
+                except (ValueError, TypeError):
+                    conf_val = 0.0
+                # ASCII-only fallback text per security rule.
+                text_fallback = f"{action} {ticker} conf={conf_val:.2f}"
+
+                client = WebClient(token=slack_token)
+                api_resp = client.chat_postMessage(
+                    channel=slack_channel_cfg,
+                    blocks=blocks,
+                    text=text_fallback,
+                )
+                slack_posted = bool(api_resp.get("ok", False)) if hasattr(api_resp, "get") else True
+                slack_ts = str(api_resp.get("ts", "")) if hasattr(api_resp, "get") else ""
+                slack_channel = slack_channel_cfg
+                slack_reason = "ok" if slack_posted else "slack_api_error:no_ok"
+            except SlackApiError as e:
+                code = "unknown"
+                try:
+                    code = str(e.response.get("error", "unknown"))
+                except Exception:
+                    pass
+                logger.error(f"Slack API error on publish_signal: {code}")
+                slack_reason = f"slack_api_error:{code}"
+            except ImportError as e:
+                # slack_sdk missing at runtime -- log and degrade. Should not
+                # happen in prod (slack_sdk is a backend dep) but we still
+                # degrade cleanly rather than raise.
+                logger.warning(f"slack_sdk import failed at publish time: {e}")
+                slack_reason = "slack_not_installed"
+            except Exception as e:
+                logger.error(f"Unexpected Slack post failure: {type(e).__name__}")
+                slack_reason = f"slack_api_error:{type(e).__name__}"
+
+        # ---- Step 8: build and cache success response ------------------
+        # "published" is true iff either the trade was booked OR Slack fired
+        # (for HOLD the trade is always a noop but Slack might still post).
+        published = trade_executed or slack_posted
+        final_reason = "ok"
+        if not published:
+            if action == "HOLD":
+                final_reason = f"hold_noop:{slack_reason or 'no_slack'}"
+            else:
+                final_reason = slack_reason or "unknown"
+        elif not trade_executed and action == "HOLD":
+            final_reason = f"hold_noop:{slack_reason or 'posted'}"
+        elif not slack_posted:
+            final_reason = slack_reason or "trade_only"
+
+        trade_id = ""
+        if isinstance(trade, dict):
+            trade_id = str(trade.get("trade_id", "") or "")
+
+        response = self._empty_response(signal_id=signal_id)
+        response["published"] = published
+        response["trade_executed"] = trade_executed
+        response["trade_id"] = trade_id
+        response["slack_posted"] = slack_posted
+        response["slack_ts"] = slack_ts
+        response["slack_channel"] = slack_channel
+        response["reason"] = final_reason
+
+        self._remember(signal_id, response)
+        return response
     
     def risk_check(self, portfolio: Dict[str, Any], proposed_trade: Dict[str, Any]) -> Dict[str, Any]:
         """
