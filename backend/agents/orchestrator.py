@@ -291,19 +291,26 @@ class AnalysisOrchestrator:
         _gemini_deep = self._resolve_gemini(deep_model_name)
 
         # Build models
-        datastore_path = (
-            f"projects/{settings.gcp_project_id}/locations/global/collections/"
-            f"default_collection/dataStores/{settings.rag_data_store_id}"
-        )
-        rag_tool = Tool.from_retrieval(
-            grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
-        )
-
         _gen_config = {"temperature": 0.0, "top_k": 1}
         _enrichment_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1024}
         _synthesis_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 4096}
         _deep_think_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 2048}
-        self.rag_model = GenerativeModel(_gemini_standard, tools=[rag_tool], generation_config=_gen_config)
+
+        # RAG model with Vertex AI Search (graceful degradation if data store unavailable)
+        self._rag_available = False
+        try:
+            datastore_path = (
+                f"projects/{settings.gcp_project_id}/locations/global/collections/"
+                f"default_collection/dataStores/{settings.rag_data_store_id}"
+            )
+            rag_tool = Tool.from_retrieval(
+                grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
+            )
+            self.rag_model = GenerativeModel(_gemini_standard, tools=[rag_tool], generation_config=_gen_config)
+            self._rag_available = True
+        except Exception as e:
+            logger.warning(f"RAG data store unavailable, skipping RAG step: {e}")
+            self.rag_model = GenerativeModel(_gemini_standard, generation_config=_gen_config)
 
         # --- v3.4 Multi-Provider LLM Clients ---
         # Build Vertex AI base models (used as Gemini fallback when make_client routes to Gemini)
@@ -484,6 +491,9 @@ class AnalysisOrchestrator:
 
     def run_rag_agent(self, ticker: str) -> dict:
         """Step 3: RAG analysis on 10-K/10-Q documents."""
+        if not self._rag_available:
+            logger.info(f"RAG Agent: skipped for {ticker} (data store unavailable)")
+            return {"text": "", "citations": []}
         logger.info(f"RAG Agent: analyzing documents for {ticker}")
         prompt = prompts.get_rag_prompt(ticker, fact_ledger=getattr(self, '_fact_ledger_json', ''))
         response = self._generate_with_retry(self.rag_client, prompt, "RAG")
