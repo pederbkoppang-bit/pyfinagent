@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `a569a89` | chore: changelog drift backfill for af13f2a |
 | 2026-04-14 | `af13f2a` | Phase 4.2.2 LOG: QA evaluator critique + session log |
 | 2026-04-14 | `661a38d` | chore: changelog drift backfill for 302246e |
 | 2026-04-14 | `ab9d18e` | chore: changelog drift backfill for 302246e |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `4e101ef` | Add known-blockers.md to break Ford remote-session wheel-spin loop |
 | 2026-04-14 | `cb22a65` | chore: auto-changelog hook entry for a549874 |
 | 2026-04-14 | `a549874` | chore: auto-changelog hook entry for 8036149 |
-| 2026-04-14 | `8036149` | chore: CHANGELOG hook catchup for a97156c + remove stale pre-rebase d512cf8 |
 
 ---
 
