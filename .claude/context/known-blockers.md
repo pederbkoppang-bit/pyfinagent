@@ -32,7 +32,14 @@ The remote CCR environment is bare Python — no FastAPI, pandas, GCP libs, etc.
 - For harness-gated verification: check existing evaluator critiques in `handoff/`, don't try to run the harness
 - Code-only work (frontend, config, docs, small backend edits) can be verified with AST parse
 
-### 6. Researcher subagent turn limit
+### 6. NEVER manually update CHANGELOG.md
+The PostToolUse hook in `.claude/settings.json` automatically updates CHANGELOG.md on every `git commit`. Do NOT:
+- Manually add changelog entries
+- Commit "changelog drift" or "changelog backfill" fixes
+- Spend time on changelog cleanup at session startup
+The hook handles everything. Skip straight to masterplan work.
+
+### 7. Researcher subagent turn limit
 The researcher subagent has `maxTurns: 15`. Deep research with many web fetches can exceed this.
 - If research times out, commit partial findings and note gaps in session log
 - Next session can continue the research from where it left off
