@@ -1,103 +1,102 @@
-# Phase 4.3 Risk Management — Contract
+# Contract: Phase 4.2.2 Signal Accuracy Tracking
 
-**Step:** 4.3 Risk Management (code-only subset)
-**File under test:** `backend/agents/mcp_servers/signals_server.py`
-**Harness-required:** true (but harness cannot run in remote env — verify via AST + deterministic behavioral assertions)
-**Research gate:** PASS — see `handoff/current/research.md` (28 URLs, 7 categories, 5 full-reads)
+**Step:** Phase 4.2 Paper Trading Evaluation -- signal accuracy tracking subset
+**Target:** `backend/agents/mcp_servers/signals_server.py`
+**Scope:** 4 new/extended methods + `publish_signal` side-effect -- all pure stdlib
+**Research:** `handoff/current/research.md` (17 URLs/7 categories, Gate PASSED)
 
 ## Hypothesis
 
-The current signals_server has a naive v1 position sizing (`cash * 0.05 cap $1000`) inlined in `publish_signal`, no stop-loss monitoring, and no trailing drawdown tracker. Phase 4.3 upgrades these three concerns with **pure, deterministic, stdlib-only** functions that (a) replace the inline sizing with a research-backed hybrid lite-formula, (b) add `check_stop_loss(portfolio)` to detect per-position and trailing stop breaches, and (c) add `track_drawdown(portfolio)` to compute the equity-curve drawdown tier and fire a kill-switch flag.
+Adding deterministic signal accuracy tracking to `SignalsServer` (in-memory, stdlib-only, 4 methods + a `publish_signal` side-effect that appends to `signal_history`) unblocks the Phase 4.2.2 "Signal Accuracy Tracking" masterplan subset, enables a future Slack weekly accuracy report via `get_accuracy_report()`, and preserves the single-file MCP boundary invariant (no new imports beyond stdlib, no cross-server calls, no BQ, no pandas).
 
-## Success criteria (all must hold)
+## In-scope changes (exactly 5)
 
-1. `size_position(signal, portfolio)` is a new public method that returns a `float` USD amount, never raises, and is the minimum of up to three independent caps:
-   - (a) hard percent-of-equity cap: `min(equity * max_position_pct/100, max_position_usd)`
-   - (b) confidence-weighted half-Kelly arm: `0.5 * confidence * equity` when no `mu_hat`/`var_hat` provided (degrades to flat confidence-scaled)
-   - (c) inverse-vol arm: `target_vol_pct/100 * equity / annualized_vol` when `annualized_vol` is provided, else skipped
-   - Returns 0.0 for non-BUY actions and when equity <= 0.
-2. `check_stop_loss(portfolio)` is a new public method that returns a `list[dict]` of positions to exit. Each entry has keys: `ticker`, `reason` ("fixed_stop"|"trailing_stop"), `entry_price`, `current_price`, `peak_price`, `loss_pct`. Only positions with `(current - entry)/entry <= -stop_loss_pct/100` OR `(current - peak)/peak <= -trail_stop_pct/100` are returned. Pure function over the portfolio snapshot; never mutates input; never raises.
-3. `track_drawdown(portfolio)` is a new public method that updates the instance's `_peak_equity` state and returns a dict with keys: `peak`, `equity`, `drawdown_pct`, `tier` ("ok"|"warning"|"derisk"|"kill"), `kill_switch`. Tiers are computed from the `get_risk_constraints()` thresholds. The `_peak_equity` attribute is initialised lazily on first call. Never raises.
-4. `get_risk_constraints()` is extended with 6 new keys: `max_position_pct` (5.0), `max_position_usd` (1000.0), `stop_loss_pct` (8.0), `trail_stop_pct` (3.0), `drawdown_warning_pct` (-5.0), `drawdown_derisk_pct` (-10.0). The existing `max_drawdown_pct` (-15.0) stays as the kill-switch. No breaking changes to existing keys.
-5. `publish_signal` step 5 calls `size_position` to derive `amount_usd` instead of the inline `min(cash*0.05, 1000.0)`. Explicit `signal["size_usd"]` still overrides (preserves the 4.1 contract). Downstream code paths (risk_check, execute_buy) are unchanged.
-6. All additions are stdlib-only. NO imports of pandas, numpy, backend modules, data_server, or backtest_server. No cross-server coupling. No LLM calls.
-7. Diff bound: added lines **< 300** net. Unchanged outside the scoped methods + extended constants dict + one publish_signal call site. No edits to backtest_server, data_server, paper_trader, portfolio_manager.
-8. Python syntax: `ast.parse()` clean + `py_compile` clean.
-9. Security: logger ASCII rule holds (no non-ASCII chars in any new `logger.*()` call).
-10. Deterministic behavioral assertions (QA evaluator must run all of these):
-    - **size_position_a1**: zero equity → 0.0
-    - **size_position_a2**: equity=10000, confidence=1.0, BUY → hard cap = min(500, 1000) = 500.0
-    - **size_position_a3**: equity=10000, confidence=0.4, BUY → half-Kelly arm = 0.5 * 0.4 * 10000 = 2000; bound by hard cap → 500.0
-    - **size_position_a4**: equity=100000, confidence=0.8, annualized_vol=0.20, target_vol_pct=10.0, BUY → inverse-vol arm = 0.10 * 100000 / 0.20 = 50000; hard cap = min(5000, 1000) = 1000.0
-    - **size_position_a5**: action=HOLD → 0.0
-    - **size_position_a6**: non-dict signal → 0.0 (no raise)
-    - **check_stop_loss_a1**: empty positions → []
-    - **check_stop_loss_a2**: position with entry=100, current=91 → fixed_stop (9% loss > 8%)
-    - **check_stop_loss_a3**: position with entry=100, current=93 → [] (7% < 8%)
-    - **check_stop_loss_a4**: position with entry=100, peak=120, current=116 → trailing_stop (3.33% off peak > 3%)
-    - **check_stop_loss_a5**: non-dict portfolio → [] (no raise)
-    - **track_drawdown_a1**: first call with equity=10000 → peak=10000, dd=0.0, tier=ok
-    - **track_drawdown_a2**: second call with equity=9500 → peak=10000, dd=-5.0, tier=warning
-    - **track_drawdown_a3**: third call with equity=8900 → peak=10000, dd=-11.0, tier=derisk
-    - **track_drawdown_a4**: fourth call with equity=8400 → peak=10000, dd=-16.0, tier=kill, kill_switch=True
-    - **track_drawdown_a5**: fifth call with equity=11000 → peak=11000 (new high), dd=0.0, tier=ok
-    - **constraints_a1**: `get_risk_constraints()` returns all 6 new keys with the documented defaults
-    - **publish_signal_a1**: stub mode with signal carrying no size_usd — flows through size_position, still returns backend_unavailable (pipeline contract preserved)
-    - **ast_logger_ascii**: 0 non-ASCII chars in any logger call site
+1. **`SignalsServer.__init__`** -- add `self._signals_by_id: Dict[str, Dict] = {}` (O(1) lookup index).
+2. **`SignalsServer.publish_signal`** -- add a new Step 9 at the end of the success path: append the signal record (with `signal_id`, `timestamp`, `outcome` placeholder) to `self.signal_history` and mirror into `self._signals_by_id`. Byte-identical to Steps 1-8 on all error/degraded paths.
+3. **`SignalsServer.get_signal_history(limit=None, since_date=None)`** -- replace the stub. Return real history with optional tail-limit and ISO date filter.
+4. **`SignalsServer.track_signal_accuracy(signal_id, exit_price, exit_date)`** -- NEW. Record an exit, compute signed forward return, classify hit/miss/neutral. Idempotent.
+5. **`SignalsServer.get_accuracy_report(group_by=None, neutral_band_pct=0.20)`** -- NEW. Aggregate stats: count, scored_count, hits, misses, hit_rate, Wilson-95 CI, mean/median forward return. Optional groupby 'signal_type' or 'ticker'.
+
+Plus one private helper:
+6. **`SignalsServer._wilson_ci(hits, n, z=1.96)`** -- static method, Wilson Score CI for small-sample binomial proportion.
+
+## Out of scope (DEFERRED, with reasoning)
+
+- **IC / Pearson / Spearman correlation** -- needs pandas + N >= 30. Phase 4.2.4.
+- **Brier score** -- needs full probability vector over {BUY, SELL, HOLD}, signals lack this shape.
+- **Per-factor attribution** -- signals don't carry per-factor weights. Phase 3.2.
+- **Per-sector grouping** -- no sector lookup service available in stdlib. Phase 4.2.2 follow-up.
+- **Slack weekly report** -- formatter work in `slack_bot/formatters.py`. This contract only exposes `get_accuracy_report()` as the data source.
+- **Durable BQ persistence** -- Phase 4.2.4 signals_log table + schema migration.
+- **Cross-restart retention of signal_history** -- in-memory only, documented.
+- **Modification of any other SignalsServer method** -- `validate_signal`, `risk_check`, `size_position`, `check_stop_loss`, `track_drawdown`, `get_portfolio`, `get_risk_constraints`, `generate_signal`, `_empty_response`, `_signal_id`, `_remember`, `_risk_response` must stay byte-identical.
+- **Any new import** beyond what the file already imports, except `statistics` and `math` if not already present.
 
 ## Anti-leniency rules
 
-1. **Don't add new imports.** Stdlib only. If tempted to `import statistics` or `import math`, hand-roll the formula.
-2. **Don't touch `risk_check`.** It's the 3.0 deliverable and passed a prior QA cycle. Leaving it alone.
-3. **Don't touch `validate_signal`.** Same.
-4. **Don't touch paper_trader.py, portfolio_manager.py, backtest_server.py, data_server.py.** Scope is exactly one file.
-5. **Don't add BQ persistence.** `_peak_equity` is in-memory only this session. Durable state is Phase 4.2.
-6. **Don't fake the math.** If confidence or annualized_vol is None/invalid, skip that arm of the min() rather than substituting 0 (which would collapse the whole min to 0).
-7. **Don't return None from any new method.** Always return the documented shape (float, list, dict). Error paths return empty variants, never None.
-8. **Don't call LLMs.** This is deterministic plumbing.
-9. **Don't mutate input dicts.** Portfolio and signal are read-only.
-10. **Preserve publish_signal's 9-step contract.** The sizing change is localised to step 5; steps 1-4 and 6-9 are untouched.
+1. **Stdlib only.** No pandas/numpy. Use `math`, `statistics`, `collections`, `datetime`, `hashlib`.
+2. **Never raise.** Every public method returns a structured dict or a safe default on every failure path.
+3. **No input mutation.** `track_signal_accuracy` never mutates the `exit_price`/`exit_date` arg. `publish_signal`'s append step deepcopies the signal.
+4. **Idempotent accuracy tracking.** Second call with same `signal_id` updates in place and returns `{"updated": True}`; never duplicates.
+5. **HOLD exclusion from hit rate.** HOLD signals are stored in history but excluded from the scored count. Assert with a test.
+6. **Wilson CI bounds.** Must handle n=0, n=1, p=0.0, p=1.0 without NaN or ZeroDivisionError. Return (0.0, 0.0) for n=0.
+7. **Byte-identical preservation** of the 12 unchanged public methods + 3 helpers. Verify via source-line diff.
+8. **Diff budget: < 400 added lines total, < 100 net new logic lines** (rest is docstrings + research justification comments).
+9. **Logger ASCII only.** All new `logger.*()` calls use `--`, `->`, plain ASCII -- per `.claude/rules/security.md`.
+10. **No cross-server imports.** No `from backend.agents.mcp_servers.data_server` or `.backtest_server`.
+11. **Return-shape invariant.** `get_signal_history` preserves the existing stub's `{"month", "count", "signals"}` keys as a subset of the new return shape.
+12. **Hit/miss semantics documented in method docstring** and re-stated in return shape:
+    - BUY hit: `forward_return_pct > +neutral_band_pct`
+    - BUY miss: `forward_return_pct < -neutral_band_pct`
+    - BUY neutral: `|forward_return_pct| <= neutral_band_pct`
+    - SELL hit: `forward_return_pct < -neutral_band_pct`
+    - SELL miss: `forward_return_pct > +neutral_band_pct`
+    - SELL neutral: `|forward_return_pct| <= neutral_band_pct`
+    - HOLD: always `scored=False`, unscored.
 
-## Out of scope (deferred with reasoning)
+## Success criteria (for QA evaluator, 22 assertions)
 
-| Item | Why deferred | Phase |
-|---|---|---|
-| BQ persistence of `_peak_equity` across restarts | Needs BQ schema migration | 4.2 |
-| Real ATR / sigma computation from historical prices | Needs data_server access, breaks stdlib invariant | 3.2 follow-up |
-| Emitting actual liquidating orders on stop-loss trigger | Needs paper_trader.execute_sell wiring + caller orchestration | 4.3 follow-up |
-| Consecutive-stop counter (portfolio-wide pause) | Needs persistent state across publish cycles | 4.3 follow-up |
-| Event calendar integration (earnings / FOMC reduction) | Needs earnings_tone.py + external calendar | 4.3.3 |
-| Sector exposure cap (30%) | Needs sector mapping source, not in signal dict today | 4.3.1 follow-up |
-| Kelly with real mu_hat/var_hat from backtest | Needs backtest result query, breaks stdlib invariant | 3.2 follow-up |
+**get_signal_history:**
+- SC1: Called on a fresh server returns `{"month": str, "count": 0, "signals": []}` preserving the stub's shape.
+- SC2: After two publish_signal successes, returns `count=2` and `signals` list has two entries in insertion order.
+- SC3: `limit=1` returns the most recent entry only.
+- SC4: `since_date="2099-01-01"` returns 0 entries (future filter).
+- SC5: Non-string/invalid `since_date` degrades gracefully (returns unfiltered list, never raises).
 
-## Files to change
+**track_signal_accuracy:**
+- SC6: Unknown signal_id returns `{"ok": False, "reason": "signal_not_found", "updated": False}`.
+- SC7: Known BUY signal with entry $100, exit $110 records `hit=True, forward_return_pct=10.0, outcome="hit"`.
+- SC8: Known BUY signal with entry $100, exit $90 records `hit=False, outcome="miss"`.
+- SC9: Known BUY signal with entry $100, exit $100.10 (0.10% move) records `outcome="neutral"`, excluded from hit count.
+- SC10: Second call with same signal_id returns `{"updated": True}` and does NOT duplicate the history entry.
+- SC11: HOLD signal returns `outcome="unscored", scored=False`.
+- SC12: Non-dict inputs (None, list, int) return error dict, never raise.
 
-- `backend/agents/mcp_servers/signals_server.py` — only this file.
+**get_accuracy_report:**
+- SC13: Fresh server returns `{total_count: 0, scored_count: 0, hits: 0, misses: 0, hit_rate: 0.0, hit_rate_ci_low: 0.0, hit_rate_ci_high: 0.0, mean_forward_return_pct: 0.0, median_forward_return_pct: 0.0, groups: {}}`.
+- SC14: 10 tracked signals with 7 hits, 3 misses return `hit_rate = 0.7`, Wilson CI contains 0.7 and CI width > 0.
+- SC15: `group_by="signal_type"` returns a `groups` dict with keys in {"BUY", "SELL", "HOLD"} and each value has the full metric dict.
+
+**Wilson CI helper:**
+- SC16: `_wilson_ci(0, 0)` returns `(0.0, 0.0)`.
+- SC17: `_wilson_ci(10, 10)` returns `(low, 1.0)` with `low > 0.7`.
+- SC18: `_wilson_ci(0, 10)` returns `(0.0, high)` with `high < 0.3`.
+- SC19: `_wilson_ci(5, 10)` returns `(low, high)` with `0.22 < low < 0.25` and `0.75 < high < 0.78` (Wilson 95% CI on 5/10 textbook value).
+
+**Preservation:**
+- SC20: Source ranges of `_signal_id`, `validate_signal`, `risk_check`, `size_position`, `check_stop_loss`, `track_drawdown`, `get_risk_constraints` unchanged (byte-identical source lines).
+- SC21: No new non-stdlib imports (verify via `ast.walk` import scan).
+- SC22: AST logger ASCII guard: 0 non-ASCII in any logger.* call on the modified file.
 
 ## Verification commands
 
 ```bash
 python3 -c "import ast; ast.parse(open('backend/agents/mcp_servers/signals_server.py').read())"
 python3 -m py_compile backend/agents/mcp_servers/signals_server.py
-
-# Logger ASCII guard
-python3 - <<'PY'
-import ast
-tree = ast.parse(open('backend/agents/mcp_servers/signals_server.py').read())
-bad = 0
-for node in ast.walk(tree):
-    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-        if node.func.attr in ("info","warning","error","debug","critical","exception"):
-            for sub in ast.walk(node):
-                if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
-                    if not sub.value.isascii():
-                        bad += 1
-print("non-ascii logger:", bad)
-PY
 ```
 
-## Post-conditions (what the LOG phase must write)
+Plus the 22 behavioral assertions above re-run independently by the qa-evaluator subagent.
 
-- `handoff/current/experiment_results.md` — the 18 deterministic assertions + results
-- `handoff/current/evaluator_critique.md` — QA verdict (ok/reason/scores, independent run)
-- `.claude/context/sessions/2026-04-14-NNNN.md` — episodic session log
+## Retry budget
+
+Max 3 attempts. If QA fails with specific criteria, address those and resubmit.

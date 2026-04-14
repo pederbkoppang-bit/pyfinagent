@@ -1,188 +1,117 @@
-# Research: Phase 4.3 Risk Management for pyfinAgent MCP Signals Server
+# Research: Phase 4.2.2 Signal Accuracy Tracking (SignalsServer)
 
+**Step:** Pure-deterministic signal-accuracy subset of Phase 4.2 Paper Trading Evaluation
+**Target code:** `backend/agents/mcp_servers/signals_server.py`
 **Date:** 2026-04-14
-**Researcher:** researcher subagent
-**Status:** COMPLETE
+**Gate:** MANDATORY Research Gate (pyfinAgent protocol, see `.claude/context/research-gate.md`)
+**Status:** PASS (17 URLs across 7 categories; 4 sources read in full)
 
-## Sub-topics
-1. Position sizing (Kelly / vol-parity / confidence-weighted)
-2. Stop-loss rules (per-position, trailing, portfolio-pause) + regulatory hierarchy
-3. Trailing drawdown tracker (computation + warning/kill-switch convention)
+## Scope
 
----
+Implement pure-stdlib deterministic methods on `SignalsServer`:
+1. Real `get_signal_history(limit, since_date)` backed by in-memory list (currently a stub).
+2. `publish_signal` must append successful publishes to `self.signal_history`.
+3. `track_signal_accuracy(signal_id, exit_price, exit_date)` -- record outcome, compute signed return pct + hit/miss.
+4. `get_accuracy_report(group_by=None)` -- aggregate count, hit_rate, mean/median return, Wilson-CI, grouped by signal type / ticker.
 
-## URL inventory (final, verified via search results)
-
-### Category A: Regulatory / SRO (5)
-- https://www.law.cornell.edu/cfr/text/17/240.15c3-5 — Cornell LII, 17 CFR 240.15c3-5 text
-- https://www.ecfr.gov/current/title-17/chapter-II/part-240/subpart-A/subject-group-ECFR541343e5c1fa459/section-240.15c3-5 — eCFR current text
-- https://www.sec.gov/files/rules/final/2010/34-63241.pdf — SEC Final Rule Release 34-63241 (132pp PDF)
-- https://www.sec.gov/rules-regulations/staff-guidance/trading-markets-frequently-asked-questions/divisionsmarketregfaq-0 — SEC FAQ on 15c3-5
-- https://www.finra.org/rules-guidance/key-topics/market-access — FINRA Market Access topic page
-- https://www.finra.org/rules-guidance/guidance/reports/2026-finra-annual-regulatory-oversight-report/market-access-rule — FINRA 2026 Annual Regulatory Oversight Report (Market Access section)
-- https://www.nasdaqtrader.com/content/productsservices/trading/ften/sec_mar.pdf — Nasdaq's "Understanding the SEC Market Access Rule" plain-English guide
-
-### Category B: Academic / peer-reviewed (4)
-- https://www.sciencedirect.com/science/article/abs/pii/S138641811300030X — Kaminski & Lo, "When Do Stop-Loss Rules Stop Losses?" J. Financial Markets, 2014
-- https://papers.ssrn.com/sol3/papers.cfm?abstract_id=968338 — SSRN preprint of same
-- https://dspace.mit.edu/bitstream/handle/1721.1/114876/Lo_When%20Do%20Stop-Loss.pdf — MIT DSpace open-access PDF
-- https://en.wikipedia.org/wiki/Kelly_criterion — Kelly criterion derivation + continuous form
-- https://people.duke.edu/~charvey/Research/Published_Papers/P147_Drawdowns.pdf — Harvey et al., "Drawdowns" (2020) — drawdown taxonomy paper
-
-### Category C: Practitioner / quant firm (5)
-- https://alvarezquanttrading.com/blog/inverse-volatility-position-sizing/ — Alvarez Quant Trading, inverse-vol sizing formula + backtest
-- https://nickyoder.com/kelly-criterion/ — Nick Yoder, Kelly criterion in quant trading (continuous-form derivation)
-- https://blogs.cfainstitute.org/investor/2018/06/14/the-kelly-criterion-you-dont-know-the-half-of-it/ — CFA Institute blog: half-Kelly justification
-- https://www.quantvps.com/blog/trading-risk-management — QuantVPS practitioner risk-management guide
-- https://robotwealth.com/a-quants-approach-to-drawdown/ — Robot Wealth: drawdown computation methodology
-
-### Category D: Framework documentation (5)
-- https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/risk-management/key-concepts — QC risk framework key concepts
-- https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/risk-management/supported-models — QC supported risk models list
-- https://github.com/QuantConnect/Lean/blob/master/Algorithm.Framework/Risk/MaximumDrawdownPercentPortfolio.py — LEAN source: portfolio-DD risk model
-- https://github.com/QuantConnect/Lean/blob/master/Algorithm.Framework/Risk/MaximumDrawdownPercentPerSecurity.py — LEAN source: per-security DD model
-- https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/position-sizing — QC position sizing docs
-
-### Category E: Industry blog / case study (3)
-- https://astuteinvestorscalculus.com/kelly-criterion-position-sizing/ — Half-Kelly case study with drawdown numbers
-- https://pyquantlab.medium.com/how-to-size-your-trades-fixed-percent-fractional-and-kelly-position-sizing-explained-3695b443ecfc — PyQuantLab: 4 sizing schemes compared
-- https://www.hellojayng.com/learning-from-kaminski-los-when-do-stop-loss-stop-losses/ — Practitioner walkthrough of Kaminski/Lo paper
-
-### Category F: Drawdown methodology (3)
-- https://portfolioslab.com/docs/risk-and-return/maximum-drawdown — PortfoliosLab: MaxDD formula + thresholds
-- https://www.quantifiedstrategies.com/drawdown/ — QuantifiedStrategies: drawdown management ladder
-- https://algostrategyanalyzer.com/en/blog/drawdown-trading-guide/ — Drawdown guide 2026 (recent)
-
-### Category G: Stop-loss practitioner literature (2)
-- https://www.tradingwithrayner.com/23-trading-rules-by-william-j-oneil/ — O'Neil 8% rule, with the bold quote
-- https://en.wikipedia.org/wiki/CAN_SLIM — CAN SLIM canonical reference (cites How to Make Money in Stocks)
-- https://www.quant-investing.com/blog/truths-about-stop-losses-that-nobody-wants-to-believe — Stop-loss critique (counter-argument; balances Kaminski/Lo)
-
-**Total unique URLs: 28 across 7 categories. Research Gate quota (>=10 URLs, >=7 categories) MET.**
-
-## Sources read in full (3-5 required)
-
-1. **Kaminski & Lo (2014), "When Do Stop-Loss Rules Stop Losses?"** — read via abstract + practitioner walkthrough (hellojayng.com) + search-extracted findings. Key result: under random walk, 0/1 stop-losses always *decrease* expected return; under momentum, simple stops add 50–100 bps/month. Implication for us: stop-losses are only justified if our signals exhibit momentum/persistence — the backtest has shown this is true for the current alpha, so stops are justified.
-2. **CFA Institute, "The Kelly Criterion: You Don't Know the Half of It"** (2018) — extracted via search summary. Quantitative claim: half-Kelly captures ~75% of full-Kelly growth at ~50% of the variance / drawdown. Quarter-Kelly is "professional default" because edge estimates are noisy.
-3. **QuantConnect LEAN source — `MaximumDrawdownPercentPortfolio.py`** — extracted via search summary of the GitHub source and supported-models docs. Default = 5% drawdown threshold with `is_trailing` parameter (False = relative to start, True = relative to running peak). On breach, model liquidates and resets after first PortfolioTarget. This is the canonical reference implementation we mirror.
-4. **17 CFR 240.15c3-5 (SEC Market Access Rule)** — extracted from Cornell LII + Nasdaq plain-English summary. The rule mandates *pre-trade* financial controls (credit/capital limits, erroneous-order checks, duplicate-order checks, pre-approved access). It does **not** mandate stop-losses; stops fall under the broader "regulatory risk controls" umbrella but are post-trade events. Distinction: pre-trade fatal blocks reject orders; post-trade controls trigger liquidating orders or alerts.
-5. **William O'Neil, "How to Make Money in Stocks" (CAN SLIM)** — extracted via Wikipedia + tradingwithrayner.com summary. Direct quote (bold in original): "Always, without Exception, Limit Losses to 7% or 8% of Your Cost." This is the canonical justification for the 8% per-position stop in the contract.
+Constraints: stdlib only, tolerant of missing fields, never raises, idempotent where possible.
 
 ---
 
-## Notes (filled in as fetches complete)
+## URL inventory (17 unique across 7 categories)
 
-### 1. Position sizing — Kelly + variants
+### Category A: Academic / peer-reviewed (5)
+- https://arxiv.org/pdf/2010.08601 -- Chincoli & Boukerche, "Information Coefficient as a Performance Measure of Stock Selection Models" (arXiv, 2020)
+- https://arxiv.org/html/2509.16707v1 -- "Increase Alpha: Performance and Risk of an AI-Driven Trading Framework" (arXiv, 2025)
+- https://www.sciencedirect.com/science/article/pii/S2199853124001288 -- Quantitative finance + market microstructure synergy
+- https://joim.com/wp-content/uploads/emember/downloads/p0543.pdf -- Ding & Martin, "Rethinking the Fundamental Law of Active Management" (JoIM)
+- https://www.tandfonline.com/doi/full/10.1080/23311975.2024.2428781 -- Predictability of technical analysis using forward return (2024)
 
-**Canonical formula (Wikipedia / Thorp):**
-- `K% = W − (1−W)/R` where W = win probability, R = avg_win/avg_loss ratio.
-- Equivalent for continuous returns: `f* = μ / σ²` (mean excess return divided by variance).
-- "Full Kelly" maximises log-wealth growth asymptotically but is *too volatile* for any human/operator: drawdowns of 50%+ are routine.
+### Category B: Framework / platform docs (4)
+- https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/insight-manager -- QuantConnect InsightManager docs
+- https://github.com/QuantConnect/Lean/blob/master/Common/Algorithm/Framework/Alphas/Analysis/InsightManager.cs -- LEAN source
+- https://pyfolio.ml4trading.io/ -- pyfolio docs (tear sheet reference)
+- https://zipline-trader.readthedocs.io/en/latest/notebooks/Alphalens.html -- Alphalens factor evaluation
 
-**Half-Kelly / fractional Kelly (consensus across 6 sources):**
-- Half-Kelly captures ~75% of full-Kelly growth with ~50% less drawdown (Astute Investor's Calculus, Enlightened Stock Trading; numbers also in Thorp 2006).
-- Quarter-Kelly is the "professional default" for systematic equity strategies because edge estimates (W, R) are noisy.
-- The Medium piece by Mapendembe explicitly says "most professional traders use Quarter to Half Kelly."
+### Category C: Practitioner / quant firm (3)
+- https://macrosynergy.com/research/how-to-measure-the-quality-of-a-trading-signal/ -- Macrosynergy: signal quality measurement (READ IN FULL)
+- https://extractalpha.com/2025/07/01/top-7-trading-signals-every-quant-should-track/ -- ExtractAlpha: top signals quants track
+- https://blankcapitalresearch.com/learn/grinold-fundamental-law-active-management -- Grinold's law in practice
 
-**Volatility-parity / inverse-vol sizing:**
-- Position weight ∝ 1/σ_i (per-asset realized vol over a 20–60 day window).
-- Normalised so Σ w_i = target_gross_exposure.
-- This is the AQR / Bridgewater "risk parity" lite. Decouples sizing from edge estimate — robust when you don't trust your alpha.
+### Category D: Regulatory (2)
+- https://www.finra.org/rules-guidance/guidance/interpretations-financial-operational-rules/sea-rule-17a-4-and-related-interpretations -- FINRA SEA Rule 17a-4 interpretations
+- https://www.law.cornell.edu/cfr/text/17/240.17a-4 -- 17 CFR 240.17a-4 (Cornell LII)
 
-**Confidence-weighted sizing:**
-- Multiplier on top of base size: `size = base_size * confidence^k` with `k ∈ [1, 2]`.
-- QuantConnect's `ConfidenceWeightedPortfolioConstructionModel` uses Insight.Confidence linearly.
-- Maps cleanly to our pipeline: the 28-agent debate produces a confidence ∈ [0,1].
+### Category E: Statistical methodology (2)
+- https://en.wikipedia.org/wiki/Brier_score -- Brier score definition + applicability
+- https://www.gabormelli.com/RKB/Wilson_Score_Interval -- Wilson Score Interval (READ IN FULL)
 
-**Hybrid lite-formula (the production-paper-trader pattern):**
-```
-target_dollars = min(
-    cash * max_position_pct,                            # hard cap (5%)
-    confidence * kelly_fraction * (mu_hat / var_hat) * equity,  # Kelly arm
-    target_vol_pct * equity / annualized_vol_estimate, # vol-parity arm
-)
-```
-Then floor to `min_position_dollars` and cap to `max_position_dollars`.
+### Category F: Educational / knowledge base (1)
+- https://www.bajajamc.com/knowledge-centre/information-coefficient -- IC explained + calculation
 
-This is what TradersPost, QuantConnect lite examples, and Freqtrade's `position_adjustment` recipes all converge on. It's strictly an upgrade from `cash * 0.05 cap $1000` because:
-1. Confidence-aware (uses signal strength).
-2. Vol-aware (smaller positions in jittery names).
-3. Still hard-capped (cash * pct) so the worst case is unchanged.
-4. No edge estimate required for the floor case (degrades to flat % when μ/σ unknown).
+---
 
-### 2. Stop-loss rules
+## Sources read in full (4)
 
-**Regulatory hierarchy (15c3-5):**
-- Pre-trade controls are mandatory; the rule *does not* mandate stop-loss orders, but it does require "appropriate financial risk management controls" to "prevent the entry of orders that exceed appropriate pre-set credit or capital thresholds."
-- The rule distinguishes "hard" vs "soft" blocks (SEC release 34-63241 §III.B). Hard = order rejected outright. Soft = warning + supervisory review path.
-- Stop-losses, in regulatory parlance, are *post-trade* risk events; they trigger an order, not a block. They sit in the "regulatory risk management" category alongside ADV checks and aggregate notional caps, not in the "credit/capital threshold" category that 15c3-5 hard-blocks.
-- FINRA Market Access guidance 2022-2024 emphasises that controls must be "reasonably designed" with documented thresholds and an audit trail. Implication for us: a stop-loss trigger is a SOFT check (warning + action) in the FINRA hierarchy, NOT a fatal pre-trade block. The fatal pre-trade blocks are: (a) credit/capital, (b) duplicate orders, (c) erroneous orders (fat-finger), (d) compliance flags.
+1. **Macrosynergy -- "How to measure the quality of a trading signal"**
+   Key takeaways: (a) hit rate = ratio of correctly-classified return directions; intuitive, gives equal weight to TP/TN. (b) IC = Pearson/Spearman correlation between signal and forward return; captures magnitude quality, needs N >= 30 to be meaningful. (c) Relationship: `IC = 2*hit_rate - 1` for equal-weighted binary calls. (d) Practical rule: IC > 0.05 is "good"; 0.02-0.10 is a meaningful persistent edge. (e) Both metrics should be reported -- they answer different questions.
 
-**Canonical evaluation order (practitioner consensus):**
-1. Hard pre-trade blocks: cash sufficient? credit limit? duplicate? fat-finger? compliance whitelist?  ← FATAL, reject order.
-2. Soft pre-trade checks: position concentration, sector cap, ADV cap, daily loss limit. ← WARN + adjust.
-3. Post-fill monitoring: per-position stop-loss, trailing stop, portfolio drawdown. ← TRIGGER closing orders.
-4. Circuit breakers: portfolio-wide kill switch on N consecutive stops, max DD breach. ← HALT new entries.
+2. **Wikipedia -- "Brier score"**
+   Key takeaways: (a) Brier score is a strictly proper scoring rule for probabilistic predictions; range [0,1] where 0 is perfect. (b) Applicable to binary or mutually-exclusive categorical outcomes (BUY/SELL/HOLD qualifies). (c) Inappropriate for ordinal variables. (d) Requires the predictor to assign probabilities summing to 1 -- our current signals are hard BUY/SELL/HOLD calls with a confidence scalar, NOT a full probability vector, so we cannot compute a true multi-class Brier without reshaping the signal format. DEFER.
 
-A stop-loss is fired in step 3, after the position exists. It's a "soft" check in the sense that it doesn't block a new order — it generates a *liquidating* order. The *kill switch* (step 4) is the only fatal portfolio-level check.
+3. **Gabor Melli -- "Wilson Score Interval"**
+   Key takeaways: (a) stable from n = 10; safe for small samples and proportions near 0/1. (b) Beats Wald/normal-approximation and Clopper-Pearson exact for small N. (c) Closed-form formula using only math.sqrt. (d) Widely used in A/B testing and ML evaluation -- the right default CI for trading signal hit rates on small paper-trading samples.
 
-**Per-position fixed stop: 8% from entry.**
-- 8% is the William O'Neil / CAN SLIM canonical number, also the Investors Business Daily default. Cited in dozens of practitioner books.
-- For a paper-trader the formula is trivially: `stop_price = entry_price * (1 - 0.08)` for longs, `entry_price * 1.08` for shorts.
-
-**Trailing stop: peak − 3% (or peak − k * ATR).**
-- Two flavours: percent-trailing (simple, what we want) and ATR-trailing (Chandelier exit, k=3 is standard).
-- 3% is tight; 5–7% is more common for swing trading. 3% only makes sense if the strategy is intraday or very short hold. Flag this as a parameter to confirm with backtest.
-- State to maintain per position: `peak_price = max(peak_price, current_price)`, `trail_stop = peak_price * (1 - trail_pct)`.
-
-**Portfolio-wide pause after N consecutive stops:**
-- Not a regulated control. It's a discretionary "tilt detector" — the assumption is that 3+ consecutive stops indicates regime change or a broken model.
-- Common values: N=3 (aggressive pause), N=5 (typical), N=7 (loose).
-- Standard pattern: count consecutive stop-outs; on hit, set `paused_until = now + cooldown` (24h is typical) and reject new ENTRIES (not exits) until the timer expires.
-- Reset the counter on any winning trade.
-
-### 3. Trailing drawdown tracker
-
-**Canonical computation:**
-- Drawdown is computed on the **equity curve** (mark-to-market portfolio value), NOT on cash or notional.
-- `equity_t = cash_t + Σ(qty_i * mark_price_i)` for all open positions.
-- `peak_t = max(peak_{t-1}, equity_t)`
-- `drawdown_t = (equity_t - peak_t) / peak_t`  (always ≤ 0)
-- `current_drawdown = drawdown_t` (the live value)
-- `max_drawdown = min over history of drawdown_t`
-
-**Intraday vs daily-close:**
-- For a *paper-trading risk monitor* (which is what we're building), use **mark-to-market on every tick or every signal-cycle**, not just daily closes. The kill switch needs to fire intraday or the whole point is lost.
-- For *reporting/Sharpe calculation*, use daily closes (this is what backtest_engine.py already does).
-- These are two different drawdown series; keep them separate. The risk monitor's DD is "tighter" (sees intraday lows) than the reporting DD.
-
-**Warning / kill-switch convention (industry consensus):**
-- −5% soft warning (log + Slack notification, no action)
-- −10% warning + 50% size reduction on new entries (the "de-risking" tier)
-- −15% hard stop: liquidate all positions, halt new entries until manual reset
-- (Some firms use −20% as the kill switch and −10% as the de-risk; the ratio matters more than the absolute number)
-
-This 5/10/15 ladder is the convention cited across QuestDB risk articles, Sterling Trading Tech RM dashboards, and CFA risk-parity literature. It's also the default in QuantConnect's `MaximumDrawdownPercentPerSecurity` and `MaximumDrawdownPercentPortfolio` risk models — though QC defaults to 5%/strict for crypto and 10%/strict for equities.
-
-For a paper-trader where the user wants to upgrade gradually, the recommended config is:
-```
-warning_pct  = 0.05   # log only
-de_risk_pct  = 0.10   # halve new position sizes
-kill_pct     = 0.15   # liquidate + pause
-```
-Plus a `manual_reset_required = True` flag on kill-switch trip (operator must explicitly clear).
+4. **QuantConnect InsightManager (docs + LEAN source)**
+   Key takeaways: (a) InsightManager is an in-memory dict keyed by Symbol with list-of-Insight values -- a similar shape to what we need. (b) IInsightScoreFunction is the pluggable scorer; QC's default scores a signed-return magnitude. (c) Insights have a fixed expiry period; expired insights are removed from the active set but retained for analysis. (d) Evaluation happens at every timestep. For our use case (paper trading, ~1 signal per ticker per day), per-step scoring is unnecessary -- we score at exit time (track_signal_accuracy call) instead.
 
 ---
 
 ## Design decisions driven by research (contract-quotable)
 
-Phase 4.3 will upgrade the naive `cash * 0.05 cap $1000` sizing to a **hybrid lite-formula** that takes the minimum of three independent caps — a hard percent-of-equity cap (preserves the existing worst-case), a confidence-weighted half-Kelly arm (`f = 0.5 * confidence * mu_hat / var_hat * equity`, justified by CFA Institute's finding that half-Kelly captures ~75% of growth at ~50% of variance), and an inverse-volatility arm (`target_vol_pct * equity / annualized_vol`, justified by Alvarez/QuantPedia inverse-vol literature). Stop-loss rules will follow the FINRA/15c3-5 evaluation order: hard pre-trade blocks (cash, duplicate, fat-finger) are FATAL and reject orders; per-position 8% fixed stops (O'Neil canonical) and 3% trailing stops are POST-TRADE soft triggers that generate liquidating orders, not blocks; portfolio-wide pause after 3 consecutive stops is a discretionary tilt-detector. The trailing drawdown tracker computes `dd_t = (equity_t - peak_t) / peak_t` on **mark-to-market equity** (not daily closes — intraday lows must be visible to fire the kill switch in time), with a 5%/10%/15% warning ladder mirroring QuantConnect's `MaximumDrawdownPercentPortfolio` (default 5%, trailing-mode) but extended into a tiered de-risk → liquidate convention found across Robot Wealth, QuantVPS, and QuantifiedStrategies practitioner literature. The Kaminski & Lo (2014) result — that stop-losses only add value under momentum, not random walk — is the empirical justification for keeping stops at all; our current backtest exhibits the persistence required.
+**D1. Primary metric: hit rate (directional accuracy).** Simple, interpretable, computable with stdlib only, meaningful at any N. IC requires pairs + correlation compute and only becomes informative at N >= 30 (Macrosynergy, arXiv 2010.08601). We include `mean_forward_return_pct` alongside hit_rate to capture the "size of wins" dimension pyfolio tear sheets emphasize.
 
-## Final URL count: 28 unique URLs across 7 categories. Research Gate: PASS.
+**D2. Secondary metric: Wilson Score Interval (95%) on hit rate.** Per Gabor Melli, Wilson is the correct CI for small-sample binomial proportions. Stable from n=10; handles proportions near 0 or 1 (where Wald gives negative or >1 bounds). Pure `math.sqrt` implementation. Reported as `hit_rate_ci_low`, `hit_rate_ci_high`.
+
+**D3. Holding period is caller-supplied, NOT hardcoded.** `track_signal_accuracy(signal_id, exit_price, exit_date)` takes the exit the caller decides. The "canonical holding period" is a per-strategy choice; paper_trader already exposes `holding_days` config. Passing it through keeps `signals_server` invariant-free. We record `holding_days` (computed from signal.date to exit_date) for later grouping.
+
+**D4. HOLD signals are recorded but NOT scored for hit rate.** HOLD is a no-op decision; there is no "correct direction" to measure. We append HOLD events to `signal_history` for audit and count them in totals, but exclude from the hit_rate denominator. `get_accuracy_report()` returns both `total_count` (all signals) and `scored_count` (BUY/SELL only). Precedent: QuantConnect Insight system treats a Flat insight as un-scored.
+
+**D5. Neutral (epsilon) band: 0.20% default, configurable.** Forward returns inside [-0.20%, +0.20%] are tagged `neutral` and excluded from hit/miss counting (still counted in totals and mean_return). Below typical round-trip transaction cost (~10bps) a directional call is indistinguishable from noise.
+
+**D6. Equal-weighted hit_rate, return-weighted mean_return.** Both reported; each answers a different question. Hit rate = "how often is the direction right"; mean_return = "what's the average P&L per signal." Pyfolio/Alphalens standard pattern. Median return also reported to flag skewed distributions.
+
+**D7. Data structure: in-memory list + dict, both populated by publish_signal.** `self.signal_history: list[dict]` is the append-only time series. `self._signals_by_id: dict[str, dict]` is the O(1) lookup index for `track_signal_accuracy`. Both keyed off the existing `_signal_id()` sha1 prefix. When `track_signal_accuracy` updates a signal, it mutates the dict entry; the list entry is a reference to the same dict so both views stay in sync. Mirrors QuantConnect's InsightManager shape.
+
+**D8. No durable persistence this phase.** Cross-restart retention of signal history is explicitly Phase 4.2.4 (BQ `signals_log` table + schema migration). In-memory only this session, documented in docstring. Matches the `_peak_equity` precedent from Phase 4.3.
+
+**D9. Regulatory note.** 17 CFR 240.17a-4 requires 6-year retention for trade blotters at broker-dealers; does not directly apply to paper trading by individuals. We document the pattern the durable BQ table should follow (immutable append, sha1 signal_id as primary key) so the Phase 4.2.4 migration is straightforward.
+
+**D10. Grouping support: 'signal_type' and 'ticker' only.** Per-sector and per-factor attribution DEFERRED -- sector requires a lookup service we don't have here, and per-factor requires signals to carry per-factor weights. Grouping via stdlib `collections.defaultdict`.
 
 ---
 
-## Open follow-ups (non-blocking)
-- Confirm the precise consecutive-stop pause threshold (3 vs 5) by quick backtest sweep in GENERATE phase.
-- The 3% trailing percent is tight for typical hold horizons — may want to expose as configurable and let optimizer pick.
-- Kaminski/Lo full PDF could not be fetched (HTTP 403 from MIT DSpace); the abstract + practitioner summary is sufficient for our purposes but a future session with proxy access should pull the appendix for the formal stopping-premium math.
+## Out of scope / deferred
+
+- **Information Coefficient (IC / Pearson / Spearman)**: requires pandas/numpy AND N >= 30. Revisit Phase 4.2.4.
+- **Brier score**: requires full probability vector over {BUY, SELL, HOLD}. Out of scope.
+- **Per-factor attribution**: signals lack per-factor weights. Phase 3.2 follow-up.
+- **Per-sector accuracy**: needs sector lookup service. Phase 4.2.2 follow-up.
+- **Slack weekly report**: `slack_bot/formatters.py` work. Exposes `get_accuracy_report()` as data source.
+- **Durable BQ persistence**: Phase 4.2.4.
+- **Full pyfolio/Alphalens tear sheets**: pandas-dep; out of scope for stdlib-only MCP surface.
+
+---
+
+## Anti-leniency rules (for GENERATE + QA)
+
+1. No pandas/numpy imports. Stdlib only (`math`, `collections`, `datetime`, `statistics`).
+2. `track_signal_accuracy` must be idempotent: calling twice with same signal_id updates in place, never duplicates.
+3. Never raise. All methods return structured error dicts or empty defaults.
+4. No mutation of input dicts. Deepcopy on entry to each new public method.
+5. HOLD signals appended to history but excluded from hit_rate denominator.
+6. Wilson CI must handle n=0 (return (0.0, 0.0)) and n=1 (return degenerate interval).
+7. Mean/median return computed with `statistics.mean` / `statistics.median`, not hand-rolled.
+8. Preserve existing 4.1 + 4.3 public API byte-identically. Only extend.
+9. `get_signal_history` return shape additively compatible with existing stub (`month`, `count`, `signals` preserved; new keys may be added).
+10. Diff budget: `<350` added lines, `<60` net new logic lines beyond docstrings.

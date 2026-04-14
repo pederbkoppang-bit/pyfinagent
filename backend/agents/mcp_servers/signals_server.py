@@ -13,11 +13,15 @@ Resources:
 - signals://history → All generated signals this month
 """
 
+import copy
 import hashlib
 import json
 import logging
+import math
+import statistics
+from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -78,6 +82,15 @@ class SignalsServer:
         # mark for the drawdown tier computation in track_drawdown(). In-memory
         # only this session; durable cross-restart persistence is Phase 4.2.
         self._peak_equity: Optional[float] = None
+
+        # Phase 4.2.2: signal accuracy tracking. `signal_history` (inherited
+        # from the stub init above) is the append-only time series populated
+        # by publish_signal step 9. `_signals_by_id` is the O(1) lookup index
+        # used by track_signal_accuracy. Both point at the same dict records
+        # (list entry IS dict mirrored in index), so in-place outcome updates
+        # are visible from both views. In-memory only this session; durable
+        # BQ `signals_log` persistence is Phase 4.2.4.
+        self._signals_by_id: Dict[str, Dict[str, Any]] = {}
 
         # Initialize paper trader if available
         if _SIGNALS_AVAILABLE:
@@ -516,7 +529,88 @@ class SignalsServer:
         response["reason"] = final_reason
 
         self._remember(signal_id, response)
+
+        # ---- Step 9: append to signal_history for accuracy tracking ----
+        # Phase 4.2.2. Only successful publishes (published=True) get a
+        # history entry; rejected / degraded paths are captured in
+        # _recent_responses but not in the accuracy log. Deepcopy guards
+        # against caller mutation of the stored record. The dict entry
+        # is simultaneously the list element and the _signals_by_id value
+        # -- track_signal_accuracy mutates it in place, so both views
+        # stay consistent without any re-sync step.
+        if published:
+            try:
+                self._append_signal_history(signal_id, signal, trade)
+            except Exception as e:
+                # Anti-leniency: never let a history append failure
+                # break the publish path. Log and continue.
+                logger.warning(f"signal_history append failed: {type(e).__name__}")
+
         return response
+
+    def _append_signal_history(
+        self,
+        signal_id: str,
+        signal: Dict[str, Any],
+        trade: Optional[Dict[str, Any]],
+    ) -> None:
+        """Append a published signal to signal_history + _signals_by_id index.
+
+        Phase 4.2.2 helper. Pure append; never mutates the input signal.
+        Record shape matches what track_signal_accuracy + get_accuracy_report
+        expect. Price resolution: signal.price -> trade.price -> 0.0.
+        """
+        if not signal_id:
+            return
+        # Dedup: if we've already recorded this signal_id, skip. The
+        # dedup path in publish_signal step 3 already returns before
+        # reaching step 9, so this is defense in depth.
+        if signal_id in self._signals_by_id:
+            return
+
+        entry_price = 0.0
+        try:
+            raw_price = signal.get("price", 0.0) if isinstance(signal, dict) else 0.0
+            entry_price = float(raw_price or 0.0)
+        except (ValueError, TypeError):
+            entry_price = 0.0
+        if entry_price <= 0.0 and isinstance(trade, dict):
+            try:
+                entry_price = float(trade.get("price", 0.0) or 0.0)
+            except (ValueError, TypeError):
+                entry_price = 0.0
+
+        record = {
+            "signal_id": signal_id,
+            "ticker": str(signal.get("ticker", "")) if isinstance(signal, dict) else "",
+            "signal_type": str(signal.get("signal", "")).upper() if isinstance(signal, dict) else "",
+            "confidence": 0.0,
+            "date": str(signal.get("date", "")) if isinstance(signal, dict) else "",
+            "entry_price": entry_price,
+            "factors": [],
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+            # Outcome fields -- populated later by track_signal_accuracy.
+            "outcome": "pending",
+            "scored": False,
+            "hit": None,
+            "exit_price": None,
+            "exit_date": None,
+            "forward_return_pct": None,
+            "holding_days": None,
+        }
+        # Fill confidence + factors defensively.
+        if isinstance(signal, dict):
+            try:
+                record["confidence"] = float(signal.get("confidence", 0.0) or 0.0)
+            except (ValueError, TypeError):
+                record["confidence"] = 0.0
+            factors = signal.get("factors", [])
+            if isinstance(factors, list):
+                # Deepcopy to decouple from caller's list.
+                record["factors"] = copy.deepcopy(factors)
+
+        self.signal_history.append(record)
+        self._signals_by_id[signal_id] = record
     
     def risk_check(self, portfolio: Dict[str, Any], proposed_trade: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -1091,14 +1185,403 @@ class SignalsServer:
             "drawdown_derisk_pct": -10.0,      # halve new sizes tier (kill at -15%)
         }
     
-    def get_signal_history(self) -> Dict[str, Any]:
-        """Get all signals generated this month."""
-        logger.info("get_signal_history()")
+    def get_signal_history(
+        self,
+        limit: Optional[int] = None,
+        since_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Return the in-memory signal history with optional filters.
+
+        Phase 4.2.2: replaces the prior stub. Return shape is additively
+        compatible with the stub's `{month, count, signals}` keys -- existing
+        callers continue to work; new callers can pass `limit` and/or
+        `since_date` for tail slices or date-range filters.
+
+        Args:
+            limit: Optional tail slice. If set, return only the last N
+                signals (most-recent-N, in insertion order). None = all.
+            since_date: Optional ISO date string "YYYY-MM-DD". Only signals
+                with `date >= since_date` are returned. Non-string or
+                invalid-date values degrade to no filter (never raises).
+
+        Returns:
+            {
+                "month": "YYYY-MM" (the current month),
+                "count": int (len of filtered signals),
+                "signals": list[dict] (the filtered records),
+                "total_count": int (len of the full history),
+            }
+        """
+        logger.info(f"get_signal_history(limit={limit}, since_date={since_date})")
+
+        signals = list(self.signal_history)  # shallow copy, decouples view
+
+        # since_date filter -- tolerate non-string, invalid date, missing date.
+        if since_date is not None and isinstance(since_date, str) and since_date:
+            try:
+                filtered: List[Dict[str, Any]] = []
+                for sig in signals:
+                    sdate = sig.get("date", "") if isinstance(sig, dict) else ""
+                    if isinstance(sdate, str) and sdate and sdate >= since_date:
+                        filtered.append(sig)
+                signals = filtered
+            except Exception:
+                # Degrade to unfiltered -- never raise from a read API.
+                pass
+
+        # Tail limit.
+        if isinstance(limit, int) and limit > 0:
+            signals = signals[-limit:]
+
+        now = datetime.now(timezone.utc)
+        month = f"{now.year:04d}-{now.month:02d}"
         return {
-            "month": "2026-03",
-            "count": 0,
-            "signals": [],
+            "month": month,
+            "count": len(signals),
+            "signals": signals,
+            "total_count": len(self.signal_history),
         }
+
+    def track_signal_accuracy(
+        self,
+        signal_id: str,
+        exit_price: Any,
+        exit_date: Optional[str] = None,
+        neutral_band_pct: float = 0.20,
+    ) -> Dict[str, Any]:
+        """Record the outcome of a previously-published signal.
+
+        Phase 4.2.2 accuracy tracker. Idempotent in-place update: calling
+        twice with the same signal_id overwrites the prior outcome and
+        never creates a duplicate history entry.
+
+        Hit/miss semantics (research.md D5, contract D12):
+          * BUY hit:  forward_return_pct > +neutral_band_pct
+          * BUY miss: forward_return_pct < -neutral_band_pct
+          * BUY neutral: |forward_return_pct| <= neutral_band_pct
+          * SELL hit: forward_return_pct < -neutral_band_pct
+          * SELL miss: forward_return_pct > +neutral_band_pct
+          * SELL neutral: |forward_return_pct| <= neutral_band_pct
+          * HOLD: always scored=False, outcome='unscored'
+
+        Args:
+            signal_id: sha1-16 prefix from SignalsServer._signal_id().
+            exit_price: numeric exit price (coerced via float()).
+            exit_date: optional ISO "YYYY-MM-DD"; used to compute
+                holding_days. None or invalid -> holding_days=None.
+            neutral_band_pct: dead-band percent for neutral classification.
+                Default 0.20% (below typical round-trip transaction cost).
+
+        Returns:
+            {
+                "ok": bool,
+                "reason": str,
+                "updated": bool,
+                "signal_id": str,
+                "outcome": "hit"|"miss"|"neutral"|"unscored"|"error",
+                "scored": bool,
+                "hit": bool|None,
+                "forward_return_pct": float|None,
+                "holding_days": int|None,
+            }
+        """
+        logger.info(f"track_signal_accuracy(signal_id={signal_id})")
+
+        # ---- Guard 1: non-string / empty signal_id ----------------------
+        if not isinstance(signal_id, str) or not signal_id:
+            return {
+                "ok": False,
+                "reason": "invalid_signal_id",
+                "updated": False,
+                "signal_id": str(signal_id) if signal_id is not None else "",
+                "outcome": "error",
+                "scored": False,
+                "hit": None,
+                "forward_return_pct": None,
+                "holding_days": None,
+            }
+
+        # ---- Guard 2: signal not in history -----------------------------
+        record = self._signals_by_id.get(signal_id)
+        if record is None:
+            return {
+                "ok": False,
+                "reason": "signal_not_found",
+                "updated": False,
+                "signal_id": signal_id,
+                "outcome": "error",
+                "scored": False,
+                "hit": None,
+                "forward_return_pct": None,
+                "holding_days": None,
+            }
+
+        # Detect idempotent update (already scored).
+        already_scored = record.get("scored", False) is True or record.get("outcome") in ("hit", "miss", "neutral", "unscored")
+
+        # ---- Guard 3: coerce exit_price --------------------------------
+        try:
+            exit_price_f = float(exit_price)
+        except (ValueError, TypeError):
+            exit_price_f = 0.0
+
+        entry_price = 0.0
+        try:
+            entry_price = float(record.get("entry_price", 0.0) or 0.0)
+        except (ValueError, TypeError):
+            entry_price = 0.0
+
+        # ---- HOLD short-circuit: unscored ------------------------------
+        signal_type = str(record.get("signal_type", "")).upper()
+        if signal_type == "HOLD":
+            record["outcome"] = "unscored"
+            record["scored"] = False
+            record["hit"] = None
+            record["exit_price"] = exit_price_f if exit_price_f > 0.0 else None
+            record["exit_date"] = exit_date if isinstance(exit_date, str) else None
+            record["forward_return_pct"] = 0.0
+            record["holding_days"] = self._compute_holding_days(record.get("date", ""), exit_date)
+            return {
+                "ok": True,
+                "reason": "hold_unscored",
+                "updated": already_scored,
+                "signal_id": signal_id,
+                "outcome": "unscored",
+                "scored": False,
+                "hit": None,
+                "forward_return_pct": 0.0,
+                "holding_days": record["holding_days"],
+            }
+
+        # ---- Compute forward return ------------------------------------
+        # Degraded path: missing entry_price -> can't compute return.
+        if entry_price <= 0.0 or exit_price_f <= 0.0:
+            record["outcome"] = "error"
+            record["scored"] = False
+            record["hit"] = None
+            record["exit_price"] = exit_price_f if exit_price_f > 0.0 else None
+            record["exit_date"] = exit_date if isinstance(exit_date, str) else None
+            record["forward_return_pct"] = None
+            return {
+                "ok": False,
+                "reason": "missing_prices",
+                "updated": already_scored,
+                "signal_id": signal_id,
+                "outcome": "error",
+                "scored": False,
+                "hit": None,
+                "forward_return_pct": None,
+                "holding_days": None,
+            }
+
+        forward_return_pct = ((exit_price_f - entry_price) / entry_price) * 100.0
+
+        # Classify per D5.
+        band = abs(float(neutral_band_pct))
+        if abs(forward_return_pct) <= band:
+            outcome = "neutral"
+            hit: Optional[bool] = None
+            scored = False
+        elif signal_type == "BUY":
+            if forward_return_pct > band:
+                outcome = "hit"
+                hit = True
+            else:
+                outcome = "miss"
+                hit = False
+            scored = True
+        elif signal_type == "SELL":
+            if forward_return_pct < -band:
+                outcome = "hit"
+                hit = True
+            else:
+                outcome = "miss"
+                hit = False
+            scored = True
+        else:
+            outcome = "unscored"
+            hit = None
+            scored = False
+
+        record["outcome"] = outcome
+        record["scored"] = scored
+        record["hit"] = hit
+        record["exit_price"] = exit_price_f
+        record["exit_date"] = exit_date if isinstance(exit_date, str) else None
+        record["forward_return_pct"] = forward_return_pct
+        record["holding_days"] = self._compute_holding_days(record.get("date", ""), exit_date)
+
+        return {
+            "ok": True,
+            "reason": "recorded",
+            "updated": already_scored,
+            "signal_id": signal_id,
+            "outcome": outcome,
+            "scored": scored,
+            "hit": hit,
+            "forward_return_pct": forward_return_pct,
+            "holding_days": record["holding_days"],
+        }
+
+    @staticmethod
+    def _compute_holding_days(entry_date: Any, exit_date: Any) -> Optional[int]:
+        """Pure helper: parse two ISO "YYYY-MM-DD" strings and return the day
+        delta. Returns None on any parse failure. Never raises."""
+        if not isinstance(entry_date, str) or not isinstance(exit_date, str):
+            return None
+        try:
+            d1 = datetime.strptime(entry_date, "%Y-%m-%d")
+            d2 = datetime.strptime(exit_date, "%Y-%m-%d")
+            return (d2 - d1).days
+        except (ValueError, TypeError):
+            return None
+
+    def get_accuracy_report(
+        self,
+        group_by: Optional[str] = None,
+        neutral_band_pct: float = 0.20,
+    ) -> Dict[str, Any]:
+        """Aggregate signal accuracy statistics over the in-memory history.
+
+        Phase 4.2.2 aggregator. Pure read -- does NOT mutate state or
+        re-classify existing records (they are classified at track time,
+        against the band used then). The `neutral_band_pct` arg is kept in
+        the signature for API parity with track_signal_accuracy but does
+        NOT re-score records.
+
+        Args:
+            group_by: Optional "signal_type" or "ticker" for sub-aggregation.
+                None -> single aggregate only. Unknown values ignored.
+            neutral_band_pct: forwarded for API parity; unused in aggregation.
+
+        Returns:
+            {
+                "total_count": int,         # all signals in history
+                "scored_count": int,        # hit + miss only
+                "hits": int,
+                "misses": int,
+                "neutral": int,
+                "unscored": int,            # HOLD + error + pending
+                "hit_rate": float,          # hits / scored_count (0.0 if 0)
+                "hit_rate_ci_low": float,   # Wilson 95% lower
+                "hit_rate_ci_high": float,  # Wilson 95% upper
+                "mean_forward_return_pct": float,
+                "median_forward_return_pct": float,
+                "groups": dict[str, dict],  # sub-aggregates if group_by set
+            }
+        """
+        logger.info(f"get_accuracy_report(group_by={group_by})")
+
+        def _aggregate(signals: List[Dict[str, Any]]) -> Dict[str, Any]:
+            total = len(signals)
+            hits = 0
+            misses = 0
+            neutral = 0
+            unscored = 0
+            returns: List[float] = []
+            for s in signals:
+                outcome = s.get("outcome", "pending")
+                if outcome == "hit":
+                    hits += 1
+                elif outcome == "miss":
+                    misses += 1
+                elif outcome == "neutral":
+                    neutral += 1
+                else:
+                    unscored += 1
+                # Return aggregation: include any record with a numeric
+                # forward_return_pct, regardless of scored/unscored. This
+                # matches pyfolio's "all-positions" P&L view.
+                ret = s.get("forward_return_pct", None)
+                if isinstance(ret, (int, float)) and ret is not None:
+                    returns.append(float(ret))
+
+            scored = hits + misses
+            hit_rate = (hits / scored) if scored > 0 else 0.0
+            ci_low, ci_high = self._wilson_ci(hits, scored)
+            mean_ret = statistics.mean(returns) if returns else 0.0
+            median_ret = statistics.median(returns) if returns else 0.0
+
+            return {
+                "total_count": total,
+                "scored_count": scored,
+                "hits": hits,
+                "misses": misses,
+                "neutral": neutral,
+                "unscored": unscored,
+                "hit_rate": float(hit_rate),
+                "hit_rate_ci_low": float(ci_low),
+                "hit_rate_ci_high": float(ci_high),
+                "mean_forward_return_pct": float(mean_ret),
+                "median_forward_return_pct": float(median_ret),
+            }
+
+        overall = _aggregate(self.signal_history)
+        overall["groups"] = {}
+
+        if group_by in ("signal_type", "ticker"):
+            buckets: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+            for s in self.signal_history:
+                key = str(s.get(group_by, "") or "unknown")
+                buckets[key].append(s)
+            for key, bucket_signals in buckets.items():
+                overall["groups"][key] = _aggregate(bucket_signals)
+
+        return overall
+
+    @staticmethod
+    def _wilson_ci(hits: int, n: int, z: float = 1.96) -> Tuple[float, float]:
+        """Wilson Score Interval (two-sided) for a binomial proportion.
+
+        Pure stdlib (math.sqrt). Safe for small n and extreme proportions
+        where the Wald interval gives negative or >1 bounds. Default z=1.96
+        is the 95% critical value.
+
+        Handles edge cases:
+          * n=0 -> (0.0, 0.0)   (no data, collapse to zero)
+          * n=1, hits=0 -> (0.0, upper>0)
+          * n=1, hits=1 -> (lower<1, 1.0)
+
+        Formula (Wilson 1927):
+            center = p_hat + z^2/(2n)
+            half   = z * sqrt( (p_hat*(1-p_hat) + z^2/(4n)) / n )
+            denom  = 1 + z^2/n
+            (low, high) = ((center - half)/denom, (center + half)/denom)
+
+        Args:
+            hits: number of successes (non-negative int).
+            n: total trials (non-negative int).
+            z: two-sided critical value. Default 1.96 (95%).
+
+        Returns:
+            (ci_low, ci_high) clamped to [0.0, 1.0].
+        """
+        try:
+            n_int = int(n)
+            hits_int = int(hits)
+        except (ValueError, TypeError):
+            return (0.0, 0.0)
+        if n_int <= 0 or hits_int < 0:
+            return (0.0, 0.0)
+        if hits_int > n_int:
+            hits_int = n_int
+
+        p_hat = hits_int / n_int
+        z2 = z * z
+        denom = 1.0 + z2 / n_int
+        center = p_hat + z2 / (2.0 * n_int)
+        radicand = (p_hat * (1.0 - p_hat) + z2 / (4.0 * n_int)) / n_int
+        if radicand < 0.0:
+            radicand = 0.0
+        half = z * math.sqrt(radicand)
+        low = (center - half) / denom
+        high = (center + half) / denom
+        # Clamp.
+        if low < 0.0:
+            low = 0.0
+        if high > 1.0:
+            high = 1.0
+        return (float(low), float(high))
 
 
 def create_signals_server():
