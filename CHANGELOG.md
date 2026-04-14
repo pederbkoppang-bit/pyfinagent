@@ -7,6 +7,11 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `cb2a085` | Phase 4.2.3.2: append harness_log.md Cycle 3 entry |
+| 2026-04-14 | `e85633e` | Phase 4.2.3.2 LOG: session log + QA critique (PASS 39/39 effective) |
+| 2026-04-14 | `5008681` | Phase 4.2.3.2 LOG: session log + QA critique (PASS 39/39 effective) |
+| 2026-04-14 | `ef7e7a5` | Phase 4.2.3.2: close SN4 since_date lex-compare trap in get_signal_history |
+| 2026-04-14 | `2494d10` | Force remote agent to work on main branch, not feature branches |
 | 2026-04-14 | `d63e23c` | chore: changelog drift backfill for 7b8d77f |
 | 2026-04-14 | `7b8d77f` | chore: changelog drift backfill for 7d4149d |
 | 2026-04-14 | `7d4149d` | Phase 4.2.3.1 LOG: QA PASS (25/25 + 10/10), session log |
@@ -22,22 +27,10 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `7e71c95` | chore: auto-changelog hook entry for 67ae292 |
 | 2026-04-14 | `67ae292` | session log: 2026-04-14-1040 Phase 4.2.2 LOG (superseded) |
 | 2026-04-14 | `648c39d` | Phase 4.2.3 LOG: Slack accuracy report formatter -- QA PASS |
-| 2026-04-14 | `a3334f8` | Phase 4.2.3 GENERATE: Slack accuracy report formatter |
-| 2026-04-14 | `0028a24` | chore: changelog drift backfill for 676a40c |
-| 2026-04-14 | `676a40c` | chore: changelog drift backfill for d7c35f7 |
-| 2026-04-14 | `d7c35f7` | Phase 4.2.2 LOG: Signal Accuracy Tracking evaluator critique + session log |
-| 2026-04-14 | `3deabe5` | chore: changelog drift backfill for a569a89 |
-| 2026-04-14 | `a569a89` | chore: changelog drift backfill for af13f2a |
-| 2026-04-14 | `af13f2a` | Phase 4.2.2 LOG: QA evaluator critique + session log |
-| 2026-04-14 | `661a38d` | chore: changelog drift backfill for 302246e |
-| 2026-04-14 | `ab9d18e` | chore: changelog drift backfill for 302246e |
-| 2026-04-14 | `302246e` | chore: changelog drift backfill for 3d70b7b |
-| 2026-04-14 | `3d70b7b` | chore: changelog drift backfill for 4171a46 |
-| 2026-04-14 | `4171a46` | Phase 4.2.2 GENERATE: Signal Accuracy Tracking |
-| 2026-04-14 | `8637af7` | chore: changelog drift backfill for fa7ef5e |
-| 2026-04-14 | `fa7ef5e` | chore: auto-changelog hook entry for d096501 |
 
 ---
+
+### v6.4.1 — Continued Development (2026-04-14)
 
 ### v6.4.0 — Machine-Readable Masterplan + MAS Autonomous Agent (April 14, 2026)
 
