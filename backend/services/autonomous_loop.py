@@ -290,27 +290,137 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
 
 
 async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict]:
-    """Run a single analysis and extract key fields for trade decisions."""
-    orchestrator = AnalysisOrchestrator(settings)
-    report = await orchestrator.run_full_analysis(ticker)
-    if not report:
+    """Run a single analysis and extract key fields for trade decisions.
+
+    Uses Claude for lightweight analysis (paper trading mode).
+    Falls back to full Gemini orchestrator if Claude is unavailable.
+    """
+    try:
+        return await _run_claude_analysis(ticker, settings)
+    except Exception as e:
+        logger.warning(f"Claude analysis failed for {ticker}: {e}, trying Gemini orchestrator")
+
+    # Fallback: full Gemini orchestrator
+    try:
+        orchestrator = AnalysisOrchestrator(settings)
+        report = await orchestrator.run_full_analysis(ticker)
+        if not report:
+            return None
+
+        synthesis = report.get("final_synthesis", {})
+        rec = synthesis.get("recommendation", {})
+        quant = report.get("quant", {})
+        risk = synthesis.get("risk_assessment", {})
+        cost_summary = report.get("cost_summary", {})
+
+        return {
+            "ticker": ticker,
+            "recommendation": rec.get("action", "HOLD") if isinstance(rec, dict) else str(rec),
+            "final_score": synthesis.get("final_score", 0),
+            "risk_assessment": risk,
+            "price_at_analysis": quant.get("yf_data", {}).get("valuation", {}).get("currentPrice") if isinstance(quant.get("yf_data"), dict) else None,
+            "analysis_date": datetime.now(timezone.utc).isoformat(),
+            "total_cost_usd": cost_summary.get("total_cost_usd", 0.1) if isinstance(cost_summary, dict) else 0.1,
+            "full_report": report,
+        }
+    except Exception as e:
+        logger.error(f"Both Claude and Gemini analysis failed for {ticker}: {e}")
         return None
 
-    synthesis = report.get("final_synthesis", {})
-    rec = synthesis.get("recommendation", {})
-    quant = report.get("quant", {})
-    risk = synthesis.get("risk_assessment", {})
-    cost_summary = report.get("cost_summary", {})
+
+async def _run_claude_analysis(ticker: str, settings: Settings) -> dict:
+    """Lightweight Claude-based analysis for paper trading decisions."""
+    import anthropic
+    import yfinance as yf
+
+    logger.info(f"Claude analysis: analyzing {ticker}")
+
+    # Fetch current market data via yfinance
+    stock = yf.Ticker(ticker)
+    info = stock.info
+    hist = stock.history(period="3mo")
+
+    current_price = info.get("currentPrice") or info.get("regularMarketPrice", 0)
+    market_cap = info.get("marketCap", 0)
+    pe_ratio = info.get("trailingPE", 0)
+    sector = info.get("sector", "Unknown")
+    industry = info.get("industry", "Unknown")
+    name = info.get("shortName", ticker)
+
+    # Calculate simple momentum
+    if len(hist) >= 20:
+        price_20d_ago = hist["Close"].iloc[-20]
+        momentum_20d = ((current_price - price_20d_ago) / price_20d_ago * 100) if price_20d_ago else 0
+    else:
+        momentum_20d = 0
+
+    if len(hist) >= 60:
+        price_60d_ago = hist["Close"].iloc[-60]
+        momentum_60d = ((current_price - price_60d_ago) / price_60d_ago * 100) if price_60d_ago else 0
+    else:
+        momentum_60d = 0
+
+    # Claude analysis
+    api_key = settings.anthropic_api_key or os.getenv("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise ValueError("No ANTHROPIC_API_KEY available")
+
+    client = anthropic.Anthropic(api_key=api_key)
+    prompt = f"""Analyze {ticker} ({name}) for a paper trading portfolio. Be concise.
+
+Stock: {ticker} ({name})
+Sector: {sector} | Industry: {industry}
+Price: ${current_price:.2f} | Market Cap: ${market_cap/1e9:.1f}B | P/E: {pe_ratio:.1f}
+20-day momentum: {momentum_20d:+.1f}% | 60-day momentum: {momentum_60d:+.1f}%
+
+Based on the data above, provide:
+1. Action: BUY, SELL, or HOLD
+2. Confidence: 0-100
+3. Score: 1-10 (overall attractiveness)
+4. Key reason (one sentence)
+
+Respond in this exact JSON format:
+{{"action": "BUY", "confidence": 75, "score": 7, "reason": "Strong momentum with reasonable valuation"}}"""
+
+    response = await asyncio.to_thread(
+        client.messages.create,
+        model="claude-sonnet-4-20250514",
+        max_tokens=200,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    # Parse response
+    text = response.content[0].text.strip()
+    # Extract JSON from response
+    import re
+    json_match = re.search(r'\{[^}]+\}', text)
+    if json_match:
+        analysis = json.loads(json_match.group())
+    else:
+        analysis = {"action": "HOLD", "confidence": 0, "score": 5, "reason": "Could not parse analysis"}
+
+    logger.info(f"Claude analysis for {ticker}: {analysis['action']} (confidence={analysis['confidence']}, score={analysis['score']})")
 
     return {
         "ticker": ticker,
-        "recommendation": rec.get("action", "HOLD") if isinstance(rec, dict) else str(rec),
-        "final_score": synthesis.get("final_score", 0),
-        "risk_assessment": risk,
-        "price_at_analysis": quant.get("yf_data", {}).get("valuation", {}).get("currentPrice") if isinstance(quant.get("yf_data"), dict) else None,
+        "recommendation": analysis["action"],
+        "final_score": analysis["score"],
+        "risk_assessment": {"reason": analysis["reason"]},
+        "price_at_analysis": current_price,
         "analysis_date": datetime.now(timezone.utc).isoformat(),
-        "total_cost_usd": cost_summary.get("total_cost_usd", 0.1) if isinstance(cost_summary, dict) else 0.1,
-        "full_report": report,
+        "total_cost_usd": 0.01,
+        "full_report": {
+            "source": "claude-sonnet-4",
+            "analysis": analysis,
+            "market_data": {
+                "price": current_price,
+                "market_cap": market_cap,
+                "pe_ratio": pe_ratio,
+                "sector": sector,
+                "momentum_20d": momentum_20d,
+                "momentum_60d": momentum_60d,
+            },
+        },
     }
 
 

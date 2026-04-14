@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship a validated, evidence-based trading signal system by May 2026",
-  "updated_at": "2026-04-14T05:03:30.562816+00:00",
+  "updated_at": "2026-04-14T22:27:05.328528+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -217,6 +217,24 @@
               "permissions_allow_agent_spawning",
               "4tier_memory_wired",
               "remote_trigger_prompt_has_mas_protocol"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "2.14",
+          "name": "Switch Paper Trading Analysis from Gemini to Claude",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read())\"",
+            "success_criteria": [
+              "claude_analysis_returns_valid_json",
+              "paper_trading_cycle_produces_trades",
+              "positions_appear_on_dashboard",
+              "no_gemini_dependency_in_paper_trading_path"
             ]
           },
           "contract": "handoff/current/contract.md",

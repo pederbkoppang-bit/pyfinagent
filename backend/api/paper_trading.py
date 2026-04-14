@@ -252,23 +252,15 @@ _last_cycle_error: Optional[str] = None
 
 
 async def _run_cycle_background(settings):
-    """Run daily cycle in a thread to avoid blocking the event loop."""
-    import concurrent.futures
+    """Run daily cycle as async task on the event loop."""
     global _last_cycle_error
-    _paper_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="paper")
-    loop = asyncio.get_event_loop()
     try:
-        result = await loop.run_in_executor(
-            _paper_executor,
-            lambda: asyncio.run(run_daily_cycle(settings))
-        )
+        result = await run_daily_cycle(settings)
         logger.info(f"Manual paper trading cycle result: {result.get('status')}")
         _last_cycle_error = None
     except Exception as e:
         logger.error(f"Manual cycle failed: {e}", exc_info=True)
         _last_cycle_error = f"{type(e).__name__}: {e}"
-    finally:
-        _paper_executor.shutdown(wait=False)
 
 
 # ── Scheduler Integration ────────────────────────────────────────
