@@ -128,6 +128,7 @@ export default function PaperTradingPage() {
         try {
           const s = await getPaperTradingStatus();
           setStatus(s);
+          setActionLoading(false);
           if (!s.loop.running) {
             clearInterval(interval);
             await refresh();
@@ -137,7 +138,6 @@ export default function PaperTradingPage() {
       setTimeout(() => clearInterval(interval), 300000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to trigger cycle");
-    } finally {
       setActionLoading(false);
     }
   };
@@ -198,9 +198,12 @@ export default function PaperTradingPage() {
               <button
                 onClick={handleRunNow}
                 disabled={actionLoading || status?.loop.running}
-                className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-400 hover:bg-sky-500/20 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-400 hover:bg-sky-500/20 disabled:opacity-50"
               >
-                {status?.loop.running ? "Running..." : "Run Now"}
+                {(actionLoading || status?.loop.running) && (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
+                )}
+                {status?.loop.running ? "Running cycle..." : actionLoading ? "Starting..." : "Run Now"}
               </button>
             )}
           </div>
