@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `9a3effb` | chore: auto-changelog hook entry for 154ac62 |
 | 2026-04-14 | `154ac62` | session log: 2026-04-14-1221 Phase 4.2.2 EVALUATE (race loser, AP14 finding) |
 | 2026-04-14 | `7e71c95` | chore: auto-changelog hook entry for 67ae292 |
 | 2026-04-14 | `67ae292` | session log: 2026-04-14-1040 Phase 4.2.2 LOG (superseded) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `8637af7` | chore: changelog drift backfill for fa7ef5e |
 | 2026-04-14 | `fa7ef5e` | chore: auto-changelog hook entry for d096501 |
 | 2026-04-14 | `d096501` | Phase 4.3 LOG: session log + QA critique + changelog drift |
-| 2026-04-14 | `9cb21ff` | chore: auto-changelog hook entry for 0a17c5c |
 
 ---
 
