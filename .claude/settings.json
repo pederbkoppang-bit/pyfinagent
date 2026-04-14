@@ -63,15 +63,15 @@
   },
   "permissions": {
     "allow": [
-      "Agent(researcher)",
-      "Agent(qa-evaluator)",
-      "Agent(harness-verifier)",
-      "Bash(python3 *)",
-      "Bash(source .venv/bin/activate *)",
-      "Bash(git *)",
+      "Bash",
       "Read",
+      "Write",
+      "Edit",
+      "Glob",
       "Grep",
-      "Glob"
+      "Agent",
+      "WebSearch",
+      "WebFetch"
     ]
   }
 }
