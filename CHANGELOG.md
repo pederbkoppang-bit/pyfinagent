@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `67ae292` | session log: 2026-04-14-1040 Phase 4.2.2 LOG (superseded) |
 | 2026-04-14 | `648c39d` | Phase 4.2.3 LOG: Slack accuracy report formatter -- QA PASS |
 | 2026-04-14 | `a3334f8` | Phase 4.2.3 GENERATE: Slack accuracy report formatter |
 | 2026-04-14 | `0028a24` | chore: changelog drift backfill for 676a40c |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `9cb21ff` | chore: auto-changelog hook entry for 0a17c5c |
 | 2026-04-14 | `be3accb` | Phase 4.3 Risk Management: size_position + check_stop_loss + track_drawdown |
 | 2026-04-14 | `4303a29` | chore: auto-changelog hook entry for 0a17c5c |
-| 2026-04-14 | `0a17c5c` | Phase 4.1: Slack Signal Delivery -- publish_signal pipeline + format_signal_alert |
 
 ---
 
