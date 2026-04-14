@@ -32,7 +32,14 @@ The remote CCR environment is bare Python — no FastAPI, pandas, GCP libs, etc.
 - For harness-gated verification: check existing evaluator critiques in `handoff/`, don't try to run the harness
 - Code-only work (frontend, config, docs, small backend edits) can be verified with AST parse
 
-### 6. NEVER manually update CHANGELOG.md
+### 6. ALWAYS work on main branch
+CCR creates feature branches by default (e.g., `claude/compassionate-knuth-SKDQy`). At startup, run:
+```bash
+git checkout main && git pull origin main
+```
+Then push directly to main. Do NOT create PRs or feature branches. All work goes to `origin/main`.
+
+### 7. NEVER manually update CHANGELOG.md
 The PostToolUse hook in `.claude/settings.json` automatically updates CHANGELOG.md on every `git commit`. Do NOT:
 - Manually add changelog entries
 - Commit "changelog drift" or "changelog backfill" fixes
