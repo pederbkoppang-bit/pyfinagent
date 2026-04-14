@@ -2,6 +2,7 @@
 # Post-commit hook: auto-update CHANGELOG.md with latest commit info
 # Triggered by Claude Code PostToolUse hook on "git commit"
 # Does NOT create a new commit (avoids infinite loop)
+# Auto-bumps patch version daily (v6.3.0 -> v6.4.0 on first commit of new day)
 
 set -euo pipefail
 
@@ -24,19 +25,45 @@ fi
 
 NEW_ROW="| ${DATE} | \`${HASH}\` | ${MSG} |"
 
-# Insert new row after the table header (line after |------|--------|--------|)
-# Then trim to MAX_ROWS entries
-python3 - "$CHANGELOG" "$NEW_ROW" "$MAX_ROWS" << 'PYEOF'
+# Insert new row + auto-bump version
+python3 - "$CHANGELOG" "$NEW_ROW" "$MAX_ROWS" "$DATE" << 'PYEOF'
 import sys
+import re
 
 changelog_path = sys.argv[1]
 new_row = sys.argv[2]
 max_rows = int(sys.argv[3])
+today = sys.argv[4]
 
 with open(changelog_path, "r", encoding="utf-8") as f:
     lines = f.readlines()
 
-# Find the table header separator line (|------|--------|--------|)
+# --- Auto-bump version ---
+# Find the first ### vX.Y.Z header
+version_idx = None
+current_version = None
+for i, line in enumerate(lines):
+    m = re.match(r"^### v(\d+)\.(\d+)\.(\d+)", line)
+    if m:
+        version_idx = i
+        major, minor, patch = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        current_version = (major, minor, patch)
+        break
+
+# Check if the current version header already has today's date
+# If not, bump patch version and add new header
+if version_idx is not None and current_version is not None:
+    version_line = lines[version_idx]
+    if today not in version_line:
+        # Bump minor version (6.3.0 -> 6.4.0)
+        new_major, new_minor, new_patch = current_version[0], current_version[1] + 1, 0
+        new_version_header = f"### v{new_major}.{new_minor}.{new_patch} --- {today}\n"
+        # Insert new version header before the old one, with a separator
+        lines.insert(version_idx, "\n")
+        lines.insert(version_idx, new_version_header)
+
+# --- Insert changelog row ---
+# Re-find the table header separator (may have shifted due to version insert)
 insert_idx = None
 for i, line in enumerate(lines):
     if line.strip().startswith("|------") and "Recent Activity" in "".join(lines[max(0,i-3):i]):
