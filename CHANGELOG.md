@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `4e101ef` | Add known-blockers.md to break Ford remote-session wheel-spin loop |
 | 2026-04-14 | `cb22a65` | chore: auto-changelog hook entry for a549874 |
 | 2026-04-14 | `a549874` | chore: auto-changelog hook entry for 8036149 |
 | 2026-04-14 | `8036149` | chore: CHANGELOG hook catchup for a97156c + remove stale pre-rebase d512cf8 |

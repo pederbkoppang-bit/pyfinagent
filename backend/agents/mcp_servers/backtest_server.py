@@ -12,6 +12,7 @@ Resources (for reference data):
 - experiments://recent → Last 10 backtest results
 """
 
+import csv
 import json
 import logging
 import time
@@ -30,6 +31,16 @@ try:
     _BACKTEST_AVAILABLE = True
 except ImportError:
     logger.warning("Backtest engine not available -- backtest server in stub mode")
+
+
+def _to_float(value: Any) -> float:
+    """Best-effort float coercion for TSV row values. Returns 0.0 on failure."""
+    if value is None or value == "":
+        return 0.0
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
 
 
 class BacktestServer:
@@ -224,21 +235,86 @@ class BacktestServer:
             "importance_mda": {},
         }
     
-    def get_experiment_list(self) -> Dict[str, Any]:
-        """Get all experiments from quant_results.tsv."""
-        logger.info("get_experiment_list()")
+    def get_experiment_list(self, last_n: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Get list of all historical backtest experiments from quant_results.tsv.
+
+        Mirrors data_server.DataServer.get_experiment_list so the two MCP
+        surfaces return the same shape for the same underlying file. Uses
+        stdlib csv (no pandas dep on the MCP path).
+
+        Args:
+            last_n: Optional tail slice (return only the last N experiments).
+
+        Returns:
+            {
+                "count": <int>,
+                "experiments": [
+                    {
+                        "timestamp": "...",
+                        "run_id": "...",
+                        "param_changed": "...",
+                        "metric_before": float,
+                        "metric_after": float,
+                        "delta": float,
+                        "status": "...",
+                        "dsr": float,
+                        "top5_mda": "...",
+                        "params": {...} | str,
+                        "parent_run_id": ""
+                    },
+                    ...
+                ]
+            }
+        """
+        logger.info(f"get_experiment_list(last_n={last_n})")
+
+        tsv_path = (
+            Path(__file__).parent.parent.parent
+            / "backtest" / "experiments" / "quant_results.tsv"
+        )
+
+        experiments: List[Dict[str, Any]] = []
+        if tsv_path.exists():
+            try:
+                with open(tsv_path, "r", newline="") as f:
+                    reader = csv.DictReader(f, delimiter="\t")
+                    for row in reader:
+                        params_raw = row.get("params_json", "") or ""
+                        params_parsed: Any = params_raw
+                        if params_raw:
+                            try:
+                                params_parsed = json.loads(params_raw)
+                            except (ValueError, TypeError):
+                                params_parsed = params_raw
+                        experiments.append({
+                            "timestamp": row.get("timestamp", ""),
+                            "run_id": row.get("run_id", ""),
+                            "param_changed": row.get("param_changed", ""),
+                            "metric_before": _to_float(row.get("metric_before")),
+                            "metric_after": _to_float(row.get("metric_after")),
+                            "delta": _to_float(row.get("delta")),
+                            "status": row.get("status", ""),
+                            "dsr": _to_float(row.get("dsr")),
+                            "top5_mda": row.get("top5_mda", ""),
+                            "params": params_parsed,
+                            "parent_run_id": row.get("parent_run_id", ""),
+                        })
+            except Exception as e:
+                logger.error(f"Error reading quant_results.tsv: {e}")
+
+        if last_n is not None and last_n > 0:
+            experiments = experiments[-last_n:]
+
         return {
-            "count": 0,
-            "experiments": [],
+            "count": len(experiments),
+            "experiments": experiments,
         }
-    
+
     def get_recent_experiments(self, limit: int = 10) -> Dict[str, Any]:
-        """Get last N experiments."""
+        """Get last N experiments. Thin delegate to get_experiment_list."""
         logger.info(f"get_recent_experiments({limit})")
-        return {
-            "count": 0,
-            "experiments": [],
-        }
+        return self.get_experiment_list(last_n=limit)
 
 
 def create_backtest_server():
