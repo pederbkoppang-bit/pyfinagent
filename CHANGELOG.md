@@ -7,6 +7,15 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `d63e23c` | chore: changelog drift backfill for 7b8d77f |
+| 2026-04-14 | `7b8d77f` | chore: changelog drift backfill for 7d4149d |
+| 2026-04-14 | `7d4149d` | Phase 4.2.3.1 LOG: QA PASS (25/25 + 10/10), session log |
+| 2026-04-14 | `f266484` | chore: changelog drift backfill for f8e0076 |
+| 2026-04-14 | `f8e0076` | Phase 4.2.3.1 GENERATE (cont'd): experiment_results.md |
+| 2026-04-14 | `29e2133` | Phase 4.2.3.1 GENERATE: formatter NaN/Inf filter + n=0 Scoring pending |
+| 2026-04-14 | `ecf6abf` | chore: changelog drift backfill for a396be3 |
+| 2026-04-14 | `a396be3` | chore: changelog drift backfill for eeea983 |
+| 2026-04-14 | `eeea983` | chore: auto-changelog hook entry for 9a3effb |
 | 2026-04-14 | `e3b4774` | Auto-bump version in changelog hook (daily minor version bump) |
 | 2026-04-14 | `9a3effb` | chore: auto-changelog hook entry for 154ac62 |
 | 2026-04-14 | `154ac62` | session log: 2026-04-14-1221 Phase 4.2.2 EVALUATE (race loser, AP14 finding) |

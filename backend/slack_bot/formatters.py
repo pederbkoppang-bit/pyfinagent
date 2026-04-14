@@ -3,6 +3,7 @@ Block Kit message formatters for Slack bot responses.
 Slack block text limit: 3000 chars per section.
 """
 
+import math
 from datetime import datetime
 
 
@@ -369,9 +370,13 @@ def _coerce_int(d: dict, key: str) -> int:
 
 def _coerce_float(d: dict, key: str) -> float:
     try:
-        return float(d.get(key, 0.0) or 0.0)
+        v = float(d.get(key, 0.0) or 0.0)
     except (TypeError, ValueError):
         return 0.0
+    # Phase 4.2.3.1 SN1 fix: sanitize NaN / +Inf / -Inf at the display
+    # boundary so upstream IEEE 754 non-finite values never render as
+    # "nan%" or "inf%" in the Slack fields. See handoff/current/research.md.
+    return v if math.isfinite(v) else 0.0
 
 
 def format_accuracy_report(
@@ -484,11 +489,14 @@ def format_accuracy_report(
 
     # Headline fields: always EVEN count, always <= 10.
     if scored_count <= 0:
+        # Phase 4.2.3.1 SN2 fix: on n=0 samples, mean/median forward returns
+        # have no data either -- collapse to the canonical "Scoring pending"
+        # placeholder (CFA III(D) fair-presentation; do not render fake 0%).
         fields = [
             _field("Total signals", f"{total_count:,}"),
             _field("Hit rate", "Scoring pending"),
-            _field("Mean forward return", mean_str),
-            _field("Median forward return", median_str),
+            _field("Mean forward return", "Scoring pending"),
+            _field("Median forward return", "Scoring pending"),
         ]
     elif scored_count < 5:
         fields = [
