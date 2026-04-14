@@ -10,7 +10,7 @@ Decision made 2026-04-08: Follow Anthropic's multi-agent research pattern.
 **Claude Code MAS (for autonomous masterplan execution):**
 - Lead Agent: Opus 4.6 (orchestrator, reads masterplan, delegates, synthesizes)
 - Researcher: Sonnet 4.6 (literature search, evidence gathering, .claude/agents/researcher.md)
-- QA Evaluator: Sonnet 4.6 (cross-verification, .claude/agents/qa-evaluator.md)
+- QA Evaluator: Opus 4.6 (cross-verification, .claude/agents/qa-evaluator.md)
 - Harness Verifier: Sonnet 4.6 (harness results check, .claude/agents/harness-verifier.md)
 
 **Backend MAS (for user queries via Slack/web):**
