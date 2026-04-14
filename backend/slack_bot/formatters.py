@@ -348,3 +348,217 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list) -> list[di
     })
 
     return blocks
+
+
+def _pct(value, decimals: int = 1, signed: bool = False) -> str:
+    """Render a numeric percent-scale value as a percent string. "N/A" on bad input."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    fmt = f"{{:+.{decimals}f}}" if signed else f"{{:.{decimals}f}}"
+    return f"{fmt.format(v)}%"
+
+
+def _coerce_int(d: dict, key: str) -> int:
+    try:
+        return int(d.get(key, 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _coerce_float(d: dict, key: str) -> float:
+    try:
+        return float(d.get(key, 0.0) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def format_accuracy_report(
+    data: dict | None,
+    window: tuple[str, str] | None = None,
+) -> list[dict]:
+    """Format a signal accuracy aggregate as Block Kit blocks for weekly reports.
+
+    Pure-stdlib. Never raises. Input is the dict shape produced by the
+    Phase 4.2.2 accuracy aggregator: total_count, scored_count, hits,
+    misses, neutral, unscored, hit_rate (0..1), hit_rate_ci_low/high
+    (0..1 Wilson), mean/median_forward_return_pct (percent scale),
+    groups (dict[str, dict] of same shape).
+
+    Research-gate lock-ins (handoff/current/research.md):
+    - Block order: header, context(window), TL;DR section, divider, fields
+      section, divider, per-group sections, trailing context.
+    - Wilson CI inline only when scored_count >= 5. 1..4 -> "preliminary
+      -- n=X". 0 -> hit-rate collapses to "Scoring pending" (no fake 0.00%).
+    - Groups rendered as section mrkdwn (not fields), sorted by
+      scored_count desc, hard-capped at 5 with overflow context block.
+    - No emoji-as-label for a11y. Percents always carry "%".
+
+    Args:
+        data: Accuracy aggregate dict, or None.
+        window: Optional (start_iso, end_iso) pair rendered as
+            "YYYY-MM-DD to YYYY-MM-DD" in the early context block.
+
+    Returns:
+        Block Kit list[dict]. Always non-empty.
+    """
+    if isinstance(window, (tuple, list)) and len(window) == 2:
+        try:
+            win_text = f"{str(window[0])} to {str(window[1])}"
+        except Exception:
+            win_text = ""
+    else:
+        win_text = ""
+    gen_ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    def _header_block() -> dict:
+        return {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "Weekly Accuracy Report", "emoji": True},
+        }
+
+    def _ctx_block(extra: str | None = None) -> dict:
+        parts = [":robot_face: PyFinAgent"]
+        if win_text:
+            parts.append(win_text)
+        if extra:
+            parts.append(extra)
+        parts.append(gen_ts)
+        return {"type": "context", "elements": [{"type": "mrkdwn", "text": " | ".join(parts)}]}
+
+    def _unavailable(reason: str) -> list[dict]:
+        return [
+            _header_block(),
+            {"type": "section", "text": {"type": "mrkdwn",
+                "text": _truncate(f"*Accuracy report unavailable* -- {reason}", 500)}},
+            _ctx_block(),
+        ]
+
+    if data is None or not isinstance(data, dict):
+        return _unavailable("input data missing")
+
+    total_count = _coerce_int(data, "total_count")
+    scored_count = _coerce_int(data, "scored_count")
+    hits = _coerce_int(data, "hits")
+    hit_rate = _coerce_float(data, "hit_rate")
+    ci_low = _coerce_float(data, "hit_rate_ci_low")
+    ci_high = _coerce_float(data, "hit_rate_ci_high")
+    mean_ret = _coerce_float(data, "mean_forward_return_pct")
+    median_ret = _coerce_float(data, "median_forward_return_pct")
+    groups_raw = data.get("groups") if isinstance(data.get("groups"), dict) else {}
+
+    if total_count <= 0:
+        return _unavailable(
+            f"No signals issued in {win_text}" if win_text else "No signals issued in this window"
+        )
+
+    hit_rate_pct_str = f"{hit_rate * 100.0:.1f}%"
+    mean_str = _pct(mean_ret, decimals=2, signed=True)
+    median_str = _pct(median_ret, decimals=2, signed=True)
+
+    def _field(label: str, value: str) -> dict:
+        return {"type": "mrkdwn", "text": _truncate(f"*{label}:* {value}", 180)}
+
+    blocks: list[dict] = [_header_block()]
+
+    early_parts = [":robot_face: PyFinAgent"]
+    if win_text:
+        early_parts.append(win_text)
+    early_parts.append(f"Generated {gen_ts}")
+    blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": " | ".join(early_parts)}]})
+
+    if scored_count >= 1:
+        tldr = (
+            f"*TL;DR:* Hit rate *{hit_rate_pct_str}* on {scored_count:,} "
+            f"scored signal{'s' if scored_count != 1 else ''} "
+            f"({total_count:,} total this window)."
+        )
+    else:
+        tldr = (
+            f"*TL;DR:* {total_count:,} signal{'s' if total_count != 1 else ''} "
+            f"issued; scoring pending (no forward-return data yet)."
+        )
+    blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": _truncate(tldr, 500)}})
+    blocks.append({"type": "divider"})
+
+    # Headline fields: always EVEN count, always <= 10.
+    if scored_count <= 0:
+        fields = [
+            _field("Total signals", f"{total_count:,}"),
+            _field("Hit rate", "Scoring pending"),
+            _field("Mean forward return", mean_str),
+            _field("Median forward return", median_str),
+        ]
+    elif scored_count < 5:
+        fields = [
+            _field("Total signals", f"{total_count:,}"),
+            _field("Scored", f"{scored_count:,} ({hits}/{scored_count})"),
+            _field("Hit rate", hit_rate_pct_str),
+            _field("Confidence", f"preliminary -- n={scored_count}"),
+            _field("Mean forward return", mean_str),
+            _field("Median forward return", median_str),
+        ]
+    else:
+        # Clamp CI bounds to [0, 1] defensively; do not trust the producer.
+        ci_low_c = max(0.0, min(1.0, ci_low))
+        ci_high_c = max(0.0, min(1.0, ci_high))
+        ci_str = f"[{ci_low_c:.2f}, {ci_high_c:.2f}]"
+        fields = [
+            _field("Total signals", f"{total_count:,}"),
+            _field("Scored", f"{scored_count:,} ({hits}/{scored_count})"),
+            _field("Hit rate", hit_rate_pct_str),
+            _field("Wilson 95% CI", ci_str),
+            _field("Mean forward return", mean_str),
+            _field("Median forward return", median_str),
+        ]
+
+    if len(fields) % 2 == 1:
+        fields = fields[:-1]
+    if len(fields) > 10:
+        fields = fields[:10]
+    blocks.append({"type": "section", "fields": fields})
+
+    # Per-group: sorted by scored_count desc, capped at 5, overflow in context.
+    if groups_raw:
+        def _grp_scored(item):
+            _k, v = item
+            return _coerce_int(v, "scored_count") if isinstance(v, dict) else 0
+
+        sorted_groups = sorted(groups_raw.items(), key=_grp_scored, reverse=True)
+        shown = sorted_groups[:5]
+        overflow = max(0, len(sorted_groups) - len(shown))
+        if shown:
+            blocks.append({"type": "divider"})
+            for label, gdata in shown:
+                if not isinstance(gdata, dict):
+                    continue
+                g_scored = _coerce_int(gdata, "scored_count")
+                g_hits = _coerce_int(gdata, "hits")
+                g_hit_rate = _coerce_float(gdata, "hit_rate")
+                g_total = _coerce_int(gdata, "total_count")
+                g_mean = _coerce_float(gdata, "mean_forward_return_pct")
+                g_label = _truncate(str(label), 40)
+                if g_scored >= 1:
+                    line = (
+                        f"*{g_label}* -- {g_hit_rate * 100.0:.1f}% ({g_hits}/{g_scored})  "
+                        f"mean {_pct(g_mean, decimals=2, signed=True)}  n={g_total}"
+                    )
+                else:
+                    line = f"*{g_label}* -- scoring pending  n={g_total}"
+                blocks.append({"type": "section",
+                    "text": {"type": "mrkdwn", "text": _truncate(line, 500)}})
+            if overflow > 0:
+                blocks.append({"type": "context", "elements": [{
+                    "type": "mrkdwn",
+                    "text": f"+{overflow} more group{'s' if overflow != 1 else ''} -- see full report",
+                }]})
+
+    blocks.append({"type": "divider"})
+    trailing_parts = [":robot_face: PyFinAgent | weekly accuracy summary"]
+    if 0 < scored_count < 10:
+        trailing_parts.append(f"small sample (n={scored_count})")
+    blocks.append({"type": "context",
+        "elements": [{"type": "mrkdwn", "text": " | ".join(trailing_parts)}]})
+
+    return blocks

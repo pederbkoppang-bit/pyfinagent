@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `0028a24` | chore: changelog drift backfill for 676a40c |
 | 2026-04-14 | `676a40c` | chore: changelog drift backfill for d7c35f7 |
 | 2026-04-14 | `d7c35f7` | Phase 4.2.2 LOG: Signal Accuracy Tracking evaluator critique + session log |
 | 2026-04-14 | `3deabe5` | chore: changelog drift backfill for a569a89 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `0a17c5c` | Phase 4.1: Slack Signal Delivery -- publish_signal pipeline + format_signal_alert |
 | 2026-04-14 | `559b61a` | chore: auto-changelog hook entry for 7175eac |
 | 2026-04-14 | `7175eac` | Update known-blockers: 4 of 6 resolved, 2 still active |
-| 2026-04-14 | `1f8c5cd` | Phase 3.0 MCP plumbing: backtest_server experiment list + signals_server validate/risk_check |
 
 ---
 
