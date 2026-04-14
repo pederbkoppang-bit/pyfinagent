@@ -43,7 +43,7 @@ with open(changelog_path, "r", encoding="utf-8") as f:
 version_idx = None
 current_version = None
 for i, line in enumerate(lines):
-    m = re.match(r"^### v(\d+)\.(\d+)\.(\d+)", line)
+    m = re.match(r"^### v(\d+)\.(\d+)\.(\d+)\b", line)
     if m:
         version_idx = i
         major, minor, patch = int(m.group(1)), int(m.group(2)), int(m.group(3))
@@ -57,7 +57,7 @@ if version_idx is not None and current_version is not None:
     if today not in version_line:
         # Bump minor version (6.3.0 -> 6.4.0)
         new_major, new_minor, new_patch = current_version[0], current_version[1] + 1, 0
-        new_version_header = f"### v{new_major}.{new_minor}.{new_patch} --- {today}\n"
+        new_version_header = f"### v{new_major}.{new_minor}.{new_patch} \u2014 {today}\n"
         # Insert new version header before the old one, with a separator
         lines.insert(version_idx, "\n")
         lines.insert(version_idx, new_version_header)
