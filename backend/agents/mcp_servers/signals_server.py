@@ -2,15 +2,15 @@
 MCP Signals Server: Callable tools for signal generation, validation, publishing
 
 Tools (FastMCP @mcp.tool):
-- generate_signal(ticker, date) → BUY/SELL/HOLD with confidence
-- validate_signal(signal) → Check constraints (market hours, liquidity, exposure)
-- publish_signal(signal) → Post to Slack + portfolio
-- risk_check(portfolio, proposed_trade) → Can we add this position?
+- generate_signal(ticker, date) -> BUY/SELL/HOLD with confidence
+- validate_signal(signal) -> Check constraints (market hours, liquidity, exposure)
+- publish_signal(signal) -> Post to Slack + portfolio
+- risk_check(portfolio, proposed_trade) -> Can we add this position?
 
 Resources:
-- portfolio://current → Current holdings (tickers, shares, PnL)
-- constraints://risk → Risk limits (max exposure, max drawdown, Sharpe floor)
-- signals://history → All generated signals this month
+- portfolio://current -> Current holdings (tickers, shares, PnL)
+- constraints://risk -> Risk limits (max exposure, max drawdown, Sharpe floor)
+- signals://history -> All generated signals this month
 """
 
 import copy
