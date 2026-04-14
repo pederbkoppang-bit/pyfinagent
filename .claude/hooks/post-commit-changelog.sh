@@ -14,6 +14,11 @@ HASH=$(git log -1 --format="%h" 2>/dev/null || echo "unknown")
 MSG=$(git log -1 --format="%s" 2>/dev/null | head -c 100 || echo "unknown")
 DATE=$(date +%Y-%m-%d)
 
+# Skip changelog/drift commits to prevent infinite loop
+if echo "$MSG" | grep -qiE "^chore: (auto-changelog|changelog drift)"; then
+    exit 0
+fi
+
 # Skip if CHANGELOG doesn't exist or no "Recent Activity" section
 if [ ! -f "$CHANGELOG" ]; then
     exit 0
