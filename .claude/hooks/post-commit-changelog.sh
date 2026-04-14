@@ -55,8 +55,8 @@ for i, line in enumerate(lines):
 if version_idx is not None and current_version is not None:
     version_line = lines[version_idx]
     if today not in version_line:
-        # Bump minor version (6.3.0 -> 6.4.0)
-        new_major, new_minor, new_patch = current_version[0], current_version[1] + 1, 0
+        # Bump patch version (6.4.0 -> 6.4.1)
+        new_major, new_minor, new_patch = current_version[0], current_version[1], current_version[2] + 1
         new_version_header = f"### v{new_major}.{new_minor}.{new_patch} \u2014 {today}\n"
         # Insert new version header before the old one, with a separator
         lines.insert(version_idx, "\n")
