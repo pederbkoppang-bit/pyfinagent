@@ -7,6 +7,8 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `6fc6a68` | Auto-allow Write to .claude/context/sessions/** on remote agent |
+| 2026-04-14 | `9b870e9` | Fix paper trading: graceful RAG degradation when data store unavailable |
 | 2026-04-14 | `cb2a085` | Phase 4.2.3.2: append harness_log.md Cycle 3 entry |
 | 2026-04-14 | `e85633e` | Phase 4.2.3.2 LOG: session log + QA critique (PASS 39/39 effective) |
 | 2026-04-14 | `5008681` | Phase 4.2.3.2 LOG: session log + QA critique (PASS 39/39 effective) |
@@ -25,8 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `9a3effb` | chore: auto-changelog hook entry for 154ac62 |
 | 2026-04-14 | `154ac62` | session log: 2026-04-14-1221 Phase 4.2.2 EVALUATE (race loser, AP14 finding) |
 | 2026-04-14 | `7e71c95` | chore: auto-changelog hook entry for 67ae292 |
-| 2026-04-14 | `67ae292` | session log: 2026-04-14-1040 Phase 4.2.2 LOG (superseded) |
-| 2026-04-14 | `648c39d` | Phase 4.2.3 LOG: Slack accuracy report formatter -- QA PASS |
 
 ---
 
