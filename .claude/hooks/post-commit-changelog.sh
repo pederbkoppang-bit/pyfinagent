@@ -57,7 +57,7 @@ if version_idx is not None and current_version is not None:
     if today not in version_line:
         # Bump patch version (6.4.0 -> 6.4.1)
         new_major, new_minor, new_patch = current_version[0], current_version[1], current_version[2] + 1
-        new_version_header = f"### v{new_major}.{new_minor}.{new_patch} \u2014 {today}\n"
+        new_version_header = f"### v{new_major}.{new_minor}.{new_patch} \u2014 Continued Development ({today})\n"
         # Insert new version header before the old one, with a separator
         lines.insert(version_idx, "\n")
         lines.insert(version_idx, new_version_header)

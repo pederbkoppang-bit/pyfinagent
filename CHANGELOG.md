@@ -30,7 +30,44 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
-### v6.4.0 — 2026-04-14
+### v6.4.0 — Machine-Readable Masterplan + MAS Autonomous Agent (April 14, 2026)
+
+**Harness-gated masterplan, 3 subagents, 4-tier memory, remote agent working autonomously on all phases.**
+
+#### Masterplan System
+- Machine-readable masterplan `.claude/masterplan.json` (6 phases, 29 steps)
+- Harness-verifier subagent for cross-verification gates (Sonnet)
+- QA evaluator subagent for independent code review (Opus, anti-leniency)
+- Researcher subagent for deep research with 7-category search (Sonnet)
+- `/masterplan` skill for live state display and next-step guidance
+
+#### Hooks & Automation
+- TaskCompleted hook blocks step completion until verifier passes
+- Stop hook prevents stopping with unverified in-progress steps
+- Memory sync hook syncs masterplan changes to episodic + semantic memory
+- Changelog hook auto-bumps patch version daily
+
+#### 4-Tier Memory (CoALA)
+- Episodic: session logs in `.claude/context/sessions/`
+- Semantic: project context in `.claude/context/`
+- Procedural: CLAUDE.md + agents + skills + rules
+- Backend: `harness_memory.py` loads masterplan phase status
+
+#### Remote Agent (Autonomous MAS)
+- Lead (Opus) spawns researcher + QA evaluator per masterplan step
+- BigQuery + Slack MCP for direct data access and notifications
+- All phases approved, no gates, no blocks
+- Handoff restructured: `current/` + `archive/` + `data/`
+
+#### Phase 3.0 MCP Servers (remote agent)
+- `data_server.py`: get_universe, get_features, get_experiment_list
+- `backtest_server.py`: get_experiment_list, get_recent_experiments
+- `signals_server.py`: validate_signal, risk_check (FINRA 15c3-5 order)
+
+#### Phase 4.2-4.3 (remote agent)
+- Signal accuracy tracking with per-tool accuracy metrics
+- Slack Block Kit weekly accuracy report formatter
+- Risk management with 7-predicate check and -15% circuit breaker
 
 ### v6.3.0 — Project Restructure + BQ Fix + GitHub Actions (April 13, 2026)
 
