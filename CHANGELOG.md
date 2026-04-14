@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `d7c35f7` | Phase 4.2.2 LOG: Signal Accuracy Tracking evaluator critique + session log |
 | 2026-04-14 | `3deabe5` | chore: changelog drift backfill for a569a89 |
 | 2026-04-14 | `a569a89` | chore: changelog drift backfill for af13f2a |
 | 2026-04-14 | `af13f2a` | Phase 4.2.2 LOG: QA evaluator critique + session log |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `7175eac` | Update known-blockers: 4 of 6 resolved, 2 still active |
 | 2026-04-14 | `1f8c5cd` | Phase 3.0 MCP plumbing: backtest_server experiment list + signals_server validate/risk_check |
 | 2026-04-14 | `4e101ef` | Add known-blockers.md to break Ford remote-session wheel-spin loop |
-| 2026-04-14 | `cb22a65` | chore: auto-changelog hook entry for a549874 |
 
 ---
 
