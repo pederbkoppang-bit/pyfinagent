@@ -16,6 +16,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `ecf6abf` | chore: changelog drift backfill for a396be3 |
 | 2026-04-14 | `a396be3` | chore: changelog drift backfill for eeea983 |
 | 2026-04-14 | `eeea983` | chore: auto-changelog hook entry for 9a3effb |
+| 2026-04-14 | `e3b4774` | Auto-bump version in changelog hook (daily minor version bump) |
 | 2026-04-14 | `9a3effb` | chore: auto-changelog hook entry for 154ac62 |
 | 2026-04-14 | `154ac62` | session log: 2026-04-14-1221 Phase 4.2.2 EVALUATE (race loser, AP14 finding) |
 | 2026-04-14 | `7e71c95` | chore: auto-changelog hook entry for 67ae292 |
@@ -27,8 +28,55 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `d7c35f7` | Phase 4.2.2 LOG: Signal Accuracy Tracking evaluator critique + session log |
 | 2026-04-14 | `3deabe5` | chore: changelog drift backfill for a569a89 |
 | 2026-04-14 | `a569a89` | chore: changelog drift backfill for af13f2a |
+| 2026-04-14 | `af13f2a` | Phase 4.2.2 LOG: QA evaluator critique + session log |
+| 2026-04-14 | `661a38d` | chore: changelog drift backfill for 302246e |
+| 2026-04-14 | `ab9d18e` | chore: changelog drift backfill for 302246e |
+| 2026-04-14 | `302246e` | chore: changelog drift backfill for 3d70b7b |
+| 2026-04-14 | `3d70b7b` | chore: changelog drift backfill for 4171a46 |
+| 2026-04-14 | `4171a46` | Phase 4.2.2 GENERATE: Signal Accuracy Tracking |
+| 2026-04-14 | `8637af7` | chore: changelog drift backfill for fa7ef5e |
+| 2026-04-14 | `fa7ef5e` | chore: auto-changelog hook entry for d096501 |
 
 ---
+
+### v6.4.0 — Machine-Readable Masterplan + MAS Autonomous Agent (April 14, 2026)
+
+**Harness-gated masterplan, 3 subagents, 4-tier memory, remote agent working autonomously on all phases.**
+
+#### Masterplan System
+- Machine-readable masterplan `.claude/masterplan.json` (6 phases, 29 steps)
+- Harness-verifier subagent for cross-verification gates (Sonnet)
+- QA evaluator subagent for independent code review (Opus, anti-leniency)
+- Researcher subagent for deep research with 7-category search (Sonnet)
+- `/masterplan` skill for live state display and next-step guidance
+
+#### Hooks & Automation
+- TaskCompleted hook blocks step completion until verifier passes
+- Stop hook prevents stopping with unverified in-progress steps
+- Memory sync hook syncs masterplan changes to episodic + semantic memory
+- Changelog hook auto-bumps patch version daily
+
+#### 4-Tier Memory (CoALA)
+- Episodic: session logs in `.claude/context/sessions/`
+- Semantic: project context in `.claude/context/`
+- Procedural: CLAUDE.md + agents + skills + rules
+- Backend: `harness_memory.py` loads masterplan phase status
+
+#### Remote Agent (Autonomous MAS)
+- Lead (Opus) spawns researcher + QA evaluator per masterplan step
+- BigQuery + Slack MCP for direct data access and notifications
+- All phases approved, no gates, no blocks
+- Handoff restructured: `current/` + `archive/` + `data/`
+
+#### Phase 3.0 MCP Servers (remote agent)
+- `data_server.py`: get_universe, get_features, get_experiment_list
+- `backtest_server.py`: get_experiment_list, get_recent_experiments
+- `signals_server.py`: validate_signal, risk_check (FINRA 15c3-5 order)
+
+#### Phase 4.2-4.3 (remote agent)
+- Signal accuracy tracking with per-tool accuracy metrics
+- Slack Block Kit weekly accuracy report formatter
+- Risk management with 7-predicate check and -15% circuit breaker
 
 ### v6.3.0 — Project Restructure + BQ Fix + GitHub Actions (April 13, 2026)
 
