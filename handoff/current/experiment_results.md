@@ -1,150 +1,134 @@
-# Phase 4.2.3 Slack Accuracy Report Formatter -- Experiment Results
+# Experiment Results: Phase 4.2.3.1 Formatter Hardening
 
+**Step:** Phase 4.2.3.1 -- SN1 + SN2 fixes to `format_accuracy_report`
 **Date:** 2026-04-14
-**Step:** Phase 4.2.3 -- wire signals_server accuracy aggregator into Slack formatters
-**Author:** Ford remote agent (Opus 4.6)
+**Generator:** Ford Lead Opus 4.6 (in-session)
+**Research gate:** PASSED (`handoff/current/research.md`, 20+ URLs / 7 categories)
+**Contract:** `handoff/current/contract.md` (25 SCs)
+**Target file:** `backend/slack_bot/formatters.py`
 
-## Summary
-
-Added `format_accuracy_report(data, window=None) -> list[dict]` to
-`backend/slack_bot/formatters.py`. Pure-Python stdlib-only Block Kit
-formatter for the weekly scheduled accuracy report. Zero new imports,
-zero touches to the MCP server layer, zero touches to the 5 existing
-public formatters.
-
-## File Changes
-
-**Single file touched:** `backend/slack_bot/formatters.py`
-**Diff:** +214 / -0 (appended at end of file after `format_morning_digest`)
-**Budget:** 214 / 220 added-line cap (97% utilization, under bound)
-
-### New helpers (module-private)
-
-- `_pct(value, decimals=1, signed=False) -> str` -- coerces numeric input
-  to a percent string with optional sign. Returns `"N/A"` on TypeError
-  or ValueError. Never raises.
-- `_coerce_int(d, key) -> int` -- dict-key -> int with None/bad-value
-  fallback to 0. Never raises.
-- `_coerce_float(d, key) -> float` -- dict-key -> float with fallback to
-  0.0. Never raises.
-
-### New public formatter
-
-- `format_accuracy_report(data, window=None) -> list[dict]`
-
-## Design (per research gate)
-
-Block order: `header` -> `context` (window + gen timestamp) -> `section`
-(TL;DR one-line summary) -> `divider` -> `section` with `fields` (headline
-2-col dashboard) -> `divider` -> per-group `section` blocks (mrkdwn, not
-fields) -> trailing `context` (provenance + optional "small sample" flag).
-
-Wilson CI display rule (research-driven):
-- `scored_count == 0` -> hit-rate row collapses to "Scoring pending".
-  No fake `0.00%`.
-- `1 <= scored_count < 5` -> CI field replaced with
-  `preliminary -- n={X}`. No bracketed CI.
-- `scored_count >= 5` -> inline `[low, high]` with 2-decimal fractions.
-
-Groups: sorted by `scored_count` desc, hard-capped at 5 visible. Overflow
-(>5) noted in a context block `+N more groups -- see full report`. Each
-per-group line kept under 500 chars (6x safety margin on the 3000-char
-section cap). Scoring-pending groups show "scoring pending" without
-fake rates.
-
-Empty/degenerate:
-- `None`, non-dict, or `{}` -> "input data missing" unavailable branch.
-- `total_count == 0` -> "No signals issued in {window}" branch.
-- Non-numeric fields -> coerced to 0 / "N/A", never raise.
-
-A11y (research-driven):
-- Header is `plain_text` only.
-- No emoji-as-label in fields.
-- Percentages always carry `%` (screen reader reads "percent").
-- Bold sparingly: on field labels and TL;DR only.
-- Full sentences in TL;DR, not cryptic abbreviations.
-
-Defensive bounds:
-- Fields always EVEN count and `<= 10` (belt-and-suspenders truncate).
-- Header text truncated at 140 chars (under the 150 Slack cap).
-- TL;DR text truncated at 500 chars.
-- Per-field text truncated at 180 chars.
-- Per-group mrkdwn truncated at 500 chars.
-
-## Verification Results
+## Delta
 
 ```
-python3 -c "import ast; ast.parse(open('backend/slack_bot/formatters.py').read())"
--> OK
-
-python3 -m py_compile backend/slack_bot/formatters.py
--> OK
-
-git diff --stat backend/slack_bot/formatters.py
--> 1 file changed, 214 insertions(+)
+backend/slack_bot/formatters.py | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
 ```
 
-### Behavioral SC results (pre-QA self-smoke)
+**Diff budget**: 11 added / 3 deleted, well under the 20/5 contract cap.
 
-All 30 contract success criteria pass:
+## Changes
 
-- SC1-SC5: bad/empty inputs (None, {}, bad-type keys, non-dict) -> no raise
-- SC6-SC12: normal n>=5 path -> correct block structure, fields count,
-  precision, sign, CI formatting
-- SC13-SC17: Wilson CI display rule (0, 1..4, 5, 100 scored; no NaN/None/inf)
-- SC18-SC22: groups (empty, 3, 10-capped-to-5, overflow, lengths)
-- SC23-SC24: window present/absent rendering
-- SC25: 9 existing formatter functions byte-identical (AST dump equal)
-- SC26: top-of-file imports byte-identical
-- SC27: all string literals in new function are ASCII
-- SC28: diff 214 / 220 cap
-- SC29: AST parse + py_compile clean
-- SC30: no `signals_server`, `backtest_server`, `data_server`,
-  `mcp_servers` references inside `format_accuracy_report` body
+### SN1 fix -- `_coerce_float` sanitizes IEEE 754 non-finite values
 
-## Key Choices and Tradeoffs
+```python
+# Before
+def _coerce_float(d: dict, key: str) -> float:
+    try:
+        return float(d.get(key, 0.0) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
 
-1. **`_coerce_int` / `_coerce_float` as module-level helpers** rather than
-   closures inside `format_accuracy_report`. Two reasons: (a) the group
-   loop reuses them, avoiding 5x nested try/except blocks; (b) cleaner
-   AST for QA. Cost: two extra private names in the module namespace
-   but no export risk (leading underscore convention).
+# After
+def _coerce_float(d: dict, key: str) -> float:
+    try:
+        v = float(d.get(key, 0.0) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    # Phase 4.2.3.1 SN1 fix: sanitize NaN / +Inf / -Inf at the display
+    # boundary so upstream IEEE 754 non-finite values never render as
+    # "nan%" or "inf%" in the Slack fields. See handoff/current/research.md.
+    return v if math.isfinite(v) else 0.0
+```
 
-2. **`scored_count >= 5` cutoff for CI display** is synthesis, not from
-   a single source: Wilson stability hits at n=10 per the afit.edu PDF,
-   but usability testing in practitioner blogs favors showing "some"
-   signal by n=5. The contract allows the lead agent to adjust N
-   without re-opening research; I chose 5 as the pragmatic middle.
+Added `import math` at the top of the file (two-line import block:
+`import math` + `from datetime import datetime`).
 
-3. **Trailing-context small-sample flag fires at 0 < n < 10** (not < 5).
-   Reason: the CI is shown at n >= 5, but n=5..9 is still small enough
-   that a reader should see the caveat. The CI itself communicates the
-   uncertainty visually; the flag reinforces it in prose.
+### SN2 fix -- n=0 branch collapses mean/median to "Scoring pending"
 
-4. **No `sparkline` or emoji indicators in per-group lines.** Research
-   a11y rule: emoji-as-label is forbidden; icon-as-information is
-   forbidden; only prose conveys state.
+```python
+# Before
+if scored_count <= 0:
+    fields = [
+        _field("Total signals", f"{total_count:,}"),
+        _field("Hit rate", "Scoring pending"),
+        _field("Mean forward return", mean_str),
+        _field("Median forward return", median_str),
+    ]
 
-5. **No interactive accessory (select menu, overflow menu) for groups**.
-   The weekly scheduler posts once and does not register interaction
-   handlers; an interactive element would 404 on click.
+# After
+if scored_count <= 0:
+    # Phase 4.2.3.1 SN2 fix: on n=0 samples, mean/median forward returns
+    # have no data either -- collapse to the canonical "Scoring pending"
+    # placeholder (CFA III(D) fair-presentation; do not render fake 0%).
+    fields = [
+        _field("Total signals", f"{total_count:,}"),
+        _field("Hit rate", "Scoring pending"),
+        _field("Mean forward return", "Scoring pending"),
+        _field("Median forward return", "Scoring pending"),
+    ]
+```
 
-6. **Both `field` layouts (n=0, n<5, n>=5) use 6-item configurations
-   except n=0 which uses 4.** The n=0 case intentionally drops both
-   "Scored" and "Confidence" fields because they'd be redundant with
-   "Hit rate = Scoring pending". Layout asymmetry is by design.
+## Smoke Results (lead-self, 25 contract SCs)
 
-## Out-of-Scope Deferrals
+| SC block | Count | Result |
+|---|---|---|
+| SC1-5: SN1 `_coerce_float` non-finite -> 0.0 | 5 | PASS |
+| SC6-7: NaN/Inf sanitized in mean/median field render | 2 | PASS |
+| SC8: NaN CI bound sanitized | 1 | PASS |
+| SC9: group NaN sanitized | 1 | PASS |
+| SC11-14: n=0 three metric fields "Scoring pending" | 4 | PASS |
+| SC15: n=1 still renders real percents (gate) | 1 | PASS |
+| SC16-17: 11 functions byte-identical to `eeea983` | 11 | PASS |
+| SC20: imports = `import math` + `from datetime import datetime` | 1 | PASS |
+| SC23: 10 adversarial inputs never raise | 10 | PASS |
 
-- **Scheduler wiring**: the Phase 4.2.4 APScheduler caller that will
-  invoke this formatter. Needs `scheduler.py` + httpx backend client
-  which are not in the remote runner env.
-- **BQ durable persistence**: Phase 4.2.4; `signal_history` is still
-  in-memory.
-- **SN4 since_date lex trap fix**: needs its own research gate.
-- **Color coding**: explicitly warned off by CFA III(D) in research.
+Byte-identity-verified functions: `_truncate`, `_score_emoji`, `_rec_color`,
+`format_analysis_result`, `format_portfolio_summary`, `_signal_emoji`,
+`format_signal_alert`, `format_report_card`, `format_morning_digest`, `_pct`,
+`_coerce_int`.
 
-## Rollback
+`_coerce_float` byte-identity is expected to diverge (SN1 change).
+`format_accuracy_report` byte-identity expected to diverge inside the
+`scored_count <= 0` branch only (SN2 change); all other branches unchanged
+semantically, confirmed via SC15 smoke on n=1 fixture and SC6-7 smoke on
+n=12 fixture with NaN/Inf inputs.
 
-`git checkout HEAD~1 -- backend/slack_bot/formatters.py` reverts the
-one-file edit. No cross-file side effects.
+## Not run yet (QA-only scope)
+
+- Fresh-process re-run of all 25 SCs by independent Opus qa-evaluator
+- Adversarial probes designed by QA (target >= 10, unique from lead's)
+- AST sub-branch byte-identity audit of `scored_count >= 1` branches
+- Cross-server import scan
+- Non-ASCII string literal audit in changed code
+
+## Observations
+
+- **`math.isfinite` import footprint is effectively free.** `math` is a
+  C-extension stdlib module pre-loaded in any CPython process; the added
+  import adds a single line and zero transitive dependencies.
+- **"Scoring pending" repetition in n=0 branch is deliberate.** Four
+  fields now have identical placeholder text. Considered collapsing to
+  a single section block with "No data available yet", but that would
+  violate the Phase 4.2.3 field-shape invariant (fields array must be
+  EVEN, <= 10) and change the AST shape of the branch substantially,
+  widening the blast radius beyond the SN2 fix.
+- **Researcher subagent failure mode confirmed.** Spawned the researcher
+  subagent per protocol; it hit "Stream idle timeout - partial response
+  received" after ~5m / 47 tool uses, writing nothing to research.md.
+  Fell back to in-session WebSearch (9 queries) and wrote research.md
+  directly. Same failure mode Peder documented at 21:21 CEST.
+  Per his advice: "default to in-session WebSearch for research gates;
+  reserve subagents for QA-only (AST / fresh-process verification) work".
+  Followed exactly.
+
+## Next gate (EVALUATE)
+
+Spawn independent Opus qa-evaluator subagent with anti-leniency brief:
+1. Re-run all 25 contract SCs in a fresh Python subprocess.
+2. Design >= 10 adversarial probes (unique from lead's smoke).
+3. AST byte-identity audit against `origin/main` head `eeea983`.
+4. Verify exactly one new import (`math`), no third-party additions.
+5. Audit diff bound (11/3 vs 20/5 cap).
+6. Write verdict to `handoff/current/evaluator_critique.md`.
+
+Output JSON: `{ok, reason, checks_run, violated_criteria, soft_notes, scores}`.
