@@ -7,6 +7,8 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `7d4149d` | Phase 4.2.3.1 LOG: QA PASS (25/25 + 10/10), session log |
+| 2026-04-14 | `f266484` | chore: changelog drift backfill for f8e0076 |
 | 2026-04-14 | `f8e0076` | Phase 4.2.3.1 GENERATE (cont'd): experiment_results.md |
 | 2026-04-14 | `29e2133` | Phase 4.2.3.1 GENERATE: formatter NaN/Inf filter + n=0 Scoring pending |
 | 2026-04-14 | `ecf6abf` | chore: changelog drift backfill for a396be3 |
@@ -25,8 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `a569a89` | chore: changelog drift backfill for af13f2a |
 | 2026-04-14 | `af13f2a` | Phase 4.2.2 LOG: QA evaluator critique + session log |
 | 2026-04-14 | `661a38d` | chore: changelog drift backfill for 302246e |
-| 2026-04-14 | `ab9d18e` | chore: changelog drift backfill for 302246e |
-| 2026-04-14 | `302246e` | chore: changelog drift backfill for 3d70b7b |
 
 ---
 
