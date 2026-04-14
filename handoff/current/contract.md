@@ -1,159 +1,209 @@
-# Contract: Phase 4.2.3 Slack Accuracy Report Formatter
+# Contract: Phase 4.2.3.1 Formatter Hardening (SN1 + SN2)
 
-**Step:** Phase 4.2.3 -- wire `signals_server.get_accuracy_report()` into Slack
-**Target:** `backend/slack_bot/formatters.py` (ADD one new public function)
-**Scope:** One pure-Python stdlib-only formatter, no touches to signals_server or Phase 4 scaffold.
+**Step:** Phase 4.2.3.1 -- harden `format_accuracy_report` per prior session soft notes
+**Target:** `backend/slack_bot/formatters.py` (narrow-scope edit to `_coerce_float` + n=0 fields list)
+**Scope:** Two micro-fixes, one file, additive + internal.
 **Date:** 2026-04-14
 **Author:** Ford remote agent (Opus 4.6)
-**Research gate:** PASSED -- `handoff/current/research.md` (34 URLs, 5 categories)
+**Research gate:** PASSED -- `handoff/current/research.md` (20+ URLs, 7 categories)
+**Supersedes contract for:** Phase 4.2.3 (archived in git history)
 
 ## Hypothesis
 
-IF we add `format_accuracy_report(data, window=None) -> list[dict]` to
-`backend/slack_bot/formatters.py` as a pure-Python Block Kit formatter that:
+IF we apply two defensive fixes to `backend/slack_bot/formatters.py`:
 
-1. Consumes the exact return shape of `SignalsServer.get_accuracy_report()`
-   (Phase 4.2.2): `total_count, scored_count, hits, misses, neutral, unscored,
-   hit_rate, hit_rate_ci_low, hit_rate_ci_high, mean_forward_return_pct,
-   median_forward_return_pct, groups: dict[str, dict]`.
-2. Renders a header -> context -> TL;DR -> divider -> fields -> divider ->
-   per-group sections -> context layout (research lock-in).
-3. Hides the Wilson CI when `scored_count < 5` (replaces with "preliminary")
-   and hides the hit-rate row entirely when `scored_count == 0`.
-4. Caps groups at 5, overflow shown in a context block.
-5. Tolerates `None`, `{}`, and missing keys without raising.
+1. **SN1 fix**: `_coerce_float` gains a `math.isfinite` guard that
+   maps NaN / +Inf / -Inf to `0.0`, ensuring the downstream `_pct`
+   and `f"{x * 100.0:.1f}%"` renders never contain `nan%` or `inf%`.
+2. **SN2 fix**: in `format_accuracy_report`, the `scored_count <= 0`
+   fields list replaces the `mean_forward_return` and
+   `median_forward_return` field values with the canonical string
+   `"Scoring pending"` (same as the hit-rate row in that branch).
 
-THEN the weekly scheduler (Phase 4.2.4 future work) can post an accurate,
-accessible, sample-size-honest weekly accuracy report to the Slack channel
-without any further backend wiring.
+THEN the weekly accuracy report never presents fake-zero forward
+returns on n=0 samples and never leaks IEEE 754 non-finite values to
+the Slack channel, satisfying CFA III(D) fair presentation for the
+display layer.
 
 ## In-Scope Changes
 
 - **File:** `backend/slack_bot/formatters.py`
-- **Change 1:** Add helper `_pct(value, decimals=1, signed=False) -> str`
-  for consistent percent rendering. Stdlib only.
-- **Change 2:** Add public `format_accuracy_report(data: dict | None,
-  window: tuple[str, str] | None = None) -> list[dict]`. Pure function.
-  No new imports. Uses existing `_truncate` + `datetime`.
-- **Location:** Appended after `format_morning_digest` at end of file.
+- **Change 1 (SN1):** Add `import math` to top-of-file imports. Modify
+  `_coerce_float` body to add a finiteness guard before return.
+- **Change 2 (SN2):** In `format_accuracy_report`, inside the
+  `if scored_count <= 0:` branch, change the field values for
+  "Mean forward return" and "Median forward return" from `mean_str`
+  and `median_str` to `"Scoring pending"`.
+
+That is the entire scope. No new functions, no helper rename, no
+signature changes, no branch reorganization.
 
 ## Out of Scope (Intentionally Deferred)
 
-1. **Scheduler wiring** -- the Phase 4.2.4 weekly-scheduler caller.
-2. **BQ durable persistence of `signal_history`** -- Phase 4.2.4 territory.
-3. **`get_signal_history` since_date lex trap (SN4 from Phase 4.2.2)**.
-4. **Additional fields on `get_accuracy_report` return shape**.
-5. **Interactive overflow / select menu for group drill-down**.
-6. **Color-coding of hit rates** -- CFA III(D) warning from research.
-7. **New emojis or emoji-as-label** -- a11y rule.
-8. **Changes to existing formatters** (5 public funcs must be byte-identical).
+1. **SN4 `since_date` lex trap** in `signals_server.get_signal_history`
+   -- different file, different research gate.
+2. **Phase 4.2.4 BQ durable persistence** -- remote env blocker.
+3. **Phase 4.2.4 scheduler wiring** -- needs APScheduler.
+4. **Touching `_pct`, `_coerce_int`, the 1..4 scored branch, the >=5
+   scored branch, the per-group loop** -- stable Phase 4.2.3 scaffold.
+5. **Renaming `_coerce_float`** -- API contract preserved.
+6. **Adding new success criteria sub-modes** (e.g., "data stale" vs
+   "data pending") -- single placeholder string by design.
+7. **Changes to any of the 9 pre-4.2.3 public formatters** -- must
+   remain AST byte-identical.
 
 ## Anti-Leniency Rules (MUST enforce in QA)
 
-1. **No new imports.** The only top-of-file import today is
-   `from datetime import datetime`. No additions.
-2. **No touches to `signals_server.py`, `backtest_server.py`, `data_server.py`.**
-3. **No changes to the 5 existing public formatters.** AST byte-identical.
-4. **Never raise.** `format_accuracy_report(None)`,
-   `format_accuracy_report({})`, `format_accuracy_report({"hits": "bad"})`
-   all return `list[dict]` without exception.
-5. **No non-ASCII in string literals** in the new function or helpers.
-6. **Fields array size is EVEN AND <= 10.**
-7. **Per-section mrkdwn text <= 2500 chars; header <= 140 chars.** Truncate,
-   do not raise.
-8. **Diff budget:** <= 220 added lines total (including docstring),
-   <= 10 deleted lines.
+1. **Top-of-file imports: exactly one addition.** The new import set
+   is `from datetime import datetime` + `import math`. Nothing else.
+2. **No touches to `signals_server.py`, `backtest_server.py`,
+   `data_server.py`, or any MCP server code.**
+3. **No changes to the 9 pre-4.2.3 public formatters**
+   (`_truncate`, `_score_emoji`, `_rec_color`, `format_analysis_result`,
+   `format_portfolio_summary`, `_signal_emoji`, `format_signal_alert`,
+   `format_report_card`, `format_morning_digest`). AST byte-identical.
+4. **No changes to `_pct` or `_coerce_int`.** AST byte-identical.
+5. **No changes to `format_accuracy_report` branches for
+   `scored_count >= 1`** (the 1..4 preliminary branch and the >=5 CI
+   branch). AST byte-identical in those branches.
+6. **Never raise.** Same invariant as Phase 4.2.3:
+   `format_accuracy_report(None)`, `({})`, `({"hits": "bad"})`,
+   `({"mean_forward_return_pct": float('nan')})`,
+   `({"mean_forward_return_pct": float('inf')})` all return a
+   `list[dict]` without exception.
+7. **No non-ASCII in new code.**
+8. **Diff budget:** `<= 20` added lines, `<= 5` deleted lines.
+   This is a surgical micro-fix cycle, not a rewrite.
+9. **Canonical placeholder string is `"Scoring pending"`** -- do
+   NOT introduce `"N/A"`, `"--"`, `"pending"`, `"tbd"`, or any
+   other synonym.
 
 ## Success Criteria (QA must run these)
 
-### SC1-SC5: Return-shape basics
+### SC1-SC5: SN1 NaN/Inf Filter in `_coerce_float`
 
-- **SC1:** Empty-but-present fixture (total_count=0) returns `list[dict]`
-  length >= 2 with at least a header and a section or context explaining the
-  empty state. No headline fields rendered.
-- **SC2:** `format_accuracy_report(None)` returns `list[dict]`, never raises.
-- **SC3:** `format_accuracy_report({})` returns `list[dict]`, never raises.
-- **SC4:** `format_accuracy_report({"total_count": "bad"})` returns
-  `list[dict]`, never raises, coerces/ignores bad values.
-- **SC5:** Every block is a dict with a `type` key.
+- **SC1:** `_coerce_float({"x": float('nan')}, "x") == 0.0`
+- **SC2:** `_coerce_float({"x": float('inf')}, "x") == 0.0`
+- **SC3:** `_coerce_float({"x": float('-inf')}, "x") == 0.0`
+- **SC4:** `_coerce_float({"x": 1.5}, "x") == 1.5` (happy path
+  unchanged)
+- **SC5:** `_coerce_float({"x": "bad"}, "x") == 0.0` (prior bad-input
+  fallback unchanged)
 
-### SC6-SC12: Normal-path rendering (n >= 5 scored)
+### SC6-SC10: Downstream rendering no longer leaks `nan%`/`inf%`
 
-- **SC6:** Full fixture (`total_count=20, scored_count=12, hits=7, misses=5,
-  hit_rate=0.5833, CI=[0.3056, 0.8043], mean=1.24, median=0.85, groups={}`)
-  produces: (a) one `header`, (b) a `context`, (c) at least one `section`
-  with `fields`, (d) at least one `divider`, (e) a trailing `context`.
-- **SC7:** Header text is `plain_text` and <= 150 chars.
-- **SC8:** Fields array length is EVEN and <= 10.
-- **SC9:** Hit rate appears as `58.3%` (one decimal, percent suffix).
-- **SC10:** Wilson CI appears as `[0.31, 0.80]` (two decimals fraction).
-- **SC11:** Mean / median forward returns appear signed with `%`
-  (`+1.24%`, `+0.85%` or negative equivalents).
-- **SC12:** Total signals and scored counts are integers, no float artifacts.
+- **SC6:** Fixture with `mean_forward_return_pct = float('nan')` and
+  `scored_count >= 5` -- rendered fields contain NO `nan%` substring.
+  Mean field renders `"+0.00%"` (the neutral display after sanitization).
+- **SC7:** Fixture with `median_forward_return_pct = float('inf')`
+  and `scored_count >= 5` -- rendered fields contain NO `inf%`
+  substring. Median field renders `"+0.00%"`.
+- **SC8:** Fixture with `hit_rate_ci_low = float('nan')` and
+  `scored_count >= 5` -- CI string contains no `nan` substring.
+  (Prior clamp to `[0, 1]` still applies; the new `isfinite` guard
+  pre-empts it.)
+- **SC9:** Group with `mean_forward_return_pct = float('nan')` --
+  rendered group line contains no `nan%` substring.
+- **SC10:** 10 consecutive invocations with random non-finite
+  values never raise and never produce `"nan"` or `"inf"` substrings
+  anywhere in the serialized block text.
 
-### SC13-SC17: Wilson CI display rule
+### SC11-SC15: SN2 n=0 "Scoring pending" expansion
 
-- **SC13:** `scored_count=0` -> hit-rate row replaced with `Scoring pending`
-  (or hit-rate field is absent). No `0.00%` rendered as real.
-- **SC14:** `1 <= scored_count < 5` -> CI field replaced with
-  `preliminary -- n={X}`. No bracketed CI.
-- **SC15:** `scored_count=5` -> CI IS shown.
-- **SC16:** `scored_count=100` -> CI IS shown.
-- **SC17:** CI strings never contain literal `None`, `nan`, or `inf`.
+- **SC11:** Fixture with `total_count=5, scored_count=0,
+  mean_forward_return_pct=0.0` -- the "Mean forward return" field
+  value is exactly `"Scoring pending"`, NOT `"+0.00%"`.
+- **SC12:** Same fixture -- the "Median forward return" field value
+  is exactly `"Scoring pending"`, NOT `"+0.00%"`.
+- **SC13:** Same fixture -- the "Hit rate" field value is still
+  exactly `"Scoring pending"` (unchanged from Phase 4.2.3).
+- **SC14:** Same fixture -- the fields list length is still 4 (even),
+  <= 10.
+- **SC15:** `scored_count=1` fixture -- "Mean forward return" and
+  "Median forward return" fields still render as signed percents
+  (e.g., `"+1.24%"`), NOT `"Scoring pending"`. SN2 fix is strictly
+  gated to the n=0 branch.
 
-### SC18-SC22: Groups / drill-down
+### SC16-SC20: Byte-identity preservation
 
-- **SC18:** Empty `groups={}` -> no per-group blocks.
-- **SC19:** `groups` with 3 entries -> 3 per-group `section` blocks (mrkdwn,
-  not fields).
-- **SC20:** `groups` with 10 entries -> exactly 5 per-group blocks (top by
-  `scored_count` desc) plus a context block noting `+5 more groups`.
-- **SC21:** Each per-group mrkdwn contains the group label, hit rate with
-  `.1f%`, and `(hits/scored)` fraction.
-- **SC22:** No per-group block text exceeds 500 chars.
+- **SC16:** All 9 pre-4.2.3 public formatters are AST byte-identical
+  to `origin/main` HEAD (`eeea983`).
+- **SC17:** `_pct` and `_coerce_int` are AST byte-identical.
+- **SC18:** `format_accuracy_report` branch body for
+  `elif scored_count < 5:` is AST-equivalent (field labels + values
+  unchanged).
+- **SC19:** `format_accuracy_report` `else:` branch (`scored_count >= 5`)
+  is AST-equivalent.
+- **SC20:** Top-of-file imports are exactly `from datetime import
+  datetime` + `import math`, in that order or module-pep8 order.
 
-### SC23-SC27: Defensive / byte-identity
+### SC21-SC25: Contract bounds + defensive invariants
 
-- **SC23:** `window=("2026-04-07", "2026-04-14")` renders
-  `2026-04-07 to 2026-04-14` in the early context block.
-- **SC24:** `window=None` still produces a valid context block.
-- **SC25:** All 5 existing public formatters AST byte-identical pre/post.
-- **SC26:** Top-of-file import list byte-identical.
-- **SC27:** AST walk of every string literal in new code: 0 non-ASCII.
-
-### SC28-SC30: Contract bounds
-
-- **SC28:** Diff <= 220 added lines, <= 10 deleted.
-- **SC29:** `ast.parse` and `py_compile` both clean.
-- **SC30:** No references to `signals_server`, `backtest_server`,
-  `data_server`, or `mcp_servers` in new code.
+- **SC21:** Diff `<= 20` added lines, `<= 5` deleted lines against
+  `origin/main` HEAD.
+- **SC22:** `ast.parse` and `py_compile` both clean.
+- **SC23:** `format_accuracy_report(None)` still returns `list[dict]`.
+- **SC24:** AST walk of every string literal in changed code: 0
+  non-ASCII.
+- **SC25:** No references to `signals_server`, `backtest_server`,
+  `data_server`, or `mcp_servers` in changed code.
 
 ## Verification Command Block
 
 ```bash
+# Sanity
 python3 -c "import ast; ast.parse(open('backend/slack_bot/formatters.py').read())"
 python3 -m py_compile backend/slack_bot/formatters.py
 
+# Contract smoke
 python3 - <<'PY'
-import ast, importlib.util
+import importlib.util, ast
 spec = importlib.util.spec_from_file_location("fmt", "backend/slack_bot/formatters.py")
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-f = m.format_accuracy_report
-assert isinstance(f(None), list)
-assert isinstance(f({}), list)
-assert isinstance(f({"total_count": "bad"}), list)
-full = {"total_count": 20, "scored_count": 12, "hits": 7, "misses": 5,
-        "neutral": 3, "unscored": 5, "hit_rate": 0.5833,
-        "hit_rate_ci_low": 0.3056, "hit_rate_ci_high": 0.8043,
-        "mean_forward_return_pct": 1.24,
-        "median_forward_return_pct": 0.85, "groups": {}}
-blocks = f(full, window=("2026-04-07","2026-04-14"))
-assert any(b["type"] == "header" for b in blocks)
-assert any(b["type"] == "section" and "fields" in b for b in blocks)
-print("smoke PASS", len(blocks), "blocks")
+
+# SN1: _coerce_float filters non-finite
+assert m._coerce_float({"x": float('nan')}, "x") == 0.0
+assert m._coerce_float({"x": float('inf')}, "x") == 0.0
+assert m._coerce_float({"x": float('-inf')}, "x") == 0.0
+assert m._coerce_float({"x": 1.5}, "x") == 1.5
+assert m._coerce_float({"x": "bad"}, "x") == 0.0
+
+# SN2: n=0 branch shows "Scoring pending" for mean/median
+blocks = m.format_accuracy_report({"total_count": 5, "scored_count": 0,
+    "hits": 0, "mean_forward_return_pct": 0.0,
+    "median_forward_return_pct": 0.0})
+ser = str(blocks)
+assert "Scoring pending" in ser
+# Prior fake-zero substrings must not appear in the n=0 fields
+fields = [b for b in blocks if b.get("type") == "section"
+          and "fields" in b]
+for fb in fields:
+    for f in fb["fields"]:
+        if "Mean forward return" in f["text"] or "Median forward return" in f["text"]:
+            assert "Scoring pending" in f["text"], f["text"]
+
+# Gate SC15: scored_count=1 still renders percents (not "Scoring pending")
+blocks2 = m.format_accuracy_report({"total_count": 5, "scored_count": 1,
+    "hits": 1, "hit_rate": 1.0, "mean_forward_return_pct": 1.24,
+    "median_forward_return_pct": 0.85})
+ser2 = str(blocks2)
+assert "+1.24%" in ser2 or "1.24%" in ser2
+assert "Mean forward return" in ser2
+
+# SN1 downstream: nan doesn't leak
+blocks3 = m.format_accuracy_report({"total_count": 20, "scored_count": 12,
+    "hits": 7, "hit_rate": 0.5833,
+    "hit_rate_ci_low": 0.3056, "hit_rate_ci_high": 0.8043,
+    "mean_forward_return_pct": float('nan'),
+    "median_forward_return_pct": float('inf')})
+ser3 = str(blocks3)
+assert "nan" not in ser3.lower() or "nan" not in ser3  # explicit
+assert "inf%" not in ser3
+print("smoke PASS", len(blocks), "+", len(blocks2), "+", len(blocks3), "blocks")
 PY
 ```
 
 ## Rollback
 
-`git checkout HEAD~1 -- backend/slack_bot/formatters.py`.
+`git revert <commit>` on the GENERATE commit. Single-file, small-diff
+reversion is clean.
