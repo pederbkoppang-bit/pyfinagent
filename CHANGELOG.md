@@ -7,6 +7,9 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `f8e0076` | Phase 4.2.3.1 GENERATE (cont'd): experiment_results.md |
+| 2026-04-14 | `29e2133` | Phase 4.2.3.1 GENERATE: formatter NaN/Inf filter + n=0 Scoring pending |
+| 2026-04-14 | `ecf6abf` | chore: changelog drift backfill for a396be3 |
 | 2026-04-14 | `a396be3` | chore: changelog drift backfill for eeea983 |
 | 2026-04-14 | `eeea983` | chore: auto-changelog hook entry for 9a3effb |
 | 2026-04-14 | `9a3effb` | chore: auto-changelog hook entry for 154ac62 |
@@ -24,9 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `661a38d` | chore: changelog drift backfill for 302246e |
 | 2026-04-14 | `ab9d18e` | chore: changelog drift backfill for 302246e |
 | 2026-04-14 | `302246e` | chore: changelog drift backfill for 3d70b7b |
-| 2026-04-14 | `3d70b7b` | chore: changelog drift backfill for 4171a46 |
-| 2026-04-14 | `4171a46` | Phase 4.2.2 GENERATE: Signal Accuracy Tracking |
-| 2026-04-14 | `8637af7` | chore: changelog drift backfill for fa7ef5e |
 
 ---
 
