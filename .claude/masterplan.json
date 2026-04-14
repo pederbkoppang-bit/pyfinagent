@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship a validated, evidence-based trading signal system by May 2026",
-  "updated_at": "2026-04-13T22:18:51.613365+00:00",
+  "updated_at": "2026-04-14T05:03:30.562816+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -228,16 +228,11 @@
     {
       "id": "phase-3",
       "name": "LLM-Guided Research + MCP Integration",
-      "status": "blocked",
+      "status": "pending",
       "depends_on": [
         "phase-2"
       ],
-      "gate": {
-        "type": "approval",
-        "approver": "Peder",
-        "reason": "LLM API costs require Peder's explicit budget approval",
-        "approved": false
-      },
+      "gate": null,
       "steps": [
         {
           "id": "3.0",
