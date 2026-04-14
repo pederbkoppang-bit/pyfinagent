@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `178ea54` | Set permissions.defaultMode to bypassPermissions for remote agent |
 | 2026-04-14 | `6fc6a68` | Auto-allow Write to .claude/context/sessions/** on remote agent |
 | 2026-04-14 | `9b870e9` | Fix paper trading: graceful RAG degradation when data store unavailable |
 | 2026-04-14 | `cb2a085` | Phase 4.2.3.2: append harness_log.md Cycle 3 entry |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `e3b4774` | Auto-bump version in changelog hook (daily minor version bump) |
 | 2026-04-14 | `9a3effb` | chore: auto-changelog hook entry for 154ac62 |
 | 2026-04-14 | `154ac62` | session log: 2026-04-14-1221 Phase 4.2.2 EVALUATE (race loser, AP14 finding) |
-| 2026-04-14 | `7e71c95` | chore: auto-changelog hook entry for 67ae292 |
 
 ---
 
