@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-14 | `661a38d` | chore: changelog drift backfill for 302246e |
 | 2026-04-14 | `ab9d18e` | chore: changelog drift backfill for 302246e |
 | 2026-04-14 | `302246e` | chore: changelog drift backfill for 3d70b7b |
 | 2026-04-14 | `3d70b7b` | chore: changelog drift backfill for 4171a46 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `a549874` | chore: auto-changelog hook entry for 8036149 |
 | 2026-04-14 | `8036149` | chore: CHANGELOG hook catchup for a97156c + remove stale pre-rebase d512cf8 |
 | 2026-04-14 | `a97156c` | Phase 2.12: Logger ASCII hardening on 12 harness-critical files |
-| 2026-04-14 | `0050a1c` | chore: auto-changelog backfill for 5628d2d |
 
 ---
 
