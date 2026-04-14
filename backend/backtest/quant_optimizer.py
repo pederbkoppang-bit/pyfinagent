@@ -579,7 +579,7 @@ class QuantStrategyOptimizer:
             added = new_set - old_set
             removed = old_set - new_set
             logger.warning(
-                "Feature drift detected — top-5 MDA changed: "
+                "Feature drift detected -- top-5 MDA changed: "
                 "+%s / -%s", sorted(added), sorted(removed),
             )
 

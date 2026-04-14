@@ -107,7 +107,7 @@ class CandidateSelector:
         """
         if market != "US":
             logger.warning(
-                "Market '%s' not yet supported — returning empty universe. "
+                "Market '%s' not yet supported -- returning empty universe. "
                 "Only 'US' is implemented (Phase 2.9 abstraction).", market
             )
             return []

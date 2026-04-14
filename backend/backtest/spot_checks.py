@@ -85,7 +85,7 @@ class CostStressTest:
         Returns:
             SpotCheckResult with pass/fail and metrics
         """
-        logger.info("Starting Cost Stress Test (2× transaction costs)...")
+        logger.info("Starting Cost Stress Test (2x transaction costs)...")
         
         # Step 1: Baseline harness
         baseline_result = self.run_backtest_fn(proposal_params, tx_cost_pct=None)
@@ -98,7 +98,7 @@ class CostStressTest:
         
         cost_result = self.run_backtest_fn(proposal_params, tx_cost_pct=cost_tx_pct)
         cost_sharpe = cost_result.get('sharpe', 0.0)
-        logger.info(f"2× Cost Sharpe: {cost_sharpe:.4f}")
+        logger.info(f"2x Cost Sharpe: {cost_sharpe:.4f}")
         
         # Step 3: Check threshold
         threshold_sharpe = self.MIN_ROBUSTNESS * baseline_sharpe

@@ -91,12 +91,12 @@ class EvaluatorAgent:
             try:
                 # Vertex AI automatically uses GOOGLE_APPLICATION_CREDENTIALS
                 self.model = GenerativeModel(model_name)
-                logger.info(f"✅ Evaluator initialized with {model_name}")
+                logger.info(f"[OK] Evaluator initialized with {model_name}")
             except Exception as e:
-                logger.warning(f"⚠️ Vertex AI init failed: {e}. Will use mock evaluator.")
+                logger.warning(f"[warn] Vertex AI init failed: {e}. Will use mock evaluator.")
                 self.model = None
         else:
-            logger.warning("⚠️ vertexai not available. Will use mock evaluator for testing.")
+            logger.warning("[warn] vertexai not available. Will use mock evaluator for testing.")
             self.model = None
     
     async def evaluate_proposal(
@@ -135,7 +135,7 @@ class EvaluatorAgent:
             EvaluationResult with PASS/CONDITIONAL/FAIL verdict
         """
         
-        logger.info(f"🔍 Evaluator starting assessment of proposal")
+        logger.info(f"[Research] Evaluator starting assessment of proposal")
         
         # Build evaluation prompt
         prompt = self._build_evaluation_prompt(proposal, backtest_results, history)
@@ -150,11 +150,11 @@ class EvaluatorAgent:
             # Parse structured output
             result = self._parse_evaluation_response(response, proposal, backtest_results)
             
-            logger.info(f"✅ Evaluation complete: {result.verdict.value}")
+            logger.info(f"[OK] Evaluation complete: {result.verdict.value}")
             return result
             
         except asyncio.TimeoutError:
-            logger.error(f"⚠️ Evaluator timeout after {self.max_eval_time}s")
+            logger.error(f"[warn] Evaluator timeout after {self.max_eval_time}s")
             # Force FAIL on timeout (conservative)
             return EvaluationResult(
                 verdict=EvaluationVerdict.FAIL,
@@ -273,7 +273,7 @@ Format your response as JSON:
         """Call Claude/Gemini with timeout"""
         if self.model is None:
             # Mock response for testing/demo
-            logger.debug("⚠️ Using mock evaluator (model not initialized)")
+            logger.debug("[warn] Using mock evaluator (model not initialized)")
             return self._mock_response(proposal, backtest_results)
         
         response = await asyncio.to_thread(
@@ -463,7 +463,7 @@ Format your response as JSON:
         result = await self.evaluate_proposal(proposal, backtest_results)
         
         if result.verdict == EvaluationVerdict.CONDITIONAL:
-            logger.info(f"🔍 Running spot checks for CONDITIONAL verdict...")
+            logger.info(f"[Research] Running spot checks for CONDITIONAL verdict...")
             
             # Run spot checks (simplified version here)
             # In production, would call backtest_engine.run_spot_check()
@@ -493,9 +493,9 @@ Format your response as JSON:
         # 2. backtest_engine.run_subperiod(regime="bear_market")
         # 3. backtest_engine.run_with_params(base_params * 1.2)
         
-        logger.info("  ⚡ Spot check 1: 2× transaction costs")
-        logger.info("  ⚡ Spot check 2: Different regime")
-        logger.info("  ⚡ Spot check 3: Parameter sweep")
+        logger.info("  [spark] Spot check 1: 2x transaction costs")
+        logger.info("  [spark] Spot check 2: Different regime")
+        logger.info("  [spark] Spot check 3: Parameter sweep")
         
         return {
             "sharpe_2x_cost": 1.02,  # Survived 2× cost increase

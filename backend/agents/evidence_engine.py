@@ -60,7 +60,7 @@ class EvidenceEngine:
         # Update running best
         if sharpe > self.current_best_sharpe:
             self.current_best_sharpe = sharpe
-            logger.info(f"🎯 NEW BEST: Sharpe {sharpe:.4f} (+{sharpe - 1.1705:.4f})")
+            logger.info(f"[target] NEW BEST: Sharpe {sharpe:.4f} (+{sharpe - 1.1705:.4f})")
 
         # Track feature success
         for feature in features:
@@ -96,7 +96,7 @@ class EvidenceEngine:
         elif verdict == "REJECT":
             self.rejected_proposals += 1
 
-        logger.info(f"📊 Proposals: {self.accepted_proposals} accepted, {self.rejected_proposals} rejected")
+        logger.info(f"[stats] Proposals: {self.accepted_proposals} accepted, {self.rejected_proposals} rejected")
 
         self._save_history()
 

@@ -1,59 +1,85 @@
-# Phase 2.12 — Logger ASCII Hardening (Orchestrator) — Experiment Results
+# Step 2.12 (partial): Logger ASCII Hardening — Experiment Results
 
-## Starting State
-- Branch: `main` @ `c1a4302` (reattached from detached HEAD at session start)
-- `origin/main` matches local (force-updated this cycle)
-- AST scan before: **21 logger non-ASCII violations** in
-  `backend/agents/multi_agent_orchestrator.py`
-- `backend/agents/harness_memory.py`: 0 violations (already clean on c1a4302)
+## Context
 
-## Edits (backend/agents/multi_agent_orchestrator.py)
-21 sites replaced, grouped by semantic tag:
+Per `security.md` rule: `logger.*()` calls must use ASCII only (Windows cp1252
+crash in uvicorn handlers). Prior Ford sessions fixed subsets but many commits
+were lost to force-pushes. Full-repo scan on `origin/main @ c1a4302` showed
+**216 non-ASCII chars in logger calls across 36 files**.
 
-| Tag | Count | Lines (pre-edit) |
-|-----|-------|------------------|
-| `[Plan]` | 1 | 307 |
-| `[Research]` | 5 | 444, 506, 509, 511, 549 |
-| `[Delegate]` | 1 | 603 |
-| `[QualityGate]` | 8 | 738, 751, 754, 757, 762, 772, 774, 778 |
-| `[Classify]` | 1 | 874 |
-| `[ToolLoop]` | 2 | 1004, 1028 |
-| `[Mask]` | 1 | 1019 |
-| `[warn]` | 1 | 1035 |
-| `[Citation]` | 1 | 1122 |
+This session targets the **12 harness-critical files** — the hot path that
+actually runs during `run_harness.py` execution. Ticketing / Slack-bot files
+are deferred to a separate pass.
 
-Unicode arrows `\u2192` replaced with `->` (3 sites: masking report format, quality
-gate improved markers). Em-dash `\u2014` replaced with `--` (1 site: research loop
-continuation message).
+## Files Fixed (12)
 
-Non-logger emoji deliberately left in place:
-- L554 `emoji_map = {...}` -- visible in synthesized report output, not a logger
-  argument.
-- L475 exception list-append `f"\u26a0\ufe0f {agent_type.value}: Error - ..."` --
-  appended to `iteration_findings` for downstream synthesis, not passed to
-  `logger.*()`. Prior Ford sessions deliberately left it alone; same decision here.
+| File | Sites |
+|------|------:|
+| `backend/agents/planner_agent.py` | 4 |
+| `backend/agents/planner_enhanced.py` | 7 |
+| `backend/agents/evaluator_agent.py` | 11 |
+| `backend/agents/evidence_engine.py` | 2 |
+| `backend/agents/multi_agent_orchestrator.py` | 23 |
+| `backend/agents/mcp_servers/backtest_server.py` | 1 |
+| `backend/agents/mcp_servers/signals_server.py` | 1 |
+| `backend/agents/skill_optimizer.py` | 1 |
+| `backend/autonomous_harness.py` | 4 |
+| `backend/backtest/quant_optimizer.py` | 1 |
+| `backend/backtest/spot_checks.py` | 2 |
+| `backend/backtest/candidate_selector.py` | 1 |
+| **Total** | **58** |
 
-## Verification (deterministic, runnable without LLM)
+All changes are pure string substitution. No control flow, signatures,
+imports, or non-logger code touched.
+
+## Method
+
+AST-based fixer:
+1. `ast.walk` collects every `Call(func=Attribute(attr in LOG_METHODS,
+   value.id in LOG_NAMES))` node, recording `(lineno, end_lineno)`.
+2. For each file, a boolean mask marks lines inside any logger-call range.
+3. Char-substitution map is applied **only to masked lines**, leaving all
+   other code bytes untouched.
+4. Post-edit `ast.parse` confirms syntax validity.
+
+Substitution map:
 ```
-python3 -c "import ast; ast.parse(open('backend/agents/multi_agent_orchestrator.py').read())"
+→ -> | ← <- | — -- | – - | × x | ✓ [ok] | ✗ [x]
+⚡ [spark]    ⏱ [time]      🔧 [tool]     🗜 [mask]
+📋 [Plan]     🔍 [Research]  🔀 [Classify] 📚 [Citation]
+⚠️ [warn]     ✅ [OK]        ❌ [FAIL]     🚨 [ALERT]
+🎯 [target]   📊 [stats]     🧠 [think]    🚀 [go]
+🎉 [done]     ⚙️ [cfg]       💡 [idea]     🤖 [bot]
+📍 [pin]      🔄 [cycle]     🔗 [link]     📤 [send]
+📥 [recv]     🛑 [stop]      🔴 [red]      🎫 [ticket]
+🔪 [kill]     🧹 [clean]     📱 [phone]    👍 [+1] 👎 [-1]
+🔓 [unlock]   🏠 [home]      ➡️ [next]     ⬆️ [up]
+💬 [chat]     📖 [read]      📞 [call]
 ```
--> exit 0 (SYNTAX OK)
 
-AST walker over `logger.*()` call args:
--> `Total logger non-ASCII violations: 0`
+## Verification
 
-Diff stat (expected): ~21 insertions / ~21 deletions, pure string substitution on
-target call sites only. No imports, no signatures, no control flow touched.
+```
+AST re-scan of 12 target files -> 0 non-ASCII chars in logger calls
+py_compile on 12 target files -> all clean
+git diff --stat:
+  13 files changed, 58 insertions(+), 57 deletions(-)
+```
 
-## Scope discipline
-- Only `multi_agent_orchestrator.py` touched.
-- `harness_memory.py` already clean -- not re-touched.
-- `contract.md` / `experiment_results.md` updated under `handoff/current/`.
-- No changes to masterplan.json verification criteria (immutable).
-- No `.env`, no frontend, no dependencies, no external API calls.
+The 13th file is `CHANGELOG.md` (1 line auto-added by PostToolUse hook for
+commit `c1a4302`, present in the local worktree after reset).
 
-## Blocker note
-`git push origin main` still returns 403 (PAT lacks `contents: write`). Commit will
-be created locally; push attempted first via `git push`, then fallback via
-`mcp__github__create_or_update_file` if `git push` is still blocked. Same pattern as
-prior Ford session for `c1a4302`.
+## Out of Scope
+
+- 24 non-harness files with ~158 remaining violations (Slack bot, ticket
+  queue, response delivery, SLA monitor, tickets_db, feature_generator,
+  openclaw client/monitor, autonomous_loop). Fix in a separate
+  ticket-queue maintenance pass.
+- Non-logger emoji (e.g. `emoji_map` dicts, greeting strings, exception
+  list-appends) — data, not logger input, intentionally left untouched.
+
+## Phase 2.12 Progress
+
+This closes the long-running "logger ASCII hardening" thread of Phase 2.12
+for the harness hot path. EVALUATE (token-efficiency & 4-tier memory
+measurements) still requires LLM API budget approval from Peder.

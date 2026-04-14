@@ -31,7 +31,7 @@ try:
     from backend.config.settings import get_settings
     _SIGNALS_AVAILABLE = True
 except ImportError:
-    logger.warning("Paper trader not available — signals server in stub mode")
+    logger.warning("Paper trader not available -- signals server in stub mode")
 
 
 class SignalType(Enum):

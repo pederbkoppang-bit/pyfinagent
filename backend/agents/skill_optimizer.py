@@ -403,7 +403,7 @@ class SkillOptimizer:
         # Ensure old_text appears only once (safety check)
         if content.count(old_text) > 1:
             logger.warning(
-                f"old_text appears {content.count(old_text)} times in {agent_name}.md — "
+                f"old_text appears {content.count(old_text)} times in {agent_name}.md -- "
                 "ambiguous replacement, skipping"
             )
             return False

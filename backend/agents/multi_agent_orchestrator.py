@@ -441,7 +441,7 @@ class MultiAgentOrchestrator:
         bus = get_event_bus()
 
         for iteration in range(1, MAX_RESEARCH_ITERATIONS + 1):
-            logger.info(f"[Research] iteration {iteration}/{MAX_RESEARCH_ITERATIONS}")
+            logger.info(f"[cycle] Research iteration {iteration}/{MAX_RESEARCH_ITERATIONS}")
 
             # Spawn subagents in parallel
             tasks = []
@@ -503,12 +503,12 @@ class MultiAgentOrchestrator:
                 ))
 
                 if not needs_more:
-                    logger.info(f"[Research] complete after {iteration} iteration(s)")
+                    logger.info(f"[OK] Research complete after {iteration} iteration(s)")
                     break
                 else:
-                    logger.info(f"[Research] more research needed -- continuing to iteration {iteration + 1}")
+                    logger.info(f"[cycle] More research needed -- continuing to iteration {iteration + 1}")
             else:
-                logger.info(f"[Research] max iterations reached ({MAX_RESEARCH_ITERATIONS})")
+                logger.info(f"[time] Max iterations reached ({MAX_RESEARCH_ITERATIONS})")
 
         # Synthesize all findings
         synth_start = time.time()
@@ -546,7 +546,7 @@ class MultiAgentOrchestrator:
         )
 
         needs_more = "NEEDS_MORE" in decision_text.upper()
-        logger.info(f"[Research] check: {'NEEDS_MORE' if needs_more else 'COMPLETE'}")
+        logger.info(f"[Plan] Research check: {'NEEDS_MORE' if needs_more else 'COMPLETE'}")
         return needs_more, usage
 
     async def _synthesize(self, query, agent_types, all_findings):
@@ -600,7 +600,7 @@ class MultiAgentOrchestrator:
         if delegate_to and delegate_to != classification.agent_type:
             sub_config = AGENT_CONFIGS.get(delegate_to)
             if sub_config and delegate_to.value in config.can_delegate_to:
-                logger.info(f"[Delegate] {config.name} delegated to {sub_config.name}")
+                logger.info(f"[Classify] {config.name} delegated to {sub_config.name}")
 
                 parent_clean = strip_delegation_tag(response_text)
                 sub_task = (
@@ -735,7 +735,7 @@ class MultiAgentOrchestrator:
         if scores:
             avg = sum(scores.values()) / len(scores)
             score_str = ', '.join(f"{k}={v:.1f}" for k, v in scores.items())
-            logger.info(f"[QualityGate] scores: {score_str} (avg={avg:.2f})")
+            logger.info(f"[Plan] Quality gate scores: {score_str} (avg={avg:.2f})")
 
             # Check thresholds: any < 0.6 or avg < 0.7 = FAIL
             any_below = any(v < 0.6 for v in scores.values())
@@ -748,18 +748,18 @@ class MultiAgentOrchestrator:
                         improved = gate_response[idx + len(marker):].strip()
                         break
                 if improved:
-                    logger.info(f"[QualityGate] FAIL (avg={avg:.2f}) -> improved")
+                    logger.info(f"[cycle] Quality gate: FAIL (avg={avg:.2f}) -> improved")
                     return improved, usage
                 else:
-                    logger.info(f"[QualityGate] FAIL (avg={avg:.2f}) but no improvement provided")
+                    logger.info(f"[cycle] Quality gate: FAIL (avg={avg:.2f}) but no improvement provided")
                     return None, usage
             else:
-                logger.info(f"[QualityGate] PASS (avg={avg:.2f})")
+                logger.info(f"[OK] Quality gate: PASS (avg={avg:.2f})")
                 return None, usage
 
         # Fallback: old-style PASS/FAIL parsing
         if 'VERDICT: PASS' in response_upper or response_upper == 'PASS':
-            logger.info("[QualityGate] PASS")
+            logger.info("[OK] Quality gate: PASS")
             return None, usage
         elif 'VERDICT: FAIL' in response_upper:
             improved = None
@@ -769,13 +769,13 @@ class MultiAgentOrchestrator:
                     improved = gate_response[idx + len(marker):].strip()
                     break
             if improved:
-                logger.info(f"[QualityGate] FAIL -> improved ({len(improved)} chars)")
+                logger.info(f"[cycle] Quality gate: FAIL -> improved ({len(improved)} chars)")
                 return improved, usage
-            logger.info("[QualityGate] FAIL but no improvement")
+            logger.info("[cycle] Quality gate: FAIL but no improvement")
             return None, usage
         else:
             # If we can't parse, treat non-PASS as improvement
-            logger.info(f"[QualityGate] unparseable, treating as improvement ({len(gate_response)} chars)")
+            logger.info(f"[cycle] Quality gate: unparseable, treating as improvement ({len(gate_response)} chars)")
             return gate_response, usage
 
     # ═══════════════════════════════════════════════════════════════
@@ -871,7 +871,7 @@ class MultiAgentOrchestrator:
         text, usage = await loop.run_in_executor(
             None, self._call_agent, comms_config, message,
         )
-        logger.info(f"[Classify] ({usage.get('input',0)}+{usage.get('output',0)} tok): {text[:100]}")
+        logger.info(f"[Classify] Classification ({usage.get('input',0)}+{usage.get('output',0)} tok): {text[:100]}")
         return parse_llm_classification(text)
 
     # ═══════════════════════════════════════════════════════════════
@@ -1001,7 +1001,7 @@ class MultiAgentOrchestrator:
                     ))
 
                 logger.info(
-                    f"  [ToolLoop] Turn {turn+1}: {agent_config.name} called "
+                    f"  [tool] Turn {turn+1}: {agent_config.name} called "
                     f"{', '.join(tool_names_called)}"
                 )
 
@@ -1016,7 +1016,7 @@ class MultiAgentOrchestrator:
                     messages, mask_report = masker.mask_observations(messages)
                     if mask_report.get('masked'):
                         logger.info(
-                            f"  [Mask] Observation masking: saved {mask_report['tokens_saved']} tokens "
+                            f"  [mask] Observation masking: saved {mask_report['tokens_saved']} tokens "
                             f"({mask_report['usage_pct_before']:.0%} -> {mask_report['usage_pct_after']:.0%})"
                         )
 
@@ -1025,7 +1025,7 @@ class MultiAgentOrchestrator:
                 text = "".join(b.text for b in response.content if hasattr(b, "text"))
                 if turn > 0:
                     logger.info(
-                        f"  [ToolLoop] {agent_config.name} completed after {turn+1} turns "
+                        f"  [OK] {agent_config.name} completed after {turn+1} turns "
                         f"({total_usage['input']}+{total_usage['output']} tok)"
                     )
                 return text or "No response.", total_usage

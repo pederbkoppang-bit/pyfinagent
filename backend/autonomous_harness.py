@@ -39,7 +39,7 @@ class AutonomousHarness:
     async def start(self):
         """Start the autonomous loop."""
         self.running = True
-        logger.info("🤖 AUTONOMOUS HARNESS STARTED")
+        logger.info("[bot] AUTONOMOUS HARNESS STARTED")
         
         while self.running:
             try:
@@ -72,7 +72,7 @@ class AutonomousHarness:
     
     async def _run_backtest(self) -> Dict[str, Any]:
         """Execute backtest with current parameters."""
-        logger.info("📊 Running backtest...")
+        logger.info("[stats] Running backtest...")
         # TODO: Import and run backtest_engine.py
         return {
             "sharpe": 0.0,
@@ -113,7 +113,7 @@ class AutonomousHarness:
     async def _log_decision(self, decision: Dict[str, Any]):
         """Log decision to harness_log.md"""
         timestamp = datetime.now(timezone.utc).isoformat()
-        logger.info(f"🔍 {decision['decision']}: {decision['reason']}")
+        logger.info(f"[Research] {decision['decision']}: {decision['reason']}")
         # TODO: Append to handoff/harness_log.md
     
     async def _report_slack(self, decision: Dict[str, Any]):
@@ -124,7 +124,7 @@ class AutonomousHarness:
     def stop(self):
         """Stop the autonomous loop."""
         self.running = False
-        logger.info("🤖 AUTONOMOUS HARNESS STOPPED")
+        logger.info("[bot] AUTONOMOUS HARNESS STOPPED")
 
 
 # Global instance

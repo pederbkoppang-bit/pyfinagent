@@ -1,35 +1,54 @@
-# Phase 2.12 — Logger ASCII Hardening (Orchestrator) — Sprint Contract
+# Step 2.12 (partial): Logger ASCII Hardening — Harness-Critical Files
 
 ## Hypothesis
-`backend/agents/multi_agent_orchestrator.py` contains 21 `logger.*()` calls with
-non-ASCII characters (emoji + Unicode arrows/em-dashes). Per `.claude/rules/security.md`:
-"ASCII-only logger messages: Never use Unicode characters in logger.*() calls. Windows
-cp1252 encoding in uvicorn handlers crashes on non-ASCII." These calls are a latent
-crash risk every time one fires under a cp1252-bound handler.
 
-Prior Ford sessions fixed this four times (`b49cb69`, `a6b1700`, `106a5d4`, `7182f43`,
-`8a86ed2`, `2ac17db`, `94b7ca1`) but each fix landed on a detached HEAD that then got
-reset, or on a local branch that could not be pushed (PAT 403). `origin/main` was
-force-pushed to `c1a4302` in this session, and that snapshot still has all 21
-violations present — the fix has never actually reached origin.
+Non-ASCII characters (emoji, arrows, em-dashes) inside `logger.*()` calls cause
+uvicorn handler crashes on Windows (cp1252 encoding) and degrade log readability
+on every platform. The `security.md` project rule forbids them. A 36-file scan
+found 216 violations. Fixing the 12 harness-critical files (planner, evaluator,
+orchestrator, MCP servers, backtest engine, optimizer) eliminates every
+logger-emoji path that can fire during `run_harness.py` execution.
 
 ## Success Criteria (Research-Backed)
-1. AST scan of `logger.*()` call sites walks every f-string / str subtree; returns
-   **0** non-ASCII code points for both `harness_memory.py` and
-   `multi_agent_orchestrator.py`. (security.md rule)
-2. `python3 -c "import ast; ast.parse(open('backend/agents/multi_agent_orchestrator.py').read())"`
-   returns exit 0 (syntax clean).
-3. Diff is pure string substitution inside `logger.*()` call sites. No control flow,
-   no signatures, no imports touched. (scope discipline — backend-agents.md)
-4. ASCII replacements use bracketed tags already established by prior Ford sessions:
-   `[Plan]`, `[Research]`, `[Classify]`, `[Delegate]`, `[QualityGate]`, `[ToolLoop]`,
-   `[Citation]`, `[Mask]`, `[warn]`. Unicode arrows `\u2192` -> `->`; em-dash
-   `\u2014` -> `--`. (consistency across the file's log style.)
-5. Non-logger emoji in data structures (`emoji_map` dict at L554, exception
-   list-append at L475) deliberately left untouched — data, not logger input.
+
+1. **Zero non-ASCII in logger calls** — AST scan walks `Call` nodes whose
+   `func` is `Attribute(value=Name("logger|log|LOGGER|_logger"), attr in
+   {debug,info,warn,warning,error,critical,exception})` and checks every
+   `Constant(str)` descendant. Target: **0 violations across 12 files**.
+2. **All 12 files compile clean** — `py_compile.compile(path, doraise=True)`
+   succeeds on every target.
+3. **Edits confined to logger lines** — no control flow, signature, import, or
+   non-logger string touched. Diff stat insertions ≈ deletions.
+4. **No regressions in unmodified files** — the 24 deferred files still parse.
 
 ## Fail Conditions
-- Any remaining non-ASCII char inside a `logger.*()` call argument.
-- Any modification outside the 21 target call sites.
-- Any syntax error post-edit.
-- Any Unicode arrow or em-dash added anywhere new.
+
+- Any target file fails `ast.parse` or `py_compile` after edits.
+- Any residual non-ASCII char inside a logger call node in target files.
+- Edits leak outside logger call line ranges (e.g. touching `emoji_map` dicts,
+  greeting strings, or non-logger exception list-appends — these are data, not
+  logger input, and must remain unchanged per prior Ford PASS pattern).
+- Any target file's public API (function signatures, exports) changes.
+
+## Research Backing
+
+Pattern + scope is a direct continuation of 4 prior Ford sessions that reached
+PASS verdict on the same substitution pattern but whose commits were lost to
+force-pushes (`b49cb69`, `a6b1700`, `106a5d4`, `7182f43`, `8a86ed2`, `2ac17db`,
+`94b7ca1`, `2cb2f7f`). All prior QA verdicts: PASS 10/10/10/10/9 on
+correctness, scope, security rule compliance, simplicity, conventions.
+No new research gate needed for a re-apply of a proven pattern on an expanded
+file set. The 3 files (`planner_agent`, `planner_enhanced`, `evidence_engine`)
+added beyond the prior scope follow the identical rule and replacement map.
+
+## Out of Scope (Deferred)
+
+- `backend/slack_bot/*.py` (ticketing + Slack bot wiring)
+- `backend/services/*.py` (ticket queue, response delivery, SLA monitor)
+- `backend/db/tickets_db.py`
+- `backend/api/mas_events.py`
+- `backend/agents/feature_generator.py`, `openclaw_client.py`, `openclaw_monitor.py`
+- `backend/autonomous_loop.py` (separate from `autonomous_harness.py`)
+
+Rationale: these are outside the harness hot path and carry non-trivial merge
+conflict risk with other active work.

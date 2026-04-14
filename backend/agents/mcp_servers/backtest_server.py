@@ -29,7 +29,7 @@ try:
     from backend.config.settings import get_settings
     _BACKTEST_AVAILABLE = True
 except ImportError:
-    logger.warning("Backtest engine not available — backtest server in stub mode")
+    logger.warning("Backtest engine not available -- backtest server in stub mode")
 
 
 class BacktestServer:

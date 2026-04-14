@@ -35,7 +35,7 @@ class EnhancedPlannerAgent:
         self.conversation_history = []
         self.research_md_path = Path(__file__).parent.parent.parent / "RESEARCH.md"
         
-        logger.info(f"✅ EnhancedPlannerAgent initialized with {model}")
+        logger.info(f"[OK] EnhancedPlannerAgent initialized with {model}")
     
     def generate_proposals(
         self,
@@ -77,7 +77,7 @@ class EnhancedPlannerAgent:
             }
         """
         
-        logger.info(f"🧠 EnhancedPlanner: Generating proposals (current Sharpe={current_sharpe:.4f})")
+        logger.info(f"[think] EnhancedPlanner: Generating proposals (current Sharpe={current_sharpe:.4f})")
         
         # Read research sources
         research_text = self._read_research_md()
@@ -118,14 +118,14 @@ class EnhancedPlannerAgent:
             if json_start >= 0 and json_end > json_start:
                 proposals_json = json.loads(response_text[json_start:json_end])
             else:
-                logger.error("⚠️  Could not find JSON in response")
+                logger.error("[warn]  Could not find JSON in response")
                 proposals_json = self._get_default_proposals(current_sharpe)
             
-            logger.info(f"✅ Generated {len(proposals_json.get('proposals', []))} proposals")
+            logger.info(f"[OK] Generated {len(proposals_json.get('proposals', []))} proposals")
             return proposals_json
             
         except Exception as e:
-            logger.error(f"❌ Planner call failed: {e}")
+            logger.error(f"[FAIL] Planner call failed: {e}")
             return self._get_default_proposals(current_sharpe)
     
     def _read_research_md(self) -> str:
@@ -136,10 +136,10 @@ class EnhancedPlannerAgent:
                 with open(self.research_md_path, "r") as f:
                     return f.read()
             else:
-                logger.warning(f"⚠️  RESEARCH.md not found at {self.research_md_path}")
+                logger.warning(f"[warn]  RESEARCH.md not found at {self.research_md_path}")
                 return ""
         except Exception as e:
-            logger.error(f"⚠️  Could not read RESEARCH.md: {e}")
+            logger.error(f"[warn]  Could not read RESEARCH.md: {e}")
             return ""
     
     def _build_system_prompt(

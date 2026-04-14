@@ -110,7 +110,7 @@ GENERATE 3 PROPOSALS to improve on this baseline. Focus on:
 Be specific about parameters and expected gains. Include reasoning for each proposal."""
 
         # Call Claude
-        logger.info(f"🧠 Planner: Generating proposal (Sharpe={current_best_sharpe:.4f})")
+        logger.info(f"[think] Planner: Generating proposal (Sharpe={current_best_sharpe:.4f})")
 
         response = self.client.messages.create(
             model=self.model,
@@ -145,7 +145,7 @@ Be specific about parameters and expected gains. Include reasoning for each prop
                 "error": str(e)
             }
 
-        logger.info(f"✅ Planner: Generated {len(proposal_json.get('proposals', []))} proposals")
+        logger.info(f"[OK] Planner: Generated {len(proposal_json.get('proposals', []))} proposals")
         return proposal_json
 
     def _summarize_evidence(
@@ -192,7 +192,7 @@ Run {i}:
             Revised proposal
         """
 
-        logger.info("🧠 Planner: Reflecting on evaluator feedback...")
+        logger.info("[think] Planner: Reflecting on evaluator feedback...")
 
         system_prompt = f"""{META_PLAN}
 
@@ -237,7 +237,7 @@ Return revised proposal in JSON format."""
         except json.JSONDecodeError:
             revised = proposal  # Fallback to original
 
-        logger.info("✅ Planner: Revised proposal based on feedback")
+        logger.info("[OK] Planner: Revised proposal based on feedback")
         return revised
 
 
