@@ -137,10 +137,15 @@ def main() -> int:
     # Baseline env config for Claude + no-Tavily retrieval. Launchd plist
     # sets ANTHROPIC_API_KEY; everything else is derived here so the
     # script is self-contained and doesn't rely on a shell rc file.
+    # Model IDs now come from backend/config/model_tiers.py so a
+    # COST_TIER=live flip at May launch picks up the cheap mapping.
+    # Added via repo path so the script still runs standalone.
+    sys.path.insert(0, str(REPO))
+    from backend.config.model_tiers import resolve_model  # noqa: E402
     env_defaults = {
-        "FAST_LLM": "anthropic:claude-haiku-4-5",
-        "SMART_LLM": "anthropic:claude-sonnet-4-6",
-        "STRATEGIC_LLM": "anthropic:claude-opus-4-6",
+        "FAST_LLM": resolve_model("autoresearch_fast"),
+        "SMART_LLM": resolve_model("autoresearch_smart"),
+        "STRATEGIC_LLM": resolve_model("autoresearch_strategic"),
         "EMBEDDING": "huggingface:BAAI/bge-small-en-v1.5",
         "RETRIEVER": "arxiv,semantic_scholar,duckduckgo",
     }

@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+from backend.config.model_tiers import resolve_model
+
 
 class AgentType(str, Enum):
     COMMUNICATION = "communication"
@@ -124,7 +126,7 @@ AGENT_CONFIGS: dict[AgentType, AgentConfig] = {
     AgentType.COMMUNICATION: AgentConfig(
         agent_type=AgentType.COMMUNICATION,
         name="Communication Agent (Lead)",
-        model="claude-sonnet-4-6",
+        model=resolve_model("mas_communication"),
         max_tokens=500,
         description="Lead agent — classifies queries and routes to the right tier",
         can_delegate_to=["main", "qa", "research"],
@@ -174,7 +176,7 @@ RESPOND WITH ONLY THIS JSON, nothing else:
     AgentType.MAIN: AgentConfig(
         agent_type=AgentType.MAIN,
         name="Ford (Main Agent)",
-        model="claude-opus-4-6",
+        model=resolve_model("mas_main"),
         max_tokens=1500,
         description="Operational orchestrator — coordinates work, can trigger harness cycles",
         can_delegate_to=["qa", "research"],
@@ -222,7 +224,7 @@ RESPONSE STYLE:
     AgentType.QA: AgentConfig(
         agent_type=AgentType.QA,
         name="Analyst (Q&A Agent)",
-        model="claude-opus-4-6",
+        model=resolve_model("mas_qa"),
         max_tokens=2500,
         description="Quantitative reasoning with read-only harness state access",
         can_delegate_to=["research"],
@@ -268,7 +270,7 @@ RESPONSE STYLE:
     AgentType.RESEARCH: AgentConfig(
         agent_type=AgentType.RESEARCH,
         name="Researcher",
-        model="claude-sonnet-4-6",
+        model=resolve_model("mas_research"),
         max_tokens=3000,
         description="Deep research with literature access and RESEARCH.md integration",
         can_delegate_to=[],  # Leaf agent

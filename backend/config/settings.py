@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     app_name: str = "PyFinAgent"
     debug: bool = False
     log_level: str = Field("INFO", description="Logging level: DEBUG, INFO, WARNING, ERROR. Use WARNING for quiet terminals.")
+    cost_tier: str = Field("build", description="Model cost tier: 'build' uses the development Opus/Sonnet mix, 'live' uses the launch-time cheap mapping from backend/config/model_tiers.py. Flip via COST_TIER env var at launch.")
 
     # --- GCP ---
     gcp_project_id: str = Field(..., description="Google Cloud Project ID")
