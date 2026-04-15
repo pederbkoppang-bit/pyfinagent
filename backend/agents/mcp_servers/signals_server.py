@@ -611,7 +611,37 @@ class SignalsServer:
 
         self.signal_history.append(record)
         self._signals_by_id[signal_id] = record
-    
+
+        # Phase 4.2.4: durable persistence to BigQuery signals_log.
+        # In-memory append above is the canonical write; this BQ call is
+        # best-effort and must never block or break the publish path.
+        # Outcome-update path is deferred to a follow-up cycle (streaming
+        # buffer DML restriction; see handoff/current/research.md cat 3).
+        if self.bq_client is not None:
+            try:
+                bq_record = {
+                    "signal_id": record["signal_id"],
+                    "ticker": record["ticker"],
+                    "signal_type": record["signal_type"],
+                    "confidence": record["confidence"],
+                    "signal_date": record["date"],
+                    "entry_price": record["entry_price"],
+                    "factors_json": json.dumps(record["factors"]),
+                    "created_at": record["timestamp"],
+                    "outcome": record["outcome"],
+                    "scored": record["scored"],
+                    "hit": record["hit"],
+                    "exit_price": record["exit_price"],
+                    "exit_date": record["exit_date"],
+                    "forward_return_pct": record["forward_return_pct"],
+                    "holding_days": record["holding_days"],
+                    "recorded_at": record["timestamp"],
+                    "event_kind": "publish",
+                }
+                self.bq_client.save_signal(bq_record)
+            except Exception as e:
+                logger.warning(f"bq_signal_log save failed: {type(e).__name__}")
+
     def risk_check(self, portfolio: Dict[str, Any], proposed_trade: Dict[str, Any]) -> Dict[str, Any]:
         """
         Portfolio-extrinsic constraint check for a proposed trade.

@@ -381,6 +381,15 @@ class BigQueryClient:
         if errors:
             logger.error(f"Outcome insert errors: {errors}")
 
+    # -- Signals log (Phase 4.2.4 durable persistence) ---------------
+
+    def save_signal(self, record: dict) -> None:
+        """Append a single signal-publish event to the signals_log table."""
+        table = f"{self.settings.gcp_project_id}.{self.settings.bq_dataset_reports}.signals_log"
+        errors = self.client.insert_rows_json(table, [record])
+        if errors:
+            logger.error(f"BigQuery insert errors: {errors}")
+
     def get_performance_stats(self) -> dict:
         query = f"""
             SELECT
