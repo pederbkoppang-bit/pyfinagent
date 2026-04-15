@@ -7,6 +7,8 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-15 | `9b0e943` | Phase 4.4.4.4: Risk limits hardcoded verification + evidence |
+| 2026-04-15 | `da4fe5d` | Phase 4.4: scope Go-Live Checklist with WHO/WHEN/HOW per item |
 | 2026-04-15 | `63d7ed7` | log: session 2026-04-15-0000 + harness_log Cycle 4 |
 | 2026-04-15 | `725eb90` | chore: masterplan.json status sync for shipped phases 2.14, 4.1, 4.3 |
 | 2026-04-15 | `09f3ea1` | chore: masterplan.json status sync for shipped phases 2.14, 4.1, 4.3 |
@@ -25,8 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `5008681` | Phase 4.2.3.2 LOG: session log + QA critique (PASS 39/39 effective) |
 | 2026-04-14 | `ef7e7a5` | Phase 4.2.3.2: close SN4 since_date lex-compare trap in get_signal_history |
 | 2026-04-14 | `2494d10` | Force remote agent to work on main branch, not feature branches |
-| 2026-04-14 | `d63e23c` | chore: changelog drift backfill for 7b8d77f |
-| 2026-04-14 | `7b8d77f` | chore: changelog drift backfill for 7d4149d |
 
 ---
 
