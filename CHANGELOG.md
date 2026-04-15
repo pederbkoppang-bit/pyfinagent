@@ -8,6 +8,22 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | Date | Commit | Change |
 |------|--------|--------|
 | 2026-04-15 | `1b2d055` | Document BigQuery MCP access for the remote agent |
+| 2026-04-15 | `99805c3` | chore: changelog auto-update for 01dec72 |
+| 2026-04-15 | `01dec72` | log: session 2026-04-15-1838 + harness_log Cycle 10 (Phase 4.4.4.2 drill) |
+| 2026-04-15 | `4e302df` | Phase 4.4.4.2: position-limit drill test + evidence |
+| 2026-04-15 | `cbd14d4` | Phase 4.4.4.1: kill-switch drill test + evidence |
+| 2026-04-15 | `9b0e943` | Phase 4.4.4.4: Risk limits hardcoded verification + evidence |
+| 2026-04-15 | `da4fe5d` | Phase 4.4: scope Go-Live Checklist with WHO/WHEN/HOW per item |
+| 2026-04-15 | `63d7ed7` | log: session 2026-04-15-0000 + harness_log Cycle 4 |
+| 2026-04-15 | `725eb90` | chore: masterplan.json status sync for shipped phases 2.14, 4.1, 4.3 |
+| 2026-04-15 | `09f3ea1` | chore: masterplan.json status sync for shipped phases 2.14, 4.1, 4.3 |
+| 2026-04-15 | `7c9c51a` | Phase 4.2.4 LOG: session log + harness_log Cycle 4 + QA critique |
+| 2026-04-15 | `44f4a40` | gitignore .claude/worktrees/ (transient qa-evaluator subagent isolation) |
+| 2026-04-15 | `9c42646` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
+| 2026-04-15 | `c6cae16` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
+| 2026-04-14 | `852e04f` | Phase 4.2.3.3: ASCII-harden module docstring of signals_server.py |
+| 2026-04-14 | `912008c` | Step 2.14: Switch paper trading from Gemini to Claude |
+| 2026-04-14 | `9a53cf6` | Set permissions.defaultMode to bypassPermissions for remote agent |
 | 2026-04-14 | `178ea54` | Set permissions.defaultMode to bypassPermissions for remote agent |
 | 2026-04-14 | `6fc6a68` | Auto-allow Write to .claude/context/sessions/** on remote agent |
 | 2026-04-14 | `9b870e9` | Fix paper trading: graceful RAG degradation when data store unavailable |

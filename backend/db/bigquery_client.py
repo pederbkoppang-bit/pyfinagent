@@ -381,6 +381,42 @@ class BigQueryClient:
         if errors:
             logger.error(f"Outcome insert errors: {errors}")
 
+    # -- Signals log (Phase 4.2.4 durable persistence) ---------------
+
+    def save_signal(self, record: dict) -> None:
+        """Append a single signal-publish event to the signals_log table."""
+        table = f"{self.settings.gcp_project_id}.{self.settings.bq_dataset_reports}.signals_log"
+        errors = self.client.insert_rows_json(table, [record])
+        if errors:
+            logger.error(f"BigQuery insert errors: {errors}")
+
+    def query_latest_signal_state(self, signal_id: str) -> Optional[dict]:
+        """Project the latest observed state for one signal_id from signals_log.
+
+        Uses a QUALIFY ROW_NUMBER window function to pick the event with the
+        largest recorded_at across publish + outcome (+ future revision) rows
+        for the given signal_id. Returns the single-row dict, or None when
+        the signal_id is absent from the table. Raises on BQ network / auth
+        errors -- callers at the MCP boundary wrap this in a never-raise
+        try/except and return None on failure.
+        """
+        table = f"{self.settings.gcp_project_id}.{self.settings.bq_dataset_reports}.signals_log"
+        query = f"""
+            SELECT *
+            FROM `{table}`
+            WHERE signal_id = @signal_id
+            QUALIFY ROW_NUMBER() OVER (
+                PARTITION BY signal_id ORDER BY recorded_at DESC
+            ) = 1
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("signal_id", "STRING", signal_id),
+        ])
+        rows = list(self.client.query(query, job_config=job_config).result())
+        if not rows:
+            return None
+        return dict(rows[0])
+
     def get_performance_stats(self) -> dict:
         query = f"""
             SELECT

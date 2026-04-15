@@ -1,3 +1,6 @@
+# Claude Code transient agent worktrees (qa-evaluator isolation)
+.claude/worktrees/
+
 # Environment & secrets
 .env
 !.env.example

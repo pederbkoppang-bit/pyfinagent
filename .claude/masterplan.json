@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship a validated, evidence-based trading signal system by May 2026",
-  "updated_at": "2026-04-14T05:03:30.562816+00:00",
+  "updated_at": "2026-04-15T00:00:00.000000+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -222,6 +222,24 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "2.14",
+          "name": "Switch Paper Trading Analysis from Gemini to Claude",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read())\"",
+            "success_criteria": [
+              "claude_analysis_returns_valid_json",
+              "paper_trading_cycle_produces_trades",
+              "positions_appear_on_dashboard",
+              "no_gemini_dependency_in_paper_trading_path"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },
@@ -332,7 +350,7 @@
         {
           "id": "4.1",
           "name": "Slack Signal Delivery",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
@@ -364,7 +382,7 @@
         {
           "id": "4.3",
           "name": "Risk Management",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",

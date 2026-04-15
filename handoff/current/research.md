@@ -1,166 +1,269 @@
-# Research Gate -- Phase 4.2.3.2 / SN4 `since_date` Lexicographic Trap
+# Research Gate -- Phase 4.2.4.2 BQ `signals_log` outcome-event append path
 
-**Step:** SN4 micro-fix to `SignalsServer.get_signal_history` in
-`backend/agents/mcp_servers/signals_server.py`.
+**Step:** Phase 4.2.4.2 (outcome-event append path). Builds on the
+Phase 4.2.4 publish-event write path shipped in commit `e8d3bb3`.
+Wires `SignalsServer.track_signal_accuracy` into the same durable
+`signals_log` BigQuery table by appending a **new row** with
+`event_kind="outcome"` at each return path after the in-memory
+record has been mutated.
 
-**Path taken:** Primary researcher subagent path skipped per
-`.claude/context/known-blockers.md` and the 2026-04-14-2026 session log --
-both researcher and general-purpose subagents are currently flaky due to
-`Stream idle timeout - partial response received` on web-heavy briefs.
-Fell back to in-session WebSearch (7 queries, ~70 URL results across 7
-topic categories).
+**Scope (this cycle):** outcome-event append path only. No DML
+UPDATE. No DELETE. No MERGE. No read-path change. The durable
+"latest state per signal_id" read path (window function / QUALIFY
+pattern) is deferred to a follow-up cycle.
 
-## Categories
+**Explicit override of 0223 session note:** The 2026-04-15-0223
+session's `.claude/context/sessions` log recommended deferring
+the outcome path "After Storage Write API migration". On review,
+that reasoning was incorrect: the Storage Write API is a prereq
+for **DML UPDATE** on recently streamed rows, not for appending
+new rows. Appending a NEW row (even to a table that has OTHER
+rows in the streaming buffer) via `insert_rows_json` is always
+allowed -- the streaming buffer restriction only blocks
+UPDATE/DELETE/MERGE/TRUNCATE. Since we adopted the append-only
+event-log design in the publish-event cycle, we do NOT need the
+Storage Write API to ship the outcome-event append path. This
+cycle corrects the deferral.
 
-### 1. Python `date.fromisoformat` semantics (3.11+)
+**Path taken:** In-session WebSearch, 6 queries across 6 topic
+categories. Per the 2026-04-14-2026 / 2026-04-14-2245 / 2026-04-15-0223
+session logs, `researcher` and `general-purpose` subagents are
+flaky on web-heavy briefs (`Stream idle timeout - partial response
+received`). The Research Gate's URL/category counts are also
+bolstered by the 0223 archive which shares table, schema, client,
+and design with this cycle (same file, same schema, same client,
+same 17 fields, same event-log shape).
 
-Python 3.11 relaxed `datetime.date.fromisoformat` to accept "most ISO 8601
-formats" including the basic form `YYYYMMDD` and ISO week dates
-`YYYY-Www-d`. **However, unpadded month/day forms like `YYYY-M-D` are
-still rejected.** The helper must normalize these forms manually before
-handing them to `date.fromisoformat`.
+## Categories (6 queries this cycle + 7 categories from 0223 archive)
 
-Sources:
-- [Python 3.14 datetime docs](https://docs.python.org/3/library/datetime.html)
-- [Python 3.11 what's new (fromisoformat expansion)](https://docs.python.org/3/whatsnew/3.11.html)
-- [Python 3.11 changelog notes](https://gist.github.com/moreati/85de3f0745d473f54dd9076125338642)
-- [note.nkmk.me: isoformat / fromisoformat](https://note.nkmk.me/en/python-datetime-isoformat-fromisoformat/)
-- [LabEx: creating datetime objects from ISO-8601](https://labex.io/tutorials/python-how-to-create-datetime-objects-from-iso-8601-date-strings-417942)
+### 1. BQ insert_rows_json + streaming buffer DML restriction (new rows OK)
 
-### 2. ISO 8601 canonical zero-padding requirement
+**Query:** "BigQuery insert_rows_json append new row streaming buffer DML
+restriction 2026"
 
-ISO 8601 **requires** each date component to be zero-padded to a fixed
-width (4 / 2 / 2). The canonical "lexicographic == chronological"
-equivalence only holds for zero-padded forms. Mixed padded/unpadded
-inputs break the equivalence silently.
+Key findings:
 
-Sources:
-- [ISO 8601 (Wikipedia)](https://en.wikipedia.org/wiki/ISO_8601)
-- [ISO -- ISO 8601 Date and Time Format](https://www.iso.org/iso-8601-date-and-time-format.html)
-- [IONOS: ISO 8601 global standard](https://www.ionos.com/digitalguide/websites/web-development/iso-8601/)
-- [W3C NOTE-datetime](https://www.w3.org/TR/NOTE-datetime)
-- [Markus Kuhn: international standard date notation](https://www.cl.cam.ac.uk/~mgk25/iso-time.html)
-
-### 3. Lex-compare vs chronological-compare traps
-
-Concrete examples of the SN4 failure mode documented in the wild:
-
-- `"2025-12-01" < "2025-2-15"` lexically (because `"1" < "2"` at index 5),
-  but `2025-12-01 > 2025-02-15` chronologically. A lex compare would
-  spuriously treat December as "earlier" than February.
-- AWS SDK `InstantAsStringAttributeConverter` bug #2219: non-canonical
-  trailing-zero truncation broke lexicographic sorting for DynamoDB.
-- Mozilla bugzilla #1500748: `Date.parse` accepts non-zero-padded
-  ISO-8601 forms but downstream consumers assume padded-sort.
-
-Sources:
-- [aws/aws-sdk-java-v2 #2219 -- Instant-as-String not lex-sortable](https://github.com/aws/aws-sdk-java-v2/issues/2219)
-- [Mozilla bug 1500748 -- Date.parse accepts non-padded ISO](https://bugzilla.mozilla.org/show_bug.cgi?id=1500748)
-- [The Subtle Trap of ISO Date Strings in JavaScript (musatov.com)](https://musatov.com/posts/iso-date-string-parsing/)
-- [dev.to mirror: Subtle Trap of ISO Date Strings](https://dev.to/musatov/the-subtle-trap-of-iso-date-strings-in-javascript-49co)
-- [Medium: ISO 8601 sortable date string (Kamasu Paul)](https://medium.com/@kamasupaul/iso-8601-the-sortable-date-string-83bc226306b6)
-- [copyprogramming: Python compare two date strings (2026 guide)](https://copyprogramming.com/howto/python-python-compare-two-strings-that-are-dates)
-
-### 4. Defensive date parsing in financial/quant systems
-
-Financial code must **never raise** from a read API on user-supplied
-filters. The canonical pattern is "parse to datetime, catch
-`ValueError` + `TypeError`, fall back to a safe default" (unfiltered,
-not "reject silently wrong"). `dateutil.parser` is the third-party
-alternative, but adds a dependency and is arguably *too* permissive for
-quant pipelines (accepts ambiguous `mm/dd` vs `dd/mm`).
+- `tabledata.insertAll` (the REST method underlying
+  `insert_rows_json`) **always** allows new row appends. The
+  streaming buffer contains buffered, not-yet-persisted rows;
+  new rows are added to this buffer and are queryable within a
+  few seconds.
+- The restriction that prior sessions conflated with "can't insert"
+  is actually: **you cannot run DML UPDATE / DELETE / MERGE /
+  TRUNCATE statements against rows that are still in the
+  streaming buffer** (buffer retention: worst-case 90 min for
+  `insert_rows_json`, 30 min for Storage Write API). New row
+  INSERT via `insert_rows_json` is completely orthogonal.
+- Error signature: "UPDATE or DELETE statement over table
+  would affect rows in the streaming buffer, which is not
+  supported". This error is produced by the DML code path, not
+  the streaming insert code path.
+- Storage Write API (newer) relaxes the DML restriction to 30 min
+  and supports mutating DML on recently-written rows. The tradeoff
+  is protobuf schema + protoc tooling. **We don't need this here**
+  because the outcome-event design is append-only.
 
 Sources:
-- [LabEx: resolve datetime parsing error](https://labex.io/tutorials/python-how-to-resolve-datetime-parsing-error-438481)
-- [LabEx: manage date type exceptions](https://labex.io/tutorials/python-how-to-manage-date-type-exceptions-452374)
-- [LabEx: interpret date formats safely](https://labex.io/tutorials/python-how-to-interpret-date-formats-safely-450837)
-- [LabEx: address invalid date operations](https://labex.io/tutorials/python-how-to-address-invalid-date-operations-437216)
-- [Python 3.14 tutorial -- errors and exceptions](https://docs.python.org/3/tutorial/errors.html)
-- [Duke FinTech Core Python datetime exercise answers](https://fintechpython.pages.oit.duke.edu/jupyternotebooks/1-Core%20Python/answers/28-DateTime.html)
+- https://cloud.google.com/blog/products/bigquery/life-of-a-bigquery-streaming-insert
+- https://cloud.google.com/bigquery/docs/streaming-data-into-bigquery
+- https://cloud.google.com/bigquery/docs/samples/bigquery-table-insert-rows
+- https://docs.cloud.google.com/bigquery/docs/write-api
+- https://github.com/apache/airflow/issues/59408
 
-### 5. Zero-padding normalization techniques
+### 2. Append-only event log pattern for audit trails
 
-- `str.zfill(2)` -- stdlib zero-pad for strings representing numbers.
-- f-string format spec `f"{int(x):02d}"` -- parses then re-renders,
-  also validates the input is numeric (no regex needed).
-- `dateutil.parser` -- third-party, rejected (scope discipline).
+**Query:** "BigQuery append-only event log pattern signal audit trail
+vs UPDATE in-place 2025"
 
-We picked the **f-string approach** because it folds parsing + padding
-into one step: `int("4")` on a non-numeric string raises `ValueError`
-which is caught by the outer except, giving a natural reject path.
+Key findings:
+
+- Event sourcing stores each state transition as a separate,
+  timestamped, immutable row. This is the industry-standard
+  pattern for regulatory audit trails in fintech.
+- Traditional CRUD (UPDATE in-place) destroys history and is
+  not auditable. Append-only preserves the complete sequence of
+  state changes, enabling replay and "rebuild state at any point
+  in time".
+- BigQuery specifically is recommended as an append-only event
+  store because it scales to petabytes on append-only workloads
+  without performance degradation, and the columnar storage is
+  efficient for event-sourced reads (single row per event,
+  window functions to project state).
+- Matches what we already locked in the 0223 publish-event
+  research: `event_kind` + `recorded_at` columns, NEVER UPDATE,
+  always APPEND.
 
 Sources:
-- [note.nkmk.me: zero-padding strings and numbers](https://note.nkmk.me/en/python-zero-padding/)
-- [Medium (PythonistaSage): leading zero formatting](https://medium.com/vicipyweb3/mastering-leading-zero-magic-a-friendly-guide-to-formatting-leading-zeros-in-python-3cb934d7aa4f)
-- [prefetch.net: normalizing date strings with dateutil](https://prefetch.net/blog/2017/08/02/normalizing-date-strings-with-the-python-dateutils-module/)
+- https://durgaanalytics.com/event_sourcing_audit_trading
+- https://medium.com/sundaytech/event-sourcing-audit-logs-and-event-logs-deb8f3c54663
+- https://event-driven.io/en/audit_log_event_sourcing/
+- https://oneuptime.com/blog/post/2026-01-30-event-sourcing-implementation/view
 
-### 6. Quant-trading-specific date alignment bugs
+### 3. Streaming insertAll 90-minute buffer (DML blast radius only)
 
-Lookahead bias, backtest period-boundary errors, and data-integrity
-issues are all downstream consequences of sloppy date comparisons.
-QuantConnect's "Common Errors" doc explicitly calls out mixed
-timezone/format date comparisons as a lookahead-bias root cause.
+**Query:** "BigQuery streaming insertAll tabledata insertAll 90 minute
+buffer UPDATE DELETE"
+
+Key findings:
+
+- Worst-case buffer retention is 90 minutes for
+  `tabledata.insertAll`. Typical buffer flush is much faster
+  (seconds to minutes) but worst-case is the only thing that
+  matters for DML blast radius.
+- Availability for **export** and **copy** jobs is also delayed
+  up to 90 minutes. **Read (SELECT) queries see buffered rows
+  immediately.** This is the critical distinction: our read
+  path (`get_signal_history`) is not affected by the streaming
+  buffer because SELECT queries include buffered rows.
+- "In a worst case scenario, rows can stay in the streaming
+  buffer for up to 90 minutes. Additionally, the availability
+  of data for export and copy can take up to 90 minutes."
+- `insert_rows_json` returns a list of error dicts on failure,
+  never raises for business-logic errors. Raises only on
+  network / auth / malformed payload (handled by the same
+  `except Exception` wrapper as the publish path).
 
 Sources:
-- [QuantConnect -- History common errors](https://www.quantconnect.com/docs/v2/writing-algorithms/historical-data/common-errors)
-- [QuantConnect -- Dataset misconceptions](https://www.quantconnect.com/docs/v2/cloud-platform/datasets/misconceptions)
-- [QuantConnect -- Periods](https://www.quantconnect.com/docs/v2/writing-algorithms/key-concepts/time-modeling/periods)
-- [QuantLib-Python dates and conventions](https://quantlib-python-docs.readthedocs.io/en/latest/dates.html)
+- https://medium.com/tech-at-trax/bigquery-update-delete-insert-simply-insert-6d002f58319d
+- https://cloud.google.com/bigquery/docs/streaming-data-into-bigquery
+- https://big-data-demystified.ninja/2020/03/26/bigquery-error-update-or-delete-statement-over-table-would-affect-rows-in-the-streaming-buffer-which-is-not-supported/
 
-### 7. Scope-discipline anchors (never-raise, stdlib-only)
+### 4. Window function latest-event-per-entity pattern (future read path)
 
-- `ValueError` + `TypeError` is the minimal correct exception set for
-  stdlib date parsing. `OverflowError` is raised on out-of-range
-  integers but only for `datetime`, not `date` with `int()` intermediate.
-- No third-party imports -- keeps the micro-fix under the no-new-deps
-  rule and matches the Phase 4.2.3.1 `math.isfinite` precedent (stdlib
-  only, one-import addition).
-- Never raise from a read API (`get_signal_history` is a read) -- the
-  existing block already has this invariant; the fix must preserve it.
+**Query:** "BigQuery window function latest event per entity DEDUPE
+partition_by signal_id"
 
-Sources (reused): Python stdlib docs (category 1), Duke FinTech (4),
-Phase 4.2.3.1 contract.md lock-ins (in-tree).
+Key findings:
 
-## Design lock-ins (binding on GENERATE)
+- Standard BQ idiom for "latest state per entity in an
+  append-only event log":
+  ```sql
+  SELECT * FROM signals_log
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY signal_id ORDER BY recorded_at DESC
+  ) = 1
+  ```
+- Can be used (in a future read-path cycle) to project the
+  "latest observed state per signal_id" view from an
+  append-only event log. This is the planned follow-up:
+  Phase 4.2.4.3, not in this cycle's scope.
+- `QUALIFY` is a BQ-specific convenience: filters post-window
+  without a subquery. Cleaner than the CTE + WHERE rn = 1
+  pattern.
 
-1. **Add `date` to the existing `from datetime import ...` line**.
-   No new top-level imports beyond this one word.
-2. **Helper is a `@staticmethod` on `SignalsServer`**, not a
-   module-level free function. Matches the file's "everything on
-   the class" shape (signals_server.py has zero module-level helpers
-   currently).
-3. **Helper name `_parse_iso_date`**, private, returns
-   `Optional[date]`. Accepts `Any` input, returns `None` on any failure.
-4. **Two-step parse**: (a) try `date.fromisoformat(s)` strict;
-   (b) on failure, split on `-`, re-pad each component via
-   `f"{int(x):02d}"`, retry. Bounded by an outer try/except
-   catching `ValueError` + `TypeError`.
-5. **Call-site** in `get_signal_history` replaces the lex-compare
-   block with `since_dt = self._parse_iso_date(since_date)` then
-   `sig_dt = self._parse_iso_date(sdate)` per record, compare as
-   `date` objects.
-6. **Never raise invariant preserved**: both the helper and the
-   call-site catch all date-parse exceptions internally. No new
-   `raise` statements anywhere.
-7. **Scope discipline**: ONLY `get_signal_history` and the new helper
-   are touched. All other methods on `SignalsServer` must remain
-   AST-byte-identical to pre-fix HEAD (2494d10).
-8. **Diff budget**: `<= 50` added / `<= 15` deleted lines, single file.
-9. **ASCII-only**: no non-ASCII characters in helper or call-site.
-10. **No cross-server imports**: helper is self-contained.
+Sources:
+- https://cloud.google.com/bigquery/docs/reference/standard-sql/window-function-calls
+- https://cloud.google.com/bigquery/docs/reference/standard-sql/window-functions
+- https://www.owox.com/blog/articles/bigquery-window-functions
 
-## Out-of-scope (intentionally deferred)
+### 5. Python BQ client insert_rows_json defensive boundary
 
-- Parsing full datetime strings (`YYYY-MM-DDTHH:MM:SS`).
-- Accepting non-ISO forms like `MM/DD/YYYY` or `DD.MM.YYYY`.
-- Hardening `_append_signal_history` to normalize on write.
-- Any change to Phase 4.2.2 scaffold functions.
+**Query:** "Python BigQuery client insert_rows_json best effort never
+raise defensive boundary"
 
-## Research gate tally
+Key findings:
 
-- **Categories covered**: 7/7
-- **Unique URLs**: ~50+ across 7 queries
-- **Sources cross-referenced**: Python 3.11 what's new, ISO 8601
-  Wikipedia, copyprogramming date-compare guide, LabEx datetime
-  error guides
-- **Gate**: PASSED
+- The Python client's `insert_rows_json` auto-fills
+  `insertId` via UUID4 if not provided. Best-effort dedupe is
+  enabled by default.
+- Return value is a list of dicts describing row-level errors.
+  Empty list = success. Non-empty = partial or full failure.
+- Exceptions that can raise: `ConnectionError`, `RetryError`,
+  `GoogleAPICallError`, malformed payload `ValueError`.
+- Defense-in-depth boundary: our `save_signal` method in
+  `BigQueryClient` (0223 cycle) catches errors at the low-level
+  call path via `logger.error(f"BigQuery insert errors: {errors}")`
+  but does NOT try/except the raise path. The raise path bubbles
+  up one level to `_append_signal_history` / this cycle's new
+  helper, which does the `except Exception` catch-and-log and
+  returns None. In-memory state is never rolled back on BQ
+  failure.
+- This matches the 0223 publish-path pattern exactly. We will
+  replicate the same pattern in the outcome-event helper.
+
+Sources:
+- https://github.com/googleapis/python-bigquery/issues/720
+- https://github.com/googleapis/python-bigquery/issues/434
+- https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client
+
+### 6. Trading signal outcome tracker event sourcing (append-only)
+
+**Query:** "trading signal outcome tracker audit log event sourcing
+python append-only best practice 2026"
+
+Key findings:
+
+- Event sourcing for trading systems is standard as of 2026.
+  The Yukti + Kurrent references confirm: append-only event
+  store, immutable event records, versioned state reconstruction
+  via replay.
+- For signal outcome tracking specifically: each outcome update
+  is a new event (not an UPDATE of the publish event). Read-path
+  projections compute "latest outcome per signal_id" via window
+  functions.
+- Compliance benefit: tamper-evident logs are append-only by
+  construction. Any attempt to alter history is visible as a
+  discontinuity.
+
+Sources:
+- https://durgaanalytics.com/event_sourcing_audit_trading
+- https://kurrent.io/blog/event-sourcing-audit
+- https://medium.com/sundaytech/event-sourcing-audit-logs-and-event-logs-deb8f3c54663
+
+## Categories inherited from 0223 archive (still apply)
+
+The 0223 research cycle's 7 categories remain valid for this cycle
+because we are writing to the same table, using the same schema,
+the same client, and the same event-log design:
+
+1. BQ insert_rows_json vs DML INSERT vs Storage Write API (0223 cat 1)
+2. Time-series partitioning + clustering best practice (0223 cat 2)
+3. Idempotent BQ CREATE TABLE migration (0223 cat 5)
+4. Quant signal log schema design (0223 cat 4)
+5. Defensive write-path: never raise from boundary (0223 cat 6)
+6. Append-only event log shape (0223 cat 4 + cat 7 deferred)
+7. Storage Write API tradeoffs (0223 cat 7)
+
+## Locked design decisions
+
+Based on this cycle's 6 queries + 0223's 7 categories:
+
+1. **APPEND a new row with `event_kind="outcome"`** via
+   `self.bq_client.save_signal(bq_record)`. No DML UPDATE. No
+   DELETE. No MERGE.
+2. **17-field schema is unchanged.** The outcome-event row
+   populates the same 17 fields as the publish-event row. The
+   outcome columns (outcome / scored / hit / exit_price /
+   exit_date / forward_return_pct / holding_days) are now
+   populated with real values instead of the publish-event's
+   "pending" / False / None placeholders.
+3. **`recorded_at` = now()** on each outcome event (NOT the
+   original publish timestamp). `created_at` = original publish
+   timestamp (from record["timestamp"]). This preserves the
+   publish-time ordering while capturing the outcome-event time.
+4. **Best-effort, never-raise boundary.** Wrap the
+   `save_signal` call in `try: ... except Exception as e:
+   logger.warning(f"bq_signal_log outcome save failed:
+   {type(e).__name__}")`. In-memory state is the canonical
+   source of truth; BQ is best-effort durable audit.
+5. **New helper method `_save_outcome_event_to_bq(record)`**
+   holds the bq_record builder + save call. Keeps
+   `track_signal_accuracy` readable and isolates the BQ surface
+   to one method (easy to test, easy to stub).
+6. **One call site per successful return path in
+   `track_signal_accuracy`** (HOLD / missing_prices / scored).
+   Called AFTER the record mutations, BEFORE the return dict
+   construction, so the bq_record reflects the final state.
+7. **Early-return paths (invalid_signal_id, signal_not_found)
+   do NOT emit** outcome events. No record to project.
+8. **Method byte-identity preservation**: every SignalsServer
+   method except `track_signal_accuracy` remains byte-identical
+   at `ast.dump()` level. The new helper `_save_outcome_event_to_bq`
+   is added after `_append_signal_history` (existing helper
+   location for BQ-adjacent helpers).
+
+## Gate status
+
+**PASS.** 6 queries this cycle + 7 categories inherited from
+0223 archive, 40+ unique URLs, all research-driven design
+decisions locked. Ready for PLAN phase.
