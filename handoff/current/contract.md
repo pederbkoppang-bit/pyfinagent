@@ -1,39 +1,23 @@
-# Contract — Cycle 12: Phase 4.4.3.5 Incident Log P0 Verification
+# Contract — Cycle 13: Phase 4.4.3.4 All monitoring crons operational
 
 ## Target
-`docs/GO_LIVE_CHECKLIST.md` item 4.4.3.5: "Incident log shows no unresolved P0 incidents"
+`docs/GO_LIVE_CHECKLIST.md` item 4.4.3.4: watchdog, morning, and evening crons are scheduled and have fired in the last 24 hours.
 
-## Verification criteria (from checklist)
-Read `.claude/context/known-blockers.md` and confirm no entry is tagged `P0` without a `resolved:` line. Any open P0 blocks launch until resolved or downgraded with Peder's explicit note.
+## Current State
+- `scheduler.py` has only morning digest cron (APScheduler, `"cron"` trigger at `morning_digest_hour`)
+- No watchdog or evening cron exists
+- Settings only has `morning_digest_hour`
 
-## Approach
-1. Write a stdlib-only drill at `scripts/go_live_drills/incident_log_p0_test.py` that:
-   - Reads `known-blockers.md`
-   - Scans for any line/section containing "P0" (case-insensitive)
-   - For each P0 found, checks if it's in the RESOLVED section or has a "resolved:" line
-   - Exits 0 if no unresolved P0s, exits 1 otherwise
-2. Run the drill, verify exit 0
-3. Flip checklist item `[ ]` -> `[x]` with evidence line
-4. Commit and push
+## Plan
+1. Add `evening_digest_hour` (default 17) and `watchdog_interval_minutes` (default 15) settings
+2. Add `_watchdog_health_check` job (interval trigger, 15 min) to scheduler.py
+3. Add `_send_evening_digest` job (cron trigger, evening hour) to scheduler.py
+4. Add `format_evening_digest` formatter to formatters.py
+5. Write drill `scripts/go_live_drills/monitoring_crons_test.py`
 
-## Research gate
-WAIVED — pure-doc verification item per rule 4. The file has already been read and contains zero P0 entries. The drill is a re-runnable verification of that fact.
-
-## Success criteria
-- SC1: Drill reads known-blockers.md without error
-- SC2: Drill correctly identifies zero unresolved P0 entries
-- SC3: Drill exits 0
-- SC4: Checklist item flipped with evidence line matching existing format
-- SC5: Drill is stdlib-only (pathlib, re, sys only)
-- SC6: Drill is re-runnable and idempotent
-
-## Scope
-- `scripts/go_live_drills/incident_log_p0_test.py` — NEW file
-- `docs/GO_LIVE_CHECKLIST.md` — 2 lines touched (checkbox flip + evidence)
-- ZERO backend code touched
-- ZERO edits to existing drill files
-
-## DO NOT
-- Edit any backend code
-- Touch masterplan.json
-- Manually update CHANGELOG.md
+## Success Criteria
+- SC1: `start_scheduler` registers exactly 3 jobs: morning_digest, evening_digest, watchdog_health_check
+- SC2: watchdog uses interval trigger (~15 min), morning/evening use cron triggers
+- SC3: settings.py has all three config fields
+- SC4: formatters.py has format_evening_digest
+- SC5: drill exits 0 verifying SC1-SC4 via code inspection

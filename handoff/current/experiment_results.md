@@ -1,33 +1,27 @@
-# Experiment Results -- Phase 4.4.3.5 Incident Log P0 Verification
+# Experiment Results -- Phase 4.4.3.4 All Monitoring Crons Operational
 
-**Cycle:** 12 (Ford Remote Agent, 2026-04-16)
-**Phase:** PLAN -> GENERATE -> EVALUATE -> LOG
+**Cycle:** 13 (Ford Remote Agent, 2026-04-16)
 
-## Drill output
+## Changes Made
 
+### 1. `backend/config/settings.py`
+- Added `evening_digest_hour: int = Field(17, ...)` 
+- Added `watchdog_interval_minutes: int = Field(15, ...)`
+
+### 2. `backend/slack_bot/scheduler.py`
+- Added `evening_digest` cron job (daily at `evening_digest_hour`)
+- Added `watchdog_health_check` interval job (every `watchdog_interval_minutes` min)
+- Evening digest fetches portfolio performance + today's trades, posts via `format_evening_digest`
+- Watchdog hits `/api/health`, posts to Slack only on failure (silent on success)
+
+### 3. `backend/slack_bot/formatters.py`
+- Added `format_evening_digest(portfolio_data, trades_today)` -- mirrors morning digest pattern with end-of-day P&L and trade list
+
+### 4. `scripts/go_live_drills/monitoring_crons_test.py`
+- AST-based drill verifying all 3 job registrations, trigger types, settings fields, and formatter existence
+- 13/13 scenarios PASS
+
+## Drill Output
 ```
-Incident Log P0 Drill -- Phase 4.4.3.5
-File: /Users/ford/.openclaw/workspace/pyfinagent/.claude/context/known-blockers.md
-
-  PASS  S0: known-blockers.md exists
-  PASS  S1: File has parseable RESOLVED and STILL ACTIVE sections -- resolved=17 lines, active=27 lines
-  PASS  S2: Count P0 mentions in entire file -- found 0 line(s) mentioning P0
-  PASS  S3: No P0 mentions in STILL ACTIVE section -- found 0 P0 mention(s) in active section
-  PASS  S4: Any P0 in RESOLVED section is properly marked resolved -- 0 P0 mention(s) in resolved section, all resolved=True
-  PASS  S5: No unresolved P0 incidents (composite) -- CLEAR
-
-DRILL PASS: 6/6 incident-log-P0 scenarios verified
+DRILL PASS: 13/13 monitoring cron scenarios verified against scheduler.py, settings.py, and formatters.py
 ```
-
-Exit code: 0
-
-## File state summary
-
-`known-blockers.md` contains:
-- 4 RESOLVED items: git push 403, disconnected histories, Phase 3 budget, step 2.10 dependency
-- 4 STILL ACTIVE items: no .venv in remote env, work on main branch, no manual changelog, researcher turn limit
-- Zero entries tagged P0 anywhere in the file
-
-## Artifacts
-- Drill: `scripts/go_live_drills/incident_log_p0_test.py`
-- Checklist flip: `docs/GO_LIVE_CHECKLIST.md` item 4.4.3.5

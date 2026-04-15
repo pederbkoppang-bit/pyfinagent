@@ -351,6 +351,55 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list) -> list[di
     return blocks
 
 
+def format_evening_digest(portfolio_data: dict, trades_today: list) -> list[dict]:
+    """Format the daily evening digest with end-of-day summary."""
+    blocks = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": f":city_sunset: Evening Digest — {datetime.now().strftime('%B %d, %Y')}", "emoji": True},
+        },
+    ]
+
+    if portfolio_data:
+        total_pnl = portfolio_data.get("total_pnl", 0)
+        total_return = portfolio_data.get("total_return_pct", 0)
+        sign = "+" if total_pnl >= 0 else ""
+        emoji = ":chart_with_upwards_trend:" if total_pnl >= 0 else ":chart_with_downwards_trend:"
+
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"*End-of-Day Portfolio:* {emoji} {sign}${total_pnl:,.2f} ({sign}{total_return:.1f}%)"},
+        })
+
+    if trades_today:
+        lines = []
+        for t in trades_today[:10]:
+            ticker = t.get("ticker", "?")
+            action = t.get("action", "?")
+            price = t.get("price", 0)
+            lines.append(f"• *{ticker}*: {action} @ ${price:,.2f}")
+
+        blocks.append({"type": "divider"})
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"*Today's Trades:*\n" + "\n".join(lines)},
+        })
+    else:
+        blocks.append({"type": "divider"})
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": "*Today's Trades:* No trades executed today."},
+        })
+
+    blocks.append({"type": "divider"})
+    blocks.append({
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": ":robot_face: PyFinAgent Evening Summary | `/portfolio` for details"}],
+    })
+
+    return blocks
+
+
 def _pct(value, decimals: int = 1, signed: bool = False) -> str:
     """Render a numeric percent-scale value as a percent string. "N/A" on bad input."""
     try:

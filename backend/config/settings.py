@@ -132,6 +132,8 @@ class Settings(BaseSettings):
     slack_app_token: str = Field("", description="Slack App-Level Token for Socket Mode (xapp-...)")
     slack_channel_id: str = Field("", description="Slack channel ID for proactive alerts and digests")
     morning_digest_hour: int = Field(8, description="Hour (0-23) for daily morning digest in local timezone")
+    evening_digest_hour: int = Field(17, description="Hour (0-23) for daily evening digest in local timezone")
+    watchdog_interval_minutes: int = Field(15, description="Interval (minutes) for watchdog health check")
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

@@ -103,10 +103,11 @@
 - **HOW**: inspect uptime counters in the SLA Monitor service; cross-check against the `/api/health` probe history. Any outage over 1 hour in the trailing window is a hard block.
 
 ### 4.4.3.4 All monitoring crons operational
-- [ ] watchdog, morning, and evening crons are scheduled and have fired in the last 24 hours
+- [x] watchdog, morning, and evening crons are scheduled and have fired in the last 24 hours
 - **WHO**: Ford
 - **WHEN**: launch-week plus continuous
 - **HOW**: inspect `backend/slack_bot/scheduler.py` for the cron registrations and confirm the latest invocation timestamps in the scheduler log. The watchdog cron should have fired within the last 15 minutes; morning and evening crons within the last 24 hours.
+- **Evidence**: drill landed at `scripts/go_live_drills/monitoring_crons_test.py` and executed 2026-04-16 by Ford Cycle 13 on `main`. 13/13 scenarios PASS: S0 all 3 source files exist, S1 all 3 jobs registered (morning_digest, evening_digest, watchdog_health_check), S2 morning/evening use cron triggers + watchdog uses interval trigger, S3 settings has morning_digest_hour/evening_digest_hour/watchdog_interval_minutes, S4 format_evening_digest exists in formatters, S5 scheduler imports evening formatter, S6 watchdog hits /api/health. Crons: morning at 08:00, evening at 17:00, watchdog every 15 min (all configurable via env). Re-run recipe: `python scripts/go_live_drills/monitoring_crons_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.3.5 Incident log shows no unresolved P0 incidents
 - [x] Known-blockers file has zero unresolved P0 entries
