@@ -642,6 +642,51 @@ class SignalsServer:
             except Exception as e:
                 logger.warning(f"bq_signal_log save failed: {type(e).__name__}")
 
+    def _save_outcome_event_to_bq(self, record: Dict[str, Any]) -> None:
+        """Append an outcome-event row to the durable signals_log table.
+
+        Phase 4.2.4.2 helper. Called from track_signal_accuracy after
+        each successful record mutation (HOLD / missing_prices / scored)
+        to append a new row with event_kind="outcome" to the
+        append-only signals_log BigQuery table. The read-path
+        projection "latest outcome per signal_id" is a window-function
+        query deferred to a follow-up cycle.
+
+        Append-only by design: we NEVER UPDATE the prior publish-event
+        row. The streaming-buffer DML restriction is therefore not a
+        concern because we only INSERT. See handoff/current/research.md
+        category 1 for the full reasoning.
+
+        Best-effort, never-raise boundary. In-memory state in
+        track_signal_accuracy is the canonical source of truth; BQ is
+        the durable audit trail. BQ failures are logged and swallowed.
+        """
+        if self.bq_client is None:
+            return
+        try:
+            bq_record = {
+                "signal_id": record["signal_id"],
+                "ticker": record["ticker"],
+                "signal_type": record["signal_type"],
+                "confidence": record["confidence"],
+                "signal_date": record["date"],
+                "entry_price": record["entry_price"],
+                "factors_json": json.dumps(record["factors"]),
+                "created_at": record["timestamp"],
+                "outcome": record["outcome"],
+                "scored": record["scored"],
+                "hit": record["hit"],
+                "exit_price": record["exit_price"],
+                "exit_date": record["exit_date"],
+                "forward_return_pct": record["forward_return_pct"],
+                "holding_days": record["holding_days"],
+                "recorded_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+                "event_kind": "outcome",
+            }
+            self.bq_client.save_signal(bq_record)
+        except Exception as e:
+            logger.warning(f"bq_signal_log outcome save failed: {type(e).__name__}")
+
     def risk_check(self, portfolio: Dict[str, Any], proposed_trade: Dict[str, Any]) -> Dict[str, Any]:
         """
         Portfolio-extrinsic constraint check for a proposed trade.
@@ -1394,6 +1439,7 @@ class SignalsServer:
             record["exit_date"] = exit_date if isinstance(exit_date, str) else None
             record["forward_return_pct"] = 0.0
             record["holding_days"] = self._compute_holding_days(record.get("date", ""), exit_date)
+            self._save_outcome_event_to_bq(record)
             return {
                 "ok": True,
                 "reason": "hold_unscored",
@@ -1415,6 +1461,7 @@ class SignalsServer:
             record["exit_price"] = exit_price_f if exit_price_f > 0.0 else None
             record["exit_date"] = exit_date if isinstance(exit_date, str) else None
             record["forward_return_pct"] = None
+            self._save_outcome_event_to_bq(record)
             return {
                 "ok": False,
                 "reason": "missing_prices",
@@ -1463,6 +1510,7 @@ class SignalsServer:
         record["exit_date"] = exit_date if isinstance(exit_date, str) else None
         record["forward_return_pct"] = forward_return_pct
         record["holding_days"] = self._compute_holding_days(record.get("date", ""), exit_date)
+        self._save_outcome_event_to_bq(record)
 
         return {
             "ok": True,
