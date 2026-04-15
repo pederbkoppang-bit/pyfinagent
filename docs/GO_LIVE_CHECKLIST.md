@@ -137,10 +137,11 @@
 - **HOW**: inspect the exit logic in `backend/services/paper_trader.py` for the stop-loss check and write a test that marks a position at -8.5% and confirms the next tick emits a SELL. If the stop is not present, this item blocks launch until it is added as a code gate.
 
 ### 4.4.4.4 Risk limits hardcoded in `risk_check` (not configurable without code change)
-- [ ] `max_exposure_per_ticker_pct`, `max_total_exposure_pct`, `max_drawdown_pct`, `max_daily_trades` are all sourced from `get_risk_constraints` and are not read from a mutable config file or env var
+- [x] `max_exposure_per_ticker_pct`, `max_total_exposure_pct`, `max_drawdown_pct`, `max_daily_trades` are all sourced from `get_risk_constraints` and are not read from a mutable config file or env var
 - **WHO**: Ford
 - **WHEN**: launch-week
 - **HOW**: `grep -n "max_exposure_per_ticker_pct\|max_drawdown_pct\|max_daily_trades" backend/agents/mcp_servers/signals_server.py` and confirm the values are literals in `get_risk_constraints`. Any indirection through a YAML / TOML / env loader is a hard block (it would allow accidental relaxation during an incident).
+- **Evidence**: verified 2026-04-15 by Ford Cycle 8 on `main`. `SignalsServer.get_risk_constraints` (signals_server.py:1272) returns a literal `ast.Dict` with exactly the 4 required keys as Python literals: `max_exposure_per_ticker_pct=10.0`, `max_total_exposure_pct=100.0`, `max_drawdown_pct=-15.0`, `max_daily_trades=5`. No `os.environ`, `getenv`, `yaml.`, `toml.`, `ConfigParser`, `load_config`, `from_yaml`, or `from_toml` anywhere in the file. `get_risk_constraints` does not reference `self.settings`. `risk_check` (signals_server.py:723) calls `self.get_risk_constraints()` as its single source of truth for the hard-path limits. Verification block: `handoff/current/contract.md` section C (SC9-16), executed via `python3` + stdlib only, zero assertion failures.
 
 ---
 

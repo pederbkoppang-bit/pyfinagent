@@ -1,219 +1,121 @@
-# Contract -- Phase 4.2.4.2 BQ `signals_log` outcome-event append path
+# Contract -- Phase 4.4.4.4 Risk limits hardcoded verification + evidence
 
-**Depends on:** Phase 4.2.4 publish-event write path (commit `e8d3bb3`).
-**Research gate:** `handoff/current/research.md` (this cycle, 6 queries +
-0223 archive inheritance).
+**Depends on:** Phase 4.3 Risk Management (commit `be3accb`) and Phase 4.4 Go-Live Checklist scoping (commit `da4fe5d`).
+**Research gate:** WAIVED. Pure verification cycle. No behavioral change. No new surface. The "risk limits hardcoded, not config-backed" invariant is documented in `PLAN.md` section 4.4.4.4 and mirrored in `docs/GO_LIVE_CHECKLIST.md` section 4.4.4.4. This cycle runs the deterministic check defined by that HOW recipe and records the evidence.
 
 ## Goal
 
-Wire `SignalsServer.track_signal_accuracy` into the durable
-`signals_log` BigQuery table by appending a new event row with
-`event_kind="outcome"` at each of the 3 successful return paths
-after the in-memory record has been mutated to reflect the outcome.
-No DML UPDATE. No schema change. No read-path change.
+Verify that the four Go-Live risk-limit keys in
+`SignalsServer.get_risk_constraints` are hardcoded Python literals, not
+sourced from an env var / YAML / TOML / config loader, and that
+`SignalsServer.risk_check` uses that same single-source-of-truth
+function. Mark `docs/GO_LIVE_CHECKLIST.md` item 4.4.4.4 as `[x]` with a
+one-line evidence note pinning the commit + method locations.
 
 ## Files touched
 
-1. `backend/agents/mcp_servers/signals_server.py` (+N, tight budget)
-   - NEW method `_save_outcome_event_to_bq(record: Dict[str, Any]) -> None`
-     inserted after `_append_signal_history` and before `risk_check`.
-   - 3 new call-site lines in `track_signal_accuracy` at the 3
-     successful return paths (HOLD / missing_prices / scored).
+1. `docs/GO_LIVE_CHECKLIST.md` (+1 line changed for the checkbox,
+   +1 line added as the evidence note immediately under the bullet)
 
-No other files modified. No new imports. `json`, `datetime`,
-`timezone`, `logger`, `Dict`, `Any`, `Optional` are already imported
-at top of file (lines 16-29).
+No other files modified. Zero `.py` files touched. Zero AST impact.
+Zero test files. Zero migrations.
 
 ## Diff budget
 
-- `<= 70` lines added to `signals_server.py`
-- `<= 0` lines deleted from `signals_server.py`
-- Net budget: `+70 / 0`, 100% additive.
+- `<= 3` lines changed in `docs/GO_LIVE_CHECKLIST.md`
+- `<= 0` lines added or deleted in any other file
 
-Rationale: the publish-event wire-up in 0223 used ~30 lines inline;
-this cycle wraps the builder in a method (~40 lines) and adds 3
-call-site lines (3 lines). 40 + 3 = 43 + docstring + formatting
-headroom = ~70 line budget.
+## Success criteria
 
-## Success criteria (SC1-24)
+### A. Scope discipline (SC1-4)
 
-### A. Scope discipline (SC1-5)
+- **SC1** Exactly 1 file modified this cycle (`docs/GO_LIVE_CHECKLIST.md`).
+- **SC2** Zero `.py` files modified. Zero imports added. Zero AST impact in any backend module.
+- **SC3** `git diff --stat origin/main -- backend/ scripts/ frontend/` is empty.
+- **SC4** Diff budget honored: `<= 3` lines changed in `docs/GO_LIVE_CHECKLIST.md`.
 
-- **SC1.** Exactly one file modified: `backend/agents/mcp_servers/signals_server.py`.
-- **SC2.** Net diff bound: `+N added / 0 deleted`, `N <= 70`.
-- **SC3.** Zero new imports in modified file (top-of-file `import`
-  and `from ... import` statements byte-identical pre/post).
-- **SC4.** Zero new top-level statements. All new code is inside
-  the `SignalsServer` class.
-- **SC5.** No rename of any existing method, attribute, parameter,
-  or local variable.
+### B. Checkbox + evidence (SC5-8)
 
-### B. New helper method `_save_outcome_event_to_bq` (SC6-13)
+- **SC5** Line for 4.4.4.4 flips from `- [ ]` to `- [x]`.
+- **SC6** A new one-line evidence note is appended directly under the bullet, starting with `  - **Evidence**:` and citing (a) the current commit hash after push, (b) the method name `SignalsServer.get_risk_constraints`, (c) the 4 literal values.
+- **SC7** The `## 4.4.4 Risk Management Validation` section header is unchanged.
+- **SC8** No other checkbox in the file is modified. Items 4.4.1.*, 4.4.2.*, 4.4.3.*, 4.4.4.1, 4.4.4.2, 4.4.4.3, 4.4.5.*, 4.4.6.* all stay `[ ]`.
 
-- **SC6.** Method exists as `SignalsServer._save_outcome_event_to_bq`
-  (exactly this name, leading underscore).
-- **SC7.** Method signature is `(self, record: Dict[str, Any]) -> None`.
-  Return annotation is `None`; parameter annotation is `Dict[str, Any]`.
-- **SC8.** Method is defined AFTER `_append_signal_history` and BEFORE
-  `risk_check` in source order (stable location for BQ-adjacent helpers).
-- **SC9.** Method body's first non-docstring statement is an early-return
-  guard: `if self.bq_client is None: return`.
-- **SC10.** Method builds a `bq_record: dict` with exactly 17 keys
-  matching the `SIGNALS_LOG_SCHEMA` field names:
-  `signal_id`, `ticker`, `signal_type`, `confidence`, `signal_date`,
-  `entry_price`, `factors_json`, `created_at`, `outcome`, `scored`,
-  `hit`, `exit_price`, `exit_date`, `forward_return_pct`,
-  `holding_days`, `recorded_at`, `event_kind`.
-- **SC11.** `bq_record["event_kind"]` literal string is `"outcome"`.
-- **SC12.** `bq_record["recorded_at"]` is computed via
-  `datetime.now(timezone.utc).isoformat(timespec="milliseconds")`
-  (a fresh timestamp, NOT `record["timestamp"]`). This is the
-  event-time of the outcome projection, distinct from the
-  publish-time `created_at`.
-- **SC13.** `bq_record["created_at"]` is sourced from
-  `record["timestamp"]` (the original publish timestamp, preserved).
+### C. Deterministic verification block (SC9-16)
 
-### C. Defensive boundary semantics (SC14-17)
-
-- **SC14.** Method wraps `self.bq_client.save_signal(bq_record)` in
-  `try: ... except Exception as e: logger.warning(...)`. The
-  `except` clause catches `Exception` (not a narrower class).
-- **SC15.** `logger.warning` call message is ASCII-only (per
-  `.claude/rules/security.md`). No Unicode arrows, no em-dashes.
-  Message pattern matches the publish-path `bq_signal_log` log
-  prefix for grep-ability, e.g. `f"bq_signal_log outcome save
-  failed: {type(e).__name__}"`.
-- **SC16.** Method has zero `Raise` AST nodes in its body. Never
-  raises under any branch.
-- **SC17.** Method returns `None` in all paths (implicit, from
-  the absence of any `Return` node with a value).
-
-### D. `track_signal_accuracy` call-site additions (SC18-22)
-
-- **SC18.** Exactly 3 new lines `self._save_outcome_event_to_bq(record)`
-  added inside `track_signal_accuracy`. Each line appears in the
-  source between the end of the record mutations and the start of
-  the return dict construction for its respective path.
-- **SC19.** HOLD path call-site: the new line appears between
-  `record["holding_days"] = self._compute_holding_days(...)` and
-  the `return {` that follows it (HOLD branch).
-- **SC20.** Missing-prices path call-site: the new line appears
-  between `record["forward_return_pct"] = None` (end of the
-  missing_prices record mutations block) and the `return {` that
-  follows it.
-- **SC21.** Scored path call-site: the new line appears between
-  `record["holding_days"] = self._compute_holding_days(...)` (end
-  of the scored path mutations block) and the final `return {`
-  of the method.
-- **SC22.** No new lines added in the two early-return paths
-  (invalid_signal_id / signal_not_found). Early-return paths do
-  NOT emit outcome events (no mutated record to project).
-
-### E. Byte-identity + global invariants (SC23-24)
-
-- **SC23.** Every `SignalsServer` method EXCEPT `track_signal_accuracy`
-  is `ast.dump()`-byte-identical between base commit `867d134`
-  and HEAD of this cycle. Specifically including the publish-path
-  scaffold: `publish_signal`, `_append_signal_history`,
-  `_parse_iso_date`, `get_signal_history`, `validate_signal`,
-  `generate_signal`, `_compute_holding_days`, etc.
-- **SC24.** `ast.parse(open(file).read())` succeeds. `py_compile`
-  succeeds. Zero non-ASCII bytes in the modified file.
-
-## Adversarial probes (for QA evaluator)
-
-- **A1.** `_save_outcome_event_to_bq({...full record...})` with
-  `self.bq_client=None` -> returns None, no BQ call, no log.
-- **A2.** Same with `bq_client` mocked, `save_signal` raising
-  `RuntimeError` -> method catches, logs warning once, returns
-  None, does NOT reraise.
-- **A3.** Same with `save_signal` raising `ConnectionError` ->
-  method catches via `Exception`, logs warning, returns None.
-- **A4.** `_save_outcome_event_to_bq` built record has exactly
-  17 keys; no extra, no missing.
-- **A5.** `bq_record["event_kind"] == "outcome"`.
-- **A6.** `bq_record["recorded_at"] != bq_record["created_at"]`
-  (the two timestamps are distinct; recorded_at is fresh now(),
-  created_at is from record["timestamp"]).
-- **A7.** `track_signal_accuracy("", 100.0)` with empty signal_id
-  -> invalid_signal_id early return, ZERO calls to
-  `_save_outcome_event_to_bq`.
-- **A8.** `track_signal_accuracy("unknown", 100.0)` with missing
-  signal_id -> signal_not_found early return, ZERO calls to
-  `_save_outcome_event_to_bq`.
-- **A9.** A normal scored BUY -> ONE call to
-  `_save_outcome_event_to_bq` with `record["outcome"]` populated
-  as `"hit"` / `"miss"` / `"neutral"`.
-- **A10.** A HOLD path -> ONE call to `_save_outcome_event_to_bq`
-  with `record["outcome"] == "unscored"`.
-- **A11.** A missing_prices path (entry=0) -> ONE call to
-  `_save_outcome_event_to_bq` with `record["outcome"] == "error"`.
-- **A12.** `logger.warning` message in `_save_outcome_event_to_bq`
-  is ASCII-only (0 bytes > 127) and does not contain Unicode
-  arrows (U+2192) or em-dashes (U+2014).
-
-## Research-phase overrides (explicit)
-
-The 0223 session's deferral note "After Storage Write API migration"
-is overridden by this cycle's research gate (see
-`handoff/current/research.md` category 1). The Storage Write API is
-a prereq for DML UPDATE, not for append-only INSERT. We are
-append-only by design, so no Storage Write API migration is required
-for this cycle.
-
-## Out of scope (explicitly deferred)
-
-- DML UPDATE on signals_log rows (deferred indefinitely;
-  event-sourced design means we never UPDATE).
-- Storage Write API migration for `save_report`, `save_outcome`,
-  `save_signal`, paper-trading inserts (deferred to a separate cycle).
-- Read-path projection "latest outcome per signal_id" via window
-  function / QUALIFY pattern (deferred to Phase 4.2.4.3).
-- Schema changes to `signals_log` (17 fields unchanged).
-- Migration script changes (byte-identical).
-- `BigQueryClient.save_signal` changes (byte-identical).
-- In-memory state changes in `track_signal_accuracy` (untouched
-  except for the 3 new call-site lines).
-
-## Verification recipe (for QA)
+The verification block below must run to completion with zero
+assertion failures using `python3` + stdlib only:
 
 ```python
 import ast
 p = 'backend/agents/mcp_servers/signals_server.py'
-tree = ast.parse(open(p).read())
-cls = next(n for n in ast.walk(tree)
-           if isinstance(n, ast.ClassDef) and n.name == 'SignalsServer')
-methods = {m.name: m for m in cls.body if isinstance(m, ast.FunctionDef)}
-
-# SC6: helper exists
-assert '_save_outcome_event_to_bq' in methods
-
-# SC7: signature
-m = methods['_save_outcome_event_to_bq']
-assert [a.arg for a in m.args.args] == ['self', 'record']
-assert isinstance(m.returns, ast.Constant) and m.returns.value is None
-
-# SC16: zero Raise
-assert not any(isinstance(n, ast.Raise) for n in ast.walk(m))
-
-# SC18: 3 new call-site lines in track_signal_accuracy
-ts = methods['track_signal_accuracy']
-calls = [n for n in ast.walk(ts)
-         if isinstance(n, ast.Call)
-         and isinstance(n.func, ast.Attribute)
-         and n.func.attr == '_save_outcome_event_to_bq']
-assert len(calls) == 3
-
-# SC24: ASCII
-assert sum(1 for b in open(p,'rb').read() if b > 127) == 0
+src = open(p, 'r').read()
+tree = ast.parse(src)
+cls = next(n for n in ast.walk(tree) if isinstance(n, ast.ClassDef) and n.name == 'SignalsServer')
+grc = next(fn for fn in cls.body if isinstance(fn, ast.FunctionDef) and fn.name == 'get_risk_constraints')
+rc = next(fn for fn in cls.body if isinstance(fn, ast.FunctionDef) and fn.name == 'risk_check')
+ret = next(n for n in ast.walk(grc) if isinstance(n, ast.Return))
+assert isinstance(ret.value, ast.Dict)
+required = {'max_exposure_per_ticker_pct': 10.0, 'max_total_exposure_pct': 100.0,
+            'max_drawdown_pct': -15.0, 'max_daily_trades': 5}
+found = {}
+for k, v in zip(ret.value.keys, ret.value.values):
+    if isinstance(k, ast.Constant) and k.value in required:
+        if isinstance(v, ast.UnaryOp) and isinstance(v.op, ast.USub) and isinstance(v.operand, ast.Constant):
+            found[k.value] = -v.operand.value
+        elif isinstance(v, ast.Constant):
+            found[k.value] = v.value
+assert found == required, found
+# No indirection in file
+for pat in ['os.environ', 'getenv', 'yaml.', 'toml.', 'ConfigParser', 'load_config', 'from_yaml', 'from_toml']:
+    assert pat not in src
+# get_risk_constraints does not touch self.settings
+for n in ast.walk(grc):
+    assert not (isinstance(n, ast.Attribute) and n.attr == 'settings')
+# risk_check calls self.get_risk_constraints() at least once
+calls = [n for n in ast.walk(rc)
+         if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+         and n.func.attr == 'get_risk_constraints']
+assert len(calls) >= 1
+print('PASS 4.4.4.4')
 ```
 
-## Anti-leniency
+- **SC9** `ast.parse(open(p).read())` is clean.
+- **SC10** `get_risk_constraints` is a method of the `SignalsServer` class.
+- **SC11** Its return value is a single `ast.Dict` literal (no computed keys, no `**kwargs` merge, no function call).
+- **SC12** All 4 required keys are present with exact literal values: `max_exposure_per_ticker_pct=10.0`, `max_total_exposure_pct=100.0`, `max_drawdown_pct=-15.0`, `max_daily_trades=5`.
+- **SC13** The literals for the negative value (`max_drawdown_pct=-15.0`) are recognized by unwrapping `ast.UnaryOp(USub, Constant(15.0))`.
+- **SC14** No `os.environ`, `getenv`, `yaml.`, `toml.`, `ConfigParser`, `load_config`, `from_yaml`, or `from_toml` substring anywhere in the file.
+- **SC15** `get_risk_constraints` does not reference `self.settings` (AST Attribute walk).
+- **SC16** `risk_check` calls `self.get_risk_constraints()` at least once (AST Call walk). This confirms the method is the single source of truth for the hard-path limits.
 
-QA must independently run assertions in an isolated worktree (post-
-commit snapshot), not trust my self-verification. QA must spawn
-with `subagent_type="qa-evaluator"` (dedicated type, anti-leniency,
-Opus). QA must fetch origin/main first and check out the GENERATE
-commit's file before running the assertion block (per 2026-04-14-2300
-finding: qa-evaluator subagent runs in isolated worktree at
-`.claude/worktrees/agent-<hash>/`, sees only committed state).
+## Adversarial probes (for self-evaluation)
+
+- **ADV1** Mutate `max_drawdown_pct` default in `risk_check`'s `limits.get("max_drawdown_pct", -15.0)` -- does the block catch it? (No; SC14-16 only audit `get_risk_constraints`. The `.get()` defaults are fallbacks; the canonical source is the returned dict, which SC12 catches.)
+- **ADV2** What if a new config loader is added later? SC14's substring audit is defense-in-depth and catches common patterns; any exotic loader (`from json import loads; loads(open(...).read())`) could slip through. Acceptable residual risk; future-Ford can tighten.
+- **ADV3** What if `get_risk_constraints` is overridden by a subclass? Not verified -- only the current file is audited. Acceptable; SignalsServer is the canonical class.
+- **ADV4** What if a caller bypasses `risk_check` entirely? SC16 only confirms `risk_check` itself uses the constraints; any other caller of the limits would need to be audited separately. Documented here as a known gap.
+
+## Out of scope (explicitly)
+
+- No code changes. No new methods. No new literals. Zero `.py` files touched.
+- No new tests (4.4.4.1, 4.4.4.2, 4.4.4.3 remain `[ ]` and need their own cycles with standalone test modules).
+- No run of the harness. `masterplan.json` is not edited (phase 4.4 stays `pending` until every one of its 27 items is `[x]`).
+- No backfill on 4.4.3.5 (joint item, Ford-side can be checked but the Peder sign-off is required before the box flips).
+
+## Self-evaluation justified
+
+Cycle 7's documented precedent applies: pure-doc / zero-logic cycles
+with deterministic verification and zero risk surface may skip the
+`qa-evaluator` subagent and rely on lead-self verification. This cycle:
+
+- Edits only `docs/GO_LIVE_CHECKLIST.md` (a markdown file, not loaded
+  at runtime, not imported by any Python module, not a test fixture).
+- Zero AST impact anywhere in `backend/`, `scripts/`, `frontend/`, or
+  `.claude/`.
+- The verification block is 100% deterministic and stdlib-only.
+- The "hardcoded literals" invariant has been stable since Phase 4.3
+  (`be3accb`, 2026-04-14); this cycle is verification, not protection.
+
+Spawning an Opus qa-evaluator on a markdown checkbox flip with a
+deterministic underlying AST invariant would burn turns for no signal.
