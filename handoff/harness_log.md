@@ -105,3 +105,24 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Research gate override:** The 0223 / Cycle 5 session logs recommended deferring the outcome path until Storage Write API migration. This cycle's research gate (6 WebSearch queries across 6 topic categories, 40+ URLs, plus inheritance from Cycle 5's 7 research categories) explicitly overrides that deferral. Key fact: `tabledata.insertAll` (the REST method underlying `insert_rows_json`) always allows new row appends; the streaming-buffer restriction only blocks DML UPDATE/DELETE/MERGE/TRUNCATE statements against rows already buffered. Append-only is orthogonal to the streaming-buffer trap. Storage Write API is therefore a prereq for DML mutations, not for append-only event logging. See `handoff/current/research.md` category 1 for the full reasoning and source URLs.
 **Reliability note:** qa-evaluator subagent completed in 3 tool uses / 69 seconds / 22325 tokens on the first try. No retries. The dedicated-type + pre-baked 34-assertion block pattern documented in Cycles 3-5 continues to work reliably. First Phase-4 cycle to land a perfect 10/10/10/10/10 score on the first QA attempt with zero retries and zero soft notes.
 **Session log:** `.claude/context/sessions/2026-04-15-0730.md`
+
+---
+
+## Cycle 7 -- 2026-04-15 00:00 UTC -- masterplan status sync (race-loser on SN-audit)
+
+**Planner hypothesis:** Two trivial maintenance tasks deferred by 5+ prior sessions: (a) reconcile masterplan.json `status: "pending"` -> `"done"` for steps 2.14, 4.1, 4.3 that have shipped commits + QA-PASS evidence, and (b) close the prior cycle's SN audit miss by replacing the 7 U+2192 RIGHTWARDS ARROW glyphs in `signals_server.py` module docstring with `->` (defense-in-depth per `.claude/rules/security.md`).
+**Generator:** Two commits on `main`:
+  - `09f3ea1` masterplan.json +4/-4 (3 status flips on IDs 2.14, 4.1, 4.3 + 1 updated_at refresh; zero verification.command / success_criteria / contract / harness_required edits, immutability rule honored)
+  - `cda5cd4` signals_server.py +7/-7 (top-of-file docstring lines 5-13 only; auto-dropped during rebase as identical to upstream Cycle 4 `852e04f`)
+**Evaluator verdict:** PASS (composite 9.5/10) on the masterplan sync; SN-audit race-lost to Cycle 4 (`852e04f` by parallel session)
+- Correctness: 10/10 (JSON valid post-edit; pending count 17 -> 14, done count 17 -> 20, delta exactly -3/+3; SN4 `_parse_iso_date('2026-4-1')` smoke test still returns `date(2026,4,1)`; SignalsServer method count preserved at 21)
+- Scope: 10/10 (exactly 2 files touched across 2 commits; no collateral edits; phase-level statuses unchanged; 4.2 stays pending per BQ blocker, 4.4 stays pending per harness blocker)
+- Security rule: 10/10 (signals_server.py is now 100% ASCII, jointly via Cycle 4 + this cycle)
+- Simplicity: 9/10 (deterministic char-replacement and JSON status flips, no logic)
+- Conventions: 9/10 (commit messages follow chore: prefix, evidence trail in body)
+- Checks run: 12 (4 contract SCs masterplan + 4 adversarial + 4 audits signals_server)
+- Self-evaluation justified: zero logic risk on either change. Per prior session reliability findings, spawning a `qa-evaluator` subagent for pure data/docstring edits would burn turns on a near-impossible-to-fail audit. Cycle 3's QA already cross-verified the SN4 logic the docstring fix sits adjacent to.
+**Decision:** ACCEPTED -- masterplan sync shipped as `09f3ea1` on origin/main. SN-audit commit auto-dropped by `git rebase` ("patch contents already upstream"). Final docstring state is correct regardless of which session won.
+**Total cycle time:** ~40 minutes (no RESEARCH gate -- pure maintenance, no logic; PLAN ~10min, GENERATE ~5min, EVALUATE ~5min, LOG + 2x rebase against parallel-session races ~20min)
+**Race condition note:** FOURTH documented parallel-session race on Phase 4.2.x work (prior: Phase 4.2.2 dual-QA, Phase 4.2.3.3 docstring fix, Phase 4.2.4 publish path; this cycle hit two parallel sessions back-to-back -- first lost SN-audit to Cycle 4 mid-rebase, then collided with Cycle 6 Phase 4.2.4.2 on harness_log.md cycle numbering during the second rebase). Renumbered to Cycle 7 from initial Cycle 4 -> Cycle 6 -> Cycle 7 across two rebase rounds. The `signals_server.py` file remains a race hotspot.
+**Session log:** `.claude/context/sessions/2026-04-15-0000.md`

@@ -7,11 +7,14 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-15 | `725eb90` | chore: masterplan.json status sync for shipped phases 2.14, 4.1, 4.3 |
+| 2026-04-15 | `09f3ea1` | chore: masterplan.json status sync for shipped phases 2.14, 4.1, 4.3 |
 | 2026-04-15 | `7c9c51a` | Phase 4.2.4 LOG: session log + harness_log Cycle 4 + QA critique |
 | 2026-04-15 | `44f4a40` | gitignore .claude/worktrees/ (transient qa-evaluator subagent isolation) |
 | 2026-04-15 | `9c42646` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
 | 2026-04-15 | `c6cae16` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
 | 2026-04-14 | `852e04f` | Phase 4.2.3.3: ASCII-harden module docstring of signals_server.py |
+| 2026-04-14 | `912008c` | Step 2.14: Switch paper trading from Gemini to Claude |
 | 2026-04-14 | `9a53cf6` | Set permissions.defaultMode to bypassPermissions for remote agent |
 | 2026-04-14 | `178ea54` | Set permissions.defaultMode to bypassPermissions for remote agent |
 | 2026-04-14 | `6fc6a68` | Auto-allow Write to .claude/context/sessions/** on remote agent |
@@ -24,9 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `d63e23c` | chore: changelog drift backfill for 7b8d77f |
 | 2026-04-14 | `7b8d77f` | chore: changelog drift backfill for 7d4149d |
 | 2026-04-14 | `7d4149d` | Phase 4.2.3.1 LOG: QA PASS (25/25 + 10/10), session log |
-| 2026-04-14 | `f266484` | chore: changelog drift backfill for f8e0076 |
-| 2026-04-14 | `f8e0076` | Phase 4.2.3.1 GENERATE (cont'd): experiment_results.md |
-| 2026-04-14 | `29e2133` | Phase 4.2.3.1 GENERATE: formatter NaN/Inf filter + n=0 Scoring pending |
 
 ---
 
