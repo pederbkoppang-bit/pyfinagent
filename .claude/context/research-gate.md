@@ -17,3 +17,5 @@ Every plan step must pass the Research Gate before proceeding to GENERATE.
 - [ ] Extracted concrete thresholds/methods to adopt?
 - [ ] Noted warnings/pitfalls from literature?
 - [ ] Updated handoff/current/contract.md with research-backed criteria?
+
+**Autoresearch memos count as a source category.** A nightly gpt-researcher cron (`scripts/autoresearch/run_memo.py`, launched by `com.pyfinagent.autoresearch`) emits markdown memos into `handoff/autoresearch/<date>-topic<NN>-<slug>.md`. Each memo is a Claude-driven `detailed_report` on one of 14 rotating topics about AI in equity trading — academic papers, university groups, company findings. When a harness cycle touches a topic already covered by a recent memo (within the last 14 days), the cycle MUST cite that memo in its RESEARCH.md + contract.md and treat it as satisfying 3-5 of the required URL sources. New independent searches are still required for the remaining sources, but the memo counts as one pre-computed source category.

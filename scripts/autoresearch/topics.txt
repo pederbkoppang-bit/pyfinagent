@@ -1,0 +1,24 @@
+# Nightly autoresearch topics for pyfinAgent.
+# One topic per line. Lines starting with # are skipped.
+# The runner picks line (day_of_year % N_topics) each night so a
+# 14-topic file rotates with a 2-week cadence.
+#
+# Focus: academic papers, university research groups, and company
+# findings on using AI / LLMs / machine learning for equity trading
+# alpha. Each topic must be phrased as a deep-research question, not
+# a keyword list — gpt-researcher's quality depends on question shape.
+
+What are the most recent (2025-2026) peer-reviewed findings on using large language models to generate alpha in US equity markets? Focus on arXiv and SSRN preprints, Stanford HAI, CMU ML, MIT LFE, and Imperial College Finance working papers.
+What do published Two Sigma, Renaissance Technologies, Citadel, Jane Street, JPMorgan AI Research, and BlackRock Systematic papers say about LLMs in quantitative trading in 2025-2026? Prioritize their actual public research outputs (arXiv, Medium, engineering blog) over marketing.
+What are the state-of-the-art methods (2025-2026) for using 10-K and 10-Q filings as LLM inputs for equity signal generation? Look for academic benchmarks, replication studies, and any deployed production systems.
+What does the latest research (2025-2026) say about regime detection in equity markets using transformer or diffusion models? What regimes do researchers currently identify and which models perform best out-of-sample?
+What are the peer-reviewed findings (2025-2026) on deflated Sharpe ratio, walk-forward validation, and out-of-sample robustness for ML-driven equity strategies? Include Bailey, Lopez de Prado, and any follow-up studies that tightened or relaxed the original DSR threshold.
+What does the latest LLM-as-agent literature (2025-2026) say about multi-agent trading systems? Look for papers with actual backtest or paper-trading results, not pure simulation.
+What are the most recent published findings (2025-2026) on insider-transaction and Form 4 filings as alpha signals when combined with LLM classification? Include academic hit-rate studies.
+What research exists (2025-2026) on combining classical factor models (Fama-French, momentum, low-volatility) with LLM-derived features? What is the measured incremental Sharpe over classical factors alone?
+What do the most recent industry research notes (2025-2026) from Goldman Sachs QIS, Morgan Stanley Quantamentals, Deutsche Bank Systematic, and UBS Evidence Lab say about AI in equity selection?
+What does the literature (2025-2026) say about news sentiment alpha decay, half-life, and overcrowding when many desks run the same LLM-based sentiment pipeline?
+What are the published findings (2025-2026) on retrieval-augmented LLMs for equity research — does grounding an LLM on a curated financial corpus materially improve prediction accuracy vs. plain chat models?
+What does the latest research (2025-2026) say about using LLMs to score management guidance, earnings call tone, and Q&A evasion as alpha signals? Include reproducibility and look-ahead-bias checks.
+What are the newest (2025-2026) academic findings on small-cap equity alpha with AI features? Small caps are less covered, so LLM-derived signals may have more runway — what does the evidence say?
+What is the current (2025-2026) academic and industry consensus on risk management, position sizing, and kelly-fraction caps specifically for AI-driven equity strategies? Include any incident reports or drawdown post-mortems.
