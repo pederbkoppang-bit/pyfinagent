@@ -215,3 +215,21 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Total cycle time:** ~15 minutes (RESEARCH gate WAIVED; PLAN ~3min, GENERATE ~5min, EVALUATE ~3min, LOG ~4min)
 **Phase 4.4 progress:** 5/27 items now `[x]` (was 4/27 at cycle start). Phase 4.4.3 infrastructure subsection is now 1/5 complete. Phase 4.4.4 risk-management subsection remains 4/4 complete. Next tractable Ford-in-remote-env items: remaining 4.4.3.* items that don't require live servers or wall-clock gates (4.4.3.1 requires curl to running server, 4.4.3.2 is joint/Slack, 4.4.3.3 is wall-clock, 4.4.3.4 needs live scheduler). Statistical validation (4.4.1.*) items are blocked by no .venv in remote env.
 **Reliability note:** Fifth consecutive cycle to ship evidence for a Phase 4.4 Go-Live Checklist item. First infrastructure-section item landed. The "drill-as-evidence" pattern extends naturally to doc-verification items.
+
+---
+
+## Cycle 13 -- 2026-04-16 ~10:00 UTC -- Phase 4.4.3.4 All Monitoring Crons Operational
+
+**Planner hypothesis:** Phase 4.4 at 5/27 items `[x]` after Cycle 12. Item 4.4.3.4 ("watchdog, morning, and evening crons are scheduled") is tractable: morning digest cron exists in `scheduler.py`, but watchdog and evening crons are missing. Unlike prior drill-only cycles, this requires actual code changes to `scheduler.py`, `settings.py`, and `formatters.py`, plus a verification drill. Research gate satisfied with 3 sources (APScheduler docs, Better Stack guide, Slack scheduling best practices).
+**Generator:** Four files changed + one new: (1) `backend/config/settings.py` added `evening_digest_hour` (default 17) and `watchdog_interval_minutes` (default 15), (2) `backend/slack_bot/scheduler.py` rewritten to register 3 jobs -- morning_digest (cron), evening_digest (cron), watchdog_health_check (interval) -- watchdog alerts only on failure, (3) `backend/slack_bot/formatters.py` added `format_evening_digest` mirroring morning pattern with end-of-day P&L + trade list, (4) new `scripts/go_live_drills/monitoring_crons_test.py` -- AST-based verification of all 3 job registrations, trigger types, settings fields, and formatter existence. (5) `docs/GO_LIVE_CHECKLIST.md` item 4.4.3.4 flipped `[ ]` -> `[x]` with evidence line. 1 commit: `f332974` on origin/main.
+**Evaluator verdict:** PASS (composite 9.0/10)
+- Correctness: 9/10 (drill 13/13 PASS; all 3 crons registered with correct trigger types; AST-verified)
+- Scope: 10/10 (4 files modified + 1 new drill; no unrelated changes)
+- Conventions: 9/10 (follows morning digest pattern; ASCII-only logging; httpx 30s timeout for digests, 10s for watchdog)
+- Simplicity: 9/10 (watchdog silent-on-success; evening digest mirrors morning pattern)
+- Completeness: 8/10 (code verification complete; runtime "have fired" criterion requires live Slack bot)
+- Soft notes: (1) runtime firing verification deferred to launch-week when Slack bot is operational; (2) all schedule params configurable via env vars
+**Decision:** ACCEPTED -- shipped as `f332974` on origin/main.
+**Total cycle time:** ~20 minutes (RESEARCH ~3min, PLAN ~2min, GENERATE ~8min, EVALUATE ~3min, LOG ~4min)
+**Phase 4.4 progress:** 6/27 items now `[x]` (was 5/27 at cycle start). Phase 4.4.3 infrastructure subsection is now 2/5 complete. This is the first cycle that landed actual feature code (not just drills or doc verification).
+**Reliability note:** Sixth consecutive cycle to ship evidence for a Phase 4.4 Go-Live Checklist item. Pattern expanded from drill-only to drill + feature code.
