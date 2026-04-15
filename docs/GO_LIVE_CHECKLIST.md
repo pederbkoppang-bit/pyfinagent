@@ -119,10 +119,11 @@
 ## 4.4.4 Risk Management Validation
 
 ### 4.4.4.1 Kill switch tested: simulate -15% drawdown -> verify auto-liquidation
-- [ ] Injecting a synthetic -15% drawdown blocks new BUYs and (per the paper trader) does not open new positions
+- [x] Injecting a synthetic -15% drawdown blocks new BUYs and (per the paper trader) does not open new positions
 - **WHO**: Ford
 - **WHEN**: launch-week (one-time drill)
 - **HOW**: write a standalone test that calls `SignalsServer.risk_check` with `portfolio={"current_drawdown_pct": -15.5, ...}` and `proposed_trade={"action": "BUY", ...}`; assert the response `allowed` is `False` and `conflicts` contains the drawdown breaker. Then flip to `-14.5` and confirm BUY is allowed. `risk_check` is at `backend/agents/mcp_servers/signals_server.py:723` and sources its threshold from `get_risk_constraints` (default `max_drawdown_pct = -15.0`).
+- **Evidence**: drill landed at `scripts/go_live_drills/kill_switch_test.py` and executed 2026-04-15 by Ford Cycle 9 on `main`. 4/4 scenarios PASS: S1 `dd=-15.5` BUY blocked with `drawdown_circuit_breaker`, S2 `dd=-14.5` BUY allowed, S3 `dd=-15.0` BUY blocked (inclusive boundary pin), S4 `dd=-15.5` SELL allowed (de-risking always permitted). Threshold pre-drill sanity check confirms `max_drawdown_pct=-15.0` per Phase 4.4.4.4 hardcoded-literals evidence. Re-run recipe: `python scripts/go_live_drills/kill_switch_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.4.2 Position limits tested: submit oversized position -> verify rejection
 - [ ] `risk_check` rejects a BUY that would push per-ticker exposure past 10% or total past 100%
