@@ -31,7 +31,7 @@ fi
 NEW_ROW="| ${DATE} | \`${HASH}\` | ${MSG} |"
 
 # Insert new row + auto-bump version
-python3 - "$CHANGELOG" "$NEW_ROW" "$MAX_ROWS" "$DATE" << 'PYEOF'
+python3 - "$CHANGELOG" "$NEW_ROW" "$MAX_ROWS" "$DATE" "$MSG" << 'PYEOF'
 import sys
 import re
 
@@ -39,6 +39,19 @@ changelog_path = sys.argv[1]
 new_row = sys.argv[2]
 max_rows = int(sys.argv[3])
 today = sys.argv[4]
+commit_subject = sys.argv[5] if len(sys.argv) > 5 else "Continued Development"
+
+# Condense the subject for a version-header title: strip a leading
+# "prefix: " scope marker and cap length so it fits the What's New card.
+def _header_title(subject: str) -> str:
+    s = subject.strip()
+    # Drop "chore: ", "fix: ", "Phase 4.4.4.2: ", etc.
+    s = re.sub(r"^[A-Za-z0-9.]+:\s*", "", s)
+    if len(s) > 72:
+        s = s[:69].rstrip() + "..."
+    return s or "Continued Development"
+
+header_title = _header_title(commit_subject)
 
 with open(changelog_path, "r", encoding="utf-8") as f:
     lines = f.readlines()
@@ -62,7 +75,7 @@ if version_idx is not None and current_version is not None:
     if today not in version_line:
         # Bump patch version (6.4.0 -> 6.4.1)
         new_major, new_minor, new_patch = current_version[0], current_version[1], current_version[2] + 1
-        new_version_header = f"### v{new_major}.{new_minor}.{new_patch} \u2014 Continued Development ({today})\n"
+        new_version_header = f"### v{new_major}.{new_minor}.{new_patch} \u2014 {header_title} ({today})\n"
         # Insert new version header before the old one, with a separator
         lines.insert(version_idx, "\n")
         lines.insert(version_idx, new_version_header)

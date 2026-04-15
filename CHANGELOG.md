@@ -7,6 +7,9 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `4a8951f` | Cycle 12 harness log entry for Phase 4.4.3.5 |
+| 2026-04-16 | `ba399ee` | Phase 4.4.3.5: incident log P0 verification drill + evidence |
+| 2026-04-16 | `7a791d5` | MAS harness infrastructure: archive hook + cycle wrapper + audit |
 | 2026-04-15 | `38d58de` | Merge remote-tracking branch 'origin/main' into claude/add-permission-prompts-pRDHN |
 | 2026-04-15 | `1b2d055` | Document BigQuery MCP access for the remote agent |
 | 2026-04-15 | `99805c3` | chore: changelog auto-update for 01dec72 |
@@ -24,15 +27,14 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-15 | `c6cae16` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
 | 2026-04-14 | `852e04f` | Phase 4.2.3.3: ASCII-harden module docstring of signals_server.py |
 | 2026-04-14 | `912008c` | Step 2.14: Switch paper trading from Gemini to Claude |
-| 2026-04-14 | `9a53cf6` | Set permissions.defaultMode to bypassPermissions for remote agent |
-| 2026-04-14 | `178ea54` | Set permissions.defaultMode to bypassPermissions for remote agent |
-| 2026-04-14 | `6fc6a68` | Auto-allow Write to .claude/context/sessions/** on remote agent |
 
 ---
 
-### v6.4.2 — Continued Development (2026-04-15)
+### v6.4.3 — MAS harness infrastructure: archive hook + cycle wrapper + audit (2026-04-16)
 
-### v6.4.1 — Continued Development (2026-04-14)
+### v6.4.2 — Set permissions.defaultMode to bypassPermissions for remote agent (2026-04-15)
+
+### v6.4.1 — Add .claude/context/ for remote agent project memory (2026-04-14)
 
 ### v6.4.0 — Machine-Readable Masterplan + MAS Autonomous Agent (April 14, 2026)
 
