@@ -109,10 +109,11 @@
 - **HOW**: inspect `backend/slack_bot/scheduler.py` for the cron registrations and confirm the latest invocation timestamps in the scheduler log. The watchdog cron should have fired within the last 15 minutes; morning and evening crons within the last 24 hours.
 
 ### 4.4.3.5 Incident log shows no unresolved P0 incidents
-- [ ] Known-blockers file has zero unresolved P0 entries
+- [x] Known-blockers file has zero unresolved P0 entries
 - **WHO**: joint
 - **WHEN**: launch-week
 - **HOW**: read `.claude/context/known-blockers.md` and confirm no entry is tagged `P0` without a `resolved:` line. Any open P0 blocks launch until resolved or downgraded with Peder's explicit note.
+- **Evidence**: drill landed at `scripts/go_live_drills/incident_log_p0_test.py` and executed 2026-04-16 by Ford Cycle 12 on `main`. 6/6 scenarios PASS: S0 file exists, S1 sections parseable (RESOLVED=17 lines, STILL ACTIVE=27 lines), S2 zero P0 mentions in entire file, S3 zero P0 mentions in STILL ACTIVE section, S4 resolved section P0 check clean, S5 composite verdict CLEAR. File has 4 resolved items (git push 403, disconnected histories, Phase 3 budget, step 2.10 dep) and 4 active operational notes (no .venv, work on main, no manual changelog, researcher turn limit) -- none tagged P0. Re-run recipe: `python3 scripts/go_live_drills/incident_log_p0_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ---
 
