@@ -1,259 +1,219 @@
-# Contract -- Phase 4.2.4 BQ Durable Persistence Scaffold (Publish Write Path)
+# Contract -- Phase 4.2.4.2 BQ `signals_log` outcome-event append path
 
-**Step ID:** 4.2.4 (subset: publish event write path + table migration)
-**Target files:**
-- `scripts/migrations/migrate_signals_log.py` (NEW file)
-- `backend/db/bigquery_client.py` (add 1 method)
-- `backend/agents/mcp_servers/signals_server.py` (modify `_append_signal_history` only)
+**Depends on:** Phase 4.2.4 publish-event write path (commit `e8d3bb3`).
+**Research gate:** `handoff/current/research.md` (this cycle, 6 queries +
+0223 archive inheritance).
 
-**Base commit:** `912008c` (origin/main HEAD as of 2026-04-15T0000Z)
+## Goal
 
-## Problem statement
+Wire `SignalsServer.track_signal_accuracy` into the durable
+`signals_log` BigQuery table by appending a new event row with
+`event_kind="outcome"` at each of the 3 successful return paths
+after the in-memory record has been mutated to reflect the outcome.
+No DML UPDATE. No schema change. No read-path change.
 
-The Phase 4.2.2 in-memory `signal_history` + `_signals_by_id` index
-is wiped on every process restart. To support production reliability
-gates (Phase 4.4 Go-Live Checklist) and cross-restart accuracy
-tracking, signals must be durably persisted to BigQuery as they are
-published. This contract scaffolds ONLY the publish-event write path:
-table migration, BQ client method, and the wire-up in
-`_append_signal_history`. The outcome-update path and the warm-load
-read path are deferred to follow-up cycles.
+## Files touched
 
-## Fix approach (locked by research.md)
+1. `backend/agents/mcp_servers/signals_server.py` (+N, tight budget)
+   - NEW method `_save_outcome_event_to_bq(record: Dict[str, Any]) -> None`
+     inserted after `_append_signal_history` and before `risk_check`.
+   - 3 new call-site lines in `track_signal_accuracy` at the 3
+     successful return paths (HOLD / missing_prices / scored).
 
-1. New idempotent migration `scripts/migrations/migrate_signals_log.py`
-   creates the `signals_log` table with a 17-column schema mirroring
-   the in-memory record. Follows the `migrate_paper_trading.py`
-   template byte-for-byte at the structural level.
-2. New method `BigQueryClient.save_signal(record: dict) -> None`
-   appends a row to `signals_log` via `insert_rows_json`. Logs errors
-   on insert failure. Never raises.
-3. `SignalsServer._append_signal_history` adds a single try/except
-   block AFTER the in-memory append that calls
-   `self.bq_client.save_signal(record)` if `self.bq_client is not
-   None`. Wrapped in a tight try/except that catches `Exception`,
-   logs `bq_signal_log save failed: <type>`, and returns. Never
-   raises. The outer `publish_signal` step 9 try/except still wraps
-   it as defense in depth.
+No other files modified. No new imports. `json`, `datetime`,
+`timezone`, `logger`, `Dict`, `Any`, `Optional` are already imported
+at top of file (lines 16-29).
 
-## Files in scope
+## Diff budget
 
-| File | Role | Bound (added/deleted) |
-|---|---|---|
-| `scripts/migrations/migrate_signals_log.py` | NEW | <= 90 / 0 |
-| `backend/db/bigquery_client.py` | add 1 method | <= 25 / 0 |
-| `backend/agents/mcp_servers/signals_server.py` | modify 1 method | <= 15 / 0 |
-| **Total** | | **<= 130 / 0** |
+- `<= 70` lines added to `signals_server.py`
+- `<= 0` lines deleted from `signals_server.py`
+- Net budget: `+70 / 0`, 100% additive.
 
-## Out of scope
+Rationale: the publish-event wire-up in 0223 used ~30 lines inline;
+this cycle wraps the builder in a method (~40 lines) and adds 3
+call-site lines (3 lines). 40 + 3 = 43 + docstring + formatting
+headroom = ~70 line budget.
 
-- Outcome-update write path (`track_signal_accuracy` -> BQ DML).
-  Blocked by 30-90 minute streaming-buffer DML restriction.
-  Deferred to a follow-up cycle that will adopt the Storage Write
-  API or an event-log design.
-- Warm-load read path (`get_signal_history` reading from BQ at
-  startup). The in-memory list remains the canonical query source
-  this cycle.
-- Migration script execution. Remote env has no GCP credentials;
-  the migration ships as code only and Peder runs it once locally
-  before flipping the durable-write feature on.
-- Storage Write API migration. Requires protobuf schemas, separate
-  cycle.
-- Any change to `track_signal_accuracy`, `get_accuracy_report`,
-  `publish_signal` (other than the one indirect call already in
-  step 9), or any of the 19 byte-identical methods on
-  `SignalsServer`.
-- Any change to existing `BigQueryClient` methods.
-- Any change to `signal_history` / `_signals_by_id` / `__init__`
-  state on `SignalsServer`.
-- Imports added to `signals_server.py` (none needed -- the bq_client
-  call goes through the existing `self.bq_client` attribute which
-  is already initialized in `__init__`).
-- Imports added to `bigquery_client.py` (none needed -- the new
-  method uses already-imported `bigquery` and `logger`).
+## Success criteria (SC1-24)
 
-## Success criteria
+### A. Scope discipline (SC1-5)
 
-### Group A: Migration script (SC1-SC8)
+- **SC1.** Exactly one file modified: `backend/agents/mcp_servers/signals_server.py`.
+- **SC2.** Net diff bound: `+N added / 0 deleted`, `N <= 70`.
+- **SC3.** Zero new imports in modified file (top-of-file `import`
+  and `from ... import` statements byte-identical pre/post).
+- **SC4.** Zero new top-level statements. All new code is inside
+  the `SignalsServer` class.
+- **SC5.** No rename of any existing method, attribute, parameter,
+  or local variable.
 
-- **SC1** `scripts/migrations/migrate_signals_log.py` exists and
-  parses cleanly (`ast.parse`).
-- **SC2** Constants `PROJECT_ID = "sunny-might-477607-p8"` and
-  `DATASET = "financial_reports"` match the existing
-  `migrate_paper_trading.py` constants byte-for-byte.
-- **SC3** Schema list `SIGNALS_LOG_SCHEMA` declares exactly 17
-  fields, types as specified in SC4.
-- **SC4** Field types and modes:
-  - `signal_id` STRING REQUIRED
-  - `ticker` STRING REQUIRED
-  - `signal_type` STRING REQUIRED
-  - `confidence` FLOAT64 NULLABLE
-  - `signal_date` STRING NULLABLE  (was `date` in record; renamed
-    to avoid BQ reserved-word collision)
-  - `entry_price` FLOAT64 NULLABLE
-  - `factors_json` STRING NULLABLE  (JSON-encoded list of factor
-    strings)
-  - `created_at` TIMESTAMP REQUIRED
-  - `outcome` STRING NULLABLE
-  - `scored` BOOL NULLABLE
-  - `hit` BOOL NULLABLE
-  - `exit_price` FLOAT64 NULLABLE
-  - `exit_date` STRING NULLABLE
-  - `forward_return_pct` FLOAT64 NULLABLE
-  - `holding_days` INT64 NULLABLE
-  - `recorded_at` TIMESTAMP REQUIRED  (when this row was written
-    to BQ; equal to `created_at` for publish events, distinct for
-    a future outcome event)
-  - `event_kind` STRING REQUIRED  (one of "publish", "outcome";
-    only "publish" is written this cycle)
-- **SC5** Migration follows the idempotent `try: client.get_table /
-  except: create_table` pattern from `migrate_paper_trading.py`.
-- **SC6** Migration prints `Created table signals_log` on first
-  run and `Table signals_log already exists. Skipping.` on
-  re-runs, matching the existing migration's print messages.
-- **SC7** Migration loads `GCP_CREDENTIALS_JSON` from environment
-  exactly as `migrate_paper_trading.py` does.
-- **SC8** Migration uses `service_account.Credentials.from_service_account_info`
-  with the same two scopes as the existing migration.
+### B. New helper method `_save_outcome_event_to_bq` (SC6-13)
 
-### Group B: BigQueryClient.save_signal (SC9-SC15)
+- **SC6.** Method exists as `SignalsServer._save_outcome_event_to_bq`
+  (exactly this name, leading underscore).
+- **SC7.** Method signature is `(self, record: Dict[str, Any]) -> None`.
+  Return annotation is `None`; parameter annotation is `Dict[str, Any]`.
+- **SC8.** Method is defined AFTER `_append_signal_history` and BEFORE
+  `risk_check` in source order (stable location for BQ-adjacent helpers).
+- **SC9.** Method body's first non-docstring statement is an early-return
+  guard: `if self.bq_client is None: return`.
+- **SC10.** Method builds a `bq_record: dict` with exactly 17 keys
+  matching the `SIGNALS_LOG_SCHEMA` field names:
+  `signal_id`, `ticker`, `signal_type`, `confidence`, `signal_date`,
+  `entry_price`, `factors_json`, `created_at`, `outcome`, `scored`,
+  `hit`, `exit_price`, `exit_date`, `forward_return_pct`,
+  `holding_days`, `recorded_at`, `event_kind`.
+- **SC11.** `bq_record["event_kind"]` literal string is `"outcome"`.
+- **SC12.** `bq_record["recorded_at"]` is computed via
+  `datetime.now(timezone.utc).isoformat(timespec="milliseconds")`
+  (a fresh timestamp, NOT `record["timestamp"]`). This is the
+  event-time of the outcome projection, distinct from the
+  publish-time `created_at`.
+- **SC13.** `bq_record["created_at"]` is sourced from
+  `record["timestamp"]` (the original publish timestamp, preserved).
 
-- **SC9** New method `save_signal` exists on `BigQueryClient`.
-- **SC10** Method signature is exactly
-  `def save_signal(self, record: dict) -> None:`.
-- **SC11** Method computes table reference as
-  `f"{self.settings.gcp_project_id}.{self.settings.bq_dataset_reports}.signals_log"`,
-  matching the `_pt_table` pattern.
-- **SC12** Method uses `self.client.insert_rows_json(table, [record])`
-  -- not DML INSERT, not the Storage Write API. Matches `save_outcome`.
-- **SC13** Method logs `BigQuery insert errors: {errors}` on
-  insert failure, matching the `save_outcome` log message form.
-  ASCII only (no arrows / em dashes).
-- **SC14** Method does NOT raise on insert failure. The errors
-  list is logged; a subsequent commit will decide on retry semantics.
-  This is intentionally laxer than `save_report` (which raises) --
-  signal logging must never break the publish path.
-- **SC15** Method docstring is one-liner: `"""Append a single
-  signal-publish event to the signals_log table."""`.
+### C. Defensive boundary semantics (SC14-17)
 
-### Group C: signals_server.py wire-up (SC16-SC22)
+- **SC14.** Method wraps `self.bq_client.save_signal(bq_record)` in
+  `try: ... except Exception as e: logger.warning(...)`. The
+  `except` clause catches `Exception` (not a narrower class).
+- **SC15.** `logger.warning` call message is ASCII-only (per
+  `.claude/rules/security.md`). No Unicode arrows, no em-dashes.
+  Message pattern matches the publish-path `bq_signal_log` log
+  prefix for grep-ability, e.g. `f"bq_signal_log outcome save
+  failed: {type(e).__name__}"`.
+- **SC16.** Method has zero `Raise` AST nodes in its body. Never
+  raises under any branch.
+- **SC17.** Method returns `None` in all paths (implicit, from
+  the absence of any `Return` node with a value).
 
-- **SC16** Only `_append_signal_history` is modified. The other
-  20 methods on `SignalsServer` are AST-byte-identical to the
-  base commit `912008c`.
-- **SC17** No new top-level imports added to `signals_server.py`.
-  The existing `from datetime import datetime, timezone, date`
-  line is unchanged.
-- **SC18** The in-memory append (`self.signal_history.append(record)`
-  + `self._signals_by_id[signal_id] = record`) happens FIRST,
-  BEFORE the BQ call. The BQ call must never block or skip the
-  in-memory write.
-- **SC19** The BQ call is wrapped in a `try: ... except Exception
-  as e: logger.warning(...)` block, ASCII-only, never raises.
-- **SC20** The BQ call is gated on `if self.bq_client is not None`.
-  In stub mode (`_SIGNALS_AVAILABLE = False`), `bq_client` is
-  `None`, so the BQ branch is skipped entirely and existing
-  stub-mode tests still pass.
-- **SC21** The BQ call passes a NEW dict that maps the in-memory
-  record fields to the SC4 schema (renames `date` -> `signal_date`,
-  `factors` -> `factors_json` via `json.dumps`, adds `created_at`
-  / `recorded_at` / `event_kind`). The original `record` dict is
-  not mutated -- the in-memory state stays in its existing shape.
-- **SC22** The wire-up is exactly 1 indented `if` block of
-  approximately 12-15 lines at the bottom of `_append_signal_history`,
-  immediately after the existing `self._signals_by_id[signal_id]
-  = record` line.
+### D. `track_signal_accuracy` call-site additions (SC18-22)
 
-### Group D: Diff bound + scope discipline (SC23-SC25)
+- **SC18.** Exactly 3 new lines `self._save_outcome_event_to_bq(record)`
+  added inside `track_signal_accuracy`. Each line appears in the
+  source between the end of the record mutations and the start of
+  the return dict construction for its respective path.
+- **SC19.** HOLD path call-site: the new line appears between
+  `record["holding_days"] = self._compute_holding_days(...)` and
+  the `return {` that follows it (HOLD branch).
+- **SC20.** Missing-prices path call-site: the new line appears
+  between `record["forward_return_pct"] = None` (end of the
+  missing_prices record mutations block) and the `return {` that
+  follows it.
+- **SC21.** Scored path call-site: the new line appears between
+  `record["holding_days"] = self._compute_holding_days(...)` (end
+  of the scored path mutations block) and the final `return {`
+  of the method.
+- **SC22.** No new lines added in the two early-return paths
+  (invalid_signal_id / signal_not_found). Early-return paths do
+  NOT emit outcome events (no mutated record to project).
 
-- **SC23** Total diff <= 130 lines added, 0 deleted (this is a
-  pure-additive cycle).
-- **SC24** Exactly 3 files touched: the new migration script,
-  `bigquery_client.py`, and `signals_server.py`. No others.
-- **SC25** No emoji, no Unicode arrows, no em dashes in any
-  added line. ASCII-only per security.md.
+### E. Byte-identity + global invariants (SC23-24)
 
-## Adversarial probes (10) -- for qa-evaluator
+- **SC23.** Every `SignalsServer` method EXCEPT `track_signal_accuracy`
+  is `ast.dump()`-byte-identical between base commit `867d134`
+  and HEAD of this cycle. Specifically including the publish-path
+  scaffold: `publish_signal`, `_append_signal_history`,
+  `_parse_iso_date`, `get_signal_history`, `validate_signal`,
+  `generate_signal`, `_compute_holding_days`, etc.
+- **SC24.** `ast.parse(open(file).read())` succeeds. `py_compile`
+  succeeds. Zero non-ASCII bytes in the modified file.
 
-These are the probes the qa-evaluator subagent should pre-bake
-into its assertion block.
+## Adversarial probes (for QA evaluator)
 
-- **ADV1** `_append_signal_history(signal_id="", signal={}, trade=None)`
-  with `bq_client=None`: returns without raising, in-memory state
-  unchanged. (Existing dedup guard at line 564.)
-- **ADV2** `_append_signal_history` with `bq_client=None` and a
-  valid signal_id + signal: in-memory append succeeds, BQ branch
-  skipped, no log warning emitted.
-- **ADV3** `_append_signal_history` with `bq_client=<mock raising
-  RuntimeError>` and a valid signal: in-memory append succeeds,
-  BQ call raises, exception is caught, `logger.warning` is called
-  exactly once, method returns None.
-- **ADV4** `BigQueryClient.save_signal({...})` with mocked
-  `client.insert_rows_json` returning `[]` (success): no log
-  emitted, returns None.
-- **ADV5** `BigQueryClient.save_signal({...})` with mocked
-  `insert_rows_json` returning `[{"reason": "x"}]`: `logger.error`
-  is called, returns None (no raise).
-- **ADV6** `BigQueryClient.save_signal({...})` with mocked
-  `insert_rows_json` raising `ConnectionError`: the exception
-  PROPAGATES (this method does NOT catch the exception itself;
-  the `_append_signal_history` outer try/except is what protects
-  the publish path). This is intentional per SC14 -- the catch
-  lives at the call site, not the method.
-- **ADV7** Migration script `ast.parse` clean and `py_compile`
-  clean. (Module-level execution would require GCP creds.)
-- **ADV8** Schema field count in migration script equals exactly
-  17 (SC3 enforcement).
-- **ADV9** AST byte-identity of all 20 unchanged `SignalsServer`
-  methods between `912008c` and the post-fix file.
-- **ADV10** No `>= since_date` regression -- the Phase 4.2.3.2
-  `_parse_iso_date` block must remain byte-identical (this cycle
-  doesn't touch it but a wrong scope would).
+- **A1.** `_save_outcome_event_to_bq({...full record...})` with
+  `self.bq_client=None` -> returns None, no BQ call, no log.
+- **A2.** Same with `bq_client` mocked, `save_signal` raising
+  `RuntimeError` -> method catches, logs warning once, returns
+  None, does NOT reraise.
+- **A3.** Same with `save_signal` raising `ConnectionError` ->
+  method catches via `Exception`, logs warning, returns None.
+- **A4.** `_save_outcome_event_to_bq` built record has exactly
+  17 keys; no extra, no missing.
+- **A5.** `bq_record["event_kind"] == "outcome"`.
+- **A6.** `bq_record["recorded_at"] != bq_record["created_at"]`
+  (the two timestamps are distinct; recorded_at is fresh now(),
+  created_at is from record["timestamp"]).
+- **A7.** `track_signal_accuracy("", 100.0)` with empty signal_id
+  -> invalid_signal_id early return, ZERO calls to
+  `_save_outcome_event_to_bq`.
+- **A8.** `track_signal_accuracy("unknown", 100.0)` with missing
+  signal_id -> signal_not_found early return, ZERO calls to
+  `_save_outcome_event_to_bq`.
+- **A9.** A normal scored BUY -> ONE call to
+  `_save_outcome_event_to_bq` with `record["outcome"]` populated
+  as `"hit"` / `"miss"` / `"neutral"`.
+- **A10.** A HOLD path -> ONE call to `_save_outcome_event_to_bq`
+  with `record["outcome"] == "unscored"`.
+- **A11.** A missing_prices path (entry=0) -> ONE call to
+  `_save_outcome_event_to_bq` with `record["outcome"] == "error"`.
+- **A12.** `logger.warning` message in `_save_outcome_event_to_bq`
+  is ASCII-only (0 bytes > 127) and does not contain Unicode
+  arrows (U+2192) or em-dashes (U+2014).
 
-## Verification commands (deterministic, stdlib only)
+## Research-phase overrides (explicit)
 
-```bash
-# Sanity
-python3 -c "import ast; ast.parse(open('scripts/migrations/migrate_signals_log.py').read()); print('migration OK')"
-python3 -c "import ast; ast.parse(open('backend/db/bigquery_client.py').read()); print('bq_client OK')"
-python3 -c "import ast; ast.parse(open('backend/agents/mcp_servers/signals_server.py').read()); print('signals_server OK')"
+The 0223 session's deferral note "After Storage Write API migration"
+is overridden by this cycle's research gate (see
+`handoff/current/research.md` category 1). The Storage Write API is
+a prereq for DML UPDATE, not for append-only INSERT. We are
+append-only by design, so no Storage Write API migration is required
+for this cycle.
 
-# Schema field count check
-python3 -c "
-import re
-src = open('scripts/migrations/migrate_signals_log.py').read()
-fields = re.findall(r'bigquery\.SchemaField', src)
-assert len(fields) == 17, f'expected 17 fields, got {len(fields)}'
-print(f'schema OK ({len(fields)} fields)')
-"
+## Out of scope (explicitly deferred)
 
-# AST byte-identity audit (20 unchanged methods on SignalsServer)
-python3 -c "
+- DML UPDATE on signals_log rows (deferred indefinitely;
+  event-sourced design means we never UPDATE).
+- Storage Write API migration for `save_report`, `save_outcome`,
+  `save_signal`, paper-trading inserts (deferred to a separate cycle).
+- Read-path projection "latest outcome per signal_id" via window
+  function / QUALIFY pattern (deferred to Phase 4.2.4.3).
+- Schema changes to `signals_log` (17 fields unchanged).
+- Migration script changes (byte-identical).
+- `BigQueryClient.save_signal` changes (byte-identical).
+- In-memory state changes in `track_signal_accuracy` (untouched
+  except for the 3 new call-site lines).
+
+## Verification recipe (for QA)
+
+```python
 import ast
-src = open('backend/agents/mcp_servers/signals_server.py').read()
-tree = ast.parse(src)
-for node in ast.walk(tree):
-    if isinstance(node, ast.ClassDef) and node.name == 'SignalsServer':
-        methods = [n for n in node.body if isinstance(n, ast.FunctionDef)]
-        print(f'SignalsServer methods: {len(methods)}')
-        break
-"
+p = 'backend/agents/mcp_servers/signals_server.py'
+tree = ast.parse(open(p).read())
+cls = next(n for n in ast.walk(tree)
+           if isinstance(n, ast.ClassDef) and n.name == 'SignalsServer')
+methods = {m.name: m for m in cls.body if isinstance(m, ast.FunctionDef)}
+
+# SC6: helper exists
+assert '_save_outcome_event_to_bq' in methods
+
+# SC7: signature
+m = methods['_save_outcome_event_to_bq']
+assert [a.arg for a in m.args.args] == ['self', 'record']
+assert isinstance(m.returns, ast.Constant) and m.returns.value is None
+
+# SC16: zero Raise
+assert not any(isinstance(n, ast.Raise) for n in ast.walk(m))
+
+# SC18: 3 new call-site lines in track_signal_accuracy
+ts = methods['track_signal_accuracy']
+calls = [n for n in ast.walk(ts)
+         if isinstance(n, ast.Call)
+         and isinstance(n.func, ast.Attribute)
+         and n.func.attr == '_save_outcome_event_to_bq']
+assert len(calls) == 3
+
+# SC24: ASCII
+assert sum(1 for b in open(p,'rb').read() if b > 127) == 0
 ```
 
-## Anti-leniency rules
+## Anti-leniency
 
-1. Diff bound `<= 130 / 0` is HARD. Any overage requires
-   explicit justification in `experiment_results.md`.
-2. Schema MUST have exactly 17 fields. Adding a field
-   without contract amendment is a violation.
-3. The in-memory append MUST happen before the BQ call. Reordering
-   is a SC18 violation.
-4. The BQ call MUST be wrapped in try/except at the call site.
-5. The 20 unchanged `SignalsServer` methods MUST be AST-byte-identical
-   to base commit `912008c`. Use `ast.dump(FunctionDef)` comparison.
-6. Zero new imports in `signals_server.py`. Zero new imports in
-   `bigquery_client.py` (the migration script gets its own imports).
-7. ASCII-only in all added lines. No emojis, arrows, em dashes.
-8. No retouching the Phase 4.2.3.2 `_parse_iso_date` helper or
-   the `since_date` block in `get_signal_history`. They are stable
-   scaffold from the prior cycle.
+QA must independently run assertions in an isolated worktree (post-
+commit snapshot), not trust my self-verification. QA must spawn
+with `subagent_type="qa-evaluator"` (dedicated type, anti-leniency,
+Opus). QA must fetch origin/main first and check out the GENERATE
+commit's file before running the assertion block (per 2026-04-14-2300
+finding: qa-evaluator subagent runs in isolated worktree at
+`.claude/worktrees/agent-<hash>/`, sees only committed state).

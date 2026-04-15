@@ -1,18 +1,18 @@
 {
-  "step_id": "4.2.4",
+  "step_id": "4.2.4.2",
   "ok": true,
-  "reason": "All 25 contract SCs and 10 adversarial probes pass via AST/semantic verification; 4 raw check-script failures are false negatives (quote-normalization in ast.unparse and missing google pkg in bare python subprocess), confirmed correct by direct AST inspection.",
-  "checks_run": 42,
-  "contract_passed": "25/25",
-  "adversarial_passed": "10/10",
-  "diff_added": 122,
-  "diff_deleted": 1,
+  "reason": "All 24 contract criteria and 12 adversarial probes verified via AST-level and bytes-level inspection. Diff +48/-0 on signals_server.py only. Imports and top-level structure unchanged; every pre-existing SignalsServer method except track_signal_accuracy is byte-identical to base 867d134. New helper _save_outcome_event_to_bq(self, record: Dict[str, Any]) -> None sits between _append_signal_history and risk_check, opens with self.bq_client is None guard, builds 17-key bq_record with event_kind='outcome' literal, recorded_at=datetime.now(timezone.utc) ms-truncated (distinct from created_at=record['timestamp']), wraps insert in try/except Exception with ASCII-only logger.warning, zero Raise nodes, implicit None returns. track_signal_accuracy has exactly 3 helper call sites matching the three mutation paths; invalid/not_found early returns emit zero by construction. File parses, compiles, 0 non-ASCII bytes.",
+  "checks_run": 34,
+  "contract_passed": "24/24",
+  "adversarial_passed": "12/12",
+  "diff_added": 48,
+  "diff_deleted": 0,
   "violated_criteria": [],
-  "soft_notes": [
-    "SN1: bq_record block is 30 lines vs contract's 12-15 estimate; total diff still under +130 budget (122 added)",
-    "SN2: 1-line cosmetic trailing-whitespace cleanup on blank line between methods; no AST impact",
-    "Check-script artifact: SC11/SC21 quote-literal searches fail against ast.unparse output which normalizes to single quotes; code verified correct via direct AST read.",
-    "Check-script artifact: ADV4/dynamic_load fail because bare python3 subprocess lacks google-cloud-bigquery; ADV5 (errors returned -> no raise) and ADV6 (ConnectionError propagates) confirmed by AST: save_signal has 0 Raise nodes and 0 Try blocks."
-  ],
-  "scores": {"correctness": 9, "scope": 10, "security_rule": 10, "simplicity": 8, "conventions": 9}
+  "soft_notes": [],
+  "scores": {"correctness": 10, "scope": 10, "security_rule": 10, "simplicity": 10, "conventions": 10},
+  "qa_subagent_type": "qa-evaluator",
+  "qa_agent_id": "adb04dfaaf428780b",
+  "qa_worktree": ".claude/worktrees/agent-adb04dfa (auto-cleaned)",
+  "base_commit": "867d134",
+  "generate_commit": "a36c312"
 }
