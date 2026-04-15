@@ -126,10 +126,11 @@
 - **Evidence**: drill landed at `scripts/go_live_drills/kill_switch_test.py` and executed 2026-04-15 by Ford Cycle 9 on `main`. 4/4 scenarios PASS: S1 `dd=-15.5` BUY blocked with `drawdown_circuit_breaker`, S2 `dd=-14.5` BUY allowed, S3 `dd=-15.0` BUY blocked (inclusive boundary pin), S4 `dd=-15.5` SELL allowed (de-risking always permitted). Threshold pre-drill sanity check confirms `max_drawdown_pct=-15.0` per Phase 4.4.4.4 hardcoded-literals evidence. Re-run recipe: `python scripts/go_live_drills/kill_switch_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.4.2 Position limits tested: submit oversized position -> verify rejection
-- [ ] `risk_check` rejects a BUY that would push per-ticker exposure past 10% or total past 100%
+- [x] `risk_check` rejects a BUY that would push per-ticker exposure past 10% or total past 100%
 - **WHO**: Ford
 - **WHEN**: launch-week (one-time drill)
 - **HOW**: call `risk_check` with a proposed trade sized to breach the per-ticker 10% limit; confirm `allowed` is `False`. Repeat for the 100% total exposure limit and the max_daily_trades = 5 cap. All three thresholds live in `get_risk_constraints` in `backend/agents/mcp_servers/signals_server.py`.
+- **Evidence**: drill landed at `scripts/go_live_drills/position_limits_test.py` and executed 2026-04-15 by Ford Cycle 10 on `main`. 6/6 scenarios PASS: S1 per-ticker 15% BUY blocked with `max_exposure_per_ticker`, S2 per-ticker 10.00% boundary BUY allowed (strict-greater pin), S3 per-ticker aggregation 5%+6%=11% BUY blocked, S4 total exposure 95%+6%=101% BUY blocked with `max_total_exposure`, S5 daily trade count 5 BUY blocked with `max_daily_trades`, S6 daily trade count 4 BUY allowed. Pre-drill sanity check confirms all 4 limit literals pinned to Phase 4.4.4.4 evidence (per-ticker=10.0, total=100.0, drawdown=-15.0, daily_trades=5). Re-run recipe: `python scripts/go_live_drills/position_limits_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.4.3 Stop-loss tested: simulate loss > 8% -> verify auto-exit
 - [ ] Paper trader or production exit logic closes a position that hits the -8% stop-loss threshold
