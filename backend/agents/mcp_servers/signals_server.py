@@ -687,6 +687,39 @@ class SignalsServer:
         except Exception as e:
             logger.warning(f"bq_signal_log outcome save failed: {type(e).__name__}")
 
+    def get_latest_signal_state(self, signal_id: str) -> Optional[Dict[str, Any]]:
+        """Return the latest observed state for a signal from the durable BQ log.
+
+        Projects the append-only signals_log event stream down to the single
+        most recently recorded event per signal_id (publish / outcome / future
+        revision). Never raises -- returns None on empty signal_id, stub mode,
+        missing row, or any BQ error. On success, parses the factors_json
+        string column back into a Python list under the factors key,
+        mirroring the write-side json.dumps in _append_signal_history and
+        _save_outcome_event_to_bq.
+        """
+        if not signal_id:
+            return None
+        if self.bq_client is None:
+            return None
+        try:
+            row = self.bq_client.query_latest_signal_state(signal_id)
+            if row is None:
+                return None
+            if "factors_json" in row:
+                factors_raw = row.pop("factors_json")
+                if isinstance(factors_raw, str):
+                    try:
+                        row["factors"] = json.loads(factors_raw)
+                    except (ValueError, TypeError):
+                        row["factors"] = []
+                else:
+                    row["factors"] = []
+            return row
+        except Exception as e:
+            logger.warning(f"bq_signal_log latest-state read failed: {type(e).__name__}")
+            return None
+
     def risk_check(self, portfolio: Dict[str, Any], proposed_trade: Dict[str, Any]) -> Dict[str, Any]:
         """
         Portfolio-extrinsic constraint check for a proposed trade.
