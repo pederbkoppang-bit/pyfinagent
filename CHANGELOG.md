@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-15 | `99805c3` | chore: changelog auto-update for 01dec72 |
 | 2026-04-15 | `01dec72` | log: session 2026-04-15-1838 + harness_log Cycle 10 (Phase 4.4.4.2 drill) |
 | 2026-04-15 | `4e302df` | Phase 4.4.4.2: position-limit drill test + evidence |
 | 2026-04-15 | `cbd14d4` | Phase 4.4.4.1: kill-switch drill test + evidence |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `6fc6a68` | Auto-allow Write to .claude/context/sessions/** on remote agent |
 | 2026-04-14 | `9b870e9` | Fix paper trading: graceful RAG degradation when data store unavailable |
 | 2026-04-14 | `cb2a085` | Phase 4.2.3.2: append harness_log.md Cycle 3 entry |
-| 2026-04-14 | `e85633e` | Phase 4.2.3.2 LOG: session log + QA critique (PASS 39/39 effective) |
 
 ---
 
