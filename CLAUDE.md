@@ -32,6 +32,7 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 - **No emojis in frontend** — use Phosphor Icons only
 - **Every backtest result** → save to `backend/backtest/experiments/results/` + append to `quant_results.tsv`
 - **BQ timeout: 30s** on all fallback queries
+- **BigQuery MCP is available** — see "BigQuery Access (MCP)" section below. Use it for schema inspection, data validation, and read-only analytics before touching Python BQ clients.
 - **LLM API costs** require Peder's explicit approval
 - **Always read `.claude/masterplan.json`** before starting work — it's the machine-readable task tracker
 - **Use `/masterplan`** to see current state and next actionable step
@@ -76,6 +77,55 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 | `frontend/src/lib/api.ts` | API client (Bearer auth, 30s timeout) |
 | `frontend/src/lib/types.ts` | All TypeScript interfaces |
 | `frontend/src/lib/icons.ts` | Centralized Phosphor icon exports |
+
+## BigQuery Access (MCP)
+
+The harness environment injects a BigQuery MCP server with **read AND write**
+access to project **`sunny-might-477607-p8`**. Prefer these tools over
+spinning up a Python `bigquery.Client` for ad-hoc inspection, validation, and
+analytics — they're faster, require no auth plumbing, and leave no local state.
+
+**Project:** `sunny-might-477607-p8`
+
+**Datasets:**
+| Dataset | Location | Purpose |
+|---|---|---|
+| `pyfinagent_data` | US | Primary prod data (signals, prices, fundamentals, macro) |
+| `pyfinagent_staging` | US | Staging / pre-prod |
+| `pyfinagent_hdw` | US | Historical data warehouse |
+| `pyfinagent_pms` | US | Portfolio management / paper trading |
+| `financial_reports` | us-central1 | Financial filings |
+| `all_billing_data` | EU | GCP billing export |
+
+**Available MCP tools** (names are `mcp__<server-id>__<tool>`; discover via `ToolSearch` with query `bigquery`):
+- `list_dataset_ids` — enumerate datasets in a project
+- `list_table_ids` — enumerate tables in a dataset
+- `get_dataset_info` / `get_table_info` — schema + metadata
+- `execute_sql_readonly` — SELECT only, safe default
+- `execute_sql` — full DML/DDL (INSERT, UPDATE, DELETE, MERGE, CREATE, DROP)
+
+**Rules:**
+1. **Default to `execute_sql_readonly`.** Only use `execute_sql` when the task
+   explicitly requires a mutation, and show the SQL in the session log first.
+2. **Always bound queries.** Add `LIMIT` and partition/date filters on
+   `historical_*` tables or costs balloon fast.
+3. **Obey the 30s timeout rule** from Critical Rules above — if a query risks
+   exceeding it, add filters or sample instead.
+4. **Never `DROP` or unqualified `DELETE`** without explicit owner approval
+   (see `.claude/context/owner.md`).
+5. **Migration scripts still live in** `scripts/migrations/*.py` and use the
+   Python `google-cloud-bigquery` client for schema changes that need to be
+   version-controlled and re-runnable. Don't replace those with ad-hoc MCP
+   calls — use MCP for *inspection*, migrations for *change*.
+6. **If MCP tools aren't present** in a given session (e.g. the server didn't
+   attach), fall back to `bq` CLI or the Python client with `GCP_PROJECT_ID`
+   from `backend/.env`.
+
+**Typical uses during autonomous runs:**
+- Sanity-check that a backtest's input tables have fresh data before running
+- Verify harness learning logs are being written (`pyfinagent_data.harness_learning_log`)
+- Spot-check signal outputs vs. expectations
+- Validate migration outcomes without a full Python round-trip
 
 ## Testing
 

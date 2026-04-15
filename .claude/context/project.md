@@ -8,6 +8,7 @@ PyFinAgent is an autonomous AI-powered trading signal system. Goal: generate val
 **Budget:** Tight (~$230-350/mo, negative cash flow). Every dollar must have ROI. LLM API costs require Peder's explicit approval.
 
 **Stack:** FastAPI (Python 3.14) + Next.js 15 + BigQuery + Gemini + Claude
+**BigQuery:** Project `sunny-might-477607-p8`, accessible via MCP (read/write) in harness sessions — see `CLAUDE.md` → "BigQuery Access (MCP)" for tools, datasets, and safety rules.
 **Current best:** Sharpe 1.1705, DSR 0.9984
 **Architecture:** 4 layers, 38+ agents (Analysis Pipeline, MAS Orchestrator, Harness, Services)
 
