@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-15 | `38d58de` | Merge remote-tracking branch 'origin/main' into claude/add-permission-prompts-pRDHN |
 | 2026-04-15 | `1b2d055` | Document BigQuery MCP access for the remote agent |
 | 2026-04-15 | `99805c3` | chore: changelog auto-update for 01dec72 |
 | 2026-04-15 | `01dec72` | log: session 2026-04-15-1838 + harness_log Cycle 10 (Phase 4.4.4.2 drill) |
@@ -26,23 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `9a53cf6` | Set permissions.defaultMode to bypassPermissions for remote agent |
 | 2026-04-14 | `178ea54` | Set permissions.defaultMode to bypassPermissions for remote agent |
 | 2026-04-14 | `6fc6a68` | Auto-allow Write to .claude/context/sessions/** on remote agent |
-| 2026-04-14 | `9b870e9` | Fix paper trading: graceful RAG degradation when data store unavailable |
-| 2026-04-14 | `cb2a085` | Phase 4.2.3.2: append harness_log.md Cycle 3 entry |
-| 2026-04-14 | `e85633e` | Phase 4.2.3.2 LOG: session log + QA critique (PASS 39/39 effective) |
-| 2026-04-14 | `5008681` | Phase 4.2.3.2 LOG: session log + QA critique (PASS 39/39 effective) |
-| 2026-04-14 | `ef7e7a5` | Phase 4.2.3.2: close SN4 since_date lex-compare trap in get_signal_history |
-| 2026-04-14 | `2494d10` | Force remote agent to work on main branch, not feature branches |
-| 2026-04-14 | `d63e23c` | chore: changelog drift backfill for 7b8d77f |
-| 2026-04-14 | `7b8d77f` | chore: changelog drift backfill for 7d4149d |
-| 2026-04-14 | `7d4149d` | Phase 4.2.3.1 LOG: QA PASS (25/25 + 10/10), session log |
-| 2026-04-14 | `f266484` | chore: changelog drift backfill for f8e0076 |
-| 2026-04-14 | `f8e0076` | Phase 4.2.3.1 GENERATE (cont'd): experiment_results.md |
-| 2026-04-14 | `29e2133` | Phase 4.2.3.1 GENERATE: formatter NaN/Inf filter + n=0 Scoring pending |
-| 2026-04-14 | `ecf6abf` | chore: changelog drift backfill for a396be3 |
-| 2026-04-14 | `a396be3` | chore: changelog drift backfill for eeea983 |
-| 2026-04-14 | `eeea983` | chore: auto-changelog hook entry for 9a3effb |
-| 2026-04-14 | `e3b4774` | Auto-bump version in changelog hook (daily minor version bump) |
-| 2026-04-14 | `9a3effb` | chore: auto-changelog hook entry for 154ac62 |
 
 ---
 
