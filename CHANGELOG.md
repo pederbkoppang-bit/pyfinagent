@@ -7,6 +7,10 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-15 | `9c42646` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
+| 2026-04-15 | `c6cae16` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
+| 2026-04-14 | `852e04f` | Phase 4.2.3.3: ASCII-harden module docstring of signals_server.py |
+| 2026-04-14 | `9a53cf6` | Set permissions.defaultMode to bypassPermissions for remote agent |
 | 2026-04-14 | `178ea54` | Set permissions.defaultMode to bypassPermissions for remote agent |
 | 2026-04-14 | `6fc6a68` | Auto-allow Write to .claude/context/sessions/** on remote agent |
 | 2026-04-14 | `9b870e9` | Fix paper trading: graceful RAG degradation when data store unavailable |
@@ -23,12 +27,10 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `29e2133` | Phase 4.2.3.1 GENERATE: formatter NaN/Inf filter + n=0 Scoring pending |
 | 2026-04-14 | `ecf6abf` | chore: changelog drift backfill for a396be3 |
 | 2026-04-14 | `a396be3` | chore: changelog drift backfill for eeea983 |
-| 2026-04-14 | `eeea983` | chore: auto-changelog hook entry for 9a3effb |
-| 2026-04-14 | `e3b4774` | Auto-bump version in changelog hook (daily minor version bump) |
-| 2026-04-14 | `9a3effb` | chore: auto-changelog hook entry for 154ac62 |
-| 2026-04-14 | `154ac62` | session log: 2026-04-14-1221 Phase 4.2.2 EVALUATE (race loser, AP14 finding) |
 
 ---
+
+### v6.4.2 — Continued Development (2026-04-15)
 
 ### v6.4.1 — Continued Development (2026-04-14)
 
