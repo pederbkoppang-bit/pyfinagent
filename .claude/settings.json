@@ -20,6 +20,11 @@
             "type": "command",
             "command": "bash .claude/hooks/masterplan-memory-sync.sh",
             "statusMessage": "Syncing masterplan to memory..."
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/archive-handoff.sh",
+            "statusMessage": "Archiving handoff files..."
           }
         ]
       }

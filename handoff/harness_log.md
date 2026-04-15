@@ -167,3 +167,32 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Phase 4.4 progress:** 3 / 27 items now `[x]` (was 2 / 27 at cycle start: 4.4.4.1 from Cycle 9 + 4.4.4.4 from Cycle 8). Phase 4.4.4 risk-management subsection is now 3 / 4 complete; only 4.4.4.3 (stop-loss drill) remains in that subsection. Phase 4.4.1 / 4.4.2 / 4.4.3 / 4.4.5 / 4.4.6 all still at 0 `[x]` (wall-clock / live-service / Peder-gated). Next tractable Ford-in-remote-env item is 4.4.4.3 -- must first inspect `backend/services/paper_trader.py` to confirm the -8% stop-loss exit logic exists before writing the drill; if the stop is not present, 4.4.4.3 is a hard block that needs a code gate first.
 **Reliability note:** Tenth consecutive cycle (4.2.3 through 4.4.4.2) to land without a `Stream idle timeout` incident. Fourth consecutive cycle to ship evidence for a Phase 4.4 Go-Live Checklist item. The "drill-as-evidence" pattern established by Cycle 9 (4.4.4.1) continues to work: copy-paste the loader helper, mirror the scenario dispatcher, pin the hardcoded literals against 4.4.4.4 evidence, spawn qa-evaluator on the pushed commit. 0 retries, 0 contract SC violations, 0 adversarial probe failures.
 **Session log:** `.claude/context/sessions/2026-04-15-1745.md`
+
+---
+
+## Session Note -- 2026-04-16 ~00:00 local -- Workstream B Audit Finding
+
+**Context:** Workstream B of the "Continuous Remote Agent to May Launch" plan called for starting the APScheduler paper-trading cycle. Audit finds it is already live and has been since `2026-03-20` (inception_date in paper_portfolio).
+
+**Paper trading live state (2026-04-16T00:00 local, captured from /api/paper-trading/status + /api/paper-trading/snapshots?limit=10):**
+  - scheduler_active: true, next_run 2026-04-16T14:00:00+02:00 (daily weekday cron from PAPER_TRADING_HOUR=14)
+  - NAV: $9499.50 (starting $10000), cumulative PnL -5.0%
+  - Benchmark PnL: +7.08% to +7.52% -> alpha -12.09 to -12.52 percentage points
+  - position_count: 0 on every snapshot from 2026-04-14 onward; trades_today: 0 on every snapshot
+  - analysis_cost_today: 0.0-0.2 USD/day -> orchestrator IS being invoked on some cycles
+  - decide_trades is returning zero orders -- the root cause of "burning money": API costs bleed while the portfolio sits 100% cash as SPX climbs
+
+**Wiring verified correct:**
+  - backend/main.py:114 starts scheduler gated on settings.paper_trading_enabled
+  - backend/.env has PAPER_TRADING_ENABLED=true, PAPER_TRADING_HOUR=14
+  - backend/services/autonomous_loop.py:305 instantiates AnalysisOrchestrator(settings)
+  - run_daily_cycle screen -> analyze -> decide -> trade pipeline is intact
+
+**New tractable step for the continuous MAS harness (Workstream C will pick this up):**
+  4.4.X.zero-orders-bug: diagnose why decide_trades returns 0 orders every cycle. Candidates:
+    - Risk Judge position sizing returning 0 (hardcoded guardrails too tight for a $9.5k NAV?)
+    - Decide gate requires signal_confidence above a threshold that the 28-agent pipeline never hits in lite_mode
+    - Screener returns a candidate set decide_trades rejects for every ticker
+    - Minimum-trade-size floor blocks sub-$X buys when NAV is below some threshold
+
+**Workstream B status:** AUDIT COMPLETE. Infrastructure was already in place from a prior session. No new code landed. 2-week wall-clock gate for 4.4.2.1 effectively satisfied (27 days live), but content of those 27 days is 0 trades -> the gate passes mechanically but fails intent. Flagged for harness follow-up.
