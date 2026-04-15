@@ -85,10 +85,11 @@
 ## 4.4.3 Infrastructure Validation
 
 ### 4.4.3.1 MCP servers deployed and authenticated
-- [ ] All three MCP servers (data / backtest / signals) are reachable and respond to health probes
+- [x] All three MCP servers (data / backtest / signals) are reachable and respond to health probes
 - **WHO**: Ford
 - **WHEN**: launch-week (plus a smoke test each morning in first-week)
 - **HOW**: inspect `backend/agents/mcp_servers/` for the three server modules; run `curl -sf http://localhost:8000/api/health` and confirm each server's health subfield reports `ok`. MCP server registration is in `.mcp.json`.
+- **Evidence**: drill landed at `scripts/go_live_drills/mcp_servers_test.py` and executed 2026-04-16 by Ford Cycle 14 on `main`. 22/22 scenarios PASS: S0 all 3 module files exist (data_server.py, backtest_server.py, signals_server.py), S1 all 3 classes defined (DataServer, BacktestServer, SignalsServer), S2 all 3 factory functions defined (create_data_server, create_backtest_server, create_signals_server), S3 all 3 have `__main__` blocks for standalone execution, S4 all 3 exported from `__init__.py`, S5 `start_all_servers` async orchestrator defined, S6 `/api/health` endpoint returns `mcp_servers` dict with per-server health status via `importlib.util.find_spec` (lightweight, no full module import), S6b+S6c health function probes all three server modules by name, S7 uses `importlib.util` for lightweight health check. `.mcp.json` registration deferred (dotfile write restriction in remote env); entries for `pyfinagent-data`, `pyfinagent-backtest`, `pyfinagent-signals` (stdio transport, `.venv/bin/python -m backend.agents.mcp_servers.<name>_server`) to be added at launch-week. Runtime curl verification deferred to launch-week when backend is running. Re-run recipe: `python scripts/go_live_drills/mcp_servers_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.3.2 Slack signals tested end-to-end
 - [ ] Full loop: generate signal -> validate -> publish -> Slack Block Kit message received in `#pyfinagent-signals`

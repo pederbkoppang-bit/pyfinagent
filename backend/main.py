@@ -3,6 +3,7 @@ PyFinAgent Backend — FastAPI application entry point.
 """
 
 import asyncio
+import importlib.util
 import io
 import logging
 import json
@@ -257,7 +258,16 @@ async def health():
         _ver = _m.group(1) if _m else "6.0.0"
     except Exception:
         _ver = "6.0.0"
-    return {"status": "ok", "service": "pyfinagent-backend", "version": _ver}
+    mcp_servers = {}
+    for name, mod_name in [
+        ("data", "backend.agents.mcp_servers.data_server"),
+        ("backtest", "backend.agents.mcp_servers.backtest_server"),
+        ("signals", "backend.agents.mcp_servers.signals_server"),
+    ]:
+        spec = importlib.util.find_spec(mod_name)
+        mcp_servers[name] = {"status": "ok"} if spec else {"status": "error", "detail": "module not found"}
+
+    return {"status": "ok", "service": "pyfinagent-backend", "version": _ver, "mcp_servers": mcp_servers}
 
 
 @app.get("/api/changelog")
