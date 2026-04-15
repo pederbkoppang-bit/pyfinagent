@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-15 | `7c9c51a` | Phase 4.2.4 LOG: session log + harness_log Cycle 4 + QA critique |
 | 2026-04-15 | `44f4a40` | gitignore .claude/worktrees/ (transient qa-evaluator subagent isolation) |
 | 2026-04-15 | `9c42646` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
 | 2026-04-15 | `c6cae16` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-14 | `f266484` | chore: changelog drift backfill for f8e0076 |
 | 2026-04-14 | `f8e0076` | Phase 4.2.3.1 GENERATE (cont'd): experiment_results.md |
 | 2026-04-14 | `29e2133` | Phase 4.2.3.1 GENERATE: formatter NaN/Inf filter + n=0 Scoring pending |
-| 2026-04-14 | `ecf6abf` | chore: changelog drift backfill for a396be3 |
 
 ---
 
