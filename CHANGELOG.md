@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `d2a9430` | chore: harness log entry for Cycle 27 (Phase 4.4.6.4 PASS) |
 | 2026-04-16 | `3b37636` | Phase 4.4.6.4: Rollback plan documented with pause_signals mechanism (17/17 PASS) |
 | 2026-04-16 | `7330d89` | chore: harness log entry for Cycle 26 (Phase 4.4.3.2 PASS) |
 | 2026-04-16 | `23729e6` | Phase 4.4.3.2: Slack signals end-to-end code-level verification (16/16 PASS) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-15 | `38d58de` | Merge remote-tracking branch 'origin/main' into claude/add-permission-prompts-pRDHN |
 | 2026-04-15 | `1b2d055` | Document BigQuery MCP access for the remote agent |
 | 2026-04-15 | `99805c3` | chore: changelog auto-update for 01dec72 |
-| 2026-04-15 | `01dec72` | log: session 2026-04-15-1838 + harness_log Cycle 10 (Phase 4.4.4.2 drill) |
 
 ---
 
