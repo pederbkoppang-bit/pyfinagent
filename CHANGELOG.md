@@ -30,15 +30,34 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
-### v6.5.0 — Phase 4.5: Paper Trading Dashboard v2 (Evaluation-Grade) + MAS/Harness Protocol Hardening (2026-04-16)
+### v6.5.6 — Paper Trading: replace stacked ops widgets with a single dense status bar (2026-04-16)
+
+- **Paper Trading: replace stacked ops widgets with a single dense status bar**
+
+### v6.5.5 — Escalation path defined with L1-L3 ladder (2026-04-16)
 
 - **Phase 4.4.5.2: Escalation path defined with L1-L3 ladder**
-- **Paper Trading: replace stacked ops widgets with a single dense status bar**
+
+### v6.5.4 — Paper Trading: pull KPI hero into bento right column + codify rules (2026-04-16)
+
 - **Paper Trading: pull KPI hero into bento right column + codify rules**
+
+### v6.5.3 — Paper Trading: bento ops-strip layout, remove dead whitespace (2026-04-16)
+
 - **Paper Trading: bento ops-strip layout, remove dead whitespace**
+
+### v6.5.2 — Phase 4.5 widgets now use apiFetch instead of raw fetch (2026-04-16)
+
 - **Phase 4.5 widgets now use apiFetch instead of raw fetch**
+
+### v6.5.1 — GoLiveGate: vertical-list layout + error banner + Retry (2026-04-16)
+
 - **vertical-list layout + error banner + Retry**
+
+### v6.5.0 — Phase 4.5: Paper Trading Dashboard v2 (Evaluation-Grade) + MAS/Harness Protocol Hardening (2026-04-16)
+
 - **Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout**
+
 **Shipped the full 11-substep Phase 4.5 under a RESEARCH → PLAN → GENERATE → EVALUATE (harness-verifier + qa-evaluator) → LOG protocol. Mid-phase, audited and corrected the MAS/harness setup per Anthropic 2024-2026 research + SAVeR/SEVerA/VeriPlan 2025-2026 papers.**
 
 #### Evaluation-grade metrics

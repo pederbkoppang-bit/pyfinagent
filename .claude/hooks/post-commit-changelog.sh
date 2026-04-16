@@ -48,6 +48,11 @@ max_rows = int(sys.argv[3])
 today = sys.argv[4]
 commit_subject = sys.argv[5] if len(sys.argv) > 5 else "Continued Development"
 
+# chore: commits (auto-changelog entries, harness logs, housekeeping)
+# don't deserve a new version header or bullet. They still get a Recent
+# Activity row so the git-log trail stays visible.
+is_chore = commit_subject.lower().startswith("chore:")
+
 # Condense the subject for a version-header title: strip a leading
 # "prefix: " scope marker and cap length so it fits the What's New card.
 def _header_title(subject: str) -> str:
@@ -75,43 +80,32 @@ for i, line in enumerate(lines):
         current_version = (major, minor, patch)
         break
 
-# Check if the current version header already has today's date
-# If not, bump patch version and add new header
-if version_idx is not None and current_version is not None:
-    version_line = lines[version_idx]
-    if today not in version_line:
-        # Bump patch version (6.4.0 -> 6.4.1)
-        new_major, new_minor, new_patch = current_version[0], current_version[1], current_version[2] + 1
-        new_version_header = f"### v{new_major}.{new_minor}.{new_patch} \u2014 {header_title} ({today})\n"
-        # Insert new version header before the old one, with a separator
-        lines.insert(version_idx, "\n")
-        lines.insert(version_idx, new_version_header)
+# Bump patch version on every meaningful commit. Chore commits (auto-
+# changelog entries, harness logs) do not bump -- they just append a
+# Recent Activity row below.
+if not is_chore and version_idx is not None and current_version is not None:
+    new_major, new_minor, new_patch = current_version[0], current_version[1], current_version[2] + 1
+    new_version_header = f"### v{new_major}.{new_minor}.{new_patch} \u2014 {header_title} ({today})\n"
+    # Insert new version header before the old one, with a separator.
+    lines.insert(version_idx, "\n")
+    lines.insert(version_idx, new_version_header)
 
-# --- Insert bullet point under today's version header ---
-# Find the current version header (may have just been inserted above).
-# Insert a "- **subject**" bullet right after the header line so the
-# What's New card in the frontend always shows meaningful content.
-# Skip commits prefixed with "chore:" since those are auto-generated
-# (changelog updates, drift fixes) and clutter the summary.
-if not commit_subject.lower().startswith("chore:"):
-    # Re-find the version header (may have shifted due to bump insert)
+# --- Insert bullet point under today's newest version header ---
+# Every meaningful commit gets a header (just inserted above), so the
+# bullet appears under its own header. Chore commits are skipped.
+if not is_chore:
     for i, line in enumerate(lines):
         m = re.match(r"^### v\d+\.\d+\.\d+\b", line)
         if m and today in line:
-            # Find the insertion point: right after the header, before the
-            # next header or the "### Recent Activity" section. Skip any
-            # existing blank line immediately after the header.
             bullet_idx = i + 1
             while bullet_idx < len(lines) and lines[bullet_idx].strip() == "":
                 bullet_idx += 1
 
-            # Build bullet: "- **Subject** (hash)"
             bullet_text = re.sub(r"^[A-Za-z0-9.]+:\s*", "", commit_subject.strip())
             if len(bullet_text) > 100:
                 bullet_text = bullet_text[:97].rstrip() + "..."
             bullet_line = f"- **{bullet_text}**\n"
 
-            # Don't duplicate (check if the same bullet text is already there)
             already = False
             for j in range(bullet_idx, min(bullet_idx + 20, len(lines))):
                 if lines[j].strip().startswith("### "):
