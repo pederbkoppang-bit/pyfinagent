@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship a validated, evidence-based trading signal system by May 2026 that, once live, maximizes profit at the lowest operating cost by dynamically shifting strategy to whichever candidate is currently earning the most.",
-  "updated_at": "2026-04-16T22:11:19.806121+00:00",
+  "updated_at": "2026-04-16T22:14:38.630957+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -323,81 +323,6 @@
         {
           "id": "3.5",
           "name": "Enrichment MCP Server",
-          "status": "pending",
-          "harness_required": true,
-          "verification": {
-            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
-            "success_criteria": [
-              "evaluator_critique_pass",
-              "no_regressions"
-            ]
-          },
-          "contract": null,
-          "retry_count": 0,
-          "max_retries": 3
-        }
-      ]
-    },
-    {
-      "id": "phase-4",
-      "name": "Production Readiness",
-      "status": "in-progress",
-      "depends_on": [
-        "phase-2"
-      ],
-      "gate": null,
-      "steps": [
-        {
-          "id": "4.1",
-          "name": "Slack Signal Delivery",
-          "status": "done",
-          "harness_required": true,
-          "verification": {
-            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
-            "success_criteria": [
-              "evaluator_critique_pass",
-              "no_regressions"
-            ]
-          },
-          "contract": null,
-          "retry_count": 0,
-          "max_retries": 3
-        },
-        {
-          "id": "4.2",
-          "name": "Paper Trading Evaluation",
-          "status": "pending",
-          "harness_required": true,
-          "verification": {
-            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
-            "success_criteria": [
-              "evaluator_critique_pass",
-              "no_regressions"
-            ]
-          },
-          "contract": null,
-          "retry_count": 0,
-          "max_retries": 3
-        },
-        {
-          "id": "4.3",
-          "name": "Risk Management",
-          "status": "done",
-          "harness_required": true,
-          "verification": {
-            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
-            "success_criteria": [
-              "evaluator_critique_pass",
-              "no_regressions"
-            ]
-          },
-          "contract": null,
-          "retry_count": 0,
-          "max_retries": 3
-        },
-        {
-          "id": "4.4",
-          "name": "Go-Live Checklist",
           "status": "pending",
           "harness_required": true,
           "verification": {
@@ -822,7 +747,6 @@
       "name": "Multi-Market Expansion",
       "status": "pending",
       "depends_on": [
-        "phase-4",
         "phase-4.5"
       ],
       "gate": null,
@@ -1432,6 +1356,115 @@
           "status": "pending",
           "harness_required": true,
           "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Production Readiness",
+      "status": "in-progress",
+      "depends_on": [
+        "phase-2",
+        "phase-3",
+        "phase-4.5",
+        "phase-4.6",
+        "phase-5",
+        "phase-5.5",
+        "phase-6",
+        "phase-7",
+        "phase-8",
+        "phase-9"
+      ],
+      "gate": {
+        "approved": false,
+        "reason": "Go-live blocked until every other phase (2, 3, 4.5, 4.6, 5, 5.5, 6, 7, 8, 9) reaches status=done and phase-4 step 4.9 (aggregate smoketest) passes. 'Test everything' is a hard gate: a single failing prior-phase verification command blocks capital."
+      },
+      "steps": [
+        {
+          "id": "4.1",
+          "name": "Slack Signal Delivery",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.2",
+          "name": "Paper Trading Evaluation",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.3",
+          "name": "Risk Management",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.4",
+          "name": "Go-Live Checklist",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9",
+          "name": "Pre-go-live aggregate smoketest (test everything)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "bash scripts/smoketest/aggregate.sh",
+            "success_criteria": [
+              "every_other_phase_status_is_done",
+              "each_done_phase_verification_command_reruns_green",
+              "pytest_backend_tests_passes_with_zero_failures",
+              "frontend_tsc_noemit_exits_zero",
+              "frontend_next_build_exits_zero",
+              "phase_4_6_smoketest_passes_all_10_steps",
+              "no_open_critical_incidents_in_handoff_harness_log",
+              "evaluator_critique_pass"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
           "max_retries": 3
