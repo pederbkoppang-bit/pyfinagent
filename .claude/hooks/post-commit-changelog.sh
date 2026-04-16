@@ -80,6 +80,42 @@ if version_idx is not None and current_version is not None:
         lines.insert(version_idx, "\n")
         lines.insert(version_idx, new_version_header)
 
+# --- Insert bullet point under today's version header ---
+# Find the current version header (may have just been inserted above).
+# Insert a "- **subject**" bullet right after the header line so the
+# What's New card in the frontend always shows meaningful content.
+# Skip commits prefixed with "chore:" since those are auto-generated
+# (changelog updates, drift fixes) and clutter the summary.
+if not commit_subject.lower().startswith("chore:"):
+    # Re-find the version header (may have shifted due to bump insert)
+    for i, line in enumerate(lines):
+        m = re.match(r"^### v\d+\.\d+\.\d+\b", line)
+        if m and today in line:
+            # Find the insertion point: right after the header, before the
+            # next header or the "### Recent Activity" section. Skip any
+            # existing blank line immediately after the header.
+            bullet_idx = i + 1
+            while bullet_idx < len(lines) and lines[bullet_idx].strip() == "":
+                bullet_idx += 1
+
+            # Build bullet: "- **Subject** (hash)"
+            bullet_text = re.sub(r"^[A-Za-z0-9.]+:\s*", "", commit_subject.strip())
+            if len(bullet_text) > 100:
+                bullet_text = bullet_text[:97].rstrip() + "..."
+            bullet_line = f"- **{bullet_text}**\n"
+
+            # Don't duplicate (check if the same bullet text is already there)
+            already = False
+            for j in range(bullet_idx, min(bullet_idx + 20, len(lines))):
+                if lines[j].strip().startswith("### "):
+                    break
+                if bullet_text in lines[j]:
+                    already = True
+                    break
+            if not already:
+                lines.insert(bullet_idx, bullet_line)
+            break
+
 # --- Insert changelog row ---
 # Re-find the table header separator (may have shifted due to version insert)
 insert_idx = None
