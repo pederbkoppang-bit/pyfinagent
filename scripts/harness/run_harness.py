@@ -19,9 +19,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # -- Setup path and env before any backend imports --
-sys.path.insert(0, os.path.dirname(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, PROJECT_ROOT)
 from dotenv import load_dotenv
-load_dotenv("backend/.env")
+load_dotenv(os.path.join(PROJECT_ROOT, "backend/.env"))
 
 # Suppress noisy GCP logs
 logging.getLogger("google").setLevel(logging.WARNING)
@@ -40,7 +41,7 @@ from backend.backtest.analytics import generate_report
 from backend.backtest.quant_optimizer import QuantStrategyOptimizer
 
 # -- Paths --
-PROJECT_ROOT = Path(__file__).parent.parent.parent  # pyfinagent/
+PROJECT_ROOT = Path(PROJECT_ROOT)  # Convert to Path object for consistency
 HANDOFF_DIR = PROJECT_ROOT / "handoff" / "current"
 HANDOFF_ROOT = PROJECT_ROOT / "handoff"
 BEST_PARAMS_PATH = PROJECT_ROOT / "backend" / "backtest" / "experiments" / "optimizer_best.json"

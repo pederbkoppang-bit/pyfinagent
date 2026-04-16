@@ -345,3 +345,116 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Total cycle time:** ~25 minutes (3 aborted backtest attempts, cache optimization implementation, drill test authoring)
 **Phase 4.4 progress:** 10/27 items unchanged (still 10/27 `[x]`). No Ford-tractable items remain within the 30-min cycle constraint. Remaining items require: wall-clock runtime (4.4.2.*, 4.4.3.3), human review (4.4.5.*), Peder approval (4.4.6.*), joint Slack testing (4.4.3.2), or >30 min compute (4.4.1.3).
 **Reliability note:** First cycle to exit BLOCKED rather than ACCEPTED. Prep work (cache optimization, drill test) reduces future cycle time for this item. The BQ cache guard pattern is a general performance improvement that benefits all back-to-back backtest runs.
+
+---
+
+## Cycle 1 -- 2026-04-16 05:59 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 05:59 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 06:11 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 06:14 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 06:47 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 06:47 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 20 -- 2026-04-16 ~08:50 UTC -- Phase 4.4.1.3 Seed Stability (FAIL)
+
+**Planner hypothesis:** Phase 4.4 at 10/27 items `[x]`. Item 4.4.1.3 ("Sharpe stable across 5 random seeds, std < 0.1") is the sole remaining Ford-tractable item. Cycle 18 was BLOCKED on compute (~75 min). This cycle ran the full 5-seed test outside the harness time limit.
+**Generator:** Full 5-seed stability run completed (~103 min total). All 5 seeds [42, 123, 456, 789, 2026] ran 27-window walk-forward backtests with monkey-patched `random_state`. Results saved to `handoff/seed_stability_results.json`. Per-seed results in `experiments/results/`.
+**Evaluator verdict:** FAIL (11/14 drill checks pass)
+- Seed stability (spread): PASS -- std=0.0094 (threshold 0.1), range=0.0288
+- Absolute Sharpe floor: FAIL -- all seeds produced Sharpe ~0.58-0.60, well below 0.9 floor
+- Mean Sharpe: 0.5889, Min: 0.5756 (seed 123), Max: 0.6044 (seed 789)
+- All seeds: 680 trades, MaxDD=-12.4%, DSR=1.0, hit rate ~55.4%
+- Trade counts identical across all seeds (680) -- strategy is deterministic modulo GBM random_state
+**Decision:** BLOCKED -- checklist item 4.4.1.3 NOT flipped. Strategy is provably seed-stable (std=0.009) but absolute Sharpe has degraded from optimizer_best (1.17, 2025-03-28) to ~0.59 on current BQ data. Re-optimization required before this item can pass.
+**Total cycle time:** ~103 min (full compute)
+**Phase 4.4 progress:** 10/27 items unchanged. No Ford-tractable items remain. 4.4.1.3 blocked on re-optimization. All other items gated on wall-clock, Peder, or human review.
+**Key finding:** The strategy's seed independence is excellent (std=0.009), confirming the GBM classifier is not sensitive to random initialization. The Sharpe degradation from 1.17 to 0.59 is a data-drift issue, not a seed-stability issue.
