@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `5a6f43e` | Fix: Phase 4.5 widgets now use apiFetch instead of raw fetch |
 | 2026-04-16 | `b9ec89c` | GoLiveGate: vertical-list layout + error banner + Retry |
 | 2026-04-16 | `6d70b06` | Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout |
 | 2026-04-16 | `95cc076` | Merge pull request #6 from pederbkoppang-bit/add-claude-github-actions-1776357343140 |
@@ -26,12 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `388fc43` | W1: feature ablation runner with walk-forward LOO testing |
 | 2026-04-16 | `ab0bccdb` | chore: changelog auto-update for be7ff0fe |
 | 2026-04-16 | `be7ff0fe` | log: session 2026-04-15-2230 + harness_log Cycle 11 (Phase 4.4.4.3 drill) |
-| 2026-04-16 | `4a8951f` | Cycle 12 harness log entry for Phase 4.4.3.5 |
 
 ---
 
 ### v6.5.0 — Phase 4.5: Paper Trading Dashboard v2 (Evaluation-Grade) + MAS/Harness Protocol Hardening (2026-04-16)
 
+- **Phase 4.5 widgets now use apiFetch instead of raw fetch**
 - **vertical-list layout + error banner + Retry**
 - **Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout**
 **Shipped the full 11-substep Phase 4.5 under a RESEARCH → PLAN → GENERATE → EVALUATE (harness-verifier + qa-evaluator) → LOG protocol. Mid-phase, audited and corrected the MAS/harness setup per Anthropic 2024-2026 research + SAVeR/SEVerA/VeriPlan 2025-2026 papers.**
