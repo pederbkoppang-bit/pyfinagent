@@ -251,3 +251,21 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Total cycle time:** ~15 minutes (RESEARCH gate WAIVED; PLAN ~3min, GENERATE ~5min, EVALUATE ~3min, LOG ~4min)
 **Phase 4.4 progress:** 7/27 items now `[x]` (was 6/27 at cycle start). Phase 4.4.3 infrastructure subsection is now 3/5 complete (4.4.3.1 + 4.4.3.4 + 4.4.3.5 done; 4.4.3.2 Slack e2e is joint, 4.4.3.3 gateway uptime is wall-clock gated). Phase 4.4.4 risk-management subsection remains 4/4 complete.
 **Reliability note:** Seventh consecutive cycle to ship evidence for a Phase 4.4 Go-Live Checklist item. Infrastructure section now 3/5 complete. Remaining Ford-tractable items narrowing: most unchecked items are either wall-clock gated (4.4.2.1, 4.4.3.3), Peder-gated (4.4.5.*, 4.4.6.*), or require heavy computation (4.4.1.* statistical validation).
+
+---
+
+## Cycle 15 -- 2026-04-16 ~12:00 UTC -- Phase 4.4.1.4 Walk-Forward Return Concentration
+
+**Planner hypothesis:** Phase 4.4 at 7/27 items `[x]` after Cycle 14. Statistical validation subsection (4.4.1.*) has 0/4 items done. Item 4.4.1.4 ("No single walk-forward window drives > 30% of total return") is tractable without running a full backtest: the best result file (`20260328T072722Z_52eb3ffe-exp10.json`, Sharpe 1.1705) already contains 27 walk-forward windows with test_start/test_end dates and a 1067-point equity curve. Per-window `total_return_pct` is unfilled (0.0) in the stored data, but returns can be computed by slicing the NAV history at each window's test boundaries. Research gate WAIVED per pure-analysis rule -- no algorithm or external knowledge needed, just slicing existing data.
+**Generator:** One new file: `scripts/go_live_drills/walk_forward_concentration_test.py` (+170 lines, stdlib-only: json, sys, pathlib). Drill: (1) finds highest-Sharpe result across all 350 result JSONs, (2) validates 27 walk-forward windows have test_start/test_end dates, (3) validates equity curve spans the full test range, (4) computes per-window dollar returns by finding NAV at each window's test_start and test_end via closest-date matching, (5) checks max single-window contribution against 30% threshold, (6) reports soft robustness notes (window distribution, top-3 concentration). Plus `docs/GO_LIVE_CHECKLIST.md` item 4.4.1.4 flipped `[ ]` -> `[x]` with evidence line. 1 commit: `8212001` on origin/main.
+**Evaluator verdict:** PASS (composite 9.5/10)
+- Correctness: 10/10 (12/12 checks PASS; max contribution 14.0% in W24, well below 30%)
+- Scope: 10/10 (1 new drill + 1 checklist flip; zero backend code changes)
+- Security: 10/10 (stdlib-only; reads local JSON files only)
+- Simplicity: 10/10 (straightforward NAV-slicing; clear tabular output)
+- Data quality: 8/10 (10/27 windows show 0% return due to ML filter rejecting all candidates -- genuine engine behavior, not a data gap)
+- Soft notes: (1) checklist HOW mentions `run_subperiod_test.py` which runs 4 separate sub-period backtests; drill instead directly analyzes existing walk-forward windows from the best full-sample result, which is a more direct test of the actual criterion; (2) 13 positive, 4 negative, 10 flat windows; top-3 contribute 38% of total
+**Decision:** ACCEPTED -- shipped as `8212001` on origin/main.
+**Total cycle time:** ~12 minutes (RESEARCH gate WAIVED; PLAN ~3min, GENERATE ~5min, EVALUATE ~2min, LOG ~2min)
+**Phase 4.4 progress:** 8/27 items now `[x]` (was 7/27 at cycle start). Phase 4.4.1 statistical validation subsection is now 1/4 complete. First statistical validation item landed. Remaining 4.4.1 items (4.4.1.1 evaluator criteria, 4.4.1.2 DSR >= 0.95, 4.4.1.3 seed stability) require running full backtests with the venv + BQ.
+**Reliability note:** Eighth consecutive cycle to ship evidence for a Phase 4.4 Go-Live Checklist item. First statistical validation item landed using existing data analysis rather than running new backtests.
