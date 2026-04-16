@@ -53,7 +53,7 @@ def run_with_seed(params: dict, seed: int, settings, bq) -> dict:
     engine_mod.BacktestEngine._train_model = patched_train
     try:
         engine = make_engine(params, settings, bq)
-        result = engine.run_backtest()
+        result = engine.run_backtest(skip_cache_clear=True)
         report = generate_report(result, num_trials=1)
         a = report["analytics"]
 
@@ -119,6 +119,10 @@ def main():
             print(f"  FAILED: {e} ({elapsed:.0f}s)")
             results.append({"seed": seed, "sharpe": 0, "error": str(e)})
         print()
+
+    # Clean up BQ cache after all runs
+    from backend.backtest.cache import clear_cache
+    clear_cache()
 
     sharpes = [r["sharpe"] for r in results if r.get("sharpe", 0) > 0]
     if not sharpes:

@@ -82,6 +82,12 @@ def preload_prices(tickers: list[str], start_date: str, end_date: str, market: s
     if not tickers:
         return 0
 
+    # Skip BQ query if all requested tickers are already preloaded
+    if _prices_full and all(t in _prices_full for t in tickers):
+        total = sum(len(df) for df in _prices_full.values())
+        logger.info("Prices already preloaded (%d tickers, %d rows), skipping BQ query", len(_prices_full), total)
+        return total
+
     # TODO (Phase 2.9): Add market filter when expanding to multi-market
     # e.g., WHERE ticker IN UNNEST(@tickers) AND market = @market AND ...
     query = f"""
@@ -131,6 +137,12 @@ def preload_fundamentals(tickers: list[str], market: str = _DEFAULT_MARKET) -> i
     if not tickers:
         return 0
 
+    # Skip BQ query if all requested tickers are already preloaded
+    if _fundamentals_full and all(t in _fundamentals_full for t in tickers):
+        total = sum(len(v) for v in _fundamentals_full.values())
+        logger.info("Fundamentals already preloaded (%d tickers, %d rows), skipping BQ query", len(_fundamentals_full), total)
+        return total
+
     query = f"""
         SELECT *
         FROM `{_table("historical_fundamentals")}`
@@ -176,6 +188,12 @@ def preload_macro() -> int:
     Returns the total number of rows loaded.
     """
     assert _bq_client is not None, "Cache not initialized — call init_cache() first"
+
+    # Skip BQ query if macro data is already preloaded
+    if _macro_full:
+        total = sum(len(v) for v in _macro_full.values())
+        logger.info("Macro already preloaded (%d series, %d rows), skipping BQ query", len(_macro_full), total)
+        return total
 
     query = f"""
         SELECT series_id, value, date

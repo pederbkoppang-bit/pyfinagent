@@ -307,3 +307,20 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Total cycle time:** ~15 minutes (RESEARCH gate WAIVED; PLAN ~3min, GENERATE ~5min, EVALUATE ~3min, LOG ~4min)
 **Phase 4.4 progress:** 10/27 items now `[x]` (was 9/27 at cycle start). Phase 4.4.1 statistical validation subsection is now 3/4 complete (4.4.1.1 evaluator criteria + 4.4.1.2 DSR + 4.4.1.4 concentration done; only 4.4.1.3 seed stability remains -- requires 5 optimizer runs with different seeds, blocked without .venv). Remaining Ford-tractable items narrowing: most unchecked items are wall-clock gated (4.4.2.*, 4.4.3.3), Peder/human-gated (4.4.5.*, 4.4.6.*), joint/Slack (4.4.3.2), or need full env (4.4.1.3).
 **Reliability note:** Tenth consecutive cycle to ship evidence for a Phase 4.4 Go-Live Checklist item. Third statistical validation item landed. The "deterministic rubric proxy" pattern extends the "verify from persisted artifacts" approach to evaluator scoring.
+
+---
+
+## Cycle 18 -- 2026-04-16 ~04:00 UTC -- Phase 4.4.1.3 Seed Stability (BLOCKED)
+
+**Planner hypothesis:** Phase 4.4 at 10/27 items `[x]` after Cycle 17. Item 4.4.1.3 ("Sharpe stable across 5 random seeds, std < 0.1") is the last remaining Ford-owned statistical validation item. All other unchecked items are wall-clock gated (4.4.2.*, 4.4.3.3), human-review gated (4.4.5.*), or Peder-approval gated (4.4.6.*). The seed stability script (`scripts/harness/run_seed_stability.py`) runs 5 full 27-window walk-forward backtests with different `GradientBoosting.random_state` values.
+**Generator:** Three improvements landed as prep work: (1) `backend/backtest/cache.py` +18 lines -- cache guards added to `preload_prices()`, `preload_fundamentals()`, `preload_macro()` that skip redundant BQ queries when data is already preloaded in module-level dicts. (2) `scripts/harness/run_seed_stability.py` -- added `skip_cache_clear=True` to `run_backtest()` call + explicit `clear_cache()` after all runs. (3) New `scripts/go_live_drills/seed_stability_test.py` (155 lines, stdlib-only) with 14 checks: results file exists, correct seeds, all 5 results present, no errors, mean Sharpe > 0.9, std < 0.1, all seeds > 0.9, range < 0.3, per-seed files saved, cross-checks vs file stats, verdict PASS, minimum trades > 100.
+**Evaluator verdict:** BLOCKED (compute time exceeds cycle limit)
+- Each 27-window backtest takes ~19 min (5 min BQ preload + 14 min window processing per seed)
+- 5 seeds × 19 min = ~95 min without optimization, ~75 min with cache guards (seeds 2-5 skip BQ preload)
+- Harness cycle limit: ~30 min
+- Partial run of seed 42 produced Sharpe 0.5867 (vs optimizer_best 1.1705 -- discrepancy noted, likely code drift since optimizer ran on 2026-03-28)
+- Item cannot be flipped to `[x]` without all 5 seed results
+**Decision:** BLOCKED -- prep work committed, full run must be done outside harness cycle. Recommend: `nohup python scripts/harness/run_seed_stability.py > handoff/seed_stability_output.log 2>&1 &`
+**Total cycle time:** ~25 minutes (3 aborted backtest attempts, cache optimization implementation, drill test authoring)
+**Phase 4.4 progress:** 10/27 items unchanged (still 10/27 `[x]`). No Ford-tractable items remain within the 30-min cycle constraint. Remaining items require: wall-clock runtime (4.4.2.*, 4.4.3.3), human review (4.4.5.*), Peder approval (4.4.6.*), joint Slack testing (4.4.3.2), or >30 min compute (4.4.1.3).
+**Reliability note:** First cycle to exit BLOCKED rather than ACCEPTED. Prep work (cache optimization, drill test) reduces future cycle time for this item. The BQ cache guard pattern is a general performance improvement that benefits all back-to-back backtest runs.

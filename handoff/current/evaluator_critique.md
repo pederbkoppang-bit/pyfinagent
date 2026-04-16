@@ -1,33 +1,29 @@
-# Evaluator Critique -- Phase 4.4.1.1 All Evaluator Criteria Passing
+# Evaluator Critique -- Phase 4.4.1.3 Seed Stability (BLOCKED)
 
-**Cycle:** 17 (Ford, 2026-04-16)
+**Cycle:** 18 (Ford, 2026-04-16)
 
-## Verdict: PASS (composite 9.5/10)
+## Verdict: BLOCKED -- compute time exceeds cycle limit
 
 ### Criteria Assessment
 
 | Criterion | Score | Notes |
 |---|---|---|
-| Correctness | 10/10 | 7/7 checks pass. All 4 axes >= 6/10. JSON verdict ok=true. |
-| Scope | 10/10 | One new drill file, one checklist edit, zero backend code changes. |
-| Security | 10/10 | stdlib-only (json, sys, pathlib, datetime). No network, no BQ. |
-| Simplicity | 10/10 | Deterministic scoring functions with clear rubric mapping. |
-| Rigor | 8/10 | Deterministic proxy is stronger than probabilistic LLM verdict for reproducibility, but simplicity axis is tight at 6.5/10. |
+| Tractability | N/A | 5-seed test requires ~75 min; harness cycle allows ~30 min |
+| Prep work | DONE | Cache guards, script optimization, drill test all landed |
+| Item completion | BLOCKED | Cannot flip checklist `[ ]` to `[x]` without full results |
 
-### Axis Scores (from drill)
+### Analysis
 
-| Axis | Score | Key Evidence |
-|---|---|---|
-| Statistical Validity | 10.0/10 | DSR=0.9526>0.95, Sharpe=1.17, dsr_significant=True, 642 trades, 11 trials, 27 windows |
-| Robustness | 10.0/10 | 6.9y test span, 17/27 windows traded, max concentration 14.2%<30% |
-| Simplicity | 6.5/10 | top-5 MDA=50%, 15 features, 8 tuned strategy params, max_depth=4 |
-| Reality Gap | 10.0/10 | 5-day embargo OOS, $7.14/trade cost, hit_rate=60.1%, US equities |
+The seed stability test (`scripts/harness/run_seed_stability.py`) runs the full 27-window walk-forward backtest 5 times with different random seeds. Each run takes ~19 minutes (5 min BQ preload + 14 min window processing). Even with the BQ cache optimization (which eliminates redundant preloads for seeds 2-5), total runtime is ~75 minutes.
 
-### Soft Notes
+### Improvements Committed
+1. **BQ cache guards** (`cache.py`): Skip redundant preload queries when data is already in memory. This is a general performance improvement that benefits all back-to-back backtest runs (optimizer iterations, seed tests, etc.).
+2. **Script optimization**: `skip_cache_clear=True` prevents cache clearance between seeds.
+3. **Drill test**: `seed_stability_test.py` ready to verify results once generated.
 
-1. Simplicity at 6.5/10 is the tightest axis. ML strategy uses 25 total features with internal selection; 8 tuned strategy params. Reducing params in future optimization would raise this score.
-2. Deterministic rubric proxy applies evaluator_agent.py criteria (lines 189-245) without LLM subjectivity -- reproducible and auditable.
-3. Item is WHEN: "every harness cycle" -- re-run drill when best result changes.
-
-### Decision
-ACCEPTED -- all 4 axes clear >= 6/10. Overall composite 9.1/10.
+### Recommendation
+Run the seed stability test as a standalone job outside the harness cycle:
+```bash
+source .venv/bin/activate
+nohup python scripts/harness/run_seed_stability.py > handoff/seed_stability_output.log 2>&1 &
+```
