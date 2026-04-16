@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `be7ff0fe` | log: session 2026-04-15-2230 + harness_log Cycle 11 (Phase 4.4.4.3 drill) |
 | 2026-04-16 | `4a8951f` | Cycle 12 harness log entry for Phase 4.4.3.5 |
 | 2026-04-16 | `ba399ee` | Phase 4.4.3.5: incident log P0 verification drill + evidence |
 | 2026-04-16 | `7a791d5` | MAS harness infrastructure: archive hook + cycle wrapper + audit |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-15 | `9c42646` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
 | 2026-04-15 | `c6cae16` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
 | 2026-04-14 | `852e04f` | Phase 4.2.3.3: ASCII-harden module docstring of signals_server.py |
-| 2026-04-14 | `912008c` | Step 2.14: Switch paper trading from Gemini to Claude |
 
 ---
 
