@@ -1,8 +1,8 @@
 {
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
-  "goal": "Ship a validated, evidence-based trading signal system by May 2026",
-  "updated_at": "2026-04-16T19:26:50.157774+00:00",
+  "goal": "Ship a validated, evidence-based trading signal system by May 2026 that, once live, maximizes profit at the lowest operating cost by dynamically shifting strategy to whichever candidate is currently earning the most.",
+  "updated_at": "2026-04-16T22:11:19.806121+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -637,6 +637,187 @@
       ]
     },
     {
+      "id": "phase-4.6",
+      "name": "Full-stack smoketest (E2E synthetic probe)",
+      "status": "pending",
+      "depends_on": [
+        "phase-4.5"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4.6.0",
+          "name": "Preflight: venv + critical imports",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"import sys,fastapi,httpx,google.cloud.bigquery,anthropic,yfinance; assert sys.version_info[:2]==(3,14); print('PREFLIGHT_OK')\"",
+            "success_criteria": [
+              "stdout contains PREFLIGHT_OK",
+              "exit code 0"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.6.1",
+          "name": "Backend boot + /api/health returns 200",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/smoketest/steps/boot_backend.py --port 8765 --timeout 30",
+            "success_criteria": [
+              "curl /api/health returns status=ok",
+              "response includes mcp_servers with data, backtest, signals all ok",
+              "latency under 5s"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.6.2",
+          "name": "MCP servers respond to ping + list_tools",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/smoketest/steps/mcp_ping.py --servers data,backtest,signals --timeout 10",
+            "success_criteria": [
+              "all three servers respond to JSON-RPC ping",
+              "list_tools returns at least one tool per server"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.6.3",
+          "name": "12 enrichment signals return for AAPL",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "curl -sf -m 60 http://127.0.0.1:8765/api/signals/AAPL | python -c \"import sys,json; d=json.load(sys.stdin); keys=['insider','options','social_sentiment','patent','earnings_tone','fred_macro','alt_data','sector','nlp_sentiment','anomalies','monte_carlo','quant_model']; miss=[k for k in keys if k not in d]; print('SIGNALS_OK' if not miss else f'MISSING:{miss}'); sys.exit(0 if not miss else 1)\"",
+            "success_criteria": [
+              "all 12 documented signal keys present",
+              "at least 8 of 12 return non-ERROR payload",
+              "total wall clock under 60s"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.6.4",
+          "name": "Paper trading run-now dry-run succeeds",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "curl -sf -m 120 -X POST \"http://127.0.0.1:8765/api/paper-trading/run-now?dry_run=true\" -H \"Content-Type: application/json\" -d '{}'",
+            "success_criteria": [
+              "HTTP 200",
+              "response contains status=ok or started=true",
+              "subsequent /status shows last_run_ts within 120s"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.6.5",
+          "name": "Frontend npm run build succeeds",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent/frontend && npm run build 2>&1 | tail -30",
+            "success_criteria": [
+              "exit code 0",
+              "output contains Compiled successfully",
+              "no Type error lines in last 200 lines"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.6.6",
+          "name": "Paper-trading 5 tabs render without error",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/smoketest/steps/frontend_tabs.py --base http://localhost:3000 --tabs positions,trades,chart,reality-gap,exit-quality",
+            "success_criteria": [
+              "all 5 tab routes return HTTP 200",
+              "each tab label text present in rendered HTML",
+              "no TypeError or ReferenceError in console logs",
+              "no rose-500 error banner element in DOM"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.6.7",
+          "name": "Slack digest delivered end-to-end",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -m backend.slack_bot.digest_test --channel-env SLACK_TEST_CHANNEL_ID --text smoketest-4.6.7 --verify-delivery",
+            "success_criteria": [
+              "Slack API returns ok=true",
+              "conversations.history lookup returns the posted message",
+              "round trip under 10s"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.6.8",
+          "name": "Watchdog alert fires on simulated process kill",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/smoketest/steps/chaos_watchdog.py --timeout 90",
+            "success_criteria": [
+              "paper_trader subprocess SIGKILLed",
+              "sla_monitor writes alert row within 90s",
+              "process auto-restarts"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.6.9",
+          "name": "Append harness log row + clean shutdown",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/smoketest/steps/finalize.py --log handoff/harness_log.md --port 8765",
+            "success_criteria": [
+              "handoff/harness_log.md gained exactly one row",
+              "new row contains phase=4.6 and result field",
+              "no uvicorn process bound to 8765 after exit",
+              "no stray mcp_server PIDs vs pre-test snapshot"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
       "id": "phase-5",
       "name": "Multi-Market Expansion",
       "status": "pending",
@@ -690,6 +871,567 @@
               "no_regressions"
             ]
           },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-5.5",
+      "name": "External Data-Source Audit",
+      "status": "pending",
+      "depends_on": [
+        "phase-4.5"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "5.5.0",
+          "name": "Automated provider inventory",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python3 scripts/audit/data_sources.py --dry-run",
+            "success_criteria": [
+              "exit code 0",
+              "stdout contains JSON with >= 12 provider keys",
+              "no secrets or API keys appear in stdout"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.5.1",
+          "name": "Current-state scoring",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python3 scripts/audit/score_current_state.py --input backend/data_audit/inventory.json --output backend/data_audit/current_state.json",
+            "success_criteria": [
+              "exit code 0",
+              "current_state.json parses with json.loads",
+              "every provider has cost, freshness, coverage, spof, license fields"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.5.2",
+          "name": "Literature review on modern alt-data",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f handoff/phase-5.5-research.md && python3 -c \"import re,sys; t=open('handoff/phase-5.5-research.md').read(); sys.exit(0 if len(set(re.findall(r'https?://[^ )\\s]+', t))) >= 20 else 1)\"",
+            "success_criteria": [
+              "research doc exists",
+              ">= 20 unique URLs",
+              ">= 10 full reads flagged with 'FULL READ' tag"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.5.3",
+          "name": "Gap analysis",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python3 scripts/audit/gap_analysis.py --current backend/data_audit/current_state.json --literature handoff/phase-5.5-research.md --output backend/data_audit/gaps.json",
+            "success_criteria": [
+              "exit code 0",
+              "gaps.json has >= 5 entries",
+              "each gap has data_class, current_provider_or_null, severity"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.5.4",
+          "name": "Desired-state proposal",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python3 scripts/audit/propose_desired.py --gaps backend/data_audit/gaps.json --output backend/data_audit/desired.json",
+            "success_criteria": [
+              "exit code 0",
+              "desired.json parses",
+              "every entry has vendor, fallback, cost_usd_month, effort_days, alpha_tier, license_note"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.5.5",
+          "name": "Prioritized shopping list",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python3 scripts/audit/shopping_list.py --desired backend/data_audit/desired.json --top 3 --output backend/data_audit/shopping_list.md",
+            "success_criteria": [
+              "exit code 0",
+              "shopping_list.md contains exactly 3 must-have entries",
+              "each entry cites at least 1 source from phase-5.5-research.md"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.5.6",
+          "name": "Sign-off and handoff",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "grep -q 'Phase 5.5' handoff/harness_log.md && test -f handoff/current/phase-5.5-contract.md",
+            "success_criteria": [
+              "harness_log.md has Phase 5.5 cycle entry",
+              "contract file exists and links to this proposal"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "name": "News & Sentiment Cron",
+      "status": "pending",
+      "depends_on": [
+        "phase-5.5"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "phase-6.1",
+          "name": "BigQuery schema migration for news + sentiment",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.2",
+          "name": "Source registry and fetcher core",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.3",
+          "name": "Streaming adapters (Finnhub, Benzinga, Alpaca)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.4",
+          "name": "Dedup layer with canonical URL + body hash",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.5",
+          "name": "Sentiment scorer ladder (Gemini Flash / Haiku / FinBERT / VADER)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.6",
+          "name": "FOMC + earnings calendar watcher",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.7",
+          "name": "Rate limits, failure alerting, cost telemetry",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.8",
+          "name": "End-to-end smoketest and 24h backfill",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "name": "Alt-Data & Scraping Expansion",
+      "status": "pending",
+      "depends_on": [
+        "phase-5.5",
+        "phase-6"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "7.0",
+          "name": "Compliance & legal foundation",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "test -f docs/compliance/alt-data.md",
+            "grep -q 'Van Buren' docs/compliance/alt-data.md",
+            "grep -q 'hiQ' docs/compliance/alt-data.md",
+            "grep -q 'X Corp' docs/compliance/alt-data.md"
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.1",
+          "name": "Congressional trades ingestion",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "python -c \"import ast; ast.parse(open('backend/alt_data/congress.py').read())\"",
+            "bq query --use_legacy_sql=false 'SELECT COUNT(*) FROM pyfinagent_data.alt_congress_trades WHERE as_of_date >= CURRENT_DATE() - 30' | tail -n 1 | awk '{ exit ($1 > 100 ? 0 : 1) }'"
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.2",
+          "name": "13F institutional holdings ingestion",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "python -c \"import ast; ast.parse(open('backend/alt_data/f13.py').read())\"",
+            "bq ls pyfinagent_data | grep -q alt_13f_holdings"
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.3",
+          "name": "FINRA short-volume ingestion",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "python -c \"import ast; ast.parse(open('backend/alt_data/finra_short.py').read())\"",
+            "bq ls pyfinagent_data | grep -q alt_finra_short_volume"
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.4",
+          "name": "ETF flows ingestion",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "python -c \"import ast; ast.parse(open('backend/alt_data/etf_flows.py').read())\""
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.5",
+          "name": "Reddit WSB sentiment ingestion",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "python -c \"import ast; ast.parse(open('backend/alt_data/reddit_wsb.py').read())\"",
+            "test -f docs/compliance/reddit-license.md"
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.6",
+          "name": "Twitter/X sentiment ingestion",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "python -c \"import ast; ast.parse(open('backend/alt_data/twitter.py').read())\""
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.7",
+          "name": "Employee sentiment via licensed vendor",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "test -f docs/compliance/revelio-license.md"
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.8",
+          "name": "Satellite/geospatial proxies (deferred)",
+          "status": "deferred",
+          "harness_required": true,
+          "verification": [
+            "grep -q 'Phase 8' docs/compliance/alt-data.md"
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.9",
+          "name": "Google Trends extended features",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "python -c \"import ast; ast.parse(open('backend/alt_data/google_trends.py').read())\""
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.10",
+          "name": "Hiring signals via licensed vendor",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "python -c \"import ast; ast.parse(open('backend/alt_data/hiring.py').read())\""
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.11",
+          "name": "Shared scraper infrastructure",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "python -c \"import ast; ast.parse(open('backend/alt_data/http.py').read())\"",
+            "bq ls pyfinagent_data | grep -q scraper_audit_log"
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "7.12",
+          "name": "Feature integration & IC evaluation",
+          "status": "pending",
+          "harness_required": true,
+          "verification": [
+            "test -f backend/alt_data/features.py",
+            "ls backend/backtest/experiments/results/alt_data_ic_*.tsv | head -n 1"
+          ],
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-8",
+      "name": "Transformer / Modern LLM Signals",
+      "status": "pending",
+      "depends_on": [
+        "phase-5.5",
+        "phase-6"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "8.1",
+          "name": "TimesFM shadow-logged feature pilot",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python -c \"import ast; ast.parse(open('backend/models/timesfm_client.py').read())\" && python -m pytest tests/models/test_timesfm_client.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.2",
+          "name": "Chronos-Bolt shadow-logged feature pilot",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python -c \"import ast; ast.parse(open('backend/models/chronos_client.py').read())\" && python -m pytest tests/models/test_chronos_client.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.3",
+          "name": "Ensemble blend (MDA + pilots) with nested walk-forward CV",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python -c \"import ast; ast.parse(open('backend/backtest/ensemble_blend.py').read())\" && python scripts/harness/run_harness.py --dry-run --cycles 1",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.4",
+          "name": "Promote or reject decision memo",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "test -f handoff/current/phase-8-decision.md && grep -qE '^(PROMOTE|REJECT):' handoff/current/phase-8-decision.md",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-9",
+      "name": "Data Refresh & Retraining Cron",
+      "status": "pending",
+      "depends_on": [
+        "phase-5.5",
+        "phase-6"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "9.1",
+          "name": "Heartbeat + idempotency primitives (backend/slack_bot/job_runtime.py)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "9.2",
+          "name": "Daily price + fundamentals refresh job",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "9.3",
+          "name": "Weekly FRED macro refresh job",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "9.4",
+          "name": "Nightly walk-forward MDA retraining with promotion gate",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "9.5",
+          "name": "Hourly signal cache warmup for watchlist",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "9.6",
+          "name": "Nightly outcome-tracker rebuild",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "9.7",
+          "name": "Weekly data-integrity scan",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "9.8",
+          "name": "Cost-budget watcher with circuit breaker",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "9.9",
+          "name": "Wire seven jobs into backend/slack_bot/scheduler.py",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "9.10",
+          "name": "Tests + docs (tests/slack_bot/test_scheduler_phase9.py)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
           "contract": null,
           "retry_count": 0,
           "max_retries": 3
