@@ -1,37 +1,46 @@
-# Sprint Contract -- MAS Harness Cycle 26
+# Sprint Contract -- Zero-Orders Bug Fix (Cycle 27)
 Generated: 2026-04-16
 
 ## Target
-Phase 4.4.3.2: Slack signals tested end-to-end
+Fix the recommendation normalization bug in `portfolio_manager.py` that caused paper trading to generate zero trades for 27 consecutive days. Also update the outdated Claude model ID in `autonomous_loop.py`.
 
-## Hypothesis
-The full signal-to-Slack code path is wired and produces valid Block Kit
-messages. Verify via a stdlib-only drill that traces: generate signal dict ->
-`SignalsServer.publish_signal` orchestration -> `format_signal_alert` Block Kit
-rendering -> `WebClient.chat_postMessage` call site. Live Slack delivery
-deferred to launch-week (precedent: 4.4.3.1 deferred runtime curl).
+## Root Cause
+Gemini synthesis returns `"Strong Buy"` / `"Strong Sell"` (with spaces). `decide_trades` did `.upper()` producing `"STRONG BUY"`, but lookup sets use `"STRONG_BUY"` (underscore). "Strong Buy" signals were silently dropped -- no error, no log, just zero orders.
 
 ## Success Criteria
 
-### Code-path verification (automated, stdlib-only)
-- SC1: `format_signal_alert` exists in `backend/slack_bot/formatters.py`
-- SC2: `format_signal_alert` accepts `(signal: dict, trade: dict | None)` signature
-- SC3: `format_signal_alert` returns a `list[dict]` of Block Kit blocks
-- SC4: Block Kit structure contains required block types: header, section (with fields), divider, context
-- SC5: Header block text contains ticker and action (BUY/SELL/HOLD)
-- SC6: Section fields include Confidence, Price, Size, Stop
-- SC7: Context block contains "PyFinAgent" branding and signal_id
-- SC8: `format_signal_alert` handles edge cases: empty dict input, missing fields, None trade
-- SC9: `publish_signal` method exists on `SignalsServer` class
-- SC10: `publish_signal` source contains `from backend.slack_bot.formatters import format_signal_alert`
-- SC11: `publish_signal` source contains `WebClient` and `chat_postMessage` call site
-- SC12: `publish_signal` passes `blocks` from `format_signal_alert` to `chat_postMessage`
-- SC13: `publish_signal` has ASCII-only `text=` fallback for push notifications
-- SC14: `publish_signal` graceful degradation: `slack_not_configured` when no token
-- SC15: `_signal_emoji` helper maps BUY->green, SELL->red, HOLD->yellow
-- SC16: No Unicode in logger messages within the Slack posting path (security.md rule)
+### A. Scope Discipline (SC1-4)
+- SC1: Exactly 2 `.py` files modified: `portfolio_manager.py`, `autonomous_loop.py`
+- SC2: Zero files under `scripts/go_live_drills/` touched
+- SC3: Zero files under `docs/` touched
+- SC4: `signals_server.py` byte-identical to HEAD
 
-## Excluded
-- Live Slack delivery (requires running Slack bot + valid tokens -- launch-week)
-- `--dry-run-send-test` CLI flag (not yet implemented; out of scope for this cycle)
-- Visual confirmation in desktop/mobile Slack clients (Peder's part of "joint")
+### B. Normalization Fix (SC5-10)
+- SC5: `_normalize_rec` function defined at module level in `portfolio_manager.py`
+- SC6: `_normalize_rec("Strong Buy")` returns `"STRONG_BUY"`
+- SC7: `_normalize_rec("Strong Sell")` returns `"STRONG_SELL"`
+- SC8: `_normalize_rec("BUY")` returns `"BUY"` (no regression on clean inputs)
+- SC9: All 3 recommendation comparison sites in `decide_trades` use `_normalize_rec` instead of `.upper()`
+- SC10: Zero bare `.upper()` calls on `recommendation` `.get()` patterns remain
+
+### C. Lookup Sets Unchanged (SC11-13)
+- SC11: `_BUY_RECS = {"BUY", "STRONG_BUY"}` unchanged
+- SC12: `_SELL_RECS = {"SELL", "STRONG_SELL"}` unchanged
+- SC13: `_DOWNGRADE_RECS = {"HOLD", "SELL", "STRONG_SELL"}` unchanged
+
+### D. Model ID Fix (SC14)
+- SC14: `autonomous_loop.py` contains `claude-sonnet-4-6`, not `claude-sonnet-4-20250514`
+
+### E. Diagnostic Logging (SC15-16)
+- SC15: Zero-orders case emits `logger.warning` with candidate count, recommendation distribution, cash, and NAV
+- SC16: Log message is ASCII-only (no Unicode per security.md)
+
+### F. Global Invariants (SC17-18)
+- SC17: `ast.parse` clean on both modified files
+- SC18: Stop-loss code path (lines 73-85 of original) untouched
+
+## Adversarial Probes
+- AP1: Does `_normalize_rec("")` return `""` without error? (edge case)
+- AP2: Does `_normalize_rec("  buy  ")` return `"BUY"`? (whitespace)
+- AP3: Are the 3 existing go-live drill tests unaffected? (byte-identity)
+- AP4: Is the zero-orders log message ASCII-only? (Windows cp1252 safety)

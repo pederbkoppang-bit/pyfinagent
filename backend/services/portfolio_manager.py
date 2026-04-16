@@ -35,6 +35,16 @@ _DOWNGRADE_RECS = {"HOLD", "SELL", "STRONG_SELL"}
 _BUY_RECS = {"BUY", "STRONG_BUY"}
 
 
+def _normalize_rec(raw: str) -> str:
+    """Normalize a recommendation string to match _BUY_RECS / _SELL_RECS.
+
+    Gemini synthesis returns 'Strong Buy' / 'Strong Sell' (with spaces).
+    .upper() alone produces 'STRONG BUY' which misses the underscore-delimited
+    lookup sets above.  This helper canonicalizes to 'STRONG_BUY' etc.
+    """
+    return raw.strip().upper().replace(" ", "_")
+
+
 def decide_trades(
     current_positions: list[dict],
     candidate_analyses: list[dict],
@@ -86,8 +96,8 @@ def decide_trades(
 
         # If we have a fresh re-evaluation
         if analysis:
-            rec = analysis.get("recommendation", "HOLD").upper()
-            old_rec = (pos.get("recommendation") or "").upper()
+            rec = _normalize_rec(analysis.get("recommendation", "HOLD"))
+            old_rec = _normalize_rec(pos.get("recommendation") or "")
 
             # Explicit sell signal
             if rec in _SELL_RECS:
@@ -126,7 +136,7 @@ def decide_trades(
     buy_candidates = []
     for analysis in candidate_analyses:
         ticker = analysis.get("ticker", "")
-        rec = analysis.get("recommendation", "HOLD").upper()
+        rec = _normalize_rec(analysis.get("recommendation", "HOLD"))
 
         # Skip if already held (and not being sold)
         if ticker in held_tickers and ticker not in selling_tickers:
@@ -187,6 +197,19 @@ def decide_trades(
 
     logger.info(f"Trade decisions: {len([o for o in orders if o.action == 'SELL'])} sells, "
                 f"{len([o for o in orders if o.action == 'BUY'])} buys")
+
+    if not orders:
+        rec_dist = {}
+        for a in candidate_analyses:
+            r = _normalize_rec(a.get("recommendation", "HOLD"))
+            rec_dist[r] = rec_dist.get(r, 0) + 1
+        logger.warning(
+            "Zero orders produced. candidates=%d recs=%s "
+            "holdings=%d cash=%.2f nav=%.2f",
+            len(candidate_analyses), rec_dist,
+            len(current_positions), cash, nav,
+        )
+
     return orders
 
 
