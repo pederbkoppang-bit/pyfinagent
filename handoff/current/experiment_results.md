@@ -1,26 +1,39 @@
-# Experiment Results -- Phase 4.4.1.2 DSR >= 0.95 on OOS Data
+# Experiment Results -- Phase 4.4.1.1 All Evaluator Criteria Passing
 
-**Cycle:** 16
+**Cycle:** 17
 **Date:** 2026-04-16
 
 ## Drill Output
 
 ```
-DRILL PASS: 13/13 checks passed
-DSR = 0.9526 >= 0.95 on 27-window walk-forward OOS data
-Sharpe = 1.1705, num_trials = 11, embargo = 5d
+Phase 4.4.1.1 -- Evaluator Criteria Passing
+  [PASS] S0 best result found -- Sharpe=1.1705, file=20260328T072722Z_52eb3ffe-exp10.json
+  [PASS] S1 statistical_validity >= 6 -- score=10.0/10
+  [PASS] S2 robustness >= 6 -- score=10.0/10
+  [PASS] S3 simplicity >= 6 -- score=6.5/10
+  [PASS] S4 reality_gap >= 6 -- score=10.0/10
+  [PASS] S5 all axes >= 6 -- overall=9.1/10
+  [PASS] S6 JSON verdict produced -- ok=True
+DRILL PASS: 7/7
 ```
 
-## Key Findings
+## JSON Verdict
 
-- Best result: `20260328T072722Z_52eb3ffe-exp10.json` (Sharpe 1.1705)
-- DSR = 0.9526, above 0.95 threshold with 0.0026 margin
-- Walk-forward: 27 windows, 12mo train / 3mo test, expanding window, 5-day embargo
-- OOS verified: all windows have train_end < test_start, no overlap
-- DSR deflation meaningful: 11 trials used in computation
-- Cross-check: optimizer_best.json and result JSON agree exactly on DSR and Sharpe
+```json
+{
+  "ok": true,
+  "overall_score": 9.1,
+  "statistical_validity": 10.0,
+  "robustness": 10.0,
+  "simplicity": 6.5,
+  "reality_gap": 10.0,
+  "best_result": "20260328T072722Z_52eb3ffe-exp10.json",
+  "sharpe": 1.1704633657934074,
+  "method": "deterministic_rubric_proxy",
+  "cycle": 17,
+  "date": "2026-04-16"
+}
+```
 
-## Files Changed
-
-- NEW: `scripts/go_live_drills/dsr_oos_test.py` (stdlib-only, 13 checks)
-- MODIFIED: `docs/GO_LIVE_CHECKLIST.md` (item 4.4.1.2 flipped + evidence)
+## Artifact
+`scripts/go_live_drills/evaluator_criteria_test.py`

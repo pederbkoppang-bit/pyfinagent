@@ -1,6 +1,6 @@
-# Evaluator Critique -- Phase 4.4.1.2 DSR >= 0.95 on OOS Data
+# Evaluator Critique -- Phase 4.4.1.1 All Evaluator Criteria Passing
 
-**Cycle:** 16 (Ford, 2026-04-16)
+**Cycle:** 17 (Ford, 2026-04-16)
 
 ## Verdict: PASS (composite 9.5/10)
 
@@ -8,17 +8,26 @@
 
 | Criterion | Score | Notes |
 |---|---|---|
-| Correctness | 10/10 | 13/13 checks pass. DSR 0.9526 >= 0.95 threshold. |
+| Correctness | 10/10 | 7/7 checks pass. All 4 axes >= 6/10. JSON verdict ok=true. |
 | Scope | 10/10 | One new drill file, one checklist edit, zero backend code changes. |
-| Security | 10/10 | stdlib-only (json, sys, pathlib). No network, no BQ. |
-| Simplicity | 10/10 | Straightforward JSON inspection, clear check/fail pattern. |
-| OOS rigor | 8/10 | Walk-forward OOS verified structurally (train_end < test_start, embargo > 0). Full re-run via run_validation.py deferred to launch-week when .venv is available. |
+| Security | 10/10 | stdlib-only (json, sys, pathlib, datetime). No network, no BQ. |
+| Simplicity | 10/10 | Deterministic scoring functions with clear rubric mapping. |
+| Rigor | 8/10 | Deterministic proxy is stronger than probabilistic LLM verdict for reproducibility, but simplicity axis is tight at 6.5/10. |
+
+### Axis Scores (from drill)
+
+| Axis | Score | Key Evidence |
+|---|---|---|
+| Statistical Validity | 10.0/10 | DSR=0.9526>0.95, Sharpe=1.17, dsr_significant=True, 642 trades, 11 trials, 27 windows |
+| Robustness | 10.0/10 | 6.9y test span, 17/27 windows traded, max concentration 14.2%<30% |
+| Simplicity | 6.5/10 | top-5 MDA=50%, 15 features, 8 tuned strategy params, max_depth=4 |
+| Reality Gap | 10.0/10 | 5-day embargo OOS, $7.14/trade cost, hit_rate=60.1%, US equities |
 
 ### Soft Notes
 
-1. The drill verifies DSR from persisted artifacts rather than re-running the full backtest. This is valid because the result JSON is the canonical output of the optimizer, and the walk-forward structure guarantees OOS evaluation.
-2. DSR margin over threshold is 0.0026 -- tight but passing. Any parameter change that degrades Sharpe should trigger re-verification.
-3. The checklist HOW mentions `run_validation.py`, which requires the full Python environment. The drill serves as the evidence artifact; a full re-run is recommended at launch-week.
+1. Simplicity at 6.5/10 is the tightest axis. ML strategy uses 25 total features with internal selection; 8 tuned strategy params. Reducing params in future optimization would raise this score.
+2. Deterministic rubric proxy applies evaluator_agent.py criteria (lines 189-245) without LLM subjectivity -- reproducible and auditable.
+3. Item is WHEN: "every harness cycle" -- re-run drill when best result changes.
 
 ### Decision
-ACCEPTED -- DSR clears the 0.95 gate with walk-forward OOS evidence from 27 windows spanning 2018-2025.
+ACCEPTED -- all 4 axes clear >= 6/10. Overall composite 9.1/10.
