@@ -1050,7 +1050,10 @@ def get_sharpe_history():
             is_baseline = data.get("is_baseline", False)
             parent_run_id = data.get("parent_run_id")
 
-            # Determine status from TSV
+            # Determine status from TSV, falling back to inference
+            # when the JSON result has no matching TSV row (e.g., TSV
+            # was cleared, or the run crashed after saving JSON but
+            # before appending the TSV row).
             tsv_entry = tsv_status.get(run_id, {})
             raw_status = tsv_entry.get("status", "")
             if raw_status.upper() == "BASELINE":
@@ -1061,8 +1064,17 @@ def get_sharpe_history():
                 status = "discarded"
             elif raw_status:
                 status = raw_status.lower()
+            elif is_baseline:
+                # No TSV entry but JSON says it's a baseline
+                status = "baseline"
             else:
-                status = "unknown"
+                # No TSV entry and not a baseline -- infer from JSON.
+                # If JSON has a parent_run_id, this was an experiment;
+                # without a TSV row we can't know the verdict, so mark
+                # as "discarded" (safe default: the vast majority of
+                # experiments are discarded, and gray "unknown" is
+                # misleading on the chart).
+                status = "discarded"
 
             # DSR: prefer TSV, fall back to JSON analytics
             dsr_val = None
