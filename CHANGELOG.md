@@ -7,6 +7,8 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `7287f20` | Add Phase 4.6 smoketest proposal |
+| 2026-04-17 | `ca0573b` | Phase 7 proposal: alt-data & scraping expansion |
 | 2026-04-17 | `81d7082` | Add Phase 9 proposal: Data Refresh & Retraining Cron |
 | 2026-04-17 | `8d26802` | docs(phase-8): propose transformer / modern LLM signals phase |
 | 2026-04-17 | `9a96da3` | docs(phase-5.5): add external data-source audit proposal |
@@ -25,11 +27,15 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `0cad1d6` | chore: harness log entry for Cycle 28 (Phase 4.4.5.5 PASS) |
 | 2026-04-16 | `f5aa70f` | Phase 4.4.5.5: Trading guide for Peder with 39-check verification drill |
 | 2026-04-16 | `d2a9430` | chore: harness log entry for Cycle 27 (Phase 4.4.6.4 PASS) |
-| 2026-04-16 | `3b37636` | Phase 4.4.6.4: Rollback plan documented with pause_signals mechanism (17/17 PASS) |
-| 2026-04-16 | `7330d89` | chore: harness log entry for Cycle 26 (Phase 4.4.3.2 PASS) |
 
 ---
 
+### v6.5.13 — Add Phase 4.6 smoketest proposal (2026-04-17)
+
+- **Add Phase 4.6 smoketest proposal**
+### v6.5.12 — Phase 7 proposal: alt-data & scraping expansion (2026-04-17)
+
+- **Phase 7 proposal: alt-data & scraping expansion**
 ### v6.5.11 — Add Phase 9 proposal: Data Refresh & Retraining Cron (2026-04-17)
 
 - **Add Phase 9 proposal: Data Refresh & Retraining Cron**
