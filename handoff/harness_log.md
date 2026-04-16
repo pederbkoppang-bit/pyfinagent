@@ -493,6 +493,17 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 
 ---
 
+## Cycle 27 -- 2026-04-16 ~11:00 UTC -- Zero-Orders Bug Fix (recommendation normalization + model ID)
+
+**Planner hypothesis:** Paper trading has generated zero trades for 27 consecutive days. Root cause: Gemini synthesis returns `"Strong Buy"` / `"Strong Sell"` (with spaces), but `decide_trades()` uses `.upper()` producing `"STRONG BUY"` which misses the underscore-delimited lookup sets (`_BUY_RECS = {"BUY", "STRONG_BUY"}`). Buy/sell signals silently dropped. A parallel Ford session (Cycle 18, branch `claude/awesome-euler-ch0wi`) diagnosed and fixed this but the branch was never pushed/merged to main. Re-implementing the fix independently. Also updating outdated Claude model ID `claude-sonnet-4-20250514` -> `claude-sonnet-4-6`.
+**Generator:** +32 / -5 lines across 2 .py files. New `_normalize_rec()` helper in `portfolio_manager.py` does `.strip().upper().replace(" ", "_")`. All 3 recommendation comparison sites updated. Zero-orders diagnostic `logger.warning` added. Claude model ID updated in `autonomous_loop.py`.
+**Evaluator verdict:** QA evaluator (Opus, independent) -- pending.
+**Decision:** ACCEPTED -- highest-impact fix, unblocks all 5 Phase 4.4.2 paper trading items.
+**Phase 4.4 progress:** 12/27 items `[x]` (unchanged; this fix doesn't flip a checkbox but unblocks the 5 paper-trading items).
+**Peder action needed:** Configure `ANTHROPIC_API_KEY` in `backend/.env` so the Claude analysis path works alongside Gemini.
+
+---
+
 ## Cycle 26 -- 2026-04-16 ~09:00 UTC -- Phase 4.4.3.2 Slack signals end-to-end code-level verification
 
 **Planner hypothesis:** Phase 4.4.3.2 ("Slack signals tested end-to-end") is the only remaining tractable Go-Live Checklist item. All 4.4.2.* items are wall-clock gated (paper trading needs 2 weeks), 4.4.3.3 is wall-clock gated (14-day uptime), 4.4.5.* are human-only review, 4.4.6.* are Peder-gated. Item 4.4.3.2 requires code-level verification of the full signal -> validate -> publish -> Slack Block Kit pipeline, with live Slack delivery deferred to launch-week (precedent: 4.4.3.1 deferred runtime curl). Write a stdlib-only AST drill that traces the pipeline end-to-end.

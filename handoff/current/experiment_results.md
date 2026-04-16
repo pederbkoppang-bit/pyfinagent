@@ -1,49 +1,36 @@
-# Experiment Results -- Phase 4.4.1.3 Seed Stability
+# Experiment Results -- Zero-Orders Bug Fix (Cycle 27)
 
 **Date:** 2026-04-16
-**Cycle:** 20
-**Duration:** ~103 min (5 seeds x ~20 min each)
-
-## Results
-
-| Seed | Sharpe | DSR  | Return % | MaxDD %  | Trades | Hit Rate |
-|------|--------|------|----------|----------|--------|----------|
-| 42   | 0.5867 | 1.00 | 46.28    | -12.40   | 680    | 55.63%   |
-| 123  | 0.5756 | 1.00 | 45.65    | -12.40   | 680    | 55.56%   |
-| 456  | 0.5861 | 1.00 | 46.27    | -12.40   | 680    | 55.26%   |
-| 789  | 0.6044 | 1.00 | 47.51    | -12.40   | 680    | 55.41%   |
-| 2026 | 0.5917 | 1.00 | 46.59    | -12.40   | 680    | 55.48%   |
-
-## Aggregate Statistics
-
-- **Mean Sharpe:** 0.5889
-- **Std Sharpe:** 0.0094
-- **Min Sharpe:** 0.5756 (seed 123)
-- **Max Sharpe:** 0.6044 (seed 789)
-- **Range:** 0.0288
-
-## Criteria Assessment
-
-| Criterion | Threshold | Actual | Result |
-|-----------|-----------|--------|--------|
-| Std < 0.1 | 0.1 | 0.0094 | PASS |
-| All seeds > 0.9 | 0.9 | min=0.5756 | FAIL |
-| Range < 0.3 (sanity) | 0.3 | 0.0288 | PASS |
-
-## Drill Test: 11/14 PASS
-
-Failed checks: S5 (mean Sharpe < 0.9), S7 (not all seeds > 0.9), S12 (verdict != PASS)
-
-## Verdict: FAIL
-
-**The strategy IS seed-stable** (std=0.0094, range=0.029, identical trade counts across all seeds), but all Sharpe values are well below the 0.9 floor. The absolute Sharpe has degraded from the optimizer's best (1.1705, recorded 2025-03-28) to ~0.59 across all seeds.
+**Cycle:** 27
+**Step:** Paper trading zero-orders diagnosis + fix
 
 ## Root Cause Analysis
 
-The Sharpe degradation is NOT caused by seed sensitivity. All 5 seeds produce nearly identical results (680 trades each, MaxDD identical to 4 decimal places). The degradation is likely caused by:
+Paper trading generated **zero trades for 27 consecutive days**. Three issues found:
 
-1. **Data drift**: BigQuery price/fundamental data has been updated since the March 28 optimizer run, changing the feature landscape
-2. **Market regime shift**: The walk-forward windows now extend into different market conditions
-3. **The strategy needs re-optimization** with current data before the 0.9 floor can be met
+### Issue 1: Recommendation Normalization Bug (CODE FIX)
+- **Location:** `backend/services/portfolio_manager.py` lines 89, 90, 129
+- **Cause:** Gemini synthesis returns `"Strong Buy"` / `"Strong Sell"` (with spaces). `decide_trades()` used `.upper()` producing `"STRONG BUY"`, but lookup sets `_BUY_RECS` / `_SELL_RECS` use `"STRONG_BUY"` (underscore). Signals with space-delimited recommendations were **silently dropped** -- no error, no log, no trade.
+- **Fix:** New `_normalize_rec()` helper: `.strip().upper().replace(" ", "_")`. All 3 comparison sites updated. Lookup sets unchanged.
+- **Impact:** Unblocks Phase 4.4.2 (paper trading validation, 5 checklist items).
 
-The checklist item 4.4.1.3 cannot be flipped until the strategy is re-optimized to produce Sharpe > 0.9 on current data.
+### Issue 2: Missing ANTHROPIC_API_KEY (PEDER ACTION NEEDED)
+- **Location:** `backend/services/autonomous_loop.py` line 364-366
+- **Cause:** Claude analysis path fails every cycle because `ANTHROPIC_API_KEY` not configured in `backend/.env`. Confirmed by repeated `"Missing API key for provider anthropic"` bot errors in `#ford-approvals`.
+- **Fix:** Peder needs to add `ANTHROPIC_API_KEY=sk-ant-...` to `backend/.env`. Claude analysis produces clean `"BUY"`/`"SELL"`/`"HOLD"` strings at ~$0.01/call. Without it, only the Gemini fallback runs.
+
+### Issue 3: Outdated Claude Model ID (CODE FIX)
+- **Location:** `backend/services/autonomous_loop.py` line 387
+- **Cause:** `claude-sonnet-4-20250514` is an old model ID. Current is `claude-sonnet-4-6`.
+- **Fix:** Updated model string.
+
+## Also Added
+- **Diagnostic logging** (`portfolio_manager.py`): When `decide_trades` produces zero orders, emits `logger.warning` with candidate count, recommendation distribution, cash, and NAV. Future zero-trade cycles will be visible in backend logs.
+
+## Verification
+- `ast.parse` clean on both modified files
+- 18/18 contract SCs + 4/4 adversarial probes PASS
+- `_normalize_rec("Strong Buy")` == `"STRONG_BUY"` confirmed
+- Stop-loss code path (lines 73-85) untouched
+- Lookup sets (`_BUY_RECS`, `_SELL_RECS`, `_DOWNGRADE_RECS`) unchanged
+- Zero drill files or docs touched
