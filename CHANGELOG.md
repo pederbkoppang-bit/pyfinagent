@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `cd5f26b` | fix: normalize recommendation strings to unblock paper trading |
 | 2026-04-16 | `09980e1` | fix: infer experiment status from JSON when TSV row is missing |
 | 2026-04-16 | `ebc2485` | fix: changelog hook auto-commits so updates appear in push |
 | 2026-04-16 | `7d5aba1` | fix: changelog hook now auto-appends bullet points under version header |
@@ -26,12 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-15 | `9b0e943` | Phase 4.4.4.4: Risk limits hardcoded verification + evidence |
 | 2026-04-15 | `da4fe5d` | Phase 4.4: scope Go-Live Checklist with WHO/WHEN/HOW per item |
 | 2026-04-15 | `63d7ed7` | log: session 2026-04-15-0000 + harness_log Cycle 4 |
-| 2026-04-15 | `725eb90` | chore: masterplan.json status sync for shipped phases 2.14, 4.1, 4.3 |
 
 ---
 
 ### v6.4.3 — Continuous Autonomous Agent + Feature Ablation + Cost Tiering (2026-04-16)
 
+- **normalize recommendation strings to unblock paper trading**
 - **infer experiment status from JSON when TSV row is missing**
 - **changelog hook auto-commits so updates appear in push**
 - **changelog hook now auto-appends bullet points under version header**
