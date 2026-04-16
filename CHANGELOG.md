@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `98ae440` | fix: zero-orders bug -- recommendation normalization mismatch |
 | 2026-04-16 | `44c4409` | Phase 4.4.1.3: seed stability test -- FAIL (seed-stable but Sharpe < 0.9) |
 | 2026-04-16 | `09980e1` | fix: infer experiment status from JSON when TSV row is missing |
 | 2026-04-16 | `ebc2485` | fix: changelog hook auto-commits so updates appear in push |
@@ -26,12 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-15 | `cbd14d4` | Phase 4.4.4.1: kill-switch drill test + evidence |
 | 2026-04-15 | `9b0e943` | Phase 4.4.4.4: Risk limits hardcoded verification + evidence |
 | 2026-04-15 | `da4fe5d` | Phase 4.4: scope Go-Live Checklist with WHO/WHEN/HOW per item |
-| 2026-04-15 | `63d7ed7` | log: session 2026-04-15-0000 + harness_log Cycle 4 |
 
 ---
 
 ### v6.4.3 — Continuous Autonomous Agent + Feature Ablation + Cost Tiering (2026-04-16)
 
+- **zero-orders bug -- recommendation normalization mismatch**
 - **Phase 4.4.1.3: seed stability test -- FAIL (seed-stable but Sharpe < 0.9)**
 - **infer experiment status from JSON when TSV row is missing**
 - **changelog hook auto-commits so updates appear in push**
