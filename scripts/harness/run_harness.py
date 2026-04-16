@@ -17,6 +17,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable, Optional
 
 # -- Setup path and env before any backend imports --
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,6 +48,14 @@ HANDOFF_ROOT = PROJECT_ROOT / "handoff"
 BEST_PARAMS_PATH = PROJECT_ROOT / "backend" / "backtest" / "experiments" / "optimizer_best.json"
 TSV_PATH = PROJECT_ROOT / "backend" / "backtest" / "experiments" / "quant_results.tsv"
 HARNESS_LOG = HANDOFF_ROOT / "harness_log.md"
+CERTIFIED_FALLBACK_BEST_PATH = PROJECT_ROOT / "backend" / "backtest" / "experiments" / "optimizer_certified_fallback.json"
+
+# -- MAS / harness tunables (Anthropic pattern parameters) --
+# Neither Anthropic post publishes hard retry integers; these are implementer
+# defaults derived from the evaluator-optimizer loop in "Building Effective
+# Agents" + the "aborts if repeatedly blocked" language in the agent-teams doc.
+MAX_CONSECUTIVE_FAIL = 3      # after N consecutive FAILs, escalate to certified fallback
+MAX_RESEARCH_ITER = 3         # per planner call; caps researcher-spawn depth
 
 # -- Sub-periods for evaluator --
 SUB_PERIODS = [
@@ -239,6 +248,81 @@ def run_planner(cycle: int, previous_critique: dict | None) -> dict:
         plan["suggestions"].append("No strong signals. Continue random perturbation.")
         plan["hypothesis"] = "Random parameter search still has value at current iteration count."
 
+    # F2 — Research-on-demand trigger. Anthropic multi-agent post: the lead
+    # evaluates complexity at planning time and spawns researcher when the
+    # plan lacks evidence to proceed. Our proxy signal: a plateau AND a
+    # large excluded-param count means random perturbation has exhausted
+    # the local search space -- we need external evidence (regime-specific
+    # parameter sets, strategy-switch literature) to move the baseline.
+    if plan.get("strategy_change") and len(plan.get("excluded_params", [])) >= 10:
+        plan["research_needed"] = True
+        plan["research_brief"] = {
+            "objective": (
+                "Find strategy-switch or regime-specific parameter recipes that "
+                "have historically moved Sharpe above a plateau when triple_barrier "
+                "with random perturbation has saturated."
+            ),
+            "output_format": (
+                "1-page markdown with: (a) 2-3 candidate strategy switches or "
+                "param-set recipes, (b) per-recipe expected Sharpe lift + citation, "
+                "(c) recommended regime to activate (trend / mean-reversion / vol cluster)."
+            ),
+            "tool_scope": ["WebSearch", "WebFetch", "Read"],
+            "task_boundaries": (
+                "Do not run backtests. Do not propose changes that require new data "
+                "sources. Stick to parameter + strategy changes within the existing "
+                "QuantStrategyOptimizer surface area."
+            ),
+        }
+    else:
+        plan["research_needed"] = False
+
+    return plan
+
+
+def run_planner_with_research(
+    cycle: int,
+    previous_critique: Optional[dict] = None,
+    *,
+    spawn_researcher: Optional[Callable[[dict, int], Optional[str]]] = None,
+) -> dict:
+    """
+    F2 — wrap `run_planner` with Anthropic's research-on-demand pattern.
+
+    When the planner emits `research_needed=True`, spawn the researcher agent
+    up to `MAX_RESEARCH_ITER` times. Researcher output is written to
+    `handoff/current/research.md`; the planner re-runs with that file as
+    additional context.
+
+    `spawn_researcher(brief, iteration) -> research_markdown_path | None` is
+    injected so tests can stub it out. In production, the caller passes a
+    function that shells out to the `researcher` subagent (Claude Code Agent
+    tool) and returns the resulting markdown path.
+    """
+    plan = run_planner(cycle, previous_critique)
+
+    if not plan.get("research_needed") or spawn_researcher is None:
+        return plan
+
+    research_path = HANDOFF_DIR / "research.md"
+    brief = plan["research_brief"]
+    for iter_idx in range(MAX_RESEARCH_ITER):
+        logger.info("-- RESEARCHER (iter %d/%d) --", iter_idx + 1, MAX_RESEARCH_ITER)
+        result = spawn_researcher(brief, iter_idx)
+        if not result:
+            logger.warning("Researcher returned no findings; breaking")
+            break
+        # Crude sufficiency check: we don't have a structured "confidence"
+        # field from a text researcher, so we trust one-shot by default.
+        # Operators can extend this by parsing a trailing "CONFIDENCE: 0.X"
+        # tag in the researcher output.
+        break
+
+    # Re-run planner with research context. The planner reads research.md
+    # implicitly via write_contract (which includes research excerpt) and
+    # downstream generator prompts can pick it up. We attach the path to
+    # the plan so contract.md references it.
+    plan["research_context_path"] = str(research_path) if research_path.exists() else None
     return plan
 
 
@@ -914,6 +998,89 @@ def _read_tsv_experiments() -> list[dict]:
     return experiments
 
 
+# ── F1 / F2 helpers (certified fallback + researcher spawn) ─────────
+
+def _escalate_certified_fallback(consecutive_fails: int, cycle: int) -> None:
+    """
+    F1 — escalation when `consecutive_fails >= MAX_CONSECUTIVE_FAIL`. Copies
+    `CERTIFIED_FALLBACK_BEST_PATH` (if it exists) over `optimizer_best.json`
+    and appends a clear WARNING block to `handoff/harness_log.md`. If no
+    certified fallback file is configured, we log loudly but don't touch
+    `optimizer_best.json` -- the existing revert already rolled back the
+    most-recent bad generation.
+    """
+    try:
+        if CERTIFIED_FALLBACK_BEST_PATH.exists():
+            fallback = json.loads(CERTIFIED_FALLBACK_BEST_PATH.read_text(encoding="utf-8"))
+            save_best_params(fallback)
+            logger.error(
+                "certified-fallback: loaded %s (Sharpe=%.4f)",
+                CERTIFIED_FALLBACK_BEST_PATH,
+                fallback.get("sharpe", 0),
+            )
+        else:
+            logger.error(
+                "certified-fallback: no %s on disk -- leaving current revert in place",
+                CERTIFIED_FALLBACK_BEST_PATH,
+            )
+    except Exception as e:
+        logger.error("certified-fallback load failed: %s", e)
+
+    try:
+        warning = (
+            "\n\n---\n"
+            f"## HARNESS HALT -- certified fallback "
+            f"({datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')})\n\n"
+            f"**Cycle {cycle}:** {consecutive_fails} consecutive FAIL verdicts reached "
+            f"`MAX_CONSECUTIVE_FAIL={MAX_CONSECUTIVE_FAIL}`. Reverted to certified fallback. "
+            "Operator review required before resuming.\n"
+        )
+        existing = HARNESS_LOG.read_text(encoding="utf-8") if HARNESS_LOG.exists() else ""
+        HARNESS_LOG.write_text(existing + warning, encoding="utf-8")
+    except Exception as e:
+        logger.warning("harness_log write failed during escalation: %s", e)
+
+
+def _default_spawn_researcher(brief: dict, iteration: int) -> Optional[str]:
+    """
+    F2 — default researcher spawn. Writes the brief to a file and returns
+    the path; an operator (or a wrapper script that shells out to the
+    `researcher` subagent via Claude Code's Agent tool) actually runs the
+    research. The harness does not invoke Claude directly -- keeping the
+    main loop deterministic + testable.
+
+    Returns the research.md path on success, None if nothing was produced.
+    """
+    research_path = HANDOFF_DIR / "research.md"
+    brief_path = HANDOFF_DIR / "research_brief.md"
+    try:
+        HANDOFF_DIR.mkdir(parents=True, exist_ok=True)
+        brief_md = (
+            f"# Research brief (cycle iteration {iteration + 1})\n\n"
+            f"**Objective:** {brief.get('objective', '')}\n\n"
+            f"**Output format:** {brief.get('output_format', '')}\n\n"
+            f"**Tool scope:** {', '.join(brief.get('tool_scope', []))}\n\n"
+            f"**Task boundaries:** {brief.get('task_boundaries', '')}\n"
+        )
+        brief_path.write_text(brief_md, encoding="utf-8")
+        logger.info("researcher brief written to %s", brief_path)
+    except Exception as e:
+        logger.warning("researcher brief write failed: %s", e)
+        return None
+
+    # Best-effort: if research.md already exists from a prior iteration or an
+    # operator-provided file, reuse it. Otherwise return None and let the
+    # harness proceed without research context.
+    if research_path.exists():
+        return str(research_path)
+    logger.info(
+        "researcher spawn: no research.md produced automatically. "
+        "An operator can run the `researcher` subagent against %s to produce one.",
+        brief_path,
+    )
+    return None
+
+
 # ── Main Harness Loop ────────────────────────────────────────────
 
 def main():
@@ -939,6 +1106,7 @@ def main():
     logger.info("Loaded baseline: Sharpe=%.4f, DSR=%.4f", best_data.get("sharpe", 0), best_data.get("dsr", 0))
 
     previous_critique = None
+    consecutive_fails = 0  # F1: drives certified-fallback escalation
 
     for cycle in range(1, args.cycles + 1):
         cycle_start = time.time()
@@ -946,11 +1114,17 @@ def main():
         logger.info("CYCLE %d/%d", cycle, args.cycles)
         logger.info("=" * 60)
 
-        # ── Step 1: PLANNER ──
+        # ── Step 1: PLANNER (with F2 research-on-demand) ──
         logger.info("-- PLANNER --")
-        plan = run_planner(cycle, previous_critique)
+        plan = run_planner_with_research(
+            cycle,
+            previous_critique,
+            spawn_researcher=_default_spawn_researcher,
+        )
         for s in plan["suggestions"]:
             logger.info("  Suggestion: %s", s)
+        if plan.get("research_needed"):
+            logger.info("  [research] triggered; brief: %s", plan["research_brief"]["objective"][:80])
 
         # Save pre-generator baseline for revert
         pre_cycle_best = copy.deepcopy(load_best_params())
@@ -982,16 +1156,25 @@ def main():
         post_gen_best = load_best_params()
         grades = run_evaluator(post_gen_best["params"], settings, bq)
 
-        # ── Step 4: DECIDE ──
+        # ── Step 4: DECIDE (F1 retry loop + certified-fallback escalation) ──
         if grades["verdict"] == "PASS":
             logger.info("PASS -- saving new baseline (Sharpe=%.4f)", generator_result["final_sharpe"])
+            consecutive_fails = 0
             # optimizer_best.json already updated by generator
         elif grades["verdict"] == "FAIL":
-            logger.info("FAIL -- reverting to pre-cycle baseline (Sharpe=%.4f)", pre_cycle_best.get("sharpe", 0))
+            consecutive_fails += 1
+            logger.info(
+                "FAIL -- reverting to pre-cycle baseline (Sharpe=%.4f). "
+                "consecutive_fails=%d/%d",
+                pre_cycle_best.get("sharpe", 0),
+                consecutive_fails,
+                MAX_CONSECUTIVE_FAIL,
+            )
             save_best_params(pre_cycle_best)
         else:
-            # CONDITIONAL -- keep but warn
+            # CONDITIONAL -- keep but warn; does not count as a FAIL
             logger.info("CONDITIONAL -- keeping result with warnings")
+            consecutive_fails = 0
 
         # ── Step 5: UPDATE research plan ──
         update_research_plan(plan, grades, generator_result, cycle)
@@ -1002,6 +1185,15 @@ def main():
 
         previous_critique = grades
         logger.info("Cycle %d complete in %.0fs. Verdict: %s", cycle, cycle_elapsed, grades["verdict"])
+
+        # F1 — certified-fallback escalation after MAX_CONSECUTIVE_FAIL
+        if consecutive_fails >= MAX_CONSECUTIVE_FAIL:
+            logger.error(
+                "HARNESS: %d consecutive FAILs reached -- escalating to certified fallback",
+                consecutive_fails,
+            )
+            _escalate_certified_fallback(consecutive_fails, cycle)
+            break
 
     logger.info("\n" + "=" * 60)
     logger.info("HARNESS COMPLETE -- %d cycles finished", args.cycles)

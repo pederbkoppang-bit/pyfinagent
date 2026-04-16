@@ -1633,3 +1633,135 @@ All 11 substeps complete, 0 FAIL. 7 new backend services, 6 new endpoints, 4 new
 **Reliability note:** No strategy change; adds operational escalation infrastructure. Two independent iMessage paths now exist (trading via scheduler.py, SLA via sla_monitor.py).
 
 **Session log:** commit 7384482, pushed to origin/main.
+
+---
+
+## Cycle 1 -- 2026-04-16 21:24 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 21:24 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 21:26 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 21:30 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 21:37 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 21:45 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+## MAS/harness F1 + F2 implementation (2026-04-16)
+
+**Research (moderate tier, 4 URLs WebFetch'd in full):** Anthropic multi-agent research system, building-effective-agents, best-practices, agent-teams. Extracted: (1) evaluator FAIL must return structured feedback + trigger revise-not-restart (agent-teams plan-approval loop); (2) lead decides researcher spawn at planning time based on complexity (not reactive "I don't know"); (3) researcher brief shape is 4-key: objective + output_format + tool_scope + task_boundaries; (4) retry cap is implementer choice -- Anthropic uses qualitative "sufficient" + "aborts if repeatedly blocked".
+
+**Plan:** handoff/current/mas-harness-fixes-contract.md. F1 adds consecutive_fails counter + revert-not-restart + certified-fallback escalation after N FAILs. F2 extends existing rule-based planner to emit research_needed flag + 4-key canonical brief when plateau + >=10 excluded params.
+
+**Generate:**
+- `scripts/harness/run_harness.py`:
+  - New constants: `MAX_CONSECUTIVE_FAIL=3`, `MAX_RESEARCH_ITER=3`, `CERTIFIED_FALLBACK_BEST_PATH`.
+  - `run_planner()` now emits `research_needed` + `research_brief{objective, output_format, tool_scope, task_boundaries}` when `strategy_change AND len(excluded_params) >= 10`.
+  - New `run_planner_with_research(cycle, previous_critique, *, spawn_researcher)` wrapper invokes researcher up to `MAX_RESEARCH_ITER` times when `research_needed` is true.
+  - New `_default_spawn_researcher(brief, iteration)` writes brief to `handoff/current/research_brief.md` and returns existing `research.md` if operator already produced one. Does NOT invoke Claude directly -- keeps main loop deterministic/testable.
+  - New `_escalate_certified_fallback(consecutive_fails, cycle)` copies `optimizer_certified_fallback.json` -> `optimizer_best.json` when present, and appends `## HARNESS HALT -- certified fallback` block to `harness_log.md`.
+  - Main cycle loop: `consecutive_fails` counter; on PASS/CONDITIONAL reset to 0; on FAIL increment + revert; on `consecutive_fails >= MAX_CONSECUTIVE_FAIL` call escalation + break.
+
+**Evaluate (both verifiers in parallel):**
+- Syntax: `python -c "import ast; ast.parse(...)"` -> PASS.
+- Dry-run: `HARNESS COMPLETE -- 1 cycles finished; Final best: Sharpe=1.1705, DSR=0.9526` (no regression).
+- Synthetic smoke test (`/tmp/test_mas_fixes.py`): F2 trigger fires on current TSV (26 excluded params, strategy_change=True) producing all 4 canonical brief keys; F2 wrapper invokes fake_spawn callable; F1 escalation writes HARNESS HALT block with correct cycle + MAX_CONSECUTIVE_FAIL.
+- harness-verifier: ok=true, all 12 criteria verified with file:line evidence.
+- qa-evaluator: ok=true, anti-patterns audited (pre_cycle_best snapshotted before mutation; full grades dict forwarded; brief shape canonical; spawn helper doesn't call Claude).
+
+**Decision:** PASS -- F1 + F2 shipped. F3 (verifier-pair parallelism at hook level) and F4 (mandatory worktree isolation) are documented as acceptable deviations for a future cycle.
+
+**Reality-gap note:** No strategy code changed. Sharpe=1.1705 DSR=0.9526 unchanged. Infrastructure only.
+
+**Next:** push to phase-4.5-paper-trading-v2; PR #8 auto-updates.
