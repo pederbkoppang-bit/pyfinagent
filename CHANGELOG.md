@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `db57641` | docs: add top-level MASTERPLAN.md (Intelligence Engine synthesis) |
 | 2026-04-17 | `08e69d0` | docs: add top-level MASTERPLAN.md (Intelligence Engine synthesis) |
 | 2026-04-17 | `705f9a5` | phase-10.7 proposal: Meta-Evolution Engine |
 | 2026-04-17 | `3d8ebc6` | Propose phase-10: Recursive Evolution Loop (weekly sprint + monthly Sortino gate) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `7384482` | Phase 4.4.5.2: Escalation path defined with L1-L3 ladder |
 | 2026-04-16 | `ba83f03` | Paper Trading: replace stacked ops widgets with a single dense status bar |
 | 2026-04-16 | `9a2e8d4` | Paper Trading: pull KPI hero into bento right column + codify rules |
-| 2026-04-16 | `0b38d2e` | Paper Trading: bento ops-strip layout, remove dead whitespace |
 
 ---
 
+### v6.5.21 — add top-level MASTERPLAN.md (Intelligence Engine synthesis) (2026-04-17)
+
+- **add top-level MASTERPLAN.md (Intelligence Engine synthesis)**
 ### v6.5.20 — add top-level MASTERPLAN.md (Intelligence Engine synthesis) (2026-04-17)
 
 - **add top-level MASTERPLAN.md (Intelligence Engine synthesis)**
