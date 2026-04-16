@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `7abe6fb` | Masterplan: move phase-4 (Production Readiness) to end + aggregate smoketest |
 | 2026-04-17 | `82b7a45` | Integrate 6 phase proposals into masterplan + codify profit-max meta-goal |
 | 2026-04-17 | `7287f20` | Add Phase 4.6 smoketest proposal |
 | 2026-04-17 | `ca0573b` | Phase 7 proposal: alt-data & scraping expansion |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `6d70b06` | Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout |
 | 2026-04-16 | `95cc076` | Merge pull request #6 from pederbkoppang-bit/add-claude-github-actions-1776357343140 |
 | 2026-04-16 | `0cad1d6` | chore: harness log entry for Cycle 28 (Phase 4.4.5.5 PASS) |
-| 2026-04-16 | `f5aa70f` | Phase 4.4.5.5: Trading guide for Peder with 39-check verification drill |
 
 ---
 
+### v6.5.15 — move phase-4 (Production Readiness) to end + aggregate smoketest (2026-04-17)
+
+- **move phase-4 (Production Readiness) to end + aggregate smoketest**
 ### v6.5.14 — Integrate 6 phase proposals into masterplan + codify profit-max meta-... (2026-04-17)
 
 - **Integrate 6 phase proposals into masterplan + codify profit-max meta-goal**
