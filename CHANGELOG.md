@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `0cad1d6` | chore: harness log entry for Cycle 28 (Phase 4.4.5.5 PASS) |
 | 2026-04-16 | `f5aa70f` | Phase 4.4.5.5: Trading guide for Peder with 39-check verification drill |
 | 2026-04-16 | `d2a9430` | chore: harness log entry for Cycle 27 (Phase 4.4.6.4 PASS) |
 | 2026-04-16 | `3b37636` | Phase 4.4.6.4: Rollback plan documented with pause_signals mechanism (17/17 PASS) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `ba399ee` | Phase 4.4.3.5: incident log P0 verification drill + evidence |
 | 2026-04-16 | `7a791d5` | MAS harness infrastructure: archive hook + cycle wrapper + audit |
 | 2026-04-15 | `38d58de` | Merge remote-tracking branch 'origin/main' into claude/add-permission-prompts-pRDHN |
-| 2026-04-15 | `1b2d055` | Document BigQuery MCP access for the remote agent |
 
 ---
 
