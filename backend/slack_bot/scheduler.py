@@ -170,6 +170,22 @@ async def _watchdog_health_check(app: AsyncApp):
         logger.exception("Watchdog health check -- backend unreachable")
 
 
+def pause_signals() -> bool:
+    """Shut down the scheduler, stopping all signal-related jobs.
+
+    Returns True if the scheduler was running and is now stopped,
+    False if it was already stopped or never started.
+    This is the rollback command for Go-Live checklist item 4.4.6.4.
+    """
+    global _scheduler
+    if _scheduler is not None and _scheduler.running:
+        _scheduler.shutdown(wait=False)
+        logger.info("Scheduler shut down -- all signal jobs paused (rollback 4.4.6.4)")
+        return True
+    logger.info("Scheduler was not running -- no action taken")
+    return False
+
+
 async def send_analysis_alert(app: AsyncApp, ticker: str, report: dict):
     """Post a proactive alert after analysis completes (called from orchestrator)."""
     settings = get_settings()

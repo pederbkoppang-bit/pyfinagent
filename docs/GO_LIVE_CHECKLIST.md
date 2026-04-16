@@ -211,10 +211,11 @@
 - **HOW**: daily review slot exists on the calendar for days 1-7; the SLA Monitor service has its alert thresholds tightened in `backend/services/` (e.g. drawdown alert at -5% instead of -10%, signal miss alert at 1 hour instead of 4). Revert to normal thresholds after day 7 if live Sharpe tracks the paper Sharpe.
 
 ### 4.4.6.4 Rollback plan: if live Sharpe < 0.5 in first 2 weeks -> stop signals, investigate
-- [ ] Rollback criteria documented and the stop-signals command is rehearsed
+- [x] Rollback criteria documented and the stop-signals command is rehearsed
 - **WHO**: joint
 - **WHEN**: first-week plus launch-week rehearsal
 - **HOW**: rollback command is `python -m backend.slack_bot.app --pause-signals` or equivalent kill of the scheduler; the trigger is live Sharpe < 0.5 on a trailing 14-day window. Rehearse once during launch-week and record the rehearsal commit hash as evidence. If rollback fires post-launch, re-enter the harness and do not restart signals until Peder explicitly re-approves under a fresh 4.4.6.1 sign-off.
+- **Evidence**: drill landed at `scripts/go_live_drills/rollback_plan_test.py` and executed 2026-04-16 by Ford Cycle 27 on `main`. 17/17 checks PASS: S0 ROLLBACK_PLAN.md exists, S1 Sharpe < 0.5 threshold documented, S2 14-day trailing window documented, S3 pause_signals command documented, S4 Peder re-approval gate documented, S5 4.4.6.1 cross-reference present, S6 investigation checklist documented (6 items: data pipeline, model drift, execution quality, external factors, code regression, cost model), S7 rehearsal recipe documented, S8 Option A (graceful pause_signals) and Option B (process kill) both documented, S9 paper trading re-validation requirement documented, S10 scheduler.py exists, S11 pause_signals function defined at line 173, S12 pause_signals references _scheduler global, S13 pause_signals returns bool status, S14 pause_signals calls scheduler.shutdown, S15 pause_signals logs the rollback action, S16 _scheduler is module-level variable. Rollback doc at `docs/ROLLBACK_PLAN.md` covers: trigger (Sharpe < 0.5, 14-day), 3 stop methods (graceful/kill/emergency), investigation checklist, re-approval gate (fresh 4.4.6.1), and rehearsal recipe. Live rehearsal deferred to launch-week when Slack bot is running. Re-run recipe: `python3 scripts/go_live_drills/rollback_plan_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ---
 

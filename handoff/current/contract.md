@@ -1,37 +1,26 @@
-# Sprint Contract -- MAS Harness Cycle 26
-Generated: 2026-04-16
+# Contract -- Phase 4.4.6.4: Rollback Plan
 
 ## Target
-Phase 4.4.3.2: Slack signals tested end-to-end
-
-## Hypothesis
-The full signal-to-Slack code path is wired and produces valid Block Kit
-messages. Verify via a stdlib-only drill that traces: generate signal dict ->
-`SignalsServer.publish_signal` orchestration -> `format_signal_alert` Block Kit
-rendering -> `WebClient.chat_postMessage` call site. Live Slack delivery
-deferred to launch-week (precedent: 4.4.3.1 deferred runtime curl).
+Checklist item 4.4.6.4: "Rollback plan: if live Sharpe < 0.5 in first 2 weeks -> stop signals, investigate"
 
 ## Success Criteria
 
-### Code-path verification (automated, stdlib-only)
-- SC1: `format_signal_alert` exists in `backend/slack_bot/formatters.py`
-- SC2: `format_signal_alert` accepts `(signal: dict, trade: dict | None)` signature
-- SC3: `format_signal_alert` returns a `list[dict]` of Block Kit blocks
-- SC4: Block Kit structure contains required block types: header, section (with fields), divider, context
-- SC5: Header block text contains ticker and action (BUY/SELL/HOLD)
-- SC6: Section fields include Confidence, Price, Size, Stop
-- SC7: Context block contains "PyFinAgent" branding and signal_id
-- SC8: `format_signal_alert` handles edge cases: empty dict input, missing fields, None trade
-- SC9: `publish_signal` method exists on `SignalsServer` class
-- SC10: `publish_signal` source contains `from backend.slack_bot.formatters import format_signal_alert`
-- SC11: `publish_signal` source contains `WebClient` and `chat_postMessage` call site
-- SC12: `publish_signal` passes `blocks` from `format_signal_alert` to `chat_postMessage`
-- SC13: `publish_signal` has ASCII-only `text=` fallback for push notifications
-- SC14: `publish_signal` graceful degradation: `slack_not_configured` when no token
-- SC15: `_signal_emoji` helper maps BUY->green, SELL->red, HOLD->yellow
-- SC16: No Unicode in logger messages within the Slack posting path (security.md rule)
+1. `docs/ROLLBACK_PLAN.md` exists and documents:
+   - SC1: Trigger condition (live Sharpe < 0.5, trailing 14-day window)
+   - SC2: Stop-signals command with exact syntax
+   - SC3: Re-approval gate (fresh 4.4.6.1 sign-off from Peder before restart)
+   - SC4: Investigation checklist (what to check before restarting)
+   - SC5: Re-run recipe for rehearsal
+2. `scheduler.py` exports a `pause_signals()` function that shuts down the scheduler
+3. Drill at `scripts/go_live_drills/rollback_plan_test.py`:
+   - SC6: ROLLBACK_PLAN.md exists
+   - SC7: Doc mentions Sharpe < 0.5 threshold
+   - SC8: Doc mentions 14-day window
+   - SC9: Doc mentions pause_signals or stop-signals command
+   - SC10: Doc mentions Peder re-approval
+   - SC11: `scheduler.py` has `pause_signals` function
+   - SC12: `pause_signals` accesses the `_scheduler` global
+   - SC13: Drill exits 0
 
-## Excluded
-- Live Slack delivery (requires running Slack bot + valid tokens -- launch-week)
-- `--dry-run-send-test` CLI flag (not yet implemented; out of scope for this cycle)
-- Visual confirmation in desktop/mobile Slack clients (Peder's part of "joint")
+## Rollback Plan
+Revert the commit if the drill fails or the doc is insufficient.
