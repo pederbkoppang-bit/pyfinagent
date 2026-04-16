@@ -183,10 +183,11 @@
 - **HOW**: `docs/MANUAL_TRADING_PLAYBOOK.md` or a named section in this file describes the exact broker, order type, and sizing rules. Peder executes a dry-run against a single signal before launch to confirm the playbook is accurate.
 
 ### 4.4.5.5 Documentation: "How to trade pyfinAgent signals" guide for Peder
-- [ ] Standalone guide exists and Peder has read it end-to-end
+- [x] Standalone guide exists and Peder has read it end-to-end
 - **WHO**: joint (Ford writes, Peder reviews)
 - **WHEN**: launch-week
 - **HOW**: the guide lives at `docs/TRADING_GUIDE.md` and covers: signal anatomy, confidence thresholds, sizing, stop-loss execution, and when to override Ford. Peder's sign-off is a Slack acknowledgement in `#ford-approvals`.
+- **Evidence**: guide landed at `docs/TRADING_GUIDE.md` by Ford Cycle 27 on `claude/awesome-euler-K0ae7`. 8 sections, 280+ lines covering: signal anatomy (6 fields + Slack format), confidence interpretation (0.0-1.0 continuous), hybrid sizing formula (min of hard_cap/kelly/vol), dual stop-loss (8% fixed + 3% trail), drawdown tiers (ok/-5%/-10%/-15% kill), override guidance, key numbers reference, glossary. All thresholds verified against `signals_server.py` get_risk_constraints + check_stop_loss + track_drawdown. Peder sign-off pending (his part of "joint").
 
 ---
 
