@@ -595,20 +595,22 @@ export default function PaperTradingPage() {
             </div>
           ) : (
             <>
-              {/* Tier 2: Ops status strip (Go-Live Gate / Kill Switch / Cycle Health) */}
-              <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
+              {/* Ops-strip bento: Go-Live Gate (tall) on the left, two
+                  short widgets stacked on the right. items-start so short
+                  widgets don't stretch to fill the tall column's height. */}
+              <div className="mb-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
                 <GoLiveGateWidget
                   gate={gate}
                   loading={gateLoading}
                   error={gateError}
                   onRetry={loadGate}
                 />
-                <KillSwitchPanel />
-                <CycleHealthStrip />
+                <div className="flex flex-col gap-3">
+                  <KillSwitchPanel />
+                  <CycleHealthStrip />
+                  <SchedulerDetails status={status} perf={perf} isActive={isActive} />
+                </div>
               </div>
-
-              {/* Tier 3: Scheduler status (collapsible; auto-expands while running) */}
-              <SchedulerDetails status={status} perf={perf} isActive={isActive} />
 
               {/* Tier 4: Global KPI hero (portfolio-level metrics, always visible) */}
               <SummaryHero status={status} perf={perf} />
