@@ -41,10 +41,11 @@
 - **HOW**: run `source .venv/bin/activate && python scripts/harness/run_seed_stability.py` and read the resulting TSV row. Std < 0.1 is the hard gate; std in [0.1, 0.15] is a soft flag that requires a Peder review.
 
 ### 4.4.1.4 No single walk-forward window drives > 30% of total return
-- [ ] Walk-forward return distribution is not concentrated in a single window
+- [x] Walk-forward return distribution is not concentrated in a single window
 - **WHO**: Ford
 - **WHEN**: 2-4 weeks pre-launch
 - **HOW**: run `source .venv/bin/activate && python scripts/harness/run_subperiod_test.py` and inspect the per-window return breakdown. Any single window contributing > 30% of total return triggers a robustness investigation before launch.
+- **Evidence**: drill landed at `scripts/go_live_drills/walk_forward_concentration_test.py` and executed 2026-04-16 by Ford Cycle 15 on `main`. 12/12 checks PASS: S0 best result found (Sharpe 1.1705, `20260328T072722Z_52eb3ffe-exp10.json`), S1 27 walk-forward windows with test_start/test_end dates, S2 equity curve 1067 points covering 2019-04-11 to 2025-08-04 (total return 98.56%), S3 per-window returns computed from NAV history, S4.1 max single-window contribution 14.0% (W24: 2025-05-05 to 2025-08-04) — well below 30% threshold. Soft notes: 13 positive, 4 negative, 10 flat windows (flat = ML filter rejected all candidates); top-3 windows contribute 38% of total. Re-run recipe: `python3 scripts/go_live_drills/walk_forward_concentration_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ---
 

@@ -1,26 +1,25 @@
-# Contract — Cycle 14: Phase 4.4.3.1 MCP Servers Deployed and Authenticated
+# Contract — Cycle 15: Phase 4.4.1.4 Walk-Forward Return Concentration
 
 ## Target
-`docs/GO_LIVE_CHECKLIST.md` item 4.4.3.1: All three MCP servers (data / backtest / signals) are reachable and respond to health probes.
+`docs/GO_LIVE_CHECKLIST.md` item 4.4.1.4: No single walk-forward window drives > 30% of total return.
 
 ## Current State
-- Three MCP server modules exist: `data_server.py`, `backtest_server.py`, `signals_server.py`
-- Each has a `create_*_server()` factory and `if __name__ == "__main__"` standalone entry
-- `/api/health` returns `{"status": "ok"}` but has NO MCP server health subfields
-- `.mcp.json` only registers Slack, not the three backend MCP servers
+- Best result file: `backend/backtest/experiments/results/20260328T072722Z_52eb3ffe-exp10.json`
+- Sharpe 1.1705, DSR 0.9526, 27 walk-forward windows, 1067-point equity curve
+- Per-window `total_return_pct` stored as 0.0 (unfilled by engine)
+- NAV history available with date+nav per trading day, starting 2019-04-11
 
 ## Plan
-1. Update `/api/health` in `backend/main.py` to include `mcp_servers` dict
-2. Add three server entries to `.mcp.json` with stdio transport
-3. Write drill `scripts/go_live_drills/mcp_servers_test.py`
-4. Flip checkbox in `docs/GO_LIVE_CHECKLIST.md` with evidence
+1. Write drill `scripts/go_live_drills/walk_forward_concentration_test.py` (stdlib + json only)
+2. Load best-result JSON, extract per-window test boundaries and equity curve
+3. Compute per-window return by finding NAV at window start/end dates
+4. Assert max single-window contribution < 30% of total return
+5. Flip checkbox, commit, push
 
 ## Success Criteria
-- SC1: Three module files exist at expected paths
-- SC2: Three classes (DataServer, BacktestServer, SignalsServer) exist
-- SC3: Three factory functions exist
-- SC4: `__init__.py` exports all three factories
-- SC5: `/api/health` endpoint includes `mcp_servers` health subfields
-- SC6: `.mcp.json` has entries for all three servers
-- SC7: Each server has `__main__` block for standalone execution
-- SC8: Drill exits 0 with all scenarios PASS
+- SC1: Best result file exists and loads
+- SC2: 27 walk-forward windows with test_start/test_end dates
+- SC3: Equity curve has data spanning the full test range
+- SC4: Per-window returns computed from NAV data
+- SC5: No single window contributes > 30% of total return
+- SC6: Drill exits 0 on PASS
