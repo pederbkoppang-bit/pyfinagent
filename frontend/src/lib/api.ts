@@ -333,6 +333,50 @@ export function getPaperGate(): Promise<import("@/components/GoLiveGateWidget").
   return apiFetch("/api/paper-trading/gate");
 }
 
+// ── Phase 4.5 widgets that previously raw-fetched ──────────────────
+
+export function getPaperKillSwitchState(): Promise<unknown> {
+  return apiFetch("/api/paper-trading/kill-switch");
+}
+
+export function postPaperKillSwitchAction(
+  action: "PAUSE" | "RESUME" | "FLATTEN_ALL",
+): Promise<unknown> {
+  const path =
+    action === "FLATTEN_ALL"
+      ? "/api/paper-trading/flatten-all"
+      : action === "PAUSE"
+        ? "/api/paper-trading/pause"
+        : "/api/paper-trading/resume";
+  return apiFetch(path, {
+    method: "POST",
+    body: JSON.stringify({ confirmation: action }),
+  });
+}
+
+export function getPaperFreshness(): Promise<unknown> {
+  return apiFetch("/api/paper-trading/freshness");
+}
+
+export function getPaperCyclesHistory(limit = 10): Promise<{ cycles: unknown[]; count: number }> {
+  return apiFetch(`/api/paper-trading/cycles/history?limit=${limit}`);
+}
+
+export function getPaperTradeRationale(tradeId: string): Promise<unknown> {
+  return apiFetch(`/api/paper-trading/trades/${encodeURIComponent(tradeId)}/rationale`);
+}
+
+export function getPaperMfeMaeScatter(): Promise<unknown> {
+  return apiFetch("/api/paper-trading/mfe-mae-scatter");
+}
+
+export function getPaperLivePrices(
+  tickers: string[],
+): Promise<{ prices: Record<string, unknown>; ttl_sec: number; count: number }> {
+  const q = encodeURIComponent(tickers.join(","));
+  return apiFetch(`/api/paper-trading/live-prices?tickers=${q}`);
+}
+
 // ── Backtest ────────────────────────────────────────────────────
 
 export function runBacktest(params?: Record<string, unknown>): Promise<{ status: string; run_id: string }> {

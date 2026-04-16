@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getPaperMfeMaeScatter } from "@/lib/api";
 import {
   CartesianGrid,
   ReferenceLine,
@@ -54,13 +55,9 @@ export function MfeMaeScatter() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch("/api/paper-trading/mfe-mae-scatter", { credentials: "include" })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((j: Response) => {
-        if (!cancelled) setData(j);
+    getPaperMfeMaeScatter()
+      .then((j) => {
+        if (!cancelled) setData(j as Response);
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : "load failed");

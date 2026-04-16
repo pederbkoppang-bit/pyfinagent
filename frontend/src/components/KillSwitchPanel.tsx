@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { IconWarning } from "@/lib/icons";
 import { SkeletonCard } from "@/components/Skeleton";
+import { getPaperKillSwitchState, postPaperKillSwitchAction } from "@/lib/api";
 
 interface KillSwitchState {
   paused: boolean;
@@ -28,21 +29,6 @@ interface KillSwitchState {
 
 type Action = "PAUSE" | "RESUME" | "FLATTEN_ALL";
 
-async function postAction(action: Action): Promise<Response> {
-  const path =
-    action === "FLATTEN_ALL"
-      ? "/api/paper-trading/flatten-all"
-      : action === "PAUSE"
-      ? "/api/paper-trading/pause"
-      : "/api/paper-trading/resume";
-  return fetch(path, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ confirmation: action }),
-  });
-}
-
 /**
  * Kill-switch panel: status banner + three action buttons (Pause, Resume,
  * Flatten-all). Every destructive action requires a single-modal confirmation.
@@ -58,11 +44,7 @@ export function KillSwitchPanel() {
 
   const refresh = useCallback(async () => {
     try {
-      const r = await fetch("/api/paper-trading/kill-switch", {
-        credentials: "include",
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
+      const j = (await getPaperKillSwitchState()) as KillSwitchState;
       setState(j);
       setError(null);
       failRef.current = 0;
@@ -94,11 +76,7 @@ export function KillSwitchPanel() {
     setBusy(true);
     setError(null);
     try {
-      const r = await postAction(pendingAction);
-      if (!r.ok) {
-        const body = await r.text();
-        throw new Error(body || `HTTP ${r.status}`);
-      }
+      await postPaperKillSwitchAction(pendingAction);
       setPendingAction(null);
       await refresh();
     } catch (e) {

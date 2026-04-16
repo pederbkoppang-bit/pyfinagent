@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { SkeletonCard } from "@/components/Skeleton";
+import { getPaperCyclesHistory, getPaperFreshness } from "@/lib/api";
 
 interface SourceHealth {
   last_tick_age_sec: number | null;
@@ -70,9 +71,7 @@ export function CycleHealthStrip() {
 
   const refresh = useCallback(async () => {
     try {
-      const r = await fetch("/api/paper-trading/freshness", { credentials: "include" });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
+      const j = (await getPaperFreshness()) as Freshness;
       setFresh((prev) =>
         prev && prev.computed_at === j.computed_at ? prev : j,
       );
@@ -83,19 +82,14 @@ export function CycleHealthStrip() {
       if (failRef.current >= 5) setError(e instanceof Error ? e.message : "freshness failed");
     }
     try {
-      const r = await fetch("/api/paper-trading/cycles/history?limit=10", {
-        credentials: "include",
+      const j = await getPaperCyclesHistory(10);
+      setCycles((prev) => {
+        const next = (j.cycles ?? []) as CycleRow[];
+        if (prev && prev.length === next.length && prev[0]?.cycle_id === next[0]?.cycle_id) {
+          return prev;
+        }
+        return next;
       });
-      if (r.ok) {
-        const j = await r.json();
-        setCycles((prev) => {
-          const next: CycleRow[] = j.cycles || [];
-          if (prev && prev.length === next.length && prev[0]?.cycle_id === next[0]?.cycle_id) {
-            return prev;
-          }
-          return next;
-        });
-      }
     } catch {
       // freshness is the primary signal; cycle-history is informational
     }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { IconX } from "@/lib/icons";
+import { getPaperTradeRationale } from "@/lib/api";
 
 interface Signal {
   agent: string;
@@ -45,15 +46,11 @@ export function AgentRationaleDrawer({ tradeId, onClose }: Props) {
     setLoading(true);
     setError(null);
     setData(null);
-    fetch(`/api/paper-trading/trades/${encodeURIComponent(tradeId)}/rationale`, {
-      credentials: "include",
-    })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(setData)
-      .catch((e) => setError(e.message || "failed to load rationale"))
+    getPaperTradeRationale(tradeId)
+      .then((r) => setData(r as Rationale))
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : "failed to load rationale"),
+      )
       .finally(() => setLoading(false));
   }, [tradeId]);
 

@@ -1424,3 +1424,101 @@ All 11 substeps complete, 0 FAIL. 7 new backend services, 6 new endpoints, 4 new
 - Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
 **Decision:** CONDITIONAL -- kept with warning
 **Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 20:44 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 20:45 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 20:45 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-16 20:53 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+## Phase 4.5 post-release fix -- widget API routing (2026-04-16)
+
+**Research:** 5 Phase 4.5 widgets (KillSwitchPanel, CycleHealthStrip, AgentRationaleDrawer, MfeMaeScatter, useLivePrices) called `fetch("/api/paper-trading/...")` directly against :3000. No Next.js rewrite exists, so those calls went to the frontend host and either hit the auth middleware (302) or fell through to a 404. `apiFetch()` in lib/api.ts correctly prefixes `API_BASE=http://localhost:8000`, which is why Go-Live Gate (uses getPaperGate wrapper) worked while the other widgets showed empty Skeletons or "Failed to load: HTTP 404".
+
+**Plan:** Add 7 new wrappers in api.ts and refactor each widget to use them. No backend changes, no new endpoints, no Next rewrites. Contract at handoff/current/4.5.fix-widget-api-routing-contract.md.
+
+**Generate:**
+- `frontend/src/lib/api.ts`: +getPaperKillSwitchState, postPaperKillSwitchAction (+PAUSE/RESUME/FLATTEN_ALL union), getPaperFreshness, getPaperCyclesHistory, getPaperTradeRationale, getPaperMfeMaeScatter, getPaperLivePrices.
+- `frontend/src/components/KillSwitchPanel.tsx`: replaced refresh + postAction; removed the internal postAction helper.
+- `frontend/src/components/CycleHealthStrip.tsx`: replaced both raw fetches with wrappers.
+- `frontend/src/components/AgentRationaleDrawer.tsx`: replaced rationale fetch with getPaperTradeRationale.
+- `frontend/src/components/MfeMaeScatter.tsx`: replaced scatter fetch with getPaperMfeMaeScatter.
+- `frontend/src/lib/useLivePrices.ts`: replaced fetch with getPaperLivePrices (pass tickers array directly).
+
+**Evaluate (both verifiers in parallel):**
+- tsc --noEmit exit 0.
+- `grep -nE 'fetch\("/api/paper-trading' frontend/src/{components,lib}/ -r` -> no matches.
+- Shell-class assertion SHELL_OK.
+- pytest 18/18 passed.
+- harness-verifier: ok=true, all 5 criteria + wrapper-delegation audit confirmed.
+- qa-evaluator: ok=true, all 5 widgets refactored, all 7 wrappers route via apiFetch, no raw fetches, contract followed.
+
+**Decision:** PASS -- post-release fix approved. No backend code touched.
+
+**Reality-gap note:** Pure frontend routing fix. Sharpe=1.1705 DSR=0.9526 unchanged.
+
+**Next:** push to phase-4.5-paper-trading-v2 branch; PR #8 auto-updates.

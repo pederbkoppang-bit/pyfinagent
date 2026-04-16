@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getPaperLivePrices } from "@/lib/api";
 
 export interface LivePriceEntry {
   price: number | null;
@@ -31,20 +32,16 @@ export function useLivePrices(tickers: string[], enabled = true) {
   useEffect(() => {
     if (!enabled || tickers.length === 0) return;
     let cancelled = false;
-    const uniq = Array.from(new Set(tickers.filter(Boolean))).join(",");
+    const uniq = Array.from(new Set(tickers.filter(Boolean)));
 
     async function tick() {
       if (cancelled) return;
       // Only fetch when tab is visible -- respects the user's attention.
       if (typeof document !== "undefined" && document.hidden) return;
       try {
-        const r = await fetch(`/api/paper-trading/live-prices?tickers=${encodeURIComponent(uniq)}`, {
-          credentials: "include",
-        });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const j = await r.json();
+        const j = await getPaperLivePrices(uniq);
         if (cancelled) return;
-        setPrices(j.prices || {});
+        setPrices((j.prices || {}) as Record<string, LivePriceEntry>);
         setUpdatedAt(Date.now());
         setError(null);
         failRef.current = 0;
