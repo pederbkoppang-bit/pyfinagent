@@ -319,6 +319,7 @@ export default function PaperTradingPage() {
   const [reconciliationLoading, setReconciliationLoading] = useState(false);
   const [gate, setGate] = useState<GoLiveGate | null>(null);
   const [gateLoading, setGateLoading] = useState(false);
+  const [gateError, setGateError] = useState<string | null>(null);
   const [rationaleTradeId, setRationaleTradeId] = useState<string | null>(null);
 
   const positionTickers = useMemo(() => positions.map((p) => p.ticker), [positions]);
@@ -374,13 +375,24 @@ export default function PaperTradingPage() {
       .finally(() => setReconciliationLoading(false));
   }, [tab, reconciliation]);
 
-  useEffect(() => {
+  const loadGate = useCallback(() => {
     setGateLoading(true);
+    setGateError(null);
     getPaperGate()
-      .then(setGate)
-      .catch(() => setGate(null))
+      .then((g) => {
+        setGate(g);
+        setGateError(null);
+      })
+      .catch((e: unknown) => {
+        setGate(null);
+        setGateError(e instanceof Error ? e.message : "gate failed");
+      })
       .finally(() => setGateLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadGate();
+  }, [loadGate]);
 
   const handleStart = async () => {
     setActionLoading(true);
@@ -585,7 +597,12 @@ export default function PaperTradingPage() {
             <>
               {/* Tier 2: Ops status strip (Go-Live Gate / Kill Switch / Cycle Health) */}
               <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
-                <GoLiveGateWidget gate={gate} loading={gateLoading} />
+                <GoLiveGateWidget
+                  gate={gate}
+                  loading={gateLoading}
+                  error={gateError}
+                  onRetry={loadGate}
+                />
                 <KillSwitchPanel />
                 <CycleHealthStrip />
               </div>

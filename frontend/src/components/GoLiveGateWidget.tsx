@@ -36,6 +36,8 @@ export interface GoLiveGate {
 interface Props {
   gate: GoLiveGate | null;
   loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   onPromote?: () => void;
 }
 
@@ -47,7 +49,33 @@ function Check({ ok }: { ok: boolean }) {
   );
 }
 
-export function GoLiveGateWidget({ gate, loading = false, onPromote }: Props) {
+export function GoLiveGateWidget({
+  gate,
+  loading = false,
+  error,
+  onRetry,
+  onPromote,
+}: Props) {
+  if (error && !gate) {
+    return (
+      <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+          Go-Live Gate
+        </p>
+        <p className="mt-1 text-xs text-rose-300">Failed to load: {error}</p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-2 rounded bg-rose-900/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/60"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    );
+  }
+
   if (loading || !gate) {
     return (
       <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-4">
@@ -122,23 +150,23 @@ export function GoLiveGateWidget({ gate, loading = false, onPromote }: Props) {
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-5">
+      <ul className="mt-3 space-y-1.5">
         {items.map((it) => (
-          <div
+          <li
             key={it.key}
             className={clsx(
-              "flex flex-col gap-1 rounded-lg border p-2",
-              it.ok ? "border-emerald-500/30" : "border-rose-500/30",
+              "flex items-center gap-2 rounded-md border px-2 py-1.5",
+              it.ok ? "border-emerald-500/20" : "border-rose-500/20",
             )}
           >
-            <div className="flex items-center gap-2">
-              <Check ok={it.ok} />
-              <span className="text-xs font-medium text-slate-200">{it.label}</span>
-            </div>
-            <span className="font-mono text-[10px] text-slate-500">{it.hint}</span>
-          </div>
+            <Check ok={it.ok} />
+            <span className="text-xs font-medium text-slate-200">{it.label}</span>
+            <span className="ml-auto truncate font-mono text-[10px] text-slate-500">
+              {it.hint}
+            </span>
+          </li>
         ))}
-      </div>
+      </ul>
 
       <div className="mt-3 flex items-center justify-end">
         <button
