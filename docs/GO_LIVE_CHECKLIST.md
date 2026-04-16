@@ -165,10 +165,11 @@
 - **HOW**: this file or a sibling `docs/DAILY_REVIEW_PLAYBOOK.md` enumerates the specific Slack channels, buttons, and stats Peder reviews each morning. If the playbook is missing, this item blocks launch.
 
 ### 4.4.5.2 Escalation path defined: Ford alerts -> iMessage -> manual intervention
-- [ ] Documented escalation ladder for an incident during a trading day
+- [x] Documented escalation ladder for an incident during a trading day
 - **WHO**: joint
 - **WHEN**: launch-week
 - **HOW**: inspect `backend/slack_bot/app.py` for the escalation message helpers and confirm the iMessage bridge (or equivalent mobile push) is wired. The escalation ladder itself lives alongside this checklist or in `docs/INCIDENT_RUNBOOK.md`; Peder signs off on the ladder before launch.
+- **Evidence**: drill landed at `scripts/go_live_drills/escalation_path_test.py` and executed 2026-04-16 by Ford Cycle 29 on `main`. 22/22 checks PASS: S0 `format_escalation_alert` exists in formatters.py, S1 correct (severity, title, details, actions) parameters, S2 header block present, S3 `send_trading_escalation` exists in scheduler.py, S4 is async, S5 calls format_escalation_alert, S6 L1 Slack path (chat_postMessage), S7 L2 iMessage path (`imsg send`), S8 escalation phone +4794810537 in scheduler.py, S9 `send_escalation_alert` exists in sla_monitor.py, S10 sla_monitor has imsg CLI call, S11 phone consistent across both escalation paths, S12 `docs/INCIDENT_RUNBOOK.md` exists, S13 escalation ladder documented, S14 L1 Slack alert documented, S15 L2 iMessage documented, S16 L3 auto-kill (`pause_signals`) documented, S17 incident types (Kill Switch, Backend Unreachable) documented, S18 Peder response checklist documented, S19 scheduler imports format_escalation_alert, S20 P0 gates iMessage escalation, S21 watchdog health check exists. Three-level escalation ladder: L1 Slack alert (all severities, automated) -> L2 iMessage to Peder (P0 only) -> L3 auto-kill via pause_signals (no response in 30 min). Two independent iMessage paths: trading incidents via scheduler.py, SLA breaches via sla_monitor.py. Peder's sign-off (Slack acknowledgement in `#ford-approvals`) pending. Re-run recipe: `python3 scripts/go_live_drills/escalation_path_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.5.3 Weekly review meeting
 - [ ] Standing weekly slot on the calendar to review paper trading results, signal accuracy, and plan progress

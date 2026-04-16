@@ -619,3 +619,68 @@ def format_accuracy_report(
         "elements": [{"type": "mrkdwn", "text": " | ".join(trailing_parts)}]})
 
     return blocks
+
+
+def format_escalation_alert(
+    severity: str,
+    title: str,
+    details: dict,
+    actions: list[str] | None = None,
+) -> list[dict]:
+    """Format a trading incident escalation as Block Kit blocks.
+
+    Args:
+        severity: "P0", "P1", or "P2".
+        title: Short incident title (e.g. "Kill Switch Triggered").
+        details: Dict of key-value pairs rendered as section fields.
+        actions: Optional list of recommended next-step strings.
+
+    Returns:
+        Block Kit list[dict].
+    """
+    severity = str(severity or "P1").upper()
+    title = str(title or "Incident")
+
+    icon = ":rotating_light:" if severity == "P0" else ":warning:"
+    sev_label = f"*{severity}*" if severity in ("P0", "P1", "P2") else f"*{severity}*"
+
+    blocks: list[dict] = [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f"{icon} {title}",
+                "emoji": True,
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"Severity: {sev_label} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            },
+        },
+    ]
+
+    if details and isinstance(details, dict):
+        fields = []
+        for k, v in list(details.items())[:10]:
+            fields.append({"type": "mrkdwn", "text": _truncate(f"*{k}:* {v}", 180)})
+        if len(fields) % 2 == 1:
+            fields.append({"type": "mrkdwn", "text": " "})
+        blocks.append({"type": "section", "fields": fields[:10]})
+
+    if actions:
+        action_text = "\n".join(f"• {_truncate(str(a), 200)}" for a in actions[:5])
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"*Recommended actions:*\n{action_text}"},
+        })
+
+    blocks.append({"type": "divider"})
+    blocks.append({
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": f":robot_face: PyFinAgent Escalation | {severity} | Immediate attention required"}],
+    })
+
+    return blocks

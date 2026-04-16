@@ -11,7 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from slack_bolt.async_app import AsyncApp
 
 from backend.config.settings import get_settings
-from backend.slack_bot.formatters import format_morning_digest, format_evening_digest
+from backend.slack_bot.formatters import format_morning_digest, format_evening_digest, format_escalation_alert
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,63 @@ def pause_signals() -> bool:
         return True
     logger.info("Scheduler was not running -- no action taken")
     return False
+
+
+async def send_trading_escalation(
+    app: AsyncApp,
+    severity: str,
+    title: str,
+    details: dict,
+    actions: list[str] | None = None,
+):
+    """Send a trading incident escalation to Slack and iMessage (P0 only).
+
+    Escalation ladder:
+      L1 (all severities): Post Block Kit alert to configured Slack channel.
+      L2 (P0 only): Send iMessage to Peder via `imsg` CLI.
+
+    Args:
+        app: Slack Bolt app for posting.
+        severity: "P0", "P1", or "P2".
+        title: Short incident title.
+        details: Key-value pairs for the alert body.
+        actions: Optional recommended next steps.
+    """
+    settings = get_settings()
+    severity = str(severity or "P1").upper()
+
+    blocks = format_escalation_alert(severity, title, details, actions)
+    text_fallback = f"[{severity}] {title}"
+
+    # L1: Slack channel alert
+    if settings.slack_channel_id:
+        try:
+            await app.client.chat_postMessage(
+                channel=settings.slack_channel_id,
+                blocks=blocks,
+                text=text_fallback,
+            )
+            logger.warning("Trading escalation posted to Slack: %s -- %s", severity, title)
+        except Exception:
+            logger.exception("Failed to post trading escalation to Slack")
+
+    # L2: iMessage for P0 incidents
+    if severity == "P0":
+        _ESCALATION_PHONE = "+4794810537"
+        imsg_text = (
+            f"PYFINAGENT {severity}: {title}\n"
+            + "\n".join(f"{k}: {v}" for k, v in list(details.items())[:5])
+            + "\nImmediate attention required."
+        )
+        try:
+            import subprocess
+            subprocess.run(
+                ["imsg", "send", "--to", _ESCALATION_PHONE, "--text", imsg_text],
+                capture_output=True, text=True, timeout=10,
+            )
+            logger.warning("iMessage escalation sent for %s: %s", severity, title)
+        except Exception:
+            logger.exception("Failed to send iMessage escalation")
 
 
 async def send_analysis_alert(app: AsyncApp, ticker: str, report: dict):
