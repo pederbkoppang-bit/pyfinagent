@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `fbc73f3` | feat(masterplan): add phase-3.7/4.7/4.8/8.5 + retire 2.10 |
 | 2026-04-17 | `68d99ad` | feat(masterplan): add phase-3.5 MCP tool audit + adoption proposal |
 | 2026-04-17 | `7abe6fb` | Masterplan: move phase-4 (Production Readiness) to end + aggregate smoketest |
 | 2026-04-17 | `82b7a45` | Integrate 6 phase proposals into masterplan + codify profit-max meta-goal |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `5a6f43e` | Fix: Phase 4.5 widgets now use apiFetch instead of raw fetch |
 | 2026-04-16 | `b9ec89c` | GoLiveGate: vertical-list layout + error banner + Retry |
 | 2026-04-16 | `6d70b06` | Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout |
-| 2026-04-16 | `95cc076` | Merge pull request #6 from pederbkoppang-bit/add-claude-github-actions-1776357343140 |
 
 ---
 
+### v6.5.17 — feat(masterplan): add phase-3.7/4.7/4.8/8.5 + retire 2.10 (2026-04-17)
+
+- **feat(masterplan): add phase-3.7/4.7/4.8/8.5 + retire 2.10**
 ### v6.5.16 — feat(masterplan): add phase-3.5 MCP tool audit + adoption proposal (2026-04-17)
 
 - **feat(masterplan): add phase-3.5 MCP tool audit + adoption proposal**
