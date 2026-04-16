@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship a validated, evidence-based trading signal system by May 2026 that, once live, maximizes profit at the lowest operating cost by dynamically shifting strategy to whichever candidate is currently earning the most.",
-  "updated_at": "2026-04-16T22:14:38.630957+00:00",
+  "updated_at": "2026-04-16T22:29:55.381404+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -330,6 +330,156 @@
             "success_criteria": [
               "evaluator_critique_pass",
               "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-3.5",
+      "name": "MCP Tool Audit & Adoption",
+      "status": "pending",
+      "depends_on": [
+        "phase-4.5"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "3.5.0",
+          "name": "MCP surface inventory (read-only)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/audit/mcp_inventory.py --json > handoff/mcp_inventory.json && python -c \"import json; d=json.load(open('handoff/mcp_inventory.json')); assert d['servers'], d\"",
+            "success_criteria": [
+              "mcp_inventory_json_valid",
+              "no_secrets_in_output",
+              "stub_servers_flagged"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.5.1",
+          "name": "MCP registry crawl + candidate shortlist",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/audit/mcp_registry_pull.py --output handoff/mcp_candidates.csv && python -c \"import csv; rows=list(csv.DictReader(open('handoff/mcp_candidates.csv'))); assert len(rows) >= 20, len(rows)\"",
+            "success_criteria": [
+              "registry_pull_returns_20plus_candidates",
+              "all_candidates_have_license_field",
+              "all_candidates_have_last_commit_within_180_days"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.5.2",
+          "name": "Security + risk scoring",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/audit/mcp_risk_score.py && python -c \"import json; d=json.load(open('handoff/mcp_risk_scores.json')); assert all('risk_band' in v for v in d.values())\"",
+            "success_criteria": [
+              "risk_score_json_valid",
+              "every_candidate_scored",
+              "paid_servers_tagged_pending_peder_approval"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.5.3",
+          "name": "Adopt-now wave 1: Alpaca MCP (broker + paper)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/mcp_ab_test.py --server alpaca --samples 20 && python -c \"import json; d=json.load(open('handoff/mcp_ab_test_alpaca.json')); assert d['parity_rate'] >= 0.95\"",
+            "success_criteria": [
+              "alpaca_mcp_registered_in_mcp_json",
+              "alpaca_paper_order_placed_and_read",
+              "parity_rate_vs_existing_client_ge_95_percent",
+              "no_live_orders_placed_during_test"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.5.4",
+          "name": "Adopt-now wave 2: SEC EDGAR + FMP + FRED MCPs",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/mcp_ab_test.py --server edgar,fmp,fred --samples 20",
+            "success_criteria": [
+              "edgar_parity_ge_95",
+              "fmp_parity_ge_95",
+              "fred_parity_ge_95",
+              "agpl_isolation_documented",
+              "p95_latency_within_1_5x_existing"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.5.5",
+          "name": "Complete or supersede phase-3 Enrichment MCP stub",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f handoff/phase-3.5-stub-decision.md && grep -Eq '^Decision: (finish|retire)' handoff/phase-3.5-stub-decision.md",
+            "success_criteria": [
+              "decision_documented",
+              "if_retire_then_stub_removed_from_masterplan",
+              "if_finish_then_enrichment_mcp_tests_green"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.5.6",
+          "name": "Developer-workflow MCP watchlist",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/mcp_watchlist.md && python -c \"import re; t=open('handoff/mcp_watchlist.md').read(); assert len(re.findall(r'https?://', t)) >= 10\"",
+            "success_criteria": [
+              "watchlist_file_exists",
+              "ge_10_urls_cited",
+              "every_entry_has_adopt_condition"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.5.7",
+          "name": "Ongoing MCP health cron",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"from backend.services.mcp_health_cron import check_once; r = check_once(); assert 'servers' in r and isinstance(r['servers'], list)\"",
+            "success_criteria": [
+              "cron_job_registered_with_apscheduler",
+              "slack_post_on_critical_advisory",
+              "no_new_scheduler_process"
             ]
           },
           "contract": null,
@@ -1369,6 +1519,7 @@
       "depends_on": [
         "phase-2",
         "phase-3",
+        "phase-3.5",
         "phase-4.5",
         "phase-4.6",
         "phase-5",
