@@ -11,7 +11,6 @@ import {
   getPaperSnapshots,
   getPaperPerformance,
   getPaperReconciliation,
-  getPaperGate,
   startPaperTrading,
   stopPaperTrading,
   triggerPaperTradingCycle,
@@ -26,11 +25,9 @@ import type {
   PaperReconciliation,
 } from "@/lib/types";
 import { PaperReconciliationChart } from "@/components/PaperReconciliationChart";
-import { GoLiveGateWidget, type GoLiveGate } from "@/components/GoLiveGateWidget";
 import { AgentRationaleDrawer } from "@/components/AgentRationaleDrawer";
-import { KillSwitchPanel } from "@/components/KillSwitchPanel";
-import { CycleHealthStrip } from "@/components/CycleHealthStrip";
 import { MfeMaeScatter } from "@/components/MfeMaeScatter";
+import { OpsStatusBar } from "@/components/OpsStatusBar";
 import { useLivePrices } from "@/lib/useLivePrices";
 import {
   LineChart,
@@ -92,7 +89,7 @@ function SummaryHero({
   const pnl = status?.portfolio.pnl_pct ?? 0;
   const bench = status?.portfolio.benchmark_return_pct ?? 0;
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       <MetricCard label="NAV"><Dollar value={status?.portfolio.nav} /></MetricCard>
       <MetricCard label="Cash"><Dollar value={status?.portfolio.cash} /></MetricCard>
       <MetricCard label="Total P&L"><PnlBadge value={status?.portfolio.pnl_pct} /></MetricCard>
@@ -236,59 +233,6 @@ function RiskMonitorCard({
   );
 }
 
-// ── Scheduler details (collapsible Tier 3) ─────────────────────────
-
-function SchedulerDetails({
-  status,
-  perf,
-  isActive,
-}: {
-  status: PaperTradingStatus | null;
-  perf: PaperPerformance | null;
-  isActive: boolean | undefined;
-}) {
-  const isRunning = !!status?.loop.running;
-  const lastRunLabel = status?.loop.last_run
-    ? `Last run: ${new Date(status.loop.last_run).toLocaleString()}`
-    : status?.next_run
-      ? `Next run: ${new Date(status.next_run).toLocaleString()}`
-      : "Never run";
-  return (
-    <details
-      open={isRunning}
-      className="mb-4 rounded-xl border border-slate-700/60 bg-[#080f1e]"
-    >
-      <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm">
-        <span
-          className={clsx(
-            "h-2 w-2 rounded-full",
-            isRunning
-              ? "animate-pulse bg-sky-400"
-              : isActive
-                ? "bg-emerald-500"
-                : "bg-amber-500",
-          )}
-        />
-        <span className="font-medium text-slate-200">
-          {isRunning ? "Cycle running" : isActive ? "Scheduler active" : "Scheduler paused"}
-        </span>
-        <span className="ml-auto font-mono text-xs text-slate-500">{lastRunLabel}</span>
-      </summary>
-      <div className="flex items-center gap-4 border-t border-slate-700/60 px-4 py-3 text-xs text-slate-400">
-        <span>
-          Days active:{" "}
-          <span className="font-mono text-slate-300">{perf?.days_active ?? 0}</span>
-        </span>
-        <span>
-          Total cost:{" "}
-          <span className="font-mono text-slate-300">
-            ${(perf?.total_analysis_cost ?? 0).toFixed(2)}
-          </span>
-        </span>
-      </div>
-    </details>
-  );
-}
 
 // ── Tab definitions ───────────────────────────────────────────────
 
@@ -317,9 +261,6 @@ export default function PaperTradingPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [reconciliation, setReconciliation] = useState<PaperReconciliation | null>(null);
   const [reconciliationLoading, setReconciliationLoading] = useState(false);
-  const [gate, setGate] = useState<GoLiveGate | null>(null);
-  const [gateLoading, setGateLoading] = useState(false);
-  const [gateError, setGateError] = useState<string | null>(null);
   const [rationaleTradeId, setRationaleTradeId] = useState<string | null>(null);
 
   const positionTickers = useMemo(() => positions.map((p) => p.ticker), [positions]);
@@ -374,25 +315,6 @@ export default function PaperTradingPage() {
       .catch(() => setReconciliation(null))
       .finally(() => setReconciliationLoading(false));
   }, [tab, reconciliation]);
-
-  const loadGate = useCallback(() => {
-    setGateLoading(true);
-    setGateError(null);
-    getPaperGate()
-      .then((g) => {
-        setGate(g);
-        setGateError(null);
-      })
-      .catch((e: unknown) => {
-        setGate(null);
-        setGateError(e instanceof Error ? e.message : "gate failed");
-      })
-      .finally(() => setGateLoading(false));
-  }, []);
-
-  useEffect(() => {
-    loadGate();
-  }, [loadGate]);
 
   const handleStart = async () => {
     setActionLoading(true);
@@ -595,24 +517,12 @@ export default function PaperTradingPage() {
             </div>
           ) : (
             <>
-              {/* Bento ops-strip: Go-Live Gate (tall) on the left; right
-                  column stacks Kill Switch + Cycle Health + Scheduler +
-                  the KPI hero so both columns meaningfully fill their
-                  height. items-start prevents equal-height stretching. */}
-              <div className="mb-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
-                <GoLiveGateWidget
-                  gate={gate}
-                  loading={gateLoading}
-                  error={gateError}
-                  onRetry={loadGate}
-                />
-                <div className="flex flex-col gap-3">
-                  <KillSwitchPanel />
-                  <CycleHealthStrip />
-                  <SchedulerDetails status={status} perf={perf} isActive={isActive} />
-                  <SummaryHero status={status} perf={perf} />
-                </div>
-              </div>
+              {/* Dense operator status bar (Stripe/Linear/Grafana 12 pattern):
+                  one row, four segments. Replaces the old stacked ops-strip. */}
+              <OpsStatusBar nextRunAt={status?.next_run} />
+
+              {/* Full-width KPI hero — the portfolio-level metrics. */}
+              <SummaryHero status={status} perf={perf} />
 
               {/* Tier 6: Tab content */}
               {tab === "positions" && (

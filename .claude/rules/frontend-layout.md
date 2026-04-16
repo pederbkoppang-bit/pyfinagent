@@ -170,41 +170,52 @@ Header with action buttons:
 
 ---
 
-## 4.5. Uneven-content rows (bento / sidebar pattern)
+## 4.5. Operator-status pattern: one dense bar, not stacked cards
 
-When a row has widgets of **very different natural heights** (e.g. a tall checklist next to a two-button banner), an equal-height CSS grid row stretches the short widgets to match the tallest, leaving dead whitespace under them. This violates Few 2006's single-screen density principle and fails the Tufte data-ink test.
+When an operator dashboard has 3+ pieces of live status (gate, kill switch, cycle health, scheduler, etc.) plus actions (pause / flatten / resume), the correct pattern is **NOT** to render each piece of status as its own card. That produces a messy wall of uneven cards, dead whitespace, and visual fragmentation — documented anti-patterns across Stephen Few's *Information Dashboard Design* (2006) and every peer-company dashboard shipping in 2025-2026.
 
-**Rule: never mix short + tall widgets in an equal-height grid row.**
+The correct pattern, adopted by Stripe Dashboard, Linear, Vercel, Grafana 12, QuantConnect Cloud, and Robinhood Legend: **a single dense horizontal status bar**, one row, ~48-60px tall, with labeled segments for each signal and inline action buttons.
 
-### Allowed patterns, in order of preference
+### Allowed pattern (preferred)
 
-1. **Bento / sidebar** — one tall widget on one side, a flex-column stack of short widgets on the other. Pull in additional content (e.g. a KPI hero) so both columns meaningfully fill their height.
+```tsx
+<section
+  aria-label="Operator status"
+  className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-navy-700 bg-navy-800/60 px-4 py-3"
+>
+  <Segment label="Gate" value={gatePill} /> <Divider />
+  <Segment label="Kill"  value={killPill} actions={[<Pause />, <Flatten />]} /> <Divider />
+  <Segment label="Cycle" value={bandDots} /> <Divider />
+  <Segment label="Next run" value={nextRunAt} className="ml-auto" />
+</section>
+```
 
-   ```tsx
-   <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
-     <TallWidget />
-     <div className="flex flex-col gap-3">
-       <ShortWidget />
-       <ShortWidget />
-       <ShortWidget />
-       <KpiHero /> {/* pull in to balance column heights */}
-     </div>
-   </div>
-   ```
-
-2. **`items-start` + accept asymmetry** — keep the 3-col grid but collapse short cards to their natural height. Accept visible asymmetry under the short cards rather than stretch them. Only use this when the short cards genuinely have nothing more to show.
-
-3. **Row separation** — put the tall widget in its own row above or below the short widgets. Grafana's canonical pattern: status/stat strip in one row (short), chart/detail strip in another (tall). Rows don't share height.
+Then **below the status bar, a full-width KPI hero row**, then tab content. Do NOT stack the status items as cards. Do NOT put a separate SchedulerDetails banner beneath the status bar — fold its signal into the bar itself.
 
 ### Forbidden
 
-- `grid-cols-3` (or any equal-height grid) mixing a widget of ~100px content with a widget of ~400px content. This is the documented "canonical CSS-grid dead-space anti-pattern" (Every Layout; DEV CSS Grid Lanes 2026).
-- `h-full` / `flex-1` on short widgets just to fill dead space — makes the gap structural and worsens density.
-- Native `grid-template-rows: masonry` — not production-safe in 2026 (only Safari 26 supports it). Use `items-start` or bento instead.
+- Rendering Go-Live Gate, Kill Switch, Cycle Health, and Scheduler as four independent card widgets on the main dashboard view. This is what PyFinAgent did in the first pass and it produced the "messy" layout the user rejected.
+- `grid-cols-3` / `grid-cols-4` / bento layouts to paper over the problem. Bento helps when you have one tall chart + a few secondary cards; it does NOT help for status signals, which belong in a dense bar.
+- Equal-height grid rows mixing short (~100px) and tall (~400px) widgets. CSS grid's default `items-stretch` balloons the short cards and creates dead whitespace. (Every Layout; DEV CSS Grid Lanes 2026.)
+- `h-full` / `flex-1` on short widgets to "fill" dead space — makes the gap structural and worsens density.
+- Native `grid-template-rows: masonry` — not production-safe in 2026 (Safari 26 only).
+
+### If progressive disclosure is needed
+
+The dense bar shows the one fact per segment that an operator needs at a glance. Full details (5-item gate breakdown, kill-switch audit log, cycle-history table) belong **behind disclosure**: click a segment to open a drawer/popover, or expose them on a dedicated "System" sub-tab. Do not pre-render them at full size on the dashboard.
 
 ### Peer references
 
-QuantConnect Cloud ([live trading results](https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/results)) uses free-form drag-and-drop; never co-locates short + tall in equal-height rows. FreqUI 2.0.7 ties column count to pane width, not viewport. Grafana 12 ([dynamic dashboards](https://grafana.com/blog/2025/05/07/dynamic-dashboards-grafana-12/)) separates stat rows from chart rows. Robinhood Legend ([widgets](https://robinhood.com/us/en/support/articles/widgets-in-robinhood-legend/)) lets users resize; no enforced equal heights. Tailwind Bento ([UI blocks](https://tailwindcss.com/plus/ui-blocks/marketing/sections/bento-grids)) + Every Layout Sidebar primitive ([every-layout.dev](https://every-layout.dev/)) are the canonical Tailwind codifications of the pattern.
+- Stripe Dashboard, Linear, Vercel: dense top status strip + table below.
+- Grafana 12 ([dynamic dashboards](https://grafana.com/blog/2025/05/07/dynamic-dashboards-grafana-12/)) separates short stat strips from tall chart rows; never mixes them.
+- QuantConnect Cloud ([live trading results](https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/results)) uses a runtime-statistics banner, not stacked status cards.
+- FreqUI 2.0.7 ties column count to pane width, not viewport.
+- Robinhood Legend ([widgets](https://robinhood.com/us/en/support/articles/widgets-in-robinhood-legend/)) — user-resizable; never co-locates short + tall at equal heights.
+- Every Layout's Sidebar primitive ([every-layout.dev](https://every-layout.dev/)) + Tailwind Bento ([UI blocks](https://tailwindcss.com/plus/ui-blocks/marketing/sections/bento-grids)) are the right pattern for *one tall chart + secondary cards*, which is a different problem from operator status.
+
+### Applied
+
+See `frontend/src/components/OpsStatusBar.tsx` for the canonical implementation: four segments (Gate, Kill, Cycle, Next run), each one line, all backed by their own `getPaperX` fetcher, with inline pause/flatten/resume action buttons.
 
 ---
 
