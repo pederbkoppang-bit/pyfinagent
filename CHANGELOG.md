@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `388fc43` | W1: feature ablation runner with walk-forward LOO testing |
 | 2026-04-16 | `ab0bccdb` | chore: changelog auto-update for be7ff0fe |
 | 2026-04-16 | `be7ff0fe` | log: session 2026-04-15-2230 + harness_log Cycle 11 (Phase 4.4.4.3 drill) |
 | 2026-04-16 | `4a8951f` | Cycle 12 harness log entry for Phase 4.4.3.5 |
@@ -26,11 +27,18 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-15 | `7c9c51a` | Phase 4.2.4 LOG: session log + harness_log Cycle 4 + QA critique |
 | 2026-04-15 | `44f4a40` | gitignore .claude/worktrees/ (transient qa-evaluator subagent isolation) |
 | 2026-04-15 | `9c42646` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
-| 2026-04-15 | `c6cae16` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
 
 ---
 
-### v6.4.3 — MAS harness infrastructure: archive hook + cycle wrapper + audit (2026-04-16)
+### v6.4.3 — Continuous Autonomous Agent + Feature Ablation + Cost Tiering (2026-04-16)
+
+1. **Handoff archive hook** — `.claude/hooks/archive-handoff.sh` auto-moves `handoff/current/*` into `handoff/archive/phase-<id>/` when a masterplan step flips to done
+2. **Paper trading audit** — discovered scheduler already live since 2026-03-20 (NAV -5.0%, zero trades); flagged `decide_trades` zero-orders bug for continuous harness
+3. **MAS harness LaunchAgent** — `com.pyfinagent.mas-harness` fires every 30 min, autonomously picks Go-Live checklist items (Phase 4.4.3.5 landed in first cycle)
+4. **gpt-researcher nightly** — `com.pyfinagent.autoresearch` fires at 02:00 with 14 rotating AI-trading research topics, Claude-driven, arxiv+semantic_scholar+duckduckgo
+5. **Model-cost tiering** — `backend/config/model_tiers.py` centralizes all Claude model IDs behind `COST_TIER` env var (build = current Opus/Sonnet, live = TODO at May launch)
+6. **Feature ablation runner** — `scripts/ablation/run_ablation.py` with LOO walk-forward testing; smoke test: `momentum_1m delta=-0.5704 verdict=keep`; LaunchAgent fires at 03:00
+7. **Changelog fix** — version headers now use commit subject instead of "Continued Development"
 
 ### v6.4.2 — Set permissions.defaultMode to bypassPermissions for remote agent (2026-04-15)
 
