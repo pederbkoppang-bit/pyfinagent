@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `0b38d2e` | Paper Trading: bento ops-strip layout, remove dead whitespace |
 | 2026-04-16 | `5a6f43e` | Fix: Phase 4.5 widgets now use apiFetch instead of raw fetch |
 | 2026-04-16 | `b9ec89c` | GoLiveGate: vertical-list layout + error banner + Retry |
 | 2026-04-16 | `6d70b06` | Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout |
@@ -26,12 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `bb893f4` | chore: add v6.4.3 summary bullets for tonight's workstreams |
 | 2026-04-16 | `388fc43` | W1: feature ablation runner with walk-forward LOO testing |
 | 2026-04-16 | `ab0bccdb` | chore: changelog auto-update for be7ff0fe |
-| 2026-04-16 | `be7ff0fe` | log: session 2026-04-15-2230 + harness_log Cycle 11 (Phase 4.4.4.3 drill) |
 
 ---
 
 ### v6.5.0 — Phase 4.5: Paper Trading Dashboard v2 (Evaluation-Grade) + MAS/Harness Protocol Hardening (2026-04-16)
 
+- **Paper Trading: bento ops-strip layout, remove dead whitespace**
 - **Phase 4.5 widgets now use apiFetch instead of raw fetch**
 - **vertical-list layout + error banner + Retry**
 - **Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout**
