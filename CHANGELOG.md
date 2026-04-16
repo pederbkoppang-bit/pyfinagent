@@ -7,6 +7,10 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `81d7082` | Add Phase 9 proposal: Data Refresh & Retraining Cron |
+| 2026-04-17 | `8d26802` | docs(phase-8): propose transformer / modern LLM signals phase |
+| 2026-04-17 | `9a96da3` | docs(phase-5.5): add external data-source audit proposal |
+| 2026-04-17 | `0b3d090` | docs: add Phase 6 proposal — News & Sentiment Cron |
 | 2026-04-16 | `ef35140` | Harness: F1 retry-loop escalation + F2 research-on-demand |
 | 2026-04-16 | `0eccebb` | chore: bump per-commit in changelog hook; split v6.5.0 backlog |
 | 2026-04-16 | `64f7708` | chore: harness log entry for Cycle 29 (4.4.5.2 escalation path) |
@@ -23,13 +27,21 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `d2a9430` | chore: harness log entry for Cycle 27 (Phase 4.4.6.4 PASS) |
 | 2026-04-16 | `3b37636` | Phase 4.4.6.4: Rollback plan documented with pause_signals mechanism (17/17 PASS) |
 | 2026-04-16 | `7330d89` | chore: harness log entry for Cycle 26 (Phase 4.4.3.2 PASS) |
-| 2026-04-16 | `23729e6` | Phase 4.4.3.2: Slack signals end-to-end code-level verification (16/16 PASS) |
-| 2026-04-16 | `512101d` | chore: harness log entry for Cycle 25 (Phase 4.4.1.3 PASS) |
-| 2026-04-16 | `6d8aea4` | Phase 4.4.1.3: seed stability confirmed (std=0.009 < 0.1, 12/12 PASS) |
-| 2026-04-16 | `44c4409` | Phase 4.4.1.3: seed stability test -- FAIL (seed-stable but Sharpe < 0.9) |
 
 ---
 
+### v6.5.11 — Add Phase 9 proposal: Data Refresh & Retraining Cron (2026-04-17)
+
+- **Add Phase 9 proposal: Data Refresh & Retraining Cron**
+### v6.5.10 — docs(phase-8): propose transformer / modern LLM signals phase (2026-04-17)
+
+- **docs(phase-8): propose transformer / modern LLM signals phase**
+### v6.5.9 — docs(phase-5.5): add external data-source audit proposal (2026-04-17)
+
+- **docs(phase-5.5): add external data-source audit proposal**
+### v6.5.8 — add Phase 6 proposal — News & Sentiment Cron (2026-04-17)
+
+- **add Phase 6 proposal — News & Sentiment Cron**
 ### v6.5.7 — F1 retry-loop escalation + F2 research-on-demand (2026-04-16)
 
 - **F1 retry-loop escalation + F2 research-on-demand**
