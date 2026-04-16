@@ -1,72 +1,58 @@
-# Sprint Contract -- Cycle 1
-Generated: 2026-04-16T06:47:24.664268+00:00
+# Sprint Contract -- Cycle 19: Zero-Orders Bug Fix
 
-## Hypothesis
-Continue parameter optimization with random perturbation
+Generated: 2026-04-16T09:00:00+00:00
 
-## Current Baseline
-- Sharpe: 1.1705
+## Problem Statement
 
-## Success Criteria (from evaluator_criteria.md)
-- Statistical Validity: DSR >= 0.95, Sharpe > 0
-- Robustness: ALL sub-periods Sharpe > 0
-- Reality Gap: 2x costs Sharpe > 0.5
+Paper trading has generated zero trades for 27+ consecutive days. Root cause
+diagnosed by Cycle 18 on branch `claude/awesome-euler-ch0wi`: Gemini synthesis
+returns `"Strong Buy"` / `"Strong Sell"` (space-separated, mixed case) but
+`decide_trades` used `.upper()` producing `"STRONG BUY"` (with space), while
+the lookup sets `_BUY_RECS` / `_SELL_RECS` use `"STRONG_BUY"` / `"STRONG_SELL"`
+(underscore). All strong signals were silently dropped.
 
-## Planner Suggestions
-- PLATEAU: Last 10 experiments all discarded. Consider strategy change.
-- SATURATED: trailing_distance_pct has 19 consecutive discards. Excluding.
-- SATURATED: rsi_weight has 21 consecutive discards. Excluding.
-- SATURATED: n_estimators has 21 consecutive discards. Excluding.
-- SATURATED: sl_pct has 15 consecutive discards. Excluding.
-- SATURATED: volatility_weight has 16 consecutive discards. Excluding.
-- SATURATED: qm_weight has 23 consecutive discards. Excluding.
-- SATURATED: mr_holding_days has 12 consecutive discards. Excluding.
-- SATURATED: frac_diff_d has 6 consecutive discards. Excluding.
-- SATURATED: top_n_candidates has 14 consecutive discards. Excluding.
-- SATURATED: vol_barrier_multiplier has 15 consecutive discards. Excluding.
-- SATURATED: min_samples_leaf has 13 consecutive discards. Excluding.
-- SATURATED: momentum_weight has 21 consecutive discards. Excluding.
-- SATURATED: mr_weight has 8 consecutive discards. Excluding.
-- SATURATED: target_vol has 22 consecutive discards. Excluding.
-- SATURATED: learning_rate has 20 consecutive discards. Excluding.
-- SATURATED: holding_days has 21 consecutive discards. Excluding.
-- SATURATED: fm_weight has 18 consecutive discards. Excluding.
-- SATURATED: max_positions has 14 consecutive discards. Excluding.
-- SATURATED: trailing_stop_enabled has 19 consecutive discards. Excluding.
-- SATURATED: tb_weight has 17 consecutive discards. Excluding.
-- SATURATED: target_annual_vol has 16 consecutive discards. Excluding.
-- SATURATED: trailing_trigger_pct has 12 consecutive discards. Excluding.
-- SATURATED: tp_pct has 15 consecutive discards. Excluding.
-- SATURATED: sma_weight has 14 consecutive discards. Excluding.
-- SATURATED: strategy has 12 consecutive discards. Excluding.
-- SATURATED: max_depth has 15 consecutive discards. Excluding.
-- COORDINATED: barrier_shape group (tp_pct, sl_pct) has 1 kept / 31 discarded. Try moving params together.
-- STRATEGY: Current=triple_barrier. Consider switching to mean_reversion if plateau continues.
+Secondary issue: outdated Claude model ID `claude-sonnet-4-20250514` in
+`autonomous_loop.py` (should be `claude-sonnet-4-6`).
 
-## Excluded Parameters
-- trailing_distance_pct
-- rsi_weight
-- n_estimators
-- sl_pct
-- volatility_weight
-- qm_weight
-- mr_holding_days
-- frac_diff_d
-- top_n_candidates
-- vol_barrier_multiplier
-- min_samples_leaf
-- momentum_weight
-- mr_weight
-- target_vol
-- learning_rate
-- holding_days
-- fm_weight
-- max_positions
-- trailing_stop_enabled
-- tb_weight
-- target_annual_vol
-- trailing_trigger_pct
-- tp_pct
-- sma_weight
-- strategy
-- max_depth
+## Fix
+
+1. Add `_normalize_rec(raw)` helper: `.strip().upper().replace(" ", "_")`
+2. Update 3 comparison sites in `decide_trades` to use `_normalize_rec`
+3. Add zero-orders diagnostic logging when no orders generated
+4. Update model ID to `claude-sonnet-4-6`
+
+## Success Criteria
+
+### A. Scope discipline
+- SC1: Exactly 2 files modified: `portfolio_manager.py`, `autonomous_loop.py`
+- SC2: Zero files outside `backend/services/` touched
+- SC3: No changes to `_SELL_RECS`, `_DOWNGRADE_RECS`, `_BUY_RECS` set values
+- SC4: ASCII-only in both files
+
+### B. Normalization correctness
+- SC5: `_normalize_rec("Strong Buy")` == `"STRONG_BUY"`
+- SC6: `_normalize_rec("Strong Sell")` == `"STRONG_SELL"`
+- SC7: `_normalize_rec("BUY")` == `"BUY"` (canonical form preserved)
+- SC8: `_normalize_rec("")` == `""` (empty safe)
+- SC9: `_normalize_rec(" Strong Buy ")` == `"STRONG_BUY"` (whitespace stripped)
+- SC10: Zero `.upper()` calls remain in `decide_trades` for recommendation processing
+- SC11: >= 3 `_normalize_rec` calls in `decide_trades`
+
+### C. Model ID
+- SC12: `autonomous_loop.py` contains `"claude-sonnet-4-6"`
+- SC13: `autonomous_loop.py` does NOT contain `"claude-sonnet-4-20250514"`
+
+### D. Global invariants
+- SC14: `ast.parse` clean on both files
+- SC15: Stop-loss path (lines 78-85 of portfolio_manager.py) unchanged
+- SC16: `TradeOrder` dataclass unchanged
+
+### E. Diagnostic logging
+- SC17: `logger.warning` call present when `not orders`
+- SC18: Warning includes recommendation distribution count
+
+## Research Gate
+
+WAIVED. Pure bug fix against diagnosed root cause from Cycle 18. No new
+research surface. The normalization pattern (`.strip().upper().replace()`) is
+standard Python string canonicalization.

@@ -35,6 +35,15 @@ _DOWNGRADE_RECS = {"HOLD", "SELL", "STRONG_SELL"}
 _BUY_RECS = {"BUY", "STRONG_BUY"}
 
 
+def _normalize_rec(raw: str) -> str:
+    """Normalize recommendation strings to the canonical underscore-uppercase form.
+
+    The Gemini synthesis schema uses "Strong Buy" / "Strong Sell" (space, mixed case)
+    while the lookup sets use "STRONG_BUY" / "STRONG_SELL" (underscore, uppercase).
+    """
+    return raw.strip().upper().replace(" ", "_")
+
+
 def decide_trades(
     current_positions: list[dict],
     candidate_analyses: list[dict],
@@ -86,8 +95,8 @@ def decide_trades(
 
         # If we have a fresh re-evaluation
         if analysis:
-            rec = analysis.get("recommendation", "HOLD").upper()
-            old_rec = (pos.get("recommendation") or "").upper()
+            rec = _normalize_rec(analysis.get("recommendation", "HOLD"))
+            old_rec = _normalize_rec(pos.get("recommendation") or "")
 
             # Explicit sell signal
             if rec in _SELL_RECS:
@@ -126,7 +135,7 @@ def decide_trades(
     buy_candidates = []
     for analysis in candidate_analyses:
         ticker = analysis.get("ticker", "")
-        rec = analysis.get("recommendation", "HOLD").upper()
+        rec = _normalize_rec(analysis.get("recommendation", "HOLD"))
 
         # Skip if already held (and not being sold)
         if ticker in held_tickers and ticker not in selling_tickers:
@@ -185,8 +194,25 @@ def decide_trades(
         available_cash -= buy_amount
         remaining_positions += 1
 
-    logger.info(f"Trade decisions: {len([o for o in orders if o.action == 'SELL'])} sells, "
-                f"{len([o for o in orders if o.action == 'BUY'])} buys")
+    n_sells = len([o for o in orders if o.action == "SELL"])
+    n_buys = len([o for o in orders if o.action == "BUY"])
+    logger.info(f"Trade decisions: {n_sells} sells, {n_buys} buys")
+
+    if not orders:
+        # Diagnostic: explain why zero orders were generated
+        recs = [_normalize_rec(a.get("recommendation", "HOLD")) for a in candidate_analyses]
+        rec_counts: dict[str, int] = {}
+        for r in recs:
+            rec_counts[r] = rec_counts.get(r, 0) + 1
+        logger.warning(
+            f"Zero orders generated. Diagnostics: "
+            f"candidate_analyses={len(candidate_analyses)}, "
+            f"holding_analyses={len(holding_analyses)}, "
+            f"positions={len(current_positions)}, "
+            f"cash={cash:.2f}, nav={nav:.2f}, "
+            f"recommendations={rec_counts}"
+        )
+
     return orders
 
 
