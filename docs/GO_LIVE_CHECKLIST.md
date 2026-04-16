@@ -37,10 +37,11 @@
 - **Evidence**: drill landed at `scripts/go_live_drills/dsr_oos_test.py` and executed 2026-04-16 by Ford Cycle 16 on `main`. 13/13 checks PASS: S0 optimizer_best.json exists, S1 best result found (Sharpe 1.1705, `20260328T072722Z_52eb3ffe-exp10.json`), S2 DSR exists in analytics, S3 DSR=0.9526 >= 0.95 threshold, S4 dsr_significant=True, S5 optimizer_best.json DSR cross-check matches, S6 num_trials=11 (DSR deflation meaningful), S7 27 walk-forward windows (OOS by construction -- expanding window with 5-day embargo), S8 per_window data present, S9 all windows have train_end < test_start (no overlap), S10 embargo_days=5 (prevents information leakage), S11 train=12mo/test=3mo expanding window configured, S12 Sharpe cross-check matches. OOS verification: walk-forward expanding-window methodology trains only on historical data; each test period is genuinely held-out. Re-run recipe: `python3 scripts/go_live_drills/dsr_oos_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.1.3 Sharpe stable across 5 random seeds (std < 0.1)
-- [ ] Running the optimizer under 5 different seeds produces Sharpe values with std < 0.1
+- [x] Running the optimizer under 5 different seeds produces Sharpe values with std < 0.1
 - **WHO**: Ford
 - **WHEN**: 2-4 weeks pre-launch
 - **HOW**: run `source .venv/bin/activate && python scripts/harness/run_seed_stability.py` and read the resulting TSV row. Std < 0.1 is the hard gate; std in [0.1, 0.15] is a soft flag that requires a Peder review.
+- **Evidence**: drill at `scripts/go_live_drills/seed_stability_test.py` executed 2026-04-16 by Ford Cycle 25 on `main`. 12/12 hard checks PASS: S0 results file exists, S1 correct seeds [42, 123, 456, 789, 2026], S2 all 5 results present, S3 no errors, S4 all 5 Sharpe values valid, S5 std=0.0094 < 0.1 (checklist gate -- PASS by 10x margin), S6 range=0.029 < 0.3, S7 5/5 per-seed result files saved, S8 mean cross-check matches, S9 std cross-check matches, S10 min trades=680 (all seeds identical), S11 trade count std=0.0 (perfectly consistent). Soft note: mean Sharpe 0.589 differs from optimizer best (1.17) due to candidate_selector.py code change (commit b1052a0) between optimizer run and seed test -- affects absolute level only, not seed stability (seed controls GBC tree splits, not data pipeline or labels). Re-run recipe: `python3 scripts/go_live_drills/seed_stability_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.1.4 No single walk-forward window drives > 30% of total return
 - [x] Walk-forward return distribution is not concentrated in a single window
