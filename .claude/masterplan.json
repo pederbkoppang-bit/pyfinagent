@@ -1,8 +1,8 @@
 {
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
-  "goal": "Ship a validated, evidence-based trading signal system by May 2026 that, once live, maximizes profit at the lowest operating cost by dynamically shifting strategy to whichever candidate is currently earning the most.",
-  "updated_at": "2026-04-16T23:06:37.071328+00:00",
+  "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
+  "updated_at": "2026-04-16T23:32:53.809963+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -1408,6 +1408,192 @@
       ]
     },
     {
+      "id": "phase-4.9",
+      "name": "Immutable Core and Risk Guard",
+      "status": "pending",
+      "depends_on": [
+        "phase-4.8"
+      ],
+      "gate": "hard_gate_for_phase_4_go_live_and_phase_8_5_promotion",
+      "steps": [
+        {
+          "id": "4.9.0",
+          "name": "Schema and file for immutable limits",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "python -c \"from backend.governance.limits_schema import load; l=load(); assert l.max_position_notional_pct == 0.05 and l.max_portfolio_leverage == 1.5\"",
+            "success_criteria": [
+              "limits_file_exists",
+              "schema_validates",
+              "six_limits_present"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9.1",
+          "name": "Tag-signed-commit enforcement in CI",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "bash scripts/governance/verify_limits_tag.sh --dry-run",
+            "success_criteria": [
+              "ci_workflow_landed",
+              "unsigned_push_rejected",
+              "wrong_owner_rejected",
+              "approval_message_required"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9.2",
+          "name": "Startup loader with no hot-reload",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "python -c \"from backend.governance.limits_loader import load_once, get_digest; load_once(); d=get_digest(); assert len(d) == 64\"",
+            "success_criteria": [
+              "load_once_pattern",
+              "sighup_ignored",
+              "mutation_kills_process",
+              "digest_exposed_to_healthcheck"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9.3",
+          "name": "Runtime enforcement hooks wired to snapshot",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "python scripts/governance/lint_limits_usage.py --strict",
+            "success_criteria": [
+              "all_callsites_use_snapshot",
+              "no_env_var_fallback",
+              "lint_in_ci"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9.4",
+          "name": "Gauntlet regime catalog (7 historical windows)",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "python -c \"from backend.backtest.gauntlet.regimes import REGIMES; assert len(REGIMES) == 7 and all('start' in r and 'end' in r for r in REGIMES)\"",
+            "success_criteria": [
+              "seven_regimes_defined",
+              "date_ranges_immutable",
+              "universe_hints_present"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9.5",
+          "name": "Gauntlet runner (7 regimes + 1000 MC paths)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/risk/gauntlet.py --strategy baseline --dry-run && python -c \"import json; r=json.load(open('handoff/gauntlet/baseline/report.json')); assert 'per_regime' in r and len(r['per_regime']) == 7 and 'monte_carlo' in r\"",
+            "success_criteria": [
+              "seven_regimes_executed",
+              "monte_carlo_1000_paths",
+              "bq_row_appended",
+              "deterministic_seed",
+              "report_schema_valid"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9.6",
+          "name": "Pass-criteria evaluator",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "python -c \"from backend.backtest.gauntlet.evaluator import evaluate; r=evaluate({'per_regime':[{'id':'gfc_2008','drawdown':0.12,'bt_drawdown':0.10,'forced_exits':0}]*7,'monte_carlo':{'p99_drawdown':0.18,'bt_drawdown':0.10,'breaches':0}}); assert r['overall_pass'] == True\"",
+            "success_criteria": [
+              "drawdown_ratio_enforced",
+              "forced_exits_zero_required",
+              "mc_p99_checked",
+              "immutable_limit_breach_blocks"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9.7",
+          "name": "Promotion-pipeline integration",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "python scripts/risk/promotion_gate.py --dry-run --require-gauntlet && grep -q '\"gauntlet_report_hash\"' backend/backtest/experiments/optimizer_best.json",
+            "success_criteria": [
+              "gauntlet_required_for_promotion",
+              "hash_recorded_in_best_json",
+              "promotion_fails_without_gauntlet"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9.8",
+          "name": "Autoresearch wiring (phase-8.5 hook)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"from backend.autonomous_harness import promote_strategy; import pytest; pytest.raises(Exception, promote_strategy, 'intentionally_bad_strategy')\"",
+            "success_criteria": [
+              "autoresearch_calls_gauntlet",
+              "30day_blocklist",
+              "harness_log_annotated"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.9.9",
+          "name": "Red-team negative tests",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f handoff/phase-4.9-redteam.md && grep -q 'REDTEAM_PASS' handoff/phase-4.9-redteam.md",
+            "success_criteria": [
+              "unsigned_mutation_blocked",
+              "bad_strategy_blocked",
+              "evidence_logged"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
       "id": "phase-5",
       "name": "Multi-Market Expansion",
       "status": "pending",
@@ -1677,6 +1863,108 @@
         {
           "id": "phase-6.8",
           "name": "End-to-end smoketest and 24h backfill",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-6.5",
+      "name": "Global Intelligence Directive",
+      "status": "proposed",
+      "depends_on": [
+        "phase-5.5",
+        "phase-6"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "phase-6.5.1",
+          "name": "BigQuery schema migration for intel tables",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.5.2",
+          "name": "Source registry and scan core",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.5.3",
+          "name": "Institutional extractors (GS, BLK, Bridgewater, JPM)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.5.4",
+          "name": "Academic extractors (arXiv OAI-PMH, SSRN, MIT, Stanford, Oxford)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.5.5",
+          "name": "AI-frontier extractors (Anthropic, OpenAI, DeepMind, Google Research)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.5.6",
+          "name": "Player-driven extractors (SeekingAlpha, WSB daily, QuantConnect, SWF EDGAR)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.5.7",
+          "name": "Novelty client (Voyage + Gemini fallback) and prompt-patch queue",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.5.8",
+          "name": "Slack digest + daily scheduler wiring",
+          "status": "pending",
+          "harness_required": true,
+          "verification": null,
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "phase-6.5.9",
+          "name": "End-to-end smoketest with fixtures",
           "status": "pending",
           "harness_required": true,
           "verification": null,
@@ -2232,6 +2520,473 @@
       ]
     },
     {
+      "id": "phase-10",
+      "name": "Recursive Evolution Loop (weekly sprint + monthly Sortino gate)",
+      "status": "pending",
+      "depends_on": [
+        "phase-4",
+        "phase-4.8.5",
+        "phase-8.5"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "10.0",
+          "name": "Retire phase-8.5.7 nightly cron; point to sprint_calendar.yaml",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f handoff/phase-10.0-supersede-85-7.md && grep -q 'sprint_calendar.yaml' handoff/phase-10.0-supersede-85-7.md",
+            "success_criteria": [
+              "supersede_log_landed",
+              "phase_8_5_7_marked_superseded"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.1",
+          "name": "Sprint calendar config (Mon-Fri + monthly anchor)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f backend/autoresearch/sprint_calendar.yaml && python -c \"import yaml; d=yaml.safe_load(open('backend/autoresearch/sprint_calendar.yaml')); assert d['new_weekly_slots'] == 2 and 'thursday' in d['days'] and 'friday' in d['days']\"",
+            "success_criteria": [
+              "calendar_config_committed",
+              "new_weekly_slots_equals_2",
+              "thursday_and_friday_defined",
+              "monthly_anchor_defined"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.2",
+          "name": "Weekly ledger schema and writer",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f backend/autoresearch/weekly_ledger.tsv && head -1 backend/autoresearch/weekly_ledger.tsv | grep -q 'week_iso.*thu_batch_id.*fri_promoted_ids.*cost_usd'",
+            "success_criteria": [
+              "weekly_ledger_tsv_created",
+              "schema_header_stable",
+              "writer_unit_test_passes"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.3",
+          "name": "Thursday batch trigger routine (1 slot, >=100 candidates)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/phase10_thursday_batch_test.py",
+            "success_criteria": [
+              "routine_consumes_exactly_1_slot",
+              "ge_100_candidates_kicked_off",
+              "batch_id_persisted_to_weekly_ledger"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.4",
+          "name": "Friday promotion gate routine (1 slot, top-N via DSR/PBO)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/phase10_friday_promotion_test.py",
+            "success_criteria": [
+              "routine_consumes_exactly_1_slot",
+              "reuses_phase_8_5_5_dsr_pbo_gate",
+              "promotion_at_5pct_starting_allocation",
+              "top_n_default_1_max_3"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5",
+          "name": "Sortino implementation with configurable MAR (default 3M T-Bill)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -m pytest backend/metrics/tests/test_sortino.py -q",
+            "success_criteria": [
+              "formula_matches_sortino_price_1994",
+              "downside_deviation_only_below_mar",
+              "default_mar_pulls_from_pyfinagent_data_macro",
+              "configurable_mar_per_candidate"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.6",
+          "name": "Monthly Champion/Challenger Sortino gate (HITL)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/phase10_monthly_sortino_test.py",
+            "success_criteria": [
+              "fires_on_last_trading_friday_of_month",
+              "reuses_friday_slot_zero_new_slots",
+              "requires_sortino_delta_ge_0_3",
+              "requires_pbo_lt_0_2",
+              "requires_dd_ratio_le_1_2",
+              "peder_slack_approval_with_48h_expiry",
+              "no_auto_replacement_of_real_capital_champion"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.7",
+          "name": "Rollback kill-switch wiring to phase-4.8.5",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/phase10_rollback_test.py",
+            "success_criteria": [
+              "challenger_dd_breach_auto_demotes",
+              "demotion_logged_with_auto_demoted_decision",
+              "no_human_approval_required_for_demotion"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.8",
+          "name": "Slot accounting to harness_learning_log",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/phase10_slot_accounting_test.py",
+            "success_criteria": [
+              "every_phase10_routine_logged",
+              "label_phase_10_applied",
+              "weekly_invariant_sum_equals_2",
+              "bq_writes_go_to_pyfinagent_data_harness_learning_log"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.9",
+          "name": "Harness-tab sprint-state tile (phase-4.7 UI)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run test -- --filter=HarnessSprintTile",
+            "success_criteria": [
+              "tile_renders_weekly_state",
+              "tile_renders_monthly_sortino_delta",
+              "read_only_no_mutation_controls"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-10.5",
+      "name": "Sovereign Dashboard (Net System Alpha cockpit)",
+      "status": "pending",
+      "depends_on": [
+        "phase-4.7",
+        "phase-4.8",
+        "phase-8.5"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "10.5.0",
+          "name": "Backend read endpoints: leaderboard, red-line, compute-cost",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd backend && pytest tests/api/test_sovereign.py -q && python -c \"import json,urllib.request as u; r=json.load(u.urlopen('http://localhost:8000/api/sovereign/red-line?window=30d',timeout=10)); assert len(r['series'])>=25\"",
+            "success_criteria": [
+              "three_endpoints_landed",
+              "p95_latency_under_800ms",
+              "cron_slots_zero_declared"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5.1",
+          "name": "BQ view pyfinagent_pms.strategy_deployments",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/migrations/create_strategy_deployments_view.py --verify",
+            "success_criteria": [
+              "view_exists",
+              "at_least_one_champion_row"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5.2",
+          "name": "Route /sovereign shell (two-hero layout)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run build && node scripts/audit/sovereign_route.js",
+            "success_criteria": [
+              "route_reachable",
+              "sidebar_entry_added",
+              "page_shell_conforms_to_frontend_layout"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5.3",
+          "name": "RedLineMonitor component (7/30/90 windows + event annotations)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run test -- --filter=RedLineMonitor",
+            "success_criteria": [
+              "window_selector_7_30_90",
+              "reference_line_zero",
+              "kill_switch_and_flip_markers_rendered",
+              "recharts_composed_chart"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5.4",
+          "name": "ComputeCostBreakdown stacked-bar by provider",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run test -- --filter=ComputeCostBreakdown",
+            "success_criteria": [
+              "deterministic_color_map_present",
+              "providers_cover_anthropic_vertex_openai_bq_altdata",
+              "tooltip_shows_usd_and_percent"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5.5",
+          "name": "AlphaLeaderboard table (sortable, filterable)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run test -- --filter=AlphaLeaderboard",
+            "success_criteria": [
+              "columns_match_spec",
+              "status_pill_phosphor_only",
+              "sort_persists_client_side",
+              "filter_by_status_pill_row"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5.6",
+          "name": "Strategy detail route /sovereign/strategy/[id]",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run test -- --filter=StrategyDetail",
+            "success_criteria": [
+              "equity_curve_scoped_by_strategy",
+              "param_override_timeline_rendered",
+              "kill_switch_events_scoped"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5.7",
+          "name": "Homepage Red Line hero embed (compact variant)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run lighthouse -- --url http://localhost:3000 --output json --output-path handoff/lighthouse_home_sovereign.json && python -c \"import json; d=json.load(open('frontend/handoff/lighthouse_home_sovereign.json')); assert d['categories']['performance']['score'] >= 0.9\"",
+            "success_criteria": [
+              "red_line_hero_present_on_home",
+              "takes_at_least_55pct_vertical",
+              "lighthouse_perf_ge_90"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5.8",
+          "name": "Accessibility + consistency pass (WCAG 2.1 AA + frontend.md lint)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run axe && npm run lint && node scripts/audit/sovereign_consistency.js",
+            "success_criteria": [
+              "wcag_2_1_aa_pass",
+              "phosphor_icons_only",
+              "no_emoji_in_ui",
+              "dark_theme_token_0f172a"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.5.9",
+          "name": "Docs + handoff log cycle entry",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "grep -q 'Sovereign two-hero layout' .claude/rules/frontend-layout.md && grep -q 'phase-10.5' handoff/harness_log.md",
+            "success_criteria": [
+              "layout_docs_updated",
+              "harness_log_cycle_entry_appended"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-10.7",
+      "name": "Meta-Evolution Engine",
+      "status": "proposed",
+      "depends_on": [
+        "phase-8.5",
+        "phase-4.6",
+        "phase-4.8"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "10.7.1",
+          "name": "Alpha Velocity metric + BQ table",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python -m pytest tests/meta_evolution/test_alpha_velocity.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.7.2",
+          "name": "Recursive Prompt Optimization (Research Directive rewriter)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python -m pytest tests/meta_evolution/test_directive_rewriter.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.7.3",
+          "name": "Algorithm Discovery archetype seed library",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python -c \"from backend.meta_evolution.archetype_library import ARCHETYPES; assert len(ARCHETYPES) == 6\"",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.7.4",
+          "name": "Cron Budget Allocator (slot governance authority)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python scripts/meta/validate_cron_budget.py .claude/cron_budget.yaml && python -m pytest tests/meta_evolution/test_cron_allocator.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.7.5",
+          "name": "API-credit reallocator with per-provider floors",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python -m pytest tests/meta_evolution/test_provider_rebalancer.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.7.6",
+          "name": "Weekly APScheduler wiring",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python -m pytest tests/scheduler/test_meta_cron.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.7.7",
+          "name": "Evaluator review gate for directive diffs",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "python -m pytest tests/agents/test_evaluator_directive_review.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "10.7.8",
+          "name": "Runbook and rollback drill",
+          "status": "pending",
+          "harness_required": true,
+          "verification": "test -f docs/runbooks/meta_evolution_rollback.md && grep -q 'git revert' docs/runbooks/meta_evolution_rollback.md",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
       "id": "phase-4",
       "name": "Production Readiness",
       "status": "in-progress",
@@ -2244,9 +2999,11 @@
         "phase-4.6",
         "phase-4.7",
         "phase-4.8",
+        "phase-4.9",
         "phase-5",
         "phase-5.5",
         "phase-6",
+        "phase-6.5",
         "phase-7",
         "phase-8",
         "phase-8.5",
