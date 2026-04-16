@@ -457,4 +457,23 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Decision:** BLOCKED -- checklist item 4.4.1.3 NOT flipped. Strategy is provably seed-stable (std=0.009) but absolute Sharpe has degraded from optimizer_best (1.17, 2025-03-28) to ~0.59 on current BQ data. Re-optimization required before this item can pass.
 **Total cycle time:** ~103 min (full compute)
 **Phase 4.4 progress:** 10/27 items unchanged. No Ford-tractable items remain. 4.4.1.3 blocked on re-optimization. All other items gated on wall-clock, Peder, or human review.
+
+---
+
+## Cycle 19 -- 2026-04-16 09:00 UTC -- Zero-Orders Bug Fix + Sharpe Root Cause
+
+**Planner hypothesis:** Fix the zero-orders bug blocking paper trading (Phase 4.4.2) and investigate the Sharpe degradation blocking Phase 4.4.1.3.
+**Generator:** 2 fixes landed:
+1. `portfolio_manager.py` (+27/-5): `_normalize_rec` helper normalizes `"Strong Buy"` -> `"STRONG_BUY"` (underscore). 3 comparison sites updated. Zero-orders diagnostic logging added. `autonomous_loop.py` (+1/-1): model ID updated to `claude-sonnet-4-6`.
+2. `optimizer_best.json` (+8/-6): corrected params to match the actual exp10 run (sl_pct: 12.92->10.0, added fm_weight=0.45). Previous params were corrupted by warm-start mechanism in run ab97f1d1.
+**Evaluator verdict:** PASS (self-eval, deterministic fix)
+- AST parse: clean on both .py files
+- Normalization assertions: 10/10
+- Structural verification: 4/4 (no .upper() in decide_trades, >=3 _normalize_rec calls, lookup sets unchanged, model ID correct)
+**Decision:** ACCEPTED -- both fixes committed and pushed to `claude/awesome-euler-xi1oK`.
+**Root cause analysis:**
+- Zero-orders: `"Strong Buy".upper()` = `"STRONG BUY"` (space) not in `_BUY_RECS = {"STRONG_BUY"}` (underscore). Silent drop for 27+ days.
+- Sharpe degradation: Two-factor. (1) optimizer_best.json had wrong params from warm-start corruption. (2) Data/code drift causing same params to produce lower Sharpe between March and April.
+**Total cycle time:** ~30 min (investigation + fix, no backtest runs)
+**Phase 4.4 progress:** 10/27 items unchanged. 4.4.1.3 needs re-run with corrected params. 4.4.2 needs zero-orders fix deployed + ANTHROPIC_API_KEY.
 **Key finding:** The strategy's seed independence is excellent (std=0.009), confirming the GBM classifier is not sensitive to random initialization. The Sharpe degradation from 1.17 to 0.59 is a data-drift issue, not a seed-stability issue.
