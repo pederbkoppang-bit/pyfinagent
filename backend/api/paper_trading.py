@@ -4,6 +4,7 @@ Paper Trading API — endpoints for autonomous virtual fund management.
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -13,6 +14,14 @@ from backend.config.settings import get_settings
 from backend.db.bigquery_client import BigQueryClient
 from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 from backend.services.autonomous_loop import run_daily_cycle, get_loop_status
+from backend.services.paper_metrics_v2 import compute_metrics_v2, persist_metrics_v2
+from backend.services.paper_round_trips import compute_round_trips_response
+from backend.services.live_prices import get_live_cache
+from backend.services.cycle_health import compute_freshness, get_log as _get_cycle_log
+from backend.services.kill_switch import evaluate_breach, get_state as _get_ks_state
+from backend.services.paper_go_live_gate import compute_gate
+from backend.services.reconciliation import compute_reconciliation
+from backend.services.signal_attribution import group_signals_for_drawer, redact_pii
 from backend.services.paper_trader import PaperTrader
 from backend.services.perf_metrics import compute_sharpe_from_snapshots, compute_alpha
 
@@ -28,6 +37,11 @@ _scheduler_job_id = "paper_trading_daily"
 
 class StartRequest(BaseModel):
     starting_capital: Optional[float] = None
+
+
+class KillSwitchActionRequest(BaseModel):
+    """Confirmation token required for destructive actions (4.5.7)."""
+    confirmation: str  # must equal the action name (e.g. "FLATTEN_ALL")
 
 
 class StartResponse(BaseModel):
@@ -218,6 +232,13 @@ async def get_performance():
     pnl_pct = portfolio.get("total_pnl_pct", 0) or 0
     bench_pct = portfolio.get("benchmark_return_pct", 0) or 0
 
+    # 4.5.2: include round-trip summary (win_rate, profit_factor, expectancy,
+    # median_holding_days, avg_mfe/avg_mae/avg_capture_ratio) inline so the
+    # existing /performance caller gets the new fields without a second round trip.
+    from backend.services.paper_round_trips import pair_round_trips, summarize
+    rts = pair_round_trips(trades)
+    rt_summary = summarize(rts)
+
     result = {
         "nav": portfolio.get("total_nav"),
         "starting_capital": portfolio.get("starting_capital"),
@@ -229,9 +250,346 @@ async def get_performance():
         "total_buy_trades": len(buy_trades),
         "total_analysis_cost": round(total_cost, 2),
         "days_active": len(snapshots),
+        "round_trip_summary": rt_summary,
     }
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:performance"])
     return result
+
+
+@router.get("/cycles/history")
+async def get_cycles_history(limit: int = Query(10, ge=1, le=100)):
+    """Return the last N autonomous-loop runs (JSONL tail at handoff/cycle_history.jsonl).
+    Oracle-OAC-style fields: cycle_id, started_at, completed_at, duration_ms,
+    status, error_count, n_trades, data_source_ages, bq_ingest_lag_sec."""
+    rows = await asyncio.to_thread(_get_cycle_log().last_cycles, limit)
+    return {"cycles": rows, "count": len(rows)}
+
+
+@router.get("/freshness")
+async def get_freshness():
+    """
+    Signal-freshness strip payload: per-source last_tick_age, process
+    heartbeat (dead-man's-switch control plane), BQ ingest lag, and the
+    warn/critical ratio thresholds. UI drives colors from the `band` field.
+    """
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    # Approximate cycle interval: the paper-trading scheduler runs daily at
+    # paper_trading_hour, so the "normal" interval is 24h. Configurable via
+    # settings.paper_cycle_interval_sec if future phases add one.
+    cycle_interval_sec = float(getattr(settings, "paper_cycle_interval_sec", 24 * 3600.0))
+    return await asyncio.to_thread(compute_freshness, bq, cycle_interval_sec)
+
+
+@router.get("/kill-switch")
+async def get_kill_switch_state():
+    """
+    Current kill-switch status: pause flag, limit breach booleans, thresholds.
+    Read-only; poll this to drive UI badge + banner.
+    """
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
+    nav = float((portfolio or {}).get("total_nav") or (portfolio or {}).get("starting_capital") or 0.0)
+    breach = evaluate_breach(
+        current_nav=nav,
+        daily_loss_limit_pct=settings.paper_daily_loss_limit_pct,
+        trailing_dd_limit_pct=settings.paper_trailing_dd_limit_pct,
+    )
+    state = _get_ks_state().snapshot()
+    return {
+        "paused": state["paused"],
+        "pause_reason": state["pause_reason"],
+        "sod_nav": state["sod_nav"],
+        "peak_nav": state["peak_nav"],
+        "current_nav": nav,
+        "breach": breach,
+        "thresholds": {
+            "daily_loss_limit_pct": settings.paper_daily_loss_limit_pct,
+            "trailing_dd_limit_pct": settings.paper_trailing_dd_limit_pct,
+        },
+    }
+
+
+@router.post("/pause")
+async def pause_trading(req: KillSwitchActionRequest):
+    if req.confirmation != "PAUSE":
+        raise HTTPException(400, "Confirmation must equal PAUSE")
+    get_api_cache().invalidate("paper:*")
+    state = _get_ks_state().pause(trigger="manual")
+    return {"status": "paused", "state": state}
+
+
+@router.post("/resume")
+async def resume_trading(req: KillSwitchActionRequest):
+    if req.confirmation != "RESUME":
+        raise HTTPException(400, "Confirmation must equal RESUME")
+    # Resume precondition: both limits healthy. Prevents auto-re-entry after a
+    # breach on brief recoveries (documented anti-pattern in RESEARCH.md 4.5.7).
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
+    nav = float((portfolio or {}).get("total_nav") or 0.0)
+    breach = evaluate_breach(
+        current_nav=nav,
+        daily_loss_limit_pct=settings.paper_daily_loss_limit_pct,
+        trailing_dd_limit_pct=settings.paper_trailing_dd_limit_pct,
+    )
+    if breach["any_breached"]:
+        raise HTTPException(
+            409,
+            f"Cannot resume: limit still breached. "
+            f"daily_loss={breach['daily_loss_pct']:.2f}% (limit {breach['daily_loss_limit_pct']}%), "
+            f"trailing_dd={breach['trailing_dd_pct']:.2f}% (limit {breach['trailing_dd_limit_pct']}%)"
+        )
+    get_api_cache().invalidate("paper:*")
+    state = _get_ks_state().resume(trigger="manual")
+    return {"status": "resumed", "state": state}
+
+
+@router.post("/flatten-all")
+async def flatten_all(req: KillSwitchActionRequest):
+    if req.confirmation != "FLATTEN_ALL":
+        raise HTTPException(400, "Confirmation must equal FLATTEN_ALL")
+    get_api_cache().invalidate("paper:*")
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    trader = PaperTrader(settings, bq)
+    result = await asyncio.to_thread(trader.flatten_all, "manual_flatten")
+    # Also pause to enter known-quiet state (industry standard per 3forge + NYIF).
+    _get_ks_state().pause(trigger="manual_flatten", details=result)
+    return {"status": "flattened_and_paused", "result": result}
+
+
+@router.get("/live-prices")
+async def get_live_prices(tickers: str = Query(..., description="Comma-separated tickers")):
+    """
+    Cached, rate-limited intraday price fetch. Returns `{ticker: price|null}`.
+    Drives the no-cycle chart refresh path (4.5.6). Frontend should poll this
+    at 60s cadence while the tab is visible.
+    """
+    raw = [t.strip().upper() for t in (tickers or "").split(",") if t.strip()]
+    if not raw:
+        raise HTTPException(400, "Provide at least one ticker")
+    if len(raw) > 50:
+        raise HTTPException(400, "Too many tickers (max 50)")
+    cache = get_live_cache()
+    prices = await asyncio.to_thread(cache.get_many, raw)
+    return {"prices": prices, "ttl_sec": 60, "count": len(prices)}
+
+
+@router.get("/trades/{trade_id}/rationale")
+async def get_trade_rationale(trade_id: str):
+    """
+    Per-trade agent attribution tree for the rationale drawer (4.5.5).
+    Parses the JSON `signals` column on the stored trade row and returns the
+    progressive-disclosure hierarchy (analyst -> bull/bear -> trader -> risk).
+    """
+    # Sanitize trade_id to avoid accidental injection into the parameterized
+    # query downstream (also guarded by BQ bind parameters).
+    if not all(c.isalnum() or c in ("-", "_") for c in trade_id):
+        raise HTTPException(400, "Invalid trade_id")
+
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+
+    def _load():
+        trades = bq.get_paper_trades(limit=5000) or []
+        for t in trades:
+            if t.get("trade_id") == trade_id:
+                return t
+        return None
+
+    trade = await asyncio.to_thread(_load)
+    if not trade:
+        raise HTTPException(404, f"Trade {trade_id} not found")
+
+    import json as _json
+    raw = trade.get("signals")
+    signals: list[dict] = []
+    if isinstance(raw, str) and raw.strip():
+        try:
+            parsed = _json.loads(raw)
+            if isinstance(parsed, list):
+                signals = [s for s in parsed if isinstance(s, dict)]
+        except Exception as e:
+            logger.warning(f"rationale: could not parse signals for {trade_id}: {e}")
+
+    # Defensive redact in case anything slipped through persistence.
+    for s in signals:
+        if "rationale" in s:
+            s["rationale"] = redact_pii(s["rationale"])
+
+    tree = group_signals_for_drawer(signals)
+    return {
+        "trade_id": trade_id,
+        "ticker": trade.get("ticker"),
+        "action": trade.get("action"),
+        "created_at": trade.get("created_at"),
+        "reason": trade.get("reason"),
+        "signals": signals,
+        "tree": tree,
+    }
+
+
+@router.get("/gate")
+async def get_gate():
+    """
+    Go-Live Gate: 5 deterministic booleans + promote_eligible. See
+    backend/services/paper_go_live_gate.py for threshold definitions. The UI
+    "Promote to live" button is disabled unless promote_eligible is true.
+    """
+    cache = get_api_cache()
+    cache_key = "paper:gate"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    result = await asyncio.to_thread(compute_gate, bq)
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:gate"])
+    return result
+
+
+@router.get("/reconciliation")
+async def get_reconciliation():
+    """
+    Paper-live vs parallel OOS-backtest NAV reconciliation. Returns a per-date
+    time series and a summary with `latest_divergence_pct` + an `alert` flag
+    when divergence exceeds 5%. See backend/services/reconciliation.py for the
+    shadow-backtest definition (frictionless fills on yfinance adj-close).
+    """
+    cache = get_api_cache()
+    cache_key = "paper:reconciliation"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    result = await asyncio.to_thread(compute_reconciliation, bq)
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:reconciliation"])
+    return result
+
+
+@router.get("/mfe-mae-scatter")
+async def get_mfe_mae_scatter():
+    """
+    Exit-quality scatter (4.5.9). Per-trade points with MFE, |MAE|, capture_ratio,
+    and a leakage flag. Edge-Ratio per-trade (mfe/|mae|) averaged. Leakage rule:
+    capture_ratio < 0.4 AND mfe_pct > P75 (see RESEARCH.md 4.5.9).
+    """
+    cache = get_api_cache()
+    cache_key = "paper:mfe_mae_scatter"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    from backend.services.paper_round_trips import pair_round_trips
+
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    trades = await asyncio.to_thread(bq.get_paper_trades, 2000)
+    trades = trades or []
+    rts = pair_round_trips(trades)
+
+    # Per-trade edge_ratio + leakage computation.
+    points = []
+    edge_ratios: list[float] = []
+    mfes: list[float] = []
+    for rt in rts:
+        mfe = float(rt.get("mfe_pct") or 0.0)
+        mae_abs = abs(float(rt.get("mae_pct") or 0.0))
+        capture = float(rt.get("capture_ratio") or 0.0)
+        if mae_abs > 0:
+            edge_ratios.append(mfe / mae_abs)
+        mfes.append(mfe)
+        points.append({
+            "ticker": rt.get("ticker"),
+            "entry_date": rt.get("entry_date"),
+            "exit_date": rt.get("exit_date"),
+            "mfe_pct": round(mfe, 4),
+            "mae_pct": round(float(rt.get("mae_pct") or 0.0), 4),
+            "mae_abs_pct": round(mae_abs, 4),
+            "capture_ratio": round(capture, 4),
+            "realized_pnl_pct": float(rt.get("realized_pnl_pct") or 0.0),
+            "holding_days": int(rt.get("holding_days") or 0),
+            "leakage_flag": False,  # filled below once P75 is known
+        })
+
+    n = len(points)
+    mfe_p75 = None
+    n_leakers = 0
+    if n >= 10:
+        sorted_mfe = sorted(mfes)
+        # P75 index = ceil(0.75 * n) - 1 (inclusive upper-quartile value).
+        idx = max(0, int(round(0.75 * (n - 1))))
+        mfe_p75 = sorted_mfe[idx]
+        for p in points:
+            if p["capture_ratio"] < 0.4 and p["mfe_pct"] > mfe_p75:
+                p["leakage_flag"] = True
+                n_leakers += 1
+
+    edge_ratio = (sum(edge_ratios) / len(edge_ratios)) if edge_ratios else 0.0
+    avg_capture = (sum(p["capture_ratio"] for p in points) / n) if n else 0.0
+
+    result = {
+        "points": points,
+        "summary": {
+            "edge_ratio": round(edge_ratio, 4),
+            "avg_capture_ratio": round(avg_capture, 4),
+            "mfe_p75": round(mfe_p75, 4) if mfe_p75 is not None else None,
+            "leakage_threshold_capture": 0.4,
+            "n_points": n,
+            "n_leakers": n_leakers,
+        },
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:mfe_mae_scatter"])
+    return result
+
+
+@router.get("/round-trips")
+async def get_round_trips():
+    """
+    Round-trip (BUY->SELL) performance: win_rate, profit_factor, expectancy,
+    median holding days, average MFE/MAE/capture_ratio. Pairs historic trades
+    FIFO per ticker (see backend/services/paper_round_trips.py).
+    """
+    cache = get_api_cache()
+    cache_key = "paper:round_trips"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    result = await asyncio.to_thread(compute_round_trips_response, bq)
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:round_trips"])
+    return result
+
+
+@router.get("/metrics-v2")
+async def get_metrics_v2():
+    """
+    Evaluation-grade metrics: PSR, DSR, Sortino, Calmar, and bootstrap 95% CI
+    on rolling Sharpe. Sourced from backend.services.perf_metrics (single source
+    of truth) via backend.services.paper_metrics_v2 orchestrator.
+    """
+    cache = get_api_cache()
+    cache_key = "paper:metrics_v2"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    metrics = await asyncio.to_thread(compute_metrics_v2, bq)
+    await asyncio.to_thread(persist_metrics_v2, bq, metrics)
+
+    cache.set(cache_key, metrics, ENDPOINT_TTLS["paper:metrics_v2"])
+    return metrics
 
 
 @router.post("/run-now")

@@ -5,7 +5,18 @@
 
 set -euo pipefail
 
-MASTERPLAN="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}/.claude/masterplan.json"
+# Resolve project root with a safe fallback chain:
+#   1) $CLAUDE_PROJECT_DIR (set by Claude Code)
+#   2) git rev-parse (only if cwd is inside a repo)
+#   3) the script's own dirname/../.. (hooks live in <root>/.claude/hooks/)
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-}"
+if [ -z "$PROJECT_ROOT" ]; then
+  PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+fi
+if [ -z "$PROJECT_ROOT" ]; then
+  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+fi
+MASTERPLAN="$PROJECT_ROOT/.claude/masterplan.json"
 
 if [ ! -f "$MASTERPLAN" ]; then
   exit 0  # no masterplan, allow idle

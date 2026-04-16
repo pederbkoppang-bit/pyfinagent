@@ -122,6 +122,12 @@ class Settings(BaseSettings):
     paper_reeval_frequency_days: int = Field(3, description="Re-evaluate existing holdings every N days")
     paper_transaction_cost_pct: float = Field(0.1, description="Simulated transaction cost per trade (%)")
     paper_max_daily_cost_usd: float = Field(2.0, description="Maximum LLM cost per daily trading cycle (USD)")
+    # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
+    # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
+    # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the
+    # upper-end standard for long-only unlevered equity.
+    paper_daily_loss_limit_pct: float = Field(4.0, description="Halt trading if intraday loss exceeds this %% of start-of-day NAV")
+    paper_trailing_dd_limit_pct: float = Field(10.0, description="Halt trading if trailing drawdown from peak equity exceeds this %% (EOD)")
 
     # --- Authentication ---
     auth_secret: str = Field("", description="NextAuth.js AUTH_SECRET for JWE decryption. Empty = auth disabled (dev mode).")

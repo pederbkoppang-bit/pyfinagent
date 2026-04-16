@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship a validated, evidence-based trading signal system by May 2026",
-  "updated_at": "2026-04-15T00:00:00.000000+00:00",
+  "updated_at": "2026-04-16T19:26:50.157774+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -414,11 +414,235 @@
       ]
     },
     {
+      "id": "phase-4.5",
+      "name": "Paper Trading Dashboard v2 \u2014 Evaluation-Grade",
+      "status": "done",
+      "depends_on": [
+        "phase-2"
+      ],
+      "gate": {
+        "approved": true,
+        "reason": "Blocks phase-4 step 4.4 (Go-Live Checklist): all 4.5.* steps must be done before flipping the live-capital toggle."
+      },
+      "steps": [
+        {
+          "id": "4.5.0",
+          "name": "Architecture & Contract \u2014 Paper Trading Dashboard v2",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python3 -c \"import pathlib,sys; c=pathlib.Path('handoff/current/phase-4.5-contract.md'); assert c.exists(), 'contract missing'; t=c.read_text(); req=['Goal','Success Criteria','Out of scope','Risk register']; missing=[r for r in req if r not in t]; assert not missing, f'missing sections: {missing}'; print('PASS')\"",
+            "success_criteria": [
+              "scope_defined",
+              "api_surface_listed",
+              "schema_deltas_enumerated",
+              "research_gate_checklist_complete"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.1",
+          "name": "PSR / DSR / Sortino / Calmar with bootstrap CI (metrics-v2 endpoint)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"import ast; ast.parse(open('backend/services/paper_metrics_v2.py').read())\"",
+            "success_criteria": [
+              "psr_formula_matches_bailey_lopezdeprado_2012",
+              "dsr_accounts_for_n_strategies_tested",
+              "bootstrap_ci_95_pct_on_rolling_sharpe",
+              "endpoint_GET_api_paper_trading_metrics_v2_returns_200",
+              "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.2",
+          "name": "Round-trip performance metrics (win_rate, profit_factor, expectancy, MFE/MAE, holding period)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"from backend.services.paper_trader import PaperTrader; print('import ok')\"",
+            "success_criteria": [
+              "round_trip_pairing_buy_to_sell_correct",
+              "win_rate_and_profit_factor_match_quantified_strategies_definitions",
+              "mfe_mae_tracked_per_position_snapshot",
+              "performance_endpoint_includes_all_fields",
+              "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.3",
+          "name": "Reconciliation overlay \u2014 paper-live vs parallel OOS backtest on NAV chart",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"import ast; ast.parse(open('backend/services/reconciliation.py').read())\"",
+            "success_criteria": [
+              "parallel_oos_backtest_runs_on_same_signals_as_live",
+              "equity_curves_aligned_by_date",
+              "divergence_pct_computed_and_alerted_when_gt_5pct",
+              "chart_overlays_render_in_frontend",
+              "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.4",
+          "name": "Go-Live Gate checklist widget (header) with deterministic booleans",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "gate_booleans_include_trades_ge_100",
+              "gate_booleans_include_psr_ge_0_95_sustained_30d",
+              "gate_booleans_include_dsr_ge_0_95",
+              "gate_booleans_include_sr_gap_le_30pct",
+              "gate_booleans_include_max_dd_within_tolerance",
+              "promote_to_live_button_disabled_unless_all_green",
+              "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.5",
+          "name": "Agent-rationale drawer + per-trade signal attribution pipeline",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"from backend.services.autonomous_loop import run_cycle; print('ok')\"",
+            "success_criteria": [
+              "paper_trade_schema_includes_signals_array",
+              "autonomous_loop_passes_analysis_signals_to_decide_trades",
+              "drawer_uses_progressive_disclosure_per_tradingagents_pattern",
+              "no_plaintext_secret_or_pii_leak_in_rationale",
+              "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.6",
+          "name": "Live intraday prices + chart refresh (no-cycle refresh path)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "endpoint_GET_paper_trading_live_prices_exists",
+              "frontend_polls_every_60s_only_when_tab_visible",
+              "yfinance_rate_limit_respected",
+              "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.7",
+          "name": "Kill-switch v2 \u2014 Pause / Resume / Flatten-all + daily loss + trailing DD limits",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python3 -c \"import importlib; m=importlib.import_module('backend.services.paper_trader'); pt=getattr(m,'PaperTrader'); assert callable(getattr(pt,'flatten_all',None)), 'flatten_all not implemented'; print('PASS')\"",
+            "success_criteria": [
+              "flatten_all_endpoint_closes_every_open_position",
+              "daily_loss_limit_configurable_default_4pct",
+              "trailing_drawdown_limit_configurable_default_10pct",
+              "breach_triggers_auto_flatten_and_pause",
+              "all_actions_require_confirmation_modal_in_ui",
+              "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.8",
+          "name": "Signal-freshness + cycle-health strip (scheduler SLA monitoring)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "last_tick_age_per_data_source_displayed",
+              "loop_heartbeat_alert_when_gt_2x_cycle_interval",
+              "bigquery_ingest_lag_shown",
+              "cycle_history_endpoint_returns_last_10_runs_with_timings",
+              "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.9",
+          "name": "MFE/MAE scatter + Edge-Ratio per trade (exit quality analysis)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "scatter_uses_mfe_x_mae_y_per_closed_round_trip",
+              "capture_ratio_computed_pnl_over_mfe",
+              "chart_surfaces_exit_leakage_pattern",
+              "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.5.10",
+          "name": "Tests + evaluator reality-gap harness integration",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_paper_trading_v2.py -q",
+            "success_criteria": [
+              "unit_tests_cover_metrics_v2_endpoints",
+              "integration_test_covers_full_cycle_dry_run",
+              "reality_gap_metric_logged_to_handoff_harness_log",
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
       "id": "phase-5",
       "name": "Multi-Market Expansion",
       "status": "pending",
       "depends_on": [
-        "phase-4"
+        "phase-4",
+        "phase-4.5"
       ],
       "gate": null,
       "steps": [

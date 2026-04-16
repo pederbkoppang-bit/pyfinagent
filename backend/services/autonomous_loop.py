@@ -75,6 +75,14 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
     trades_executed = 0
     summary = {"status": "running", "steps": []}
 
+    # 4.5.8 cycle health: start-of-cycle heartbeat + history row.
+    from backend.services.cycle_health import get_log as _cycle_log
+    import uuid as _uuid
+    _cycle_id = str(_uuid.uuid4())[:8]
+    _cycle_started_at = _cycle_log().record_cycle_start(_cycle_id)
+    summary["cycle_id"] = _cycle_id
+    summary["started_at"] = _cycle_started_at
+
     # Load optimizer best params for strategy decisions
     best_params = load_best_params()
     if best_params:
@@ -164,6 +172,24 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
         summary["steps"].append("mark_to_market")
         portfolio_state = trader.mark_to_market()
 
+        # ── Step 5.5: Kill-switch evaluation (4.5.7) ─────────────
+        # If a daily-loss or trailing-DD limit is breached, auto-flatten and
+        # pause before any new-order decisions. Also short-circuits if the
+        # system is already paused from a prior cycle's breach.
+        from backend.services.kill_switch import get_state as _ks_state
+        ks_check = trader.check_and_enforce_kill_switch()
+        summary["kill_switch"] = ks_check
+        if ks_check.get("triggered") or _ks_state().is_paused():
+            logger.warning("Paper trading: kill-switch active -- skipping decide/execute")
+            summary["steps"].append("kill_switch_halted")
+            summary["halted"] = True
+            # Still snapshot + exit cleanly.
+            final_state = trader.mark_to_market()
+            trader.save_daily_snapshot(trades_today=0, analysis_cost_today=total_analysis_cost)
+            _last_run = datetime.now(timezone.utc).isoformat()
+            _last_result = summary
+            return summary
+
         # ── Step 6: Decide trades ────────────────────────────────
         logger.info("Paper trading: Step 6 -- Deciding trades")
         summary["steps"].append("deciding")
@@ -190,6 +216,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
                 quantity=order.quantity,
                 price=order.price,
                 reason=order.reason,
+                signals=order.signals,
             )
             if trade:
                 trades_executed += 1
@@ -214,6 +241,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
                 risk_judge_decision=order.risk_judge_decision,
                 stop_loss_price=order.stop_loss_price,
                 risk_judge_position_pct=order.risk_judge_position_pct,
+                signals=order.signals,
             )
             if trade:
                 trades_executed += 1
@@ -287,6 +315,19 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
         return summary
     finally:
         _running = False
+        # 4.5.8 cycle health: end-of-cycle row (always, regardless of branch).
+        try:
+            _cycle_log().record_cycle_end(
+                cycle_id=_cycle_id,
+                started_at=_cycle_started_at,
+                status=summary.get("status", "unknown"),
+                n_trades=int(summary.get("trades_executed", trades_executed) or 0),
+                error_count=int(summary.get("error_count", 0) or 0),
+                data_source_ages=summary.get("data_source_ages") or {},
+                bq_ingest_lag_sec=summary.get("bq_ingest_lag_sec"),
+            )
+        except Exception as _e:
+            logger.warning(f"cycle_health record_cycle_end failed: {_e}")
 
 
 async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict]:
@@ -465,3 +506,8 @@ def get_loop_status() -> dict:
 def get_coordinator() -> MetaCoordinator:
     """Return the module-level MetaCoordinator instance."""
     return _coordinator
+
+
+# 4.5.5: external callers (e.g. harness verification) import `run_cycle` as the
+# canonical entry point. It's an alias for the established run_daily_cycle.
+run_cycle = run_daily_cycle

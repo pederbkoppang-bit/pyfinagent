@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `95cc076` | Merge pull request #6 from pederbkoppang-bit/add-claude-github-actions-1776357343140 |
 | 2026-04-16 | `0cad1d6` | chore: harness log entry for Cycle 28 (Phase 4.4.5.5 PASS) |
 | 2026-04-16 | `f5aa70f` | Phase 4.4.5.5: Trading guide for Peder with 39-check verification drill |
 | 2026-04-16 | `d2a9430` | chore: harness log entry for Cycle 27 (Phase 4.4.6.4 PASS) |
@@ -26,12 +27,45 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `4a8951f` | Cycle 12 harness log entry for Phase 4.4.3.5 |
 | 2026-04-16 | `ba399ee` | Phase 4.4.3.5: incident log P0 verification drill + evidence |
 | 2026-04-16 | `7a791d5` | MAS harness infrastructure: archive hook + cycle wrapper + audit |
-| 2026-04-15 | `38d58de` | Merge remote-tracking branch 'origin/main' into claude/add-permission-prompts-pRDHN |
 
 ---
 
+### v6.5.0 — Phase 4.5: Paper Trading Dashboard v2 (Evaluation-Grade) + MAS/Harness Protocol Hardening (2026-04-16)
+
+**Shipped the full 11-substep Phase 4.5 under a RESEARCH → PLAN → GENERATE → EVALUATE (harness-verifier + qa-evaluator) → LOG protocol. Mid-phase, audited and corrected the MAS/harness setup per Anthropic 2024-2026 research + SAVeR/SEVerA/VeriPlan 2025-2026 papers.**
+
+#### Evaluation-grade metrics
+- **Phase 4.5.1** — PSR (Bailey & Lopez de Prado 2012 Eq. 9) + DSR (2014 Eq. 8) + Sortino + Calmar + bootstrap 95% CI on rolling Sharpe. All math centralized in `backend/services/perf_metrics.py` (single source of truth).
+- **Phase 4.5.2** — Round-trip (BUY→SELL FIFO) metrics: win_rate, profit_factor, expectancy, MFE/MAE tracking, median holding days. `paper_round_trips.py` + migration + `/performance` inlines `round_trip_summary`.
+- **Phase 4.5.9** — MFE × |MAE| scatter (AFML Ch. 13) + per-trade Edge-Ratio + server-side exit-leakage detection (`capture < 0.4 AND mfe > P75`).
+
+#### Reality-gap + Go-Live Gate
+- **Phase 4.5.3** — `/reconciliation` endpoint + frictionless shadow backtest replaying paper trades on yfinance adj-close + dual-axis Recharts overlay + >5% divergence alert. New "Reality gap" tab.
+- **Phase 4.5.4** — Go-Live Gate widget with 5 deterministic booleans (trades≥100, PSR≥0.95 sustained 30d, DSR≥0.95, SR-gap≤30%, max-DD within tolerance). "Promote to live" button disabled unless all green.
+- **Phase 4.5.10** — Reconciliation line appended to every harness cycle entry, kept SEPARATE from scored Reality-Gap dimension (MLflow/MadeWithML consensus: live-execution fidelity vs friction-model quality).
+
+#### Risk management
+- **Phase 4.5.7** — Kill-switch v2: Pause / Resume / Flatten-all + daily-loss limit 4% + trailing DD limit 10% EOD + auto-flatten-and-pause on breach + single-modal confirmation + append-only JSONL audit log (FINRA Rule 15c3-5 hard-block + ESMA 2026 audit-log requirements).
+- **Phase 4.5.6** — Live intraday prices: `/live-prices` with per-ticker 60s TTL + 30/min rate gate; frontend 60s visibility-aware poll with `age_sec` freshness indicator (Coinpaprika staleness anti-pattern guard).
+
+#### Observability
+- **Phase 4.5.5** — Per-trade agent-rationale drawer (Analyst → Bull/Bear → Trader → RiskJudge) with progressive-disclosure collapsible layers (TradingAgents pattern). `signals` JSON column + `/rationale` endpoint + PII/secret redaction (emails, sk-ant-*, AIza*, sk-*, 32+-char generics).
+- **Phase 4.5.8** — Signal-freshness + cycle-health strip: color-coded pills (Conduktor/dbt thresholds), Memfault/OneUptime two-tier watchdog (warn@1.5x, critical@2x), dead-man's-switch guard via process heartbeat independent of BQ data plane, Metaplane Method-1 `MAX(event_time)` for BQ lag, last-10 cycles JSONL tail.
+
+#### MAS / harness protocol audit
+- **Hooks hardened**: all 4 hook commands in `.claude/settings.json` now use `"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/X.sh"`; each hook script got a 3-step project-root fallback chain so they resolve from any subagent cwd.
+- **Subagents upgraded**: `qa-evaluator.md` dropped default `isolation: worktree` (caused a false FAIL on 4.5.3). Both verifiers added `violation_details: [{violation_type, action, state, constraint}]` (VeriPlan 2025) + SAVeR 6-type taxonomy + SEVerA `certified_fallback` signal. `researcher.md` added effort tiers (simple / moderate / complex) with turn caps (Anthropic 2024 Multi-Agent Research System).
+- **Runbook codified**: new `.claude/agents/per-step-protocol.md` documents the RESEARCH → PLAN → GENERATE → EVALUATE → LOG sequence, verifier-pair disagreement resolution, and anti-patterns.
+- **archive-handoff.sh bug fixed**: hook previously MOVED rolling phase-level files on every step transition; now COPIES rolling files (contract / experiment_results / evaluator_critique / research.md) and MOVES only step-specific `<step_id>-*.md` files.
+
+#### Testing + integration
+- **Phase 4.5.10** — New `backend/tests/test_paper_trading_v2.py` (18 tests, 5 classes): `compute_reconciliation` direct unit coverage, v2 endpoint smokes, reality-gap log-line integration (alert=False + [WARN] on alert=True), no-regression assertions. All 18 tests pass; harness dry-run completes with Sharpe=1.1705 / DSR=0.9526 (no regression — infrastructure phase).
+
+**Phase 4.5 gate:** Unblocks phase-4 step 4.4 (Go-Live Checklist). 7 new backend services, 12 new endpoints, 4 new frontend components, 2 new tabs, 2 BQ migrations, 1 new pytest suite.
+
 ### v6.4.3 — Continuous Autonomous Agent + Feature Ablation + Cost Tiering (2026-04-16)
 
+- **Merge pull request #6 from pederbkoppang-bit/add-claude-github-actions-1776357343140**
 - **Phase 4.4.5.5: Trading guide for Peder with 39-check verification drill**
 - **Phase 4.4.6.4: Rollback plan documented with pause_signals mechanism (17/17 PASS)**
 - **Phase 4.4.3.2: Slack signals end-to-end code-level verification (16/16 PASS)**

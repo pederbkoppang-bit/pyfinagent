@@ -734,3 +734,113 @@ features = [
 **Recency:** EMNLP 2025, FLLM 2025 papers; current best practices in agentic AI  
 **Practical Applicability:** Token budgets, acceptance rate thresholds, stress test procedures  
 **Cross-Validation:** MPO findings corroborated by AutoML and RLHF literature; confirmed via AQR/Two Sigma factor investing practice
+## Phase 4.5 — Paper Trading Dashboard v2 (2026-04-16)
+
+**Gate checklist:** 19 URLs fetched across 7 categories, 5 read in full. Research-backed substeps enumerated below with citations.
+
+### Key sources (diverse, 19 URLs)
+1. Bailey & Lopez de Prado — Deflated Sharpe Ratio SSRN 2460551 — https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551
+2. Wikipedia — Deflated Sharpe ratio — https://en.wikipedia.org/wiki/Deflated_Sharpe_ratio
+3. QuantConnect — PSR research — https://www.quantconnect.com/research/17112/probabilistic-sharpe-ratio/
+4. Portfolio Optimizer — PSR & MinTRL — https://portfoliooptimizer.io/blog/the-probabilistic-sharpe-ratio-hypothesis-testing-and-minimum-track-record-length-for-the-difference-of-sharpe-ratios/
+5. Harvey & Liu — Backtesting (Duke) — https://people.duke.edu/~charvey/Research/Published_Papers/P120_Backtesting.PDF
+6. QuantConnect — Reconciliation docs — https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation
+7. QuantConnect forum — good enough to go live — https://www.quantconnect.com/forum/discussion/15725/when-is-a-strategy-quot-good-enough-quot-to-go-live/
+8. GoatFundedTrader — 100+ trade rule — https://www.goatfundedtrader.com/blog/how-to-practice-paper-trading
+9. NYIF — Trading System Kill Switch — https://www.nyif.com/articles/trading-system-kill-switch-panacea-or-pandoras-box
+10. Trade Safe — kill-switch software — https://www.killswitch.in/
+11. RockstarTrader — Prop Firm Rules — https://rockstartrader.com/blog/prop-firm-rules-explained
+12. Trademetria — MAE/MFE — https://trademetria.com/blog/understanding-mae-and-mfe-metrics-a-guide-for-traders/
+13. QuantifiedStrategies — MAE/MFE — https://www.quantifiedstrategies.com/maximum-adverse-excursion-and-maximum-favorable-excursion/
+14. TauricResearch/TradingAgents GitHub — https://github.com/TauricResearch/TradingAgents
+15. TradingAgents arXiv 2412.20138 — https://arxiv.org/abs/2412.20138
+16. Sifflet — Data Freshness — https://www.siffletdata.com/blog/data-freshness
+17. QuantifiedStrategies — Trading Performance — https://www.quantifiedstrategies.com/trading-performance/
+18. Medium — MLOps for quant teams — https://medium.com/@online-inference/mlops-best-practices-for-quantitative-trading-teams-59f063d3aaf8
+19. arXiv — Implementation Risk in Portfolio Backtesting 2603.20319 — https://arxiv.org/html/2603.20319v1
+
+### Research-backed substep mapping
+- **4.5.1** PSR + DSR + rolling Sharpe bootstrap CI → sources 1,2,3,4,5 (PSR gate 0.95, DSR corrects for N variants, MinTRL shows days-to-confidence)
+- **4.5.2** Round-trip metrics (win_rate, profit factor, expectancy, MFE/MAE, holding period) → sources 12,13,17 (standard but non-decisive alone)
+- **4.5.3** Paper-live vs parallel OOS backtest overlay → source 6 (canonical reconciliation UX)
+- **4.5.4** Go-Live Gate checklist with deterministic booleans → sources 7,8 (trades ≥100, PSR≥0.95 sustained 30d, DSR≥0.95, |SR gap|≤30%, DD tolerance)
+- **4.5.5** Agent-rationale progressive-disclosure drawer → sources 14,15 (TradingAgents hierarchical pattern)
+- **4.5.6** Live intraday refresh → gap-filler; source 18 (MLOps observability)
+- **4.5.7** Kill-switch v2 with daily loss + trailing DD → sources 9,10,11 (prop-firm pattern, NYIF panacea analysis)
+- **4.5.8** Signal-freshness + cycle-health SLA strip → source 16 (data-observability)
+- **4.5.9** MFE/MAE scatter + edge-ratio → sources 12,13 (exit-quality signal for Claude exit agent)
+- **4.5.10** Tests + evaluator reality-gap harness — internal protocol
+
+### Decision boundary (North Star)
+Every panel exists to sharpen the go/no-go decision for live capital. PSR + DSR with N-trials awareness is the single most load-bearing upgrade — without it, any Sharpe on the dashboard is misleading given our multi-agent variant iteration.
+
+
+## MAS + Harness Protocol Audit -- Phase 4.5 mid-phase correction (2026-04-16)
+
+**Research Date:** 2026-04-16
+**Research Focus:** Calibrate the per-step harness protocol to Anthropic's latest published guidance so the remaining phase-4.5 substeps (4.5.6-4.5.10) strictly follow RESEARCH -> PLAN -> GENERATE -> EVALUATE -> LOG with cross-verification.
+
+### Why this was needed
+
+Steps 4.5.2, 4.5.3, 4.5.4, 4.5.5 each skipped the RESEARCH phase (no researcher subagent spawned), ran only qa-evaluator (never harness-verifier) for EVALUATE, and the hook scripts were silently failing with "No such file or directory" because their commands used relative paths.
+
+### Sources read in full (19 URLs this cycle)
+
+1. Anthropic -- Multi-Agent Research System -- https://anthropic.com/engineering/multi-agent-research-system
+2. Anthropic -- Harness Design for Long-Running Apps -- https://anthropic.com/engineering/harness-design-long-running-apps
+3. Anthropic -- Effective Harnesses for Long-Running Agents -- https://anthropic.com/engineering/effective-harnesses-for-long-running-agents
+4. Anthropic -- Building Effective Agents -- https://anthropic.com/research/building-effective-agents
+5. Claude Code -- Agent Teams -- https://code.claude.com/docs/en/agent-teams
+6. Claude Code -- Hooks Guide -- https://code.claude.com/docs/en/hooks-guide
+7. Claude Code -- Memory -- https://code.claude.com/docs/en/memory
+8. SAVeR (2026) -- https://arxiv.org/html/2604.08401
+9. SEVerA (2026) -- https://arxiv.org/html/2603.25111
+10. VeriPlan (2025) -- https://arxiv.org/html/2502.17898v1
+11. Google Research -- science-of-scaling agent systems -- https://research.google/blog/towards-a-science-of-scaling-agent-systems-when-and-why-agent-systems-work/
+12. CrewAI -- concepts/tasks -- https://docs.crewai.com/en/concepts/tasks
+13. OpenAI Agents SDK -- guardrails -- https://openai.github.io/openai-agents-python/guardrails/
+14. Kleppmann -- AI formal verification -- https://martin.kleppmann.com/2025/12/08/ai-formal-verification.html
+15. Addy Osmani -- The 80% problem in agentic coding -- https://addyo.substack.com/p/the-80-problem-in-agentic-coding
+16. LangGraph state machines -- https://dev.to/jamesli/langgraph-state-machines-managing-complex-agent-task-flows-in-production-36f4
+17. Memory Survey (2026) -- https://arxiv.org/html/2603.07670v1
+18. Terminal AI Agents (2026) -- https://arxiv.org/html/2603.05344v1
+19. Orchestration Survey (2026) -- https://arxiv.org/html/2601.13671v1
+
+### Consensus across sources
+
+1. Separate orchestrator (Opus) from executor (Sonnet). Never ask the executor to also plan scope.
+2. Cross-verification is mandatory. Self-evaluation reliably fails.
+3. Verification criteria are immutable -- "unacceptable to remove or edit tests".
+4. JSON over Markdown for task state -- models silently mutate Markdown.
+5. Startup checklist explicit: read progress -> read features -> pick next -> execute -> commit.
+
+### New in 2025-2026 (not in 2024 blog posts)
+
+- **VeriPlan (2025):** verifier output must name `violation_details: [{violation_type, action, state, constraint}]` per failed constraint -- not just a boolean.
+- **SAVeR (2026):** 6-type taxonomy (Missing_Assumption, Invalid_Precondition, Unjustified_Inference, Circular_Reasoning, Contradiction, Overgeneralization).
+- **SEVerA (2026):** certified fallback -- if K retries all fail, orchestrator reverts to last known-good state rather than blocking.
+- **Google Research (2025):** quantified the sequential-reasoning penalty: +80.9% parallel gain but -39% to -70% when forced sequential. Harness cycles are sequential; keep single lead agent per step, spawn subagents only for parallel investigation.
+
+### Pitfalls / anti-patterns cited by multiple sources
+
+1. Self-evaluation (Anthropic x3, CrewAI, OpenAI) -- confident praise of own work.
+2. Over-spawning (Anthropic, Google) -- 50 subagents for simple queries; fix = embedded tier caps.
+3. Premature completion (Anthropic Effective Harnesses, CrewAI `expected_output`) -- no written "done" before work starts.
+4. Infinite stop loop (Claude Code Hooks) -- Stop hook triggers more work; fix = `stop_hook_active` guard.
+5. SEO content farm preference (Anthropic) -- researcher defaults to high-PageRank commercial content; fix = explicit source hierarchy.
+
+### Applied to pyfinagent
+
+- `.claude/settings.json` hooks: `bash .claude/hooks/X.sh` -> `bash "${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/X.sh"` so they work from any spawned-subagent cwd.
+- `.claude/agents/qa-evaluator.md`: removed default `isolation: worktree` so the evaluator sees uncommitted work by default; added `violation_details` schema + `certified_fallback`.
+- `.claude/agents/harness-verifier.md`: added `violation_details` + SAVeR violation_type + `certified_fallback`.
+- `.claude/agents/researcher.md`: added effort tiers (simple/moderate/complex) at invocation time per Anthropic 2024 scope-caps.
+- `.claude/agents/per-step-protocol.md` (new): consolidated operator runbook so the orchestrator stops drifting on subsequent 4.5 substeps.
+
+### Research Gate Checklist
+
+- [x] 3+ authoritative sources (15 primary, 4 supplementary)
+- [x] 19 unique URLs
+- [x] Full papers/posts read, not abstracts
+- [x] All claims cited with URLs
+- [x] Consensus AND contradictions noted (consensus on cross-verification; debate only on parallel vs sequential scope)

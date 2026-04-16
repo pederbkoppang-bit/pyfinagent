@@ -26,6 +26,9 @@ from backend.backtest.analytics import compute_sharpe, compute_max_drawdown
 
 logger = logging.getLogger(__name__)
 
+# Euler-Mascheroni constant, used in DSR threshold (Bailey & Lopez de Prado 2014, Eq. 8).
+_EULER_GAMMA = 0.5772156649015329
+
 
 # ── Position-Level Metrics ───────────────────────────────────────
 
@@ -222,3 +225,162 @@ def get_scalar_metric_from_bq(bq_client, trades: Optional[list] = None) -> float
         benchmark_beat_rate=benchmark_rate,
         turnover_ratio=turnover,
     ))
+
+
+# ── Advanced Risk-Adjusted Metrics (PSR, DSR, Sortino, Calmar) ───
+
+
+def _sr_per_period(returns: np.ndarray, ddof: int = 1) -> float:
+    """Non-annualized per-period Sharpe. PSR/DSR require this form, not annualized."""
+    if len(returns) < 2:
+        return 0.0
+    std = float(returns.std(ddof=ddof))
+    if std == 0.0:
+        return 0.0
+    return float(returns.mean() / std)
+
+
+def compute_psr(returns: Sequence[float], sr_star: float = 0.0) -> float:
+    """
+    Probabilistic Sharpe Ratio (Bailey & Lopez de Prado 2012, Eq. 9).
+
+    PSR(SR*) = CDF((SR_hat - SR*) * sqrt(n-1) / sqrt(1 - g3*SR_hat + (g4-1)/4 * SR_hat^2))
+
+    Where g4 is RAW kurtosis (normal = 3). scipy's default is excess kurtosis --
+    we add 3. Denominator guarded to avoid division-by-zero at extreme SR.
+    """
+    arr = np.asarray(list(returns), dtype=float)
+    n = len(arr)
+    if n < 5:
+        return 0.0
+    from scipy.stats import norm, skew, kurtosis
+    sr_hat = _sr_per_period(arr)
+    g3 = float(skew(arr, bias=False))
+    g4 = float(kurtosis(arr, fisher=True, bias=False)) + 3.0  # excess -> raw
+    var_term = 1.0 - g3 * sr_hat + (g4 - 1.0) / 4.0 * sr_hat * sr_hat
+    var_term = max(var_term, 1e-8)
+    z = (sr_hat - sr_star) * math.sqrt(n - 1) / math.sqrt(var_term)
+    return float(norm.cdf(z))
+
+
+def compute_dsr(
+    returns: Sequence[float],
+    all_trial_sharpes: Sequence[float],
+    n_trials: Optional[int] = None,
+) -> float:
+    """
+    Deflated Sharpe Ratio (Bailey & Lopez de Prado 2014, Eq. 8 + Eq. 10).
+
+    Corrects PSR for selection bias when N strategies were tested. The threshold
+    SR* is derived from the cross-sectional variance of trial Sharpes and the
+    expected maximum of N draws from that distribution.
+
+    SR* = sqrt(Var[SR]) * ((1-gamma)*PPF(1-1/N) + gamma*PPF(1-1/(N*e)))
+    DSR = PSR(SR*)
+    """
+    arr = np.asarray(list(returns), dtype=float)
+    trials = np.asarray(list(all_trial_sharpes), dtype=float)
+    n = n_trials if n_trials is not None else max(len(trials), 2)
+    if len(arr) < 5 or n < 2 or len(trials) < 2:
+        return 0.0
+    from scipy.stats import norm
+    var_sr = float(trials.var(ddof=1))
+    if var_sr <= 0.0:
+        return compute_psr(arr, sr_star=0.0)
+    sr_star = math.sqrt(var_sr) * (
+        (1.0 - _EULER_GAMMA) * float(norm.ppf(1.0 - 1.0 / n))
+        + _EULER_GAMMA * float(norm.ppf(1.0 - 1.0 / (n * math.e)))
+    )
+    return compute_psr(arr, sr_star=sr_star)
+
+
+def compute_sortino(
+    returns: Sequence[float], mar: float = 0.0, periods_per_year: int = 252
+) -> float:
+    """Sortino ratio, annualized. MAR default 0 (downside = negative returns)."""
+    arr = np.asarray(list(returns), dtype=float)
+    if len(arr) < 5:
+        return 0.0
+    excess = arr - mar
+    downside = excess[excess < 0.0]
+    if len(downside) < 2:
+        return 0.0
+    dstd = float(downside.std(ddof=1))
+    if dstd == 0.0:
+        return 0.0
+    return float(excess.mean() / dstd * math.sqrt(periods_per_year))
+
+
+def compute_calmar(
+    returns: Sequence[float], periods_per_year: int = 252
+) -> float:
+    """Calmar = annualized return / |max drawdown|. Returns 0 if no drawdown."""
+    arr = np.asarray(list(returns), dtype=float)
+    if len(arr) < 5:
+        return 0.0
+    cum = np.cumprod(1.0 + arr)
+    dd_pct = compute_max_drawdown(cum)
+    if dd_pct >= 0.0:
+        return 0.0
+    annualized = float(arr.mean() * periods_per_year)
+    return float(annualized / (abs(dd_pct) / 100.0))
+
+
+def compute_rolling_sharpe_bootstrap_ci(
+    returns: Sequence[float],
+    n_resamples: int = 1000,
+    ci: float = 0.95,
+    periods_per_year: int = 252,
+    risk_free_rate: float = 0.04,
+    seed: Optional[int] = 42,
+) -> tuple[float, float, float]:
+    """
+    Bootstrap 95% CI on annualized Sharpe. Percentile method by default; falls
+    back to stationary block bootstrap when |lag-1 autocorr| > 0.2 to preserve
+    serial dependence (Politis & Romano 1994).
+
+    Returns (sharpe_point, ci_low, ci_high).
+    """
+    arr = np.asarray(list(returns), dtype=float)
+    n = len(arr)
+    if n < 10:
+        return 0.0, 0.0, 0.0
+
+    point = compute_sharpe(arr, risk_free_rate=risk_free_rate, periods_per_year=periods_per_year)
+
+    # Lag-1 autocorr check
+    mean = arr.mean()
+    centered = arr - mean
+    denom = float((centered * centered).sum())
+    if denom == 0.0:
+        return point, point, point
+    acf1 = float((centered[:-1] * centered[1:]).sum() / denom)
+
+    rng = np.random.default_rng(seed)
+    samples = np.empty(n_resamples, dtype=float)
+
+    if abs(acf1) <= 0.2:
+        # Standard IID bootstrap
+        idx = rng.integers(0, n, size=(n_resamples, n))
+        for i in range(n_resamples):
+            samples[i] = compute_sharpe(arr[idx[i]], risk_free_rate, periods_per_year)
+    else:
+        # Stationary block bootstrap: geometric block lengths with mean ~ sqrt(n)
+        p = 1.0 / max(1.0, math.sqrt(n))
+        for i in range(n_resamples):
+            resample = np.empty(n, dtype=float)
+            t = 0
+            start = int(rng.integers(0, n))
+            while t < n:
+                resample[t] = arr[start % n]
+                if rng.random() < p:
+                    start = int(rng.integers(0, n))
+                else:
+                    start += 1
+                t += 1
+            samples[i] = compute_sharpe(resample, risk_free_rate, periods_per_year)
+
+    alpha = (1.0 - ci) / 2.0
+    low = float(np.quantile(samples, alpha))
+    high = float(np.quantile(samples, 1.0 - alpha))
+    return point, low, high

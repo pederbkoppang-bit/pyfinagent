@@ -124,6 +124,11 @@ ENDPOINT_TTLS: dict[str, float] = {
     "paper:trades": 120.0,
     "paper:snapshots": 300.0,
     "paper:performance": 120.0,
+    "paper:metrics_v2": 120.0,
+    "paper:round_trips": 120.0,
+    "paper:reconciliation": 600.0,
+    "paper:gate": 120.0,
+    "paper:mfe_mae_scatter": 120.0,
     # Settings
     "settings:full": 300.0,
     "settings:models": 3600.0,

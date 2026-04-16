@@ -600,6 +600,55 @@ export interface PaperPerformance {
   total_analysis_cost: number;
   days_active: number;
   max_drawdown_pct?: number;
+  round_trip_summary?: PaperRoundTripSummary;
+}
+
+export interface PaperRoundTripSummary {
+  n_round_trips: number;
+  win_rate: number;
+  profit_factor: number;
+  expectancy_pct: number;
+  avg_win_pct: number;
+  avg_loss_pct: number;
+  median_holding_days: number;
+  avg_mfe_pct: number;
+  avg_mae_pct: number;
+  avg_capture_ratio: number;
+}
+
+export interface PaperMetricsV2 {
+  psr: number | null;
+  dsr: number | null;
+  sortino: number | null;
+  calmar: number | null;
+  rolling_sharpe: number | null;
+  rolling_sharpe_ci_low: number | null;
+  rolling_sharpe_ci_high: number | null;
+  n_obs: number;
+  n_strategies_tested: number;
+  computed_at: string;
+  note?: string | null;
+  min_obs_required?: number;
+}
+
+export interface PaperReconciliationPoint {
+  date: string;
+  paper_nav: number;
+  backtest_nav: number;
+  divergence_pct: number;
+}
+
+export interface PaperReconciliation {
+  series: PaperReconciliationPoint[];
+  summary: {
+    n_points: number;
+    max_divergence_pct: number;
+    latest_divergence_pct: number;
+    alert: boolean;
+    alert_threshold_pct: number;
+  };
+  computed_at: string;
+  note?: string | null;
 }
 
 /* ── Backtest Types ── */

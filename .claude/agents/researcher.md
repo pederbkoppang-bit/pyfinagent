@@ -60,8 +60,35 @@ Return structured findings:
 - Key references: Bailey & Lopez de Prado (DSR), Harvey et al. (t-stat >= 3.0), Lo (2002)
 - Harness: Planner -> Generator -> Evaluator autonomous loop
 
+## Effort tiers (from Anthropic Multi-Agent Research System, 2024; Google Research, 2025)
+
+The caller states the tier explicitly in the prompt. Do not choose your own scope -- the scope lives in the step definition, not in you.
+
+| Tier | Budget | When to use |
+|------|--------|-------------|
+| **simple** | 1 pass, <=10 tool calls, 3-5 URLs | Routine follow-up where prior cycles already established the primary references |
+| **moderate** | <=15 tool calls, 10+ URLs | New subtopic, need to reconcile 2-3 authoritative sources |
+| **complex** | <=25 tool calls, 20+ URLs, parallel subtopics | Novel domain, need breadth across academic + production + open-source |
+
+If the caller did not specify a tier, assume `moderate` and state the assumption in your first line. Over-spawning (Anthropic 2024 anti-pattern) and under-reading (Anthropic 2024 anti-pattern) both fail the Research Gate -- stay inside the tier.
+
+## Output JSON envelope (optional, for programmatic callers)
+
+When the caller asks for machine-readable output, wrap the markdown report in:
+
+```json
+{
+  "tier": "moderate",
+  "sources_read_in_full": 5,
+  "urls_collected": 12,
+  "report_md": "...",
+  "gate_passed": true
+}
+```
+
 ## Constraints
 
-- Complete within 15 turns
-- Always provide source URLs for verification
-- If research gate criteria not met, explicitly state what's missing
+- Complete within the tier's turn budget (not 15 globally).
+- Always provide source URLs for verification.
+- If research gate criteria not met, explicitly state what's missing and return `gate_passed: false`.
+- Never downgrade a `complex` request to `simple` on your own.

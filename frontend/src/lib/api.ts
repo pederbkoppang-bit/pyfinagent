@@ -22,9 +22,11 @@ import type {
   OptimizerInsights,
   OptimizerRunSummary,
   OptimizerStatus,
+  PaperMetricsV2,
   PaperPerformance,
   PaperPortfolio,
   PaperPosition,
+  PaperReconciliation,
   PaperSnapshot,
   PaperTrade,
   PaperTradingStatus,
@@ -288,6 +290,47 @@ export function getPaperPerformance(): Promise<PaperPerformance> {
 
 export function triggerPaperTradingCycle(): Promise<{ status: string; message: string }> {
   return apiFetch("/api/paper-trading/run-now", { method: "POST" });
+}
+
+export function getPaperMetricsV2(): Promise<PaperMetricsV2> {
+  return apiFetch("/api/paper-trading/metrics-v2");
+}
+
+export function getPaperRoundTrips(): Promise<{
+  n_round_trips: number;
+  win_rate: number;
+  profit_factor: number;
+  expectancy_pct: number;
+  median_holding_days: number;
+  avg_mfe_pct: number;
+  avg_mae_pct: number;
+  avg_capture_ratio: number;
+  round_trips: Array<{
+    ticker: string;
+    entry_date: string | null;
+    exit_date: string | null;
+    entry_price: number;
+    exit_price: number;
+    quantity: number;
+    realized_pnl_pct: number;
+    realized_pnl_usd: number;
+    holding_days: number;
+    mfe_pct: number;
+    mae_pct: number;
+    capture_ratio: number;
+    exit_reason: string;
+  }>;
+  computed_at: string;
+}> {
+  return apiFetch("/api/paper-trading/round-trips");
+}
+
+export function getPaperReconciliation(): Promise<PaperReconciliation> {
+  return apiFetch("/api/paper-trading/reconciliation");
+}
+
+export function getPaperGate(): Promise<import("@/components/GoLiveGateWidget").GoLiveGate> {
+  return apiFetch("/api/paper-trading/gate");
 }
 
 // ── Backtest ────────────────────────────────────────────────────

@@ -5,10 +5,11 @@ Implements sell-first-then-buy logic with Risk Judge position sizing.
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from backend.config.settings import Settings
+from backend.services.signal_attribution import extract_signals_from_analysis
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class TradeOrder:
     stop_loss_price: Optional[float] = None
     risk_judge_position_pct: Optional[float] = None
     price: Optional[float] = None
+    signals: list[dict] = field(default_factory=list)  # 4.5.5 agent attribution
 
 
 # Recommendations that imply selling
@@ -95,6 +97,7 @@ def decide_trades(
                     ticker=ticker, action="SELL", reason="sell_signal",
                     analysis_id=analysis.get("analysis_date", ""),
                     price=pos.get("current_price"),
+                    signals=extract_signals_from_analysis(analysis),
                 ))
                 continue
 
@@ -104,6 +107,7 @@ def decide_trades(
                     ticker=ticker, action="SELL", reason="signal_downgrade",
                     analysis_id=analysis.get("analysis_date", ""),
                     price=pos.get("current_price"),
+                    signals=extract_signals_from_analysis(analysis),
                 ))
                 continue
 
@@ -150,6 +154,7 @@ def decide_trades(
             "analysis_id": analysis.get("analysis_date", ""),
             "final_score": final_score,
             "price": analysis.get("price_at_analysis"),
+            "signals": extract_signals_from_analysis(analysis),
         })
 
     # Sort by final_score descending (best opportunities first)
@@ -181,6 +186,7 @@ def decide_trades(
             stop_loss_price=cand["stop_loss_price"],
             risk_judge_position_pct=cand["position_pct"],
             price=cand.get("price"),
+            signals=cand.get("signals", []),
         ))
         available_cash -= buy_amount
         remaining_positions += 1

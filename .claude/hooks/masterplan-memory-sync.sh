@@ -5,7 +5,14 @@
 
 set -euo pipefail
 
-MASTERPLAN="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}/.claude/masterplan.json"
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-}"
+if [ -z "$PROJECT_ROOT" ]; then
+  PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+fi
+if [ -z "$PROJECT_ROOT" ]; then
+  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+fi
+MASTERPLAN="$PROJECT_ROOT/.claude/masterplan.json"
 MEMORY_DIR="$HOME/.claude/projects/-Users-ford/memory"
 EPISODIC_DIR="$HOME/.openclaw/workspace/memory"
 

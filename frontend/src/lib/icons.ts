@@ -139,4 +139,7 @@ export {
   Crosshair as IconTarget,
   RocketLaunch as IconRocket,
   TrendUp as IconTrendUp,
+  CheckCircle as IconCheckCircle,
+  XCircle as IconXCircle,
+  Info as IconInfo,
 } from "@phosphor-icons/react";

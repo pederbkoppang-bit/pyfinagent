@@ -7,7 +7,13 @@
 
 set -euo pipefail
 
-REPO="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}"
+REPO="${CLAUDE_PROJECT_DIR:-}"
+if [ -z "$REPO" ]; then
+  REPO="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+fi
+if [ -z "$REPO" ]; then
+  REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+fi
 [ -z "$REPO" ] && exit 0
 
 MASTERPLAN="$REPO/.claude/masterplan.json"
@@ -79,19 +85,33 @@ archive_step() {
 
     mkdir -p "$target"
 
-    local moved=0
+    # Rolling phase-level files: COPY (not move) so downstream verifiers can
+    # keep reading them between step transitions. The per-step snapshot goes
+    # to the archive; the live file keeps serving cross-verification.
+    local copied=0
     for f in contract.md experiment_results.md evaluator_critique.md research.md; do
         if [ -f "$CURRENT_DIR/$f" ]; then
-            # Use git mv when possible (preserves history); fall back to mv.
-            if git -C "$REPO" mv "handoff/current/$f" "handoff/archive/$(basename "$target")/$f" 2>/dev/null; then
+            if cp "$CURRENT_DIR/$f" "$target/$f" 2>/dev/null; then
+                copied=$((copied + 1))
+            fi
+        fi
+    done
+
+    # Step-specific files: MOVE (these are the per-substep contracts like
+    # handoff/current/4.5.9-contract.md, which do belong only to one step).
+    local moved=0
+    for f in "$CURRENT_DIR/${sid}-"*.md; do
+        if [ -f "$f" ]; then
+            local base="$(basename "$f")"
+            if git -C "$REPO" mv "handoff/current/$base" "handoff/archive/$(basename "$target")/$base" 2>/dev/null; then
                 moved=$((moved + 1))
-            elif mv "$CURRENT_DIR/$f" "$target/$f" 2>/dev/null; then
+            elif mv "$f" "$target/$base" 2>/dev/null; then
                 moved=$((moved + 1))
             fi
         fi
     done
 
-    echo "[archive-handoff] step $sid -> $(basename "$target") ($moved files)" >&2
+    echo "[archive-handoff] step $sid -> $(basename "$target") (copied=$copied moved=$moved)" >&2
 }
 
 while IFS= read -r sid; do

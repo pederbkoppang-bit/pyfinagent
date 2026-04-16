@@ -838,6 +838,34 @@ Evaluator verdict: {grades['verdict']} (composite {grades['composite']}/10)
 
 # ── Harness Log ─────────────────────────────────────────────────
 
+def _reconciliation_log_line() -> str:
+    """
+    4.5.10 reality-gap integration. Returns a one-line summary of the
+    live-paper vs shadow-backtest divergence for inclusion in each cycle
+    entry. Best-effort: any failure returns an empty string so the cycle log
+    is never blocked. `alert=True` is prefixed with [WARN] but does NOT
+    mutate the cycle verdict (per research anti-pattern guard).
+    """
+    try:
+        # Lazy import: run_harness can run in environments without the full
+        # backend pipeline (dry-run / smoke tests).
+        from backend.config.settings import get_settings
+        from backend.db.bigquery_client import BigQueryClient
+        from backend.services.reconciliation import compute_reconciliation
+        bq = BigQueryClient(get_settings())
+        recon = compute_reconciliation(bq)
+        summary = recon.get("summary") or {}
+        if not summary:
+            return "- Reconciliation: unavailable"
+        divergence = float(summary.get("latest_divergence_pct") or 0.0)
+        alert = bool(summary.get("alert"))
+        threshold = float(summary.get("alert_threshold_pct") or 5.0)
+        warn = "[WARN] " if alert else ""
+        return f"- Reconciliation: {warn}divergence={divergence:.2f}% alert={alert} (threshold={threshold:.1f}%)"
+    except Exception as e:
+        return f"- Reconciliation: unavailable ({type(e).__name__})"
+
+
 def append_harness_log(cycle: int, plan: dict, generator_result: dict, grades: dict, elapsed: float):
     """Append cycle summary to handoff/harness_log.md."""
     entry = f"""
@@ -854,6 +882,7 @@ def append_harness_log(cycle: int, plan: dict, generator_result: dict, grades: d
 - Reality Gap: {grades['reality_gap']['score']}/10
 - Sub-periods: {', '.join(f'{k}={v:.4f}' for k, v in grades.get('sub_sharpes', {}).items())}
 - 2x costs: Sharpe={grades.get('cost_2x_sharpe', 0):.4f}
+{_reconciliation_log_line()}
 **Decision:** {'SAVE baseline' if grades['verdict'] == 'PASS' else 'REVERT to previous' if grades['verdict'] == 'FAIL' else 'CONDITIONAL -- kept with warning'}
 **Total cycle time:** {elapsed:.0f}s
 """
