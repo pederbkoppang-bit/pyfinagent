@@ -7,6 +7,8 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `d2d9da3` | feat: integrate Intelligence Engine (phases A/B/C/D/E + cron budget) |
+| 2026-04-17 | `d729a8f` | proposal: phase-A immutable core + Gauntlet risk guard (phase-4.9) |
 | 2026-04-17 | `2341a8e` | proposal: phase-6.5 Global Intelligence Directive |
 | 2026-04-17 | `fbc73f3` | feat(masterplan): add phase-3.7/4.7/4.8/8.5 + retire 2.10 |
 | 2026-04-17 | `68d99ad` | feat(masterplan): add phase-3.5 MCP tool audit + adoption proposal |
@@ -25,11 +27,15 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `ba83f03` | Paper Trading: replace stacked ops widgets with a single dense status bar |
 | 2026-04-16 | `9a2e8d4` | Paper Trading: pull KPI hero into bento right column + codify rules |
 | 2026-04-16 | `0b38d2e` | Paper Trading: bento ops-strip layout, remove dead whitespace |
-| 2026-04-16 | `5a6f43e` | Fix: Phase 4.5 widgets now use apiFetch instead of raw fetch |
-| 2026-04-16 | `b9ec89c` | GoLiveGate: vertical-list layout + error banner + Retry |
 
 ---
 
+### v6.5.20 — integrate Intelligence Engine (phases A/B/C/D/E + cron budget) (2026-04-17)
+
+- **integrate Intelligence Engine (phases A/B/C/D/E + cron budget)**
+### v6.5.19 — phase-A immutable core + Gauntlet risk guard (phase-4.9) (2026-04-17)
+
+- **phase-A immutable core + Gauntlet risk guard (phase-4.9)**
 ### v6.5.18 — phase-6.5 Global Intelligence Directive (2026-04-17)
 
 - **phase-6.5 Global Intelligence Directive**
