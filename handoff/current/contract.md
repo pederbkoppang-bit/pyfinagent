@@ -1,25 +1,22 @@
-# Contract — Cycle 15: Phase 4.4.1.4 Walk-Forward Return Concentration
+# Contract -- Phase 4.4.1.2 DSR >= 0.95 on Out-of-Sample Data
+
+**Cycle:** 16
+**Date:** 2026-04-16
+**Item:** 4.4.1.2
 
 ## Target
-`docs/GO_LIVE_CHECKLIST.md` item 4.4.1.4: No single walk-forward window drives > 30% of total return.
-
-## Current State
-- Best result file: `backend/backtest/experiments/results/20260328T072722Z_52eb3ffe-exp10.json`
-- Sharpe 1.1705, DSR 0.9526, 27 walk-forward windows, 1067-point equity curve
-- Per-window `total_return_pct` stored as 0.0 (unfilled by engine)
-- NAV history available with date+nav per trading day, starting 2019-04-11
-
-## Plan
-1. Write drill `scripts/go_live_drills/walk_forward_concentration_test.py` (stdlib + json only)
-2. Load best-result JSON, extract per-window test boundaries and equity curve
-3. Compute per-window return by finding NAV at window start/end dates
-4. Assert max single-window contribution < 30% of total return
-5. Flip checkbox, commit, push
+Verify that the Deflated Sharpe Ratio (DSR) of the best backtest result clears the 0.95 gate, and that the result is computed on out-of-sample (OOS) data via walk-forward methodology.
 
 ## Success Criteria
-- SC1: Best result file exists and loads
-- SC2: 27 walk-forward windows with test_start/test_end dates
-- SC3: Equity curve has data spanning the full test range
-- SC4: Per-window returns computed from NAV data
-- SC5: No single window contributes > 30% of total return
-- SC6: Drill exits 0 on PASS
+1. optimizer_best.json exists with DSR field
+2. Best result JSON has DSR >= 0.95
+3. dsr_significant flag is True
+4. Cross-check: optimizer_best.json and result JSON agree on DSR and Sharpe
+5. num_trials > 1 (DSR deflation requires multiple trials)
+6. Walk-forward structure present (per_window data, n_windows > 0)
+7. No train/test overlap in any window
+8. Embargo days > 0 (information leakage prevention)
+9. Train/test window configuration present
+
+## Approach
+Write a stdlib-only drill that reads the persisted backtest artifacts and verifies all criteria programmatically. No backend deps needed -- the evidence is in the JSON files.

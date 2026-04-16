@@ -29,10 +29,11 @@
 - **HOW**: inspect the latest `handoff/current/evaluator_critique.md` and the `Plan progress` bar in the Harness tab of the backtest page. The qa-evaluator JSON verdict must show `ok: true` with all four axis scores >= 6. Cross-check the row in `backend/backtest/experiments/results/quant_results.tsv` appended by the cycle.
 
 ### 4.4.1.2 DSR >= 0.95 on out-of-sample data
-- [ ] Deflated Sharpe Ratio clears the 0.95 gate on held-out data
+- [x] Deflated Sharpe Ratio clears the 0.95 gate on held-out data
 - **WHO**: Ford
 - **WHEN**: 2-4 weeks pre-launch (final validation pass)
 - **HOW**: run `source .venv/bin/activate && python scripts/harness/run_validation.py` and read the `dsr` field from the resulting JSON in `backend/backtest/experiments/results/`. Confirm the DSR is computed on the OOS fold, not the full sample.
+- **Evidence**: drill landed at `scripts/go_live_drills/dsr_oos_test.py` and executed 2026-04-16 by Ford Cycle 16 on `main`. 13/13 checks PASS: S0 optimizer_best.json exists, S1 best result found (Sharpe 1.1705, `20260328T072722Z_52eb3ffe-exp10.json`), S2 DSR exists in analytics, S3 DSR=0.9526 >= 0.95 threshold, S4 dsr_significant=True, S5 optimizer_best.json DSR cross-check matches, S6 num_trials=11 (DSR deflation meaningful), S7 27 walk-forward windows (OOS by construction -- expanding window with 5-day embargo), S8 per_window data present, S9 all windows have train_end < test_start (no overlap), S10 embargo_days=5 (prevents information leakage), S11 train=12mo/test=3mo expanding window configured, S12 Sharpe cross-check matches. OOS verification: walk-forward expanding-window methodology trains only on historical data; each test period is genuinely held-out. Re-run recipe: `python3 scripts/go_live_drills/dsr_oos_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.1.3 Sharpe stable across 5 random seeds (std < 0.1)
 - [ ] Running the optimizer under 5 different seeds produces Sharpe values with std < 0.1
