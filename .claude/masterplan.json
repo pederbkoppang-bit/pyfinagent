@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship a validated, evidence-based trading signal system by May 2026 that, once live, maximizes profit at the lowest operating cost by dynamically shifting strategy to whichever candidate is currently earning the most.",
-  "updated_at": "2026-04-16T22:29:55.381404+00:00",
+  "updated_at": "2026-04-16T23:06:37.071328+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -164,7 +164,7 @@
         {
           "id": "2.10",
           "name": "Karpathy Autoresearch Integration",
-          "status": "pending",
+          "status": "superseded",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
@@ -175,7 +175,8 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "superseded_by": "phase-8.5"
         },
         {
           "id": "2.11",
@@ -480,6 +481,171 @@
               "cron_job_registered_with_apscheduler",
               "slack_post_on_critical_advisory",
               "no_new_scheduler_process"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-3.7",
+      "name": "MAS Paper Trading & MCP Infrastructure",
+      "status": "pending",
+      "depends_on": [
+        "phase-3.5"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "3.7.0",
+          "name": "MAS comms ADR: MCP (tool) vs A2A (agent) decision doc",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/adr/0002-mas-comms.md && grep -Eq '^Decision: ' docs/adr/0002-mas-comms.md",
+            "success_criteria": [
+              "adr_landed",
+              "orchestrator_shape_chosen",
+              "justification_cites_mcp_spec_and_a2a"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.7.1",
+          "name": "Promote data_server.py to first-class Data MCP",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/mcp_ab_test.py --server data --samples 20 && python -c \"import json; d=json.load(open('handoff/mcp_ab_test_data.json')); assert d['parity_rate'] >= 0.95\"",
+            "success_criteria": [
+              "data_mcp_handshake_ok",
+              "parity_ge_95_vs_python_client"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.7.2",
+          "name": "Promote signals_server.py to Strategy Agent MCP",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/mcp_ab_test.py --server signals --samples 20 && python -c \"import json; d=json.load(open('handoff/mcp_ab_test_signals.json')); assert d['candidates_per_call'] >= 5\"",
+            "success_criteria": [
+              "strategy_mcp_emits_candidates",
+              "dsr_annotated_per_candidate",
+              "ge_5_candidates_per_call"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.7.3",
+          "name": "New risk_server.py Risk Agent MCP (kill_switch + PBO veto)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/mcp_ab_test.py --server risk --samples 20 && python -c \"import json; d=json.load(open('handoff/mcp_ab_test_risk.json')); assert d['veto_rate_pbo_over_0_5'] == 1.0\"",
+            "success_criteria": [
+              "risk_mcp_registered",
+              "veto_on_pbo_gt_0_5",
+              "veto_on_projected_dd_over_cap"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.7.4",
+          "name": "A2A (or AutoGen-style) task-delegation layer with retry/expiry",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/a2a_roundtrip_test.py && python -c \"import json; d=json.load(open('handoff/a2a_roundtrip.json')); assert d['p95_ms'] <= 2000\"",
+            "success_criteria": [
+              "task_handoff_data_to_strategy_to_risk_green",
+              "p95_le_2s",
+              "retry_on_transient_failure"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.7.5",
+          "name": "Alpaca paper execution swap behind feature flag",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/paper_execution_parity.py --days 5 && python -c \"import json; d=json.load(open('handoff/paper_parity.json')); assert d['fill_price_drift_pct'] <= 0.01\"",
+            "success_criteria": [
+              "alpaca_paper_orders_placed",
+              "reconciliation_drift_le_1pct",
+              "feature_flag_rollback_path"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.7.6",
+          "name": "Guardrails: per-MCP output size cap + debounce + supply-chain pin",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "pip-audit --requirement requirements.txt --strict && python scripts/harness/mcp_storm_regression.py",
+            "success_criteria": [
+              "tool_call_storm_regression_passes",
+              "output_size_cap_enforced",
+              "llm_clients_pinned_requirements_txt",
+              "pip_audit_green"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.7.7",
+          "name": "Capability tokens per session + PII filter on MCP input",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/secret_leak_regression.py",
+            "success_criteria": [
+              "capability_tokens_scoped_per_session",
+              "pii_filter_active",
+              "secret_leak_regression_passes"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "3.7.8",
+          "name": "Virtual-fund reality-gap calibration (Alpaca vs BQ sim, 1 wk shadow)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/virtual_fund_parity.py --days 5 && python -c \"import json; d=json.load(open('handoff/virtual_fund_parity.json')); assert d['fill_latency_drift_ms'] <= 200\"",
+            "success_criteria": [
+              "shadow_week_complete",
+              "fill_price_drift_le_1pct",
+              "fill_latency_drift_le_200ms",
+              "partial_fill_modeled_in_sim"
             ]
           },
           "contract": null,
@@ -884,6 +1050,355 @@
               "new row contains phase=4.6 and result field",
               "no uvicorn process bound to 8765 after exit",
               "no stray mcp_server PIDs vs pre-test snapshot"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4.7",
+      "name": "UI/UX Optimization & Frontend Audit",
+      "status": "pending",
+      "depends_on": [
+        "phase-4.6",
+        "phase-3.7"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4.7.0",
+          "name": "Route inventory + 30-day usage telemetry",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f handoff/frontend_usage.json && python -c \"import json; d=json.load(open('handoff/frontend_usage.json')); assert all('opens_30d' in r for r in d['routes'])\"",
+            "success_criteria": [
+              "every_route_has_usage_count",
+              "usage_source_named"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.7.1",
+          "name": "Remove or merge zero-open pages; <= 8 top-level routes",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/audit/route_count.py && python -c \"import json; d=json.load(open('handoff/route_count.json')); assert d['top_level_routes'] <= 8\"",
+            "success_criteria": [
+              "top_level_routes_le_8",
+              "zero_open_pages_removed_or_justified"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.7.2",
+          "name": "Redesign homepage as MAS operator cockpit",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run lighthouse -- --url http://localhost:3000 --output json --output-path handoff/lighthouse_home.json && python -c \"import json; d=json.load(open('frontend/handoff/lighthouse_home.json')); assert d['categories']['performance']['score'] >= 0.9\"",
+            "success_criteria": [
+              "ops_status_bar_present",
+              "kill_switch_shortcut_present",
+              "lighthouse_perf_ge_90",
+              "fmp_le_1_5s"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.7.3",
+          "name": "MAS Monitoring view: per-agent latency, cost, heartbeat",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/audit/mas_ui_events.py --check",
+            "success_criteria": [
+              "events_rendered_1to1_with_mas_events_py",
+              "per_agent_latency_visible",
+              "per_agent_cost_visible"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.7.4",
+          "name": "Autoresearch Run view: candidate leaderboard (DSR/PBO/P&L)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run test -- --filter=AutoresearchLeaderboard",
+            "success_criteria": [
+              "leaderboard_refresh_le_10s",
+              "dsr_column_present",
+              "pbo_column_present",
+              "realized_pnl_if_promoted"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.7.5",
+          "name": "Cross-page consistency pass vs frontend.md + frontend-layout.md",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run lint && npm run build",
+            "success_criteria": [
+              "lint_clean",
+              "ops_status_bar_pattern_applied",
+              "phosphor_icons_only",
+              "no_emoji_in_ui"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.7.6",
+          "name": "WCAG 2.1 AA + keyboard-only kill-switch workflow",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run axe && python scripts/audit/keyboard_flatten.py",
+            "success_criteria": [
+              "wcag_2_1_aa_pass",
+              "keyboard_only_kill_switch_workflow_green"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.7.7",
+          "name": "Virtual-fund learnings dashboard (reconciliation / kill-switch / regime / MFE-MAE)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run test -- --filter=VirtualFundLearnings",
+            "success_criteria": [
+              "learnings_page_landed",
+              "reconciliation_divergences_top10_rendered",
+              "kill_switch_trigger_distribution_rendered",
+              "regime_underperformance_buckets_rendered"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4.8",
+      "name": "Pre-Go-Live Risk & Compliance Hardening",
+      "status": "pending",
+      "depends_on": [
+        "phase-4.7"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4.8.0",
+          "name": "Transaction Cost Analysis (implementation shortfall)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/risk/tca_report.py --week last && python -c \"import json; r=json.load(open('handoff/tca_last_week.json')); assert r['median_bps_liquid'] < 15\"",
+            "success_criteria": [
+              "tca_logged_per_fill",
+              "weekly_report_generated",
+              "alert_fires_above_15bps_liquid"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.1",
+          "name": "Survivorship-bias + point-in-time audit",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/audit/survivorship_audit.py && python -c \"import json; r=json.load(open('handoff/survivorship_audit.json')); assert r['pit_enforced_pct'] == 1.0\"",
+            "success_criteria": [
+              "delisted_at_populated",
+              "pit_kwarg_enforced_100pct",
+              "sharpe_delta_documented"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.2",
+          "name": "Portfolio CVaR + factor-exposure gate",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"from backend.services.portfolio_risk import daily_check; r=daily_check(); assert 'cvar_97_5' in r and 'ff3' in r\"",
+            "success_criteria": [
+              "cvar_daily_computed",
+              "ff3_weekly_computed",
+              "new_positions_blocked_when_cvar_over_2pct",
+              "beta_cap_enforced"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.3",
+          "name": "Fractional-Kelly multi-strategy allocator (30pct cap)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/risk/kelly_allocator.py --dry-run && python -c \"import json; r=json.load(open('handoff/allocator_output.json')); assert max(s['alloc_pct'] for s in r['strategies']) <= 0.30\"",
+            "success_criteria": [
+              "per_strategy_alloc_computed",
+              "single_strategy_cap_30pct",
+              "covariance_based_mixing"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.4",
+          "name": "Drift monitor (PSI + 20-day rolling IC)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"from backend.services.drift_monitor import run; r=run(); assert 'models' in r and all('psi' in m and 'ic_20d' in m for m in r['models'])\"",
+            "success_criteria": [
+              "psi_weekly_logged",
+              "ic_20d_rolling_logged",
+              "auto_freeze_fires_at_thresholds"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.5",
+          "name": "Champion-challenger gradual rollout (5/25/100)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/risk/promotion_gate.py --dry-run && grep -q '\"allocation_pct\"' backend/backtest/experiments/optimizer_best.json",
+            "success_criteria": [
+              "allocation_pct_field_present",
+              "promotion_gate_enforced",
+              "initial_live_allocation_5pct_default"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.6",
+          "name": "Disaster-recovery runbooks + tabletop drills",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "for f in broker_outage data_feed_outage llm_outage; do test -f docs/runbooks/$f.md || exit 1; done && test -f handoff/dr_drill_log.md",
+            "success_criteria": [
+              "three_runbooks_landed",
+              "three_tabletop_drills_logged",
+              "rto_per_scenario_measured"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.7",
+          "name": "Secrets rotation + compromise drill (RTO<15min)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/ops/secrets_rotation_check.py && grep -q 'RTO_MINUTES=' handoff/secrets_drill_log.md",
+            "success_criteria": [
+              "rotation_schedule_configured",
+              "drill_completed",
+              "rto_under_15min"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.8",
+          "name": "Supply-chain hardening (pin + pip-audit cron)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "pip-audit --requirement requirements.txt --strict",
+            "success_criteria": [
+              "llm_clients_pinned",
+              "pip_audit_in_ci",
+              "weekly_pip_audit_cron"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.9",
+          "name": "FINRA GenAI compliance (3-yr WORM rationale)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/compliance/finra_rationale_audit.py --sample 10 && python -c \"import json; r=json.load(open('handoff/finra_audit.json')); assert r['sample_retrieval_success_rate'] == 1.0\"",
+            "success_criteria": [
+              "rationale_queryable_by_trade_id",
+              "worm_retention_3y",
+              "hitl_approvals_logged"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.8.10",
+          "name": "2026 regulatory memo + wash-sale filter",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/compliance/2026-regulatory-memo.md && python scripts/compliance/wash_sale_filter.py --test",
+            "success_criteria": [
+              "memo_landed",
+              "wash_sale_filter_active",
+              "t1_funding_guard_active",
+              "realtime_margin_handler_active"
             ]
           },
           "contract": null,
@@ -1401,6 +1916,210 @@
       ]
     },
     {
+      "id": "phase-8.5",
+      "name": "Autonomous Strategy Research (Karpathy loop)",
+      "status": "pending",
+      "depends_on": [
+        "phase-3.7",
+        "phase-4.7",
+        "phase-6",
+        "phase-7",
+        "phase-8",
+        "phase-9"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "8.5.0",
+          "name": "Retire phase-2 step 2.10 stub with a decision log linking here",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f handoff/phase-2.10-supersede.md",
+            "success_criteria": [
+              "supersede_log_landed",
+              "2_10_status_marked_superseded_in_masterplan"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.1",
+          "name": "Define candidate space (params, prompts, features, model archs)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f backend/autoresearch/candidate_space.yaml && python -c \"import yaml; d=yaml.safe_load(open('backend/autoresearch/candidate_space.yaml')); assert d['estimated_combinations'] >= 10000\"",
+            "success_criteria": [
+              "candidate_space_committed",
+              "ge_1e4_combinations",
+              "includes_transformer_signals_from_phase_8"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.2",
+          "name": "Wall-clock + USD budget enforcer",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/autoresearch_budget_test.py",
+            "success_criteria": [
+              "wallclock_budget_termination_deterministic",
+              "usd_budget_termination_deterministic",
+              "budget_exceeded_alerts_to_slack"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.3",
+          "name": "LLM proposer with narrow-surface diff discipline",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/autoresearch_proposer_test.py",
+            "success_criteria": [
+              "proposer_emits_valid_diff_per_cycle",
+              "diff_touches_only_whitelisted_files",
+              "reads_results_tsv_and_gitlog"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.4",
+          "name": "Evaluator: backtest on frozen OOS + multi-metric results.tsv",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f backend/autoresearch/results.tsv && head -1 backend/autoresearch/results.tsv | grep -q 'sharpe.*dsr.*pbo.*max_dd.*profit_factor.*cost.*realized_pnl'",
+            "success_criteria": [
+              "results_tsv_schema_stable",
+              "one_row_per_cycle",
+              "all_required_columns_present"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.5",
+          "name": "DSR + PBO blocking gate (CPCV)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/autoresearch_gate_test.py",
+            "success_criteria": [
+              "dsr_gt_0_95_required",
+              "pbo_lt_0_2_required",
+              "cpcv_applied",
+              "rejection_and_revert_regression_passes"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.6",
+          "name": "Promotion path to paper-live via Alpaca MCP (5-day shadow)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/autoresearch_promotion_test.py",
+            "success_criteria": [
+              "shadow_5_trading_days_minimum",
+              "position_size_tied_to_realized_dsr",
+              "kill_switch_auto_triggers_on_dd_breach"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.7",
+          "name": "Overnight orchestration cron (~100 experiments/night)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/autoresearch_cron_test.py",
+            "success_criteria": [
+              "cron_registered",
+              "ge_80_experiments_per_night_within_budget",
+              "results_visible_in_phase_4_7_view"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.8",
+          "name": "Weekly HITL review packet + no-auto-capital-promotion rule",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/autoresearch_weekly_packet.py --dry-run",
+            "success_criteria": [
+              "weekly_slack_post_rendered",
+              "peder_approval_required_for_capital_promotion",
+              "top_10_candidates_ranked"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.9",
+          "name": "Seed candidate space from virtual-fund failure cases",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f handoff/virtual_fund_postmortem.md && python scripts/harness/autoresearch_seed_from_postmortem.py --dry-run",
+            "success_criteria": [
+              "postmortem_parsed",
+              "seeds_target_known_failure_buckets_first",
+              "novel_search_secondary"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "8.5.10",
+          "name": "Meta-search DSR calibration (cumulative N across all trials)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/autoresearch_meta_dsr_test.py",
+            "success_criteria": [
+              "every_trial_logged_including_abandoned",
+              "dsr_recomputed_at_cumulative_N",
+              "dsr_gt_0_99_required_when_N_gt_50",
+              "cpcv_applied_on_promoted_only"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
       "id": "phase-9",
       "name": "Data Refresh & Retraining Cron",
       "status": "pending",
@@ -1520,13 +2239,17 @@
         "phase-2",
         "phase-3",
         "phase-3.5",
+        "phase-3.7",
         "phase-4.5",
         "phase-4.6",
+        "phase-4.7",
+        "phase-4.8",
         "phase-5",
         "phase-5.5",
         "phase-6",
         "phase-7",
         "phase-8",
+        "phase-8.5",
         "phase-9"
       ],
       "gate": {
