@@ -7,6 +7,8 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `7d5aba1` | fix: changelog hook now auto-appends bullet points under version header |
+| 2026-04-16 | `bb893f4` | chore: add v6.4.3 summary bullets for tonight's workstreams |
 | 2026-04-16 | `388fc43` | W1: feature ablation runner with walk-forward LOO testing |
 | 2026-04-16 | `ab0bccdb` | chore: changelog auto-update for be7ff0fe |
 | 2026-04-16 | `be7ff0fe` | log: session 2026-04-15-2230 + harness_log Cycle 11 (Phase 4.4.4.3 drill) |
@@ -25,13 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-15 | `725eb90` | chore: masterplan.json status sync for shipped phases 2.14, 4.1, 4.3 |
 | 2026-04-15 | `09f3ea1` | chore: masterplan.json status sync for shipped phases 2.14, 4.1, 4.3 |
 | 2026-04-15 | `7c9c51a` | Phase 4.2.4 LOG: session log + harness_log Cycle 4 + QA critique |
-| 2026-04-15 | `44f4a40` | gitignore .claude/worktrees/ (transient qa-evaluator subagent isolation) |
-| 2026-04-15 | `9c42646` | Phase 4.2.3.3 LOG: SN-audit ASCII hardening cycle close-out |
 
 ---
 
 ### v6.4.3 — Continuous Autonomous Agent + Feature Ablation + Cost Tiering (2026-04-16)
 
+- **changelog hook now auto-appends bullet points under version header**
 1. **Handoff archive hook** — `.claude/hooks/archive-handoff.sh` auto-moves `handoff/current/*` into `handoff/archive/phase-<id>/` when a masterplan step flips to done
 2. **Paper trading audit** — discovered scheduler already live since 2026-03-20 (NAV -5.0%, zero trades); flagged `decide_trades` zero-orders bug for continuous harness
 3. **MAS harness LaunchAgent** — `com.pyfinagent.mas-harness` fires every 30 min, autonomously picks Go-Live checklist items (Phase 4.4.3.5 landed in first cycle)
