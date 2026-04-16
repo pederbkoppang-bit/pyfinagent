@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `6d70b06` | Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout |
 | 2026-04-16 | `95cc076` | Merge pull request #6 from pederbkoppang-bit/add-claude-github-actions-1776357343140 |
 | 2026-04-16 | `0cad1d6` | chore: harness log entry for Cycle 28 (Phase 4.4.5.5 PASS) |
 | 2026-04-16 | `f5aa70f` | Phase 4.4.5.5: Trading guide for Peder with 39-check verification drill |
@@ -26,12 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `be7ff0fe` | log: session 2026-04-15-2230 + harness_log Cycle 11 (Phase 4.4.4.3 drill) |
 | 2026-04-16 | `4a8951f` | Cycle 12 harness log entry for Phase 4.4.3.5 |
 | 2026-04-16 | `ba399ee` | Phase 4.4.3.5: incident log P0 verification drill + evidence |
-| 2026-04-16 | `7a791d5` | MAS harness infrastructure: archive hook + cycle wrapper + audit |
 
 ---
 
 ### v6.5.0 — Phase 4.5: Paper Trading Dashboard v2 (Evaluation-Grade) + MAS/Harness Protocol Hardening (2026-04-16)
 
+- **Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout**
 **Shipped the full 11-substep Phase 4.5 under a RESEARCH → PLAN → GENERATE → EVALUATE (harness-verifier + qa-evaluator) → LOG protocol. Mid-phase, audited and corrected the MAS/harness setup per Anthropic 2024-2026 research + SAVeR/SEVerA/VeriPlan 2025-2026 papers.**
 
 #### Evaluation-grade metrics
