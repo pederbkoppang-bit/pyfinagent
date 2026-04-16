@@ -151,3 +151,13 @@ if len(table_rows) > max_rows:
 with open(changelog_path, "w", encoding="utf-8") as f:
     f.writelines(lines)
 PYEOF
+
+# Auto-commit the changelog update so it's included in the next push.
+# The "chore: auto-changelog" prefix is in the skip-list above (line 18)
+# so this commit will NOT re-trigger the hook (no infinite loop).
+if git diff --quiet "$CHANGELOG" 2>/dev/null; then
+    # No changes (duplicate detected or nothing to write)
+    exit 0
+fi
+git add "$CHANGELOG" 2>/dev/null || exit 0
+git commit -m "chore: auto-changelog hook entry for ${HASH}" 2>/dev/null || exit 0
