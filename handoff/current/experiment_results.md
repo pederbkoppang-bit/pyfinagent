@@ -1,49 +1,38 @@
-# Experiment Results -- Phase 4.4.1.3 Seed Stability
+# Experiment Results -- Phase 4.4.5.5 Trading Guide
 
 **Date:** 2026-04-16
-**Cycle:** 20
-**Duration:** ~103 min (5 seeds x ~20 min each)
+**Cycle:** 28 (continuation of Go-Live Checklist evidence series)
+**Branch:** `claude/awesome-euler-J0Wc2`
 
-## Results
+## Deliverable
 
-| Seed | Sharpe | DSR  | Return % | MaxDD %  | Trades | Hit Rate |
-|------|--------|------|----------|----------|--------|----------|
-| 42   | 0.5867 | 1.00 | 46.28    | -12.40   | 680    | 55.63%   |
-| 123  | 0.5756 | 1.00 | 45.65    | -12.40   | 680    | 55.56%   |
-| 456  | 0.5861 | 1.00 | 46.27    | -12.40   | 680    | 55.26%   |
-| 789  | 0.6044 | 1.00 | 47.51    | -12.40   | 680    | 55.41%   |
-| 2026 | 0.5917 | 1.00 | 46.59    | -12.40   | 680    | 55.48%   |
+`docs/TRADING_GUIDE.md` -- 259 lines, pure Markdown, ASCII-only, no emojis.
 
-## Aggregate Statistics
+## Contents
 
-- **Mean Sharpe:** 0.5889
-- **Std Sharpe:** 0.0094
-- **Min Sharpe:** 0.5756 (seed 123)
-- **Max Sharpe:** 0.6044 (seed 789)
-- **Range:** 0.0288
+11 sections covering:
+1. What pyfinAgent is (and is not)
+2. Signal anatomy (every Slack field explained)
+3. Confidence thresholds (ranges, interpretation, sizing link)
+4. Position sizing (3-arm hybrid: hard cap, half-Kelly, inverse-vol)
+5. Stop-loss execution (inclusive boundary, precedence over re-eval)
+6. Risk limits (4 hardcoded limits with values)
+7. When to override Ford (concrete skip/escalate scenarios)
+8. Daily workflow (step-by-step morning/during/evening/weekly)
+9. Key numbers to remember (parameter table)
+10. Important references (rollback plan, checklist, Slack channels)
+11. Disclaimer
++ Appendix: System architecture overview
 
-## Criteria Assessment
+## Accuracy Verification
 
-| Criterion | Threshold | Actual | Result |
-|-----------|-----------|--------|--------|
-| Std < 0.1 | 0.1 | 0.0094 | PASS |
-| All seeds > 0.9 | 0.9 | min=0.5756 | FAIL |
-| Range < 0.3 (sanity) | 0.3 | 0.0288 | PASS |
+All cited parameters verified against source:
+- tp_pct=10.0, sl_pct=12.92, holding_days=90 (optimizer_best.json)
+- per-ticker=10%, total=100%, drawdown=-15%, daily_trades=5 (get_risk_constraints)
+- Stop-loss: current_price <= stop_loss_price (portfolio_manager.py:80)
+- Sizing: min(hard_cap, half_kelly, inverse_vol) (signals_server.py:928)
+- Sell-first-then-buy order (portfolio_manager.py convention)
 
-## Drill Test: 11/14 PASS
+## Lead-self Verification
 
-Failed checks: S5 (mean Sharpe < 0.9), S7 (not all seeds > 0.9), S12 (verdict != PASS)
-
-## Verdict: FAIL
-
-**The strategy IS seed-stable** (std=0.0094, range=0.029, identical trade counts across all seeds), but all Sharpe values are well below the 0.9 floor. The absolute Sharpe has degraded from the optimizer's best (1.1705, recorded 2025-03-28) to ~0.59 across all seeds.
-
-## Root Cause Analysis
-
-The Sharpe degradation is NOT caused by seed sensitivity. All 5 seeds produce nearly identical results (680 trades each, MaxDD identical to 4 decimal places). The degradation is likely caused by:
-
-1. **Data drift**: BigQuery price/fundamental data has been updated since the March 28 optimizer run, changing the feature landscape
-2. **Market regime shift**: The walk-forward windows now extend into different market conditions
-3. **The strategy needs re-optimization** with current data before the 0.9 floor can be met
-
-The checklist item 4.4.1.3 cannot be flipped until the strategy is re-optimized to produce Sharpe > 0.9 on current data.
+23/23 SCs + 8/8 ADVs checked via pre-baked Python block before commit.

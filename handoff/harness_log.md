@@ -617,3 +617,15 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Phase progress:** 4.4.6 Final Sign-Off: 1/4 checked (4.4.6.4). Remaining: 4.4.6.1 (Peder-gated), 4.4.6.2 (Peder-gated), 4.4.6.3 (joint launch-week).
 **Reliability note:** Drill initially failed S16 (1/17) due to `_scheduler` being declared as `AnnAssign` (type-annotated) rather than plain `Assign` in the AST. Fixed the drill to handle both `ast.Assign` and `ast.AnnAssign`, re-ran 17/17 PASS.
 **Session log:** MAS harness cycle, no separate session file.
+
+---
+
+## Cycle 28 -- 2026-04-16 ~13:00 UTC -- Phase 4.4.5.5 Trading Guide
+
+**Planner hypothesis:** Land checklist item 4.4.5.5 (trading guide for Peder) -- write `docs/TRADING_GUIDE.md` covering signal anatomy, confidence thresholds, position sizing, stop-loss execution, risk limits, when to override Ford, and daily workflow. Pure-doc cycle, no code changes. Research gate satisfied by internal codebase reads (no web research needed -- all facts sourced from existing code).
+**Generator:** +259 / -0 lines (1 new file: `docs/TRADING_GUIDE.md`), single commit `d8289a7` on branch `claude/awesome-euler-J0Wc2`. 11 sections + appendix. ASCII-only, no emojis, no code blocks in main body. All cited parameters verified against optimizer_best.json, portfolio_manager.py, signals_server.py, and settings.py.
+**Evaluator verdict:** Pending QA (qa-evaluator subagent spawned, Opus, isolated worktree, 23 SCs + 8 ADVs).
+**Decision:** Pending QA verdict.
+**Phase progress:** 4.4.5 Human Process: 0/5 checked (4.4.5.5 stays [ ] until Peder's Slack acknowledgement per HOW recipe). Artifact ready for review.
+**Checklist note:** Unlike drill cycles, this item requires Peder to read the guide end-to-end and post a Slack acknowledgement in #ford-approvals before the checkbox flips. Ford's deliverable is the guide itself.
+**Session log:** `.claude/context/sessions/2026-04-16-XXXX.md` (pending, will be written after QA completes).
