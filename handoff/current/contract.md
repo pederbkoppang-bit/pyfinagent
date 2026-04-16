@@ -1,20 +1,33 @@
-# Contract -- Phase 4.4.1.1 Evaluator Criteria Passing
+# Contract -- Zero-Orders Bug Fix (Paper Trading)
 
-**Cycle:** 17
+**Cycle:** 18
 **Date:** 2026-04-16
-**Item:** 4.4.1.1
+**Item:** Paper trading zero-orders bug (unblocks Phase 4.4.2)
 
-## Target
-Verify that the best backtest result scores >= 6/10 on all 4 evaluator axes: statistical validity, robustness, simplicity, reality gap.
+## Problem Statement
+
+Paper trading has been live for 27 days with zero trades executed. `decide_trades` returns empty list every cycle. Root cause: recommendation normalization mismatch between the Gemini synthesis schema (uses "Strong Buy" / "Strong Sell" with spaces) and the `_BUY_RECS` / `_SELL_RECS` lookup sets (use "STRONG_BUY" / "STRONG_SELL" with underscores). Additionally, Claude analysis fails due to missing ANTHROPIC_API_KEY, and the model ID was outdated.
 
 ## Success Criteria
-1. Drill loads best result file and extracts all required analytics
-2. Statistical validity score >= 6/10 (DSR > 0.95, Sharpe in 1.0-2.0, dsr_significant=True, n_trades > 30)
-3. Robustness score >= 6/10 (27 walk-forward windows, max concentration < 30%, multi-regime 2018-2025)
-4. Simplicity score >= 6/10 (ML-appropriate: shallow trees, few tuned params, interpretable features)
-5. Reality gap score >= 6/10 (walk-forward OOS, cost modeling present, reasonable metrics)
-6. Drill exits 0 with JSON verdict, all 4 axes >= 6
-7. Checklist item 4.4.1.1 flipped to [x] with evidence line
 
-## Approach
-Deterministic evaluator drill applying the rubric from evaluator_agent.py (lines 189-245) against the best result (52eb3ffe-exp10.json, Sharpe 1.1705). Deterministic proxy is stronger evidence than probabilistic LLM verdict. Research gate WAIVED per pure-analysis precedent.
+### A. Normalization fix (SC1-6)
+- SC1: `_normalize_rec` helper exists in `portfolio_manager.py`
+- SC2: `_normalize_rec("Strong Buy")` == `"STRONG_BUY"`
+- SC3: `_normalize_rec("Strong Sell")` == `"STRONG_SELL"`
+- SC4: `_normalize_rec("BUY")` == `"BUY"` (Claude path unchanged)
+- SC5: All 3 call sites in `decide_trades` use `_normalize_rec` (sell rec, sell old_rec, buy rec)
+- SC6: No raw `.upper()` calls on recommendation strings remain in `decide_trades`
+
+### B. Diagnostic logging (SC7-8)
+- SC7: Zero-orders case emits a `logger.warning` with candidate count, rec distribution, cash, NAV
+- SC8: ASCII-only log message (no Unicode)
+
+### C. Model update (SC9-10)
+- SC9: `autonomous_loop.py` uses `claude-sonnet-4-6` (not `claude-sonnet-4-20250514`)
+- SC10: No other changes to `autonomous_loop.py` beyond model string
+
+### D. Scope discipline (SC11-14)
+- SC11: Exactly 2 `.py` files modified
+- SC12: `ast.parse` clean on both files
+- SC13: Zero new imports in either file
+- SC14: `TradeOrder` dataclass unchanged

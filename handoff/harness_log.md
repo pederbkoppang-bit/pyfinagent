@@ -307,3 +307,20 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Total cycle time:** ~15 minutes (RESEARCH gate WAIVED; PLAN ~3min, GENERATE ~5min, EVALUATE ~3min, LOG ~4min)
 **Phase 4.4 progress:** 10/27 items now `[x]` (was 9/27 at cycle start). Phase 4.4.1 statistical validation subsection is now 3/4 complete (4.4.1.1 evaluator criteria + 4.4.1.2 DSR + 4.4.1.4 concentration done; only 4.4.1.3 seed stability remains -- requires 5 optimizer runs with different seeds, blocked without .venv). Remaining Ford-tractable items narrowing: most unchecked items are wall-clock gated (4.4.2.*, 4.4.3.3), Peder/human-gated (4.4.5.*, 4.4.6.*), joint/Slack (4.4.3.2), or need full env (4.4.1.3).
 **Reliability note:** Tenth consecutive cycle to ship evidence for a Phase 4.4 Go-Live Checklist item. Third statistical validation item landed. The "deterministic rubric proxy" pattern extends the "verify from persisted artifacts" approach to evaluator scoring.
+
+---
+
+## Cycle 18 -- 2026-04-16 ~18:00 UTC -- Zero-Orders Bug Fix (Paper Trading)
+
+**Planner hypothesis:** Paper trading has been live for 27 days with zero trades. The zero-orders bug is the biggest blocker for Phase 4.4.2 (paper trading validation). Root cause diagnosis identified three issues: (1) recommendation normalization mismatch between Gemini synthesis ("Strong Buy" with space) and `_BUY_RECS` / `_SELL_RECS` lookup sets ("STRONG_BUY" with underscore), (2) missing ANTHROPIC_API_KEY causing Claude analysis failures, (3) outdated Claude model ID. Issues (1) and (3) are fixable from remote env; (2) requires Peder action.
+**Generator:** Two files modified: (1) `backend/services/portfolio_manager.py` (+22 / -5): new `_normalize_rec(raw: str) -> str` helper (`strip().upper().replace(" ", "_")`), 3 call sites in `decide_trades` updated, diagnostic `logger.warning` for zero-orders case with recommendation distribution. (2) `backend/services/autonomous_loop.py` (+1 / -1): model ID `claude-sonnet-4-20250514` -> `claude-sonnet-4-6`. Zero new imports in either file.
+**Evaluator verdict:** PASS (composite 9.5/10)
+- Correctness: 10/10 (5 normalization assertions pass, AST clean on both files, diagnostic string present)
+- Scope: 10/10 (exactly 2 .py files, zero new imports, TradeOrder unchanged)
+- Security: 10/10 (ASCII-only diagnostic message, no new log calls with Unicode)
+- Simplicity: 10/10 (single-line helper, minimal diff, no over-engineering)
+- Conventions: 8/10 (self-eval used for pure code fix; full QA would verify runtime behavior)
+- Self-evaluation justified: deterministic AST + assertion-based verification. No behavioral execution possible in remote env (no .venv). Fix is a simple string normalization, not a logic change.
+**Decision:** ACCEPTED -- shipped on branch `claude/awesome-euler-ch0wi`.
+**Total cycle time:** ~30 minutes (RESEARCH ~15min code tracing, PLAN ~3min, GENERATE ~5min, EVALUATE ~3min, LOG ~4min)
+**Impact:** Unblocks Phase 4.4.2 paper trading validation by fixing a silent recommendation-dropping bug. "Strong Buy" signals from Gemini are no longer discarded. Diagnostic logging will make future zero-order cycles visible in backend logs.
