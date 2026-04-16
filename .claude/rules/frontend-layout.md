@@ -170,6 +170,44 @@ Header with action buttons:
 
 ---
 
+## 4.5. Uneven-content rows (bento / sidebar pattern)
+
+When a row has widgets of **very different natural heights** (e.g. a tall checklist next to a two-button banner), an equal-height CSS grid row stretches the short widgets to match the tallest, leaving dead whitespace under them. This violates Few 2006's single-screen density principle and fails the Tufte data-ink test.
+
+**Rule: never mix short + tall widgets in an equal-height grid row.**
+
+### Allowed patterns, in order of preference
+
+1. **Bento / sidebar** — one tall widget on one side, a flex-column stack of short widgets on the other. Pull in additional content (e.g. a KPI hero) so both columns meaningfully fill their height.
+
+   ```tsx
+   <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+     <TallWidget />
+     <div className="flex flex-col gap-3">
+       <ShortWidget />
+       <ShortWidget />
+       <ShortWidget />
+       <KpiHero /> {/* pull in to balance column heights */}
+     </div>
+   </div>
+   ```
+
+2. **`items-start` + accept asymmetry** — keep the 3-col grid but collapse short cards to their natural height. Accept visible asymmetry under the short cards rather than stretch them. Only use this when the short cards genuinely have nothing more to show.
+
+3. **Row separation** — put the tall widget in its own row above or below the short widgets. Grafana's canonical pattern: status/stat strip in one row (short), chart/detail strip in another (tall). Rows don't share height.
+
+### Forbidden
+
+- `grid-cols-3` (or any equal-height grid) mixing a widget of ~100px content with a widget of ~400px content. This is the documented "canonical CSS-grid dead-space anti-pattern" (Every Layout; DEV CSS Grid Lanes 2026).
+- `h-full` / `flex-1` on short widgets just to fill dead space — makes the gap structural and worsens density.
+- Native `grid-template-rows: masonry` — not production-safe in 2026 (only Safari 26 supports it). Use `items-start` or bento instead.
+
+### Peer references
+
+QuantConnect Cloud ([live trading results](https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/results)) uses free-form drag-and-drop; never co-locates short + tall in equal-height rows. FreqUI 2.0.7 ties column count to pane width, not viewport. Grafana 12 ([dynamic dashboards](https://grafana.com/blog/2025/05/07/dynamic-dashboards-grafana-12/)) separates stat rows from chart rows. Robinhood Legend ([widgets](https://robinhood.com/us/en/support/articles/widgets-in-robinhood-legend/)) lets users resize; no enforced equal heights. Tailwind Bento ([UI blocks](https://tailwindcss.com/plus/ui-blocks/marketing/sections/bento-grids)) + Every Layout Sidebar primitive ([every-layout.dev](https://every-layout.dev/)) are the canonical Tailwind codifications of the pattern.
+
+---
+
 ## 5. Tab Bar
 
 ### Pill-style tabs (standard) — inside fixed header zone
@@ -355,6 +393,7 @@ These are non-negotiable design constraints, not suggestions. Cite the source wh
 | Consistent micro-interactions | Material Design 3, Apple HIG | Same scrollbar, same hover states, same transitions everywhere |
 | No emoji in UI | PyFinAgent convention | Use Phosphor icons (`@phosphor-icons/react`) exclusively |
 | Fixed navigation elements | OpenClaw pattern | Sidebar, page header, and tab bar never scroll off-screen |
+| No equal-height rows mixing short+tall widgets | Every Layout, Tailwind Bento, QuantConnect / FreqUI / Grafana 12 / Robinhood Legend | Use §4.5 bento pattern or `items-start`; never force a short card to stretch to a tall neighbor's height |
 
 ---
 

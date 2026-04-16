@@ -92,7 +92,7 @@ function SummaryHero({
   const pnl = status?.portfolio.pnl_pct ?? 0;
   const bench = status?.portfolio.benchmark_return_pct ?? 0;
   return (
-    <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <MetricCard label="NAV"><Dollar value={status?.portfolio.nav} /></MetricCard>
       <MetricCard label="Cash"><Dollar value={status?.portfolio.cash} /></MetricCard>
       <MetricCard label="Total P&L"><PnlBadge value={status?.portfolio.pnl_pct} /></MetricCard>
@@ -595,9 +595,10 @@ export default function PaperTradingPage() {
             </div>
           ) : (
             <>
-              {/* Ops-strip bento: Go-Live Gate (tall) on the left, two
-                  short widgets stacked on the right. items-start so short
-                  widgets don't stretch to fill the tall column's height. */}
+              {/* Bento ops-strip: Go-Live Gate (tall) on the left; right
+                  column stacks Kill Switch + Cycle Health + Scheduler +
+                  the KPI hero so both columns meaningfully fill their
+                  height. items-start prevents equal-height stretching. */}
               <div className="mb-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
                 <GoLiveGateWidget
                   gate={gate}
@@ -609,11 +610,9 @@ export default function PaperTradingPage() {
                   <KillSwitchPanel />
                   <CycleHealthStrip />
                   <SchedulerDetails status={status} perf={perf} isActive={isActive} />
+                  <SummaryHero status={status} perf={perf} />
                 </div>
               </div>
-
-              {/* Tier 4: Global KPI hero (portfolio-level metrics, always visible) */}
-              <SummaryHero status={status} perf={perf} />
 
               {/* Tier 6: Tab content */}
               {tab === "positions" && (
