@@ -1,49 +1,32 @@
-# Experiment Results -- Phase 4.4.1.3 Seed Stability
+# Experiment Results -- Phase 4.4.5.5 Trading Guide
 
 **Date:** 2026-04-16
-**Cycle:** 20
-**Duration:** ~103 min (5 seeds x ~20 min each)
+**Cycle:** 27
+**Branch:** claude/awesome-euler-K0ae7
 
-## Results
+## Deliverable
 
-| Seed | Sharpe | DSR  | Return % | MaxDD %  | Trades | Hit Rate |
-|------|--------|------|----------|----------|--------|----------|
-| 42   | 0.5867 | 1.00 | 46.28    | -12.40   | 680    | 55.63%   |
-| 123  | 0.5756 | 1.00 | 45.65    | -12.40   | 680    | 55.56%   |
-| 456  | 0.5861 | 1.00 | 46.27    | -12.40   | 680    | 55.26%   |
-| 789  | 0.6044 | 1.00 | 47.51    | -12.40   | 680    | 55.41%   |
-| 2026 | 0.5917 | 1.00 | 46.59    | -12.40   | 680    | 55.48%   |
+`docs/TRADING_GUIDE.md` -- 386 lines, 9 top-level sections, 100% ASCII.
 
-## Aggregate Statistics
+## Sections
 
-- **Mean Sharpe:** 0.5889
-- **Std Sharpe:** 0.0094
-- **Min Sharpe:** 0.5756 (seed 123)
-- **Max Sharpe:** 0.6044 (seed 789)
-- **Range:** 0.0288
+1. **Signal Anatomy** -- 6 core fields (ticker, signal, confidence, date, factors, reason), Slack Block Kit display format, signal_id deduplication, three signal types.
+2. **Confidence Interpretation** -- continuous 0.0-1.0 scale, interpretation ranges (0.80-1.00 high, 0.60-0.79 moderate, 0.40-0.59 low, 0.00-0.39 very low), recommendation mapping (BUY/STRONG_BUY, SELL/STRONG_SELL, HOLD).
+3. **Position Sizing** -- hybrid min(hard_cap, half_kelly, inverse_vol) formula, hard cap (5% equity / $1,000), half-Kelly (0.5 * confidence * equity), inverse-vol, portfolio-level risk constraints table.
+4. **Stop-Loss and Drawdown Protection** -- fixed stop 8% below entry (O'Neil CAN SLIM), trailing stop 3% below peak (Chandelier-lite), drawdown tiers (ok/-5%/-10%/-15% kill), stop precedence over BUY re-eval.
+5. **Daily Signal Flow** -- 9-step pipeline (screen, rank, analyze, re-eval, decide, risk check, execute, notify, track), Peder's action steps.
+6. **When to Override Ford** -- earnings day, corporate events, market stress, low confidence, non-public info, always honor stop-losses, rollback trigger (Sharpe < 0.5 / 14 days), decision framework.
+7. **Key Numbers Reference** -- all hardcoded limits in one table.
+8. **Glossary** -- 8 key terms defined.
+9. **Important Reminders** -- 5 cardinal rules.
 
-## Criteria Assessment
+## Checklist Update
 
-| Criterion | Threshold | Actual | Result |
-|-----------|-----------|--------|--------|
-| Std < 0.1 | 0.1 | 0.0094 | PASS |
-| All seeds > 0.9 | 0.9 | min=0.5756 | FAIL |
-| Range < 0.3 (sanity) | 0.3 | 0.0288 | PASS |
+`docs/GO_LIVE_CHECKLIST.md` item 4.4.5.5 flipped `[ ]` -> `[x]` with evidence line.
 
-## Drill Test: 11/14 PASS
+## Verification
 
-Failed checks: S5 (mean Sharpe < 0.9), S7 (not all seeds > 0.9), S12 (verdict != PASS)
-
-## Verdict: FAIL
-
-**The strategy IS seed-stable** (std=0.0094, range=0.029, identical trade counts across all seeds), but all Sharpe values are well below the 0.9 floor. The absolute Sharpe has degraded from the optimizer's best (1.1705, recorded 2025-03-28) to ~0.59 across all seeds.
-
-## Root Cause Analysis
-
-The Sharpe degradation is NOT caused by seed sensitivity. All 5 seeds produce nearly identical results (680 trades each, MaxDD identical to 4 decimal places). The degradation is likely caused by:
-
-1. **Data drift**: BigQuery price/fundamental data has been updated since the March 28 optimizer run, changing the feature landscape
-2. **Market regime shift**: The walk-forward windows now extend into different market conditions
-3. **The strategy needs re-optimization** with current data before the 0.9 floor can be met
-
-The checklist item 4.4.1.3 cannot be flipped until the strategy is re-optimized to produce Sharpe > 0.9 on current data.
+- Lead self-verification: 34/34 SC PASS (3 Python assertion blocks)
+- QA evaluator: 41/41 automated checks PASS, manual review PASS, scores 10/10/10/10/10
+- No `.py` files touched. No `backend/` files touched.
+- All sibling docs byte-identical.

@@ -507,3 +507,19 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 **Decision:** ACCEPTED -- shipped on origin/main as `23729e6` + auto-changelog.
 **Phase 4.4 progress:** 11/27 items now `[x]`. Remaining unchecked: 4.4.2.1-5 (paper trading, wall-clock), 4.4.3.3 (uptime, wall-clock), 4.4.5.1-5 (human process), 4.4.6.1-4 (final sign-off, Peder-gated). All remaining items are gated by wall-clock, human review, or Peder approval -- no further Ford-tractable items exist.
 **Reliability note:** Python 3.9 compatibility issue caught and resolved in-cycle (dict | None union syntax). Rewrote from runtime import to pure AST analysis, which is actually more robust (no dependency on production code's import chain).
+
+---
+
+## Cycle 27 -- 2026-04-16 ~10:30 UTC -- Phase 4.4.5.5 Trading guide for Peder
+
+**Planner hypothesis:** Phase 4.4.5.5 ("Documentation: How to trade pyfinAgent signals guide for Peder") is the next tractable Go-Live Checklist item. WHO is "joint (Ford writes, Peder reviews)" -- Ford's job to draft. All remaining Ford-tractable items are either doc work (4.4.5.2, 4.4.5.5) or Peder-gated. This item unblocks the 4.4.5 Human Process section toward closure.
+**Generator:** +475 / -28 lines across 3 files (1 new, 2 modified), commit `c5fc81b` on `claude/awesome-euler-K0ae7`. New `docs/TRADING_GUIDE.md` (386 lines, 9 sections). Research phase: full read of signals_server.py (publish_signal, size_position, risk_check, check_stop_loss, track_drawdown, get_risk_constraints), portfolio_manager.py (decide_trades, stop-loss), paper_trader.py (execute_buy/sell), autonomous_loop.py (daily cycle), formatters.py (format_signal_alert). All thresholds verified against codebase literals.
+**Evaluator verdict:** PASS (composite 10.0/10)
+- Correctness: 10/10 (34/34 contract SCs + 10/10 adversarial probes via dedicated qa-evaluator)
+- Scope: 10/10 (2 doc files + 1 contract, zero .py, zero backend/)
+- Security rule: 10/10 (100% ASCII, no imports, no code modification instructions)
+- Simplicity: 10/10 (human-readable operational guide, no executable code)
+- Conventions: 10/10 (matches GO_LIVE_CHECKLIST evidence pattern, covers all 5 required topics per 4.4.5.5 HOW recipe)
+**Decision:** ACCEPTED -- shipped on `claude/awesome-euler-K0ae7` as `c5fc81b`.
+**Phase 4.4 progress:** 13/27 items now `[x]` (12 on main + this 1 on feature branch pending merge). Remaining: 4.4.2.1-5 (paper trading, wall-clock), 4.4.3.3 (uptime, wall-clock), 4.4.5.1-4 (human process, joint/Peder), 4.4.6.1-4 (final sign-off, Peder-gated).
+**Note:** This is the first cycle shipped to a feature branch (`claude/awesome-euler-K0ae7`) instead of main, per CCR system instructions for this session.
