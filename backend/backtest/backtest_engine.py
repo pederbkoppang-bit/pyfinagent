@@ -223,6 +223,14 @@ class BacktestEngine:
 
         self.progress_callback = progress_callback
         self.stop_check: Callable[[], bool] | None = None
+
+        # Ablation mask: a set of feature names to zero out in both the
+        # training and prediction feature matrices. Empty set (default) is
+        # a no-op. Used by scripts/ablation/run_ablation.py to measure the
+        # Sharpe delta from removing a feature (leave-one-out). Applied in
+        # _build_training_data and _run_window at the point where X is
+        # materialized so the model never sees the masked values.
+        self._ablation_mask: set[str] = set()
         self._backtest_start_time: float = 0.0
         self._total_windows: int = 0
         self._current_window_id: int = 0
@@ -602,6 +610,14 @@ class BacktestEngine:
         feature_cols = [c for c in _NUMERIC_FEATURES if c in df.columns]
         X = df[feature_cols].copy()
 
+        # Ablation mask: zero out any feature requested by an ablation
+        # run so the model trains as if the feature were uninformative
+        # rather than missing. No-op when mask is empty (default).
+        if self._ablation_mask:
+            for col in self._ablation_mask:
+                if col in X.columns:
+                    X[col] = 0.0
+
         # Apply fractional differentiation to non-stationary features
         for col in feature_cols:
             if col in _NON_STATIONARY and col in X.columns:
@@ -769,6 +785,12 @@ class BacktestEngine:
 
                 # Build feature row
                 row = {f: fv.get(f, 0) for f in feature_names}
+                # Ablation mask mirrors the training-time zeroing so the
+                # trained model sees consistent zeros in both regimes.
+                if self._ablation_mask:
+                    for col in self._ablation_mask:
+                        if col in row:
+                            row[col] = 0
                 X_test = pd.DataFrame([row])[feature_names].fillna(0)
 
                 pred_label = int(model.predict(X_test)[0])

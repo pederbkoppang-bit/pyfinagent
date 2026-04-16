@@ -1,0 +1,2 @@
+run_id	timestamp	feature_name	cluster_id	baseline_sharpe	ablated_sharpe	delta_sharpe	baseline_dsr	ablated_dsr	delta_dsr	verdict	cost_tier
+c66e6e76	2026-04-16T01:11:02+0200	momentum_1m		1.1705	0.6000	-0.5704	0.9526	1.0000	+0.0474	keep	build
