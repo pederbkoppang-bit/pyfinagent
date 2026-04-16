@@ -7,6 +7,9 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `08e69d0` | docs: add top-level MASTERPLAN.md (Intelligence Engine synthesis) |
+| 2026-04-17 | `705f9a5` | phase-10.7 proposal: Meta-Evolution Engine |
+| 2026-04-17 | `3d8ebc6` | Propose phase-10: Recursive Evolution Loop (weekly sprint + monthly Sortino gate) |
 | 2026-04-17 | `fbc73f3` | feat(masterplan): add phase-3.7/4.7/4.8/8.5 + retire 2.10 |
 | 2026-04-17 | `68d99ad` | feat(masterplan): add phase-3.5 MCP tool audit + adoption proposal |
 | 2026-04-17 | `7abe6fb` | Masterplan: move phase-4 (Production Readiness) to end + aggregate smoketest |
@@ -24,12 +27,18 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `ba83f03` | Paper Trading: replace stacked ops widgets with a single dense status bar |
 | 2026-04-16 | `9a2e8d4` | Paper Trading: pull KPI hero into bento right column + codify rules |
 | 2026-04-16 | `0b38d2e` | Paper Trading: bento ops-strip layout, remove dead whitespace |
-| 2026-04-16 | `5a6f43e` | Fix: Phase 4.5 widgets now use apiFetch instead of raw fetch |
-| 2026-04-16 | `b9ec89c` | GoLiveGate: vertical-list layout + error banner + Retry |
-| 2026-04-16 | `6d70b06` | Phase 4.5: Paper Trading Dashboard v2 (evaluation-grade) + Tier-compliant layout |
 
 ---
 
+### v6.5.20 — add top-level MASTERPLAN.md (Intelligence Engine synthesis) (2026-04-17)
+
+- **add top-level MASTERPLAN.md (Intelligence Engine synthesis)**
+### v6.5.19 — phase-10.7 proposal: Meta-Evolution Engine (2026-04-17)
+
+- **phase-10.7 proposal: Meta-Evolution Engine**
+### v6.5.18 — Propose phase-10: Recursive Evolution Loop (weekly sprint + monthly S... (2026-04-17)
+
+- **Propose phase-10: Recursive Evolution Loop (weekly sprint + monthly Sortino gate)**
 ### v6.5.17 — feat(masterplan): add phase-3.7/4.7/4.8/8.5 + retire 2.10 (2026-04-17)
 
 - **feat(masterplan): add phase-3.7/4.7/4.8/8.5 + retire 2.10**
