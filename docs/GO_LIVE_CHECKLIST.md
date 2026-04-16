@@ -165,10 +165,11 @@
 - **HOW**: this file or a sibling `docs/DAILY_REVIEW_PLAYBOOK.md` enumerates the specific Slack channels, buttons, and stats Peder reviews each morning. If the playbook is missing, this item blocks launch.
 
 ### 4.4.5.2 Escalation path defined: Ford alerts -> iMessage -> manual intervention
-- [ ] Documented escalation ladder for an incident during a trading day
+- [x] Documented escalation ladder for an incident during a trading day
 - **WHO**: joint
 - **WHEN**: launch-week
 - **HOW**: inspect `backend/slack_bot/app.py` for the escalation message helpers and confirm the iMessage bridge (or equivalent mobile push) is wired. The escalation ladder itself lives alongside this checklist or in `docs/INCIDENT_RUNBOOK.md`; Peder signs off on the ladder before launch.
+- **Evidence**: runbook landed at `docs/INCIDENT_RUNBOOK.md` and drill at `scripts/go_live_drills/escalation_path_test.py` executed 2026-04-16 by Ford on branch `claude/awesome-euler-eWjrq`. 25/25 checks PASS: S0 runbook exists, S1 all 7 required sections present (Escalation Ladder, Priority Definitions, Automatic Escalation Services, Incident Response Procedures, iMessage Bridge, Contact Information, Post-Incident Review), S2 Ford->iMessage->Peder path documented, S3 phone +4794810537 documented, S4 P0-P3 priority levels documented, S5 P0 SLA thresholds (5 min response / 30 min resolution) documented, S6-S11 SLA monitor code verified (SLAMonitoringService class, send_escalation_alert method, imsg CLI invocation, phone hardcoded, P0 resolution breach path), S12-S15 all 3 background services wired in app.py (start_sla_monitoring, start_stuck_task_reaper, start_scheduler), S16-S17 StuckTaskReaper class exists, S18-S19 send_failover_notification exists, S20-S21 watchdog_health_check registered in scheduler, S22-S24 cross-references to sla_monitor.py, ROLLBACK_PLAN.md, known-blockers.md verified. 5-level escalation ladder: L0 auto-recover (stuck tasks), L1 Slack alert (watchdog), L2 iMessage (P0 SLA breach), L3 model failover, L4 manual intervention (rollback). Peder sign-off pending. Re-run recipe: `python3 scripts/go_live_drills/escalation_path_test.py` (exit 0 on PASS, exit 1 on any failure).
 
 ### 4.4.5.3 Weekly review meeting
 - [ ] Standing weekly slot on the calendar to review paper trading results, signal accuracy, and plan progress
