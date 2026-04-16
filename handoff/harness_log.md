@@ -170,6 +170,27 @@ Automated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluato
 
 ---
 
+## Cycle 11 -- 2026-04-15 ~22:30 UTC -- Phase 4.4.4.3 Stop-Loss Drill Test + Evidence
+
+**Planner hypothesis:** Phase 4.4 Go-Live Checklist at 3 / 27 items `[x]` after Cycle 10 landed 4.4.4.2 evidence. The next tractable Ford-in-remote-env item is 4.4.4.3 (stop-loss tested: simulate loss > 8% -> verify auto-exit). Prior session logs flagged this item as conditional on first inspecting `backend/services/paper_trader.py` for the -8% stop-loss exit logic; if the stop is not present, 4.4.4.3 would be a hard block needing a code gate. On inspection, `paper_trader.check_stop_losses` (lines 282-291) is a read-only helper; the canonical stop-loss SELL emission lives in `backend/services/portfolio_manager.py:73-85` inside `decide_trades()`, which is the branch `autonomous_loop.py` consumes on every tick. The drill targets the canonical path.
+**Generator:** Two files: (1) new `scripts/go_live_drills/stop_loss_test.py` (+321, stdlib-only, 6 scenario functions covering -8.5% breach / 8% inclusive boundary / -7% above-stop safe / stop=None at -50% safe / stop precedence over re-eval BUY / stop without holding_analyses; pre-drill sanity check pins `decide_trades` signature and `TradeOrder` dataclass fields; loads `portfolio_manager.py` via `importlib.util` file-path loader with pre-registered stub modules for `backend`, `backend.config`, `backend.config.settings` in `sys.modules` to bypass the `pydantic_settings` import chain), and (2) `docs/GO_LIVE_CHECKLIST.md` item 4.4.4.3 flipped `[ ]` -> `[x]` with a one-line Evidence note citing the drill path, 6/6 scenario outcomes, re-run recipe, and Cycle 11 commit. Zero `backend/**.py` files touched. `kill_switch_test.py` byte-identical to `HEAD~1`. `position_limits_test.py` byte-identical to `HEAD~1`. `portfolio_manager.py` + `paper_trader.py` byte-identical to `HEAD~1`. 1 commit: `cdfaaf9` on origin/main (2 files, +353 / -1).
+**Evaluator verdict:** PASS (composite 9.8/10)
+- Correctness: 10/10 (23/23 contract SCs + 10/10 adversarial probes via dedicated `qa-evaluator` subagent Opus on isolated worktree; drill exits 0 with `DRILL PASS: 6/6`; all 6 scenarios assert on both `sells` list shape and `reason` string; S1 fires `stop_loss` at entry=100/stop=92/current=91.5, S2 pins `<=` inclusive boundary at exact 92.0, S3 pins above-stop safe at 93.0, S4 pins stop=None safe at -50%, S5 pins precedence over re-eval BUY, S6 pins zero-reeval path)
+- Scope: 10/10 (exactly 2 files in the commit diff, zero `backend/**.py` touched, `kill_switch_test.py` + `position_limits_test.py` byte-identical to `HEAD~1`, `portfolio_manager.py` + `paper_trader.py` byte-identical to `HEAD~1`, no `masterplan.json` edits)
+- Security rule: 10/10 (drill is stdlib-only, top-level imports = `{importlib.util, inspect, sys, types, pathlib}`, zero non-ASCII bytes in the ~11KB file, no network, no BQ, no GCP, no logger calls)
+- Simplicity: 9/10 (one point off for 4 helpers + 6 scenarios + main vs the tighter Cycle 9/10 shape; still simpler than inlining the helpers, and the helper count is a cost of mocking the Settings import chain -- not a violation)
+- Conventions: 10/10 (mirrors the Cycle 9 `kill_switch_test.py` loader + scenario dispatcher + final `PASS/FAIL` summary pattern verbatim; mirrors the Cycle 8/9/10 `**Evidence**:` append convention verbatim; pre-drill sanity check matches the Cycle 10 4-limit-literal pin pattern)
+- Checks run: 10 (23 contract SCs + 10 adversarial probes audited by the QA agent; 2 independent drill re-runs; byte-identity audits on 4 sibling files)
+- qa-evaluator subagent spawned: YES (dedicated type, Opus, anti-leniency, isolated worktree at agent ID `ae89ad8b5ad7f40a7`). Cycle 7/8 self-eval precedent NOT applied because this cycle lands an executable behavioral artifact (the drill), not a pure-doc change. Independent verification against the pushed `origin/main` state is warranted.
+- Verdict tool uses: 9; duration: ~44s; tokens: 28568; zero retries; zero soft notes on correctness (3 informational soft notes: P3 current=0 bypass is documented non-scenario, Evidence line is one long paragraph by design, HOW recipe still points at `paper_trader.py` but Evidence line clarifies the canonical path)
+**Decision:** ACCEPTED -- shipped as `cdfaaf9` on origin/main before QA spawned, so the isolated worktree saw the post-GENERATE file state.
+**Total cycle time:** ~40 minutes (RESEARCH gate WAIVED per Cycle 7/8/9/10 precedent; PLAN ~10min, GENERATE ~10min, EVALUATE ~5min lead-self + ~1min dedicated QA subagent, LOG ~15min)
+**Phase 4.4 progress:** 4 / 27 items now `[x]` (was 3 / 27 at cycle start). **Phase 4.4.4 risk-management subsection is now 4 / 4 complete.**
+**Reliability note:** Eleventh consecutive cycle to land without a `Stream idle timeout` incident. Fifth consecutive Phase 4.4 evidence cycle.
+**Session log:** `.claude/context/sessions/2026-04-15-2230.md`
+
+---
+
 ## Session Note -- 2026-04-16 ~00:00 local -- Workstream B Audit Finding
 
 **Context:** Workstream B of the "Continuous Remote Agent to May Launch" plan called for starting the APScheduler paper-trading cycle. Audit finds it is already live and has been since `2026-03-20` (inception_date in paper_portfolio).
