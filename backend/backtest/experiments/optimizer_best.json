@@ -9,7 +9,7 @@
     "holding_days": 90,
     "mr_holding_days": 15,
     "tp_pct": 10.0,
-    "sl_pct": 12.923403579416114,
+    "sl_pct": 10.0,
     "frac_diff_d": 0.4,
     "starting_capital": 100000.0,
     "max_positions": 20,
@@ -22,12 +22,14 @@
     "target_annual_vol": 0,
     "trailing_trigger_pct": 5.0,
     "trailing_distance_pct": 3.0,
-    "trailing_stop_enabled": false
+    "trailing_stop_enabled": false,
+    "fm_weight": 0.4504907538573389
   },
   "sharpe": 1.1704633657934074,
   "dsr": 0.9525811126193078,
-  "run_id": "ab97f1d1",
+  "run_id": "52eb3ffe-exp10",
   "kept": 0,
-  "discarded": 3,
-  "saved_at": "2026-04-06T20:53:19.866685+00:00"
+  "discarded": 0,
+  "saved_at": "2026-04-16T09:30:00+00:00",
+  "note": "Corrected from exp10 actual params. Previous had warm-start param corruption: sl_pct was 12.92 (should be 10.0), fm_weight was missing (should be 0.45)."
 }
