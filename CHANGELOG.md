@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `7384482` | Phase 4.4.5.2: Escalation path defined with L1-L3 ladder |
 | 2026-04-16 | `ba83f03` | Paper Trading: replace stacked ops widgets with a single dense status bar |
 | 2026-04-16 | `9a2e8d4` | Paper Trading: pull KPI hero into bento right column + codify rules |
 | 2026-04-16 | `0b38d2e` | Paper Trading: bento ops-strip layout, remove dead whitespace |
@@ -26,12 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `09980e1` | fix: infer experiment status from JSON when TSV row is missing |
 | 2026-04-16 | `ebc2485` | fix: changelog hook auto-commits so updates appear in push |
 | 2026-04-16 | `7d5aba1` | fix: changelog hook now auto-appends bullet points under version header |
-| 2026-04-16 | `bb893f4` | chore: add v6.4.3 summary bullets for tonight's workstreams |
 
 ---
 
 ### v6.5.0 — Phase 4.5: Paper Trading Dashboard v2 (Evaluation-Grade) + MAS/Harness Protocol Hardening (2026-04-16)
 
+- **Phase 4.4.5.2: Escalation path defined with L1-L3 ladder**
 - **Paper Trading: replace stacked ops widgets with a single dense status bar**
 - **Paper Trading: pull KPI hero into bento right column + codify rules**
 - **Paper Trading: bento ops-strip layout, remove dead whitespace**
