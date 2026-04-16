@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-16 | `ef35140` | Harness: F1 retry-loop escalation + F2 research-on-demand |
 | 2026-04-16 | `0eccebb` | chore: bump per-commit in changelog hook; split v6.5.0 backlog |
 | 2026-04-16 | `64f7708` | chore: harness log entry for Cycle 29 (4.4.5.2 escalation path) |
 | 2026-04-16 | `7384482` | Phase 4.4.5.2: Escalation path defined with L1-L3 ladder |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `512101d` | chore: harness log entry for Cycle 25 (Phase 4.4.1.3 PASS) |
 | 2026-04-16 | `6d8aea4` | Phase 4.4.1.3: seed stability confirmed (std=0.009 < 0.1, 12/12 PASS) |
 | 2026-04-16 | `44c4409` | Phase 4.4.1.3: seed stability test -- FAIL (seed-stable but Sharpe < 0.9) |
-| 2026-04-16 | `09980e1` | fix: infer experiment status from JSON when TSV row is missing |
 
 ---
 
+### v6.5.7 — F1 retry-loop escalation + F2 research-on-demand (2026-04-16)
+
+- **F1 retry-loop escalation + F2 research-on-demand**
 ### v6.5.6 — Paper Trading: replace stacked ops widgets with a single dense status bar (2026-04-16)
 
 - **Paper Trading: replace stacked ops widgets with a single dense status bar**
