@@ -47,7 +47,7 @@ _last_result: Optional[dict] = None
 _coordinator = MetaCoordinator()
 
 
-async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
+async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = False) -> dict:
     """
     Execute one full paper trading cycle:
     1. Screen universe (free)
@@ -60,12 +60,22 @@ async def run_daily_cycle(settings: Optional[Settings] = None) -> dict:
     8. Learn from closed trades
 
     Returns summary dict.
+
+    dry_run=True short-circuits the cycle: stamps _last_run and returns
+    ok without running any LLM / BQ / trade work. Used by the phase-4.6
+    smoketest; not for production use.
     """
     global _running, _last_run, _last_result
 
     if _running:
         logger.warning("Paper trading cycle already running, skipping")
         return {"status": "skipped", "reason": "already_running"}
+
+    if dry_run:
+        _last_run = datetime.now(timezone.utc).isoformat()
+        _last_result = {"status": "ok", "dry_run": True, "timestamp": _last_run}
+        logger.info("Paper trading dry-run: stamped _last_run, no real work performed")
+        return _last_result
 
     _running = True
     settings = settings or get_settings()

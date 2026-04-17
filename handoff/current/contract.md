@@ -1,66 +1,72 @@
-# Sprint Contract -- phase-4.6 step 4.6.2
-
-Started: 2026-04-17 (Cycle 32)
-Step: 4.6.2 - MCP servers respond to ping + list_tools
-Status: in-progress
-
-## Research Gate (Passed)
-
-researcher subagent + Explore subagent spawned in parallel.
-
-Key findings:
-- All 3 servers use FastMCP; factories at
-  `backend/agents/mcp_servers/{data,backtest,signals}_server.py`
-  (lines 408, 320, 1721).
-- Data Server registers **7 resources but 0 tools** -- immutable
-  criterion "list_tools returns at least one tool per server" would
-  fail without intervention.
-- Backtest Server: 4 tools, Signals Server: 4 tools -- both fine.
-- Servers DO have stdio `__main__` blocks but are NOT registered in
-  `.mcp.json` today -- they are in-process modules.
-- In-process init has graceful BQ degradation (`_CACHE_AVAILABLE=False`
-  returns stubs) -- no hard failure on missing creds.
-- `fastmcp` pypi package was missing from venv; installed 3.2.4.
-- FastMCP has no public tool-listing method -- must go through
-  JSON-RPC `tools/list` or the FastMCP Client API.
+# Sprint Contract -- Cycle 1
+Generated: 2026-04-17T05:22:08.166196+00:00
 
 ## Hypothesis
+Continue parameter optimization with random perturbation
 
-Adding a lightweight `ping()` tool to each of the 3 servers (returns
-`{ok: true, server: "<name>", ts: <unix>}`) gives us:
-1. A real "respond to JSON-RPC ping" check per criterion 1.
-2. At least one tool in every server, satisfying criterion 2 even
-   for the data server (which is resource-heavy, tool-empty by design).
-This is additive -- no existing tool/resource is modified.
+## Current Baseline
+- Sharpe: 1.1705
 
-The smoketest `mcp_ping.py` will use FastMCP's in-memory Client
-transport (cleaner + faster than stdio subprocess for a 10s boot
-smoketest; matches the in-process deployment model used today).
+## Success Criteria (from evaluator_criteria.md)
+- Statistical Validity: DSR >= 0.95, Sharpe > 0
+- Robustness: ALL sub-periods Sharpe > 0
+- Reality Gap: 2x costs Sharpe > 0.5
 
-## Success Criteria (immutable)
+## Planner Suggestions
+- PLATEAU: Last 10 experiments all discarded. Consider strategy change.
+- SATURATED: trailing_distance_pct has 19 consecutive discards. Excluding.
+- SATURATED: rsi_weight has 21 consecutive discards. Excluding.
+- SATURATED: n_estimators has 21 consecutive discards. Excluding.
+- SATURATED: sl_pct has 15 consecutive discards. Excluding.
+- SATURATED: volatility_weight has 16 consecutive discards. Excluding.
+- SATURATED: qm_weight has 23 consecutive discards. Excluding.
+- SATURATED: mr_holding_days has 12 consecutive discards. Excluding.
+- SATURATED: frac_diff_d has 6 consecutive discards. Excluding.
+- SATURATED: top_n_candidates has 14 consecutive discards. Excluding.
+- SATURATED: vol_barrier_multiplier has 15 consecutive discards. Excluding.
+- SATURATED: min_samples_leaf has 13 consecutive discards. Excluding.
+- SATURATED: momentum_weight has 21 consecutive discards. Excluding.
+- SATURATED: mr_weight has 8 consecutive discards. Excluding.
+- SATURATED: target_vol has 22 consecutive discards. Excluding.
+- SATURATED: learning_rate has 20 consecutive discards. Excluding.
+- SATURATED: holding_days has 21 consecutive discards. Excluding.
+- SATURATED: fm_weight has 18 consecutive discards. Excluding.
+- SATURATED: max_positions has 14 consecutive discards. Excluding.
+- SATURATED: trailing_stop_enabled has 19 consecutive discards. Excluding.
+- SATURATED: tb_weight has 17 consecutive discards. Excluding.
+- SATURATED: target_annual_vol has 16 consecutive discards. Excluding.
+- SATURATED: trailing_trigger_pct has 12 consecutive discards. Excluding.
+- SATURATED: tp_pct has 15 consecutive discards. Excluding.
+- SATURATED: sma_weight has 14 consecutive discards. Excluding.
+- SATURATED: strategy has 12 consecutive discards. Excluding.
+- SATURATED: max_depth has 15 consecutive discards. Excluding.
+- COORDINATED: barrier_shape group (tp_pct, sl_pct) has 1 kept / 31 discarded. Try moving params together.
+- STRATEGY: Current=triple_barrier. Consider switching to mean_reversion if plateau continues.
 
-- all three servers respond to JSON-RPC ping
-- list_tools returns at least one tool per server
-
-## Verification Command (immutable)
-
-python scripts/smoketest/steps/mcp_ping.py --servers data,backtest,signals --timeout 10
-
-## Plan
-
-1. Add `ping()` tool to each of 3 servers (3 small edits).
-2. Write `scripts/smoketest/steps/mcp_ping.py`:
-   - Import create_{data,backtest,signals}_server
-   - Create each via FastMCP in-memory client
-   - Call `tools/list` -> assert >= 1 tool
-   - Call `ping` tool -> assert {ok: true, server: <name>}
-   - Emit JSON verdict
-3. Run verification (async with 10s timeout).
-4. EVALUATE via qa-evaluator + harness-verifier in parallel.
-5. LOG + mark done.
-
-## References
-
-- https://gofastmcp.com/servers/tools (FastMCP tool decorator)
-- https://gofastmcp.com/clients (FastMCP Client + InMemory transport)
-- https://modelcontextprotocol.io/specification/2025-11-25 (tools/list spec)
+## Excluded Parameters
+- trailing_distance_pct
+- rsi_weight
+- n_estimators
+- sl_pct
+- volatility_weight
+- qm_weight
+- mr_holding_days
+- frac_diff_d
+- top_n_candidates
+- vol_barrier_multiplier
+- min_samples_leaf
+- momentum_weight
+- mr_weight
+- target_vol
+- learning_rate
+- holding_days
+- fm_weight
+- max_positions
+- trailing_stop_enabled
+- tb_weight
+- target_annual_vol
+- trailing_trigger_pct
+- tp_pct
+- sma_weight
+- strategy
+- max_depth

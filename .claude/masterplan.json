@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T05:09:05.201382+00:00",
+  "updated_at": "2026-04-17T05:27:20.505678+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -938,7 +938,7 @@
         {
           "id": "4.6.3",
           "name": "12 enrichment signals return for AAPL",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "curl -sf -m 60 http://127.0.0.1:8765/api/signals/AAPL | python -c \"import sys,json; d=json.load(sys.stdin); keys=['insider','options','social_sentiment','patent','earnings_tone','fred_macro','alt_data','sector','nlp_sentiment','anomalies','monte_carlo','quant_model']; miss=[k for k in keys if k not in d]; print('SIGNALS_OK' if not miss else f'MISSING:{miss}'); sys.exit(0 if not miss else 1)\"",
@@ -955,7 +955,7 @@
         {
           "id": "4.6.4",
           "name": "Paper trading run-now dry-run succeeds",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "curl -sf -m 120 -X POST \"http://127.0.0.1:8765/api/paper-trading/run-now?dry_run=true\" -H \"Content-Type: application/json\" -d '{}'",

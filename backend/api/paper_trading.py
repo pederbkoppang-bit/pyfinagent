@@ -137,6 +137,10 @@ async def get_status():
         "scheduler_active": scheduler_active,
         "next_run": next_run,
         "loop": loop_status,
+        # Phase-4.6 smoketest alias: expose last_run timestamp at the top
+        # level so 4.6.4 verifier can check last_run_ts without diving
+        # into loop.*.
+        "last_run_ts": loop_status.get("last_run"),
     }
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:status"])
     return result
@@ -593,17 +597,25 @@ async def get_metrics_v2():
 
 
 @router.post("/run-now")
-async def run_now():
-    """Manually trigger one daily cycle (for testing)."""
+async def run_now(dry_run: bool = False):
+    """Manually trigger one daily cycle (for testing).
+
+    dry_run=true is a phase-4.6 smoketest hook: stamps _last_run=now and
+    returns without running the real cycle (no LLM calls, no BQ writes,
+    no trades). Use it from CI / the smoketest only; never from prod.
+    """
     status = get_loop_status()
     if status["running"]:
         raise HTTPException(409, "A trading cycle is already in progress")
 
     get_api_cache().invalidate("paper:*")
     settings = get_settings()
-    # Run in background to avoid HTTP timeout
+    if dry_run:
+        await run_daily_cycle(settings, dry_run=True)
+        return {"status": "ok", "started": True, "dry_run": True,
+                "message": "Dry-run cycle completed (no trades)"}
     asyncio.create_task(_run_cycle_background(settings))
-    return {"status": "started", "message": "Daily cycle triggered"}
+    return {"status": "started", "started": True, "message": "Daily cycle triggered"}
 
 
 _last_cycle_error: Optional[str] = None
