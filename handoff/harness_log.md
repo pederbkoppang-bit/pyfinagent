@@ -2935,3 +2935,101 @@ setup decisions. Moving to 4.6.7.
      + nlp_sentiment + alt_data (all need GCP ADC).
   2. Set SLACK_TEST_CHANNEL_ID in backend/.env to activate 4.6.7.
 
+
+---
+
+## Cycle 1 -- 2026-04-17 15:46 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## MAS Harness Cycle -- 2026-04-17 ~16:36 UTC -- NOOP (no tractable items)
+
+**Planner hypothesis:** Phase 4.4 at 14/27 items `[x]`. Scanned all 13 unchecked items for tractability. Applied rule-3 filters (wall-clock, Peder-gated, human-review) and investigated the 4 remaining paper-trading items (4.4.2.2-2.5) via BigQuery MCP queries.
+**Research:** Queried 4 BQ tables in `pyfinagent_pms` and `pyfinagent_data` datasets:
+  - `portfolio_status_snapshot`: 0 rows (schema exists, no data)
+  - `portfolio_transactions`: 0 rows (schema exists, no data)
+  - `unified_sar_log`: 0 rows for event_timestamp >= 2026-03-20
+  - `risk_intervention_log`: 0 rows
+  Paper trading infrastructure is live (APScheduler running since 2026-03-20, 27+ days) but BQ persistence layer is not populating -- migration scripts scaffolded (Cycle 5) but tables empty. Zero-orders bug (Session Note 2026-04-16) means 0 trades executed, making all paper trading metrics undefined.
+**Gating analysis (13 unchecked items):**
+  - Wall-clock (2): 4.4.2.1 (2-week runtime), 4.4.3.3 (14-day uptime)
+  - Peder-gated (3): 4.4.6.1 (go-live approval), 4.4.6.2 (budget), 4.4.6.3 (first-week monitoring)
+  - Human-review (3): 4.4.5.1 (daily review), 4.4.5.3 (weekly meeting), 4.4.5.4 (manual trading)
+  - Paper-trading-blocked (4): 4.4.2.2 (Sharpe -- undefined with 0 trades), 4.4.2.3 (drawdown -- passes mechanically at -5% but meaningless without trades), 4.4.2.4 (missed days -- no signals_log data in BQ), 4.4.2.5 (divergence -- infinite with 0 trades)
+  - Tractable: 0
+**Decision:** NOOP -- no item can be flipped to `[x]` with honest evidence. Note written to `handoff/mas-harness.log`.
+**Total cycle time:** ~5 minutes (PLAN ~2min, BQ investigation ~2min, LOG ~1min)
+**Phase 4.4 progress:** 14/27 items `[x]`, unchanged. All Ford-autonomous progress is exhausted. Remaining items require: (a) zero-orders bug fix + BQ persistence fix to unblock 4.4.2.2-2.5, (b) Peder sign-off for 4.4.5/4.4.6 items, (c) wall-clock gates for 4.4.2.1/4.4.3.3.
+**Reliability note:** Honest NOOP is better than landing weak evidence. The 4.4.2.3 drawdown item could technically pass (-5% < 15%) but would be a hollow checkbox -- zero trades means zero trading risk was tested.
+
+---
+
+## Cycle 1 -- 2026-04-17 16:40 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-17 17:12 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 39 -- 2026-04-17 -- phase-4.6 step 4.6.7 DONE
+
+**Step:** 4.6.7 "Slack digest delivered end-to-end"
+**RESEARCH:** listed public Slack channels via slack_sdk.conversations_list
+           (public_channel scope only; bot lacks groups:read). 3 channels
+           with is_member=true: finance-alerts, ford-approvals,
+           paper-trading. Chose paper-trading (C0APCBPKC1H) as the
+           smoketest target -- domain match for the phase.
+**PLAN:** append SLACK_TEST_CHANNEL_ID=C0APCBPKC1H to backend/.env;
+           run the immutable verification (env loaded via Python).
+**GENERATE:** env appended; `python -m backend.slack_bot.digest_test
+           --channel-env SLACK_TEST_CHANNEL_ID --text smoketest-4.6.7
+           --verify-delivery` ran.
+**Result:** {"verdict":"PASS", "post_ok":true, "history_verified":true,
+           "elapsed_s":0.584}. SLACK_DIGEST_OK printed. Exit 0.
+           All three criteria met:
+             - Slack API returned ok=true: chat.postMessage ok, ts captured
+             - conversations.history returned the posted message
+             - round trip 0.584s < 10s
+**Decision:** 4.6.7 status=done. phase-4.6 now 8/10 done
+           (4.6.8 + 4.6.9 pending). Remaining user-action: gcloud
+           application-default login to restore patent + nlp_sentiment
+           + alt_data signals.
+

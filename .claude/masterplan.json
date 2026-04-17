@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T15:45:51.352412+00:00",
+  "updated_at": "2026-04-17T17:32:55.154020+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -1007,7 +1007,7 @@
         {
           "id": "4.6.7",
           "name": "Slack digest delivered end-to-end",
-          "status": "blocked",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python -m backend.slack_bot.digest_test --channel-env SLACK_TEST_CHANNEL_ID --text smoketest-4.6.7 --verify-delivery",
@@ -1019,8 +1019,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3,
-          "blocked_reason": "digest_test.py module landed. Now only requires user to set SLACK_TEST_CHANNEL_ID env-var for a dedicated test channel."
+          "max_retries": 3
         },
         {
           "id": "4.6.8",
