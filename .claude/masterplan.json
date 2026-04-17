@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T19:48:27.013805+00:00",
+  "updated_at": "2026-04-17T19:55:11.448749+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -502,7 +502,7 @@
         {
           "id": "3.7.0",
           "name": "MAS comms ADR: MCP (tool) vs A2A (agent) decision doc",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f docs/adr/0002-mas-comms.md && grep -Eq '^Decision: ' docs/adr/0002-mas-comms.md",
@@ -519,7 +519,7 @@
         {
           "id": "3.7.1",
           "name": "Promote data_server.py to first-class Data MCP",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/mcp_ab_test.py --server data --samples 20 && python -c \"import json; d=json.load(open('handoff/mcp_ab_test_data.json')); assert d['parity_rate'] >= 0.95\"",

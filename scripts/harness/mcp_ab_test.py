@@ -303,6 +303,36 @@ def _run_readonly_ab(server: str, samples: int) -> dict:
                        "DFF", "DCOILWTICO", "DGS2", "DGS30", "DTB3",
                        "HOUST", "INDPRO", "PCE", "PPIACO", "RETAILSMSA"]
         samples_list = [(s, "latest") for s in (fred_series * 2)[:samples]]
+    elif server == "data":
+        # phase-3.7 step 3.7.1: pyfinagent in-process data MCP server.
+        # Samples drawn from the 7 resources: prices, fundamentals,
+        # macro, universe, features, experiments, best-params. Each
+        # resource + ticker yields an item for the parity loop.
+        data_resources = ["prices", "fundamentals", "macro", "universe",
+                          "features", "experiments", "best_params"]
+        samples_list = [
+            (SAMPLE_SYMBOLS[i % len(SAMPLE_SYMBOLS)],
+             data_resources[i % len(data_resources)])
+            for i in range(samples)
+        ]
+    elif server == "signals":
+        # phase-3.7 step 3.7.2: in-process signals MCP server.
+        signals_tools = ["generate_signal", "validate_signal",
+                          "publish_signal", "risk_check"]
+        samples_list = [
+            (SAMPLE_SYMBOLS[i % len(SAMPLE_SYMBOLS)],
+             signals_tools[i % len(signals_tools)])
+            for i in range(samples)
+        ]
+    elif server == "risk":
+        # phase-3.7 step 3.7.3: new risk MCP server.
+        risk_tools = ["kill_switch", "portfolio_cvar", "factor_exposure",
+                       "pbo_check"]
+        samples_list = [
+            (SAMPLE_SYMBOLS[i % len(SAMPLE_SYMBOLS)],
+             risk_tools[i % len(risk_tools)])
+            for i in range(samples)
+        ]
     else:
         return {"verdict": "FAIL", "reason": f"unknown_server:{server}"}
 
@@ -393,10 +423,12 @@ def main() -> int:
                     default="handoff/mcp_ab_test_alpaca.json")
     args = ap.parse_args()
 
-    # Multi-server mode (phase-3.5 step 3.5.4): --server may be a
-    # comma-separated list e.g. "edgar,fmp,fred".
+    # Multi-server mode (phase-3.5 step 3.5.4, phase-3.7 steps 3.7.1-3):
+    # --server may be a comma-separated list (e.g. "edgar,fmp,fred") or
+    # a single non-alpaca server name (e.g. "data").
     requested = [s.strip() for s in args.server.split(",") if s.strip()]
-    if len(requested) > 1 or (len(requested) == 1 and requested[0] != "alpaca"):
+    single_readonly = len(requested) == 1 and requested[0] != "alpaca"
+    if len(requested) > 1 or single_readonly:
         results = {}
         for srv in requested:
             if srv == "alpaca":
@@ -406,7 +438,29 @@ def main() -> int:
         # AGPL isolation doc is a hard requirement for 3.5.4; detect.
         agpl_doc = REPO / "docs" / "governance" / "agpl_isolation.md"
         agpl_documented = agpl_doc.exists()
-        # Write a separate artifact for this multi-server run.
+
+        # Single-server runs (phase-3.7 promotions) write per-server
+        # artifacts. Multi-server runs (phase-3.5.4 wave) write one
+        # combined artifact.
+        if single_readonly:
+            srv = requested[0]
+            r = results[srv]
+            single_path = REPO / "handoff" / f"mcp_ab_test_{srv}.json"
+            payload = dict(r)
+            payload["agpl_isolation_documented"] = agpl_documented
+            single_path.write_text(json.dumps(payload, indent=2) + "\n",
+                                    encoding="utf-8")
+            all_ok = (r.get("parity_rate", 0) >= 0.95
+                      and r.get("latency_within_1_5x", True))
+            print(json.dumps({
+                "wrote": str(single_path),
+                "server": srv,
+                "parity_rate": r.get("parity_rate"),
+                "latency_ratio": r.get("latency_ratio"),
+                "verdict": "PASS" if all_ok else "FAIL",
+            }))
+            return 0 if all_ok else 1
+
         multi = {
             "step": "3.5.4",
             "servers": results,

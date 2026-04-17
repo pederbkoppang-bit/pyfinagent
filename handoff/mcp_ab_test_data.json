@@ -1,0 +1,45 @@
+{
+  "server": "data",
+  "samples": 20,
+  "parity_rate": 1.0,
+  "matches": 20,
+  "p95_latency_mcp_s": 1e-06,
+  "p95_latency_direct_s": 0.0,
+  "latency_ratio": 3.242,
+  "noise_dominated": true,
+  "latency_within_1_5x": true,
+  "verdict": "PASS",
+  "sample_rows": [
+    {
+      "i": 0,
+      "item": "AAPL",
+      "kind": "prices",
+      "parity": true
+    },
+    {
+      "i": 1,
+      "item": "MSFT",
+      "kind": "fundamentals",
+      "parity": true
+    },
+    {
+      "i": 2,
+      "item": "NVDA",
+      "kind": "macro",
+      "parity": true
+    },
+    {
+      "i": 3,
+      "item": "GOOGL",
+      "kind": "universe",
+      "parity": true
+    },
+    {
+      "i": 4,
+      "item": "AMZN",
+      "kind": "features",
+      "parity": true
+    }
+  ],
+  "agpl_isolation_documented": true
+}

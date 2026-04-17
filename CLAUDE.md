@@ -25,6 +25,7 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 
 ## Critical Rules
 
+- **🔴 BEFORE EVERY MASTERPLAN STEP**: read and follow `.claude/agents/per-step-protocol.md` end-to-end. The five handoff files (contract.md, experiment_results.md, evaluator_critique.md, harness_log.md append, masterplan.json status flip) are NON-SKIPPABLE. Always spawn BOTH qa-evaluator AND harness-verifier IN PARALLEL (single message, two Agent tool calls) — never just one. Self-evaluation by the orchestrator is forbidden.
 - **Always `source .venv/bin/activate`** before running Python
 - **Always call `cache.preload_macro()`** or backtests hang after ~40min
 - **Kill parent AND child workers** when restarting backend (zombie prevention)
@@ -157,14 +158,77 @@ python scripts/harness/run_harness.py --dry-run --cycles 1
 - Google Search Grounding is Gemini-only (degrades on Claude/OpenAI)
 - Agent memories persisted to BQ, loaded on startup via BM25
 
-## Harness Protocol
+## Harness Protocol (MANDATORY — NOT SKIPPABLE)
 
-Every plan step follows: RESEARCH → PLAN → GENERATE → EVALUATE → LOG
-- RESEARCH gate: ≥3 sources, ≥10 URLs, read full papers not abstracts
-- PLAN: `handoff/contract.md` with success criteria
-- GENERATE: Do the work, `handoff/experiment_results.md`
-- EVALUATE: Independent verification, `handoff/evaluator_critique.md`
-- LOG: Update PLAN.md, RESEARCH.md, memory, Slack
+Every masterplan step (`phase-X` → `phase-X.Y`) MUST follow the full
+loop below. The workflow is load-bearing for phase-4 go-live — skipping
+phases or files is a breach of the contract. This applies equally when
+execution is manual (Claude spawns sub-agents directly) and when
+`scripts/harness/run_harness.py` is the driver.
+
+### The five-file protocol
+
+Every step produces, in order, exactly these artifacts:
+
+| Phase | File (under `handoff/current/`) | Must contain |
+|-------|-------------------------------|--------------|
+| RESEARCH | (no file of its own; research feeds the contract) | ≥3 sources, ≥10 URLs, cite per claim, read full papers not abstracts |
+| PLAN | `contract.md` | Step id, research-gate summary, hypothesis, immutable success criteria copied verbatim from `.claude/masterplan.json`, plan steps, references |
+| GENERATE | `experiment_results.md` | What was built/changed + file list + verbatim verification command output + artifact shape |
+| EVALUATE | `evaluator_critique.md` | **Both** qa-evaluator AND harness-verifier verdicts (spawned IN PARALLEL, not sequentially), each quoting their reasoning + violated_criteria + checks_run. Never one without the other. |
+| LOG | appended block in `handoff/harness_log.md` | `## Cycle N -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL` header + summary |
+
+These files must exist and be up-to-date BEFORE marking the step
+`status: done` in `.claude/masterplan.json`. The
+`archive-handoff` PostToolUse hook moves them to
+`handoff/archive/phase-X.Y/` on step transition; never delete them.
+
+### Dual-evaluator rule
+
+`EVALUATE` always means both:
+
+1. **qa-evaluator** — reviews the contract, code, and artifacts;
+   returns PASS / CONDITIONAL / FAIL with cited violations.
+2. **harness-verifier** — runs the immutable verification command
+   from `.claude/masterplan.json` itself, reproduces the result,
+   returns PASS / FAIL with numbers.
+
+Both are spawned in ONE parallel block (a single message with two
+`Agent` tool calls), never sequentially. If either returns FAIL, the
+step does not pass. If qa-evaluator returns CONDITIONAL, the
+blockers must be addressed in the same cycle before `status: done`.
+
+### Research gate
+
+Before PLAN is written, at least one of `researcher` or `Explore`
+subagents must run. For greenfield architecture or new data sources
+use `researcher` (external literature, URLs). For code-audit work
+use `Explore` (internal file:line references). For steps with
+external + internal scope run both in parallel.
+
+### Scheduled harness
+
+`scripts/harness/run_harness.py` owns phase-2 step 2.12 parameter
+optimization. Run it at least once per session with a short
+`--cycles 1 --iterations-per-cycle 10`. It writes the same five
+files (the `archive-handoff` hook handles the rotation).
+
+### Failure discipline
+
+- F1 (retry loop): `consecutive_fails` counter, revert-not-restart,
+  certified_fallback escalation after 3 consecutive FAILs.
+- F2 (research-on-demand): planner emits `research_needed` flag
+  with a 4-key brief (objective / output_format / tool_scope /
+  task_boundaries). The harness reads this and re-spawns research
+  before attempting GENERATE again.
+
+### Never do
+
+- Mark a step done without all five files.
+- Run only one evaluator (qa OR harness-verifier).
+- Amend a step's immutable verification criteria.
+- Skip `harness_log.md` append (it feeds the Harness tab on the
+  backtest page and the next cycle's resume detection).
 
 ## Git
 

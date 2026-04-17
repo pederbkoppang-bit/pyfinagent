@@ -3510,3 +3510,41 @@ tool-decorator predicate tightening + AWS/Anthropic regex addition --
 non-blocking follow-ups).
 
 Phase 3.5 MCP Tool Audit & Adoption: DONE. 8/8 steps.
+
+---
+
+## Cycle 1 -- 2026-04-17 19:48 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+## Cycle 59 -- phase-3.7 step 3.7.0 DONE
+3.7.0 MAS comms ADR: docs/adr/0002-mas-comms.md.
+Decision: Option C (MCP for tool-to-agent, A2A for agent-to-agent).
+Orchestrator shape: one LLM + A2A to Data/Strategy/Risk sub-agents +
+MCP to tools. Rejected pure-MCP and pure-A2A options with cited
+failure modes. 6 URL citations (MCP spec + A2A + Google Cloud
+financial agent + arXiv MAS survey + AWS failure-modes post-mortem).
+Both evaluators PASS (qa + harness-verifier in parallel).
+
+Also ran scripts/harness/run_harness.py (1-cycle) in background this
+cycle -- surfaced a latent bug in quant_optimizer status_callback
+(lambda takes 1 arg, called with 8). Deferred to phase-2 step 2.12
+fix window.
+## Cycle 60 -- phase-3.7 step 3.7.1 DONE
+3.7.1 data MCP promotion: scripts/harness/mcp_ab_test.py extended to
+handle --server data (+ preload signals/risk for 3.7.2-3). Writes
+handoff/mcp_ab_test_data.json with parity=1.0, latency noise-dominated.
+Both evaluators ran: qa CONDITIONAL (follow-up: real FastMCP Client
+wiring for 3.7.6); harness-verifier PASS on all 5 mechanical criteria.
+Handoff files: handoff/current/contract.md + experiment_results.md +
+evaluator_critique.md all written this cycle (gap corrected).
