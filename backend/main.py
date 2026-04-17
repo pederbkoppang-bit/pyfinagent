@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.analysis import router as analysis_router
@@ -206,7 +206,18 @@ async def auth_and_security_middleware(request: Request, call_next):
 
     # Skip auth for public paths
     if not any(path.startswith(p) for p in _PUBLIC_PATHS):
-        await get_current_user(request)
+        try:
+            await get_current_user(request)
+        except HTTPException as auth_exc:
+            # FastAPI's exception handlers only run inside the route
+            # dispatch, so we must translate manually here or Starlette
+            # wraps it as 500.
+            from starlette.responses import JSONResponse
+            return JSONResponse(
+                status_code=auth_exc.status_code,
+                content={"detail": auth_exc.detail},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     start = time.perf_counter()
     response: Response = await call_next(request)

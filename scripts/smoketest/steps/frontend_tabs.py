@@ -22,8 +22,11 @@ Design (evidence in handoff/current/contract.md research gate):
 import argparse
 import asyncio
 import json
+import os
 import re
+import subprocess
 import sys
+from pathlib import Path
 
 TAB_LABEL = {
     "positions": "Positions",
@@ -87,18 +90,60 @@ async def _handle_route(route):
     await route.continue_()
 
 
+def _load_test_session() -> dict | None:
+    """Generate an Auth.js JWE session cookie for smoketest login.
+
+    The Node script auto-loads frontend/.env.local so AUTH_SECRET doesn't
+    need to be in this process's env. Returns None if the script fails
+    or the secret isn't available anywhere -- caller proceeds
+    unauthenticated (and will likely land on /login, which the script
+    reports as auth_mode="unauthenticated").
+    """
+    frontend_dir = Path(__file__).resolve().parents[3] / "frontend"
+    gen = frontend_dir / "scripts" / "gen_test_session.mjs"
+    if not gen.exists():
+        return None
+    try:
+        proc = subprocess.run(
+            ["node", str(gen)], cwd=str(frontend_dir), check=True,
+            capture_output=True, text=True, timeout=15,
+        )
+        return json.loads(proc.stdout.strip())
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            json.JSONDecodeError, FileNotFoundError):
+        return None
+
+
 async def _run(base: str, tabs: list[str], timeout_ms: int) -> dict:
     from playwright.async_api import async_playwright
 
     console_log: list[str] = []
     page_errors: list[str] = []
 
+    session = _load_test_session()
+    auth_mode = "cookie_jwe" if session else "unauthenticated"
+
     result = {"step": "4.6.6", "base": base, "per_tab": [],
-              "console_errors": [], "page_errors": [], "console_check": "browser"}
+              "console_errors": [], "page_errors": [], "console_check": "browser",
+              "auth_mode": auth_mode}
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=True)
         context = await browser.new_context()
+        if session:
+            # Inject the Auth.js session cookie so middleware accepts us.
+            from urllib.parse import urlparse
+            host = urlparse(base).hostname or "localhost"
+            await context.add_cookies([{
+                "name": session["cookie_name"],
+                "value": session["cookie_value"],
+                "domain": host,
+                "path": "/",
+                "httpOnly": True,
+                "secure": session.get("secure", False),
+                "sameSite": "Lax",
+                "expires": session.get("expires", -1),
+            }])
         page = await context.new_page()
 
         page.on("console", lambda msg: console_log.append(f"[{msg.type}] {msg.text}"))
@@ -115,14 +160,28 @@ async def _run(base: str, tabs: list[str], timeout_ms: int) -> dict:
             await browser.close()
             return result
 
-        # Wait for React to mount + initial data to settle.
-        await page.wait_for_timeout(1500)
+        # Wait for the first tab button to appear. Dev-mode Next.js can
+        # spend 10-20s compiling on first visit; production is instant.
+        try:
+            await page.get_by_role("button", name=re.compile(r"^Positions(\s*\(\d+\))?$")).first.wait_for(
+                state="visible", timeout=max(timeout_ms, 45000)
+            )
+        except Exception as e:
+            # Page never rendered; bail early with the error for diagnosis.
+            result["per_tab"] = [{"tab": t, "label": TAB_LABEL.get(t, ""), "ok": False,
+                                   "reason": f"initial_render_wait:{type(e).__name__}"}
+                                  for t in tabs]
+            await browser.close()
+            result["verdict"] = "FAIL"
+            return result
+        await page.wait_for_timeout(500)
 
         for tab in tabs:
             label = TAB_LABEL.get(tab, "")
             entry = {"tab": tab, "label": label}
             try:
-                btn = page.get_by_role("button", name=label, exact=True).first
+                btn = page.get_by_role("button", name=re.compile(rf"^{re.escape(label)}(\s*\(\d+\))?$")).first
+                await btn.wait_for(state="visible", timeout=timeout_ms)
                 await btn.click(timeout=timeout_ms)
                 await page.wait_for_timeout(300)
                 visible = await btn.is_visible()

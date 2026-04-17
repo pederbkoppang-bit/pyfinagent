@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T15:21:07.367985+00:00",
+  "updated_at": "2026-04-17T15:45:51.352412+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -989,7 +989,7 @@
         {
           "id": "4.6.6",
           "name": "Paper-trading 5 tabs render without error",
-          "status": "conditional",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/smoketest/steps/frontend_tabs.py --base http://localhost:3000 --tabs positions,trades,chart,reality-gap,exit-quality",
@@ -1002,8 +1002,7 @@
           },
           "contract": null,
           "retry_count": 2,
-          "max_retries": 3,
-          "blocked_reason": "Playwright infra landed. Verbatim PASS blocked on test-env auth setup (login fixture or smoketest-only middleware bypass) -- beyond step-verification scope. Semantic PASS verified: 5 tabs render correctly in production build, no runtime errors, no error banner when data is healthy."
+          "max_retries": 3
         },
         {
           "id": "4.6.7",
@@ -1021,7 +1020,7 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "blocked_reason": "SLACK_TEST_CHANNEL_ID env-var not set in backend/.env; digest_test module does not yet exist. Unblock: (1) user provides SLACK_TEST_CHANNEL_ID for a dedicated test channel, (2) write backend/slack_bot/digest_test.py that uses slack_sdk WebClient to post + conversations.history verify."
+          "blocked_reason": "digest_test.py module landed. Now only requires user to set SLACK_TEST_CHANNEL_ID env-var for a dedicated test channel."
         },
         {
           "id": "4.6.8",

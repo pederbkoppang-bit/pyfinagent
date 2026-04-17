@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import struct
 import time
 from typing import Optional
@@ -113,9 +114,19 @@ async def get_current_user(request: Request) -> Optional[dict]:
     """
     settings = get_settings()
 
-    # Skip auth if no AUTH_SECRET configured (dev mode)
+    # Auth-secret-missing handling. Previously this returned None silently,
+    # which created a latent "any request passes" bypass in any deployment
+    # that accidentally shipped without AUTH_SECRET set (see phase-4.6.4
+    # follow-up). Now the only way to skip auth is an explicit opt-in
+    # env var DEV_DISABLE_AUTH=1. Without it, a missing AUTH_SECRET is a
+    # hard failure so operators notice at the first unauthenticated call.
     if not settings.auth_secret:
-        return None
+        if os.getenv("DEV_DISABLE_AUTH") == "1":
+            return None
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required (AUTH_SECRET not configured; set DEV_DISABLE_AUTH=1 only in local dev)",
+        )
 
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):

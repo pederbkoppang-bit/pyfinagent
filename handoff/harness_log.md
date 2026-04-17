@@ -2836,3 +2836,102 @@ setup decisions. Moving to 4.6.7.
   Next cycle begins with RESEARCH gate via researcher + Explore agents
   in parallel per MAS discipline.
 
+
+---
+
+## Cycle 1 -- 2026-04-17 15:22 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-17 15:31 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 38 -- 2026-04-17 -- Batch fix 6 follow-ups (full MAS loop)
+
+**RESEARCH:** 3 agents in parallel.
+  - Patent replacement: Google Patents Public Datasets via BQ (drop-in;
+    free within sunny-might project; 2-8s latency). 18 URLs cited.
+  - Auth bypass root cause: backend/api/auth.py:108-118 returned None
+    silently when auth_secret empty (dev-mode escape hatch).
+  - Test-env auth: Pattern 3 cookie-signed JWE via next-auth/jwt
+    encode() wins on prod-safety, CI-reproducibility, maintenance.
+    CVE-2025-29927 post-mortem argues against middleware env-gate
+    (Pattern 2).
+
+**PLAN:** batch contract written. Fixes ordered by P&L/risk.
+
+**GENERATE:**
+  1. #3 Auth enforcement (SECURITY): backend/api/auth.py now raises
+     401 when AUTH_SECRET is missing, unless DEV_DISABLE_AUTH=1 is
+     explicitly set. backend/main.py middleware catches HTTPException
+     and returns proper JSONResponse with 401 status (was 500 leak).
+  2. #1 Patent: backend/tools/patent_tracker.py rewritten to query
+     patents-public-data.patents.publications via BQ. Same output
+     schema as before; works without API keys; uses ADC.
+  3. #2 nlp_sentiment: ERROR payload now includes structured
+     `reason` ("gcp_adc_unavailable" / "vertex_quota_exceeded" /
+     "vertex_permission_denied" / "runtime_error"). Added a
+     rules-based polarity fallback over alphavantage news headlines
+     when Vertex unavailable -> NEUTRAL-leaning signal with
+     confidence=0.25 instead of a hard ERROR.
+  4. #5 Slack digest_test.py: new module at backend/slack_bot/
+     digest_test.py. When SLACK_BOT_TOKEN + SLACK_TEST_CHANNEL_ID
+     are set, posts + verifies via conversations.history. When
+     env missing, exits cleanly with verdict=SKIP_ENV_MISSING (2).
+  5. #4 Test-env auth: frontend/scripts/gen_test_session.mjs emits
+     a signed Auth.js JWE cookie (uses next-auth/jwt encode()).
+     Auto-loads .env.local for AUTH_SECRET. frontend_tabs.py loads
+     the cookie via subprocess + injects via context.add_cookies.
+     Button locator now uses regex to tolerate count-suffixed
+     labels (Positions renders as "Positions (0)").
+  6. #6 spacy / unstructured: confirmed deferred to phase-4.8.8
+     supply-chain hardening (already documented).
+
+**EVALUATE:**
+  - Auth fix: curl POST (no auth) returns HTTP 401; with
+    DEV_DISABLE_AUTH=1 returns 200; /api/health remains 200.
+  - Patent BQ: code path correct; upstream ADC missing causes
+    surface ERROR with clear message.
+  - nlp_sentiment: ERROR payload now has reason="gcp_adc_unavailable".
+  - digest_test.py: SKIP_ENV_MISSING clean exit 2 verified.
+  - 4.6.6 verbatim against localhost:3000 with JWE cookie: PASS.
+    All 5 tabs HTTP 200, labels visible, no rose banner, zero
+    console TypeError/ReferenceError, auth_mode=cookie_jwe.
+  - 4.6.3 regression: 9/12 non-ERROR (still passes >=8 quorum).
+
+**LOG / status:**
+  [x] 4.6.6 Paper-trading 5 tabs   -- DONE (upgrade from CONDITIONAL)
+  [!] 4.6.7 Slack digest end-to-end -- unblocked pending user setting
+      SLACK_TEST_CHANNEL_ID (module now exists; env-missing path is
+      clean).
+
+**User-action items remaining:**
+  1. Run `gcloud auth application-default login` to restore patent
+     + nlp_sentiment + alt_data (all need GCP ADC).
+  2. Set SLACK_TEST_CHANNEL_ID in backend/.env to activate 4.6.7.
+
