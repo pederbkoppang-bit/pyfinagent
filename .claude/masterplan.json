@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T18:57:03.513546+00:00",
+  "updated_at": "2026-04-17T19:31:04.455924+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -1658,7 +1658,7 @@
     {
       "id": "phase-5.5",
       "name": "External Data-Source Audit",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-4.5"
       ],
@@ -1667,7 +1667,7 @@
         {
           "id": "5.5.0",
           "name": "Automated provider inventory",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python3 scripts/audit/data_sources.py --dry-run",
@@ -1684,7 +1684,7 @@
         {
           "id": "5.5.1",
           "name": "Current-state scoring",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python3 scripts/audit/score_current_state.py --input backend/data_audit/inventory.json --output backend/data_audit/current_state.json",
@@ -1701,7 +1701,7 @@
         {
           "id": "5.5.2",
           "name": "Literature review on modern alt-data",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f handoff/phase-5.5-research.md && python3 -c \"import re,sys; t=open('handoff/phase-5.5-research.md').read(); sys.exit(0 if len(set(re.findall(r'https?://[^ )\\s]+', t))) >= 20 else 1)\"",
@@ -1718,7 +1718,7 @@
         {
           "id": "5.5.3",
           "name": "Gap analysis",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python3 scripts/audit/gap_analysis.py --current backend/data_audit/current_state.json --literature handoff/phase-5.5-research.md --output backend/data_audit/gaps.json",
@@ -1735,7 +1735,7 @@
         {
           "id": "5.5.4",
           "name": "Desired-state proposal",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python3 scripts/audit/propose_desired.py --gaps backend/data_audit/gaps.json --output backend/data_audit/desired.json",
@@ -1752,7 +1752,7 @@
         {
           "id": "5.5.5",
           "name": "Prioritized shopping list",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python3 scripts/audit/shopping_list.py --desired backend/data_audit/desired.json --top 3 --output backend/data_audit/shopping_list.md",
@@ -1769,7 +1769,7 @@
         {
           "id": "5.5.6",
           "name": "Sign-off and handoff",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "grep -q 'Phase 5.5' handoff/harness_log.md && test -f handoff/current/phase-5.5-contract.md",

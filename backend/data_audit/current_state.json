@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "rubric_doc": "handoff/current/contract.md (Cycle 45)",
+  "providers": {
+    "yfinance": {
+      "cost": 5,
+      "freshness": 3,
+      "coverage": 5,
+      "spof": 2,
+      "license": 2,
+      "aggregate": 3.4,
+      "aggregate_pct": 68,
+      "kind": "data",
+      "summary": "OHLCV + fundamentals + options chain (no auth)"
+    },
+    "alphavantage": {
+      "cost": 5,
+      "freshness": 3,
+      "coverage": 4,
+      "spof": 2,
+      "license": 4,
+      "aggregate": 3.6,
+      "aggregate_pct": 72,
+      "kind": "data",
+      "summary": "News + market intel (50 headlines; 5 req/min)"
+    },
+    "fred": {
+      "cost": 5,
+      "freshness": 3,
+      "coverage": 3,
+      "spof": 3,
+      "license": 5,
+      "aggregate": 3.8,
+      "aggregate_pct": 76,
+      "kind": "data",
+      "summary": "Federal Reserve macro series (7 series)"
+    },
+    "google_trends": {
+      "cost": 5,
+      "freshness": 3,
+      "coverage": 4,
+      "spof": 1,
+      "license": 2,
+      "aggregate": 3.0,
+      "aggregate_pct": 60,
+      "kind": "data",
+      "summary": "Search interest via pytrends (rate-limited; 24h cache)"
+    },
+    "api_ninjas": {
+      "cost": 4,
+      "freshness": 2,
+      "coverage": 3,
+      "spof": 2,
+      "license": 4,
+      "aggregate": 3.0,
+      "aggregate_pct": 60,
+      "kind": "data",
+      "summary": "Earnings call transcript tone"
+    },
+    "vertex_ai": {
+      "cost": 3,
+      "freshness": 4,
+      "coverage": 5,
+      "spof": 3,
+      "license": 4,
+      "aggregate": 3.8,
+      "aggregate_pct": 76,
+      "kind": "data",
+      "summary": "text-embedding-005 for NLP sentiment"
+    },
+    "yfinance_options": {
+      "cost": 5,
+      "freshness": 3,
+      "coverage": 4,
+      "spof": 2,
+      "license": 2,
+      "aggregate": 3.2,
+      "aggregate_pct": 64,
+      "kind": "data",
+      "summary": "Options open-interest + IV skew via yfinance"
+    },
+    "google_patents_bq": {
+      "cost": 5,
+      "freshness": 2,
+      "coverage": 5,
+      "spof": 3,
+      "license": 5,
+      "aggregate": 4.0,
+      "aggregate_pct": 80,
+      "kind": "data",
+      "summary": "Google Patents public BQ dataset (replaced PatentsView)"
+    },
+    "quant_model": {
+      "cost": 5,
+      "freshness": 4,
+      "coverage": 5,
+      "spof": 5,
+      "license": 5,
+      "aggregate": 4.8,
+      "aggregate_pct": 96,
+      "kind": "data",
+      "summary": "MDA cache + live yfinance features"
+    },
+    "sec_edgar": {
+      "cost": 5,
+      "freshness": 2,
+      "coverage": 5,
+      "spof": 4,
+      "license": 5,
+      "aggregate": 4.2,
+      "aggregate_pct": 84,
+      "kind": "data",
+      "summary": "Form 4 insider trades (custom User-Agent)"
+    },
+    "sector_analysis": {
+      "cost": 5,
+      "freshness": 3,
+      "coverage": 3,
+      "spof": 2,
+      "license": 2,
+      "aggregate": 3.0,
+      "aggregate_pct": 60,
+      "kind": "data",
+      "summary": "11 SPDR ETF sector mapping via yfinance"
+    },
+    "social_sentiment": {
+      "cost": 5,
+      "freshness": 4,
+      "coverage": 4,
+      "spof": 2,
+      "license": 4,
+      "aggregate": 3.8,
+      "aggregate_pct": 76,
+      "kind": "data",
+      "summary": "Alpha Vantage social sentiment aggregation"
+    },
+    "anomaly_detector": {
+      "cost": 5,
+      "freshness": 5,
+      "coverage": 5,
+      "spof": 5,
+      "license": 5,
+      "aggregate": 5.0,
+      "aggregate_pct": 100,
+      "kind": "data",
+      "summary": "Multi-dim z-score on price/volume (local compute)"
+    },
+    "monte_carlo": {
+      "cost": 5,
+      "freshness": 5,
+      "coverage": 5,
+      "spof": 5,
+      "license": 5,
+      "aggregate": 5.0,
+      "aggregate_pct": 100,
+      "kind": "data",
+      "summary": "1000-path GBM scenario simulation (local compute)"
+    },
+    "gemini": {
+      "cost": 3,
+      "freshness": 5,
+      "coverage": 5,
+      "spof": 3,
+      "license": 4,
+      "aggregate": 4.0,
+      "aggregate_pct": 80,
+      "kind": "llm",
+      "summary": "Vertex AI Gemini via llm_client.make_client"
+    },
+    "anthropic": {
+      "cost": 2,
+      "freshness": 5,
+      "coverage": 5,
+      "spof": 3,
+      "license": 4,
+      "aggregate": 3.8,
+      "aggregate_pct": 76,
+      "kind": "llm",
+      "summary": "Claude via llm_client.make_client"
+    },
+    "openai": {
+      "cost": 2,
+      "freshness": 5,
+      "coverage": 5,
+      "spof": 3,
+      "license": 4,
+      "aggregate": 3.8,
+      "aggregate_pct": 76,
+      "kind": "llm",
+      "summary": "OpenAI / GitHub Models via llm_client.make_client"
+    }
+  },
+  "total_providers": 17,
+  "avg_aggregate_pct": 76.7,
+  "at_risk_providers": []
+}

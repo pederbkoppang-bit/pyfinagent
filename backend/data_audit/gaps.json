@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "total_gaps": 10,
+  "by_severity": {
+    "critical": 0,
+    "high": 2,
+    "medium": 4,
+    "low": 4
+  },
+  "literature_drift": [],
+  "gaps": [
+    {
+      "data_class": "news_and_sentiment",
+      "current_provider": "social_sentiment",
+      "severity": "high",
+      "rationale": "Only AV Social Sentiment feeds NLP today; no RavenPack / Bloomberg / FinGPT-style transformer pipeline. NLP sentiment via Vertex is embeddings-only, not a dedicated news sentiment model.",
+      "recommended_next_step": "add: build phase-6 News & Sentiment Cron (proposal already on masterplan)",
+      "current_provider_score_pct": 76,
+      "literature_mentioned": true
+    },
+    {
+      "data_class": "ai_frontier_timeseries_foundation_models",
+      "current_provider": null,
+      "severity": "high",
+      "rationale": "No time-series foundation models in use. FinGPT / TimesFM / Moirai / Chronos-2 all landed 2024-2026 and show zero-shot forecasting superior to classical ARIMA/GBM on many horizons. Phase-8 proposal on masterplan is the right home.",
+      "recommended_next_step": "add: phase-8 Transformer Signals -- pilot Moirai or Chronos-2 in backtest",
+      "current_provider_score_pct": null,
+      "literature_mentioned": true
+    },
+    {
+      "data_class": "institutional_filings_13F_13D_form4",
+      "current_provider": "sec_edgar",
+      "severity": "medium",
+      "rationale": "sec_edgar covers Form 4 insider trades only. No 13F/13D (hedge-fund holdings), no QuiverQuant congressional trades, no WhaleWisdom-style aggregation. Missing ~80% of the institutional-filing alpha surface.",
+      "recommended_next_step": "add: expand sec_edgar tool to pull 13F + 13D; evaluate QuiverQuant free tier",
+      "current_provider_score_pct": 84,
+      "literature_mentioned": true
+    },
+    {
+      "data_class": "short_interest_and_options_flow",
+      "current_provider": "yfinance_options",
+      "severity": "medium",
+      "rationale": "options_flow gives open-interest + IV skew via yfinance; no FINRA short-interest, no unusual-options-activity detection, no put/call imbalance signal.",
+      "recommended_next_step": "add: FINRA short-interest bi-weekly ingest + unusual-options detector on existing options_flow data",
+      "current_provider_score_pct": 64,
+      "literature_mentioned": true
+    },
+    {
+      "data_class": "retail_social_wsb_stocktwits_x",
+      "current_provider": null,
+      "severity": "medium",
+      "rationale": "Zero coverage. WSB + Stocktwits are published free signal sources; X firehose is paid (deprioritise). Missing the 2021-style retail-squeeze signal entirely.",
+      "recommended_next_step": "add: phase-7 PRAW Reddit scraper + Stocktwits public RSS ingest",
+      "current_provider_score_pct": null,
+      "literature_mentioned": true
+    },
+    {
+      "data_class": "alt_credit_and_spending",
+      "current_provider": null,
+      "severity": "medium",
+      "rationale": "No coverage. Second Measure / Earnest Analytics are expensive ($10k+/yr). Cheap proxy: company-filed 10-Q revenue deltas already in sec_edgar + yfinance -- not real-time but defensible.",
+      "recommended_next_step": "defer paid; add: build a 10-Q revenue-surprise signal from existing sec_edgar data",
+      "current_provider_score_pct": null,
+      "literature_mentioned": true
+    },
+    {
+      "data_class": "search_interest",
+      "current_provider": "google_trends",
+      "severity": "low",
+      "rationale": "google_trends via pytrends (archived) + 24h cache covers it; follow-up: add Wikipedia pageviews as second signal for ensemble robustness (Wikipedia has no 429 / ToS risk).",
+      "recommended_next_step": "keep: google_trends; add Wikipedia pageviews as backup (free; zero auth)",
+      "current_provider_score_pct": 60,
+      "literature_mentioned": true
+    },
+    {
+      "data_class": "economic_nowcasting",
+      "current_provider": "fred",
+      "severity": "low",
+      "rationale": "FRED covers macro time series well, but we do not ingest the NY Fed / Atlanta Fed GDPNow nowcasts (higher signal density during regime transitions).",
+      "recommended_next_step": "add: NY Fed nowcast + Atlanta Fed GDPNow weekly ingest (public URLs, free)",
+      "current_provider_score_pct": 76,
+      "literature_mentioned": true
+    },
+    {
+      "data_class": "satellite_and_geospatial",
+      "current_provider": null,
+      "severity": "low",
+      "rationale": "No coverage. Orbital Insight / SpaceKnow are paid + pricey; ROI questionable at our capital scale. Defer until multi-million AUM.",
+      "recommended_next_step": "skip: revisit when live AUM crosses the paid-tier cost-justification threshold",
+      "current_provider_score_pct": null,
+      "literature_mentioned": true
+    },
+    {
+      "data_class": "patent_activity",
+      "current_provider": "google_patents_bq",
+      "severity": "low",
+      "rationale": "Just replaced PatentsView with BQ public dataset; covers full US grants; free; low-latency enough for the signal.",
+      "recommended_next_step": "keep: current BQ public dataset implementation",
+      "current_provider_score_pct": 80,
+      "literature_mentioned": true
+    }
+  ]
+}

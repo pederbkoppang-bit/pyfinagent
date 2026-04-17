@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "total_providers": 17,
+  "data_providers": 14,
+  "llm_providers": 3,
+  "providers": {
+    "yfinance": {
+      "kind": "data",
+      "source_file": "backend/tools/yfinance_tool.py",
+      "source_exists": true,
+      "call_site_files": 4,
+      "env_vars": [],
+      "summary": "OHLCV + fundamentals + options chain (no auth)"
+    },
+    "alphavantage": {
+      "kind": "data",
+      "source_file": "backend/tools/alphavantage.py",
+      "source_exists": true,
+      "call_site_files": 6,
+      "env_vars": [
+        "ALPHAVANTAGE_API_KEY"
+      ],
+      "summary": "News + market intel (50 headlines; 5 req/min)"
+    },
+    "fred": {
+      "kind": "data",
+      "source_file": "backend/tools/fred_data.py",
+      "source_exists": true,
+      "call_site_files": 5,
+      "env_vars": [
+        "FRED_API_KEY"
+      ],
+      "summary": "Federal Reserve macro series (7 series)"
+    },
+    "google_trends": {
+      "kind": "data",
+      "source_file": "backend/tools/alt_data.py",
+      "source_exists": true,
+      "call_site_files": 10,
+      "env_vars": [],
+      "summary": "Search interest via pytrends (rate-limited; 24h cache)"
+    },
+    "api_ninjas": {
+      "kind": "data",
+      "source_file": "backend/tools/earnings_tone.py",
+      "source_exists": true,
+      "call_site_files": 9,
+      "env_vars": [
+        "API_NINJAS_KEY"
+      ],
+      "summary": "Earnings call transcript tone"
+    },
+    "vertex_ai": {
+      "kind": "data",
+      "source_file": "backend/tools/nlp_sentiment.py",
+      "source_exists": true,
+      "call_site_files": 10,
+      "env_vars": [
+        "GCP_PROJECT_ID"
+      ],
+      "summary": "text-embedding-005 for NLP sentiment"
+    },
+    "yfinance_options": {
+      "kind": "data",
+      "source_file": "backend/tools/options_flow.py",
+      "source_exists": true,
+      "call_site_files": 5,
+      "env_vars": [],
+      "summary": "Options open-interest + IV skew via yfinance"
+    },
+    "google_patents_bq": {
+      "kind": "data",
+      "source_file": "backend/tools/patent_tracker.py",
+      "source_exists": true,
+      "call_site_files": 2,
+      "env_vars": [
+        "GCP_PROJECT_ID"
+      ],
+      "summary": "Google Patents public BQ dataset (replaced PatentsView)"
+    },
+    "quant_model": {
+      "kind": "data",
+      "source_file": "backend/tools/quant_model.py",
+      "source_exists": true,
+      "call_site_files": 10,
+      "env_vars": [],
+      "summary": "MDA cache + live yfinance features"
+    },
+    "sec_edgar": {
+      "kind": "data",
+      "source_file": "backend/tools/sec_insider.py",
+      "source_exists": true,
+      "call_site_files": 2,
+      "env_vars": [],
+      "summary": "Form 4 insider trades (custom User-Agent)"
+    },
+    "sector_analysis": {
+      "kind": "data",
+      "source_file": "backend/tools/sector_analysis.py",
+      "source_exists": true,
+      "call_site_files": 6,
+      "env_vars": [],
+      "summary": "11 SPDR ETF sector mapping via yfinance"
+    },
+    "social_sentiment": {
+      "kind": "data",
+      "source_file": "backend/tools/social_sentiment.py",
+      "source_exists": true,
+      "call_site_files": 10,
+      "env_vars": [
+        "ALPHAVANTAGE_API_KEY"
+      ],
+      "summary": "Alpha Vantage social sentiment aggregation"
+    },
+    "anomaly_detector": {
+      "kind": "data",
+      "source_file": "backend/tools/anomaly_detector.py",
+      "source_exists": true,
+      "call_site_files": 2,
+      "env_vars": [],
+      "summary": "Multi-dim z-score on price/volume (local compute)"
+    },
+    "monte_carlo": {
+      "kind": "data",
+      "source_file": "backend/tools/monte_carlo.py",
+      "source_exists": true,
+      "call_site_files": 9,
+      "env_vars": [],
+      "summary": "1000-path GBM scenario simulation (local compute)"
+    },
+    "gemini": {
+      "kind": "llm",
+      "source_file": "backend/agents/llm_client.py",
+      "source_exists": true,
+      "call_site_files": 5,
+      "env_vars": [
+        "GCP_PROJECT_ID"
+      ],
+      "summary": "Vertex AI Gemini via llm_client.make_client"
+    },
+    "anthropic": {
+      "kind": "llm",
+      "source_file": "backend/agents/llm_client.py",
+      "source_exists": true,
+      "call_site_files": 5,
+      "env_vars": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "summary": "Claude via llm_client.make_client"
+    },
+    "openai": {
+      "kind": "llm",
+      "source_file": "backend/agents/llm_client.py",
+      "source_exists": true,
+      "call_site_files": 5,
+      "env_vars": [
+        "OPENAI_API_KEY",
+        "GITHUB_TOKEN"
+      ],
+      "summary": "OpenAI / GitHub Models via llm_client.make_client"
+    }
+  }
+}
