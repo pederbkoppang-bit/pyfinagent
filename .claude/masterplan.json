@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T15:20:02.226315+00:00",
+  "updated_at": "2026-04-17T15:21:07.367985+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -1008,7 +1008,7 @@
         {
           "id": "4.6.7",
           "name": "Slack digest delivered end-to-end",
-          "status": "pending",
+          "status": "blocked",
           "harness_required": true,
           "verification": {
             "command": "python -m backend.slack_bot.digest_test --channel-env SLACK_TEST_CHANNEL_ID --text smoketest-4.6.7 --verify-delivery",
@@ -1020,7 +1020,8 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "blocked_reason": "SLACK_TEST_CHANNEL_ID env-var not set in backend/.env; digest_test module does not yet exist. Unblock: (1) user provides SLACK_TEST_CHANNEL_ID for a dedicated test channel, (2) write backend/slack_bot/digest_test.py that uses slack_sdk WebClient to post + conversations.history verify."
         },
         {
           "id": "4.6.8",

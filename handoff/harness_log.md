@@ -2801,3 +2801,38 @@ the page.tsx without crashing on missing backend context.
 now in place; escalation for full PASS requires user-side test-env
 setup decisions. Moving to 4.6.7.
 
+
+## Cycle 37 -- 2026-04-17 -- SESSION PAUSE at phase-4.6 step 4.6.7
+
+**Session summary (phase-4.6 progress):**
+  [x] 4.6.0 Preflight (Python 3.14)                -- PASS
+  [x] 4.6.1 Backend boot + /api/health             -- PASS
+  [x] 4.6.2 MCP ping + list_tools                  -- PASS
+  [x] 4.6.3 12 enrichment signals for AAPL         -- PASS (10/12 non-ERR)
+  [x] 4.6.4 Paper trading run-now dry-run          -- PASS
+  [x] 4.6.5 Frontend npm run build                 -- PASS
+  [~] 4.6.6 Paper-trading 5 tabs                   -- CONDITIONAL (Playwright infra landed; verbatim PASS needs test-env auth setup)
+  [!] 4.6.7 Slack digest end-to-end                -- BLOCKED (needs SLACK_TEST_CHANNEL_ID + digest_test.py module)
+  [ ] 4.6.8 Chaos watchdog                         -- pending
+  [ ] 4.6.9 Finalize                               -- pending
+
+**Outstanding follow-ups surfaced during this session (user attention needed):**
+  1. PatentsView API permanently discontinued (HTTP 410). Patent signal
+     needs a replacement data source (SEC EDGAR bulk data / Google
+     Patents Public BigQuery / Lens.org free API).
+  2. nlp_sentiment requires GCP ADC credentials in backend process env.
+  3. Auth middleware permissive on /api/paper-trading/run-now despite
+     being off the _PUBLIC_PATHS list -- security regression risk.
+  4. Playwright test-env: need either login fixture or a narrow,
+     well-gated smoketest middleware bypass for verbatim 4.6.6 PASS.
+  5. SLACK_TEST_CHANNEL_ID env-var not set for 4.6.7 verification.
+  6. spacy==3.8.14 and unstructured==0.22.21 have no Python 3.14 wheels
+     (skipped in piecewise install; defer to phase-4.8.8 supply chain).
+
+**Resume marker for next session:**
+  Start at phase-4.6 step 4.6.7 (if SLACK_TEST_CHANNEL_ID provided) or
+  skip to 4.6.8 (chaos watchdog, mechanical). Phase-4.6 has 6 of 10
+  steps PASS, 1 CONDITIONAL, 1 BLOCKED, 2 pending.
+  Next cycle begins with RESEARCH gate via researcher + Explore agents
+  in parallel per MAS discipline.
+
