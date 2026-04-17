@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `a36ed31` | Phase 3.5.0 mcp_inventory: phase-3.5 fully closed (8/8) |
 | 2026-04-17 | `447006c` | Phase 3.5 MCP Tool Audit: COMPLETE (8/8) |
 | 2026-04-17 | `5a5f83a` | Phase 5.5: External Data-Source Audit COMPLETE (7/7) |
 | 2026-04-17 | `cc9db4b` | Phase 4.6: COMPLETE (10/10) -- 4.6.8 chaos watchdog + 4.6.9 finalize |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `68d99ad` | feat(masterplan): add phase-3.5 MCP tool audit + adoption proposal |
 | 2026-04-17 | `7abe6fb` | Masterplan: move phase-4 (Production Readiness) to end + aggregate smoketest |
 | 2026-04-17 | `82b7a45` | Integrate 6 phase proposals into masterplan + codify profit-max meta-goal |
-| 2026-04-17 | `7287f20` | Add Phase 4.6 smoketest proposal |
 
 ---
 
+### v6.5.33 — Phase 3.5.0 mcp_inventory: phase-3.5 fully closed (8/8) (2026-04-17)
+
+- **Phase 3.5.0 mcp_inventory: phase-3.5 fully closed (8/8)**
 ### v6.5.32 — Phase 3.5 MCP Tool Audit: COMPLETE (8/8) (2026-04-17)
 
 - **Phase 3.5 MCP Tool Audit: COMPLETE (8/8)**
