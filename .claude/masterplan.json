@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T17:32:55.154020+00:00",
+  "updated_at": "2026-04-17T18:57:03.513546+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -880,7 +880,7 @@
     {
       "id": "phase-4.6",
       "name": "Full-stack smoketest (E2E synthetic probe)",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-4.5"
       ],
@@ -1024,7 +1024,7 @@
         {
           "id": "4.6.8",
           "name": "Watchdog alert fires on simulated process kill",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/smoketest/steps/chaos_watchdog.py --timeout 90",
@@ -1041,7 +1041,7 @@
         {
           "id": "4.6.9",
           "name": "Append harness log row + clean shutdown",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/smoketest/steps/finalize.py --log handoff/harness_log.md --port 8765",

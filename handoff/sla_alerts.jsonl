@@ -1,0 +1,4 @@
+{"event": "paper_trader_heartbeat_stale", "stale_seconds": 15.0, "worker_pid": 18325, "worker_alive": false, "action": "restart", "detected_at": "2026-04-17T18:50:40.660137+00:00"}
+{"event": "paper_trader_heartbeat_stale", "stale_seconds": 14.99, "worker_pid": 18470, "worker_alive": false, "action": "restart", "detected_at": "2026-04-17T18:51:19.644776+00:00"}
+{"event": "paper_trader_heartbeat_stale", "stale_seconds": 14.99, "worker_pid": 18681, "worker_alive": false, "action": "restart", "detected_at": "2026-04-17T18:52:18.339297+00:00"}
+{"event": "paper_trader_heartbeat_stale", "stale_seconds": 14.99, "worker_pid": 18873, "worker_alive": false, "action": "restart", "detected_at": "2026-04-17T18:52:59.173246+00:00"}

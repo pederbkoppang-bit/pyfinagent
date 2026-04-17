@@ -3128,3 +3128,151 @@ Outstanding (non-blocking):
 **Decision:** alt_data status=FIXED. Signal quorum raised from
            11/12 -> 12/12 (first perfect run). Cycle 41 closed.
 
+
+---
+
+## Cycle 1 -- 2026-04-17 17:43 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-17 17:45 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-17 18:18 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 42 -- 2026-04-17 -- phase-4.6 step 4.6.8 DONE (full MAS loop)
+
+**Step:** 4.6.8 "Watchdog alert fires on simulated process kill"
+**RESEARCH:** 2 agents parallel. Explore: paper_trader runs in-process
+           (APScheduler), no subprocess today; sla_monitor polls SQLite
+           tickets every 300s + SMS escalation (no BQ alert sink).
+           researcher (16 URLs incl. Chaos Toolkit, Netflix Chaos Monkey,
+           LitmusChaos, wolever gist, arxiv 2505.13654v1): canonical
+           2026 pattern is disposable-subprocess + in-thread watchdog +
+           alert file/row + respawn. Production should route to
+           supervisord/launchd/systemd.
+
+**PLAN:** wrote scripts/smoketest/steps/chaos_watchdog.py. Alert sink:
+           handoff/sla_alerts.jsonl + BQ pyfinagent_data.sla_alerts.
+
+**GENERATE + EVALUATE (iteration 1):**
+  - First run: all 3 criteria PASS. Alert within 15.2s; restart 15.2s.
+  - qa-evaluator verdict CONDITIONAL with two addressable flaws:
+    (i) self-attestation via watchdog.alerts in-memory list;
+    (ii) no actual BQ write path exercised.
+  - Fixes:
+    (a) added independent file re-read (assert new JSONL row
+        containing event=paper_trader_heartbeat_stale + matching
+        worker_pid = killed_pid);
+    (b) added best-effort BQ insert_rows_json to
+        pyfinagent_data.sla_alerts with graceful skip on ADC/table
+        absence;
+    (c) created the BQ table (event/worker_pid/stale_seconds/action/
+        detected_at schema) via google-cloud-bigquery.
+  - Re-run:  alert 15.11s, restart 17.13s,
+             file_has_matching_stale_event=true,
+             bq_write=ok (confirmed rows=1 in BQ table);
+             verdict=PASS.
+  - harness-verifier independently reproduced PASS (10/10 criteria).
+
+**Known scope limitation (documented follow-up, non-blocking):**
+  Real paper_trader subprocess boundary is not exercised -- the disposable
+  worker is a logic stand-in because paper_trader runs in-process under
+  APScheduler today. Production deployment (supervisord/systemd wiring
+  + real paper_trader subprocess refactor) should be a phase-4.8 step
+  when the system goes live.
+
+**Decision:** 4.6.8 status=done. Phase-4.6 now 9/10.
+
+
+## Cycle 43 -- 2026-04-17 18:55 UTC -- phase=4.6 result=PASS
+
+**Decision:** PASS -- aggregate smoketest finalize -- all prior steps green
+
+## Cycle 44 -- 2026-04-17 18:56 UTC -- phase=4.6 result=PASS
+
+**Decision:** PASS -- aggregate smoketest finalize -- all prior steps green
+
+## Cycle 43 (finalization) -- phase-4.6 step 4.6.9 DONE (full MAS loop)
+
+**Step:** 4.6.9 "Append harness log row + clean shutdown"
+**RESEARCH:** Explore agent. harness_log uses `## Cycle N` multi-line
+           blocks (not TSV); MCP servers are in-process (empty PID set
+           before + after); port-8765 cleanly unbound after prior steps.
+**PLAN:** write scripts/smoketest/steps/finalize.py that: counts
+           cycle rows (regex on `## Cycle \d+`), snapshots MCP PID
+           set via ps, appends exactly one Cycle block with phase +
+           result, then verifies delta_rows=1 + port unbound + no
+           stray MCP PIDs.
+**GENERATE:** finalize.py landed. First run: verdict=PASS,
+           delta_rows=1, has_phase=true, has_result=true,
+           port_bound=false, stray_mcp=[]. Cycle 43 appended.
+**EVALUATE:** both agents PASS (qa-evaluator and harness-verifier).
+           Harness-verifier independently reproduced on Cycle 44;
+           all 4 criteria green.
+**Decision:** 4.6.9 status=done. Phase-4.6 auto-flipped to done
+           (10/10 steps).
+
+## PHASE-4.6 SMOKETEST: COMPLETE (10/10)
+
+Steps done (each with full MAS-loop RESEARCH/PLAN/GENERATE/EVALUATE/LOG):
+  4.6.0 Preflight (Python 3.14 venv upgrade)
+  4.6.1 Backend boot + /api/health
+  4.6.2 MCP servers respond to ping + list_tools
+  4.6.3 12 enrichment signals for AAPL (12/12 non-ERROR after alt_data fix)
+  4.6.4 Paper trading run-now dry-run
+  4.6.5 Frontend npm run build
+  4.6.6 Paper-trading 5 tabs (Playwright + JWE cookie)
+  4.6.7 Slack digest end-to-end
+  4.6.8 Watchdog alert fires on simulated process kill
+  4.6.9 Append harness log row + clean shutdown
+
+Open follow-ups (non-blocking, documented for future phases):
+  - alt_data: BQ-backed cache would fix uvicorn-reload thundering herd
+  - patent/nlp_sentiment: Google Patents + Vertex both depend on GCP ADC
+    (restored this session)
+  - 4.6.6: prod middleware should gain a narrow smoketest bypass for
+    CI verbatim runs (Pattern 3 JWE works in dev but requires AUTH_SECRET)
+  - 4.6.8: real paper_trader subprocess refactor + supervisord is
+    production deployment work (phase-4.8)
+
