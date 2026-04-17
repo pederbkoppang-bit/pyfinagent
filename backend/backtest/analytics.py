@@ -176,6 +176,61 @@ def compute_information_ratio(active_returns: np.ndarray) -> float:
     return float((active_returns.mean() / std) * np.sqrt(252))
 
 
+def compute_pbo(pnl_matrix, S: int = 16) -> float:
+    """Probability of Backtest Overfitting (CSCV).
+
+    Bailey, Borwein, Lopez de Prado, Zhu (2016), SSRN 2326253.
+    https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2326253
+
+    Args:
+        pnl_matrix: 2-D array-like of shape (T, N). T time steps, N
+            strategy trials (columns are per-configuration PnL series).
+        S: number of even-numbered, temporally ordered subsets.
+            S=16 is the paper's convention. Must be even and <= T.
+
+    Returns PBO in [0, 1]. PBO > 0.5 means the in-sample winner ranks
+    below the OOS median more often than chance -- an anti-predictive
+    search. Veto-threshold candidates at PBO > 0.5 is the canonical gate.
+    """
+    from itertools import combinations as _comb
+    arr = np.asarray(pnl_matrix, dtype=float)
+    if arr.ndim != 2:
+        raise ValueError("pnl_matrix must be 2-D (T, N)")
+    T, N = arr.shape
+    if N < 2 or T < S * 2:
+        return 0.0
+    if S % 2 != 0:
+        raise ValueError("S must be even")
+    size = T // S
+    subsets = [arr[i * size:(i + 1) * size, :] for i in range(S)]
+    half = S // 2
+    logits: list[float] = []
+    for is_idx in _comb(range(S), half):
+        oos_idx = tuple(j for j in range(S) if j not in is_idx)
+        IS = np.vstack([subsets[i] for i in is_idx])
+        OOS = np.vstack([subsets[i] for i in oos_idx])
+        # Guard against zero-variance columns.
+        is_std = IS.std(axis=0)
+        oos_std = OOS.std(axis=0)
+        is_sharpe = np.where(is_std > 0, IS.mean(axis=0) / is_std, 0.0)
+        oos_sharpe = np.where(oos_std > 0, OOS.mean(axis=0) / oos_std, 0.0)
+        best = int(np.argmax(is_sharpe))
+        # rank in OOS: 1 = lowest, N = highest. Count <= so ties push up.
+        rank = int(np.sum(oos_sharpe <= oos_sharpe[best]))
+        omega = max(1e-6, min(1 - 1e-6, (rank - 0.5) / N))
+        logits.append(float(math.log(omega / (1 - omega))))
+    if not logits:
+        return 0.0
+    logits_arr = np.array(logits)
+    try:
+        kde = stats.gaussian_kde(logits_arr)
+        x = np.linspace(float(logits_arr.min()) - 1, 0.0, 400)
+        return float(np.trapz(kde(x), x))
+    except Exception:
+        # Fallback: empirical Pr(logit < 0).
+        return float((logits_arr < 0).mean())
+
+
 def compute_deflated_sharpe(
     observed_sr: float,
     num_trials: int,

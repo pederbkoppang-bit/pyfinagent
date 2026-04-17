@@ -1,0 +1,50 @@
+{
+  "server": "risk",
+  "samples": 20,
+  "parity_rate": 1.0,
+  "matches": 20,
+  "p95_latency_mcp_s": 1e-06,
+  "p95_latency_direct_s": 0.0,
+  "latency_ratio": 2.819,
+  "noise_dominated": true,
+  "latency_within_1_5x": true,
+  "sample_rows": [
+    {
+      "i": 0,
+      "item": "AAPL",
+      "kind": "kill_switch",
+      "parity": true
+    },
+    {
+      "i": 1,
+      "item": "MSFT",
+      "kind": "portfolio_cvar",
+      "parity": true
+    },
+    {
+      "i": 2,
+      "item": "NVDA",
+      "kind": "factor_exposure",
+      "parity": true
+    },
+    {
+      "i": 3,
+      "item": "GOOGL",
+      "kind": "pbo_check",
+      "parity": true
+    },
+    {
+      "i": 4,
+      "item": "AMZN",
+      "kind": "kill_switch",
+      "parity": true
+    }
+  ],
+  "veto_rate_pbo_over_0_5": 1.0,
+  "high_pbo_total": 10,
+  "high_pbo_vetoed": 10,
+  "low_pbo_total": 10,
+  "low_pbo_falsely_vetoed": 0,
+  "verdict": "PASS",
+  "agpl_isolation_documented": true
+}

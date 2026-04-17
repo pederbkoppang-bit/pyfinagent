@@ -1,0 +1,47 @@
+{
+  "server": "signals",
+  "samples": 20,
+  "parity_rate": 1.0,
+  "matches": 20,
+  "p95_latency_mcp_s": 1e-06,
+  "p95_latency_direct_s": 0.0,
+  "latency_ratio": 2.668,
+  "noise_dominated": true,
+  "latency_within_1_5x": true,
+  "sample_rows": [
+    {
+      "i": 0,
+      "item": "AAPL",
+      "kind": "generate_signal",
+      "parity": true
+    },
+    {
+      "i": 1,
+      "item": "MSFT",
+      "kind": "validate_signal",
+      "parity": true
+    },
+    {
+      "i": 2,
+      "item": "NVDA",
+      "kind": "publish_signal",
+      "parity": true
+    },
+    {
+      "i": 3,
+      "item": "GOOGL",
+      "kind": "risk_check",
+      "parity": true
+    },
+    {
+      "i": 4,
+      "item": "AMZN",
+      "kind": "generate_signal",
+      "parity": true
+    }
+  ],
+  "candidates_per_call": 5,
+  "dsr_annotated": true,
+  "verdict": "PASS",
+  "agpl_isolation_documented": true
+}

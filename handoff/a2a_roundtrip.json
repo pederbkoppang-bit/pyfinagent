@@ -1,0 +1,54 @@
+{
+  "step": "3.7.4",
+  "ran_at": "2026-04-17T20:27:43.595192+00:00",
+  "samples": 20,
+  "p50_ms": 4.883,
+  "p95_ms": 7.274,
+  "max_ms": 7.274,
+  "retry_observed": true,
+  "transient_failure_retried": true,
+  "approved_on_every_hop": true,
+  "sample_rows": [
+    {
+      "rid": 0,
+      "ticker": "AAPL",
+      "elapsed_ms": 5.097,
+      "approved_count": 5,
+      "injected_transient": false,
+      "retry_observed": false
+    },
+    {
+      "rid": 1,
+      "ticker": "MSFT",
+      "elapsed_ms": 4.848,
+      "approved_count": 5,
+      "injected_transient": false,
+      "retry_observed": false
+    },
+    {
+      "rid": 2,
+      "ticker": "NVDA",
+      "elapsed_ms": 4.892,
+      "approved_count": 5,
+      "injected_transient": false,
+      "retry_observed": false
+    },
+    {
+      "rid": 3,
+      "ticker": "GOOGL",
+      "elapsed_ms": 4.84,
+      "approved_count": 5,
+      "injected_transient": false,
+      "retry_observed": false
+    },
+    {
+      "rid": 4,
+      "ticker": "AMZN",
+      "elapsed_ms": 4.885,
+      "approved_count": 5,
+      "injected_transient": false,
+      "retry_observed": false
+    }
+  ],
+  "verdict": "PASS"
+}

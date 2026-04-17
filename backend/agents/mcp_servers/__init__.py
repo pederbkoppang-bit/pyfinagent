@@ -14,21 +14,21 @@ Usage:
 from .data_server import create_data_server
 from .backtest_server import create_backtest_server
 from .signals_server import create_signals_server
+from .risk_server import create_risk_server
 
-__all__ = ["create_data_server", "create_backtest_server", "create_signals_server"]
+__all__ = [
+    "create_data_server",
+    "create_backtest_server",
+    "create_signals_server",
+    "create_risk_server",
+]
 
 
 async def start_all_servers():
-    """Start all three MCP servers for autonomous Claude integration."""
-    data_server = create_data_server()
-    backtest_server = create_backtest_server()
-    signals_server = create_signals_server()
-    
-    # In production, each server runs as a separate process/service
-    # For development, they can share a transport (stdio, SSE, HTTP)
-    
+    """Start all four MCP servers for autonomous Claude integration."""
     return {
-        "data": data_server,
-        "backtest": backtest_server,
-        "signals": signals_server,
+        "data": create_data_server(),
+        "backtest": create_backtest_server(),
+        "signals": create_signals_server(),
+        "risk": create_risk_server(),
     }

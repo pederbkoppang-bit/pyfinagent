@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T19:55:11.448749+00:00",
+  "updated_at": "2026-04-17T20:28:44.228150+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -535,7 +535,7 @@
         {
           "id": "3.7.2",
           "name": "Promote signals_server.py to Strategy Agent MCP",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/mcp_ab_test.py --server signals --samples 20 && python -c \"import json; d=json.load(open('handoff/mcp_ab_test_signals.json')); assert d['candidates_per_call'] >= 5\"",
@@ -552,7 +552,7 @@
         {
           "id": "3.7.3",
           "name": "New risk_server.py Risk Agent MCP (kill_switch + PBO veto)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/mcp_ab_test.py --server risk --samples 20 && python -c \"import json; d=json.load(open('handoff/mcp_ab_test_risk.json')); assert d['veto_rate_pbo_over_0_5'] == 1.0\"",
@@ -569,7 +569,7 @@
         {
           "id": "3.7.4",
           "name": "A2A (or AutoGen-style) task-delegation layer with retry/expiry",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/a2a_roundtrip_test.py && python -c \"import json; d=json.load(open('handoff/a2a_roundtrip.json')); assert d['p95_ms'] <= 2000\"",

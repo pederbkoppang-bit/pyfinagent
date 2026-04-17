@@ -3548,3 +3548,158 @@ Both evaluators ran: qa CONDITIONAL (follow-up: real FastMCP Client
 wiring for 3.7.6); harness-verifier PASS on all 5 mechanical criteria.
 Handoff files: handoff/current/contract.md + experiment_results.md +
 evaluator_critique.md all written this cycle (gap corrected).
+
+---
+
+## Cycle 1 -- 2026-04-17 20:02 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-17 20:02 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 61 -- 2026-04-17 -- phase=3.7.2 result=PASS
+
+3.7.2 signals MCP promotion (Strategy Agent MCP):
+RESEARCH: Explore agent audit identified 4 gaps -- no candidate-list
+tool, no DSR annotation, scalar mocks only.
+PLAN: contract at handoff/current/contract.md.
+GENERATE:
+  - signals_server.py: new @mcp.tool emit_candidates returning >=5
+    candidates each with dsr field. Honest 3-value dsr_source enum.
+  - mcp_ab_test.py: sys.path.insert for backend imports; signals
+    branch opens real FastMCP in-memory Client against
+    create_signals_server and emits candidates_per_call + dsr_annotated.
+EVALUATE: qa-evaluator (CONDITIONAL first -- dsr_source label
+misleading; fixed in-cycle; PASS on re-read) + harness-verifier (6/6
+mechanical green) spawned in parallel per CLAUDE.md.
+Decision: PASS. phase-3.7 now 3/9.
+
+## Cycle 62 -- 2026-04-17 -- phase=3.7.3 result=PASS
+
+3.7.3 Risk Agent MCP (PBO + kill_switch veto).
+
+GOVERNANCE FIXES THIS CYCLE (user-flagged):
+- 3.7.2: re-spawned qa-evaluator independently to re-verify the
+  dsr_source label fix rather than orchestrator-self-approving. qa
+  returned PASS on its own authority.
+- 3.7.3: spawned BOTH researcher AND Explore in parallel for RESEARCH
+  (not just Explore). researcher delivered 16 URLs including the
+  canonical Bailey-Borwein-Lopez de Prado-Zhu 2016 PBO paper,
+  CSCV algorithm, drawdown formulas, MCP veto patterns.
+
+GENERATE:
+- backend/backtest/analytics.py: new compute_pbo(pnl_matrix, S=16)
+  implementing CSCV per the canonical paper.
+- backend/agents/mcp_servers/risk_server.py: new FastMCP server with
+  6 tools; kill_switch + PBO + projected-DD composite gate.
+- __init__.py exports create_risk_server; start_all_servers -> 4.
+- mcp_ab_test.py risk branch opens real FastMCP Client against
+  create_risk_server + calls evaluate_candidate 20x (10 high-PBO +
+  10 low-PBO) to exercise gate discrimination.
+
+EVALUATE (parallel, evaluator-owned):
+- qa-evaluator: PASS with algorithm walkthrough + confirmation gate
+  discriminates (10 high-PBO vetoed, 0 low-PBO falsely vetoed).
+- harness-verifier: PASS on 7/7 mechanical checks.
+
+Decision: PASS. phase-3.7 now 4/9.
+
+---
+
+## Cycle 1 -- 2026-04-17 20:21 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-17 20:27 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-17 20:27 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 63 -- 2026-04-17 -- phase=3.7.4 result=PASS
+
+3.7.4 A2A task-delegation layer.
+RESEARCH (parallel): researcher (16 URLs) recommended stdlib
+asyncio.Queue over A2A SDK for intra-process fixed-3-node topology;
+Explore confirmed greenfield (no existing agent-to-agent handoff).
+PLAN: TaskEnvelope mirroring A2A shape + AsyncTaskBus with
+wait_for/shield/cancel retry pattern.
+GENERATE:
+- backend/agents/task_bus.py (TaskEnvelope, AsyncTaskBus,
+  TransientFailure; ~165 lines).
+- scripts/harness/a2a_roundtrip_test.py (20 round-trips with 1
+  injected transient failure; p95 measurement; ~180 lines).
+EVALUATE (parallel, evaluator-owned):
+- qa-evaluator: PASS with delegate mechanics walkthrough,
+  confirmation retry path is genuine (not hard-coded), latency
+  honest, A2A-shape envelope preserves swap-later option.
+- harness-verifier: PASS on 8/8 mechanical checks.
+Result: p50=4.9ms p95=7.3ms max=7.3ms (274x under 2000ms budget),
+retry_observed=True, transient_failure_retried=True,
+approved_on_every_hop=True.
+Decision: PASS. phase-3.7 now 5/9.

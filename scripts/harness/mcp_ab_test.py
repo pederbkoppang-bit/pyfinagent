@@ -32,6 +32,12 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
+# Allow `from backend.agents...` when the script is invoked via
+# `python scripts/harness/mcp_ab_test.py` (sys.path[0] is the script
+# dir in that case).
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
 # Symbols used for parity sampling -- low-liquidity names avoided.
 SAMPLE_SYMBOLS = ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "TSLA",
                    "AVGO", "ORCL", "AMD", "INTC", "IBM", "CRM", "ADBE",
@@ -389,15 +395,11 @@ def _run_readonly_ab(server: str, samples: int) -> dict:
     p95_mcp = sorted(latencies_mcp)[int(0.95 * len(latencies_mcp))] if latencies_mcp else 0
     p95_direct = sorted(latencies_direct)[int(0.95 * len(latencies_direct))] if latencies_direct else 0
     latency_ratio = (p95_mcp / p95_direct) if p95_direct else 1.0
-    # Noise-dominated regime: when BOTH p95s are below 10 ms, ratios
-    # bounce on microsecond jitter and the 1.5x threshold is not
-    # meaningful. Mark within-1.5x in that case. Real network
-    # latencies start at 10+ ms so this bypass has no effect on
-    # real-upstream runs.
-    NOISE_FLOOR = 0.010  # 10 ms
+    NOISE_FLOOR = 0.010
     noise_dominated = (p95_mcp < NOISE_FLOOR and p95_direct < NOISE_FLOOR)
     latency_ok = latency_ratio <= 1.5 or noise_dominated
-    return {
+
+    out = {
         "server": server,
         "samples": samples,
         "parity_rate": round(parity_rate, 4),
@@ -407,9 +409,91 @@ def _run_readonly_ab(server: str, samples: int) -> dict:
         "latency_ratio": round(latency_ratio, 3),
         "noise_dominated": noise_dominated,
         "latency_within_1_5x": latency_ok,
-        "verdict": "PASS" if (parity_rate >= 0.95 and latency_ok) else "FAIL",
         "sample_rows": rows[:5],
     }
+
+    # phase-3.7 step 3.7.3: for server="risk" exercise evaluate_candidate
+    # with both high-PBO and low-PBO synthetic candidates. The veto rate
+    # on the high-PBO subset must be 1.0 (every high-PBO candidate
+    # vetoed) to satisfy the immutable assertion.
+    if server == "risk":
+        veto_rate_pbo_over_0_5 = 0.0
+        high_pbo_total = 0
+        high_pbo_vetoed = 0
+        low_pbo_total = 0
+        low_pbo_falsely_vetoed = 0
+        try:
+            from backend.agents.mcp_servers import create_risk_server
+            import asyncio
+            from fastmcp import Client
+
+            async def _gate_eval() -> tuple[int, int, int, int]:
+                mcp = create_risk_server()
+                async with Client(mcp) as client:
+                    hi_total = hi_ok = 0
+                    lo_total = lo_false = 0
+                    for i in range(20):
+                        high = i % 2 == 0
+                        candidate = {
+                            "pbo": 0.82 if high else 0.12,
+                            "sigma_ann_pct": 12.0,
+                            "sharpe": 1.17,
+                        }
+                        res = await client.call_tool("evaluate_candidate",
+                                                       {"candidate": candidate})
+                        data = res.data if hasattr(res, "data") else res
+                        vetoed = bool(data.get("vetoed"))
+                        if high:
+                            hi_total += 1
+                            if vetoed and data.get("reason") == "pbo_exceeds_threshold":
+                                hi_ok += 1
+                        else:
+                            lo_total += 1
+                            if vetoed:
+                                lo_false += 1
+                    return hi_total, hi_ok, lo_total, lo_false
+
+            (high_pbo_total, high_pbo_vetoed,
+             low_pbo_total, low_pbo_falsely_vetoed) = asyncio.run(_gate_eval())
+            if high_pbo_total:
+                veto_rate_pbo_over_0_5 = high_pbo_vetoed / high_pbo_total
+        except Exception as e:
+            out["risk_tool_error"] = f"{type(e).__name__}:{e}"
+
+        out["veto_rate_pbo_over_0_5"] = round(veto_rate_pbo_over_0_5, 4)
+        out["high_pbo_total"] = high_pbo_total
+        out["high_pbo_vetoed"] = high_pbo_vetoed
+        out["low_pbo_total"] = low_pbo_total
+        out["low_pbo_falsely_vetoed"] = low_pbo_falsely_vetoed
+
+    # phase-3.7 step 3.7.2: for server="signals" exercise the
+    # emit_candidates MCP tool and surface candidates_per_call so the
+    # immutable verification can assert >= 5.
+    if server == "signals":
+        candidates_per_call = 0
+        dsr_annotated = False
+        try:
+            from backend.agents.mcp_servers import create_signals_server
+            import asyncio
+            from fastmcp import Client
+
+            async def _pull_candidates() -> tuple[int, bool]:
+                mcp = create_signals_server()
+                async with Client(mcp) as client:
+                    result = await client.call_tool(
+                        "emit_candidates", {"ticker": "AAPL", "n": 5})
+                    data = result.data if hasattr(result, "data") else result
+                    cands = data.get("candidates") or []
+                    return len(cands), all("dsr" in c for c in cands) if cands else False
+
+            candidates_per_call, dsr_annotated = asyncio.run(_pull_candidates())
+        except Exception as e:
+            out["signals_tool_error"] = f"{type(e).__name__}:{e}"
+        out["candidates_per_call"] = candidates_per_call
+        out["dsr_annotated"] = dsr_annotated
+
+    out["verdict"] = "PASS" if (parity_rate >= 0.95 and latency_ok) else "FAIL"
+    return out
 
 
 def main() -> int:
