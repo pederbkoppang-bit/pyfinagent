@@ -1792,8 +1792,14 @@ def create_signals_server():
             """Get all signals generated this month."""
             result = server.get_signal_history()
             return json.dumps(result)
-        
-        logger.info("Signals server created with 4 tools + 3 resources")
+
+        @mcp.tool
+        def ping() -> dict:
+            """Liveness probe for phase-4.6 smoketest."""
+            import time as _t
+            return {"ok": True, "server": "pyfinagent-signals", "ts": _t.time()}
+
+        logger.info("Signals server created with 5 tools + 3 resources")
         return mcp
     
     except ImportError:

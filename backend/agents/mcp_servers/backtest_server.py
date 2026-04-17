@@ -8,7 +8,7 @@ Tools (FastMCP @mcp.tool):
 - get_feature_importance() → MDI + MDA importance across all windows
 
 Resources (for reference data):
-- quant_results://all → TSV of all experiments
+- quant-results://all → TSV of all experiments
 - experiments://recent → Last 10 backtest results
 """
 
@@ -375,7 +375,7 @@ def create_backtest_server():
             return server.get_feature_importance()
         
         # Register resources (reference data)
-        @mcp.resource("quant_results://all")
+        @mcp.resource("quant-results://all")
         def experiments_resource() -> str:
             """Get all historical backtest results (TSV format)."""
             result = server.get_experiment_list()
@@ -386,8 +386,14 @@ def create_backtest_server():
             """Get last 10 backtest results."""
             result = server.get_recent_experiments(limit=10)
             return json.dumps(result)
-        
-        logger.info("Backtest server created with 4 tools + 2 resources")
+
+        @mcp.tool
+        def ping() -> dict:
+            """Liveness probe for phase-4.6 smoketest."""
+            import time as _t
+            return {"ok": True, "server": "pyfinagent-backtest", "ts": _t.time()}
+
+        logger.info("Backtest server created with 5 tools + 2 resources")
         return mcp
     
     except ImportError:

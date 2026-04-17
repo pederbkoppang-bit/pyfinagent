@@ -38,8 +38,11 @@ lines = [
 for phase in mp.get("phases", []):
     icon = {"done": "[x]", "in-progress": "[~]", "pending": "[ ]", "blocked": "[!]"}.get(phase["status"], "[ ]")
     gate = ""
-    if phase.get("gate") and not phase["gate"].get("approved", True):
-        gate = f" — GATE: {phase['gate']['reason']}"
+    g = phase.get("gate")
+    if isinstance(g, dict) and not g.get("approved", True):
+        gate = f" — GATE: {g.get('reason','<no reason>')}"
+    elif isinstance(g, str):
+        gate = f" — GATE: {g}"
     lines.append(f"{icon} **{phase['id']}**: {phase['name']} ({phase['status']}){gate}")
 
     for step in phase.get("steps", []):

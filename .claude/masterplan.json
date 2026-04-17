@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-16T23:32:53.809963+00:00",
+  "updated_at": "2026-04-17T05:09:05.201382+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -351,7 +351,7 @@
         {
           "id": "3.5.0",
           "name": "MCP surface inventory (read-only)",
-          "status": "pending",
+          "status": "in-progress",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python scripts/audit/mcp_inventory.py --json > handoff/mcp_inventory.json && python -c \"import json; d=json.load(open('handoff/mcp_inventory.json')); assert d['servers'], d\"",
@@ -889,7 +889,7 @@
         {
           "id": "4.6.0",
           "name": "Preflight: venv + critical imports",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python -c \"import sys,fastapi,httpx,google.cloud.bigquery,anthropic,yfinance; assert sys.version_info[:2]==(3,14); print('PREFLIGHT_OK')\"",
@@ -899,13 +899,13 @@
             ]
           },
           "contract": null,
-          "retry_count": 0,
+          "retry_count": 1,
           "max_retries": 3
         },
         {
           "id": "4.6.1",
           "name": "Backend boot + /api/health returns 200",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/smoketest/steps/boot_backend.py --port 8765 --timeout 30",
@@ -922,7 +922,7 @@
         {
           "id": "4.6.2",
           "name": "MCP servers respond to ping + list_tools",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/smoketest/steps/mcp_ping.py --servers data,backtest,signals --timeout 10",
@@ -1414,7 +1414,10 @@
       "depends_on": [
         "phase-4.8"
       ],
-      "gate": "hard_gate_for_phase_4_go_live_and_phase_8_5_promotion",
+      "gate": {
+        "approved": false,
+        "reason": "hard gate for phase-4 go-live and any phase-8.5 autoresearch promotion; requires all 10 step criteria green"
+      },
       "steps": [
         {
           "id": "4.9.0",

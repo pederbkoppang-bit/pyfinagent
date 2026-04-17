@@ -8,7 +8,7 @@ Resources (FastMCP @mcp.resource):
 - universe://[MARKET] -- List of tradeable tickers
 - features://[TICKER] -- Computed features (momentum, value, sentiment)
 - experiments://list -- All historical backtest results
-- best_params://current -- Current best parameters from optimizer
+- best-params://current -- Current best parameters from optimizer
 """
 
 import csv
@@ -450,13 +450,19 @@ def create_data_server():
             result = server.get_experiment_list()
             return json.dumps(result)
         
-        @mcp.resource("best_params://current")
+        @mcp.resource("best-params://current")
         def best_params_resource() -> str:
             """Get current best parameters from the optimizer."""
             result = server.get_best_params()
             return json.dumps(result)
-        
-        logger.info("Data server created with 7 resources")
+
+        @mcp.tool
+        def ping() -> dict:
+            """Liveness probe for phase-4.6 smoketest."""
+            import time as _t
+            return {"ok": True, "server": "pyfinagent-data", "ts": _t.time()}
+
+        logger.info("Data server created with 7 resources + 1 tool (ping)")
         return mcp
     
     except ImportError:
