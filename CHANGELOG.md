@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `68d67b6` | Codify Anthropic MAS harness-loop protocol across CLAUDE.md + agents |
 | 2026-04-17 | `2a8d074` | Codify non-skippable harness-loop discipline + phase-3.7.0/3.7.1 |
 | 2026-04-17 | `a36ed31` | Phase 3.5.0 mcp_inventory: phase-3.5 fully closed (8/8) |
 | 2026-04-17 | `447006c` | Phase 3.5 MCP Tool Audit: COMPLETE (8/8) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `2341a8e` | proposal: phase-6.5 Global Intelligence Directive |
 | 2026-04-17 | `fbc73f3` | feat(masterplan): add phase-3.7/4.7/4.8/8.5 + retire 2.10 |
 | 2026-04-17 | `68d99ad` | feat(masterplan): add phase-3.5 MCP tool audit + adoption proposal |
-| 2026-04-17 | `7abe6fb` | Masterplan: move phase-4 (Production Readiness) to end + aggregate smoketest |
 
 ---
 
+### v6.5.35 — Codify Anthropic MAS harness-loop protocol across CLAUDE.md + agents (2026-04-17)
+
+- **Codify Anthropic MAS harness-loop protocol across CLAUDE.md + agents**
 ### v6.5.34 — Codify non-skippable harness-loop discipline + phase-3.7.0/3.7.1 (2026-04-17)
 
 - **Codify non-skippable harness-loop discipline + phase-3.7.0/3.7.1**
