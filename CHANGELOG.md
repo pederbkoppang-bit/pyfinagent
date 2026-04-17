@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `8fdb170` | Phase 4.6: session pause after 6/10 steps resolved |
 | 2026-04-17 | `85d439d` | Phase 4.6.6: install Playwright + rewrite smoketest (CONDITIONAL) |
 | 2026-04-17 | `5901060` | Phase 4.6 steps 4.6.5 PASS + 4.6.6 CONDITIONAL |
 | 2026-04-17 | `fa01d4d` | Phase 4.6 steps 4.6.3, 4.6.4 via MAS loop |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `0b3d090` | docs: add Phase 6 proposal — News & Sentiment Cron |
 | 2026-04-16 | `ef35140` | Harness: F1 retry-loop escalation + F2 research-on-demand |
 | 2026-04-16 | `0eccebb` | chore: bump per-commit in changelog hook; split v6.5.0 backlog |
-| 2026-04-16 | `64f7708` | chore: harness log entry for Cycle 29 (4.4.5.2 escalation path) |
 
 ---
 
+### v6.5.25 — Phase 4.6: session pause after 6/10 steps resolved (2026-04-17)
+
+- **Phase 4.6: session pause after 6/10 steps resolved**
 ### v6.5.24 — Phase 4.6.6: install Playwright + rewrite smoketest (CONDITIONAL) (2026-04-17)
 
 - **Phase 4.6.6: install Playwright + rewrite smoketest (CONDITIONAL)**
