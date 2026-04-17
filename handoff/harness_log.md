@@ -3033,3 +3033,35 @@ setup decisions. Moving to 4.6.7.
            application-default login to restore patent + nlp_sentiment
            + alt_data signals.
 
+
+## Cycle 40 -- 2026-04-17 -- gcloud ADC restored + 4.6.3 re-verified
+
+**Action:** User ran `gcloud auth application-default login` via the
+           session. ADC credentials written to
+           ~/.config/gcloud/application_default_credentials.json; quota
+           project sunny-might-477607-p8 set.
+
+**Regression test (4.6.3):**
+  - curl to /api/signals/AAPL with DEV_DISABLE_AUTH=1: HTTP 200, 21s.
+  - 11/12 non-ERROR (was 10/12 before ADC):
+    * patent: NEUTRAL (500 US grants in 3yr via BQ public dataset,
+      128.5 avg citations) -- confirming the #1 patent fix works
+      end-to-end with ADC.
+    * nlp_sentiment: BULLISH (+0.278 over 10 articles via Vertex
+      text-embedding-005).
+    * alt_data: ERROR (Google Trends 429 rate-limit -- unrelated
+      transient issue, NOT a credential problem).
+
+**Outcome:** Both pending user-action items RESOLVED:
+  1. gcloud ADC: done, signals restored.
+  2. Slack channel: done, 4.6.7 PASS.
+
+phase-4.6 now 8/10 done. Remaining pending:
+  - 4.6.8 Watchdog alert fires on simulated process kill
+  - 4.6.9 Append harness log row + clean shutdown
+
+Outstanding (non-blocking):
+  - alt_data 429 is a Google Trends rate-limit issue; pytrends has a
+    retry + backoff setting. Optional hardening, not a smoketest
+    blocker (still >= 8 non-ERROR quorum).
+
