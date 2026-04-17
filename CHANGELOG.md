@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `6720309` | Phase 4.6: steps 4.6.0-4.6.2 done via full MAS loop |
 | 2026-04-17 | `d2d9da3` | feat: integrate Intelligence Engine (phases A/B/C/D/E + cron budget) |
 | 2026-04-17 | `d729a8f` | proposal: phase-A immutable core + Gauntlet risk guard (phase-4.9) |
 | 2026-04-17 | `2341a8e` | proposal: phase-6.5 Global Intelligence Directive |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `7384482` | Phase 4.4.5.2: Escalation path defined with L1-L3 ladder |
 | 2026-04-16 | `ba83f03` | Paper Trading: replace stacked ops widgets with a single dense status bar |
 | 2026-04-16 | `9a2e8d4` | Paper Trading: pull KPI hero into bento right column + codify rules |
-| 2026-04-16 | `0b38d2e` | Paper Trading: bento ops-strip layout, remove dead whitespace |
 
 ---
 
+### v6.5.21 — Phase 4.6: steps 4.6.0-4.6.2 done via full MAS loop (2026-04-17)
+
+- **Phase 4.6: steps 4.6.0-4.6.2 done via full MAS loop**
 ### v6.5.20 — integrate Intelligence Engine (phases A/B/C/D/E + cron budget) (2026-04-17)
 
 - **integrate Intelligence Engine (phases A/B/C/D/E + cron budget)**
