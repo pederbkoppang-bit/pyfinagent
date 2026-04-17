@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `85d439d` | Phase 4.6.6: install Playwright + rewrite smoketest (CONDITIONAL) |
 | 2026-04-17 | `5901060` | Phase 4.6 steps 4.6.5 PASS + 4.6.6 CONDITIONAL |
 | 2026-04-17 | `fa01d4d` | Phase 4.6 steps 4.6.3, 4.6.4 via MAS loop |
 | 2026-04-17 | `6720309` | Phase 4.6: steps 4.6.0-4.6.2 done via full MAS loop |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-16 | `ef35140` | Harness: F1 retry-loop escalation + F2 research-on-demand |
 | 2026-04-16 | `0eccebb` | chore: bump per-commit in changelog hook; split v6.5.0 backlog |
 | 2026-04-16 | `64f7708` | chore: harness log entry for Cycle 29 (4.4.5.2 escalation path) |
-| 2026-04-16 | `7384482` | Phase 4.4.5.2: Escalation path defined with L1-L3 ladder |
 
 ---
 
+### v6.5.24 — Phase 4.6.6: install Playwright + rewrite smoketest (CONDITIONAL) (2026-04-17)
+
+- **Phase 4.6.6: install Playwright + rewrite smoketest (CONDITIONAL)**
 ### v6.5.23 — Phase 4.6 steps 4.6.5 PASS + 4.6.6 CONDITIONAL (2026-04-17)
 
 - **Phase 4.6 steps 4.6.5 PASS + 4.6.6 CONDITIONAL**
