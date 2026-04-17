@@ -8,6 +8,16 @@
         "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
         "SLACK_APP_TOKEN": "${SLACK_APP_TOKEN}"
       }
+    },
+    "alpaca": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["alpaca-mcp-server"],
+      "env": {
+        "ALPACA_API_KEY_ID": "${ALPACA_API_KEY_ID}",
+        "ALPACA_API_SECRET_KEY": "${ALPACA_API_SECRET_KEY}",
+        "ALPACA_PAPER_TRADE": "true"
+      }
     }
   }
 }

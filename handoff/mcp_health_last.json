@@ -1,0 +1,94 @@
+{
+  "filesystem-ref": {
+    "license": "MIT",
+    "risk_band": "low"
+  },
+  "github-mcp": {
+    "license": "MIT",
+    "risk_band": "high"
+  },
+  "gitlab-mcp": {
+    "license": "MIT",
+    "risk_band": "low"
+  },
+  "postgres-mcp": {
+    "license": "MIT",
+    "risk_band": "low"
+  },
+  "sqlite-mcp": {
+    "license": "MIT",
+    "risk_band": "low"
+  },
+  "brave-search": {
+    "license": "MIT",
+    "risk_band": "high"
+  },
+  "puppeteer-mcp": {
+    "license": "MIT",
+    "risk_band": "low"
+  },
+  "slack-mcp": {
+    "license": "MIT",
+    "risk_band": "medium"
+  },
+  "memory-mcp": {
+    "license": "MIT",
+    "risk_band": "low"
+  },
+  "fetch-mcp": {
+    "license": "MIT",
+    "risk_band": "low"
+  },
+  "alpaca-mcp": {
+    "license": "Apache-2.0",
+    "risk_band": "high"
+  },
+  "sec-edgar-mcp": {
+    "license": "AGPL-3.0",
+    "risk_band": "medium"
+  },
+  "yfinance-mcp": {
+    "license": "Apache-2.0",
+    "risk_band": "medium"
+  },
+  "openbb-mcp": {
+    "license": "AGPL-3.0",
+    "risk_band": "medium"
+  },
+  "sentry-mcp": {
+    "license": "Apache-2.0",
+    "risk_band": "medium"
+  },
+  "playwright-mcp": {
+    "license": "Apache-2.0",
+    "risk_band": "low"
+  },
+  "cloudflare-mcp": {
+    "license": "Apache-2.0",
+    "risk_band": "high"
+  },
+  "exa-mcp": {
+    "license": "MIT",
+    "risk_band": "high"
+  },
+  "genai-toolbox": {
+    "license": "Apache-2.0",
+    "risk_band": "high"
+  },
+  "gdrive-mcp": {
+    "license": "MIT",
+    "risk_band": "medium"
+  },
+  "awesome-mcp": {
+    "license": "CC0-1.0",
+    "risk_band": "low"
+  },
+  "mcp-python-sdk": {
+    "license": "MIT",
+    "risk_band": "low"
+  },
+  "mcp-ts-sdk": {
+    "license": "MIT",
+    "risk_band": "low"
+  }
+}

@@ -1,0 +1,416 @@
+{
+  "filesystem-ref": {
+    "name": "filesystem-ref",
+    "repo": "modelcontextprotocol/servers",
+    "category": "dev",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "github-mcp": {
+    "name": "github-mcp",
+    "repo": "github/github-mcp-server",
+    "category": "dev",
+    "license": "MIT",
+    "last_commit_age_days": 1,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 3,
+      "rate_limit_exposure": 3,
+      "maintainer_health": 1
+    },
+    "total_risk": 8,
+    "risk_band": "high",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "gitlab-mcp": {
+    "name": "gitlab-mcp",
+    "repo": "modelcontextprotocol/servers",
+    "category": "dev",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "postgres-mcp": {
+    "name": "postgres-mcp",
+    "repo": "modelcontextprotocol/servers",
+    "category": "data",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "sqlite-mcp": {
+    "name": "sqlite-mcp",
+    "repo": "modelcontextprotocol/servers",
+    "category": "data",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "brave-search": {
+    "name": "brave-search",
+    "repo": "modelcontextprotocol/servers",
+    "category": "search",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 3,
+      "rate_limit_exposure": 3,
+      "maintainer_health": 1
+    },
+    "total_risk": 8,
+    "risk_band": "high",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "puppeteer-mcp": {
+    "name": "puppeteer-mcp",
+    "repo": "modelcontextprotocol/servers",
+    "category": "browser",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "slack-mcp": {
+    "name": "slack-mcp",
+    "repo": "modelcontextprotocol/servers",
+    "category": "comms",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 3,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 6,
+    "risk_band": "medium",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "memory-mcp": {
+    "name": "memory-mcp",
+    "repo": "modelcontextprotocol/servers",
+    "category": "dev",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "fetch-mcp": {
+    "name": "fetch-mcp",
+    "repo": "modelcontextprotocol/servers",
+    "category": "http",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "alpaca-mcp": {
+    "name": "alpaca-mcp",
+    "repo": "alpacahq/alpaca-mcp-server",
+    "category": "finance",
+    "license": "Apache-2.0",
+    "last_commit_age_days": 0,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 3,
+      "rate_limit_exposure": 3,
+      "maintainer_health": 1
+    },
+    "total_risk": 8,
+    "risk_band": "high",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "sec-edgar-mcp": {
+    "name": "sec-edgar-mcp",
+    "repo": "stefanoamorelli/sec-edgar-mcp",
+    "category": "finance",
+    "license": "AGPL-3.0",
+    "last_commit_age_days": 0,
+    "axes": {
+      "license_risk": 3,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 6,
+    "risk_band": "medium",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": "AGPL isolation required"
+  },
+  "yfinance-mcp": {
+    "name": "yfinance-mcp",
+    "repo": "ranaroussi/yfinance",
+    "category": "finance",
+    "license": "Apache-2.0",
+    "last_commit_age_days": 0,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 3,
+      "maintainer_health": 1
+    },
+    "total_risk": 6,
+    "risk_band": "medium",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "openbb-mcp": {
+    "name": "openbb-mcp",
+    "repo": "OpenBB-finance/OpenBBTerminal",
+    "category": "finance",
+    "license": "AGPL-3.0",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 3,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 6,
+    "risk_band": "medium",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": "AGPL isolation required"
+  },
+  "sentry-mcp": {
+    "name": "sentry-mcp",
+    "repo": "getsentry/sentry-mcp",
+    "category": "observ",
+    "license": "Apache-2.0",
+    "last_commit_age_days": 0,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 3,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 6,
+    "risk_band": "medium",
+    "paid": true,
+    "pending_peder_approval": true,
+    "notes": ""
+  },
+  "playwright-mcp": {
+    "name": "playwright-mcp",
+    "repo": "microsoft/playwright-mcp",
+    "category": "browser",
+    "license": "Apache-2.0",
+    "last_commit_age_days": 0,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "cloudflare-mcp": {
+    "name": "cloudflare-mcp",
+    "repo": "cloudflare/mcp-server-cloudflare",
+    "category": "infra",
+    "license": "Apache-2.0",
+    "last_commit_age_days": 17,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 3,
+      "rate_limit_exposure": 3,
+      "maintainer_health": 1
+    },
+    "total_risk": 8,
+    "risk_band": "high",
+    "paid": true,
+    "pending_peder_approval": true,
+    "notes": ""
+  },
+  "exa-mcp": {
+    "name": "exa-mcp",
+    "repo": "exa-labs/exa-mcp-server",
+    "category": "search",
+    "license": "MIT",
+    "last_commit_age_days": 1,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 3,
+      "rate_limit_exposure": 3,
+      "maintainer_health": 1
+    },
+    "total_risk": 8,
+    "risk_band": "high",
+    "paid": true,
+    "pending_peder_approval": true,
+    "notes": ""
+  },
+  "genai-toolbox": {
+    "name": "genai-toolbox",
+    "repo": "googleapis/genai-toolbox",
+    "category": "data",
+    "license": "Apache-2.0",
+    "last_commit_age_days": 0,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 3,
+      "rate_limit_exposure": 3,
+      "maintainer_health": 1
+    },
+    "total_risk": 8,
+    "risk_band": "high",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "gdrive-mcp": {
+    "name": "gdrive-mcp",
+    "repo": "modelcontextprotocol/servers",
+    "category": "productivity",
+    "license": "MIT",
+    "last_commit_age_days": 3,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 3,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 6,
+    "risk_band": "medium",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "awesome-mcp": {
+    "name": "awesome-mcp",
+    "repo": "punkpeye/awesome-mcp-servers",
+    "category": "catalog",
+    "license": "CC0-1.0",
+    "last_commit_age_days": 2,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "mcp-python-sdk": {
+    "name": "mcp-python-sdk",
+    "repo": "modelcontextprotocol/python-sdk",
+    "category": "sdk",
+    "license": "MIT",
+    "last_commit_age_days": 2,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  },
+  "mcp-ts-sdk": {
+    "name": "mcp-ts-sdk",
+    "repo": "modelcontextprotocol/typescript-sdk",
+    "category": "sdk",
+    "license": "MIT",
+    "last_commit_age_days": 1,
+    "axes": {
+      "license_risk": 1,
+      "secret_surface": 1,
+      "rate_limit_exposure": 1,
+      "maintainer_health": 1
+    },
+    "total_risk": 4,
+    "risk_band": "low",
+    "paid": false,
+    "pending_peder_approval": false,
+    "notes": ""
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "step": "3.5.3",
+  "server": "alpaca",
+  "samples": 20,
+  "started_at": "2026-04-17T19:39:51.639004+00:00",
+  "mode": "mock",
+  "mock_divergent_shapes": true,
+  "parity_rate": 1.0,
+  "matches": 20,
+  "live_orders_observed": 0,
+  "sample_rows": [
+    {
+      "i": 0,
+      "symbol": "AAPL",
+      "a_id": "430703f127206a1a",
+      "b_id": "0d836a23096afb6f",
+      "readback_ok": true,
+      "parity": true
+    },
+    {
+      "i": 1,
+      "symbol": "MSFT",
+      "a_id": "14289355582cf6b5",
+      "b_id": "c7d085e13f481304",
+      "readback_ok": true,
+      "parity": true
+    },
+    {
+      "i": 2,
+      "symbol": "NVDA",
+      "a_id": "2ede068a6df1b981",
+      "b_id": "1b1d6be2af6f8b30",
+      "readback_ok": true,
+      "parity": true
+    },
+    {
+      "i": 3,
+      "symbol": "GOOGL",
+      "a_id": "b7ec4036b6942837",
+      "b_id": "2716db950b419db2",
+      "readback_ok": true,
+      "parity": true
+    },
+    {
+      "i": 4,
+      "symbol": "AMZN",
+      "a_id": "1e569cc5ca56ec9c",
+      "b_id": "0dd9c58e90764803",
+      "readback_ok": true,
+      "parity": true
+    }
+  ],
+  "verdict": "PASS"
+}

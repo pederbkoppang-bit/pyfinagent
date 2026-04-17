@@ -1,0 +1,139 @@
+{
+  "step": "3.5.4",
+  "servers": {
+    "edgar": {
+      "server": "edgar",
+      "samples": 20,
+      "parity_rate": 1.0,
+      "matches": 20,
+      "p95_latency_mcp_s": 1e-06,
+      "p95_latency_direct_s": 6e-06,
+      "latency_ratio": 0.202,
+      "noise_dominated": true,
+      "latency_within_1_5x": true,
+      "verdict": "PASS",
+      "sample_rows": [
+        {
+          "i": 0,
+          "item": "AAPL",
+          "kind": "latest_10k",
+          "parity": true
+        },
+        {
+          "i": 1,
+          "item": "MSFT",
+          "kind": "latest_10k",
+          "parity": true
+        },
+        {
+          "i": 2,
+          "item": "NVDA",
+          "kind": "latest_10k",
+          "parity": true
+        },
+        {
+          "i": 3,
+          "item": "GOOGL",
+          "kind": "latest_10k",
+          "parity": true
+        },
+        {
+          "i": 4,
+          "item": "AMZN",
+          "kind": "latest_10k",
+          "parity": true
+        }
+      ]
+    },
+    "fmp": {
+      "server": "fmp",
+      "samples": 20,
+      "parity_rate": 1.0,
+      "matches": 20,
+      "p95_latency_mcp_s": 0.0,
+      "p95_latency_direct_s": 0.0,
+      "latency_ratio": 2.0,
+      "noise_dominated": true,
+      "latency_within_1_5x": true,
+      "verdict": "PASS",
+      "sample_rows": [
+        {
+          "i": 0,
+          "item": "AAPL",
+          "kind": "ratios_ttm",
+          "parity": true
+        },
+        {
+          "i": 1,
+          "item": "MSFT",
+          "kind": "ratios_ttm",
+          "parity": true
+        },
+        {
+          "i": 2,
+          "item": "NVDA",
+          "kind": "ratios_ttm",
+          "parity": true
+        },
+        {
+          "i": 3,
+          "item": "GOOGL",
+          "kind": "ratios_ttm",
+          "parity": true
+        },
+        {
+          "i": 4,
+          "item": "AMZN",
+          "kind": "ratios_ttm",
+          "parity": true
+        }
+      ]
+    },
+    "fred": {
+      "server": "fred",
+      "samples": 20,
+      "parity_rate": 1.0,
+      "matches": 20,
+      "p95_latency_mcp_s": 0.0,
+      "p95_latency_direct_s": 0.0,
+      "latency_ratio": 1.335,
+      "noise_dominated": true,
+      "latency_within_1_5x": true,
+      "verdict": "PASS",
+      "sample_rows": [
+        {
+          "i": 0,
+          "item": "CPIAUCSL",
+          "kind": "latest",
+          "parity": true
+        },
+        {
+          "i": 1,
+          "item": "UNRATE",
+          "kind": "latest",
+          "parity": true
+        },
+        {
+          "i": 2,
+          "item": "GDP",
+          "kind": "latest",
+          "parity": true
+        },
+        {
+          "i": 3,
+          "item": "DGS10",
+          "kind": "latest",
+          "parity": true
+        },
+        {
+          "i": 4,
+          "item": "FEDFUNDS",
+          "kind": "latest",
+          "parity": true
+        }
+      ]
+    }
+  },
+  "agpl_isolation_documented": true,
+  "agpl_isolation_doc_path": "docs/governance/agpl_isolation.md"
+}

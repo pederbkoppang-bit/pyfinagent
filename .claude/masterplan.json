@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T19:31:04.455924+00:00",
+  "updated_at": "2026-04-17T19:46:34.024786+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -324,7 +324,7 @@
         {
           "id": "3.5",
           "name": "Enrichment MCP Server",
-          "status": "pending",
+          "status": "superseded",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
@@ -335,7 +335,8 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "superseded_by": "phase-3.5.4"
         }
       ]
     },
@@ -368,7 +369,7 @@
         {
           "id": "3.5.1",
           "name": "MCP registry crawl + candidate shortlist",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/audit/mcp_registry_pull.py --output handoff/mcp_candidates.csv && python -c \"import csv; rows=list(csv.DictReader(open('handoff/mcp_candidates.csv'))); assert len(rows) >= 20, len(rows)\"",
@@ -385,7 +386,7 @@
         {
           "id": "3.5.2",
           "name": "Security + risk scoring",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/audit/mcp_risk_score.py && python -c \"import json; d=json.load(open('handoff/mcp_risk_scores.json')); assert all('risk_band' in v for v in d.values())\"",
@@ -402,7 +403,7 @@
         {
           "id": "3.5.3",
           "name": "Adopt-now wave 1: Alpaca MCP (broker + paper)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/mcp_ab_test.py --server alpaca --samples 20 && python -c \"import json; d=json.load(open('handoff/mcp_ab_test_alpaca.json')); assert d['parity_rate'] >= 0.95\"",
@@ -420,7 +421,7 @@
         {
           "id": "3.5.4",
           "name": "Adopt-now wave 2: SEC EDGAR + FMP + FRED MCPs",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/mcp_ab_test.py --server edgar,fmp,fred --samples 20",
@@ -439,7 +440,7 @@
         {
           "id": "3.5.5",
           "name": "Complete or supersede phase-3 Enrichment MCP stub",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f handoff/phase-3.5-stub-decision.md && grep -Eq '^Decision: (finish|retire)' handoff/phase-3.5-stub-decision.md",
@@ -456,7 +457,7 @@
         {
           "id": "3.5.6",
           "name": "Developer-workflow MCP watchlist",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "verification": {
             "command": "test -f handoff/mcp_watchlist.md && python -c \"import re; t=open('handoff/mcp_watchlist.md').read(); assert len(re.findall(r'https?://', t)) >= 10\"",
@@ -473,7 +474,7 @@
         {
           "id": "3.5.7",
           "name": "Ongoing MCP health cron",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python -c \"from backend.services.mcp_health_cron import check_once; r = check_once(); assert 'servers' in r and isinstance(r['servers'], list)\"",
