@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-17T19:46:34.024786+00:00",
+  "updated_at": "2026-04-17T19:48:27.013805+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -343,7 +343,7 @@
     {
       "id": "phase-3.5",
       "name": "MCP Tool Audit & Adoption",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-4.5"
       ],
@@ -352,7 +352,7 @@
         {
           "id": "3.5.0",
           "name": "MCP surface inventory (read-only)",
-          "status": "in-progress",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python scripts/audit/mcp_inventory.py --json > handoff/mcp_inventory.json && python -c \"import json; d=json.load(open('handoff/mcp_inventory.json')); assert d['servers'], d\"",

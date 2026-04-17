@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "counts": {
+    "external_registered": 2,
+    "in_process_authoritative": 3,
+    "in_process_legacy_stub": 3
+  },
+  "servers": [
+    {
+      "name": "slack",
+      "source_type": "external_registered",
+      "source_path": ".mcp.json",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic-ai/mcp-server-slack"
+      ],
+      "env_var_keys": [
+        "SLACK_APP_TOKEN",
+        "SLACK_BOT_TOKEN"
+      ],
+      "stub": false
+    },
+    {
+      "name": "alpaca",
+      "source_type": "external_registered",
+      "source_path": ".mcp.json",
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "alpaca-mcp-server"
+      ],
+      "env_var_keys": [
+        "ALPACA_API_KEY_ID",
+        "ALPACA_API_SECRET_KEY"
+      ],
+      "stub": false
+    },
+    {
+      "name": "backtest_server",
+      "source_type": "in_process_authoritative",
+      "source_path": "backend/agents/mcp_servers/backtest_server.py",
+      "has_factory": true,
+      "tool_count": 5,
+      "resource_count": 2,
+      "tools_sample": [
+        "run_backtest",
+        "run_single_feature_test",
+        "run_ablation_study",
+        "get_feature_importance",
+        "ping"
+      ],
+      "resources_sample": [
+        "experiments_resource",
+        "recent_experiments_resource"
+      ],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "data_server",
+      "source_type": "in_process_authoritative",
+      "source_path": "backend/agents/mcp_servers/data_server.py",
+      "has_factory": true,
+      "tool_count": 1,
+      "resource_count": 7,
+      "tools_sample": [
+        "ping"
+      ],
+      "resources_sample": [
+        "prices_resource",
+        "fundamentals_resource",
+        "macro_resource",
+        "universe_resource",
+        "features_resource"
+      ],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "signals_server",
+      "source_type": "in_process_authoritative",
+      "source_path": "backend/agents/mcp_servers/signals_server.py",
+      "has_factory": true,
+      "tool_count": 5,
+      "resource_count": 3,
+      "tools_sample": [
+        "generate_signal",
+        "validate_signal",
+        "publish_signal",
+        "risk_check",
+        "ping"
+      ],
+      "resources_sample": [
+        "portfolio_resource",
+        "constraints_resource",
+        "signals_history_resource"
+      ],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "backtest_server",
+      "source_type": "in_process_legacy_stub",
+      "source_path": "backend/mcp/backtest_server.py",
+      "has_factory": false,
+      "tool_count": 0,
+      "resource_count": 0,
+      "tools_sample": [],
+      "resources_sample": [],
+      "env_var_keys": [],
+      "stub": true
+    },
+    {
+      "name": "data_server",
+      "source_type": "in_process_legacy_stub",
+      "source_path": "backend/mcp/data_server.py",
+      "has_factory": false,
+      "tool_count": 0,
+      "resource_count": 0,
+      "tools_sample": [],
+      "resources_sample": [],
+      "env_var_keys": [],
+      "stub": true
+    },
+    {
+      "name": "signals_server",
+      "source_type": "in_process_legacy_stub",
+      "source_path": "backend/mcp/signals_server.py",
+      "has_factory": false,
+      "tool_count": 0,
+      "resource_count": 0,
+      "tools_sample": [],
+      "resources_sample": [],
+      "env_var_keys": [],
+      "stub": true
+    }
+  ]
+}

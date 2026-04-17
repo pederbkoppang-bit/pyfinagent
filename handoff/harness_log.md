@@ -3496,3 +3496,17 @@ slack + alpaca, AGPL isolation doc, weekly health cron, watchlist of
 12 future MCPs, phase-3 step 3.5 retired (superseded). Downstream
 unblock: phase-3.7 MAS Paper Trading & MCP Infrastructure is now
 eligible to start.
+
+## Cycle 58 -- phase-3.5 step 3.5.0 DONE -- PHASE-3.5 TRULY COMPLETE
+
+3.5.0 MCP surface inventory:
+scripts/audit/mcp_inventory.py + handoff/mcp_inventory.json.
+Walks .mcp.json (2 external: slack, alpaca) + backend/agents/mcp_servers/
+(3 authoritative) + backend/mcp/ (3 legacy stubs, flagged). 8 total
+servers. 0 secret pattern matches. AST walker identifies @mcp.tool
+and @mcp.resource decorators to count tools per file.
+qa-evaluator + harness-verifier PASS in parallel (CONDITIONAL on
+tool-decorator predicate tightening + AWS/Anthropic regex addition --
+non-blocking follow-ups).
+
+Phase 3.5 MCP Tool Audit & Adoption: DONE. 8/8 steps.
