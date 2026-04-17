@@ -3065,3 +3065,66 @@ Outstanding (non-blocking):
     retry + backoff setting. Optional hardening, not a smoketest
     blocker (still >= 8 non-ERROR quorum).
 
+
+---
+
+## Cycle 1 -- 2026-04-17 17:35 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 41 -- 2026-04-17 -- alt_data 429 fix (full MAS loop)
+
+**Error:** alt_data (Google Trends via pytrends) returning 429 ERROR.
+
+**RESEARCH:** 2 agents in parallel.
+  - Explore: pytrends>=4.9.0 pinned; NO retries, NO timeout, NO cache;
+    fresh TrendReq per call. All exceptions become ERROR.
+  - researcher (14 URLs): pytrends repo ARCHIVED April 2025
+    (maintainer stepped down, said data may be silently fake under bot
+    detection). Recommended: pytrends-modern, OR keep pytrends 4.9.2
+    + add retry + TTL cache. Google's per-IP quota is ~200/day.
+
+**PLAN:**
+  - Tried pytrends-modern first -- pulls in selenium + browser; too
+    heavy for 12-signal aggregator. Reverted.
+  - Final: pytrends==4.9.2 pinned + Python-level retry (3 attempts,
+    1.5s/3s/6s exp backoff) + module-level 24h TTL cache keyed by
+    (ticker_upper, today_iso) + cache ERROR/UNAVAILABLE too so repeat
+    failures don't re-hammer Google.
+  - 429 path surfaces signal=UNAVAILABLE with reason=google_trends_429
+    instead of ERROR (so aggregator counts it as missing-but-not-broken).
+
+**GENERATE:**
+  - pytrends `retries=` kwarg incompatible with urllib3 2.x
+    (method_whitelist removed). Dropped that and did retry in Python.
+  - `backend/tools/alt_data.py` rewritten with _cache_get/_cache_put,
+    _is_rate_limited detector, retry loop, graceful UNAVAILABLE.
+  - `backend/requirements.txt`: pytrends>=4.9.0 -> pytrends==4.9.2.
+
+**EVALUATE:** both agents PASS.
+  - Unit: call1 real Google Trends 3.6s signal=DECLINING_STRONG
+    (-30.7% momentum); call2 cache hit 0.0s identical payload.
+  - Full 4.6.3 /api/signals/AAPL: **12/12 non-ERROR** (first time ever),
+    16s wall clock (was 21s with ADC + ERROR, 42s before ADC).
+  - harness-verifier reproduced on MSFT: DECLINING 1.34s; cache hit 0.0s.
+  - qa-evaluator flagged 3 non-blocking follow-ups:
+    (i) cache TZ depends on server local (ambiguous at midnight boundary);
+    (ii) cache is in-process dict -- uvicorn --reload wipes it
+         (thundering herd on restart; would benefit from BQ/Redis backing);
+    (iii) `interest.empty` unguarded if pytrends returns None on
+          malformed payload.
+
+**Decision:** alt_data status=FIXED. Signal quorum raised from
+           11/12 -> 12/12 (first perfect run). Cycle 41 closed.
+

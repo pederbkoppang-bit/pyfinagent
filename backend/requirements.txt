@@ -31,7 +31,7 @@ python-multipart>=0.0.9
 rank-bm25>=0.2.2
 
 # Alternative data (Google Trends)
-pytrends>=4.9.0
+pytrends==4.9.2
 
 # Multi-provider LLM support (v3.4)
 anthropic>=0.49.0
