@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `cc9db4b` | Phase 4.6: COMPLETE (10/10) -- 4.6.8 chaos watchdog + 4.6.9 finalize |
 | 2026-04-17 | `acde310` | Fix alt_data 429: retry + 24h TTL cache -> 12/12 non-ERROR |
 | 2026-04-17 | `99e6529` | Phase 4.6: gcloud ADC restored; 4.6.3 re-verified 11/12 non-ERROR |
 | 2026-04-17 | `d52e1c9` | Phase 4.6.7: Slack digest end-to-end PASS |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `7287f20` | Add Phase 4.6 smoketest proposal |
 | 2026-04-17 | `ca0573b` | Phase 7 proposal: alt-data & scraping expansion |
 | 2026-04-17 | `81d7082` | Add Phase 9 proposal: Data Refresh & Retraining Cron |
-| 2026-04-17 | `8d26802` | docs(phase-8): propose transformer / modern LLM signals phase |
 
 ---
 
+### v6.5.30 — Phase 4.6: COMPLETE (10/10) -- 4.6.8 chaos watchdog + 4.6.9 finalize (2026-04-17)
+
+- **Phase 4.6: COMPLETE (10/10) -- 4.6.8 chaos watchdog + 4.6.9 finalize**
 ### v6.5.29 — Fix alt_data 429: retry + 24h TTL cache -> 12/12 non-ERROR (2026-04-17)
 
 - **Fix alt_data 429: retry + 24h TTL cache -> 12/12 non-ERROR**
