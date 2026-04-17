@@ -1,5 +1,15 @@
 # Per-Step Harness Protocol (operator runbook)
 
+**Canonical references (must read before every long-running session):**
+- Anthropic, "Harness Design for Long-Running Apps": https://www.anthropic.com/engineering/harness-design-long-running-apps
+- Anthropic, "How We Built Our Multi-Agent Research System": https://www.anthropic.com/engineering/built-multi-agent-research-system
+- Anthropic, "Building Effective Agents": https://www.anthropic.com/engineering/building-effective-agents
+
+**This file is the executable mapping** from the Anthropic three-phase
+cycle (`Plan → Generate → Evaluate`) to the concrete file-and-subagent
+sequence the orchestrator must follow for every masterplan step. It
+is NOT optional. Every step follows every phase. No step is exempt.
+
 This is the checklist the *orchestrator* (main session) follows for every masterplan step. It is not an agent file -- it describes the sequence in which to spawn agents.
 
 Source of truth: `handoff/current/phase-<id>-contract.md` + CLAUDE.md §Harness Protocol + PLAN.md §Research Gate. This file consolidates them into an executable sequence so we stop drifting.

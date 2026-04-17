@@ -25,7 +25,7 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 
 ## Critical Rules
 
-- **🔴 BEFORE EVERY MASTERPLAN STEP**: read and follow `.claude/agents/per-step-protocol.md` end-to-end. The five handoff files (contract.md, experiment_results.md, evaluator_critique.md, harness_log.md append, masterplan.json status flip) are NON-SKIPPABLE. Always spawn BOTH qa-evaluator AND harness-verifier IN PARALLEL (single message, two Agent tool calls) — never just one. Self-evaluation by the orchestrator is forbidden.
+- **🔴 MAS HARNESS LOOP — NON-NEGOTIABLE FOR EVERY MASTERPLAN STEP.** This project is a long-running autonomous application; the canonical reference is Anthropic's ["Harness Design for Long-Running Apps"](https://www.anthropic.com/engineering/harness-design-long-running-apps). Every step follows the three-phase cycle `Plan → Generate → Evaluate` with file-based handoffs as durable state. Read `.claude/agents/per-step-protocol.md` end-to-end before starting ANY step. The five handoff artifacts (`handoff/current/contract.md`, `handoff/current/experiment_results.md`, `handoff/current/evaluator_critique.md`, `handoff/harness_log.md` append, `.claude/masterplan.json` status flip) are NON-SKIPPABLE. Always spawn BOTH `qa-evaluator` AND `harness-verifier` IN PARALLEL (single message, two Agent tool calls) — never one without the other. **Self-evaluation by the orchestrator is forbidden** (Anthropic: "agents tend to confidently praise their own work"). Periodically stress-test the scaffolding — as models improve, any assumption "the model can't do X" is worth re-running without the harness to prune dead weight.
 - **Always `source .venv/bin/activate`** before running Python
 - **Always call `cache.preload_macro()`** or backtests hang after ~40min
 - **Kill parent AND child workers** when restarting backend (zombie prevention)
@@ -160,6 +160,10 @@ python scripts/harness/run_harness.py --dry-run --cycles 1
 
 ## Harness Protocol (MANDATORY — NOT SKIPPABLE)
 
+Canonical reference: https://www.anthropic.com/engineering/harness-design-long-running-apps
+plus "How We Built Our Multi-Agent Research System" and "Building
+Effective Agents." Project implementation: `.claude/agents/per-step-protocol.md`.
+
 Every masterplan step (`phase-X` → `phase-X.Y`) MUST follow the full
 loop below. The workflow is load-bearing for phase-4 go-live — skipping
 phases or files is a breach of the contract. This applies equally when
@@ -229,6 +233,18 @@ files (the `archive-handoff` hook handles the rotation).
 - Amend a step's immutable verification criteria.
 - Skip `harness_log.md` append (it feeds the Harness tab on the
   backtest page and the next cycle's resume detection).
+- Self-evaluate (orchestrator reporting PASS without spawning the
+  verifier pair).
+
+### Stress-test doctrine (Anthropic)
+
+"Every component in a harness encodes an assumption about what the
+model can't do on its own, and those assumptions are worth stress
+testing." On each new Claude model release, re-run a representative
+step WITHOUT the harness (no subagents, no handoff files) and compare
+the output to the harness-produced result. If the model now does X on
+its own, remove the scaffolding for X. Stale scaffolding is dead
+weight — prune it.
 
 ## Git
 
