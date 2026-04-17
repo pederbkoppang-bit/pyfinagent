@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-17 | `99e6529` | Phase 4.6: gcloud ADC restored; 4.6.3 re-verified 11/12 non-ERROR |
 | 2026-04-17 | `d52e1c9` | Phase 4.6.7: Slack digest end-to-end PASS |
 | 2026-04-17 | `88e2b36` | Phase 4.6: fix 6 follow-ups via MAS loop -- 4.6.6 -> PASS |
 | 2026-04-17 | `8fdb170` | Phase 4.6: session pause after 6/10 steps resolved |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `81d7082` | Add Phase 9 proposal: Data Refresh & Retraining Cron |
 | 2026-04-17 | `8d26802` | docs(phase-8): propose transformer / modern LLM signals phase |
 | 2026-04-17 | `9a96da3` | docs(phase-5.5): add external data-source audit proposal |
-| 2026-04-17 | `0b3d090` | docs: add Phase 6 proposal — News & Sentiment Cron |
 
 ---
 
+### v6.5.28 — Phase 4.6: gcloud ADC restored; 4.6.3 re-verified 11/12 non-ERROR (2026-04-17)
+
+- **Phase 4.6: gcloud ADC restored; 4.6.3 re-verified 11/12 non-ERROR**
 ### v6.5.27 — Phase 4.6.7: Slack digest end-to-end PASS (2026-04-17)
 
 - **Phase 4.6.7: Slack digest end-to-end PASS**
