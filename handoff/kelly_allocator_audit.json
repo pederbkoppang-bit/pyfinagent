@@ -1,0 +1,21 @@
+{
+  "step": "4.8.3",
+  "ran_at": "2026-04-18T09:33:02.512993+00:00",
+  "baseline_max_alloc_le_cap": true,
+  "baseline_total_alloc_le_1": true,
+  "covariance_based_mixing": true,
+  "singular_sigma_raises": true,
+  "covariance_test": {
+    "alloc_lo_corr": [
+      0.1111111111111111,
+      0.1111111111111111
+    ],
+    "alloc_hi_corr": [
+      0.05847953216374271,
+      0.05847953216374267
+    ],
+    "drift": 0.074432
+  },
+  "reasons": [],
+  "verdict": "PASS"
+}

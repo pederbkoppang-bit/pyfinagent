@@ -50,3 +50,11 @@ _cleanup.ps1
 
 # Archived/stale
 pyfinagent-app/.streamlit/secrets.toml
+
+# Secrets backups
+backend/.env.env.bak-*
+backend/.env.*.bak-*
+*.env.bak-*
+
+# Playwright Chrome binary (installed by `playwright install`)
+frontend/chrome/

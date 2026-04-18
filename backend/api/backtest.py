@@ -446,7 +446,30 @@ def get_optimizer_experiments(run_id: str | None = None, run_index: int | None =
         if last_baseline_idx >= 0:
             experiments = experiments[last_baseline_idx:]
 
-    result = {"experiments": experiments}
+    # phase-4.7.4: attach a `pbo` field per experiment so the
+    # AutoresearchLeaderboard can render it without client-side
+    # synthesis. Today PBO is only meaningful at the run level via
+    # backend/backtest/analytics.compute_pbo which needs a PnL matrix
+    # per candidate -- that persistence lands in phase-8.5. Until then
+    # each experiment carries pbo=null and the leaderboard renders "--".
+    # A sidecar file `pbo_latest.json` (written by a follow-up step)
+    # can upgrade this to real values without a schema change.
+    pbo_value = None
+    try:
+        sidecar = os.path.join(
+            os.path.dirname(__file__), "..", "backtest", "experiments", "pbo_latest.json"
+        )
+        if os.path.exists(sidecar):
+            import json as _json
+            with open(sidecar, "r", encoding="utf-8") as f:
+                blob = _json.load(f)
+                pbo_value = blob.get("pbo")
+    except Exception:
+        pbo_value = None
+    for e in experiments:
+        e["pbo"] = pbo_value
+
+    result = {"experiments": experiments, "run_pbo": pbo_value}
     cache.set(cache_key, result, ENDPOINT_TTLS["backtest:experiments"])
     return result
 

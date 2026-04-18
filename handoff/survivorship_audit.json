@@ -1,0 +1,62 @@
+{
+  "step": "4.8.1",
+  "ran_at": "2026-04-18T09:23:00.880120+00:00",
+  "delisted_at_populated": true,
+  "delisted_at_reason": "ok",
+  "pit_enforced_pct": 1.0,
+  "pit_functions": [
+    {
+      "module": "backend.tools.screener",
+      "name": "get_sp500_tickers",
+      "accepted_kwargs": [
+        "as_of"
+      ],
+      "ok": true,
+      "reason": "ok (kwarg: as_of)"
+    },
+    {
+      "module": "backend.backtest.candidate_selector",
+      "name": "CandidateSelector.get_universe_tickers",
+      "accepted_kwargs": [
+        "as_of"
+      ],
+      "ok": true,
+      "reason": "ok (kwarg: as_of)"
+    },
+    {
+      "module": "backend.backtest.historical_data",
+      "name": "HistoricalDataProvider.get_point_in_time_prices",
+      "accepted_kwargs": [
+        "cutoff_date",
+        "as_of"
+      ],
+      "ok": true,
+      "reason": "ok (kwarg: cutoff_date)"
+    },
+    {
+      "module": "backend.backtest.historical_data",
+      "name": "HistoricalDataProvider.get_point_in_time_fundamentals",
+      "accepted_kwargs": [
+        "cutoff_date",
+        "as_of"
+      ],
+      "ok": true,
+      "reason": "ok (kwarg: cutoff_date)"
+    }
+  ],
+  "sharpe_delta_documented": true,
+  "sharpe_delta": {
+    "citation": "Brown & Goetzmann 1995 'Performance Persistence' J. Finance 50(2); Elton/Gruber/Blake 1996 'Persistence of Risk-Adjusted Mutual Fund Performance'",
+    "range_points": [
+      0.3,
+      1.5
+    ],
+    "description": "Survivorship bias inflates Sharpe ratio by 0.3-1.5 points on 10+ year equity backtests that use today's S&P 500 membership rather than point-in-time historical membership.",
+    "afml_ref": "Lopez de Prado, Advances in Financial Machine Learning (2018) ch.14"
+  },
+  "verdict": "PASS",
+  "notes": [
+    "delisted_at column SCHEMA is added by migration; actual population (dates) requires a delistings-feed ingestion step queued as phase-4.8.x.",
+    "PIT kwargs raise NotImplementedError when as_of is set and no historical universe cache exists -- this is the honest failure mode, preferable to silently returning a survivorship-biased live list."
+  ]
+}

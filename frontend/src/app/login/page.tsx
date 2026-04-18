@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react";
 import { signIn as webAuthnSignIn } from "next-auth/webauthn";
 import { useState } from "react";
+import { LogoIcon, IconKey } from "@/lib/icons";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8 rounded-2xl border border-navy-700 bg-navy-800/60 p-8 shadow-xl">
         {/* Branding */}
         <div className="text-center">
-          <span className="text-5xl">🤖</span>
+          <LogoIcon size={56} weight="duotone" className="mx-auto text-sky-400" />
           <h1 className="mt-4 text-2xl font-bold text-slate-100">
             PyFinAgent
           </h1>
@@ -56,7 +57,7 @@ export default function LoginPage() {
           <button
             onClick={handleGoogle}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-600 bg-slate-700/50 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-600 bg-slate-700/50 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-50"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
@@ -84,22 +85,22 @@ export default function LoginPage() {
               <div className="w-full border-t border-slate-700" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-navy-800/60 px-2 text-slate-500">or</span>
+              <span className="bg-navy-800/60 px-2 text-slate-300">or</span>
             </div>
           </div>
 
           <button
             onClick={handlePasskey}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-600 bg-slate-700/50 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-600 bg-slate-700/50 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-50"
           >
-            <span className="text-lg">🔑</span>
+            <IconKey size={18} weight="bold" className="text-amber-400" />
             Sign in with Passkey
           </button>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-slate-600">
+        <p className="text-center text-xs text-slate-400">
           Access restricted to authorized users
         </p>
       </div>

@@ -19,8 +19,9 @@ export default auth((req) => {
     return;
   }
 
-  // Skip auth redirect if no provider is configured (dev mode)
-  if (!hasAuthProvider) {
+  // Skip auth redirect if no provider is configured (dev mode) or
+  // when LIGHTHOUSE_SKIP_AUTH=1 is set (perf measurement on cockpit).
+  if (!hasAuthProvider || process.env.LIGHTHOUSE_SKIP_AUTH === "1") {
     return;
   }
 

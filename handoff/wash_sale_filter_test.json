@@ -1,0 +1,22 @@
+{
+  "verdict": "FAIL",
+  "checks": {
+    "positive_15d": true,
+    "boundary_+30d": true,
+    "boundary_+31d": true,
+    "negative_61d": true,
+    "different_ticker": true,
+    "partition_allowed_count": 2,
+    "partition_blocked_count": 1,
+    "t1_same_day_unsettled_blocked": false,
+    "t1_settled_allowed": true,
+    "margin_deficit_blocked": true,
+    "margin_under_allowed": true,
+    "margin_threshold_blocks": true
+  },
+  "reasons": [
+    "t1 guard allowed unsettled-funded buy"
+  ],
+  "step": "4.8.10",
+  "ran_at": "2026-04-18T12:28:48.193818+00:00"
+}

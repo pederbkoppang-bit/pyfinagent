@@ -1,0 +1,18 @@
+{
+  "step": "auth-jwe-roundtrip",
+  "ran_at": "2026-04-18T06:36:51.594830+00:00",
+  "mint_ok": true,
+  "decrypt_ok": true,
+  "email_match": true,
+  "jwe_parts": 5,
+  "payload": {
+    "email": "peder.bkoppang@hotmail.no",
+    "name": "Peder",
+    "sub": "test-sub-42",
+    "iat": 1776494211,
+    "exp": 1776497811
+  },
+  "key_py_prefix": "02033467325c219a9b7843093f45984f",
+  "error": null,
+  "verdict": "PASS"
+}

@@ -7,8 +7,8 @@ import { signIn as webAuthnSignIn } from "next-auth/webauthn";
 import { clsx } from "clsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  NavHome, NavAnalyze, NavSignals, NavReports,
-  NavPerformance, NavPortfolio, NavPaperTrading, NavBacktest, NavSettings,
+  NavHome, NavSignals, NavReports,
+  NavPerformance, NavPaperTrading, NavBacktest, NavSettings,
   LogoIcon, IconKey, IconSignOut,
 } from "@/lib/icons";
 import type { Icon } from "@phosphor-icons/react";
@@ -24,7 +24,6 @@ const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/", label: "Home", icon: NavHome },
-      { href: "/analyze", label: "Deep Analysis", icon: NavAnalyze },
       { href: "/signals", label: "Signals", icon: NavSignals },
     ],
   },
@@ -40,8 +39,8 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Trading",
     collapsible: true,
     items: [
-      { href: "/portfolio", label: "Portfolio", icon: NavPortfolio },
       { href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading },
+      { href: "/paper-trading/learnings", label: "Learnings", icon: NavPerformance },
       { href: "/backtest", label: "Backtest", icon: NavBacktest },
     ],
   },

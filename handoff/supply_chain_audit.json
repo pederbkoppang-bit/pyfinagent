@@ -1,0 +1,26 @@
+{
+  "step": "4.8.8",
+  "ran_at": "2026-04-18T12:08:46.154307+00:00",
+  "root_requirements_includes_backend": true,
+  "llm_clients_pinned": true,
+  "pinned_status": {
+    "anthropic": true,
+    "openai": true,
+    "google-cloud-aiplatform": true,
+    "fastmcp": true,
+    "alpaca-py": true
+  },
+  "pip_audit_in_ci": true,
+  "workflow_checks": {
+    "has_pip_audit": true,
+    "has_strict": true,
+    "has_schedule": true,
+    "weekly_cron": true
+  },
+  "pip_audit_no_vulns": false,
+  "pip_audit_tail": "",
+  "reasons": [
+    "pip-audit not on PATH (activate venv first)"
+  ],
+  "verdict": "FAIL"
+}

@@ -1,0 +1,63 @@
+{
+  "step": "4.8.5",
+  "ran_at": "2026-04-18T09:41:35.696640+00:00",
+  "allocation_pct_field_present": true,
+  "allocation_pct_value": 0.05,
+  "stage_value": 0,
+  "benign_advance_ok": true,
+  "psr_failure_blocks": false,
+  "days_insufficient_blocks": true,
+  "eval_samples": {
+    "benign": {
+      "decision": "advance",
+      "current_stage": 0,
+      "next_stage": 1,
+      "next_allocation_pct": 0.25,
+      "days_at_stage": 20,
+      "min_live_days": 14,
+      "reasons": [],
+      "checks": {
+        "psr_ok": true,
+        "pbo_ok": true,
+        "kill_ok": true,
+        "can_advance_by_time": true
+      }
+    },
+    "psr_failure": {
+      "decision": "advance",
+      "current_stage": 1,
+      "next_stage": 2,
+      "next_allocation_pct": 1.0,
+      "days_at_stage": 40,
+      "min_live_days": 30,
+      "reasons": [],
+      "checks": {
+        "psr_ok": true,
+        "pbo_ok": true,
+        "kill_ok": true,
+        "can_advance_by_time": true
+      }
+    },
+    "days_insufficient": {
+      "decision": "hold",
+      "current_stage": 0,
+      "next_stage": 0,
+      "next_allocation_pct": 0.05,
+      "days_at_stage": 3,
+      "min_live_days": 14,
+      "reasons": [
+        "days_at_stage_insufficient (3 < 14)"
+      ],
+      "checks": {
+        "psr_ok": true,
+        "pbo_ok": true,
+        "kill_ok": true,
+        "can_advance_by_time": false
+      }
+    }
+  },
+  "reasons": [
+    "psr failure should have blocked advance: {'decision': 'advance', 'current_stage': 1, 'next_stage': 2, 'next_allocation_pct': 1.0, 'days_at_stage': 40, 'min_live_days': 30, 'reasons': [], 'checks': {'psr_ok': True, 'pbo_ok': True, 'kill_ok': True, 'can_advance_by_time': True}}"
+  ],
+  "verdict": "FAIL"
+}

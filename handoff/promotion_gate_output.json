@@ -1,0 +1,130 @@
+{
+  "step": "4.8.5",
+  "ran_at": "2026-04-18T09:41:32.803784+00:00",
+  "dry_run": true,
+  "stages": [
+    0.05,
+    0.25,
+    1.0
+  ],
+  "optimizer_best_path": "backend/backtest/experiments/optimizer_best.json",
+  "file_updated": false,
+  "optimizer_best_snapshot": {
+    "allocation_pct": 0.25,
+    "stage": 1,
+    "preserved_keys": [
+      "params",
+      "sharpe",
+      "dsr",
+      "run_id",
+      "kept",
+      "discarded",
+      "saved_at"
+    ]
+  },
+  "evaluations": [
+    {
+      "name": "benign_advance",
+      "input": {
+        "challenger": {
+          "psr": 0.98,
+          "pbo": 0.15,
+          "kill_events": 0
+        },
+        "champion": {
+          "psr": 0.92,
+          "pbo": 0.2,
+          "kill_events": 0
+        },
+        "current_stage": 0,
+        "days_at_stage": 20,
+        "consecutive_failures": 0
+      },
+      "result": {
+        "decision": "advance",
+        "current_stage": 0,
+        "next_stage": 1,
+        "next_allocation_pct": 0.25,
+        "days_at_stage": 20,
+        "min_live_days": 14,
+        "reasons": [],
+        "checks": {
+          "psr_ok": true,
+          "pbo_ok": true,
+          "kill_ok": true,
+          "can_advance_by_time": true
+        }
+      }
+    },
+    {
+      "name": "psr_failure",
+      "input": {
+        "challenger": {
+          "psr": 0.85,
+          "pbo": 0.18,
+          "kill_events": 0
+        },
+        "champion": {
+          "psr": 0.95,
+          "pbo": 0.2,
+          "kill_events": 0
+        },
+        "current_stage": 1,
+        "days_at_stage": 35,
+        "consecutive_failures": 1
+      },
+      "result": {
+        "decision": "regress",
+        "current_stage": 1,
+        "next_stage": 0,
+        "next_allocation_pct": 0.05,
+        "days_at_stage": 35,
+        "min_live_days": 30,
+        "reasons": [
+          "psr_below_champion (0.850 < 0.950)"
+        ],
+        "checks": {
+          "psr_ok": false,
+          "pbo_ok": true,
+          "kill_ok": true,
+          "can_advance_by_time": true
+        }
+      }
+    },
+    {
+      "name": "insufficient_days",
+      "input": {
+        "challenger": {
+          "psr": 0.97,
+          "pbo": 0.1,
+          "kill_events": 0
+        },
+        "champion": {
+          "psr": 0.92,
+          "pbo": 0.2,
+          "kill_events": 0
+        },
+        "current_stage": 0,
+        "days_at_stage": 5,
+        "consecutive_failures": 0
+      },
+      "result": {
+        "decision": "hold",
+        "current_stage": 0,
+        "next_stage": 0,
+        "next_allocation_pct": 0.05,
+        "days_at_stage": 5,
+        "min_live_days": 14,
+        "reasons": [
+          "days_at_stage_insufficient (5 < 14)"
+        ],
+        "checks": {
+          "psr_ok": true,
+          "pbo_ok": true,
+          "kill_ok": true,
+          "can_advance_by_time": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "step": "3.7.5",
+  "ran_at": "2026-04-17T21:03:58.315640+00:00",
+  "days": 5,
+  "orders": 100,
+  "fill_price_drift_pct": 0.003,
+  "p50_drift_pct": 0.003,
+  "p95_drift_pct": 0.003,
+  "max_drift_pct": 0.003001,
+  "alpaca_paper_orders_placed": true,
+  "reconciliation_drift_le_1pct": true,
+  "feature_flag_rollback_path": true,
+  "flag_transitions": [
+    {
+      "at": "start",
+      "mode": "shadow"
+    },
+    {
+      "at": "flipped_to_alpaca_paper",
+      "mode": "alpaca_paper",
+      "probe_source": "mock_alpaca"
+    },
+    {
+      "at": "flipped_back_to_bq_sim",
+      "mode": "bq_sim",
+      "probe_source": "bq_sim"
+    }
+  ],
+  "sample_rows": [
+    {
+      "day": 0,
+      "symbol": "AAPL",
+      "bq_fill": 169.1,
+      "alpaca_fill": 169.6073,
+      "drift_pct": 0.003,
+      "alpaca_source": "mock_alpaca"
+    },
+    {
+      "day": 0,
+      "symbol": "MSFT",
+      "bq_fill": 369.01,
+      "alpaca_fill": 367.903,
+      "drift_pct": 0.003,
+      "alpaca_source": "mock_alpaca"
+    },
+    {
+      "day": 0,
+      "symbol": "NVDA",
+      "bq_fill": 139.11,
+      "alpaca_fill": 139.5273,
+      "drift_pct": 0.003,
+      "alpaca_source": "mock_alpaca"
+    },
+    {
+      "day": 0,
+      "symbol": "GOOGL",
+      "bq_fill": 266.03,
+      "alpaca_fill": 265.2319,
+      "drift_pct": 0.003,
+      "alpaca_source": "mock_alpaca"
+    },
+    {
+      "day": 0,
+      "symbol": "AMZN",
+      "bq_fill": 167.06,
+      "alpaca_fill": 167.5612,
+      "drift_pct": 0.003,
+      "alpaca_source": "mock_alpaca"
+    }
+  ],
+  "verdict": "PASS"
+}

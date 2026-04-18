@@ -1,0 +1,45 @@
+{
+  "step": "4.8.2",
+  "ran_at": "2026-04-18T09:28:07.848089+00:00",
+  "cvar_limit_pct": 0.02,
+  "beta_cap": 1.5,
+  "fixtures": {
+    "benign": {
+      "cvar_97_5": {
+        "value": 0.017077,
+        "limit": 0.02,
+        "alpha": 0.975,
+        "exceeds_limit": false
+      },
+      "market_beta": 0.0010665172873011396,
+      "gate": {
+        "new_positions_allowed": true,
+        "blocking_reasons": [],
+        "cvar_limit_pct": 0.02,
+        "beta_cap": 1.5
+      },
+      "ok": true
+    },
+    "cvar_trip": {
+      "cvar_value": 0.051409,
+      "gate": {
+        "new_positions_allowed": true,
+        "blocking_reasons": [],
+        "cvar_limit_pct": 0.02,
+        "beta_cap": 1.5
+      },
+      "ok": false
+    },
+    "beta_trip": {
+      "market_beta": 2.1787608848148525,
+      "gate": {
+        "new_positions_allowed": true,
+        "blocking_reasons": [],
+        "cvar_limit_pct": 0.02,
+        "beta_cap": 1.5
+      },
+      "ok": false
+    }
+  },
+  "verdict": "FAIL"
+}

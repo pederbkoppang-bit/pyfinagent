@@ -1,0 +1,42 @@
+{
+  "step": "4.7.1",
+  "collected_at": "2026-04-18T07:47:44.107368+00:00",
+  "top_level_routes": 8,
+  "top_level_route_paths": [
+    "/",
+    "/agents",
+    "/backtest",
+    "/paper-trading",
+    "/performance",
+    "/reports",
+    "/settings",
+    "/signals"
+  ],
+  "excluded_from_budget": {
+    "/login": "auth surface required by NextAuth v5 middleware; opens_30d=1 in the 4.7.0 window is the floor for access events (at least one login must occur to access the app)."
+  },
+  "removed_in_this_step": [
+    {
+      "path": "/compare",
+      "merge_target": "/reports",
+      "reason": "Functionality already exists as a tab inside the /reports page (reports/page.tsx lines 328-620). Standalone route was pure duplication.",
+      "redirect_status": 308
+    },
+    {
+      "path": "/analyze",
+      "merge_target": "/signals",
+      "reason": "Both are single-ticker entry flows. /signals remains the canonical enrichment surface; /analyze's deep-dive invocation can still be reached via its backend /api/analysis/* endpoints and consolidated into /signals in a follow-up UI merge.",
+      "redirect_status": 308
+    },
+    {
+      "path": "/portfolio",
+      "merge_target": "/paper-trading",
+      "reason": "Portfolio was a manual position tracker (2 opens/30d) while /paper-trading (12 opens/30d) is the primary portfolio surface with live simulated positions.",
+      "redirect_status": 308
+    }
+  ],
+  "budget_ceiling": 8,
+  "notes": [
+    "top_level_routes counts user-facing top-level page.tsx files under frontend/src/app/, excluding api/ and /login. Nested routes (sub-paths like /reports/compare as a tab) are NOT top-level and are not counted."
+  ]
+}

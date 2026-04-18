@@ -34,20 +34,35 @@ def _hkdf_expand(prk: bytes, info: bytes, length: int) -> bytes:
     return okm[:length]
 
 
-def _hkdf_derive_key(secret: str) -> bytes:
+def _hkdf_derive_key(secret: str, salt: str = "") -> bytes:
     """
     Derive the 64-byte encryption key from AUTH_SECRET using HKDF.
-    NextAuth uses HKDF with:
-      - ikm = AUTH_SECRET (utf-8)
-      - salt = "" (empty)
-      - info = "Auth.js Generated Encryption Key"
-      - length = 64 (for A256CBC-HS512: 32 bytes HMAC + 32 bytes AES)
+
+    NextAuth v5 (5.0.0-beta.x) derives the key with:
+      - ikm  = AUTH_SECRET (utf-8)
+      - salt = cookie name, e.g. "authjs.session-token" (utf-8)
+      - info = "Auth.js Generated Encryption Key ({salt})"
+      - length = 64 (A256CBC-HS512: 32 bytes HMAC + 32 bytes AES)
+
+    NextAuth v4 used salt="" and info="Auth.js Generated Encryption
+    Key". When `salt` is the empty string, we still follow the
+    v5-style info template with an empty parenthetical so v5 tokens
+    minted with a fallback empty salt still decrypt correctly; a
+    caller wanting v4-bit-compatible behaviour passes salt="".
     """
     ikm = secret.encode("utf-8")
-    # HKDF-Extract with empty salt
-    salt = b"\x00" * 32  # SHA-256 block size
+    salt_bytes = salt.encode("utf-8") if salt else b"\x00" * 32
+    prk = hmac.new(salt_bytes, ikm, hashlib.sha256).digest()
+    info = f"Auth.js Generated Encryption Key ({salt})".encode("utf-8")
+    return _hkdf_expand(prk, info, 64)
+
+
+def _hkdf_derive_key_v4(secret: str) -> bytes:
+    """Legacy v4 HKDF (no salt, no salt in info). Kept for a narrow
+    compatibility fallback when a v4-format token is still in flight."""
+    ikm = secret.encode("utf-8")
+    salt = b"\x00" * 32
     prk = hmac.new(salt, ikm, hashlib.sha256).digest()
-    # HKDF-Expand
     info = b"Auth.js Generated Encryption Key"
     return _hkdf_expand(prk, info, 64)
 
@@ -59,11 +74,15 @@ def _base64url_decode(s: str) -> bytes:
     return base64.urlsafe_b64decode(s)
 
 
-def decrypt_jwe(token: str, secret: str) -> dict:
+def decrypt_jwe(token: str, secret: str, salt: str = "authjs.session-token") -> dict:
     """
     Decrypt a NextAuth v5 JWE token (compact serialization).
     Format: header.encryptedKey.iv.ciphertext.tag
     Algorithm: dir + A256CBC-HS512
+
+    `salt` is the NextAuth cookie name (without `__Secure-` prefix).
+    NextAuth v5 derives the key with HKDF(salt=cookie_name,
+    info=f"Auth.js Generated Encryption Key ({cookie_name})").
     """
     parts = token.split(".")
     if len(parts) != 5:
@@ -75,21 +94,28 @@ def decrypt_jwe(token: str, secret: str) -> dict:
     if header.get("alg") != "dir" or header.get("enc") != "A256CBC-HS512":
         raise ValueError(f"Unsupported JWE algorithm: {header.get('alg')}/{header.get('enc')}")
 
-    key = _hkdf_derive_key(secret)
-    mac_key = key[:32]
-    enc_key = key[32:64]
-
     iv = _base64url_decode(iv_b64)
     ciphertext = _base64url_decode(ciphertext_b64)
     tag = _base64url_decode(tag_b64)
-
-    # Verify HMAC-SHA-256 tag (A256CBC-HS512 uses HMAC-SHA-256 truncated to 256 bits)
     aad = header_b64.encode("ascii")
     al = struct.pack(">Q", len(aad) * 8)
     mac_input = aad + iv + ciphertext + al
-    computed_tag = hmac.new(mac_key, mac_input, hashlib.sha256).digest()
 
-    if not hmac.compare_digest(tag, computed_tag):
+    # A256CBC-HS512: key is MAC_KEY (first 32) || ENC_KEY (last 32),
+    # HMAC is SHA-512 truncated to 256 bits (RFC 7518 section 5.2.5).
+    # Try v5 salt first; fall back to v4 for legacy tokens in flight.
+    key = None
+    enc_key = None
+    for key_fn in (lambda: _hkdf_derive_key(secret, salt),
+                    lambda: _hkdf_derive_key_v4(secret)):
+        candidate = key_fn()
+        mac_key_c = candidate[:32]
+        computed_tag = hmac.new(mac_key_c, mac_input, hashlib.sha512).digest()[:32]
+        if hmac.compare_digest(tag, computed_tag):
+            key = candidate
+            enc_key = candidate[32:64]
+            break
+    if key is None:
         raise ValueError("JWE tag verification failed")
 
     # Decrypt AES-256-CBC
@@ -128,18 +154,42 @@ async def get_current_user(request: Request) -> Optional[dict]:
             detail="Authentication required (AUTH_SECRET not configured; set DEV_DISABLE_AUTH=1 only in local dev)",
         )
 
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    # Extract token from either the Authorization header OR the
+    # NextAuth session cookie. The cookie is HttpOnly, so the frontend
+    # cannot read it to attach as a Bearer header; it sends the
+    # "session-active" sentinel in that case, and we read the cookie
+    # here (cross-origin cookies work because fetch uses
+    # credentials:"include" + CORS allow-credentials=true).
+    auth_header = request.headers.get("Authorization") or ""
+    header_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+
+    # Candidates: (cookie_name_as_salt, token_value). NextAuth v5 always
+    # uses `authjs.session-token` as the HKDF salt even when the cookie
+    # is set with the `__Secure-` prefix in production.
+    candidates: list[tuple[str, str]] = []
+    if header_token and header_token != "session-active":
+        candidates.append(("authjs.session-token", header_token))
+    secure_cookie = request.cookies.get("__Secure-authjs.session-token")
+    dev_cookie = request.cookies.get("authjs.session-token")
+    if secure_cookie:
+        candidates.append(("authjs.session-token", secure_cookie))
+    if dev_cookie:
+        candidates.append(("authjs.session-token", dev_cookie))
+
+    if not candidates:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    token = auth_header[7:]  # Strip "Bearer "
-    if not token or token == "session-active":
-        raise HTTPException(status_code=401, detail="Authentication required")
-
-    try:
-        payload = decrypt_jwe(token, settings.auth_secret)
-    except Exception:
-        logger.warning("auth_failed: invalid token")
+    payload: Optional[dict] = None
+    last_error: Optional[Exception] = None
+    for salt, tok in candidates:
+        try:
+            payload = decrypt_jwe(tok, settings.auth_secret, salt=salt)
+            break
+        except Exception as e:
+            last_error = e
+            continue
+    if payload is None:
+        logger.warning("auth_failed: invalid token (%s)", last_error)
         raise HTTPException(status_code=401, detail="Authentication required")
 
     # Check email whitelist

@@ -1,0 +1,37 @@
+{
+  "step": "3.7.8",
+  "ran_at": "2026-04-17T21:03:49.361666+00:00",
+  "days": 5,
+  "symbols": 20,
+  "orders_per_day": 10,
+  "orders_placed": 1000,
+  "exceptions": 0,
+  "adv_threshold": 0.05,
+  "fill_price_drift_pct": 0.003,
+  "fill_latency_drift_ms": 0.002,
+  "large_orders": 500,
+  "partial_fill_checks_passed": 500,
+  "shadow_week_complete": true,
+  "fill_price_drift_le_1pct": true,
+  "fill_latency_drift_le_200ms": true,
+  "partial_fill_modeled_in_sim": true,
+  "verdict": "PASS",
+  "sample_large_order": {
+    "symbol": "AAPL",
+    "qty": 769094.96,
+    "adv": 9613687.0,
+    "child_fills": [
+      {
+        "qty": 461456.976,
+        "fill_price": 494.0,
+        "ts": "2026-04-17T21:03:49.352637+00:00"
+      },
+      {
+        "qty": 307637.984,
+        "fill_price": 494.0,
+        "ts": "2026-04-17T21:03:49.353141+00:00"
+      }
+    ],
+    "parent_fill_price": 494.0
+  }
+}

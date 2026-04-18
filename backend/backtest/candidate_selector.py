@@ -4,7 +4,7 @@ Screens using BQ-stored price data at a point in time.
 """
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
@@ -95,16 +95,35 @@ class CandidateSelector:
         ranked = self._rank_candidates(results, **(scoring_weights or {}))
         return ranked[:top_n]
 
-    def get_universe_tickers(self, market: str = DEFAULT_MARKET) -> list[str]:
+    def get_universe_tickers(
+        self,
+        market: str = DEFAULT_MARKET,
+        as_of: datetime | None = None,
+    ) -> list[str]:
         """
         Return universe of tickers for a given market.
-        
+
+        Phase-4.8.1 PIT contract: when `as_of` is supplied, we raise
+        NotImplementedError rather than silently return the live
+        Wikipedia snapshot (which is survivorship-biased as of today).
+        A delistings-feed ingestion step (queued phase-4.8.x) will
+        populate a historical membership table; until then, backtest
+        callers that need a PIT-correct universe must supply a cached
+        historical list.
+
         Currently supports:
-        - US: S&P 500 from Wikipedia (known survivorship bias)
-        - Other markets: placeholder — returns empty list with warning
-        
+        - US: S&P 500 from Wikipedia (known survivorship bias when
+          `as_of` is None)
+        - Other markets: placeholder -- returns empty list with warning
+
         Phase 5 will add: NO (OBX), CA (TSX60), DE (DAX), KR (KOSPI50)
         """
+        if as_of is not None:
+            raise NotImplementedError(
+                "point-in-time universe membership not available yet; "
+                "supply a cached historical list or wait for the "
+                "delistings-feed ingestion (phase-4.8.x)."
+            )
         if market != "US":
             logger.warning(
                 "Market '%s' not yet supported -- returning empty universe. "

@@ -66,6 +66,8 @@ import {
   ClockCounterClockwise,
 } from "@phosphor-icons/react";
 import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
+import { AutoresearchLeaderboard } from "@/components/AutoresearchLeaderboard";
+import { mapExperimentsToCandidates } from "@/components/AutoresearchLeaderboardMap";
 import { SharpeHistoryChart } from "@/components/SharpeHistoryChart";
 import { HarnessDashboard } from "@/components/HarnessDashboard";
 import { BudgetDashboard } from "@/components/BudgetDashboard";
@@ -309,7 +311,7 @@ function RunSelector({
                       ? (c.sharpe - b.sharpe).toFixed(2)
                       : "?";
                     const deltaPrefix = c.sharpe != null && b.sharpe != null && c.sharpe >= b.sharpe ? "+" : "";
-                    const statusTag = c.status === "keep" ? "✓" : c.status === "discard" ? "✗" : c.status === "dsr_reject" ? "⚠" : "";
+                    const statusTag = c.status === "keep" ? "KEPT" : c.status === "discard" ? "DISC" : c.status === "dsr_reject" ? "DSR" : "";
                     
                     return (
                       <button
@@ -1504,6 +1506,15 @@ export default function BacktestPage() {
                 <BentoCard>
                   <OptimizerProgressChart experiments={optExperiments} />
                 </BentoCard>
+
+                {/* phase-4.7.4: Autoresearch Leaderboard -- DSR/PBO/P&L.
+                    pbo is passed through from the backend; when the
+                    optimizer ships per-candidate PBO (phase-8.5) the
+                    leaderboard starts rendering real values without a
+                    frontend change. */}
+                <AutoresearchLeaderboard
+                  candidates={mapExperimentsToCandidates(optExperiments)}
+                />
 
                 {/* Experiments table */}
                 {optExperiments.length > 0 && (

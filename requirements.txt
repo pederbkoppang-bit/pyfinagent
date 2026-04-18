@@ -1,0 +1,6 @@
+# Root requirements pointer. All production deps live in
+# backend/requirements.txt (exact-pinned LLM clients live there
+# since phase-3.7.6 Cycle 65). This file exists so tools expecting
+# a repo-root requirements.txt -- like the masterplan's
+# immutable verification command for phase-4.8.8 -- resolve.
+-r backend/requirements.txt

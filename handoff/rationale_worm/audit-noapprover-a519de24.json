@@ -1,0 +1,15 @@
+{
+  "trade_id": "audit-noapprover-a519de24",
+  "created_at": "2026-04-18T12:19:54.406172+00:00",
+  "system_id": "pyfinagent-audit",
+  "agent_trace": [],
+  "input_signals": {},
+  "output_recommendation": "BUY",
+  "confidence": 0.5,
+  "approver_id": "",
+  "approved_at": "2026-04-18T12:19:54.406172+00:00",
+  "decision": "approve",
+  "reason_code": "audit_check",
+  "original_recommendation": null,
+  "extras": {}
+}

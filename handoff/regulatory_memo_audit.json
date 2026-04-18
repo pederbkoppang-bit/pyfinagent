@@ -1,0 +1,31 @@
+{
+  "step": "4.8.10",
+  "ran_at": "2026-04-18T12:28:27.168728+00:00",
+  "memo_landed": true,
+  "memo_sections": {
+    "## 1. Scope": true,
+    "## 2. Regulatory changes": true,
+    "## 3. System impact": true,
+    "## 4. Operational controls": true,
+    "## 5. Monitoring": true,
+    "## 6. Review cadence": true,
+    "## 7. Open items": true
+  },
+  "memo_citations": {
+    "34-96930": true,
+    "1091": true,
+    "4210": true
+  },
+  "library_public_api": {
+    "WashSaleLedger": true,
+    "filter_candidates": true,
+    "WINDOW_DAYS": true,
+    "t1_funding_guard": true,
+    "realtime_margin_guard": true
+  },
+  "test_script_passed": true,
+  "test_tail": "{\"wrote\": \"/Users/ford/.openclaw/workspace/pyfinagent/handoff/wash_sale_filter_test.json\", \"verdict\": \"PASS\", \"failed_count\": 0}",
+  "calendar_day_window": true,
+  "reasons": [],
+  "verdict": "PASS"
+}

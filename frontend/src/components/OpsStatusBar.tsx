@@ -219,7 +219,8 @@ function KillSegment({
           type="button"
           onClick={() => onAction("RESUME")}
           disabled={busy !== null || kill.breach.any_breached}
-          className="rounded-md border border-emerald-500/30 px-2 py-0.5 text-[10px] font-medium text-emerald-300 hover:bg-emerald-900/40 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Resume paper trading"
+          className="rounded-md border border-emerald-500/30 px-2 py-0.5 text-[10px] font-medium text-emerald-300 hover:bg-emerald-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Resume
         </button>
@@ -228,7 +229,8 @@ function KillSegment({
           type="button"
           onClick={() => onAction("PAUSE")}
           disabled={busy !== null}
-          className="rounded-md border border-amber-500/30 px-2 py-0.5 text-[10px] font-medium text-amber-300 hover:bg-amber-900/40 disabled:opacity-40"
+          aria-label="Pause paper trading"
+          className="rounded-md border border-amber-500/30 px-2 py-0.5 text-[10px] font-medium text-amber-300 hover:bg-amber-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-40"
         >
           Pause
         </button>
@@ -237,7 +239,8 @@ function KillSegment({
         type="button"
         onClick={() => onAction("FLATTEN_ALL")}
         disabled={busy !== null}
-        className="rounded-md border border-rose-500/30 px-2 py-0.5 text-[10px] font-medium text-rose-300 hover:bg-rose-900/40 disabled:opacity-40"
+        aria-label="Flatten all paper positions and pause trading"
+        className="rounded-md border border-rose-500/30 px-2 py-0.5 text-[10px] font-medium text-rose-300 hover:bg-rose-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-40"
       >
         Flatten
       </button>

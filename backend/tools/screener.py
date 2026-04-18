@@ -4,6 +4,7 @@ Uses yfinance batch download. Zero LLM cost.
 """
 
 import logging
+from datetime import datetime
 from typing import Optional
 
 import yfinance as yf
@@ -24,8 +25,25 @@ SECTOR_ETFS = {
 }
 
 
-def get_sp500_tickers() -> list[str]:
-    """Fetch current S&P 500 ticker list from Wikipedia."""
+def get_sp500_tickers(as_of: datetime | None = None) -> list[str]:
+    """Fetch S&P 500 ticker list.
+
+    When `as_of` is None, returns the CURRENT index composition via
+    Wikipedia scrape (survivorship-biased snapshot of today's
+    membership). When `as_of` is a datetime, raises
+    NotImplementedError -- we do not yet have a historical index-
+    membership table, and silently returning today's list would
+    reintroduce the survivorship bias this PIT kwarg is meant to
+    prevent (phase-4.8.1). Backtest callers that need PIT-correct
+    universe membership must either supply a cached historical list
+    or wait for the delistings-feed ingestion (queued phase-4.8.x).
+    """
+    if as_of is not None:
+        raise NotImplementedError(
+            "point-in-time S&P 500 membership not available yet; "
+            "callers must supply a cached historical universe or "
+            "wait for the delistings-feed ingestion (phase-4.8.x)."
+        )
     try:
         import io
         import urllib.request

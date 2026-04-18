@@ -1,0 +1,86 @@
+{
+  "step": "4.7.0",
+  "collected_at": "2026-04-17T21:09:29.234060+00:00",
+  "usage_source": "git_activity_30d",
+  "usage_source_command": "git -C /Users/ford/.openclaw/workspace/pyfinagent log --since=30.days --name-only --pretty=format: -- frontend/src/app",
+  "window_days": 30,
+  "route_count": 12,
+  "routes": [
+    {
+      "path": "/agents",
+      "page_file": "frontend/src/app/agents/page.tsx",
+      "opens_30d": 4,
+      "usage_source": "git_activity_30d+mas_cockpit_per_CLAUDE.md_phase_2.7"
+    },
+    {
+      "path": "/analyze",
+      "page_file": "frontend/src/app/analyze/page.tsx",
+      "opens_30d": 3,
+      "usage_source": "git_activity_30d"
+    },
+    {
+      "path": "/backtest",
+      "page_file": "frontend/src/app/backtest/page.tsx",
+      "opens_30d": 47,
+      "usage_source": "git_activity_30d+primary_user_surface_per_ARCHITECTURE.md"
+    },
+    {
+      "path": "/compare",
+      "page_file": "frontend/src/app/compare/page.tsx",
+      "opens_30d": 3,
+      "usage_source": "git_activity_30d"
+    },
+    {
+      "path": "/login",
+      "page_file": "frontend/src/app/login/page.tsx",
+      "opens_30d": 1,
+      "usage_source": "git_activity_30d"
+    },
+    {
+      "path": "/",
+      "page_file": "frontend/src/app/page.tsx",
+      "opens_30d": 4,
+      "usage_source": "git_activity_30d+dashboard_landing"
+    },
+    {
+      "path": "/paper-trading",
+      "page_file": "frontend/src/app/paper-trading/page.tsx",
+      "opens_30d": 12,
+      "usage_source": "git_activity_30d+primary_user_surface_per_ARCHITECTURE.md"
+    },
+    {
+      "path": "/performance",
+      "page_file": "frontend/src/app/performance/page.tsx",
+      "opens_30d": 4,
+      "usage_source": "git_activity_30d"
+    },
+    {
+      "path": "/portfolio",
+      "page_file": "frontend/src/app/portfolio/page.tsx",
+      "opens_30d": 2,
+      "usage_source": "git_activity_30d"
+    },
+    {
+      "path": "/reports",
+      "page_file": "frontend/src/app/reports/page.tsx",
+      "opens_30d": 4,
+      "usage_source": "git_activity_30d"
+    },
+    {
+      "path": "/settings",
+      "page_file": "frontend/src/app/settings/page.tsx",
+      "opens_30d": 5,
+      "usage_source": "git_activity_30d"
+    },
+    {
+      "path": "/signals",
+      "page_file": "frontend/src/app/signals/page.tsx",
+      "opens_30d": 4,
+      "usage_source": "git_activity_30d"
+    }
+  ],
+  "notes": [
+    "No live pageview beacon exists as of 2026-04-17; this window uses git commit activity on each page.tsx as a named proxy. A follow-up step wires a first-party /api/telemetry/pageview endpoint so future windows carry real opens.",
+    "A zero opens_30d means no commits on that page in the window -- it is a legitimate value, not missing data."
+  ]
+}

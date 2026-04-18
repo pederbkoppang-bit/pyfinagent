@@ -6,7 +6,10 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "lighthouse": "lighthouse",
+    "test": "node scripts/run-test.mjs",
+    "axe": "axe http://localhost:3000/login --tags wcag2a,wcag2aa,wcag21a,wcag21aa --exit --chrome-path \"./chrome/mac_arm-147.0.7727.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing\""
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -27,13 +30,24 @@
     "recharts": "^2.12.0"
   },
   "devDependencies": {
+    "@axe-core/cli": "^4.11.2",
+    "@eslint/eslintrc": "^3.3.5",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.0",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.4",
+    "jsdom": "^29.0.2",
+    "lighthouse": "^13.1.0",
     "postcss": "^8.4.0",
     "prisma": "^6.19.2",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.4"
   }
 }

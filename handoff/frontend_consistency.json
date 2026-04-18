@@ -1,0 +1,11 @@
+{
+  "step": "4.7.5",
+  "ran_at": "2026-04-18T07:26:43.940807+00:00",
+  "no_emoji_in_ui": true,
+  "phosphor_icons_only": true,
+  "ops_status_bar_pattern_applied": true,
+  "emoji_hits": [],
+  "non_phosphor_icon_imports": [],
+  "ops_status_bar_reason": "ok",
+  "verdict": "PASS"
+}

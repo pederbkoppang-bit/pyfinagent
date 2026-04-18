@@ -171,6 +171,48 @@ function CostBadge({
   );
 }
 
+interface ModelRowProps {
+  m: ModelPricing;
+  value: string;
+  checkClass: string;
+  githubConfigured: boolean;
+  onChange: (v: string) => void;
+}
+
+function ModelRow({ m, value, checkClass, githubConfigured, onChange }: ModelRowProps) {
+  return (
+    <button
+      key={m.model}
+      onClick={() => onChange(m.model)}
+      className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-slate-800 ${
+        value === m.model ? "bg-slate-800/80" : ""
+      }`}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={`w-3 shrink-0 ${value === m.model ? checkClass : "text-transparent"}`}>
+          <IconCheck size={12} weight="bold" />
+        </span>
+        <span
+          className={`truncate ${
+            value === m.model ? "font-medium text-slate-100" : "text-slate-300"
+          }`}
+        >
+          {MODEL_DISPLAY_NAMES[m.model] ?? m.model}
+        </span>
+        <span className="shrink-0 text-xs text-slate-600">
+          {m.provider ?? "Gemini"}
+        </span>
+        {m.context_limited && (
+          <span className="shrink-0 rounded px-1 py-0.5 text-xs bg-amber-900/40 text-amber-400">
+            ctx limit
+          </span>
+        )}
+      </div>
+      <CostBadge model={m} githubConfigured={githubConfigured} />
+    </button>
+  );
+}
+
 function ModelPicker({
   label,
   value,
@@ -209,37 +251,7 @@ function ModelPicker({
   const checkClass =
     accentColor === "violet" ? "text-violet-400" : "text-sky-400";
 
-  const ModelRow = ({ m }: { m: ModelPricing }) => (
-    <button
-      key={m.model}
-      onClick={() => onChange(m.model)}
-      className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-slate-800 ${
-        value === m.model ? "bg-slate-800/80" : ""
-      }`}
-    >
-      <div className="flex min-w-0 items-center gap-2">
-        <span className={`w-3 shrink-0 ${value === m.model ? checkClass : "text-transparent"}`}>
-          <IconCheck size={12} weight="bold" />
-        </span>
-        <span
-          className={`truncate ${
-            value === m.model ? "font-medium text-slate-100" : "text-slate-300"
-          }`}
-        >
-          {MODEL_DISPLAY_NAMES[m.model] ?? m.model}
-        </span>
-        <span className="shrink-0 text-xs text-slate-600">
-          {m.provider ?? "Gemini"}
-        </span>
-        {m.context_limited && (
-          <span className="shrink-0 rounded px-1 py-0.5 text-xs bg-amber-900/40 text-amber-400">
-            ctx limit
-          </span>
-        )}
-      </div>
-      <CostBadge model={m} githubConfigured={githubConfigured} />
-    </button>
-  );
+  const rowProps = { value, checkClass, githubConfigured, onChange };
 
   return (
     <div>
@@ -264,12 +276,12 @@ function ModelPicker({
           {/* Pinned selected model at top (when not searching) */}
           {!isSearching && selected && (
             <>
-              <ModelRow m={selected} />
+              <ModelRow m={selected} {...rowProps} />
               <div className="mx-3 border-t border-slate-800" />
             </>
           )}
           {primary.map((m) => (
-            <ModelRow key={m.model} m={m} />
+            <ModelRow key={m.model} m={m} {...rowProps} />
           ))}
           {other.length > 0 && (
             <>
@@ -280,7 +292,7 @@ function ModelPicker({
                 <span>Other models ({other.length})</span>
                 <span>{showOther ? "▲" : "▼"}</span>
               </button>
-              {showOther && other.map((m) => <ModelRow key={m.model} m={m} />)}
+              {showOther && other.map((m) => <ModelRow key={m.model} m={m} {...rowProps} />)}
             </>
           )}
           {primary.length === 0 && other.length === 0 && (

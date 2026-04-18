@@ -78,6 +78,8 @@ const EVENT_STYLES: Record<string, { color: string; icon: any }> = {
   plan: { color: "text-amber-400", icon: Brain },
   delegate: { color: "text-purple-400", icon: TreeStructure },
   tool_call: { color: "text-cyan-400", icon: Lightning },
+  tool_result: { color: "text-cyan-300", icon: Lightning },
+  thinking: { color: "text-indigo-300", icon: Brain },
   synthesize: { color: "text-emerald-400", icon: ArrowsClockwise },
   loop_check: { color: "text-amber-300", icon: ArrowsClockwise },
   quality_gate: { color: "text-sky-300", icon: ShieldCheck },
@@ -175,6 +177,7 @@ export default function AgentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeAgents, setActiveAgents] = useState<Set<string>>(new Set());
   const [openclawData, setOpenclawData] = useState<OpenClawData | null>(null);
+  const [costSummary, setCostSummary] = useState<{ total_cost_usd?: number; agents?: Array<{ agent_name?: string; cost_usd?: number }> } | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const failCountRef = useRef(0);
@@ -252,6 +255,7 @@ export default function AgentsPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.openclaw) setOpenclawData(data.openclaw);
+          if (data.cost_summary) setCostSummary(data.cost_summary);
         }
       } catch {
         // silent
@@ -501,7 +505,10 @@ export default function AgentsPage() {
                   </div>
                 </div>
                 {openclawData?.error && (
-                  <p className="mt-3 text-sm text-rose-400">⚠️ {openclawData.error}</p>
+                  <p className="mt-3 flex items-center gap-2 text-sm text-rose-400">
+                    <Warning size={14} weight="fill" />
+                    {openclawData.error}
+                  </p>
                 )}
               </div>
 
@@ -643,8 +650,8 @@ export default function AgentsPage() {
                 </div>
               </div>
 
-              {/* Agent details table */}
-              <div className="overflow-hidden rounded-xl border border-navy-700">
+              {/* Agent details table: per-agent latency, cost, heartbeat (phase-4.7.3) */}
+              <div className="overflow-hidden rounded-xl border border-navy-700" data-testid="agent-metrics-table">
                 <table className="w-full text-left text-sm">
                   <thead className="border-b border-navy-700 bg-navy-800/80">
                     <tr>
@@ -652,6 +659,9 @@ export default function AgentsPage() {
                       <th className="px-4 py-3 font-medium text-slate-400">Model</th>
                       <th className="px-4 py-3 font-medium text-slate-400">Role</th>
                       <th className="px-4 py-3 font-medium text-slate-400">Events</th>
+                      <th className="px-4 py-3 font-medium text-slate-400" data-col="latency">Latency (avg ms)</th>
+                      <th className="px-4 py-3 font-medium text-slate-400" data-col="cost">Cost ($)</th>
+                      <th className="px-4 py-3 font-medium text-slate-400" data-col="heartbeat">Heartbeat</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-navy-700/50">
@@ -665,8 +675,23 @@ export default function AgentsPage() {
                         "Quality Gate": "Skeptical Reviewer (0.0-1.0)",
                         CitationAgent: "Source Attribution",
                       };
+                      const durs = agentEvents.map((e) => e.duration_ms).filter((v) => v > 0);
+                      const avgLatency = durs.length ? durs.reduce((s, v) => s + v, 0) / durs.length : null;
+                      const costEntry = costSummary?.agents?.find(
+                        (a) => a.agent_name === node.id || a.agent_name === node.label,
+                      );
+                      const cost = costEntry?.cost_usd ?? null;
+                      const last = agentEvents[agentEvents.length - 1];
+                      const ageS = last ? (Date.now() - new Date(last.timestamp).getTime()) / 1000 : null;
+                      let beatColor = "bg-slate-600";
+                      let beatLabel = "—";
+                      if (ageS !== null) {
+                        if (ageS < 60) { beatColor = "bg-emerald-500"; beatLabel = `${Math.round(ageS)}s ago`; }
+                        else if (ageS < 300) { beatColor = "bg-amber-500"; beatLabel = `${Math.round(ageS)}s ago`; }
+                        else { beatColor = "bg-rose-500"; beatLabel = `${Math.round(ageS / 60)}m ago`; }
+                      }
                       return (
-                        <tr key={node.id} className="transition-colors hover:bg-navy-700/40">
+                        <tr key={node.id} className="transition-colors hover:bg-navy-700/40" data-agent={node.id}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <node.icon size={16} className={activeAgents.has(node.id) ? "text-sky-400" : "text-slate-400"} />
@@ -676,6 +701,18 @@ export default function AgentsPage() {
                           <td className="px-4 py-3 font-mono text-xs text-slate-400">{node.model}</td>
                           <td className="px-4 py-3 text-xs text-slate-500">{roles[node.id] ?? "—"}</td>
                           <td className="px-4 py-3 font-mono text-slate-300">{agentEvents.length}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-slate-300" data-cell="latency">
+                            {avgLatency != null ? avgLatency.toFixed(0) : "—"}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-slate-300" data-cell="cost">
+                            {cost != null ? `$${cost.toFixed(4)}` : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-xs" data-cell="heartbeat">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className={`h-2 w-2 rounded-full ${beatColor}`} />
+                              <span className="text-slate-400 font-mono">{beatLabel}</span>
+                            </span>
+                          </td>
                         </tr>
                       );
                     })}

@@ -11,7 +11,7 @@ redis>=5.0.0
 # GCP
 google-cloud-bigquery>=3.20.0
 google-cloud-bigquery-storage>=2.24.0
-google-cloud-aiplatform>=1.60.0
+google-cloud-aiplatform==1.142.0  # exact pin: supply-chain hardening (phase-3.7.6, LiteLLM Mar 2026 incident)
 google-auth>=2.29.0
 
 # Data & tools
@@ -34,8 +34,10 @@ rank-bm25>=0.2.2
 pytrends==4.9.2
 
 # Multi-provider LLM support (v3.4)
-anthropic>=0.49.0
-openai>=1.50.0
+anthropic==0.87.0            # exact pin: supply-chain hardening (phase-3.7.6; CVE-2026-34450/34452 fix)
+openai==2.29.0               # exact pin: supply-chain hardening (phase-3.7.6)
+fastmcp==3.2.4               # exact pin: supply-chain hardening (phase-3.7.6)
+alpaca-py==0.43.2            # exact pin: supply-chain hardening (phase-3.7.6)
 
 # ML (backtest engine)
 scikit-learn>=1.4.0

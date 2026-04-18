@@ -1,0 +1,21 @@
+{
+  "step": "4.8.9",
+  "ran_at": "2026-04-18T12:19:54.406439+00:00",
+  "callables_present": true,
+  "roundtrip_ok": true,
+  "retention_ge_3y": true,
+  "retention_policy": {
+    "backend": "local",
+    "bucket": null,
+    "retention_years_policy": 6,
+    "retention_years_minimum": 3,
+    "retention_seconds_policy": 189216000,
+    "citation": "SEC 17a-4 requires 6 years for trade-order records (17a-3(a)(1)); masterplan criterion 'worm_retention_3y' is this project's internal floor, satisfied by the 6y policy."
+  },
+  "hitl_enforced": false,
+  "finra_rationale_audit_passed": true,
+  "reasons": [
+    "write_rationale accepted empty approver_id"
+  ],
+  "verdict": "FAIL"
+}

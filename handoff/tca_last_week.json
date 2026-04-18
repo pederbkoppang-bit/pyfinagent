@@ -1,0 +1,102 @@
+{
+  "step": "4.8.0",
+  "ran_at": "2026-04-18T09:11:20.270807+00:00",
+  "window_start": "2026-04-11T09:11:20.270807+00:00",
+  "window_end": "2026-04-18T09:11:20.270807+00:00",
+  "data_source": "seeded",
+  "seeded_rows": 70,
+  "rows_in_window": 60,
+  "total_notional_usd": 166173.02,
+  "all_fills": {
+    "count": 60,
+    "mean": 5.5996,
+    "median": 5.9976,
+    "p95": 9.0
+  },
+  "liquid_fills": {
+    "count": 60,
+    "mean": 5.5996,
+    "median": 5.9976,
+    "p95": 9.0
+  },
+  "median_bps_liquid": 5.9976,
+  "p95_bps_liquid": 9.0,
+  "by_symbol": {
+    "AAPL": {
+      "count": 6,
+      "mean": 6.1659,
+      "median": 6.4993,
+      "p95": 9.6475
+    },
+    "AMD": {
+      "count": 6,
+      "mean": 5.8318,
+      "median": 6.4987,
+      "p95": 9.6475
+    },
+    "AMZN": {
+      "count": 6,
+      "mean": 4.8327,
+      "median": 4.4996,
+      "p95": 10.9487
+    },
+    "AVGO": {
+      "count": 6,
+      "mean": 6.4994,
+      "median": 6.4982,
+      "p95": 9.65
+    },
+    "GOOGL": {
+      "count": 6,
+      "mean": 5.1668,
+      "median": 4.5,
+      "p95": 9.65
+    },
+    "META": {
+      "count": 6,
+      "mean": 4.4991,
+      "median": 4.4978,
+      "p95": 7.6516
+    },
+    "MSFT": {
+      "count": 6,
+      "mean": 5.832,
+      "median": 6.4995,
+      "p95": 9.6452
+    },
+    "NVDA": {
+      "count": 6,
+      "mean": 5.5006,
+      "median": 5.5013,
+      "p95": 9.6508
+    },
+    "ORCL": {
+      "count": 6,
+      "mean": 6.1662,
+      "median": 6.4994,
+      "p95": 9.649
+    },
+    "TSLA": {
+      "count": 6,
+      "mean": 5.5009,
+      "median": 5.5008,
+      "p95": 8.6493
+    }
+  },
+  "by_side": {
+    "buy": {
+      "count": 30,
+      "mean": 5.0661,
+      "median": 5.9964,
+      "p95": 8.0
+    },
+    "sell": {
+      "count": 30,
+      "mean": 6.133,
+      "median": 6.9988,
+      "p95": 9.0002
+    }
+  },
+  "alert_threshold_bps": 15.0,
+  "alert_triggered": false
+}

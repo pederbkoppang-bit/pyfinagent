@@ -1,0 +1,48 @@
+{
+  "step": "4.8.6",
+  "ran_at": "2026-04-18T12:00:00.331184+00:00",
+  "three_runbooks_landed": true,
+  "three_tabletop_drills_logged": false,
+  "rto_per_scenario_measured": false,
+  "runbooks": {
+    "broker_outage": {
+      "ok": true,
+      "reasons": [],
+      "numbered_steps": 5
+    },
+    "data_feed_outage": {
+      "ok": true,
+      "reasons": [],
+      "numbered_steps": 5
+    },
+    "llm_outage": {
+      "ok": true,
+      "reasons": [],
+      "numbered_steps": 5
+    }
+  },
+  "drills": [
+    {
+      "scenario": "broker_outage",
+      "rto_target": 15,
+      "rto_actual": null,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "data_feed_outage",
+      "rto_target": 20,
+      "rto_actual": 12,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "llm_outage",
+      "rto_target": 30,
+      "rto_actual": 18,
+      "verdict": "PASS"
+    }
+  ],
+  "drill_reasons": [
+    "broker_outage missing rto values"
+  ],
+  "verdict": "FAIL"
+}

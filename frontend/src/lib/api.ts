@@ -84,6 +84,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     res = await fetch(`${API_BASE}${path}`, {
       ...init,
       headers,
+      credentials: "include",
       signal: init?.signal ?? controller.signal,
     });
   } catch (err) {

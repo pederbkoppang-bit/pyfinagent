@@ -1,0 +1,57 @@
+{
+  "step": "4.8.3",
+  "ran_at": "2026-04-18T09:33:02.457881+00:00",
+  "dry_run": true,
+  "config": {
+    "fraction": 0.25,
+    "cap": 0.3
+  },
+  "strategies": [
+    {
+      "name": "momentum",
+      "mu_annual": 0.09,
+      "sigma_annual": 0.16,
+      "kelly_full": 2.4978,
+      "kelly_fractional": 0.6245,
+      "alloc_pct": 0.202,
+      "capped": false
+    },
+    {
+      "name": "mean_reversion",
+      "mu_annual": 0.06,
+      "sigma_annual": 0.13,
+      "kelly_full": 3.6635,
+      "kelly_fractional": 0.9159,
+      "alloc_pct": 0.202,
+      "capped": false
+    },
+    {
+      "name": "triple_barrier",
+      "mu_annual": 0.08,
+      "sigma_annual": 0.15,
+      "kelly_full": 1.5222,
+      "kelly_fractional": 0.3805,
+      "alloc_pct": 0.202,
+      "capped": false
+    },
+    {
+      "name": "factor_model",
+      "mu_annual": 0.07,
+      "sigma_annual": 0.14,
+      "kelly_full": 1.2743,
+      "kelly_fractional": 0.3186,
+      "alloc_pct": 0.202,
+      "capped": false
+    },
+    {
+      "name": "quality",
+      "mu_annual": 0.05,
+      "sigma_annual": 0.11,
+      "kelly_full": 1.1409,
+      "kelly_fractional": 0.2852,
+      "alloc_pct": 0.192,
+      "capped": false
+    }
+  ],
+  "total_alloc_pct": 1.0
+}
