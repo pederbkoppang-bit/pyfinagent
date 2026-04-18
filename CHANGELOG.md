@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-18 | `bc48728` | phase-4.14.3: output_config.effort pass-through to ClaudeClient (MF-28 partial) |
 | 2026-04-18 | `c990025` | phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync |
 | 2026-04-18 | `e82e4e9` | chore: sync phase-4.7/4.8 backlog + handoff archive |
 | 2026-04-18 | `802d6ac` | feat(phase-4.9): immutable governance core + Gauntlet regime catalog |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `5901060` | Phase 4.6 steps 4.6.5 PASS + 4.6.6 CONDITIONAL |
 | 2026-04-17 | `fa01d4d` | Phase 4.6 steps 4.6.3, 4.6.4 via MAS loop |
 | 2026-04-17 | `6720309` | Phase 4.6: steps 4.6.0-4.6.2 done via full MAS loop |
-| 2026-04-17 | `d2d9da3` | feat: integrate Intelligence Engine (phases A/B/C/D/E + cron budget) |
 
 ---
 
+### v6.5.39 — phase-4.14.3: output_config.effort pass-through to ClaudeClient (MF-2... (2026-04-18)
+
+- **phase-4.14.3: output_config.effort pass-through to ClaudeClient (MF-28 partial)**
 ### v6.5.38 — phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync (2026-04-18)
 
 - **phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync**
