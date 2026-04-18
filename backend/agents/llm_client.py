@@ -628,22 +628,18 @@ class ClaudeClient(LLMClient):
             "messages": [{"role": "user", "content": prompt}],
         }
 
-        # Extended thinking — model-gated.
+        # Extended thinking - model-gated.
         # MF-29 (2026-04-18): Opus 4.7 REJECTS manual
         # {type:"enabled",budget_tokens}; it only accepts adaptive.
         # Legacy models (Opus 4.5 and older, 3.7) still use manual.
         # Sonnet 4.6 / Haiku 4.5 accept both; we use adaptive.
         thinking_cfg = config.get("thinking") or {}
         thinking_requested = isinstance(thinking_cfg, dict) and thinking_cfg.get("budget_tokens", 0) > 0
+        model_id = self.model_name or ""
         if thinking_requested:
-            model_id = self.model_name or ""
             if model_id.startswith(("claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5")):
                 # Adaptive path (no budget_tokens accepted).
                 kwargs["thinking"] = {"type": "adaptive"}
-                # Optional: forward an effort level if caller passed one.
-                effort = config.get("effort") or thinking_cfg.get("effort")
-                if effort in ("low", "medium", "high", "xhigh", "max"):
-                    kwargs["output_config"] = {"effort": effort}
             else:
                 # Legacy manual path.
                 budget = thinking_cfg["budget_tokens"]
@@ -651,6 +647,50 @@ class ClaudeClient(LLMClient):
             # Claude REQUIRES temperature=1 whenever thinking is active,
             # for both adaptive and enabled modes.
             kwargs["temperature"] = 1
+
+        # phase-4.14.3 (MF-28): output_config.effort pass-through.
+        # Effort is independent of thinking per Anthropic docs -- it
+        # controls text, tool calls, and thinking tokens when active.
+        # Resolution precedence:
+        #   1. Explicit config["effort"]
+        #   2. thinking_cfg["effort"] (legacy nesting from older callers)
+        #   3. role_hint via config["_role"] -> resolve_effort(role)
+        #   4. model-ID prefix fallback -> resolve_effort_by_model(id)
+        # xhigh guard: xhigh is Opus 4.7 only. Downgrade to high with
+        # a WARNING log if applied to any other model.
+        # Model-support guard: Haiku 4.5 and non-Claude models are not
+        # in Anthropic's supported-for-effort list; omit output_config.
+        from backend.config.model_tiers import (
+            resolve_effort,
+            resolve_effort_by_model,
+            model_supports_effort,
+        )
+
+        effort: str | None = config.get("effort") or thinking_cfg.get("effort")
+        if effort is None:
+            role_hint = config.get("_role")
+            if role_hint:
+                try:
+                    effort = resolve_effort(role_hint)
+                except KeyError:
+                    effort = None
+        if effort is None:
+            effort = resolve_effort_by_model(model_id)
+
+        if effort and not model_supports_effort(model_id):
+            logger.debug(
+                "[ClaudeClient] effort=%s dropped; model %s not in supported set",
+                effort, model_id,
+            )
+            effort = None
+        if effort == "xhigh" and not model_id.startswith("claude-opus-4-7"):
+            logger.warning(
+                "[ClaudeClient] xhigh downgraded to high; %s is not opus-4-7",
+                model_id,
+            )
+            effort = "high"
+        if effort in ("low", "medium", "high", "xhigh", "max"):
+            kwargs["output_config"] = {"effort": effort}
 
         response = client.messages.create(**kwargs)
 

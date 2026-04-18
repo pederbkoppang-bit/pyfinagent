@@ -43,7 +43,7 @@ Closed this cycle (see FIXED section below): MF-29, MF-1, MF-2.
 | MF-36 | `@enforce` capability tokens not wired on FastMCP tools (security story undermined) |
 | MF-37 | `betas=` kwarg plumbing missing on `ClaudeClient` (blocks 3 separate wins) |
 | MF-47 | `anthropic:` prefix in `_BUILD_TIER` silently routes to Gemini |
-| MF-28 | Add `output_config.effort` pass-through |
+| MF-28 | Add `output_config.effort` pass-through — **FIXED-IN-ClaudeClient 2026-04-18 via phase-4.14.3**; MAS tool loop + planner_agent + autonomous_loop direct-client paths still bypass ClaudeClient (5 callsites); full closure blocked on MF-35 consolidation |
 | MF-26 + MF-27 | Full stop_reason dispatch + max_tokens retry |
 | MF-21 | Migrate Claude JSON to `output_config.format` structured outputs |
 | MF-3 + MF-4 | Permission mode bypass → acceptEdits/auto + sandboxing |
@@ -84,6 +84,7 @@ hooks + .bak files cleanup), **MF-48 cache-write premium missing**,
 | MF-29 | Opus 4.7 thinking-API gate: `ClaudeClient._call_claude` routes 4.7/4.6/sonnet-4.6/haiku-4.5 to `{"type":"adaptive"}`, legacy models to `{"type":"enabled","budget_tokens":N}`, `temperature=1` forced on both paths (`llm_client.py:638-653`) | phase-4.14.0 (2026-04-18) |
 | MF-1 | `MODEL_PRICING` now correct for all 7 current Claude 4-family models + retired Haiku 3.5 / Sonnet 3.7 rows removed (`cost_tracker.py:20-76`). Cost-dashboard no longer under-reports by 50-187×. | phase-4.14.1 (2026-04-18) |
 | MF-2 | Settings hardening: `.claude/settings.json:permissions.deny` now blocks `mcp__alpaca__{place_order,cancel_order,replace_order,close_position,close_all_positions}` + `mcp__bigquery__execute_sql` + Bash safety denies. `.claude/settings.local.json` contradiction removed. | phase-4.14.2 (2026-04-18) |
+| MF-28 (partial) | `output_config.effort` pass-through wired in `ClaudeClient` with per-agent-class defaults (`model_tiers.py::EFFORT_DEFAULTS` + `resolve_effort` + `resolve_effort_by_model`), xhigh-Opus-4.7-only guard, and model-support allowlist. Effort is now applied independent of thinking (the MF-29 bug was effort-only-when-thinking-on). FULL closure of MF-28 requires MF-35 consolidation (5 callsites still bypass ClaudeClient: `multi_agent_orchestrator.py:165`, `planner_agent.py`, `planner_enhanced.py`, `services/autonomous_loop.py:419`, `ticket_queue_processor.py:178`). | phase-4.14.3 (2026-04-18) |
 
 ### NEW THIS CYCLE (1 follow-up)
 

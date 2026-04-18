@@ -6180,3 +6180,87 @@ status=done.
 - handoff/current/phase-4.14-T1-experiment-results.md
 - handoff/current/phase-4.14-T1-evaluator-critique.md
 
+
+---
+
+## Cycle 1 -- 2026-04-18 19:49 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle -- 2026-04-18 -- phase=4.14.3 result=PASS
+
+**Step**: [T2] Add output_config.effort pass-through to ClaudeClient
+(xhigh/high/medium/low per agent class). Closes MF-28 partially
+(ClaudeClient scope only; MF-35 blocks full closure of MAS tool-loop
+bypass paths).
+
+**Research gate** (MODERATE tier, 13 citations): PASS.
+Researcher agentId a8493df077b16b9f5. Key finding: effort is
+INDEPENDENT of thinking per Anthropic docs ("It doesn't require
+thinking to be enabled in order to use it"). The existing MF-29 code
+applied effort only inside `if thinking_requested:` — a latent bug
+that prevented criteria #2 and #3 from being satisfiable until this
+cycle hoisted effort resolution to outer scope.
+
+**Generator (Main)**: 
+- backend/config/model_tiers.py +97 lines
+  - Effort = Literal["low","medium","high","xhigh","max"]
+  - EFFORT_SUPPORTED_MODELS = (opus-4-7/4-6/4-5/4-1, sonnet-4-6/4-5)
+    -- Haiku 4.5 NOT listed per Anthropic docs
+  - EFFORT_DEFAULTS dict (role-keyed):
+    mas_communication=low, mas_main=high, mas_qa=high,
+    mas_research=medium, autoresearch_fast=None (Haiku),
+    autoresearch_smart=medium, autoresearch_strategic=high
+  - MODEL_EFFORT_FALLBACK tuple (prefix-keyed):
+    opus-4-7=xhigh, opus-4-6/5/1=high, sonnet-4-6/5=medium,
+    haiku-4-5=None
+  - resolve_effort(role), resolve_effort_by_model(model_id),
+    model_supports_effort(model_id) helpers
+- backend/agents/llm_client.py +46/-8
+  - Hoisted effort resolution OUT of thinking_requested branch
+  - Precedence: explicit > config > role_hint > model-ID fallback
+  - xhigh downgrade-with-log guard (xhigh is Opus 4.7 only)
+  - model-support allowlist guard (Haiku + non-Claude omit effort)
+
+**Evaluator (Q/A qa_4143)**: CONDITIONAL -> PASS
+- Deterministic checks: all pass (immutable verification, semantic
+  API, AST hoist-out-of-thinking, syntax, guard presence)
+- CONDITIONAL blocker: GAP_REPORT.md MF-28 should mark as partial
+  (FIXED-IN-ClaudeClient) not flat FIXED because 5 callsites still
+  bypass ClaudeClient. Main applied the 2-edit fix to GAP_REPORT.md
+  and SendMessage'd back to qa_4143. Verdict flipped to PASS per
+  qa_4143's deterministic condition. NO fresh Q/A spawned (per the
+  failure-discipline F1 rule).
+- Non-blocker findings (logged for future cycles):
+  - MF-51 weak verification command (carried over from 4.14.0-T1)
+  - Silent xhigh->high downgrade with WARNING log accepted
+  - Haiku 4.5 exclusion relies on researcher claim; low blast radius
+  - Recommendation: add tests/test_model_tiers.py for criteria #2/#3
+    enforcement (NEW gap; file as follow-up)
+
+**Gap-report updates**:
+- MF-28 row in Tier 2 annotated with FIXED-IN-ClaudeClient half-state
+- FIXED THIS CYCLE table gained MF-28 (partial) row with the 5
+  bypassing callsites enumerated by file:line
+
+**Decision**: PASS. Masterplan 4.14.3 -> done.
+
+**Handoff artifacts**:
+- handoff/current/phase-4.14.3-contract.md
+- handoff/current/phase-4.14.3-experiment-results.md
+- handoff/current/phase-4.14.3-evaluator-critique.md (with PASS
+  resolution appended)
+

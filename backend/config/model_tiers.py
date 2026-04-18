@@ -49,9 +49,12 @@ _BUILD_TIER: dict[str, str] = {
     # agent_definitions.py:271
     "mas_research": "claude-sonnet-4-6",
     # scripts/autoresearch/run_memo.py env_defaults
-    "autoresearch_fast": "anthropic:claude-haiku-4-5",
-    "autoresearch_smart": "anthropic:claude-sonnet-4-6",
-    "autoresearch_strategic": "anthropic:claude-opus-4-6",
+    # Fixed 2026-04-18: removed "anthropic:" prefix which broke
+    # make_client() routing (startswith("claude-") failed, silently
+    # fell through to Gemini). MF-47.
+    "autoresearch_fast": "claude-haiku-4-5",
+    "autoresearch_smart": "claude-sonnet-4-6",
+    "autoresearch_strategic": "claude-opus-4-6",
     # settings.py:28
     "gemini_enrichment": "gemini-2.0-flash",
     # settings.py:29
@@ -115,3 +118,96 @@ def resolve_model(role: str, tier: CostTier | None = None) -> str:
 def build_tier_snapshot() -> dict[str, str]:
     """Return a copy of the build-tier map for the byte-identical test."""
     return dict(_BUILD_TIER)
+
+
+# -----------------------------------------------------------------------
+# phase-4.14.3 (MF-28) - output_config.effort defaults per agent class.
+#
+# Anthropic effort docs
+# (https://platform.claude.com/docs/en/build-with-claude/effort) list
+# the supported levels as low / medium / high / xhigh / max. Two hard
+# constraints we have to respect:
+#   - "xhigh" is accepted only by claude-opus-4-7. Sending it to any
+#     other model returns a 400. We downgrade xhigh to high in
+#     llm_client when the target is not Opus 4.7.
+#   - Haiku 4.5 is not listed as a supported model for output_config.
+#     We omit effort entirely on Haiku routes (value = None).
+# API implicit default when effort is omitted = "high".
+# Sonnet 4.6 recommended default in the docs is "medium" (the docs say
+# to "explicitly set" it to avoid unexpected latency at high).
+# Opus 4.7 recommended default for coding/agentic = "xhigh".
+# -----------------------------------------------------------------------
+
+Effort = Literal["low", "medium", "high", "xhigh", "max"]
+
+EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-opus-4-5",
+    "claude-opus-4-1",
+    "claude-sonnet-4-6",
+    "claude-sonnet-4-5",
+)
+
+EFFORT_DEFAULTS: dict[str, Effort | None] = {
+    "mas_communication":       "low",
+    "mas_main":                "high",
+    "mas_qa":                  "high",
+    "mas_research":            "medium",
+    "autoresearch_fast":       None,
+    "autoresearch_smart":      "medium",
+    "autoresearch_strategic":  "high",
+    "gemini_enrichment":       None,
+    "gemini_deep_think":       None,
+}
+
+MODEL_EFFORT_FALLBACK: tuple[tuple[str, Effort | None], ...] = (
+    ("claude-opus-4-7",   "xhigh"),
+    ("claude-opus-4-6",   "high"),
+    ("claude-opus-4-5",   "high"),
+    ("claude-opus-4-1",   "high"),
+    ("claude-sonnet-4-6", "medium"),
+    ("claude-sonnet-4-5", "medium"),
+    ("claude-haiku-4-5",  None),
+)
+
+
+def resolve_effort(role: str) -> Effort | None:
+    """Look up the effort default for a role.
+
+    Args:
+        role: one of the keys in EFFORT_DEFAULTS. Must also appear in
+            _BUILD_TIER so we don't silently accept typos.
+
+    Returns:
+        The effort level string, or None to mean omit output_config.
+
+    Raises:
+        KeyError: unknown role.
+    """
+    if role not in _BUILD_TIER:
+        raise KeyError(
+            f"unknown model role {role!r}; valid roles: {sorted(_BUILD_TIER)}"
+        )
+    return EFFORT_DEFAULTS.get(role)
+
+
+def resolve_effort_by_model(model_id: str | None) -> Effort | None:
+    """Fallback: derive effort default from a bare model ID prefix.
+
+    Used when a caller does not supply a role (e.g. direct
+    ClaudeClient instantiation outside the role-routed MAS path).
+    """
+    if not model_id:
+        return None
+    for prefix, effort in MODEL_EFFORT_FALLBACK:
+        if model_id.startswith(prefix):
+            return effort
+    return None
+
+
+def model_supports_effort(model_id: str | None) -> bool:
+    """True if the model ID accepts output_config.effort per Anthropic docs."""
+    if not model_id:
+        return False
+    return model_id.startswith(EFFORT_SUPPORTED_MODELS)
