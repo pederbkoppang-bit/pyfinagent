@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-18 | `de58fd0` | CLAUDE.md: correct cycle-2 flow per Anthropic docs (fresh Q/A on file-updated evidence) |
 | 2026-04-18 | `b350743` | agents: add SendMessage to qa + researcher tool lists |
 | 2026-04-18 | `bc48728` | phase-4.14.3: output_config.effort pass-through to ClaudeClient (MF-28 partial) |
 | 2026-04-18 | `c990025` | phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `8fdb170` | Phase 4.6: session pause after 6/10 steps resolved |
 | 2026-04-17 | `85d439d` | Phase 4.6.6: install Playwright + rewrite smoketest (CONDITIONAL) |
 | 2026-04-17 | `5901060` | Phase 4.6 steps 4.6.5 PASS + 4.6.6 CONDITIONAL |
-| 2026-04-17 | `fa01d4d` | Phase 4.6 steps 4.6.3, 4.6.4 via MAS loop |
 
 ---
 
+### v6.5.41 — correct cycle-2 flow per Anthropic docs (fresh Q/A on file-updated ev... (2026-04-18)
+
+- **correct cycle-2 flow per Anthropic docs (fresh Q/A on file-updated evidence)**
 ### v6.5.40 — add SendMessage to qa + researcher tool lists (2026-04-18)
 
 - **add SendMessage to qa + researcher tool lists**
