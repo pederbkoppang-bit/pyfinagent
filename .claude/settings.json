@@ -68,6 +68,17 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'if [ \"${stop_hook_active:-false}\" = true ]; then echo \"{\\\"ok\\\": true, \\\"reason\\\": \\\"loop prevention\\\"}\"; exit 0; fi; echo \"{\\\"ok\\\": true, \\\"reason\\\": \\\"subagent stopped\\\"}\"'",
+            "statusMessage": "SubagentStop gate..."
+          }
+        ]
+      }
     ]
   },
   "env": {
@@ -86,6 +97,18 @@
       "Agent",
       "WebSearch",
       "WebFetch"
+    ],
+    "deny": [
+      "mcp__alpaca__place_order",
+      "mcp__alpaca__cancel_order",
+      "mcp__alpaca__replace_order",
+      "mcp__alpaca__close_position",
+      "mcp__alpaca__close_all_positions",
+      "mcp__bigquery__execute_sql",
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)"
     ]
   }
 }

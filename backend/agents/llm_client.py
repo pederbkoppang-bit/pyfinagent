@@ -59,10 +59,15 @@ GITHUB_MODELS_CATALOG: set[str] = {
     "o3",
     "o3-mini",
     "o4-mini",
-    # Anthropic models (available on GitHub Models)
-    "claude-3-5-sonnet-20241022",
-    "claude-3-5-haiku-20241022",
-    "claude-3-7-sonnet-20250219",
+    # Anthropic models (current GA via direct API; deprecated 4/4.5 via GitHub Models)
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-opus-4-5",
+    "claude-opus-4-1",
+    "claude-sonnet-4-6",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    # Legacy — retire 2026-06-15
     "claude-sonnet-4",
     "claude-opus-4",
     # Meta
@@ -167,11 +172,16 @@ _GITHUB_MODELS_ID_MAP: dict[str, str] = {
     "o3-mini":          "openai/o3-mini",
     "o4-mini":          "openai/o4-mini",
     # Anthropic — anthropic/{model_name}
-    "claude-3-5-sonnet-20241022": "anthropic/claude-3.5-sonnet",
-    "claude-3-5-haiku-20241022":  "anthropic/claude-3.5-haiku",
-    "claude-3-7-sonnet-20250219": "anthropic/claude-3.7-sonnet",
-    "claude-sonnet-4":            "anthropic/claude-sonnet-4",
-    "claude-opus-4":              "anthropic/claude-opus-4",
+    "claude-opus-4-7":   "anthropic/claude-opus-4-7",
+    "claude-opus-4-6":   "anthropic/claude-opus-4-6",
+    "claude-opus-4-5":   "anthropic/claude-opus-4-5",
+    "claude-opus-4-1":   "anthropic/claude-opus-4-1",
+    "claude-sonnet-4-6": "anthropic/claude-sonnet-4-6",
+    "claude-sonnet-4-5": "anthropic/claude-sonnet-4-5",
+    "claude-haiku-4-5":  "anthropic/claude-haiku-4-5",
+    # Legacy — retire 2026-06-15
+    "claude-sonnet-4":   "anthropic/claude-sonnet-4",
+    "claude-opus-4":     "anthropic/claude-opus-4",
     # Meta — meta/{model_name}
     "meta-llama-3.1-405b-instruct": "meta/meta-llama-3.1-405b-instruct",
     "meta-llama-3.1-8b-instruct":   "meta/meta-llama-3.1-8b-instruct",
@@ -618,14 +628,29 @@ class ClaudeClient(LLMClient):
             "messages": [{"role": "user", "content": prompt}],
         }
 
-        # Extended thinking for Claude 3.7+ (when thinking_budget > 0)
-        thinking_cfg = config.get("thinking")
-        if thinking_cfg and isinstance(thinking_cfg, dict):
-            budget = thinking_cfg.get("budget_tokens", 0)
-            if budget > 0:
+        # Extended thinking — model-gated.
+        # MF-29 (2026-04-18): Opus 4.7 REJECTS manual
+        # {type:"enabled",budget_tokens}; it only accepts adaptive.
+        # Legacy models (Opus 4.5 and older, 3.7) still use manual.
+        # Sonnet 4.6 / Haiku 4.5 accept both; we use adaptive.
+        thinking_cfg = config.get("thinking") or {}
+        thinking_requested = isinstance(thinking_cfg, dict) and thinking_cfg.get("budget_tokens", 0) > 0
+        if thinking_requested:
+            model_id = self.model_name or ""
+            if model_id.startswith(("claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5")):
+                # Adaptive path (no budget_tokens accepted).
+                kwargs["thinking"] = {"type": "adaptive"}
+                # Optional: forward an effort level if caller passed one.
+                effort = config.get("effort") or thinking_cfg.get("effort")
+                if effort in ("low", "medium", "high", "xhigh", "max"):
+                    kwargs["output_config"] = {"effort": effort}
+            else:
+                # Legacy manual path.
+                budget = thinking_cfg["budget_tokens"]
                 kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
-                # Claude requires temperature=1 when thinking is enabled
-                kwargs["temperature"] = 1
+            # Claude REQUIRES temperature=1 whenever thinking is active,
+            # for both adaptive and enabled modes.
+            kwargs["temperature"] = 1
 
         response = client.messages.create(**kwargs)
 

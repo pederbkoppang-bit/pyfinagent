@@ -13,19 +13,26 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Pricing per 1M tokens (input, output) — June 2026
+# Pricing per 1M tokens (input, output) — verified 2026-04-18
+# Sources:
+#   https://platform.claude.com/docs/en/about-claude/pricing
+#   https://platform.claude.com/docs/en/about-claude/models/overview
 MODEL_PRICING: dict[str, tuple[float, float]] = {
     # Gemini (Vertex AI)
     "gemini-2.0-flash": (0.10, 0.40),
     "gemini-2.5-flash": (0.15, 0.60),
     "gemini-2.5-pro": (1.25, 10.00),
-    # Anthropic Claude (direct or via GitHub Models)
-    "claude-3-5-haiku-20241022": (0.80, 4.00),
-    "claude-3-5-sonnet-20241022": (3.00, 15.00),
-    "claude-3-7-sonnet-20250219": (3.00, 15.00),
+    # Anthropic Claude — current GA (Opus 4.x, Sonnet 4.6, Haiku 4.5)
+    "claude-opus-4-7": (5.00, 25.00),
+    "claude-opus-4-6": (5.00, 25.00),
+    "claude-opus-4-5": (5.00, 25.00),
+    "claude-opus-4-1": (15.00, 75.00),
+    "claude-sonnet-4-6": (3.00, 15.00),
+    "claude-sonnet-4-5": (3.00, 15.00),
+    "claude-haiku-4-5": (1.00, 5.00),
+    # Anthropic Claude — legacy (still live, deprecated 2026-06-15 for Sonnet 4 / Opus 4)
     "claude-sonnet-4": (3.00, 15.00),
     "claude-opus-4": (15.00, 75.00),
-    "claude-sonnet-4-6": (3.00, 15.00),
     # OpenAI (direct or via GitHub Models)
     "gpt-4o": (2.50, 10.00),
     "gpt-4o-mini": (0.15, 0.60),
@@ -127,13 +134,20 @@ class CostTracker:
         cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
 
         pricing = MODEL_PRICING.get(model, _DEFAULT_PRICING)
-        # Anthropic prompt caching pricing: cache reads cost 90% less than regular input
-        if cache_read > 0:
-            regular_input = max(0, input_tokens - cache_read)
-            cached_cost = cache_read * pricing[0] * 0.1 / 1_000_000  # 90% discount
+        # Anthropic prompt caching pricing:
+        #   cache reads  = 0.1x base input (90% discount)
+        #   cache writes = 1.25x base input (5-min TTL, default)
+        #                = 2.00x base input (1-hour TTL, extended-cache-ttl beta)
+        # MF-48 (2026-04-18): cache_write_premium was not charged; now
+        # defaulting to the 5-min 1.25x surcharge. When we adopt 1h TTL
+        # via `anthropic-beta: extended-cache-ttl-2025-04-11`, bump to 2.0.
+        if cache_read > 0 or cache_creation > 0:
+            regular_input = max(0, input_tokens - cache_read - cache_creation)
+            cached_read_cost = cache_read * pricing[0] * 0.1 / 1_000_000
+            cache_write_cost = cache_creation * pricing[0] * 1.25 / 1_000_000
             regular_cost = regular_input * pricing[0] / 1_000_000
             output_cost = output_tokens * pricing[1] / 1_000_000
-            cost = cached_cost + regular_cost + output_cost
+            cost = cached_read_cost + cache_write_cost + regular_cost + output_cost
         else:
             cost = (input_tokens * pricing[0] + output_tokens * pricing[1]) / 1_000_000
 

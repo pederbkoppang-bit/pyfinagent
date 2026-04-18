@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-18T13:41:18.578016+00:00",
+  "updated_at": "2026-04-18T19:46:33.192311+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -3100,6 +3100,1208 @@
               "phase_4_6_smoketest_passes_all_10_steps",
               "no_open_critical_incidents_in_handoff_harness_log",
               "evaluator_critique_pass"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4.10",
+      "name": "Claude Documentation Alignment Audit",
+      "status": "done",
+      "depends_on": [],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4.10.0",
+          "name": "Extended thinking doc audit",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.10/extended_thinking.md",
+            "success_criteria": [
+              "doc_read_in_full",
+              "codebase_audit_written",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.10.1",
+          "name": "Adaptive thinking doc audit",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.10/adaptive_thinking.md",
+            "success_criteria": [
+              "doc_read_in_full",
+              "codebase_audit_written",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.10.2",
+          "name": "Sub-agents doc audit",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.10/sub_agents.md",
+            "success_criteria": [
+              "doc_read_in_full",
+              "codebase_audit_written",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.10.3",
+          "name": "Agent teams doc audit",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.10/agent_teams.md",
+            "success_criteria": [
+              "doc_read_in_full",
+              "codebase_audit_written",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.10.4",
+          "name": "MCP doc audit",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.10/mcp.md",
+            "success_criteria": [
+              "doc_read_in_full",
+              "codebase_audit_written",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.10.5",
+          "name": "Platform overview doc audit",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.10/platform_overview.md",
+            "success_criteria": [
+              "doc_read_in_full",
+              "codebase_audit_written",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.10.6",
+          "name": "Consolidated report with prioritized action list",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.10/CONSOLIDATED_REPORT.md",
+            "success_criteria": [
+              "per_topic_findings_table",
+              "must_fix_list",
+              "nice_to_have_list"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4.11",
+      "name": "Claude Docs Deep Coverage Audit (full-tree)",
+      "status": "done",
+      "depends_on": [
+        "phase-4.10"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4.11.0",
+          "name": "Agent SDK deep read (29 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.11/agent_sdk.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.11.1",
+          "name": "Managed Agents deep read (9 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.11/managed_agents.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.11.2",
+          "name": "Tool-use primitives deep read (11 per-tool pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.11/tool_use_primitives.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.11.3",
+          "name": "Skills + prompt engineering + context management (12 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.11/skills_prompting_context.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.11.4",
+          "name": "Claude Code core operations deep read (17 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.11/claude_code_core.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.11.5",
+          "name": "Claude Code surfaces + automation (16 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.11/claude_code_surfaces.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.11.6",
+          "name": "API reference + language SDKs deep read (18 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.11/api_and_sdks.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.11.7",
+          "name": "Models, pricing, admin, use case guides, misc (20 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.11/misc_and_admin.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.11.8",
+          "name": "Consolidated phase-4.11 report + merge with phase-4.10 findings",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.11/CONSOLIDATED_REPORT_v2.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full",
+              "findings_categorized"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4.12",
+      "name": "Claude Docs Coverage Gap Closure",
+      "status": "done",
+      "depends_on": [
+        "phase-4.11"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4.12.0",
+          "name": "Test-and-evaluate + Strengthen-guardrails (7 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.12/evals_and_guardrails.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.12.1",
+          "name": "Prompt-engineering + Skills + MCP + Resources + Release notes tail (7 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.12/prompting_skills_mcp_resources.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.12.2",
+          "name": "Managed Agents sub-pages gap (9 pages)",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.12/managed_agents_gaps.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.12.3",
+          "name": "Append gap findings to CONSOLIDATED_REPORT_v2 -> v3",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.12/CONSOLIDATED_REPORT_v3.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4.13",
+      "name": "Messages sidebar final sweep",
+      "status": "done",
+      "depends_on": [
+        "phase-4.12"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4.13.0",
+          "name": "Deep read 19 Messages-sidebar pages previously missed or skimmed",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.13/messages_sidebar_sweep.md",
+            "success_criteria": [
+              "every_listed_url_read_in_full"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.13.1",
+          "name": "Append findings to CONSOLIDATED_REPORT_v4",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/audit/phase-4.13/CONSOLIDATED_REPORT_v4.md",
+            "success_criteria": [
+              "v3_plus_v13_findings_merged"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4.14",
+      "name": "Claude Documentation Alignment -- MUST-FIX Implementation (34 items / 29 steps)",
+      "status": "in-progress",
+      "depends_on": [
+        "phase-4.10",
+        "phase-4.11",
+        "phase-4.12",
+        "phase-4.13"
+      ],
+      "gate": {
+        "approved": true,
+        "reason_required": null,
+        "approved_by": "Peder",
+        "approved_at": "2026-04-18T17:18:15.080326+00:00"
+      },
+      "steps": [
+        {
+          "id": "4.14.0",
+          "name": "[T1 HOTFIX] Opus 4.7 thinking-API gate (MF-29) -- gate manual thinking on Opus 4.5+ older; adaptive path for 4.7",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import backend.agents.llm_client as c; import inspect; src = inspect.getsource(c); assert 'claude-opus-4-7' not in src or 'adaptive' in src, 'Opus 4.7 path must use adaptive'\"",
+            "success_criteria": [
+              "opus_4_7_uses_adaptive_not_enabled",
+              "legacy_models_still_work_on_enabled_budget",
+              "no_400_on_claude_opus_4_7_in_live_calls"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.1",
+          "name": "[T1 HOTFIX] Fix MODEL_PRICING for Opus 4.7/4.6/4.5/4.1 + Haiku 4.5 + Sonnet 4.5 (cost under-report 50-187x)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.agents.cost_tracker import MODEL_PRICING; needed = {'claude-opus-4-7','claude-opus-4-6','claude-haiku-4-5','claude-sonnet-4-5','claude-opus-4-5','claude-opus-4-1'}; assert needed <= set(MODEL_PRICING.keys()), f'missing: {needed - set(MODEL_PRICING.keys())}'\"",
+            "success_criteria": [
+              "all_current_models_priced",
+              "cost_dashboard_reports_actual_opus_spend",
+              "no_fallback_to_DEFAULT_PRICING_in_production_calls"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.2",
+          "name": "[T1 HOTFIX] MCP Alpaca write-tool deny + resolve .claude/settings.local.json allowlist contradiction",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"import json, re; s=json.load(open('.claude/settings.local.json')); assert not (s.get('enableAllProjectMcpServers') is True and 'enabledMcpjsonServers' in s), 'contradiction persists'; deny=json.load(open('.claude/settings.json')).get('permissions',{}).get('deny',[]); assert any('alpaca__place_order' in r for r in deny), 'no alpaca write-tool deny'\"",
+            "success_criteria": [
+              "no_enableAll_vs_allowlist_contradiction",
+              "alpaca_place_order_cancel_replace_all_in_deny",
+              "bigquery_execute_sql_in_deny"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.3",
+          "name": "[T2] Add output_config.effort pass-through to ClaudeClient (xhigh/high/medium/low per agent class)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import inspect, backend.agents.llm_client as c; assert 'output_config' in inspect.getsource(c) and 'effort' in inspect.getsource(c)\"",
+            "success_criteria": [
+              "effort_passthrough_wired",
+              "sonnet_4_6_default_medium_not_high",
+              "opus_4_7_starts_xhigh_on_coding_paths"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.4",
+          "name": "[T2] Full stop_reason dispatch (7 values) + max_tokens retry on incomplete tool_use tail (MF-26+MF-27)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import inspect; from backend.agents import llm_client, multi_agent_orchestrator; from backend.slack_bot import assistant_handler; [assert_x := (lambda m, name: (lambda src: all(k in src for k in ['end_turn','max_tokens','stop_sequence','tool_use','pause_turn','refusal']))(inspect.getsource(m))) for m in [llm_client, assistant_handler]]\"",
+            "success_criteria": [
+              "all_7_stop_reasons_dispatched",
+              "max_tokens_with_incomplete_tool_use_retries_2x",
+              "refusal_surfaces_to_slack_with_haiku_retry_suggestion"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.5",
+          "name": "[T2] Migrate Claude JSON output to output_config.format structured outputs (22 json.loads sites across 16 files)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && grep -rn 'json.loads' backend/agents/ backend/services/ | grep -v test_ | wc -l | awk '{exit ($1>5)}'",
+            "success_criteria": [
+              "json_regex_parsing_replaced_with_structured_outputs",
+              "JSONDecodeError_no_longer_possible_on_claude_calls",
+              "prefill_code_path_removed_unsupported_on_current_models"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.6",
+          "name": "[T2] Permission mode bypassPermissions -> acceptEdits + enable macOS Seatbelt sandbox",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"import json; s=json.load(open('.claude/settings.json')); assert s['permissions']['defaultMode'] != 'bypassPermissions'; assert s.get('sandbox',{}).get('enabled') is True\"",
+            "success_criteria": [
+              "defaultMode_no_longer_bypassPermissions",
+              "sandbox_enabled_with_denyRead_allowlist",
+              "dev_workflow_still_functional_no_spurious_prompts"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.7",
+          "name": "[T2] Opus 4.7 sampling-param guard (strip temperature/top_p/top_k on 4.7 callsites)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import inspect; from backend.agents import llm_client; src=inspect.getsource(llm_client); assert 'opus-4-7' not in src or 'temperature' not in src.split('opus-4-7')[1][:500]\"",
+            "success_criteria": [
+              "no_temperature_topp_topk_on_opus_4_7_path",
+              "legacy_models_still_pass_sampling_params",
+              "model_id_gating_unit_tested"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.8",
+          "name": "[T2] Retired models cleanup from GITHUB_MODELS_CATALOG + add Opus 4.7 / Sonnet 4.6 / Haiku 4.5",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.agents.llm_client import GITHUB_MODELS_CATALOG as g; retired={'claude-3-5-sonnet-20241022','claude-3-5-haiku-20241022','claude-3-7-sonnet-20250219'}; assert not (retired & set(g)); current={'claude-opus-4-7','claude-sonnet-4-6','claude-haiku-4-5'}; assert current <= set(g)\"",
+            "success_criteria": [
+              "retired_ids_purged",
+              "current_GA_ids_added",
+              "deprecation_warning_on_Sonnet_4_and_Opus_4_until_2026_06_15"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.9",
+          "name": "[T2] Citations x Structured Outputs client-side guard (400 if both set)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import inspect; from backend.agents import llm_client; src=inspect.getsource(llm_client); assert 'citations' in src and 'output_config' in src and 'ValueError' in src\"",
+            "success_criteria": [
+              "mutual_exclusion_raised_clientside",
+              "clear_error_message_not_raw_400"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.10",
+          "name": "[T3] Replace stale snapshot IDs (claude-sonnet-4-20250514 -> claude-sonnet-4-6) + pre-commit grep",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "grep -rn 'claude-sonnet-4-20250514\\|claude-3-haiku-20240307' backend/ scripts/ | wc -l | awk '{exit ($1>0)}'",
+            "success_criteria": [
+              "no_dated_snapshot_ids_in_tree",
+              "pre_commit_grep_prevents_regression",
+              "haiku_3_ci_assert_added_retired_2026_04_19"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.11",
+          "name": "[T3] LLM-client hardening: retry-after respect + anthropic.RateLimitError exception classes + request_id logging + SDK bump 0.87.0->0.96.0",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && pip show anthropic | grep -q 'Version: 0.9[6-9]' && grep -rn 'anthropic.RateLimitError\\|anthropic.APIStatusError' backend/agents/ | wc -l | awk '{exit ($1<2)}'",
+            "success_criteria": [
+              "SDK_bumped_to_0_96_0_or_later",
+              "retry_after_header_read_and_respected",
+              "anthropic_exception_classes_imported_not_string_match",
+              "request_id_logged_on_success_and_failure_paths",
+              "retry_loops_delegate_to_SDK_max_retries"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.12",
+          "name": "[T3] Drop Gemini-only thinking gate on Claude judges (orchestrator.py:396, risk_debate.py:55)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && grep -n 'isinstance.*GeminiClient' backend/agents/orchestrator.py backend/agents/risk_debate.py | wc -l | awk '{exit ($1>0)}'",
+            "success_criteria": [
+              "gemini_only_gate_removed",
+              "claude_judges_receive_thinking_when_ENABLE_THINKING_true",
+              "per_provider_decision_moved_into_client_classes"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.13",
+          "name": "[T3] Prompt cache threshold fix: move skill body + schema + FACT_LEDGER into cached system block; add ttl:1h",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import inspect; from backend.agents import llm_client; src=inspect.getsource(llm_client); assert 'ttl' in src and '1h' in src; # also verify cached block averages > 4096 tokens via count_tokens in tests\"",
+            "success_criteria": [
+              "cached_system_block_exceeds_4096_tokens_on_opus_4_7",
+              "cache_hit_rate_measurable_non_zero_in_metrics",
+              "1h_ttl_set_on_hot_path"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.14",
+          "name": "[T3] Wrap SEC filings + earnings transcripts as document blocks with citations.enabled=true (MF-31)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && grep -n 'citations.*enabled' backend/tools/sec_insider.py backend/tools/earnings_tone.py | wc -l | awk '{exit ($1<2)}'",
+            "success_criteria": [
+              "sec_insider_wraps_filings_as_document_blocks",
+              "earnings_tone_enables_citations",
+              "cited_text_present_in_synthesis_output"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.15",
+          "name": "[T3] Wrap BigQuery RAG rows as search_result content blocks (MF-32)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && grep -n 'search_result' backend/agents/orchestrator.py backend/agents/multi_agent_orchestrator.py | wc -l | awk '{exit ($1<1)}'",
+            "success_criteria": [
+              "step_3_rag_emits_search_result_blocks",
+              "source_url_points_to_BQ_ds_table_row_id",
+              "synthesis_output_includes_native_citations"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.16",
+          "name": "[T4] Files API pathway for SEC filings >32 MB with file_id reuse across pipeline",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && grep -n 'files-api-2025-04-14\\|beta.files\\|file_id' backend/tools/sec_insider.py | wc -l | awk '{exit ($1<1)}'",
+            "success_criteria": [
+              "large_filings_upload_once_reuse_by_file_id",
+              "beta_header_set_files_api_2025_04_14",
+              "ZDR_status_documented_not_eligible_in_ARCHITECTURE"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.17",
+          "name": "[T4] PDF-native ingestion with cache_control:ephemeral for earnings decks and 10-Ks",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && grep -n 'type.*document.*media_type.*application/pdf\\|type.*pdf' backend/tools/earnings_tone.py backend/tools/sec_insider.py | wc -l | awk '{exit ($1<1)}'",
+            "success_criteria": [
+              "earnings_tone_uses_native_pdf_blocks",
+              "cache_control_ephemeral_on_document_block",
+              "charts_tables_visible_to_claude_no_text_extraction"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.18",
+          "name": "[T4] BigQuery MCP: pin in .mcp.json OR update CLAUDE.md to document harness-injected-only; add execute_sql to permissions.deny",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"import json; mcp=json.load(open('.mcp.json')); deny=json.load(open('.claude/settings.json')).get('permissions',{}).get('deny',[]); assert 'bigquery' in str(mcp) or 'harness-injected' in open('CLAUDE.md').read(); assert any('bigquery__execute_sql' in r for r in deny)\"",
+            "success_criteria": [
+              "bigquery_mcp_either_pinned_or_documented_as_ephemeral",
+              "execute_sql_mutation_in_permissions_deny_default",
+              "CLAUDE_md_accurately_describes_availability"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.19",
+          "name": "[T4] Prune backend/mcp/*.py legacy stubs (flagged stub:true by mcp_inventory.py)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "test ! -f backend/mcp/__init__.py || python scripts/audit/mcp_inventory.py --check 2>&1 | grep -q 'stub.*0'",
+            "success_criteria": [
+              "legacy_backend_mcp_dir_removed_or_stub_free",
+              "canonical_backend_agents_mcp_servers_is_sole_source",
+              "mcp_inventory_json_shows_no_stubs"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.20",
+          "name": "[T4] Strengthen .claude/agents/*.md descriptions with 'use proactively' / 'MUST BE USED' trigger phrasing",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "grep -c 'use proactively\\|MUST BE USED\\|use immediately after' .claude/agents/qa-evaluator.md .claude/agents/harness-verifier.md .claude/agents/researcher.md | awk -F: '{sum+=$2} END {exit (sum<3)}'",
+            "success_criteria": [
+              "all_three_agents_have_trigger_phrasing",
+              "auto_delegation_stronger",
+              "qa_evaluator_triggers_on_GENERATE_completion"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.21",
+          "name": "[T4] .github/workflows/claude.yml pin --model claude-opus-4-7 + --allowed-tools restriction",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "grep -q 'model claude-opus-4-7' .github/workflows/claude.yml && grep -q 'allowed-tools' .github/workflows/claude.yml",
+            "success_criteria": [
+              "model_pinned_to_opus_4_7",
+              "allowed_tools_restricts_to_gh_pr_Read_Edit",
+              "default_sonnet_no_longer_implicit"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.22",
+          "name": "[T4] .claude/cron_budget.yaml: annotate self-imposed 15/day + map each slot to a surface (routine|desktop|loop|external)",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "python -c \"import yaml; c=yaml.safe_load(open('.claude/cron_budget.yaml')); assert 'self-imposed' in str(c).lower() or 'not an anthropic limit' in str(c).lower(); assert all(s.get('surface') for s in c.get('slots',[]))\"",
+            "success_criteria": [
+              "self_imposed_caveat_documented",
+              "each_slot_has_surface_field",
+              "trading_ops_slots_1_5_note_external_approval_gate_required"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.23",
+          "name": "[T5] Per-call latency instrumentation in llm_client.py (time.perf_counter + ttft_ms + BQ llm_call_log table)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && grep -n 'perf_counter\\|ttft_ms\\|latency_ms' backend/agents/llm_client.py backend/services/perf_tracker.py | wc -l | awk '{exit ($1<3)}'",
+            "success_criteria": [
+              "latency_ms_and_ttft_ms_recorded_per_call",
+              "BQ_llm_call_log_table_created",
+              "frontend_harness_tab_shows_p95_latency"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.24",
+          "name": "[T5] Haiku 4.5 harmlessness pre-screen on Slack assistant_handler + paper-trader free-text paths",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && grep -n 'is_harmful\\|harmlessness' backend/slack_bot/assistant_handler.py | wc -l | awk '{exit ($1<1)}'",
+            "success_criteria": [
+              "structured_output_is_harmful_boolean_schema",
+              "haiku_4_5_pre_screen_on_slack_ingress",
+              "ethical_system_prompt_on_user_facing_agents"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.25",
+          "name": "[T5] Prompt-leak defenses on Slack streaming (regex post-filter + LLM-binary leak detector)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && grep -n 'leak\\|exfil' backend/slack_bot/streaming_integration.py | wc -l | awk '{exit ($1<1)}'",
+            "success_criteria": [
+              "regex_post_filter_on_agent_output",
+              "LLM_binary_leak_detector_wired",
+              "nightly_red_team_audit_job_runs"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.26",
+          "name": "[T5] Add 'I don't know' permission to 10 highest-stakes skill prompts",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "grep -l \"I don't know\\|not enough information\\|insufficient evidence\" backend/agents/skills/risk_judge.md backend/agents/skills/synthesis_agent.md backend/agents/skills/neutral_analyst.md backend/agents/skills/quant_model_agent.md backend/agents/skills/scenario_agent.md backend/agents/skills/moderator_agent.md backend/agents/skills/deep_dive_agent.md backend/agents/skills/critic_agent.md backend/agents/skills/bias_detector.md backend/agents/skills/devils_advocate_agent.md | wc -l | awk '{exit ($1<10)}'",
+            "success_criteria": [
+              "all_10_skill_prompts_permit_uncertainty",
+              "no_forced_guess_on_insufficient_evidence",
+              "retractions_with_empty_bracket_markers_accepted"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.27",
+          "name": "[T5] PreToolUse hooks: rm -rf, git push --force, git reset --hard, mcp__.*__execute_sql + ConfigChange + InstructionsLoaded hooks",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "python -c \"import json; s=json.load(open('.claude/settings.json')); h=s.get('hooks',{}); events=[e for e in h]; needed={'PreToolUse','ConfigChange','InstructionsLoaded'}; assert needed <= set(events), f'missing: {needed-set(events)}'\"",
+            "success_criteria": [
+              "dangerous_bash_hook_exit_2_on_match",
+              "mcp_execute_sql_gated_by_MIGRATE_token",
+              "config_change_audit_log_written",
+              "instructions_loaded_hook_validates_research_gate_rule"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.14.28",
+          "name": "[T5] Remove stray .claude/*.bak-* files + SDK + python cleanup",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "ls .claude/*.bak-* 2>/dev/null | wc -l | awk '{exit ($1>0)}'",
+            "success_criteria": [
+              "no_bak_files_in_dot_claude",
+              "backup_moved_outside_scanned_dir",
+              "pre_commit_grep_prevents_regression"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-4.15",
+      "name": "Compliance Audit -- Docs vs Implementation (3-agent MAS, full harness)",
+      "status": "done",
+      "depends_on": [
+        "phase-4.13"
+      ],
+      "gate": {
+        "approved": true,
+        "approved_by": "Peder",
+        "approved_at": "2026-04-18T17:20:57.273806+00:00",
+        "note": "User granted autonomy: no per-step approval required."
+      },
+      "steps": [
+        {
+          "id": "4.15.0",
+          "name": "[PREP] MAS restructure to 3 agents: merge Explorer into Researcher, merge harness-verifier into Q/A",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "ls .claude/agents/*.md | grep -vE 'researcher|qa' | grep -v per-step-protocol | wc -l | awk '{exit ($1>0)}'",
+            "success_criteria": [
+              "only_researcher_and_qa_md_files_exist",
+              "researcher_md_includes_internal_code_exploration_role",
+              "qa_md_includes_harness_verifier_reproducibility_role",
+              "obsolete_agent_files_deleted_or_archived",
+              "CLAUDE_md_updated_to_reflect_3_agent_MAS"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.1",
+          "name": "[PREP] Root-cause: why Main does not always launch Researcher + fix",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "grep -q 'InstructionsLoaded\\|SubagentStop' .claude/settings.json && grep -q 'research.gate' .claude/rules/*.md 2>/dev/null",
+            "success_criteria": [
+              "root_cause_documented_in_handoff",
+              "fix_applied_at_prompt_or_hook_layer",
+              "InstructionsLoaded_hook_validates_research_gate_on_session_start",
+              "SubagentStop_or_equivalent_prevents_Main_from_GENERATE_without_Researcher",
+              "regression_test_verifies_research_gate_triggers"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.2",
+          "name": "[COMPLIANCE] Extended thinking + Adaptive thinking + Effort",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-thinking.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page",
+              "recommended_fix_included_not_implemented"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.3",
+          "name": "[COMPLIANCE] Sub-agents + Agent teams + Skills",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-subagents-skills.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.4",
+          "name": "[COMPLIANCE] MCP + permission policies + capability tokens",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-mcp-permissions.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.5",
+          "name": "[COMPLIANCE] Prompt caching + Context management + Compaction",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-caching-context.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.6",
+          "name": "[COMPLIANCE] Batches API + Files API + Citations + Search results",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-batches-files-citations.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.7",
+          "name": "[COMPLIANCE] Structured outputs + Handling stop reasons + Streaming + Refusals",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-structured-streaming.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.8",
+          "name": "[COMPLIANCE] Tool-use primitives (advisor, bash, code-execution, computer, memory, text-editor, web-search/fetch, PTC, tool-search, fine-grained streaming)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-tool-use.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.9",
+          "name": "[COMPLIANCE] Test-and-evaluate + Strengthen guardrails (hallucinations/consistency/jailbreaks/leaks/latency)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-evals-guardrails.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.10",
+          "name": "[COMPLIANCE] Messages API conventions (retry-after, request_id, rate-limits, beta-headers, versioning, SDK)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-api-conventions.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.11",
+          "name": "[COMPLIANCE] Models, pricing, deprecations, service tiers, data residency",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-models-pricing.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.12",
+          "name": "[COMPLIANCE] Claude Code core (hooks, permissions, sandboxing, ZDR, settings, memory)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-claude-code-core.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.13",
+          "name": "[COMPLIANCE] Claude Code surfaces + CI workflows + Slack integration + routines/cron",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-claude-code-surfaces.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.14",
+          "name": "[COMPLIANCE] Agent SDK (if adopted) + Managed Agents (if piloted) + feature gaps",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "test -f docs/audits/compliance-sdk-managed-agents.md",
+            "success_criteria": [
+              "every_doc_pattern_status_evidenced",
+              "qa_runs_live_code_checks_not_review",
+              "deviations_cite_doc_page"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4.15.15",
+          "name": "[CONSOLIDATE] Compliance matrix + gap report -> feeds phase-4.14 prioritization",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f docs/audits/COMPLIANCE_MATRIX.md && test -f docs/audits/GAP_REPORT.md",
+            "success_criteria": [
+              "matrix_covers_all_13_topic_areas",
+              "every_finding_has_status_evidence_deviation_risk_recommendation",
+              "gap_report_links_to_phase_4_14_must_fix_items"
             ]
           },
           "contract": null,

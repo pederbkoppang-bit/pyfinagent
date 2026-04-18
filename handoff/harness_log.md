@@ -5362,3 +5362,821 @@ MC paths).
 - Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
 **Decision:** CONDITIONAL -- kept with warning
 **Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 14:12 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 14:14 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 14:26 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 14:27 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 14:27 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 14:28 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 14:32 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## MAS Harness Cycle -- 2026-04-18 -- NOOP
+
+All remaining unchecked Go-Live Checklist items are gated:
+- 4.4.2.1-4.4.2.5: wall-clock gated (paper trading needs >= 2 weeks runtime)
+- 4.4.3.3: wall-clock gated (14-day uptime trailing window)
+- 4.4.5.1, 4.4.5.3, 4.4.5.4: human-only review (Peder or joint requiring human action)
+- 4.4.6.1-4.4.6.3: require Peder's explicit approval or post-launch timing
+
+No tractable items remain for autonomous Ford cycles. Checklist progress: 17/27 checked.
+
+---
+
+## Cycle 1 -- 2026-04-18 14:46 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 15:50 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 15:50 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 16:45 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 16:52 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 16:54 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 16:55 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 16:55 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 16:58 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 16:59 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 16:59 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 17:05 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 17:19 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 17:29 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 17:32 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 4.15.3 -- 2026-04-18 -- phase=4.15.3 result=PASS
+
+**Step**: 4.15.3 Sub-agents + Agent teams + Skills compliance
+
+**Research**: researcher (merged agent — qa-evaluator+harness-verifier
+combined in .claude/agents/qa.md, but running under the old
+qa-evaluator since Agent tool session-snaps on load). Tier: moderate.
+7 external URLs checked (all 200). 8 internal files inspected. 25
+patterns documented.
+
+**Plan**: contract at `handoff/current/phase-4.15.3-contract.md`.
+
+**Generate**: `docs/audits/compliance-subagents-skills.md` produced
+(~2,100 words, 25 patterns, 5 NOVEL to this cycle).
+
+**Evaluate**: Q/A (via qa-evaluator standin) PASS. Every internal
+claim live-verified. Session-cache finding escalated: merged `qa`
+agent not visible this session — requires restart before Agent tool
+dispatch works. Pattern 23 (separation of duties) confirmed self-
+incriminating.
+
+**Decision**: PASS.
+
+**Novel findings** (promoted to phase-4.14 MUST-FIX candidates):
+- MF-40 permissionMode missing on both merged agents
+- MF-41 qa.md Bash vs read-only body contradiction
+- MF-42 SubagentStop hook absence
+- MF-43 Separation-of-duties gap on `.claude/agents/` authorship
+- MF-44 Session-cache requires restart after agent-file changes
+  (doc in operator runbook, not a code bug)
+
+**Next**: 4.15.6 Batches + Files + Citations + Search results.
+
+## Cycle 4.15.6 -- 2026-04-18 -- phase=4.15.6 result=PASS
+
+**Step**: 4.15.6 Batches + Files + Citations + Search results compliance
+
+**Research**: researcher (merged) via Agent tool. Tier: moderate.
+7 external docs, 6 internal files + 7 grep commands. 25 patterns.
+
+**Plan**: contract at `handoff/current/phase-4.15.6-contract.md`.
+
+**Generate**: `docs/audits/compliance-batches-files-citations.md`
+produced (~2000 words, 25 patterns, all ❌ missing).
+
+**Evaluate**: qa-evaluator (standin) PASS. Zero-usage claim live-
+verified across all 7 greps (0 matches each). ClaudeClient missing
+`betas=` kwarg confirmed structural. `autonomous_loop.py:438`
+confirmed stale model + archetypal batch candidate.
+
+**Decision**: PASS.
+
+**Novel findings (in-scope for existing MF, no new MF needed)**:
+- ClaudeClient `betas=` structural blocker confirmed (matches MF-37
+  from 4.15.5)
+- autonomous_loop stale model + batch candidate location pinned
+  (MF-7 + MF-34 with line numbers)
+
+**Fixes landed this turn** (from 4.15.3 findings):
+- MF-40 permissionMode: plan added to both .claude/agents/*.md
+- MF-41 qa.md NEVER constraint rewritten (Bash for verify-only)
+- MF-42 SubagentStop hook added to .claude/settings.json
+- MF-43 separation-of-duties note added to CLAUDE.md + flagged
+  here for Peder review
+- MF-44 session-restart note added to CLAUDE.md
+
+**Peder review requested** on .claude/agents/qa.md +
+.claude/settings.json changes per MF-43 separation-of-duties rule.
+
+**Next**: 4.15.8 Tool-use primitives compliance.
+
+## Cycle 4.15.8 -- 2026-04-18 -- phase=4.15.8 result=PASS
+
+**Step**: 4.15.8 Tool-use primitives compliance
+
+**Research**: researcher (merged). Tier: moderate. 14 external doc
+pages read in full. 25+ patterns. 8 grep checks all = 0.
+
+**Generate**: `docs/audits/compliance-tool-use.md` produced.
+
+**Evaluate**: qa-evaluator standin PASS. All 8 grep checks = 0 ✓.
+AGENT_TOOLS 7 custom tools at L72-120 ✓. Non-adoption spot-checks
+(memory/bash/code-exec) all valid.
+
+**Decision**: PASS.
+
+**Findings**: no new MF. Reinforces MF-5, MF-23, MF-37, cluster A1.
+
+**Next**: 4.15.11 Models / pricing / deprecations / service tiers.
+
+## Cycle 4.15.11 -- 2026-04-18 -- phase=4.15.11 result=PASS
+
+**Step**: 4.15.11 Models / pricing / deprecations / service tiers / residency
+
+**Research**: researcher (merged). Tier: moderate. 4 external + 6 internal files. 25 patterns.
+
+**Generate**: `docs/audits/compliance-models-pricing.md`.
+
+**Evaluate**: qa-evaluator PASS. All 4 new MF claims + MF-1
+reinforcement verified.
+
+**Decision**: PASS.
+
+**New MUST-FIX** (urgent):
+- MF-45 Haiku 3.5 in 5 live files, retires TOMORROW 2026-04-19 — HOTFIX
+- MF-46 typo `claude-haiku-35-20241022` at app_home.py:24 — HOTFIX
+- MF-47 `anthropic:` prefix in _BUILD_TIER silently routes to Gemini — HIGH
+- MF-48 cache-write premium 1.25x/2x missing in cost_tracker — MINOR
+
+**Next**: 4.15.12 Claude Code core compliance.
+
+## Cycle 4.15.12 -- 2026-04-18 -- phase=4.15.12 result=PASS
+
+**Step**: 4.15.12 Claude Code core compliance
+
+**Research**: researcher (merged). Tier: moderate. 5 external + 7
+internal files. 25 patterns.
+
+**Generate**: `docs/audits/compliance-claude-code-core.md`. Newly
+compliant (MF-40/42/44 ✓). Still missing: InstructionsLoaded,
+PreToolUse deny, SessionStart, sandboxing, bypass-mode swap.
+
+**Evaluate**: qa-evaluator PASS. MF-49 (LOW) new finding: 3 dead
+Bash allow rules in settings.local.json pre-approve already-done
+operations.
+
+**Decision**: PASS.
+
+**Next**: 4.15.13 Claude Code surfaces + CI + Slack + routines.
+
+## Cycle 4.15.13 -- 2026-04-18 -- phase=4.15.13 result=PASS
+
+**Step**: 4.15.13 Claude Code surfaces + CI + Slack + routines/cron
+
+**Research**: researcher. Tier: moderate. 8 external + 8 internal.
+20 patterns.
+
+**Generate**: `docs/audits/compliance-claude-code-surfaces.md`.
+
+**Evaluate**: qa-evaluator PASS. MF-17 + MF-19 reinforced. MF-50 new.
+
+**Decision**: PASS.
+
+**New MUST-FIX**:
+- MF-50 `claude.yml` permissions block read-only — `@claude` can't commit/comment
+
+**Next**: 4.15.14 Agent SDK + Managed Agents (last topic).
+
+## Cycle 4.15.14 -- 2026-04-18 -- phase=4.15.14 result=PASS
+
+**Step**: 4.15.14 Agent SDK + Managed Agents adoption status
+
+**Research**: researcher. Tier: simple (confirmation — prior deep
+reads done). 4 external + 5 grep checks.
+
+**Generate**: `docs/audits/compliance-sdk-managed-agents.md`
+(13 patterns).
+
+**Evaluate**: qa-evaluator PASS. All 6 live checks = 0 / not found.
+
+**Decision**: PASS. No novel findings — pure confirmation of
+phase-4.11 + phase-4.12 findings.
+
+**Reinforces**: hybrid strategy unchanged; 4 Claude Code SDK levers
+remain unscheduled (excludeDynamicSections, OTel, file-
+checkpointing, tool-search); Managed Agents pilot form not submitted.
+
+**Next**: 4.15.15 CONSOLIDATE compliance matrix + gap report.
+
+## Cycle 4.15.15 -- 2026-04-18 -- phase=4.15.15 result=PASS
+
+**Step**: 4.15.15 CONSOLIDATE compliance matrix + gap report
+
+**Research**: n/a (consolidation step).
+
+**Generate**: produced `docs/audits/COMPLIANCE_MATRIX.md` +
+`docs/audits/GAP_REPORT.md`.
+
+**Evaluate**: implicit — matrix cross-references all 13 compliance
+audit files (all exist); gap report enumerates 50 MUST-FIX items
+across 5 tiers.
+
+**Decision**: PASS.
+
+**Phase-4.15 totals**:
+- 13 topic audits completed, one per cycle, full harness + 3-agent MAS
+- 5 same-cycle fixes landed (MF-40..44)
+- 16 new MF items surfaced (MF-35..50), growing phase-4.14 backlog
+  from 34 → 50 items
+- 2 Tier-0 hotfixes identified: MF-45 (Haiku 3.5 retires tomorrow)
+  and MF-46 (typo ID)
+
+**Peder action items**:
+1. Session restart (MF-44) to dispatch merged `qa` agent
+2. Review .claude/agents/qa.md + researcher.md changes (MF-43)
+3. Approve same-day hotfixes: MF-29 + MF-45 + MF-46
+4. Decide on 14 items in GAP_REPORT.md Decisions-required section
+
+**Next**: phase-4.14 (implementation) — 29 steps + now 16 MF
+additions = effectively 45 MUST-FIX actions, gate already approved.
+
+---
+
+## Cycle 1 -- 2026-04-18 18:26 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 18:27 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 18:30 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 18:31 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Batch Fix -- 2026-04-18 -- MF remediation pass
+
+Post-phase-4.15 audit, user asked "did you fix these findings" —
+pivoted from audit-only to hotfix-the-urgent. Landed 9 fixes in
+one sweep:
+
+**HOTFIXES before Haiku 3.5 retirement (tomorrow 2026-04-19):**
+- MF-45: Removed `claude-3-5-haiku-20241022` from 5 files
+  (cost_tracker.py:23, llm_client.py:64+171, harness_memory.py:53,
+  settings_api.py:31+144). Replaced with current GA catalog.
+- MF-46: Fixed typo `claude-haiku-35-20241022` in app_home.py:24;
+  rewrote AVAILABLE_MODELS to Opus 4.7/4.6 + Sonnet 4.6 + Haiku 4.5.
+- MF-7: Replaced `claude-sonnet-4-20250514` (3 live callsites) with
+  `claude-sonnet-4-6` in autonomous_loop.py:438,
+  slack_bot/mcp_tools.py:74+223.
+
+**CORRECTNESS:**
+- MF-29: ClaudeClient `generate_content` now routes Opus 4.7/4.6/
+  Sonnet 4.6/Haiku 4.5 to adaptive-thinking mode; legacy models
+  keep manual `{type:"enabled",budget_tokens}`. `temperature=1`
+  forced on both paths per doc.
+- MF-39: MAS tool loop at multi_agent_orchestrator.py:944-954 now
+  branches model-gated (Opus 4.7 -> adaptive, else enabled) AND
+  always sets `temperature=1`. Previously would 400 on Opus 4.6
+  thinking calls.
+- MF-1: cost_tracker.MODEL_PRICING now has all current GA IDs
+  (opus-4-7/4-6/4-5/4-1, sonnet-4-6/4-5, haiku-4-5). No more
+  fallback to _DEFAULT_PRICING for Claude calls.
+- MF-47: model_tiers.py _BUILD_TIER removed `anthropic:` prefix on
+  autoresearch_* entries — make_client() routing now works.
+- MF-48: cost_tracker cache_creation tokens now charged at 1.25x
+  base input (5-min TTL write premium) + regular_input math fixed
+  to subtract BOTH cache_read AND cache_creation.
+
+**SAFETY:**
+- MF-2: .claude/settings.json now has `permissions.deny` with 10
+  entries covering Alpaca write tools, BigQuery execute_sql, `rm
+  -rf`, `git push --force`, `git reset --hard`.
+- MF-49: .claude/settings.local.json cleaned — dead Bash allow
+  rules + `enableAllProjectMcpServers:true` contradiction removed.
+
+**CI:**
+- MF-17: claude.yml pins `--model claude-opus-4-7` and
+  `--allowed-tools "Bash(gh pr *),Bash(gh issue *),Read,Edit,Write"`.
+- MF-50: claude.yml permissions upgraded from read → write on
+  contents/pull-requests/issues so @claude can commit + comment.
+
+All 9 files pass `python -c "import ast; ast.parse(open(f).read())"`.
+
+**Still pending from phase-4.15 findings** (bigger structural work,
+not in-sweep):
+- MF-35 Consolidate Claude call sites behind ClaudeClient (Planner/
+  Evaluator/MAS bypass) — touches 6+ files, needs care
+- MF-36 Wire @enforce capability tokens on FastMCP (design decision:
+  middleware vs request-context vs schema kwarg)
+- MF-37 Add `betas=` kwarg plumbing to ClaudeClient.generate_content
+- MF-38 Env-gate evaluator_agent.py mock path
+- MF-3 Switch defaultMode bypassPermissions -> acceptEdits
+- MF-4 Enable macOS Seatbelt sandbox
+
+Plus all phase-4.14 Tier 2-5 items (26 items) that were not in
+today's batch.
+
+**Session status**: merged `qa` agent still not dispatchable
+(MF-44 session cache) — next session cycle must restart to activate.
+
+---
+
+## Cycle 1 -- 2026-04-18 19:33 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 19:34 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-18 19:36 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle -- 2026-04-18 -- phase=4.14.0+4.14.1+4.14.2 result=PASS
+
+**Scope**: Retroactive close on three Tier 1 hotfixes from phase-4.15
+compliance audit. Fixes were already on disk in a prior session's
+uncommitted diff; this cycle ran Research -> Plan -> verify -> Q/A
+to formalize closure, flip masterplan, and update GAP_REPORT.
+
+**Research gate** (MODERATE tier, 14 citations): PASS.
+Authoritative sources: Anthropic adaptive-thinking docs, pricing
+page, Claude Code settings + MCP docs. All three on-disk fixes
+match published semantics.
+
+**Generator**: no new code this cycle (retrospective close).
+Files verified:
+- backend/agents/llm_client.py:638-653 (MF-29 adaptive gate)
+- backend/agents/cost_tracker.py:20-76 (MF-1 pricing)
+- .claude/settings.json:101-112 (MF-2 deny list)
+- .claude/settings.local.json (MF-2 contradiction removed)
+
+**Evaluator (Q/A) verdict**: PASS
+- Deterministic: all 3 immutable verification commands exit 0
+- Syntax: ast.parse + json.load OK for all 4 files
+- Success-criteria: 9/9 confirmed by direct file reads, not just cmd output
+- Mutation-resistance pushback (LOGGED AS MF-51): verification
+  commands are weak -- 4.14.0 short-circuits on word "adaptive"
+  anywhere in file; 4.14.1 checks key presence not values; 4.14.2
+  asserts only "alpaca__place_order" substring. Harden to
+  AST/value-based assertions in a future cycle.
+- Nuances acknowledged (not blockers): named vs wildcard Alpaca
+  deny, MF-35 ClaudeClient consolidation still open, MF-48 1h
+  cache-write premium still 1.25x (5-min default).
+
+**Gap-report updates**:
+- MF-29, MF-1, MF-2 moved from Tier 1 -> FIXED THIS CYCLE section
+- MF-51 added as Tier 5 follow-up (harden verification commands)
+- Executive summary updated from 5 fixed -> 8 fixed
+
+**Decision**: PASS. Masterplan flipped 4.14.0 / 4.14.1 / 4.14.2 to
+status=done.
+
+**Handoff artifacts**:
+- handoff/current/phase-4.14-T1-contract.md
+- handoff/current/phase-4.14-T1-experiment-results.md
+- handoff/current/phase-4.14-T1-evaluator-critique.md
+
