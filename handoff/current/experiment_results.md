@@ -1,72 +1,117 @@
-# Experiment Results -- Cycle 62 / phase-3.7 step 3.7.3
+# Experiment Results -- Cycle 92 / phase-4.9 step 4.9.4
 
-Step: 3.7.3 "New risk_server.py Risk Agent MCP (kill_switch + PBO veto)"
+Step: 4.9.4 Gauntlet regime catalog (7 historical windows)
+Ran at: 2026-04-18 (UTC)
 
-## What was generated
+## What was built
 
-1. **backend/backtest/analytics.py**: added `compute_pbo(pnl_matrix, S=16)`.
-   CSCV implementation per Bailey-Borwein-Lopez de Prado-Zhu 2016
-   (SSRN 2326253). S=16 even subsets, C(S, S/2) IS/OOS pairs, per-pair
-   Sharpe ranking, logit(omega) distribution, PBO = Pr(logit < 0) via
-   gaussian_kde integration (with empirical fallback).
+Three new files:
 
-2. **backend/agents/mcp_servers/risk_server.py**: new FastMCP server
-   `pyfinagent-risk` with 6 tools:
-   - `ping` -- liveness
-   - `kill_switch` -- wraps backend.services.kill_switch.evaluate_breach
-   - `portfolio_cvar` -- STUB (placeholder for phase-4.8.2)
-   - `factor_exposure` -- STUB (placeholder for phase-4.8.2)
-   - `pbo_check` -- CSCV PBO + veto at threshold=0.5
-   - `evaluate_candidate` -- composite gate chain:
-     kill_switch -> PBO -> projected_max_dd.
+1. `backend/backtest/gauntlet/__init__.py`
+   Package marker. Re-exports `REGIMES`, `RegimeWindow`.
 
-3. **backend/agents/mcp_servers/__init__.py**: export
-   `create_risk_server`; `start_all_servers` now returns all 4 servers.
+2. `backend/backtest/gauntlet/regimes.py` (~175 LOC)
+   - Frozen dataclass `RegimeWindow` (9 fields: id, name, start,
+     end, asset_classes, region, note, primary_source_url,
+     intraday_only=False).
+   - Supports dict-style key access via `__contains__` /
+     `__getitem__` / `keys()` so the masterplan verification
+     command `'start' in r and 'end' in r` works verbatim on the
+     dataclass instances.
+   - Helper `start_date()` / `end_date()` return `datetime.date`.
+   - `REGIMES: tuple[RegimeWindow, ...]` with exactly 7 entries
+     sorted by start date:
+     - gfc_2008:              2008-09-15 .. 2009-03-09 (NBER)
+     - flash_crash_2010:      2010-05-06 .. 2010-05-06
+                              (SEC/CFTC report; intraday_only=True)
+     - snb_chf_2015:          2015-01-15 .. 2015-01-26 (SNB PR)
+     - covid_crash_2020:      2020-02-19 .. 2020-03-23 (peak/trough)
+     - fed_hike_shock_2022:   2022-01-03 .. 2022-10-12 (Fed note)
+     - yen_carry_unwind_2024: 2024-07-31 .. 2024-08-09 (BIS Bull90)
+     - tariff_vol_2025:       2025-04-02 .. 2025-04-09 (Cboe Apr)
 
-4. **scripts/harness/mcp_ab_test.py**: risk branch now opens a real
-   FastMCP in-memory Client against `create_risk_server()` and calls
-   `evaluate_candidate` 20 times -- 10 with synthetic high-PBO (0.82)
-   and 10 with low-PBO (0.12). Surfaces `veto_rate_pbo_over_0_5`,
-   `high_pbo_vetoed`, `low_pbo_falsely_vetoed` fields.
+3. `scripts/audit/gauntlet_regimes_audit.py` (~180 LOC, 8 teeth)
+   - import_ok (tuple of 7)
+   - ids_unique_and_snake_case
+   - dates_valid (ISO parse + start <= end)
+   - dates_chronologically_sorted
+   - immutability (actual mutation test; catches FrozenInstanceError)
+   - universe_fields_populated (non-empty + https URL + note >= 40 chars)
+   - intraday_flag_consistent (exactly one True, flash_crash_2010,
+     with start == end)
+   - masterplan_verification_passes (mirrors the verbatim
+     `'start' in r` check on every regime)
 
-## Verification run (verbatim)
+## Verification output (verbatim)
 
-    $ python scripts/harness/mcp_ab_test.py --server risk --samples 20 \
-        && python -c "import json; d=json.load(open('handoff/mcp_ab_test_risk.json')); assert d['veto_rate_pbo_over_0_5'] == 1.0"
-    {"wrote": "handoff/mcp_ab_test_risk.json",
-     "server": "risk",
-     "parity_rate": 1.0,
-     "latency_ratio": 2.543,
-     "verdict": "PASS"}
-    exit=0
+Immutable masterplan verification:
 
-    veto_rate_pbo_over_0_5: 1.0
-    high_pbo_total: 10, high_pbo_vetoed: 10
-    low_pbo_total: 10, low_pbo_falsely_vetoed: 0
-    risk_tool_error: None
+    $ python -c "from backend.backtest.gauntlet.regimes import REGIMES; \
+        assert len(REGIMES) == 7 and all('start' in r and 'end' in r for r in REGIMES)"
+    IMMUTABLE VERIFY PASS
+    exit 0
 
-## Success criteria alignment
+Audit:
 
-| Criterion | Result |
-|-----------|--------|
-| risk_mcp_registered | PASS -- __init__.py exports + FastMCP factory + 6 tools |
-| veto_on_pbo_gt_0_5 | PASS -- 10/10 high-PBO vetoed; 0/10 low-PBO falsely vetoed (gate discriminates) |
-| veto_on_projected_dd_over_cap | PASS -- evaluate_candidate computes sigma/(2*Sharpe) and vetoes when > 10% |
+    $ python scripts/audit/gauntlet_regimes_audit.py --check
+    {
+      "wrote": "handoff/gauntlet_regimes_audit.json",
+      "verdict": "PASS",
+      "import_ok": true,
+      "ids_unique_and_snake_case": true,
+      "dates_valid": true,
+      "dates_chronologically_sorted": true,
+      "immutability": true,
+      "universe_fields_populated": true,
+      "intraday_flag_consistent": true,
+      "masterplan_verification_passes": true
+    }
+    exit 0
 
-## Research-backed thresholds
+## Success criteria (from contract)
 
-- PBO > 0.5: "fair-coin null" -- any IS winner ranks below OOS median
-  more than chance (Bailey et al. 2016, section 2.2). Unanimous in
-  the literature as the canonical veto threshold.
-- Projected_max_dd > 10%: consistent with phase-4.8 step 4.8.2 hard
-  cap; derivation E[MaxDD] ~= sigma / (2 * Sharpe) from
-  Magdon-Ismail et al. 2004.
+1. seven_regimes_defined:
+   PASS -- `len(REGIMES) == 7`; every entry has `start` and `end`.
+2. date_ranges_immutable:
+   PASS -- mutation test raised FrozenInstanceError.
+3. universe_hints_present:
+   PASS -- every regime has non-empty asset_classes, region, note,
+   primary_source_url; note length >= 40 chars; URL is https.
 
-## Known limitations (documented, non-blocking)
+## Anti-rubber-stamp checks (honest)
 
-- portfolio_cvar + factor_exposure are stubs -- real implementations
-  land in phase-4.8.2. Out-of-scope per the 3.7.3 contract.
-- The harness samples synthetic PBO values rather than computing PBO
-  from real backtest PnL matrices. Real-PBO end-to-end exercise is
-  part of phase-3.7.4 (A2A task delegation wiring) when candidates
-  include actual returns arrays.
+- Dates match researcher's primary sources verbatim (NBER, SEC,
+  SNB, Fed, BIS, Cboe). No paraphrased or estimated dates except
+  the flagged SNB end date (2015-01-26) -- disclosed in the
+  regime note as "conservative 7-trading-day tail-risk window".
+- Mutation test (tooth #5) attempts an actual field assignment
+  `REGIMES[0].end = "2030-01-01"` and catches
+  `FrozenInstanceError` -- proves the dataclass is really frozen.
+- Exactly one entry has intraday_only=True (flash_crash_2010),
+  with start == end -- verified by tooth #7.
+- Each note mentions a real ticker/index + a VIX or percentage
+  drop from the researcher output (not stub text).
+
+## Honest scope disclosure
+
+- This is a DATA CATALOG step only. We do not:
+  - run any backtest against these regimes (step 4.9.5).
+  - integrate with spot_checks.py (the hardcoded 2-regime fallback
+    at spot_checks.py:168-173 remains until 4.9.7).
+  - verify BigQuery has coverage for all 7 windows (the 2025
+    tariff window may be partial; Explore's coverage spot-check
+    was not deep).
+- The SNB end date (2015-01-26) is a research-estimated tail-risk
+  end; no authoritative primary source pins an exact recovery
+  date for this event. The yen-carry end date (2024-08-09) is the
+  S&P-full-recovery candidate recommended by the researcher over
+  the alternative BOJ-capitulation-signal date (2024-08-07).
+- The masterplan verification uses dict-style `'start' in r`
+  syntax; we implemented `RegimeWindow.__contains__` /
+  `__getitem__` / `keys()` to pass the check verbatim without
+  editing the masterplan.
+
+## Artifacts written
+
+- `handoff/gauntlet_regimes_audit.json` (8 checks + regime ids +
+  date ranges + timestamp).

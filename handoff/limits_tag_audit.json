@@ -1,0 +1,16 @@
+{
+  "step": "4.9.1",
+  "ran_at": "2026-04-18T13:09:40.824681+00:00",
+  "ci_workflow_landed": true,
+  "unsigned_push_rejected": true,
+  "wrong_owner_rejected": true,
+  "approval_message_required": true,
+  "dry_run_exits_zero": true,
+  "codeowners_entry": true,
+  "allowed_signers_sample": [
+    "peder.bkoppang@hotmail.no"
+  ],
+  "dry_run_tail": "INFO: dry-run: skipping downstream tag-object checks",
+  "reasons": [],
+  "verdict": "PASS"
+}

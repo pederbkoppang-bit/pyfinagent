@@ -1,0 +1,12 @@
+# pyfinagent CODEOWNERS
+#
+# GitHub requires a review by a listed owner on any PR touching
+# a path matched below. Combined with the signed-tag CI workflow
+# (phase-4.9.1), this gates all immutable-limit changes behind
+# both a human review AND a GPG-signed rotation tag.
+
+# Immutable risk limits (phase-4.9 Immutable Core)
+backend/governance/limits.yaml @pederbkoppang-bit
+backend/governance/limits_schema.py @pederbkoppang-bit
+.github/workflows/limits-tag-enforcement.yml @pederbkoppang-bit
+scripts/governance/ @pederbkoppang-bit

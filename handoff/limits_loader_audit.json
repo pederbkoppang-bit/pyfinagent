@@ -1,0 +1,15 @@
+{
+  "step": "4.9.2",
+  "ran_at": "2026-04-18T13:18:24.066078+00:00",
+  "imports_ok": true,
+  "load_once_idempotent": true,
+  "digest_64_hex": true,
+  "sighup_ignored": true,
+  "watcher_disabled_by_env": true,
+  "os_exit_in_watcher": true,
+  "no_sys_exit_in_watcher": true,
+  "health_exposes_digest": true,
+  "digest": "edf822591bb17c9d8f62f4f50a8fca72f11690b21884b7cd2f0988e0e2c9bad4",
+  "reasons": [],
+  "verdict": "PASS"
+}

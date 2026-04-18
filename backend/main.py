@@ -111,6 +111,22 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logging.info(f"PyFinAgent backend starting (project={settings.gcp_project_id})")
 
+    # phase-4.9.2: Immutable risk limits boot-loader. Installs
+    # SIGHUP-ignore + on-disk watcher that os._exit(2)s the process
+    # if limits.yaml is mutated at runtime. Runs in the main thread
+    # before workers fork so signal.signal() is legal.
+    try:
+        from backend.governance.limits_loader import (
+            get_digest as _limits_digest,
+            load_once as _load_limits_once,
+        )
+        _load_limits_once()
+        logging.info("governance: immutable limits loaded; digest=%s...",
+                      _limits_digest()[:12])
+    except Exception:
+        logging.exception("governance: limits_loader failed; continuing "
+                           "(service will run with default soft limits)")
+
     # Start paper trading scheduler if enabled
     if settings.paper_trading_enabled:
         try:
@@ -196,7 +212,7 @@ app.add_middleware(
 )
 
 # Paths that skip authentication
-_PUBLIC_PATHS = ("/api/health", "/api/auth", "/docs", "/openapi.json", "/redoc")
+_PUBLIC_PATHS = ("/api/health", "/api/changelog", "/api/auth", "/docs", "/openapi.json", "/redoc")
 
 
 @app.middleware("http")
@@ -204,19 +220,35 @@ async def auth_and_security_middleware(request: Request, call_next):
     """Authentication check + OWASP security headers + latency tracking."""
     path = request.url.path
 
-    # Skip auth for public paths
-    if not any(path.startswith(p) for p in _PUBLIC_PATHS):
+    # Skip auth for public paths and CORS preflights. Browsers never
+    # send credentials on OPTIONS preflights, so rejecting them here
+    # produces a 401 before CORSMiddleware can emit the Access-Control-
+    # Allow-* headers, and Safari/Chrome surface this as "Load failed".
+    if request.method != "OPTIONS" and not any(path.startswith(p) for p in _PUBLIC_PATHS):
         try:
             await get_current_user(request)
         except HTTPException as auth_exc:
             # FastAPI's exception handlers only run inside the route
             # dispatch, so we must translate manually here or Starlette
             # wraps it as 500.
+            # Must also emit CORS headers ourselves: this response is
+            # returned BEFORE CORSMiddleware wraps the response chain,
+            # so browsers surface a missing Access-Control-Allow-Origin
+            # as "Load failed" instead of showing the 401.
             from starlette.responses import JSONResponse
+            origin = request.headers.get("origin", "")
+            headers = {"WWW-Authenticate": "Bearer"}
+            if origin and (
+                origin.startswith("http://localhost:")
+                or (origin.startswith("http://100.") and origin.count(".") == 3)
+            ):
+                headers["Access-Control-Allow-Origin"] = origin
+                headers["Access-Control-Allow-Credentials"] = "true"
+                headers["Vary"] = "Origin"
             return JSONResponse(
                 status_code=auth_exc.status_code,
                 content={"detail": auth_exc.detail},
-                headers={"WWW-Authenticate": "Bearer"},
+                headers=headers,
             )
 
     start = time.perf_counter()
@@ -278,7 +310,23 @@ async def health():
         spec = importlib.util.find_spec(mod_name)
         mcp_servers[name] = {"status": "ok"} if spec else {"status": "error", "detail": "module not found"}
 
-    return {"status": "ok", "service": "pyfinagent-backend", "version": _ver, "mcp_servers": mcp_servers}
+    # phase-4.9.2: expose the immutable-limits boot digest so
+    # operators can confirm every live instance is running the
+    # same governance state.
+    limits_digest: str | None = None
+    try:
+        from backend.governance.limits_loader import get_digest as _lg
+        limits_digest = _lg()
+    except Exception:
+        limits_digest = None
+
+    return {
+        "status": "ok",
+        "service": "pyfinagent-backend",
+        "version": _ver,
+        "mcp_servers": mcp_servers,
+        "limits_digest": limits_digest,
+    }
 
 
 @app.get("/api/changelog")

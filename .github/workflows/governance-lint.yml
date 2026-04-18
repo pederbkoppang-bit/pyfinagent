@@ -1,0 +1,36 @@
+name: governance-lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**/*.py'
+      - 'scripts/governance/**'
+      - 'scripts/audit/**'
+      - '.github/workflows/governance-lint.yml'
+  pull_request:
+    paths:
+      - 'backend/**/*.py'
+      - 'scripts/governance/**'
+      - 'scripts/audit/**'
+      - '.github/workflows/governance-lint.yml'
+
+jobs:
+  lint-limits-usage:
+    name: Lint governance-limit usage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Run governance-limits lint (strict)
+        run: |
+          python scripts/governance/lint_limits_usage.py --strict

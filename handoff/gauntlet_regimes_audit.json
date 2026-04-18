@@ -1,0 +1,61 @@
+{
+  "step": "4.9.4",
+  "ran_at": "2026-04-18T13:39:49.216022+00:00",
+  "import_ok": true,
+  "ids_unique_and_snake_case": true,
+  "dates_valid": true,
+  "dates_chronologically_sorted": true,
+  "immutability": true,
+  "universe_fields_populated": true,
+  "intraday_flag_consistent": true,
+  "masterplan_verification_passes": true,
+  "regime_count": 7,
+  "regime_ids": [
+    "gfc_2008",
+    "flash_crash_2010",
+    "snb_chf_2015",
+    "covid_crash_2020",
+    "fed_hike_shock_2022",
+    "yen_carry_unwind_2024",
+    "tariff_vol_2025"
+  ],
+  "date_ranges": [
+    {
+      "id": "gfc_2008",
+      "start": "2008-09-15",
+      "end": "2009-03-09"
+    },
+    {
+      "id": "flash_crash_2010",
+      "start": "2010-05-06",
+      "end": "2010-05-06"
+    },
+    {
+      "id": "snb_chf_2015",
+      "start": "2015-01-15",
+      "end": "2015-01-26"
+    },
+    {
+      "id": "covid_crash_2020",
+      "start": "2020-02-19",
+      "end": "2020-03-23"
+    },
+    {
+      "id": "fed_hike_shock_2022",
+      "start": "2022-01-03",
+      "end": "2022-10-12"
+    },
+    {
+      "id": "yen_carry_unwind_2024",
+      "start": "2024-07-31",
+      "end": "2024-08-09"
+    },
+    {
+      "id": "tariff_vol_2025",
+      "start": "2025-04-02",
+      "end": "2025-04-09"
+    }
+  ],
+  "reasons": [],
+  "verdict": "PASS"
+}

@@ -1,0 +1,30 @@
+{
+  "step": "4.9.3",
+  "ran_at": "2026-04-18T13:29:19.007424+00:00",
+  "script_exists": true,
+  "strict_pass_on_clean_tree": true,
+  "workflow_exists_and_parses": true,
+  "workflow_invokes_lint": true,
+  "workflow_has_push_with_paths": true,
+  "workflow_has_pull_request": true,
+  "governance_names_complete": true,
+  "mutation_kills_strict": true,
+  "governance_names_in_lint": [
+    "max_daily_loss_pct",
+    "max_gross_exposure_pct",
+    "max_portfolio_leverage",
+    "max_position_notional_pct",
+    "max_sector_weight_pct",
+    "max_trailing_dd_pct"
+  ],
+  "governance_names_in_schema": [
+    "max_daily_loss_pct",
+    "max_gross_exposure_pct",
+    "max_portfolio_leverage",
+    "max_position_notional_pct",
+    "max_sector_weight_pct",
+    "max_trailing_dd_pct"
+  ],
+  "reasons": [],
+  "verdict": "PASS"
+}

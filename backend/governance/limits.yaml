@@ -1,0 +1,33 @@
+# ============================================================
+#   IMMUTABLE RISK LIMITS -- pyfinagent go-live
+#   phase-4.9.0 (Cycle 88)
+#
+#   DO NOT EDIT AT RUNTIME. DO NOT HOT-RELOAD.
+#
+#   Changes to this file require a GPG-signed git tag named
+#       limits-rotation-YYYYMMDD
+#   The CI workflow in phase-4.9.1 blocks any push touching
+#   this file without that signed tag.
+#
+#   The six limits below correspond to the canonical
+#   institutional risk-dimension set:
+#   (1) per-symbol concentration
+#   (2) gross leverage
+#   (3) daily loss kill-switch
+#   (4) trailing drawdown kill-switch
+#   (5) gross exposure
+#   (6) single-sector concentration
+#
+#   Sources:
+#   - SEC 15c3-1 net-capital haircut (5% per-position threshold)
+#   - QuantConnect LEAN default risk models
+#   - Multi-manager pod practice (Millennium / Citadel disclosures)
+#   - AFML Lopez de Prado ch.10 (bet sizing)
+# ============================================================
+
+max_position_notional_pct: 0.05   # 5% max per symbol
+max_portfolio_leverage: 1.5       # 1.5x max gross leverage
+max_daily_loss_pct: 0.02          # 2% daily loss kill-switch
+max_trailing_dd_pct: 0.10         # 10% trailing drawdown kill-switch
+max_gross_exposure_pct: 1.00      # 100% gross (long-only fully invested)
+max_sector_weight_pct: 0.30       # 30% single-sector concentration

@@ -1,0 +1,61 @@
+name: limits-tag-enforcement
+
+# phase-4.9 step 4.9.1 -- any change to
+# backend/governance/limits.yaml must be covered by a GPG-signed
+# annotated tag named `limits-rotation-YYYYMMDD`, signed by an
+# authorized owner, with an approval message.
+#
+# The `push:` event matches EITHER a branch push touching the
+# limits file OR a push of a `limits-rotation-*` tag. Both
+# filters are honoured by GitHub Actions: a qualifying push
+# fires the workflow, and the branch/tag/path predicates are
+# evaluated with OR semantics when combined in a single
+# `push:` mapping. Qa-evaluator Cycle 89 caught the prior
+# duplicate-`push:` YAML bug (parser kept only the last key,
+# silently dropping the paths trigger).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/governance/limits.yaml"
+    tags:
+      - "limits-rotation-*"
+  pull_request:
+    paths:
+      - "backend/governance/limits.yaml"
+  workflow_dispatch: {}
+
+jobs:
+  verify-limits-tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Import authorized signer public keys
+        # Optional: populate from repo secret ALLOWED_SIGNER_PUBKEYS
+        # (newline-separated ASCII-armored PGP blocks). Without it,
+        # git verify-tag will fail with "No public key" which is
+        # the correct strict behaviour.
+        if: env.ALLOWED_SIGNER_PUBKEYS != ''
+        env:
+          ALLOWED_SIGNER_PUBKEYS: ${{ secrets.ALLOWED_SIGNER_PUBKEYS }}
+        run: |
+          echo "$ALLOWED_SIGNER_PUBKEYS" | gpg --import
+
+      - name: Run verify_limits_tag (strict)
+        run: bash scripts/governance/verify_limits_tag.sh
+
+      - name: Upload tag info on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: limits-tag-debug
+          path: |
+            backend/governance/limits.yaml
+          retention-days: 14
