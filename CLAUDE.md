@@ -25,7 +25,7 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 
 ## Critical Rules
 
-- **🔴 MAS HARNESS LOOP — NON-NEGOTIABLE FOR EVERY MASTERPLAN STEP.** This project is a long-running autonomous application; the canonical reference is Anthropic's ["Harness Design for Long-Running Apps"](https://www.anthropic.com/engineering/harness-design-long-running-apps). Every step follows the three-phase cycle `Plan → Generate → Evaluate` with file-based handoffs as durable state. Read `.claude/agents/per-step-protocol.md` end-to-end before starting ANY step. The five handoff artifacts (`handoff/current/contract.md`, `handoff/current/experiment_results.md`, `handoff/current/evaluator_critique.md`, `handoff/harness_log.md` append, `.claude/masterplan.json` status flip) are NON-SKIPPABLE. Always spawn BOTH `qa-evaluator` AND `harness-verifier` IN PARALLEL (single message, two Agent tool calls) — never one without the other. **Self-evaluation by the orchestrator is forbidden** (Anthropic: "agents tend to confidently praise their own work"). Periodically stress-test the scaffolding — as models improve, any assumption "the model can't do X" is worth re-running without the harness to prune dead weight.
+- **🔴 MAS HARNESS LOOP — NON-NEGOTIABLE FOR EVERY MASTERPLAN STEP.** This project is a long-running autonomous application; the canonical reference is Anthropic's ["Harness Design for Long-Running Apps"](https://www.anthropic.com/engineering/harness-design-long-running-apps). Every step follows the three-phase cycle `Plan → Generate → Evaluate` with file-based handoffs as durable state. Read `docs/runbooks/per-step-protocol.md` end-to-end before starting ANY step. **The MAS is exactly 3 agents: Main (this session) + Researcher + Q/A.** Researcher absorbs the old `Explore` subagent's role (internal code exploration) AND external literature research in one session. Q/A absorbs the old `harness-verifier` role (deterministic reproduction) AND LLM judgment in one session. The five handoff artifacts (`handoff/current/contract.md`, `handoff/current/experiment_results.md`, `handoff/current/evaluator_critique.md`, `handoff/harness_log.md` append, `.claude/masterplan.json` status flip) are NON-SKIPPABLE. **Spawn `researcher` BEFORE every contract (the research gate)** and spawn `qa` ONCE after every GENERATE. **Self-evaluation by the orchestrator is forbidden** (Anthropic: "agents tend to confidently praise their own work"). Periodically stress-test the scaffolding — as models improve, any assumption "the model can't do X" is worth re-running without the harness to prune dead weight.
 - **Always `source .venv/bin/activate`** before running Python
 - **Always call `cache.preload_macro()`** or backtests hang after ~40min
 - **Kill parent AND child workers** when restarting backend (zombie prevention)
@@ -43,13 +43,15 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 - **NEVER manually update CHANGELOG.md** — the PostToolUse hook does it automatically on every commit. Skip changelog tasks entirely.
 - **ALWAYS append to `handoff/harness_log.md`** after completing a masterplan step — use the cycle format (see existing entries). This feeds the Harness tab on the backtest page.
 - **ALWAYS work on main branch** — run `git checkout main && git pull origin main` at startup. Push directly to main, never create feature branches or PRs.
+- **Agent definition changes require session restart.** `.claude/agents/*.md` files are snapshotted by the Agent-tool loader at session start. Adding/merging/renaming agents mid-session won't make them dispatchable until you `/clear` or restart Claude Code. When you edit agent files, note in the handoff that the next session cycle must verify the new roster is live.
+- **Separation of duties on agent edits.** The same Claude Code session should not both author an agent `.md` change AND self-evaluate work that depends on it. For substantive edits to `.claude/agents/`, leave a note in `handoff/harness_log.md` requesting Peder review before the next step depends on the change.
 
 ## Architecture (see ARCHITECTURE.md for full details)
 
-4 layers, 38 agents:
+4 layers:
 1. **Analysis Pipeline** (28 Gemini agents) — `backend/agents/orchestrator.py`
-2. **MAS Orchestrator** (6 Claude agents) — `backend/agents/multi_agent_orchestrator.py`
-3. **Harness** (4 Claude agents) — `scripts/harness/run_harness.py`, `backend/autonomous_harness.py`
+2. **MAS Orchestrator** (in-app Claude agents — domain orchestration) — `backend/agents/multi_agent_orchestrator.py`
+3. **Harness MAS (exactly 3 agents)** — Main (this Claude Code session) + Researcher (`.claude/agents/researcher.md`) + Q/A (`.claude/agents/qa.md`). Driven by `scripts/harness/run_harness.py` + `backend/autonomous_harness.py`. Researcher absorbs the old `Explore` role; Q/A absorbs the old `harness-verifier` role. No separate Explore. No separate harness-verifier. Don't re-split.
 4. **Services** — Paper trading, ticket queue, SLA monitor, Slack bot
 
 ## Stack
@@ -179,7 +181,7 @@ Every step produces, in order, exactly these artifacts:
 | RESEARCH | (no file of its own; research feeds the contract) | ≥3 sources, ≥10 URLs, cite per claim, read full papers not abstracts |
 | PLAN | `contract.md` | Step id, research-gate summary, hypothesis, immutable success criteria copied verbatim from `.claude/masterplan.json`, plan steps, references |
 | GENERATE | `experiment_results.md` | What was built/changed + file list + verbatim verification command output + artifact shape |
-| EVALUATE | `evaluator_critique.md` | **Both** qa-evaluator AND harness-verifier verdicts (spawned IN PARALLEL, not sequentially), each quoting their reasoning + violated_criteria + checks_run. Never one without the other. |
+| EVALUATE | `evaluator_critique.md` | **Q/A verdict** (single agent, merged qa-evaluator + harness-verifier). Must include deterministic checks_run + LLM judgment + violated_criteria + verdict (PASS / CONDITIONAL / FAIL). |
 | LOG | appended block in `handoff/harness_log.md` | `## Cycle N -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL` header + summary |
 
 These files must exist and be up-to-date BEFORE marking the step
@@ -187,28 +189,72 @@ These files must exist and be up-to-date BEFORE marking the step
 `archive-handoff` PostToolUse hook moves them to
 `handoff/archive/phase-X.Y/` on step transition; never delete them.
 
-### Dual-evaluator rule
+### Single-Q/A rule (was: dual-evaluator)
 
-`EVALUATE` always means both:
+`EVALUATE` is handled by the merged **Q/A** agent
+(`.claude/agents/qa.md`). Q/A runs deterministic-first:
+1. Syntax + file-existence + immutable verification command exit code
+2. Reads existing `evaluator_critique.md` + `experiment_results.md`
+3. Optional harness dry-run if within 55s budget
+4. LLM judgment covers contract alignment, mutation-resistance,
+   anti-rubber-stamp, scope honesty, research-gate compliance
 
-1. **qa-evaluator** — reviews the contract, code, and artifacts;
-   returns PASS / CONDITIONAL / FAIL with cited violations.
-2. **harness-verifier** — runs the immutable verification command
-   from `.claude/masterplan.json` itself, reproduces the result,
-   returns PASS / FAIL with numbers.
+Returns `{ok, verdict, violated_criteria, violation_details,
+certified_fallback, checks_run}`.
 
-Both are spawned in ONE parallel block (a single message with two
-`Agent` tool calls), never sequentially. If either returns FAIL, the
-step does not pass. If qa-evaluator returns CONDITIONAL, the
-blockers must be addressed in the same cycle before `status: done`.
+**If `ok: false` / verdict is CONDITIONAL or FAIL — the canonical
+cycle-2 flow (per Anthropic's
+[multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)
+and [harness design](https://www.anthropic.com/engineering/harness-design-long-running-apps)):**
 
-### Research gate
+1. Main reads the critique's violated_criteria + violation_details.
+2. Main fixes the blockers **and updates the handoff files**
+   (`experiment_results.md`, `evaluator_critique.md` appended
+   Follow-up section, plus any code/doc the critique flagged).
+3. Main spawns a **fresh** Q/A. The fresh Q/A reads the updated
+   files — evidence has changed, so the new verdict reflects the
+   fix, not a different opinion on the same evidence.
 
-Before PLAN is written, at least one of `researcher` or `Explore`
-subagents must run. For greenfield architecture or new data sources
-use `researcher` (external literature, URLs). For code-audit work
-use `Explore` (internal file:line references). For steps with
-external + internal scope run both in parallel.
+This is NOT "second-opinion-shopping". The documented pattern is
+file-based communication between fresh instances per phase:
+> "Communication was handled via files: one agent would write a
+> file, another agent would read it and respond either within
+> that file or with a new file"
+> — Anthropic, *Harness design for long-running apps*
+
+> "The LeadResearcher synthesizes these results and decides
+> whether more research is needed—if so, it can create additional
+> subagents"
+> — Anthropic, *How we built our multi-agent research system*
+
+**What IS forbidden**: spawning a fresh Q/A to overturn a verdict
+on **unchanged evidence** (no file updates, no fix applied) hoping
+for a different answer. That's second-opinion-shopping and
+compromises evaluator independence.
+
+**Historical note on `SendMessage`**: earlier iterations of this
+rule prescribed `SendMessage` back to the same Q/A instance.
+Subagent tool definitions did not include `SendMessage` in their
+tool lists until 2026-04-18, and even with the tool, Anthropic's
+documented subagent lifecycle is single-turn synchronous
+(one-shot). Dormant agents don't auto-replay on inbox delivery.
+The file-based fresh-respawn pattern is both the documented path
+and the empirically reliable one.
+
+### Research gate (MUST-BE-USED)
+
+Before PLAN is written, the `researcher` subagent must run. It now
+covers BOTH external literature AND internal code-audit in one
+session (the old `Explore` subagent has been merged in). Pass the
+caller the effort tier (`simple` / `moderate` / `complex`). If
+`gate_passed: false`, do not proceed to PLAN. **Main drifts on this
+under time pressure** — auto-memory `feedback_research_gate.md` and
+phase-4.10 audit document 7-of-9-cycle slips. Enforcement layers:
+- `InstructionsLoaded` hook reloads this rule every session
+- Researcher description uses "MUST BE USED" phrasing so auto-
+  delegation fires proactively
+- Q/A's LLM-judgment leg checks for researcher output in the
+  contract's references section
 
 ### Scheduled harness
 
@@ -229,12 +275,21 @@ files (the `archive-handoff` hook handles the rotation).
 ### Never do
 
 - Mark a step done without all five files.
-- Run only one evaluator (qa OR harness-verifier).
+- Skip RESEARCH because "we've been here before" — if the step is
+  new, tier can be `simple` but the phase can't be skipped.
+- Re-split agents: reintroducing `Explore` or `harness-verifier` as
+  separate files after they've been merged is the old pattern.
 - Amend a step's immutable verification criteria.
 - Skip `harness_log.md` append (it feeds the Harness tab on the
   backtest page and the next cycle's resume detection).
-- Self-evaluate (orchestrator reporting PASS without spawning the
-  verifier pair).
+- Self-evaluate (Main reporting PASS without spawning Q/A).
+- Second-opinion-shop after CONDITIONAL on **unchanged evidence**
+  — spawning a fresh Q/A without fixing the flagged blockers and
+  updating the handoff files is forbidden (that's verdict-shopping).
+  Conversely, spawning a fresh Q/A AFTER fixing blockers and
+  updating the files IS the documented pattern — the new verdict
+  reflects the fix, not a different opinion. See the "canonical
+  cycle-2 flow" block above.
 
 ### Stress-test doctrine (Anthropic)
 
