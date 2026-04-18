@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-18 | `c990025` | phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync |
 | 2026-04-18 | `e82e4e9` | chore: sync phase-4.7/4.8 backlog + handoff archive |
 | 2026-04-18 | `802d6ac` | feat(phase-4.9): immutable governance core + Gauntlet regime catalog |
 | 2026-04-17 | `b0f8bd3` | Phase 3.7: steps 3.7.0, 3.7.1, 3.7.2, 3.7.3, 3.7.4 via full MAS loop |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `fa01d4d` | Phase 4.6 steps 4.6.3, 4.6.4 via MAS loop |
 | 2026-04-17 | `6720309` | Phase 4.6: steps 4.6.0-4.6.2 done via full MAS loop |
 | 2026-04-17 | `d2d9da3` | feat: integrate Intelligence Engine (phases A/B/C/D/E + cron budget) |
-| 2026-04-17 | `d729a8f` | proposal: phase-A immutable core + Gauntlet risk guard (phase-4.9) |
 
 ---
 
+### v6.5.38 — phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync (2026-04-18)
+
+- **phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync**
 ### v6.5.37 — feat(phase-4.9): immutable governance core + Gauntlet regime catalog (2026-04-18)
 
 - **feat(phase-4.9): immutable governance core + Gauntlet regime catalog**
