@@ -7749,3 +7749,50 @@ qa_41426_v2 PASS all 3 criteria.
 **qa_audit_v2 (cycle-2):** PASS. Anti-shop verified (Follow-up section present). All 4 citations verified against source at exact line numbers. `_measure_metric` / `run_loop` grep returns zero hits in the record. Masterplan anti-tamper PASS: `verification.command` + `success_criteria` preserved verbatim.
 **Lesson reinforced:** grep-verify every specific code claim before cycle-1 Q/A. Two cycles in a row now (phase-3.0 cycle-1, phase-audit cycle-1) have caught this class of error -- consider adding a pre-Q/A self-check in the next iteration of the per-step protocol.
 **Decision:** PASS. Task #13 + #14 closed. phase-2.10 bureaucratic closure complete. phase-4.14.20 retired via status flip.
+
+---
+
+## Cycle 1 -- 2026-04-19 11:38 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 11:41 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle N+46 -- 2026-04-19 14:00 UTC -- phase=3.1+3.2 result=PASS (cycle-1) -- JOINT CLOSE
+
+**Steps:** LLM-as-Planner (3.1) + LLM-as-Evaluator (3.2), closed together per research recommendation.
+**Research:** researcher_31 gate_passed=true (5 read in full, 11 URLs, 4 recency findings from 2024-2026: Anthropic multi-agent, arXiv 2409.06289 Strategy Finding, arXiv 2412.20138 TradingAgents, arXiv 2602.23330 Expert Investment Teams, Karpathy autoresearch). Staked rec (post-internal-audit): "Phase 3.1 is approximately 70% done -- the planner and evaluator exist and are functional -- but the harness cycle was never formally closed because the integration is missing. Wire autonomous_loop.py to real data and promote it as the canonical LLM planner entry point, then close phase-3.1 and phase-3.2 together."
+**Contract:** PRE-commit, initially narrow scope ("audit + docs + flip") then widened to match researcher staked-rec. Widening rationale recorded in contract Research-gate summary.
+**Generator:** Modified `backend/autonomous_loop.py`: (a) NEW `_load_real_context(current_best_sharpe)` helper at `:233-336` reads `optimizer_best.json` + tails `quant_results.tsv` last 10 rows, fail-open to legacy mock on missing files with 0.0-defaults to avoid `NoneType.__format__` in planner's `:.2f` formatters; (b) `_plan_phase` now calls the helper instead of hardcoded mock dict; (c) `_evaluate_phase` replaces 2-line `sharpe>baseline & dsr>0.95` bypass with `await EvaluatorAgent.evaluate_proposal(...)`, fail-open wrap catches evaluator timeouts / errors and reverts to legacy gate with WARNING. Added 3 test files (13 tests: 5 planner + 6 evaluator + 2 integration). New doc `docs/PHASE_3_LLM_PLANNER.md`. Zero agent-file edits.
+**Pre-Q/A self-check caught** wrong `parents[]` index (used `parents[1]` pointing at repo root; should have been `parents[0]` pointing at `backend/`). Fixed before tests, noted in experiment_results Known caveat #6.
+**qa_31_32_v1 (cycle-1):** PASS, 0 violated_criteria. 5/5 protocol audit. A-G deterministic all green: syntax OK, imports OK, 54 passed / 1 skipped pytest (exact contract match), live `_load_real_context` returned 10 rows + 23 params (no fallback WARN), correct `parents[0]` anchor, defensive `verdict.value` extraction present, no non-target agent files modified in this cycle. Q/A flagged one cross-cycle pattern (3 consecutive cycles with cycle-1 drift on invented specifics) -- recommend pre-Q/A grep-verify as formal protocol.
+**Non-goals honored:** `planner_enhanced.py` untouched (phase-3.3 consolidation); `_generate_phase` still returns mock backtests (phase-3.3 requires BacktestEngine integration); `run_harness.py` production planner unchanged (phase-3.3); IC metric not added to evaluator.
+**Decision:** PASS. Phase-3 progress: 3/6 done (3.0 + 3.1 + 3.2) + 1 superseded (3.5). Remaining: 3.3 Regime Detection, 3.4 Agent Skill Optimization.

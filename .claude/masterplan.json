@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T11:31:13.799952+00:00",
+  "updated_at": "2026-04-19T11:54:25.973363+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -273,22 +273,24 @@
         {
           "id": "3.1",
           "name": "LLM-as-Planner",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "verification": null,
           "contract": "handoff/archive/phase-3.1/contract.md",
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T14:00:00+00:00"
         },
         {
           "id": "3.2",
           "name": "LLM-as-Evaluator",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "verification": null,
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T14:00:00+00:00"
         },
         {
           "id": "3.3",

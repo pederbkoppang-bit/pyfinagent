@@ -228,6 +228,122 @@ class AutonomousLoopOrchestrator:
         
         return summary
     
+    # ------------------------------------------------------------------
+    # phase-3.1: real-context loader (replaces phase-3.3-pre mock dict)
+    # ------------------------------------------------------------------
+
+    def _load_real_context(
+        self,
+        current_best_sharpe: float,
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Read real backtest evidence + current-best params for the planner.
+
+        Data sources:
+          - `backend/backtest/experiments/optimizer_best.json` -- current best
+            params, sharpe, dsr. Written by the quant optimizer after each
+            promotion.
+          - `backend/backtest/experiments/quant_results.tsv` -- append-only
+            experiment history. We tail the last ~10 rows so the planner
+            sees recent trajectory (what was kept / discarded and why).
+
+        Returns `(recent_results, current_params)` in the shape
+        `PlannerAgent.generate_proposal()` expects:
+          recent_results -> [{sharpe, return_pct, max_dd, num_trades, features}, ...]
+          current_params -> {param_name: value, ...}
+
+        Fail-open: if either file is missing / malformed, fall back to
+        the legacy mock so the loop can still run in dev environments.
+        Log WARN on fallback so operators notice.
+        """
+        import csv
+        from pathlib import Path
+
+        # __file__ is backend/autonomous_loop.py; parents[0] is backend/.
+        backend_dir = Path(__file__).resolve().parents[0]
+        best_path = backend_dir / "backtest" / "experiments" / "optimizer_best.json"
+        tsv_path = backend_dir / "backtest" / "experiments" / "quant_results.tsv"
+
+        # --- current_params from optimizer_best.json ---
+        current_params: Dict[str, Any] = {}
+        try:
+            if best_path.exists():
+                with best_path.open("r", encoding="utf-8") as f:
+                    payload = json.load(f)
+                current_params = dict(payload.get("params") or {})
+                if not current_params:
+                    logger.warning(
+                        "autonomous_loop: optimizer_best.json has no 'params' "
+                        "key; using mock params"
+                    )
+        except Exception as exc:
+            logger.warning(
+                "autonomous_loop: reading %s failed: %r", best_path, exc
+            )
+
+        if not current_params:
+            current_params = {
+                "ma_short": 20,
+                "ma_long": 50,
+                "rsi_threshold": 30,
+                "vol_lookback": 20,
+            }
+
+        # --- recent_results from quant_results.tsv tail ---
+        recent_results: List[Dict[str, Any]] = []
+        try:
+            if tsv_path.exists():
+                with tsv_path.open("r", encoding="utf-8") as f:
+                    reader = csv.DictReader(f, delimiter="\t")
+                    rows = list(reader)
+                # Take the last 10 rows for context (trailing history)
+                for row in rows[-10:]:
+                    try:
+                        sharpe = float(row.get("metric_after", 0) or 0)
+                        delta = float(row.get("delta", 0) or 0)
+                    except (TypeError, ValueError):
+                        continue
+                    # planner_agent._summarize_evidence uses :.2f formatters
+                    # on return_pct/max_dd/num_trades; TSV doesn't carry them
+                    # so we default to 0 rather than None to avoid TypeError.
+                    recent_results.append(
+                        {
+                            "sharpe": sharpe,
+                            "return_pct": 0.0,
+                            "max_dd": 0.0,
+                            "num_trades": 0,
+                            "features": [row.get("param_changed") or "unknown"],
+                            "status": row.get("status") or "",
+                            "delta": delta,
+                            "run_id": row.get("run_id") or "",
+                            "dsr": float(row.get("dsr", 0) or 0),
+                        }
+                    )
+        except Exception as exc:
+            logger.warning(
+                "autonomous_loop: reading %s failed: %r", tsv_path, exc
+            )
+
+        if not recent_results:
+            logger.warning(
+                "autonomous_loop: no real recent_results available; "
+                "falling back to mock"
+            )
+            recent_results = [
+                {
+                    "sharpe": current_best_sharpe,
+                    "return_pct": 80.2,
+                    "max_dd": -12.0,
+                    "num_trades": 45,
+                    "features": [
+                        "ma_crossover",
+                        "rsi_oversold",
+                        "volatility_regime",
+                    ],
+                }
+            ]
+
+        return recent_results, current_params
+
     async def _plan_phase(
         self,
         current_best_sharpe: float,
@@ -250,27 +366,16 @@ class AutonomousLoopOrchestrator:
         
         planner = PlannerAgent(model=self.planner_model)
         
-        # Mock recent results for now (in real system, fetch from backtest DB)
-        mock_recent_results = [
-            {
-                "sharpe": current_best_sharpe,
-                "return_pct": 80.2,
-                "max_dd": -12.0,
-                "num_trades": 45,
-                "features": ["ma_crossover", "rsi_oversold", "volatility_regime"],
-            }
-        ]
-        
-        current_params = {
-            "ma_short": 20,
-            "ma_long": 50,
-            "rsi_threshold": 30,
-            "vol_lookback": 20,
-        }
-        
+        # phase-3.1 close: feed real backtest history + current best params
+        # (replaces the phase-3.3-pre hardcoded mock; research brief finding #6).
+        # Fail-open: if either file is missing, fall back to mocks with WARN.
+        recent_results, current_params = self._load_real_context(
+            current_best_sharpe=current_best_sharpe,
+        )
+
         try:
             proposal_json = planner.generate_proposal(
-                recent_results=mock_recent_results,
+                recent_results=recent_results,
                 current_best_sharpe=current_best_sharpe,
                 current_params=current_params,
                 weaknesses="Strategy may be over-fitted to 2020-2023. Need regime adaptation.",
@@ -339,23 +444,44 @@ class AutonomousLoopOrchestrator:
                 return type('Verdict', (), {'name': 'FAIL'})(), delta
         
         evaluator = EvaluatorAgent(model_name=self.evaluator_model)
-        
+
         # Get first backtest result
         best_result = backtest_results[0] if backtest_results else {}
-        
+
         # Calculate Sharpe delta
         result_sharpe = best_result.get("sharpe", baseline_sharpe)
         sharpe_delta = result_sharpe - baseline_sharpe
-        
+
         logger.info(f"   Proposal Sharpe: {result_sharpe:.4f}")
         logger.info(f"   Delta: {sharpe_delta:.4f}")
-        
-        # Simple evaluation logic for now
-        if result_sharpe > baseline_sharpe and best_result.get("dsr", 0) > 0.95:
-            logger.info(f"   ✅ PASS: Sharpe improved and DSR valid")
-            return "PASS", sharpe_delta
-        else:
-            logger.info(f"   ❌ FAIL: Sharpe did not improve or DSR invalid")
+
+        # phase-3.1 close: call the real 5-rubric evaluator instead of the
+        # bypass 2-line Sharpe check. Fail-open: if the evaluator errors or
+        # times out, fall back to the legacy Sharpe+DSR gate so the loop
+        # can still make progress.
+        try:
+            result = await evaluator.evaluate_proposal(
+                proposal=proposal,
+                backtest_results=best_result,
+            )
+            verdict_name = result.verdict.value if hasattr(result.verdict, "value") else str(result.verdict)
+            logger.info(
+                "   evaluator verdict=%s overall=%.1f red=%d yellow=%d",
+                verdict_name,
+                getattr(result, "overall_score", 0.0),
+                len(getattr(result, "red_flags", []) or []),
+                len(getattr(result, "yellow_flags", []) or []),
+            )
+            return verdict_name, sharpe_delta
+        except Exception as exc:
+            logger.warning(
+                "evaluate_proposal fail-open (%s); falling back to Sharpe+DSR gate",
+                repr(exc),
+            )
+            if result_sharpe > baseline_sharpe and best_result.get("dsr", 0) > 0.95:
+                logger.info("   [fallback] PASS: Sharpe improved and DSR valid")
+                return "PASS", sharpe_delta
+            logger.info("   [fallback] FAIL: Sharpe did not improve or DSR invalid")
             return "FAIL", sharpe_delta
     
     async def _extract_learnings(
