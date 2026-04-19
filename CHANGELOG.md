@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `fd252b1` | phase-6.7: rate limits, failure alerting, cost telemetry |
 | 2026-04-19 | `2984fdd` | phase-6.6: FOMC + earnings calendar watcher |
 | 2026-04-19 | `7055814` | phase-6.5: sentiment scorer ladder (VADER -> FinBERT -> Haiku 4.5 -> Gemini Flash) |
 | 2026-04-18 | `82d8e35` | Merge pull request #21 from pederbkoppang-bit/claude/research-mas-system-cP0Ky |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `acde310` | Fix alt_data 429: retry + 24h TTL cache -> 12/12 non-ERROR |
 | 2026-04-17 | `99e6529` | Phase 4.6: gcloud ADC restored; 4.6.3 re-verified 11/12 non-ERROR |
 | 2026-04-17 | `d52e1c9` | Phase 4.6.7: Slack digest end-to-end PASS |
-| 2026-04-17 | `88e2b36` | Phase 4.6: fix 6 follow-ups via MAS loop -- 4.6.6 -> PASS |
 
 ---
 
+### v6.5.45 — phase-6.7: rate limits, failure alerting, cost telemetry (2026-04-19)
+
+- **phase-6.7: rate limits, failure alerting, cost telemetry**
 ### v6.5.44 — phase-6.6: FOMC + earnings calendar watcher (2026-04-19)
 
 - **phase-6.6: FOMC + earnings calendar watcher**
