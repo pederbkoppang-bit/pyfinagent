@@ -14,8 +14,8 @@
       "command": "uvx",
       "args": ["--from", "alpaca-mcp-server==2.0.1", "alpaca-mcp-server"],
       "env": {
-        "ALPACA_API_KEY_ID": "${ALPACA_API_KEY_ID}",
-        "ALPACA_API_SECRET_KEY": "${ALPACA_API_SECRET_KEY}",
+        "ALPACA_API_KEY_ID": "${ALPACA_API_KEY_ID:-}",
+        "ALPACA_API_SECRET_KEY": "${ALPACA_API_SECRET_KEY:-}",
         "ALPACA_PAPER_TRADE": "true"
       }
     }
