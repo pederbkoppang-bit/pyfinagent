@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T13:23:00.408997+00:00",
+  "updated_at": "2026-04-19T13:35:39.428250+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -4474,7 +4474,7 @@
         {
           "id": "12.0",
           "name": "Audit current deploy surface + pick Rainbow scope boundary",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f docs/RAINBOW_DEPLOY_PLAN.md && python -c \"import pathlib; p=pathlib.Path('docs/RAINBOW_DEPLOY_PLAN.md'); assert p.stat().st_size > 2000, 'plan doc too thin'; print('ok')\"",
@@ -4485,7 +4485,8 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T16:05:00+00:00"
         },
         {
           "id": "12.1",
@@ -4540,7 +4541,7 @@
         },
         {
           "id": "12.4",
-          "name": "First real migration using Rainbow: Vertex -> google-genai (integrates with phase-11)",
+          "name": "First Rainbow migration \u2014 candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
           "status": "pending",
           "harness_required": true,
           "verification": {
@@ -4553,7 +4554,9 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "scope_reassigned_at": "2026-04-19T~16:00:00+00:00",
+          "scope_reassignment_note": "Phase-11 Vertex migration shipped directly without Rainbow (2026-04-19). Phase-12.4 will select a replacement migration candidate after phase-12.3 lands; candidates include next Anthropic SDK bump or a dummy color-flip-only rehearsal."
         }
       ]
     },

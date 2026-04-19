@@ -8047,3 +8047,22 @@ Also updates `#10` task in the session task list -- same step, now tracked under
 - Issue #699 workaround at SDK boundary.
 - 79 tests passing; 0 regressions across entire phase-11 rollout.
 **Decision:** PASS. Task #21 closed. Task #17 (phase-11 parent) closed. **PHASE-11 COMPLETE.**
+
+---
+
+## Cycle N+54 -- 2026-04-19 16:05 UTC -- phase=12.0 result=PASS (cycle-2)
+
+**Step:** Rainbow Deploys audit + scope boundary. First step of phase-12.
+**Research:** researcher_120 gate_passed=true. 7 read in full, 17 URLs, 6 internal files. Three-query compliance confirmed. **Unusual flow**: researcher co-authored the deliverable doc (`docs/RAINBOW_DEPLOY_PLAN.md`) during the research gate — efficient because the plan IS the audit output.
+**Contract:** PRE-commit. Called out the co-authorship + demanded Q/A independent content review.
+**Generator/deliverable:** `docs/RAINBOW_DEPLOY_PLAN.md` (now 8,476 bytes after cycle-2 corrections) with 7 sections: current deploy surface, scope (IN/OUT), palette decision (2-color MVP expandable to 7), rollback SLO (<30s selector flip), traffic primitive (plain Service selector, no mesh), phase-12 implementation sketch, references (7 read-in-full + 10 snippet-only).
+**qa_120_v1 (cycle-1):** CONDITIONAL. Caught factual error — plan doc row 14 + scope-OUT row 36 claimed `frontend/Dockerfile` does NOT exist. Verification: `test -f frontend/Dockerfile` → file exists (Node 20 alpine, 27 lines). Non-blocking flag: phase-12.4 scope reassignment not recorded (phase-11 Vertex migration shipped directly without Rainbow, so 12.4's original "Vertex cutover" candidate is gone).
+**Cycle-2 fixes:**
+1. Plan-doc row 14: `NO Dockerfile` → `YES — frontend/Dockerfile exists (Node 20 alpine), but not yet wired into any prod runtime`.
+2. Plan-doc scope-OUT row 36 reason rewritten: Dockerfile exists, Next.js served via `npm run dev` (dev server not prod pattern), productionizing is a prerequisite to revisit later.
+3. Plan-doc new subsection under §6 "Phase-12.4 scope reassignment (2026-04-19)": explains phase-11 shipped without Rainbow; lists replacement candidates (next SDK bump OR dummy color-flip rehearsal).
+4. `.claude/masterplan.json` phase-12 step 12.4 updated: `name` now reads "First Rainbow migration — candidate TBD after 12.3"; `scope_reassigned_at` + `scope_reassignment_note` metadata added; `verification` block preserved verbatim (anti-tamper PASS).
+5. Follow-up section appended to evaluator_critique.md per cycle-2 canonical flow.
+**qa_120_v2 (cycle-2):** PASS. Anti-shop cleared (Follow-up section present). B1 frontend Dockerfile claim corrected. B2 phase-12.4 scope reassignment recorded in both plan doc + masterplan (verification block preserved). Immutable: 8,476 bytes. Regression: 79p/1s.
+**Cross-cycle observation:** this is the 4th cycle (phase-3.0 c1, phase-audit c1, phase-3.1 c1, phase-12.0 c1) where cycle-1 shipped with an invented or wrong code-claim specific that Q/A caught. Pre-Q/A self-check is catching these progressively more often but still missed on the researcher-authored doc. Lesson: when the researcher writes the deliverable, Main must SPOT-CHECK every file-exists / file-not-exists claim against `ls` / `test -f` before submitting.
+**Decision:** PASS cycle-2. Task #22 closed. Phase-12 progress: 1/5.
