@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `02badab0` | phase-3.4: fix outcome_tracker NameError + skill_optimizer tests — PHASE-3 COMPLETE |
 | 2026-04-19 | `207e0440` | operator-request: phase-11 Vertex migration + research-gate query discipline |
 | 2026-04-19 | `19e31850` | phase-3.3: VIX rolling-quantile regime detector |
 | 2026-04-19 | `c63d29b8` | phase-3.1 + phase-3.2: joint close — wire LLM planner + evaluator into autonomous loop |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `b0f8bd3` | Phase 3.7: steps 3.7.0, 3.7.1, 3.7.2, 3.7.3, 3.7.4 via full MAS loop |
 | 2026-04-17 | `68d67b6` | Codify Anthropic MAS harness-loop protocol across CLAUDE.md + agents |
 | 2026-04-17 | `2a8d074` | Codify non-skippable harness-loop discipline + phase-3.7.0/3.7.1 |
-| 2026-04-17 | `a36ed31` | Phase 3.5.0 mcp_inventory: phase-3.5 fully closed (8/8) |
 
 ---
 
+### v6.5.52 — phase-3.4: fix outcome_tracker NameError + skill_optimizer tests — PH... (2026-04-19)
+
+- **phase-3.4: fix outcome_tracker NameError + skill_optimizer tests — PHASE-3 COMPLETE**
 ### v6.5.51 — operator-request: phase-11 Vertex migration + research-gate query dis... (2026-04-19)
 
 - **operator-request: phase-11 Vertex migration + research-gate query discipline**
