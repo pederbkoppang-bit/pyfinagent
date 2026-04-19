@@ -57,6 +57,17 @@ class Settings(BaseSettings):
     api_ninjas_key: str = Field("", description="API Ninjas key for earnings transcripts")
     patentsview_api_key: str = Field("", description="PatentsView API key (free at patentsview.org)")
 
+    # --- News streaming adapters (phase-6.3) ---
+    finnhub_api_key: str = Field("", description="Finnhub API token for market + company news (empty => adapter returns [])")
+    benzinga_api_key: str = Field("", description="Benzinga API token for /api/v2/news (empty => adapter returns [])")
+    alpaca_api_key_id: str = Field("", description="Alpaca API Key ID for data.alpaca.markets/v1beta1/news (empty => adapter returns [])")
+    alpaca_api_secret_key: str = Field("", description="Alpaca API Secret Key for news endpoint (empty => adapter returns [])")
+
+    # --- Sentiment scorer ladder (phase-6.5) ---
+    sentiment_min_confidence: float = Field(0.7, description="Escalation threshold in [0,1]. VADER+FinBERT results below this floor escalate to the next rung (WASSA 2024 cascade operating point).")
+    sentiment_use_gemini_flash: bool = Field(False, description="Enable opt-in tier-4 Gemini 2.5 Flash cross-check (default OFF; see phase-6.9 calibration plan).")
+    sentiment_haiku_batch_mode: bool = Field(False, description="Route tier-3 Haiku 4.5 calls through Anthropic Batch API (50%% discount) when OK to wait; default OFF for real-time cron.")
+
     # --- Multi-Provider LLM Keys (v3.4) ---
     anthropic_api_key: str = Field("", description="Anthropic API key for direct Claude access (sk-ant-...)")
     openai_api_key: str = Field("", description="OpenAI API key for direct GPT/o-series access (sk-...)")
