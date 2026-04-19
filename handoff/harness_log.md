@@ -7961,3 +7961,33 @@ Per operator direction, extracted `phase-4.14 step 4.14.6` (Permission mode swit
 Total phases now 33 (phase-13 at the end). phase-4.14 count goes from 29 to 28 visible steps.
 
 Also updates `#10` task in the session task list -- same step, now tracked under phase-13. Resuming phase-11.1 generate step next (researcher already complete; contract next).
+
+---
+
+## Cycle 1 -- 2026-04-19 12:47 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle N+50 -- 2026-04-19 14:50 UTC -- phase=11.1 result=PASS (cycle-1)
+
+**Step:** Pin google-genai + `_genai_client.py` shim. 2nd step of phase-11.
+**Research:** researcher_111 gate_passed=true. 5 read in full, 13 URLs, 4 internal files. Three-query-variant confirmed (year-less + 2026 + 2025 all issued). Pin: `google-genai==1.73.1` (2026-04-14 stable, Python 3.10-3.14). Zero transitive conflict with `google-cloud-aiplatform==1.142.0`. DCL singleton mandatory (SDK thread-safety not documented).
+**Contract:** PRE-commit. 7 functional criteria + immutable `from google import genai` exit 0.
+**Generator:** Installed `google-genai==1.73.1` in venv; added pinned line to `backend/requirements.txt`. New `backend/agents/_genai_client.py` (~120 lines): DCL singleton `get_genai_client()`, `close_genai_client()` (drops singleton + calls .close() via hasattr guard), `reset_for_test()` alias, `_build_client()` internal with 4 fail-open paths (SDK absent / settings raise / credentials parse error / Client init error), each logging WARNING + returning None. Tests: `backend/tests/test_genai_client.py` (6 tests, all PASS). Regression: 79 passed / 1 skipped across all phase-3 + phase-6 + phase-11.1 tests.
+**Pre-Q/A self-check caught a real bug:** my first version of `get_genai_client` was missing an outer try/except around the `_build_client` call. A fail-open test I wrote specifically to verify the no-raise contract exposed the gap. Fix: added defense-in-depth `try: _client = _build_client() except Exception: _client = None; log WARNING` at the slow-path site. The cross-cycle "run tests before Q/A" discipline is paying off -- this is the second bug caught pre-Q/A in the recent cycles (phase-3.3 parents[] index was the first).
+**qa_111_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I deterministic all green. Immutable `from google import genai` exit 0. `grep ^google-genai` returns exact pinned line. 8 pre-existing `vertexai` imports preserved (phase-11.4 owns removal). Installed SDK version = 1.73.1. Fail-open walked across 5 mutation vectors; DCL pattern canonically correct; pre-Q/A self-check claim verified at source (L112-120 in _genai_client.py).
+**Non-blocking Q/A note:** 5 migration-target files (evaluator_agent / skill_optimizer / debate / orchestrator / llm_client / risk_debate) carry pre-existing session dirt unrelated to this cycle (log edits, ASCII fixes). Recommend staging 11.1 files separately for a clean slice commit -- doing this below.
+**Decision:** PASS. Task #18 closed. Phase-11 progress: 2/5 (11.0 + 11.1 done; 11.2-11.4 pending).

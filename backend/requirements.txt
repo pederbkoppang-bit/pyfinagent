@@ -36,6 +36,7 @@ pytrends==4.9.2
 
 # Multi-provider LLM support (v3.4)
 anthropic==0.87.0            # exact pin: supply-chain hardening (phase-3.7.6; CVE-2026-34450/34452 fix)
+google-genai==1.73.1         # exact pin (phase-11.1) -- replaces deprecated vertexai.generative_models (removal 2026-06-24)
 openai==2.29.0               # exact pin: supply-chain hardening (phase-3.7.6)
 fastmcp==3.2.4               # exact pin: supply-chain hardening (phase-3.7.6)
 alpaca-py==0.43.2            # exact pin: supply-chain hardening (phase-3.7.6)
