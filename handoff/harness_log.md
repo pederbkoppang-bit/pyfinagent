@@ -7471,3 +7471,80 @@ qa_41426_v2 PASS all 3 criteria.
 **Design choices vs research brief:** separate module tree (structural Protocol mismatch); Finnhub primary earnings source; AV as dedup cross-check; FRED for macro releases with release_id whitelist (CPI=10, PPI=20, NFP=50, GDP=53, retail_sales=82, unemployment=91); Fed HTML scrape with regex (no JSON API exists); blackout = 2nd Saturday before meeting day-1 through day after meeting ends.
 **Scope honored:** no BQ writes (phase-6.8); no paper-trader wiring; no FMP (key absent); no EDGAR backfill body (stubbed / deferred).
 **Decision:** PASS. Task #6 closed. Phase-6 progress 6/8.
+
+---
+
+## Cycle 1 -- 2026-04-19 08:44 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 08:54 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 08:54 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 77 -- 2026-04-19 -- Go-Live Checklist NOOP (no tractable items)
+
+**Planner hypothesis:** Scan all 12 remaining unchecked items in `docs/GO_LIVE_CHECKLIST.md` for a Ford-tractable target. 15/27 items are `[x]`.
+**Generator:** No code generated. All 12 remaining items remain blocked per the same gates as Cycle 76:
+- 4.4.2.1 / 4.4.3.3: wall-clock gated (2-week runtime / 14-day uptime)
+- 4.4.2.2 / 4.4.2.3 / 4.4.2.4 / 4.4.2.5: paper trading prerequisites not met (no executed trades, metrics undefined)
+- 4.4.5.1 / 4.4.5.3 / 4.4.5.4: human-only review (rule 3: skip 4.4.5.*)
+- 4.4.6.1 / 4.4.6.2 / 4.4.6.3: Peder approval required (rule 3: skip 4.4.6.*)
+**Evaluator verdict:** N/A (NOOP cycle)
+**Decision:** NOOP -- no tractable items. Identical to Cycle 76. No new unblocking events since 2026-04-18.
+**Unblocking requires:** Same as Cycle 76: (1) fix zero-orders bug in decide_trades, (2) run signals_log migration, (3) accumulate 2+ weeks of paper trades.
+
+---
+
+## Cycle N+42 -- 2026-04-19 10:55 UTC -- phase=6.7 result=PASS (cycle-1)
+
+**Step:** Rate limits, failure alerting, cost telemetry
+**Research:** researcher_67 gate_passed=true (8 read in full, 18 URLs, 4 recency findings 2024-2026, 15 internal files inspected). ONE staked rec: new `api_call_log` BQ table (not extending `llm_call_log`) because AI telemetry 10-50x volume vs general API + schemas don't overlap (OneUptime 2026).
+**Contract:** PRE-commit to phase-6.7-contract.md (phase-specific; autonomous harness owning rolling). 13 functional criteria.
+**Generator:** New `backend/services/observability/` package (5 files): rate_limit.py (aiolimiter leaky-bucket singleton + sync adaptor + no-op fallback), retry.py (3-attempt / 2x multiplier / 30s cap / full jitter / Retry-After honoring both int-seconds AND HTTP-date), alerting.py (AlertDeduper N=3/5min/1h + critical bypass; raise_cron_alert wrapper with lazy Slack import), api_call_log.py (buffered writers for api_call_log AND llm_call_log tables, 60s/100-row flush, fail-open). Plus: 8 settings keys, new BQ migration (`add_api_call_log.py`), wire-ups in `backend/news/sources/finnhub.py` + `backend/calendar/sources/finnhub_earnings.py`, `llm_call_log` writer retrofit into `ClaudeClient.generate_content` (closes phase-4.14.23 gap). Tests: `backend/tests/test_observability.py` (12 tests, ALL PASS). Regression: 30 passed / 1 skipped across 6.5+6.6+6.7. `aiolimiter>=1.2.1` added to requirements.
+**qa_67_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-J deterministic all green. LLM-judgment confirmed fail-open reachability (finnhub.py:114 `finally` reachable from happy + error branches; `raise_cron_alert` does not re-raise). Mutation resistance: N=3 boundary test, Retry-After path test, buffer isolation test, singleton sharing test all present. 3 non-blocking INFOs (rate_limit._registry race window at cron startup benign; Gemini/OpenAI retrofit deferred; 5 adapter wire-ups pending phase-6.8 -- all disclosed in Known Caveats).
+**Design choices:** leaky-bucket (aiolimiter 1.2.1, 6.7KB zero-dep) over token-bucket for external steady-state limits; separate api_call_log from llm_call_log; in-memory AlertDeduper dict sufficient for single-process asyncio; module-level singletons for limiters; fail-open at every boundary.
+**Decision:** PASS. Task #7 closed. Phase-6 progress 7/8.

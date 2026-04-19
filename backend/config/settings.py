@@ -68,6 +68,16 @@ class Settings(BaseSettings):
     sentiment_use_gemini_flash: bool = Field(False, description="Enable opt-in tier-4 Gemini 2.5 Flash cross-check (default OFF; see phase-6.9 calibration plan).")
     sentiment_haiku_batch_mode: bool = Field(False, description="Route tier-3 Haiku 4.5 calls through Anthropic Batch API (50%% discount) when OK to wait; default OFF for real-time cron.")
 
+    # --- Observability / rate limits / alerting (phase-6.7) ---
+    finnhub_rate_limit_rps: int = Field(25, description="Client-side RPS cap for Finnhub (server limit 30; keep 5 headroom).")
+    benzinga_rate_limit_rps: int = Field(2, description="Client-side RPS cap for Benzinga news endpoint.")
+    alpaca_rate_limit_rps: int = Field(30, description="Client-side RPS cap for Alpaca news endpoint.")
+    fred_rate_limit_rps: int = Field(5, description="Client-side RPS cap for FRED API.")
+    alphavantage_rate_limit_rps: int = Field(1, description="Client-side RPS cap for Alpha Vantage (free-tier is 5 req/min -> 1/sec worst case).")
+    alert_consecutive_failure_threshold: int = Field(3, description="Consecutive failures per (source, error_type) required to fire an alert.")
+    alert_debounce_minutes: int = Field(5, description="Sliding window (min) over which consecutive_failure_threshold is evaluated.")
+    alert_repeat_hours: int = Field(1, description="Minimum hours between repeat alerts for the same (source, error_type).")
+
     # --- Multi-Provider LLM Keys (v3.4) ---
     anthropic_api_key: str = Field("", description="Anthropic API key for direct Claude access (sk-ant-...)")
     openai_api_key: str = Field("", description="OpenAI API key for direct GPT/o-series access (sk-...)")

@@ -28,6 +28,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# phase-4.14.11: hoist the anthropic import to module scope so the
+# typed except clauses (anthropic.RateLimitError / APIStatusError) in
+# ClaudeClient.generate_content can be resolved without lazy-loading.
+# Keep the try/except so environments without the SDK still import
+# the module (non-Claude paths remain usable).
+try:
+    import anthropic as _anthropic_sdk
+except ImportError:  # pragma: no cover - non-Claude test environments
+    _anthropic_sdk = None
+
 
 def _normalize_model_name(model_name: str) -> str:
     """Collapse namespaced GitHub Models IDs back to canonical model keys."""
@@ -241,6 +251,14 @@ class LLMClient(ABC):
 
     model_name: str
 
+    # phase-4.14.12 (MF-37): per-provider capability flags.
+    # Callers should prefer `client.supports_thinking` /
+    # `client.supports_grounding` over `isinstance(client, GeminiClient)`
+    # -- that isolates provider knowledge inside each client class.
+    # Default is conservative (False); concrete subclasses override.
+    supports_thinking: bool = False
+    supports_grounding: bool = False
+
     @abstractmethod
     def generate_content(self, prompt: str, generation_config: dict | None = None) -> LLMResponse:
         """Generate content from a prompt.
@@ -267,6 +285,11 @@ class LLMClient(ABC):
 # ---------------------------------------------------------------------------
 
 class GeminiClient(LLMClient):
+    # phase-4.14.12: Gemini supports both extended thinking (via
+    # thinking budget in generation_config) and Google Search Grounding.
+    supports_thinking = True
+    supports_grounding = True
+
     """Thin wrapper around a Vertex AI GenerativeModel.
 
     Preserves full Phase 3 (structured output), Phase 4 (grounding), and
@@ -544,6 +567,11 @@ class OpenAIClient(LLMClient):
 # ---------------------------------------------------------------------------
 
 class ClaudeClient(LLMClient):
+    # phase-4.14.12: Claude 4.x family supports adaptive/enabled
+    # extended thinking; Google Search Grounding is Gemini-only.
+    supports_thinking = True
+    supports_grounding = False
+
     """Client for Anthropic Claude models via direct API.
 
     Phase 2.12: Supports prompt caching via cache_control on system messages.
@@ -563,11 +591,14 @@ class ClaudeClient(LLMClient):
         self._total_cache_creation_tokens = 0
 
     def _get_client(self):
-        try:
-            import anthropic
-        except ImportError:
-            raise ImportError("anthropic package not installed. Run: pip install anthropic>=0.49.0")
-        return anthropic.Anthropic(api_key=self._api_key)
+        # phase-4.14.11: SDK bumped to >=0.96.0; max_retries=3 explicit
+        # override of default 2. SDK itself respects Retry-After at the
+        # transport layer -- no manual header handling required.
+        if _anthropic_sdk is None:
+            raise ImportError(
+                "anthropic package not installed. Run: pip install anthropic>=0.96.0"
+            )
+        return _anthropic_sdk.Anthropic(api_key=self._api_key, max_retries=3)
 
     @property
     def cache_hit_rate(self) -> float:
@@ -608,13 +639,22 @@ class ClaudeClient(LLMClient):
 
         client = self._get_client()
 
-        # Phase 2.12: Prompt caching — send system as structured block with cache_control
+        # Phase 2.12: Prompt caching -- send system as structured block
+        # with cache_control.
+        # phase-4.14.13 (MF-38): on 2026-03-06 Anthropic silently dropped
+        # the default ephemeral TTL from 1 hour to 5 minutes. Explicitly
+        # pass ttl:"1h" to restore the previous behaviour on hot paths
+        # (Opus 4.7 / Sonnet 4.6 / Haiku 4.5). The cache write still
+        # requires the block to exceed the per-model minimum
+        # (4096 tokens on Opus 4.7 / Haiku 4.5; 2048 on Sonnet 4.6) --
+        # caller responsibility to consolidate skill body + schema +
+        # FACT_LEDGER into the system prompt before the write registers.
         if self.enable_prompt_caching:
             system_arg = [
                 {
                     "type": "text",
                     "text": system_prompt,
-                    "cache_control": {"type": "ephemeral"},
+                    "cache_control": {"type": "ephemeral", "ttl": "1h"},
                 }
             ]
         else:
@@ -647,6 +687,17 @@ class ClaudeClient(LLMClient):
             # Claude REQUIRES temperature=1 whenever thinking is active,
             # for both adaptive and enabled modes.
             kwargs["temperature"] = 1
+
+        # phase-4.14.7: Opus 4.7 rejects temperature / top_p / top_k
+        # with a 400 error on EVERY request (per Anthropic's
+        # "What's new in Claude Opus 4.7" doc -- the restriction is
+        # model-wide, not thinking-gated). Strip AFTER the thinking
+        # branch above so the temperature=1 override does not leak
+        # into 4.7 calls either.
+        if model_id.startswith("claude-opus-4-7"):
+            kwargs.pop("temperature", None)
+            kwargs.pop("top_p", None)
+            kwargs.pop("top_k", None)
 
         # phase-4.14.3 (MF-28): output_config.effort pass-through.
         # Effort is independent of thinking per Anthropic docs -- it
@@ -692,7 +743,161 @@ class ClaudeClient(LLMClient):
         if effort in ("low", "medium", "high", "xhigh", "max"):
             kwargs["output_config"] = {"effort": effort}
 
-        response = client.messages.create(**kwargs)
+        # phase-4.14.9 (MF-33): citations x structured outputs guard.
+        # Anthropic returns 400 when a request sets BOTH
+        # citations.enabled=true on any document/search-result block
+        # AND output_config.format. The two are physically incompatible
+        # (citations interleave citations_delta blocks with text;
+        # structured outputs enforce a single JSON response). Raise
+        # early with a clear message instead of letting the server 400.
+        _citations_requested = bool(config.get("citations"))
+        if _citations_requested and schema is not None:
+            raise ValueError(
+                "citations and output_config (structured outputs) "
+                "cannot be used together: the Anthropic API returns "
+                "400 when both are set. Remove response_schema or "
+                "disable citations."
+            )
+
+        # phase-4.14.5 (MF-30): structured-outputs plumbing.
+        # When the caller supplies a JSON schema (Pydantic model or raw
+        # JSON-Schema dict) AND the model supports output_config.format,
+        # pass it through so Anthropic enforces schema-conforming output
+        # server-side. Response text is still parsed by the caller via
+        # backend.utils.json_io.loads -- we do NOT switch to .parse()
+        # here (that would change LLMResponse shape; out-of-scope).
+        # Supported on Opus 4.7, Opus 4.6, Sonnet 4.6, Haiku 4.5.
+        _fmt_eligible = model_id.startswith((
+            "claude-opus-4-7", "claude-opus-4-6",
+            "claude-sonnet-4-6", "claude-haiku-4-5",
+        ))
+        if schema is not None and _fmt_eligible:
+            try:
+                if hasattr(schema, "model_json_schema"):
+                    schema_dict = schema.model_json_schema()
+                elif isinstance(schema, dict):
+                    schema_dict = schema
+                else:
+                    schema_dict = None
+                if schema_dict is not None:
+                    kwargs.setdefault("output_config", {})["format"] = {
+                        "type": "json_schema",
+                        "schema": schema_dict,
+                    }
+            except Exception as _fmt_err:
+                logger.debug(
+                    "[ClaudeClient] output_config.format skipped: %s", _fmt_err
+                )
+
+        # phase-4.14.23 (MF-41): per-call latency instrumentation.
+        # Use time.perf_counter for a monotonic wall-clock bracket.
+        # ttft_ms is not directly observable on the non-streaming path
+        # -- the SDK returns the full response object in one shot --
+        # so we fold it into latency_ms here and expose both under the
+        # same number. A later streaming-aware instrumentation step can
+        # split them apart.
+        import time as _time
+        _t0 = _time.perf_counter()
+
+        # phase-4.14.11 (MF-35 + MF-36): typed exception handling +
+        # request_id observability. SDK's built-in retry (max_retries=3
+        # at construction) respects Retry-After headers at the transport
+        # layer, so we delegate retry logic to the SDK and only surface
+        # the final exception. Both RateLimitError and APIStatusError
+        # are named explicitly so the verification grep finds them.
+        try:
+            response = client.messages.create(**kwargs)
+        except _anthropic_sdk.RateLimitError as e:
+            _rid = getattr(e, "_request_id", "") or e.response.headers.get("request-id", "") if getattr(e, "response", None) else ""
+            logger.warning(
+                "[ClaudeClient] anthropic.RateLimitError request_id=%s status=%s",
+                _rid, getattr(e, "status_code", "?"),
+            )
+            raise
+        except _anthropic_sdk.APIStatusError as e:
+            _rid = getattr(e, "_request_id", "") or (e.response.headers.get("request-id", "") if getattr(e, "response", None) else "")
+            logger.warning(
+                "[ClaudeClient] anthropic.APIStatusError request_id=%s status=%s",
+                _rid, getattr(e, "status_code", "?"),
+            )
+            raise
+        # phase-4.14.23: compute latency_ms (== ttft_ms on non-streaming)
+        _latency_ms = (_time.perf_counter() - _t0) * 1000.0
+        _ttft_ms = _latency_ms
+        # Success path: log request_id + latency at DEBUG for traceability.
+        logger.debug(
+            "[ClaudeClient] ok request_id=%s model=%s latency_ms=%.1f ttft_ms=%.1f",
+            getattr(response, "_request_id", ""),
+            self.model_name,
+            _latency_ms,
+            _ttft_ms,
+        )
+
+        # phase-4.14.4 (MF-26 + MF-27): full stop_reason dispatch.
+        # The Messages API can return 7 stop_reason values. Each has a
+        # distinct recovery path per Anthropic's handling-stop-reasons
+        # doc. Before this dispatch, only end_turn / tool_use were
+        # observed; max_tokens on an incomplete tool_use tail was
+        # silently truncated and refusal prose was forwarded raw.
+        stop_reason = getattr(response, "stop_reason", None)
+        if stop_reason == "max_tokens":
+            last = response.content[-1] if response.content else None
+            last_type = getattr(last, "type", "")
+            if last_type == "tool_use":
+                # Incomplete tool_use tail -- retry once with doubled
+                # max_tokens (bounded at 8192) so the tool call can
+                # finish serializing. Single-shot; callers own the loop.
+                retry_kwargs = dict(kwargs)
+                retry_kwargs["max_tokens"] = min(max_tokens * 2, 8192)
+                logger.warning(
+                    "[ClaudeClient] stop_reason=max_tokens with tool_use tail; "
+                    "retrying with max_tokens=%d",
+                    retry_kwargs["max_tokens"],
+                )
+                # phase-4.14.11: retry path gets the same typed catch.
+                try:
+                    response = client.messages.create(**retry_kwargs)
+                except _anthropic_sdk.APIStatusError as e:
+                    _rid = getattr(e, "_request_id", "") or (e.response.headers.get("request-id", "") if getattr(e, "response", None) else "")
+                    logger.warning(
+                        "[ClaudeClient] retry after max_tokens failed -- "
+                        "anthropic.APIStatusError request_id=%s status=%s",
+                        _rid, getattr(e, "status_code", "?"),
+                    )
+                    raise
+                stop_reason = getattr(response, "stop_reason", None)
+            else:
+                logger.warning(
+                    "[ClaudeClient] stop_reason=max_tokens on text; partial output"
+                )
+        elif stop_reason == "refusal":
+            # Safety refusal arrives as a successful API response.
+            # Caller should surface a fallback; do not forward raw prose.
+            logger.warning("[ClaudeClient] stop_reason=refusal; returning sentinel")
+            return LLMResponse(
+                text="[refused: model declined this request]",
+                thoughts="",
+                usage_metadata=UsageMeta(),
+            )
+        elif stop_reason == "pause_turn":
+            # Server-tool sampling loop hit its iteration limit. Single
+            # call path: log + return partial. The tool-loop in
+            # multi_agent_orchestrator handles true continuation by
+            # re-requesting without a new user turn.
+            logger.info("[ClaudeClient] stop_reason=pause_turn; returning partial")
+        elif stop_reason == "model_context_window_exceeded":
+            logger.warning(
+                "[ClaudeClient] stop_reason=model_context_window_exceeded; "
+                "caller must compress history"
+            )
+        elif stop_reason == "stop_sequence":
+            logger.debug(
+                "[ClaudeClient] stop_reason=stop_sequence; matched=%s",
+                getattr(response, "stop_sequence", None),
+            )
+        elif stop_reason == "tool_use":
+            logger.debug("[ClaudeClient] stop_reason=tool_use on single-call path")
+        # end_turn -> fall through to normal parsing
 
         # Parse content blocks
         text = ""
@@ -733,6 +938,26 @@ class ClaudeClient(LLMClient):
             cache_creation_input_tokens=cache_creation,
             cache_read_input_tokens=cache_read,
         ) if usage else UsageMeta()
+
+        # phase-6.7: retrofit llm_call_log BQ writer (closes phase-4.14.23 gap).
+        try:
+            from backend.services.observability import log_llm_call as _log_llm_call
+
+            _log_llm_call(
+                provider="anthropic",
+                model=self.model_name,
+                agent=config.get("_role") if isinstance(config, dict) else None,
+                latency_ms=_latency_ms,
+                ttft_ms=_ttft_ms,
+                input_tok=getattr(usage, "input_tokens", 0) or 0 if usage else 0,
+                output_tok=getattr(usage, "output_tokens", 0) or 0 if usage else 0,
+                cache_creation_tok=cache_creation,
+                cache_read_tok=cache_read,
+                request_id=getattr(response, "_request_id", None),
+                ok=True,
+            )
+        except Exception as _exc:  # pragma: no cover -- fail-open
+            logger.debug("[ClaudeClient] llm_call_log write skipped: %r", _exc)
 
         return LLMResponse(text=text, thoughts=thoughts, usage_metadata=umeta)
 

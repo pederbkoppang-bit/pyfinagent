@@ -17,6 +17,7 @@ news adapter fail-open convention at `backend/news/sources/finnhub.py`).
 from __future__ import annotations
 
 import logging
+import time
 from datetime import date
 from typing import Any, Iterable
 
@@ -24,6 +25,12 @@ import requests
 
 from backend.calendar.registry import CalendarSource, register
 from backend.config.settings import get_settings
+from backend.services.observability import (
+    get_rate_limiter,
+    log_api_call,
+    raise_cron_alert,
+    retry_with_backoff,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +52,56 @@ class FinnhubEarningsSource:
             "to": to_date.isoformat(),
             "token": token,
         }
+        limiter = get_rate_limiter("finnhub")
+        limiter.acquire_sync()
+        t0 = time.perf_counter()
+        payload: dict[str, Any] | list = {}
+        status: int | None = None
+        error_kind: str | None = None
+        resp_bytes = 0
         try:
-            resp = requests.get(_ENDPOINT, params=params, timeout=_TIMEOUT_SEC)
+            def _do() -> requests.Response:
+                return requests.get(_ENDPOINT, params=params, timeout=_TIMEOUT_SEC)
+
+            resp = retry_with_backoff(
+                _do,
+                max_attempts=3,
+                base=1.0,
+                multiplier=2.0,
+                cap=30.0,
+                jitter="full",
+                retry_on=(429, 502, 503, 504),
+                honor_retry_after=True,
+            )
+            status = resp.status_code
+            resp_bytes = len(resp.content or b"")
             resp.raise_for_status()
             payload = resp.json()
         except Exception as exc:
+            error_kind = type(exc).__name__
+            if status == 429:
+                error_kind = "RateLimited"
             logger.warning("finnhub earnings fetch failed: %r", exc)
+            raise_cron_alert(
+                source="finnhub_earnings",
+                error_type=error_kind,
+                severity="P2",
+                title=f"Finnhub earnings fetch failed: {error_kind}",
+                details=str(exc)[:500],
+            )
             return
+        finally:
+            latency_ms = (time.perf_counter() - t0) * 1000.0
+            log_api_call(
+                source="finnhub",
+                endpoint=_ENDPOINT,
+                http_status=status,
+                latency_ms=latency_ms,
+                response_bytes=resp_bytes,
+                cost_usd_est=0.0,
+                ok=(status == 200),
+                error_kind=error_kind,
+            )
         for row in payload.get("earningsCalendar", []) or []:
             symbol = str(row.get("symbol") or "").upper()
             report_date = str(row.get("date") or "")
