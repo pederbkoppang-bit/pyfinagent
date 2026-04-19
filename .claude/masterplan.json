@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T12:13:16.475430+00:00",
+  "updated_at": "2026-04-19T12:19:46.853931+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -247,7 +247,7 @@
     {
       "id": "phase-3",
       "name": "LLM-Guided Research + MCP Integration",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-2"
       ],
@@ -312,7 +312,7 @@
         {
           "id": "3.4",
           "name": "Agent Skill Optimization",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
@@ -323,7 +323,8 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T14:20:00+00:00"
         },
         {
           "id": "3.5",
@@ -342,7 +343,8 @@
           "max_retries": 3,
           "superseded_by": "phase-3.5.4"
         }
-      ]
+      ],
+      "completed_at": "2026-04-19T14:20:00+00:00"
     },
     {
       "id": "phase-3.5",

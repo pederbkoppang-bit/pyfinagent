@@ -105,7 +105,8 @@ class OutcomeTracker:
 
             full = stored["full_report_json"]
             if isinstance(full, str):
-                import json
+                # phase-3.4: was json_io.loads (NameError — json_io never
+                # imported); module imports plain `json` at line 9, use it.
                 full = json.loads(full)
 
             price_at_rec = (
