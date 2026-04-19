@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `7055814` | phase-6.5: sentiment scorer ladder (VADER -> FinBERT -> Haiku 4.5 -> Gemini Flash) |
 | 2026-04-18 | `82d8e35` | Merge pull request #21 from pederbkoppang-bit/claude/research-mas-system-cP0Ky |
 | 2026-04-18 | `de58fd0` | CLAUDE.md: correct cycle-2 flow per Anthropic docs (fresh Q/A on file-updated evidence) |
 | 2026-04-18 | `b350743` | agents: add SendMessage to qa + researcher tool lists |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `d52e1c9` | Phase 4.6.7: Slack digest end-to-end PASS |
 | 2026-04-17 | `88e2b36` | Phase 4.6: fix 6 follow-ups via MAS loop -- 4.6.6 -> PASS |
 | 2026-04-17 | `8fdb170` | Phase 4.6: session pause after 6/10 steps resolved |
-| 2026-04-17 | `85d439d` | Phase 4.6.6: install Playwright + rewrite smoketest (CONDITIONAL) |
 
 ---
 
+### v6.5.43 — phase-6.5: sentiment scorer ladder (VADER -> FinBERT -> Haiku 4.5 ->... (2026-04-19)
+
+- **phase-6.5: sentiment scorer ladder (VADER -> FinBERT -> Haiku 4.5 -> Gemini Flash)**
 ### v6.5.42 — Merge pull request #21 from pederbkoppang-bit/claude/research-mas-sys... (2026-04-18)
 
 - **Merge pull request #21 from pederbkoppang-bit/claude/research-mas-system-cP0Ky**
