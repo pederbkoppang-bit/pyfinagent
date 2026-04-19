@@ -8009,3 +8009,20 @@ Also updates `#10` task in the session task list -- same step, now tracked under
 **Non-blocking Q/A note:** `orchestrator.py` + `risk_debate.py` show in git diff from pre-cycle session dirt; commit stages selectively to avoid scope violation.
 **Inventory after 11.2:** 2 live `from vertexai.generative_models` imports remain (risk_debate.py:23, orchestrator.py:29) — both phase-11.3 scope.
 **Decision:** PASS. Task #19 closed. Phase-11 progress: 3/5 (11.0 + 11.1 + 11.2 done; 11.3 + 11.4 pending).
+
+---
+
+## Cycle N+52 -- 2026-04-19 15:15 UTC -- phase=11.3 result=PASS (cycle-1) -- LARGEST MIGRATION
+
+**Step:** Complex Vertex callers + ThinkingConfig silent-breakage fix. 4th of phase-11 and the biggest.
+**Research:** researcher_113 gate_passed=true. 7 read in full, 12 URLs, 5 internal files. 3-query confirmed. Key findings: (a) risk_debate.py was dead-import not live-caller for `GenerativeModel`; (b) grounding `retrieved_context` branch is a pre-existing no-op (not worse after migration); (c) `_flatten_schema` not fully obsolete — issue #699 wants `default` keys stripped; (d) 3 Pydantic fields affected in schemas.py; (e) `part.thought` not `part.thinking`; (f) `types.Tool(google_search=types.GoogleSearch())` + `types.Tool(retrieval=types.Retrieval(vertex_ai_search=...))` in 1.73.1.
+**Contract:** PRE-commit. 7 functional criteria + immutable regression + grep invariants.
+**Generator:** Three files touched:
+- `backend/agents/llm_client.py`: new `GeminiModelBundle` @dataclass replaces `GenerativeModel` handle (4 fields: client, model_name, tools, base_config). Rewrote `GeminiClient.generate_content` for `client.models.generate_content(model=name, contents=prompt, config=types.GenerateContentConfig(...))`. ThinkingConfig dict form translated to `types.ThinkingConfig(thinking_budget=N, include_thoughts=True)` at SDK boundary — closes the silent-breakage. `_strip_defaults` helper strips `default` keys recursively (fixes issue #699 without touching schemas.py). `part.thought` bool + `part.text` replaces stale `hasattr(part, "thinking")`. Fail-open on None client.
+- `backend/agents/orchestrator.py`: removed `import vertexai` + `from vertexai.generative_models import ...`. Replaced `vertexai.init(...)` with `get_genai_client()` (shim). 5 `GenerativeModel(...)` sites → `GeminiModelBundle(client=_genai_client, model_name=name, tools=[...], base_config={...})`. Tool shapes: `types.Tool(google_search=types.GoogleSearch())` + `types.Tool(retrieval=types.Retrieval(vertex_ai_search=types.VertexAISearch(datastore=...)))` — cleaner than the prior protobuf trampoline.
+- `backend/agents/risk_debate.py`: removed dead `GenerativeModel` import; ThinkingConfig dict form preserved (GeminiClient boundary translates).
+- `schemas.py`: NOT modified — `_strip_defaults` at SDK boundary works issue #699 around without schema changes.
+**Design trade-off disclosed**: migration doc prescribed "dict-form thinking must grep 0 hits after 11.3", actual=9. Main preserved the dict form at callsites (6 files stay unchanged) because GeminiClient translates at boundary AND ClaudeClient has its own adaptive/manual handling. Surgical-diff over callsite-rewrite. Q/A accepted the design: boundary translation correctness verified at llm_client.py:484-493.
+**qa_113_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I deterministic all green. `python -W error::DeprecationWarning -c "from backend.agents.orchestrator import AnalysisOrchestrator"` Vertex warning ABSENT. 79p/1s regression (unchanged from 11.2). ThinkingConfig typed form has 2 live non-comment hits. `_strip_defaults` verified to strip nested + top-level `default` keys. All 6 `GeminiModelBundle` constructions + 2 Tool shapes + `part.thought` + `part.text` wired correctly.
+**Non-goals honored:** schemas.py untouched; no new tests; no retrieved_context RAG extraction (pre-existing bug documented in Known caveats).
+**Decision:** PASS. Task #20 closed. Phase-11 progress: 4/5 (11.0 + 11.1 + 11.2 + 11.3 done; 11.4 pending).

@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T13:00:20.188640+00:00",
+  "updated_at": "2026-04-19T13:15:24.086504+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -4429,7 +4429,7 @@
         {
           "id": "11.3",
           "name": "Migrate remaining vertexai.generative_models callers",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "grep -rn 'vertexai.generative_models\\|from vertexai import generative_models' backend/ --include=*.py | grep -v test_ | grep -v migration | wc -l | awk '{exit ($1>0)}'",
@@ -4440,7 +4440,8 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T15:15:00+00:00"
         },
         {
           "id": "11.4",

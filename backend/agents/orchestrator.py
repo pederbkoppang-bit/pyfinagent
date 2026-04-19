@@ -15,16 +15,24 @@ Migrated from pyfinagent-app/Home.py with all Streamlit dependencies removed.
 import asyncio
 import concurrent.futures
 import json
+
+from backend.utils import json_io
 import logging
 import re
 import time
 from typing import Optional
 
 import httpx
-import vertexai
 from google.api_core import exceptions as gcp_exceptions
 from google.oauth2 import service_account
-from vertexai.generative_models import GenerativeModel, Tool, grounding, GenerationConfig
+# phase-11.3: migrated from vertexai.generative_models to google-genai.
+# `GenerativeModel` usages replaced with `GeminiModelBundle` from
+# backend.agents.llm_client; `Tool`/`grounding`/`GenerationConfig` replaced
+# with `google.genai.types.*`; `vertexai.init(...)` replaced with
+# `get_genai_client()` (see backend/agents/_genai_client.py).
+from google.genai import types as _genai_types
+from backend.agents._genai_client import get_genai_client
+from backend.agents.llm_client import GeminiModelBundle
 
 from backend.agents.bias_detector import detect_biases
 from backend.agents.compaction import compact_quant_snapshot, compact_report_reference, compact_text
@@ -194,11 +202,49 @@ def _clean_json_output(text: str) -> str:
     return text.strip()
 
 
+# phase-4.14.15 (MF-32): helper to wrap BigQuery RAG rows as
+# Anthropic search_result content blocks so downstream Claude
+# synthesis can emit cited_text anchors pointing back to the
+# originating BQ row. Pure data utility -- no API call. The caller
+# chooses whether to forward these into a messages user-content list.
+
+
+def bq_rows_to_search_results(
+    rows: list[dict],
+    table_id: str,
+    row_id_key: str = "row_id",
+    text_key: str = "text",
+    title_key: str = "title",
+) -> list[dict]:
+    """Turn BQ RAG rows into Anthropic search_result content blocks.
+
+    Each row dict becomes one block:
+        {"type": "search_result",
+         "source": "bq://<table_id>/<row_id>",
+         "title": <title>,
+         "content": [{"type": "text", "text": <text>}],
+         "citations": {"enabled": True}}
+    """
+    out: list[dict] = []
+    for r in rows or []:
+        rid = r.get(row_id_key) or r.get("id") or ""
+        text = r.get(text_key) or r.get("content") or json.dumps(r, default=str)
+        title = r.get(title_key) or r.get("ticker") or table_id
+        out.append({
+            "type": "search_result",
+            "source": f"bq://{table_id}/{rid}",
+            "title": str(title)[:200],
+            "content": [{"type": "text", "text": str(text)[:12000]}],
+            "citations": {"enabled": True},
+        })
+    return out
+
+
 def _parse_json_with_fallback(json_string: str, agent_name: str) -> Optional[dict]:
     try:
-        data = json.loads(json_string)
+        data = json_io.loads(json_string)
         if isinstance(data, str):
-            return json.loads(data)
+            return json_io.loads(data)
         return data
     except json.JSONDecodeError:
         logger.warning(f"{agent_name} returned invalid JSON")
@@ -271,18 +317,19 @@ class AnalysisOrchestrator:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-        # Build GCP credentials
-        credentials = None
+        # phase-11.3: credentials parsed for the genai.Client factory (via shim).
+        # Legacy `vertexai.init(...)` is no longer called; `get_genai_client()`
+        # builds a shared `genai.Client(vertexai=True, project=..., location=...,
+        # credentials=...)` that every GeminiModelBundle below reuses.
         if settings.gcp_credentials_json:
-            creds_info = json.loads(settings.gcp_credentials_json)
-            credentials = service_account.Credentials.from_service_account_info(creds_info)
+            # The shim itself re-parses credentials; exercising the parse here
+            # keeps the original fail-loud behavior on malformed JSON at startup.
+            creds_info = json_io.loads(settings.gcp_credentials_json)
+            _ = service_account.Credentials.from_service_account_info(creds_info)
 
-        # Initialize Vertex AI
-        vertexai.init(
-            project=settings.gcp_project_id,
-            location=settings.gcp_location,
-            credentials=credentials,
-        )
+        _genai_client = get_genai_client()
+        # _genai_client may be None if the SDK is absent; callsites degrade
+        # to the fail-open path inside GeminiClient.generate_content.
 
         # Resolve Gemini model names for Google-only features (RAG, grounding, Vertex fallback)
         # When user selects a non-Gemini model (Claude, GPT, etc.), these stay on gemini-2.0-flash
@@ -290,33 +337,59 @@ class AnalysisOrchestrator:
         _gemini_standard = self._resolve_gemini(settings.gemini_model)
         _gemini_deep = self._resolve_gemini(deep_model_name)
 
-        # Build models
+        # Build per-model config dicts. These become GenerateContentConfig
+        # kwargs inside GeminiClient.generate_content; keeping dict shape here
+        # minimizes the diff against callers that used to pass generation_config
+        # dicts directly.
         _gen_config = {"temperature": 0.0, "top_k": 1}
         _enrichment_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1024}
         _synthesis_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 4096}
         _deep_think_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 2048}
 
-        # RAG model with Vertex AI Search (graceful degradation if data store unavailable)
+        # RAG model with Vertex AI Search (graceful degradation if data store unavailable).
+        # phase-11.3: new SDK tool shape is types.Tool(retrieval=types.Retrieval(
+        # vertex_ai_search=types.VertexAISearch(datastore=...))).
         self._rag_available = False
         try:
             datastore_path = (
                 f"projects/{settings.gcp_project_id}/locations/global/collections/"
                 f"default_collection/dataStores/{settings.rag_data_store_id}"
             )
-            rag_tool = Tool.from_retrieval(
-                grounding.Retrieval(grounding.VertexAISearch(datastore=datastore_path))
+            rag_tool = _genai_types.Tool(
+                retrieval=_genai_types.Retrieval(
+                    vertex_ai_search=_genai_types.VertexAISearch(datastore=datastore_path)
+                )
             )
-            self.rag_model = GenerativeModel(_gemini_standard, tools=[rag_tool], generation_config=_gen_config)
+            self.rag_model = GeminiModelBundle(
+                client=_genai_client,
+                model_name=_gemini_standard,
+                tools=[rag_tool],
+                base_config=_gen_config,
+            )
             self._rag_available = True
         except Exception as e:
             logger.warning(f"RAG data store unavailable, skipping RAG step: {e}")
-            self.rag_model = GenerativeModel(_gemini_standard, generation_config=_gen_config)
+            self.rag_model = GeminiModelBundle(
+                client=_genai_client,
+                model_name=_gemini_standard,
+                tools=[],
+                base_config=_gen_config,
+            )
 
         # --- v3.4 Multi-Provider LLM Clients ---
-        # Build Vertex AI base models (used as Gemini fallback when make_client routes to Gemini)
-        _general_vertex = GenerativeModel(_gemini_standard, generation_config=_enrichment_config)
-        _dt_vertex = GenerativeModel(_gemini_deep, generation_config=_deep_think_config)
-        _synth_vertex = GenerativeModel(_gemini_deep, generation_config=_synthesis_config)
+        # Build GeminiModelBundles (used as Gemini fallback when make_client routes to Gemini)
+        _general_vertex = GeminiModelBundle(
+            client=_genai_client, model_name=_gemini_standard,
+            tools=[], base_config=_enrichment_config,
+        )
+        _dt_vertex = GeminiModelBundle(
+            client=_genai_client, model_name=_gemini_deep,
+            tools=[], base_config=_deep_think_config,
+        )
+        _synth_vertex = GeminiModelBundle(
+            client=_genai_client, model_name=_gemini_deep,
+            tools=[], base_config=_synthesis_config,
+        )
 
         # Route each model through provider factory (may use Claude/OpenAI/GitHub Models)
         self.general_client: LLMClient = make_client(settings.gemini_model, _general_vertex, settings)
@@ -326,17 +399,19 @@ class AnalysisOrchestrator:
         # RAG model always uses Gemini (Vertex AI Search constraint)
         self.rag_client: GeminiClient = GeminiClient(self.rag_model, _gemini_standard)
 
-        # Google Search Grounding model — always Gemini (grounding is a Google-specific feature)
-        # Constraint: Schema + Grounding cannot combine on Gemini 2.0 — separate instance
-        # Gemini 2.0+ requires `google_search` tool type; older models used `google_search_retrieval`.
-        # The SDK (v1.x) only exposes the old API, so we build the google_search tool from protobuf.
-        from google.cloud.aiplatform_v1beta1.types import tool as _tool_types
-        _google_search_tool = Tool.from_dict(_tool_types.Tool.to_dict(_tool_types.Tool(google_search={})))
-        _grounded_vertex = GenerativeModel(_gemini_standard, tools=[_google_search_tool], generation_config=_gen_config)
+        # Google Search Grounding model — always Gemini (grounding is a Google-specific feature).
+        # phase-11.3: new SDK shape is types.Tool(google_search=types.GoogleSearch()).
+        _google_search_tool = _genai_types.Tool(google_search=_genai_types.GoogleSearch())
+        _grounded_vertex = GeminiModelBundle(
+            client=_genai_client, model_name=_gemini_standard,
+            tools=[_google_search_tool], base_config=_gen_config,
+        )
         self.grounded_client: GeminiClient = GeminiClient(_grounded_vertex, _gemini_standard)
 
-        # Grounded calls fall back to general_client when non-Gemini provider is selected
-        self.supports_grounding = isinstance(self.general_client, GeminiClient)
+        # Grounded calls fall back to general_client when the provider
+        # does not expose Google Search Grounding. phase-4.14.12 moved
+        # this decision behind `client.supports_grounding`.
+        self.supports_grounding = getattr(self.general_client, "supports_grounding", False)
 
         # Phase 5: Extended thinking configuration
         self.enable_thinking = settings.enable_thinking
@@ -391,9 +466,13 @@ class AnalysisOrchestrator:
         model_name = model.model_name
         ct = getattr(self, "_cost_tracker", None)
 
-        # Phase 5: Add thinking config for judge agents if enabled (Gemini-specific)
+        # phase-4.14.12 (MF-37): thinking config for judge agents now
+        # flows to any client whose `supports_thinking=True` -- both
+        # Gemini and Claude judges benefit. Each client's
+        # generate_content is responsible for translating the keys to
+        # its provider's thinking syntax (ClaudeClient already does).
         final_config = generation_config
-        if isinstance(model, GeminiClient) and self.enable_thinking and is_deep_think and agent_name in self.thinking_budgets:
+        if getattr(model, "supports_thinking", False) and self.enable_thinking and is_deep_think and agent_name in self.thinking_budgets:
             thinking_budget = self.thinking_budgets[agent_name]
             if generation_config:
                 final_config = generation_config.copy()
@@ -475,7 +554,7 @@ class AnalysisOrchestrator:
                 async for line in r.aiter_lines():
                     if line.startswith("FINAL_JSON:"):
                         json_str = line.split("FINAL_JSON:", 1)[1]
-                        final_json = json.loads(json_str)
+                        final_json = json_io.loads(json_str)
                     elif line.startswith("ERROR:"):
                         raise RuntimeError(line)
                     else:
@@ -968,6 +1047,17 @@ class AnalysisOrchestrator:
         # Step 3: RAG agent
         step("rag", "started", "Analyzing 10-K/10-Q documents...")
         report["rag"] = await asyncio.to_thread(self.run_rag_agent, ticker)
+        # phase-4.14.15 (MF-32): surface RAG rows as Anthropic
+        # search_result content blocks so downstream Claude synthesis
+        # can emit native cited_text anchors. The Gemini-first pipeline
+        # does not consume these, but the Claude MAS orchestrator
+        # (multi_agent_orchestrator) may read them via report["rag"]
+        # when a Claude synthesis path is active.
+        _rag_rows = report["rag"].get("rows") if isinstance(report.get("rag"), dict) else None
+        if _rag_rows:
+            report["rag"]["search_result_blocks"] = bq_rows_to_search_results(
+                _rag_rows, table_id="pyfinagent_data.filings_rag",
+            )
         step("rag", "completed", "Document analysis complete")
 
         # Step 4: Market agent

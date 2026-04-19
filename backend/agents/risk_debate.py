@@ -13,12 +13,18 @@ aggressive/conservative/neutral round-robin + Risk Judge.
 """
 
 import json
+
+from backend.utils import json_io
 import logging
 import re
 import time
 from typing import Callable, Optional
 
-from vertexai.generative_models import GenerativeModel
+# phase-11.3: removed dead `from vertexai.generative_models import GenerativeModel`.
+# Never instantiated in this module; all calls route through LLMClient. The
+# ThinkingConfig dict form at line ~59 (`{"thinking": {"type": "enabled",
+# "budget_tokens": N}}`) is correctly translated to `types.ThinkingConfig`
+# inside `llm_client.GeminiClient.generate_content` (phase-11.3 rewrite).
 from google.api_core import exceptions as gcp_exceptions
 
 from backend.agents.cost_tracker import CostTracker
@@ -51,8 +57,9 @@ def _generate_with_retry(model: LLMClient, prompt: str, agent_name: str, max_ret
     delay = 5
     effective_model_name = model_name or model.model_name
     config = gen_config or _RISK_GEN_CONFIG
-    # Phase 5: Inject thinking config for Gemini 2.5 judge agents (Gemini-specific)
-    if isinstance(model, GeminiClient) and thinking_budget > 0:
+    # phase-4.14.12: thinking injection now gated on per-client
+    # capability flag; Claude and Gemini both benefit when enabled.
+    if getattr(model, "supports_thinking", False) and thinking_budget > 0:
         config = {**config, "thinking": {"type": "enabled", "budget_tokens": thinking_budget}, "include_thoughts": True}
     for attempt in range(max_retries):
         try:
@@ -68,9 +75,19 @@ def _generate_with_retry(model: LLMClient, prompt: str, agent_name: str, max_ret
             else:
                 raise
         except Exception as e:
-            # Non-GCP providers raise different exceptions
+            # phase-4.14.11: typed exception handling mirrors debate.py.
+            # SDK's built-in retry owns 429 / 5xx + Retry-After; we log
+            # with named anthropic.RateLimitError / APIStatusError and
+            # re-raise. Fragile string-match retry removed.
+            import anthropic  # local import: optional dependency
+            if isinstance(e, (anthropic.RateLimitError, anthropic.APIStatusError)):
+                logger.warning(
+                    "%s anthropic error -- SDK retries exhausted, propagating: %s",
+                    agent_name, type(e).__name__,
+                )
+                raise
             err_name = type(e).__name__.lower()
-            is_transient = any(x in err_name for x in ("ratelimit", "overload", "unavailable"))
+            is_transient = any(x in err_name for x in ("overload", "unavailable"))
             if is_transient and attempt < max_retries - 1:
                 logger.warning(f"{agent_name} {type(e).__name__}. Retry in {delay}s")
                 time.sleep(delay)
@@ -89,7 +106,7 @@ def _clean_json(text: str) -> str:
 
 def _parse_json(text: str, label: str) -> Optional[dict]:
     try:
-        data = json.loads(text)
+        data = json_io.loads(text)
         return data if isinstance(data, dict) else None
     except json.JSONDecodeError:
         logger.warning(f"{label} returned invalid JSON, using raw text")

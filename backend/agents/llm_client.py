@@ -281,8 +281,26 @@ class LLMClient(ABC):
 
 
 # ---------------------------------------------------------------------------
-# GeminiClient — wraps existing Vertex AI GenerativeModel
+# GeminiClient — wraps google-genai SDK (phase-11.3; was Vertex AI GenerativeModel)
 # ---------------------------------------------------------------------------
+
+
+@dataclass
+class GeminiModelBundle:
+    """phase-11.3: replaces vertexai.generative_models.GenerativeModel.
+
+    The new google-genai SDK is client-per-call (`client.models.generate_content(
+    model=name, config=types.GenerateContentConfig(...))`), not model-per-instance
+    like the legacy `GenerativeModel(name, tools=..., generation_config=...)`.
+    This bundle carries the per-model wiring so `GeminiClient.generate_content`
+    can assemble the right call.
+    """
+
+    client: object  # genai.Client or None (fail-open)
+    model_name: str
+    tools: list = field(default_factory=list)
+    base_config: dict = field(default_factory=dict)
+
 
 class GeminiClient(LLMClient):
     # phase-4.14.12: Gemini supports both extended thinking (via
@@ -290,18 +308,23 @@ class GeminiClient(LLMClient):
     supports_thinking = True
     supports_grounding = True
 
-    """Thin wrapper around a Vertex AI GenerativeModel.
+    """Thin wrapper around a google-genai SDK client + model bundle (phase-11.3).
 
     Preserves full Phase 3 (structured output), Phase 4 (grounding), and
-    Phase 5 (extended thinking) compatibility since the underlying model is
-    already wired for those features.
+    Phase 5 (extended thinking) compatibility. The migration from the
+    deprecated `vertexai.generative_models.GenerativeModel` surface is
+    covered in `docs/VERTEX_AI_GENAI_MIGRATION.md`.
     """
 
     def __init__(self, model, model_name: str):
         """
         Args:
-            model: A vertexai.generative_models.GenerativeModel instance
-            model_name: String name for cost tracking (e.g. "gemini-2.0-flash")
+            model: A `GeminiModelBundle` wrapping a google-genai client +
+                per-model config + tools. (phase-11.3: was a
+                vertexai.generative_models.GenerativeModel.)
+            model_name: String name for cost tracking (e.g. "gemini-2.0-flash").
+                Kept for backward compatibility with legacy callsites; must
+                match `model.model_name` when the bundle is non-None.
         """
         self._model = model
         self.model_name = model_name
@@ -384,49 +407,147 @@ class GeminiClient(LLMClient):
         resolved = _resolve({k: v for k, v in schema.items() if k != "$defs"})
         return resolved if isinstance(resolved, dict) else {"type": "object"}
 
+    @staticmethod
+    def _strip_defaults(schema: object) -> object:
+        """phase-11.3: remove `default` keys recursively.
+
+        python-genai 1.73.1 rejects response_schema dicts that contain
+        `default` values (GitHub issue #699, still open). Applied as a
+        post-pass after `_flatten_schema`. `Field(default_factory=list)`
+        on `ModeratorConsensus.contradictions` / `.dissent_registry` and
+        `CriticVerdict.issues` all emit `"default": []` into the JSON
+        Schema output; this strips those at the SDK boundary.
+        """
+        if isinstance(schema, dict):
+            return {
+                k: GeminiClient._strip_defaults(v)
+                for k, v in schema.items()
+                if k != "default"
+            }
+        if isinstance(schema, list):
+            return [GeminiClient._strip_defaults(item) for item in schema]
+        return schema
+
     def generate_content(self, prompt: str, generation_config: dict | None = None) -> LLMResponse:
+        """phase-11.3 migrated path: google-genai SDK via GeminiModelBundle.
+
+        Legacy shape (vertexai): `self._model.generate_content(prompt,
+        generation_config={...})` on a GenerativeModel instance.
+
+        New shape (google-genai): `self._model.client.models.generate_content(
+        model=self._model.model_name, contents=prompt,
+        config=types.GenerateContentConfig(...))`.
+        """
+        from google.genai import types as _genai_types  # local: avoid import cost if Claude-only session
         import concurrent.futures
-        # Convert Pydantic model class → flattened JSON schema dict for response_schema.
-        # Vertex AI SDK v1.141+ no longer auto-converts Pydantic classes to proto Schema,
-        # and it also rejects $defs/$ref — so we must fully inline all nested definitions.
-        if generation_config and "response_schema" in generation_config:
-            schema = generation_config["response_schema"]
+
+        # Fail-open: if the bundle has no client (e.g., SDK absent), return
+        # an empty LLMResponse. Matches the shim contract.
+        bundle = self._model
+        if bundle is None or getattr(bundle, "client", None) is None:
+            logger.warning("[GeminiClient] no google-genai client; returning empty LLMResponse")
+            return LLMResponse(text="", thoughts="", usage_metadata=UsageMeta())
+
+        generation_config = dict(generation_config or {})
+
+        # 1. Build response_schema for structured output.
+        #    Order: raw Pydantic -> JSON Schema -> _flatten_schema (Vertex
+        #    subset) -> _strip_defaults (issue #699 workaround).
+        response_schema_obj = None
+        if "response_schema" in generation_config:
+            schema = generation_config.pop("response_schema")
             if isinstance(schema, type) and hasattr(schema, "model_json_schema"):
                 raw = schema.model_json_schema()
-                logger.debug(f"[GeminiClient] Converting Pydantic class {schema.__name__} to dict (has $defs: {'$defs' in raw})")
+                logger.debug(
+                    "[GeminiClient] Converting Pydantic class %s to dict (has $defs: %s)",
+                    schema.__name__,
+                    "$defs" in raw,
+                )
                 schema = raw
             if isinstance(schema, dict):
                 schema = self._flatten_schema(schema)
-                # Verify no banned fields remain
+                schema = self._strip_defaults(schema)
                 _dump = str(schema)
-                if "$defs" in _dump or "$ref" in _dump or "anyOf" in _dump:
-                    logger.error(f"[GeminiClient] SCHEMA STILL HAS BANNED FIELDS after flatten: {_dump[:500]}")
-            generation_config = {**generation_config, "response_schema": schema}
-        gen_kwargs = {"generation_config": generation_config} if generation_config else {}
+                if "$defs" in _dump or "$ref" in _dump or "anyOf" in _dump or '"default"' in _dump:
+                    logger.error(
+                        "[GeminiClient] SCHEMA STILL HAS BANNED FIELDS after flatten+strip: %s",
+                        _dump[:500],
+                    )
+            response_schema_obj = schema
+
+        response_mime = generation_config.pop("response_mime_type", None)
+
+        # 2. Build ThinkingConfig from the legacy dict form.
+        #    phase-11.3: the old `generation_config={"thinking": {"type":
+        #    "enabled", "budget_tokens": N}}` dict was silently IGNORED by
+        #    the new SDK; this fix moves it to the canonical typed form.
+        thinking_cfg = generation_config.pop("thinking", None)
+        typed_thinking = None
+        if isinstance(thinking_cfg, dict):
+            budget = int(thinking_cfg.get("budget_tokens", 0) or 0)
+            if budget > 0:
+                typed_thinking = _genai_types.ThinkingConfig(
+                    thinking_budget=budget,
+                    include_thoughts=True,
+                )
+
+        # 3. Assemble the top-level config.
+        gc_kwargs = {}
+        for k in ("temperature", "top_k", "top_p", "max_output_tokens"):
+            if k in generation_config:
+                gc_kwargs[k] = generation_config.pop(k)
+        if response_mime is not None:
+            gc_kwargs["response_mime_type"] = response_mime
+        if response_schema_obj is not None:
+            gc_kwargs["response_schema"] = response_schema_obj
+        if typed_thinking is not None:
+            gc_kwargs["thinking_config"] = typed_thinking
+        if bundle.tools:
+            gc_kwargs["tools"] = list(bundle.tools)
+        # Merge any persistent bundle.base_config (lowest priority)
+        for k, v in (bundle.base_config or {}).items():
+            gc_kwargs.setdefault(k, v)
+
+        config = _genai_types.GenerateContentConfig(**gc_kwargs) if gc_kwargs else None
+
+        # 4. Make the call.
+        def _do_call():
+            return bundle.client.models.generate_content(
+                model=bundle.model_name,
+                contents=prompt,
+                config=config,
+            )
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(self._model.generate_content, prompt, **gen_kwargs)
+            future = executor.submit(_do_call)
             response = future.result(timeout=120)
 
-        # Extract text
+        # 5. Extract text.
         try:
             text = response.text
-        except ValueError:
-            parts = response.candidates[0].content.parts
-            text = "\n".join(p.text for p in parts if hasattr(p, "text") and p.text)
+        except (ValueError, AttributeError):
+            try:
+                parts = response.candidates[0].content.parts
+                text = "\n".join(p.text for p in parts if hasattr(p, "text") and p.text)
+            except Exception:
+                text = ""
 
-        # Extract thoughts (Phase 5)
+        # 6. Extract thoughts (phase-11.3: new SDK uses `part.thought` bool + `part.text`).
         thoughts = ""
         try:
             candidate = response.candidates[0] if response.candidates else None
             if candidate:
                 for part in getattr(candidate.content, "parts", []) or []:
-                    if hasattr(part, "thinking"):
-                        thoughts = str(part.thinking)[:2000]
+                    # Gemini 2.5 thinking: part.thought==True marks a thinking segment.
+                    if getattr(part, "thought", False):
+                        thoughts = str(getattr(part, "text", ""))[:2000]
                         break
         except Exception:
             pass
 
-        # Extract grounding (Phase 4)
+        # 7. Extract grounding (Phase 4). `web` attribute path preserved; `retrieved_context`
+        #    (Vertex AI Search / RAG) branch is a documented follow-up gap — the pre-migration
+        #    code only handled `web` too, so parity is preserved.
         grounding_sources: list[dict] = []
         try:
             candidate = response.candidates[0] if response.candidates else None
@@ -443,7 +564,7 @@ class GeminiClient(LLMClient):
         except Exception:
             pass
 
-        # Normalize usage
+        # 8. Normalize usage.
         usage = getattr(response, "usage_metadata", None)
         umeta = UsageMeta(
             prompt_token_count=getattr(usage, "prompt_token_count", 0) or 0,
