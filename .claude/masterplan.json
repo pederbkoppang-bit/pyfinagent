@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T13:15:24.086504+00:00",
+  "updated_at": "2026-04-19T13:23:00.408997+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -4367,7 +4367,7 @@
     },
     {
       "id": "phase-11",
-      "status": "pending",
+      "status": "done",
       "name": "Vertex AI generative-models SDK migration",
       "description": "Google deprecated the Vertex AI `vertexai.generative_models` SDK on 2025-06-24 and will remove it on 2026-06-24. Migrate to the replacement `google-genai` SDK (`from google import genai`) per https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk. Our test suite surfaces the deprecation warning on every evaluator_agent import (vertexai/generative_models/_generative_models.py:433). User explicitly requested this be added as the final masterplan step on 2026-04-19.",
       "created_at": "2026-04-19T12:13:16.475278+00:00",
@@ -4446,7 +4446,7 @@
         {
           "id": "11.4",
           "name": "Remove vertexai dep + CI warning filter for the deprecation",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "grep -E '^vertexai|vertexai==' backend/requirements.txt | wc -l | awk '{exit ($1>0)}'",
@@ -4458,9 +4458,11 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T15:25:00+00:00"
         }
-      ]
+      ],
+      "completed_at": "2026-04-19T15:25:00+00:00"
     },
     {
       "id": "phase-12",

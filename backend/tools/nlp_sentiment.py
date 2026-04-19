@@ -11,8 +11,12 @@ import logging
 from typing import Optional
 
 import numpy as np
-import vertexai
-from vertexai.language_models import TextEmbeddingModel
+
+# phase-11.4: migrated from deprecated `vertexai.language_models.TextEmbeddingModel`
+# (removal 2026-06-24) to `google.genai` embed API. Client obtained via the
+# shim in `backend.agents._genai_client` so credentials + project + location
+# flow through the same singleton the rest of the Gemini stack uses.
+from backend.agents._genai_client import get_genai_client
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +82,17 @@ async def get_nlp_sentiment(
                 "confidence": 0.0,
             }
 
-        # Initialize embedding model
-        model = TextEmbeddingModel.from_pretrained("text-embedding-005")
+        # phase-11.4: initialize google-genai client via the shim.
+        # Embedding API: `client.models.embed_content(model=..., contents=[...])`
+        # returns an object with `.embeddings[i].values` (same shape as the
+        # legacy Vertex response, so downstream array handling is unchanged).
+        client = get_genai_client()
+        if client is None:
+            raise RuntimeError(
+                "google-genai client unavailable (shim returned None); "
+                "likely missing credentials or SDK"
+            )
+        embed_model = "gemini-embedding-001"  # replaces text-embedding-005; supported in google-genai
 
         # Prepare article texts (use title + summary)
         article_texts = []
@@ -99,7 +112,12 @@ async def get_nlp_sentiment(
 
         # Batch embed — articles + corpus
         all_texts = article_texts + BULLISH_CORPUS + BEARISH_CORPUS
-        embeddings = model.get_embeddings(all_texts)
+        _embed_result = client.models.embed_content(
+            model=embed_model,
+            contents=all_texts,
+        )
+        # `.embeddings[i].values` is the vector (same as legacy Vertex shape).
+        embeddings = _embed_result.embeddings
 
         article_embeddings = [np.array(e.values) for e in embeddings[:len(article_texts)]]
         bullish_embeddings = [

@@ -8026,3 +8026,24 @@ Also updates `#10` task in the session task list -- same step, now tracked under
 **qa_113_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I deterministic all green. `python -W error::DeprecationWarning -c "from backend.agents.orchestrator import AnalysisOrchestrator"` Vertex warning ABSENT. 79p/1s regression (unchanged from 11.2). ThinkingConfig typed form has 2 live non-comment hits. `_strip_defaults` verified to strip nested + top-level `default` keys. All 6 `GeminiModelBundle` constructions + 2 Tool shapes + `part.thought` + `part.text` wired correctly.
 **Non-goals honored:** schemas.py untouched; no new tests; no retrieved_context RAG extraction (pre-existing bug documented in Known caveats).
 **Decision:** PASS. Task #20 closed. Phase-11 progress: 4/5 (11.0 + 11.1 + 11.2 + 11.3 done; 11.4 pending).
+
+---
+
+## Cycle N+53 -- 2026-04-19 15:25 UTC -- phase=11.4 result=PASS (cycle-1) -- PHASE-11 COMPLETE
+
+**Step:** Remove vertexai dep. Final step of phase-11 (Vertex → google-genai migration, deadline 2026-06-24).
+**Research:** researcher_114 gate_passed=true. 6 read in full, 10 URLs, 11 internal files. Three-query confirmed. Critical catch: `backend/requirements.txt` has no `vertexai` line to remove (vertexai is a submodule of google-cloud-aiplatform, not a separate distribution). BUT `backend/tools/nlp_sentiment.py:14-15` had an un-migrated `vertexai.language_models.TextEmbeddingModel` import — ALSO deprecated same deadline. Phase-11.0 inventory missed this (used a tighter `vertexai.generative_models` grep).
+**Contract:** Minimal (masterplan immutable was trivially grep-zero). Scope added in the contract: migrate the missed nlp_sentiment.py import.
+**Generator:** `backend/tools/nlp_sentiment.py`: swapped `vertexai.language_models.TextEmbeddingModel.from_pretrained("text-embedding-005").get_embeddings(texts)` → `get_genai_client().models.embed_content(model="gemini-embedding-001", contents=texts).embeddings`. Response shape `.embeddings[i].values` preserved the downstream numpy + cosine-similarity math; dimension shift (768→3072) is benign for the bull-vs-bear differential (dimension-agnostic). Fail-open: shim-None triggers existing rules-based lexicon fallback.
+**Pre-Q/A self-check ran inventory grep + full regression** before submitting. Found zero new issues.
+**qa_114_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-H deterministic all green. `grep ^vertexai requirements.txt | wc -l` = 0. Zero live `vertexai` imports (backend + scripts). `-W error::DeprecationWarning` import exits 0. 79p/1s regression. Scope single-file (nlp_sentiment). Response shape VERIFIED at SDK introspection (`google.genai.types.ContentEmbedding.model_fields == ['values', 'statistics']` — `.embeddings[i].values` is correct path, NOT `.embedding.values`).
+**Phase-11 closure:**
+- 5/5 steps done (11.0 audit + plan, 11.1 pin + shim, 11.2 trivial migrations, 11.3 complex + ThinkingConfig fix, 11.4 final sweep + nlp_sentiment).
+- Zero live `vertexai.*` imports in the tree.
+- Zero DeprecationWarning from Vertex on migrated import paths.
+- `google-genai==1.73.1` shim consolidates new SDK surface.
+- `google-cloud-aiplatform==1.142.0` preserved for BigQuery + Vertex AI Search non-generative.
+- ThinkingConfig silent-breakage closed (boundary translation).
+- Issue #699 workaround at SDK boundary.
+- 79 tests passing; 0 regressions across entire phase-11 rollout.
+**Decision:** PASS. Task #21 closed. Task #17 (phase-11 parent) closed. **PHASE-11 COMPLETE.**
