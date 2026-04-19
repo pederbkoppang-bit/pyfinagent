@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `78fa5240` | phase-12.1: colored Deployment + Service manifests + README |
 | 2026-04-19 | `b513f5b3` | phase-12.0: Rainbow Deploys audit + scope boundary (cycle-2 PASS) |
 | 2026-04-19 | `64fbb164` | phase-11.4: migrate nlp_sentiment + remove last Vertex surface — PHASE-11 COMPLETE |
 | 2026-04-19 | `41e1ffa9` | phase-11.3: complex Vertex callers + ThinkingConfig silent-breakage fix |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `7055814` | phase-6.5: sentiment scorer ladder (VADER -> FinBERT -> Haiku 4.5 -> Gemini Flash) |
 | 2026-04-18 | `82d8e35` | Merge pull request #21 from pederbkoppang-bit/claude/research-mas-system-cP0Ky |
 | 2026-04-18 | `de58fd0` | CLAUDE.md: correct cycle-2 flow per Anthropic docs (fresh Q/A on file-updated evidence) |
-| 2026-04-18 | `b350743` | agents: add SendMessage to qa + researcher tool lists |
 
 ---
 
+### v6.5.60 — phase-12.1: colored Deployment + Service manifests + README (2026-04-19)
+
+- **phase-12.1: colored Deployment + Service manifests + README**
 ### v6.5.59 — phase-12.0: Rainbow Deploys audit + scope boundary (cycle-2 PASS) (2026-04-19)
 
 - **phase-12.0: Rainbow Deploys audit + scope boundary (cycle-2 PASS)**
