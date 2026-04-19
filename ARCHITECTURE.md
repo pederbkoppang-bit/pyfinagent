@@ -268,11 +268,21 @@ User (Slack / iMessage / webchat)
 
 ### MCP Servers (`backend/agents/mcp_servers/`)
 
-| Server | Purpose |
-|--------|---------|
-| `data_server.py` | Market data access (yfinance, FRED, BQ) |
-| `backtest_server.py` | Backtest execution + results |
-| `signals_server.py` | Signal generation + portfolio |
+| Server | Purpose | Phase |
+|--------|---------|-------|
+| `data_server.py` | Read-only market data (yfinance, FRED, BQ) | 3.0 |
+| `backtest_server.py` | Backtest execution + results | 3.0 |
+| `signals_server.py` | Signal generation + validation + publish | 3.0 / 3.7.2 |
+| `risk_server.py` | Risk gate: kill_switch, PBO veto, 6 tools | 3.7.3 |
+
+Cross-cutting infra (not MCP servers but part of the MCP architecture):
+- `backend/agents/mcp_capabilities.py` -- HMAC-SHA256 capability tokens (30-min TTL per NIST SP 800-63B-4), 6 roles mapped to fixed scope sets, PII scrub on inbound args (phase-3.7.7)
+- `backend/services/mcp_health_cron.py` -- weekly supply-chain health monitor: stale repo detection, license audit, CVE scan (phase-3.5.7)
+- `.mcp.json` -- external MCP server registry (Slack, Alpaca), version-pinned for supply-chain hardening (phase-3.7.6 / phase-3.0)
+
+Detailed reference:
+- `docs/MCP_ARCHITECTURE.md` -- server inventory, transport choice, phase lineage, ADR cross-links
+- `docs/MCP_SECURITY.md` -- threat model, capability tokens, PII scrub, supply-chain pinning, rate-limit deferral rationale
 
 ### Slack Bot (`backend/slack_bot/`)
 
@@ -425,3 +435,86 @@ pyfinagent/
 - [TradingAgents: Multi-Agents LLM Financial Trading Framework](https://arxiv.org/abs/2412.20138)
 - Bailey & López de Prado (2014): Deflated Sharpe Ratio
 - Lo (2002): Serial correlation correction for Sharpe ratio
+
+## Anthropic Files API — ZDR status (phase-4.14.16)
+
+pyfinAgent uses the Anthropic beta Files API (header
+`anthropic-beta: files-api-2025-04-14`) for SEC filings >32 MB via
+`backend/tools/sec_insider.py::upload_large_filing_to_files_api`.
+Uploaded `file_id`s are re-referenced across downstream pipeline calls
+so the filing bytes are only transmitted once.
+
+**ZDR status:** the Files API is NOT eligible for zero-data-retention
+as of 2026-04. Do NOT upload filings containing customer PII through
+this pathway. Re-evaluate when Anthropic changes ZDR eligibility.
+
+## Research Gate Discipline (phase-4.16)
+
+MADR-style record of the research-gate rules every MAS cycle
+follows. This is the REFERENCE doc; the how-to lives in
+`.claude/rules/research-gate.md`, and the agent-facing rules live
+in `.claude/agents/researcher.md`. Cross-link only -- do not
+duplicate.
+
+### Context
+
+Phase-4.16.1 raised the research-gate floor from >=3 sources to
+>=5 sources read in full + a mandatory last-2-year scan, after
+Peder flagged cycles (e.g. researcher_64) that cited 3 URLs in a
+footer but fetched only 1 in full. Anthropic's built-multi-agent-research-system
+post confirms "agents consistently chose SEO-optimized content
+farms over authoritative but less highly-ranked sources" -- the
+enforced floor is the countermeasure.
+
+### Decision
+
+Every `researcher` spawn (any tier) must:
+
+1. Fetch and read IN FULL at least **5** authoritative sources via
+   `WebFetch`. Tier (simple/moderate/complex) controls DEPTH and
+   LENGTH of the brief, never the source floor.
+2. Perform an explicit **last-2-year scan** (e.g. 2024-2026 at
+   time of writing). Report outcome even when "no new findings".
+3. Emit the JSON envelope unconditionally with
+   `external_sources_read_in_full`, `snippet_only_sources`,
+   `recency_scan_performed`, `gate_passed`.
+4. Return `gate_passed: false` when fewer than 5 sources were
+   fetched in full, rather than padding the brief.
+
+### Consequences
+
+Q/A gates PASS/CONDITIONAL verdicts on the JSON envelope. A
+brief that lists 5 URLs in a footer but only fetched 1 is a
+CONDITIONAL (auditable). The supplementary-researcher pattern
+(cycle-2 with a fresh researcher spawn) is the documented repair
+when a brief under-fetches.
+
+### Handoff folder convention (phase-4.16.2)
+
+- `handoff/current/` -- the **currently-in-flight** step's files
+  plus `_templates/` (canonical MD scaffolds). No done-step files.
+- `handoff/archive/phase-<sid>/` -- completed-step snapshots.
+  Populated by `.claude/hooks/archive-handoff.sh` on masterplan
+  status flip. Idempotent with `-v{n}` suffix.
+- `handoff/audit/` -- append-only JSONL audit streams from hooks
+  (pre_tool_use, config_change, instructions_loaded,
+  prompt_leak_redteam).
+- `handoff/logs/` -- runtime process logs (gitignored).
+
+Backfill + verifier at `scripts/housekeeping/`. The verifier is
+the immutable criterion for phase-4.16.2.
+
+### Confirmation
+
+- `grep -q "Research Gate" ARCHITECTURE.md` -- this section anchors
+  the reference.
+- `grep -q "5 sources" .claude/rules/*.md` -- the how-to file
+  carries the agent-visible clause.
+- `python scripts/housekeeping/verify_handoff_layout.py` exits 0.
+
+### Cross-references
+
+- `.claude/agents/researcher.md` (agent prompt)
+- `.claude/rules/research-gate.md` (how-to guide)
+- `CLAUDE.md` (authoritative cycle protocol; cross-links here)
+- `docs/runbooks/per-step-protocol.md` (operator runbook)

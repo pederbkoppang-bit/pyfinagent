@@ -7568,3 +7568,153 @@ qa_41426_v2 PASS all 3 criteria.
 **Known caveats (all honestly disclosed):** BQ tables not live (migrations = operator action); live backfill not exercised (no API keys); sentiment fell through to Haiku tier (vaderSentiment/transformers absent in venv); Fed/FRED/AlphaVantage adapter wire-ups + Gemini/OpenAI llm_call_log retrofits deferred; no MERGE idempotency (at-least-once acceptable per research).
 **Phase-6 closure:** 8 of 8 steps done. Ship target: news_articles + news_sentiment + calendar_events + llm_call_log + api_call_log BQ pipeline end-to-end.
 **Decision:** PASS. Task #8 closed. **PHASE-6 COMPLETE.**
+
+---
+
+## Cycle 1 -- 2026-04-19 09:31 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 10:03 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 11:06 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 11:06 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 11:07 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 11:14 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 11:16 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 11:19 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle N+44 -- 2026-04-19 13:30 UTC -- phase=3.0 result=PASS (cycle-2)
+
+**Step:** MCP Server Architecture (documentation consolidation).
+**Research:** researcher_30 gate_passed=true (7 read in full, 14 internal files inspected). ONE staked rec: "narrow documentation consolidation" — code already shipped in phase-3.0 archive PASS 2026-03-29 + phase-3.7 hardening; two contracted doc files never written.
+**Contract:** PRE-commit. 7 functional criteria + immutable verification `run_harness.py --dry-run --cycles 1`.
+**Generator:** Created `docs/MCP_ARCHITECTURE.md` (~120 lines: inventory + transport + data flow + tool-description principle + supply-chain + ADR cross-links + gaps) + `docs/MCP_SECURITY.md` (~110 lines: threat model + capability tokens + PII scrub + supply-chain pinning + output caps + rate-limit deferral + audit log + incident response). Updated `ARCHITECTURE.md:269-295` to add risk_server.py + mcp_capabilities.py + mcp_health_cron.py + cross-links. Pinned `alpaca-mcp-server==2.0.1` in `.mcp.json` (closes phase-3.7.6 supply-chain action item). No Python code modified.
+**qa_30_v1 (cycle-1):** CONDITIONAL. Two blockers caught: (B1) Capability Tokens section had invented role names (`analyst/trader/risk_reviewer/researcher/harness/admin`) vs real `{researcher,strategy,risk,evaluator,orchestrator,paper_trader}` at `mcp_capabilities.py:57-70`; wrong scope tokens; wrong private-prefix name `_ROLE_SCOPES` vs public `ROLE_SCOPES`. (B2) Audit log section referenced an `mcp_audit` BQ table that doesn't exist (no migration, zero tree hits).
+**Cycle-2 fix:** Rewrote Capability Tokens section against verified source code (6 real roles + exact scope sets + correct TTL constant + correct exception classes). Rewrote PII scrub section with real `_PII_PATTERNS` + literal `[REDACTED]` marker. Demoted Audit log to "documented gap" with explicit "no BQ table exists today" + scoped 3-step follow-up. Appended Follow-up section to evaluator_critique; updated experiment_results Known caveats.
+**qa_30_v2 (cycle-2):** PASS, 0 violated_criteria. Anti-verdict-shop check cleared (Follow-up section present; experiment-results Known caveats updated). All 11 Capability Tokens claims verified 1:1 against `mcp_capabilities.py:47,57-70,73-86`. `grep -r mcp_audit backend/ scripts/ docs/` returns hits only in the doc itself (zero code/migration). Immutable `run_harness.py --dry-run --cycles 1` exit 0; Sharpe=1.1705, DSR=0.9526 preserved.
+**Lesson for future doc-consolidation cycles:** grep-verify every specific claim against source before the cycle-1 Q/A; avoid invented role/scope/file names even when they're "plausible from the research brief summary".
+**Decision:** PASS. Task #12 partial. Phase-3 progress 1/5 pending (3.0 done; 3.1-3.4 remain; 3.5 superseded).

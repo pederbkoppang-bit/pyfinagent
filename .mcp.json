@@ -12,7 +12,7 @@
     "alpaca": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["alpaca-mcp-server"],
+      "args": ["--from", "alpaca-mcp-server==2.0.1", "alpaca-mcp-server"],
       "env": {
         "ALPACA_API_KEY_ID": "${ALPACA_API_KEY_ID}",
         "ALPACA_API_SECRET_KEY": "${ALPACA_API_SECRET_KEY}",
