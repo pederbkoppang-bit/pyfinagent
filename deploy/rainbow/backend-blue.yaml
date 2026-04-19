@@ -1,0 +1,58 @@
+# phase-12.1 Rainbow deploy -- backend BLUE Deployment.
+# Color label is the Service selector's target. Flipping the Service
+# selector `color:` from blue to green promotes a release in <30s.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pyfinagent-backend-blue
+  labels:
+    app: pyfinagent-backend
+    color: blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pyfinagent-backend
+      color: blue
+  template:
+    metadata:
+      labels:
+        app: pyfinagent-backend
+        color: blue
+    spec:
+      # Give in-flight SSE streams + analysis requests 60s to drain on
+      # pod termination. Independent of the Service-selector flip.
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: backend
+          image: pyfinagent-backend:v0.1.0
+          # Never: local-load-only for the initial MVP. Flip to
+          # IfNotPresent once a registry is wired in phase-12.4-adjacent.
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

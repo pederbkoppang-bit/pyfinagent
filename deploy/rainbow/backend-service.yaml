@@ -1,0 +1,24 @@
+# phase-12.1 Rainbow deploy -- backend Service.
+# This is the ONE file that operators patch during a color flip:
+#   kubectl patch service pyfinagent-backend -p '{"spec":{"selector":{"color":"green"}}}'
+# Rollback = flip the same `color:` back to the previous value.
+#
+# Selector starts at blue. Green is pre-deployed via backend-green.yaml
+# BEFORE the selector flip; rollback pods stay up for connection drain.
+apiVersion: v1
+kind: Service
+metadata:
+  name: pyfinagent-backend
+  labels:
+    app: pyfinagent-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: pyfinagent-backend
+    # RAINBOW COLOR SELECTOR -- flip this to promote; flip back to roll back.
+    color: blue
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP

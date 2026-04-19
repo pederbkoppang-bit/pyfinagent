@@ -1,0 +1,51 @@
+# phase-12.1 Rainbow deploy -- slack_bot BLUE Deployment.
+# Socket Mode worker: no inbound HTTP port, so NO Service is created.
+# Liveness check via exec probe on a sentinel file; readiness omitted
+# (no K8s traffic routing depends on this Deployment).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pyfinagent-slack-bot-blue
+  labels:
+    app: pyfinagent-slack-bot
+    color: blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pyfinagent-slack-bot
+      color: blue
+  template:
+    metadata:
+      labels:
+        app: pyfinagent-slack-bot
+        color: blue
+    spec:
+      # Give in-flight Slack message handlers 60s to drain.
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: slack-bot
+          image: pyfinagent-backend:v0.1.0
+          imagePullPolicy: Never
+          command: ["python", "-m", "backend.slack_bot.app"]
+          # No containerPort -- Socket Mode dials out to Slack.
+          livenessProbe:
+            # Socket Mode: we can't probe via HTTP. Use an exec probe
+            # that checks for a sentinel file the app writes when the
+            # WebSocket connection is established. phase-12.1 scope
+            # keeps the sentinel path as a convention; wiring the
+            # actual `open('/tmp/healthy', 'w')` into app.py is a
+            # follow-up.
+            exec:
+              command: ["sh", "-c", "test -f /tmp/healthy || test $(date +%s) -lt $((60 + $(stat -c %Y /proc/1 2>/dev/null || echo 0)))"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

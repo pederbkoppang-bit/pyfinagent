@@ -8066,3 +8066,14 @@ Also updates `#10` task in the session task list -- same step, now tracked under
 **qa_120_v2 (cycle-2):** PASS. Anti-shop cleared (Follow-up section present). B1 frontend Dockerfile claim corrected. B2 phase-12.4 scope reassignment recorded in both plan doc + masterplan (verification block preserved). Immutable: 8,476 bytes. Regression: 79p/1s.
 **Cross-cycle observation:** this is the 4th cycle (phase-3.0 c1, phase-audit c1, phase-3.1 c1, phase-12.0 c1) where cycle-1 shipped with an invented or wrong code-claim specific that Q/A caught. Pre-Q/A self-check is catching these progressively more often but still missed on the researcher-authored doc. Lesson: when the researcher writes the deliverable, Main must SPOT-CHECK every file-exists / file-not-exists claim against `ls` / `test -f` before submitting.
 **Decision:** PASS cycle-2. Task #22 closed. Phase-12 progress: 1/5.
+
+---
+
+## Cycle N+55 -- 2026-04-19 16:20 UTC -- phase=12.1 result=PASS (cycle-1)
+
+**Step:** Colored Deployment + Service manifests + README. 2nd step of phase-12.
+**Research:** researcher_121 gate_passed=true. 5 read in full, 12 URLs, 3 internal files. 3-query discipline. Staked recs: backend probe `/api/health` (confirmed at `backend/main.py:294`, in _PUBLIC_PATHS, suppressed from access logs); slack_bot exec liveness (no Service, outbound-only); image tag v0.1.0 with imagePullPolicy Never for local-load MVP.
+**Contract:** PRE-commit. 9 functional criteria + immutable `ls deploy/rainbow/*.yaml | wc -l ≥ 2`.
+**Generator:** Created `deploy/rainbow/` dir with 4 manifests (backend-blue, backend-green, backend-service, slack-bot-blue) + README (4067 bytes). All yaml parse cleanly (schema-level). terminationGracePeriodSeconds: 60 on all 3 Deployments. Backend has readinessProbe + livenessProbe (/api/health); slack-bot has liveness-only (exec probe looking for /tmp/healthy sentinel with a 60s pod-uptime fallback). Resource requests/limits set. Zero code changes to backend/scripts/frontend/tests.
+**qa_121_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I deterministic all green: 4 yaml, schema OK, README 4067 bytes, scope clean, 79p/1s regression, 3 terminationGracePeriodSeconds hits, probe shape correct, 7 blue + 4 green label hits, v0.1.0 image tag on all 3 Deployments. Manifest-level review: apiVersion correct; selector/label parity; Service targetPort name-based routing; exec probe POSIX+busybox portable. Scope caveats (#2 sentinel writer not wired; #5 image not built) accepted as phase-12.2/12.3 follow-ups (probe never runs this cycle; deliverable is manifests-as-code).
+**Decision:** PASS. Task #23 closed. Phase-12 progress: 2/5 (12.0 + 12.1 done).
