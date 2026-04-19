@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T12:34:37.280071+00:00",
+  "updated_at": "2026-04-19T12:43:14.210074+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -3635,24 +3635,6 @@
           "max_retries": 3
         },
         {
-          "id": "4.14.6",
-          "name": "[T2] Permission mode bypassPermissions -> acceptEdits + enable macOS Seatbelt sandbox",
-          "status": "blocked",
-          "harness_required": true,
-          "verification": {
-            "command": "python -c \"import json; s=json.load(open('.claude/settings.json')); assert s['permissions']['defaultMode'] != 'bypassPermissions'; assert s.get('sandbox',{}).get('enabled') is True\"",
-            "success_criteria": [
-              "defaultMode_no_longer_bypassPermissions",
-              "sandbox_enabled_with_denyRead_allowlist",
-              "dev_workflow_still_functional_no_spurious_prompts"
-            ]
-          },
-          "contract": null,
-          "retry_count": 0,
-          "max_retries": 3,
-          "blocker": "User requires bypassPermissions for continuous autonomous-harness operation; acceptEdits + sandbox interrupts workflow. Revisit when harness supports non-interactive acceptEdits or when running in container/VM."
-        },
-        {
           "id": "4.14.7",
           "name": "[T2] Opus 4.7 sampling-param guard (strip temperature/top_p/top_k on 4.7 callsites)",
           "status": "done",
@@ -4567,6 +4549,37 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-13",
+      "status": "blocked",
+      "name": "[T2] Permission mode bypassPermissions -> acceptEdits + enable macOS Seatbelt sandbox",
+      "description": "Moved from phase-4.14 step 4.14.6 per operator request on 2026-04-19. BLOCKED: harness needs defaultMode=bypassPermissions for unattended runs; phase-4.14.6 is intentionally blocked until owner sign-off. Placed at very end of masterplan per operator request.",
+      "blocker": "User requires bypassPermissions for continuous autonomous-harness operation; acceptEdits + sandbox interrupts workflow. Revisit when harness supports non-interactive acceptEdits or when running in container/VM.",
+      "moved_from": "phase-4.14 step 4.14.6",
+      "moved_at": "2026-04-19T12:43:14.209949+00:00",
+      "created_at": "2026-04-19T12:43:14.210069+00:00",
+      "steps": [
+        {
+          "id": "13.0",
+          "name": "[T2] Permission mode bypassPermissions -> acceptEdits + enable macOS Seatbelt sandbox",
+          "status": "blocked",
+          "harness_required": true,
+          "verification": {
+            "command": "python -c \"import json; s=json.load(open('.claude/settings.json')); assert s['permissions']['defaultMode'] != 'bypassPermissions'; assert s.get('sandbox',{}).get('enabled') is True\"",
+            "success_criteria": [
+              "defaultMode_no_longer_bypassPermissions",
+              "sandbox_enabled_with_denyRead_allowlist",
+              "dev_workflow_still_functional_no_spurious_prompts"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "blocker": "User requires bypassPermissions for continuous autonomous-harness operation; acceptEdits + sandbox interrupts workflow. Revisit when harness supports non-interactive acceptEdits or when running in container/VM.",
+          "former_id": "4.14.6"
         }
       ]
     }
