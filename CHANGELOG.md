@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `64fbb164` | phase-11.4: migrate nlp_sentiment + remove last Vertex surface — PHASE-11 COMPLETE |
 | 2026-04-19 | `41e1ffa9` | phase-11.3: complex Vertex callers + ThinkingConfig silent-breakage fix |
 | 2026-04-19 | `b23c8c1f` | phase-11.2: migrate trivial Vertex callers to google-genai shim |
 | 2026-04-19 | `64d81b62` | phase-11.1: pin google-genai==1.73.1 + _genai_client.py shim (+6 tests) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-18 | `de58fd0` | CLAUDE.md: correct cycle-2 flow per Anthropic docs (fresh Q/A on file-updated evidence) |
 | 2026-04-18 | `b350743` | agents: add SendMessage to qa + researcher tool lists |
 | 2026-04-18 | `bc48728` | phase-4.14.3: output_config.effort pass-through to ClaudeClient (MF-28 partial) |
-| 2026-04-18 | `c990025` | phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync |
 
 ---
 
+### v6.5.58 — phase-11.4: migrate nlp_sentiment + remove last Vertex surface — PHAS... (2026-04-19)
+
+- **phase-11.4: migrate nlp_sentiment + remove last Vertex surface — PHASE-11 COMPLETE**
 ### v6.5.57 — phase-11.3: complex Vertex callers + ThinkingConfig silent-breakage fix (2026-04-19)
 
 - **phase-11.3: complex Vertex callers + ThinkingConfig silent-breakage fix**
