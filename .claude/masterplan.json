@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T13:44:11.303326+00:00",
+  "updated_at": "2026-04-19T13:52:29.759877+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -4509,7 +4509,7 @@
         {
           "id": "12.2",
           "name": "promote.py + rollback.py CLI for color flip",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python scripts/deploy/rainbow/promote.py --dry-run --to green && python scripts/deploy/rainbow/rollback.py --dry-run",
@@ -4521,7 +4521,8 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T16:35:00+00:00"
         },
         {
           "id": "12.3",

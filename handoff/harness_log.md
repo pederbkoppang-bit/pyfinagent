@@ -8077,3 +8077,33 @@ Also updates `#10` task in the session task list -- same step, now tracked under
 **Generator:** Created `deploy/rainbow/` dir with 4 manifests (backend-blue, backend-green, backend-service, slack-bot-blue) + README (4067 bytes). All yaml parse cleanly (schema-level). terminationGracePeriodSeconds: 60 on all 3 Deployments. Backend has readinessProbe + livenessProbe (/api/health); slack-bot has liveness-only (exec probe looking for /tmp/healthy sentinel with a 60s pod-uptime fallback). Resource requests/limits set. Zero code changes to backend/scripts/frontend/tests.
 **qa_121_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I deterministic all green: 4 yaml, schema OK, README 4067 bytes, scope clean, 79p/1s regression, 3 terminationGracePeriodSeconds hits, probe shape correct, 7 blue + 4 green label hits, v0.1.0 image tag on all 3 Deployments. Manifest-level review: apiVersion correct; selector/label parity; Service targetPort name-based routing; exec probe POSIX+busybox portable. Scope caveats (#2 sentinel writer not wired; #5 image not built) accepted as phase-12.2/12.3 follow-ups (probe never runs this cycle; deliverable is manifests-as-code).
 **Decision:** PASS. Task #23 closed. Phase-12 progress: 2/5 (12.0 + 12.1 done).
+
+---
+
+## Cycle 1 -- 2026-04-19 13:51 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle N+56 -- 2026-04-19 16:35 UTC -- phase=12.2 result=PASS (cycle-1)
+
+**Step:** promote.py + rollback.py CLI for color flip. 3rd of phase-12.
+**Research:** researcher_122 gate_passed=true. 6 read in full, 10 URLs, 5 internal files. 3-query. Staked recs: argparse (stdlib, no new dep, matches run_harness.py precedent); explicit `--dry-run` flag (default live, matches harness convention); `kubectl get -o jsonpath` for current-color (cluster is SSOT, no local state file drift).
+**Contract:** PRE-commit. 7 functional criteria + immutable `promote --dry-run --to green && rollback --dry-run`.
+**Generator:** `scripts/deploy/rainbow/` new package. promote.py (~95 lines): argparse `--to COLOR` + `--service NAME` + `--dry-run`, builds `{"spec":{"selector":{"color":X}}}` JSON, dry-run returns 0 BEFORE any subprocess call (verified at code-read). rollback.py (~140 lines): `_TOGGLE={"blue":"green","green":"blue"}`, reads current via jsonpath, auto-toggles for 2-color MVP + `--to COLOR` escape hatch for 7-color future. Dry-run falls back to "assume current=green, rollback to blue" when no cluster reachable. Exit codes 0/1/2 (promote) or 0/1/2/3 (rollback). Input validation rejects non-alphanum colors (alphanum + `-`/`_` allowed for SHA-prefix compatibility).
+**Tests:** backend/tests/test_rainbow_cli.py — 11 tests monkeypatching subprocess.run. Covers JSON shape, kubectl cmd shape, dry-run 0-exit, dry-run-no-subprocess-call, live-mode-calls-kubectl, invalid-color-exit-2, rollback dry-run-no-cluster-defaults-blue, `--to` override, live rollback reads-then-patches, `_TOGGLE` symmetry.
+**Regression:** 90 passed / 1 skipped. +11 from this cycle. Prior 79p/1s preserved.
+**qa_122_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I all green: immutable re-run confirmed both CLIs print kubectl command + JSON and exit 0; dry-run→`return 0` at promote.py:83 precedes `subprocess.run` at :86 (code-read by Q/A); patch JSON parses via json.loads; argparse `--help` exits 0 on both; zero new deps.
+**Decision:** PASS. Task #24 closed. Phase-12 progress: 3/5 (12.0 + 12.1 + 12.2 done; 12.3 canary + 12.4 first migration pending).
