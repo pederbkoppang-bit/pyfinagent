@@ -7441,3 +7441,33 @@ qa_41426_v2 PASS all 3 criteria.
 **Design choices vs research brief:** ProsusAI/finbert over yiyanghkust (nosible 2024: 69% vs 53%); no-CoT forced tool_choice on Haiku (arxiv 2506.04574v1, 2025); threshold 0.7 (WASSA 2024 cascade); Gemini tier-4 opt-in default OFF; system prompt padded to 20k chars for 4096-token cache minimum per `llm_client.py:649`.
 **Scope honored:** no BQ writes (phase-6.8 owns smoketest); no pipeline wiring; no real Gemini Flash body (phase-6.9); deps not added to requirements.txt (module fail-opens without them).
 **Decision:** PASS. Task #4 closed. Phase-6 progress 5/8.
+
+---
+
+## Cycle 1 -- 2026-04-19 08:26 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle N+41 -- 2026-04-19 10:35 UTC -- phase=6.6 result=PASS (cycle-1)
+
+**Step:** FOMC + earnings calendar watcher
+**Research:** researcher_66 gate_passed=true (8 read in full, 18 URLs, 5 recency findings, 8 internal files inspected). ONE staked recommendation: separate `backend/calendar/` module tree (structural Protocol mismatch with `backend/news/`).
+**Contract:** PRE-commit to `phase-6.6-contract.md` (phase-specific, not rolling) because autonomous harness was concurrently overwriting rolling `contract.md` for phase-2.12. 15 functional criteria + 5 verification commands. Parallel-safety rationale documented in contract preamble.
+**Generator:** Greenfield `backend/calendar/` (9 files): `__init__.py`, `registry.py` (CalendarSource Protocol + decorator registry), `normalize.py` (event_id sha256 + bmo/amc/dmh window mapping), `blackout.py` (FOMC 2nd-Saturday rule with per-weekday edge handling), `watcher.py` (CalendarEvent TypedDict + CalendarFetchReport + run_once orchestrator), 3 source adapters (finnhub_earnings, fed_scrape, fred_releases). Plus `scripts/migrations/add_calendar_events_schema.py` (14-column BQ DDL) and `backend/tests/test_calendar_watcher.py` (10 tests, ALL PASS). No existing files modified.
+**qa_66_v1:** PASS, 0 violated_criteria. 5-item protocol audit PASS. Deterministic A-F PASS including registry independence check (calendar + news registries do not leak). Blackout Mar 2025: `2025-03-08T00:00+00:00 / 2025-03-20T00:00+00:00` exact match. Migration DDL exit 0. pytest 10/10.
+**Design choices vs research brief:** separate module tree (structural Protocol mismatch); Finnhub primary earnings source; AV as dedup cross-check; FRED for macro releases with release_id whitelist (CPI=10, PPI=20, NFP=50, GDP=53, retail_sales=82, unemployment=91); Fed HTML scrape with regex (no JSON API exists); blackout = 2nd Saturday before meeting day-1 through day after meeting ends.
+**Scope honored:** no BQ writes (phase-6.8); no paper-trader wiring; no FMP (key absent); no EDGAR backfill body (stubbed / deferred).
+**Decision:** PASS. Task #6 closed. Phase-6 progress 6/8.
