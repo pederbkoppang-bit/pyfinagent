@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `dfa16b80` | phase-12.2: promote.py + rollback.py Rainbow CLI (+11 tests) |
 | 2026-04-19 | `78fa5240` | phase-12.1: colored Deployment + Service manifests + README |
 | 2026-04-19 | `b513f5b3` | phase-12.0: Rainbow Deploys audit + scope boundary (cycle-2 PASS) |
 | 2026-04-19 | `64fbb164` | phase-11.4: migrate nlp_sentiment + remove last Vertex surface — PHASE-11 COMPLETE |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `2984fdd` | phase-6.6: FOMC + earnings calendar watcher |
 | 2026-04-19 | `7055814` | phase-6.5: sentiment scorer ladder (VADER -> FinBERT -> Haiku 4.5 -> Gemini Flash) |
 | 2026-04-18 | `82d8e35` | Merge pull request #21 from pederbkoppang-bit/claude/research-mas-system-cP0Ky |
-| 2026-04-18 | `de58fd0` | CLAUDE.md: correct cycle-2 flow per Anthropic docs (fresh Q/A on file-updated evidence) |
 
 ---
 
+### v6.5.61 — phase-12.2: promote.py + rollback.py Rainbow CLI (+11 tests) (2026-04-19)
+
+- **phase-12.2: promote.py + rollback.py Rainbow CLI (+11 tests)**
 ### v6.5.60 — phase-12.1: colored Deployment + Service manifests + README (2026-04-19)
 
 - **phase-12.1: colored Deployment + Service manifests + README**
