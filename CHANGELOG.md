@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `64d81b62` | phase-11.1: pin google-genai==1.73.1 + _genai_client.py shim (+6 tests) |
 | 2026-04-19 | `f270c444` | chore(masterplan): move 4.14.6 to new phase-13 at end of masterplan |
 | 2026-04-19 | `899bd4e2` | phase-11.0 + phase-12 queue: Vertex migration plan doc + Rainbow Deploys |
 | 2026-04-19 | `02badab0` | phase-3.4: fix outcome_tracker NameError + skill_optimizer tests — PHASE-3 COMPLETE |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-18 | `c990025` | phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync |
 | 2026-04-18 | `e82e4e9` | chore: sync phase-4.7/4.8 backlog + handoff archive |
 | 2026-04-18 | `802d6ac` | feat(phase-4.9): immutable governance core + Gauntlet regime catalog |
-| 2026-04-17 | `b0f8bd3` | Phase 3.7: steps 3.7.0, 3.7.1, 3.7.2, 3.7.3, 3.7.4 via full MAS loop |
 
 ---
 
+### v6.5.55 — phase-11.1: pin google-genai==1.73.1 + _genai_client.py shim (+6 tests) (2026-04-19)
+
+- **phase-11.1: pin google-genai==1.73.1 + _genai_client.py shim (+6 tests)**
 ### v6.5.54 — chore(masterplan): move 4.14.6 to new phase-13 at end of masterplan (2026-04-19)
 
 - **chore(masterplan): move 4.14.6 to new phase-13 at end of masterplan**
