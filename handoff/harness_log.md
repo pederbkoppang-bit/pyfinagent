@@ -7843,3 +7843,34 @@ qa_41426_v2 PASS all 3 criteria.
 **qa_33_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I deterministic all green. Immutable verify re-run by Q/A: HARNESS COMPLETE, Sharpe=1.1705 / DSR=0.9526 preserved. Live detector instantiation verified emits all 3 required keys on both rolling-quantile + fail-open paths. Research-gate trace cites arXiv 2510.14986 (RegimeFolio 2025) + arXiv 2510.03236 (HMM soft-probabilities) + arXiv 2604.10996 (LLM feature degradation under macro-shocks) + QuantStart/BSIC/QuantInsti practitioners. Pre-Q/A self-check CLAIM VERIFIED against source (no cross-cycle drift this cycle).
 **Non-goals honored:** no `hmmlearn` / `ruptures` dep; `spot_checks.py` consumer interface untouched; gauntlet static catalog untouched; `planner_enhanced.py` regime-aware prompts left for phase-3.4; opt-in flag default False.
 **Decision:** PASS. Phase-3 progress: 4/6 done (3.0 + 3.1 + 3.2 + 3.3) + 1 superseded (3.5) + 1 pending (3.4 Agent Skill Optimization).
+
+---
+
+## Cycle 1 -- 2026-04-19 12:11 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Operator request -- 2026-04-19 ~14:15 UTC -- protocol + backlog update (no cycle)
+
+Two user-directed changes, applied mid-session (between phase-3.3 close and phase-3.4 research):
+
+1. **New masterplan phase-11 "Vertex AI generative-models SDK migration"** appended to `.claude/masterplan.json` with 5 steps (11.0 through 11.4). Triggered by the DeprecationWarning surfacing in every pytest run of `test_evaluator_agent.py`: `"This feature is deprecated as of June 24, 2025 and will be removed on June 24, 2026. For details, see https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk"`. Explicitly scoped as the FINAL masterplan phase per user direction. Migration target: `google-genai` SDK (`from google import genai`).
+
+2. **`.claude/rules/research-gate.md` updated** with a new "Search-query composition (mandatory)" section. Every researcher spawn must now run at least three query variants per topic: (a) current-year frontier with `2026`, (b) last-2-year `2025`/`2024`, (c) year-less canonical. Rationale from user: search engines heavily bias to recent results when any year is in the query, causing researchers to miss well-known prior art. Documented so the next researcher spawn (phase-3.4 cycle and beyond) inherits the new discipline.
+
+**Agent-file note (per CLAUDE.md separation-of-duties):** no change to `.claude/agents/researcher.md` in this patch -- the rule file is the substantive source of truth and the agent description already cross-links to it. If phase-3.4+ cycles show the researcher ignoring the new discipline, the description line will need a nudge in a Peder-reviewed change.
+
+Resuming phase-3.4 research next (researcher will be re-spawned so the updated rule file is in effect).
