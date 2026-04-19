@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `ac585025` | audit: formalize phase-2.10 supersession + retire phase-4.14.20 as superseded |
 | 2026-04-19 | `92420c1a` | phase-3.0: MCP server architecture docs + Alpaca pin (cycle-2 PASS) |
 | 2026-04-19 | `5b4607fc` | phase-6.8: end-to-end smoketest + BQ writers — PHASE-6 COMPLETE |
 | 2026-04-19 | `fd252b1` | phase-6.7: rate limits, failure alerting, cost telemetry |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-17 | `447006c` | Phase 3.5 MCP Tool Audit: COMPLETE (8/8) |
 | 2026-04-17 | `5a5f83a` | Phase 5.5: External Data-Source Audit COMPLETE (7/7) |
 | 2026-04-17 | `cc9db4b` | Phase 4.6: COMPLETE (10/10) -- 4.6.8 chaos watchdog + 4.6.9 finalize |
-| 2026-04-17 | `acde310` | Fix alt_data 429: retry + 24h TTL cache -> 12/12 non-ERROR |
 
 ---
 
+### v6.5.48 — formalize phase-2.10 supersession + retire phase-4.14.20 as superseded (2026-04-19)
+
+- **formalize phase-2.10 supersession + retire phase-4.14.20 as superseded**
 ### v6.5.47 — phase-3.0: MCP server architecture docs + Alpaca pin (cycle-2 PASS) (2026-04-19)
 
 - **phase-3.0: MCP server architecture docs + Alpaca pin (cycle-2 PASS)**
