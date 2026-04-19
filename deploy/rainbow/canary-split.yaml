@@ -1,0 +1,82 @@
+# phase-12.3 Rainbow canary split -- 19 blue + 1 green = ~5% canary.
+#
+# kube-proxy round-robins pods uniformly; with 19 blue replicas and 1 green
+# replica behind the same pyfinagent-backend Service (selector:
+# `app: pyfinagent-backend`, no `color:` filter), ~5% of requests land on
+# green. To activate the canary:
+#
+#   1. Pre-deploy this file: `kubectl apply -f deploy/rainbow/canary-split.yaml`
+#   2. Scale blue up: `kubectl scale deployment pyfinagent-backend-blue --replicas=19`
+#   3. Remove the color selector from the Service so it matches BOTH colors:
+#        kubectl patch service pyfinagent-backend \
+#          --type=json -p='[{"op":"remove","path":"/spec/selector/color"}]'
+#   4. Watch SLO diff over a rolling window via
+#      `backend.services.observability.rainbow_canary.canary_snapshot_from_buffer`
+#      or via BQ query against `pyfinagent_data.api_call_log`.
+#   5. If SLODiff.regression == False after the bake window, promote:
+#        scripts/deploy/rainbow/promote.py --to green
+#      Then scale green up + scale blue down.
+#   6. If regression == True, rollback: scale green to 0 (or delete).
+#
+# NOTE: for production canary with finer grain (1-25%), upgrade to
+# Gateway API HTTPRoute `backendRefs[].weight`. Confirmed future path in
+# docs/RAINBOW_DEPLOY_PLAN.md §5.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pyfinagent-backend-green
+  labels:
+    app: pyfinagent-backend
+    color: green
+    rainbow-role: canary
+spec:
+  replicas: 1  # 1/20 = 5% canary under kube-proxy round-robin
+  selector:
+    matchLabels:
+      app: pyfinagent-backend
+      color: green
+  template:
+    metadata:
+      labels:
+        app: pyfinagent-backend
+        color: green
+        rainbow-role: canary
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: backend
+          image: pyfinagent-backend:v0.1.0
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            # `source="pyfinagent-green"` partitions canary traffic in
+            # api_call_log so rainbow_canary.canary_snapshot_from_buffer()
+            # can diff p95 latency against blue pods.
+            - name: API_CALL_LOG_SOURCE_TAG
+              value: "pyfinagent-green"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

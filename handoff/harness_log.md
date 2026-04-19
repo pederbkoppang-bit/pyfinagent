@@ -8107,3 +8107,17 @@ Also updates `#10` task in the session task list -- same step, now tracked under
 **Regression:** 90 passed / 1 skipped. +11 from this cycle. Prior 79p/1s preserved.
 **qa_122_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I all green: immutable re-run confirmed both CLIs print kubectl command + JSON and exit 0; dry-run→`return 0` at promote.py:83 precedes `subprocess.run` at :86 (code-read by Q/A); patch JSON parses via json.loads; argparse `--help` exits 0 on both; zero new deps.
 **Decision:** PASS. Task #24 closed. Phase-12 progress: 3/5 (12.0 + 12.1 + 12.2 done; 12.3 canary + 12.4 first migration pending).
+
+---
+
+## Cycle N+57 -- 2026-04-19 16:50 UTC -- phase=12.3 result=PASS (cycle-1)
+
+**Step:** Canary split + SLO diff tooling. 4th of phase-12.
+**Research:** researcher_123 gate_passed=true. 6 read in full, 14 URLs, 9 internal files. 3-query. Staked recs: weighted Service replicas for MVP (5% via 1/20 kube-proxy round-robin; Gateway API HTTPRoute weights as documented future path); threshold ratio `green_p95 / blue_p95 > 1.2 = regression` (Flagger/Argo convention; Mann-Whitney U flagged as future upgrade); synthetic-injection tests via `api_call_log` in-process buffer (no BQ dep, no Prometheus).
+**Contract:** PRE-commit. 5 functional criteria + immutable `pytest test_rainbow_canary.py`.
+**Generator:** `backend/services/observability/rainbow_canary.py` (~175 lines, stdlib only) — `percentile()` with linear interp, `SLODiff` @dataclass, `compute_slo_diff()` with threshold-ratio + fail-open rules (empty / below-min-samples / zero-p95 edge), `canary_snapshot_from_buffer()` partitioning by caller-supplied predicate. `deploy/rainbow/canary-split.yaml` — green at replicas=1 for kube-proxy 5% split; operator recipe in comments; `API_CALL_LOG_SOURCE_TAG=pyfinagent-green` env var for traffic tagging. `backend/tests/test_rainbow_canary.py` — 13 tests (percentile edges + SLO diff happy/empty/insufficient/green-faster/threshold-tunable + buffer partition happy + empty buffer fail-open + constants).
+**Regression:** 103 passed / 1 skipped. +13 new; prior 90p/1s preserved.
+**qa_123_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-H deterministic all green. Math spot-checks: `percentile([1..100], 50) = 50.5` (linear interp not nearest-rank), `ratio=1.25/regression=True` at default 1.2 threshold, `below min_samples → reason='insufficient_samples'` fail-open, one-sided (green-faster = ok). `@dataclass SLODiff` serializable via `dataclasses.asdict`.
+**Non-blocking Q/A observation** (future follow-up, not this cycle): `blue_p95=0` edge case produces `ratio=inf, regression=True, reason='ok'` — safe outcome but a dedicated `reason='degenerate_blue'` branch would be clearer. Recorded for the next iteration.
+**Design commitments**: no `color` column added to `api_call_log` (caller-predicate partitioning instead); no scipy Mann-Whitney (threshold ratio MVP); no Gateway API install; no Prometheus.
+**Decision:** PASS. Task #25 closed. Phase-12 progress: 4/5 (12.0 + 12.1 + 12.2 + 12.3 done; 12.4 first-real-migration candidate pending — per phase-12.0 cycle-2 note, candidate TBD after 12.3 lands; Vertex migration shipped without Rainbow in phase-11).
