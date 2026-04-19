@@ -7921,3 +7921,16 @@ Resuming phase-3.4 research next (researcher will be re-spawned so the updated r
 **Non-blocking audit note from Q/A:** `backend/agents/skill_optimizer.py` has a 6-line diff (pre-contract mtime 14:09) swapping `json.loads` -> `json_io.loads` at 2 call sites -- a pre-existing edit Q/A flagged for audit completeness. Verified `backend/utils/json_io.py` exists with `loads`, so no regression. Not part of this cycle's scope; note here so subsequent audits can trace the history.
 **Non-goals honored:** no refactor of `revert_modification` HEAD~1 fragility; no OPRO/DSPy/MASS integration; no touches to `meta_coordinator.py` / `quant_optimizer.py` / `perf_optimizer.py` / `api/skills.py`; no new deps.
 **Decision:** PASS. Task #16 closed. **PHASE-3 COMPLETE: 5/6 done (3.0 + 3.1 + 3.2 + 3.3 + 3.4) + 1 superseded (3.5).**
+
+---
+
+## Cycle N+49 -- 2026-04-19 14:35 UTC -- phase=11.0 result=PASS (cycle-1)
+
+**Step:** Vertex AI migration audit + plan doc. First step of phase-11 (Vertex→google-genai migration, deadline 2026-06-24). Also: FIRST researcher spawn under the new three-query-variant discipline (.claude/rules/research-gate.md Search-query composition, landed 14:15 UTC).
+**Research:** researcher_110 gate_passed=true. Envelope: 7 read in full, 13 URLs, 6 snippet-only, 10 internal files. **Three-query compliance: VERIFIED** -- brief explicitly enumerated year-less + 2026 + 2025 variants; year-less search correctly surfaced the official Google migration guide + googleapis.github.io reference that a year-locked query would have missed. Staked recs: per-file migration categorization (trivial/moderate/complex), shim pattern `_genai_client.py`, pin `google-genai==1.73.1`, keep `google-cloud-aiplatform`, ThinkingConfig is SILENT BREAKING CHANGE.
+**Contract:** PRE-commit to `phase-11.0-contract.md`. Immutable verify: `test -f docs/VERTEX_AI_GENAI_MIGRATION.md && size > 2000 bytes`.
+**Generator:** 16,784-byte migration playbook at `docs/VERTEX_AI_GENAI_MIGRATION.md` with 11 sections (background+deadline, rollout timeline, call-site inventory with file:line anchors for 8 matches across 6 files, per-bucket recipes, ThinkingConfig silent-breakage mitigation with grep patterns + runtime assertion, 10-row API diff table, auth parity, dep plan, per-step breakdown for 11.1→11.4, Rainbow Deploys cross-ref, runbook, references). Zero code changes.
+**Pre-Q/A self-check corrected 3 research-brief drift points:** `nlp_sentiment.py` not a caller (researcher listed it as moderate); `llm_client.py:303` is a docstring not runtime code (complex label preserved but for different reasons); `test_evaluator_agent.py` migration is VERTEX_AVAILABLE→GENAI_AVAILABLE rename. All 3 corrections footnoted in the doc.
+**qa_110_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-G deterministic all green. Immutable verify exit 0 + 16784 bytes. Inventory parity: grep=8 matches doc claim. 3 anchor sample-checks verified against source. All 3 Main-side corrections validated against source. `google-genai==1.73.1` confirmed on PyPI. Three-query-discipline: VERIFIED in brief.
+**Non-goals honored:** no code edits (git diff shows only docs/handoff/masterplan); no shim module (phase-11.1); no call-site migration (phase-11.2-11.3); no dep changes (phase-11.4).
+**Decision:** PASS. Task #17 progress 1/5. Next: phase-11.1 (pin google-genai + shim) when scheduled.
