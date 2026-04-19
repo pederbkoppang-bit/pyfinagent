@@ -7991,3 +7991,21 @@ Also updates `#10` task in the session task list -- same step, now tracked under
 **qa_111_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I deterministic all green. Immutable `from google import genai` exit 0. `grep ^google-genai` returns exact pinned line. 8 pre-existing `vertexai` imports preserved (phase-11.4 owns removal). Installed SDK version = 1.73.1. Fail-open walked across 5 mutation vectors; DCL pattern canonically correct; pre-Q/A self-check claim verified at source (L112-120 in _genai_client.py).
 **Non-blocking Q/A note:** 5 migration-target files (evaluator_agent / skill_optimizer / debate / orchestrator / llm_client / risk_debate) carry pre-existing session dirt unrelated to this cycle (log edits, ASCII fixes). Recommend staging 11.1 files separately for a clean slice commit -- doing this below.
 **Decision:** PASS. Task #18 closed. Phase-11 progress: 2/5 (11.0 + 11.1 done; 11.2-11.4 pending).
+
+---
+
+## Cycle N+51 -- 2026-04-19 15:00 UTC -- phase=11.2 result=PASS (cycle-1)
+
+**Step:** Migrate trivial Vertex callers. 3rd of phase-11.
+**Research:** researcher_112 gate_passed=true. 6 read in full, 10 URLs. Three-query discipline run. Critical finding: `debate.py:18` `GenerativeModel` import was DEAD code — never instantiated anywhere in the module (all debate calls route via LLMClient). Real phase-11.2 scope reduced to: evaluator_agent migration + skill_optimizer migration + debate.py dead-import removal. Secondary finding: `ModeratorConsensus` / `CriticVerdict` use `Field(default_factory=list)` which hits python-genai GitHub issue #699 when passed as `response_schema=`; not in scope for 11.2 but flagged landmine for 11.3.
+**Contract:** PRE-commit. 6 functional criteria + immutable verify.
+**Generator:** 
+- `evaluator_agent.py`: removed `VERTEX_AVAILABLE` branch + `GenerativeModel` import, replaced with `get_genai_client()` shim + `GENAI_AVAILABLE=True`. `__init__` sets `self.model = get_genai_client()`, None-return triggers mock path (preserves graceful-degrade). `_call_model` swapped to `self.model.models.generate_content(model=self.model_name, contents=prompt)`.
+- `skill_optimizer._get_model()` now returns `(client, model_name)` tuple (new SDK is client-per-call, not model-per-instance). Both callers (`propose_skill_modification:358`, `think_harder:528`) updated to unpack + guard on None + use `types.GenerateContentConfig` instead of dict `generation_config=`.
+- `debate.py`: removed dead `GenerativeModel` import at line 18; replaced with a removal-note comment.
+- `test_evaluator_agent.py`: renamed every `VERTEX_AVAILABLE` reference to `GENAI_AVAILABLE`.
+**Pre-Q/A self-check caught** contract's inventory-count math error (contract predicted grep=5, actual=3). Root cause: phase-11.0 broader grep (imports + GenerativeModel() + vertexai.init) → 8 baseline; phase-11.2 contract narrowed to imports-only but carried the 8-baseline math. Disclosed in Known Caveats; Q/A accepted as bookkeeping not migration miss.
+**qa_112_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I deterministic all green. **Vertex DeprecationWarning absent from evaluator_agent import path** (`python -W error::DeprecationWarning -c "from backend.agents import evaluator_agent"` exit 0). 79 passed / 1 skipped regression (unchanged from 11.1). Zero external callers of `_get_model` → tuple-signature change safe. 3 fail-open paths verified at source.
+**Non-blocking Q/A note:** `orchestrator.py` + `risk_debate.py` show in git diff from pre-cycle session dirt; commit stages selectively to avoid scope violation.
+**Inventory after 11.2:** 2 live `from vertexai.generative_models` imports remain (risk_debate.py:23, orchestrator.py:29) — both phase-11.3 scope.
+**Decision:** PASS. Task #19 closed. Phase-11 progress: 3/5 (11.0 + 11.1 + 11.2 done; 11.3 + 11.4 pending).

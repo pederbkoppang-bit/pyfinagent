@@ -10,6 +10,8 @@ The data tools, orchestrator pipeline, output schemas, and evaluation formula ar
 
 import csv
 import json
+
+from backend.utils import json_io
 import logging
 import subprocess
 import time
@@ -94,16 +96,18 @@ class SkillOptimizer:
         self._model = None
 
     def _get_model(self):
-        """Lazy-initialize the Gemini model."""
+        """Lazy-initialize the google-genai client. Returns (client, model_name).
+
+        phase-11.2: migrated from deprecated vertexai.generative_models.
+        Returns a tuple because the new SDK is client-per-call
+        (`client.models.generate_content(model=name, ...)`), not
+        model-per-instance like the old `GenerativeModel(name)`.
+        """
         if self._model is None:
-            import vertexai
-            from vertexai.generative_models import GenerativeModel
-            vertexai.init(
-                project=self.settings.gcp_project_id,
-                location=self.settings.gcp_location,
-            )
+            from backend.agents._genai_client import get_genai_client
+            client = get_genai_client()
             model_name = self.settings.deep_think_model or self.settings.gemini_model
-            self._model = GenerativeModel(model_name)
+            self._model = (client, model_name)
         return self._model
 
     # ── Metric Computation ───────────────────────────────────────
@@ -352,10 +356,19 @@ class SkillOptimizer:
         )
 
         try:
-            model = self._get_model()
-            response = model.generate_content(
-                prompt,
-                generation_config={"temperature": 0.7, "max_output_tokens": 2048},
+            client, model_name = self._get_model()
+            if client is None:
+                logger.warning(
+                    "skill_optimizer: google-genai client unavailable; skipping proposal"
+                )
+                return None
+            from google.genai import types as _genai_types
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=_genai_types.GenerateContentConfig(
+                    temperature=0.7, max_output_tokens=2048
+                ),
             )
             text = response.text.strip()
 
@@ -365,7 +378,7 @@ class SkillOptimizer:
                 logger.warning(f"No JSON found in optimizer response for {agent_name}")
                 return None
 
-            proposal = json.loads(json_match)
+            proposal = json_io.loads(json_match)
 
             if proposal.get("skip"):
                 logger.info(f"Optimizer skipped {agent_name}: {proposal.get('reason', 'no reason')}")
@@ -523,14 +536,23 @@ class SkillOptimizer:
         )
 
         try:
-            model = self._get_model()
-            response = model.generate_content(
-                prompt,
-                generation_config={"temperature": 0.9, "max_output_tokens": 2048},
+            client, model_name = self._get_model()
+            if client is None:
+                logger.warning(
+                    "skill_optimizer.think_harder: google-genai client unavailable; skipping"
+                )
+                return None
+            from google.genai import types as _genai_types
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=_genai_types.GenerateContentConfig(
+                    temperature=0.9, max_output_tokens=2048
+                ),
             )
             json_str = _extract_json(response.text.strip())
             if json_str:
-                return json.loads(json_str)
+                return json_io.loads(json_str)
         except Exception as e:
             logger.error(f"think_harder failed for {agent_name}: {e}")
         return None

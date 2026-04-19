@@ -1,7 +1,7 @@
 """phase-3.2 tests for the LLM-as-Evaluator agent.
 
 All tests run without Vertex credentials; the model is `None` on the
-`VERTEX_AVAILABLE=False` / init-failure path, and `_parse_evaluation_response`
+`GENAI_AVAILABLE=False` / init-failure path, and `_parse_evaluation_response`
 is exercised directly from a known JSON payload.
 
 Coverage:
@@ -31,7 +31,7 @@ from backend.agents.evaluator_agent import (
 
 def test_evaluator_agent_instantiates_without_vertex():
     """EvaluatorAgent.__init__ must not raise if Vertex is unavailable."""
-    with patch("backend.agents.evaluator_agent.VERTEX_AVAILABLE", False):
+    with patch("backend.agents.evaluator_agent.GENAI_AVAILABLE", False):
         e = EvaluatorAgent(model_name="gemini-2.0-flash")
         assert e.model is None
         assert e.model_name == "gemini-2.0-flash"

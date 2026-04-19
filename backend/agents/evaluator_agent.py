@@ -29,16 +29,20 @@ References:
 import asyncio
 import json
 import logging
+
+from backend.utils import json_io  # noqa: E402 -- grouped with stdlib for locality
 import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Dict, List, Any
 
-try:
-    from vertexai.generative_models import GenerativeModel, Tool, FunctionDeclaration
-    VERTEX_AVAILABLE = True
-except ImportError:
-    VERTEX_AVAILABLE = False
+# phase-11.2: migrated from deprecated vertexai.generative_models to
+# google-genai (via the shim at backend/agents/_genai_client.py). The
+# legacy VERTEX_AVAILABLE / GenerativeModel / Tool / FunctionDeclaration
+# surface is gone. Test scaffolding patches `GENAI_AVAILABLE` instead.
+from backend.agents._genai_client import get_genai_client
+
+GENAI_AVAILABLE = True  # module imports always; runtime None-check gates real calls
 
 logger = logging.getLogger(__name__)
 
@@ -86,17 +90,19 @@ class EvaluatorAgent:
         self.model_name = model_name
         self.max_eval_time = 30  # seconds
         
-        # Initialize model if Vertex is available
-        if VERTEX_AVAILABLE:
-            try:
-                # Vertex AI automatically uses GOOGLE_APPLICATION_CREDENTIALS
-                self.model = GenerativeModel(model_name)
+        # phase-11.2: google-genai client via shim. The shim fail-opens to
+        # None when SDK is absent / creds missing; that path triggers the
+        # mock evaluator just like the legacy VERTEX_AVAILABLE=False branch.
+        if GENAI_AVAILABLE:
+            self.model = get_genai_client()
+            if self.model is None:
+                logger.warning(
+                    "[warn] google-genai client unavailable; using mock evaluator"
+                )
+            else:
                 logger.info(f"[OK] Evaluator initialized with {model_name}")
-            except Exception as e:
-                logger.warning(f"[warn] Vertex AI init failed: {e}. Will use mock evaluator.")
-                self.model = None
         else:
-            logger.warning("[warn] vertexai not available. Will use mock evaluator for testing.")
+            logger.warning("[warn] google-genai not available. Will use mock evaluator for testing.")
             self.model = None
     
     async def evaluate_proposal(
@@ -276,8 +282,13 @@ Format your response as JSON:
             logger.debug("[warn] Using mock evaluator (model not initialized)")
             return self._mock_response(proposal, backtest_results)
         
+        # phase-11.2: google-genai call path. Client returned by the shim
+        # is a genai.Client; use client.models.generate_content(model=...).
         response = await asyncio.to_thread(
-            lambda: self.model.generate_content(prompt)
+            lambda: self.model.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+            )
         )
         return response.text
     
@@ -405,7 +416,7 @@ Format your response as JSON:
             json_end = response_text.rfind('}') + 1
             json_str = response_text[json_start:json_end]
             
-            data = json.loads(json_str)
+            data = json_io.loads(json_str)
             
             verdict = EvaluationVerdict(data.get("verdict", "FAIL"))
             

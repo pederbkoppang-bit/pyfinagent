@@ -7,13 +7,21 @@ where each agent sees the opponent's prior argument, plus Devil's Advocate chall
 """
 
 import json
+
+from backend.utils import json_io
 import logging
 import re
 import time
 from typing import Any
 from typing import Callable, Optional
 
-from vertexai.generative_models import GenerativeModel
+# phase-11.2: removed dead `from vertexai.generative_models import GenerativeModel`.
+# The import was never used at runtime -- all model calls route through
+# backend.agents.llm_client.LLMClient. Caught by phase-11.2 research brief
+# (ran v1.73.1 SDK audit + verified zero `GenerativeModel(` call sites in
+# this file). Docstring at line ~148 still references the legacy type name;
+# left as-is because it describes the `model` parameter's expected interface,
+# which any LLMClient wrapper will honor.
 from google.api_core import exceptions as gcp_exceptions
 
 from backend.agents.cost_tracker import CostTracker
@@ -71,9 +79,23 @@ def _generate_with_retry(model: LLMClient, prompt: str, agent_name: str, max_ret
             else:
                 raise
         except Exception as e:
-            # Non-GCP providers raise different exceptions
+            # phase-4.14.11: typed exception handling for Anthropic SDK.
+            # The SDK's built-in retry (max_retries=3 on ClaudeClient)
+            # already handles 429 / 5xx with Retry-After respected, so
+            # we only log here and re-raise. The named classes
+            # (anthropic.RateLimitError / anthropic.APIStatusError)
+            # replace the fragile string-match anti-pattern that was
+            # here before. Non-Anthropic transient errors still fall
+            # through the module-level retry.
+            import anthropic  # local import: optional dependency
+            if isinstance(e, (anthropic.RateLimitError, anthropic.APIStatusError)):
+                logger.warning(
+                    "%s anthropic error -- SDK retries exhausted, propagating: %s",
+                    agent_name, type(e).__name__,
+                )
+                raise
             err_name = type(e).__name__.lower()
-            is_transient = any(x in err_name for x in ("ratelimit", "overload", "unavailable"))
+            is_transient = any(x in err_name for x in ("overload", "unavailable"))
             if is_transient and attempt < max_retries - 1:
                 logger.warning(f"{agent_name} {type(e).__name__}. Retry in {delay}s")
                 time.sleep(delay)
@@ -92,7 +114,7 @@ def _clean_json(text: str) -> str:
 
 def _parse_json(text: str, label: str) -> Optional[dict]:
     try:
-        data = json.loads(text)
+        data = json_io.loads(text)
         return data if isinstance(data, dict) else None
     except json.JSONDecodeError:
         logger.warning(f"{label} returned invalid JSON, using raw text")
