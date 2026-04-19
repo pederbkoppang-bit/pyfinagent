@@ -7718,3 +7718,34 @@ qa_41426_v2 PASS all 3 criteria.
 **qa_30_v2 (cycle-2):** PASS, 0 violated_criteria. Anti-verdict-shop check cleared (Follow-up section present; experiment-results Known caveats updated). All 11 Capability Tokens claims verified 1:1 against `mcp_capabilities.py:47,57-70,73-86`. `grep -r mcp_audit backend/ scripts/ docs/` returns hits only in the doc itself (zero code/migration). Immutable `run_harness.py --dry-run --cycles 1` exit 0; Sharpe=1.1705, DSR=0.9526 preserved.
 **Lesson for future doc-consolidation cycles:** grep-verify every specific claim against source before the cycle-1 Q/A; avoid invented role/scope/file names even when they're "plausible from the research brief summary".
 **Decision:** PASS. Task #12 partial. Phase-3 progress 1/5 pending (3.0 done; 3.1-3.4 remain; 3.5 superseded).
+
+---
+
+## Cycle 1 -- 2026-04-19 11:22 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle N+45 -- 2026-04-19 13:55 UTC -- phase=audit-2.10-4.14.20 result=PASS (cycle-2)
+
+**Step(s):** Paired audit of phase-2.10 (status=superseded) + phase-4.14.20 (was blocked, now superseded). User-requested formalization of "non-actionable" items via full harness cycle.
+**Research:** researcher_audit gate_passed=true (7 read in full, 12 URLs, 8 internal files). Findings: (a) phase-2.10 Karpathy-autoresearch concept materialized in `backend/agents/skill_optimizer.py` — substantively clean supersession, missing audit record was a forward-blocker for phase-8.5.0's immutable `test -f handoff/phase-2.10-supersede.md`. (b) phase-4.14.20 semantic intent ALREADY satisfied by phase-4.15.0 MAS merge: `qa.md` + `researcher.md` description lines carry the trigger phrasing. Immutable grep cmd stranded because 2 of 3 target files were deleted; CLAUDE.md forbids re-splitting.
+**Contract:** PRE-commit. 5 functional + read-only criteria.
+**Generator:** Created `handoff/phase-2.10-supersede.md` + `handoff/phase-4.14.20-supersede.md`. Flipped `phase-4.14.20` status `blocked` -> `superseded` with `superseded_by: phase-4.15.0`; `verification` block preserved verbatim (anti-tamper). Zero code changes. Zero agent-file edits (separation-of-duties rule respected).
+**qa_audit_v1 (cycle-1):** CONDITIONAL. Caught function-name mis-citation in phase-2.10 record: lines 270 and 453 were labeled `_measure_metric()` / `run_loop()` but source has `read_in_scope_files()` / `handle_crash()`. Same-class error as phase-3.0 cycle-1 (invented specifics from research summary).
+**Cycle-2 fix:** Corrected citations in `handoff/phase-2.10-supersede.md` after `sed -n '4p;129p;270p;453p' backend/agents/skill_optimizer.py` verification. Rewrote the line to describe all 5 autoresearch stages (BASELINE / READ CONTEXT / PROPOSE / MEASURE / KEEP/DISCARD/CRASH + LOOP) rather than claim specific method names -- future-proofs if methods get renamed. Added "Verified against source on 2026-04-19" stamp. Appended Follow-up section to evaluator_critique (canonical cycle-2 pattern).
+**qa_audit_v2 (cycle-2):** PASS. Anti-shop verified (Follow-up section present). All 4 citations verified against source at exact line numbers. `_measure_metric` / `run_loop` grep returns zero hits in the record. Masterplan anti-tamper PASS: `verification.command` + `success_criteria` preserved verbatim.
+**Lesson reinforced:** grep-verify every specific code claim before cycle-1 Q/A. Two cycles in a row now (phase-3.0 cycle-1, phase-audit cycle-1) have caught this class of error -- consider adding a pre-Q/A self-check in the next iteration of the per-step protocol.
+**Decision:** PASS. Task #13 + #14 closed. phase-2.10 bureaucratic closure complete. phase-4.14.20 retired via status flip.

@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T11:21:23.877149+00:00",
+  "updated_at": "2026-04-19T11:31:13.799952+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -3872,7 +3872,7 @@
         {
           "id": "4.14.20",
           "name": "[T4] Strengthen .claude/agents/*.md descriptions with 'use proactively' / 'MUST BE USED' trigger phrasing",
-          "status": "blocked",
+          "status": "superseded",
           "harness_required": true,
           "verification": {
             "command": "grep -c 'use proactively\\|MUST BE USED\\|use immediately after' .claude/agents/qa-evaluator.md .claude/agents/harness-verifier.md .claude/agents/researcher.md | awk -F: '{sum+=$2} END {exit (sum<3)}'",
@@ -3885,7 +3885,9 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "blocker": "Immutable verification command references .claude/agents/qa-evaluator.md and harness-verifier.md; these were intentionally merged into qa.md by phase-4.15.0 (PREP: MAS restructure to 3 agents). CLAUDE.md explicitly forbids re-splitting them: \"Re-split agents: reintroducing Explore or harness-verifier as separate files after they have been merged is the old pattern.\" Verification text would need to be updated to target .claude/agents/qa.md + researcher.md instead, but verification criteria are immutable. Needs owner decision: amend criterion OR retire the step."
+          "blocker": "Immutable verification command references .claude/agents/qa-evaluator.md and harness-verifier.md; these were intentionally merged into qa.md by phase-4.15.0 (PREP: MAS restructure to 3 agents). CLAUDE.md explicitly forbids re-splitting them: \"Re-split agents: reintroducing Explore or harness-verifier as separate files after they have been merged is the old pattern.\" Verification text would need to be updated to target .claude/agents/qa.md + researcher.md instead, but verification criteria are immutable. Needs owner decision: amend criterion OR retire the step.",
+          "superseded_by": "phase-4.15.0",
+          "superseded_at": "2026-04-19T~13:45:00+00:00"
         },
         {
           "id": "4.14.21",
