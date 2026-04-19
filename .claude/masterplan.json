@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T14:10:32.916519+00:00",
+  "updated_at": "2026-04-19T17:57:24.724108+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -4593,6 +4593,36 @@
           "max_retries": 3,
           "blocker": "User requires bypassPermissions for continuous autonomous-harness operation; acceptEdits + sandbox interrupts workflow. Revisit when harness supports non-interactive acceptEdits or when running in container/VM.",
           "former_id": "4.14.6"
+        }
+      ]
+    },
+    {
+      "id": "phase-14",
+      "status": "done",
+      "name": "MCP config hygiene & operator UX",
+      "description": "Cleanup of `.mcp.json` / `.claude/settings.local.json` so Claude Code session start is silent when optional credential-bearing MCP servers (e.g., alpaca) are declared but the operator hasn't set the creds. Pattern (per claude-code-guide consult 2026-04-19): use POSIX shell defaults `${VAR:-}` in .mcp.json env blocks to allow empty resolution, + `disabledMcpjsonServers` in per-operator settings.local.json to skip launch AND suppress env-var validation warnings.",
+      "created_at": "2026-04-19T17:57:24.723971+00:00",
+      "completed_at": "2026-04-19T17:30:00+00:00",
+      "steps": [
+        {
+          "id": "14.0",
+          "name": "Silence alpaca missing-env-var warning in .mcp.json",
+          "status": "done",
+          "harness_required": false,
+          "verification": {
+            "command": "grep -E 'ALPACA_API_KEY_ID.*:-' .mcp.json | wc -l | awk '{exit ($1<1)}'",
+            "success_criteria": [
+              "alpaca env block uses ${VAR:-} shell defaults",
+              "phase-3.0 alpaca-mcp-server==2.0.1 supply-chain pin preserved",
+              "operator session start no longer warns on missing ALPACA_* env vars"
+            ]
+          },
+          "contract": null,
+          "completed_at": "2026-04-19T17:30:00+00:00",
+          "shipped_in_commit": "0e965175",
+          "retry_count": 0,
+          "max_retries": 3,
+          "post_commit_note": "No harness cycle -- this was a direct fix surfaced at session-start warning. Operator-local .claude/settings.local.json was also updated in-place with `disabledMcpjsonServers: [alpaca]` for belt-and-suspenders (gitignored; per-operator). Pattern documented in this phase's description so future optional-cred MCP servers can follow the same recipe."
         }
       ]
     }
