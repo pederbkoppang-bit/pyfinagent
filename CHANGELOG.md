@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `b23c8c1f` | phase-11.2: migrate trivial Vertex callers to google-genai shim |
 | 2026-04-19 | `64d81b62` | phase-11.1: pin google-genai==1.73.1 + _genai_client.py shim (+6 tests) |
 | 2026-04-19 | `f270c444` | chore(masterplan): move 4.14.6 to new phase-13 at end of masterplan |
 | 2026-04-19 | `899bd4e2` | phase-11.0 + phase-12 queue: Vertex migration plan doc + Rainbow Deploys |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-18 | `bc48728` | phase-4.14.3: output_config.effort pass-through to ClaudeClient (MF-28 partial) |
 | 2026-04-18 | `c990025` | phase-4.14 T1 hotfix close (MF-29 + MF-1 + MF-2) + backlog sync |
 | 2026-04-18 | `e82e4e9` | chore: sync phase-4.7/4.8 backlog + handoff archive |
-| 2026-04-18 | `802d6ac` | feat(phase-4.9): immutable governance core + Gauntlet regime catalog |
 
 ---
 
+### v6.5.56 — phase-11.2: migrate trivial Vertex callers to google-genai shim (2026-04-19)
+
+- **phase-11.2: migrate trivial Vertex callers to google-genai shim**
 ### v6.5.55 — phase-11.1: pin google-genai==1.73.1 + _genai_client.py shim (+6 tests) (2026-04-19)
 
 - **phase-11.1: pin google-genai==1.73.1 + _genai_client.py shim (+6 tests)**
