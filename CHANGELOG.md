@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `41296694` | phase-12.4: Rainbow rehearsal smoketest — PHASE-12 COMPLETE |
 | 2026-04-19 | `d70efaf4` | phase-12.3: Rainbow canary SLO diff (+13 tests) |
 | 2026-04-19 | `dfa16b80` | phase-12.2: promote.py + rollback.py Rainbow CLI (+11 tests) |
 | 2026-04-19 | `78fa5240` | phase-12.1: colored Deployment + Service manifests + README |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `5b4607fc` | phase-6.8: end-to-end smoketest + BQ writers — PHASE-6 COMPLETE |
 | 2026-04-19 | `fd252b1` | phase-6.7: rate limits, failure alerting, cost telemetry |
 | 2026-04-19 | `2984fdd` | phase-6.6: FOMC + earnings calendar watcher |
-| 2026-04-19 | `7055814` | phase-6.5: sentiment scorer ladder (VADER -> FinBERT -> Haiku 4.5 -> Gemini Flash) |
 
 ---
 
+### v6.5.63 — phase-12.4: Rainbow rehearsal smoketest — PHASE-12 COMPLETE (2026-04-19)
+
+- **phase-12.4: Rainbow rehearsal smoketest — PHASE-12 COMPLETE**
 ### v6.5.62 — phase-12.3: Rainbow canary SLO diff (+13 tests) (2026-04-19)
 
 - **phase-12.3: Rainbow canary SLO diff (+13 tests)**
