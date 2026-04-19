@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-19 | `0e965175` | chore(mcp): silence alpaca missing-env-var warning with shell defaults |
 | 2026-04-19 | `41296694` | phase-12.4: Rainbow rehearsal smoketest — PHASE-12 COMPLETE |
 | 2026-04-19 | `d70efaf4` | phase-12.3: Rainbow canary SLO diff (+13 tests) |
 | 2026-04-19 | `dfa16b80` | phase-12.2: promote.py + rollback.py Rainbow CLI (+11 tests) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `92420c1a` | phase-3.0: MCP server architecture docs + Alpaca pin (cycle-2 PASS) |
 | 2026-04-19 | `5b4607fc` | phase-6.8: end-to-end smoketest + BQ writers — PHASE-6 COMPLETE |
 | 2026-04-19 | `fd252b1` | phase-6.7: rate limits, failure alerting, cost telemetry |
-| 2026-04-19 | `2984fdd` | phase-6.6: FOMC + earnings calendar watcher |
 
 ---
 
+### v6.5.64 — chore(mcp): silence alpaca missing-env-var warning with shell defaults (2026-04-19)
+
+- **chore(mcp): silence alpaca missing-env-var warning with shell defaults**
 ### v6.5.63 — phase-12.4: Rainbow rehearsal smoketest — PHASE-12 COMPLETE (2026-04-19)
 
 - **phase-12.4: Rainbow rehearsal smoketest — PHASE-12 COMPLETE**
