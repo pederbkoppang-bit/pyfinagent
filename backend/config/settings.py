@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     alert_consecutive_failure_threshold: int = Field(3, description="Consecutive failures per (source, error_type) required to fire an alert.")
     alert_debounce_minutes: int = Field(5, description="Sliding window (min) over which consecutive_failure_threshold is evaluated.")
     alert_repeat_hours: int = Field(1, description="Minimum hours between repeat alerts for the same (source, error_type).")
+    bq_dataset_observability: str = Field("pyfinagent_data", description="BQ dataset for observability tables (llm_call_log, api_call_log, news_*, calendar_events).")
 
     # --- Multi-Provider LLM Keys (v3.4) ---
     anthropic_api_key: str = Field("", description="Anthropic API key for direct Claude access (sk-ant-...)")
