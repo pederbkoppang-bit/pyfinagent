@@ -79,6 +79,9 @@ class Settings(BaseSettings):
     alert_repeat_hours: int = Field(1, description="Minimum hours between repeat alerts for the same (source, error_type).")
     bq_dataset_observability: str = Field("pyfinagent_data", description="BQ dataset for observability tables (llm_call_log, api_call_log, news_*, calendar_events).")
 
+    # --- Regime detection (phase-3.3) ---
+    regime_detection_enabled: bool = Field(False, description="Opt-in: use VIXRollingQuantileRegimeDetector in spot_checks_harness instead of the static pre/post-COVID fallback.")
+
     # --- Multi-Provider LLM Keys (v3.4) ---
     anthropic_api_key: str = Field("", description="Anthropic API key for direct Claude access (sk-ant-...)")
     openai_api_key: str = Field("", description="OpenAI API key for direct GPT/o-series access (sk-...)")

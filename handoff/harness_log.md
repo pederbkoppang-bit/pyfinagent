@@ -7796,3 +7796,50 @@ qa_41426_v2 PASS all 3 criteria.
 **qa_31_32_v1 (cycle-1):** PASS, 0 violated_criteria. 5/5 protocol audit. A-G deterministic all green: syntax OK, imports OK, 54 passed / 1 skipped pytest (exact contract match), live `_load_real_context` returned 10 rows + 23 params (no fallback WARN), correct `parents[0]` anchor, defensive `verdict.value` extraction present, no non-target agent files modified in this cycle. Q/A flagged one cross-cycle pattern (3 consecutive cycles with cycle-1 drift on invented specifics) -- recommend pre-Q/A grep-verify as formal protocol.
 **Non-goals honored:** `planner_enhanced.py` untouched (phase-3.3 consolidation); `_generate_phase` still returns mock backtests (phase-3.3 requires BacktestEngine integration); `run_harness.py` production planner unchanged (phase-3.3); IC metric not added to evaluator.
 **Decision:** PASS. Phase-3 progress: 3/6 done (3.0 + 3.1 + 3.2) + 1 superseded (3.5). Remaining: 3.3 Regime Detection, 3.4 Agent Skill Optimization.
+
+---
+
+## Cycle 1 -- 2026-04-19 12:01 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-04-19 12:04 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.39% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle N+47 -- 2026-04-19 14:05 UTC -- phase=3.3 result=PASS (cycle-1)
+
+**Step:** Regime Detection.
+**Research:** researcher_33 gate_passed=true (6 read in full, 11 URLs, internal audit of 7 files). Staked rec: narrow code addition -- `VIXRollingQuantileRegimeDetector` over HMM to avoid `hmmlearn` dep; interface stub at `spot_checks.py:165` already expects a `.detect() -> list[dict]`.
+**Contract:** PRE-commit. 8 functional criteria + immutable `run_harness.py --dry-run --cycles 1`.
+**Generator:** NEW `backend/backtest/regime_detector.py` (~180 lines, zero new runtime deps): `RegimeDetector` `@runtime_checkable` Protocol + `VIXRollingQuantileRegimeDetector` concrete class reading VIX via yfinance, computing trailing 252-day rolling quantile classification (`low/medium/high_vol`), merging consecutive same-label days into regime windows. Fail-open to static 2-regime pre/post-COVID fallback (matches legacy `spot_checks.py:172-175` behavior) on yfinance absence / fetch failure / insufficient data. `classify_series` + `_merge_runs` exposed at class level for test mutation-resistance. Harness wiring at `spot_checks_harness.py:76-91` settings-gated via new `regime_detection_enabled: bool = False` default -- preserves pre-phase-3.3 behavior byte-for-byte. Tests: `test_regime_detector.py` (8 tests, all PASS). Regression: 62 passed / 1 skipped cumulative (phase-3 + phase-6 tests).
+**Pre-Q/A self-check (per phase-3.1 Q/A recommendation):** grep-verified consumer interface at `spot_checks.py:165,171,181-194` BEFORE writing detector -- confirmed shape `{name, start_date, end_date}`. Zero invented specifics this cycle.
+**qa_33_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-I deterministic all green. Immutable verify re-run by Q/A: HARNESS COMPLETE, Sharpe=1.1705 / DSR=0.9526 preserved. Live detector instantiation verified emits all 3 required keys on both rolling-quantile + fail-open paths. Research-gate trace cites arXiv 2510.14986 (RegimeFolio 2025) + arXiv 2510.03236 (HMM soft-probabilities) + arXiv 2604.10996 (LLM feature degradation under macro-shocks) + QuantStart/BSIC/QuantInsti practitioners. Pre-Q/A self-check CLAIM VERIFIED against source (no cross-cycle drift this cycle).
+**Non-goals honored:** no `hmmlearn` / `ruptures` dep; `spot_checks.py` consumer interface untouched; gauntlet static catalog untouched; `planner_enhanced.py` regime-aware prompts left for phase-3.4; opt-in flag default False.
+**Decision:** PASS. Phase-3 progress: 4/6 done (3.0 + 3.1 + 3.2 + 3.3) + 1 superseded (3.5) + 1 pending (3.4 Agent Skill Optimization).

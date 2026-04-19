@@ -73,11 +73,22 @@ def run_spot_checks_on_proposal(proposal_params: dict) -> object:
         bq_dataset_reports=settings.bq_dataset_reports,
     )
     
+    # phase-3.3: opt-in VIX rolling-quantile regime detector (settings-gated).
+    # Default False preserves pre-phase-3.3 behavior (static 2-regime split).
+    regime_detector = None
+    if getattr(settings, "regime_detection_enabled", False):
+        from backend.backtest.regime_detector import VIXRollingQuantileRegimeDetector
+
+        regime_detector = VIXRollingQuantileRegimeDetector(
+            start_date=getattr(settings, "backtest_start_date", "2018-01-01"),
+            end_date=getattr(settings, "backtest_end_date", "2025-12-31"),
+        )
+
     # Create spot check runner with run_backtest as the harness function
     runner = SpotCheckRunner(
-        run_backtest_fn=lambda params, tx_cost_pct=None, start_date=None, end_date=None: 
+        run_backtest_fn=lambda params, tx_cost_pct=None, start_date=None, end_date=None:
             run_backtest(params, settings, bq, start_date=start_date, end_date=end_date, tx_cost_pct=tx_cost_pct),
-        regime_detector=None  # Fallback to 2-regime split
+        regime_detector=regime_detector  # Fallback to 2-regime split when None
     )
     
     # Run all 3 spot checks
