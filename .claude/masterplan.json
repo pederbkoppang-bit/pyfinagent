@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T14:02:05.908472+00:00",
+  "updated_at": "2026-04-19T14:10:32.916519+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -4466,7 +4466,7 @@
     },
     {
       "id": "phase-12",
-      "status": "pending",
+      "status": "done",
       "name": "Rainbow deploys \u2014 safe-update pattern",
       "description": "Implement Brandon Dimcheff's Rainbow Deploys pattern (https://brandon.dimcheff.com/2018/02/rainbow-deploys-with-kubernetes/) so dependency bumps, model-version flips, and framework migrations can be rolled out behind labeled colored Deployments/Services and rolled back by flipping a selector. Extends classic blue/green to N simultaneous versions (red/orange/yellow/green/blue/indigo/violet) so the harness can run a canary on ~5% traffic, compare live SLOs against the active color, and promote/demote without a rolling restart. User-requested on 2026-04-19 as future-proofing for the Vertex->google-genai migration (phase-11) and any subsequent SDK bumps.",
       "created_at": "2026-04-19T12:22:40.849756+00:00",
@@ -4545,7 +4545,7 @@
         {
           "id": "12.4",
           "name": "First Rainbow migration \u2014 candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "grep -q 'rainbow' docs/VERTEX_AI_GENAI_MIGRATION.md && echo ok",
@@ -4559,9 +4559,11 @@
           "retry_count": 0,
           "max_retries": 3,
           "scope_reassigned_at": "2026-04-19T~16:00:00+00:00",
-          "scope_reassignment_note": "Phase-11 Vertex migration shipped directly without Rainbow (2026-04-19). Phase-12.4 will select a replacement migration candidate after phase-12.3 lands; candidates include next Anthropic SDK bump or a dummy color-flip-only rehearsal."
+          "scope_reassignment_note": "Phase-11 Vertex migration shipped directly without Rainbow (2026-04-19). Phase-12.4 will select a replacement migration candidate after phase-12.3 lands; candidates include next Anthropic SDK bump or a dummy color-flip-only rehearsal.",
+          "completed_at": "2026-04-19T17:10:00+00:00"
         }
-      ]
+      ],
+      "completed_at": "2026-04-19T17:10:00+00:00"
     },
     {
       "id": "phase-13",

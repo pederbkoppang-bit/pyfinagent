@@ -8121,3 +8121,26 @@ Also updates `#10` task in the session task list -- same step, now tracked under
 **Non-blocking Q/A observation** (future follow-up, not this cycle): `blue_p95=0` edge case produces `ratio=inf, regression=True, reason='ok'` — safe outcome but a dedicated `reason='degenerate_blue'` branch would be clearer. Recorded for the next iteration.
 **Design commitments**: no `color` column added to `api_call_log` (caller-predicate partitioning instead); no scipy Mann-Whitney (threshold ratio MVP); no Gateway API install; no Prometheus.
 **Decision:** PASS. Task #25 closed. Phase-12 progress: 4/5 (12.0 + 12.1 + 12.2 + 12.3 done; 12.4 first-real-migration candidate pending — per phase-12.0 cycle-2 note, candidate TBD after 12.3 lands; Vertex migration shipped without Rainbow in phase-11).
+
+---
+
+## Cycle N+58 -- 2026-04-19 17:10 UTC -- phase=12.4 result=PASS (cycle-1) -- PHASE-12 COMPLETE
+
+**Step:** First Rainbow migration — dummy color-flip-only rehearsal. Final phase-12 step.
+**Research:** researcher_124 gate_passed=true. 5 read in full, 12 URLs, 8 internal files. 3-query. Staked rec: smoketest script `scripts/smoketest/rainbow_rehearsal.py` mirroring phase6_e2e.py pattern (serial stages, fail-open, audit JSONL, JSON summary). NOT a new pytest file — unit tests already cover each component in isolation.
+**Contract:** PRE-commit. 5 functional criteria + immutable (masterplan grep) + functional verify (live rehearsal exit 0).
+**Generator:** `scripts/smoketest/rainbow_rehearsal.py` (~250 lines) with 5 stages: S1 promote dry-run → verifies stdout; S2 canary equal latency (20 blue + 20 green @ 100ms) → regression=False; S3 canary regression (green @ 250ms) → regression=True ratio>2.0; S4 rollback dry-run → prints "blue"; S5 audit JSONL + JSON summary. Per-stage try/except fail-open; top-level exits 1 only on uncaught exception. Zero production code changes.
+**Verification:**
+- Live rehearsal: exit 0, `overall_ok: true`, all stages `ok: true`. ratio=1.0 in S2; ratio=2.5 in S3.
+- Audit JSONL written at `handoff/audit/rainbow_rehearsal.jsonl` (2 rows after Q/A re-run).
+- Regression: 103p/1s unchanged.
+**qa_124_v1:** PASS, 0 violated_criteria. 5/5 protocol audit. A-G deterministic all green. Q/A re-ran the rehearsal; confirmed ratio=2.5 + regression=true in S3 (gate fires path is real, not silently broken). Scope clean (script + audit + handoff; zero production code). Non-blocking observation: docstring says "5 stages" but summary has 4 (S5 folded into _write_audit) — cosmetic, not a FAIL.
+**PHASE-12 CLOSURE:**
+- 5/5 steps done: 12.0 (audit + plan doc) → 12.1 (4 yaml + README) → 12.2 (promote/rollback CLI + 11 tests) → 12.3 (canary SLO diff + canary-split yaml + 13 tests) → 12.4 (e2e rehearsal smoketest).
+- `deploy/rainbow/` has 5 yaml + README.
+- `scripts/deploy/rainbow/` has promote.py + rollback.py + __init__.
+- `scripts/smoketest/rainbow_rehearsal.py` is the preflight drill.
+- `backend/services/observability/rainbow_canary.py` owns SLO-diff math.
+- +24 new tests across phase-12 (11 CLI + 13 canary). 103 passing cumulative; zero regressions in any phase-12 cycle.
+- Rainbow pattern is ready for next risky SDK bump / model flip.
+**Decision:** PASS. Task #26 closed. **PHASE-12 COMPLETE.**
