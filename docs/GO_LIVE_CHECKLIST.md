@@ -67,7 +67,8 @@
 - **HOW**: computed by `backend/services/paper_trader.py` and surfaced on the Paper Trading tab. Also writable via `python -m backend.services.paper_trader --sharpe`. The gate is 0.82 derived from `backtest_sharpe * 0.70`; if the backtest Sharpe changes, recompute this gate.
 
 ### 4.4.2.3 Paper max drawdown < 15% (kill switch never triggered)
-- [ ] The paper trading run never crossed the -15% drawdown line
+- [x] The paper trading run never crossed the -15% drawdown line
+- **Evidence**: drill landed at `scripts/go_live_drills/paper_drawdown_test.py` and executed 2026-04-20 by Ford Cycle 30 on `main`. 9/9 checks PASS: S0 BQ evidence snapshot loaded (query_date=2026-04-20), S1 paper trading running 31 days (inception 2026-03-20), S2 starting capital $10,000, S3 max drawdown -5.0% above -15.0% threshold (10pp margin of safety), S4 kill switch never triggered, S5 0 risk intervention log entries in BQ, S6 min NAV $9,499.50 above 85% floor $8,500, S7 get_risk_constraints confirms max_drawdown_pct=-15.0 hardcoded, S8 NAV/cash consistent at $9,499.50. BQ source: `sunny-might-477607-p8.financial_reports.paper_portfolio` (inception 2026-03-20, updated 2026-04-20T12:01:07Z) + `paper_portfolio_snapshots` (10 rows, 4 distinct days Apr 14-20, cumulative_pnl_pct constant at -5.0%). 1 historical trade (XOM BUY $500 test_paper_trade 2026-03-28), 0 current positions. Evidence snapshot persisted at `backend/backtest/experiments/results/paper_trading_evidence_20260420.json`. Re-run recipe: `python3 scripts/go_live_drills/paper_drawdown_test.py` (exit 0 on PASS, exit 1 on any failure).
 - **WHO**: Ford
 - **WHEN**: continuous during the paper trading window
 - **HOW**: `risk_check` in `backend/agents/mcp_servers/signals_server.py` at line 723 enforces `max_drawdown_pct = -15.0` as a hard circuit breaker on BUYs. Inspect the Paper Trading tab for the max drawdown stat; any period where the kill switch fired invalidates the run and a fresh 2-week window starts.

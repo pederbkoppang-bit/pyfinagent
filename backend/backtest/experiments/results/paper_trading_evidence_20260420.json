@@ -1,0 +1,44 @@
+{
+  "query_date": "2026-04-20",
+  "source": "BigQuery sunny-might-477607-p8.financial_reports",
+  "paper_portfolio": {
+    "portfolio_id": "default",
+    "starting_capital": 10000.0,
+    "current_cash": 9499.5,
+    "total_nav": 9499.5,
+    "total_pnl_pct": -5.0,
+    "benchmark_return_pct": 9.49,
+    "inception_date": "2026-03-20T14:01:20.621512+00:00",
+    "updated_at": "2026-04-20T12:01:07.186714+00:00",
+    "market": "US",
+    "base_currency": "USD"
+  },
+  "snapshot_summary": {
+    "min_cumulative_pnl_pct": -5.0,
+    "max_cumulative_pnl_pct": -5.0,
+    "min_nav": 9499.5,
+    "max_nav": 9499.5,
+    "distinct_snapshot_days": 4,
+    "total_snapshots": 10,
+    "date_range": ["2026-04-14", "2026-04-20"]
+  },
+  "risk_intervention_log_count": 0,
+  "paper_trades_count": 1,
+  "paper_trades": [
+    {
+      "trade_id": "a8e6b00e-e39b-4a00-9eb4-540097b2212a",
+      "ticker": "XOM",
+      "action": "BUY",
+      "quantity": 2.924148,
+      "price": 170.99,
+      "total_value": 500.0,
+      "transaction_cost": 0.5,
+      "reason": "test_paper_trade",
+      "created_at": "2026-03-28T23:01:13.948235+00:00"
+    }
+  ],
+  "kill_switch_threshold_pct": -15.0,
+  "max_drawdown_pct": -5.0,
+  "kill_switch_ever_triggered": false,
+  "verification_verdict": "PASS"
+}
