@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-20 | `9d12c053` | Phase 4.4.2.3: paper max drawdown < 15% verified via BQ evidence |
 | 2026-04-19 | `e22d435e` | chore(masterplan): record MCP env-var-warning fix as phase-14 |
 | 2026-04-19 | `0e965175` | chore(mcp): silence alpaca missing-env-var warning with shell defaults |
 | 2026-04-19 | `41296694` | phase-12.4: Rainbow rehearsal smoketest — PHASE-12 COMPLETE |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `c63d29b8` | phase-3.1 + phase-3.2: joint close — wire LLM planner + evaluator into autonomous loop |
 | 2026-04-19 | `ac585025` | audit: formalize phase-2.10 supersession + retire phase-4.14.20 as superseded |
 | 2026-04-19 | `92420c1a` | phase-3.0: MCP server architecture docs + Alpaca pin (cycle-2 PASS) |
-| 2026-04-19 | `5b4607fc` | phase-6.8: end-to-end smoketest + BQ writers — PHASE-6 COMPLETE |
 
 ---
 
+### v6.5.66 — Phase 4.4.2.3: paper max drawdown < 15% verified via BQ evidence (2026-04-20)
+
+- **Phase 4.4.2.3: paper max drawdown < 15% verified via BQ evidence**
 ### v6.5.65 — chore(masterplan): record MCP env-var-warning fix as phase-14 (2026-04-19)
 
 - **chore(masterplan): record MCP env-var-warning fix as phase-14**
