@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-21 | `d0873465` | chore: harness log entry for Cycle 32 (4.4.6.3 first-week monitoring PASS) |
 | 2026-04-21 | `27075ac9` | Phase 4.4.6.3: first-week monitoring thresholds |
 | 2026-04-21 | `77ffae9f` | chore: harness log entry for Cycle 31 (4.4.2.4 signal reliability BLOCKED) |
 | 2026-04-21 | `b93a684a` | Phase 4.4.2.4: add signal reliability drill (BLOCKED -- pipeline not running daily) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `f270c444` | chore(masterplan): move 4.14.6 to new phase-13 at end of masterplan |
 | 2026-04-19 | `899bd4e2` | phase-11.0 + phase-12 queue: Vertex migration plan doc + Rainbow Deploys |
 | 2026-04-19 | `02badab0` | phase-3.4: fix outcome_tracker NameError + skill_optimizer tests — PHASE-3 COMPLETE |
-| 2026-04-19 | `207e0440` | operator-request: phase-11 Vertex migration + research-gate query discipline |
 
 ---
 
