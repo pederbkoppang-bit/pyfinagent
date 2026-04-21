@@ -16,6 +16,8 @@ Resources:
 import copy
 import hashlib
 import json
+
+from backend.utils import json_io
 import logging
 import math
 import statistics
@@ -710,7 +712,7 @@ class SignalsServer:
                 factors_raw = row.pop("factors_json")
                 if isinstance(factors_raw, str):
                     try:
-                        row["factors"] = json.loads(factors_raw)
+                        row["factors"] = json_io.loads(factors_raw)
                     except (ValueError, TypeError):
                         row["factors"] = []
                 else:
@@ -1217,6 +1219,10 @@ class SignalsServer:
             kill_pct = float(limits.get("max_drawdown_pct", -15.0))
         except (ValueError, TypeError):
             kill_pct = -15.0
+
+        # Phase 4.4.6.3: tighten de-risk from -10% to -5% in first-week mode.
+        if self.settings and getattr(self.settings, "first_week_mode", False):
+            derisk_pct = warn_pct
 
         # Canonical tier cascade: check most severe first.
         if drawdown_pct <= kill_pct:

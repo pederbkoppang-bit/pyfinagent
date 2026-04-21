@@ -208,7 +208,8 @@
 - **HOW**: budget figure in `PLAN.md` item 4.4.6 is `~$268-348/month`; Peder confirms the payment source (personal card or business account) and Ford records the confirmation in `handoff/harness_log.md`. Subsequent month-over-month drift > 15% triggers a budget review.
 
 ### 4.4.6.3 First week: extra monitoring (daily review call, immediate Slack alerts)
-- [ ] First-week monitoring cadence is armed: daily review call scheduled, alert thresholds tightened
+- [x] First-week monitoring cadence is armed: daily review call scheduled, alert thresholds tightened
+- **Evidence**: drill landed at `scripts/go_live_drills/first_week_monitoring_test.py` and executed 2026-04-21 by Ford Cycle 32 on `main`. 15/15 checks PASS: S0 `first_week_mode` setting exists in settings.py, S1 defaults False, S2 sla_monitor.py imports get_settings, S3 SLA has first_week conditional, S4 P3 normal response=4h (14400s), S5 P3 first-week response=1h (3600s), S6 track_drawdown has first_week_mode override, S7 get_risk_constraints unchanged (4.4.4.4 compliant), S8 normal -9.5% -> warning, S9 normal -10% -> derisk, S10 first-week -5% -> derisk (tightened), S11 first-week -4% -> ok, S12 first-week -15% -> kill (unchanged), S13 normal -15% -> kill, S14 all risk constraint literals unchanged. Activation: set `FIRST_WEEK_MODE=true` at go-live; revert after day 7. Daily review call scheduling pending Peder. Re-run recipe: `python3 scripts/go_live_drills/first_week_monitoring_test.py` (exit 0 on PASS, exit 1 on any failure).
 - **WHO**: joint
 - **WHEN**: first-week (continuous for 7 days post-launch)
 - **HOW**: daily review slot exists on the calendar for days 1-7; the SLA Monitor service has its alert thresholds tightened in `backend/services/` (e.g. drawdown alert at -5% instead of -10%, signal miss alert at 1 hour instead of 4). Revert to normal thresholds after day 7 if live Sharpe tracks the paper Sharpe.

@@ -165,6 +165,9 @@ class Settings(BaseSettings):
     morning_digest_hour: int = Field(8, description="Hour (0-23) for daily morning digest in local timezone")
     evening_digest_hour: int = Field(17, description="Hour (0-23) for daily evening digest in local timezone")
     watchdog_interval_minutes: int = Field(15, description="Interval (minutes) for watchdog health check")
+
+    # --- First-week monitoring (Phase 4.4.6.3) ---
+    first_week_mode: bool = Field(False, description="Tighten alert thresholds for 7 days post-launch. Drawdown de-risk: -10% -> -5%, SLA P3 response: 4h -> 1h. Set FIRST_WEEK_MODE=true at go-live, revert after day 7.")
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

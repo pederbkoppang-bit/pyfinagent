@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 
 from backend.db.tickets_db import get_tickets_db, TicketPriority
+from backend.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +22,25 @@ class SLAMonitoringService:
         self.escalation_phone = escalation_phone
         
     def get_sla_thresholds(self) -> Dict[str, Dict[str, int]]:
-        """Get SLA thresholds in seconds for each priority level."""
+        """Get SLA thresholds in seconds for each priority level.
+
+        Phase 4.4.6.3: when FIRST_WEEK_MODE is active, P3 response tightens
+        from 4 hours to 1 hour ("signal miss alert at 1 hour instead of 4").
+        P0/P1/P2 unchanged -- they are already tight enough for launch week.
+        """
+        try:
+            first_week = get_settings().first_week_mode
+        except Exception:
+            first_week = False
+
+        p3_response = 60 * 60 if first_week else 4 * 3600
+        p3_resolution = 8 * 3600 if first_week else 24 * 3600
+
         return {
-            'P0': {'response': 5 * 60, 'resolution': 30 * 60},      # 5 min, 30 min
-            'P1': {'response': 15 * 60, 'resolution': 2 * 3600},    # 15 min, 2 hours
-            'P2': {'response': 60 * 60, 'resolution': 8 * 3600},    # 1 hour, 8 hours
-            'P3': {'response': 4 * 3600, 'resolution': 24 * 3600},  # 4 hours, 24 hours
+            'P0': {'response': 5 * 60, 'resolution': 30 * 60},
+            'P1': {'response': 15 * 60, 'resolution': 2 * 3600},
+            'P2': {'response': 60 * 60, 'resolution': 8 * 3600},
+            'P3': {'response': p3_response, 'resolution': p3_resolution},
         }
     
     def check_active_sla_breaches(self) -> List[Dict[str, Any]]:
