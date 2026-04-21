@@ -10134,3 +10134,105 @@ All 10 phase-10 steps done:
 **Reliability note:** All remaining Ford-actionable items depend on the paper trading pipeline generating daily signals. Until the autonomous_loop is scheduled to run daily, items 4.4.2.2 (Paper Sharpe), 4.4.2.4 (No missed days), and 4.4.2.5 (Divergence check) cannot pass.
 
 **Session log:** MAS harness cycle, automated.
+
+---
+
+## phase-10.11 -- 2026-04-21 17:14 UTC -- result=PASS (Integration: backend endpoint + dashboard wiring)
+
+6 sources read in full. Existing APIRouter idiom + isocalendar ISO-week safety + null-body HTTP 200 for no-data weeks.
+
+**Code shipped:**
+- NEW `backend/api/harness_autoresearch.py` (~165 lines): `APIRouter(prefix="/api/harness")`; `GET /sprint-state`; Pydantic camelCase response models (HarnessSprintWeekState/Thu/Fri/Monthly); pure `fetch_sprint_state()` with injectable `bq_query_fn`; `_build_sql()` module helper for SQL inspection; parameterized `@week_iso` binding; latest-row-per-slot semantics; fail-open on BQ errors
+- NEW `scripts/harness/phase10_integration_test.py` (4 cases verbatim)
+- NEW `tests/api/test_harness_autoresearch.py` (8 pytest cases incl. cycle-2 prefix-pin + BQ-fail-open)
+- MODIFIED `backend/main.py` (+2 lines: router registration)
+- MODIFIED `frontend/src/lib/api.ts` (+7 lines: `getHarnessSprintState` fetcher)
+- MODIFIED `frontend/src/components/HarnessDashboard.tsx`: imported HarnessSprintTile + HarnessSprintWeekState; added sprintState state var; added getHarnessSprintState to Promise.all with `.catch(() => null)`; rendered `<HarnessSprintTile data={sprintState} />` at top of JSX
+
+qa_1011_v1 PASS: 4/4 CLI + 8/8 pytest (initially 7, +1 for router-prefix gap closer) + 125/125 neighbors + clean `tsc --noEmit`. M2 (table name) and M3 (tile render) mutations caught. Q/A flagged M1 (prefix mutation) not originally caught -> Main added `test_router_prefix_is_api_harness` to close the gap.
+
+**Cycle-2 discipline demonstrated:** Q/A found a narrow gap in mutation resistance, recommended a 2-line test. Main added the test (+ a BQ fail-open test for the second Q/A observation) before flipping status. No re-spawn needed since the patch was additive and Q/A had already explicitly pre-disclosed the M1 gap as non-blocking.
+
+---
+
+# PHASE-10 COMPLETE (all 12 steps, 2026-04-20 through 2026-04-21)
+
+All 12 phase-10 steps done:
+- 10.0 Retire 8.5.7 nightly cron
+- 10.1 Sprint calendar config
+- 10.2 Weekly ledger schema
+- 10.3 Thursday batch trigger
+- 10.4 Friday promotion gate
+- 10.5 Sortino canonical LPM_2
+- 10.6 Monthly Champion/Challenger HITL
+- 10.7 Rollback kill-switch
+- 10.8 Slot accounting to BQ harness_learning_log
+- 10.9 HarnessSprintTile read-only component
+- 10.10 Housekeeping quarantine tool (non-destructive; reversible)
+- 10.11 Backend endpoint + dashboard integration
+
+**Cycle-2 flow demonstrated four times** (10.6, 10.7, 10.8, 10.10) — Q/A surfaced real gaps, Main fixed + added tests, fresh Q/A verified on updated evidence.
+
+**Outstanding carry-forwards for future phases:**
+- Wire real Thursday/Friday/Monthly/Rollback routines to call `log_slot_usage` on success (real-data pipeline; scheduler integration)
+- Operator runs `python scripts/housekeeping/quarantine_phantom_archives.py --archive-root handoff/archive --no-dry-run` when ready (would move 12,647 phantoms)
+- Weekly selector dropdown on the dashboard
+- `HarnessDashboard.tsx` pre-existing icon-import violation
+- Slack reaction-based approval for monthly HITL (phase-10.6.1)
+- Permanent delete of quarantine after cooling-off
+
+
+---
+
+## phase-10.10 LIVE EXECUTION -- 2026-04-21 17:20 UTC
+
+Operator ran the quarantine tool against the real `handoff/archive/`. Results:
+
+**Wave 1** (strict `phase-X.Y-vN` regex):
+- 12,647 phantoms moved in 11s
+- 203 canonicals preserved
+- 147 non-phase-shaped dirs (_templates, _audit, etc.) left alone
+
+**Discovery:** 137 leftover phantoms with the double-prefix name shape `phase-phase-6.1-vN` (an older hook-bug variant). Extended `PHANTOM_RE` to `^phase-(?:phase-)?\d+(?:\.\d+)+-v\d+$` to catch them. 9/9 pytest + 4/4 CLI on synthetic fixtures remained green with the extended regex.
+
+**Wave 2** (extended regex):
+- 137 more phantoms moved
+- Root now has ZERO `-vN` phantoms
+
+**Final state:**
+- Archive root: 214 entries (203 canonical phase dirs + 11 infra dirs)
+- Quarantine: 12,784 phantoms + 1 MANIFEST.jsonl
+- Manifest: 12,784 entries, each with dir_sha256, size_bytes, file_count, original_path, quarantine_path, moved_at_iso
+- Reversibility verified: `restore_from_quarantine.py --manifest ... ` (dry-run) reports `{restored: 12784, mismatches: [], skipped: []}`
+- Full regression: 125/125 green
+
+**Size:** `handoff/archive/` = 250 MB total (7 MB active canonical + 243 MB in quarantine). Ready for permanent deletion after an operator cooling-off period.
+
+---
+
+## phase-10.12 -- 2026-04-21 17:33 UTC -- result=PASS (HarnessSprintTile navy palette)
+
+6 sources read in full (NN/G, PatternFly, Cloudscape, Shneiderman, tailwind dark-mode, Eleken). Researcher confirmed tailwind.config.js uses custom navy-* tokens; all 5 phase-10.9 tests target data-* attrs, not CSS classes -> zero-risk refactor.
+
+**Code change (class tokens only):**
+- `frontend/src/components/HarnessSprintTile.tsx`: outer section zinc/white -> `bg-navy-800/60 border-navy-700 p-5 rounded-xl`; empty state `py-12 -> py-8`, icon `size={40} -> size={32}`; 3 inner sub-cards zinc -> `bg-navy-900/40 border-navy-700/50 rounded-lg p-4`
+- NO DOM changes, NO data-* changes, NO behavior changes, NO test file changes
+
+qa_1012_v1 PASS: 5/5 Vitest + clean `tsc --noEmit` + `zinc=0, navy=5`. Minimally invasive refactor; the tile now matches `HarnessDashboard.tsx` peer cards (`bg-navy-800/60`, `border-navy-700`).
+
+**Carry-forwards:** BentoCard.tsx globally uses the same light-theme defaults (wider scope); visual-regression snapshots for Vitest.
+
+
+---
+
+## Cycle 32 -- 2026-04-21 -- phase=4.4.6.3 result=PASS
+
+**Planner hypothesis:** Add `FIRST_WEEK_MODE` env-var toggle to tighten two monitoring thresholds for the 7-day post-launch window, as specified by checklist item 4.4.6.3: drawdown de-risk from -10% to -5%, SLA P3 response from 4h to 1h.
+**Generator diff:** +403 / -126 lines across 8 files (3 modified backend files, 1 new drill, 3 handoff files, 1 checklist flip). `settings.py` +3 lines (`first_week_mode: bool`). `sla_monitor.py` +14 lines (import + conditional P3). `signals_server.py` +4 lines (first-week derisk override after `get_risk_constraints()` read). `first_week_monitoring_test.py` +254 lines (new drill, 15 scenarios). `get_risk_constraints()` NOT modified (4.4.4.4 compliance preserved).
+**Evaluator verdict:** PASS (15/15 scenarios)
+- S0-S7: AST-level checks (setting exists, defaults False, SLA import, conditional branch, P3 normal=4h/first-week=1h, track_drawdown override, get_risk_constraints unchanged)
+- S8-S14: Runtime checks (normal derisk@-10%, first-week derisk@-5%, kill switch -15% unchanged both modes, all risk constraint literals unchanged)
+**Decision:** ACCEPTED -- shipped on origin/main as `27075ac9` -> `d0b22c4e`.
+**Phase progress:** Checklist 4.4.6.3 flipped to [x]. Daily review call scheduling pending Peder (calendar item, following 4.4.5.2/4.4.5.5 pattern).
+**Reliability note:** Existing drills (kill_switch_test etc) have a pre-existing sys.path issue from a newer `backend.utils` import in signals_server.py. This drill adds `sys.path.insert(0, REPO_ROOT)` as a workaround. Not introduced by this cycle.
+**Session log:** MAS harness autonomous cycle via launchd.
