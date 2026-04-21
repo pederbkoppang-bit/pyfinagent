@@ -1,31 +1,44 @@
-# Phase 4.4.2.3 Evaluator Critique
+# Phase 4.4.2.4 Evaluator Critique
 
-**Cycle:** 30
-**Date:** 2026-04-20
-**Step:** Paper max drawdown < 15% (kill switch never triggered)
+**Cycle:** 31
+**Date:** 2026-04-21
+**Step:** No missed trading days (signal generation reliable)
 
-## Deterministic Checks
-- [x] Drill exits 0 (9/9 PASS)
-- [x] Evidence JSON valid and loadable
-- [x] Max drawdown -5.0% < -15.0% threshold
-- [x] Kill switch code threshold verified (-15.0 in get_risk_constraints)
-- [x] 0 risk intervention log entries
-- [x] NAV consistent (nav == cash, no hidden positions)
-- [x] Checklist item flipped with evidence line matching format
+## Verdict: BLOCKED
 
-## LLM Judgment
-- Criterion alignment: PASS -- the checklist asks "never crossed -15% drawdown line" and the max observed is -5.0%
-- Evidence strength: MODERATE -- BQ data confirms the fact, but only 4 distinct snapshot days exist (Apr 14-20, not the full 31-day period). NAV is constant at $9499.50 across all snapshots, meaning earlier values were at or above this level.
-- Scope: PASS -- 3 new/modified files, zero backend code changes, zero risk to existing functionality
-- Soft concern: paper trading ran with 0 autonomous trades (only 1 manual test trade). The drawdown criterion passes mechanically but the portfolio's passivity means it was never truly stress-tested by the market.
+The checklist item cannot be checked because the underlying system is not
+generating daily signals. This is not a drill deficiency -- the drill
+correctly reports the gap.
 
-## Verdict
-**PASS** (composite 8.5/10)
+## Checks run
 
-The checklist criterion is binary: did the drawdown cross -15%? No (max -5.0%). The kill switch was never triggered (0 risk interventions). The evidence is legitimate even though the portfolio is mostly dormant -- the criterion does not require active trading, only that the threshold was never breached.
+| Check | Result | Detail |
+|-------|--------|--------|
+| S0 Evidence file | PASS | signal_generation_evidence_20260421.json loaded |
+| S1 signals_log table | FAIL | Table does not exist in BQ (migration not run) |
+| S2 Trading day count | PASS | 22 NYSE trading days in [2026-03-20, 2026-04-21] |
+| S3 Signal day count | PASS | 2 days with signal generation (fallback source) |
+| S4 Coverage gate | FAIL | 1/22 = 4.5% (gate: 100%) |
+| S5 Missed days | FAIL | 21 missed trading days |
+| S6 Non-trading signals | INFO | 1 signal on Saturday (2026-03-21) |
 
-## violated_criteria
-None
+**Drill exit code:** 1 (FAIL)
 
-## checks_run
-9 (drill) + 7 (deterministic) = 16
+## Blockers to resolve before this item can pass
+
+1. **Run signals_log migration**: `python scripts/migrations/migrate_signals_log.py`
+2. **Activate daily signal generation**: autonomous_loop.py must be scheduled
+   to run each trading day (via launchd, cron, or manual trigger)
+3. **Accumulate signal history**: at minimum 14 consecutive trading days of
+   signal generation logs before this item can be checked
+
+## Drill quality assessment
+
+The drill is well-formed and ready for re-verification:
+- stdlib-only, no external dependencies
+- NYSE holiday calendar for 2026 is accurate
+- Loads from evidence JSON (re-snapshot BQ before re-run)
+- Exit 0 only on 100% coverage (zero gaps)
+- Re-run recipe: `python3 scripts/go_live_drills/signal_reliability_test.py`
+
+## Composite score: N/A (BLOCKED, not scoreable)

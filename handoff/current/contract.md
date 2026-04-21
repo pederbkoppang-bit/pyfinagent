@@ -1,33 +1,35 @@
-# Contract: Phase 4.4.2.3 -- Paper Max Drawdown < 15%
+# Contract: 4.4.2.4 No missed trading days (signal generation reliable)
 
 ## Step ID
-4.4.2.3
+4.4.2.4
 
-## Hypothesis
-Paper trading has been running since 2026-03-20 (31 days). The portfolio's max
-drawdown is -5.0% (from $10,000 to $9,499.50). The kill switch threshold is
--15.0% (hardcoded in get_risk_constraints, verified in 4.4.4.4). The kill switch
-was never triggered (0 entries in risk_intervention_log). A BQ-backed drill can
-verify all criteria for checklist item 4.4.2.3.
+## Target
+Verify that every US market open day in the paper trading window has a
+signal-generation log entry in BigQuery.
 
-## Success Criteria (from GO_LIVE_CHECKLIST.md)
-- Paper trading run never crossed the -15% drawdown line
-- Kill switch never triggered during the paper trading window
+## Verification criteria (from checklist)
+- Every US market open day in the paper trading window has a signal-generation
+  log entry
+- Query BigQuery `signals_log` with `event_kind = "publish"` grouped by day
+- Compare distinct days against NYSE trading calendar for the window
+- Zero gaps is the gate
 
-## Plan
-1. Query BQ for paper_portfolio + paper_portfolio_snapshots + risk_intervention_log
-2. Save evidence snapshot as JSON artifact
-3. Write stdlib-only drill that reads evidence + verifies kill switch code threshold
-4. Run drill, confirm 9/9 PASS
-5. Flip checklist item, append evidence line
+## BQ data assessment (2026-04-21)
+- `signals_log` table does NOT exist in any dataset (migration scaffolded in
+  Cycle 5 but never executed against BQ)
+- Fallback: `financial_reports.analysis_results` has `analysis_date` column
+- Paper trading inception: 2026-03-20
+- Signal generation days since inception: 2 (Mar 20: 1 analysis, Mar 21: 2)
+- Approximate US trading days in window (Mar 20 - Apr 21): ~22
+- Coverage: 2/22 = ~9% -- far below 100% gate
 
-## Research Gate
-Waived per pure-data-verification rule. No algorithm or external knowledge needed.
-BQ queries are the primary verification method per the checklist HOW recipe.
+## Expected outcome
+BLOCKED -- signal generation pipeline not running daily. Drill will be written
+for future re-verification when daily signal generation is activated.
 
-## References
-- BQ: `sunny-might-477607-p8.financial_reports.paper_portfolio`
-- BQ: `sunny-might-477607-p8.financial_reports.paper_portfolio_snapshots`
-- BQ: `sunny-might-477607-p8.pyfinagent_data.risk_intervention_log`
-- Code: `backend/agents/mcp_servers/signals_server.py` get_risk_constraints
-- Prior: Cycle 9 (4.4.4.1 kill switch drill), Cycle 8 (4.4.4.4 risk limits)
+## Drill plan
+1. Save BQ evidence snapshot to `backend/backtest/experiments/results/`
+2. Write stdlib-only drill at `scripts/go_live_drills/signal_reliability_test.py`
+3. Drill checks: evidence file exists, signals_log table status, signal days
+   vs NYSE calendar, gap count, coverage percentage
+4. Exit 0 only if zero gaps (will exit 1 this cycle)

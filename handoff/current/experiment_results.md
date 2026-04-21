@@ -1,43 +1,57 @@
-# Experiment Results -- Phase 4.4.2.3 Paper Max Drawdown < 15%
+# Experiment Results -- Phase 4.4.2.4 No Missed Trading Days
 
-**Date:** 2026-04-20
-**Cycle:** 30
+**Date:** 2026-04-21
+**Cycle:** 31
+**Item:** 4.4.2.4 No missed trading days (signal generation reliable)
+**Outcome:** BLOCKED (drill exits 1, evidence insufficient)
 
 ## What was built
-1. BQ evidence snapshot: `backend/backtest/experiments/results/paper_trading_evidence_20260420.json`
-2. Drill test: `scripts/go_live_drills/paper_drawdown_test.py` (9 checks, stdlib-only)
-3. Checklist flip: `docs/GO_LIVE_CHECKLIST.md` item 4.4.2.3 `[ ]` -> `[x]` with evidence
 
-## BQ Queries Run
-- `financial_reports.paper_portfolio`: 1 row, inception 2026-03-20, NAV $9499.50, PnL -5.0%
-- `financial_reports.paper_portfolio_snapshots`: 10 rows, 4 distinct days (Apr 14-20), min/max PnL -5.0%
-- `financial_reports.paper_trades`: 1 row (XOM BUY $500 test_paper_trade 2026-03-28)
-- `financial_reports.paper_positions`: 0 rows
-- `pyfinagent_data.risk_intervention_log`: 0 rows
-- `pyfinagent_pms.portfolio_status_snapshot`: 0 rows (unused table)
+1. **BQ evidence snapshot**: `backend/backtest/experiments/results/signal_generation_evidence_20260421.json`
+   - Queried all BQ datasets for `signals_log` table: NOT FOUND
+   - Fallback: `financial_reports.analysis_results` used as signal proxy
+   - Paper trading window: 2026-03-20 to 2026-04-21 (32 calendar days)
+   - Signal generation days: 2 (Mar 20: 1 SNDK/Hold, Mar 21: 2 SNDK/Hold)
+   - Mar 21 is a Saturday (non-trading day)
 
-## Drill Output
+2. **Drill**: `scripts/go_live_drills/signal_reliability_test.py`
+   - stdlib-only, follows kill_switch_test.py pattern
+   - Loads evidence JSON, computes NYSE trading days (Mon-Fri minus US holidays)
+   - Compares signal generation dates against trading calendar
+   - 7-check battery: evidence load, signals_log status, trading day count,
+     signal day count, coverage gate (100%), gap list, non-trading-day check
+
+## Drill output
+
 ```
-DRILL PASS: 9/9
-  S0: Evidence file loaded, query_date=2026-04-20
-  S1: Paper trading running 31 days (inception 2026-03-20)
-  S2: Starting capital=$10,000.00
-  S3: Max drawdown -5.0% > -15.0% threshold (SAFE)
-  S4: Kill switch never triggered
-  S5: 0 risk intervention log entries
-  S6: Min NAV $9,499.50 above 85% floor $8,500.00
-  S7: get_risk_constraints has max_drawdown_pct=-15.0
-  S8: NAV=$9,499.50, cash=$9,499.50, consistent
+4.4.2.4 No Missed Trading Days Drill
+  [+] S0: Evidence loaded, query_date=2026-04-21
+  [X] S1: signals_log table missing
+  [+] S2: NYSE trading days in window: 22
+  [+] S3: Signal generation days in BQ: 2
+  [X] S4: Coverage: 1/22 = 4.5% (gate: 100%)
+  [X] S5: 21 missed trading days
+  [i] S6: 1 signal day outside trading calendar (2026-03-21 = Saturday)
+DRILL FAIL: 3/7
 ```
 
-## Files Changed
-- `scripts/go_live_drills/paper_drawdown_test.py` (new, +120 lines)
-- `backend/backtest/experiments/results/paper_trading_evidence_20260420.json` (new)
-- `docs/GO_LIVE_CHECKLIST.md` (modified, checklist flip + evidence)
-- `handoff/current/contract.md` (modified)
-- `handoff/current/experiment_results.md` (modified)
+## Root causes
 
-## Soft Notes
-1. Only 10 BQ snapshots exist (Apr 14-20), not full 31-day period. NAV has been constant at $9499.50 across all snapshots, so earlier values could only have been higher (closer to $10000).
-2. Portfolio had 0 autonomous trades. The single trade was a test_paper_trade on 2026-03-28. The -$500.50 loss is from this test trade + transaction costs.
-3. Paper trading has 0 current positions -- no unrealized risk exposure.
+1. **signals_log migration never executed.** `scripts/migrations/migrate_signals_log.py`
+   was scaffolded in Cycle 5 (Phase 4.2.4) but the `CREATE TABLE IF NOT EXISTS`
+   was never run against BQ. The table does not exist.
+2. **Signal generation pipeline not running daily.** The autonomous loop
+   (`backend/services/autonomous_loop.py`) needs to be scheduled and running
+   to generate daily signals. Only 2 analyses were recorded since inception.
+3. **All analyses were for a single ticker (SNDK) with Hold recommendation.**
+   No BUY/SELL signals were generated that would trigger paper trades.
+
+## Files changed
+
+| File | Action |
+|------|--------|
+| `scripts/go_live_drills/signal_reliability_test.py` | NEW -- drill for 4.4.2.4 |
+| `backend/backtest/experiments/results/signal_generation_evidence_20260421.json` | NEW -- BQ snapshot |
+| `handoff/current/contract.md` | Updated for 4.4.2.4 |
+| `handoff/current/experiment_results.md` | This file |
+| `handoff/current/evaluator_critique.md` | Updated |

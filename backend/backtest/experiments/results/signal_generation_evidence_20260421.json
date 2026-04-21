@@ -1,0 +1,32 @@
+{
+  "query_date": "2026-04-21",
+  "paper_trading_inception": "2026-03-20",
+  "paper_portfolio_last_update": "2026-04-21T12:01:10.715929+00:00",
+  "signals_log_table_exists": false,
+  "signals_log_table_note": "Migration scaffolded in Cycle 5 (scripts/migrations/migrate_signals_log.py) but never executed against BQ. Table does not exist in any dataset.",
+  "fallback_source": "financial_reports.analysis_results",
+  "signal_generation_days": [
+    {
+      "date": "2026-03-20",
+      "signal_count": 1,
+      "tickers": ["SNDK"],
+      "recommendations": ["Hold"]
+    },
+    {
+      "date": "2026-03-21",
+      "signal_count": 2,
+      "tickers": ["SNDK"],
+      "recommendations": ["Hold"]
+    }
+  ],
+  "total_signal_days": 2,
+  "total_signals": 3,
+  "bq_project": "sunny-might-477607-p8",
+  "bq_datasets_checked": [
+    "pyfinagent_data",
+    "financial_reports",
+    "pyfinagent_pms",
+    "pyfinagent_staging",
+    "pyfinagent_hdw"
+  ]
+}
