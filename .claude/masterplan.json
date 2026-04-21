@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-19T17:57:24.724108+00:00",
+  "updated_at": "2026-04-20T04:43:32.873195+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -191,7 +191,7 @@
         {
           "id": "2.12",
           "name": "Harness Optimization",
-          "status": "in-progress",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
@@ -202,7 +202,8 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T20:23:00+00:00"
         },
         {
           "id": "2.13",
@@ -1606,65 +1607,6 @@
       ]
     },
     {
-      "id": "phase-5",
-      "name": "Multi-Market Expansion",
-      "status": "pending",
-      "depends_on": [
-        "phase-4.5"
-      ],
-      "gate": null,
-      "steps": [
-        {
-          "id": "5.1",
-          "name": "Market Expansion Framework",
-          "status": "pending",
-          "harness_required": true,
-          "verification": {
-            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
-            "success_criteria": [
-              "evaluator_critique_pass",
-              "no_regressions"
-            ]
-          },
-          "contract": null,
-          "retry_count": 0,
-          "max_retries": 3
-        },
-        {
-          "id": "5.2",
-          "name": "Market-Specific Research & Considerations",
-          "status": "pending",
-          "harness_required": true,
-          "verification": {
-            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
-            "success_criteria": [
-              "evaluator_critique_pass",
-              "no_regressions"
-            ]
-          },
-          "contract": null,
-          "retry_count": 0,
-          "max_retries": 3
-        },
-        {
-          "id": "5.3",
-          "name": "Cross-Market Intelligence",
-          "status": "pending",
-          "harness_required": true,
-          "verification": {
-            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
-            "success_criteria": [
-              "evaluator_critique_pass",
-              "no_regressions"
-            ]
-          },
-          "contract": null,
-          "retry_count": 0,
-          "max_retries": 3
-        }
-      ]
-    },
-    {
       "id": "phase-5.5",
       "name": "External Data-Source Audit",
       "status": "done",
@@ -1892,7 +1834,7 @@
     {
       "id": "phase-6.5",
       "name": "Global Intelligence Directive",
-      "status": "proposed",
+      "status": "done",
       "depends_on": [
         "phase-5.5",
         "phase-6"
@@ -1902,99 +1844,193 @@
         {
           "id": "phase-6.5.1",
           "name": "BigQuery schema migration for intel tables",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/migrations/phase_6_5_intel_schema.py --dry-run && pytest backend/tests/test_intel_schema.py -q",
+            "success_criteria": [
+              "migration_dry_run_exit_0",
+              "all_intel_tables_defined_in_script",
+              "schema_test_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T21:42:00+00:00"
         },
         {
           "id": "phase-6.5.2",
           "name": "Source registry and scan core",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_intel_source_registry.py backend/tests/test_intel_scanner.py -q",
+            "success_criteria": [
+              "registry_loads_all_configured_sources",
+              "scanner_dry_run_returns_candidates",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T21:42:00+00:00"
         },
         {
           "id": "phase-6.5.3",
           "name": "Institutional extractors (GS, BLK, Bridgewater, JPM)",
-          "status": "pending",
+          "status": "dropped",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/extractors/test_institutional.py -q",
+            "success_criteria": [
+              "gs_extractor_returns_normalized_records",
+              "blk_extractor_returns_normalized_records",
+              "bridgewater_extractor_returns_normalized_records",
+              "jpm_extractor_returns_normalized_records",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "dropped_reason": "Public institutional pieces are paywalled, lagged, PR-filtered; scraping carries ToS/compliance risk. Positional signal institutional research telegraphs is better captured by 13F holdings.",
+          "superseded_by": "7.2",
+          "dropped_at": "2026-04-19T18:48:06.575565+00:00"
         },
         {
           "id": "phase-6.5.4",
           "name": "Academic extractors (arXiv OAI-PMH, SSRN, MIT, Stanford, Oxford)",
-          "status": "pending",
+          "status": "dropped",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/extractors/test_academic.py -q",
+            "success_criteria": [
+              "arxiv_oai_pmh_fixture_parses",
+              "ssrn_extractor_returns_records",
+              "mit_stanford_oxford_at_least_one_each",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "dropped_reason": "McLean & Pontiff 2016 (replicated 2025): published quant-fin strategies lose 50-60% of edge post-publication. arXiv/SSRN monitoring is a factor graveyard, not an alpha pipeline.",
+          "dropped_at": "2026-04-19T18:48:06.575567+00:00"
         },
         {
           "id": "phase-6.5.5",
           "name": "AI-frontier extractors (Anthropic, OpenAI, DeepMind, Google Research)",
-          "status": "pending",
+          "status": "dropped",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/extractors/test_ai_frontier.py -q",
+            "success_criteria": [
+              "anthropic_openai_deepmind_google_research_each_return_records",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "dropped_reason": "AI-frontier blogs inform model/harness choice (reduces compute burn) but not trading decisions. Out-of-loop for alpha per the phase goal. Belongs in a model-upgrades or MCP-hygiene phase.",
+          "dropped_at": "2026-04-19T18:48:06.575568+00:00"
         },
         {
           "id": "phase-6.5.6",
           "name": "Player-driven extractors (SeekingAlpha, WSB daily, QuantConnect, SWF EDGAR)",
-          "status": "pending",
+          "status": "dropped",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/extractors/test_player_driven.py -q",
+            "success_criteria": [
+              "seekingalpha_wsb_quantconnect_swf_each_return_records",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "dropped_reason": "Springer Digital Finance 2023 + ScienceDirect 2024: WSB high-attention positions average -8.5% holding-period return; Reddit sentiment Sharpe is ~50% of market. Negative long-term alpha in peer-reviewed record. Phase-7.5 (Reddit WSB) + phase-7.2 (13F) already capture what is worth keeping.",
+          "superseded_by": "7.5",
+          "dropped_at": "2026-04-19T18:48:06.575569+00:00"
         },
         {
           "id": "phase-6.5.7",
           "name": "Novelty client (Voyage + Gemini fallback) and prompt-patch queue",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_intel_novelty_client.py backend/tests/test_prompt_patch_queue.py -q",
+            "success_criteria": [
+              "voyage_primary_gemini_fallback_smoke_ok",
+              "novelty_score_distinguishes_duplicate_vs_novel",
+              "prompt_patch_queue_persists_and_dedupes",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T21:42:00+00:00"
         },
         {
           "id": "phase-6.5.8",
           "name": "Slack digest + daily scheduler wiring",
-          "status": "pending",
+          "status": "dropped",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_intel_digest.py backend/tests/test_intel_scheduler.py -q",
+            "success_criteria": [
+              "digest_renders_top_N_with_links",
+              "scheduler_registers_daily_job",
+              "no_capital_routing_decisions_in_digest_payload",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "dropped_reason": "A daily digest over a 4-table intel schema is noise without signal-bearing extractors. The 6.5.9 smoketest already proves the schema is queryable. Defer dashboard/surfacing work until after phase-8.5 demonstrates intel actually flows into strategy candidates.",
+          "superseded_by": "6.5.9",
+          "dropped_at": "2026-04-19T18:48:06.575571+00:00"
         },
         {
           "id": "phase-6.5.9",
           "name": "End-to-end smoketest with fixtures",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/smoketest/intel_e2e.py --fixtures",
+            "success_criteria": [
+              "overall_ok_true",
+              "at_least_one_record_per_extractor_family",
+              "novelty_and_digest_stages_pass",
+              "exit_0"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T21:42:00+00:00"
         }
-      ]
+      ],
+      "goal": "Turn pyfinagent into a continuously-learning intelligence engine by ingesting high-signal external reports (institutional, academic, AI-frontier, player-driven) into BigQuery, scoring novelty, and surfacing actionable prompt-patches and a daily Slack digest. Hard boundary: ingest + score + surface only; no automatic capital allocation changes.",
+      "path_decision": {
+        "selected": "D",
+        "decided_at": "2026-04-19T18:48:06.575444+00:00",
+        "contract": "handoff/current/phase-6.5-decision-contract.md",
+        "research_brief": "handoff/current/phase-6.5-decision-research-brief.md",
+        "summary": "Keep 4 of 9 steps (6.5.1 schema, 6.5.2 registry, 6.5.7 prompt-patch queue, 6.5.9 smoketest). Drop 5 source-specific extractors + digest, with pointers to phase-7 / phase-8.5 where the work is better located.",
+        "open_issue": "6.5.7 prompt-patch queue has no source-specific extractor feeding it after drops. Before 6.5.7 ships, its contract MUST either (a) wire one or more phase-7 feature outputs into intel_prompt_patches, or (b) explicitly accept empty-pipe at launch and gate closure on a follow-up phase-7-integration step."
+      },
+      "completed_at": "2026-04-19T19:38:55.468602+00:00"
     },
     {
       "id": "phase-7",
       "name": "Alt-Data & Scraping Expansion",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-5.5",
         "phase-6"
@@ -2004,7 +2040,7 @@
         {
           "id": "7.0",
           "name": "Compliance & legal foundation",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "test -f docs/compliance/alt-data.md",
@@ -2014,12 +2050,13 @@
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T20:22:13.467759+00:00"
         },
         {
           "id": "7.1",
           "name": "Congressional trades ingestion",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "python -c \"import ast; ast.parse(open('backend/alt_data/congress.py').read())\"",
@@ -2027,12 +2064,13 @@
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T20:36:16.266216+00:00"
         },
         {
           "id": "7.2",
           "name": "13F institutional holdings ingestion",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "python -c \"import ast; ast.parse(open('backend/alt_data/f13.py').read())\"",
@@ -2040,12 +2078,13 @@
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T20:49:27.319454+00:00"
         },
         {
           "id": "7.3",
           "name": "FINRA short-volume ingestion",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "python -c \"import ast; ast.parse(open('backend/alt_data/finra_short.py').read())\"",
@@ -2053,24 +2092,26 @@
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T21:06:28.833111+00:00"
         },
         {
           "id": "7.4",
           "name": "ETF flows ingestion",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "python -c \"import ast; ast.parse(open('backend/alt_data/etf_flows.py').read())\""
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T21:16:38.763090+00:00"
         },
         {
           "id": "7.5",
           "name": "Reddit WSB sentiment ingestion",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "python -c \"import ast; ast.parse(open('backend/alt_data/reddit_wsb.py').read())\"",
@@ -2078,72 +2119,85 @@
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "advisories": [
+            {
+              "id": "adv_70_oauth_tos",
+              "source": "qa_70_v1",
+              "note": "Compliance doc Section 2.2/Section 4 needs OAuth-vs-public-URL distinction before GENERATE. Reddit API uses OAuth click-through -> contract formation."
+            }
+          ],
+          "completed_at": "2026-04-19T22:19:55.288884+00:00"
         },
         {
           "id": "7.6",
           "name": "Twitter/X sentiment ingestion",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "python -c \"import ast; ast.parse(open('backend/alt_data/twitter.py').read())\""
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T21:24:40.722923+00:00"
         },
         {
           "id": "7.7",
           "name": "Employee sentiment via licensed vendor",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "test -f docs/compliance/revelio-license.md"
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T22:26:31.973683+00:00"
         },
         {
           "id": "7.8",
           "name": "Satellite/geospatial proxies (deferred)",
-          "status": "deferred",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "grep -q 'Phase 8' docs/compliance/alt-data.md"
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T21:28:05.704498+00:00"
         },
         {
           "id": "7.9",
           "name": "Google Trends extended features",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "python -c \"import ast; ast.parse(open('backend/alt_data/google_trends.py').read())\""
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T21:35:38.672316+00:00"
         },
         {
           "id": "7.10",
           "name": "Hiring signals via licensed vendor",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "python -c \"import ast; ast.parse(open('backend/alt_data/hiring.py').read())\""
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T22:33:06.540572+00:00"
         },
         {
           "id": "7.11",
           "name": "Shared scraper infrastructure",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "python -c \"import ast; ast.parse(open('backend/alt_data/http.py').read())\"",
@@ -2151,12 +2205,30 @@
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "advisories": [
+            {
+              "id": "adv_71_docstring_merge",
+              "source": "qa_71_v1",
+              "note": "congress.py upsert_trades docstring says MERGE but implements stream-insert; cleanup pass when shared HTTP infra lands."
+            },
+            {
+              "id": "adv_72_single_filer",
+              "source": "qa_72_v1",
+              "note": "f13.py smoketested Berkshire only. Scheduler fan-out to top-N filers lives here."
+            },
+            {
+              "id": "adv_73_cdn_403",
+              "source": "qa_73_v1",
+              "note": "FINRA CDN returns 403 intermittently; the default 60*2^attempt backoff is too long for interactive CLI. Shorten for this source or pivot to developer API."
+            }
+          ],
+          "completed_at": "2026-04-19T22:42:44.176403+00:00"
         },
         {
           "id": "7.12",
           "name": "Feature integration & IC evaluation",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": [
             "test -f backend/alt_data/features.py",
@@ -2164,14 +2236,33 @@
           ],
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "advisories": [
+            {
+              "id": "adv_71_house_ingest_followup",
+              "source": "qa_71_v1",
+              "note": "House chamber data not yet ingested (S3 bucket 403; GitHub mirror Senate-only). Parse disclosures-clerk.house.gov PDF/XML ZIP before relying on full-Congress signal."
+            },
+            {
+              "id": "adv_72_ticker_null",
+              "source": "qa_72_v1",
+              "note": "alt_13f_holdings.ticker is NULL. Resolve CUSIP->ticker here via an existing mapping service."
+            },
+            {
+              "id": "adv_73_owner_risk_accept_gate",
+              "source": "qa_73_v1",
+              "note": "Signal extraction from alt_finra_short_volume must block until owner risk-accept OR docs/compliance/alt-data.md row 7.3 amendment."
+            }
+          ],
+          "completed_at": "2026-04-19T22:53:04.042059+00:00"
         }
-      ]
+      ],
+      "completed_at": "2026-04-19T22:53:04.042059+00:00"
     },
     {
       "id": "phase-8",
       "name": "Transformer / Modern LLM Signals",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-5.5",
         "phase-6"
@@ -2181,49 +2272,54 @@
         {
           "id": "8.1",
           "name": "TimesFM shadow-logged feature pilot",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": "python -c \"import ast; ast.parse(open('backend/models/timesfm_client.py').read())\" && python -m pytest tests/models/test_timesfm_client.py -v",
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:00:47.939180+00:00"
         },
         {
           "id": "8.2",
           "name": "Chronos-Bolt shadow-logged feature pilot",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": "python -c \"import ast; ast.parse(open('backend/models/chronos_client.py').read())\" && python -m pytest tests/models/test_chronos_client.py -v",
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:07:38.295881+00:00"
         },
         {
           "id": "8.3",
           "name": "Ensemble blend (MDA + pilots) with nested walk-forward CV",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": "python -c \"import ast; ast.parse(open('backend/backtest/ensemble_blend.py').read())\" && python scripts/harness/run_harness.py --dry-run --cycles 1",
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:16:05.752577+00:00"
         },
         {
           "id": "8.4",
           "name": "Promote or reject decision memo",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": "test -f handoff/current/phase-8-decision.md && grep -qE '^(PROMOTE|REJECT):' handoff/current/phase-8-decision.md",
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:21:43.184262+00:00"
         }
-      ]
+      ],
+      "completed_at": "2026-04-19T23:21:43.184262+00:00"
     },
     {
       "id": "phase-8.5",
       "name": "Autonomous Strategy Research (Karpathy loop)",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-3.7",
         "phase-4.7",
@@ -2237,7 +2333,7 @@
         {
           "id": "8.5.0",
           "name": "Retire phase-2 step 2.10 stub with a decision log linking here",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f handoff/phase-2.10-supersede.md",
@@ -2248,12 +2344,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:24:50.980478+00:00"
         },
         {
           "id": "8.5.1",
           "name": "Define candidate space (params, prompts, features, model archs)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f backend/autoresearch/candidate_space.yaml && python -c \"import yaml; d=yaml.safe_load(open('backend/autoresearch/candidate_space.yaml')); assert d['estimated_combinations'] >= 10000\"",
@@ -2265,12 +2362,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:28:36.394165+00:00"
         },
         {
           "id": "8.5.2",
           "name": "Wall-clock + USD budget enforcer",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/autoresearch_budget_test.py",
@@ -2282,12 +2380,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:43:21.285325+00:00"
         },
         {
           "id": "8.5.3",
           "name": "LLM proposer with narrow-surface diff discipline",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/autoresearch_proposer_test.py",
@@ -2299,12 +2398,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:45:20.348838+00:00"
         },
         {
           "id": "8.5.4",
           "name": "Evaluator: backtest on frozen OOS + multi-metric results.tsv",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f backend/autoresearch/results.tsv && head -1 backend/autoresearch/results.tsv | grep -q 'sharpe.*dsr.*pbo.*max_dd.*profit_factor.*cost.*realized_pnl'",
@@ -2316,12 +2416,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:47:22.511441+00:00"
         },
         {
           "id": "8.5.5",
           "name": "DSR + PBO blocking gate (CPCV)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/autoresearch_gate_test.py",
@@ -2334,12 +2435,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:48:52.166133+00:00"
         },
         {
           "id": "8.5.6",
           "name": "Promotion path to paper-live via Alpaca MCP (5-day shadow)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/autoresearch_promotion_test.py",
@@ -2351,12 +2453,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:49:47.131570+00:00"
         },
         {
           "id": "8.5.7",
           "name": "Overnight orchestration cron (~100 experiments/night)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/autoresearch_cron_test.py",
@@ -2368,12 +2471,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:50:33.236428+00:00"
         },
         {
           "id": "8.5.8",
           "name": "Weekly HITL review packet + no-auto-capital-promotion rule",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/autoresearch_weekly_packet.py --dry-run",
@@ -2385,12 +2489,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:51:13.222519+00:00"
         },
         {
           "id": "8.5.9",
           "name": "Seed candidate space from virtual-fund failure cases",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f handoff/virtual_fund_postmortem.md && python scripts/harness/autoresearch_seed_from_postmortem.py --dry-run",
@@ -2402,12 +2507,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:52:17.257281+00:00"
         },
         {
           "id": "8.5.10",
           "name": "Meta-search DSR calibration (cumulative N across all trials)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/autoresearch_meta_dsr_test.py",
@@ -2420,14 +2526,16 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-19T23:54:03.413190+00:00"
         }
-      ]
+      ],
+      "completed_at": "2026-04-19T23:54:03.413190+00:00"
     },
     {
       "id": "phase-9",
       "name": "Data Refresh & Retraining Cron",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-5.5",
         "phase-6"
@@ -2437,109 +2545,203 @@
         {
           "id": "9.1",
           "name": "Heartbeat + idempotency primitives (backend/slack_bot/job_runtime.py)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/slack_bot/job_runtime.py').read())\" && pytest tests/slack_bot/test_job_runtime.py -q",
+            "success_criteria": [
+              "job_runtime_module_parses",
+              "heartbeat_context_manager_available",
+              "idempotency_key_dedup_verified_in_test",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:42:30.707549+00:00"
         },
         {
           "id": "9.2",
           "name": "Daily price + fundamentals refresh job",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/slack_bot/jobs/daily_price_refresh.py').read())\" && pytest tests/slack_bot/test_daily_price_refresh.py -q",
+            "success_criteria": [
+              "daily_price_refresh_module_parses",
+              "idempotency_by_date_enforced",
+              "test_monkeypatches_yfinance_no_live_call",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:43:19.741223+00:00"
         },
         {
           "id": "9.3",
           "name": "Weekly FRED macro refresh job",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/slack_bot/jobs/weekly_fred_refresh.py').read())\" && pytest tests/slack_bot/test_weekly_fred_refresh.py -q",
+            "success_criteria": [
+              "weekly_fred_refresh_module_parses",
+              "idempotency_by_iso_week_enforced",
+              "fredapi_monkeypatched_in_test",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:43:54.536085+00:00"
         },
         {
           "id": "9.4",
           "name": "Nightly walk-forward MDA retraining with promotion gate",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/slack_bot/jobs/nightly_mda_retrain.py').read())\" && pytest tests/slack_bot/test_nightly_mda_retrain.py -q",
+            "success_criteria": [
+              "nightly_mda_retrain_parses",
+              "promotion_gate_invoked_on_new_model",
+              "rejected_model_does_not_overwrite_baseline",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:44:23.815067+00:00"
         },
         {
           "id": "9.5",
           "name": "Hourly signal cache warmup for watchlist",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/slack_bot/jobs/hourly_signal_warmup.py').read())\" && pytest tests/slack_bot/test_hourly_signal_warmup.py -q",
+            "success_criteria": [
+              "hourly_signal_warmup_parses",
+              "watchlist_loaded_from_settings",
+              "cache_backend_injectable",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:45:49.254690+00:00"
         },
         {
           "id": "9.6",
           "name": "Nightly outcome-tracker rebuild",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/slack_bot/jobs/nightly_outcome_rebuild.py').read())\" && pytest tests/slack_bot/test_nightly_outcome_rebuild.py -q",
+            "success_criteria": [
+              "nightly_outcome_rebuild_parses",
+              "idempotent_rebuild_from_trade_ledger",
+              "bq_fail_open",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:45:49.254690+00:00"
         },
         {
           "id": "9.7",
           "name": "Weekly data-integrity scan",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/slack_bot/jobs/weekly_data_integrity.py').read())\" && pytest tests/slack_bot/test_weekly_data_integrity.py -q",
+            "success_criteria": [
+              "weekly_data_integrity_parses",
+              "checks_row_count_drift_threshold",
+              "slack_alert_on_drift",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:45:49.254690+00:00"
         },
         {
           "id": "9.8",
           "name": "Cost-budget watcher with circuit breaker",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/slack_bot/jobs/cost_budget_watcher.py').read())\" && pytest tests/slack_bot/test_cost_budget_watcher.py -q",
+            "success_criteria": [
+              "cost_budget_watcher_parses",
+              "circuit_breaker_trips_on_over_budget",
+              "alert_fn_injectable",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:45:49.254690+00:00"
         },
         {
           "id": "9.9",
           "name": "Wire seven jobs into backend/slack_bot/scheduler.py",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/slack_bot/scheduler.py').read())\" && pytest tests/slack_bot/test_scheduler_phase9.py -q",
+            "success_criteria": [
+              "scheduler_module_parses",
+              "all_7_jobs_registered",
+              "no_double_registration_on_reload",
+              "tests_green"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:47:26.086522+00:00"
         },
         {
           "id": "9.10",
           "name": "Tests + docs (tests/slack_bot/test_scheduler_phase9.py)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
-          "verification": null,
+          "verification": {
+            "command": "source .venv/bin/activate && pytest tests/slack_bot/test_scheduler_phase9.py -q && ls docs/runbooks/phase9-cron-runbook.md",
+            "success_criteria": [
+              "scheduler_phase9_tests_green",
+              "runbook_present"
+            ]
+          },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T03:47:26.086522+00:00"
         }
-      ]
+      ],
+      "path_decision": {
+        "selected": "ratified_2026-04-20",
+        "decided_at": "2026-04-20T03:40:26.547424+00:00",
+        "summary": "Phase-9 10-step cron suite ratified with concrete verification criteria. 7 job modules (9.1-9.8) + scheduler wiring (9.9) + runbook (9.10). Each step has ast.parse + pytest test."
+      },
+      "completed_at": "2026-04-20T03:47:26.086522+00:00"
     },
     {
       "id": "phase-10",
       "name": "Recursive Evolution Loop (weekly sprint + monthly Sortino gate)",
-      "status": "pending",
+      "status": "in-progress",
       "depends_on": [
         "phase-4",
         "phase-4.8.5",
@@ -2550,7 +2752,7 @@
         {
           "id": "10.0",
           "name": "Retire phase-8.5.7 nightly cron; point to sprint_calendar.yaml",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f handoff/phase-10.0-supersede-85-7.md && grep -q 'sprint_calendar.yaml' handoff/phase-10.0-supersede-85-7.md",
@@ -2561,12 +2763,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T04:36:31.627151+00:00"
         },
         {
           "id": "10.1",
           "name": "Sprint calendar config (Mon-Fri + monthly anchor)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f backend/autoresearch/sprint_calendar.yaml && python -c \"import yaml; d=yaml.safe_load(open('backend/autoresearch/sprint_calendar.yaml')); assert d['new_weekly_slots'] == 2 and 'thursday' in d['days'] and 'friday' in d['days']\"",
@@ -2579,12 +2782,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T04:39:32.081398+00:00"
         },
         {
           "id": "10.2",
           "name": "Weekly ledger schema and writer",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "test -f backend/autoresearch/weekly_ledger.tsv && head -1 backend/autoresearch/weekly_ledger.tsv | grep -q 'week_iso.*thu_batch_id.*fri_promoted_ids.*cost_usd'",
@@ -2596,12 +2800,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20T04:43:32.873085+00:00"
         },
         {
           "id": "10.3",
           "name": "Thursday batch trigger routine (1 slot, >=100 candidates)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/phase10_thursday_batch_test.py",
@@ -2613,12 +2818,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20"
         },
         {
           "id": "10.4",
           "name": "Friday promotion gate routine (1 slot, top-N via DSR/PBO)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/phase10_friday_promotion_test.py",
@@ -2631,12 +2837,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20"
         },
         {
           "id": "10.5",
           "name": "Sortino implementation with configurable MAR (default 3M T-Bill)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python -m pytest backend/metrics/tests/test_sortino.py -q",
@@ -2649,12 +2856,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20"
         },
         {
           "id": "10.6",
           "name": "Monthly Champion/Challenger Sortino gate (HITL)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/phase10_monthly_sortino_test.py",
@@ -2670,12 +2878,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20"
         },
         {
           "id": "10.7",
           "name": "Rollback kill-switch wiring to phase-4.8.5",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/phase10_rollback_test.py",
@@ -2687,12 +2896,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20"
         },
         {
           "id": "10.8",
           "name": "Slot accounting to harness_learning_log",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "python scripts/harness/phase10_slot_accounting_test.py",
@@ -2705,12 +2915,13 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20"
         },
         {
           "id": "10.9",
           "name": "Harness-tab sprint-state tile (phase-4.7 UI)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "cd frontend && npm run test -- --filter=HarnessSprintTile",
@@ -2722,7 +2933,65 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "completed_at": "2026-04-20"
+        },
+        {
+          "id": "10.10",
+          "name": "Housekeeping: quarantine 12,784 phantom archive dirs (non-destructive)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/phase10_housekeeping_test.py",
+            "success_criteria": [
+              "phantom_dirs_moved_not_deleted",
+              "canonical_dirs_untouched",
+              "manifest_written_with_sha256_per_dir",
+              "quarantine_is_reversible"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-21"
+        },
+        {
+          "id": "10.11",
+          "name": "Wire HarnessSprintTile: backend endpoint + dashboard integration",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "python scripts/harness/phase10_integration_test.py",
+            "success_criteria": [
+              "backend_endpoint_returns_harness_sprint_week_state_shape",
+              "endpoint_reads_from_harness_learning_log",
+              "dashboard_renders_tile_when_data_present",
+              "dashboard_renders_empty_state_when_data_null"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-21"
+        },
+        {
+          "id": "10.12",
+          "name": "HarnessSprintTile visual alignment (navy palette, compact empty state)",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "cd frontend && npm run test -- --filter=HarnessSprintTile",
+            "success_criteria": [
+              "existing_5_tests_still_pass",
+              "tile_uses_navy_palette_not_zinc",
+              "empty_state_not_oversized",
+              "read_only_preserved"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-21"
         }
       ]
     },
@@ -4623,6 +4892,435 @@
           "retry_count": 0,
           "max_retries": 3,
           "post_commit_note": "No harness cycle -- this was a direct fix surfaced at session-start warning. Operator-local .claude/settings.local.json was also updated in-place with `disabledMcpjsonServers: [alpaca]` for belt-and-suspenders (gitignored; per-operator). Pattern documented in this phase's description so future optional-cred MCP servers can follow the same recipe."
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Multi-Market Expansion (15-step)",
+      "status": "pending",
+      "depends_on": [
+        "phase-4.5"
+      ],
+      "gate": null,
+      "path_decision": {
+        "selected": "cross-cutting-first-then-markets",
+        "decided_at": "2026-04-19T21:45:28.581769+00:00",
+        "contract": "handoff/current/phase-5-restructure-contract.md",
+        "research_brief": "handoff/current/phase-5-restructure-research-brief.md",
+        "summary": "Replace 3 placeholder steps with 14 concrete implementation sub-steps. Cross-cutting abstractions first (5.1-5.4), then market rollouts (5.6 options, 5.7 FX, 5.8 futures, 5.9 international equities), ETF expansion (5.10), intelligence layer (5.11-5.12), multi-asset backtest (5.13), autonomous loop integration (5.14), integration gate (5.15). Crypto market integration (formerly 5.5) REMOVED per owner directive 2026-04-19. Phase remains at the end of the masterplan.",
+        "crypto_removed_at": "2026-04-19T21:53:09.944639+00:00"
+      },
+      "open_issues": [
+        {
+          "id": "iss_eodhd_budget",
+          "note": "EODHD API key ($19.99/mo) needed for 5.2/5.9/5.13. Owner budget approval required."
+        },
+        {
+          "id": "iss_ibkr_infra",
+          "note": "5.8 (futures) requires IBKR TWS or IB Gateway running locally or on VPS. Owner decides: local dev, VPS, or defer futures until cloud infra stabilizes."
+        },
+        {
+          "id": "iss_market_priority",
+          "note": "Research recommends: crypto -> options -> FX -> futures -> international. Owner may reorder; each market step is independent once 5.1-5.4 are done."
+        },
+        {
+          "id": "iss_compliance_per_market",
+          "note": "CFTC registration may be needed before live-capital futures/FX. Paper-trading only for phase-5; live capital gated on owner + counsel review."
+        }
+      ],
+      "archived_legacy_steps": [
+        {
+          "id": "5.1",
+          "name": "Market Expansion Framework",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.2",
+          "name": "Market-Specific Research & Considerations",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "5.3",
+          "name": "Cross-Market Intelligence",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "evaluator_critique_pass",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ],
+      "steps": [
+        {
+          "id": "5.1",
+          "name": "Broker Abstraction Layer",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.markets.alpaca_broker import AlpacaBroker; from backend.markets.broker_base import BrokerClient; assert issubclass(AlpacaBroker, BrokerClient); print('ok')\" && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "backend/markets/broker_base.py defines abstract BrokerClient",
+              "backend/markets/alpaca_broker.py implements BrokerClient",
+              "get_broker('US','equity') returns AlpacaBroker instance",
+              "no regression on existing paper-trading smoke test"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": []
+        },
+        {
+          "id": "5.2",
+          "name": "Data Provider Abstraction Layer (yfinance + EODHD)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.markets.eodhd_provider import EODHDProvider; print(EODHDProvider.__name__)\" && python scripts/migrations/add_asset_class_column.py --dry-run",
+            "success_criteria": [
+              "DataProvider abstract base at backend/markets/data_provider_base.py",
+              "YFinanceProvider + EODHDProvider implementations",
+              "asset_class column added to pyfinagent_hdw.backtest_prices via migration (dry-run exit 0)",
+              "EODHDProvider.get_ohlcv('EQNR.OSL','equity','2024-01-01','2024-01-31') returns at least 20 rows when key present (skipped when unset, logged)",
+              "eodhd_api_key settings field defined with default empty string"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.1"
+          ]
+        },
+        {
+          "id": "5.3",
+          "name": "Multi-Asset BQ Schema Extension (FX + futures)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/migrations/create_multi_asset_tables.py --dry-run && bq ls pyfinagent_hdw | grep -qE 'fx_ohlcv|futures_ohlcv'",
+            "success_criteria": [
+              "pyfinagent_hdw.fx_ohlcv created with base+quote currency columns",
+              "pyfinagent_hdw.futures_ohlcv created with expiry_date + open_interest + front_month",
+              "Migration script is idempotent (re-run exits 0)",
+              "No crypto_candles table created (owner directive 2026-04-19)"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.2"
+          ]
+        },
+        {
+          "id": "5.4",
+          "name": "Multi-Asset Risk Engine Extension (equity + options + FX + futures)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.markets.risk_engine import RiskEngine; r=RiskEngine(); eq=r.compute_position_size('AAPL','equity',100000,0.2); opt=r.compute_position_size('AAPL240119C00150000','option',100000,0.3,delta=0.5); fx=r.compute_position_size('EUR_USD','fx',100000,0.08); assert all(x>0 for x in [eq,opt,fx]); print('ok')\"",
+            "success_criteria": [
+              "RiskEngine.compute_position_size returns positive notional for equity/option/fx",
+              "Option position size is delta-adjusted (at delta=0.5 ~= half uncapped notional)",
+              "FX sizing uses micro-lot convention (1 micro lot = 1000 units); position size enforces min order",
+              "Regression: existing paper-trading equity sizing unchanged within epsilon",
+              "No crypto asset-class branch (owner directive 2026-04-19)"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.1"
+          ]
+        },
+        {
+          "id": "5.6",
+          "name": "Options Integration (Alpaca Options Level 3)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.markets.options.greeks import black_scholes_greeks; g=black_scholes_greeks(S=450,K=450,T=30/365,r=0.05,sigma=0.20,option_type='call'); assert 0.4<g['delta']<0.6; print('ok')\" && python -m backend.markets.options.options_ingestion --underlyings SPY QQQ --dry-run",
+            "success_criteria": [
+              "options_snapshots table created in pyfinagent_hdw",
+              "ATM 30-DTE call delta in [0.45, 0.55]",
+              "Paper option order submits via Alpaca without error (dry-run)",
+              "RiskEngine options kwargs (delta/gamma/theta/vega) accepted"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.4"
+          ]
+        },
+        {
+          "id": "5.7",
+          "name": "FX Integration (OANDA Practice)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -m backend.markets.fx.fx_ingestion --pairs EUR_USD GBP_USD --start 2024-01-01 --end 2024-01-10 --dry-run && bq query --use_legacy_sql=false 'SELECT COUNT(*) FROM pyfinagent_hdw.fx_ohlcv WHERE symbol IN (\"EUR_USD\",\"GBP_USD\")' | tail -n1 | awk '{exit ($1>=16?0:1)}'",
+            "success_criteria": [
+              "fx_ohlcv has >=16 rows for EUR_USD + GBP_USD over 10-day window (weekday-only)",
+              "OANDABroker connects to Practice account and returns non-empty account summary",
+              "Micro-lot sizing enforced (1 micro lot = 1000 units)",
+              "spread_avg column populated on each row"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.1",
+            "5.2",
+            "5.3",
+            "5.4"
+          ]
+        },
+        {
+          "id": "5.8",
+          "name": "Futures Integration (IBKR via ib_insync)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.markets.futures.contract_roll import get_front_month; c=get_front_month('ES'); assert c.symbol.startswith('ES'); print('ok')\" && python -m backend.markets.futures.futures_ingestion --symbols ES NQ --start 2024-01-01 --end 2024-01-10 --dry-run",
+            "success_criteria": [
+              "futures_ohlcv has >=18 rows for ES + NQ over 10-day window",
+              "contract_roll.get_front_month('ES') returns valid front-month with correct expiry",
+              "IBKRBroker routes paper ES order in dry-run",
+              "open_interest populated (non-null) for all rows"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.1",
+            "5.2",
+            "5.3",
+            "5.4"
+          ]
+        },
+        {
+          "id": "5.9",
+          "name": "International Equities (EODHD + IBKR)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.markets.eodhd_provider import EODHDProvider; p=EODHDProvider(); r=p.get_ohlcv('EQNR.OSL','equity','2024-01-01','2024-01-31'); assert len(r)>=20; print('ok')\"",
+            "success_criteria": [
+              "EODHD returns >=20 rows for EQNR.OSL (Oslo Bors)",
+              "markets.py MARKET_CONFIG extended with LSE (XLON) + TSX (XTSE)",
+              "OHLCV stored in local currency with base_currency column",
+              "FX conversion applies base_currency/USD rate for portfolio P&L"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.2",
+            "5.7"
+          ]
+        },
+        {
+          "id": "5.10",
+          "name": "Expanded ETF Universe (thematic + levered + international, no crypto)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -m backend.alt_data.etf_flows --dry-run | python -c \"import sys,json; d=json.load(sys.stdin); t=d.get('tickers') or d.get('starter',[]); assert len(t) >= 40 and not any(x in t for x in ['BITO','IBIT']); print('ok')\"",
+            "success_criteria": [
+              "_STARTER_TICKERS has >=40 entries including thematic (ARKK, ARKG, ICLN), levered (TQQQ, SOXL, UVXY), bond (TLT, HYG, LQD), and international (EWJ, EWG, NORW, FXI)",
+              "BITO, IBIT, and any other crypto-ETF tickers excluded (owner directive 2026-04-19)",
+              "Dry-run output is valid JSON with all tickers listed",
+              "No regression on existing 20-ticker flows fetch"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.2"
+          ]
+        },
+        {
+          "id": "5.11",
+          "name": "Cross-Market Regime Detection (equity + FX + rates)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.markets.cross_market.regime_detector import CrossMarketRegimeDetector; d=CrossMarketRegimeDetector(); r=d.classify(vix=25.0, vvix=95.0, dxy_vol=0.10, yield_slope=-0.002); assert r in ['RISK_ON','RISK_OFF','DECOUPLED','CONTAGION']; print(r)\" && bq ls pyfinagent_data | grep -q cross_market_regime",
+            "success_criteria": [
+              "classify(vix=35, vvix=140, yield_slope=-0.003) returns 'CONTAGION'",
+              "classify(vix=14, vvix=75, yield_slope=0.01) returns 'RISK_ON'",
+              "cross_market_regime table created and writable in pyfinagent_data",
+              "90-day backfill of historical regime states written to BQ",
+              "Inputs: VIX + VVIX (equity vol-of-vol) + DXY 30d vol + yield-curve slope; NO crypto_vol input"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.7"
+          ]
+        },
+        {
+          "id": "5.12",
+          "name": "Cross-Market Signal Generation (fx_carry + yield_curve_rotation)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.markets.cross_market.spillover_signals import fx_carry; s=fx_carry(high_yield='AUD_USD', low_yield='USD_JPY', rate_spread=0.04); assert s['direction'] in ['long','short','neutral'] and 0<=s['confidence']<=1; print(s)\"",
+            "success_criteria": [
+              "fx_carry and yield_curve_rotation signals each return {signal_name,value,direction,confidence,asset_class_target}",
+              "Signals written to pyfinagent_data.signals with source='cross_market'",
+              "Orchestrator pipeline includes cross-market enrichment step behind cross_market_signals_enabled flag",
+              "crypto_equity_spillover signal REMOVED per owner directive 2026-04-19"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.11"
+          ]
+        },
+        {
+          "id": "5.13",
+          "name": "Multi-Asset Backtest Engine Extension (equity + FX)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.backtest.backtest_engine import BacktestEngine; e=BacktestEngine(asset_classes=['equity','fx']); r=e.run_backtest(tickers=['AAPL','EUR_USD'], start_date='2024-01-01', end_date='2024-06-30'); assert 'sharpe_by_asset_class' in r; print('ok')\"",
+            "success_criteria": [
+              "Backtest with asset_classes=['equity','fx'] completes without error",
+              "Result dict contains sharpe_by_asset_class with equity + fx keys",
+              "FX positions sized correctly using micro-lot convention from RiskEngine",
+              "Equity-only regression: Sharpe within 0.01 of baseline (1.1705)"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.4",
+            "5.11"
+          ]
+        },
+        {
+          "id": "5.14",
+          "name": "Multi-Market Autonomous Loop Integration (equity + FX + futures)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && ENABLE_FX_TRADING=true python -m backend.services.autonomous_loop --dry-run --cycles 1 2>&1 | grep -qi fx && python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read())\"",
+            "success_criteria": [
+              "autonomous_loop.py runs 1 dry-run cycle with ENABLE_FX_TRADING=true and logs 'fx'",
+              "paper_trades table has asset_class column",
+              "Default (all flags false) is identical to current behavior; no regression",
+              "Settings flags: enable_fx_trading, enable_futures_trading (crypto flag REMOVED per owner directive 2026-04-19)"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.7",
+            "5.8",
+            "5.12",
+            "5.13"
+          ]
+        },
+        {
+          "id": "5.15",
+          "name": "Phase-5 Integration Test + Go/No-Go Gate",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest tests/integration/test_multi_market_e2e.py -v && python scripts/harness/run_harness.py --dry-run --cycles 1",
+            "success_criteria": [
+              "Integration test exits 0",
+              "30-day backtest with asset_classes=['equity','fx'] completes; result contains sharpe_by_asset_class",
+              "cross_market_regime has rows for 2024-08-05 with regime != RISK_ON (yen carry unwind)",
+              "fx_ohlcv has EUR_USD + GBP_USD rows over the test window",
+              "Per-asset-class Sharpe both > -2.0 (sanity floor, not a benchmark)",
+              "Harness dry-run exits 0",
+              "No crypto references in the e2e test (owner directive 2026-04-19)"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.14"
+          ]
+        }
+      ],
+      "_comments": [
+        "Dependency DAG: 5.1 + 5.4 are zero-dep. 5.15 is the sink. Run 5.1/5.4 first; 5.2/5.3 can overlap. Then 5.6-5.10 per market. Then intelligence 5.11-5.13. Then 5.14 integration. Then 5.15 gate.",
+        "Crypto market integration (formerly step 5.5) was dropped on 2026-04-19 per owner directive. See phase-5.archived_dropped_steps for the original record.",
+        "Step ids are NOT renumbered after the 5.5 removal so existing references (e.g. Q/A critiques, handoff log) remain valid. Step ids remain 5.1, 5.2, 5.3, 5.4, 5.6, 5.7, 5.8, 5.9, 5.10, 5.11, 5.12, 5.13, 5.14, 5.15 (14 total)."
+      ],
+      "archived_dropped_steps": [
+        {
+          "id": "5.5",
+          "name": "Crypto Market Integration (Alpaca Crypto)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -m backend.markets.crypto.crypto_ingestion --symbols BTC/USD ETH/USD --start 2024-01-01 --end 2024-01-10 --dry-run && bq query --use_legacy_sql=false 'SELECT COUNT(*) FROM pyfinagent_hdw.crypto_candles WHERE symbol IN (\"BTC/USD\",\"ETH/USD\")' | tail -n1 | awk '{exit ($1>=18?0:1)}'",
+            "success_criteria": [
+              "crypto_candles has >=18 rows for BTC/USD + ETH/USD over 10-day window",
+              "AlpacaCryptoBroker.submit_order routes BTC/USD in paper mode",
+              "24/7 market calendar enforced (no trading-day filter on crypto OHLCV)",
+              "Alpaca crypto client-side rate cap 150 req/min (< 200 ceiling)"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "5.1",
+            "5.2",
+            "5.3",
+            "5.4"
+          ],
+          "dropped_at": "2026-04-19T21:53:09.944639+00:00",
+          "dropped_reason": "owner directive 2026-04-19 -- crypto is not a market we will pursue"
         }
       ]
     }

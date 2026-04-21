@@ -48,10 +48,15 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "gemini-2.0-flash": 1_048_576,
     "gemini-2.5-flash": 1_048_576,
     "gemini-2.5-pro": 1_048_576,
-    # Claude
-    "claude-3-5-sonnet-20241022": 200_000,
-    "claude-3-5-haiku-20241022": 200_000,
-    "claude-3-7-sonnet-20250219": 200_000,
+    # Claude — current GA (1M context on Opus 4.7/4.6 + Sonnet 4.6)
+    "claude-opus-4-7": 1_000_000,
+    "claude-opus-4-6": 1_000_000,
+    "claude-opus-4-5": 200_000,
+    "claude-opus-4-1": 200_000,
+    "claude-sonnet-4-6": 1_000_000,
+    "claude-sonnet-4-5": 200_000,
+    "claude-haiku-4-5": 200_000,
+    # Legacy — retire 2026-06-15
     "claude-sonnet-4": 200_000,
     "claude-opus-4": 200_000,
     # OpenAI
@@ -189,8 +194,8 @@ class HarnessMemory:
         masterplan_path = self.workspace_root / ".claude" / "masterplan.json"
         if masterplan_path.exists():
             try:
-                import json
-                mp = json.loads(masterplan_path.read_text(encoding="utf-8"))
+                from backend.utils import json_io
+                mp = json_io.load_json_file(masterplan_path)
                 content += "\n\n## Current Masterplan State\n"
                 for phase in mp.get("phases", []):
                     status_icon = {

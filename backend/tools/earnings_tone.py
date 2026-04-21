@@ -6,6 +6,7 @@ Full transcripts are cached in GCS so paywalled content remains accessible.
 The orchestrator's Gemini model provides a deeper tone assessment.
 """
 
+import base64
 import json
 import logging
 import re
@@ -390,3 +391,52 @@ async def get_earnings_tone(ticker: str, api_key: str = "", max_transcripts: int
             "transcript_excerpt": "",
             "summary": f"Error fetching transcript: {e}",
         }
+
+
+# ── phase-4.14.14 (MF-31): document-block builder for downstream Claude prompts ──
+#
+# Wraps the earnings-call transcript (or summary when paywalled) as
+# an Anthropic document content block with citations.enabled=True.
+# Used by callers that want the synthesis model to return cited_text
+# attributions pointing back to specific transcript quotes.
+#
+# Pure data utility -- NO API call. Must not be combined with
+# response_schema / output_config.format in the same request (that
+# combination 400s on Claude; guarded in ClaudeClient at 4.14.9).
+
+def build_earnings_document_block(ticker: str, result: dict) -> dict:
+    """Return a Claude document block wrapping the earnings transcript."""
+    transcript = (
+        result.get("transcript_excerpt")
+        or result.get("summary", "")
+    )
+    return {
+        "type": "document",
+        "source": {
+            "type": "text",
+            "media_type": "text/plain",
+            "data": transcript or f"No transcript available for {ticker}.",
+        },
+        "title": f"Earnings call transcript -- {ticker}",
+        "citations": {"enabled": True},
+    }
+
+
+# phase-4.14.17 (MF-34b): PDF-native document block for earnings
+# decks. Claude ingests PDF pages directly (charts + tables preserved)
+# without text extraction. cache_control:ephemeral with ttl:"1h"
+# matches the project-wide convention from llm_client.py.
+def build_earnings_pdf_block(ticker: str, pdf_bytes: bytes) -> dict:
+    """Return a Claude PDF-native document block for an earnings deck."""
+    return {
+        "type": "document",
+        "source": {
+            "type": "base64",
+            "media_type": "application/pdf",
+            "data": base64.b64encode(pdf_bytes).decode("ascii"),
+        },
+        "title": f"Earnings deck PDF -- {ticker}",
+        "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        "citations": {"enabled": True},
+    }
+

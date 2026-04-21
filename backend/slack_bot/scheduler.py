@@ -62,6 +62,18 @@ def start_scheduler(app: AsyncApp):
         replace_existing=True,
     )
 
+    # phase-4.14.25: nightly prompt-leak red-team audit.
+    # Runs the fixed attack suite against apply_leak_defenses and
+    # appends results to handoff/prompt_leak_redteam_audit.jsonl.
+    _scheduler.add_job(
+        _nightly_prompt_leak_redteam,
+        "cron",
+        hour=3, minute=15,
+        args=[app],
+        id="prompt_leak_redteam",
+        replace_existing=True,
+    )
+
     _scheduler.start()
     logger.info(
         "Scheduler started: morning digest at %d:00, evening digest at %d:00, "
@@ -276,3 +288,91 @@ async def send_analysis_alert(app: AsyncApp, ticker: str, report: dict):
         )
     except Exception:
         logger.exception(f"Failed to send alert for {ticker}")
+
+
+async def _nightly_prompt_leak_redteam(app: AsyncApp):
+    """phase-4.14.25: run the prompt-leak red-team audit once per day."""
+    import subprocess
+    from pathlib import Path
+    settings = get_settings()
+    repo = Path(__file__).resolve().parents[2]
+    script = repo / "scripts" / "audit" / "prompt_leak_redteam.py"
+    try:
+        proc = subprocess.run(
+            ["python", str(script), "--min-pass", "0.80"],
+            capture_output=True, text=True, timeout=120, cwd=str(repo),
+        )
+        logger.info(
+            "prompt_leak_redteam exit=%d stdout=%s",
+            proc.returncode, proc.stdout[:200]
+        )
+        if proc.returncode != 0 and settings.slack_channel_id:
+            try:
+                await app.client.chat_postMessage(
+                    channel=settings.slack_channel_id,
+                    text=(
+                        f"prompt-leak redteam audit FAILED (exit {proc.returncode}): "
+                        f"{proc.stdout[:500]}"
+                    ),
+                )
+            except Exception as post_err:
+                logger.warning("redteam Slack alert failed: %s", post_err)
+    except Exception as e:
+        logger.error("prompt_leak_redteam job failed: %s", e)
+
+
+# ============================================================
+# phase-9.9 job registration
+# ============================================================
+#
+# Wires the 7 phase-9 job modules into the APScheduler registered by
+# start_scheduler(). Keeps backwards compat: existing morning/evening/
+# watchdog/redteam jobs unchanged.
+#
+# Each job is idempotency-keyed (daily/weekly/hourly) via
+# backend/slack_bot/job_runtime.py so double registration on reload is
+# harmless.
+
+_PHASE9_JOB_IDS: tuple[str, ...] = (
+    "daily_price_refresh",      # 9.2
+    "weekly_fred_refresh",      # 9.3
+    "nightly_mda_retrain",      # 9.4
+    "hourly_signal_warmup",     # 9.5
+    "nightly_outcome_rebuild",  # 9.6
+    "weekly_data_integrity",    # 9.7
+    "cost_budget_watcher",      # 9.8
+)
+
+
+def register_phase9_jobs(scheduler, replace_existing: bool = True) -> list[str]:
+    """Register all phase-9 jobs on the passed scheduler. Returns the job IDs registered.
+
+    `scheduler` is any object with `.add_job(func, trigger=..., id=..., replace_existing=...)`.
+    Pass `replace_existing=True` so reloads do not raise `ConflictingIdError`.
+
+    Fail-open per job: a missing job module does not block the others.
+    """
+    registered: list[str] = []
+    mapping = {
+        "daily_price_refresh": ("backend.slack_bot.jobs.daily_price_refresh", "cron", {"hour": 1}),
+        "weekly_fred_refresh": ("backend.slack_bot.jobs.weekly_fred_refresh", "cron", {"day_of_week": "sun", "hour": 2}),
+        "nightly_mda_retrain": ("backend.slack_bot.jobs.nightly_mda_retrain", "cron", {"hour": 3}),
+        "hourly_signal_warmup": ("backend.slack_bot.jobs.hourly_signal_warmup", "cron", {"minute": 5}),
+        "nightly_outcome_rebuild": ("backend.slack_bot.jobs.nightly_outcome_rebuild", "cron", {"hour": 4}),
+        "weekly_data_integrity": ("backend.slack_bot.jobs.weekly_data_integrity", "cron", {"day_of_week": "mon", "hour": 5}),
+        "cost_budget_watcher": ("backend.slack_bot.jobs.cost_budget_watcher", "cron", {"hour": 6}),
+    }
+    for job_id, (module_path, trigger, kwargs) in mapping.items():
+        try:
+            import importlib
+            mod = importlib.import_module(module_path)
+            func = getattr(mod, "run")
+        except Exception as exc:
+            logger.warning("register_phase9_jobs: %s import fail-open: %r", job_id, exc)
+            continue
+        try:
+            scheduler.add_job(func, trigger=trigger, id=job_id, replace_existing=replace_existing, **kwargs)
+            registered.append(job_id)
+        except Exception as exc:
+            logger.warning("register_phase9_jobs: %s add_job fail-open: %r", job_id, exc)
+    return registered

@@ -27,11 +27,11 @@ _VALID_MODELS = {
     "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
     "gpt-5", "gpt-5-chat", "gpt-5-mini", "gpt-5-nano",
     "o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o4-mini",
-    # GitHub Models — Anthropic
-    "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
-    "claude-3-7-sonnet-20250219", "claude-sonnet-4", "claude-opus-4",
-    # Anthropic direct
-    "claude-sonnet-4-6",
+    # Anthropic — current GA
+    "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5", "claude-opus-4-1",
+    "claude-sonnet-4-6", "claude-sonnet-4-5", "claude-haiku-4-5",
+    # Legacy — retire 2026-06-15
+    "claude-sonnet-4", "claude-opus-4",
     # GitHub Models — Meta
     "meta-llama-3.1-405b-instruct", "meta-llama-3.1-8b-instruct",
     "llama-3.3-70b-instruct", "llama-4-maverick", "llama-4-scout",
@@ -139,14 +139,17 @@ AVAILABLE_MODELS = [
     {"model": "o3",            "provider": "GitHub Models", "input_per_1m": 2.00,  "output_per_1m": 8.00,   "copilot_multiplier": 3.0},
     {"model": "o3-mini",       "provider": "GitHub Models", "input_per_1m": 1.10,  "output_per_1m": 4.40,   "copilot_multiplier": 0.33, "context_limited": True},
     {"model": "o4-mini",       "provider": "GitHub Models", "input_per_1m": 1.10,  "output_per_1m": 4.40,   "copilot_multiplier": 0.33},
-    # ── Anthropic (via GitHub Models) ──
-    {"model": "claude-3-5-sonnet-20241022",   "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00, "copilot_multiplier": 1.0},
-    {"model": "claude-3-5-haiku-20241022",    "provider": "GitHub Models", "input_per_1m": 0.80,  "output_per_1m": 4.00,  "copilot_multiplier": 0.33},
-    {"model": "claude-3-7-sonnet-20250219",   "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00, "copilot_multiplier": 1.0},
-    {"model": "claude-sonnet-4",              "provider": "GitHub Models", "input_per_1m": 3.00,  "output_per_1m": 15.00, "copilot_multiplier": 1.0},
-    {"model": "claude-opus-4",                "provider": "GitHub Models", "input_per_1m": 15.00, "output_per_1m": 75.00, "copilot_multiplier": 3.0},
-    # ── Anthropic direct — requires ANTHROPIC_API_KEY ──
+    # ── Anthropic direct — current GA ──
+    {"model": "claude-opus-4-7",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
+    {"model": "claude-opus-4-6",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
+    {"model": "claude-opus-4-5",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
+    {"model": "claude-opus-4-1",              "provider": "Anthropic",     "input_per_1m": 15.00, "output_per_1m": 75.00},
     {"model": "claude-sonnet-4-6",            "provider": "Anthropic",     "input_per_1m": 3.00,  "output_per_1m": 15.00},
+    {"model": "claude-sonnet-4-5",            "provider": "Anthropic",     "input_per_1m": 3.00,  "output_per_1m": 15.00},
+    {"model": "claude-haiku-4-5",             "provider": "Anthropic",     "input_per_1m": 1.00,  "output_per_1m": 5.00},
+    # ── Anthropic — legacy (deprecated 2026-04-14, retire 2026-06-15) ──
+    {"model": "claude-sonnet-4",              "provider": "Anthropic",     "input_per_1m": 3.00,  "output_per_1m": 15.00},
+    {"model": "claude-opus-4",                "provider": "Anthropic",     "input_per_1m": 15.00, "output_per_1m": 75.00},
     # ── Meta ──
     {"model": "meta-llama-3.1-405b-instruct", "provider": "GitHub Models", "input_per_1m": 5.00,  "output_per_1m": 15.00, "copilot_multiplier": 1.0},
     {"model": "meta-llama-3.1-8b-instruct",   "provider": "GitHub Models", "input_per_1m": 0.18,  "output_per_1m": 0.18,  "copilot_multiplier": 0.33, "context_limited": True},

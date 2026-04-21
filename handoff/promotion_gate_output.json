@@ -1,7 +1,16 @@
 {
-  "step": "4.8.5",
-  "ran_at": "2026-04-18T09:41:32.803784+00:00",
+  "step": "4.9.7",
+  "ran_at": "2026-04-19T06:04:20.519592+00:00",
   "dry_run": true,
+  "require_gauntlet": true,
+  "gauntlet_status": {
+    "strategy": "baseline",
+    "report_path": "handoff/gauntlet/baseline/report.json",
+    "report_hash": "e933b332132715512744314719b9df1e42b6b432a0155570251bfb46237ff478",
+    "overall_pass": true,
+    "reasons": [],
+    "drawdown_ratio_cap": 2.0
+  },
   "stages": [
     0.05,
     0.25,
@@ -10,8 +19,9 @@
   "optimizer_best_path": "backend/backtest/experiments/optimizer_best.json",
   "file_updated": false,
   "optimizer_best_snapshot": {
-    "allocation_pct": 0.25,
-    "stage": 1,
+    "allocation_pct": 0.05,
+    "stage": 0,
+    "gauntlet_report_hash": "e933b332132715512744314719b9df1e42b6b432a0155570251bfb46237ff478",
     "preserved_keys": [
       "params",
       "sharpe",

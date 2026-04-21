@@ -18,6 +18,8 @@ Reference: Anthropic harness design + multi-agent research system
 
 import csv
 import json
+
+from backend.utils import json_io
 import logging
 from datetime import date
 from pathlib import Path
@@ -156,7 +158,7 @@ class HarnessStateReader:
             return {"available": False}
 
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = json_io.load_json_file(path)
             return {
                 "available": True,
                 "sharpe": data.get("sharpe", 0),

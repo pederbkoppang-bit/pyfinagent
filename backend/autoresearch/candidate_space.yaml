@@ -1,0 +1,79 @@
+# phase-8.5.1 candidate space for the Karpathy autonomous research loop.
+#
+# Cartesian product across six dimensions:
+#   len(params.learning_rate) * len(params.max_depth) * len(params.n_estimators)
+#   * len(params.rolling_window) * len(prompts) * len(features) * len(model_archs)
+#   = 5 * 4 * 3 * 2 * 5 * 5 * 5 = 15,000 >= 10,000 (hard requirement).
+#
+# Transformer signals from phase-8 are listed under features even though the
+# live runtime gate is not yet cleared (phase-8.4 REJECT). Re-evaluation triggers
+# for including them in the live search are documented in
+# handoff/current/phase-8-decision.md section 6.
+
+estimated_combinations: 15000
+includes_transformer_signals: true
+version: "1.0"
+authored_at: "2026-04-20"
+authored_by: "phase-8.5.1 harness cycle"
+
+params:
+  learning_rate:
+    - 0.005
+    - 0.01
+    - 0.02
+    - 0.05
+    - 0.10
+  max_depth:
+    - 3
+    - 5
+    - 7
+    - 9
+  n_estimators:
+    - 100
+    - 300
+    - 500
+  rolling_window:
+    - 252
+    - 504
+
+prompts:
+  # References existing skill prompts under backend/agents/skills/*.md
+  - "critic_agent_v1"
+  - "deep_dive_agent_v1"
+  - "synthesis_agent_v1"
+  - "quant_model_agent_v1"
+  - "neutral_analyst_v1"
+
+features:
+  # Sets of feature toggles; each entry is a named bundle, not a single flag.
+  # Transformer signals from phase-8 are included even though the runtime
+  # gate is not yet cleared (phase-8.4 REJECT) -- they enter live search
+  # only when the re-evaluation triggers in phase-8-decision.md Sec. 6 hold.
+  - "mda_only"                        # phase-1 baseline
+  - "mda_plus_news_sentiment"         # phase-6 + phase-1
+  - "mda_plus_alt_data_features"      # phase-7.12 features.py outputs
+  - "mda_plus_transformer_shadow"     # timesfm_forecast_20d + chronos_forecast_20d
+  - "mda_plus_ensemble_blend"         # ensemble_blend_median over MDA+timesfm+chronos
+
+model_archs:
+  # Model-family choices for the proposer. ensemble_blend + transformer_shadow
+  # require the runtime gate + shadow-log window; they stay in the space as
+  # candidates but are skipped by the proposer until prereqs are met.
+  - "gbm"                    # current prod baseline
+  - "random_forest"
+  - "ar1_baseline"           # sanity cap
+  - "ensemble_blend"         # backend/backtest/ensemble_blend.py
+  - "transformer_shadow"     # uses timesfm+chronos clients; gated
+
+transformer_signals:
+  # Explicit list satisfying the success criterion
+  # "includes_transformer_signals_from_phase_8".
+  - "timesfm_forecast_20d"
+  - "chronos_forecast_20d"
+  - "ensemble_blend_median"
+
+notes:
+  - "Product of param/prompt/feature/arch dimensions = 15,000."
+  - "Transformer signals listed but gated on phase-8-decision.md Sec.6 conditions."
+  - "Proposer (phase-8.5.3) must enforce narrow-surface diff discipline within this space."
+  - "Budget enforcer (phase-8.5.2) caps wall-clock + USD before combinations saturate."

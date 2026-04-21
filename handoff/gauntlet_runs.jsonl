@@ -1,0 +1,10 @@
+{"ts": "2026-04-19T05:54:25.210823+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}
+{"ts": "2026-04-19T05:54:31.762072+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}
+{"ts": "2026-04-19T05:54:31.854397+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}
+{"ts": "2026-04-19T05:54:41.968453+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}
+{"ts": "2026-04-19T05:54:42.065108+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}
+{"ts": "2026-04-19T05:55:21.443983+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}
+{"ts": "2026-04-19T05:55:33.400141+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}
+{"ts": "2026-04-19T05:55:33.492299+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}
+{"ts": "2026-04-19T06:02:59.947313+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}
+{"ts": "2026-04-19T06:03:24.485914+00:00", "strategy": "baseline", "seed": 42, "dry_run": true, "n_regimes": 7, "mc_drawdown_p99": 0.6131561616375102}

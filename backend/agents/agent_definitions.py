@@ -349,7 +349,7 @@ def classify_trivial(message: str) -> ClassificationResult | None:
 
 def parse_llm_classification(response_text: str) -> ClassificationResult:
     """Parse Communication agent's JSON routing into ClassificationResult."""
-    import json
+    from backend.utils import json_io
 
     try:
         text = response_text.strip()
@@ -361,7 +361,7 @@ def parse_llm_classification(response_text: str) -> ClassificationResult:
         if text.startswith("json"):
             text = text[4:].strip()
 
-        data = json.loads(text)
+        data = json_io.loads(text)
 
         primary = data.get("primary", "main").lower()
         secondary = data.get("secondary")

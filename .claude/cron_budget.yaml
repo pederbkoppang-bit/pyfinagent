@@ -1,8 +1,16 @@
 # pyfinagent cron budget - HARD CAP: 15 Claude scheduled routine runs per day.
+#
+# NOTE: The 15/day cap is SELF-IMPOSED for cost + cognitive-load
+# management -- it is NOT an Anthropic limit. The Anthropic API accepts
+# unbounded programmatic requests; we cap ourselves at 15 scheduled
+# routine runs/day because each run costs tokens and human attention on
+# review. Burst / on-demand / user-triggered calls are out of scope for
+# this cap.
+#
 # Owned by phase-10.7 Meta-Evolution Engine (Cron Budget Allocator step).
 # Trading-ops slots (1-5) are RESERVED: any diff touching them requires
-# human-in-loop approval (Peder). Research slots (6-15) are reallocatable
-# by Alpha Velocity weekly.
+# human-in-loop approval (Peder) -- EXTERNAL APPROVAL GATE REQUIRED.
+# Research slots (6-15) are reallocatable by Alpha Velocity weekly.
 #
 # Schema per slot:
 #   slot_id: int (1-15)
@@ -11,10 +19,16 @@
 #   cadence: one of [daily, weekday, weekly, monthly, on-demand]
 #   priority: one of [reserved, high, medium, low]
 #   alpha_velocity_eligible: bool (false for trading-ops, true for research)
+#   surface: one of [routine, desktop, loop, external]
+#     routine  - scheduled cron (APScheduler) inside pyfinagent backend
+#     desktop  - Claude Code desktop session (human-at-keyboard)
+#     loop     - /loop-mode continuous self-paced runs
+#     external - webhook / Slack / third-party trigger
 
-version: 1
+version: 2
 total_slots: 15
-updated_at: 2026-04-17T00:00:00Z
+cap_note: "self-imposed: not an Anthropic limit; ours for cost + cognitive-load management"
+updated_at: 2026-04-19T00:00:00Z
 
 slots:
   - slot_id: 1
@@ -23,30 +37,40 @@ slots:
     cadence: weekday
     priority: reserved
     alpha_velocity_eligible: false
+    surface: routine
+    notes: Trading-ops slot 1/5 -- external approval gate required for diffs.
   - slot_id: 2
     phase: phase-2
     job_name: evening_digest
     cadence: weekday
     priority: reserved
     alpha_velocity_eligible: false
+    surface: routine
+    notes: Trading-ops slot 2/5 -- external approval gate required for diffs.
   - slot_id: 3
     phase: phase-2
     job_name: watchdog
     cadence: daily
     priority: reserved
     alpha_velocity_eligible: false
+    surface: routine
+    notes: Trading-ops slot 3/5 -- external approval gate required for diffs.
   - slot_id: 4
     phase: phase-4.5
     job_name: paper_trading_cycle
     cadence: daily
     priority: reserved
     alpha_velocity_eligible: false
+    surface: routine
+    notes: Trading-ops slot 4/5 -- external approval gate required for diffs.
   - slot_id: 5
     phase: phase-4.5
     job_name: kill_switch_heartbeat
     cadence: daily
     priority: reserved
     alpha_velocity_eligible: false
+    surface: routine
+    notes: Trading-ops slot 5/5 -- external approval gate required for diffs.
 
   - slot_id: 6
     phase: phase-6.5
@@ -54,6 +78,7 @@ slots:
     cadence: daily
     priority: high
     alpha_velocity_eligible: true
+    surface: routine
     notes: |
       Walks four source families in one sequential routine:
       institutional outlooks, academic frontier, AI frontier labs,
@@ -64,24 +89,28 @@ slots:
     cadence: daily
     priority: high
     alpha_velocity_eligible: true
+    surface: routine
   - slot_id: 8
     phase: phase-7
     job_name: alt_data_scrape
     cadence: daily
     priority: medium
     alpha_velocity_eligible: true
+    surface: routine
   - slot_id: 9
     phase: phase-9
     job_name: data_refresh_walk_forward
     cadence: daily
     priority: high
     alpha_velocity_eligible: true
+    surface: routine
   - slot_id: 10
     phase: phase-10
     job_name: thursday_batch_backtest_trigger
     cadence: weekly
     priority: high
     alpha_velocity_eligible: true
+    surface: routine
     notes: Fires Thursdays; kicks off 100+ parallel backtests via phase-8.5 harness.
   - slot_id: 11
     phase: phase-10
@@ -89,6 +118,7 @@ slots:
     cadence: weekly
     priority: high
     alpha_velocity_eligible: true
+    surface: routine
     notes: Fires Fridays; month-end Sortino gate co-schedules here.
   - slot_id: 12
     phase: phase-8.5
@@ -96,18 +126,24 @@ slots:
     cadence: daily
     priority: high
     alpha_velocity_eligible: true
+    surface: loop
+    notes: |
+      Runs inside the /loop-mode harness so the orchestrator can
+      self-pace iterations; counts against the 15/day cap.
   - slot_id: 13
     phase: phase-4.8
     job_name: drift_monitor_psi_ic
     cadence: daily
     priority: high
     alpha_velocity_eligible: true
+    surface: routine
   - slot_id: 14
     phase: phase-10.7
     job_name: meta_evolution_weekly_reallocation
     cadence: weekly
     priority: medium
     alpha_velocity_eligible: false
+    surface: routine
     notes: |
       Runs Sundays. Reads this file, computes Alpha Velocity per branch,
       proposes reallocation diff. Auto-applies diffs confined to
@@ -119,7 +155,9 @@ slots:
     cadence: on-demand
     priority: low
     alpha_velocity_eligible: true
+    surface: external
     notes: |
       Kept free for burst research (Gauntlet re-runs, supply-chain
-      pip-audit, one-off postmortems). phase-10.7 can claim this
-      slot week-over-week if Alpha Velocity justifies.
+      pip-audit, one-off postmortems). Triggered externally
+      (Slack /kick, manual CLI). phase-10.7 can claim this slot
+      week-over-week if Alpha Velocity justifies.

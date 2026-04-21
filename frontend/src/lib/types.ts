@@ -930,6 +930,20 @@ export interface HarnessValidation {
   subperiod: Record<string, Record<string, number | string | boolean>>;
 }
 
+// ── phase-10.9 Sprint-state tile ──────────────────────────────
+// Shape surfaced to the HarnessSprintTile component. Parent owns fetching
+// from the phase-10.8 BQ `harness_learning_log`; the tile is read-only.
+export interface HarnessSprintWeekState {
+  weekIso: string;
+  thu: { batchId: string; candidatesKicked: number } | null;
+  fri: { promotedIds: string[]; rejectedIds: string[] } | null;
+  monthly: {
+    sortinoDelta: number;
+    approvalPending: boolean;
+    approved: boolean;
+  } | null;
+}
+
 // ── Sharpe History ──────────────────────────────────────────────
 
 export interface SharpeHistoryEntry {

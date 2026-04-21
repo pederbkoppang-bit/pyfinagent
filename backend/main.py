@@ -290,6 +290,10 @@ app.include_router(signals_router)
 app.include_router(skills_router)
 app.include_router(mas_events_router)
 
+# phase-10.11 autoresearch sprint-state tile endpoint.
+from backend.api.harness_autoresearch import router as harness_autoresearch_router
+app.include_router(harness_autoresearch_router)
+
 
 @app.get("/api/health")
 async def health():

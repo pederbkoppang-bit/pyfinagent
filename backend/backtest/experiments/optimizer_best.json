@@ -31,5 +31,8 @@
   "discarded": 3,
   "saved_at": "2026-04-06T20:53:19.866685+00:00",
   "allocation_pct": 0.05,
-  "stage": 0
+  "stage": 0,
+  "gauntlet_report_hash": "e933b332132715512744314719b9df1e42b6b432a0155570251bfb46237ff478",
+  "gauntlet_strategy": "baseline",
+  "gauntlet_stamped_at": "2026-04-19T06:03:33.789792+00:00"
 }

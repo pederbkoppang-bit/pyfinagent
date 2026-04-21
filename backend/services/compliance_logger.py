@@ -23,6 +23,8 @@ records be reconstructible.
 from __future__ import annotations
 
 import json
+
+from backend.utils import json_io
 import logging
 import os
 from dataclasses import asdict, dataclass, field
@@ -112,7 +114,7 @@ def _read_local(trade_id: str) -> dict:
         raise FileNotFoundError(
             f"no rationale for trade_id={trade_id} at {path}"
         )
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json_io.load_json_file(path)
 
 
 def _write_gcs(record: RationaleRecord) -> str:
@@ -144,7 +146,7 @@ def _read_gcs(trade_id: str) -> dict:
         raise FileNotFoundError(
             f"no rationale blob for trade_id={trade_id}"
         )
-    return json.loads(blob.download_as_text())
+    return json_io.loads(blob.download_as_text())
 
 
 def write_rationale(

@@ -32,6 +32,8 @@ import base64
 import hashlib
 import hmac
 import json
+
+from backend.utils import json_io
 import logging
 import os
 import re
@@ -147,7 +149,7 @@ def verify_token(
         raise TokenInvalidError("signature mismatch")
 
     try:
-        payload = json.loads(payload_b)
+        payload = json_io.loads(payload_b)
     except json.JSONDecodeError as e:
         raise TokenInvalidError(f"payload not JSON: {e}") from None
 

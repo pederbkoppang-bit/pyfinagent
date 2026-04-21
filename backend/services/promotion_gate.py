@@ -22,6 +22,8 @@ Gate outputs one of:
 from __future__ import annotations
 
 import json
+
+from backend.utils import json_io
 import logging
 from pathlib import Path
 from typing import Any
@@ -131,7 +133,7 @@ def update_optimizer_best(
     preserving all existing keys. Creates the file with a minimal
     stub if it does not exist (this enables the fresh-deploy case)."""
     if path.exists():
-        blob = json.loads(path.read_text(encoding="utf-8"))
+        blob = json_io.load_json_file(path)
     else:
         blob = {}
     blob["allocation_pct"] = float(allocation_pct)

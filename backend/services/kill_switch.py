@@ -23,6 +23,8 @@ Audit trail (mandatory per 3forge / ESMA Supervisory Briefing 2026):
 from __future__ import annotations
 
 import json
+
+from backend.utils import json_io
 import logging
 import threading
 from datetime import datetime, timezone
@@ -55,7 +57,7 @@ class KillSwitchState:
             with _AUDIT_PATH.open(encoding="utf-8") as f:
                 for line in f:
                     try:
-                        row = json.loads(line)
+                        row = json_io.parse_json_line(line)
                     except Exception:
                         continue
                     if row.get("event") == "pause":

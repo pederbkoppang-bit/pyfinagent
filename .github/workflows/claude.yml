@@ -18,10 +18,11 @@ jobs:
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
+    # MF-50 (2026-04-18): upgrade to write so @claude can commit + comment.
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
@@ -40,11 +41,8 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
-
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+          # MF-17 (2026-04-18): pin the model and restrict tools.
+          # Without --model, defaults to Sonnet; without --allowed-tools,
+          # arbitrary Bash runs on the GH runner.
+          claude_args: '--model claude-opus-4-7 --allowed-tools "Bash(gh pr *),Bash(gh issue *),Read,Edit,Write"'
 

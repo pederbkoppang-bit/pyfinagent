@@ -1,0 +1,2 @@
+{"cycle_id": "5e436733", "started_at": "2026-04-20T12:00:00.470975+00:00", "completed_at": "2026-04-20T12:01:19.022172+00:00", "duration_ms": 78551, "status": "completed", "n_trades": 0, "error_count": 0, "data_source_ages": {}, "bq_ingest_lag_sec": null}
+{"cycle_id": "dc0172e6", "started_at": "2026-04-21T12:00:00.702789+00:00", "completed_at": "2026-04-21T12:01:23.705860+00:00", "duration_ms": 83003, "status": "completed", "n_trades": 0, "error_count": 0, "data_source_ages": {}, "bq_ingest_lag_sec": null}

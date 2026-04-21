@@ -1,0 +1,1 @@
+# phase-8.5.10 REMEDIATION v1. 4/4 PASS + exit 0. Researcher confirms `0.1*sqrt(log N)` defensible (stricter than lenient; at N=10000 penalty=0.303 adjusts DSR 0.99→0.687, still fails both thresholds). Mid-cycle bug fix was correct. 0.1 scalar is an engineering knob with no canonical reference; kept.

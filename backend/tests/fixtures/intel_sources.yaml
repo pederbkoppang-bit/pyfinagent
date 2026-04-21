@@ -1,0 +1,23 @@
+sources:
+  - source_id: "stub_http"
+    source_name: "Stub HTTP Source"
+    source_type: "http"
+    kill_switch: false
+    rate_limit_per_day: 1000
+    metadata:
+      url: "https://stub.example.com/feed"
+
+  - source_id: "stub_rss"
+    source_name: "Stub RSS Feed"
+    source_type: "rss"
+    kill_switch: false
+    rate_limit_per_day: 500
+    metadata:
+      feed_url: "https://feeds.example.com/finance.rss"
+
+  - source_id: "stub_disabled"
+    source_name: "Disabled Source"
+    source_type: "http"
+    kill_switch: true
+    rate_limit_per_day: 0
+    metadata: {}

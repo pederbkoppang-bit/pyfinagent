@@ -18,6 +18,8 @@ register_health_cron() -- no new scheduler process.
 from __future__ import annotations
 
 import json
+
+from backend.utils import json_io
 import logging
 import os
 import urllib.request
@@ -47,7 +49,7 @@ def _gh_latest_commit(repo: str) -> tuple[str | None, str | None]:
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+            data = json_io.loads(resp.read().decode("utf-8"))
             if not data:
                 return None, "empty_response"
             c = data[0]
@@ -64,7 +66,7 @@ def _load_scores() -> dict:
     if not RISK_SCORES_PATH.exists():
         return {}
     try:
-        return json.loads(RISK_SCORES_PATH.read_text(encoding="utf-8"))
+        return json_io.load_json_file(RISK_SCORES_PATH)
     except Exception as e:
         logger.warning("failed to read mcp_risk_scores.json: %s", e)
         return {}
@@ -74,7 +76,7 @@ def _load_last() -> dict:
     if not LAST_SNAPSHOT_PATH.exists():
         return {}
     try:
-        return json.loads(LAST_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+        return json_io.load_json_file(LAST_SNAPSHOT_PATH)
     except Exception:
         return {}
 

@@ -58,3 +58,11 @@ backend/.env.*.bak-*
 
 # Playwright Chrome binary (installed by `playwright install`)
 frontend/chrome/
+
+# phase-4.16.2: runtime logs (moved to handoff/logs/) are not committed
+handoff/logs/
+handoff/*.log
+
+# phase-10.10 quarantine dirs (local forensic archive, not pushed to remote)
+handoff/archive/_quarantine_*/
+.claude/_backups_archive/

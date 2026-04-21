@@ -1,0 +1,25 @@
+# Evaluator Critique -- phase-<ID>
+
+## Harness-protocol audit (5 items, per memory/feedback_qa_harness_compliance_first.md)
+1. researcher spawn present -- researcher_<id> cited in contract. <PASS|FAIL + evidence>
+2. contract PRE-commit -- mtime check: contract ≤ experiment_results. <PASS|FAIL>
+3. experiment_results.md present with verbatim verification. <PASS|FAIL>
+4. log-last ordering -- harness_log append BEFORE status flip. <PASS|FAIL>
+5. fresh Q/A spawn. <PASS>
+
+## Deterministic checks
+1. Immutable verification command -> exit <code>.
+2. <sub-check>.
+
+## LLM judgment
+- Contract alignment: <yes/no>.
+- Scope honesty: <yes/no>.
+- Anti-rubber-stamp: <findings>.
+
+## Violated criteria
+<list or "none">.
+
+## Verdict: PASS | CONDITIONAL | FAIL
+
+## Follow-up required
+<file:line fixes if any>.

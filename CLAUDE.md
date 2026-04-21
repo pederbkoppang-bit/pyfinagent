@@ -83,7 +83,8 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 
 ## BigQuery Access (MCP)
 
-The harness environment injects a BigQuery MCP server with **read AND write**
+The BigQuery MCP server is **harness-injected** (not pinned in `.mcp.json`).
+The harness environment injects it with **read AND write**
 access to project **`sunny-might-477607-p8`**. Prefer these tools over
 spinning up a Python `bigquery.Client` for ad-hoc inspection, validation, and
 analytics — they're faster, require no auth plumbing, and leave no local state.

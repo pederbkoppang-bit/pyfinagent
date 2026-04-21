@@ -51,11 +51,24 @@ You MUST be invoked:
 1. Identify the question (from Main's prompt or the step definition)
 2. Search broadly: Scholar, arXiv, official docs, vendor blogs,
    quant firms, GitHub
-3. Collect >=10 candidate URLs (>=3 for simple tasks)
-4. Select best 3-5: peer-reviewed > preprints > official docs >
-   blogs > forums
-5. Read in full, never abstracts
-6. Cite per-claim with URL + access date
+3. Collect >=10 candidate URLs (absolute floor -- even `simple` tier)
+4. Select at least **5** authoritative candidates to READ IN FULL
+   via `WebFetch`. Priority order: peer-reviewed > preprints >
+   official docs > blogs > forums. `simple`/`moderate`/`complex`
+   tiers change the DEPTH of analysis and the brief's length, NOT
+   the 5-source floor. If you cannot fetch 5 sources in full, the
+   gate fails -- return `gate_passed: false` with the attempts
+   listed.
+5. **Recency scan (mandatory)**: do at least one explicit search
+   pass scoped to the last 2 years (2024-2026). Report the findings
+   even if the result is "no relevant new finding". Older canonical
+   sources are still valuable, but newer work may supersede them
+   and MUST be evaluated.
+6. Read in full, never abstracts. For each source, record whether it
+   was read via `WebFetch` in full or only seen as a search snippet
+   (see output tables below -- these counts toward / do NOT count
+   toward the gate).
+7. Cite per-claim with URL + access date
 
 ### Internal exploration (the Explore half)
 1. Identify the files/modules in question (or grep/glob to find)
@@ -72,11 +85,20 @@ Both halves feed the same output report.
 ```
 ## Research: [Topic]
 
-### External sources (URL coverage)
-| URL | Accessed | Kind (paper/doc/blog/code) | Read in full? |
+### Read in full (>=5 required; counts toward the gate)
+| URL | Accessed | Kind (paper/doc/blog/code) | Fetched how | Key quote or finding |
+
+### Identified but snippet-only (context; does NOT count toward gate)
+| URL | Kind | Why not fetched in full |
+
+### Recency scan (2024-2026)
+Report: searched for 2024-2026 literature on <topic>. Result:
+"found X new findings that supersede / complement the canonical
+sources above" OR "no new findings in the 2024-2026 window".
+Must be present even when empty.
 
 ### Key findings
-1. [Finding] — [quote] (Source: Author Year, URL)
+1. [Finding] -- [quote] (Source: Author Year, URL)
 
 ### Internal code inventory
 | File | Lines | Role | Status |
@@ -87,13 +109,18 @@ Both halves feed the same output report.
 anchors from internal inventory)
 
 ### Research Gate Checklist
-- [ ] 3+ authoritative external sources
-- [ ] 10+ unique URLs
-- [ ] Full papers read (not abstracts)
+
+Hard blockers -- `gate_passed` is false if any unchecked:
+- [ ] >=5 authoritative external sources READ IN FULL via WebFetch
+- [ ] 10+ unique URLs total (incl. snippet-only)
+- [ ] Recency scan (last 2 years) performed + reported
+- [ ] Full papers / pages read (not abstracts) for the read-in-full set
+- [ ] file:line anchors for every internal claim
+
+Soft checks -- note gaps but do not auto-fail:
 - [ ] Internal exploration covered every relevant module
-- [ ] file:line anchors for every claim
-- [ ] All claims cited
 - [ ] Contradictions / consensus noted
+- [ ] All claims cited per-claim (not just listed in a footer)
 ```
 
 ## Source quality hierarchy (external)
@@ -108,11 +135,17 @@ anchors from internal inventory)
 
 Caller states the tier in the prompt. Do not choose your own scope.
 
-| Tier | Budget | When |
-|------|--------|------|
-| simple | 1 pass, <=10 tool calls, 3-5 URLs | routine follow-up |
-| moderate | <=15 tool calls, 10+ URLs | new subtopic |
-| complex | <=25 tool calls, 20+ URLs, parallel subtopics | novel domain |
+| Tier | Brief length | Tool-call budget | URL target | Full reads (gate floor) |
+|------|-------------|------------------|-----------|-------------------------|
+| simple | <=300 w | <=10 | 10+ | at least 5 |
+| moderate | <=700 w | <=18 | 15+ | at least 5 (typically 5-8) |
+| complex | <=1500 w | <=30 | 25+ | at least 5 (typically 8-15) |
+
+Tier controls the DEPTH of analysis and brief length, not the
+source-count floor. The >=5 read-in-full floor applies to every
+tier -- a 300-word `simple` brief still needs 5 sources fetched
+via WebFetch. Cannot meet 5? Return `gate_passed: false` with the
+gap documented.
 
 If caller didn't specify, assume `moderate` and state the
 assumption in your first line.
@@ -126,20 +159,32 @@ assumption in your first line.
   (t-stat >= 3.0), Lo (2002)
 - Harness: Planner -> Generator -> Evaluator autonomous loop
 
-## Output JSON envelope (optional)
+## Output JSON envelope (ALWAYS EMIT)
 
-When caller asks for machine-readable output:
+Emit this envelope at the tail of every brief, even when the caller
+does not ask. Callers (Main + Q/A) rely on it to audit whether the
+gate was actually met vs merely claimed.
 
 ```json
 {
   "tier": "moderate",
   "external_sources_read_in_full": 5,
+  "snippet_only_sources": 7,
   "urls_collected": 12,
+  "recency_scan_performed": true,
   "internal_files_inspected": 8,
   "report_md": "...",
   "gate_passed": true
 }
 ```
+
+Gate logic (non-negotiable):
+`gate_passed: true` iff
+  `external_sources_read_in_full >= 5`
+  AND `recency_scan_performed == true`
+  AND all "hard blocker" checklist items are satisfied.
+Otherwise `gate_passed: false` -- return it honestly; do NOT pad
+the brief to mask a shortfall.
 
 ## Constraints
 

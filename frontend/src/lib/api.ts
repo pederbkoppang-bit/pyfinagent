@@ -474,6 +474,14 @@ export function getHarnessLog(): Promise<{ cycles: import("./types").HarnessCycl
   return apiFetch("/api/backtest/harness/log");
 }
 
+// phase-10.11: autoresearch sprint-state tile fetcher.
+export function getHarnessSprintState(
+  weekIso?: string,
+): Promise<import("./types").HarnessSprintWeekState | null> {
+  const qs = weekIso ? `?week_iso=${encodeURIComponent(weekIso)}` : "";
+  return apiFetch(`/api/harness/sprint-state${qs}`);
+}
+
 export function getHarnessCritique(): Promise<{ content: string | null; raw: string | null }> {
   return apiFetch("/api/backtest/harness/critique");
 }

@@ -17,11 +17,10 @@ from slack_sdk import WebClient
 logger = logging.getLogger(__name__)
 
 AVAILABLE_MODELS = [
+    "claude-opus-4-7",
     "claude-opus-4-6",
     "claude-sonnet-4-6",
     "claude-haiku-4-5",
-    "claude-sonnet-4-20250514",
-    "claude-haiku-35-20241022",
 ]
 
 AGENT_DISPLAY = [

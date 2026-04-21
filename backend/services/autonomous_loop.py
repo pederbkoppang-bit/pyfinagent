@@ -7,6 +7,8 @@ Designed to run as an APScheduler cron job.
 
 import asyncio
 import json
+
+from backend.utils import json_io
 import logging
 import os
 from datetime import datetime, timezone
@@ -435,7 +437,7 @@ Respond in this exact JSON format:
 
     response = await asyncio.to_thread(
         client.messages.create,
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=200,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -446,7 +448,7 @@ Respond in this exact JSON format:
     import re
     json_match = re.search(r'\{[^}]+\}', text)
     if json_match:
-        analysis = json.loads(json_match.group())
+        analysis = json_io.loads(json_match.group())
     else:
         analysis = {"action": "HOLD", "confidence": 0, "score": 5, "reason": "Could not parse analysis"}
 

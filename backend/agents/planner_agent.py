@@ -11,6 +11,8 @@ Uses Claude Opus for high-quality reasoning.
 """
 
 import json
+
+from backend.utils import json_io
 import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
@@ -129,7 +131,7 @@ Be specific about parameters and expected gains. Include reasoning for each prop
             json_start = response_text.find('{')
             json_end = response_text.rfind('}') + 1
             if json_start >= 0 and json_end > json_start:
-                proposal_json = json.loads(response_text[json_start:json_end])
+                proposal_json = json_io.loads(response_text[json_start:json_end])
             else:
                 # Fallback if no JSON found
                 proposal_json = {
@@ -233,7 +235,7 @@ Return revised proposal in JSON format."""
         try:
             json_start = response_text.find('{')
             json_end = response_text.rfind('}') + 1
-            revised = json.loads(response_text[json_start:json_end])
+            revised = json_io.loads(response_text[json_start:json_end])
         except json.JSONDecodeError:
             revised = proposal  # Fallback to original
 

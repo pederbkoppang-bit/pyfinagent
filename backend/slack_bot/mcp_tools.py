@@ -71,7 +71,7 @@ def build_claude_mcp_config(user_token: str) -> Dict[str, Any]:
     Usage in Anthropic SDK:
     ```python
     response = await client.beta.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         messages=messages,
         mcp_servers=[build_claude_mcp_config(user_token)]
     )
@@ -220,7 +220,7 @@ def integrate_mcp_with_claude_call(
     anthropic_client,
     messages: list,
     user_token: str,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-sonnet-4-6",
     **kwargs
 ) -> Any:
     """

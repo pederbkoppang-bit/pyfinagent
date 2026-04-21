@@ -19,6 +19,8 @@ Benefits:
 
 import os
 import json
+
+from backend.utils import json_io
 import logging
 import time
 import httpx
@@ -194,7 +196,7 @@ def openclaw_chat_stream(
                 if data_str == "[DONE]":
                     break
                 try:
-                    chunk = json.loads(data_str)
+                    chunk = json_io.loads(data_str)
                     delta = chunk.get("choices", [{}])[0].get("delta", {})
                     text = delta.get("content", "")
                     if text:

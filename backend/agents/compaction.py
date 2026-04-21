@@ -9,6 +9,8 @@ later stages like debate carry-forward, critic review, and synthesis revision.
 from __future__ import annotations
 
 import json
+
+from backend.utils import json_io
 from typing import Any
 
 
@@ -143,9 +145,9 @@ def compact_quant_snapshot(quant_data: dict) -> dict:
 def compact_report_reference(report_text: str, *, max_chars: int) -> str:
     """Compress a prior synthesis draft into a small typed revision reference."""
     try:
-        data = json.loads(report_text)
+        data = json_io.loads(report_text)
         if isinstance(data, str):
-            data = json.loads(data)
+            data = json_io.loads(data)
     except Exception:
         return compact_text(report_text, max_chars, suffix="\n\n[Prior draft compacted]")
 

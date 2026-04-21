@@ -8,8 +8,14 @@ import {
   getHarnessContract,
   getHarnessValidation,
   getSeedStability,
+  getHarnessSprintState,
 } from "@/lib/api";
-import type { HarnessCycle, HarnessValidation } from "@/lib/types";
+import type {
+  HarnessCycle,
+  HarnessValidation,
+  HarnessSprintWeekState,
+} from "@/lib/types";
+import { HarnessSprintTile } from "@/components/HarnessSprintTile";
 import {
   CheckCircle,
   XCircle,
@@ -189,6 +195,7 @@ export function HarnessDashboard() {
   const [validation, setValidation] = useState<HarnessValidation | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [seedStability, setSeedStability] = useState<any>(null);
+  const [sprintState, setSprintState] = useState<HarnessSprintWeekState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -199,13 +206,15 @@ export function HarnessDashboard() {
       getHarnessContract().catch(() => ({ content: null })),
       getHarnessValidation().catch(() => ({ validation: {}, subperiod: {} })),
       getSeedStability().catch(() => null),
+      getHarnessSprintState().catch(() => null),
     ])
-      .then(([log, crit, cont, val, seed]) => {
+      .then(([log, crit, cont, val, seed, sprint]) => {
         setCycles(log.cycles);
         setCritique(crit.content);
         setContract(cont.content);
         setValidation(val);
         setSeedStability(seed);
+        setSprintState(sprint);
       })
       .catch(() => setError("Failed to load harness data"))
       .finally(() => setLoading(false));
@@ -236,6 +245,9 @@ export function HarnessDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* phase-10.11: autoresearch sprint-state tile (read-only) */}
+      <HarnessSprintTile data={sprintState} />
+
       {/* Current Contract */}
       {contract && (
         <BentoCard>

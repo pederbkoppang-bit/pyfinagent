@@ -23,6 +23,8 @@ agree.
 from __future__ import annotations
 
 import json
+
+from backend.utils import json_io
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -129,7 +131,7 @@ def read_log(log_path: Path | None = None) -> list[dict]:
             if not line:
                 continue
             try:
-                rows.append(json.loads(line))
+                rows.append(json_io.parse_json_line(line))
             except json.JSONDecodeError:
                 logger.warning("tca: skipping malformed jsonl row")
     return rows

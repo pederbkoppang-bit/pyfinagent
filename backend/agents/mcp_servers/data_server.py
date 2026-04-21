@@ -14,6 +14,8 @@ Resources (FastMCP @mcp.resource):
 import csv
 import json
 import logging
+
+from backend.utils import json_io  # noqa: E402 -- phase-4.14.5 consolidation
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -327,7 +329,7 @@ class DataServer:
                         params_parsed: Any = params_raw
                         if params_raw:
                             try:
-                                params_parsed = json.loads(params_raw)
+                                params_parsed = json_io.loads(params_raw)
                             except (ValueError, TypeError):
                                 params_parsed = params_raw
                         experiments.append({

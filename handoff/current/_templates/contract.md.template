@@ -1,0 +1,31 @@
+# Sprint Contract -- phase-<ID>
+Step: <short title>
+
+## Research Gate
+researcher_<id> (tier=simple|moderate|complex) gate_passed=<true|false>.
+Brief: `handoff/current/phase-<ID>-research-brief.md`.
+- <=5 external sources read in full (mandatory floor).
+- Recency scan (last 2 years) performed.
+- Key findings: <1-5 bullets>.
+
+## Hypothesis
+<single-paragraph statement of what this step asserts>.
+
+## Success Criteria (immutable)
+```
+<verification command verbatim from masterplan.json>
+```
+Plus sub-criteria:
+- <copy from masterplan success_criteria>
+
+## Plan (PRE-commit; will NOT diverge in Generate)
+1. <concrete step>.
+2. <concrete step>.
+3. <verification>.
+
+## Scope honesty / out-of-scope
+- <anything explicitly deferred>.
+
+## References
+- Research brief: `handoff/current/phase-<ID>-research-brief.md`
+- <related prior step(s)>.

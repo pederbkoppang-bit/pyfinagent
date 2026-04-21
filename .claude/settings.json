@@ -1,5 +1,38 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/pre-tool-use-danger.sh\"",
+            "statusMessage": "PreToolUse danger guard..."
+          }
+        ]
+      }
+    ],
+    "ConfigChange": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/config-change-audit.sh\"",
+            "statusMessage": "Auditing config change..."
+          }
+        ]
+      }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/instructions-loaded-research-gate.sh\"",
+            "statusMessage": "Reloading research-gate rule..."
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Bash",

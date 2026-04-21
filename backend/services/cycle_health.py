@@ -20,6 +20,8 @@ duration_ms, status, error_count, n_trades, data_source_ages, bq_ingest_lag).
 from __future__ import annotations
 
 import json
+
+from backend.utils import json_io
 import logging
 import threading
 from datetime import datetime, timezone
@@ -125,7 +127,7 @@ class CycleHealthLog:
             if not line:
                 continue
             try:
-                out.append(json.loads(line))
+                out.append(json_io.parse_json_line(line))
             except Exception:
                 continue
         return out
@@ -141,7 +143,7 @@ class CycleHealthLog:
         if not _HEARTBEAT_PATH.exists():
             return None
         try:
-            return json.loads(_HEARTBEAT_PATH.read_text(encoding="utf-8"))
+            return json_io.load_json_file(_HEARTBEAT_PATH)
         except Exception:
             return None
 

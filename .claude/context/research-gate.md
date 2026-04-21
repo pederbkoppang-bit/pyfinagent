@@ -7,12 +7,13 @@ Every plan step must pass the Research Gate before proceeding to GENERATE.
 
 **Why:** Phases 0-2.7 were built from general knowledge with zero papers fetched. Phase 2.8 (first with real research) immediately found 2 code bugs (DSR trial count, Lo(2002) formula). Research-first execution produces measurably better code. "I already know how to do this" is not research — it's assumption.
 
-**How to apply:** Search all 7 categories (Scholar, arXiv, universities, AI labs, quant firms, consulting, GitHub), collect >=10 URLs, read 3-5 in full, document in RESEARCH.md with URLs, update handoff/current/contract.md with research-backed thresholds (e.g., "DSR > 0.95 per Bailey & Lopez de Prado (2014)"). If ANY checklist item is unchecked, STOP and do more research. See PLAN.md lines 44-83 for full checklist.
+**How to apply:** Search all 7 categories (Scholar, arXiv, universities, AI labs, quant firms, consulting, GitHub), collect >=10 URLs, read **>=5 in full** (phase-4.16.1 raised the floor from 3-5), document in RESEARCH.md with URLs, update handoff/current/contract.md with research-backed thresholds (e.g., "DSR > 0.95 per Bailey & Lopez de Prado (2014)"). Always run an explicit last-2-year scan (e.g. 2024-2026) and report its outcome, even when "no new findings". If ANY checklist item is unchecked, STOP and do more research. See `ARCHITECTURE.md::Research Gate Discipline (phase-4.16)` + `.claude/rules/research-gate.md` for the full protocol.
 
 **Checklist:**
 - [ ] Searched all 7 source categories? (not just Google Scholar)
 - [ ] Collected >=10 candidate URLs? (>=3 for simple steps)
-- [ ] Selected and read 3-5 best sources in full?
+- [ ] Selected and read **>=5** best sources in full? (phase-4.16.1 floor)
+- [ ] Last-2-year recency scan performed and reported?
 - [ ] Documented findings in RESEARCH.md with URLs?
 - [ ] Extracted concrete thresholds/methods to adopt?
 - [ ] Noted warnings/pitfalls from literature?

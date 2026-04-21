@@ -10,6 +10,8 @@ Improvements over basic planner:
 """
 
 import json
+
+from backend.utils import json_io
 import logging
 import os
 from typing import Optional, Dict, Any, List
@@ -116,7 +118,7 @@ class EnhancedPlannerAgent:
             json_end = response_text.rfind('}') + 1
             
             if json_start >= 0 and json_end > json_start:
-                proposals_json = json.loads(response_text[json_start:json_end])
+                proposals_json = json_io.loads(response_text[json_start:json_end])
             else:
                 logger.error("[warn]  Could not find JSON in response")
                 proposals_json = self._get_default_proposals(current_sharpe)

@@ -40,6 +40,62 @@ async def get_slow_endpoints(threshold: float = Query(1000, ge=100)):
     return get_perf_tracker().get_slow_endpoints(threshold_ms=threshold)
 
 
+# phase-4.14.23: LLM-call p95 latency endpoint fed by the BQ
+# llm_call_log table (see scripts/migrations/add_llm_call_log.py).
+# The harness tab consumes this to render the p95 trend tile.
+# Falls back to {"unavailable": true} when the table has not yet
+# been materialised in this environment so the UI can hide the tile
+# without error.
+@router.get("/llm/p95")
+async def get_llm_p95_latency(
+    window_hours: int = Query(24, ge=1, le=168),
+    provider: Optional[str] = Query(None, description="anthropic|gemini|openai|github-models"),
+):
+    """Return p50/p95/p99 latency + call count for LLM traffic in the window."""
+    try:
+        from backend.db.bigquery_client import BigQueryClient
+        from backend.config.settings import get_settings
+        s = get_settings()
+        bq = BigQueryClient(s)
+        dataset = getattr(s, "bq_dataset_observability", None) or "pyfinagent_data"
+        where = ["ts >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @h HOUR)"]
+        params: list = [
+            {"name": "h", "parameterType": {"type": "INT64"}, "parameterValue": {"value": window_hours}},
+        ]
+        if provider:
+            where.append("provider = @p")
+            params.append({
+                "name": "p",
+                "parameterType": {"type": "STRING"},
+                "parameterValue": {"value": provider},
+            })
+        sql = f"""
+            SELECT
+              COUNT(*) AS n,
+              APPROX_QUANTILES(latency_ms, 100)[OFFSET(50)] AS p50_ms,
+              APPROX_QUANTILES(latency_ms, 100)[OFFSET(95)] AS p95_ms,
+              APPROX_QUANTILES(latency_ms, 100)[OFFSET(99)] AS p99_ms
+            FROM `{s.gcp_project_id}.{dataset}.llm_call_log`
+            WHERE {' AND '.join(where)}
+        """
+        # BigQueryClient exposes .client for raw queries.
+        rows = list(bq.client.query(sql).result())
+        if not rows:
+            return {"unavailable": True, "reason": "no rows"}
+        r = rows[0]
+        return {
+            "window_hours": window_hours,
+            "provider": provider,
+            "n": int(r.get("n") or 0),
+            "p50_ms": float(r.get("p50_ms") or 0.0),
+            "p95_ms": float(r.get("p95_ms") or 0.0),
+            "p99_ms": float(r.get("p99_ms") or 0.0),
+        }
+    except Exception as e:
+        logger.debug("llm/p95 query failed: %s", e)
+        return {"unavailable": True, "reason": str(e)[:200]}
+
+
 @router.get("/cache")
 async def get_cache_stats():
     """Cache statistics: entry count, hit rate, total gets/hits."""

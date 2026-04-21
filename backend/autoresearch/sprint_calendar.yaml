@@ -1,0 +1,44 @@
+# phase-10.1 Sprint calendar: Mon-Fri + monthly anchor.
+#
+# Replaces phase-8.5.7 nightly cron with a disciplined 2-slot-per-week
+# cadence plus a monthly Champion/Challenger Sortino gate (HITL).
+#
+# Schema:
+#   new_weekly_slots: integer (enforces 2 slots per week)
+#   days: { <day>: {slot_id, role, time_utc} }
+#   monthly_anchor: { rule, role }
+# Loaded by scripts/harness/phase10_thursday_batch_test.py and
+# phase10_friday_promotion_test.py.
+
+version: "1.0"
+authored_at: "2026-04-20"
+
+new_weekly_slots: 2
+
+days:
+  thursday:
+    slot_id: "thu_batch"
+    role: "batch_trigger"
+    time_utc: "22:00"
+    notes: "Kick ~100 candidates; budget-gated via autoresearch/budget.py"
+  friday:
+    slot_id: "fri_promotion"
+    role: "promotion_gate"
+    time_utc: "21:00"
+    notes: "Top-N via DSR/PBO (reuses phase-8.5.5 gate); writes ledger row"
+
+monthly_anchor:
+  rule: "last_trading_friday"
+  role: "champion_challenger_sortino_gate"
+  hitl: true
+  min_challenger_days: 20
+  notes: |
+    HITL gate: owner (Peder) must approve any Champion swap. Sortino
+    with configurable MAR (3M T-Bill rate; default 0.045). See
+    backend/metrics/sortino.py.
+
+references:
+  - "handoff/phase-10.0-supersede-85-7.md"
+  - "backend/autoresearch/budget.py (phase-8.5.2)"
+  - "backend/autoresearch/gate.py (phase-8.5.5)"
+  - "handoff/harness_log.md phase-10 cycles"

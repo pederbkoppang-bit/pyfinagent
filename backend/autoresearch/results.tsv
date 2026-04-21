@@ -1,0 +1,2 @@
+trial_id	ts	phase_step	sharpe	dsr	pbo	max_dd	profit_factor	cost	realized_pnl	notes
+seed_0000	2026-04-20T01:45:00+00:00	phase-8.5.4	1.1705	0.9526	0.15	0.08	1.82	0.0	0.0	seed row from phase-8.5.4 harness cycle; placeholder for first real trial

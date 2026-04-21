@@ -1,0 +1,3 @@
+Guard flag: bypasses archive-handoff.sh until remediation of phase-8.5.x + phase-9.x is complete.
+Created 2026-04-20 by phase-8/9 audit remediation.
+Remove this file to re-enable automatic archival on step-transition-to-done.

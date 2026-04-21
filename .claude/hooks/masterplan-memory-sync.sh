@@ -35,19 +35,40 @@ lines = [
     f"Last synced: {mp.get('updated_at', 'unknown')}", "",
 ]
 
+# phase-4.16.2 follow-up fix: phases and steps may be missing `status`
+# or `name` in older masterplan buckets -- `.get(..., default)` keeps
+# the hook non-blocking so PostToolUse does not log a Python traceback
+# on every masterplan.json write.
 for phase in mp.get("phases", []):
-    icon = {"done": "[x]", "in-progress": "[~]", "pending": "[ ]", "blocked": "[!]"}.get(phase["status"], "[ ]")
+    p_status = phase.get("status")
+    if not p_status:
+        # Derive phase status from its steps so the summary is useful.
+        step_statuses = [s.get("status", "pending") for s in phase.get("steps", [])]
+        if step_statuses and all(s == "done" for s in step_statuses):
+            p_status = "done"
+        elif any(s == "in-progress" for s in step_statuses):
+            p_status = "in-progress"
+        elif any(s == "blocked" for s in step_statuses):
+            p_status = "blocked"
+        else:
+            p_status = "pending"
+    icon = {"done": "[x]", "in-progress": "[~]", "pending": "[ ]", "blocked": "[!]"}.get(p_status, "[ ]")
     gate = ""
     g = phase.get("gate")
     if isinstance(g, dict) and not g.get("approved", True):
         gate = f" — GATE: {g.get('reason','<no reason>')}"
     elif isinstance(g, str):
         gate = f" — GATE: {g}"
-    lines.append(f"{icon} **{phase['id']}**: {phase['name']} ({phase['status']}){gate}")
+    phase_id = phase.get("id", "?")
+    phase_name = phase.get("name", "<unnamed>")
+    lines.append(f"{icon} **{phase_id}**: {phase_name} ({p_status}){gate}")
 
     for step in phase.get("steps", []):
-        s_icon = {"done": "[x]", "in-progress": "[~]", "pending": "[ ]"}.get(step["status"], "[ ]")
-        lines.append(f"  {s_icon} {step['id']}: {step['name']}")
+        s_status = step.get("status", "pending")
+        s_icon = {"done": "[x]", "in-progress": "[~]", "pending": "[ ]", "blocked": "[!]"}.get(s_status, "[ ]")
+        s_id = step.get("id", "?")
+        s_name = step.get("name", "<unnamed>")
+        lines.append(f"  {s_icon} {s_id}: {s_name}")
 
 with open(out_path, "w") as f:
     f.write("\n".join(lines) + "\n")
@@ -66,9 +87,12 @@ with open('$MASTERPLAN') as f:
 active = []
 for p in mp.get('phases', []):
     for s in p.get('steps', []):
-        if s['status'] in ('in-progress', 'done'):
-            icon = '[x]' if s['status'] == 'done' else '[~]'
-            active.append(f'  {icon} {s[\"id\"]}: {s[\"name\"]}')
+        st = s.get('status', 'pending')
+        if st in ('in-progress', 'done'):
+            icon = '[x]' if st == 'done' else '[~]'
+            sid = s.get('id', '?')
+            sname = s.get('name', '<unnamed>')
+            active.append(f'  {icon} {sid}: {sname}')
 if active:
     print('\n'.join(active[-5:]))
 " 2>/dev/null || echo "")

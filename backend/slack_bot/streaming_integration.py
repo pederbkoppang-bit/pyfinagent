@@ -361,3 +361,157 @@ def _split_chunks(text: str, size: int = 80) -> list:
     if current:
         chunks.append(current)
     return chunks
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PROMPT-LEAK DEFENSES (phase-4.14.25, MF-43)
+# ═══════════════════════════════════════════════════════════════════
+#
+# Two-layer defense against prompt injection / system-prompt
+# exfiltration on Slack-streamed agent output:
+#
+#   1. Regex post-filter -- fast, deterministic scrub for obvious
+#      leakage patterns (system-prompt headers, API key prefixes,
+#      chain-of-thought markers, tool-definition fragments).
+#   2. LLM binary leak detector -- Haiku 4.5 forced tool-call
+#      classifier for subtler cases. Fails OPEN on any exception.
+#
+# Both run AFTER the agent finishes (post-stream), because per-chunk
+# scrubbing risks blocking partial tokens that only look leak-like in
+# isolation. The nightly red-team audit job referenced in
+# success_criterion #3 lives in scripts/audit/prompt_leak_redteam.py.
+
+import re as _re
+
+# Regex patterns targeting common exfil surfaces. Each is a (name,
+# compiled pattern, replacement) triple so callers can report which
+# pattern fired for audit.
+_LEAK_PATTERNS: list[tuple[str, "_re.Pattern[str]", str]] = [
+    ("system_prompt_header",
+     _re.compile(r"(?is)(?:system\s*(?:prompt|message|instructions?))\s*:\s*.{0,400}"),
+     "[REDACTED: system-prompt disclosure blocked]"),
+    ("api_key_anthropic",
+     _re.compile(r"sk-ant-[A-Za-z0-9\-_]{20,}"),
+     "[REDACTED: api_key]"),
+    ("api_key_openai",
+     _re.compile(r"\bsk-[A-Za-z0-9]{20,}\b"),
+     "[REDACTED: api_key]"),
+    ("internal_tool_def",
+     _re.compile(r"(?is)<\s*(tool|system|admin)\s*>.*?<\s*/\s*\1\s*>"),
+     "[REDACTED: internal tag]"),
+    ("claude_self_disclosure",
+     _re.compile(r"(?i)I am Claude[,.\s]+(?:an\s+AI\s+)?(?:created|made|built|trained)\s+by\s+Anthropic"),
+     "[REDACTED: model self-disclosure]"),
+    ("chain_of_thought",
+     _re.compile(r"(?is)<\s*thinking\s*>.*?<\s*/\s*thinking\s*>"),
+     "[REDACTED: chain-of-thought]"),
+]
+
+
+def scrub_leaks(text: str) -> tuple[str, list[str]]:
+    """Regex post-filter. Returns (scrubbed_text, list_of_fired_patterns).
+
+    Fast, deterministic, no API call. Always runs before the LLM
+    leak detector so cheap cases are handled without latency.
+    """
+    if not text:
+        return text, []
+    fired: list[str] = []
+    out = text
+    for name, pat, replacement in _LEAK_PATTERNS:
+        if pat.search(out):
+            out = pat.sub(replacement, out)
+            fired.append(name)
+    return out, fired
+
+
+_LEAK_DETECTOR_TOOL = {
+    "name": "classify_output_leak",
+    "description": (
+        "Flag whether the agent output contains a prompt-leak or "
+        "system-prompt exfiltration (e.g. quotes internal instructions, "
+        "leaks tool-use schemas, reveals workspace secrets)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "is_leak": {"type": "boolean"},
+            "reason": {"type": "string"},
+        },
+        "required": ["is_leak", "reason"],
+    },
+}
+
+_LEAK_DETECTOR_SYSTEM = (
+    "You are a defense-in-depth prompt-leak detector for a financial "
+    "assistant. Flag TRUE only for clear exfiltration: the output "
+    "quotes internal system prompts, exposes API keys, reveals "
+    "hidden tool schemas, or surfaces chain-of-thought that should "
+    "stay internal. Normal analysis, citations, and plain disagreement "
+    "are NOT leaks. Default FALSE when uncertain."
+)
+
+_leak_client = None
+
+
+def _get_leak_client():
+    global _leak_client
+    if _leak_client is None:
+        try:
+            import anthropic
+            import os
+            _leak_client = anthropic.Anthropic(
+                api_key=os.getenv("ANTHROPIC_API_KEY", ""),
+                max_retries=1,
+            )
+        except Exception as e:
+            logger.debug("leak detector client init failed: %s", e)
+            _leak_client = None
+    return _leak_client
+
+
+def detect_llm_leak(text: str) -> bool:
+    """Binary LLM classifier for subtler prompt-leak / exfil cases.
+
+    Fails OPEN (returns False) on any exception.
+    """
+    if not text or len(text.strip()) < 20:
+        return False
+    client = _get_leak_client()
+    if client is None:
+        return False
+    try:
+        resp = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=64,
+            system=_LEAK_DETECTOR_SYSTEM,
+            tools=[_LEAK_DETECTOR_TOOL],
+            tool_choice={"type": "tool", "name": "classify_output_leak"},
+            messages=[{"role": "user", "content": text[:4000]}],
+        )
+        for block in resp.content:
+            if getattr(block, "type", "") == "tool_use":
+                return bool((block.input or {}).get("is_leak", False))
+    except Exception as e:
+        logger.debug("LLM leak detector call failed: %s", e)
+    return False
+
+
+def apply_leak_defenses(text: str) -> tuple[str, dict]:
+    """Full post-stream defense: regex scrub + optional LLM check.
+
+    Returns (safe_text, audit_dict). `audit_dict` carries:
+        regex_fired: list of pattern names that triggered
+        llm_flagged: bool from detect_llm_leak (only runs if regex
+                     didn't already replace sensitive content)
+    """
+    scrubbed, fired = scrub_leaks(text)
+    audit = {"regex_fired": fired, "llm_flagged": False}
+    if not fired:
+        if detect_llm_leak(scrubbed):
+            audit["llm_flagged"] = True
+            scrubbed = (
+                "I can't share that -- it looks like it might include "
+                "internal or sensitive content. Please rephrase."
+            )
+    return scrubbed, audit

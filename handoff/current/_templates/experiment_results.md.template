@@ -1,0 +1,27 @@
+# Experiment Results -- phase-<ID>
+
+## What was built
+<short paragraph>.
+
+## Files changed
+- NEW: `<path>` (<N> lines)
+- EDIT: `<path>` (<+/-N> lines)
+
+## Verbatim verification
+```
+$ <immutable verification command>
+<output>
+exit: 0
+```
+
+## Success criteria coverage
+| Criterion | Status |
+|-----------|--------|
+| <name> | MET / RESIDUAL / NOT MET |
+
+## Scope honesty / follow-up
+<anything deferred>.
+
+## References
+- Contract (pre-commit): `handoff/current/phase-<ID>-contract.md`
+- Research: `handoff/current/phase-<ID>-research-brief.md`

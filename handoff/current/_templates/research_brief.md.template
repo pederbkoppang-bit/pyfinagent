@@ -1,0 +1,53 @@
+# Research Brief -- phase-<ID>
+
+## Read in full (>=5 required; counts toward the gate)
+| URL | Accessed | Kind | Fetched how | Key quote or finding |
+|-----|----------|------|-------------|----------------------|
+| <url> | YYYY-MM-DD | paper/doc/blog/code | WebFetch | "<quote>" |
+
+## Identified but snippet-only (context; does NOT count)
+| URL | Kind | Why not fetched in full |
+|-----|------|-------------------------|
+
+## Recency scan (last 2 years: 2024-2026)
+Result: <"X new findings" | "no relevant new finding in the window">.
+
+## Key findings
+1. <finding> -- <quote> (Source URL)
+
+## Internal code inventory
+| File | Lines | Role | Status |
+|------|-------|------|--------|
+
+## Consensus vs debate
+<list>.
+
+## Application to pyfinagent
+<mapping external findings to file:line anchors>.
+
+## Research Gate Checklist
+
+Hard blockers (gate_passed is false if any unchecked):
+- [ ] >=5 authoritative external sources READ IN FULL via WebFetch
+- [ ] 10+ unique URLs total
+- [ ] Recency scan (last 2 years) performed + reported
+- [ ] Full pages read (not abstracts) for read-in-full set
+- [ ] file:line anchors for every internal claim
+
+Soft checks:
+- [ ] Internal exploration covered every relevant module
+- [ ] Contradictions / consensus noted
+- [ ] All claims cited per-claim
+
+## JSON envelope (ALWAYS EMIT)
+```json
+{
+  "tier": "simple|moderate|complex",
+  "external_sources_read_in_full": 0,
+  "snippet_only_sources": 0,
+  "urls_collected": 0,
+  "recency_scan_performed": false,
+  "internal_files_inspected": 0,
+  "gate_passed": false
+}
+```

@@ -5,6 +5,7 @@ Form 4 XML documents for actual transaction details (buy/sell/exercise).
 """
 
 import asyncio
+import base64
 import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
@@ -284,3 +285,107 @@ async def get_insider_trades(ticker: str, months: int = 6) -> dict:
     except Exception as e:
         logger.error("Failed to fetch insider trades for %s: %s", ticker, e)
         return {"ticker": ticker, "trades": [], "summary": f"Error: {e}", "signal": "UNKNOWN"}
+
+
+# phase-4.14.16 (MF-34): Files API helper for SEC filings >32 MB.
+#
+# Form 4 XMLs are small (5-50 KB) and always fit inline, but the SEC
+# insider tool is also used as the staging point for larger companion
+# filings (10-K / 10-Q exhibits attached via the issuer's Form 4). When
+# the caller collects one of those large filings, they can route it
+# through `upload_large_filing_to_files_api(...)` to get a reusable
+# `file_id` via the Anthropic beta Files API surface, cutting the
+# input-token spend on follow-on calls (the file bytes are not
+# re-sent; only the file_id is referenced).
+#
+# Beta header: `anthropic-beta: files-api-2025-04-14`. The Python SDK
+# injects it automatically for `client.beta.files.upload(...)` calls.
+# For `client.beta.messages.create(...)` calls that REFERENCE an
+# uploaded file_id, callers must still pass `betas=["files-api-2025-04-14"]`
+# explicitly.
+#
+# ZDR eligibility: Files API does NOT qualify for zero-data-retention
+# today. This is documented in ARCHITECTURE.md; do not upload
+# customer-PII-bearing filings via this path until ZDR status changes.
+
+def upload_large_filing_to_files_api(
+    client,
+    filename: str,
+    filing_bytes: bytes,
+    mime_type: str = "application/pdf",
+    size_threshold_bytes: int = 32_000_000,
+) -> str:
+    """Upload a large SEC filing and return its `file_id` for reuse.
+
+    Guards on `size_threshold_bytes` (default 32 MB) so callers do
+    not pay the Files-API round-trip for small filings that fit
+    inline. Uses `client.beta.files.upload(...)`; the response
+    attribute is `.id` (NOT `.file_id`) per Anthropic docs.
+    """
+    if len(filing_bytes) <= size_threshold_bytes:
+        raise ValueError(
+            "filing fits inline; keep payload as a document block instead "
+            f"(size={len(filing_bytes)} <= threshold={size_threshold_bytes})"
+        )
+    uploaded = client.beta.files.upload(
+        file=(filename, filing_bytes, mime_type),
+    )
+    file_id = uploaded.id
+    return file_id
+
+
+# phase-4.14.14 (MF-31): wrap insider-trades summary as Claude
+# document block with citations enabled. Pure data helper -- no API
+# call. Must not be combined with response_schema / output_config
+# (guarded in ClaudeClient per phase-4.14.9).
+
+
+def build_sec_document_block(ticker: str, result: dict) -> dict:
+    """Return a Claude document block wrapping the insider-trades summary."""
+    lines: list[str] = ["SEC insider trades for " + ticker + ":", ""]
+    lines.append(result.get("summary", ""))
+    trades = result.get("trades") or []
+    if trades:
+        lines.append("")
+        lines.append("Recent transactions:")
+        for t in trades[:25]:
+            lines.append(
+                "  - {d} {i} {s} {sh} @ {p} ({r})".format(
+                    d=t.get("date", ""),
+                    i=t.get("insider", ""),
+                    s=t.get("side", ""),
+                    sh=t.get("shares", ""),
+                    p=t.get("price", ""),
+                    r=t.get("role", ""),
+                )
+            )
+    body = "\n".join(lines)
+    return {
+        "type": "document",
+        "source": {
+            "type": "text",
+            "media_type": "text/plain",
+            "data": body,
+        },
+        "title": "SEC insider trades -- " + ticker,
+        "citations": {"enabled": True},
+    }
+
+
+# phase-4.14.17 (MF-34b): PDF-native document block for 10-K / 10-Q
+# filings <= 32 MB. Preserves charts + tables (no text extraction).
+# cache_control:ephemeral with ttl:"1h" per project convention.
+def build_filing_pdf_block(ticker: str, pdf_bytes: bytes) -> dict:
+    """Return a Claude PDF-native document block for a 10-K/10-Q filing."""
+    return {
+        "type": "document",
+        "source": {
+            "type": "base64",
+            "media_type": "application/pdf",
+            "data": base64.b64encode(pdf_bytes).decode("ascii"),
+        },
+        "title": "SEC filing PDF -- " + ticker,
+        "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        "citations": {"enabled": True},
+    }
+

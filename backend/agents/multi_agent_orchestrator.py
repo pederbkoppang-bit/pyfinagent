@@ -941,16 +941,33 @@ class MultiAgentOrchestrator:
                 # Extended thinking lets subagents plan after each tool result,
                 # evaluate quality, identify gaps, and decide next action.
                 # Budget of 2048 tokens per turn keeps costs reasonable.
+                #
+                # MF-29 + MF-39 (2026-04-18): Opus 4.7 rejects manual
+                # {type:"enabled",budget_tokens}; it only accepts adaptive.
+                # Also: the doc REQUIRES temperature=1 whenever thinking
+                # is active (enabled or adaptive). Branch on model id.
+                _thinking_arg: dict
+                _extra_kwargs: dict
+                if agent_config.model.startswith("claude-opus-4-7"):
+                    # phase-4.14.7: Opus 4.7 rejects temperature /
+                    # top_p / top_k with 400 on every request,
+                    # thinking or not. Do NOT set any sampling param.
+                    _thinking_arg = {"type": "adaptive"}
+                    _extra_kwargs = {}
+                else:
+                    _thinking_arg = {
+                        "type": "enabled",
+                        "budget_tokens": 2048,
+                    }
+                    _extra_kwargs = {"temperature": 1}
                 response = client.messages.create(
                     model=agent_config.model,
                     max_tokens=agent_config.max_tokens + 2048,
                     system=agent_config.system_prompt,
                     tools=AGENT_TOOLS,
                     messages=messages,
-                    thinking={
-                        "type": "enabled",
-                        "budget_tokens": 2048,
-                    },
+                    thinking=_thinking_arg,
+                    **_extra_kwargs,
                 )
             except Exception as e:
                 logger.error(f"Tool-loop call failed on turn {turn}: {e}")
@@ -1020,8 +1037,71 @@ class MultiAgentOrchestrator:
                             f"({mask_report['usage_pct_before']:.0%} -> {mask_report['usage_pct_after']:.0%})"
                         )
 
+            elif response.stop_reason == "max_tokens":
+                # phase-4.14.4 (MF-26): truncation. If the tail is an
+                # incomplete tool_use, retry the SAME turn once with
+                # doubled max_tokens so the tool call can finish.
+                # Otherwise return partial text. The `_mt_retried` flag
+                # bounds this to a single retry per turn per contract;
+                # a repeat max_tokens falls through to partial-return.
+                last = response.content[-1] if response.content else None
+                _already_retried = locals().get("_mt_retried_turn") == turn
+                if getattr(last, "type", "") == "tool_use" and not _already_retried:
+                    logger.warning(
+                        f"  [warn] {agent_config.name} hit max_tokens with tool_use tail; "
+                        f"retrying turn {turn+1} with doubled budget (single-shot)"
+                    )
+                    _mt_retried_turn = turn
+                    _retry_max = min((agent_config.max_tokens + 2048) * 2, 16384)
+                    response = client.messages.create(
+                        model=agent_config.model,
+                        max_tokens=_retry_max,
+                        system=agent_config.system_prompt,
+                        tools=AGENT_TOOLS,
+                        messages=messages,
+                        thinking=_thinking_arg,
+                        **_extra_kwargs,
+                    )
+                    total_usage["input"] += response.usage.input_tokens if response.usage else 0
+                    total_usage["output"] += response.usage.output_tokens if response.usage else 0
+                    # Re-evaluate the retry response on the next iter,
+                    # but the `_already_retried` guard blocks a second retry.
+                    continue
+                text = "".join(b.text for b in response.content if hasattr(b, "text"))
+                logger.warning(
+                    f"  [warn] {agent_config.name} truncated at max_tokens on text"
+                )
+                return text or "No response (truncated).", total_usage
+            elif response.stop_reason == "pause_turn":
+                # phase-4.14.4 (MF-27): server-side sampling loop hit
+                # its limit. Append assistant content and re-call the
+                # API WITHOUT a new user turn (Anthropic handling-
+                # stop-reasons doc).
+                messages.append({"role": "assistant", "content": response.content})
+                logger.info(
+                    f"  [pause] {agent_config.name} pause_turn on turn {turn+1}; "
+                    f"re-requesting without new user turn"
+                )
+                continue
+            elif response.stop_reason == "refusal":
+                # Safety refusal surfaces as a successful response.
+                # Return a sentinel rather than the refusal prose.
+                logger.warning(
+                    f"  [refusal] {agent_config.name} refused on turn {turn+1}"
+                )
+                return "[refused: model declined this request]", total_usage
+            elif response.stop_reason == "model_context_window_exceeded":
+                # Context exhausted before max_tokens. Extract what we have.
+                text = "".join(b.text for b in response.content if hasattr(b, "text"))
+                logger.warning(
+                    f"  [ctx] {agent_config.name} model_context_window_exceeded on turn {turn+1}"
+                )
+                return text or "No response (context exceeded).", total_usage
+            elif response.stop_reason == "stop_sequence":
+                text = "".join(b.text for b in response.content if hasattr(b, "text"))
+                return text or "No response.", total_usage
             else:
-                # Agent finished — stop_reason is "end_turn" or "max_tokens"
+                # end_turn -- agent completed normally.
                 text = "".join(b.text for b in response.content if hasattr(b, "text"))
                 if turn > 0:
                     logger.info(
