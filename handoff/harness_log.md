@@ -9790,3 +9790,347 @@ qa_103_v1 PASS:
 **Total cycle time:** ~15 minutes (RESEARCH gate WAIVED per pure-data-verification; PLAN ~2min, GENERATE ~5min, EVALUATE ~3min, LOG ~5min)
 **Phase 4.4 progress:** 16/27 items now `[x]` (was 15/27 at cycle start). First paper-trading-section item landed. Remaining unchecked: 4.4.2.1 (wall-clock 2-week), 4.4.2.2 (paper Sharpe -- BLOCKED, 0 trades), 4.4.2.4 (missed days -- needs signals_log BQ check), 4.4.2.5 (divergence -- BLOCKED, 0 trades), 4.4.3.3 (14-day uptime), 4.4.5.1/3/4 (Peder/joint), 4.4.6.1-3 (Peder-gated).
 **Reliability note:** First cycle to use BQ MCP tools as primary verification source. Tables discovered: paper_portfolio and paper_portfolio_snapshots live in `financial_reports` dataset (not `pyfinagent_pms` which has empty tables). BQ evidence snapshot pattern enables reproducible drills without runtime BQ access.
+
+---
+
+## Cycle 31 -- 2026-04-20 -- MAS Harness NOOP
+
+**Target selection:** Scanned all 11 unchecked items in GO_LIVE_CHECKLIST.md.
+**Filtering result:**
+- 4.4.2.1: joint + wall-clock (Peder must confirm)
+- 4.4.2.2: metric-gated (paper PnL = -5%, Sharpe far below 0.82 threshold)
+- 4.4.2.4: data-gated (no signals_log table in BQ; analysis_results has only 2 days of data since inception)
+- 4.4.2.5: depends on 4.4.2.2 passing first
+- 4.4.3.3: wall-clock-gated (14-day uptime requirement)
+- 4.4.5.1, 4.4.5.3, 4.4.5.4: Peder-owned or joint/calendar
+- 4.4.6.1, 4.4.6.2, 4.4.6.3: Peder-gated final sign-off
+
+**BQ evidence:** `financial_reports.analysis_results` has 54 rows total, only 2 dates (2026-03-20, 2026-03-21) since paper trading window opened. `signals_log` table does not exist (Cycle 5 migration script not yet executed). Paper portfolio shows -5.0% cumulative PnL, 1 historical trade, 0 current positions.
+
+**Decision:** NOOP — no tractable item can be landed this cycle. Remaining Ford-owned items require either (a) the autonomous signal loop to run reliably for multiple days generating daily signals, or (b) paper trading performance to meet minimum thresholds.
+
+**Recommended next action for Peder:** Run the signals_log migration (`python scripts/migrations/migrate_signals_log.py`) and ensure the autonomous trading loop (`backend/services/autonomous_loop.py`) is executing daily to generate signal data. Without daily signal generation, items 4.4.2.2/4.4.2.4/4.4.2.5 cannot progress.
+
+---
+
+## Cycle 32 -- 2026-04-20 -- MAS Harness NOOP
+
+**Target selection:** Scanned all 11 unchecked items in GO_LIVE_CHECKLIST.md.
+**Filtering result:** Identical to Cycle 31 -- no state change.
+- 4.4.2.2: paper Sharpe still unmeasurable (1 test trade, -5% PnL, no autonomous trades)
+- 4.4.2.4: `signals_log` table still absent in BQ; `analysis_results` has 0 new rows since 2026-04-20
+- 4.4.2.5: blocked by 4.4.2.2
+- All other items: wall-clock, Peder-gated, or human-review (unchanged)
+
+**BQ verification:** `financial_reports.analysis_results` WHERE analysis_date > 2026-04-20 returned 0 rows. `paper_trades` still at 1 row (XOM test trade 2026-03-28). No `signals_log` table exists.
+
+**Decision:** NOOP -- blocking conditions unchanged from Cycle 31. The autonomous signal loop is not generating daily signals, so paper trading metrics cannot progress.
+
+**Unblock path:** Same as Cycle 31 recommendation: (1) run signals_log migration, (2) start autonomous_loop.py as a daily process, (3) wait for signal data to accumulate before retrying 4.4.2.4/2.2/2.5.
+
+
+---
+
+## phase-10.4 -- 2026-04-20 20:20 UTC -- result=PASS (Friday promotion gate)
+
+6 sources read in full (Bailey & Lopez de Prado 2014 DSR primary, Wikipedia DSR formula, Surmount staged-ramp, QuantPedia multi-strategy, arXiv 2510.18569 QuantEvolve Oct 2025, finlego ledger idempotency). Option A per researcher.
+
+**Code shipped:**
+- `backend/autoresearch/friday_promotion.py` (143 lines): `run_friday_promotion(week_iso, *, candidates, top_n=1, max_n=3, starting_allocation_pct=0.05, gate=None, ledger_path=None)`; fail-closed if Thursday row missing or thu_batch_id empty; idempotent via fri_promoted_ids populated check; DSR-desc/PBO-asc ranking with `min(top_n, max_n)` cap; notes concatenation preserves Thursday's `kicked_off`
+- `scripts/harness/phase10_friday_promotion_test.py`: 4 cases mapping to masterplan success_criteria verbatim
+- `tests/autoresearch/test_friday_promotion.py`: 9 pytest cases including 2 fail-closed edges + tie-break + notes preservation
+
+qa_104_v1 PASS: 4/4 immutable CLI + 9/9 new pytest + 65/65 neighbor. All 3 mutations caught (max_n clamp, fail-closed branch, PBO tie-break). **qa_103_v1 Thursday-write-failure carry-forward addressed at consumer side** with dedicated tests. Ledger column pass-through preserves Thursday's thu_batch_id/candidates/cost/sortino.
+
+**Next:** phase-10.5 (Sortino with configurable MAR).
+
+---
+
+## phase-10.5 -- 2026-04-20 23:00 UTC -- result=PASS (canonical Sortino)
+
+7 sources read in full (Wikipedia Sortino, Empyrical impl, CFI, Gale Finance 2026, Wall Street Prep, Codearmo, Recipe Investing 2026 risk-adjusted returns). Researcher flagged 2 critical corrections: existing `perf_metrics.compute_sortino` uses divergent `std(ddof=1)` math (not canonical LPM_2), and `pyfinagent_data.historical_macro` lacks DGS3MO/DTB3 today.
+
+**Code shipped:**
+- `backend/metrics/__init__.py` + `backend/metrics/sortino.py` (126 lines): canonical LPM_2 `sortino(returns, *, mar, periods_per_year, mar_fetch_fn)`; NaN sentinel for zero-downside per Empyrical; 3-tier `_default_mar_fetcher` (BQ historical_macro -> analytics.get_risk_free_rate DTB3 CSV -> 0.045); scalar/array/None MAR supported
+- `backend/metrics/tests/test_sortino.py` (11 pytest cases) including hand-computed ~13.1823 verification
+
+qa_105_v1 PASS: 11/11 + 76/76 neighbors. Independent math re-verification to 7.6e-4. Mutation M1b (upside-clip sign-invert) + M2 (nan->0) + M3 (BQ-tier removal) all caught. Q/A noted original M1 was mathematically equivalent post-squaring — not a coverage gap.
+
+**Carry-forwards:** add DGS3MO to phase-9.3 FRED refresh `_DEFAULT_SERIES` (small housekeeping); deprecate old compute_sortino + migrate `paper_metrics_v2.py` (future unification step). Phase-10.6 will call `sortino(returns, periods_per_year=12)` for monthly Champion/Challenger.
+
+**Next:** phase-10.6 (Monthly Champion/Challenger gate with HITL).
+
+---
+
+## Cycle 33 -- 2026-04-20 -- MAS Harness NOOP
+
+**Target selection:** Scanned all 11 unchecked items in GO_LIVE_CHECKLIST.md.
+**Filtering result:** Identical to Cycles 31-32 -- no state change.
+- 4.4.2.1: wall-clock gate (14-day runtime)
+- 4.4.2.2: paper Sharpe unmeasurable (1 test trade, -5% PnL, 0 autonomous trades)
+- 4.4.2.4: no `signals_log` table in BQ; `analysis_results` has 0 new rows since 2026-04-20; only 2 signal-generation days (Mar 20-21) in entire paper window
+- 4.4.2.5: blocked by 4.4.2.2 (needs paper metrics)
+- 4.4.3.3: wall-clock gate (14-day uptime)
+- 4.4.5.*: human-only review (Peder)
+- 4.4.6.*: Peder-gated sign-off
+
+**BQ verification (2026-04-20):** `analysis_results` WHERE analysis_date > 2026-04-20 = 0 rows. `paper_trades` = 1 row (XOM test trade 2026-03-28). `paper_portfolio_snapshots` = 10 rows (Apr 14-20). No `signals_log` table.
+
+**Decision:** NOOP -- blocking conditions unchanged from Cycle 32. The autonomous signal generation loop is not running daily, so paper trading items (4.4.2.2/2.4/2.5) cannot progress.
+
+**Unblock path (reiterated from Cycle 31):** (1) Start `autonomous_loop.py` as a daily process on Peder's Mac, (2) wait for signal data to accumulate across trading days, (3) retry 4.4.2.4 once signals_log covers >= 10 trading days, 4.4.2.2 once paper Sharpe is calculable, 4.4.2.5 once both paper and backtest metrics exist.
+
+---
+
+## phase-10.6 -- 2026-04-20 23:15 UTC -- result=PASS (Monthly Champion/Challenger HITL)
+
+8 sources read in full (FICO champion-challenger, Orkes HITL, Microsoft Agent Framework, JumpCloud HITL, Cloudflare Agents HITL, exchange_calendars GitHub, Wikipedia Sortino, AFML notes). Complex tier; 7 success_criteria.
+
+**Code shipped:**
+- `backend/autoresearch/monthly_champion_challenger.py` (~230 lines): `run_monthly_sortino_gate()`, `record_approval()`, `is_last_trading_friday()`; `_APPROVAL_WINDOW_HOURS=48`; hardcoded `actual_replacement=False`; state JSON at `handoff/logs/monthly_approval_state.json`; quality-gate order min_days -> sortino_delta -> pbo -> dd_ratio; xcals-primary Friday detection with pure-Python fallback
+- `scripts/harness/phase10_monthly_sortino_test.py` (7 cases verbatim to masterplan)
+- `tests/autoresearch/test_monthly_champion_challenger.py` (12 pytest cases)
+
+**Cycle-2 note:** First Q/A (v1) died mid-M1 mutation without restoring, leaving a stale `.pyc` with `_APPROVAL_WINDOW_HOURS=24`. Main detected via pytest divergence from immutable-CLI, deleted the stale `.pyc`, re-verified source at 48, and spawned fresh Q/A v2. qa_106_v2 PASS: CLI 7/7 + pytest 12/12 + 88/88 neighbors. M1 (48->24) and M2 (actual_replacement->True) caught by tests. M3 (short-circuit reorder) doesn't fail any test — Q/A flagged as defensive-redundancy, non-blocker.
+
+**Carry-forwards:** Slack reaction-handler wiring to `commands.py:275-303` (phase-10.6.1); state migration to BQ `pyfinagent_pms.champion_state` (phase-10.8); real-capital layer requires SR 11-7 review.
+
+**Next:** phase-10.7 (Rollback kill-switch wiring).
+
+---
+
+## phase-10.7 -- 2026-04-20 23:30 UTC -- result=PASS (Rollback kill-switch, cycle-2)
+
+7 sources read in full (MQL5 Feb-2026 kill-switch, ModelOp champion-challenger, validmind SR 11-7, arXiv 2512.02227 Dec-2025, RULEMATCH kill-switch, FINRA algorithmic trading, rng consulting).
+
+**Code shipped:**
+- `backend/autoresearch/rollback.py` (~130 lines): `auto_demote_on_dd_breach()`; DD_TRIGGER imported from `promoter.py` (single source); idempotent; no slack_fn/approver kwargs; three sinks (JSONL audit append, state upsert under `demotions[challenger_id]`, ledger notes concatenation)
+- `scripts/harness/phase10_rollback_test.py`: 3 cases matching masterplan verbatim
+- `tests/autoresearch/test_rollback.py`: 10 pytest cases
+
+**Cycle-2 demonstration of the flow:**
+- qa_107_v1 ran M3 mutation (`abs(dd) <= threshold` -> `<`) and found no existing test caught it (boundary-coverage gap at `dd=-0.10` exactly)
+- Main restored `<=` and added `test_exact_boundary_dd_equals_threshold_no_breach`; cleared stale `.pyc`
+- qa_107_v2 re-ran M3 under the new test -> test now FAILS under the mutation -> gap closed
+- 10/10 pytest + 3/3 CLI + 97/97 neighbors on restored source
+
+**Carry-forwards:** live paper-trader integration (phase-10.7.1), un-demote HITL-gated reversal, dashboard surface (phase-10.9).
+
+**Next:** phase-10.8 (Slot accounting to harness_learning_log).
+
+---
+
+## phase-10.8 -- 2026-04-20 23:42 UTC -- result=PASS (Slot accounting, cycle-2)
+
+6 sources read in full (BQ insert_rows_json docs, BQ streaming vs Storage Write, BQ MERGE dedup, phase-labeled logging patterns, 2026 observability).
+
+**Code shipped:**
+- `backend/autoresearch/slot_accounting.py` (~135 lines): `log_slot_usage()` + `verify_weekly_invariant()`; slot_id canonical set `{thu_batch, fri_promotion, monthly_gate, rollback}` enforced via frozenset+ValueError; default table literal `pyfinagent_data.harness_learning_log`; parameterized SQL (ScalarQueryParameter); fail-open on BQ errors
+- `scripts/harness/phase10_slot_accounting_test.py`: 4 cases matching masterplan verbatim
+- `tests/autoresearch/test_slot_accounting.py`: 10 pytest cases (initially 9; +1 after cycle-2)
+
+**Cycle-2 demonstration:**
+- qa_108_v1 = **CONDITIONAL**: mutation M3 (widen invariant SQL IN clause) undetected — tests stubbed `bq_query_fn` with Python closure that re-emulated the filter, ignoring SQL text.
+- Main fix: added `test_invariant_sql_pins_slot_id_filter` that captures + inspects the literal SQL; asserts `"IN ('thu_batch', 'fri_promotion')" in sql`, `"monthly_gate" not in sql`, `"rollback" not in sql`.
+- Main independently verified by mutating line 101 -> new test FAILED; restored + cleared .pyc.
+- qa_108_v2 PASS: independently re-ran M3 on updated evidence, confirmed new test catches it. 10/10 + 4/4 + 108/108 all green on restored source.
+
+**Canonical cycle-2 flow:** Q/A returns violated_criteria with concrete reproduction → Main fixes + adds test → fresh Q/A re-verifies on NEW evidence (not verdict-shopping; file materially changed).
+
+**Carry-forwards:** wire 10.3/10.4/10.6/10.7 to actually invoke `log_slot_usage` (deferred to phase-10.9 backend wiring); fix `learning_logger.py:70` wrong-dataset bug (separate ticket).
+
+**Next:** phase-10.9 (Harness-tab sprint-state tile — frontend).
+
+---
+
+## phase-10.9 -- 2026-04-20 23:50 UTC -- result=PASS (Harness-tab sprint tile, FINAL phase-10 step)
+
+6 sources read in full (Next.js 15 testing, Vitest 4.x docs, RTL queryAllByRole pattern, dashboard tile design 2025-2026, read-only component contracts). Critical resolution: `--filter=HarnessSprintTile` is bridged by `frontend/scripts/run-test.mjs:22` -> positional vitest substring. Filename MUST contain "HarnessSprintTile".
+
+**Code shipped:**
+- `frontend/src/components/HarnessSprintTile.tsx` (~160 lines): pure presentational; props `{data: HarnessSprintWeekState | null}`; BentoCard pattern; icons from `@/lib/icons`; zero mutation elements (no button/input/select/textarea/form/hooks/handlers)
+- `frontend/src/components/HarnessSprintTile.test.tsx`: 5 Vitest cases with canonical `queryAllByRole('button').toHaveLength(0)` read-only guard
+- `frontend/src/lib/types.ts:936`: `HarnessSprintWeekState` interface
+
+qa_109_v1 PASS: 5/5 Vitest + clean `tsc --noEmit`. Read-only enforced at source level (not just tests). Contract/research/test names match masterplan verbatim.
+
+**Carry-forwards:** wire tile into `HarnessDashboard.tsx` + backend `GET /api/harness/sprint-state` endpoint (separate integration ticket); fix `HarnessDashboard.tsx` icon-import violation.
+
+---
+
+# PHASE-10 COMPLETE — 2026-04-20 23:50 UTC
+
+All 10 phase-10 steps done:
+- 10.0 Retire 8.5.7 nightly cron
+- 10.1 Sprint calendar config
+- 10.2 Weekly ledger schema
+- 10.3 Thursday batch trigger (Sobol QMC, uuid5 batch_id)
+- 10.4 Friday promotion gate (DSR/PBO ranking, notes concatenation)
+- 10.5 Sortino canonical LPM_2 with configurable MAR
+- 10.6 Monthly Champion/Challenger HITL (48h expiry, paper-only)
+- 10.7 Rollback kill-switch (asymmetric: auto-demote, no HITL)
+- 10.8 Slot accounting to BQ harness_learning_log (cycle-2 after SQL-pin gap)
+- 10.9 Harness-tab sprint tile (frontend, read-only)
+
+**Cycle-2 flow demonstrated twice:**
+- phase-10.7 Q/A v1 flagged boundary-coverage gap (dd==threshold) -> Main added boundary test -> v2 PASS
+- phase-10.8 Q/A v1 CONDITIONAL flagged SQL-drift invisibility -> Main added SQL-pin test -> v2 PASS
+
+**Test counts (cumulative):**
+- 108 autoresearch + slack_bot + metrics tests
+- 5 frontend HarnessSprintTile tests
+
+**Outstanding carry-forwards** (out of phase-10 scope):
+- Wire Thursday/Friday/Monthly/Rollback routines to actually call `log_slot_usage`
+- Backend `GET /api/harness/sprint-state` endpoint
+- Wire `HarnessSprintTile` into `HarnessDashboard`
+- Slack reaction-based approval for monthly HITL (phase-10.6.1)
+- Fix `HarnessDashboard.tsx` icon-import violation
+- Phantom archive dirs cleanup (~12,784 dirs, deferred to dedicated housekeeping step)
+
+---
+
+## Cycle 34 -- 2026-04-21 -- MAS Harness NOOP
+
+**Target selection:** Scanned all 11 unchecked items in GO_LIVE_CHECKLIST.md.
+**Filtering result:** Identical to Cycles 31-33 -- no state change since 2026-04-20.
+- 4.4.2.1: wall-clock gate (14-day runtime)
+- 4.4.2.2: paper Sharpe unmeasurable (1 test trade, -5% PnL, 0 autonomous trades since inception)
+- 4.4.2.4: no `signals_log` table in BQ; 0 new paper_trades rows since 2026-04-20
+- 4.4.2.5: blocked by 4.4.2.2 (needs paper metrics)
+- 4.4.3.3: wall-clock gate (14-day uptime)
+- 4.4.5.*: human-only review (Peder)
+- 4.4.6.*: Peder-gated sign-off
+
+**BQ verification:** `paper_trades` WHERE created_at > '2026-04-20' returned 0 rows. No `signals_log` table exists. No autonomous signal generation detected.
+
+**Recommendation:** Unblock requires either (a) Peder starts the autonomous signal loop so paper trades accumulate, or (b) Peder completes the human-process items (5.1, 5.3, 5.4). Ford has no further tractable items on this checklist until the system is actively generating signals.
+
+---
+
+## Cycle 35 -- 2026-04-21 -- MAS Harness NOOP
+
+**Target selection:** Scanned all 11 unchecked items in GO_LIVE_CHECKLIST.md.
+**Filtering result:** Identical to Cycles 31-34 -- no state change since 2026-04-20.
+- 4.4.2.1: wall-clock gate (14-day runtime)
+- 4.4.2.2: paper Sharpe unmeasurable (1 test trade, -5% PnL, 0 autonomous trades since inception)
+- 4.4.2.4: no `signals_log` table in BQ; 0 new paper_trades rows since 2026-04-20
+- 4.4.2.5: blocked by 4.4.2.2 (needs paper metrics)
+- 4.4.3.3: wall-clock gate (14-day uptime)
+- 4.4.5.*: human-only review (Peder)
+- 4.4.6.*: Peder-gated sign-off
+
+**BQ verification (2026-04-21):** `financial_reports.paper_trades` still at 1 row (XOM test trade 2026-03-28). `paper_portfolio_snapshots` at 10 rows, last updated 2026-04-20. No `signals_log` table in any dataset. No autonomous signal generation detected. BQ MCP tools not attached this session; verified via `bq` CLI fallback.
+
+**Decision:** NOOP -- 5th consecutive NOOP cycle (31-35). Blocking conditions unchanged.
+
+**Recommendation:** Same as Cycles 31-34. Ford has exhausted all tractable checklist items. Remaining 11 unchecked items require either: (a) active autonomous signal loop generating daily trades (unblocks 4.4.2.2/2.4/2.5), (b) wall-clock passage (4.4.2.1, 4.4.3.3), or (c) Peder action (4.4.5.*, 4.4.6.*). Suggest Peder review this NOOP pattern and prioritize starting `autonomous_loop.py` or completing human-process items.
+
+---
+
+## Cycle 36 -- 2026-04-21 -- MAS Harness NOOP
+
+**Target selection:** Scanned all 11 unchecked items in GO_LIVE_CHECKLIST.md.
+**Filtering result:** Identical to Cycles 31-35 -- no state change since 2026-04-20.
+- 4.4.2.1: wall-clock gate (14-day runtime)
+- 4.4.2.2: paper Sharpe unmeasurable (1 test trade, -5% PnL, 0 autonomous trades since inception)
+- 4.4.2.4: no `signals_log` table in BQ; 0 new paper_trades rows since 2026-04-20
+- 4.4.2.5: blocked by 4.4.2.2 (needs paper metrics)
+- 4.4.3.3: wall-clock gate (14-day uptime)
+- 4.4.5.*: human-only review (Peder)
+- 4.4.6.*: Peder-gated sign-off
+
+**BQ verification (2026-04-21 via MCP):** `financial_reports.paper_trades` WHERE created_at > '2026-04-20' returned 0 rows. `paper_portfolio_snapshots` WHERE snapshot_date > '2026-04-20' returned 0 rows. No `signals_log` table in `pyfinagent_data`. BQ MCP tools attached this session; verified via `execute_sql_readonly`.
+
+**Decision:** NOOP -- 6th consecutive NOOP cycle (31-36). Blocking conditions unchanged.
+
+**Recommendation:** Same as Cycles 31-35. Additionally: the `signals_log` migration (`scripts/migrations/migrate_signals_log.py`, shipped Cycle 5) has never been executed against BQ -- creating the table is a prerequisite for 4.4.2.4 evidence accumulation. Suggest Peder run `source .venv/bin/activate && python scripts/migrations/migrate_signals_log.py` and verify the autonomous_loop daily cycle is actually publishing signals (not just running analysis with 0 trade orders).
+
+## Cycle 37 -- 2026-04-21 -- MAS Harness NOOP
+
+**Target selection:** Scanned all 11 unchecked items in GO_LIVE_CHECKLIST.md.
+**Filtering result:** Identical to Cycles 31-36 -- no state change since 2026-04-20.
+- 4.4.2.1: wall-clock gate (14-day runtime)
+- 4.4.2.2: paper Sharpe unmeasurable (1 test trade, -5% PnL, 0 autonomous trades since inception)
+- 4.4.2.4: no `signals_log` table in BQ; 0 new paper_trades rows since 2026-04-20
+- 4.4.2.5: blocked by 4.4.2.2 (needs paper metrics)
+- 4.4.3.3: wall-clock gate (14-day uptime)
+- 4.4.5.*: human-only review (Peder)
+- 4.4.6.*: Peder-gated sign-off
+
+**BQ verification (2026-04-21 via MCP):** `financial_reports.paper_trades` WHERE created_at > '2026-04-20' returned 0 rows. `paper_portfolio_snapshots` WHERE snapshot_date > '2026-04-20' returned 0 rows. No `signals_log` table in `pyfinagent_data`. No autonomous signal generation detected.
+
+**Decision:** NOOP -- 7th consecutive NOOP cycle (31-37). Blocking conditions unchanged.
+
+**Recommendation:** Same as Cycles 31-36. Ford has exhausted all tractable checklist items. Remaining 11 unchecked items require either: (a) active autonomous signal loop generating daily trades (unblocks 4.4.2.2/2.4/2.5), (b) wall-clock passage (4.4.2.1, 4.4.3.3), or (c) Peder action (4.4.5.*, 4.4.6.*). The `signals_log` migration still needs to be run (`python scripts/migrations/migrate_signals_log.py`), and the autonomous_loop must be publishing signals for paper trading evidence to accumulate.
+
+---
+
+## Cycle 38 -- 2026-04-21 -- MAS Harness NOOP
+
+**Target selection:** Scanned all 11 unchecked items in GO_LIVE_CHECKLIST.md.
+**Filtering result:** Identical to Cycles 31-37 -- no state change since 2026-04-20.
+- 4.4.2.1: wall-clock gate (14-day runtime)
+- 4.4.2.2: paper Sharpe unmeasurable (1 test trade, -5% PnL, 0 autonomous trades since inception)
+- 4.4.2.4: no `signals_log` table in BQ; 0 new paper_trades rows since 2026-04-20
+- 4.4.2.5: blocked by 4.4.2.2 (needs paper metrics)
+- 4.4.3.3: wall-clock gate (14-day uptime)
+- 4.4.5.*: human-only review (Peder)
+- 4.4.6.*: Peder-gated sign-off
+
+**BQ verification (2026-04-21 via MCP):** `financial_reports.paper_trades` WHERE created_at > '2026-04-20' returned 0 rows. `paper_portfolio_snapshots` WHERE snapshot_date > '2026-04-20' returned 0 rows. No `signals_log` table in `pyfinagent_data` (no tables matching `%signal%` in dataset). No autonomous signal generation detected.
+
+**Decision:** NOOP -- 8th consecutive NOOP cycle (31-38). Blocking conditions unchanged.
+
+**Recommendation:** Same as prior cycles. The harness is looping without progress because the autonomous signal generation pipeline is not running. Three prerequisites for forward motion: (1) Run `signals_log` migration: `python scripts/migrations/migrate_signals_log.py`, (2) Start autonomous_loop so it publishes daily signals and trades to BQ, (3) Wait for data accumulation (unblocks 4.4.2.2/2.4/2.5). Until at least one of these is actioned by Peder, every cycle will NOOP.
+
+---
+
+---
+
+## phase-10.10 -- 2026-04-21 06:48 UTC -- result=PASS (Housekeeping quarantine, cycle-2)
+
+8 sources read in full (NLNZ Safe_mover, Orbis BagIt fixity, DPC handbook, thelinuxcode shutil.move 2026, thelinuxcode git mv 2026, NCEI data-integrity, checksumdir, git-gc). Confirmed phantoms are byte-identical duplicates; `shutil.move` same-APFS = atomic `os.rename`; JSONL manifest-before-move pattern.
+
+**Code shipped:**
+- `scripts/housekeeping/quarantine_phantom_archives.py` (~175 lines): `quarantine_phantom_dirs()` + regex gates + `_dir_sha256()` + JSONL manifest-before-move; `dry_run=True` default
+- `scripts/housekeeping/restore_from_quarantine.py` (~90 lines): reverses moves; verifies post-restore SHA
+- `scripts/harness/phase10_housekeeping_test.py`: 4 cases verbatim
+- `tests/housekeeping/test_quarantine.py`: 9 pytest cases (initially 8, +1 after cycle-2)
+
+**Cycle-2 demonstration:**
+- qa_1010_v1 confirmed M3 gap: manifest-before-move invariant was asserted in docstring but NOT tested. Write-order-flipped mutation passed all 8 initial tests.
+- Main fix: added `test_manifest_written_before_move_crash_resilience` — monkeypatches `shutil.move` to crash on 2nd of 3 phantom moves; asserts manifest has 3 entries (not 2) after crash.
+- Main independently verified: mutated source to move write INSIDE try block after `shutil.move` -> new test FAILED with `2 != 3`. Restored -> 9/9 green.
+- qa_1010_v2 PASS: independently re-ran M3 on updated evidence, confirmed test catches mutation. 4/4 CLI + 9/9 pytest + 117/117 all suites green on restored source.
+
+**Dry-run against REAL archive (safe; no mutation):** {dry_run=true, skipped_canonical=203, would_move=12647}. Tool ships; operator runs `--no-dry-run` when ready.
+
+**Carry-forwards:** operator runs `python scripts/housekeeping/quarantine_phantom_archives.py --archive-root handoff/archive --no-dry-run`; permanent delete of quarantine after cooling-off (separate ticket).
+
+**Next:** phase-10.11 (integration wiring).
+
+---
+
+## Cycle 31 -- 2026-04-21 -- Phase 4.4.2.4 signal reliability (BLOCKED)
+
+**Planner hypothesis:** Verify checklist item 4.4.2.4 "No missed trading days" by querying BQ for signal generation data and comparing against NYSE trading calendar. Write drill infrastructure for future re-verification.
+
+**Generator:** +2 new files: `scripts/go_live_drills/signal_reliability_test.py` (stdlib-only drill, 7-check battery), `backend/backtest/experiments/results/signal_generation_evidence_20260421.json` (BQ snapshot). Updated `handoff/current/` contract + experiment_results + evaluator_critique. Commit `b93a684a`.
+
+**Evaluator verdict:** BLOCKED (drill exit code 1, 3/7 checks PASS)
+- S0 Evidence file: PASS
+- S1 signals_log table: FAIL (table does not exist in BQ -- migration never run)
+- S2 Trading day count: PASS (22 NYSE days in window)
+- S3 Signal day count: PASS (2 days with signal generation)
+- S4 Coverage gate: FAIL (1/22 = 4.5%, gate is 100%)
+- S5 Missed days: FAIL (21 missed trading days)
+- S6 Non-trading signals: INFO (1 signal on Saturday 2026-03-21)
+
+**Decision:** BLOCKED -- checkbox NOT flipped. Drill committed as infrastructure for future re-verification. Three blockers: (1) run signals_log BQ migration, (2) activate daily signal generation via autonomous_loop.py, (3) accumulate >=14 consecutive trading days of logs.
+
+**Phase progress:** 16/27 checklist items [x]. Remaining 11: 3 Ford-actionable (4.4.2.2/4.4.2.4/4.4.2.5 -- all blocked by sparse paper trading data), 2 wall-clock gated (4.4.2.1/4.4.3.3), 6 Peder/human-gated (4.4.5.1/4.4.5.3/4.4.5.4/4.4.6.1/4.4.6.2/4.4.6.3).
+
+**Reliability note:** All remaining Ford-actionable items depend on the paper trading pipeline generating daily signals. Until the autonomous_loop is scheduled to run daily, items 4.4.2.2 (Paper Sharpe), 4.4.2.4 (No missed days), and 4.4.2.5 (Divergence check) cannot pass.
+
+**Session log:** MAS harness cycle, automated.
