@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-22 | `0b4f4f22` | chore: harness log entry for Cycle 42 (4.4.2.1 paper runtime PASS) |
 | 2026-04-22 | `6130c545` | Phase 4.4.2.1: paper trading runtime >= 2 weeks verified (32 days) |
 | 2026-04-21 | `22e78958` | phase-10 complete: autoresearch sprint machinery + dashboard + housekeeping |
 | 2026-04-21 | `d0873465` | chore: harness log entry for Cycle 32 (4.4.6.3 first-week monitoring PASS) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `41e1ffa9` | phase-11.3: complex Vertex callers + ThinkingConfig silent-breakage fix |
 | 2026-04-19 | `b23c8c1f` | phase-11.2: migrate trivial Vertex callers to google-genai shim |
 | 2026-04-19 | `64d81b62` | phase-11.1: pin google-genai==1.73.1 + _genai_client.py shim (+6 tests) |
-| 2026-04-19 | `f270c444` | chore(masterplan): move 4.14.6 to new phase-13 at end of masterplan |
 
 ---
 
