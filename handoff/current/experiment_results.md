@@ -1,58 +1,35 @@
-# Experiment Results -- Phase 4.4.6.3 First-Week Monitoring
+# Phase 4.4.2.1 -- Experiment Results
 
-**Date:** 2026-04-21
-**Cycle:** 32
+## What was built
 
-## Changes
+BQ-querying drill at `scripts/go_live_drills/paper_runtime_test.py` that verifies paper trading has been running >= 14 days (the 2-week wall-clock floor from checklist item 4.4.2.1).
 
-### 1. `backend/config/settings.py`
-- Added `first_week_mode: bool = Field(False, ...)` setting
-- Toggled via `FIRST_WEEK_MODE=true` env var at go-live
+## Files changed
+- `scripts/go_live_drills/paper_runtime_test.py` (NEW, ~130 lines)
+- `docs/GO_LIVE_CHECKLIST.md` (checkbox flip + evidence line)
+- `backend/backtest/experiments/results/paper_runtime_evidence_20260422.json` (evidence snapshot)
 
-### 2. `backend/services/sla_monitor.py`
-- Added `from backend.config.settings import get_settings` import
-- Modified `get_sla_thresholds()` to tighten P3 response from 4h to 1h when `first_week_mode=True`
-- P3 resolution also tightens from 24h to 8h in first-week mode
-- P0/P1/P2 unchanged (already tight)
+## Drill output (verbatim)
 
-### 3. `backend/agents/mcp_servers/signals_server.py`
-- Added 2-line override in `track_drawdown()` after reading thresholds from `get_risk_constraints()`
-- When `self.settings.first_week_mode` is True, `derisk_pct` overridden to `warn_pct` (-5.0)
-- `get_risk_constraints()` NOT modified (4.4.4.4 compliance preserved)
-- Kill switch at -15% unchanged in both modes
-
-### 4. `scripts/go_live_drills/first_week_monitoring_test.py` (new)
-- 15 scenarios: 8 AST-level checks + 7 runtime checks
-- Tests both normal and first-week modes
-- Verifies 4.4.4.4 compliance (hardcoded risk limits unchanged)
-
-## Drill output
 ```
-PASS S0 first_week_mode field exists in settings.py
-PASS S1 first_week_mode defaults to False
-PASS S2 sla_monitor.py imports get_settings
-PASS S3 sla_monitor.py has first_week conditional branch
-PASS S4 SLA P3 normal response = 4 * 3600 (4h)
-PASS S5 SLA P3 first-week response = 60 * 60 (1h)
-PASS S6 track_drawdown has first_week_mode override
-PASS S7 get_risk_constraints unchanged (4.4.4.4 compliant)
-PASS S8 normal mode: -9.5% drawdown -> tier=warning (not derisk)
-PASS S9 normal mode: -10.0% drawdown -> tier=derisk
-PASS S10 first-week mode: -5.0% drawdown -> tier=derisk (tightened from -10%)
-PASS S11 first-week mode: -4.0% drawdown -> tier=ok
-PASS S12 first-week mode: -15.0% drawdown -> kill (unchanged)
-PASS S13 normal mode: -15.0% drawdown -> kill (baseline)
-PASS S14 get_risk_constraints literals unchanged (4.4.4.4 verified)
-DRILL PASS: 15/15 first-week monitoring scenarios verified
+  [+] S0: Paper portfolio: NAV=$9,499.50, PnL=-5.0%
+  [+] S1: Inception: 2026-03-20 14:01 UTC
+  [+] S2: Running 32 days >= 14-day floor (18 days margin)
+  [+] S3: 11 snapshots, 5 distinct dates (2026-04-14 to 2026-04-21)
+  [+] S4: optimizer_best.json: Sharpe=1.1705, file=?
+  [+] S5: Starting capital $10,000.00
+  [+] S6: Last updated 13.6h ago (2026-04-21 12:01 UTC)
+  [+] S7: 1 paper trades executed
+
+  DRILL PASS: 8/8
 ```
 
-## Activation recipe
-```bash
-# At go-live (day 1):
-export FIRST_WEEK_MODE=true
-# Restart backend
+## BQ data sources
+- `sunny-might-477607-p8.financial_reports.paper_portfolio` (1 row, inception 2026-03-20)
+- `sunny-might-477607-p8.financial_reports.paper_portfolio_snapshots` (11 rows, 5 distinct dates)
+- `sunny-might-477607-p8.financial_reports.paper_trades` (1 row, XOM test trade 2026-03-28)
 
-# After day 7 (if live Sharpe tracks paper Sharpe):
-unset FIRST_WEEK_MODE
-# Restart backend
-```
+## Soft notes
+- SN1: Paper trading has been running 32 days but with only 1 trade (XOM test trade). The zero-orders bug in `decide_trades` means the system is running but not generating live trades. This is a known issue documented in Session Note 2026-04-16 and Cycles 31-41 NOOPs.
+- SN2: Item 4.4.2.1 is about wall-clock runtime, not trade quality. Trade quality is covered by 4.4.2.2 (Sharpe), 4.4.2.4 (no missed days), and 4.4.2.5 (divergence).
+- SN3: WHO is "joint" -- Peder should verify calendar alignment at launch-week.

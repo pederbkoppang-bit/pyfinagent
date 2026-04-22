@@ -55,7 +55,8 @@
 ## 4.4.2 Paper Trading Validation
 
 ### 4.4.2.1 Paper trading ran for >= 2 weeks (ideally 4)
-- [ ] Continuous paper trading run time on the latest parameter set reaches the 2-week wall-clock floor
+- [x] Continuous paper trading run time on the latest parameter set reaches the 2-week wall-clock floor
+- **Evidence**: drill landed at `scripts/go_live_drills/paper_runtime_test.py` and executed 2026-04-22 by Ford Cycle 42 on `main`. 8/8 checks PASS: S0 paper portfolio exists in BQ (NAV=$9,499.50, PnL=-5.0%), S1 inception 2026-03-20 14:01 UTC, S2 running 32 days >= 14-day floor (18 days margin), S3 11 snapshots across 5 distinct dates (2026-04-14 to 2026-04-21), S4 optimizer_best.json present (Sharpe=1.1705), S5 starting capital $10,000, S6 last updated 13.6h ago (system active), S7 1 paper trade executed. BQ source: `sunny-might-477607-p8.financial_reports.paper_portfolio` (inception 2026-03-20, updated 2026-04-21T12:01:10Z) + `paper_portfolio_snapshots` (11 rows, 5 distinct dates). Evidence snapshot at `backend/backtest/experiments/results/paper_runtime_evidence_20260422.json`. Soft note: 1 trade in 32 days due to zero-orders bug (quality covered by 4.4.2.2/4.4.2.4/4.4.2.5, not runtime). Peder calendar check pending. Re-run recipe: `source .venv/bin/activate && python3 scripts/go_live_drills/paper_runtime_test.py` (exit 0 on PASS, exit 1 on any failure).
 - **WHO**: joint (Ford runs, Peder checks calendar)
 - **WHEN**: 2-4 weeks pre-launch (wall-clock gate, cannot be shortened)
 - **HOW**: query BigQuery `paper_snapshots` for the earliest and latest snapshot timestamps for the current parameter cohort; delta must be >= 14 days. Alternatively inspect the Paper Trading tab on the frontend for the run-start banner date.

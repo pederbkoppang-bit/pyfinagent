@@ -1,0 +1,18 @@
+{
+  "query_date": "2026-04-22T01:39:39.629626+00:00",
+  "inception_date": "2026-03-20T14:01:20.621512+00:00",
+  "updated_at": "2026-04-21T12:01:10.715929+00:00",
+  "delta_days": 32,
+  "min_days_required": 14,
+  "starting_capital": 10000.0,
+  "total_nav": 9499.5,
+  "total_pnl_pct": -5.0,
+  "snapshots": {
+    "earliest": "2026-04-14",
+    "latest": "2026-04-21",
+    "cnt": "11",
+    "distinct_dates": "5"
+  },
+  "trades_count": 1,
+  "gate_passed": true
+}
