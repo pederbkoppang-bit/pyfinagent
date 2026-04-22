@@ -10656,3 +10656,23 @@ BQ probe (bq CLI, ADC auth) confirms paper trading has been running 32 days (inc
 **Total cycle time:** ~15 minutes (RESEARCH gate WAIVED per BQ-data-verification precedent; PLAN ~3min, GENERATE ~5min, EVALUATE ~3min, LOG ~4min)
 **Phase 4.4 progress:** 18/27 items now `[x]` (was 17/27). Breaks the 11-cycle NOOP streak. Remaining 9 items: 4.4.2.2 (Paper Sharpe, data-blocked), 4.4.2.4 (no missed days, data-blocked), 4.4.2.5 (divergence, data-blocked), 4.4.3.3 (uptime, wall-clock), 4.4.5.1/5.3/5.4 (Peder/human), 4.4.6.1/6.2 (Peder).
 **Reliability note:** First non-NOOP cycle since Cycle 32 (2026-04-21). The NOOP streak was caused by overly conservative gating classification. Key insight: items "about" wall-clock time are not themselves wall-clock gated if the time has already elapsed.
+
+---
+
+## Cycle 43 -- 2026-04-22 -- phase=4.4.2.4 result=BLOCKED
+
+**Planner hypothesis:** Land checklist item 4.4.2.4 "No missed trading days (signal generation reliable)" by writing and running a BQ-backed drill that compares signals_log publish events against the NYSE trading calendar.
+**Generator:** (1) Ran `scripts/migrations/migrate_signals_log.py` to create missing `financial_reports.signals_log` BQ table. (2) Rewrote `scripts/go_live_drills/signal_reliability_test.py` to be self-contained (queries BQ directly using `google.cloud.bigquery` + `exchange_calendars` for NYSE calendar, no dependency on pre-generated evidence files). (3) Ran drill.
+**Evaluator verdict:** BLOCKED (drill exit 1, 5/7 checks PASS, 2 hard FAIL)
+- S0 PASS: signals_log table now exists in BQ (created by migration this cycle)
+- S1 PASS: Paper trading inception 2026-03-20
+- S2 PASS: 0 total publish events in signals_log
+- S3 PASS: 23 NYSE trading days in window [2026-03-20 to 2026-04-22]
+- S4 FAIL: Coverage 0/23 = 0.0% (gate: 100%)
+- S5 FAIL: 23 missed trading days
+- S6 PASS: No signals on non-trading days
+**Root cause:** `generate_signal()` in `signals_server.py` is a stub (returns `HOLD/0.0/PENDING_IMPLEMENTATION`). No automated daily signal generation pipeline exists. The `hourly_signal_warmup` scheduler job is also a stub. Signals only flow if external code calls `publish_signal()` with a pre-formed signal dict -- there is no producer.
+**Impact:** Items 4.4.2.2 (Paper Sharpe), 4.4.2.4 (signal reliability), and 4.4.2.5 (paper vs backtest divergence) are all blocked by the same root cause: no automated signal generation.
+**Prep work landed:** (a) `signals_log` BQ table created (was missing), (b) drill rewritten for self-contained BQ querying, (c) evidence snapshot saved to `signal_generation_evidence_20260422.json`.
+**Decision:** BLOCKED -- cannot flip checklist item. Committed prep work (migration + drill improvement) as infrastructure for when signal generation is implemented.
+**Phase 4.4 progress:** 18/27 items `[x]` (unchanged). Remaining 9: 3 data-blocked (4.4.2.2/2.4/2.5), 1 wall-clock (4.4.3.3), 3 Peder/human (4.4.5.1/5.3/5.4), 2 Peder-gated (4.4.6.1/6.2).

@@ -2,51 +2,88 @@
 Go-Live Drill: 4.4.2.4 No missed trading days (signal generation reliable)
 
 Verifies:
-  1. BQ evidence snapshot exists with signal generation data
-  2. signals_log table status (preferred source)
-  3. Signal generation days vs NYSE trading calendar
-  4. Zero-gap gate: every US market open day has a signal entry
-  5. Coverage percentage
+  1. signals_log table exists in BQ
+  2. Paper trading inception date retrieved
+  3. NYSE trading calendar loaded for the paper trading window
+  4. Every US market open day has at least one signal-generation log entry
+  5. Zero-gap gate: 100% coverage required
 
-Re-run: python3 scripts/go_live_drills/signal_reliability_test.py
+Queries BQ directly (requires .venv with google-cloud-bigquery and
+exchange_calendars). Follows the paper_runtime_test.py pattern.
+
+Re-run: source .venv/bin/activate && python3 scripts/go_live_drills/signal_reliability_test.py
 """
 
 import json
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE_DIR = ROOT / "backend" / "backtest" / "experiments" / "results"
-
-US_MARKET_HOLIDAYS_2026 = {
-    date(2026, 1, 1),   # New Year's Day
-    date(2026, 1, 19),  # MLK Day
-    date(2026, 2, 16),  # Presidents' Day
-    date(2026, 4, 3),   # Good Friday
-    date(2026, 5, 25),  # Memorial Day
-    date(2026, 7, 3),   # Independence Day (observed)
-    date(2026, 9, 7),   # Labor Day
-    date(2026, 11, 26), # Thanksgiving
-    date(2026, 12, 25), # Christmas
-}
+BQ_PROJECT = "sunny-might-477607-p8"
+DATASET = "financial_reports"
 
 
-def load_evidence():
-    candidates = sorted(
-        EVIDENCE_DIR.glob("signal_generation_evidence_*.json"), reverse=True
-    )
-    if not candidates:
-        return None
-    with open(candidates[0], encoding="utf-8") as f:
-        return json.load(f)
+def query_bq():
+    try:
+        from google.cloud import bigquery
+    except ImportError:
+        print("DRILL SKIP: google-cloud-bigquery not installed (need .venv)")
+        sys.exit(2)
+
+    client = bigquery.Client(project=BQ_PROJECT)
+
+    table_exists = True
+    try:
+        client.get_table(f"{BQ_PROJECT}.{DATASET}.signals_log")
+    except Exception:
+        table_exists = False
+
+    signal_days = []
+    total_publish = 0
+    if table_exists:
+        q = f"""
+            SELECT DATE(signal_date) as sig_date, COUNT(*) as cnt
+            FROM `{BQ_PROJECT}.{DATASET}.signals_log`
+            WHERE event_kind = 'publish'
+            GROUP BY sig_date
+            ORDER BY sig_date
+        """
+        for row in client.query(q).result():
+            signal_days.append({"date": str(row["sig_date"]), "count": row["cnt"]})
+            total_publish += row["cnt"]
+
+    inception = None
+    q2 = f"SELECT inception_date FROM {DATASET}.paper_portfolio LIMIT 1"
+    for row in client.query(q2).result():
+        inception = row["inception_date"]
+
+    return table_exists, signal_days, total_publish, inception
 
 
-def nyse_trading_days(start: date, end: date) -> list[date]:
+def get_nyse_trading_days(start_date, end_date):
+    try:
+        import exchange_calendars as xcals
+        cal = xcals.get_calendar("XNYS")
+        sessions = cal.sessions_in_range(
+            start_date.isoformat(), end_date.isoformat()
+        )
+        return [s.date() for s in sessions]
+    except ImportError:
+        pass
+
+    # stdlib fallback: weekdays minus known 2026 NYSE holidays
+    US_HOLIDAYS_2026 = {
+        date(2026, 1, 1), date(2026, 1, 19), date(2026, 2, 16),
+        date(2026, 4, 3), date(2026, 5, 25), date(2026, 7, 3),
+        date(2026, 9, 7), date(2026, 11, 26), date(2026, 12, 25),
+    }
+    from datetime import timedelta
     days = []
-    current = start
-    while current <= end:
-        if current.weekday() < 5 and current not in US_MARKET_HOLIDAYS_2026:
+    current = start_date
+    while current <= end_date:
+        if current.weekday() < 5 and current not in US_HOLIDAYS_2026:
             days.append(current)
         current += timedelta(days=1)
     return days
@@ -54,89 +91,93 @@ def nyse_trading_days(start: date, end: date) -> list[date]:
 
 def run_checks():
     results = []
-    evidence = load_evidence()
+    now = datetime.now(timezone.utc)
+    today = now.date()
 
-    if evidence is None:
-        results.append(("S0", "FAIL", "No signal_generation_evidence_*.json found"))
-        print("DRILL FAIL: 0/7 (no evidence file)")
+    table_exists, signal_days, total_publish, inception_raw = query_bq()
+
+    if not table_exists:
+        results.append(("S0", "FAIL", "signals_log table not found in BQ"))
+        _print_results(results)
         return False
-    results.append(
-        ("S0", "PASS", f"Evidence loaded, query_date={evidence['query_date']}")
-    )
+    results.append(("S0", "PASS", "signals_log table exists in BQ"))
 
-    signals_log_exists = evidence.get("signals_log_table_exists", False)
-    if signals_log_exists:
-        results.append(("S1", "PASS", "signals_log table exists in BQ"))
-    else:
-        note = evidence.get("signals_log_table_note", "not found")
-        results.append(("S1", "FAIL", f"signals_log table missing: {note}"))
-
-    inception_str = evidence.get("paper_trading_inception", "")
-    if not inception_str:
-        results.append(("S2", "FAIL", "No paper_trading_inception in evidence"))
-        print_results(results)
+    if inception_raw is None:
+        results.append(("S1", "FAIL", "No paper_portfolio row found in BQ"))
+        _print_results(results)
         return False
+    inception_str = str(inception_raw)
+    try:
+        inception_dt = datetime.fromisoformat(inception_str)
+        if inception_dt.tzinfo is None:
+            inception_dt = inception_dt.replace(tzinfo=timezone.utc)
+        inception_date = inception_dt.date()
+    except Exception as e:
+        results.append(("S1", "FAIL", f"Invalid inception_date: {inception_str} ({e})"))
+        _print_results(results)
+        return False
+    results.append(("S1", "PASS",
+        f"Paper trading inception: {inception_date}"))
 
-    inception = date.fromisoformat(inception_str)
-    query_date = date.fromisoformat(evidence["query_date"])
-    trading_days = nyse_trading_days(inception, query_date)
-    results.append(
-        (
-            "S2",
-            "PASS",
-            f"NYSE trading days in window [{inception} to {query_date}]: {len(trading_days)}",
-        )
-    )
+    results.append(("S2", "PASS",
+        f"Total publish events in signals_log: {total_publish}"))
 
-    signal_days_raw = evidence.get("signal_generation_days", [])
+    trading_days = get_nyse_trading_days(inception_date, today)
+    results.append(("S3", "PASS",
+        f"NYSE trading days in window [{inception_date} to {today}]: "
+        f"{len(trading_days)}"))
+
     signal_dates = set()
-    for entry in signal_days_raw:
-        signal_dates.add(date.fromisoformat(entry["date"]))
-    results.append(
-        ("S3", "PASS", f"Signal generation days in BQ: {len(signal_dates)}")
-    )
+    for entry in signal_days:
+        try:
+            signal_dates.add(date.fromisoformat(entry["date"]))
+        except (ValueError, TypeError):
+            pass
 
     trading_set = set(trading_days)
     covered = signal_dates & trading_set
     missed = sorted(trading_set - signal_dates)
 
     coverage_pct = (len(covered) / len(trading_days) * 100) if trading_days else 0
-    results.append(
-        (
-            "S4",
-            "PASS" if coverage_pct >= 100.0 else "FAIL",
-            f"Coverage: {len(covered)}/{len(trading_days)} = {coverage_pct:.1f}% "
-            f"(gate: 100%)",
-        )
-    )
+    results.append(("S4", "PASS" if coverage_pct >= 100.0 else "FAIL",
+        f"Coverage: {len(covered)}/{len(trading_days)} = {coverage_pct:.1f}% "
+        f"(gate: 100%)"))
 
     if missed:
         first_5 = ", ".join(str(d) for d in missed[:5])
         suffix = f" ... +{len(missed) - 5} more" if len(missed) > 5 else ""
-        results.append(
-            (
-                "S5",
-                "FAIL",
-                f"{len(missed)} missed trading days: {first_5}{suffix}",
-            )
-        )
+        results.append(("S5", "FAIL",
+            f"{len(missed)} missed trading days: {first_5}{suffix}"))
     else:
         results.append(("S5", "PASS", "Zero missed trading days"))
 
     extra = sorted(signal_dates - trading_set)
     if extra:
-        results.append(
-            (
-                "S6",
-                "INFO",
-                f"{len(extra)} signal days outside trading calendar: "
-                + ", ".join(str(d) for d in extra),
-            )
-        )
+        results.append(("S6", "INFO",
+            f"{len(extra)} signal days outside trading calendar: "
+            + ", ".join(str(d) for d in extra)))
     else:
         results.append(("S6", "PASS", "No signals on non-trading days"))
 
-    print_results(results)
+    evidence = {
+        "query_date": today.isoformat(),
+        "paper_trading_inception": inception_date.isoformat(),
+        "total_publish_events": total_publish,
+        "nyse_trading_days_in_window": len(trading_days),
+        "signal_generation_days": len(signal_dates),
+        "covered_days": len(covered),
+        "missed_days": len(missed),
+        "missed_dates": [str(d) for d in missed[:20]],
+        "coverage_pct": round(coverage_pct, 2),
+        "gate_passed": coverage_pct >= 100.0,
+        "signals_log_table_exists": table_exists,
+    }
+    evidence_path = EVIDENCE_DIR / f"signal_generation_evidence_{today.strftime('%Y%m%d')}.json"
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(evidence_path, "w") as f:
+        json.dump(evidence, f, indent=2, default=str)
+
+    _print_results(results, str(evidence_path))
 
     passed = sum(1 for _, v, _ in results if v == "PASS")
     total = len(results)
@@ -144,19 +185,20 @@ def run_checks():
 
     if all_pass:
         print(f"\nDRILL PASS: {passed}/{total}")
-        return True
     else:
         print(f"\nDRILL FAIL: {passed}/{total}")
-        return False
+    return all_pass
 
 
-def print_results(results):
+def _print_results(results, evidence_path=None):
     print(f"\n{'=' * 60}")
     print("  4.4.2.4 No Missed Trading Days Drill")
     print(f"{'=' * 60}")
     for sid, verdict, detail in results:
         marker = "+" if verdict == "PASS" else ("i" if verdict == "INFO" else "X")
         print(f"  [{marker}] {sid}: {detail}")
+    if evidence_path:
+        print(f"  Evidence: {evidence_path}")
     print(f"{'=' * 60}")
 
 
