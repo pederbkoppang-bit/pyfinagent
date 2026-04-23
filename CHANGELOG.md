@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-23 | `d24ce83c` | Phase 4.4.2.4: wire autonomous loop to log signals to BQ signals_log |
 | 2026-04-22 | `122cc1c8` | Phase 4.4.2.4: prep infra -- signals_log migration + self-contained drill (BLOCKED) |
 | 2026-04-22 | `0b4f4f22` | chore: harness log entry for Cycle 42 (4.4.2.1 paper runtime PASS) |
 | 2026-04-22 | `6130c545` | Phase 4.4.2.1: paper trading runtime >= 2 weeks verified (32 days) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `b513f5b3` | phase-12.0: Rainbow Deploys audit + scope boundary (cycle-2 PASS) |
 | 2026-04-19 | `64fbb164` | phase-11.4: migrate nlp_sentiment + remove last Vertex surface — PHASE-11 COMPLETE |
 | 2026-04-19 | `41e1ffa9` | phase-11.3: complex Vertex callers + ThinkingConfig silent-breakage fix |
-| 2026-04-19 | `b23c8c1f` | phase-11.2: migrate trivial Vertex callers to google-genai shim |
 
 ---
 
+### v6.5.72 — Phase 4.4.2.4: wire autonomous loop to log signals to BQ signals_log (2026-04-23)
+
+- **Phase 4.4.2.4: wire autonomous loop to log signals to BQ signals_log**
 ### v6.5.71 — Phase 4.4.2.4: prep infra -- signals_log migration + self-contained d... (2026-04-22)
 
 - **Phase 4.4.2.4: prep infra -- signals_log migration + self-contained drill (BLOCKED)**
