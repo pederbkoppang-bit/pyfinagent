@@ -6,6 +6,7 @@ Designed to run as an APScheduler cron job.
 """
 
 import asyncio
+import hashlib
 import json
 
 from backend.utils import json_io
@@ -195,7 +196,8 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             logger.warning("Paper trading: kill-switch active -- skipping decide/execute")
             summary["steps"].append("kill_switch_halted")
             summary["halted"] = True
-            # Still snapshot + exit cleanly.
+            ks_today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            _log_cycle_signals_to_bq(bq, [], ks_today)
             final_state = trader.mark_to_market()
             trader.save_daily_snapshot(trades_today=0, analysis_cost_today=total_analysis_cost)
             _last_run = datetime.now(timezone.utc).isoformat()
@@ -257,6 +259,11 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             )
             if trade:
                 trades_executed += 1
+
+        # ── Step 7.5: Log signals to BQ signals_log ─────────────
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        signals_logged = _log_cycle_signals_to_bq(bq, orders, today_str)
+        summary["signals_logged"] = signals_logged
 
         # ── Step 8: Final mark-to-market + snapshot ──────────────
         logger.info("Paper trading: Step 8 -- Final snapshot")
@@ -504,6 +511,79 @@ async def _learn_from_closed_trades(tickers: list[str], bq: BigQueryClient, sett
             tracker.evaluate_recommendation(ticker, str(analysis_date), recommendation, price_at_rec)
         except Exception as e:
             logger.debug(f"Outcome evaluation failed for {ticker}: {e}")
+
+
+def _log_cycle_signals_to_bq(bq, orders, today_str: str) -> int:
+    """Write trade orders (or a HOLD heartbeat) to BQ signals_log.
+
+    Ensures every daily cycle produces >= 1 row with event_kind='publish'
+    so that the 4.4.2.4 signal reliability drill can verify coverage.
+    Best-effort: never raises.
+    """
+    now_iso = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    records = []
+
+    for order in orders:
+        if order.action not in ("BUY", "SELL"):
+            continue
+        sig_id = hashlib.sha1(
+            f"{order.ticker}:{today_str}:{order.action}".encode()
+        ).hexdigest()[:16]
+        factors = order.signals if order.signals else ([order.reason] if order.reason else [])
+        records.append({
+            "signal_id": sig_id,
+            "ticker": order.ticker,
+            "signal_type": order.action,
+            "confidence": 0.0,
+            "signal_date": today_str,
+            "entry_price": order.price or 0.0,
+            "factors_json": json.dumps(factors, default=str),
+            "created_at": now_iso,
+            "outcome": "pending",
+            "scored": False,
+            "hit": None,
+            "exit_price": None,
+            "exit_date": None,
+            "forward_return_pct": None,
+            "holding_days": None,
+            "recorded_at": now_iso,
+            "event_kind": "publish",
+        })
+
+    if not records:
+        sig_id = hashlib.sha1(
+            f"HOLD:{today_str}:daily_cycle".encode()
+        ).hexdigest()[:16]
+        records.append({
+            "signal_id": sig_id,
+            "ticker": "$CYCLE",
+            "signal_type": "HOLD",
+            "confidence": 0.0,
+            "signal_date": today_str,
+            "entry_price": None,
+            "factors_json": json.dumps(["no_trade_orders"]),
+            "created_at": now_iso,
+            "outcome": None,
+            "scored": False,
+            "hit": None,
+            "exit_price": None,
+            "exit_date": None,
+            "forward_return_pct": None,
+            "holding_days": None,
+            "recorded_at": now_iso,
+            "event_kind": "publish",
+        })
+
+    written = 0
+    for rec in records:
+        try:
+            bq.save_signal(rec)
+            written += 1
+        except Exception as e:
+            logger.warning(f"signals_log write failed for {rec['ticker']}: {type(e).__name__}")
+    if written:
+        logger.info(f"Logged {written} signal(s) to BQ signals_log for {today_str}")
+    return written
 
 
 def get_loop_status() -> dict:

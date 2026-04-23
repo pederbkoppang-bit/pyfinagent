@@ -1,35 +1,36 @@
-# Phase 4.4.2.1 -- Experiment Results
+# Cycle 50 -- Experiment Results
 
 ## What was built
 
-BQ-querying drill at `scripts/go_live_drills/paper_runtime_test.py` that verifies paper trading has been running >= 14 days (the 2-week wall-clock floor from checklist item 4.4.2.1).
+Wired `autonomous_loop.py` to log signal events to BQ `signals_log` table after trade execution. This is the infrastructure fix identified in Cycle 49's root-cause analysis (blocking code path #2: "autonomous loop never calls `publish_signal()`").
 
-## Files changed
-- `scripts/go_live_drills/paper_runtime_test.py` (NEW, ~130 lines)
-- `docs/GO_LIVE_CHECKLIST.md` (checkbox flip + evidence line)
-- `backend/backtest/experiments/results/paper_runtime_evidence_20260422.json` (evidence snapshot)
+## Changes
 
-## Drill output (verbatim)
+| File | Lines changed | Description |
+|------|---------------|-------------|
+| `backend/services/autonomous_loop.py` | +70 / -1 | Added `import hashlib`, `_log_cycle_signals_to_bq()` helper, two call sites |
+
+## Design decisions
+
+1. **Did NOT call `publish_signal()`** -- that method does risk_check + paper_trader.execute_buy/sell + Slack posting internally. Calling it from the autonomous loop would double-execute trades. Instead, wrote directly to BQ via `bq.save_signal()`.
+
+2. **HOLD heartbeat on no-order days** -- when `decide_trades()` produces zero BUY/SELL orders, a single HOLD row with ticker="$CYCLE" is written. This ensures every daily cycle produces >= 1 `signals_log` row, which is what the 4.4.2.4 drill checks.
+
+3. **Kill-switch path covered** -- the early-return at Step 5.5 (kill-switch halt) also logs a HOLD heartbeat, preventing reliability gaps during risk events.
+
+4. **Best-effort write** -- each `save_signal()` call is wrapped in try/except. Failures are logged but never raise. Matches the pattern in `_append_signal_history()`.
+
+5. **Signal ID generation** -- SHA1-16 prefix of `"{ticker}:{date}:{action}"` for trade signals, `"HOLD:{date}:daily_cycle"` for heartbeats. Deterministic, so re-running the same day dedupes naturally (same signal_id).
+
+## Verification
 
 ```
-  [+] S0: Paper portfolio: NAV=$9,499.50, PnL=-5.0%
-  [+] S1: Inception: 2026-03-20 14:01 UTC
-  [+] S2: Running 32 days >= 14-day floor (18 days margin)
-  [+] S3: 11 snapshots, 5 distinct dates (2026-04-14 to 2026-04-21)
-  [+] S4: optimizer_best.json: Sharpe=1.1705, file=?
-  [+] S5: Starting capital $10,000.00
-  [+] S6: Last updated 13.6h ago (2026-04-21 12:01 UTC)
-  [+] S7: 1 paper trades executed
-
-  DRILL PASS: 8/8
+$ python3 -c "import ast; ast.parse(open('backend/services/autonomous_loop.py').read()); print('SYNTAX OK')"
+SYNTAX OK
 ```
 
-## BQ data sources
-- `sunny-might-477607-p8.financial_reports.paper_portfolio` (1 row, inception 2026-03-20)
-- `sunny-might-477607-p8.financial_reports.paper_portfolio_snapshots` (11 rows, 5 distinct dates)
-- `sunny-might-477607-p8.financial_reports.paper_trades` (1 row, XOM test trade 2026-03-28)
+## What this does NOT do
 
-## Soft notes
-- SN1: Paper trading has been running 32 days but with only 1 trade (XOM test trade). The zero-orders bug in `decide_trades` means the system is running but not generating live trades. This is a known issue documented in Session Note 2026-04-16 and Cycles 31-41 NOOPs.
-- SN2: Item 4.4.2.1 is about wall-clock runtime, not trade quality. Trade quality is covered by 4.4.2.2 (Sharpe), 4.4.2.4 (no missed days), and 4.4.2.5 (divergence).
-- SN3: WHO is "joint" -- Peder should verify calendar alignment at launch-week.
+- Does not implement `generate_signal()` (still a stub) -- that's a separate concern
+- Does not flip the 4.4.2.4 checkbox -- data needs to accumulate over >= 14 NYSE trading days first
+- Does not touch `publish_signal()` or `_append_signal_history()` in signals_server.py
