@@ -361,9 +361,16 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
     except Exception as e:
         logger.warning(f"Claude analysis failed for {ticker}: {e}, trying Gemini orchestrator")
 
-    # Fallback: full Gemini orchestrator
+    # Fallback: full Gemini orchestrator. Force Gemini models explicitly
+    # here -- the user's standard/deep-think settings may be Claude (that's
+    # what just failed). Without this override the fallback routes the same
+    # Claude model back through make_client and lands on GitHub Models /
+    # other providers that also require keys we may not have.
     try:
-        orchestrator = AnalysisOrchestrator(settings)
+        fallback_settings = settings.model_copy()
+        fallback_settings.gemini_model = "gemini-2.0-flash"
+        fallback_settings.deep_think_model = "gemini-2.5-flash"
+        orchestrator = AnalysisOrchestrator(fallback_settings)
         report = await orchestrator.run_full_analysis(ticker)
         if not report:
             return None
