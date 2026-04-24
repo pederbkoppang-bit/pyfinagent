@@ -1,2 +1,6 @@
 {"ts": "2026-04-20T12:01:03.965103+00:00", "event": "peak_update", "nav": 9499.5}
 {"ts": "2026-04-20T12:01:03.965687+00:00", "event": "sod_snapshot", "nav": 9499.5}
+{"ts": "2026-04-24T18:11:28.672828+00:00", "event": "pause", "trigger": "uat-16.6-drill", "details": {}}
+{"ts": "2026-04-24T18:13:44.153436+00:00", "event": "pause", "trigger": "uat-16.6-drill", "details": {}}
+{"ts": "2026-04-24T18:16:07.702093+00:00", "event": "pause", "trigger": "uat-16.6-drill", "details": {}}
+{"ts": "2026-04-24T18:16:46.881287+00:00", "event": "resume", "trigger": "uat-force-resume", "details": {}}
