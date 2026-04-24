@@ -11830,4 +11830,27 @@ Plus PRE-PROD NICE items (Slack UAT, api.ts helper restore) and DRIFT entries (p
 **Carry-forward:** (a) in-thread Slack intent-parser is future UX work (not a pre-prod blocker); (b) the hermetic `hitl_gate_drill.py` would benefit from a BQ dry-run path to catch type-binding bugs without a live write -- track as a post-go-live improvement.
 
 
+---
+
+## task-47-observability -- 2026-04-24 -- phase=pre-prod result=PASS (cycle-1)
+
+**Scope:** Two pre-Monday observability patches before the $10K virtual fund autonomous loop fires. After Q/A on the virtual-fund-readiness cycle flagged that a Monday 0-trades outcome would be undiagnosable (Claude HOLD vs Risk Judge REJECT vs sub-$50 skip all look identical), add structured log lines that distinguish the three failure modes.
+
+**Research gate:** tier=simple, 5 sources read in full (floor 5), 12 URLs, recency scan performed, 6 internal files inspected, gate_passed=true. Brief: `handoff/current/observability-patch-research-brief.md`.
+
+**Fix (2 files):**
+1. `backend/services/portfolio_manager.py` -- `logger.info("buy_candidate risk_judge decision=%s ticker=%s ...")` fires on any Risk Judge decision other than APPROVE_FULL (REJECT / APPROVE_REDUCED / APPROVE_HEDGED). `logger.warning("Skipping BUY %s: buy_amount=%.2f below $50 minimum ...")` replaces the silent `continue` on sub-$50 position size.
+2. `handoff/current/virtual-fund-readiness-research-brief.md` -- appended the mandatory research-gate JSON envelope (was missing; flagged by Q/A-v1 on that brief).
+
+**Verification (verbatim):** All 7 contract criteria green. Synthetic log-capture test routes `backend.services.portfolio_manager` logs into a StringIO handler and confirms both strings appear AFTER `decide_trades` on (a) a REJECT risk_assessment and (b) a nav small enough to drop buy_amount below $50. zero_orders drill still PASS (no regression on the synthetic BUY path).
+
+**Q/A verdict (qa_v1 PASS, no cycle-2):** 5-item harness-compliance audit green; 7 deterministic checks green including the synthetic log-capture test. Mutation-resistance confirmed: logger calls live at lines 162 / 184 as actual invocations, not string constants. Log levels appropriate (info for observability, warning for silent-skip). ASCII-only per security.md.
+
+**Scope explicit:** Did NOT fix the REJECT -> `position_pct=0` -> 10% default-fallback at portfolio_manager.py:171 (a semantic bug where REJECT is silently overridden; deferred to a separate cycle). Did NOT change the $50 minimum threshold. Did NOT automatically restart the backend (user will do that after commit so the log lines load before Monday's cycle).
+
+**Carry-forward:** (a) REJECT-override semantic fix is a follow-up; (b) observability is now sufficient to diagnose Monday's 0-or-N trades outcome without guessing; (c) if Monday cycle logs a REJECT path, we'll know Risk Judge needs attention, not Claude's prompt.
+
+
+
+
 

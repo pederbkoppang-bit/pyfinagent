@@ -157,6 +157,13 @@ def decide_trades(
             "signals": extract_signals_from_analysis(analysis),
         })
 
+        decision = risk_assessment.get("decision", "") or ""
+        if decision and decision != "APPROVE_FULL":
+            logger.info(
+                "buy_candidate risk_judge decision=%s ticker=%s position_pct=%s final_score=%s",
+                decision, ticker, position_pct, round(float(final_score or 0), 3),
+            )
+
     # Sort by final_score descending (best opportunities first)
     buy_candidates.sort(key=lambda x: x.get("final_score", 0), reverse=True)
 
@@ -174,6 +181,10 @@ def decide_trades(
 
         # Skip tiny positions (less than $50)
         if buy_amount < 50:
+            logger.warning(
+                "Skipping BUY %s: buy_amount=%.2f below $50 minimum (nav=%.2f position_pct=%s available_cash=%.2f)",
+                cand["ticker"], buy_amount, nav, position_pct, available_cash,
+            )
             continue
 
         orders.append(TradeOrder(
