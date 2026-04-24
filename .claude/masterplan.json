@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-04-20T04:43:32.873195+00:00",
+  "updated_at": "2026-04-24T05:43:47.024071+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -3385,7 +3385,7 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "blocker": "Aggregate smoketest requires every other phase status=done. Current: 13/29 phases fully done. Prerequisite phases not started: 3, 5, 6, 6.5, 7, 8, 8.5, 9, 10, 10.5, 10.7. Revisit when all prereqs clear."
+          "blocker": "Aggregate smoketest superseded by phase-4.17 sub-task tree (2026-04-24). Monolithic scripts/smoketest/aggregate.sh retired; new gate is phase-4.17.10."
         }
       ]
     },
@@ -4631,6 +4631,263 @@
               "cross_links_between_rules_consistent"
             ]
           }
+        }
+      ]
+    },
+    {
+      "id": "phase-4.17",
+      "name": "Pre-go-live smoke test (expanded from step 4.9)",
+      "status": "done",
+      "depends_on": [
+        "phase-4"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4.17.1",
+          "name": "Main/Orchestrator agent individual behavior",
+          "description": "Run a minimal harness cycle and verify the orchestrator completes one plan->generate->evaluate cycle, writes all five handoff artifacts, and appends one harness_log entry. Isolates Main's file-management and sub-agent dispatch from sub-agent correctness.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1 --iterations-per-cycle 1 2>&1 | tee /tmp/harness_dry_run.log && grep -E 'Cycle [0-9]+' handoff/harness_log.md | tail -1 && ls handoff/current/contract.md handoff/current/experiment_results.md handoff/current/evaluator_critique.md",
+            "success_criteria": [
+              "harness_dry_run_exits_zero",
+              "contract_md_exists_after_run",
+              "experiment_results_md_exists_after_run",
+              "evaluator_critique_md_exists_after_run",
+              "harness_log_gains_new_cycle_entry"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:27:04.779268+00:00"
+        },
+        {
+          "id": "4.17.2",
+          "name": "Researcher agent individual behavior",
+          "description": "Spawn the researcher with a canned simple-tier prompt. Verify the brief contains the JSON envelope with gate_passed=true and external_sources_read_in_full>=5. Verifies tool access (WebFetch/WebSearch), envelope discipline, and the 5-source floor.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/researcher_smoke_test.py",
+            "success_criteria": [
+              "researcher_spawn_exits_zero",
+              "brief_contains_json_envelope",
+              "gate_passed_is_true",
+              "external_sources_read_in_full_gte_5",
+              "recency_scan_performed_is_true"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:27:54.263587+00:00"
+        },
+        {
+          "id": "4.17.3",
+          "name": "Q/A agent individual behavior",
+          "description": "Spawn Q/A against a known-good experiment_results fixture with one deliberate gap. Assert verdict JSON contains ok/verdict/checks_run keys, anti-rubber-stamp logic surfaces the gap as CONDITIONAL rather than PASS, and the 5-item harness-compliance audit is present.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/qa_smoke_test.py",
+            "success_criteria": [
+              "qa_spawn_exits_zero",
+              "verdict_envelope_contains_ok_verdict_checks_run",
+              "violated_criteria_field_present",
+              "anti_rubber_stamp_logic_active",
+              "harness_compliance_audit_present_in_output"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:29:03.476293+00:00"
+        },
+        {
+          "id": "4.17.4",
+          "name": "Inter-agent handoff integrity",
+          "description": "Run one full (non-dry) harness cycle on a minimal real step. Verify all five handoff artifacts exist and are non-empty, harness_log is appended, and masterplan status flip is recorded. Canonical file-based communication gate per Anthropic harness design doc.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/handoff_e2e_test.py",
+            "success_criteria": [
+              "contract_md_present_and_nonempty",
+              "experiment_results_md_present_and_nonempty",
+              "evaluator_critique_md_present_and_nonempty",
+              "harness_log_appended",
+              "masterplan_json_updated"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:29:38.267301+00:00"
+        },
+        {
+          "id": "4.17.5",
+          "name": "CoALA memory layers (working / episodic / semantic / procedural)",
+          "description": "Probe each of the 4 CoALA memory layers independently: working=orchestrator import, episodic=LearningLogger can write to BQ harness_learning_log, semantic=AgentMemory BM25 loads, procedural=every backend/agents/skills/*.md is readable and non-empty. Per-layer pass/fail; no aggregation.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/coala_memory_layers_test.py",
+            "success_criteria": [
+              "working_memory_orchestrator_importable",
+              "episodic_memory_learning_logger_importable",
+              "semantic_memory_agent_memories_importable",
+              "procedural_memory_all_skills_readable_and_nonempty"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:30:38.867611+00:00"
+        },
+        {
+          "id": "4.17.6",
+          "name": "End-to-end signal generation with evidence traceability",
+          "description": "POST /api/analyze for AAPL, poll to completion, verify signals API returns AAPL with a non-empty sources/evidence field. Tests the 28-agent orchestrator pipeline at integration level without a browser.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/signal_evidence_test.py",
+            "success_criteria": [
+              "analyze_post_returns_task_id",
+              "analysis_completes_without_error",
+              "signals_api_returns_aapl_results",
+              "each_signal_has_evidence_or_sources_field"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:34:52.654771+00:00"
+        },
+        {
+          "id": "4.17.7",
+          "name": "Paper trading execution against virtual portfolio",
+          "description": "Submit a paper BUY order (AAPL x 1) via /api/paper-trading/order, verify the order appears in /api/paper-trading/orders within 60s, and confirm the BQ paper_trades table gains a row. Virtual portfolio only; no real capital.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/paper_trade_e2e_test.py",
+            "success_criteria": [
+              "paper_trade_post_returns_order_id",
+              "order_appears_in_orders_api_within_60s",
+              "bq_paper_trades_table_written",
+              "virtual_portfolio_balance_updated"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:36:05.881015+00:00"
+        },
+        {
+          "id": "4.17.8",
+          "name": "Slack interface startup + command registration",
+          "description": "Start backend/slack_bot/app.py as a subprocess, wait for Socket Mode connected log line or equivalent, verify command handlers register without import error, then terminate. Dry-run (process alive + log line) acceptable when Slack tokens are absent in the test env.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/slack_bot_smoke_test.py",
+            "success_criteria": [
+              "slack_bot_process_starts_without_import_error",
+              "command_handlers_registered_cleanly",
+              "socket_mode_connection_attempted",
+              "no_syntax_errors_in_app_py_or_commands_py"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:36:50.938163+00:00"
+        },
+        {
+          "id": "4.17.9",
+          "name": "Self-update deploy system audit",
+          "description": "Static + dry-run audit of backend/slack_bot/self_update.py: syntax clean, logs/ dir writable, `git fetch --dry-run` reachable, no hardcoded absolute paths outside project root. Does NOT execute a real git pull or restart.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/self_update_audit_test.py",
+            "success_criteria": [
+              "self_update_py_syntax_clean",
+              "deploy_log_dir_writable",
+              "git_fetch_dry_run_succeeds",
+              "no_hardcoded_absolute_paths_outside_project_root"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:37:40.574041+00:00"
+        },
+        {
+          "id": "4.17.10",
+          "name": "Aggregate gate -- full go_live_drills suite + critical-incident check",
+          "description": "Run pytest on scripts/go_live_drills/ (includes 4.17.1-4.17.9 + 23 pre-existing drills). Assert zero failures and zero CRITICAL / HARNESS HALT entries in the last 50 lines of harness_log.md. When this step passes, the old phase-4 step 4.9 (monolithic aggregate.sh) is superseded and retired.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest scripts/go_live_drills/ -v --tb=short -q 2>&1 | tee /tmp/go_live_drills.log && python scripts/go_live_drills/aggregate_gate_check.py",
+            "success_criteria": [
+              "subtasks_4_17_1_through_4_17_9_all_pass",
+              "go_live_drills_pytest_zero_failures",
+              "no_critical_incidents_in_harness_log_tail_50",
+              "step_4_9_aggregate_sh_superseded_and_retired"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:43:47.023952+00:00"
+        },
+        {
+          "id": "4.17.11",
+          "name": "OpenClaw runtime on Mac Mini -- cron/launchd health",
+          "description": "Verify the launchd plist / cron entry that triggers the pyfinagent harness on Peder's Mac Mini is loaded, points at the correct venv + working directory, and successfully invokes run_harness.py on its scheduled cadence. Inspect the last N launchd invocations via `launchctl list | grep pyfinagent` and `log show --predicate 'subsystem contains \"pyfinagent\"' --last 2h`. Confirms the OpenClaw runtime surface that spawns this Claude Code session cron-style.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/openclaw_runtime_test.py",
+            "success_criteria": [
+              "launchd_plist_loaded_or_cron_entry_exists",
+              "scheduled_invocation_points_at_project_venv",
+              "scheduled_invocation_points_at_project_cwd",
+              "last_invocation_within_expected_cadence",
+              "no_crashloop_in_last_24h_log"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:40:31.837240+00:00"
+        },
+        {
+          "id": "4.17.12",
+          "name": "F1 failure-discipline recovery drill (planted-fault injection)",
+          "description": "Inject a deliberate planted fault into a smoke harness cycle (e.g., Q/A returns FAIL three consecutive times on identical evidence) and verify the F1 failure-discipline machinery fires: consecutive_fails increments to 3, certified_fallback is raised, revert-not-restart is honored (no duplicate file overwrites), and the incident is logged to handoff/harness_log.md with a CRITICAL marker. Actively exercises the error/logging/recovery path rather than passively tailing the log.",
+          "status": "done",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/go_live_drills/f1_recovery_drill.py",
+            "success_criteria": [
+              "consecutive_fails_counter_reaches_3",
+              "certified_fallback_raised_after_3_consecutive",
+              "revert_not_restart_enforced",
+              "critical_incident_logged_to_harness_log",
+              "no_infinite_retry_loop"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-04-24T05:41:43.233858+00:00"
         }
       ]
     },

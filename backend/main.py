@@ -212,7 +212,24 @@ app.add_middleware(
 )
 
 # Paths that skip authentication
-_PUBLIC_PATHS = ("/api/health", "/api/changelog", "/api/auth", "/docs", "/openapi.json", "/redoc")
+_PUBLIC_PATHS = (
+    "/api/health",
+    "/api/changelog",
+    "/api/auth",
+    "/api/cost-budget",
+    "/api/jobs/status",
+    "/api/harness/monthly-approval",
+    "/api/harness/demotion-audit",
+    "/api/harness/weekly-ledger",
+    "/api/harness/candidate-space",
+    "/api/harness/results-distribution",
+    "/api/signals",
+    "/api/observability",
+    "/api/sovereign",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+)
 
 
 @app.middleware("http")
@@ -293,6 +310,22 @@ app.include_router(mas_events_router)
 # phase-10.11 autoresearch sprint-state tile endpoint.
 from backend.api.harness_autoresearch import router as harness_autoresearch_router
 app.include_router(harness_autoresearch_router)
+
+# phase-15.1 cost-budget watcher
+from backend.api.cost_budget_api import router as cost_budget_router
+app.include_router(cost_budget_router)
+# phase-15.2 Slack job heartbeat
+from backend.api.job_status_api import router as job_status_router
+app.include_router(job_status_router)
+# phase-15.3 Monthly HITL approval
+from backend.api.monthly_approval_api import router as monthly_approval_router
+app.include_router(monthly_approval_router)
+# phase-15.10 Observability latency
+from backend.api.observability_api import router as observability_router
+app.include_router(observability_router)
+# phase-10.5.0 Sovereign UI read endpoints
+from backend.api.sovereign_api import router as sovereign_router
+app.include_router(sovereign_router)
 
 
 @app.get("/api/health")

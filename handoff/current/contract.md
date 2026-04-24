@@ -1,35 +1,36 @@
-# Contract -- Cycle 50
+# MAS Harness Cycle 51 -- 2026-04-24 -- Target: 4.4.2.2
 
-## Step
+## Target Item
 
-Phase 4.4.2.4 infrastructure prep: wire autonomous_loop.py to log signals to BQ signals_log.
+4.4.2.2 Paper Sharpe >= 0.82 (70% of backtest 1.17)
 
-## Problem
+## Pre-flight Audit
 
-The autonomous loop (`run_daily_cycle`) executes trades via `paper_trader.execute_buy/sell()` but never writes to `signals_log` in BQ. The `publish_signal()` method on `SignalsServer` has the BQ write path (via `_append_signal_history`), but it's only reachable through the MCP tool interface -- the autonomous loop doesn't call it. Root cause identified in Cycle 49.
+Unchecked items: 4.4.2.2, 4.4.2.4, 4.4.2.5, 4.4.3.3, 4.4.5.1, 4.4.5.3, 4.4.5.4, 4.4.6.1, 4.4.6.2
 
-The 4.4.2.4 drill (`signal_reliability_test.py`) queries `signals_log WHERE event_kind = 'publish' GROUP BY signal_date` and expects at least one row per NYSE trading day. With zero rows, it exits with code 2 (SKIP).
+Filtered out (Rule 3):
+- 4.4.3.3: wall-clock gate (14-day uptime)
+- 4.4.5.1, 4.4.5.4: Peder-only
+- 4.4.5.3: human-only (calendar)
+- 4.4.6.1, 4.4.6.2: Peder approval required
 
-## Hypothesis
+Remaining Ford-tractable: 4.4.2.2, 4.4.2.4, 4.4.2.5
 
-Adding a `_log_cycle_signals_to_bq()` helper that writes one `signals_log` row per trade order (or a HOLD heartbeat on no-order days) after Step 7 in `run_daily_cycle()` will populate the BQ audit trail and unblock the 4.4.2.4 drill once data accumulates.
+## BQ Data Audit (2026-04-24)
 
-## Plan
+All three items share the same blocker: paper trading is not generating real signals or trades.
 
-1. Add `import hashlib` to autonomous_loop.py
-2. Add `_log_cycle_signals_to_bq(bq, orders, today_str)` function:
-   - For each BUY/SELL order: write a publish event with signal_id, ticker, signal_type, factors, price
-   - If no orders: write a single HOLD heartbeat with ticker="$CYCLE"
-   - Best-effort: never raises, logs warnings on failure
-3. Call the helper after Step 7 (execute trades) in `run_daily_cycle()`
-4. Also call with a HOLD record after kill-switch halt (Step 5.5)
-5. Verify with `python -c "import ast; ast.parse(...)"`
+- `financial_reports.paper_portfolio`: NAV=$9,499.50, PnL=-5.0%, inception 2026-03-20 (35 days), 0 positions
+- `financial_reports.paper_trades`: 1 trade total (XOM BUY test_paper_trade 2026-03-28)
+- `financial_reports.paper_portfolio_snapshots`: 13 rows across 6 dates (Apr 14-22), all daily_pnl=0.0%, all trades_today=0
+- `financial_reports.signals_log`: table exists, 0 rows (no signals ever logged)
 
-## Success criteria
+## Verdict: BLOCKED
 
-- SC1: `autonomous_loop.py` parses without errors
-- SC2: `_log_cycle_signals_to_bq` writes to BQ via `bq.save_signal()`
-- SC3: Each daily cycle produces >= 1 signals_log row with event_kind="publish"
-- SC4: No duplicate trade execution (publish_signal NOT called)
-- SC5: Kill-switch halt path also logs a HOLD heartbeat
-- SC6: Best-effort write -- never raises on BQ failure
+Root cause: the autonomous loop (`backend/services/autonomous_loop.py`) is not generating real trading signals. The Cycle 50 commit wired BQ logging, but no signal generation has occurred since. With zero real trades and constant -5% PnL from a single test trade, Sharpe is undefined (zero daily return variance).
+
+4.4.2.2 requires Sharpe >= 0.82, which is impossible with current data.
+4.4.2.4 requires signals_log entries for every trading day -- table is empty.
+4.4.2.5 requires paper metrics within 20% of backtest -- divergence is total.
+
+All three items will remain blocked until the autonomous loop actively generates signals and executes paper trades.
