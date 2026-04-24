@@ -1,36 +1,77 @@
-# MAS Harness Cycle 51 -- 2026-04-24 -- Target: 4.4.2.2
+# BudgetDashboard TypeError hotfix (v2) -- Contract
 
-## Target Item
+## Step
 
-4.4.2.2 Paper Sharpe >= 0.82 (70% of backtest 1.17)
+Re-apply the BudgetDashboard TypeError fix that was silently reverted
+between the original 2026-04-21 hotfix landing and the 2026-04-24
+commit `1122a021`. The research brief + types.ts interfaces + api.ts
+helper WERE included in the commit; the actual `BudgetDashboard.tsx`
+component edits were NOT staged because they'd already been reverted
+by the same mechanism that reverted `main.py` pre-commit.
 
-## Pre-flight Audit
+## Research-gate summary
 
-Unchecked items: 4.4.2.2, 4.4.2.4, 4.4.2.5, 4.4.3.3, 4.4.5.1, 4.4.5.3, 4.4.5.4, 4.4.6.1, 4.4.6.2
+- Reuses the prior research brief:
+  `handoff/current/phase-bugfix-budget-dashboard-research-brief.md`
+  (committed in `1122a021`; 6 sources read-in-full on Next.js 16
+  middleware, Auth.js v5, React 19 error-boundary patterns; gate_passed=true).
+- Tier: simple -- identical root cause, identical fix, verified once.
+- Skip justification: re-applying a previously-gated fix; no new
+  research load-bearing.
 
-Filtered out (Rule 3):
-- 4.4.3.3: wall-clock gate (14-day uptime)
-- 4.4.5.1, 4.4.5.4: Peder-only
-- 4.4.5.3: human-only (calendar)
-- 4.4.6.1, 4.4.6.2: Peder approval required
+## Root cause (from prior brief, unchanged)
 
-Remaining Ford-tractable: 4.4.2.2, 4.4.2.4, 4.4.2.5
+`BudgetDashboard.tsx` uses raw `fetch()` against `/api/backtest/budget/summary`
+without a Bearer header. The endpoint is auth-gated -> 401 body
+`{"detail": "Authentication required"}` handed straight to `setData`.
+`data.summary` is undefined, and `s.total_monthly.toFixed(0)` at
+line 166 crashes.
 
-## BQ Data Audit (2026-04-24)
+## Fix (3 files, same as prior cycle)
 
-All three items share the same blocker: paper trading is not generating real signals or trades.
+1. `frontend/src/lib/types.ts` -- restore `BudgetData`, `BudgetSummary`,
+   `CostItem`, `MonthlyHistory` interfaces (currently absent per grep).
+2. `frontend/src/lib/api.ts` -- restore `getBudgetSummary()` function
+   (currently absent per grep).
+3. `frontend/src/components/BudgetDashboard.tsx` -- swap raw fetch for
+   `getBudgetSummary()` + add `if (!s) return <UnavailableBanner />`
+   null-guard after `const s = data.summary`.
 
-- `financial_reports.paper_portfolio`: NAV=$9,499.50, PnL=-5.0%, inception 2026-03-20 (35 days), 0 positions
-- `financial_reports.paper_trades`: 1 trade total (XOM BUY test_paper_trade 2026-03-28)
-- `financial_reports.paper_portfolio_snapshots`: 13 rows across 6 dates (Apr 14-22), all daily_pnl=0.0%, all trades_today=0
-- `financial_reports.signals_log`: table exists, 0 rows (no signals ever logged)
+## Immutable success criteria
 
-## Verdict: BLOCKED
+1. `BudgetDashboard.tsx` contains no raw `fetch(` call.
+2. `getBudgetSummary()` is exported from `frontend/src/lib/api.ts`.
+3. `BudgetData` interface is exported from `frontend/src/lib/types.ts`.
+4. `if (!s)` null-guard present in `BudgetDashboard.tsx` immediately
+   after `const s = data.summary`.
+5. `cd frontend && npx tsc --noEmit` exits 0 (ignoring pre-existing
+   `HarnessSprintTile.test.tsx` warning).
 
-Root cause: the autonomous loop (`backend/services/autonomous_loop.py`) is not generating real trading signals. The Cycle 50 commit wired BQ logging, but no signal generation has occurred since. With zero real trades and constant -5% PnL from a single test trade, Sharpe is undefined (zero daily return variance).
+Verification:
+```
+cd frontend && npx tsc --noEmit 2>&1 | grep -v HarnessSprintTile.test.tsx | grep -E 'error' | head -5 ; \
+! grep -E 'fetch\(\s*`\$\{process\.env\.NEXT_PUBLIC_API_URL' frontend/src/components/BudgetDashboard.tsx ; \
+grep -q 'getBudgetSummary' frontend/src/lib/api.ts ; \
+grep -q 'export interface BudgetData' frontend/src/lib/types.ts ; \
+grep -q 'if (!s)' frontend/src/components/BudgetDashboard.tsx ; \
+echo "all checks passed"
+```
 
-4.4.2.2 requires Sharpe >= 0.82, which is impossible with current data.
-4.4.2.4 requires signals_log entries for every trading day -- table is empty.
-4.4.2.5 requires paper metrics within 20% of backtest -- divergence is total.
+## Plan steps
 
-All three items will remain blocked until the autonomous loop actively generates signals and executes paper trades.
+1. Restore the 3 file edits (I have the exact content from the prior cycle's commit).
+2. Run `tsc --noEmit`.
+3. Run the 4 grep assertions.
+4. **Commit immediately** to prevent another silent revert.
+5. Q/A.
+
+## Anti-revert rationale
+
+The autonomous-harness cycles appear to `git checkout` working-tree
+files on their own schedule. Committing immediately turns edits into
+tracked history they can't drop silently.
+
+## References
+
+- Prior brief: `handoff/current/phase-bugfix-budget-dashboard-research-brief.md`
+- Prior harness_log entry: `phase-bugfix-budget-dashboard -- 2026-04-21 -- result=PASS`

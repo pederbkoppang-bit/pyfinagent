@@ -536,3 +536,11 @@ export function getPerfOptimizerStatus(): Promise<PerfOptimizerStatus> {
 export function getPerfOptimizerExperiments(): Promise<{ experiments: PerfExperiment[] }> {
   return apiFetch("/api/perf/optimize/experiments");
 }
+
+// ── Budget Dashboard ────────────────────────────────────────────
+// Re-applied 2026-04-24 after the prior hotfix was silently reverted
+// by an autonomous-harness cycle. See phase-bugfix-budget-dashboard
+// research brief for the full root-cause analysis.
+export function getBudgetSummary(): Promise<import("./types").BudgetData> {
+  return apiFetch("/api/backtest/budget/summary");
+}

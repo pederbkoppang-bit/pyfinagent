@@ -2,6 +2,46 @@
  * Shared TypeScript types for the PyFinAgent frontend.
  */
 
+// ── Budget Dashboard (/api/backtest/budget/summary) ──────────
+
+export interface CostItem {
+  category: string;
+  monthly_nok: number;
+  /** @deprecated Use monthly_nok */
+  monthly_usd?: number;
+  type: "fixed" | "estimated" | "projected" | "actual";
+  note: string;
+}
+
+export interface BudgetSummary {
+  total_fixed_monthly: number;
+  total_gcp_monthly: number;
+  total_monthly: number;
+  monthly_budget: number;
+  budget_utilization_pct: number;
+  runway_months: number;
+}
+
+export interface MonthlyHistory {
+  month: string;
+  gcp_net: number;
+  claude_max: number;
+  other_fixed: number;
+  total: number;
+  services: Record<string, number>;
+}
+
+export interface BudgetData {
+  currency: string;
+  currency_symbol: string;
+  fixed_costs: CostItem[];
+  gcp_costs: CostItem[];
+  monthly_history: MonthlyHistory[];
+  summary: BudgetSummary;
+  status: string;
+  data_source: string;
+}
+
 export interface AuthUser {
   id: string;
   name?: string | null;

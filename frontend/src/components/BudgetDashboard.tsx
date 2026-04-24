@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BentoCard } from "@/components/BentoCard";
+import { getBudgetSummary } from "@/lib/api";
+import type { BudgetData } from "@/lib/types";
 import {
   CurrencyDollar,
   TrendDown,
-  TrendUp,
   Gauge,
   Warning,
   CheckCircle,
   Clock,
 } from "@phosphor-icons/react";
 import {
-  BarChart,
   Bar,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -23,48 +22,7 @@ import {
   ComposedChart,
   TooltipProps,
   ReferenceLine,
-  Area,
 } from "recharts";
-
-// ── Types ───────────────────────────────────────────────────────
-
-interface CostItem {
-  category: string;
-  monthly_nok: number;
-  /** @deprecated Use monthly_nok */
-  monthly_usd?: number;
-  type: "fixed" | "estimated" | "projected" | "actual";
-  note: string;
-}
-
-interface BudgetSummary {
-  total_fixed_monthly: number;
-  total_gcp_monthly: number;
-  total_monthly: number;
-  monthly_budget: number;
-  budget_utilization_pct: number;
-  runway_months: number;
-}
-
-interface MonthlyHistory {
-  month: string;
-  gcp_net: number;
-  claude_max: number;
-  other_fixed: number;
-  total: number;
-  services: Record<string, number>;
-}
-
-interface BudgetData {
-  currency: string;
-  currency_symbol: string;
-  fixed_costs: CostItem[];
-  gcp_costs: CostItem[];
-  monthly_history: MonthlyHistory[];
-  summary: BudgetSummary;
-  status: string;
-  data_source: string;
-}
 
 // ── Type badge ──────────────────────────────────────────────────
 
@@ -125,12 +83,9 @@ export function BudgetDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/backtest/budget/summary`
-    )
-      .then((r) => r.json())
+    getBudgetSummary()
       .then(setData)
-      .catch(() => setError("Failed to load budget data"))
+      .catch((e: Error) => setError(e.message || "Failed to load budget data"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -152,6 +107,13 @@ export function BudgetDashboard() {
   }
 
   const s = data.summary;
+  if (!s) {
+    return (
+      <div className="rounded-lg border border-rose-500/30 bg-rose-950/20 px-4 py-3 text-sm text-red-400">
+        Budget summary unavailable (missing `summary` field in backend response)
+      </div>
+    );
+  }
   const sym = data.currency_symbol || "kr";
 
   return (
