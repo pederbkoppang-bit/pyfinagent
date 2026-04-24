@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-24 | `b60eb413` | fix: _default_bq_logger NULL type binding + complete Slack UAT |
 | 2026-04-24 | `dfd57ec1` | pre-prod: close BLOCKERS 1-3 + api.ts helpers + DRIFT status flips |
 | 2026-04-24 | `06a86333` | fix(BudgetDashboard): re-apply auth-aware fetch + null-guard (v2) |
 | 2026-04-24 | `1122a021` | feat: phase-10.5 sovereign UI + phase-15 observability tiles + phase-4.17 pre-go-live smoke test |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `e22d435e` | chore(masterplan): record MCP env-var-warning fix as phase-14 |
 | 2026-04-19 | `0e965175` | chore(mcp): silence alpaca missing-env-var warning with shell defaults |
 | 2026-04-19 | `41296694` | phase-12.4: Rainbow rehearsal smoketest — PHASE-12 COMPLETE |
-| 2026-04-19 | `d70efaf4` | phase-12.3: Rainbow canary SLO diff (+13 tests) |
 
 ---
 
+### v6.5.77 — _default_bq_logger NULL type binding + complete Slack UAT (2026-04-24)
+
+- **_default_bq_logger NULL type binding + complete Slack UAT**
 ### v6.5.76 — pre-prod: close BLOCKERS 1-3 + api.ts helpers + DRIFT status flips (2026-04-24)
 
 - **pre-prod: close BLOCKERS 1-3 + api.ts helpers + DRIFT status flips**
