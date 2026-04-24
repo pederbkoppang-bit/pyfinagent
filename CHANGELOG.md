@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-24 | `3a22f0ee` | plan: add phase-16 full-application end-to-end UAT to masterplan |
 | 2026-04-24 | `8131bb70` | observability: Risk Judge REJECT + sub-$50 skip log lines |
 | 2026-04-24 | `b60eb413` | fix: _default_bq_logger NULL type binding + complete Slack UAT |
 | 2026-04-24 | `dfd57ec1` | pre-prod: close BLOCKERS 1-3 + api.ts helpers + DRIFT status flips |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-20 | `baf79594` | chore: harness log entry for Cycle 30 (4.4.2.3 paper drawdown) |
 | 2026-04-20 | `9d12c053` | Phase 4.4.2.3: paper max drawdown < 15% verified via BQ evidence |
 | 2026-04-19 | `e22d435e` | chore(masterplan): record MCP env-var-warning fix as phase-14 |
-| 2026-04-19 | `0e965175` | chore(mcp): silence alpaca missing-env-var warning with shell defaults |
 
 ---
 
+### v6.5.79 — add phase-16 full-application end-to-end UAT to masterplan (2026-04-24)
+
+- **add phase-16 full-application end-to-end UAT to masterplan**
 ### v6.5.78 — Risk Judge REJECT + sub-$50 skip log lines (2026-04-24)
 
 - **Risk Judge REJECT + sub-$50 skip log lines**
