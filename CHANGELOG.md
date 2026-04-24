@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-24 | `1122a021` | feat: phase-10.5 sovereign UI + phase-15 observability tiles + phase-4.17 pre-go-live smoke test |
 | 2026-04-24 | `6eac048e` | Cycle 65: MAS harness NOOP -- 16 consecutive no-ops, all 9 remaining items blocked |
 | 2026-04-23 | `39115871` | chore: harness log entry for Cycle 50 (4.4.2.4 infra -- signals_log BQ write) |
 | 2026-04-23 | `d24ce83c` | Phase 4.4.2.4: wire autonomous loop to log signals to BQ signals_log |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-19 | `d70efaf4` | phase-12.3: Rainbow canary SLO diff (+13 tests) |
 | 2026-04-19 | `dfa16b80` | phase-12.2: promote.py + rollback.py Rainbow CLI (+11 tests) |
 | 2026-04-19 | `78fa5240` | phase-12.1: colored Deployment + Service manifests + README |
-| 2026-04-19 | `b513f5b3` | phase-12.0: Rainbow Deploys audit + scope boundary (cycle-2 PASS) |
 
 ---
 
+### v6.5.74 — phase-10.5 sovereign UI + phase-15 observability tiles + phase-4.17 p... (2026-04-24)
+
+- **phase-10.5 sovereign UI + phase-15 observability tiles + phase-4.17 pre-go-live smoke test**
 ### v6.5.73 — Cycle 65: MAS harness NOOP -- 16 consecutive no-ops, all 9 remaining... (2026-04-24)
 
 - **Cycle 65: MAS harness NOOP -- 16 consecutive no-ops, all 9 remaining items blocked**
