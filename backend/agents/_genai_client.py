@@ -63,7 +63,10 @@ def _build_client() -> Any:
             from google.oauth2 import service_account  # type: ignore
 
             info = json.loads(credentials_json)
-            credentials = service_account.Credentials.from_service_account_info(info)
+            credentials = service_account.Credentials.from_service_account_info(
+                info,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            )
         except Exception as exc:
             logger.warning(
                 "_genai_client: explicit credentials parse failed (%r); "

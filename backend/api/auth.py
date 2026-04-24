@@ -140,6 +140,18 @@ async def get_current_user(request: Request) -> Optional[dict]:
     """
     settings = get_settings()
 
+    # Localhost-only UAT bypass. Fires ONLY when:
+    #   (a) DEV_LOCALHOST_BYPASS=1 is set in env, AND
+    #   (b) the request.client.host is 127.0.0.1 / ::1 / localhost.
+    # Both conditions must hold; the env flag alone is insufficient.
+    # Intended for full-app UAT drills (phase-16) where CLI-level
+    # requests need to exercise authenticated endpoints. NEVER set
+    # this flag in production or on a publicly-reachable host.
+    if os.getenv("DEV_LOCALHOST_BYPASS") == "1":
+        client_host = request.client.host if request.client else ""
+        if client_host in ("127.0.0.1", "::1", "localhost"):
+            return {"email": "dev@localhost", "localhost_bypass": True}
+
     # Auth-secret-missing handling. Previously this returned None silently,
     # which created a latent "any request passes" bypass in any deployment
     # that accidentally shipped without AUTH_SECRET set (see phase-4.6.4

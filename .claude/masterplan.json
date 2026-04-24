@@ -5163,7 +5163,7 @@
         {
           "id": "16.1",
           "name": "Infrastructure readiness",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "verification": {
             "command": "launchctl list | grep -E 'com.pyfinagent.(backend|frontend|mas-harness)' && curl -sf http://localhost:8000/api/health && source .venv/bin/activate && python3 -c \"from google.cloud import bigquery; bigquery.Client(project='sunny-might-477607-p8').query('SELECT 1 AS ok').result()\" && df -h / | awk 'NR==2 && $4+0 > 5 {print \"disk_ok\"}'",

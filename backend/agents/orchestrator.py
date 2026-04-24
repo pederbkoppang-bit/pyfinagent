@@ -324,8 +324,13 @@ class AnalysisOrchestrator:
         if settings.gcp_credentials_json:
             # The shim itself re-parses credentials; exercising the parse here
             # keeps the original fail-loud behavior on malformed JSON at startup.
+            # Explicit cloud-platform scope is required for Vertex AI calls --
+            # the default no-scope credentials trigger invalid_scope OAuth errors.
             creds_info = json_io.loads(settings.gcp_credentials_json)
-            _ = service_account.Credentials.from_service_account_info(creds_info)
+            _ = service_account.Credentials.from_service_account_info(
+                creds_info,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            )
 
         _genai_client = get_genai_client()
         # _genai_client may be None if the SDK is absent; callsites degrade
@@ -574,8 +579,17 @@ class AnalysisOrchestrator:
             logger.info(f"RAG Agent: skipped for {ticker} (data store unavailable)")
             return {"text": "", "citations": []}
         logger.info(f"RAG Agent: analyzing documents for {ticker}")
-        prompt = prompts.get_rag_prompt(ticker, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.rag_client, prompt, "RAG")
+        try:
+            prompt = prompts.get_rag_prompt(ticker, fact_ledger=getattr(self, '_fact_ledger_json', ''))
+            response = self._generate_with_retry(self.rag_client, prompt, "RAG")
+        except Exception as exc:
+            # RAG is enrichment, not core -- degrade gracefully so downstream
+            # steps still run. Discovery Engine PERMISSION_DENIED and 404
+            # data-store-missing are the two operational failure modes;
+            # both return an empty {text, citations} so the pipeline continues.
+            logger.warning(f"RAG Agent: fail-open for {ticker} ({type(exc).__name__}: {exc})")
+            self._rag_available = False  # cache for the rest of this run
+            return {"text": "", "citations": []}
         if response is None:
             return {"text": "", "citations": []}
         # grounding_metadata is list[dict] from GeminiClient
