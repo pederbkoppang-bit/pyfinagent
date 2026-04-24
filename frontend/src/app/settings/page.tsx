@@ -748,6 +748,17 @@ export default function SettingsPage() {
                 accentColor="violet"
               />
             </div>
+            {/* Default-provider info banner */}
+            <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-sky-700/50 bg-sky-900/20 px-3.5 py-2.5 text-sm text-sky-200">
+              <div>
+                <span className="font-medium">Claude is the default</span> LLM provider
+                (Sonnet for standard, Opus for deep-think). Switch to Gemini by picking
+                a <span className="font-mono text-xs">gemini-*</span> model above.
+                Three features always use Gemini regardless of selection:
+                RAG (Vertex AI Search), Google Search Grounding (pipeline steps 4/5/9/10),
+                and Vertex structured-output schemas &mdash; these are Google-only APIs.
+              </div>
+            </div>
             {/* Context-limited warning banner */}
             {models.find((m) => m.model === form.gemini_model)?.context_limited && (
               <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-amber-700/50 bg-amber-900/20 px-3.5 py-2.5 text-sm text-amber-300">

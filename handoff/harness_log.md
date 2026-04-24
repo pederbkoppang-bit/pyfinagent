@@ -11878,6 +11878,30 @@ Infrastructure readiness -> Analysis pipeline live run -> MAS Orchestrator round
 **Next action:** when Peder is ready to execute the UAT, drive phase-16 step-by-step per the `uat-runbook.md`. Each sub-step runs under the normal harness cycle. Phase-16 flips `done` only after 16.15 Q/A PASS + Peder acknowledgment.
 
 
+---
+
+## task-49-claude-default-provider -- 2026-04-24 -- phase=pre-prod result=PASS (cycle-1)
+
+**Scope:** UAT-surfaced task. Make Claude the default LLM provider across pyfinagent with Gemini still switchable from the Settings UI. Driven by the discovery (phase-16.3) that the ANTHROPIC_API_KEY in backend/.env is an OAuth token (sk-ant-oat*), not a real API key, causing 401 on every Anthropic call. User directive: Claude primary, Gemini as robust fallback so Monday's cycle still runs.
+
+**Research gate:** tier=moderate, 5 sources read-in-full (floor 5), 13 URLs, recency scan, 8 internal files, gate_passed=true. Brief: `handoff/current/claude-default-research-brief.md`. External sources: LiteLLM routing docs, Portkey failover, multi-provider LLM orchestration 2026 guide, EdenAI + Artificial Analysis model comparisons. Internal audit confirmed `make_client()` already routes claude-* to ClaudeClient; only defaults + one hardcoded model name needed to change.
+
+**Fix (3 files, minimum scope):**
+1. `backend/config/settings.py` -- `gemini_model` default flipped to `claude-sonnet-4-6`; `deep_think_model` flipped to `claude-opus-4-6`. Field name preserved for backward compat (routing via `make_client` is model-prefix-driven, not field-driven).
+2. `backend/services/autonomous_loop.py::_run_claude_analysis` -- removed hardcoded `model="claude-sonnet-4-6"`; now reads `settings.gemini_model`. Guards non-Claude selections by raising ValueError which the existing `except Exception` wrapper at `_run_single_analysis:359-362` catches and falls through to Gemini orchestrator.
+3. `frontend/src/app/settings/page.tsx` -- added sky-themed info banner beneath the model pickers: "Claude is the default LLM provider (Sonnet for standard, Opus for deep-think). Switch to Gemini by picking a gemini-* model above. Three features always use Gemini regardless of selection: RAG, Google Search Grounding, Vertex structured-output schemas."
+
+**Verification (verbatim):** All 10 contract criteria green. settings loads with `std=claude-sonnet-4-6 deep=claude-opus-4-6`. zero_orders drill PASS. Frontend `npm run build` exit 0. Fallback code verified still present in `_run_single_analysis` (Main inspected via Python `inspect.getsource`).
+
+**Q/A verdict (qa_v1 PASS, no cycle-2):** 5-item harness-compliance audit green; 8 deterministic checks green. Two mutation-resistance tests fired correctly: (A) tampering `gemini_model` default back to `gemini-2.0-flash` -> grep criterion 1 FAIL; (B) deleting banner -> grep criterion 6 FAIL. Both restored. Q/A independently verified Gemini fallback path: `anthropic.AuthenticationError` inherits `Exception`, the `except Exception` wrapper catches it, AnalysisOrchestrator (Gemini) takes over. Monday's cycle will produce trades even with the OAuth-token 401.
+
+**Scope explicit:** Did NOT fix the OAuth-token-vs-API-key issue (manual user task -- paste real sk-ant-api03-* key from console.anthropic.com). Did NOT add a `default_provider` enum field (stayed model-name-driven per LiteLLM/Portkey production pattern). Did NOT rename the `gemini_model` field (cosmetic follow-up; field works for any provider now).
+
+**Carry-forward:** (a) Peder to rotate `ANTHROPIC_API_KEY` at console.anthropic.com to a real API key; after rotation Claude primary path becomes live. (b) Field rename `gemini_model -> standard_model` is a non-urgent cosmetic cleanup. (c) Monday cycle readiness: Gemini fallback path confirmed robust; GCP scope fix (f2e8ce28) + RAG datastore fix + BQ schema migration + this Claude-default change together give the autonomous loop a complete path.
+
+
+
+
 
 
 

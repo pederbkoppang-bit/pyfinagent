@@ -1,63 +1,60 @@
-# Full-App UAT masterplan phase -- Evaluator Critique
+# Claude as default LLM provider -- Evaluator Critique
 
-**Cycle:** task #48 -- 2026-04-24 -- PLANNING cycle (no application code changed)
+**Cycle:** task #49 -- 2026-04-24
 **Verdict:** PASS (single cycle, no respawn)
 **Q/A agent:** qa
 
 ## Harness-compliance audit (5-item, all PASS)
 
-1. Researcher before contract -- PASS. `full-app-uat-research-brief.md` exists, gate_passed=true, 6 sources (>=5).
-2. Contract before generate -- PASS. contract.md 18:48 < masterplan.json 18:51.
+1. Researcher before contract -- PASS. `claude-default-research-brief.md` gate_passed=true, 5 sources read-in-full, recency scan present.
+2. Contract before code -- PASS. contract.md 19:42:31 predates settings.py 19:42:38, autonomous_loop.py 19:42:59, page.tsx 19:43:11.
 3. experiment_results.md with verbatim output -- PASS.
-4. Log-last -- PASS (harness_log.md not yet appended for task #48).
+4. Log-last -- PASS (harness_log.md not yet appended for task #49).
 5. First-cycle Q/A -- PASS.
 
 ## Deterministic checks (all PASS)
 
 | # | Check | Result |
 |---|---|---|
-| 1 | phase-16 status=pending + 15 steps | PASS |
-| 2 | sub-step ids 16.1..16.15 in order | PASS |
-| 3 | every step has verification.command + criteria>=2 | PASS |
-| 4 | 16.9 contains "preload_macro" | PASS |
-| 5 | 16.4 contains "paper" + ("live keys"/"lockout") | PASS |
-| 6 | 16.15 contains "qa"/"Q/A" + "pass" | PASS |
-| 7 | masterplan.json valid JSON | PASS |
-| 8 | sibling-shape compatible with phase-12 | PASS |
-| 9 | uat-runbook.md exists | PASS |
+| 1 | `gemini_model` default = `claude-sonnet-4-6` | PASS (grep 1) |
+| 2 | `deep_think_model` default = `claude-opus-4-6` | PASS (grep 1) |
+| 3 | `_run_claude_analysis` no hardcoded `model="claude-sonnet-4-6"` | PASS (grep 0) |
+| 4 | Settings loads with Claude defaults | `std=claude-sonnet-4-6 deep=claude-opus-4-6` |
+| 5 | autonomous_loop imports clean | OK |
+| 6 | page.tsx contains "Claude is the default" banner | PASS (grep 1) |
+| 7 | zero_orders drill PASSes | PASS |
+| 8 | Frontend `npm run build` exits 0 | PASS |
 
-## Mutation-resistance
+## Mutation-resistance (both fired correctly)
 
-Q/A confirmed the contract-verification script IS mutation-resistant:
-the three gotcha assertions (preload_macro, paper+lockout, qa+PASS)
-each produce a specific AssertionError if the masterplan were tampered
-with. A future Q/A reproducing the same script on a drifted
-masterplan.json would FAIL on exactly the drifted criterion.
+A) **Tampered `gemini_model` default back to `gemini-2.0-flash`** --
+   criterion 1 grep returned 0, FAIL detected as expected. Restored.
+
+B) **Deleted "Claude is the default" banner from page.tsx** --
+   criterion 6 grep returned 0, FAIL detected as expected. Restored.
 
 ## LLM judgment
 
-- Inventory is comprehensive (analysis pipeline, MAS orchestration,
-  harness, backtest, paper trading, self-improving loops, kill switch,
-  HITL gate, Slack, scheduled jobs, frontend, auth, OWASP,
-  observability, drills-aggregate, harness dry-run, Go/No-Go verdict).
-- 16.5 self-improving-loop sub-step is substantive (3 concrete
-  behavioral probes + no_regressions), not a rubber-stamp.
-- 16.15 immutable Q/A PASS gate is strong -- "Main spawned a fresh qa
-  subagent" + "qa returned verdict == PASS (not CONDITIONAL, not
-  FAIL)" + "Peder acknowledged the verdict in-session before status
-  is flipped to done" + "Q/A PASS is immutable -- self-evaluation is
-  forbidden".
+- **Fallback-to-Gemini path verified.** `_run_single_analysis` lines
+  359-362: `try: _run_claude_analysis` -> `except Exception` -> logs
+  warning -> `AnalysisOrchestrator.run_full_analysis` (Gemini). A 401
+  raises `anthropic.AuthenticationError` which inherits `Exception`,
+  so the fallback engages. Monday's cycle will produce trades via
+  Gemini even if the Anthropic OAuth-token 401 persists.
+- **Banner accurate.** "Claude is the default" + Gemini switchable +
+  3 Gemini-only features (RAG, grounding, structured-output schemas)
+  matches the actual code behavior.
+- **Scope honesty.** Deferring the OAuth-token-vs-API-key rotation to
+  a manual Peder action is defensible because the Gemini fallback
+  keeps Monday's cycle alive. Exactly the user's explicit request
+  ("Monday's cycle should work via Gemini").
 
-## Carry-forward nits (NOT blockers)
+## Minor observation (not blocker)
 
-Q/A flagged two low-priority subsystem omissions worth a future revision:
-- No explicit sub-step for PostToolUse hook-chain verification
-  (auto-changelog, archive-handoff).
-- No explicit BigQuery MCP read-only smoke test as its own step
-  (currently folded into 16.1 BQ round-trip).
-
-Both are "raise as nits" per Q/A, not blocking. Add in a future
-revision when the UAT runs and we learn what's actually useful.
+The field name `gemini_model` now holds a Claude model string by
+default. Harmless at runtime (routing is via `make_client`
+model-prefix dispatch) but would confuse a future reader. A follow-up
+cycle can rename the field to `standard_model`; not urgent.
 
 ## Violated criteria
 
@@ -65,6 +62,4 @@ None.
 
 ## Verdict
 
-PASS. Main appends harness_log.md, commits + pushes, flips task #48 to
-completed. phase-16 in masterplan.json stays `pending` until Peder is
-ready to execute the UAT.
+PASS. Main appends harness_log.md, commits + pushes, flips task #49 done.

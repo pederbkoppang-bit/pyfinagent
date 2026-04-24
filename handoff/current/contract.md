@@ -1,116 +1,86 @@
-# Contract -- Full-App End-to-End UAT masterplan phase (task #48)
+# Contract -- Claude as default LLM provider (task #49)
 
 ## Research gate
 
-- Researcher spawn: 2026-04-24. Brief at `handoff/current/full-app-uat-research-brief.md`.
-- JSON envelope: tier=moderate, external_sources_read_in_full=6 (floor 5), urls_collected=16, recency_scan_performed=true, internal_files_inspected=47, gate_passed=true.
-- Brief produced a complete inventory (18 subsystem categories, file-anchored) + external patterns (Anthropic Harness Design, Google SRE Pre-Launch Checklist, Exactpro Algo Test Harness, XUAT-Copilot multi-agent UAT, Galileo AI-agent readiness).
-- Phase id `phase-12` is already taken (Rainbow Deploys, done). Using `phase-16` (unused).
+- Researcher spawn: 2026-04-24. Brief at `handoff/current/claude-default-research-brief.md`.
+- JSON envelope: tier=moderate, external_sources_read_in_full=5 (floor 5), urls_collected=13, recency_scan=true, internal_files_inspected=8, gate_passed=true.
+- Routing layer already supports Claude via `backend/agents/llm_client.py::make_client` (claude-* prefix -> ClaudeClient). Only defaults + one hard-coded model name in autonomous_loop.py need to change.
+- Recommended defaults: `standard_model = claude-sonnet-4-6`, `deep_think_model = claude-opus-4-6`.
+- Monday fallback confirmed robust: `_run_single_analysis` catches any Claude failure (including 401 on the current OAuth-token key) and falls through to `AnalysisOrchestrator.run_full_analysis` on Gemini.
+- Three features stay Gemini-only regardless of selection: RAG (Vertex AI Search), Google Search Grounding, Vertex structured-output schemas. Already guarded by `_resolve_gemini` at `orchestrator.py:310-315`.
+- Stay model-name-driven (no new `default_provider` enum) per LiteLLM/Portkey production pattern.
 
-## Top 3 gotchas the plan MUST handle
+## Hypothesis
 
-1. `cache.preload_macro()` before any backtest step (else silent hang ~40min).
-2. Assert `ALPACA_PAPER_TRADE=true` + `execution_router._refuse_live_keys()` DID NOT short-circuit to live fills before any paper-cycle exercise.
-3. `phase-16.15` (Go/No-Go verdict) MUST have "Q/A spawn and PASS verdict" as an immutable success criterion. Self-evaluation is forbidden.
+Today the defaults are Gemini, the autonomous_loop hard-codes `claude-sonnet-4-6` without touching settings, and the settings page's primary-model picker lacks Claude options. Two net changes land Claude-as-default without breaking the Monday Gemini fallback:
 
-## Planned change
+1. Flip the default model names in `settings.py` to Claude.
+2. Make `autonomous_loop._run_claude_analysis` honor `settings.gemini_model` (renamed conceptually to "standard model" but the field name stays for backward compat) instead of hard-coding a Claude model.
+3. Expose Claude models in the settings UI + keep the Gemini toggle.
 
-Write ONE new masterplan entry `phase-16` with 15 sub-steps and immutable
-success-criteria. The JSON envelope-shape must match sibling phases
-(phase-4.17 and phase-12 reviewed). Each sub-step has:
-- `id` (e.g., `16.1`), `name`, `status=pending`
-- `harness_required: true` on steps that need MAS oversight (mid-to-late
-  steps; inventory/infra checks can be lighter)
-- `verification.command` (copy-pasteable shell/python one-liner)
-- `verification.success_criteria` (immutable — list of pass conditions)
-- `contract: null`, `retry_count: 0` (to match sibling shape)
+## Planned change (MINIMUM scope)
 
-Sub-step skeleton (titles + the critical verification check each):
+### 1. `backend/config/settings.py` -- flip defaults
 
-| Sub-step | Name | Critical check |
-|---|---|---|
-| 16.1 | Infrastructure readiness | launchctl list for backend/frontend/mas-harness all active; `curl /api/health` 200; BQ `SELECT 1` round-trip; disk free > 5GB |
-| 16.2 | Analysis pipeline (Layer 1) | POST /api/analysis/start + poll /status until done; assert report.json written + BQ `analysis_results` row inserted |
-| 16.3 | MAS Orchestrator (Layer 2) live round-trip | Spawn planner->evaluator round; assert reflection loop produced >=1 iteration; DecisionTrace written |
-| 16.4 | Autonomous paper-trading dry-run | Force one `run_autonomous_cycle()` NOW; assert: loop refused live keys, `paper_portfolio_snapshots` row appended, observability logs (BLOCKER-1 + task #47 patterns) visible |
-| 16.5 | Self-improving loops | MetaCoordinator.decide() round + 1-iteration of skill_optimizer + 1-iteration of perf_optimizer; assert each wrote its TSV/BQ result |
-| 16.6 | Kill switch + risk guards | fire pause via API -> assert all cycles skip -> resume -> run zero_orders_drill -> PASS; confirm execution_router lockout intact |
-| 16.7 | HITL C/C gate end-to-end | re-run hitl_gate_drill.py + real-BQ row verification (SELECT FROM strategy_deployments_log WHERE strategy_id LIKE 'UAT-%') |
-| 16.8 | Slack bot + scheduled jobs | Post a `[UAT-16.8]` test message; assert it lands in the UAT channel; enumerate APScheduler jobs + assert each has a valid next_run_time |
-| 16.9 | Backtest + quant optimizer | `cache.preload_macro()` first (critical); 2-iter walkforward run; assert Sharpe > 0 AND experiments TSV appended |
-| 16.10 | Frontend full-page sweep | `curl /` then `curl /backtest /paper-trading /reports /sovereign /signals /performance /settings /agents /login` — all 200 + contain non-empty HTML body |
-| 16.11 | Auth + OWASP | JWE session roundtrip via `/api/auth/session`; 401 on `/api/paper/*` without token; `X-Frame-Options: DENY` header on all GET responses |
-| 16.12 | Observability | `cycle_health.py::gather_health()` returns fresh < 86400s; perf_tracker has rows; harness_log tail non-empty |
-| 16.13 | Drills aggregate gate | `python scripts/go_live_drills/aggregate_gate_check.py` exit 0 AND zero_orders + revert_hygiene + hitl_gate all green |
-| 16.14 | Harness MAS full cycle dry-run | `python scripts/harness/run_harness.py --cycles 1 --iterations-per-cycle 3 --dry-run` exits 0; all 5 handoff files produced |
-| 16.15 | **Go/No-Go verdict** | spawn `qa` subagent with full UAT evidence bundle; Q/A returns PASS/CONDITIONAL/FAIL; PASS required to flip phase-16 done. **Q/A spawn + PASS verdict is an immutable criterion.** |
+```python
+gemini_model: str = Field("claude-sonnet-4-6", description="Standard-tier model for enrichment + debate. Claude default; Gemini still available via settings UI. Field name kept for backward compat.")
+deep_think_model: str = Field("claude-opus-4-6", description="Deep-think-tier model for Moderator/Critic/Synthesis/RiskJudge. Claude default. Gemini still selectable.")
+```
 
-## NOT in scope this cycle
+### 2. `backend/services/autonomous_loop.py::_run_claude_analysis` -- honor settings
 
-- Executing the UAT. This cycle PLANS it — the UAT itself runs as a future cycle against the added masterplan entries.
-- Changing any application code.
-- Flipping any existing masterplan statuses.
-- Renumbering or consolidating existing phases.
+Replace hard-coded `model="claude-sonnet-4-6"` and the raw `anthropic.Anthropic` client with routing via `make_client(settings.gemini_model)`. If `make_client` returns a non-Anthropic client (user switched to Gemini), the function still works because `generate_content` is provider-agnostic. Robust fallback stays intact (the `except Exception` wrapper at `autonomous_loop.py:_run_single_analysis` catches any failure and falls through to Gemini orchestrator).
 
-## Immutable success criteria (for THIS planning cycle)
+### 3. `backend/api/settings_api.py` -- ensure `_VALID_MODELS` lists Claude
 
-1. `.claude/masterplan.json` contains a top-level entry with `id: "phase-16"` whose `status` is `pending`.
-2. That entry has exactly 15 sub-steps with ids `16.1` through `16.15`.
-3. Every sub-step has a non-null `verification.command` string.
-4. Every sub-step has a `verification.success_criteria` list of length >= 2.
-5. Sub-step `16.9` verification.command contains the literal string `preload_macro` (gotcha #1).
-6. Sub-step `16.4` success_criteria contains the literal string `paper` AND the literal string `live keys` or `lockout` (gotcha #2).
-7. Sub-step `16.15` success_criteria contains the literal string `Q/A` or `qa` and the literal string `PASS` (gotcha #3).
-8. JSON validity: `python -c "import json; json.loads(open('.claude/masterplan.json').read())"` exits 0.
-9. Sibling-shape compatibility: the new phase entry has the same top-level keys as sibling `phase-12` (id, status, name, description, created_at, steps).
-10. `handoff/current/uat-runbook.md` exists with a one-page operator summary of phase-16.
+Already lists them per research. Verify + leave.
+
+### 4. `frontend/src/app/settings/page.tsx` -- surface Claude options + Gemini-only notice
+
+- Ensure the primary-model + deep-think dropdowns include `claude-opus-4-6`, `claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5` from the backend `/api/settings/models` catalog.
+- Add a one-paragraph info banner under the model pickers: "Claude is the default LLM provider. Switch to Gemini by selecting a gemini-* model above. Three features always use Gemini regardless of selection: RAG (Vertex AI Search), Google Search Grounding, and Vertex structured-output schemas -- these are Google-only APIs."
+
+### 5. NOT in scope
+
+- Fixing the OAuth-token-vs-API-key issue in backend/.env. That's a Peder-only task (generate real key at console.anthropic.com). Code-side fallback to Gemini keeps the system functional.
+- Adding a `default_provider` enum field. Staying model-name-driven per LiteLLM production pattern.
+- Changing Gemini-only features (RAG/grounding/structured-output).
+
+## Immutable success criteria
+
+1. `settings.py` `gemini_model` default is `claude-sonnet-4-6` (grep-able).
+2. `settings.py` `deep_think_model` default is `claude-opus-4-6` (grep-able).
+3. `autonomous_loop.py::_run_claude_analysis` does NOT contain the literal string `"claude-sonnet-4-6"` as an arg to `client.messages.create(model=...)` (i.e., uses the settings value, not a hardcoded model).
+4. `settings.py` imports clean: `python -c "from backend.config.settings import Settings; s=Settings(); print(s.gemini_model, s.deep_think_model)"` prints the Claude defaults.
+5. `autonomous_loop.py` imports clean after edit.
+6. `frontend/src/app/settings/page.tsx` contains the string "Claude is the default" (from the info banner) OR a clearly visible "Claude" label in the dropdown defaults.
+7. Zero-orders drill still PASSes (`python scripts/go_live_drills/zero_orders_drill.py` prints PASS) -- behavior unchanged on the code path.
+8. Gemini fallback still fires on ANTHROPIC_API_KEY 401: a synthetic test that invokes `_run_single_analysis` with bad creds must still return a non-None analysis (via Gemini fallback path).
+9. Frontend build passes: `npm run build` in `frontend/` returns exit 0.
+10. All syntax: `ast.parse` on each edited .py file exits 0.
 
 ## Verification command (Q/A reproduces)
 
 ```bash
 source .venv/bin/activate
-python3 -c "
-import json
-mp = json.loads(open('.claude/masterplan.json').read())
-def walk(n):
-    if isinstance(n, dict):
-        if n.get('id') == 'phase-16': return n
-        for v in n.values():
-            r = walk(v)
-            if r: return r
-    elif isinstance(n, list):
-        for i in n:
-            r = walk(i)
-            if r: return r
-p16 = walk(mp)
-assert p16 is not None, 'phase-16 missing'
-assert p16.get('status') == 'pending', f'status={p16.get(\"status\")}'
-steps = p16.get('steps', [])
-ids = [s.get('id') for s in steps]
-assert ids == [f'16.{i}' for i in range(1,16)], f'ids={ids}'
-for s in steps:
-    v = s.get('verification') or {}
-    assert v.get('command'), f'{s[\"id\"]} missing verification.command'
-    assert isinstance(v.get('success_criteria'), list) and len(v['success_criteria']) >= 2, f'{s[\"id\"]} criteria<2'
-# gotcha checks
-s9 = next(s for s in steps if s['id']=='16.9')
-assert 'preload_macro' in s9['verification']['command'], '16.9 missing preload_macro'
-s4 = next(s for s in steps if s['id']=='16.4')
-s4_text = ' '.join(s4['verification']['success_criteria']).lower()
-assert 'paper' in s4_text and ('live keys' in s4_text or 'lockout' in s4_text), '16.4 missing paper/lockout'
-s15 = next(s for s in steps if s['id']=='16.15')
-s15_text = ' '.join(s15['verification']['success_criteria']).lower()
-assert ('q/a' in s15_text or 'qa' in s15_text) and 'pass' in s15_text, '16.15 missing qa/pass'
-print('ALL_ASSERTS_OK')
-"
-test -f handoff/current/uat-runbook.md
+grep -c 'Field("claude-sonnet-4-6"' backend/config/settings.py
+grep -c 'Field("claude-opus-4-6"' backend/config/settings.py
+grep -c '"claude-sonnet-4-6"' backend/services/autonomous_loop.py
+# -> 0 for hardcoded; acceptable to match as default-fallback literal if unavoidable, but not as client.messages.create model arg
+python -c "from backend.config.settings import Settings; s=Settings(); print('std=',s.gemini_model,' deep=',s.deep_think_model)"
+python -c "import ast; ast.parse(open('backend/config/settings.py').read()); ast.parse(open('backend/services/autonomous_loop.py').read()); print('SYNTAX_OK')"
+python -c "from backend.services import autonomous_loop; print('IMPORT_OK')"
+python scripts/go_live_drills/zero_orders_drill.py
+grep -c "Claude is the default" frontend/src/app/settings/page.tsx
+cd frontend && npm run build 2>&1 | tail -5
 ```
 
-All must succeed for PASS.
+All must succeed (counts per criterion, drill PASS, build green).
 
 ## References
 
-- `handoff/current/full-app-uat-research-brief.md` (research deliverable)
-- `.claude/masterplan.json` (target file)
-- `handoff/current/uat-runbook.md` (new deliverable — operator summary)
-- Sibling reference for shape: phase-12 (Rainbow Deploys, done)
+- `handoff/current/claude-default-research-brief.md` (research deliverable)
+- `backend/config/settings.py` (target)
+- `backend/services/autonomous_loop.py` (target)
+- `frontend/src/app/settings/page.tsx` (target)
+- Model catalog: `backend/config/model_tiers.py`

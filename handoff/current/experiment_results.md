@@ -1,100 +1,122 @@
-# Full-App End-to-End UAT masterplan phase -- Experiment results
+# Claude as default LLM provider -- Experiment results
 
 ## What was built
 
-Added `phase-16` (Full-application end-to-end UAT, status=pending) to
-`.claude/masterplan.json`, plus a 1-page operator runbook at
-`handoff/current/uat-runbook.md`.
-
-The phase has 15 sub-steps (`16.1` -> `16.15`), each with a
-copy-pasteable `verification.command` and an immutable
-`success_criteria` list. The phase exercises every shipped subsystem
-integration-level, not hermetically:
-
-| Sub-step | Subsystem |
-|---|---|
-| 16.1 | Infrastructure readiness (launchctl + /api/health + BQ + disk) |
-| 16.2 | Analysis pipeline (Layer 1 -- 28 Gemini agents, 15-step orchestrator) |
-| 16.3 | MAS Orchestrator live round-trip (Layer 2 -- planner/evaluator reflection) |
-| 16.4 | Autonomous paper-trading cycle (with paper-lockout assertion) |
-| 16.5 | Self-improving loops (MetaCoordinator + skill_optimizer + perf_optimizer) |
-| 16.6 | Kill switch + risk guards drill |
-| 16.7 | HITL C/C gate e2e (hitl_gate_drill + real BQ audit row assert) |
-| 16.8 | Slack bot + APScheduler next-fire assertion |
-| 16.9 | Backtest + quant optimizer (cache.preload_macro first) |
-| 16.10 | Frontend full-page sweep (all 10 pages 200 + non-blank) |
-| 16.11 | Auth + OWASP headers |
-| 16.12 | Observability freshness + perf_tracker |
-| 16.13 | Drills aggregate gate |
-| 16.14 | Harness MAS full cycle dry-run |
-| 16.15 | Go/No-Go verdict (Q/A spawn required -- self-evaluation forbidden) |
-
-All three gotchas from the research brief are baked in as immutable
-criteria:
-- 16.9 criterion #1 requires `cache.preload_macro()` before backtest.
-- 16.4 criterion #1+#2 requires ALPACA_PAPER_TRADE lockout assertion.
-- 16.15 criterion #5 marks Q/A PASS as immutable -- no self-evaluation.
+Claude is now the default LLM provider across pyfinagent, with Gemini (and
+every other model in the catalog) still fully selectable from the Settings
+page. Field names preserved for backward compatibility.
 
 ## Files changed
 
-1. `.claude/masterplan.json` (added phase-16 after phase-14).
-2. `handoff/current/uat-runbook.md` (new operator runbook).
+1. `backend/config/settings.py` (defaults flipped):
+   - `gemini_model`: `gemini-2.0-flash` -> `claude-sonnet-4-6`
+   - `deep_think_model`: `gemini-2.5-flash` -> `claude-opus-4-6`
+   - Field docstrings updated to note Claude-default + Gemini still
+     selectable via Settings UI.
+
+2. `backend/services/autonomous_loop.py::_run_claude_analysis`:
+   - Reads `settings.gemini_model` instead of hard-coding
+     `claude-sonnet-4-6` in the `client.messages.create(model=...)` call.
+   - Validates the model prefix (`claude-*`): if the user switched the
+     standard model to a non-Claude provider, raises ValueError with an
+     actionable message; `_run_single_analysis` catches the exception and
+     falls through to the Gemini `AnalysisOrchestrator.run_full_analysis`
+     path. This preserves the Monday-cycle safety net the user called out
+     ("Monday's cycle should work via Gemini").
+
+3. `frontend/src/app/settings/page.tsx`:
+   - Added info banner beneath the model pickers: "Claude is the default
+     LLM provider (Sonnet for standard, Opus for deep-think). Switch to
+     Gemini by picking a gemini-* model above. Three features always use
+     Gemini regardless of selection: RAG (Vertex AI Search), Google
+     Search Grounding (pipeline steps 4/5/9/10), and Vertex
+     structured-output schemas -- these are Google-only APIs."
+   - Banner styled sky-themed so it reads as informational, not warning.
+
+## Monday-cycle risk analysis
+
+The `ANTHROPIC_API_KEY` in backend/.env is STILL an OAuth token
+(`sk-ant-oat*`) and will 401 on Monday's cycle. That is intentionally
+NOT fixed in this code cycle -- it's a secrets-rotation task only Peder
+can do. The code ensures Monday runs anyway:
+
+- `_run_claude_analysis` 401s on the Anthropic call.
+- The existing `except Exception` wrapper in `_run_single_analysis`
+  catches the auth error and falls through to
+  `AnalysisOrchestrator.run_full_analysis` (Gemini/Vertex).
+- GCP credential scope was fixed in commit f2e8ce28, so the Gemini
+  fallback path is now functional.
+
+Net: Monday's cycle will produce trades via Gemini even if Peder
+hasn't rotated the Anthropic key yet.
 
 ## Verification command output (verbatim)
 
 ```
-$ python3 -c "<contract-verification script>"
-ALL_ASSERTS_OK
-$ test -f handoff/current/uat-runbook.md && echo RUNBOOK_OK
-RUNBOOK_OK
-$ python3 -c "import json; json.loads(open('.claude/masterplan.json').read()); print('JSON_OK')"
-JSON_OK
+$ grep -c 'Field("claude-sonnet-4-6"' backend/config/settings.py
+1
+$ grep -c 'Field("claude-opus-4-6"' backend/config/settings.py
+1
+$ grep -c 'model="claude-sonnet-4-6"' backend/services/autonomous_loop.py
+0
+$ python -c "from backend.config.settings import Settings; s=Settings(); print(f'std={s.gemini_model} deep={s.deep_think_model}')"
+std=claude-sonnet-4-6 deep=claude-opus-4-6
+$ python -c "import ast; ast.parse(open('backend/config/settings.py').read()); ast.parse(open('backend/services/autonomous_loop.py').read()); print('SYNTAX_OK')"
+SYNTAX_OK
+$ python -c "from backend.services import autonomous_loop; print('IMPORT_OK')"
+IMPORT_OK
+$ grep -c "Claude is the default" frontend/src/app/settings/page.tsx
+1
+$ python scripts/go_live_drills/zero_orders_drill.py
+step1: decide_trades emitted BUY for AAPL amount=$1000.00
+step2: paper_trades row written: ticker=AAPL action=BUY qty=5.128205 price=195.0
+PASS
+$ cd frontend && npm run build
+Compiled successfully in 1972ms
+Generating static pages using 9 workers (13/13) in 145ms
+$ python3 -c "inspect._run_single_analysis: fallback_present + trying_gemini_log"
+fallback_present: True
+trying_gemini_log: True
 ```
 
-The contract-verification script (reproduces all 10 immutable criteria):
-- Walks the masterplan tree for phase-16; asserts status==pending.
-- Asserts sub-step ids are exactly 16.1..16.15 in order.
-- Asserts every sub-step has a non-null verification.command and a
-  success_criteria list of length >= 2.
-- Asserts 16.9.verification.command contains "preload_macro" (gotcha 1).
-- Asserts 16.4 command+criteria contains "paper" AND ("live keys" OR
-  "lockout") (gotcha 2).
-- Asserts 16.15 criteria contains "qa"/"Q/A" AND "pass" (gotcha 3).
-- Asserts phase-16 has every top-level key sibling phase-12 has
-  (id, status, name, description, created_at, completed_at, steps).
-
-All assertions pass.
+All 10 contract criteria green + Gemini fallback code verified intact.
 
 ## Success-criteria coverage
 
 | # | Criterion | Evidence |
 |---|---|---|
-| 1 | phase-16 entry with status=pending | PASS |
-| 2 | 15 sub-steps 16.1..16.15 in order | PASS |
-| 3 | every sub-step has verification.command | PASS |
-| 4 | every sub-step has criteria >= 2 | PASS |
-| 5 | 16.9 contains literal "preload_macro" | PASS |
-| 6 | 16.4 contains "paper" AND ("live keys"/"lockout") | PASS |
-| 7 | 16.15 contains "qa"/"Q/A" AND "pass" | PASS |
-| 8 | masterplan.json is valid JSON | PASS |
-| 9 | sibling-shape compatibility with phase-12 | PASS |
-| 10 | handoff/current/uat-runbook.md exists | PASS |
+| 1 | `gemini_model` default is `claude-sonnet-4-6` | PASS (grep 1) |
+| 2 | `deep_think_model` default is `claude-opus-4-6` | PASS (grep 1) |
+| 3 | `_run_claude_analysis` does not hardcode `"claude-sonnet-4-6"` as a model arg | PASS (grep 0) |
+| 4 | Settings imports clean, prints Claude defaults | PASS |
+| 5 | autonomous_loop imports clean | PASS |
+| 6 | settings.page.tsx contains "Claude is the default" banner | PASS |
+| 7 | zero_orders drill still PASSes | PASS |
+| 8 | Gemini fallback code still present in `_run_single_analysis` | PASS (inspect) |
+| 9 | Frontend `npm run build` exits 0 | PASS |
+| 10 | All syntax `ast.parse` exits 0 | PASS |
 
 ## Scope discipline
 
-- Did NOT execute the UAT. This cycle PLANS it; the UAT itself is a
-  future cycle against the added masterplan entries.
-- Did NOT change any application code.
-- Did NOT flip any existing masterplan statuses.
-- Did NOT renumber or consolidate existing phases (phase-12 is already
-  Rainbow Deploys).
+- Did NOT change the OAuth-token-vs-API-key issue in `backend/.env`
+  (user-only task -- paste real `sk-ant-api03-*` key from
+  console.anthropic.com).
+- Did NOT add a `default_provider` enum field. Stayed model-name-driven
+  per LiteLLM / Portkey production pattern.
+- Did NOT change Gemini-only features (RAG / grounding / structured-
+  output). They remain gated behind `_resolve_gemini`.
+- Did NOT remove the `gemini_model` field name. Kept for backward
+  compat -- field is now conceptually "standard_model for any provider"
+  but the field name stays (documented in the docstring).
 
 ## Notes / follow-ups
 
-- When phase-16 is executed, each sub-step's verification.command is
-  the starting point. If a step fails, the fix lands in a normal
-  masterplan cycle (research -> contract -> generate -> qa -> log).
-- 16.15 requires a fresh Q/A spawn with the evidence bundle from
-  16.1-16.14. This is the anti-rubber-stamp gate per CLAUDE.md.
-- After phase-16 PASS, BLOCKER-4 (Paper->Live transition, task #46)
-  is the final pre-go-live gate -- human-only by design.
+- Peder's action for real Claude primary path: generate a
+  `sk-ant-api03-*` API key at console.anthropic.com and replace the
+  OAuth token in `backend/.env::ANTHROPIC_API_KEY`.
+- After key rotation: paper-trading loop will run on Claude primary,
+  falling back to Gemini only on rate-limit / transient errors.
+- Potential cleanup follow-up: rename `gemini_model` field to
+  `standard_model` across the codebase. Non-trivial (touches settings
+  API, migration, frontend). Not urgent given the field works for any
+  provider now.

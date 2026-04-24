@@ -421,7 +421,20 @@ async def _run_claude_analysis(ticker: str, settings: Settings) -> dict:
     else:
         momentum_60d = 0
 
-    # Claude analysis
+    # Resolve the standard model from settings (Claude default; Gemini/others
+    # selectable from the Settings UI). Field name `gemini_model` is preserved
+    # for backward compat; routing layer (make_client) dispatches by prefix.
+    model_name = (settings.gemini_model or "claude-sonnet-4-6").strip()
+
+    # Only the direct-Anthropic path is exercised here. Non-Claude model
+    # selections flow through _run_single_analysis's Gemini fallback.
+    if not model_name.startswith("claude-"):
+        raise ValueError(
+            f"standard model '{model_name}' is not a Claude model; "
+            f"_run_claude_analysis is Claude-only. Gemini/other paths run via the "
+            f"AnalysisOrchestrator fallback in _run_single_analysis."
+        )
+
     api_key = settings.anthropic_api_key or os.getenv("ANTHROPIC_API_KEY", "")
     if not api_key:
         raise ValueError("No ANTHROPIC_API_KEY available")
@@ -451,7 +464,7 @@ Respond in this exact JSON format:
 
     response = await asyncio.to_thread(
         client.messages.create,
-        model="claude-sonnet-4-6",
+        model=model_name,
         max_tokens=200,
         messages=[{"role": "user", "content": prompt}],
     )

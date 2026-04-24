@@ -5181,7 +5181,7 @@
         {
           "id": "16.2",
           "name": "Analysis pipeline (Layer 1) -- one full ticker run",
-          "status": "pending",
+          "status": "in-progress",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python3 -c \"from backend.tasks.analysis import run_analysis_pipeline; r = run_analysis_pipeline('AAPL', run_id='uat-16.2'); print('ok' if r and r.get('final_score') is not None else 'fail')\"",
@@ -5194,12 +5194,13 @@
             ]
           },
           "contract": null,
-          "retry_count": 0
+          "retry_count": 0,
+          "notes": "5 bugs discovered + fixed + committed (f2e8ce28): GCP scope, Discovery Engine IAM+datastore, RAG fail-open, localhost bypass, BQ schema +15 cols. Live analysis run pending Vertex AI 429 quota recovery; will reverify once BQ row lands."
         },
         {
           "id": "16.3",
           "name": "MAS Orchestrator (Layer 2) live round-trip",
-          "status": "pending",
+          "status": "in-progress",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python3 -c \"from backend.agents.multi_agent_orchestrator import run_orchestrated_round; out = run_orchestrated_round(ticker='AAPL', max_iterations=2); assert out.get('iterations', 0) >= 1; print('ok')\"",
@@ -5210,7 +5211,8 @@
             ]
           },
           "contract": null,
-          "retry_count": 0
+          "retry_count": 0,
+          "notes": "MAJOR UAT finding: backend/.env ANTHROPIC_API_KEY is a Claude-Max OAuth token (sk-ant-oat*), not an API key (sk-ant-api03*). Anthropic SDK rejects with 401 invalid x-api-key. Affects autonomous_loop Claude primary path, MAS orchestrator classifier, ticket queue processor. Gemini fallback path exists; with GCP scope fix (commit f2e8ce28) it should cover paper-trading on Monday. Root fix: user to paste valid sk-ant-api03-* key in backend/.env. MAS orchestrator fail-open path itself works (returns ClassificationResult with reasoning=error, confidence=0.4) so degraded service is correct."
         },
         {
           "id": "16.4",

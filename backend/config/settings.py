@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     gcp_credentials_json: str = Field("", description="Service account JSON string (optional, falls back to ADC)")
 
     # --- Vertex AI ---
-    gemini_model: str = Field("gemini-2.0-flash", description="Gemini model name for standard agents")
-    deep_think_model: str = Field("gemini-2.5-flash", description="Model for deep-think agents (Moderator, Risk Judge, Synthesis, Critic). Recommend gemini-2.5-flash for extended thinking.")
+    gemini_model: str = Field("claude-sonnet-4-6", description="Standard-tier model for enrichment + debate. Claude is the default; Gemini still selectable via the Settings UI. Field name preserved for backward compat -- applies to any provider via backend/agents/llm_client.py::make_client routing.")
+    deep_think_model: str = Field("claude-opus-4-6", description="Deep-think-tier model for Moderator/Critic/Synthesis/RiskJudge. Claude default. Gemini 2.5 Flash (gemini-2.5-flash) still selectable via the Settings UI.")
     enable_thinking: bool = Field(False, description="Enable extended thinking on judge agents (requires gemini-2.5-flash or later)")
     thinking_budget_critic: int = Field(8192, description="Thinking budget for Critic agent (tokens)")
     thinking_budget_moderator: int = Field(8192, description="Thinking budget for Moderator agent (tokens)")
