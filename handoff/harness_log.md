@@ -11851,6 +11851,35 @@ Plus PRE-PROD NICE items (Slack UAT, api.ts helper restore) and DRIFT entries (p
 **Carry-forward:** (a) REJECT-override semantic fix is a follow-up; (b) observability is now sufficient to diagnose Monday's 0-or-N trades outcome without guessing; (c) if Monday cycle logs a REJECT path, we'll know Risk Judge needs attention, not Claude's prompt.
 
 
+---
+
+## task-48-full-app-uat-planning -- 2026-04-24 -- phase=pre-prod result=PASS (cycle-1, PLANNING only)
+
+**Scope:** Add a masterplan phase that exercises every shipped subsystem end-to-end pre-go-live. Planning cycle only -- no application code changed. Deliverables: new `phase-16` in `.claude/masterplan.json` (status=pending, 15 sub-steps) + operator runbook at `handoff/current/uat-runbook.md`.
+
+**Research gate:** tier=moderate, 6 sources read in full (floor 5), 16 URLs, recency scan performed, 47 internal files inspected, gate_passed=true. Brief: `handoff/current/full-app-uat-research-brief.md`. External sources: Anthropic Harness Design, Google SRE Pre-Launch Checklist, Google ML Production Deployment Testing, Galileo AI-agent readiness, Exactpro Algo Test Harness, XUAT-Copilot multi-agent UAT.
+
+**Structure (15 sub-steps, 16.1 -> 16.15):**
+Infrastructure readiness -> Analysis pipeline live run -> MAS Orchestrator round-trip -> Autonomous paper cycle (with lockout assert) -> Self-improving loops -> Kill switch drill -> HITL C/C gate e2e -> Slack + crons -> Backtest + quant opt (preload_macro required) -> Frontend full-page sweep -> Auth + OWASP -> Observability -> Drills aggregate gate -> Harness MAS dry-run -> Go/No-Go verdict (Q/A spawn mandatory).
+
+**3 gotchas baked in as immutable criteria:**
+1. 16.9 criterion #1: `cache.preload_macro()` before backtest (prevents silent ~40min hang).
+2. 16.4 criterion #1+#2: `ALPACA_PAPER_TRADE` lockout + `execution_router._refuse_live_keys()` assertion before paper cycle.
+3. 16.15 criterion #5: Q/A PASS is immutable, self-evaluation forbidden.
+
+**Verification (verbatim):** All 10 contract criteria green. The contract-verification script walks the masterplan tree, confirms phase-16 pending with 15 sub-steps, validates each sub-step has a command + >=2 criteria, and asserts the 3 gotcha strings are present in the right sub-steps. Sibling-shape compatibility with phase-12 (Rainbow Deploys) verified.
+
+**Q/A verdict (qa_v1 PASS, no cycle-2):** 5-item harness-compliance audit green; 9 deterministic checks green. Mutation-resistance: Q/A confirmed the three gotcha assertions would each produce specific AssertionErrors on tampering. 16.5 self-improving-loop sub-step ruled substantive (3 behavioral probes + no_regressions, not a rubber-stamp). 16.15 Q/A PASS gate ruled strong (4 criteria + immutable self-eval ban).
+
+**Scope explicit:** Did NOT execute the UAT. Did NOT change application code. Did NOT flip existing statuses. Did NOT renumber phases.
+
+**Carry-forward (nits flagged by Q/A, not blockers):** (a) no explicit sub-step for PostToolUse hook-chain verification; (b) no explicit BigQuery MCP read-only smoke test as its own sub-step (folded into 16.1). Raise in a future revision when UAT execution reveals what's actually useful.
+
+**Next action:** when Peder is ready to execute the UAT, drive phase-16 step-by-step per the `uat-runbook.md`. Each sub-step runs under the normal harness cycle. Phase-16 flips `done` only after 16.15 Q/A PASS + Peder acknowledgment.
+
+
+
+
 
 
 

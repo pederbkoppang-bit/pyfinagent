@@ -1,91 +1,116 @@
-# Contract -- FOLLOW-UP: Risk Judge observability + brief envelope (task #47)
+# Contract -- Full-App End-to-End UAT masterplan phase (task #48)
 
 ## Research gate
 
-- Researcher spawn: 2026-04-24. Brief at `handoff/current/observability-patch-research-brief.md`.
-- JSON envelope: tier=simple, external_sources_read_in_full=5 (floor 5), urls_collected=12, recency_scan_performed=true, internal_files_inspected=6, gate_passed=true.
-- Internal confirmation: (a) `backend/services/portfolio_manager.py:153-158` stores `risk_judge_decision` on the candidate but never logs it; (b) `portfolio_manager.py:176-177` silently `continue`s on `buy_amount < 50`; (c) `handoff/current/virtual-fund-readiness-research-brief.md` ends at line 97 with no JSON envelope.
-- Style precedent: `autonomous_loop.py:248` logger.warning("Dropping BUY for {ticker}: price=...") landed in BLOCKER-1 -- same class of silent-drop guard, match style.
+- Researcher spawn: 2026-04-24. Brief at `handoff/current/full-app-uat-research-brief.md`.
+- JSON envelope: tier=moderate, external_sources_read_in_full=6 (floor 5), urls_collected=16, recency_scan_performed=true, internal_files_inspected=47, gate_passed=true.
+- Brief produced a complete inventory (18 subsystem categories, file-anchored) + external patterns (Anthropic Harness Design, Google SRE Pre-Launch Checklist, Exactpro Algo Test Harness, XUAT-Copilot multi-agent UAT, Galileo AI-agent readiness).
+- Phase id `phase-12` is already taken (Rainbow Deploys, done). Using `phase-16` (unused).
 
-## Hypothesis
+## Top 3 gotchas the plan MUST handle
 
-If the Monday autonomous cycle produces zero trades again, today we have no way to distinguish (a) Claude's new prompt still returns HOLD too often vs (b) Claude returns BUY but Risk Judge REJECTs it vs (c) Risk Judge approves but position size falls below $50 minimum. The fix is two well-placed log lines that make each of those failure modes observable in the backend log.
+1. `cache.preload_macro()` before any backtest step (else silent hang ~40min).
+2. Assert `ALPACA_PAPER_TRADE=true` + `execution_router._refuse_live_keys()` DID NOT short-circuit to live fills before any paper-cycle exercise.
+3. `phase-16.15` (Go/No-Go verdict) MUST have "Q/A spawn and PASS verdict" as an immutable success criterion. Self-evaluation is forbidden.
 
-## Planned change (MINIMUM scope)
+## Planned change
 
-### 1. `backend/services/portfolio_manager.py` -- two log lines
+Write ONE new masterplan entry `phase-16` with 15 sub-steps and immutable
+success-criteria. The JSON envelope-shape must match sibling phases
+(phase-4.17 and phase-12 reviewed). Each sub-step has:
+- `id` (e.g., `16.1`), `name`, `status=pending`
+- `harness_required: true` on steps that need MAS oversight (mid-to-late
+  steps; inventory/infra checks can be lighter)
+- `verification.command` (copy-pasteable shell/python one-liner)
+- `verification.success_criteria` (immutable — list of pass conditions)
+- `contract: null`, `retry_count: 0` (to match sibling shape)
 
-**Gap (a):** inside the candidate-build loop, right after `buy_candidates.append(...)` at line 158, log when Risk Judge returned anything other than APPROVE_FULL:
+Sub-step skeleton (titles + the critical verification check each):
 
-```python
-decision = risk_assessment.get("decision", "") or ""
-if decision and decision != "APPROVE_FULL":
-    logger.info(
-        "buy_candidate risk_judge decision=%s ticker=%s position_pct=%s final_score=%s",
-        decision, ticker, position_pct, round(float(final_score or 0), 3),
-    )
-```
-
-**Gap (b):** replace the silent `if buy_amount < 50: continue` at line 176-177 with a logged skip:
-
-```python
-if buy_amount < 50:
-    logger.warning(
-        "Skipping BUY %s: buy_amount=%.2f below $50 minimum (nav=%.2f position_pct=%s available_cash=%.2f)",
-        cand["ticker"], buy_amount, nav, position_pct, available_cash,
-    )
-    continue
-```
-
-### 2. `handoff/current/virtual-fund-readiness-research-brief.md`
-
-Append the mandatory JSON envelope per `.claude/rules/research-gate.md`. The brief content is already good; the envelope was omitted. Exact content:
-
-```json
-{
-  "tier": "moderate",
-  "external_sources_read_in_full": 6,
-  "snippet_only_sources": 5,
-  "urls_collected": 11,
-  "recency_scan_performed": true,
-  "internal_files_inspected": 5,
-  "gate_passed": true
-}
-```
+| Sub-step | Name | Critical check |
+|---|---|---|
+| 16.1 | Infrastructure readiness | launchctl list for backend/frontend/mas-harness all active; `curl /api/health` 200; BQ `SELECT 1` round-trip; disk free > 5GB |
+| 16.2 | Analysis pipeline (Layer 1) | POST /api/analysis/start + poll /status until done; assert report.json written + BQ `analysis_results` row inserted |
+| 16.3 | MAS Orchestrator (Layer 2) live round-trip | Spawn planner->evaluator round; assert reflection loop produced >=1 iteration; DecisionTrace written |
+| 16.4 | Autonomous paper-trading dry-run | Force one `run_autonomous_cycle()` NOW; assert: loop refused live keys, `paper_portfolio_snapshots` row appended, observability logs (BLOCKER-1 + task #47 patterns) visible |
+| 16.5 | Self-improving loops | MetaCoordinator.decide() round + 1-iteration of skill_optimizer + 1-iteration of perf_optimizer; assert each wrote its TSV/BQ result |
+| 16.6 | Kill switch + risk guards | fire pause via API -> assert all cycles skip -> resume -> run zero_orders_drill -> PASS; confirm execution_router lockout intact |
+| 16.7 | HITL C/C gate end-to-end | re-run hitl_gate_drill.py + real-BQ row verification (SELECT FROM strategy_deployments_log WHERE strategy_id LIKE 'UAT-%') |
+| 16.8 | Slack bot + scheduled jobs | Post a `[UAT-16.8]` test message; assert it lands in the UAT channel; enumerate APScheduler jobs + assert each has a valid next_run_time |
+| 16.9 | Backtest + quant optimizer | `cache.preload_macro()` first (critical); 2-iter walkforward run; assert Sharpe > 0 AND experiments TSV appended |
+| 16.10 | Frontend full-page sweep | `curl /` then `curl /backtest /paper-trading /reports /sovereign /signals /performance /settings /agents /login` — all 200 + contain non-empty HTML body |
+| 16.11 | Auth + OWASP | JWE session roundtrip via `/api/auth/session`; 401 on `/api/paper/*` without token; `X-Frame-Options: DENY` header on all GET responses |
+| 16.12 | Observability | `cycle_health.py::gather_health()` returns fresh < 86400s; perf_tracker has rows; harness_log tail non-empty |
+| 16.13 | Drills aggregate gate | `python scripts/go_live_drills/aggregate_gate_check.py` exit 0 AND zero_orders + revert_hygiene + hitl_gate all green |
+| 16.14 | Harness MAS full cycle dry-run | `python scripts/harness/run_harness.py --cycles 1 --iterations-per-cycle 3 --dry-run` exits 0; all 5 handoff files produced |
+| 16.15 | **Go/No-Go verdict** | spawn `qa` subagent with full UAT evidence bundle; Q/A returns PASS/CONDITIONAL/FAIL; PASS required to flip phase-16 done. **Q/A spawn + PASS verdict is an immutable criterion.** |
 
 ## NOT in scope this cycle
 
-- Changing the REJECT -> `position_pct=0` -> 10% default-fallback behavior at `portfolio_manager.py:171`. That's an actual semantic bug (REJECT is silently overridden) but fixing it changes trading behavior. Observability first; semantic fix is a separate cycle.
-- Changing the $50 minimum position threshold.
-- Restarting the backend (already restarted post-BLOCKER-1; will pick up these log lines on the NEXT restart or next cycle — we'll restart after commit).
+- Executing the UAT. This cycle PLANS it — the UAT itself runs as a future cycle against the added masterplan entries.
+- Changing any application code.
+- Flipping any existing masterplan statuses.
+- Renumbering or consolidating existing phases.
 
-## Immutable success criteria
+## Immutable success criteria (for THIS planning cycle)
 
-1. `grep -c "buy_candidate risk_judge decision" backend/services/portfolio_manager.py` >= 1.
-2. `grep -c "below \$50 minimum" backend/services/portfolio_manager.py` >= 1 (the log message literal).
-3. `grep -c "gate_passed" handoff/current/virtual-fund-readiness-research-brief.md` >= 1.
-4. `python -c "import ast; ast.parse(open('backend/services/portfolio_manager.py').read())"` exits 0.
-5. `python -c "from backend.services import portfolio_manager; print('ok')"` prints ok.
-6. Drill re-run: `python scripts/go_live_drills/zero_orders_drill.py` still prints PASS (no regression in the synthetic BUY path).
-7. A synthetic test that invokes `decide_trades` with (a) Risk Judge decision=REJECT and (b) nav small enough that buy_amount < 50 produces at least one log record each (captured via caplog/records).
+1. `.claude/masterplan.json` contains a top-level entry with `id: "phase-16"` whose `status` is `pending`.
+2. That entry has exactly 15 sub-steps with ids `16.1` through `16.15`.
+3. Every sub-step has a non-null `verification.command` string.
+4. Every sub-step has a `verification.success_criteria` list of length >= 2.
+5. Sub-step `16.9` verification.command contains the literal string `preload_macro` (gotcha #1).
+6. Sub-step `16.4` success_criteria contains the literal string `paper` AND the literal string `live keys` or `lockout` (gotcha #2).
+7. Sub-step `16.15` success_criteria contains the literal string `Q/A` or `qa` and the literal string `PASS` (gotcha #3).
+8. JSON validity: `python -c "import json; json.loads(open('.claude/masterplan.json').read())"` exits 0.
+9. Sibling-shape compatibility: the new phase entry has the same top-level keys as sibling `phase-12` (id, status, name, description, created_at, steps).
+10. `handoff/current/uat-runbook.md` exists with a one-page operator summary of phase-16.
 
 ## Verification command (Q/A reproduces)
 
 ```bash
 source .venv/bin/activate
-grep -c "buy_candidate risk_judge decision" backend/services/portfolio_manager.py
-grep -c "below \$50 minimum" backend/services/portfolio_manager.py
-grep -c "gate_passed" handoff/current/virtual-fund-readiness-research-brief.md
-python -c "import ast; ast.parse(open('backend/services/portfolio_manager.py').read())" && echo SYNTAX_OK
-python -c "from backend.services import portfolio_manager; print('IMPORT_OK')"
-python scripts/go_live_drills/zero_orders_drill.py
-# Synthetic log-capture test -- see experiment_results for one-shot Python.
+python3 -c "
+import json
+mp = json.loads(open('.claude/masterplan.json').read())
+def walk(n):
+    if isinstance(n, dict):
+        if n.get('id') == 'phase-16': return n
+        for v in n.values():
+            r = walk(v)
+            if r: return r
+    elif isinstance(n, list):
+        for i in n:
+            r = walk(i)
+            if r: return r
+p16 = walk(mp)
+assert p16 is not None, 'phase-16 missing'
+assert p16.get('status') == 'pending', f'status={p16.get(\"status\")}'
+steps = p16.get('steps', [])
+ids = [s.get('id') for s in steps]
+assert ids == [f'16.{i}' for i in range(1,16)], f'ids={ids}'
+for s in steps:
+    v = s.get('verification') or {}
+    assert v.get('command'), f'{s[\"id\"]} missing verification.command'
+    assert isinstance(v.get('success_criteria'), list) and len(v['success_criteria']) >= 2, f'{s[\"id\"]} criteria<2'
+# gotcha checks
+s9 = next(s for s in steps if s['id']=='16.9')
+assert 'preload_macro' in s9['verification']['command'], '16.9 missing preload_macro'
+s4 = next(s for s in steps if s['id']=='16.4')
+s4_text = ' '.join(s4['verification']['success_criteria']).lower()
+assert 'paper' in s4_text and ('live keys' in s4_text or 'lockout' in s4_text), '16.4 missing paper/lockout'
+s15 = next(s for s in steps if s['id']=='16.15')
+s15_text = ' '.join(s15['verification']['success_criteria']).lower()
+assert ('q/a' in s15_text or 'qa' in s15_text) and 'pass' in s15_text, '16.15 missing qa/pass'
+print('ALL_ASSERTS_OK')
+"
+test -f handoff/current/uat-runbook.md
 ```
+
+All must succeed for PASS.
 
 ## References
 
-- `handoff/current/observability-patch-research-brief.md` (research deliverable)
-- `backend/services/portfolio_manager.py` (target file)
-- `handoff/current/virtual-fund-readiness-research-brief.md` (envelope append target)
-- `backend/services/autonomous_loop.py:248` (style precedent from BLOCKER-1)
-- `backend/agents/schemas.py:118` (Risk Judge decision enum)
+- `handoff/current/full-app-uat-research-brief.md` (research deliverable)
+- `.claude/masterplan.json` (target file)
+- `handoff/current/uat-runbook.md` (new deliverable — operator summary)
+- Sibling reference for shape: phase-12 (Rainbow Deploys, done)

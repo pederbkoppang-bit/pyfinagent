@@ -5154,6 +5154,278 @@
       ]
     },
     {
+      "id": "phase-16",
+      "status": "pending",
+      "name": "Full-application end-to-end UAT (pre-go-live)",
+      "description": "Integration-level UAT that exercises every shipped subsystem -- analysis pipeline (Layer 1), MAS orchestrator (Layer 2), autonomous paper-trading loop, self-improving loops (skill_optimizer, perf_optimizer, quant_optimizer, meta_coordinator, outcome_tracker, monthly_champion_challenger), kill switch + risk guards, HITL Champion/Challenger gate, Slack bot + APScheduler jobs, backtest + quant optimizer, all 10 frontend pages, auth + OWASP headers, observability, drills-aggregate gate, and the harness MAS itself. Every sub-step proves the subsystem works plugged into the rest of the system right now, not as a hermetic unit. Culminates in a Go/No-Go verdict that REQUIRES a fresh Q/A PASS before phase-16 can flip done. Planned after the pre-production audit + BLOCKERS 1-3 + observability patches landed on 2026-04-24 (commits dfd57ec1, b60eb413, 8131bb70). Gotchas baked into criteria: cache.preload_macro before backtest (16.9), ALPACA_PAPER_TRADE assertion before paper cycle (16.4), immutable Q/A PASS requirement (16.15).",
+      "created_at": "2026-04-24T16:50:08.652240+00:00",
+      "steps": [
+        {
+          "id": "16.1",
+          "name": "Infrastructure readiness",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "launchctl list | grep -E 'com.pyfinagent.(backend|frontend|mas-harness)' && curl -sf http://localhost:8000/api/health && source .venv/bin/activate && python3 -c \"from google.cloud import bigquery; bigquery.Client(project='sunny-might-477607-p8').query('SELECT 1 AS ok').result()\" && df -h / | awk 'NR==2 && $4+0 > 5 {print \"disk_ok\"}'",
+            "success_criteria": [
+              "launchctl shows com.pyfinagent.backend + com.pyfinagent.frontend + com.pyfinagent.mas-harness all active",
+              "curl http://localhost:8000/api/health returns HTTP 200 with status=ok",
+              "BigQuery round-trip SELECT 1 succeeds within 30s",
+              "free disk space on / is >= 5GB",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.2",
+          "name": "Analysis pipeline (Layer 1) -- one full ticker run",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"from backend.tasks.analysis import run_analysis_pipeline; r = run_analysis_pipeline('AAPL', run_id='uat-16.2'); print('ok' if r and r.get('final_score') is not None else 'fail')\"",
+            "success_criteria": [
+              "pipeline completes without exception",
+              "final_score is a number in [0, 10]",
+              "a row was inserted into analysis_results BQ table for run_id='uat-16.2'",
+              "DecisionTrace contains at least the 15 canonical pipeline steps",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.3",
+          "name": "MAS Orchestrator (Layer 2) live round-trip",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"from backend.agents.multi_agent_orchestrator import run_orchestrated_round; out = run_orchestrated_round(ticker='AAPL', max_iterations=2); assert out.get('iterations', 0) >= 1; print('ok')\"",
+            "success_criteria": [
+              "planner -> evaluator reflection loop produces at least 1 iteration",
+              "evaluator_critique.md-shaped dict returned with verdict in {PASS, CONDITIONAL, FAIL}",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.4",
+          "name": "Autonomous paper-trading cycle (live code path)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"import os; assert os.getenv('ALPACA_PAPER_TRADE','true').lower() != 'false', 'live keys active -- paper lockout breached'; from backend.services.autonomous_loop import run_autonomous_cycle; import asyncio; r = asyncio.run(run_autonomous_cycle()); print('ok' if r else 'fail')\"",
+            "success_criteria": [
+              "ALPACA_PAPER_TRADE is not 'false' (live keys lockout intact)",
+              "execution_router._refuse_live_keys() is not bypassed -- paper mode confirmed",
+              "run_autonomous_cycle() completes; snapshot row appended to paper_portfolio_snapshots",
+              "backend log for the cycle contains either 'Trade decisions:' summary OR at least one of the observability lines (buy_candidate risk_judge / Dropping BUY / Skipping BUY) proving BLOCKER-1 + task #47 patches are loaded",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.5",
+          "name": "Self-improving loops (MetaCoordinator + optimizers)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"from backend.agents.meta_coordinator import MetaCoordinator; from backend.db.bigquery_client import BigQueryClient; from backend.services.perf_tracker import get_perf_tracker; from backend.config.settings import Settings; bq = BigQueryClient(Settings()); h = MetaCoordinator.gather_health(bq_client=bq, perf_tracker=get_perf_tracker(), paper_snapshots=bq.get_paper_snapshots(limit=30)); print('ok' if h else 'fail')\"",
+            "success_criteria": [
+              "MetaCoordinator.gather_health returns a non-empty dict",
+              "skill_optimizer can complete 1 dry-run iteration without exception",
+              "perf_optimizer appends at least one row to perf_results.tsv OR returns a no-op reason",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.6",
+          "name": "Kill switch + risk guards drill",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 scripts/go_live_drills/kill_switch_test.py && python3 scripts/go_live_drills/zero_orders_drill.py",
+            "success_criteria": [
+              "kill_switch_test.py exits 0",
+              "pause -> flatten -> resume transitions all produce audit rows",
+              "zero_orders_drill.py exits 0 and prints PASS (execution path intact post-pause)",
+              "execution_router lockout still refuses PKLIVE* keys",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.7",
+          "name": "HITL Champion/Challenger gate end-to-end",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 scripts/go_live_drills/hitl_gate_drill.py && python3 -c \"from google.cloud import bigquery; bq = bigquery.Client(project='sunny-might-477607-p8'); n = next(bq.query(\\\"SELECT COUNT(*) AS n FROM \\`sunny-might-477607-p8.pyfinagent_pms.strategy_deployments_log\\` WHERE strategy_id LIKE 'UAT-%' OR strategy_id LIKE 'DRILL-%'\\\").result()).n; assert n >= 1, f'no UAT/DRILL BQ audit rows (got {n})'; print(f'rows={n}')\"",
+            "success_criteria": [
+              "hitl_gate_drill.py exits 0 and prints PASS",
+              "BQ strategy_deployments_log has at least 1 row with strategy_id matching UAT-% or DRILL-% (proves _default_bq_logger wired end-to-end)",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.8",
+          "name": "Slack bot + scheduled jobs next-fire assertion",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"from slack_sdk import WebClient; from backend.config.settings import Settings; s=Settings(); wc=WebClient(token=s.slack_bot_token); r=wc.chat_postMessage(channel='C0ANTGNNK8D', text='[UAT-16.8] Slack bot liveness check -- ignore.'); print('ok' if r['ok'] else 'fail')\"",
+            "success_criteria": [
+              "chat_postMessage returns ok=True for the [UAT-16.8] test message",
+              "APScheduler (via backend) has at least one cron job with a next_run_time in the future",
+              "launchd agents com.pyfinagent.mas-harness and .autoresearch both have StartInterval set and last_exit_status == 0 OR a recent non-error run",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.9",
+          "name": "Backtest + quant optimizer short loop (preload_macro required)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"from backend.backtest.cache import preload_macro; preload_macro(); from backend.backtest.backtest_engine import run_backtest; r = run_backtest(params={'iterations': 2, 'tickers': ['AAPL','MSFT'], 'lookback_days': 60}); assert r.get('sharpe') is not None; print('sharpe=', r['sharpe'])\"",
+            "success_criteria": [
+              "cache.preload_macro() is invoked BEFORE run_backtest (else silent hang ~40min -- critical gotcha)",
+              "2-iteration walkforward completes without exception",
+              "resulting Sharpe is a finite number",
+              "quant_optimizer experiments TSV appended with at least one row",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.10",
+          "name": "Frontend full-page sweep (all 10 pages)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "for p in / /backtest /paper-trading /reports /sovereign /signals /performance /settings /agents /login; do curl -sf -o /dev/null -w '%{http_code} %{size_download}\\n' http://localhost:3000$p || exit 1; done",
+            "success_criteria": [
+              "all 10 pages return HTTP 200",
+              "every page response body size is > 1024 bytes (non-blank)",
+              "no page redirects to /login except /login itself and auth-required pages in unauthenticated state",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.11",
+          "name": "Auth + OWASP headers",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "curl -sf http://localhost:8000/api/auth/session -o /dev/null -w '%{http_code}\\n' && curl -s -o /dev/null -w '%{http_code}\\n' http://localhost:8000/api/paper/status && curl -sI http://localhost:8000/api/health | grep -iE 'x-frame-options|x-content-type-options|referrer-policy'",
+            "success_criteria": [
+              "/api/auth/session returns 200",
+              "/api/paper/status returns 401 without bearer token",
+              "X-Frame-Options: DENY header present on /api/health response",
+              "X-Content-Type-Options: nosniff header present",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.12",
+          "name": "Observability freshness + perf_tracker",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"from backend.services.cycle_health import compute_cycle_health; from backend.db.bigquery_client import BigQueryClient; from backend.config.settings import Settings; h = compute_cycle_health(BigQueryClient(Settings())); print(h)\" && test -s handoff/harness_log.md",
+            "success_criteria": [
+              "cycle_health.compute_cycle_health returns a dict with both paper_trades and paper_portfolio_snapshots freshness fields",
+              "snapshot freshness is < 86400 seconds (one cycle within last 24h)",
+              "handoff/harness_log.md exists and is non-empty",
+              "perf_tracker has at least one endpoint with recorded p50/p95",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.13",
+          "name": "Drills aggregate gate",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 scripts/go_live_drills/aggregate_gate_check.py && python3 scripts/go_live_drills/zero_orders_drill.py && python3 scripts/go_live_drills/revert_hygiene_drill.py && python3 scripts/go_live_drills/hitl_gate_drill.py",
+            "success_criteria": [
+              "aggregate_gate_check.py exits 0",
+              "zero_orders_drill.py PASS",
+              "revert_hygiene_drill.py PASS (all 12 static + dynamic checks)",
+              "hitl_gate_drill.py PASS (all 4 steps)",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.14",
+          "name": "Harness MAS full cycle dry-run",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 scripts/harness/run_harness.py --cycles 1 --iterations-per-cycle 3 --dry-run && ls handoff/current/contract.md handoff/current/experiment_results.md handoff/current/evaluator_critique.md handoff/harness_log.md",
+            "success_criteria": [
+              "run_harness.py --dry-run exits 0",
+              "all 5 handoff artifacts present: contract.md, experiment_results.md, evaluator_critique.md, harness_log.md, masterplan.json status snapshot",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "16.15",
+          "name": "Go/No-Go verdict (Q/A spawn required -- NO self-evaluation)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "echo 'This step MUST be flipped to done only via: (1) Main spawns qa subagent with bundle of 16.1-16.14 evidence; (2) qa returns verdict=PASS; (3) Main appends harness_log.md with the verdict; (4) Peder reviews + confirms.'",
+            "success_criteria": [
+              "Main spawned a fresh qa subagent with the 16.1-16.14 evidence bundle",
+              "qa returned verdict == PASS (not CONDITIONAL, not FAIL)",
+              "harness_log.md appended with the Go/No-Go verdict row referencing the qa output",
+              "Peder acknowledged the verdict in-session before status is flipped to done",
+              "Q/A PASS is immutable -- self-evaluation is forbidden",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        }
+      ],
+      "completed_at": null
+    },
+    {
       "id": "phase-5",
       "name": "Multi-Market Expansion (15-step)",
       "status": "pending",
