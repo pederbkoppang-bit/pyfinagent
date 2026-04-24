@@ -5441,6 +5441,158 @@
       "notes": "13 of 15 sub-steps done, 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A; Gemini fallback covers until ANTHROPIC_API_KEY rotated)."
     },
     {
+      "id": "phase-17",
+      "status": "pending",
+      "completed_at": null,
+      "name": "Alpaca MCP server integration (3 scopes, staged)",
+      "description": "Integrate the official Alpaca MCP server (https://github.com/alpacahq/alpaca-mcp-server, https://alpaca.markets/mcp-server) as a unified tool surface for our LLM agents across market-data, account, positions, orders, options, and news. 3 scopes, staged: scope-1 harness-only read-only (17.2-17.4), scope-2 paper-trading backend swap (17.5-17.7), scope-3 live handoff to BLOCKER-4 (17.8). .mcp.json already registers alpaca-mcp-server==2.0.1 with paper-mode env substitution; scope-1 is 70% pre-wired. Traditional PK* paper keys needed (see 17.2); OAuth2 Broker-API creds pasted 2026-04-24 are orthogonal and stored separately for a future Broker integration.",
+      "created_at": "2026-04-24T20:30:01.076097+00:00",
+      "steps": [
+        {
+          "id": "17.1",
+          "name": "Research gate + contract for Alpaca MCP integration",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/current/alpaca-mcp-research-brief.md && test -f handoff/current/contract.md && grep -c gate_passed handoff/current/alpaca-mcp-research-brief.md",
+            "success_criteria": [
+              "alpaca-mcp-research-brief.md exists with gate_passed=true",
+              "contract.md present for this cycle",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "17.2",
+          "name": "Paste traditional PK paper keys into backend/.env",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"from dotenv import dotenv_values; e=dotenv_values('backend/.env'); k=e.get('ALPACA_API_KEY_ID','') or ''; pt=e.get('ALPACA_PAPER_TRADE','true'); assert k.startswith('PK') and not k.startswith('PKLIVE'), f'key bad prefix: {k[:6]}'; assert pt.lower() != 'false', f'paper_trade={pt} must be != false'; print('OK paper keys present, ALPACA_PAPER_TRADE=true')\"",
+            "success_criteria": [
+              "ALPACA_API_KEY_ID env starts with 'PK' (not 'PKLIVE')",
+              "ALPACA_API_SECRET_KEY env is non-empty",
+              "ALPACA_PAPER_TRADE env is 'true' (or unset -> defaults paper)",
+              "no live keys (PKLIVE prefix) present; lockout invariant preserved",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "17.3",
+          "name": "Smoke-test Alpaca MCP tools reachable from a Claude Code session",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "# Manual: in a fresh Claude Code session, invoke `mcp__alpaca*__get_account_info`. Record output ticker into handoff/current/alpaca-mcp-smoketest.md. Required fields: account_number, buying_power (>0), cash (>0), status='ACTIVE'.",
+            "success_criteria": [
+              "mcp__alpaca*__get_account_info returns a paper account",
+              "buying_power is a positive number",
+              "account status is 'ACTIVE'",
+              "handoff/current/alpaca-mcp-smoketest.md written with the captured result",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "17.4",
+          "name": "Researcher subagent calls Alpaca MCP during a dry-run harness cycle",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 scripts/harness/run_harness.py --cycles 1 --iterations-per-cycle 1 --dry-run 2>&1 | tee handoff/current/alpaca-researcher-dryrun.log | grep -c 'mcp__alpaca' || true",
+            "success_criteria": [
+              "harness dry-run exits 0",
+              "at least one mcp__alpaca* tool call recorded in the research brief or dryrun log",
+              "handoff/current/alpaca-researcher-dryrun.log committed",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "17.5",
+          "name": "Wire paper_trader.execute_buy/execute_sell through ExecutionRouter (bq_sim path)",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"from backend.services.paper_trader import PaperTrader; import inspect; src = inspect.getsource(PaperTrader.execute_buy); assert 'execution_router' in src or 'ExecutionRouter' in src, 'execute_buy still bypasses ExecutionRouter'; print('OK')\" && python3 scripts/go_live_drills/zero_orders_drill.py",
+            "success_criteria": [
+              "PaperTrader.execute_buy invokes ExecutionRouter (source contains execution_router reference)",
+              "PaperTrader.execute_sell invokes ExecutionRouter",
+              "ExecutionRouter mode=bq_sim (default) still writes paper_trades row (behavior-preserving)",
+              "zero_orders_drill.py still PASS (no regression)",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "17.6",
+          "name": "Shadow mode: flip EXECUTION_BACKEND=alpaca_paper for 5 trades + reconcile",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "# Set EXECUTION_BACKEND=alpaca_paper, restart backend, force 5 synthetic BUYs via scripts/go_live_drills/alpaca_shadow_drill.py. Assert each trade appears in Alpaca paper dashboard within 30s AND BQ paper_trades row matches (ticker/qty/price drift < 2%). Return env to bq_sim after.",
+            "success_criteria": [
+              "EXECUTION_BACKEND=alpaca_paper flipped; backend restarted; confirmed via ps -o lstart",
+              "5 paper trades visible in the Alpaca paper dashboard (captured screenshot or curl to /v2/orders)",
+              "corresponding 5 paper_trades rows in BQ financial_reports.paper_trades with qty/price match",
+              "price drift between alpaca_paper and bq_sim reference < 2% per trade",
+              "EXECUTION_BACKEND flipped back to bq_sim post-drill",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "17.7",
+          "name": "Add max_notional_usd clamp + rollback runbook",
+          "status": "pending",
+          "harness_required": true,
+          "verification": {
+            "command": "source .venv/bin/activate && python3 -c \"from backend.services.execution_router import _alpaca_real_fill; import inspect; src = inspect.getsource(_alpaca_real_fill) if hasattr(_alpaca_real_fill,'__code__') else ''; assert 'max_notional_usd' in src, 'no max_notional_usd clamp'; print('OK')\" && test -f docs/runbooks/alpaca-mcp-rollback.md",
+            "success_criteria": [
+              "ExecutionRouter._alpaca_real_fill contains 'max_notional_usd' clamp (grep >= 1)",
+              "clamp raises RuntimeError on attempted order > configured threshold (default $10000)",
+              "docs/runbooks/alpaca-mcp-rollback.md exists documenting env-var flip rollback",
+              "unit test: BUY AAPL $15000 notional -> RuntimeError",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        },
+        {
+          "id": "17.8",
+          "name": "Scope-3 prerequisites checklist (feeds BLOCKER-4, NO live flip here)",
+          "status": "pending",
+          "harness_required": false,
+          "verification": {
+            "command": "test -f handoff/current/alpaca-scope3-prereqs.md && grep -c 'BLOCKER-4' handoff/current/alpaca-scope3-prereqs.md",
+            "success_criteria": [
+              "handoff/current/alpaca-scope3-prereqs.md written",
+              "document references BLOCKER-4 (task #46) by name",
+              "checklist covers: PKLIVE key provisioning, ALPACA_PAPER_TRADE=false flip, kill-switch drill, $100 test position, Peder typed approval",
+              "17.8 does NOT flip paper->live (BLOCKER-4 owns that)",
+              "no_regressions"
+            ]
+          },
+          "contract": null,
+          "retry_count": 0
+        }
+      ]
+    },
+    {
       "id": "phase-5",
       "name": "Multi-Market Expansion (15-step)",
       "status": "pending",

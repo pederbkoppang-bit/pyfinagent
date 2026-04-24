@@ -11924,3 +11924,33 @@ Infrastructure readiness -> Analysis pipeline live run -> MAS Orchestrator round
 - Reconciliation: divergence=4.43% alert=False (threshold=5.0%)
 **Decision:** CONDITIONAL -- kept with warning
 **Total cycle time:** 0s
+
+
+---
+
+## task-50-alpaca-mcp-plan -- 2026-04-24 -- phase=pre-prod result=PASS (cycle-1, PLANNING only)
+
+**Scope:** Add Alpaca MCP server integration as a new masterplan phase. Integrates the official https://github.com/alpacahq/alpaca-mcp-server (landing https://alpaca.markets/mcp-server) as a unified tool surface for LLM agents across account / orders / positions / stock-data / options / news. Planning cycle only; no application code changed.
+
+**Research gate:** tier=moderate, 5 sources read-in-full (floor 5), 15 URLs, recency scan, 5 internal files, gate_passed=true. Brief: `handoff/current/alpaca-mcp-research-brief.md`. Key finding: `.mcp.json` at project root already registers `alpaca-mcp-server==2.0.1` with paper-mode env substitution — scope-1 is 70% pre-wired. `backend/services/execution_router.py:74-80` has live-key lockout; `paper_trader.py` does not yet call execution_router.
+
+**Credential clarification (in-session UAT):** Peder pasted Alpaca Broker-API OAuth2 credentials (client_id=AKSF5FVOKXYKG4ATGCJQBA + secret at authx.alpaca.markets). Tested: client_credentials grant returned unauthorized_client — these are configured for 3-legged authorization_code flow (Broker-API user-authorize pattern), NOT machine-to-machine for trading. Stored in backend/.env as ALPACA_OAUTH_CLIENT_ID/SECRET/TOKEN_URL (gitignored, not committed) for a future Broker integration. MCP server still needs traditional PK*-prefix paper keys from the Alpaca paper dashboard — blocked on user manual task at sub-step 17.2.
+
+**Plan (8 sub-steps, 3 scopes staged):**
+- 17.1 research gate (this cycle)
+- 17.2 paste PK paper keys; gate rejects PKLIVE + ALPACA_PAPER_TRADE=false
+- 17.3 smoke-test mcp__alpaca*__get_account_info from Claude Code session
+- 17.4 researcher subagent uses Alpaca MCP during dry-run
+- 17.5 wire paper_trader -> ExecutionRouter (bq_sim default, behavior-preserving)
+- 17.6 shadow mode: EXECUTION_BACKEND=alpaca_paper for 5 trades, drift < 2%
+- 17.7 max_notional_usd clamp ($10k default) + rollback runbook
+- 17.8 scope-3 prereqs checklist (explicit handoff to BLOCKER-4)
+
+**Verification (verbatim):** All 10 contract criteria green. Four literal-string gotcha checks (17.2 PK/PKLIVE, 17.6 alpaca_paper, 17.7 max_notional_usd, 17.8 BLOCKER-4) all present.
+
+**Q/A verdict (qa_v1 PASS, no cycle-2):** 5-item harness-compliance audit green; 9 deterministic checks green; two mutation-resistance tests fired correctly: (A) removing max_notional_usd from 17.7 -> script FAIL; (B) removing BLOCKER-4 from 17.8 -> script FAIL. Q/A judged 3-scope staging defensible (observe -> shadow -> cutover), 17.2 PKLIVE gate meaningful, 17.7 clamp + lockout = belt-and-suspenders, scope-3 deferral to BLOCKER-4 preserves live-capital single-source-of-truth gate.
+
+**Scope explicit:** Did NOT execute any phase-17 sub-step. Did NOT edit .mcp.json (already has the entry). Did NOT create Alpaca paper keys. Did NOT change phase-16 status (still in-progress awaiting ack). Did NOT flip paper->live (BLOCKER-4 owns that).
+
+**Carry-forward:** (a) User pastes PK paper keys at https://app.alpaca.markets/paper/dashboard/overview (30s task) to unblock 17.2. (b) Broker-API OAuth creds stored for future integration where other traders connect their Alpaca accounts via pyfinagent. (c) Phase-17 is the bridge between pure-BQ-sim paper trading and BLOCKER-4 live cutover.
+

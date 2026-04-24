@@ -1,60 +1,40 @@
-# Claude as default LLM provider -- Evaluator Critique
+# Alpaca MCP integration masterplan phase -- Evaluator Critique
 
-**Cycle:** task #49 -- 2026-04-24
-**Verdict:** PASS (single cycle, no respawn)
+**Cycle:** task #50 -- 2026-04-24 -- PLANNING only
+**Verdict:** PASS (single cycle)
 **Q/A agent:** qa
 
 ## Harness-compliance audit (5-item, all PASS)
 
-1. Researcher before contract -- PASS. `claude-default-research-brief.md` gate_passed=true, 5 sources read-in-full, recency scan present.
-2. Contract before code -- PASS. contract.md 19:42:31 predates settings.py 19:42:38, autonomous_loop.py 19:42:59, page.tsx 19:43:11.
-3. experiment_results.md with verbatim output -- PASS.
-4. Log-last -- PASS (harness_log.md not yet appended for task #49).
-5. First-cycle Q/A -- PASS.
+1. Research gate passed (5 sources, gate_passed=true).
+2. Contract mtime precedes masterplan.json mtime.
+3. experiment_results.md with verbatim output.
+4. Log-last: harness_log.md not yet appended.
+5. First-cycle Q/A.
 
 ## Deterministic checks (all PASS)
 
-| # | Check | Result |
-|---|---|---|
-| 1 | `gemini_model` default = `claude-sonnet-4-6` | PASS (grep 1) |
-| 2 | `deep_think_model` default = `claude-opus-4-6` | PASS (grep 1) |
-| 3 | `_run_claude_analysis` no hardcoded `model="claude-sonnet-4-6"` | PASS (grep 0) |
-| 4 | Settings loads with Claude defaults | `std=claude-sonnet-4-6 deep=claude-opus-4-6` |
-| 5 | autonomous_loop imports clean | OK |
-| 6 | page.tsx contains "Claude is the default" banner | PASS (grep 1) |
-| 7 | zero_orders drill PASSes | PASS |
-| 8 | Frontend `npm run build` exits 0 | PASS |
+All 10 immutable criteria green. 4 literal-string gotcha checks
+(17.2 PK/PKLIVE gate, 17.6 alpaca_paper, 17.7 max_notional_usd,
+17.8 BLOCKER-4 reference) all present.
 
 ## Mutation-resistance (both fired correctly)
 
-A) **Tampered `gemini_model` default back to `gemini-2.0-flash`** --
-   criterion 1 grep returned 0, FAIL detected as expected. Restored.
+A) Removing `max_notional_usd` from 17.7 criteria -> script FAIL at 17.7.
+B) Removing `BLOCKER-4` from 17.8 criteria -> script FAIL at 17.8.
 
-B) **Deleted "Claude is the default" banner from page.tsx** --
-   criterion 6 grep returned 0, FAIL detected as expected. Restored.
+Both restored.
 
 ## LLM judgment
 
-- **Fallback-to-Gemini path verified.** `_run_single_analysis` lines
-  359-362: `try: _run_claude_analysis` -> `except Exception` -> logs
-  warning -> `AnalysisOrchestrator.run_full_analysis` (Gemini). A 401
-  raises `anthropic.AuthenticationError` which inherits `Exception`,
-  so the fallback engages. Monday's cycle will produce trades via
-  Gemini even if the Anthropic OAuth-token 401 persists.
-- **Banner accurate.** "Claude is the default" + Gemini switchable +
-  3 Gemini-only features (RAG, grounding, structured-output schemas)
-  matches the actual code behavior.
-- **Scope honesty.** Deferring the OAuth-token-vs-API-key rotation to
-  a manual Peder action is defensible because the Gemini fallback
-  keeps Monday's cycle alive. Exactly the user's explicit request
-  ("Monday's cycle should work via Gemini").
-
-## Minor observation (not blocker)
-
-The field name `gemini_model` now holds a Claude model string by
-default. Harmless at runtime (routing is via `make_client`
-model-prefix dispatch) but would confuse a future reader. A follow-up
-cycle can rename the field to `standard_model`; not urgent.
+- 3-scope staging (read-only -> shadow -> live-handoff) mirrors the
+  canonical observe -> shadow -> cutover progression. Defensible.
+- 17.2 PKLIVE negative check prevents accidental live-key paste.
+- 17.7 $10,000 max_notional_usd clamp + ExecutionRouter paper lockout
+  = belt-and-suspenders against single-order hallucination.
+- Scope-3 deferral to BLOCKER-4 preserves the single-source-of-truth
+  live-capital gate. 17.8 preserves linkage via the literal
+  `BLOCKER-4` reference (mutation B confirms).
 
 ## Violated criteria
 
@@ -62,4 +42,5 @@ None.
 
 ## Verdict
 
-PASS. Main appends harness_log.md, commits + pushes, flips task #49 done.
+PASS. Main appends harness_log.md, commits + pushes, flips task #50 done.
+phase-17 in masterplan stays `pending` until user is ready to execute it.
