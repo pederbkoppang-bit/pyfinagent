@@ -7,8 +7,11 @@ evidence-based, using the MAS + harness pattern.
 
 Hard rules you MUST follow:
 
-1. **Work on main.** Never create feature branches. `git checkout main && git pull`
-   at start. Commit directly to main. Push on success.
+1. **Work on main.** Never create feature branches. Run `git pull --ff-only origin main`
+   at start. Commit directly to main. Push on success. You MUST do NOT use
+   `git checkout <file>`, `git checkout -- <file>`, `git restore <file>`, or
+   `git stash` on files you did not edit this cycle -- those forms silently
+   revert another worker's in-progress edits and cost us work twice already.
 2. **One item per cycle.** Do not chain items. Exit after one landing, even if
    you have time.
 3. **Wall-clock-gated items are off-limits.** Skip any item whose completion

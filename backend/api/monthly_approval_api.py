@@ -29,6 +29,7 @@ from backend.autoresearch.monthly_champion_challenger import (
     _DEFAULT_STATE_PATH,
     record_approval,
 )
+from backend.config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,39 @@ def _row_to_model(row: dict[str, Any], *, effective_status: Optional[str] = None
     )
 
 
+def _default_bq_logger(log_row: dict[str, Any]) -> None:
+    """Production BQ audit writer for HITL terminal transitions.
+
+    Inserts a row into `<project>.pyfinagent_pms.strategy_deployments_log`.
+    Fail-open: BQ-client construction or insert errors are logged and
+    swallowed so the in-memory / JSON transition still completes.
+    """
+    try:
+        from google.cloud import bigquery  # local import -- avoid eager GCP auth cost
+
+        settings = Settings()
+        project = settings.gcp_project_id
+        client = bigquery.Client(project=project)
+        table_id = f"{project}.pyfinagent_pms.strategy_deployments_log"
+        cols = ", ".join(log_row.keys())
+        vals = ", ".join(f"@v_{k}" for k in log_row.keys())
+        query = f"INSERT INTO `{table_id}` ({cols}) VALUES ({vals})"
+        params = []
+        for k, v in log_row.items():
+            if v is None:
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", None))
+            elif isinstance(v, float):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "FLOAT64", v))
+            elif k == "deployed_at":
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "TIMESTAMP", v))
+            else:
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))
+        job = client.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params))
+        job.result()
+    except Exception as exc:
+        logger.warning("_default_bq_logger fail-open: %r", exc)
+
+
 def _virtual_status(row: dict[str, Any], now: datetime) -> str:
     """Surface `expired` when pending + now >= expires_at, without writing.
 
@@ -142,7 +176,7 @@ def post_monthly_approval(month_key: str, body: ApprovalActionBody) -> MonthlyAp
         )
 
     try:
-        updated = record_approval(month_key, status=action)
+        updated = record_approval(month_key, status=action, bq_fn=_default_bq_logger)
     except Exception as exc:
         logger.warning("monthly_approval_api: record_approval fail-open: %r", exc)
         updated = {}

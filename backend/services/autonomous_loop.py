@@ -245,6 +245,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 from backend.services.paper_trader import _get_live_price
                 price = _get_live_price(order.ticker) or 0
             if price <= 0:
+                logger.warning(f"Dropping BUY for {order.ticker}: price={price} (yfinance returned empty or zero)")
                 continue
             trade = trader.execute_buy(
                 ticker=order.ticker,
@@ -433,7 +434,13 @@ Sector: {sector} | Industry: {industry}
 Price: ${current_price:.2f} | Market Cap: ${market_cap/1e9:.1f}B | P/E: {pe_ratio:.1f}
 20-day momentum: {momentum_20d:+.1f}% | 60-day momentum: {momentum_60d:+.1f}%
 
-Based on the data above, provide:
+Decision rules (apply in order):
+- A portfolio needs positions to generate return; HOLD on ambiguous data, but lean BUY on clear momentum.
+- If momentum_20d > 3.0 AND momentum_60d > 5.0 AND market_cap > 5e9, lean BUY unless there is a clear negative signal in the data.
+- If momentum_20d < -5.0 AND position is held, lean SELL.
+- Otherwise HOLD.
+
+Based on the rules and data above, provide:
 1. Action: BUY, SELL, or HOLD
 2. Confidence: 0-100
 3. Score: 1-10 (overall attractiveness)

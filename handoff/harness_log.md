@@ -11670,3 +11670,142 @@ All 4 criteria met (subtasks_4_17_1_through_4_17_9_all_pass / go_live_drills_pyt
 **FINAL RECOMMENDATION: SUSPEND this harness schedule.** Twenty-one consecutive no-ops confirm zero Ford-actionable items remain. Continuing burns compute with zero progress. To unblock, Peder must: (1) run `source .venv/bin/activate && python -m backend.services.autonomous_loop` daily on market days so signals_log accumulates data, (2) wait >= 14 NYSE trading days, (3) address 4.4.5.x/4.4.6.x human-only items. Resume the harness schedule only after signals_log has >= 14 days of publish events.
 
 **Recommendation:** SUSPEND the 30-min harness schedule. Twenty consecutive no-ops confirm zero Ford-actionable items remain. Unblock requires Peder to: (1) run `source .venv/bin/activate && python -m backend.services.autonomous_loop` daily on market days to populate signals_log, (2) wait >= 14 NYSE trading days for data, (3) address 4.4.5.x/4.4.6.x human-only items.
+
+---
+
+## sharpe-overflow-hotfix -- 2026-04-24 -- result=PASS
+
+**Scope:** User screenshot of `/paper-trading` showed the Sharpe scorecard rendering `-92962852034076208.00`. Ad-hoc hotfix cycle (no masterplan step).
+
+**Root cause (deterministic reproduction):** live paper_portfolio_snapshots has 14 identical NAV rows ($9499.50, downstream of the known zero-orders bug). `returns = np.diff(navs)/navs[:-1]` is all zeros. `excess = returns - 0.04/252` is a uniform negative series whose `std()` is `2.710505431213761e-20` — not exactly zero, because of float arithmetic. The existing `std == 0` exact-equality guard in `backend/backtest/analytics.py::compute_sharpe` missed it, and `(-0.000159 / 2.71e-20) * sqrt(252) = -9.296285e+16` surfaced to the UI.
+
+**Fix (two lines of defense):**
+1. `compute_sharpe`: changed zero-std guard from `std == 0` to `std < 1e-12` (epsilon above float noise floor ~1e-16, well below realistic excess.std() ~1e-4).
+2. `compute_sharpe_from_snapshots`: added `abs(sharpe) > 100` clamp returning `0.0` as a belt-and-suspenders guard against future precision leaks.
+
+**Verification (verbatim):** 4/4 criteria PASS. Live paper Sharpe now `0.0` (honest: flat portfolio). Non-degenerate synthetic returns still produce plausible `-0.3464` (no happy-path regression). Q/A added a mutation-resistance test planting the pre-fix `std == 0` guard and reproduced `-9.3e16` exactly — confirmed the 1e-12 epsilon is load-bearing and correctly magnitude-selected.
+
+**Cross-caller coverage:** `compute_rolling_sharpe_bootstrap_ci`, `compute_baseline_strategies`, `backtest_engine` Sharpe sites all delegate to `compute_sharpe` → they inherit the fix. The `abs(sharpe) > 100` clamp is scoped only to `compute_sharpe_from_snapshots` so backtest/DSR paths stay truthful for research quality metrics.
+
+**Scope explicit:** this hotfix makes the UI honest; it does NOT fix the underlying zero-orders bug that produced the flat NAV in the first place (that remains tracked in Cycle 41+ NOOP notes and exposed by the phase-4.17.7 drill).
+
+**Research-gate skipped** (deterministic hotfix, tier=simple). Q/A flagged as defensible; carry-forward advisory noted.
+
+
+---
+
+## budget-dashboard-hotfix-v2 -- 2026-04-24 -- result=PASS
+
+**Scope:** User re-reported the BudgetDashboard TypeError that the 2026-04-21 hotfix had already fixed. Investigation showed the original component + api.ts + types.ts edits were silently reverted by an autonomous-harness cycle sometime between that cycle's PASS and the 2026-04-24 session commit (1122a021); only the research brief + some peripheral files actually shipped in that commit.
+
+**Fix (re-applied verbatim from original cycle):**
+- `frontend/src/lib/types.ts` -- restored `BudgetData` / `BudgetSummary` / `CostItem` / `MonthlyHistory` interfaces.
+- `frontend/src/lib/api.ts` -- restored `getBudgetSummary(): Promise<BudgetData>` helper.
+- `frontend/src/components/BudgetDashboard.tsx` -- swapped raw `fetch()` for `getBudgetSummary()` + `if (!s) return <UnavailableBanner />` null-guard directly above the line that crashed (`s.total_monthly.toFixed(0)`).
+
+**Commit `06a86333` pushed to origin/main immediately** after the edits landed, to prevent a third silent revert.
+
+**Verification:** all 4 contract criteria grep green (getBudgetSummary in api.ts, BudgetData exported from types.ts, no raw NEXT_PUBLIC_API_URL fetch in BudgetDashboard, `if (!s)` null-guard present). Guard sits at BudgetDashboard.tsx:110, crash line is now at :128 — guard runs first. Dev server returns 302 on /backtest (auth redirect; healthy).
+
+**Q/A verdict (qa_v1 PASS, no cycle-2):** 9 deterministic checks green. Mtime ordering confirms contract (16:41:16) preceded code edits (16:42:45). Research-gate skip defensible per the re-application-of-gated-fix exception (original brief still on disk + cited in the v2 contract).
+
+**Sibling breakage flagged but out-of-scope (carry-forward):** the same revert sweep that killed BudgetDashboard also killed the phase-10.5 + phase-15 api.ts helpers (getSovereignRedLine, StrategyEquityPoint, TransformerForecastResponse, etc.) and currently blocks `npm run build`. Dev mode (Turbopack HMR) still serves `/backtest` cleanly, which is what the user needs right now. The sovereign/Transformer/AltData re-application is scheduled as a separate cycle.
+
+**Anti-revert note:** committed + pushed BEFORE Q/A to turn working-tree edits into tracked history the autonomous cycles can't drop silently.
+
+
+---
+
+## pre-production-audit -- 2026-04-24 -- phase=planning result=PASS (cycle-2)
+
+**Scope:** Owner requested a full-MAS audit of everything that must be done before go-live, with multi-market expansion (phase-5) explicitly deferred post-production. Deliverable: `handoff/current/pre-production-audit-brief.md` + ordered task-bar punch list so owner can drive each blocker into its own harness cycle.
+
+**Research gate:** tier=moderate, 6 external sources read in full (Anthropic production-agents guide, Alpaca paper-trading docs, terms.law algo-trading go-live checklist, Erik Salu algo-trading deployment, FINRA algo supervision guidance, SIFMA model-risk management), 5 snippet-only, 11 URLs collected, last-2-year recency scan performed, JSON envelope gate_passed=true. Internal sweep: 22 non-done masterplan entries reviewed + categorized.
+
+**Findings (4 PRE-PROD BLOCKERS, ordered):**
+1. Zero-orders bug — decide_trades produces ~1 trade in 35 days; system can't fund itself even in paper.
+2. Autonomous-harness revert hygiene — silent `git checkout` cycles have reverted three separate shipping fixes; BudgetDashboard needed a third re-apply.
+3. HITL C/C gate — code exists but no end-to-end exercise in evidence; first live promotion cannot be the proof.
+4. Paper→Live execution transition — `backend/services/execution_router.py:74-80` actively refuses live keys by design; needs PKLIVE* provisioning + kill-switch drill + $100 test position + CRITICAL log entry + typed owner approval "I accept live-capital operation." Ordered LAST.
+
+Plus PRE-PROD NICE items (Slack UAT, api.ts helper restore) and DRIFT entries (phase-2, phase-4.9, phase-4.14, phase-4.16, phase-10, phase-10.5 status flips).
+
+**Q/A cycle-1:** CONDITIONAL with 2 gaps — phase-4.14 missing from DRIFT table, BLOCKER-4 paper→live transition entirely missing from punch list.
+
+**Cycle-2 response (canonical flow, NOT verdict-shopping):** Main read violated_criteria, appended "Cycle-2 Amendment" section to pre-production-audit-brief.md closing both gaps (phase-4.14 added to DRIFT; BLOCKER-4 added with 6 concrete acceptance criteria + Order=LAST justification; dismissed other Q/A-v1 candidates — phone paging, DR rehearsal, FINRA WORM — with explicit local-only/personal-capital justification per memory project_local_only_deployment). Created task #46.
+
+**Q/A cycle-2 verdict:** PASS — 5-item harness-compliance audit all green; both gaps closed; lockout code at execution_router.py:74-80 confirmed still intact (that's the gap BLOCKER-4 addresses, not a leak); ordering 1→2→3→4 confirmed defensible (flipping to live before fixing zero-orders / revert / HITL would be reckless); no new gaps surfaced by the amendment.
+
+**Task bar snapshot post-cycle:** #39 (this audit) → completed; #40 BLOCKER-1 zero-orders, #41 BLOCKER-2 revert hygiene, #42 BLOCKER-3 HITL, #46 BLOCKER-4 paper→live, #43 Slack UAT (nice), #44 api.ts helpers (nice), #45 DRIFT housekeeping — all pending, ordered, ready for owner to drive into individual harness cycles.
+
+**Scope explicit:** this was a PLANNING cycle. No production code changed. Remaining blockers execute under separate cycles per masterplan protocol.
+
+
+---
+
+## blocker-1-zero-orders -- 2026-04-24 -- phase=pre-prod result=PASS (cycle-1)
+
+**Scope:** Fix the upstream HOLD-bias that kept `decide_trades` emitting zero orders for 27 consecutive days. Production BQ state: `paper_trades` = 1 row total (XOM BUY 2026-03-28, later sold), `paper_portfolio_snapshots` = 14 rows all at `total_nav=9499.5`, `trades_today=0`, `position_count=0`.
+
+**Research gate:** tier=moderate, 7 sources read-in-full (exceeds floor 5), 17 URLs collected, recency scan performed, 8 internal files inspected, gate_passed=true. Brief: `handoff/current/blocker-1-research-brief.md`. Top-ranked root cause R1 (Claude prompt lacks BUY base-rate guidance); R2 (silent `price<=0` drop). Empirically disproved R3 (kill_switch_audit.jsonl has 0 pauses) and R4 (loop confirmed firing daily via `paper_portfolio.updated_at` = today 12:01 UTC).
+
+**Fix (two-line patch + drill):**
+1. `backend/services/autonomous_loop.py::_run_claude_analysis` -- added decision rules to the Claude prompt: "lean BUY" on momentum>3%/5% + market_cap>$5B, "lean SELL" on momentum<-5% with held position, else HOLD. Plus base-rate nudge: "A portfolio needs positions to generate return".
+2. `backend/services/autonomous_loop.py` BUY execution path (~line 248) -- replaced silent `continue` on `price<=0` with `logger.warning("Dropping BUY for <ticker>: price=<p> (yfinance returned empty or zero)")`.
+3. `scripts/go_live_drills/zero_orders_drill.py` (new) -- synthetic BUY -> `decide_trades` -> `execute_buy` -> assert `save_paper_trade` called on stubbed BQ client. Prints PASS/FAIL.
+
+**Verification (verbatim):** All 8 contract criteria green. Drill output: `step1: decide_trades emitted BUY for AAPL amount=$1000.00 / step2: paper_trades row written: ticker=AAPL action=BUY qty=5.128205 price=195.0 / PASS`.
+
+**Q/A verdict (qa_v1 PASS, no cycle-2):** 5-item harness-compliance audit green; 9 deterministic checks green including mutation-resistance (tampered drill recommendation=HOLD -> exit 1 with descriptive FAIL; restored -> exit 0 PASS again). Scope boundary "live recovery NOT this cycle's gate" ruled defensible: deterministic drill proves post-Claude code path end-to-end; Claude-output-distribution shift is an observation-window question tracked as a 24-48h follow-up.
+
+**Scope explicit:** landing fix only. No change to screener/risk-judge/paper_trader internals, no Alpaca lockout change (BLOCKER-4), no masterplan DRIFT writes (task #45), no Sharpe code change (already shipped). Drill is hermetic (no Claude API call, no network) so it runs in CI without cost.
+
+**Carry-forward:** if production loop still shows 0 trades 24-48h after this fix, next cycle instruments Risk Judge approve/reject counts -- Risk Judge is the only remaining veto point downstream of the prompt change.
+
+
+---
+
+## blocker-2-revert-hygiene -- 2026-04-24 -- phase=pre-prod result=PASS (cycle-1)
+
+**Scope:** Stop the autonomous-harness from silently reverting working-tree edits. Root cause: `scripts/mas_harness/run_cycle.sh` ran every 30 min via launchd and did `git stash push` / `git stash pop` around `git pull --rebase`. Pop-failure silently dropped the user's in-progress edits (BudgetDashboard had to be re-applied twice; `git stash list` shows 3 un-popped `mas-harness-autostash-*` entries from the drops).
+
+**Research gate:** tier=moderate, 7 sources read-in-full (floor 5), 17 URLs, recency scan performed, 10 internal files inspected, gate_passed=true. Brief: `handoff/current/blocker-2-research-brief.md`. External evidence: Anthropic Harness Design (idempotency requirement), Cursor-forum 45-file agent-stash incident (identical symptom), GitButler + YoloFS + Leash + pydantic-ai 2PC patterns (all converge on "refuse-dirty" + "path allowlist"). Internal evidence (Main): `git reflog` shows `checkout: from main to main` + `reset: moving to HEAD` pair every ~30 min for 48h; `launchctl` shows `com.pyfinagent.mas-harness` with `StartInterval=1800`; 3 un-popped autostashes in `git stash list`.
+
+**Fix (4 files):**
+1. `scripts/mas_harness/run_cycle.sh` -- Replaced autostash block with a dirty-tree abort. `git status --porcelain` non-empty -> log ABORT, exit 0. Work-loss architecturally impossible.
+2. `scripts/mas_harness/cycle_prompt.md:10` -- Hardened the inner-Claude hard-rule: `git pull --ff-only origin main` only; explicit "do NOT use `git checkout`/`git restore`/`git stash` on files you did not edit this cycle".
+3. `.claude/hooks/pre-tool-use-danger.sh` -- Regex-based guards: blocks file-level `git checkout -- <path>` / `git checkout HEAD <path>` / `git restore <path>` via word-boundary regex. Branch-level `git checkout main` remains allowed. Fails closed with `CLAUDE_ALLOW_DANGER=1` one-shot override.
+4. `scripts/go_live_drills/revert_hygiene_drill.py` (new) -- Live end-to-end drill: makes an uncommitted sentinel, invokes run_cycle.sh, asserts (cycle aborts, sentinel survives, stash list unchanged, all hardened files carry expected markers). 12 static+dynamic checks.
+
+**Verification (verbatim):** All 10 contract criteria green. Drill PASS (5 static + 7 dynamic), including `stash list did not grow -- before=11 after=11`.
+
+**Q/A verdict (qa_v1 PASS, no cycle-2):** 5-item harness-compliance audit green; 12 deterministic checks green; two mutation-resistance tests (tamper run_cycle.sh -> drill FAIL; tamper drill assertion -> drill FAIL) both correctly fired; both files restored post-tamper. No other revert surfaces found in `scripts/` or `.claude/hooks/`. Scope-honesty verified: skill_optimizer.py:452 (file-scoped `git checkout HEAD~1 -- <skill>`) deferral is defensible because cross-file contamination is architecturally impossible.
+
+**Scope explicit:** 4 files patched only. Did NOT touch skill_optimizer.py revert_modification (follow-up). Did NOT recover the 3 un-popped autostashes (preserved for Peder inspection). Did NOT introduce git worktree isolation (post-go-live refactor). Did NOT change launchd schedule.
+
+**Carry-forward:** (a) a minor UX wart: the hook regex blocks `grep 'git restore <x>'` too, because the space before `git` in the quoted string matches `[[:space:]]`. Fails closed with documented override; if Peder hits it often on legitimate read-only grep/rg, the hook can be refined to inspect argv context. (b) skill_optimizer.py:452 fragility (single-file scope, not a blocker) remains tracked. (c) 3 old autostashes still in `git stash list`.
+
+
+---
+
+## blocker-3-hitl-gate-e2e -- 2026-04-24 -- phase=pre-prod result=PASS (cycle-1)
+
+**Scope:** Exercise the Champion/Challenger monthly HITL gate end-to-end with a hermetic drill + add the missing BQ audit emission. Task #42's contract requires "state visible in monthly_approval_state.json + BQ log row"; the shipped code wrote only to the JSON file, so the BQ half was unsatisfiable.
+
+**Research gate:** tier=moderate, 7 sources read-in-full (floor 5), 17 URLs, recency scan performed, 9 internal files inspected, gate_passed=true. Brief: `handoff/current/blocker-3-research-brief.md`. External evidence: industry consensus (Netflix, Snowflake, DataRobot, H2O, SageMaker, ModelOp) that a production promotion drill must exercise the full write-path including the audit-log row. Internal evidence: `record_approval` had no BQ write; `strategy_deployments_log` schema confirmed (9 columns, 0 rows); dependency-injection pattern already in place for `slack_fn`.
+
+**Fix (3 files):**
+1. `backend/autoresearch/monthly_champion_challenger.py` -- added `bq_fn` kwarg to `record_approval`; added `_emit_deployment_log_row(row, bq_fn, now_dt)` helper that builds a `strategy_deployments_log`-shaped dict and calls `bq_fn(...)` behind a fail-open try/except on every terminal transition (approved / rejected / lazy-expired). Backward-compatible: zero behavior change when `bq_fn=None`.
+2. `backend/api/monthly_approval_api.py` -- added `_default_bq_logger(log_row)` that constructs a real `bigquery.Client` and INSERTs via a parameterized query. Wired into `post_monthly_approval` via `bq_fn=_default_bq_logger`. Fail-open: a BQ write failure doesn't block the approval state transition.
+3. `scripts/go_live_drills/hitl_gate_drill.py` (new) -- hermetic end-to-end drill: picks a past last-trading Friday (2026-03-27), synthesizes return series clearing all 3 gates (Sortino delta 119, DD ratio 0.80, PBO 0.10), uses a temp state_path, captures slack_fn + bq_fn in in-memory lists, asserts the 4 state transitions. No real Slack, no real BQ write.
+
+**Verification (verbatim):** All 10 contract criteria green. Drill output: `step1_gate_fired / step2_pending / step3_approved / step4_bq_row_written / PASS`.
+
+**Q/A verdict (qa_v1 PASS, no cycle-2):** 5-item harness-compliance audit green; 8 deterministic checks green; two mutation-resistance tests both fired correctly: (a) tampering drill `len(bq_calls)!=99` -> step4 FAIL, restored -> PASS; (b) tampering the production code path (removing `_emit_deployment_log_row` call) -> step4 FAIL, restored -> PASS. Q/A read `_default_bq_logger` and confirmed it's a REAL BQ writer (parameterized INSERT into `pyfinagent_pms.strategy_deployments_log`), not a stub.
+
+**Scope explicit:** no real-Slack click (deferred to Peder-interactive follow-up before BLOCKER-4), no `actual_replacement=True` lift (SR 11-7 compliance, out of scope), no gate-threshold tuning, no unit-test edits.
+
+**Carry-forward:** (a) Peder-interactive real-Slack rehearsal recommended before BLOCKER-4 but not a gate; (b) BQ integration sanity-check via `curl POST` + `SELECT` is a one-shot Peder can run anytime; (c) drill file needs `git add` + commit in the next push.
+
+
+

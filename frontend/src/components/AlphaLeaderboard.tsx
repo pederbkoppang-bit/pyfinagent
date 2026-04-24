@@ -268,7 +268,7 @@ export function AlphaLeaderboard({
                           data-testid="status-pill"
                           data-status={row.status}
                           aria-label={`Filter leaderboard by status: ${row.status}`}
-                          onClick={() => setStatusFilter(row.status)}
+                          onClick={() => setStatusFilter(row.status ?? null)}
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${v.cls}`}
                         >
                           <StatusIcon size={12} weight="fill" className={v.iconCls} aria-hidden="true" />

@@ -25,7 +25,7 @@
     {
       "id": "phase-2",
       "name": "Three-Agent Harness",
-      "status": "in-progress",
+      "status": "done",
       "depends_on": [
         "phase-1"
       ],
@@ -1418,7 +1418,7 @@
     {
       "id": "phase-4.9",
       "name": "Immutable Core and Risk Guard",
-      "status": "in-progress",
+      "status": "done",
       "depends_on": [
         "phase-4.8"
       ],
@@ -2741,7 +2741,7 @@
     {
       "id": "phase-10",
       "name": "Recursive Evolution Loop (weekly sprint + monthly Sortino gate)",
-      "status": "in-progress",
+      "status": "done",
       "depends_on": [
         "phase-4",
         "phase-4.8.5",
@@ -2998,7 +2998,7 @@
     {
       "id": "phase-10.5",
       "name": "Sovereign Dashboard (Net System Alpha cockpit)",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-4.7",
         "phase-4.8",
@@ -3787,7 +3787,7 @@
     {
       "id": "phase-4.14",
       "name": "Claude Documentation Alignment -- MUST-FIX Implementation (34 items / 29 steps)",
-      "status": "in-progress",
+      "status": "done",
       "depends_on": [
         "phase-4.10",
         "phase-4.11",
@@ -4632,7 +4632,8 @@
             ]
           }
         }
-      ]
+      ],
+      "status": "done"
     },
     {
       "id": "phase-4.17",

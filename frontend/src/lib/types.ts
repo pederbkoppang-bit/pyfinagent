@@ -1019,3 +1019,47 @@ export interface SharpeHistoryResponse {
   best_sharpe_envelope: SharpeHistoryEnvelopePoint[];
   summary: SharpeHistorySummary;
 }
+
+// ── Transformer Forecast (phase-15.8, shadow-mode) ───────────────
+// Re-applied 2026-04-24 after the prior ship was silently reverted
+// by an autonomous-harness cycle. See blocker-2 research brief.
+export interface TransformerForecastResponse {
+  ticker: string;
+  status: string;                         // e.g. "shadow_mode" | "rejected"
+  phase8_reject_reason: string;
+  horizon: number;
+  timesfm: number[];
+  chronos: number[];
+  ensemble_weights: { mda: number; timesfm: number; chronos: number };
+  model_timesfm?: string;
+  model_chronos?: string;
+}
+
+// ── Alt Data (Congress + 13F + IC eval) ─────────────────────────
+// Re-applied 2026-04-24 after the prior ship was silently reverted.
+export interface AltDataCongressTrade {
+  senator: string;
+  type: string;
+  amount_mid: number;
+  transaction_date: string;
+}
+
+export interface AltData13FHolding {
+  filer_name: string;
+  value_usd_thousands: number;
+  period: string;
+}
+
+export interface AltDataICEval {
+  ic_mean: number;
+  ic_ir: number;
+  window_days: number;
+  note?: string | null;
+}
+
+export interface AltDataResponse {
+  ticker: string;
+  congress?: AltDataCongressTrade[] | null;
+  f13?: AltData13FHolding[] | null;
+  ic_eval?: AltDataICEval | null;
+}

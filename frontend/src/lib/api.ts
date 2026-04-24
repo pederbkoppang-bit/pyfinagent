@@ -544,3 +544,108 @@ export function getPerfOptimizerExperiments(): Promise<{ experiments: PerfExperi
 export function getBudgetSummary(): Promise<import("./types").BudgetData> {
   return apiFetch("/api/backtest/budget/summary");
 }
+
+// ── Sovereign Dashboard (phase-10.5) ────────────────────────────
+// Re-applied 2026-04-24 after the prior ship was silently reverted
+// by an autonomous-harness cycle. See blocker-2 research brief.
+
+export interface SovereignRedLinePoint {
+  date: string;
+  nav: number;
+  source: string; // "actual" | "filled" | "pre_inception"
+}
+
+export interface SovereignRedLineEvent {
+  date: string;
+  label: string;
+  detail?: string | null;
+}
+
+export interface SovereignRedLineResponse {
+  window: string;
+  series: SovereignRedLinePoint[];
+  events: SovereignRedLineEvent[];
+  note?: string | null;
+}
+
+export interface SovereignLeaderboardEntry {
+  strategy_id: string;
+  sharpe?: number | null;
+  dsr?: number | null;
+  pbo?: number | null;
+  max_dd?: number | null;
+  status?: string | null;
+  allocation_pct?: number | null;
+  notes?: string | null;
+}
+
+export interface SovereignLeaderboardResponse {
+  entries: SovereignLeaderboardEntry[];
+  source: string;
+  note?: string | null;
+}
+
+export interface SovereignProviderCostPoint {
+  date: string;
+  anthropic: number;
+  vertex: number;
+  openai: number;
+  bigquery: number;
+  altdata: number;
+}
+
+export interface SovereignComputeCostResponse {
+  window: string;
+  daily_breakdown: SovereignProviderCostPoint[];
+  totals: Record<string, number>;
+  grand_total_usd: number;
+  note?: string | null;
+}
+
+export interface StrategyEquityPoint {
+  date: string;
+  nav: number;
+}
+
+export interface StrategyOverride {
+  date: string;
+  param: string;
+  from_value?: string | null;
+  to_value?: string | null;
+}
+
+export interface StrategyKillSwitchEvent {
+  date: string;
+  label: string;
+  detail?: string | null;
+}
+
+export interface StrategyDetailResponse {
+  strategy_id: string;
+  equity: StrategyEquityPoint[];
+  overrides: StrategyOverride[];
+  events: StrategyKillSwitchEvent[];
+  note?: string | null;
+}
+
+export function getSovereignRedLine(
+  window: string = "30d",
+): Promise<SovereignRedLineResponse> {
+  return apiFetch(`/api/sovereign/red-line?window=${encodeURIComponent(window)}`);
+}
+
+export function getSovereignComputeCost(
+  window: string = "30d",
+): Promise<SovereignComputeCostResponse> {
+  return apiFetch(`/api/sovereign/compute-cost?window=${encodeURIComponent(window)}`);
+}
+
+export function getSovereignLeaderboard(): Promise<SovereignLeaderboardResponse> {
+  return apiFetch("/api/sovereign/leaderboard");
+}
+
+export function getSovereignStrategy(
+  strategyId: string,
+): Promise<StrategyDetailResponse> {
+  return apiFetch(`/api/sovereign/strategy/${encodeURIComponent(strategyId)}`);
+}

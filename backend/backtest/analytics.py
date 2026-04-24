@@ -134,7 +134,12 @@ def compute_sharpe(returns: np.ndarray, risk_free_rate: float = 0.04, periods_pe
         return 0.0
     excess = returns - risk_free_rate / periods_per_year
     std = excess.std()
-    if std == 0:
+    # Use an epsilon threshold, not exact-equality. When `returns` is
+    # flat (e.g., a paper portfolio stuck at constant NAV), `excess` is
+    # a uniform series whose std should be zero but can round to
+    # ~1e-20 from float arithmetic; `excess.mean() / 1e-20` then blows
+    # up into astronomical values (we observed -9.3e16 on live data).
+    if std < 1e-12:
         return 0.0
     return float((excess.mean() / std) * np.sqrt(periods_per_year))
 

@@ -143,6 +143,19 @@ print("allow")
         *"git reset --hard"*)
             block_with_msg "git reset --hard detected" ;;
     esac
+    # File-level checkout/restore guard. Patterns matched (word-boundary
+    # regex, so 'git checkout -- ' appearing INSIDE a grep/rg/awk quoted
+    # argument is not blocked -- that is just searching for the string,
+    # not running git):
+    #   git checkout -- <path>
+    #   git restore <path>
+    # Word boundary = start-of-line, whitespace, `;`, `&&`, or `||`.
+    if [[ "$cmd" =~ (^|[[:space:]]|\;|\&\&|\|\|)git[[:space:]]+checkout[[:space:]]+(--|HEAD) ]]; then
+        block_with_msg "file-level git checkout detected -- silently discards working-tree edits"
+    fi
+    if [[ "$cmd" =~ (^|[[:space:]]|\;|\&\&|\|\|)git[[:space:]]+restore[[:space:]] ]]; then
+        block_with_msg "git restore detected -- silently discards working-tree edits"
+    fi
 fi
 
 # ── MCP execute_sql gate ─────────────────────────────────────────

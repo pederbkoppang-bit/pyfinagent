@@ -33,22 +33,21 @@ echo $$ > "$LOCKFILE"
 trap 'rm -f "$LOCKFILE"' EXIT
 
 # ── Sync main before cycle ──────────────────────────────────────
-# Runtime log churn (backend.log, backend_slack.log, etc.) can leave
-# the tracked tree dirty between cycles. Auto-stash tracked-only
-# changes so rebase can proceed; pop after. Never touches untracked.
-git checkout main >> "$LOGFILE" 2>&1 || true
-AUTOSTASH=0
-if ! git diff --quiet --ignore-submodules -- || ! git diff --cached --quiet --ignore-submodules --; then
-    if git stash push -m "mas-harness-autostash-$(date +%s)" >> "$LOGFILE" 2>&1; then
-        AUTOSTASH=1
-    fi
+# Safety invariant: the harness refuses to run when the working tree
+# has uncommitted or staged changes. Stashing over user edits caused
+# silent work-loss (BudgetDashboard re-applied twice in 2026-04).
+# See handoff/current/blocker-2-research-brief.md.
+DIRTY=$(git status --porcelain 2>/dev/null || true)
+if [ -n "$DIRTY" ]; then
+    echo "[$(date -Iseconds)] ABORT dirty tree -- refusing to run; commit or stash manually:" >> "$LOGFILE"
+    echo "$DIRTY" | head -20 >> "$LOGFILE"
+    exit 0
 fi
+git checkout main >> "$LOGFILE" 2>&1 || true
 git pull --rebase origin main >> "$LOGFILE" 2>&1 || {
-    [ "$AUTOSTASH" = "1" ] && git stash pop >> "$LOGFILE" 2>&1 || true
     echo "[$(date -Iseconds)] ABORT pull failed" >> "$LOGFILE"
     exit 1
 }
-[ "$AUTOSTASH" = "1" ] && git stash pop >> "$LOGFILE" 2>&1 || true
 
 # ── Run the cycle ───────────────────────────────────────────────
 CYCLE_START=$(date -Iseconds)

@@ -103,7 +103,13 @@ def compute_sharpe_from_snapshots(
     # Daily returns from NAV series
     daily_returns = np.diff(nav_arr) / nav_arr[:-1]
 
-    return round(compute_sharpe(daily_returns, risk_free_rate), 2)
+    sharpe = compute_sharpe(daily_returns, risk_free_rate)
+    # Belt-and-suspenders clamp: a real annualized Sharpe outside
+    # [-100, 100] is almost always a float-precision artifact. Return
+    # 0.0 rather than surface astronomical garbage to the UI.
+    if not np.isfinite(sharpe) or abs(sharpe) > 100.0:
+        return 0.0
+    return round(sharpe, 2)
 
 
 # ── Benchmark Comparison ─────────────────────────────────────────

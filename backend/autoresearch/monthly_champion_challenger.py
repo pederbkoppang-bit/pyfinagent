@@ -204,11 +204,17 @@ def record_approval(
     status: str,
     state_path: Path | None = None,
     now: datetime | None = None,
+    bq_fn: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Transition a pending approval to approved / rejected.
 
     Returns the updated state row, or {} if not found / already terminal.
     `status` must be one of "approved" / "rejected".
+
+    When `bq_fn` is provided and the row reaches a terminal status
+    (approved / rejected / lazily-expired), it is invoked with a
+    `strategy_deployments_log`-shaped dict. Fail-open: bq_fn exceptions
+    are logged and swallowed so the in-memory transition still completes.
     """
     if status not in ("approved", "rejected"):
         raise ValueError(f"status must be approved|rejected, got {status!r}")
@@ -223,12 +229,44 @@ def record_approval(
         row["status"] = "expired"
         state[month_key] = row
         _save_state(state, spath)
+        _emit_deployment_log_row(row, bq_fn, now_dt)
         return row
     row["status"] = status
     row["resolved_at_iso"] = now_dt.isoformat()
     state[month_key] = row
     _save_state(state, spath)
+    _emit_deployment_log_row(row, bq_fn, now_dt)
     return row
+
+
+def _emit_deployment_log_row(
+    row: dict[str, Any],
+    bq_fn: Callable[[dict[str, Any]], None] | None,
+    now_dt: datetime,
+) -> None:
+    """Fail-open BQ audit emission for terminal HITL transitions."""
+    if bq_fn is None:
+        return
+    log_row = {
+        "strategy_id": str(row.get("challenger_id", "")),
+        "status": str(row.get("status", "")),
+        "sharpe": None,
+        "dsr": None,
+        "pbo": float(row["pbo"]) if row.get("pbo") is not None else None,
+        "max_dd": None,
+        "deployed_at": now_dt.isoformat(),
+        "allocation_pct": 0.0,
+        "notes": (
+            f"month={row.get('month','')} "
+            f"sortino_delta={row.get('sortino_delta')} "
+            f"dd_ratio={row.get('dd_ratio')} "
+            f"actual_replacement=False"
+        ),
+    }
+    try:
+        bq_fn(log_row)
+    except Exception as exc:
+        logger.warning("record_approval: bq_fn fail-open: %r", exc)
 
 
 def is_last_trading_friday(d: date) -> bool:
