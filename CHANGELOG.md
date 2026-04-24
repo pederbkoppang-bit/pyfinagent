@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-24 | `8131bb70` | observability: Risk Judge REJECT + sub-$50 skip log lines |
 | 2026-04-24 | `b60eb413` | fix: _default_bq_logger NULL type binding + complete Slack UAT |
 | 2026-04-24 | `dfd57ec1` | pre-prod: close BLOCKERS 1-3 + api.ts helpers + DRIFT status flips |
 | 2026-04-24 | `06a86333` | fix(BudgetDashboard): re-apply auth-aware fetch + null-guard (v2) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-20 | `9d12c053` | Phase 4.4.2.3: paper max drawdown < 15% verified via BQ evidence |
 | 2026-04-19 | `e22d435e` | chore(masterplan): record MCP env-var-warning fix as phase-14 |
 | 2026-04-19 | `0e965175` | chore(mcp): silence alpaca missing-env-var warning with shell defaults |
-| 2026-04-19 | `41296694` | phase-12.4: Rainbow rehearsal smoketest — PHASE-12 COMPLETE |
 
 ---
 
+### v6.5.78 — Risk Judge REJECT + sub-$50 skip log lines (2026-04-24)
+
+- **Risk Judge REJECT + sub-$50 skip log lines**
 ### v6.5.77 — _default_bq_logger NULL type binding + complete Slack UAT (2026-04-24)
 
 - **_default_bq_logger NULL type binding + complete Slack UAT**
