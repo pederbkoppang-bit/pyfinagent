@@ -154,9 +154,37 @@ def _alpaca_mock_fill(symbol: str, qty: float, side: str,
     )
 
 
+_MAX_NOTIONAL_DEFAULT_USD = 10000.0
+
+
+def _max_notional_usd() -> float:
+    """Order-size clamp. Raises on notional > threshold to block
+    LLM hallucinations (e.g., 10,000-share buy orders). Default $10,000;
+    override via ALPACA_MAX_NOTIONAL_USD env var.
+    """
+    raw = os.getenv("ALPACA_MAX_NOTIONAL_USD", "")
+    if not raw:
+        return _MAX_NOTIONAL_DEFAULT_USD
+    try:
+        val = float(raw)
+        return val if val > 0 else _MAX_NOTIONAL_DEFAULT_USD
+    except ValueError:
+        logger.warning("bad ALPACA_MAX_NOTIONAL_USD=%r; using default", raw)
+        return _MAX_NOTIONAL_DEFAULT_USD
+
+
 def _alpaca_real_fill(symbol: str, qty: float, side: str,
-                       client_order_id: str) -> FillResult:
-    """Real Alpaca paper submit via alpaca-py. Requires env creds."""
+                       client_order_id: str,
+                       reference_price: float | None = None) -> FillResult:
+    """Real Alpaca paper submit via alpaca-py. Requires env creds.
+
+    Guards:
+      1. `_refuse_live_keys()` -- refuses PKLIVE* / ALPACA_PAPER_TRADE=false.
+      2. `max_notional_usd` clamp -- raises if qty * reference_price
+         (or a quick last-quote lookup) exceeds ALPACA_MAX_NOTIONAL_USD
+         (default $10,000). Blocks order-size hallucination before any
+         client.submit_order call.
+    """
     _refuse_live_keys()
     from alpaca.trading.client import TradingClient
     from alpaca.trading.requests import MarketOrderRequest
@@ -164,6 +192,39 @@ def _alpaca_real_fill(symbol: str, qty: float, side: str,
 
     key = os.environ["ALPACA_API_KEY_ID"]
     secret = os.environ["ALPACA_API_SECRET_KEY"]
+
+    # ── max_notional_usd clamp (pre-submit) ──────────────────────────
+    est_price = reference_price
+    if est_price is None or est_price <= 0:
+        # Cheap price lookup; fail-open on any error (clamp uses a
+        # defensive $1e6 upper-bound so the clamp still trips on
+        # absurdly large qty even when price lookup fails).
+        try:
+            import requests
+            r = requests.get(
+                f"https://data.alpaca.markets/v2/stocks/{symbol}/snapshot",
+                headers={
+                    "APCA-API-KEY-ID": key,
+                    "APCA-API-SECRET-KEY": secret,
+                    "accept": "application/json",
+                },
+                timeout=5,
+            )
+            snap = r.json() or {}
+            lp = snap.get("latestTrade", {}).get("p") or snap.get("latestQuote", {}).get("ap")
+            est_price = float(lp) if lp else 1.0e6
+        except Exception:
+            est_price = 1.0e6  # defensive: unknown price -> treat as worst-case
+
+    notional = float(qty) * float(est_price)
+    cap = _max_notional_usd()
+    if notional > cap:
+        raise RuntimeError(
+            f"max_notional_usd clamp: order {side} {qty} {symbol} @ ~${est_price:.2f} "
+            f"= ${notional:,.2f} exceeds ${cap:,.2f}. Raise ALPACA_MAX_NOTIONAL_USD "
+            f"explicitly if intended."
+        )
+
     client = TradingClient(key, secret, paper=True)
     order_side = OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL
     req = MarketOrderRequest(

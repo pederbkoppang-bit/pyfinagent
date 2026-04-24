@@ -14,6 +14,7 @@ import yfinance as yf
 
 from backend.config.settings import Settings
 from backend.db.bigquery_client import BigQueryClient
+from backend.services.execution_router import ExecutionRouter
 
 
 def _parse_iso_date(s: str) -> Optional[datetime]:
@@ -99,14 +100,28 @@ class PaperTrader:
         quantity = amount_usd / price
         now = datetime.now(timezone.utc).isoformat()
 
+        # phase-17.5: route every buy through ExecutionRouter so the
+        # bq_sim / alpaca_paper / shadow mode switch is honored. In
+        # bq_sim mode the router returns the same fill_price we passed
+        # in (behavior-preserving). In alpaca_paper the returned
+        # fill_price is Alpaca's actual fill + `source` tracks the path.
+        trade_id = str(uuid.uuid4())
+        router = ExecutionRouter()
+        fill = router.submit_order(
+            symbol=ticker, qty=quantity, side="buy",
+            client_order_id=trade_id, close_price=price,
+        )
+        exec_price = float(fill.fill_price) if fill and fill.fill_price else price
+        exec_source = fill.source if fill else "bq_sim"
+
         # Record trade
         trade = {
-            "trade_id": str(uuid.uuid4()),
+            "trade_id": trade_id,
             "ticker": ticker,
             "action": "BUY",
             "quantity": round(quantity, 6),
-            "price": price,
-            "total_value": round(amount_usd, 2),
+            "price": exec_price,
+            "total_value": round(quantity * exec_price, 2),
             "transaction_cost": round(tx_cost, 2),
             "reason": reason,
             "analysis_id": analysis_id,
@@ -167,7 +182,8 @@ class PaperTrader:
         new_cash = cash - total_cost
         self._update_portfolio_cash(new_cash)
 
-        logger.info(f"BUY {quantity:.4f} x {ticker} @ ${price:.2f} = ${amount_usd:.2f} (fee: ${tx_cost:.2f})")
+        logger.info(f"BUY {quantity:.4f} x {ticker} @ ${exec_price:.2f} "
+                    f"(source={exec_source}) = ${quantity*exec_price:.2f} (fee: ${tx_cost:.2f})")
         return trade
 
     def execute_sell(
@@ -189,6 +205,17 @@ class PaperTrader:
 
         sell_qty = quantity or position["quantity"]
         sell_qty = min(sell_qty, position["quantity"])
+
+        # phase-17.5: route sell through ExecutionRouter (mirrors execute_buy).
+        trade_id = str(uuid.uuid4())
+        router = ExecutionRouter()
+        fill = router.submit_order(
+            symbol=ticker, qty=sell_qty, side="sell",
+            client_order_id=trade_id, close_price=price,
+        )
+        price = float(fill.fill_price) if fill and fill.fill_price else price
+        exec_source = fill.source if fill else "bq_sim"
+
         sell_value = sell_qty * price
         tx_cost = sell_value * (self.settings.paper_transaction_cost_pct / 100.0)
         net_proceeds = sell_value - tx_cost
@@ -211,7 +238,7 @@ class PaperTrader:
 
         # Record trade
         trade = {
-            "trade_id": str(uuid.uuid4()),
+            "trade_id": trade_id,
             "ticker": ticker,
             "action": "SELL",
             "quantity": round(sell_qty, 6),

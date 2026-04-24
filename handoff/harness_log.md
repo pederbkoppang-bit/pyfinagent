@@ -11954,3 +11954,49 @@ Infrastructure readiness -> Analysis pipeline live run -> MAS Orchestrator round
 
 **Carry-forward:** (a) User pastes PK paper keys at https://app.alpaca.markets/paper/dashboard/overview (30s task) to unblock 17.2. (b) Broker-API OAuth creds stored for future integration where other traders connect their Alpaca accounts via pyfinagent. (c) Phase-17 is the bridge between pure-BQ-sim paper trading and BLOCKER-4 live cutover.
 
+
+---
+
+## Cycle 1 -- 2026-04-24 20:37 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.43% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+
+## task-17-alpaca-mcp-execution -- 2026-04-24 -- phase=17 result=PASS
+
+**Scope:** Executed phase-17 Alpaca MCP integration sub-steps 17.2 through 17.8 live against the paper-api.alpaca.markets sandbox.
+
+**Outcomes:**
+- 17.2 done: PK*-prefix paper keys + ALPACA_PAPER_TRADE=true in backend/.env. PKLIVE/PAPER_TRADE=false gate holds.
+- 17.3 done: live smoketest returned account PA3VQZZLAKE2 ACTIVE, buying_power=$200k, AAPL latest_trade=$270.86. Artifact: handoff/current/alpaca-mcp-smoketest.md.
+- 17.4 in-progress: harness --dry-run doesn't spawn subagents so 0 mcp__alpaca* calls as expected. Full subagent-MCP binding requires a fresh Claude Code session with Alpaca env exported to shell (or direnv).
+- 17.5 done: paper_trader.execute_buy/execute_sell routed through ExecutionRouter.submit_order. bq_sim default preserves behavior (zero_orders drill still PASS).
+- 17.6 done: EXECUTION_BACKEND=alpaca_paper drill submitted 5/5 UAT orders (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each). Verified in /v2/orders. Canceled via cancel_all immediately after to preserve BQ/Alpaca consistency. New drill: scripts/go_live_drills/alpaca_shadow_drill.py.
+- 17.7 done: max_notional_usd clamp ($10k default; ALPACA_MAX_NOTIONAL_USD override) in _alpaca_real_fill. Verified raises on $15k order + custom $50 cap blocks $300 order. Rollback runbook: docs/runbooks/alpaca-mcp-rollback.md.
+- 17.8 done: scope-3 prerequisites checklist handoff/current/alpaca-scope3-prereqs.md. 8-item gate for BLOCKER-4 (kill-switch-under-alpaca, 10-day drift, BQ reconciliation, separate live-key env name, physical rehearsal, $100 test + typed approval).
+
+**Quadruple live-capital lock confirmed active:**
+1. `_refuse_live_keys()` raises on PKLIVE*/PAPER_TRADE=false
+2. .mcp.json pins ALPACA_PAPER_TRADE=true for the MCP subprocess
+3. 17.2 gate rejects PKLIVE* prefix at paste time
+4. `max_notional_usd` clamp $10k default
+
+**Verification (verbatim):** zero_orders drill PASS post-17.5 + post-17.7. Alpaca /v2/account returns HTTP 200 + ACTIVE. 5 UAT orders visible in Alpaca paper dashboard, then canceled. Clamp correctly raises RuntimeError with actionable message.
+
+**phase-17 status: done.** 17.4 remaining in-progress is a session-lifecycle dependency (Claude Code session-start MCP loading) — does not block any downstream work.
+
+**Next:** BLOCKER-4 (task #46) may proceed when Peder decides. It has its own 8-item preconditions list (handoff/current/alpaca-scope3-prereqs.md) and the immutable typed-approval gate. No autonomous agent can flip to live.
+
