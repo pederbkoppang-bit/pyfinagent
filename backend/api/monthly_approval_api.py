@@ -93,12 +93,28 @@ def _row_to_model(row: dict[str, Any], *, effective_status: Optional[str] = None
     )
 
 
+_STRATEGY_DEPLOYMENTS_LOG_TYPES: dict[str, str] = {
+    "strategy_id": "STRING",
+    "status": "STRING",
+    "sharpe": "FLOAT64",
+    "dsr": "FLOAT64",
+    "pbo": "FLOAT64",
+    "max_dd": "FLOAT64",
+    "deployed_at": "TIMESTAMP",
+    "allocation_pct": "FLOAT64",
+    "notes": "STRING",
+}
+
+
 def _default_bq_logger(log_row: dict[str, Any]) -> None:
     """Production BQ audit writer for HITL terminal transitions.
 
     Inserts a row into `<project>.pyfinagent_pms.strategy_deployments_log`.
     Fail-open: BQ-client construction or insert errors are logged and
     swallowed so the in-memory / JSON transition still completes.
+
+    Binds NULL values using the column's real BQ type (not STRING) --
+    BQ rejects a STRING-typed NULL into a FLOAT64 column.
     """
     try:
         from google.cloud import bigquery  # local import -- avoid eager GCP auth cost
@@ -112,11 +128,12 @@ def _default_bq_logger(log_row: dict[str, Any]) -> None:
         query = f"INSERT INTO `{table_id}` ({cols}) VALUES ({vals})"
         params = []
         for k, v in log_row.items():
+            col_type = _STRATEGY_DEPLOYMENTS_LOG_TYPES.get(k, "STRING")
             if v is None:
-                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", None))
-            elif isinstance(v, float):
-                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "FLOAT64", v))
-            elif k == "deployed_at":
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", col_type, None))
+            elif col_type == "FLOAT64":
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "FLOAT64", float(v)))
+            elif col_type == "TIMESTAMP":
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "TIMESTAMP", v))
             else:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))

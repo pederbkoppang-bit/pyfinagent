@@ -11808,4 +11808,26 @@ Plus PRE-PROD NICE items (Slack UAT, api.ts helper restore) and DRIFT entries (p
 **Carry-forward:** (a) Peder-interactive real-Slack rehearsal recommended before BLOCKER-4 but not a gate; (b) BQ integration sanity-check via `curl POST` + `SELECT` is a one-shot Peder can run anytime; (c) drill file needs `git add` + commit in the next push.
 
 
+---
+
+## blocker-3-uat-real-slack -- 2026-04-24 -- phase=pre-prod result=PASS (follow-up to blocker-3)
+
+**Scope:** Task #43 Slack UAT end-to-end. Drove a real Slack message to channel C0ANTGNNK8D with a UAT-labelled challenger_id, transitioned real `handoff/logs/monthly_approval_state.json` from pending -> approved via `record_approval(..., bq_fn=_default_bq_logger)`, and verified the resulting row landed in `pyfinagent_pms.strategy_deployments_log`. Peder replied on Slack but nothing listened — surfaced a carry-forward (see below).
+
+**Findings (two defects surfaced that the hermetic drill had missed):**
+
+1. **`_default_bq_logger` NULL-type bug (now fixed).** Bound NULL values as STRING regardless of column type. BQ rejects STRING-typed NULL into a FLOAT64 column: `BadRequest('Value has type STRING which cannot be inserted into column sharpe, which has type FLOAT64')`. Fix: added `_STRATEGY_DEPLOYMENTS_LOG_TYPES` column-type map; NULL params now bind with the real column type. Re-run with the fix produced a valid BQ row (strategy_id=UAT-REAL-2026-04, status=approved, pbo=0.1, deployed_at=2026-04-24T16:17:57Z).
+
+2. **No Slack bot handler for in-thread "approved"/"rejected" replies.** Peder replied on Slack as the UAT instructed, but the only approval surface today is the HTTP API endpoint `POST /api/harness/monthly-approval/<month_key>`. The bot has no intent parser that maps a plain "approved" text into `record_approval(...)`. Not a blocker (API path works), but a UX carry-forward for a future cycle.
+
+**Verification (verbatim):**
+- Slack post: ts=1777047437.991709 ok=True
+- State on disk: `status=approved resolved_at_iso=2026-04-24T16:17:18.077108+00:00` for month 2026-04
+- BQ: 1 row matching `strategy_id='UAT-REAL-2026-04'` with all fields populated
+
+**Scope explicit:** `handoff/logs/monthly_approval_state.json` now contains an approved 2026-04 row with challenger_id=UAT-REAL-2026-04. This is the intentional audit artifact of the UAT and should NOT be deleted. If a real April-2026 promotion later needs to fire, the gate short-circuit logic will see "2026-04=approved" and not reopen the window -- acceptable because the gate window for April 2026 is a one-shot.
+
+**Carry-forward:** (a) in-thread Slack intent-parser is future UX work (not a pre-prod blocker); (b) the hermetic `hitl_gate_drill.py` would benefit from a BQ dry-run path to catch type-binding bugs without a live write -- track as a post-go-live improvement.
+
+
 
