@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-24 | `46b76ef4` | feat: Claude as default LLM provider, Gemini switchable from Settings |
 | 2026-04-24 | `f2e8ce28` | fix(uat-16.2): GCP scope, RAG IAM+datastore, localhost auth, BQ schema |
 | 2026-04-24 | `3a22f0ee` | plan: add phase-16 full-application end-to-end UAT to masterplan |
 | 2026-04-24 | `8131bb70` | observability: Risk Judge REJECT + sub-$50 skip log lines |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-21 | `77ffae9f` | chore: harness log entry for Cycle 31 (4.4.2.4 signal reliability BLOCKED) |
 | 2026-04-21 | `b93a684a` | Phase 4.4.2.4: add signal reliability drill (BLOCKED -- pipeline not running daily) |
 | 2026-04-20 | `baf79594` | chore: harness log entry for Cycle 30 (4.4.2.3 paper drawdown) |
-| 2026-04-20 | `9d12c053` | Phase 4.4.2.3: paper max drawdown < 15% verified via BQ evidence |
 
 ---
 
+### v6.5.81 — Claude as default LLM provider, Gemini switchable from Settings (2026-04-24)
+
+- **Claude as default LLM provider, Gemini switchable from Settings**
 ### v6.5.80 — fix(uat-16.2): GCP scope, RAG IAM+datastore, localhost auth, BQ schema (2026-04-24)
 
 - **fix(uat-16.2): GCP scope, RAG IAM+datastore, localhost auth, BQ schema**
