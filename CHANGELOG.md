@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-25 | `75f331fa` | phase-16.16-16.41 + 10.7.1-10.7.4: harness-driven backlog clearance |
 | 2026-04-24 | `70cbf355` | phase-17: wire Alpaca MCP + paper-trader router + max-notional clamp |
 | 2026-04-24 | `89dd4400` | plan: add phase-17 Alpaca MCP server integration to masterplan |
 | 2026-04-24 | `db4e3063` | uat: phase-16 full-app UAT executed, Q/A GO verdict, awaiting ack |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-22 | `0b4f4f22` | chore: harness log entry for Cycle 42 (4.4.2.1 paper runtime PASS) |
 | 2026-04-22 | `6130c545` | Phase 4.4.2.1: paper trading runtime >= 2 weeks verified (32 days) |
 | 2026-04-21 | `22e78958` | phase-10 complete: autoresearch sprint machinery + dashboard + housekeeping |
-| 2026-04-21 | `d0873465` | chore: harness log entry for Cycle 32 (4.4.6.3 first-week monitoring PASS) |
 
 ---
 
+### v6.5.86 — phase-16.16-16.41 + 10.7.1-10.7.4: harness-driven backlog clearance (2026-04-25)
+
+- **phase-16.16-16.41 + 10.7.1-10.7.4: harness-driven backlog clearance**
 ### v6.5.85 — phase-17: wire Alpaca MCP + paper-trader router + max-notional clamp (2026-04-24)
 
 - **phase-17: wire Alpaca MCP + paper-trader router + max-notional clamp**
