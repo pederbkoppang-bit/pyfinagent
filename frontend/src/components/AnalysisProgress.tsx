@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { AnalysisStatusResponse, StepLogEntry } from "@/lib/types";
-import type { Icon } from "@phosphor-icons/react";
+import type { Icon } from "@/lib/icons";
 import {
   StepMarketIntel, StepIngestion, StepQuant, StepRag,
   StepSentiment, StepCompetitor, StepEnrichment, StepInfoGap,

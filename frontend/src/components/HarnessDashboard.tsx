@@ -23,7 +23,7 @@ import {
   ClockCounterClockwise,
   Target,
   FileText,
-} from "@phosphor-icons/react";
+} from "@/lib/icons";
 
 // ── Verdict badge ───────────────────────────────────────────────
 

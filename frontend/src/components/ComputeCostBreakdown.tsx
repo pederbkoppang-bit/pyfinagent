@@ -16,7 +16,7 @@
 "use client";
 
 import { BentoCard } from "@/components/BentoCard";
-import { CurrencyDollar } from "@phosphor-icons/react";
+import { CurrencyDollar } from "@/lib/icons";
 import {
   Bar,
   BarChart,

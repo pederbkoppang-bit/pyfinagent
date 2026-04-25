@@ -18,14 +18,14 @@ from typing import Any, Iterable
 
 import pytest
 
-from backend.calendar.blackout import compute_fomc_blackout
-from backend.calendar.normalize import compute_event_id, normalize_window
-from backend.calendar.registry import (
+from backend.econ_calendar.blackout import compute_fomc_blackout
+from backend.econ_calendar.normalize import compute_event_id, normalize_window
+from backend.econ_calendar.registry import (
     clear_registry,
     get_sources,
     register,
 )
-from backend.calendar.watcher import (
+from backend.econ_calendar.watcher import (
     CalendarFetchReport,
     normalize_event,
     run_once,

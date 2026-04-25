@@ -35,6 +35,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SIGNALS_SERVER_PATH = REPO_ROOT / "backend" / "agents" / "mcp_servers" / "signals_server.py"
 
+# phase-16.19 fix: signals_server.py does `from backend.utils import json_io`.
+# Without REPO_ROOT on sys.path, Python resolves `backend` to the
+# gpt-researcher package in site-packages (which has utils.py, not utils/
+# package, so json_io import fails). Prepend repo root so OUR backend
+# package wins resolution.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 
 def load_signals_server():
     """Load signals_server.py as an isolated module by file path."""

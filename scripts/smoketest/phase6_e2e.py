@@ -175,7 +175,7 @@ def _run_pipeline(
     # --- Stage 5: fetch calendar events ---
     cal_events: list = []
     try:
-        from backend.calendar.watcher import run_once as fetch_calendar
+        from backend.econ_calendar.watcher import run_once as fetch_calendar
 
         cal_report = fetch_calendar(days_forward=days_forward, days_backward=0)
         cal_events = list(cal_report.events or [])

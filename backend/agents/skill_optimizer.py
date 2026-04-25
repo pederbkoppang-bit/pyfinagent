@@ -15,7 +15,7 @@ from backend.utils import json_io
 import logging
 import subprocess
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -596,7 +596,7 @@ class SkillOptimizer:
         """Append a row to skill_results.tsv."""
         commit = _get_short_hash()
         row = [
-            datetime.utcnow().isoformat(),
+            datetime.now(timezone.utc).isoformat(),
             commit,
             agent,
             f"{metric_before:.4f}",

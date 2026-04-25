@@ -268,6 +268,13 @@ files (the `archive-handoff` hook handles the rotation).
 
 - F1 (retry loop): `consecutive_fails` counter, revert-not-restart,
   certified_fallback escalation after 3 consecutive FAILs.
+  **3rd-CONDITIONAL auto-FAIL:** if a single step-id accumulates 3+
+  consecutive CONDITIONAL verdicts without an intervening PASS or
+  FAIL, the next Q/A pass MUST return FAIL (not another CONDITIONAL).
+  Q/A reads `handoff/harness_log.md` to count prior CONDITIONALs for
+  that step-id. Counter resets on PASS, FAIL, or new step-id. This
+  prevents the harness from logging instead of correcting (see
+  `docs/runbooks/per-step-protocol.md` §4 EVALUATE for full text).
 - F2 (research-on-demand): planner emits `research_needed` flag
   with a 4-key brief (objective / output_format / tool_scope /
   task_boundaries). The harness reads this and re-spawns research

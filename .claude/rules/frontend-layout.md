@@ -219,6 +219,50 @@ See `frontend/src/components/OpsStatusBar.tsx` for the canonical implementation:
 
 ---
 
+## 4.6. Sovereign two-hero layout (phase-10.5)
+
+The `/sovereign` route and the authenticated homepage both follow a **two-hero** pattern: one dominant tall chart at the top of the scrollable content zone, then a band of secondary tiles below.
+
+### The two heroes
+
+1. **Red Line Monitor** -- `RedLineMonitor` component. NAV delta over a rolling window (7d / 30d / 90d) with event annotations for kill-switch flips and parameter overrides. `y=0` reference line marks the capital-preservation threshold. This is the **top** hero; it must dominate the fold.
+2. **Compute-Cost Breakdown** or **Alpha Leaderboard** (context-dependent). On `/sovereign` the second hero is `ComputeCostBreakdown` (stacked bar by provider); on the homepage embed the second slot is folded into the existing KPI grid + ops status bar.
+
+### Sizing rules
+
+- Top hero: `min-h-[55svh]` on the wrapper, with the chart container using `h-full min-h-[16rem]` inside. This guarantees >=55% of the small viewport on a standard 800-1000px laptop.
+- Prefer `svh` over `vh` / `dvh` -- avoids toolbar-animation CLS on mobile. `svh` has been Baseline Widely Available since June 2025 (see `handoff/archive/phase-10.5.7/phase-10.5.7-research-brief.md`).
+- Second hero: no explicit height floor -- sizes by content.
+
+### Client-only chart loading on the homepage
+
+When embedding `RedLineMonitor` on the homepage (phase-10.5.7), use
+`next/dynamic` with `ssr: false` to keep Recharts out of the initial
+HTML bundle. The `loading` fallback MUST match the hero's
+`min-h-[55svh]` footprint to prevent CLS during lazy-load:
+
+```tsx
+const RedLineMonitor = dynamic(
+  () => import("@/components/RedLineMonitor").then((m) => m.RedLineMonitor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[55svh] animate-pulse rounded-xl border border-navy-700 bg-navy-800/40" />
+    ),
+  },
+);
+```
+
+On `/sovereign` itself, static import is fine -- the route is not the first paint the user sees, so the hero's Recharts bundle is already in the chunk cache by the time the user navigates there.
+
+### Applied
+
+- `/sovereign`: `frontend/src/app/sovereign/page.tsx` (phase-10.5.2; two heroes side-by-side in a two-column grid on wide viewports, stacked on narrow).
+- Homepage: `frontend/src/app/page.tsx` (phase-10.5.7; single RedLineMonitor hero at the top of the scrollable content zone, KPI grid + ops status below).
+- Component: `frontend/src/components/RedLineMonitor.tsx`. `compact` prop hides the window selector and expands the chart container to `h-full`.
+
+---
+
 ## 5. Tab Bar
 
 ### Pill-style tabs (standard) — inside fixed header zone

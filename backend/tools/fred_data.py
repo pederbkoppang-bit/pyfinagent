@@ -4,7 +4,7 @@ Fetches key macro indicators for economic cycle positioning.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -26,7 +26,7 @@ SERIES = {
 
 async def _fetch_series(series_id: str, api_key: str, periods: int = 12) -> dict:
     """Fetch the last N observations for a FRED series."""
-    start = (datetime.utcnow() - timedelta(days=periods * 35)).strftime("%Y-%m-%d")
+    start = (datetime.now(timezone.utc) - timedelta(days=periods * 35)).strftime("%Y-%m-%d")
     url = (
         f"{FRED_BASE}?series_id={series_id}"
         f"&api_key={api_key}&file_type=json"

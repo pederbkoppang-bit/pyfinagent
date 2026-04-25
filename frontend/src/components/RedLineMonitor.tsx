@@ -13,7 +13,7 @@
 "use client";
 
 import { BentoCard } from "@/components/BentoCard";
-import { TrendDown } from "@phosphor-icons/react";
+import { TrendDown } from "@/lib/icons";
 import {
   CartesianGrid,
   ComposedChart,

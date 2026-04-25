@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { clsx } from "clsx";
 import type { EnrichmentSignals } from "@/lib/types";
-import type { Icon } from "@phosphor-icons/react";
+import type { Icon } from "@/lib/icons";
 import {
   SignalInsider, SignalOptions, SignalSocial, SignalPatent,
   SignalEarnings, SignalMacro, SignalAltData, SignalSector,

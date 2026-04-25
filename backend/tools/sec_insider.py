@@ -8,7 +8,7 @@ import asyncio
 import base64
 import logging
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -157,7 +157,7 @@ async def get_insider_trades(ticker: str, months: int = 6) -> dict:
     Fetch and analyse insider trades from SEC EDGAR Form 4 filings.
     Two-phase: list filings via submissions API, then fetch XMLs concurrently.
     """
-    cutoff_date = (datetime.utcnow() - timedelta(days=months * 30)).strftime("%Y-%m-%d")
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=months * 30)).strftime("%Y-%m-%d")
 
     try:
         async with httpx.AsyncClient(timeout=30, headers=SEC_HEADERS) as client:
@@ -236,7 +236,7 @@ async def get_insider_trades(ticker: str, months: int = 6) -> dict:
         sells = [t for t in all_trades if t["type"] == "SELL"]
 
         # Cluster buy detection: 3+ unique buyers within 30 days
-        recent_cutoff = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d")
+        recent_cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
         recent_buyers = {t["filer"] for t in buys if t["date"] >= recent_cutoff}
 
         cluster_buy = len(recent_buyers) >= 3

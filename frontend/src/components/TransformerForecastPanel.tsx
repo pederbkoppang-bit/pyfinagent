@@ -11,7 +11,7 @@
 
 import { BentoCard } from "@/components/BentoCard";
 import type { TransformerForecastResponse } from "@/lib/types";
-import { Warning, LineSegments } from "@phosphor-icons/react";
+import { Warning, LineSegments } from "@/lib/icons";
 import {
   Line,
   XAxis,

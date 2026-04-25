@@ -5,6 +5,7 @@ Uses APScheduler to run tasks within the Slack bot process.
 
 import logging
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -30,23 +31,25 @@ def start_scheduler(app: AsyncApp):
 
     _scheduler = AsyncIOScheduler()
 
-    # Morning digest — daily at configured hour
+    # Morning digest — daily at configured hour (US Eastern, DST-aware)
     _scheduler.add_job(
         _send_morning_digest,
         "cron",
         hour=settings.morning_digest_hour,
         minute=0,
+        timezone=ZoneInfo("America/New_York"),
         args=[app],
         id="morning_digest",
         replace_existing=True,
     )
 
-    # Evening digest — daily at configured hour
+    # Evening digest — daily at configured hour (US Eastern, DST-aware)
     _scheduler.add_job(
         _send_evening_digest,
         "cron",
         hour=settings.evening_digest_hour,
         minute=0,
+        timezone=ZoneInfo("America/New_York"),
         args=[app],
         id="evening_digest",
         replace_existing=True,
@@ -69,6 +72,7 @@ def start_scheduler(app: AsyncApp):
         _nightly_prompt_leak_redteam,
         "cron",
         hour=3, minute=15,
+        timezone=ZoneInfo("America/New_York"),
         args=[app],
         id="prompt_leak_redteam",
         replace_existing=True,

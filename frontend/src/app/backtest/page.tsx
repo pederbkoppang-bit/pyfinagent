@@ -64,7 +64,7 @@ import {
   House,
   MagnifyingGlass,
   ClockCounterClockwise,
-} from "@phosphor-icons/react";
+} from "@/lib/icons";
 import { OptimizerProgressChart } from "@/components/OptimizerProgressChart";
 import { AutoresearchLeaderboard } from "@/components/AutoresearchLeaderboard";
 import { mapExperimentsToCandidates } from "@/components/AutoresearchLeaderboardMap";
@@ -72,7 +72,7 @@ import { SharpeHistoryChart } from "@/components/SharpeHistoryChart";
 import { HarnessDashboard } from "@/components/HarnessDashboard";
 import { BudgetDashboard } from "@/components/BudgetDashboard";
 // OptimizerInsightsView removed — consolidated into Overview tab
-import type { Icon } from "@phosphor-icons/react";
+import type { Icon } from "@/lib/icons";
 
 /* ── Backtest pipeline step definitions ── */
 type PipelineStepKey =

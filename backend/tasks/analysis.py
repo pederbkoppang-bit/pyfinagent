@@ -348,3 +348,58 @@ def run_analysis_task(self, ticker: str):
         except Exception:
             pass
         raise
+
+
+def run_analysis_pipeline(ticker: str, run_id: str | None = None) -> dict:
+    """phase-16.26 sync wrapper around AnalysisOrchestrator.run_full_analysis.
+
+    For verification commands and direct UAT callers (NOT Celery; Celery uses
+    `run_analysis_task` above). Returns a dict with top-level `final_score`
+    flattened from `report["final_synthesis"]["final_weighted_score"]`.
+
+    Long-running on success: drives the full async pipeline through Vertex
+    AI + BQ + RAG. Typical wall time: 3-8 minutes per ticker.
+
+    Always returns a dict (never raises). On orchestrator construction or
+    pipeline failure, `final_score` is set to None and `error` carries the
+    cause -- visible to caller, not silent. Callers can assert
+    `r["final_score"] is not None` to gate on a successful run.
+    """
+    from backend.agents.orchestrator import AnalysisOrchestrator
+    from backend.config.settings import get_settings
+
+    settings = get_settings()
+    try:
+        orchestrator = AnalysisOrchestrator(settings)
+    except Exception as e:
+        return {
+            "ticker": ticker,
+            "run_id": run_id,
+            "final_score": None,
+            "error": f"orchestrator_init_failed: {type(e).__name__}: {str(e)[:300]}",
+            "status": "failed_init",
+        }
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        report = loop.run_until_complete(orchestrator.run_full_analysis(ticker))
+    except Exception as e:
+        return {
+            "ticker": ticker,
+            "run_id": run_id,
+            "final_score": None,
+            "error": f"pipeline_failed: {type(e).__name__}: {str(e)[:300]}",
+            "status": "failed_pipeline",
+        }
+    finally:
+        loop.close()
+
+    synthesis = report.get("final_synthesis", {}) if isinstance(report, dict) else {}
+    return {
+        "ticker": ticker,
+        "run_id": run_id,
+        "final_score": synthesis.get("final_weighted_score"),
+        "recommendation": synthesis.get("recommendation"),
+        "status": "completed",
+    }

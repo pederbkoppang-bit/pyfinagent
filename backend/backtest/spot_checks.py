@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import numpy as np
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class SpotCheckResult:
     
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow().isoformat()
+            self.timestamp = datetime.now(timezone.utc).isoformat()
 
 
 @dataclass
@@ -53,7 +53,7 @@ class SpotChecksAggregated:
     
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow().isoformat()
+            self.timestamp = datetime.now(timezone.utc).isoformat()
 
 
 class CostStressTest:
@@ -431,7 +431,7 @@ class SpotCheckRunner:
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Save summary
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         summary_file = output_dir / f'{timestamp}_spot_checks_summary.json'
         
         summary_dict = {

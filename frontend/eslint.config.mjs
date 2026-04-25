@@ -32,6 +32,29 @@ export default [
       "react-hooks/purity": "warn",
       "react-hooks/immutability": "warn",
       "react-hooks/rules-of-hooks": "error",
+      // phase-16.32 (closes #42): force icons through the centralized
+      // @/lib/icons barrel so semantic re-export names stay consistent
+      // across the app and the bundle stays tree-shaken.
+      // phase-16.39 (closes #50): all 22 prior violators rewritten;
+      // rule promoted from "warn" to "error" alongside the sweep.
+      "no-restricted-imports": ["error", {
+        paths: [{
+          name: "@phosphor-icons/react",
+          message: "Import icons from @/lib/icons instead of @phosphor-icons/react directly.",
+        }],
+        patterns: [{
+          group: ["@phosphor-icons/react/*"],
+          message: "Import icons from @/lib/icons instead of @phosphor-icons/react directly.",
+        }],
+      }],
+    },
+  },
+  {
+    // Centralized icon barrel is the ONE legitimate place to import
+    // @phosphor-icons/react directly. Exempt it from the rule above.
+    files: ["**/lib/icons.ts", "**/lib/icons.tsx"],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
 ];

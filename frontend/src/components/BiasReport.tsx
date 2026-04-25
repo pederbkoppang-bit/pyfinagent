@@ -2,7 +2,7 @@
 
 import { clsx } from "clsx";
 import type { BiasReportData, ConflictReportData } from "@/lib/types";
-import type { Icon } from "@phosphor-icons/react";
+import type { Icon } from "@/lib/icons";
 import {
   BiasTech, BiasConfirmation, BiasRecency, BiasAnchoring,
   BiasDiversity, BiasDefault, BiasShield, ConflictIcon,

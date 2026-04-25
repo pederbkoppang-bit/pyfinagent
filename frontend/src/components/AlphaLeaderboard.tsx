@@ -22,7 +22,7 @@ import {
   XCircle,
   Warning,
   X,
-} from "@phosphor-icons/react";
+} from "@/lib/icons";
 import type { SovereignLeaderboardEntry } from "@/lib/api";
 
 export type SortDir = "asc" | "desc";

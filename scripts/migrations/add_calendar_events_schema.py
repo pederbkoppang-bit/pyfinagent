@@ -4,7 +4,7 @@ One table in `pyfinagent_data` (configurable via `bq_dataset_observability`
 fallback). Forward-looking + historical FOMC / earnings / macro calendar
 events. Dedup anchor is `event_id = sha256(event_type + "|" + ticker + "|"
 + (fiscal_period_end or DATE(scheduled_at)))` -- computed client-side in
-`backend/calendar/normalize.py`.
+`backend/econ_calendar/normalize.py`.
 
 Design choices (see `handoff/current/phase-6.6-research-brief.md`):
 - `calendar_events` is NET-NEW. Zero `*_calendar*` or `*_events*` tables

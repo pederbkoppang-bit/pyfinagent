@@ -1,7 +1,12 @@
 /**
  * Centralized Phosphor icon exports.
  * Import from here instead of @phosphor-icons/react directly for consistency.
+ *
+ * phase-16.39 (#50): all 22 prior violators rewritten to import from here;
+ * ESLint rule promoted from "warn" to "error" alongside this sweep.
  */
+export type { Icon } from "@phosphor-icons/react";
+
 export {
   // ── Navigation ──
   House as NavHome,
@@ -13,6 +18,8 @@ export {
   Robot as NavPaperTrading,
   ClockCounterClockwise as NavBacktest,
   Gear as NavSettings,
+  // phase-16.33: sovereign view nav icon (alpha leaderboard / red-line monitor / champion strategy)
+  Crown as NavSovereign,
   ChartLineUp as LogoIcon,
 
   // ── Analysis Pipeline Steps ──
@@ -92,6 +99,12 @@ export {
   Bank as MacroTreasury,
   Ruler as MacroDefault,
 
+  // phase-16.30 identity re-export so RedLineMonitor (and any other
+  // alpha/risk component) can use the canonical Phosphor name without
+  // importing directly from @phosphor-icons/react. Keeps the
+  // .claude/rules/frontend.md "icons via @/lib/icons" rule satisfied.
+  TrendDown as TrendDown,
+
   // ── GlassBox Icons ──
   Gauge as IconAlphaScore,
   MagnifyingGlass as IconSummary,
@@ -142,4 +155,79 @@ export {
   CheckCircle as IconCheckCircle,
   XCircle as IconXCircle,
   Info as IconInfo,
+
+  // ── phase-16.39 sweep additions (icons formerly imported directly) ──
+  ArrowsLeftRight as IconArrowsLeftRight,
+  CaretLeft as IconCaretLeft,
+  CaretUp as IconCaretUp,
+  ChartBarHorizontal as IconChartBarHorizontal,
+  ChartPolar as IconChartPolar,
+  LineSegments as IconLineSegments,
+  NotePencil as IconNotePencil,
+  Play as IconPlay,
+  Stop as IconStop,
+  Table as IconTable,
+  Target as IconTargetAlt,
+  Trash as IconTrash,
+  // identity re-exports for icons that some files use under their bare
+  // Phosphor name (avoid renames in those files; keep diffs surgical):
+  ArrowClockwise as ArrowClockwise,
+  ArrowsClockwise as ArrowsClockwise,
+  ArrowsLeftRight as ArrowsLeftRight,
+  Bank as Bank,
+  Brain as Brain,
+  Broadcast as Broadcast,
+  Buildings as Buildings,
+  CaretDown as CaretDown,
+  CaretLeft as CaretLeft,
+  CaretUp as CaretUp,
+  ChatCircle as ChatCircle,
+  ChartBar as ChartBar,
+  ChartBarHorizontal as ChartBarHorizontal,
+  ChartLineUp as ChartLineUp,
+  ChartPolar as ChartPolar,
+  Check as Check,
+  CheckCircle as CheckCircle,
+  ClipboardText as ClipboardText,
+  Clock as Clock,
+  ClockCounterClockwise as ClockCounterClockwise,
+  CloudArrowDown as CloudArrowDown,
+  Crosshair as Crosshair,
+  Crown as Crown,
+  CurrencyDollar as CurrencyDollar,
+  Database as Database,
+  FileText as FileText,
+  Files as Files,
+  Funnel as Funnel,
+  Gauge as Gauge,
+  Gear as Gear,
+  GearSix as GearSix,
+  HashStraight as HashStraight,
+  House as House,
+  Info as Info,
+  Lightning as Lightning,
+  LineSegments as LineSegments,
+  ListBullets as ListBullets,
+  MagnifyingGlass as MagnifyingGlass,
+  NotePencil as NotePencil,
+  Play as Play,
+  Robot as Robot,
+  RocketLaunch as RocketLaunch,
+  Scales as Scales,
+  ShieldCheck as ShieldCheck,
+  ShieldWarning as ShieldWarning,
+  ShoppingCart as ShoppingCart,
+  Sparkle as Sparkle,
+  SpinnerGap as SpinnerGap,
+  Stop as Stop,
+  Table as Table,
+  Target as Target,
+  Timer as Timer,
+  Trash as Trash,
+  TreeStructure as TreeStructure,
+  TrendUp as TrendUp,
+  Trophy as Trophy,
+  Warning as Warning,
+  X as X,
+  XCircle as XCircle,
 } from "@phosphor-icons/react";

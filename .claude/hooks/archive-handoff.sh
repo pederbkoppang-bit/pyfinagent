@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
-# archive-handoff.sh — Move handoff/current/* into handoff/archive/phase-<id>/
-# when a step in .claude/masterplan.json transitions to status=done.
+# archive-handoff.sh — Copy/move handoff/current/* into
+# handoff/archive/phase-<id>/ when a step in .claude/masterplan.json has
+# status=done AND its archive dir does not yet exist.
 # Triggered by PostToolUse on Write(.claude/masterplan.json).
-# Idempotent: skips steps whose archive dir already exists, and gracefully
-# no-ops on the first run (no HEAD masterplan to diff against).
 #
-# REMEDIATION GUARD (2026-04-20): exit early if the remediation flag
-# file exists. Bug: when HEAD masterplan isn't committed, every `done`
-# step looks newly-done vs HEAD, so this hook churns the archive dir on
-# every masterplan write. `.claude/archive-handoff.disabled` bypasses
-# the hook until the operator removes it.
+# Source-of-truth for "already archived" = presence of
+# handoff/archive/phase-<sid>/. Idempotent by construction: running the
+# hook twice with no masterplan changes is a no-op.
+#
+# Historical note (2026-04-20 -> 2026-04-24): the previous version of
+# this hook diffed HEAD:masterplan.json vs working tree to find newly
+# done steps. When masterplan.json accumulated many done flips before
+# the next commit, every write saw N steps as "newly done" and the
+# -v2/-v3 suffix logic minted duplicate versioned archive dirs on every
+# run. The filesystem-as-SoT approach below removes that failure mode,
+# so the `.claude/archive-handoff.disabled` remediation flag is no
+# longer load-bearing. Kept as an emergency kill switch only.
 if [ -f "${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/archive-handoff.disabled" ]; then
     exit 0
 fi
@@ -28,51 +34,80 @@ fi
 MASTERPLAN="$REPO/.claude/masterplan.json"
 CURRENT_DIR="$REPO/handoff/current"
 ARCHIVE_ROOT="$REPO/handoff/archive"
+# State file owned by this hook. Records the set of step ids already
+# seen as `done` so we archive only genuinely-new transitions. Self-
+# seeded on first run (see NEWLY_DONE below): if missing, populated
+# with every currently-done id and the hook emits nothing that turn.
+STATE_FILE="$REPO/.claude/.archive-baseline.json"
 
 [ -f "$MASTERPLAN" ] || exit 0
 [ -d "$CURRENT_DIR" ] || exit 0
 
-# Gather "just-completed" step ids by diffing HEAD vs working tree.
-# Prints one step id per line. Empty output = nothing to archive.
-NEWLY_DONE=$(python3 - "$REPO" "$MASTERPLAN" << 'PYEOF'
-import json, subprocess, sys
-from pathlib import Path
+# Gather step ids that transitioned to `done` SINCE the last time the
+# hook ran (baseline state file). First run seeds the baseline with all
+# currently-done ids as "already seen" so we never retro-archive 100+
+# historical steps against the wrong rolling-file snapshot.
+NEWLY_DONE=$(python3 - "$REPO" "$MASTERPLAN" "$STATE_FILE" << 'PYEOF'
+import json, sys, os
 
-repo, mp_path = sys.argv[1], sys.argv[2]
-
-def load(s):
-    try:
-        return json.loads(s)
-    except Exception:
-        return {"phases": []}
-
-def step_statuses(doc):
-    out = {}
-    for p in doc.get("phases", []):
-        for s in p.get("steps", []):
-            sid = s.get("id")
-            if sid:
-                out[sid] = s.get("status")
-    return out
+repo, mp_path, state_path = sys.argv[1], sys.argv[2], sys.argv[3]
+archive_root = os.path.join(repo, "handoff", "archive")
 
 with open(mp_path) as f:
-    after = json.load(f)
+    doc = json.load(f)
 
-try:
-    before_raw = subprocess.check_output(
-        ["git", "-C", repo, "show", "HEAD:.claude/masterplan.json"],
-        stderr=subprocess.DEVNULL,
-    ).decode()
-    before = json.loads(before_raw)
-except Exception:
-    before = {"phases": []}
+def walk(node, out):
+    if isinstance(node, dict):
+        sid = node.get("id")
+        status = node.get("status")
+        if sid and status == "done":
+            out.append(str(sid))
+        for v in node.values():
+            walk(v, out)
+    elif isinstance(node, list):
+        for v in node:
+            walk(v, out)
 
-before_s = step_statuses(before)
-after_s = step_statuses(after)
+current_done = []
+walk(doc, current_done)
+# Dedupe preserving order (masterplan can list same id under multiple parents).
+seen_once = set()
+current_set = []
+for sid in current_done:
+    if sid not in seen_once:
+        seen_once.add(sid)
+        current_set.append(sid)
 
-for sid, status in after_s.items():
-    if status == "done" and before_s.get(sid) != "done":
-        print(sid)
+# Seed baseline on first run: treat every currently-done id as already
+# seen. Emit nothing and let the hook write the baseline.
+if not os.path.isfile(state_path):
+    with open(state_path, "w") as f:
+        json.dump({"seen_done": sorted(seen_once)}, f, indent=2)
+    sys.exit(0)
+
+with open(state_path) as f:
+    state = json.load(f)
+baseline = set(state.get("seen_done", []))
+
+newly = [sid for sid in current_set if sid not in baseline]
+
+# Filter further: belt-and-suspenders -- if archive dir already exists,
+# skip (covers the case where state file was deleted + recreated).
+to_archive = []
+for sid in newly:
+    short = sid[len("phase-"):] if sid.startswith("phase-") else sid
+    if not os.path.isdir(os.path.join(archive_root, f"phase-{short}")):
+        to_archive.append(sid)
+
+# Update baseline to include the ones we are about to archive (and any
+# skipped-because-dir-already-exists ones too, so we never look at them
+# again).
+new_baseline = baseline | set(newly)
+with open(state_path, "w") as f:
+    json.dump({"seen_done": sorted(new_baseline)}, f, indent=2)
+
+for sid in to_archive:
+    print(sid)
 PYEOF
 )
 
@@ -88,12 +123,12 @@ archive_step() {
     local short_sid="${sid#phase-}"
     local target="$ARCHIVE_ROOT/phase-$short_sid"
 
-    # Idempotency: if a dir for this id already exists, append a numeric
-    # suffix so we never clobber prior evidence.
+    # Defensive idempotency: the caller (NEWLY_DONE) already filters out
+    # steps whose archive dir exists, but if concurrent runs racy-create
+    # the same dir we skip rather than mint a -v2.
     if [ -d "$target" ]; then
-        local n=2
-        while [ -d "${target}-v${n}" ]; do n=$((n + 1)); done
-        target="${target}-v${n}"
+        echo "[archive-handoff] step $sid -> phase-$short_sid already archived, skipping" >&2
+        return 0
     fi
 
     mkdir -p "$target"

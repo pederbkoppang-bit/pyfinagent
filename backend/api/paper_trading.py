@@ -6,6 +6,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -272,9 +273,17 @@ async def get_cycles_history(limit: int = Query(10, ge=1, le=100)):
 @router.get("/freshness")
 async def get_freshness():
     """
-    Signal-freshness strip payload: per-source last_tick_age, process
-    heartbeat (dead-man's-switch control plane), BQ ingest lag, and the
-    warn/critical ratio thresholds. UI drives colors from the `band` field.
+    CANONICAL freshness route. Signal-freshness strip payload:
+    per-source last_tick_age, process heartbeat (dead-man's-switch
+    control plane), BQ ingest lag, and the warn/critical ratio
+    thresholds. UI drives colors from the `band` field.
+
+    phase-16.22 added a thin alias at `/api/observability/freshness`
+    that delegates to the same `compute_freshness` helper. This route
+    is the canonical home; the alias exists only because the
+    masterplan verification command pinned that prefix. Future
+    consumers should hit THIS route. See `.claude/rules/backend-api.md`
+    "Dual-route freshness" note for the rationale.
     """
     settings = get_settings()
     bq = BigQueryClient(settings)
@@ -654,6 +663,7 @@ def _add_scheduler_job(settings):
         hour=settings.paper_trading_hour,
         minute=0,
         day_of_week="mon-fri",
+        timezone=ZoneInfo("America/New_York"),
         id=_scheduler_job_id,
         replace_existing=True,
     )

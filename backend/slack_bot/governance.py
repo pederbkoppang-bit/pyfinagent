@@ -13,7 +13,7 @@ Reference: https://docs.slack.dev/ai/agent-governance
 import logging
 import json
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ class AuditLogger:
         
         log = AuditLog(
             request_id=request_id,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             user_id=user_id,
             channel_id=channel_id,
             thread_ts=thread_ts,

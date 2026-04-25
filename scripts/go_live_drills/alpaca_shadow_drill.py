@@ -8,9 +8,14 @@ Assumes ALPACA_API_KEY_ID + ALPACA_API_SECRET_KEY are set in env. The
 router's _refuse_live_keys() gate blocks PKLIVE* anyway.
 
 Prints PASS / FAIL. Exits 0 / 1.
+
+phase-16.19 fix: client_order_id is now timestamped per-run to avoid
+Alpaca's 40010001 "client_order_id must be unique" rejection on re-runs
+(IDs are unique per-account forever, including against terminal orders).
 """
 import os
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,8 +40,9 @@ def main() -> int:
 
     failures: list[str] = []
     rows = []
+    run_ts = int(time.time())
     for i, sym in enumerate(TICKERS):
-        oid = f"uat-17.6-{sym.lower()}-{i}"
+        oid = f"uat-shadow-{run_ts}-{sym.lower()}-{i}"
         # Paper BUY of 1 share -- smallest viable notional
         try:
             alp = router.submit_order(symbol=sym, qty=1, side="buy",

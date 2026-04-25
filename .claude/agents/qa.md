@@ -163,3 +163,11 @@ Score below 6 on ANY criterion = FAIL.
 - **Never second-opinion-shop.** If the first spawn returned
   CONDITIONAL, the orchestrator must fix the blockers then SendMessage
   back to the SAME agent, not spawn a new one.
+- **3rd-CONDITIONAL auto-FAIL.** Before issuing a CONDITIONAL verdict,
+  grep `handoff/harness_log.md` for the current step-id. If there are
+  already 2+ `result=CONDITIONAL` entries for this step-id (i.e. this
+  would be the third consecutive CONDITIONAL), return FAIL instead.
+  Stacking a third CONDITIONAL means the harness is logging, not
+  correcting (`violation_type: Unjustified_Inference`). Counter resets
+  on PASS, FAIL, or a new step-id. See
+  `docs/runbooks/per-step-protocol.md` §4 EVALUATE for full text.

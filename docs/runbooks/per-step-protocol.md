@@ -137,6 +137,28 @@ fails, the LLM judgment wins (scope honesty, anti-rubber-stamp,
 mutation-resistance are load-bearing). Log the split in
 `harness_log.md`.
 
+#### CONDITIONAL escalation clause (3rd-CONDITIONAL auto-FAIL)
+
+A CONDITIONAL verdict is appropriate when: (a) underlying functionality
+is intact, (b) production code paths are unaffected, and (c) the step
+was designed to discover a gap rather than deliver a fix. CONDITIONAL
+is NOT an indefinite soft-pass.
+
+If a single masterplan step-id accumulates 3 or more consecutive
+CONDITIONAL verdicts without an intervening PASS or FAIL, the next
+Q/A pass MUST return FAIL -- not another CONDITIONAL. This prevents
+the harness from functioning as a logger rather than a corrector
+(shared-evaluator-bias forcing function; see mergeshield.dev 2026
+"What's Missing from Anthropic's Multi-Agent Harness").
+
+Q/A procedure: before issuing a CONDITIONAL verdict, grep
+`handoff/harness_log.md` for the current step-id and count prior
+`result=CONDITIONAL` entries. If the count is already 2, the verdict
+must be FAIL with `violation_type: Unjustified_Inference`.
+
+Counter resets after: a PASS verdict, a FAIL verdict, or a new
+step-id (which is a structurally distinct problem and starts fresh).
+
 ### 5. LOG
 
 Append to `handoff/harness_log.md` using the Cycle format:

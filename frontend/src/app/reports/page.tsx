@@ -27,8 +27,8 @@ import type { ReportSummary, SynthesisReport } from "@/lib/types";
 import {
   IconChart, IconStar, IconCheck, IconScoringMatrix,
 } from "@/lib/icons";
-import { Trophy, ChartPolar, NotePencil, Files, ArrowsLeftRight } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { Trophy, ChartPolar, NotePencil, Files, ArrowsLeftRight } from "@/lib/icons";
+import type { Icon } from "@/lib/icons";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 

@@ -11,7 +11,7 @@ import {
   Warning,
   CheckCircle,
   Clock,
-} from "@phosphor-icons/react";
+} from "@/lib/icons";
 import {
   Bar,
   XAxis,

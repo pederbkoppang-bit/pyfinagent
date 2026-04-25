@@ -22,6 +22,16 @@ paths:
 - `performance_api.py` — 8 routes for cache stats, latency, TTL optimizer; TSV reads use `encoding="utf-8"`
 - All endpoints return JSON. Use Pydantic models for request/response validation.
 
+## Dual-route freshness (phase-16.22 alias, phase-16.30 documented)
+
+The signal-freshness payload is exposed under TWO paths that both delegate
+to `backend/services/cycle_health.py::compute_freshness`:
+
+- **CANONICAL: `GET /api/paper-trading/freshness`** — `paper_trading.py::get_freshness`. Future code that consumes freshness should hit this route.
+- **ALIAS: `GET /api/observability/freshness`** — `observability_api.py::get_observability_freshness`. Added in phase-16.22 because the masterplan-immutable verification command pinned this prefix. Pure thin delegation (no caching, no shape divergence).
+
+If you change the freshness payload shape, edit `compute_freshness` (the shared helper). Both routes pick it up automatically. Don't fork.
+
 ## BigQuery Schema
 - `analysis_results` — 88-column ML training schema (managed by `migrate_bq_schema.py`)
 - `outcome_tracking` — Actual price performance vs recommendations

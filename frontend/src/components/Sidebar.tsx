@@ -9,10 +9,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   NavHome, NavSignals, NavReports,
   NavPerformance, NavPaperTrading, NavBacktest, NavSettings,
+  NavSovereign,
   LogoIcon, IconKey, IconSignOut,
 } from "@/lib/icons";
-import type { Icon } from "@phosphor-icons/react";
-import { CaretDown, X, Robot } from "@phosphor-icons/react";
+import type { Icon } from "@/lib/icons";
+import { CaretDown, X, Robot } from "@/lib/icons";
 import { healthCheck } from "@/lib/api";
 
 interface NavItem { href: string; label: string; icon: Icon }
@@ -42,6 +43,10 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading },
       { href: "/paper-trading/learnings", label: "Learnings", icon: NavPerformance },
       { href: "/backtest", label: "Backtest", icon: NavBacktest },
+      // phase-16.33: sovereign UI -- alpha leaderboard + red-line monitor +
+      // champion strategy detail. Was shipped in commit 1122a021 (phase-10.5)
+      // but the nav entry was never added; surfaced by the 16.33 audit.
+      { href: "/sovereign", label: "Sovereign", icon: NavSovereign },
     ],
   },
   {

@@ -95,6 +95,15 @@ def _fetch_llm_tokens_today() -> tuple[Optional[int], Optional[int]]:
         return None, None
 
 
+@router.get("/status", response_model=CostBudgetToday)
+async def get_cost_budget_status() -> CostBudgetToday:
+    """phase-16.22 alias: masterplan verification command hits
+    /api/cost-budget/status; the canonical implementation is /today.
+    Same response model + same fetch path.
+    """
+    return await get_cost_budget_today()
+
+
 @router.get("/today", response_model=CostBudgetToday)
 async def get_cost_budget_today() -> CostBudgetToday:
     """Return today's + month-to-date BQ spend vs the $5/$50 caps.

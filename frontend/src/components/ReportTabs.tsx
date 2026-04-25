@@ -2,7 +2,7 @@
 
 import { clsx } from "clsx";
 import { useState, type ReactNode } from "react";
-import type { Icon } from "@phosphor-icons/react";
+import type { Icon } from "@/lib/icons";
 
 export interface TabDef {
   id: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { clsx } from "clsx";
-import type { Icon } from "@phosphor-icons/react";
+import type { Icon } from "@/lib/icons";
 import {
   IconTarget, IconTrendUp, IconRocket, IconWarning, AuditIcon,
   RiskAggressive, RiskConservative, RiskNeutral, RiskJudge,

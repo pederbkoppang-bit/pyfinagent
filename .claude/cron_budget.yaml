@@ -25,10 +25,24 @@
 #     loop     - /loop-mode continuous self-paced runs
 #     external - webhook / Slack / third-party trigger
 
-version: 2
+version: 3
 total_slots: 15
 cap_note: "self-imposed: not an Anthropic limit; ours for cost + cognitive-load management"
-updated_at: 2026-04-19T00:00:00Z
+updated_at: 2026-04-25T00:00:00Z
+
+# phase-10.7.4: Cron Budget Allocator (slot governance authority).
+# total_daily_token_budget caps the sum of allocator outputs across all
+# enabled slots for a single 24h cycle. ~$0.30/day at gemini-2.0-flash.
+# Allocator: proportional WFQ (stride-style) by priority weight, with
+# per-slot min/max clamps. See backend/meta_evolution/cron_allocator.py.
+total_daily_token_budget: 100000
+
+# Per-slot fields (all optional; allocator/validator inject defaults):
+#   min_tokens_per_fire: starvation floor (default 1000)
+#   max_tokens_per_fire: monopolisation ceiling (default 50000)
+#   category: research | monitoring | trading | maintenance
+#   enabled: bool (default true). Disabled slots excluded from weight
+#            denominator (Agent Contracts 2026 pool-reclaim pattern).
 
 slots:
   - slot_id: 1
@@ -62,6 +76,10 @@ slots:
     priority: reserved
     alpha_velocity_eligible: false
     surface: routine
+    category: trading
+    min_tokens_per_fire: 8000
+    max_tokens_per_fire: 30000
+    enabled: true
     notes: Trading-ops slot 4/5 -- external approval gate required for diffs.
   - slot_id: 5
     phase: phase-4.5
@@ -79,6 +97,10 @@ slots:
     priority: high
     alpha_velocity_eligible: true
     surface: routine
+    category: research
+    min_tokens_per_fire: 5000
+    max_tokens_per_fire: 25000
+    enabled: true
     notes: |
       Walks four source families in one sequential routine:
       institutional outlooks, academic frontier, AI frontier labs,
@@ -156,8 +178,12 @@ slots:
     priority: low
     alpha_velocity_eligible: true
     surface: external
+    category: maintenance
+    enabled: false
     notes: |
       Kept free for burst research (Gauntlet re-runs, supply-chain
       pip-audit, one-off postmortems). Triggered externally
       (Slack /kick, manual CLI). phase-10.7 can claim this slot
-      week-over-week if Alpha Velocity justifies.
+      week-over-week if Alpha Velocity justifies. Defaults to
+      enabled=false so no daily token budget is reserved; flip to
+      true when claimed for the week.

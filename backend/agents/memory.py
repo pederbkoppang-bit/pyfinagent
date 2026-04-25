@@ -12,7 +12,7 @@ past mistakes to avoid repeating wrong BUY/SELL/HOLD calls.
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from rank_bm25 import BM25Okapi
@@ -89,7 +89,7 @@ class FinancialSituationMemory:
         """Add a single situation-lesson pair."""
         self.documents.append(situation)
         self.lessons.append(lesson)
-        self.metadata.append(metadata or {"timestamp": datetime.utcnow().isoformat()})
+        self.metadata.append(metadata or {"timestamp": datetime.now(timezone.utc).isoformat()})
         self._rebuild_index()
 
     def add_memories(self, entries: list[tuple[str, str]]):
@@ -97,7 +97,7 @@ class FinancialSituationMemory:
         for situation, lesson in entries:
             self.documents.append(situation)
             self.lessons.append(lesson)
-            self.metadata.append({"timestamp": datetime.utcnow().isoformat()})
+            self.metadata.append({"timestamp": datetime.now(timezone.utc).isoformat()})
         self._rebuild_index()
 
     def get_memories(self, current_situation: str, n_matches: int = 2) -> list[dict]:
@@ -252,3 +252,17 @@ def generate_reflection(
             f"Recommended {original_recommendation}, actual return {actual_return_pct:.1f}% "
             f"over {holding_days} days."
         )
+
+
+def retrieve_memories(query: str, n_matches: int = 5) -> list:
+    """phase-16.26 module-level wrapper. Constructs a default
+    FinancialSituationMemory instance (5 seed archetypes load at __init__,
+    so the corpus is non-empty even pre-trade) and calls `get_memories`.
+    Returns list of dicts with situation/lesson/similarity keys.
+    """
+    try:
+        mem = FinancialSituationMemory("default")
+        return mem.get_memories(query, n_matches=n_matches)
+    except Exception as e:
+        logger.warning("retrieve_memories: failed to retrieve for query %r: %s", query, e)
+        return []

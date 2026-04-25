@@ -13,7 +13,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { StrategyDetail } from "@/components/StrategyDetail";
 import { getSovereignStrategy } from "@/lib/api";
 import type { StrategyDetailResponse } from "@/lib/api";
-import { CaretLeft } from "@phosphor-icons/react";
+import { CaretLeft } from "@/lib/icons";
 
 export default function StrategyDetailPage() {
   const params = useParams<{ id: string }>();

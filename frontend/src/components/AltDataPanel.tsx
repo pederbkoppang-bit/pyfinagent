@@ -14,7 +14,7 @@
 
 import { BentoCard } from "@/components/BentoCard";
 import type { AltDataResponse } from "@/lib/types";
-import { Bank, Buildings, ChartBar } from "@phosphor-icons/react";
+import { Bank, Buildings, ChartBar } from "@/lib/icons";
 
 export interface AltDataPanelProps {
   data: AltDataResponse | null;

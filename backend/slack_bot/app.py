@@ -27,13 +27,19 @@ logger = logging.getLogger(__name__)
 def create_app() -> AsyncApp:
     settings = get_settings()
     app = AsyncApp(token=settings.slack_bot_token)
-    
+
     # Register event handlers
     register_commands(app)
     register_assistant_lifecycle(app)
     register_governance(app)  # App Home + /agent commands
-    
+
     return app
+
+
+# phase-16.22 alias: masterplan verification command imports `build_app`
+# rather than `create_app`. Keep `create_app` as the canonical name; alias
+# `build_app` to it so the immutable verification command is runnable.
+build_app = create_app
 
 
 async def main():

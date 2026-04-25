@@ -15,7 +15,7 @@ import {
   Cell,
   CartesianGrid,
 } from "recharts";
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { ArrowClockwise } from "@/lib/icons";
 
 // ── Section 1: Training Data Scope ──────────────────────────────
 

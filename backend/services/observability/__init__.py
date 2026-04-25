@@ -2,7 +2,7 @@
 
 See individual modules for design notes. Intended use: import primitives
 here and use them as decorators / context managers inside source adapters
-(`backend/news/sources/*.py`, `backend/calendar/sources/*.py`) without
+(`backend/news/sources/*.py`, `backend/econ_calendar/sources/*.py`) without
 invasive refactors.
 """
 from backend.services.observability.rate_limit import (

@@ -16,7 +16,7 @@
 "use client";
 
 import { BentoCard } from "@/components/BentoCard";
-import { TrendUp, ListBullets, ShieldCheck } from "@phosphor-icons/react";
+import { TrendUp, ListBullets, ShieldCheck } from "@/lib/icons";
 import {
   Area,
   AreaChart,

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { clsx } from "clsx";
 import type { ScoringMatrix } from "@/lib/types";
-import type { Icon } from "@phosphor-icons/react";
+import type { Icon } from "@/lib/icons";
 import { BentoCard } from "./BentoCard";
 import {
   PillarCorporate, PillarIndustry, PillarValuation,

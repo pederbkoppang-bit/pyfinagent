@@ -4,7 +4,7 @@ and stores it permanently in BigQuery. Run once, replay forever.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import pandas as pd
@@ -93,7 +93,7 @@ class DataIngestionService:
     def ingest_prices(self, tickers: list[str], start_date: str, end_date: str) -> int:
         """Download OHLCV from yfinance and store in BQ. Returns row count inserted."""
         table = self._table("historical_prices")
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         total_inserted = 0
 
         for i in range(0, len(tickers), _YF_BATCH):
@@ -185,7 +185,7 @@ class DataIngestionService:
     def ingest_fundamentals(self, tickers: list[str]) -> int:
         """Download quarterly financials from yfinance and store in BQ."""
         table = self._table("historical_fundamentals")
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         total_inserted = 0
 
         existing = set()
@@ -277,7 +277,7 @@ class DataIngestionService:
             return 0
 
         table = self._table("historical_macro")
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         existing = self._get_existing_macro()
         total_inserted = 0
 
@@ -337,7 +337,7 @@ class DataIngestionService:
     ) -> dict:
         """Run full ingestion pipeline. Returns row counts per table."""
         if end_date is None:
-            end_date = datetime.utcnow().strftime("%Y-%m-%d")
+            end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         logger.info(f"Starting full ingestion: {len(tickers)} tickers, {start_date} -> {end_date}")
 

@@ -8,7 +8,7 @@ agent_memories BigQuery table for BM25-based retrieval in future analyses.
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from backend.config.settings import Settings
@@ -45,7 +45,9 @@ class OutcomeTracker:
             return None
 
         rec_date = datetime.fromisoformat(analysis_date)
-        holding_days = (datetime.utcnow() - rec_date).days
+        # phase-16.36: rec_date from fromisoformat is naive; strip tzinfo from
+        # datetime.now(timezone.utc) before subtraction to avoid TypeError.
+        holding_days = (datetime.now(timezone.utc).replace(tzinfo=None) - rec_date).days
         return_pct = compute_return_pct(current_price, price_at_rec)
 
         # Geometric benchmark comparison (canonical formula)
@@ -91,8 +93,22 @@ class OutcomeTracker:
         results = []
 
         for report in reports:
-            rec_date = datetime.fromisoformat(report["analysis_date"])
-            days_since = (datetime.utcnow() - rec_date).days
+            # phase-16.30 fix: BQ `get_recent_reports` returns TIMESTAMP
+            # columns as native `datetime` objects (not ISO strings) per the
+            # google-cloud-bigquery row dict shape. fromisoformat raises on
+            # datetime input. Guard with isinstance to handle both shapes.
+            _ad = report["analysis_date"]
+            if isinstance(_ad, datetime):
+                rec_date = _ad
+            else:
+                rec_date = datetime.fromisoformat(str(_ad))
+            # phase-16.36: datetime.now(timezone.utc) is aware; rec_date may
+            # be tz-aware coming from BQ. Normalize both to naive UTC for the
+            # (now - rec) subtraction so we don't raise "can't subtract
+            # offset-naive and offset-aware".
+            if rec_date.tzinfo is not None:
+                rec_date = rec_date.replace(tzinfo=None)
+            days_since = (datetime.now(timezone.utc).replace(tzinfo=None) - rec_date).days
 
             # Only evaluate if at least 7 days have passed
             if days_since < 7:
@@ -183,3 +199,22 @@ class OutcomeTracker:
     def get_performance_summary(self) -> dict:
         """Get aggregated performance stats from BigQuery."""
         return self.bq.get_performance_stats()
+
+
+def evaluate_recent(limit: int = 20):
+    """phase-16.26 module-level wrapper. Constructs `OutcomeTracker(settings)`
+    and calls `evaluate_all_pending()`. Returns list of outcome dicts (empty
+    when no closed paper trades >= 7 days old). Catches BQ-connection failures
+    and returns a safe descriptive dict instead of raising.
+    """
+    try:
+        from backend.config.settings import get_settings
+        settings = get_settings()
+        tracker = OutcomeTracker(settings)
+        results = tracker.evaluate_all_pending()
+        if isinstance(results, list):
+            return results[:limit]
+        return results
+    except Exception as e:
+        logger.warning("evaluate_recent: failed to evaluate pending outcomes: %s", e)
+        return {"status": "empty", "reason": str(e)[:200], "outcomes": []}

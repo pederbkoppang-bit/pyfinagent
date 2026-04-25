@@ -30,7 +30,7 @@ import {
 import type { SovereignLeaderboardEntry } from "@/lib/api";
 import {
   Crown,
-} from "@phosphor-icons/react";
+} from "@/lib/icons";
 
 
 export default function SovereignPage() {

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 
 @dataclass
@@ -29,6 +30,7 @@ class AutoresearchCron:
                     func=lambda: None,
                     trigger="cron",
                     hour=int(cron_schedule.split()[1]),
+                    timezone=ZoneInfo("America/New_York"),
                     id="autoresearch_overnight",
                     replace_existing=True,
                 )

@@ -5,7 +5,7 @@ BigQuery client wrapper for report persistence and outcome tracking.
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from google.cloud import bigquery
@@ -138,7 +138,7 @@ class BigQueryClient:
         row = {
             "ticker": ticker,
             "company_name": company_name,
-            "analysis_date": datetime.utcnow().isoformat(),
+            "analysis_date": datetime.now(timezone.utc).isoformat(),
             "final_score": final_score,
             "recommendation": recommendation,
             "summary": summary,
@@ -375,7 +375,7 @@ class BigQueryClient:
             "return_pct": return_pct,
             "holding_days": holding_days,
             "beat_benchmark": beat_benchmark,
-            "evaluated_at": datetime.utcnow().isoformat(),
+            "evaluated_at": datetime.now(timezone.utc).isoformat(),
         }
         errors = self.client.insert_rows_json(self.outcomes_table, [row])
         if errors:
@@ -446,7 +446,7 @@ class BigQueryClient:
             "ticker": ticker,
             "situation": situation[:2000],
             "lesson": lesson[:1000],
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
         table = f"{self.settings.gcp_project_id}.{self.settings.bq_dataset_reports}.agent_memories"
         errors = self.client.insert_rows_json(table, [row])

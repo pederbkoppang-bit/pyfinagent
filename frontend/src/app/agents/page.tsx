@@ -19,7 +19,7 @@ import {
   X,
   Database,
   Sparkle,
-} from "@phosphor-icons/react";
+} from "@/lib/icons";
 
 // ── Types ────────────────────────────────────────────────────────
 

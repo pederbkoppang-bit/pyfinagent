@@ -2,13 +2,32 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { OpsStatusBar } from "@/components/OpsStatusBar";
 import { KillSwitchShortcut } from "@/components/KillSwitchShortcut";
 import { NavSignals, NavBacktest } from "@/lib/icons";
-import { listReports, getPaperTradingStatus, getPaperPortfolio } from "@/lib/api";
+import { listReports, getPaperTradingStatus, getPaperPortfolio, getSovereignRedLine } from "@/lib/api";
 import type { ReportSummary, PaperTradingStatus, PaperPosition } from "@/lib/types";
+import type {
+  SovereignRedLinePoint,
+  SovereignRedLineEvent,
+} from "@/lib/api";
+import type { RedLineWindow } from "@/components/RedLineMonitor";
+
+// phase-10.5.7: lazy-load the heavy Recharts bundle client-only.
+// ssr:false keeps the hero out of SSR so homepage TTFB stays fast;
+// skeleton fallback holds min-h-[55svh] to prevent CLS during load.
+const RedLineMonitor = dynamic(
+  () => import("@/components/RedLineMonitor").then((m) => m.RedLineMonitor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[55svh] animate-pulse rounded-xl border border-navy-700 bg-navy-800/40" />
+    ),
+  },
+);
 
 function recColor(rec: string) {
   const r = rec?.toUpperCase() ?? "";
@@ -47,6 +66,9 @@ export default function HomePage() {
   const [positions, setPositions] = useState<PaperPosition[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [redLineWindow, setRedLineWindow] = useState<RedLineWindow>("30d");
+  const [redLineSeries, setRedLineSeries] = useState<SovereignRedLinePoint[]>([]);
+  const [redLineEvents, setRedLineEvents] = useState<SovereignRedLineEvent[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +92,22 @@ export default function HomePage() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSovereignRedLine(redLineWindow)
+      .then((resp) => {
+        if (cancelled) return;
+        setRedLineSeries(resp.series);
+        setRedLineEvents(resp.events);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRedLineSeries([]);
+        setRedLineEvents([]);
+      });
+    return () => { cancelled = true; };
+  }, [redLineWindow]);
 
   const nav = ptStatus?.portfolio;
   const navValue = nav?.nav;
@@ -103,6 +141,18 @@ export default function HomePage() {
         <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
           {/* Invisible keyboard-shortcut + aria-live region */}
           <KillSwitchShortcut />
+
+          {/* phase-10.5.7 Red Line hero: takes at-least 55% of the small
+              viewport so it dominates the fold on a standard laptop. */}
+          <div className="mb-6 min-h-[55svh]">
+            <RedLineMonitor
+              series={redLineSeries}
+              events={redLineEvents}
+              window={redLineWindow}
+              onWindowChange={setRedLineWindow}
+              compact
+            />
+          </div>
 
           {/* Ops status bar (dense, one row; §4.5 canonical pattern) */}
           <OpsStatusBar />
