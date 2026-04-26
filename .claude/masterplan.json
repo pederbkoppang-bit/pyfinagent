@@ -5980,10 +5980,20 @@
           "contract": null,
           "retry_count": 0,
           "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Researcher caught critical regression: settings page (the user-named 'canonical reference') was NOT actually canonical -- it used the OLD single-zone shell where the tab bar scrolled with content; the 8 pages fixed in 16.48/16.49 had moved to two-zone shell, settings was the outlier. Fixed: settings/page.tsx loading early-return + main return both refactored to two-zone shell (`flex flex-1 flex-col overflow-hidden` + `flex-shrink-0` header zone + `flex-1 overflow-y-auto scrollbar-thin` scrollable zone); active-tab color from `bg-slate-700 text-slate-100` to canonical `bg-sky-500/10 text-sky-400`. Also fixed: backtest/page.tsx ingestResult banner moved from fixed-header zone (was L687-704) into scrollable content zone above existing error banner. tsc --noEmit exit 0; lint 0 errors. 3 cosmetic items deferred per contract (reports tab bg color drift, settings max-w-fit, SETTINGS_TABS missing icon field). See handoff/archive/phase-16.52/."
+        },
+        {
+          "id": "16.53",
+          "name": "Settings full-width content fix -- drop max-w-4xl from 3 tab grids",
+          "status": "done",
+          "harness_required": true,
+          "verification": "cd frontend && npx tsc --noEmit",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Operator-flagged via screenshot 2026-04-26 15:18:54: settings page had ~30% dead whitespace on right at typical laptop widths. Diagnosis: 3 occurrences of `grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2` capping each tab's content at ~896px while the post-16.52 scrollable zone could fill ~1200px+. Fix: single Edit replace_all dropped `max-w-4xl` from the 3 grid wrappers (Models L601, Cost & Weights L794, Performance L978). Tab bar `max-w-fit` (L580) intentionally retained per canonical pattern (pills hug content, do NOT stretch). Verification: tsc --noEmit exit 0 + lint 0 errors + grep -c max-w-4xl == 0. No regression on other pages. Sister-cycle to 16.52 (which exposed this latent constraint by removing the SHELL constraint that previously masked it). See handoff/archive/phase-16.53/."
         }
       ],
       "completed_at": null,
-      "notes": "30 of 32 sub-steps done. 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A). Continuation /batch (2026-04-26) added 16.52 (UX pass C: settings now actually canonical)."
+      "notes": "31 of 33 sub-steps done. 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A). Continuation /batch (2026-04-26) added 16.52 (UX pass C: settings two-zone shell) + 16.53 (settings full-width content fix from operator screenshot)."
     },
     {
       "id": "phase-17",

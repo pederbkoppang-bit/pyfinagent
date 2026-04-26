@@ -598,7 +598,7 @@ export default function SettingsPage() {
         <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
         {/* ── Models & Analysis Tab ─────────────────────── */}
         {activeTab === "models" && (
-        <div className="grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* ── Analysis Mode ───────────────────────────────── */}
           <BentoCard>
             <h3 className="mb-3 text-lg font-semibold text-slate-300">
@@ -791,7 +791,7 @@ export default function SettingsPage() {
 
         {/* ── Cost & Weights Tab ────────────────────────── */}
         {activeTab === "cost" && (
-        <div className="grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* ── Live Cost Estimator ─────────────────────────── */}
           <BentoCard>
             <h3 className="mb-3 text-lg font-semibold text-slate-300">
@@ -975,7 +975,7 @@ export default function SettingsPage() {
 
         {/* ── Performance Tab ───────────────────────────── */}
         {activeTab === "performance" && (
-        <div className="grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* ── Cache Health ────────────────────────────────── */}
           <BentoCard>
             <div className="mb-3 flex items-center justify-between">

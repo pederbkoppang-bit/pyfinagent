@@ -13616,3 +13616,19 @@ This continuation /batch closed 4 sequential harness cycles:
 User-action items deferred per /batch scope: phase-5.2 (EODHD API key), phase-5.3 (BQ --apply), phase-5.6 (BQ --apply + Alpaca Options Level 3 keys), phase-5.7 (OANDA keys), phase-5.8 (IBKR keys), phase-5.9 (EODHD/IBKR), phase-5.10/5.11/5.12 (depend on prior data feeds), phase-5.13/5.14/5.15 (depend on multi-asset feeds being live).
 
 11 cumulative cycles closed across both /batch invocations today (8 + 4 - 16.52 already counted).
+
+## phase-16.53 -- 2026-04-26 -- Settings full-width content fix -- result=PASS
+
+**Researcher:** simple tier, internal-only gate (per established pure-UI cycle precedent: 16.43, 16.46, 16.47, 16.48, 16.49, 16.52). 5 internal files inspected. gate_passed=true. Operator-screenshot (2026-04-26 15:18:54) flagged dead whitespace on settings page right side; diagnosis: 3 occurrences of `grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2` capping content at ~896px while the scrollable zone could fill the full ~1200px+ width.
+
+**Generate:** Single Edit replace_all in frontend/src/app/settings/page.tsx -- removed `max-w-4xl` from the 3 tab grid wrappers (Models L601, Cost & Weights L794, Performance L978). Tab bar `max-w-fit` (L580) intentionally retained per canonical pattern (pills hug content, do not stretch). Individual card `max-w-*` constraints (where present) untouched.
+
+**Verification (immutable):** `cd frontend && npx tsc --noEmit` -> exit 0. Bonus: `npm run lint` -> 0 errors / 34 pre-existing warnings unchanged. `grep -c max-w-4xl frontend/src/app/settings/page.tsx` -> 0.
+
+**Q/A verdict:** PASS. 9 deterministic checks pass (harness-compliance-5, tsc, lint, grep max-w-4xl removed, grep max-w-fit retained, grep no other-page regression, contract+results headers correct, research gate, log-last ordering).
+
+**Cycle-2:** not needed (first-pass PASS).
+
+**Code changes:** 1 file, 3 single-string edits via replace_all. No new tests, no new files.
+
+**Archive:** new dir `handoff/archive/phase-16.53/`.
