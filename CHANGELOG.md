@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-27 | `48233154` | phase-23.1.4: sector event calendars (FDA PDUFA + earnings catalyst overlay) |
 | 2026-04-27 | `76d89aa4` | phase-23.1.3: worldwide news idea generator (no-API-key RSS + Claude batch extractor) |
 | 2026-04-27 | `5a6a6e17` | phase-23.1.2: earnings PEAD overlay (free SEC EDGAR + Claude sentiment-surprise) |
 | 2026-04-27 | `743d65e5` | phase-23.1.1: macro regime filter (LLM-as-judge over FRED) + screener conviction multiplier |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-24 | `70cbf355` | phase-17: wire Alpaca MCP + paper-trader router + max-notional clamp |
 | 2026-04-24 | `89dd4400` | plan: add phase-17 Alpaca MCP server integration to masterplan |
 | 2026-04-24 | `db4e3063` | uat: phase-16 full-app UAT executed, Q/A GO verdict, awaiting ack |
-| 2026-04-24 | `277e8ace` | fix(uat-16.4): Gemini fallback must force Gemini models, not settings |
 
 ---
 
+### v6.5.102 — phase-23.1.4: sector event calendars (FDA PDUFA + earnings catalyst o... (2026-04-27)
+
+- **phase-23.1.4: sector event calendars (FDA PDUFA + earnings catalyst overlay)**
 ### v6.5.101 — phase-23.1.3: worldwide news idea generator (no-API-key RSS + Claude... (2026-04-27)
 
 - **phase-23.1.3: worldwide news idea generator (no-API-key RSS + Claude batch extractor)**
