@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-26 | `5f69db00` | phase-16.53: settings full-width content fix (drop max-w-4xl) |
 | 2026-04-26 | `f0d46547` | phase-16.42-16.52 + 10.7.5-10.7.8 + 5.1/5.4/5.6: 12-cycle harness batch |
 | 2026-04-25 | `75f331fa` | phase-16.16-16.41 + 10.7.1-10.7.4: harness-driven backlog clearance |
 | 2026-04-24 | `70cbf355` | phase-17: wire Alpaca MCP + paper-trader router + max-notional clamp |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-23 | `d24ce83c` | Phase 4.4.2.4: wire autonomous loop to log signals to BQ signals_log |
 | 2026-04-22 | `122cc1c8` | Phase 4.4.2.4: prep infra -- signals_log migration + self-contained drill (BLOCKED) |
 | 2026-04-22 | `0b4f4f22` | chore: harness log entry for Cycle 42 (4.4.2.1 paper runtime PASS) |
-| 2026-04-22 | `6130c545` | Phase 4.4.2.1: paper trading runtime >= 2 weeks verified (32 days) |
 
 ---
 
+### v6.5.88 — phase-16.53: settings full-width content fix (drop max-w-4xl) (2026-04-26)
+
+- **phase-16.53: settings full-width content fix (drop max-w-4xl)**
 ### v6.5.87 — phase-16.42-16.52 + 10.7.5-10.7.8 + 5.1/5.4/5.6: 12-cycle harness batch (2026-04-26)
 
 - **phase-16.42-16.52 + 10.7.5-10.7.8 + 5.1/5.4/5.6: 12-cycle harness batch**
