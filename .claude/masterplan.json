@@ -6705,6 +6705,30 @@
         }
       ],
       "completed_at": "2026-04-26T00:00:00Z"
+    },
+    {
+      "id": "phase-19",
+      "name": "Claude Remote / Max programmatic handoff (feasibility study)",
+      "status": "done",
+      "depends_on": [],
+      "gate": null,
+      "description": "Operator-requested 2026-04-26 feasibility study: can pyfinagent offload heavy-lifting work (1M context jobs like cross-cycle directive rewriting, full-archive deep dives, codebase-wide audits) to Claude via the Claude Code CLI / Claude Agent SDK using the operator's Claude Max ($200/mo flat-fee) credential -- avoiding metered Anthropic API costs? Output: decision document at docs/architecture/claude-remote-handoff-feasibility.md. NO implementation this phase.",
+      "created_at": "2026-04-26T00:00:00Z",
+      "steps": [
+        {
+          "id": "19.0",
+          "name": "Feasibility study: Claude Remote / Max programmatic handoff",
+          "status": "done",
+          "harness_required": true,
+          "verification": "test -f docs/architecture/claude-remote-handoff-feasibility.md && grep -q 'Recommendation' docs/architecture/claude-remote-handoff-feasibility.md && grep -q 'Claude Agent SDK' docs/architecture/claude-remote-handoff-feasibility.md && grep -q 'rate limit' docs/architecture/claude-remote-handoff-feasibility.md",
+          "contract": null,
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [],
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. Decision document at docs/architecture/claude-remote-handoff-feasibility.md (~250 lines). HEADLINE: REJECT literal hypothesis (using Max OAuth from backend violates Anthropic ToS as of April 4, 2026 per The Register + Agent SDK doc). ACCEPT alternative path via standard Anthropic API since 1M context is now standard-priced on Sonnet 4.6 / Opus 4.7 in 2026 (no `extended-context-1m-2025-08-07` beta surcharge). Worked example: 300K-token synthesis call ~$0.90; 5-call daily cycle ~$5/day, fits existing budget. 5 ranked-by-ROI pyfinagent jobs identified (Layer-1 synthesis, skill optimizer global, directive rewriter raw briefs, outcome tracker reflection, deep dive); 7 explicit anti-recommendations. Recommended architecture: extend make_client() factory in llm_client.py with enable_1m_context flag; NOT a new module. Budget tracker: add anthropic_long_context provider to provider_budget.yaml. 0.5-cycle spike = next step if approved; 3.5-day full integration. CORRECTS my prior-turn answer which incorrectly suggested Max OAuth via Claude Agent SDK (ToS violation). See handoff/archive/phase-19.0/."
+        }
+      ],
+      "completed_at": "2026-04-26T00:00:00Z"
     }
   ]
 }

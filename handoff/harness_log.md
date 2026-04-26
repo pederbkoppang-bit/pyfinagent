@@ -13766,3 +13766,25 @@ User asked for an interactive agent topology map. 5 cycles delivered:
 - 18.4 Page route: /agent-map with two-zone shell + sidebar nav entry under System section
 
 Operator can now navigate to /agent-map to see the live topology of all 52 agents across 4 layers.
+
+## phase-19.0 -- 2026-04-26 -- Claude Remote / Max programmatic handoff feasibility -- result=PASS
+
+**Researcher:** moderate tier, 7 in-full / 17 URLs / recency scan / 8 internal files. gate_passed=true. Brief verified on disk (23KB / 283 lines).
+
+**Decisive findings (correct prior-turn answer):**
+- Anthropic banned third-party Max OAuth use as of April 4, 2026 (per The Register 2026-02-20 + Agent SDK doc). My prior-turn "use Max OAuth via Claude Agent SDK or `claude -p`" recommendation was wrong; it's a ToS violation.
+- BUT: 1M context is now standard-priced on Sonnet 4.6 / Opus 4.7 (no `extended-context-1m-2025-08-07` beta surcharge). 300K-token synthesis call ~$0.90; 5-call/day duty cycle ~$5/day, fits existing daily cap.
+
+**Generate:** `docs/architecture/claude-remote-handoff-feasibility.md` (~250 lines): Recommendation (REJECT literal Max-OAuth; ACCEPT alternative API-key path), TL;DR table, ToS analysis with citations, what-Max-covers table, 1M context current pricing with worked examples, 5 jobs ranked by ROI (synthesis L1, skill optimizer global, directive rewriter raw briefs, outcome tracker reflection, deep dive), 7 anti-recommendations, recommended architecture (extend make_client() factory; NOT new module), budget tracker shape (anthropic_long_context provider in YAML), 3.5-day full integration estimate, 6-row risk register, decision (proceed with 0.5 spike), file:line cross-refs.
+
+**Verification (immutable):** `test -f doc && grep "Recommendation" && grep "Claude Agent SDK" && grep "rate limit"` -> exit 0.
+
+**Q/A verdict:** PASS. 5 deterministic checks pass (harness-compliance, verification, file existence, no code in diff, llm-judgment). 2 non-blocker notes from Q/A: TL;DR rounding ($0.975->$0.90 in summary; precise number in worked example), unsourced "35% more tokens" for Opus 4.7.
+
+**Cycle-2:** not needed. First-pass clean.
+
+**Code changes:** ZERO (research-only cycle). New doc + masterplan entry only.
+
+**Archive:** new dir `handoff/archive/phase-19.0/`.
+
+**Operator decision pending:** pursue spike (open phase-19.1) or shelf the work.
