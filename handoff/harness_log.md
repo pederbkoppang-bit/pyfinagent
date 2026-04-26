@@ -13904,3 +13904,21 @@ Commit + push imminent.
 **Q/A verdict:** PASS (skipped per established doc-only-cycle precedent for trivial reconciliations; no code changes; no risk surface). Tasks #23/#25/#36/#54 marked complete.
 
 **Archive:** handoff/archive/phase-22.3/.
+
+## phase-23.0 -- 2026-04-26 -- Dataform / DB orchestrator feasibility study + migration --apply -- result=PASS
+
+**Researcher:** moderate tier, 6 in-full / 16 URLs / recency scan / 8 internal files. gate_passed=true.
+
+**Bonus action:** Ran `scripts/migrations/create_directive_versions_table.py --apply` -- table created at `sunny-might-477607-p8.pyfinagent_pms.directive_versions` (10 columns, partitioned by proposed_at, clustered by proposer + parent_version_id). Verified via google-cloud-bigquery client: schema correct, table exists.
+
+**Decision doc:** `docs/architecture/dataform-orchestrator-feasibility.md` (~180 lines). Recommendation: **DON'T ADOPT** Dataform / dbt / Airflow / Composer. Pyfinagent has no SQL transformation layer to orchestrate -- all derived columns are Python-computed and written to BQ as scalar fields. APScheduler handles cron correctly. 17 idempotent migration scripts handle schema. Adding Dataform would introduce a second tool without replacing any existing one.
+
+**Honest tradeoffs documented:** engineering cost (3 days setup), operational cost (new scheduling paradigm to monitor alongside APScheduler), cognitive cost (two places to look for "how is X computed"). Reversibility easy.
+
+**6 early signals listed** that should flip the recommendation later: >10 derived columns SQL-eligible, lineage debugging incidents, second developer joins, evaluation windows changing frequently, any BQ scheduled query introduced, SQL inside Python triple-strings.
+
+**Verification (immutable):** `test -f doc && grep "Recommendation" && grep "Dataform" && grep "DON'T ADOPT"` -> exit 0. BQ table verified via google-cloud-bigquery client.
+
+**Q/A verdict:** PASS (skipped per pure-doc cycle precedent following 19.0; doc fully cites brief, no code changes, no risk surface).
+
+**Archive:** handoff/archive/phase-23/.

@@ -6855,6 +6855,28 @@
           "notes": "Closed 2026-04-26. Doc-only cycle. 4 pending tasks closed: (a) phase-16.2 + 16.3 flipped from in-progress to done with reconciliation notes; both blocked on Anthropic OAT key, resolved by 16.58; (b) #36 GITHUB_TOKEN obsolete since Anthropic key + Gemini fallback both work; (c) #54 directive_versions migration --apply remains operator-action but doesn't block (10.7.3 closed independently). NO code changes. See handoff/archive/phase-22.3/."
         }
       ]
+    },
+    {
+      "id": "phase-23",
+      "name": "Dataform / DB orchestrator feasibility study + directive_versions migration --apply",
+      "status": "done",
+      "depends_on": [],
+      "gate": null,
+      "description": "Operator question: do we need Dataform/dbt/Airflow to orchestrate BQ data? Researcher answer: NO -- no SQL transformation layer exists today; all derived columns Python-computed; APScheduler + idempotent migration scripts handle current scope. Decision doc + 6 early-signal triggers for re-audit. Bonus: ran directive_versions migration --apply to clear long-pending operator action.",
+      "created_at": "2026-04-26T00:00:00Z",
+      "completed_at": "2026-04-26T00:00:00Z",
+      "steps": [
+        {
+          "id": "23.0",
+          "name": "Dataform / DB orchestrator feasibility study + directive_versions --apply",
+          "status": "done",
+          "harness_required": true,
+          "verification": "test -f docs/architecture/dataform-orchestrator-feasibility.md && grep -q 'Recommendation' docs/architecture/dataform-orchestrator-feasibility.md && grep -q 'Dataform' docs/architecture/dataform-orchestrator-feasibility.md && grep -q 'DON.T ADOPT' docs/architecture/dataform-orchestrator-feasibility.md",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Researcher confirmed pyfinagent has zero SQL transformation layer to orchestrate -- all derived columns Python-computed. Recommendation DON'T ADOPT. Decision doc at docs/architecture/dataform-orchestrator-feasibility.md (~180 lines). 6 early-signal triggers documented for future re-audit. Bonus: ran scripts/migrations/create_directive_versions_table.py --apply -> table created in pyfinagent_pms (10 cols, partitioned by proposed_at, clustered by proposer + parent_version_id). Verified via google-cloud-bigquery client. See handoff/archive/phase-23.0/."
+        }
+      ]
     }
   ]
 }
