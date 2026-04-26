@@ -55,10 +55,15 @@ _BUILD_TIER: dict[str, str] = {
     "autoresearch_fast": "claude-haiku-4-5",
     "autoresearch_smart": "claude-sonnet-4-6",
     "autoresearch_strategic": "claude-opus-4-6",
-    # settings.py:28
+    # settings.py:28 -- TRULY Gemini-locked (Vertex AI Search / Search Grounding /
+    # Vertex structured-output schemas). DO NOT swap to Claude.
     "gemini_enrichment": "gemini-2.0-flash",
     # settings.py:29
     "gemini_deep_think": "gemini-2.5-flash",
+    # phase-22.1 -- Layer-1 swappable skills. Default to gemini-2.0-flash but
+    # CAN run on Claude when apply_model_to_all_agents=True. The role is NOT
+    # in _GEMINI_LOCKED_ROLES so the override propagates.
+    "layer1_swappable": "gemini-2.0-flash",
 }
 
 # Live tier: every value is the sentinel. resolve_model() raises if it

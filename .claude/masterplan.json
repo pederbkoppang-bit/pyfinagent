@@ -6813,6 +6813,38 @@
         }
       ],
       "completed_at": "2026-04-26T00:00:00Z"
+    },
+    {
+      "id": "phase-22",
+      "name": "Live model resolution + per-node Gemini-lock granularity",
+      "status": "done",
+      "depends_on": [],
+      "gate": null,
+      "description": "Operator screenshot showed gemini-2.0-flash on agent map even with Claude in Settings. 21 of 28 Layer-1 skills are Claude-swappable; only RAGAgent hard-locked.",
+      "created_at": "2026-04-26T00:00:00Z",
+      "completed_at": "2026-04-26T00:00:00Z",
+      "steps": [
+        {
+          "id": "22.1",
+          "name": "Backend: live_model injection + per-node gemini_locked/grounding_dependent flags",
+          "status": "done",
+          "harness_required": true,
+          "verification": "source .venv/bin/activate && python -m pytest backend/tests/test_agent_map_inventory.py backend/tests/test_agent_map_live_model.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A PASS. _inventory.json v3 + model_tiers layer1_swappable role + agent_map.py _NODE_ID_TO_ROLE + _inject_live_model. 12 new tests. RAGAgent flagged gemini_locked; 4 nodes flagged grounding_dependent. See handoff/archive/phase-22.1/."
+        },
+        {
+          "id": "22.2",
+          "name": "Frontend: render live_model + LOCKED/SEARCH badges in AgentMap",
+          "status": "done",
+          "harness_required": true,
+          "verification": "cd frontend && npx tsc --noEmit && npm run build",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A PASS. AgentMap.tsx + api.ts AgentMapNode interface extended. AgentNode renders LOCKED amber + SEARCH sky badges. displayModel = liveModel ?? model. tsc + build clean. See handoff/archive/phase-22.2/."
+        }
+      ]
     }
   ]
 }

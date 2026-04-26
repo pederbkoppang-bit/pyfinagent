@@ -656,6 +656,14 @@ export interface AgentMapNode {
   parents: string[];
   children: string[];
   kind: "harness" | "in_app" | "skill" | "service" | "meta_evolution";
+  // phase-22.1 -- live_model is the operator's actual runtime model
+  // (respects Settings override). Falls back to `model` if no role mapping.
+  live_model?: string | null;
+  // phase-22.1 -- gemini_locked: cannot run on Claude (Vertex AI Search dep);
+  // grounding_dependent: loses live web-search citations on Claude but still produces text.
+  gemini_locked?: boolean;
+  grounding_dependent?: boolean;
+  lock_reason?: string;
 }
 
 // phase-20.1 -- workflow overlay types

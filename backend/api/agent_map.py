@@ -53,9 +53,109 @@ def _derive_edges(nodes: list[dict[str, Any]]) -> list[dict[str, str]]:
     return edges
 
 
+# phase-22.1: map node ids -> resolve_model() roles. Only nodes that
+# correspond to a real model_tiers role get a live_model injected.
+# Nodes outside this map (e.g. layer1_pipeline group, non-LLM services)
+# keep their static `model` field as-is.
+_NODE_ID_TO_ROLE: dict[str, str] = {
+    "main": "mas_main",
+    "researcher": "mas_research",
+    "qa": "mas_qa",
+    "communication_agent": "mas_communication",
+    "skill_optimizer": "autoresearch_strategic",
+    "directive_rewriter": "autoresearch_strategic",
+    "directive_review": "autoresearch_smart",
+    # Layer-2 + Layer-1: these don't have explicit model_tiers roles today,
+    # so we use mas_main (deep-think) for orchestrator/planner/analyst and
+    # gemini_enrichment for the swappable Layer-1 skills. The override flag
+    # in resolve_model() will propagate the operator's Standard Model
+    # selection (gemini_model field) when apply_model_to_all_agents=true.
+    "multi_agent_orchestrator": "mas_main",
+    "planner_agent": "mas_main",
+    "analyst_agent": "mas_communication",
+    "evaluator_agent": "layer1_swappable",
+    "moderator_agent": "mas_communication",
+    "synthesis_agent": "layer1_swappable",
+    # Layer-1 swappable skills -- use the new layer1_swappable role so the
+    # apply_model_to_all_agents override propagates (gemini_enrichment is
+    # _GEMINI_LOCKED_ROLES-locked and would NOT propagate).
+    "bull_agent": "layer1_swappable",
+    "bear_agent": "layer1_swappable",
+    "devils_advocate_agent": "layer1_swappable",
+    "bias_detector_skill": "layer1_swappable",
+    "risk_judge_skill": "layer1_swappable",
+    "earnings_tone_agent": "layer1_swappable",
+    "nlp_sentiment_agent": "layer1_swappable",
+    "social_sentiment_agent": "layer1_swappable",
+    "insider_agent": "layer1_swappable",
+    "options_agent": "layer1_swappable",
+    "patent_agent": "layer1_swappable",
+    "supply_chain_agent": "layer1_swappable",
+    "alt_data_agent": "layer1_swappable",
+    "anomaly_agent": "layer1_swappable",
+    "sector_analysis_agent": "layer1_swappable",
+    "sector_catalyst_agent": "layer1_swappable",
+    "scenario_agent": "layer1_swappable",
+    "info_gap_agent": "layer1_swappable",
+    "critic_agent": "layer1_swappable",
+    "quant_model_agent": "layer1_swappable",
+    "quant_strategy": "layer1_swappable",
+    "aggressive_analyst": "layer1_swappable",
+    "conservative_analyst": "layer1_swappable",
+    "neutral_analyst": "layer1_swappable",
+    # Locked nodes (kept here so live_model still resolves; the
+    # gemini_locked flag in inventory tells the UI to badge them)
+    "rag_agent": "gemini_enrichment",
+    "competitor_agent": "gemini_enrichment",
+    "market_agent": "gemini_enrichment",
+    "deep_dive_agent": "gemini_enrichment",
+    "enhanced_macro_agent": "gemini_enrichment",
+}
+
+
+def _inject_live_model(node: dict[str, Any]) -> dict[str, Any]:
+    """Add `live_model` to the node by resolving the operator's runtime model.
+
+    Locked nodes (gemini_locked=true) always return their static gemini-2.0-flash
+    regardless of operator override. Non-LLM nodes and nodes not in the
+    role map fall through with no live_model field added.
+
+    Returns the node dict (mutated in place is also fine; we return a copy
+    for clarity).
+    """
+    node_id = node.get("id", "")
+    out = dict(node)
+
+    # Hard-locked nodes always show their static gemini model
+    if node.get("gemini_locked"):
+        out["live_model"] = node.get("model") or "gemini-2.0-flash"
+        return out
+
+    role = _NODE_ID_TO_ROLE.get(node_id)
+    if role is None:
+        # No mapped role -- keep static model as-is, no live_model
+        return out
+
+    try:
+        # Local import: avoid pulling settings into module-load time
+        from backend.config.model_tiers import resolve_model
+        out["live_model"] = resolve_model(role)
+    except Exception:
+        # Fail open: any resolver failure falls back to the static model
+        out["live_model"] = node.get("model")
+    return out
+
+
 @router.get("/agent-map")
 def get_agent_map() -> dict[str, Any]:
-    """Return the static agent-topology inventory + derived edges."""
+    """Return the agent-topology inventory + derived edges + live model resolution.
+
+    phase-22.1: each node now carries a `live_model` field reflecting the
+    operator's actual runtime model (respecting Settings overrides via
+    resolve_model()). Locked nodes (gemini_locked=true) always show their
+    static gemini-2.0-flash. The original static `model` field is preserved
+    for backward compat.
+    """
     if not INVENTORY_PATH.exists():
         raise HTTPException(
             status_code=500,
@@ -70,6 +170,7 @@ def get_agent_map() -> dict[str, Any]:
         ) from exc
 
     nodes = data.get("nodes") or []
+    data["nodes"] = [_inject_live_model(n) for n in nodes]
     data["edges"] = _derive_edges(nodes)
     return data
 

@@ -143,9 +143,10 @@ def test_derive_edges_dedups():
 # phase-20.1 -- workflow data (production daily-cycle)
 # ----------------------
 
-def test_inventory_version_2(inventory):
-    """v2 schema introduced in phase-20.1 with workflow_steps + workflow_edges."""
-    assert inventory["version"] == 2
+def test_inventory_version_supports_workflow(inventory):
+    """v2+ schema added workflow_steps + workflow_edges in phase-20.1.
+    phase-22.1 bumped version to 3; the workflow keys remain present."""
+    assert inventory["version"] >= 2
 
 
 def test_workflow_steps_present(inventory):
@@ -186,3 +187,45 @@ def test_workflow_step_numbers_in_range(inventory):
         if "step" in e:
             v = float(e["step"])
             assert 1 <= v <= 10, f"workflow_edge.step out of range: {v} ({e})"
+
+
+# ----------------------
+# phase-22.1 -- per-node Gemini-lock granularity (v3 schema)
+# ----------------------
+
+def test_inventory_version_3(inventory):
+    """v3 schema introduced in phase-22.1 with gemini_locked + grounding_dependent fields."""
+    assert inventory["version"] == 3
+
+
+def test_locked_count_is_one(inventory):
+    """Exactly 1 node is hard-locked to Gemini (RAGAgent -- Vertex AI Search dep)."""
+    locked = [n for n in inventory["nodes"] if n.get("gemini_locked")]
+    assert len(locked) == 1
+    assert locked[0]["id"] == "rag_agent"
+
+
+def test_grounding_dependent_count_is_four(inventory):
+    """4 nodes lose live web-search citations on Claude but still produce text."""
+    deps = [n for n in inventory["nodes"] if n.get("grounding_dependent")]
+    ids = {n["id"] for n in deps}
+    assert ids == {"market_agent", "competitor_agent", "deep_dive_agent", "enhanced_macro_agent"}
+
+
+def test_locked_node_has_lock_reason(inventory):
+    """The 1 locked node should have a non-empty lock_reason."""
+    locked = [n for n in inventory["nodes"] if n.get("gemini_locked")]
+    for n in locked:
+        assert n.get("lock_reason"), f"locked node {n['id']} missing lock_reason"
+        assert len(n["lock_reason"]) > 10
+
+
+def test_lock_flags_default_false(inventory):
+    """Most nodes (52 - 1 locked - 4 grounding = 47) have neither flag set."""
+    flagged = [n for n in inventory["nodes"]
+               if n.get("gemini_locked") or n.get("grounding_dependent")]
+    assert len(flagged) == 5  # 1 locked + 4 grounding
+    other = [n for n in inventory["nodes"] if n["id"] not in {n2["id"] for n2 in flagged}]
+    for n in other:
+        assert not n.get("gemini_locked")
+        assert not n.get("grounding_dependent")

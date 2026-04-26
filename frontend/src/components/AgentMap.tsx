@@ -44,6 +44,16 @@ export interface AgentNodeData extends Record<string, unknown> {
   /** phase-20.2: true when this node participates in the production workflow_edges
    * AND workflow mode is enabled. Adds a glow/ring style. */
   inWorkflow?: boolean;
+  /** phase-22.1: operator's actual runtime model (honors Settings override).
+   * Displayed in preference to static `model` if present. */
+  liveModel?: string | null;
+  /** phase-22.1: cannot run on Claude (Vertex AI Search dependency). Renders a lock badge. */
+  geminiLocked?: boolean;
+  /** phase-22.1: loses live web-search citations on Claude but still produces text.
+   * Renders a smaller "search" indicator. */
+  groundingDependent?: boolean;
+  /** phase-22.1: human-readable explanation of why a node is locked. Tooltip text. */
+  lockReason?: string;
 }
 
 const PROVIDER_COLORS: Record<AgentNodeData["provider"], string> = {
@@ -76,20 +86,48 @@ function AgentNode({ data }: NodeProps) {
   const borderStyle = d.kind === "harness" ? "border-dashed" : "border-solid";
 
   const workflowRing = d.inWorkflow ? "ring-2 ring-cyan-400/60 ring-offset-2 ring-offset-navy-900" : "";
+  // phase-22.1: prefer live_model (operator's actual runtime model) over static `model`
+  const displayModel = d.liveModel ?? d.model;
+  // Show lock badge for Vertex-locked nodes; show search-icon hint for grounding-dependent
+  const titleText = d.lockReason
+    ? `${d.role ?? d.name}\n\nLocked: ${d.lockReason}`
+    : d.groundingDependent
+    ? `${d.role ?? d.name}\n\nUses Google Search Grounding -- loses live citations on Claude but still works.`
+    : d.role ?? d.name;
   return (
     <div
       className={`min-w-[200px] rounded-xl border-2 ${borderStyle} ${colorCls} ${workflowRing} px-3 py-2 shadow-md`}
       data-testid="agent-node"
       data-kind={d.kind}
       data-in-workflow={d.inWorkflow ? "true" : "false"}
-      title={d.role ?? d.name}
+      data-locked={d.geminiLocked ? "true" : "false"}
+      title={titleText}
     >
       <div className="flex items-center gap-2">
         <Icon size={16} weight="duotone" />
         <div className="flex-1 min-w-0">
-          <div className="truncate text-xs font-semibold text-slate-100">{d.name}</div>
-          {d.model && (
-            <div className="truncate font-mono text-[10px] text-slate-400">{d.model}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-xs font-semibold text-slate-100">{d.name}</span>
+            {d.geminiLocked && (
+              <span
+                className="rounded bg-amber-500/20 px-1 py-0.5 font-mono text-[9px] font-bold text-amber-300"
+                aria-label="Locked to Gemini (Vertex AI Search)"
+              >
+                LOCKED
+              </span>
+            )}
+            {d.groundingDependent && !d.geminiLocked && (
+              <span
+                className="rounded bg-sky-500/20 px-1 py-0.5 font-mono text-[9px] font-bold text-sky-300"
+                aria-label="Grounding-dependent: loses live citations on Claude"
+                title="Loses live Google Search citations on Claude but still produces analysis text"
+              >
+                SEARCH
+              </span>
+            )}
+          </div>
+          {displayModel && (
+            <div className="truncate font-mono text-[10px] text-slate-400">{displayModel}</div>
           )}
           {d.isGroup && (
             <div className="mt-1 text-[10px] text-slate-500">
@@ -198,6 +236,10 @@ function buildGraph({ data, layer1Expanded, providerFilter, layerFilter, workflo
       collapsed: n.id === "layer1_pipeline" && !layer1Expanded,
       childrenCount: n.id === "layer1_pipeline" ? n.children.length : undefined,
       inWorkflow: workflowMode && workflowNodeIds.has(n.id),
+      liveModel: n.live_model ?? undefined,
+      geminiLocked: n.gemini_locked ?? false,
+      groundingDependent: n.grounding_dependent ?? false,
+      lockReason: n.lock_reason ?? undefined,
     },
   }));
 
