@@ -13,7 +13,7 @@ import {
   LogoIcon, IconKey, IconSignOut,
 } from "@/lib/icons";
 import type { Icon } from "@/lib/icons";
-import { CaretDown, X, Robot } from "@/lib/icons";
+import { CaretDown, X, Robot, Graph } from "@/lib/icons";
 import { healthCheck } from "@/lib/api";
 
 interface NavItem { href: string; label: string; icon: Icon }
@@ -54,6 +54,7 @@ const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/agents", label: "MAS Dashboard", icon: Robot },
+      { href: "/agent-map", label: "Agent Map", icon: Graph },
     ],
   },
 ];

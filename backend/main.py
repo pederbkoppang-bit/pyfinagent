@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.api.agent_map import router as agent_map_router
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import get_current_user
 from backend.api.backtest import router as backtest_router
@@ -294,6 +295,7 @@ async def auth_and_security_middleware(request: Request, call_next):
     return response
 
 # Routes
+app.include_router(agent_map_router)
 app.include_router(analysis_router)
 app.include_router(backtest_router)
 app.include_router(charts_router)

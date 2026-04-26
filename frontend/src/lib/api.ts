@@ -644,6 +644,30 @@ export function getSovereignLeaderboard(): Promise<SovereignLeaderboardResponse>
   return apiFetch("/api/sovereign/leaderboard");
 }
 
+// phase-18.3 -- agent topology map
+export interface AgentMapNode {
+  id: string;
+  name: string;
+  layer: number;
+  model: string | null;
+  provider: "anthropic" | "google" | "openai" | "github_models" | "none";
+  role: string;
+  file: string;
+  parents: string[];
+  children: string[];
+  kind: "harness" | "in_app" | "skill" | "service" | "meta_evolution";
+}
+
+export interface AgentMapResponse {
+  version: number;
+  nodes: AgentMapNode[];
+  edges: { from: string; to: string }[];
+}
+
+export function getAgentMap(): Promise<AgentMapResponse> {
+  return apiFetch("/api/agent-map");
+}
+
 export function getSovereignStrategy(
   strategyId: string,
 ): Promise<StrategyDetailResponse> {

@@ -225,6 +225,7 @@ export {
   Timer as Timer,
   Trash as Trash,
   TreeStructure as TreeStructure,
+  Graph as Graph,
   TrendUp as TrendUp,
   Trophy as Trophy,
   Warning as Warning,
