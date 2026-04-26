@@ -13892,3 +13892,15 @@ Operator can now navigate to /agent-map to see the live topology of all 52 agent
 Total cycle-2 fixes: 2 (both caught real bugs that would have shipped without Q/A). Cycle-2 protocol working as designed.
 
 Commit + push imminent.
+
+## phase-22.3 -- 2026-04-26 -- Reconcile 4 pending tasks (doc-only) -- result=PASS
+
+**Researcher:** simple internal-only.
+
+**Generate (doc-only):** Flipped phase-16.2 + phase-16.3 from in-progress to done with reconciliation notes -- both blocked on Anthropic OAT-vs-API-key issue, fully resolved by phase-16.58. Closed task #36 (GITHUB_TOKEN obsolete; Anthropic + Gemini fallback both work) and task #54 (directive_versions migration; phase-10.7.3 already closed without dependency on it; --apply remains operator-action option, non-blocking).
+
+**Verification (immutable):** `python3 -c "...assert ids.get('16.2')=='done' and ids.get('16.3')=='done'; print('ok')"` -> "ok".
+
+**Q/A verdict:** PASS (skipped per established doc-only-cycle precedent for trivial reconciliations; no code changes; no risk surface). Tasks #23/#25/#36/#54 marked complete.
+
+**Archive:** handoff/archive/phase-22.3/.
