@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-26 | `c305fc27` | phase-22.3: reconcile 4 pending tasks (#23, #25, #36, #54) |
 | 2026-04-26 | `de51c727` | phase-22: live model resolution in agent map + per-node Gemini-lock granularity |
 | 2026-04-26 | `3b3ff446` | phase-20 + 21: agent map workflow overlay + settings model propagation |
 | 2026-04-26 | `9c31ed70` | phase-16.58: close pending Anthropic key swap (task #21) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-24 | `f2e8ce28` | fix(uat-16.2): GCP scope, RAG IAM+datastore, localhost auth, BQ schema |
 | 2026-04-24 | `3a22f0ee` | plan: add phase-16 full-application end-to-end UAT to masterplan |
 | 2026-04-24 | `8131bb70` | observability: Risk Judge REJECT + sub-$50 skip log lines |
-| 2026-04-24 | `b60eb413` | fix: _default_bq_logger NULL type binding + complete Slack UAT |
 
 ---
 
+### v6.5.97 — phase-22.3: reconcile 4 pending tasks (#23, #25, #36, #54) (2026-04-26)
+
+- **phase-22.3: reconcile 4 pending tasks (#23, #25, #36, #54)**
 ### v6.5.96 — phase-22: live model resolution in agent map + per-node Gemini-lock g... (2026-04-26)
 
 - **phase-22: live model resolution in agent map + per-node Gemini-lock granularity**
