@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-26 | `897d1323` | phase-16.56 + 16.57: sovereign grid widen Alpha then revert RedLine 60% |
 | 2026-04-26 | `dd66299b` | phase-16.55: sovereign two-hero r2 - AlphaLeaderboard fills to match RedLine |
 | 2026-04-26 | `4bfb3bc4` | phase-16.54: sovereign two-hero balance - shrink RedLineMonitor non-compact |
 | 2026-04-26 | `5f69db00` | phase-16.53: settings full-width content fix (drop max-w-4xl) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-24 | `1122a021` | feat: phase-10.5 sovereign UI + phase-15 observability tiles + phase-4.17 pre-go-live smoke test |
 | 2026-04-24 | `6eac048e` | Cycle 65: MAS harness NOOP -- 16 consecutive no-ops, all 9 remaining items blocked |
 | 2026-04-23 | `39115871` | chore: harness log entry for Cycle 50 (4.4.2.4 infra -- signals_log BQ write) |
-| 2026-04-23 | `d24ce83c` | Phase 4.4.2.4: wire autonomous loop to log signals to BQ signals_log |
 
 ---
 
+### v6.5.91 — phase-16.56 + 16.57: sovereign grid widen Alpha then revert RedLine 60% (2026-04-26)
+
+- **phase-16.56 + 16.57: sovereign grid widen Alpha then revert RedLine 60%**
 ### v6.5.90 — phase-16.55: sovereign two-hero r2 - AlphaLeaderboard fills to match... (2026-04-26)
 
 - **phase-16.55: sovereign two-hero r2 - AlphaLeaderboard fills to match RedLine**
