@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-27 | `5a6a6e17` | phase-23.1.2: earnings PEAD overlay (free SEC EDGAR + Claude sentiment-surprise) |
 | 2026-04-27 | `743d65e5` | phase-23.1.1: macro regime filter (LLM-as-judge over FRED) + screener conviction multiplier |
 | 2026-04-26 | `203ced64` | phase-23.0: Dataform/orchestrator feasibility (DON'T ADOPT) + directive_versions --apply |
 | 2026-04-26 | `c305fc27` | phase-22.3: reconcile 4 pending tasks (#23, #25, #36, #54) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-24 | `db4e3063` | uat: phase-16 full-app UAT executed, Q/A GO verdict, awaiting ack |
 | 2026-04-24 | `277e8ace` | fix(uat-16.4): Gemini fallback must force Gemini models, not settings |
 | 2026-04-24 | `46b76ef4` | feat: Claude as default LLM provider, Gemini switchable from Settings |
-| 2026-04-24 | `f2e8ce28` | fix(uat-16.2): GCP scope, RAG IAM+datastore, localhost auth, BQ schema |
 
 ---
 
+### v6.5.100 — phase-23.1.2: earnings PEAD overlay (free SEC EDGAR + Claude sentimen... (2026-04-27)
+
+- **phase-23.1.2: earnings PEAD overlay (free SEC EDGAR + Claude sentiment-surprise)**
 ### v6.5.99 — phase-23.1.1: macro regime filter (LLM-as-judge over FRED) + screener... (2026-04-27)
 
 - **phase-23.1.1: macro regime filter (LLM-as-judge over FRED) + screener conviction multiplier**
