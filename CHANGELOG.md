@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-26 | `3b3ff446` | phase-20 + 21: agent map workflow overlay + settings model propagation |
 | 2026-04-26 | `9c31ed70` | phase-16.58: close pending Anthropic key swap (task #21) |
 | 2026-04-26 | `514f0635` | phase-19.0: Claude Remote / Max programmatic handoff feasibility (decision doc) |
 | 2026-04-26 | `570ba19a` | phase-18: Agent Topology Map (18.0 plan + 18.1 backend + 18.2-18.4 frontend) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-24 | `8131bb70` | observability: Risk Judge REJECT + sub-$50 skip log lines |
 | 2026-04-24 | `b60eb413` | fix: _default_bq_logger NULL type binding + complete Slack UAT |
 | 2026-04-24 | `dfd57ec1` | pre-prod: close BLOCKERS 1-3 + api.ts helpers + DRIFT status flips |
-| 2026-04-24 | `06a86333` | fix(BudgetDashboard): re-apply auth-aware fetch + null-guard (v2) |
 
 ---
 
+### v6.5.95 — phase-20 + 21: agent map workflow overlay + settings model propagation (2026-04-26)
+
+- **phase-20 + 21: agent map workflow overlay + settings model propagation**
 ### v6.5.94 — phase-16.58: close pending Anthropic key swap (task #21) (2026-04-26)
 
 - **phase-16.58: close pending Anthropic key swap (task #21)**
