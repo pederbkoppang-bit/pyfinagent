@@ -155,6 +155,7 @@ def rank_candidates(
     regime=None,
     pead_signals=None,
     news_signals=None,
+    sector_events=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -214,6 +215,15 @@ def rank_candidates(
         if news_signals:
             from backend.services.news_screen import apply_news_to_score
             score = apply_news_to_score(score, stock.get("ticker"), news_signals)
+
+        if sector_events:
+            from backend.services.sector_calendars import apply_sector_events_to_score
+            new_score = apply_sector_events_to_score(
+                score, stock.get("ticker"), stock.get("sector"), sector_events,
+            )
+            if new_score is None:
+                continue
+            score = new_score
 
         scored.append({**stock, "composite_score": round(score, 3)})
 

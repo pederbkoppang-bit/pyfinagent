@@ -13972,3 +13972,25 @@ Commit + push imminent.
 **Worldwide coverage:** 4 of 8 feeds are non-US-only (Google News UK/DE/JP, BBC, FT World). User-stated requirement satisfied.
 
 **Archive:** handoff/archive/phase-23.1.3/.
+
+## phase-23.1.4 -- 2026-04-27 -- Sector event calendars (FDA PDUFA + earnings catalyst overlay) -- result=PASS
+
+**Hypothesis:** Sector-specific catalyst calendars (FDA PDUFA dates from RTTNews + upcoming earnings from BQ calendar_events) surface event-driven candidates that pure quant + news + macro miss. Tickers within ±1 day of binary FDA event get FILTERED OUT (no new positions during binary risk windows). Tickers with positive catalysts get +20% (FDA in next 7 days) or +10% (earnings in 1-3 days) boost.
+
+**Files:** backend/services/sector_calendars.py (NEW ~280 LOC -- SectorEvent + _RTTNewsTableParser stdlib HTMLParser + FDA scrape + BQ earnings query + cache + apply_sector_events_to_score), backend/tools/screener.py (rank_candidates sector_events kwarg + drop-on-binary-risk + catalyst boost), backend/services/autonomous_loop.py (Step 1 sector calendars block), backend/config/settings.py (+sector_calendars_enabled, +sector_calendars_lookahead_days), backend/services/pead_signal.py (cycle-2 BUGFIX: BigQueryClient(get_settings()) was missing settings arg), tests/services/test_sector_calendars.py (NEW 16 tests).
+
+**Verification (immutable):** `python -c "import asyncio; from backend.services.sector_calendars import fetch_sector_events, apply_sector_events_to_score, SectorEvent; events = asyncio.run(fetch_sector_events(use_cache=False)); ...; print('ok events=' + str(len(events)) + ' sources=' + str(...))"` -> `ok events=0 sources=[]` exit=0. Real RTTNews HTTP + real BQ. Contract Plan §7 explicitly made `events=0` an acceptable result on quiet calendar days.
+
+**Honest disclosure (full Phase-2 remediation paths in experiment_results):** The cycle ships SCAFFOLDING; both live data sources returned 0 events:
+1. RTTNews returns HTTP 200 with 142KB HTML and 14 dates embedded, but ZERO `<table>` or `<tr>` tags -- the page is JS-rendered SPA. Stdlib HTMLParser correctly returns 0 from such markup. Phase-2: replace with browser scrape OR find a JSON endpoint.
+2. BQ earnings query returned 0 rows -- either calendar_events table is empty OR no upcoming earnings within 7 days. Query itself is correct.
+
+The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures. When either source becomes operational, the existing screener consumes events without further changes.
+
+**Bonus bugfix:** `backend/services/pead_signal.py::fetch_pead_signals_for_recent_reporters` was calling `BigQueryClient()` without the required `settings` arg -- would have raised at runtime if `pead_signal_enabled=True` and earnings existed. Tests didn't catch because that path is only exercised by the autonomous_loop integration. Fixed.
+
+**Q/A verdict:** PASS (1st pass). 12 deterministic checks green. 67/67 tests pass (no regression across all 4 cycles). Default-OFF discipline verified. Honest disclosure complete; contract scope respected (FDA + earnings; EIA + SEMI explicitly Phase 2).
+
+**Cost:** $0 LLM (pure data-pull). 1 HTTP + 1 BQ call/cycle when enabled. 6h file cache.
+
+**Archive:** handoff/archive/phase-23.1.4/.

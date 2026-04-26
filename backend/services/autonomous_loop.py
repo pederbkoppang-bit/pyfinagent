@@ -146,6 +146,16 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             except Exception as e:
                 logger.warning("News screen failed (non-fatal): %s", e)
 
+        sector_events = {}
+        if getattr(settings, "sector_calendars_enabled", False):
+            try:
+                from backend.services.sector_calendars import fetch_sector_events
+                sector_events = await fetch_sector_events()
+                logger.info("Sector calendars: %d events", len(sector_events))
+                summary["sector_events"] = len(sector_events)
+            except Exception as e:
+                logger.warning("Sector calendars failed (non-fatal): %s", e)
+
         screen_data = screen_universe(period="6mo")
         candidates = rank_candidates(
             screen_data,
@@ -153,6 +163,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             regime=regime,
             pead_signals=pead_signals or None,
             news_signals=news_signals or None,
+            sector_events=sector_events or None,
         )
         summary["screened"] = len(screen_data)
         summary["candidates"] = len(candidates)

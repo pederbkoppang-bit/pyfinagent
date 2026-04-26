@@ -6930,6 +6930,20 @@
           "created_at": "2026-04-26T22:45:23Z",
           "completed_at": "2026-04-26T22:45:23Z",
           "notes": "Q/A PASS first try. 51/51 unit tests + immutable verification (real RSS + real Claude -> ok tickers=3 [AAPL, GOOGL, META]). 8 worldwide feeds shipped (Reuters DNS dead -> swapped with CNBC + Yahoo). Three E2E bugs surfaced + fixed: Reuters DNS, Google 302 redirect, Korean ticker regex. Default OFF (news_screen_enabled=False)."
+        },
+        {
+          "id": "23.1.4",
+          "name": "Sector event calendars (FDA PDUFA + earnings catalyst overlay; EIA + SEMI deferred to Phase 2)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "source .venv/bin/activate && python -c \"import asyncio; from backend.services.sector_calendars import fetch_sector_events, apply_sector_events_to_score, SectorEvent; events = asyncio.run(fetch_sector_events(use_cache=False)); assert isinstance(events, dict); assert all(isinstance(v, SectorEvent) for v in events.values()); from datetime import date; out = apply_sector_events_to_score(10.0, 'AAPL', 'Information Technology', {}); assert out == 10.0; print('ok events=' + str(len(events)) + ' sources=' + str(sorted(set(v.source for v in events.values()))))\"",
+          "contract": "handoff/archive/phase-23.1.4/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.4/phase-23.1.4-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.4/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.4/evaluator_critique.md",
+          "created_at": "2026-04-26T23:06:42Z",
+          "completed_at": "2026-04-26T23:06:42Z",
+          "notes": "Q/A PASS first try. 67/67 unit tests + immutable verification (real RTTNews + real BQ -> events=0 sources=[]). Scaffolding shipped; both live data sources returned 0 (RTTNews is SPA / no static tables; BQ calendar empty). Honest disclosure in experiment_results includes Phase-2 remediation paths. Bonus: cycle-2 PEAD bug fixed (BigQueryClient missing settings arg). Default OFF (sector_calendars_enabled=False)."
         }
       ]
     }

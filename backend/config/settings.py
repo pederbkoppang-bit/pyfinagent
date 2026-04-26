@@ -159,6 +159,9 @@ class Settings(BaseSettings):
     news_screen_enabled: bool = Field(False, description="Pull worldwide RSS news + Claude classifier; surface positive-polarity tickers as parallel candidates in screener")
     news_screen_model: str = Field("claude-haiku-4-5", description="LLM used for batch news event extraction")
     news_screen_max_headlines: int = Field(100, description="Max deduped headlines per cycle sent to the LLM (caps cost)")
+    # phase-23.1.4: sector event calendars (FDA PDUFA + upcoming earnings; pure data-pull)
+    sector_calendars_enabled: bool = Field(False, description="Pull FDA PDUFA + earnings calendars; boost catalyst tickers and filter ticker on day-of binary FDA event")
+    sector_calendars_lookahead_days: int = Field(7, description="Lookahead window for upcoming earnings in BQ calendar query")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

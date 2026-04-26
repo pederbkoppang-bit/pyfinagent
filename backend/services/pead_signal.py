@@ -322,7 +322,7 @@ async def fetch_pead_signals_for_recent_reporters() -> dict[str, PeadSignalOutpu
     """
     try:
         from backend.db.bigquery_client import BigQueryClient
-        bq = BigQueryClient()
+        bq = BigQueryClient(get_settings())
         query = (
             "SELECT ticker FROM `pyfinagent_data.calendar_events` "
             "WHERE event_type = 'earnings' "
