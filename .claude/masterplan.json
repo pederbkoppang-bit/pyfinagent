@@ -6010,10 +6010,30 @@
           "contract": null,
           "retry_count": 0,
           "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle; mid-cycle direction reversal handled cleanly). Operator clarified mid-cycle: 'Red Line Monitor could be bigg but Alpha Leaderboard should just match the hight of Red Line Monitor.' REVERSED 16.54's shrink approach. Final state: (1) frontend/src/components/RedLineMonitor.tsx L107 restored to `h-64` (256px chart) -- supersedes 16.54's h-48 + this cycle's intermediate h-40. Compact h-72 unchanged. (2) frontend/src/app/sovereign/page.tsx L139: removed items-start, added `h-full` to AlphaLeaderboard wrapper `<div className=\"lg:col-span-2 h-full\">`. (3) frontend/src/components/AlphaLeaderboard.tsx: BentoCard now `<BentoCard className=\"flex h-full flex-col\">`; table container changed from `overflow-x-auto scrollbar-thin` to `flex-1 overflow-auto scrollbar-thin`. AlphaLeaderboard CARD now fills its grid cell to match RedLineMonitor's height; inner table scrolls (both x and y) when content overflows. tsc --noEmit exit 0 + lint 0 errors. No homepage regression (compact path of RedLine + AlphaLeaderboard not used on homepage). Honest disclosure of mid-cycle reversal documented in experiment_results.md. See handoff/archive/phase-16.55/."
+        },
+        {
+          "id": "16.56",
+          "name": "AlphaLeaderboard wider via grid swap (3+2 -> 2+3)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "cd frontend && npx tsc --noEmit",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle). Operator: 'make Alpha Leaderboard wider so we dont have to scroll within to see all the data.' Swapped sovereign grid proportions: RedLine lg:col-span-3 -> lg:col-span-2 (60% -> 40%); AlphaLeaderboard lg:col-span-2 h-full -> lg:col-span-3 h-full (40% -> 60%). Plus cell padding `px-3 py-2.5` -> `px-2.5 py-2.5` via replace_all (8 occurrences). Net: Alpha gets +50% relative horizontal width, all 7 columns fit without horizontal scroll. tsc + lint clean. SUPERSEDED IMMEDIATELY by 16.57 -- operator post-deploy screenshot said 'thats to wide Red Line Monitor make red line montiner tak 60 % and aplha the rest'. Grid proportions reverted in 16.57; cell padding retained. See handoff/archive/phase-16.56/."
+        },
+        {
+          "id": "16.57",
+          "name": "Revert sovereign grid to RedLine 60% / Alpha 40%",
+          "status": "done",
+          "harness_required": true,
+          "verification": "cd frontend && npx tsc --noEmit",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle). Operator post-16.56-deploy screenshot: 'thats to wide Red Line Monitor make red line montiner tak 60 % and aplha the rest'. 2-line revert in frontend/src/app/sovereign/page.tsx: L140 `lg:col-span-2` -> `lg:col-span-3` (RedLine restored to 60%); L148 `lg:col-span-3 h-full` -> `lg:col-span-2 h-full` (Alpha restored to 40%, h-full preserved). All 16.55 height-fill + 16.56 cell padding px-2.5 carry-overs preserved. tsc clean. Honest tradeoff disclosure: Alpha at 40% horizontal-scrolls again; operator accepted in favor of wider RedLine. See handoff/archive/phase-16.57/."
         }
       ],
       "completed_at": null,
-      "notes": "33 of 35 sub-steps done. 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A). Continuation /batch (2026-04-26): 16.52 (UX pass C settings shell), 16.53 (settings full-width), 16.54 (sovereign shrink RedLine -- superseded), 16.55 (sovereign two-hero r2: AlphaLeaderboard fills to match RedLine, RedLine restored to original size)."
+      "notes": "35 of 37 sub-steps done. Continuation /batch (2026-04-26): 16.52-16.57 sovereign+settings UX iteration. Operator ping-pong between 'shrink RedLine' (16.54) -> 'make Alpha fill height' (16.55) -> 'make Alpha wider' (16.56) -> 'revert RedLine wider' (16.57). Final state: RedLine 60% h-64, Alpha 40% with h-full + flex-1 overflow-auto + px-2.5 cells."
     },
     {
       "id": "phase-17",

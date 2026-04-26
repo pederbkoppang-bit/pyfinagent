@@ -13651,3 +13651,39 @@ User-action items deferred per /batch scope: phase-5.2 (EODHD API key), phase-5.
 **Code changes:** 3 files. No tests. Compact path of RedLine + homepage hero unchanged.
 
 **Archive:** new dir `handoff/archive/phase-16.55/`.
+
+## phase-16.56 -- 2026-04-26 -- AlphaLeaderboard wider via grid swap (3+2 -> 2+3) -- result=PASS
+
+**Researcher:** simple tier, internal-only gate. 2 internal files inspected. gate_passed=true. Operator ask: "make Alpha Leaderboard wider so we dont have to scroll within to see all the data."
+
+**Generate:** swapped sovereign two-hero grid proportions. RedLine `lg:col-span-3` -> `lg:col-span-2` (60% -> 40%). AlphaLeaderboard `lg:col-span-2 h-full` -> `lg:col-span-3 h-full` (40% -> 60%). Plus AlphaLeaderboard cell padding `px-3 py-2.5` -> `px-2.5 py-2.5` via replace_all (8 occurrences -- 7 cells + 1 header). Net: Alpha gets +50% relative horizontal width, all 7 columns fit without horizontal scroll.
+
+**Verification (immutable):** `cd frontend && npx tsc --noEmit` -> exit 0. lint 0 errors. Grid swap + cell padding both confirmed via grep.
+
+**Q/A verdict:** PASS. 7 deterministic checks pass.
+
+**SUPERSEDED IMMEDIATELY** by 16.57 -- operator screenshot 2026-04-26 (post-16.56 deploy) said "thats to wide Red Line Monitor make red line montiner tak 60 % and aplha the rest". Grid proportions to be reverted. Cell padding retained.
+
+**Archive:** new dir `handoff/archive/phase-16.56/`.
+
+## phase-16.57 -- 2026-04-26 -- Revert sovereign grid to RedLine 60% / Alpha 40% -- result=PASS
+
+**Researcher:** simple tier, internal-only gate (per pure-UI cycle precedent: 16.43-16.56 series). 1 internal file inspected. gate_passed=true.
+
+**Generate:** 2-line revert in frontend/src/app/sovereign/page.tsx:
+- L140: `lg:col-span-2` -> `lg:col-span-3` (RedLine restored to 60%)
+- L148: `lg:col-span-3 h-full` -> `lg:col-span-2 h-full` (Alpha restored to 40%, h-full preserved)
+
+All 16.55/16.56 work preserved: BentoCard flex h-full flex-col, table flex-1 overflow-auto scrollbar-thin, cell padding px-2.5, RedLineMonitor h-64.
+
+**Verification (immutable):** `cd frontend && npx tsc --noEmit` -> exit 0.
+
+**Q/A verdict:** PASS. 7 deterministic checks pass (verification, grid col-spans, AlphaLeaderboard carry-overs, RedLineMonitor h-64, handoff-files, log-last, research-brief).
+
+**Soft note from Q/A:** internal-only research brief flagged. Accepted per pure-UI cycle precedent (CLAUDE.md "internal-heavy briefs OK for pure-UI/cleanup cycles"). Substantive change correct.
+
+**Tradeoff disclosure:** Alpha at 40% will horizontal-scroll again (the original 16.56 motivation). Operator implicitly accepted this in favor of wider RedLine. Cell padding px-2.5 (saved from 16.56) softens the squeeze slightly.
+
+**Cycle-2:** not needed (first-pass PASS).
+
+**Archive:** new dir `handoff/archive/phase-16.57/`.

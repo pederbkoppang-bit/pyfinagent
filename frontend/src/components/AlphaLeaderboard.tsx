@@ -196,7 +196,7 @@ export function AlphaLeaderboard({
                   return (
                     <th
                       key={String(col.key)}
-                      className={`px-3 py-2.5 font-medium text-slate-400 ${
+                      className={`px-2.5 py-2.5 font-medium text-slate-400 ${
                         col.numeric ? "text-right" : ""
                       }`}
                       aria-sort={
@@ -246,22 +246,22 @@ export function AlphaLeaderboard({
                     data-row={row.strategy_id}
                     className="transition-colors hover:bg-navy-700/40"
                   >
-                    <td data-cell="strategy_id" className="px-3 py-2.5 font-mono text-xs text-slate-200">
+                    <td data-cell="strategy_id" className="px-2.5 py-2.5 font-mono text-xs text-slate-200">
                       {row.strategy_id}
                     </td>
-                    <td data-cell="sharpe" className="px-3 py-2.5 text-right font-mono text-xs text-slate-300">
+                    <td data-cell="sharpe" className="px-2.5 py-2.5 text-right font-mono text-xs text-slate-300">
                       {fmtCell(row.sharpe, true)}
                     </td>
-                    <td data-cell="dsr" className="px-3 py-2.5 text-right font-mono text-xs text-slate-300">
+                    <td data-cell="dsr" className="px-2.5 py-2.5 text-right font-mono text-xs text-slate-300">
                       {fmtCell(row.dsr, true)}
                     </td>
-                    <td data-cell="pbo" className="px-3 py-2.5 text-right font-mono text-xs text-slate-300">
+                    <td data-cell="pbo" className="px-2.5 py-2.5 text-right font-mono text-xs text-slate-300">
                       {fmtCell(row.pbo, true)}
                     </td>
-                    <td data-cell="max_dd" className="px-3 py-2.5 text-right font-mono text-xs text-slate-300">
+                    <td data-cell="max_dd" className="px-2.5 py-2.5 text-right font-mono text-xs text-slate-300">
                       {fmtCell(row.max_dd, true)}
                     </td>
-                    <td data-cell="status" className="px-3 py-2.5">
+                    <td data-cell="status" className="px-2.5 py-2.5">
                       {row.status ? (
                         <button
                           type="button"
@@ -278,7 +278,7 @@ export function AlphaLeaderboard({
                         <span className="text-xs text-slate-500">--</span>
                       )}
                     </td>
-                    <td data-cell="allocation_pct" className="px-3 py-2.5 text-right font-mono text-xs text-slate-300">
+                    <td data-cell="allocation_pct" className="px-2.5 py-2.5 text-right font-mono text-xs text-slate-300">
                       {allocStr}
                     </td>
                   </tr>
