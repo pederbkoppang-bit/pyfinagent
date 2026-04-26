@@ -236,7 +236,7 @@ export function getAvailableModels(): Promise<ModelPricing[]> {
   return apiFetch("/api/settings/models/available");
 }
 
-export function updateModelConfig(body: { gemini_model?: string; deep_think_model?: string }): Promise<ModelConfig> {
+export function updateModelConfig(body: { gemini_model?: string; deep_think_model?: string; apply_model_to_all_agents?: boolean }): Promise<ModelConfig> {
   return apiFetch("/api/settings/models", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -658,10 +658,29 @@ export interface AgentMapNode {
   kind: "harness" | "in_app" | "skill" | "service" | "meta_evolution";
 }
 
+// phase-20.1 -- workflow overlay types
+export interface AgentMapWorkflowStep {
+  step: number;
+  name: string;
+  agent_id: string;
+  kind: "free" | "llm" | "trade" | "data";
+  summary?: string;
+}
+
+export interface AgentMapWorkflowEdge {
+  from: string;
+  to: string;
+  step?: number;
+  label?: string;
+  loop?: boolean;
+}
+
 export interface AgentMapResponse {
   version: number;
   nodes: AgentMapNode[];
   edges: { from: string; to: string }[];
+  workflow_steps?: AgentMapWorkflowStep[];
+  workflow_edges?: AgentMapWorkflowEdge[];
 }
 
 export function getAgentMap(): Promise<AgentMapResponse> {

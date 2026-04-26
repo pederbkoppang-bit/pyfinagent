@@ -516,11 +516,15 @@ export interface ModelConfig {
   deep_think_model: string;
   max_debate_rounds: number;
   max_risk_debate_rounds: number;
+  // phase-21.1 -- when true, Standard Model overrides ALL agent role-mappings
+  // (except Gemini-only roles RAG / Search Grounding / Vertex structured output).
+  apply_model_to_all_agents?: boolean;
 }
 
 export interface FullSettings {
   gemini_model: string;
   deep_think_model: string;
+  apply_model_to_all_agents?: boolean;
   max_debate_rounds: number;
   max_risk_debate_rounds: number;
   weight_corporate: number;

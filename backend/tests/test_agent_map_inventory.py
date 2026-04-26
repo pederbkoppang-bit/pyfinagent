@@ -137,3 +137,52 @@ def test_derive_edges_dedups():
     edges = _derive_edges(nodes)
     assert len(edges) == 1
     assert edges[0] == {"from": "a", "to": "b"}
+
+
+# ----------------------
+# phase-20.1 -- workflow data (production daily-cycle)
+# ----------------------
+
+def test_inventory_version_2(inventory):
+    """v2 schema introduced in phase-20.1 with workflow_steps + workflow_edges."""
+    assert inventory["version"] == 2
+
+
+def test_workflow_steps_present(inventory):
+    """8 production steps from autonomous_loop.run_daily_cycle docstring."""
+    steps = inventory.get("workflow_steps")
+    assert isinstance(steps, list)
+    assert len(steps) == 8
+    # Each step has required fields
+    for s in steps:
+        for key in ("step", "name", "agent_id", "kind"):
+            assert key in s, f"workflow_step missing {key}: {s}"
+    # Step numbers are 1-8 unique
+    nums = [s["step"] for s in steps]
+    assert sorted(nums) == [1, 2, 3, 4, 5, 6, 7, 8]
+
+
+def test_workflow_edges_reference_existing_nodes(inventory):
+    """Every workflow_edge from/to id must reference a real node."""
+    by_id = {n["id"] for n in inventory["nodes"]}
+    edges = inventory.get("workflow_edges") or []
+    assert len(edges) >= 10
+    for e in edges:
+        assert e["from"] in by_id, f"workflow_edge from-id {e['from']!r} not in nodes"
+        assert e["to"] in by_id, f"workflow_edge to-id {e['to']!r} not in nodes"
+
+
+def test_workflow_has_loop_back(inventory):
+    """At least one edge marks the daily cycle-back loop."""
+    edges = inventory.get("workflow_edges") or []
+    loops = [e for e in edges if e.get("loop") is True]
+    assert len(loops) >= 1, "expected at least one workflow_edge with loop=true"
+
+
+def test_workflow_step_numbers_in_range(inventory):
+    """workflow_edge.step values are floats between 1 and 10 (room for sub-steps + loop)."""
+    edges = inventory.get("workflow_edges") or []
+    for e in edges:
+        if "step" in e:
+            v = float(e["step"])
+            assert 1 <= v <= 10, f"workflow_edge.step out of range: {v} ({e})"

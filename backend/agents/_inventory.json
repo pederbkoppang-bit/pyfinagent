@@ -1,7 +1,31 @@
 {
-  "version": 1,
+  "version": 2,
   "generated_at": "static",
-  "schema_doc": "phase-18.1 agent topology inventory. Each node: {id, name, layer, model, provider, role, file, parents, children, kind}. Layers: 1=Gemini analysis pipeline, 2=MAS in-app Claude agents, 3=Harness MAS (Main+Researcher+QA), 4=Services/meta-evolution. Kinds: harness, in_app, skill, service, meta_evolution.",
+  "schema_doc": "phase-18.1 + phase-20.1 agent topology inventory. Each node: {id, name, layer, model, provider, role, file, parents, children, kind}. Layers: 1=Gemini analysis pipeline, 2=MAS in-app Claude agents, 3=Harness MAS (Main+Researcher+QA), 4=Services/meta-evolution. Kinds: harness, in_app, skill, service, meta_evolution. v2 adds workflow_steps + workflow_edges describing the production daily-cycle (autonomous_loop.run_daily_cycle).",
+  "workflow_steps": [
+    {"step": 1, "name": "Screen universe", "agent_id": "autonomous_loop", "kind": "free", "summary": "Rank ~50 candidates from price+volume signals (no LLM)."},
+    {"step": 2, "name": "Analyze candidates", "agent_id": "layer1_pipeline", "kind": "llm", "summary": "Layer-1 Gemini enrichment pipeline (~28 skill agents) on top-N tickers."},
+    {"step": 3, "name": "Re-eval holdings", "agent_id": "layer1_pipeline", "kind": "llm", "summary": "Re-run analysis on positions held >= reeval_frequency_days."},
+    {"step": 4, "name": "Decide trades", "agent_id": "planner_agent", "kind": "llm", "summary": "Layer-2 MAS: planner + analyst + risk_judge produce structured BUY/SELL/HOLD."},
+    {"step": 5, "name": "Execute trades", "agent_id": "portfolio_manager", "kind": "trade", "summary": "Sell-first-then-buy via PaperTrader -> ExecutionRouter -> AlpacaBroker."},
+    {"step": 6, "name": "Mark to market", "agent_id": "paper_trader", "kind": "data", "summary": "Update position NAV from latest quote."},
+    {"step": 7, "name": "Save snapshot", "agent_id": "paper_trader", "kind": "data", "summary": "Persist daily portfolio snapshot to BQ."},
+    {"step": 8, "name": "Learn from outcomes", "agent_id": "outcome_tracker", "kind": "llm", "summary": "Reflect on closed trades; LLM writes lessons to agent_memories."}
+  ],
+  "workflow_edges": [
+    {"from": "autonomous_loop", "to": "layer1_pipeline", "step": 2, "label": "screen->analyze"},
+    {"from": "layer1_pipeline", "to": "synthesis_agent", "step": 2.5, "label": "enrichment->synthesis"},
+    {"from": "synthesis_agent", "to": "moderator_agent", "step": 2.7, "label": "debate"},
+    {"from": "moderator_agent", "to": "analyst_agent", "step": 2.9, "label": "synthesize"},
+    {"from": "analyst_agent", "to": "risk_judge_skill", "step": 4, "label": "size"},
+    {"from": "risk_judge_skill", "to": "planner_agent", "step": 4.5, "label": "plan"},
+    {"from": "planner_agent", "to": "portfolio_manager", "step": 5, "label": "decide"},
+    {"from": "portfolio_manager", "to": "paper_trader", "step": 5.5, "label": "execute"},
+    {"from": "paper_trader", "to": "execution_router", "step": 5.7, "label": "route"},
+    {"from": "execution_router", "to": "alpaca_broker", "step": 5.9, "label": "submit"},
+    {"from": "paper_trader", "to": "outcome_tracker", "step": 8, "label": "snapshot+learn"},
+    {"from": "outcome_tracker", "to": "autonomous_loop", "step": 9, "label": "loop back tomorrow", "loop": true}
+  ],
   "nodes": [
     {"id": "main", "name": "Main (this Claude Code session)", "layer": 3, "model": "varies", "provider": "anthropic", "role": "Coordinates harness cycles. Spawns researcher and qa subagents. Writes contract/results/log files.", "file": ".claude/agents/", "parents": [], "children": ["researcher", "qa"], "kind": "harness"},
     {"id": "researcher", "name": "Researcher", "layer": 3, "model": "claude-sonnet-4-6", "provider": "anthropic", "role": "Combined external literature + internal codebase researcher. Writes research-gate brief before each PLAN.", "file": ".claude/agents/researcher.md", "parents": ["main"], "children": [], "kind": "harness"},

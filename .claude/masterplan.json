@@ -6739,6 +6739,80 @@
         }
       ],
       "completed_at": "2026-04-26T00:00:00Z"
+    },
+    {
+      "id": "phase-20",
+      "name": "Agent Map: production workflow visualization",
+      "status": "done",
+      "depends_on": [],
+      "gate": null,
+      "description": "Operator-requested 2026-04-26: extend agent map (phase-18) with directional production-workflow overlay showing the autonomous_loop daily cycle (Screen -> Analyze -> Decide -> Trade -> Snapshot -> Learn -> loop back).",
+      "created_at": "2026-04-26T00:00:00Z",
+      "steps": [
+        {
+          "id": "20.1",
+          "name": "Add workflow_steps + workflow_edges to inventory JSON (schema v2)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "source .venv/bin/activate && python -m pytest backend/tests/test_agent_map_inventory.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A PASS. _inventory.json v1->v2: +workflow_steps[8] (Screen/Analyze/Reeval/Decide/Execute/MTM/Snapshot/Learn from autonomous_loop docstring) + workflow_edges[12, one with loop=true for the daily cycle-back]. 5 new tests (11->16 total). NO frontend changes (phase-20.2 scope). See handoff/archive/phase-20.1/."
+        },
+        {
+          "id": "20.2",
+          "name": "AgentMap workflow overlay rendering (toggle: topology / production flow)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "cd frontend && npx tsc --noEmit && npm run build",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A PASS. AgentMap.tsx adds workflowMode toggle. workflow_edges render with step-number labels, animated cyan stroke for forward edges, dashed orange step-style for loop=true. Cyan ring-2 highlight on workflow nodes. Toolbar 'View: production flow / static topology' toggle. api.ts +AgentMapWorkflowStep +AgentMapWorkflowEdge interfaces. tsc + npm run build exit 0. See handoff/archive/phase-20.2/."
+        }
+      ],
+      "completed_at": "2026-04-26T00:00:00Z"
+    },
+    {
+      "id": "phase-21",
+      "name": "Settings-driven LLM model propagation",
+      "status": "done",
+      "depends_on": [],
+      "gate": null,
+      "description": "Operator-requested 2026-04-26: apply chosen model in Settings to all agents where possible. Backend chokepoint at model_tiers.resolve_model(); Gemini-locked roles (RAG / Search Grounding / Vertex structured output) bypass the override.",
+      "created_at": "2026-04-26T00:00:00Z",
+      "steps": [
+        {
+          "id": "21.1",
+          "name": "Backend: apply_model_to_all_agents flag in resolve_model()",
+          "status": "done",
+          "harness_required": true,
+          "verification": "source .venv/bin/activate && python -m pytest backend/tests/test_apply_model_to_all_agents.py -v",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A PASS first cycle. settings.apply_model_to_all_agents bool added. _GEMINI_LOCKED_ROLES frozenset (gemini_enrichment + gemini_deep_think) defined. resolve_model() now validates role FIRST then applies override for non-Gemini roles. Caught + fixed cycle-1 bug (override branch was bypassing role validation). 10/10 new tests + 207/208 broad regression sweep pass. agent_definitions callers unchanged (indirection picks up override). See handoff/archive/phase-21.1/."
+        },
+        {
+          "id": "21.2",
+          "name": "Settings frontend toggle for apply_model_to_all_agents",
+          "status": "done",
+          "harness_required": true,
+          "verification": "cd frontend && npx tsc --noEmit && npm run build",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26 cycle-2. Q/A cycle-1 CONDITIONAL caught round-trip-display bug (3 response constructors omitted field). Cycle-2 fix: added apply_model_to_all_agents to _settings_to_full() L227, get_model_config() L314, update_model_config() L331+L348. Q/A cycle-2 PASS. UI checkbox in /settings Models tab + help block describes Gemini-locked roles. tsc + npm build exit 0. See handoff/archive/phase-21.2/."
+        },
+        {
+          "id": "21.3",
+          "name": "Per-model skill optimization design doc (forward-looking)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "test -f docs/architecture/per-model-skill-optimization.md && grep -q 'Recommended architecture' docs/architecture/per-model-skill-optimization.md && grep -q 'skill_loader' docs/architecture/per-model-skill-optimization.md && grep -q 'Decision' docs/architecture/per-model-skill-optimization.md",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Forward-design doc at docs/architecture/per-model-skill-optimization.md. NO IMPLEMENTATION (operator request to scope ahead). 5-phase migration plan: skill_loader.py + variant resolution (most-specific model-id.md -> family.md -> base.md) + 2-line orchestrator integration + A/B framework + batch migration. Total ~10 days, incremental. Builds on phase-21.1 + 21.2 which gave the chokepoint (apply_model_to_all_agents + resolve_model). See handoff/archive/phase-21.3/."
+        }
+      ],
+      "completed_at": "2026-04-26T00:00:00Z"
     }
   ]
 }

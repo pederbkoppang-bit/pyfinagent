@@ -75,6 +75,17 @@ MODEL_TIER_MAP: dict[CostTier, dict[str, str]] = {
 }
 
 
+# phase-21.1: roles that MUST stay on their hardcoded Gemini model regardless
+# of operator override. RAG (Vertex AI Search), Search Grounding, and Vertex
+# structured-output schemas are Google-only APIs -- swapping the underlying
+# model to Claude breaks the call. The override flag (settings.apply_model_to_all_agents)
+# is silently ignored for these roles.
+_GEMINI_LOCKED_ROLES: frozenset[str] = frozenset({
+    "gemini_enrichment",
+    "gemini_deep_think",
+})
+
+
 def resolve_model(role: str, tier: CostTier | None = None) -> str:
     """Look up the model ID for a role in the active cost tier.
 
@@ -91,10 +102,27 @@ def resolve_model(role: str, tier: CostTier | None = None) -> str:
         RuntimeError: tier is "live" and the role has not been mapped
             (still the TODO sentinel). Message includes the role so
             the operator knows exactly what to decide.
+
+    phase-21.1: when settings.apply_model_to_all_agents is True AND the role
+    is NOT in _GEMINI_LOCKED_ROLES, the per-role mapping is overridden with
+    settings.gemini_model (the operator's Standard model selector).
     """
+    # Validate role FIRST (before any override branch) so unknown roles
+    # always raise KeyError regardless of the override flag.
+    if role not in _BUILD_TIER:
+        raise KeyError(
+            f"unknown model role {role!r}; valid roles: {sorted(_BUILD_TIER)}"
+        )
+
     if tier is None:
         from backend.config.settings import get_settings
-        tier = get_settings().cost_tier  # type: ignore[assignment]
+        s = get_settings()
+        tier = s.cost_tier  # type: ignore[assignment]
+        # phase-21.1 override branch
+        override_active = bool(getattr(s, "apply_model_to_all_agents", False))
+        override_model = (getattr(s, "gemini_model", "") or "").strip()
+        if override_active and override_model and role not in _GEMINI_LOCKED_ROLES:
+            return override_model
 
     if tier not in MODEL_TIER_MAP:
         raise KeyError(f"unknown cost_tier {tier!r}; expected 'build' or 'live'")

@@ -52,6 +52,9 @@ class ModelConfig(BaseModel):
     deep_think_model: str
     max_debate_rounds: int
     max_risk_debate_rounds: int
+    # phase-21.1 -- when true, gemini_model overrides ALL agent role-mappings
+    # in model_tiers.resolve_model() except the Gemini-locked roles.
+    apply_model_to_all_agents: bool = False
 
 
 class FullSettings(BaseModel):
@@ -59,6 +62,7 @@ class FullSettings(BaseModel):
     # Models
     gemini_model: str
     deep_think_model: str
+    apply_model_to_all_agents: bool = False
     # Debate depth
     max_debate_rounds: int
     max_risk_debate_rounds: int
@@ -84,6 +88,7 @@ class SettingsUpdate(BaseModel):
     """Writable fields for the Settings UI. All optional — only provided fields are updated."""
     gemini_model: Optional[str] = None
     deep_think_model: Optional[str] = None
+    apply_model_to_all_agents: Optional[bool] = None
     max_debate_rounds: Optional[int] = Field(None, ge=1, le=5)
     max_risk_debate_rounds: Optional[int] = Field(None, ge=1, le=3)
     weight_corporate: Optional[float] = Field(None, ge=0, le=1)
@@ -101,6 +106,7 @@ class ModelConfigUpdate(BaseModel):
     """Legacy writable model configuration (kept for backward compatibility)."""
     gemini_model: Optional[str] = None
     deep_think_model: Optional[str] = None
+    apply_model_to_all_agents: Optional[bool] = None
 
 
 class ModelPricing(BaseModel):
@@ -192,6 +198,8 @@ _FIELD_TO_ENV = {
     "lite_mode": "LITE_MODE",
     "max_analysis_cost_usd": "MAX_ANALYSIS_COST_USD",
     "max_synthesis_iterations": "MAX_SYNTHESIS_ITERATIONS",
+    # phase-21.1
+    "apply_model_to_all_agents": "APPLY_MODEL_TO_ALL_AGENTS",
 }
 
 
@@ -216,6 +224,7 @@ def _settings_to_full(s: Settings) -> FullSettings:
     return FullSettings(
         gemini_model=s.gemini_model,
         deep_think_model=s.deep_think_model or s.gemini_model,
+        apply_model_to_all_agents=bool(getattr(s, "apply_model_to_all_agents", False)),
         max_debate_rounds=s.max_debate_rounds,
         max_risk_debate_rounds=s.max_risk_debate_rounds,
         weight_corporate=s.weight_corporate,
@@ -302,6 +311,7 @@ async def get_model_config(settings: Settings = Depends(get_settings)):
         deep_think_model=settings.deep_think_model or settings.gemini_model,
         max_debate_rounds=settings.max_debate_rounds,
         max_risk_debate_rounds=settings.max_risk_debate_rounds,
+        apply_model_to_all_agents=bool(getattr(settings, "apply_model_to_all_agents", False)),
     )
 
 
@@ -317,18 +327,25 @@ async def update_model_config(body: ModelConfigUpdate):
         _update_env_var("GEMINI_MODEL", body.gemini_model)
     if body.deep_think_model is not None:
         _update_env_var("DEEP_THINK_MODEL", body.deep_think_model)
+    if body.apply_model_to_all_agents is not None:
+        _update_env_var("APPLY_MODEL_TO_ALL_AGENTS", str(body.apply_model_to_all_agents).lower())
 
     get_settings.cache_clear()
     settings = get_settings()
 
-    logger.info("Model config updated: gemini_model=%s, deep_think_model=%s",
-                settings.gemini_model, settings.deep_think_model)
+    logger.info(
+        "Model config updated: gemini_model=%s, deep_think_model=%s, apply_to_all=%s",
+        settings.gemini_model,
+        settings.deep_think_model,
+        bool(getattr(settings, "apply_model_to_all_agents", False)),
+    )
 
     return ModelConfig(
         gemini_model=settings.gemini_model,
         deep_think_model=settings.deep_think_model or settings.gemini_model,
         max_debate_rounds=settings.max_debate_rounds,
         max_risk_debate_rounds=settings.max_risk_debate_rounds,
+        apply_model_to_all_agents=bool(getattr(settings, "apply_model_to_all_agents", False)),
     )
 
 

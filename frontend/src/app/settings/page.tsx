@@ -763,6 +763,26 @@ export default function SettingsPage() {
                 accentColor="violet"
               />
             </div>
+
+            {/* phase-21.2: Apply to all agents toggle */}
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-navy-700 bg-navy-800/40 p-3">
+              <input
+                type="checkbox"
+                id="apply-model-to-all"
+                checked={!!form.apply_model_to_all_agents}
+                onChange={(e) => updateForm("apply_model_to_all_agents", e.target.checked)}
+                className="mt-1 h-4 w-4 cursor-pointer rounded border-navy-600 bg-navy-900 text-sky-500 focus:ring-2 focus:ring-sky-500/50"
+              />
+              <label htmlFor="apply-model-to-all" className="cursor-pointer text-sm">
+                <span className="font-medium text-slate-200">Apply Standard Model to all agents</span>
+                <span className="ml-2 text-xs text-slate-500">(overrides Deep Think + per-role model assignments)</span>
+                <p className="mt-1 text-xs text-slate-500">
+                  When enabled, the Standard Model selector above is used for every Anthropic-routed agent
+                  (planner, evaluator, communication, analyst, autoresearch tiers). Gemini-only roles
+                  (RAG, Search Grounding, Vertex structured-output) remain on Gemini regardless.
+                </p>
+              </label>
+            </div>
             {/* Default-provider info banner */}
             <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-sky-700/50 bg-sky-900/20 px-3.5 py-2.5 text-sm text-sky-200">
               <div>

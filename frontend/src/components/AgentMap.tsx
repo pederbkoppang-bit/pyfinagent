@@ -41,6 +41,9 @@ export interface AgentNodeData extends Record<string, unknown> {
   isGroup?: boolean;
   collapsed?: boolean;
   childrenCount?: number;
+  /** phase-20.2: true when this node participates in the production workflow_edges
+   * AND workflow mode is enabled. Adds a glow/ring style. */
+  inWorkflow?: boolean;
 }
 
 const PROVIDER_COLORS: Record<AgentNodeData["provider"], string> = {
@@ -72,11 +75,13 @@ function AgentNode({ data }: NodeProps) {
   const colorCls = PROVIDER_COLORS[d.provider] ?? PROVIDER_COLORS.none;
   const borderStyle = d.kind === "harness" ? "border-dashed" : "border-solid";
 
+  const workflowRing = d.inWorkflow ? "ring-2 ring-cyan-400/60 ring-offset-2 ring-offset-navy-900" : "";
   return (
     <div
-      className={`min-w-[200px] rounded-xl border-2 ${borderStyle} ${colorCls} px-3 py-2 shadow-md`}
+      className={`min-w-[200px] rounded-xl border-2 ${borderStyle} ${colorCls} ${workflowRing} px-3 py-2 shadow-md`}
       data-testid="agent-node"
       data-kind={d.kind}
+      data-in-workflow={d.inWorkflow ? "true" : "false"}
       title={d.role ?? d.name}
     >
       <div className="flex items-center gap-2">
@@ -140,9 +145,13 @@ interface BuildArgs {
   layer1Expanded: boolean;
   providerFilter: AgentMapNode["provider"] | "all";
   layerFilter: number | "all";
+  /** phase-20.2: when true, render the directional production-cycle workflow_edges
+   * (with step labels + animated style + curved loop-back) INSTEAD of the static
+   * topology edges. Nodes referenced by workflow_edges are highlighted. */
+  workflowMode: boolean;
 }
 
-function buildGraph({ data, layer1Expanded, providerFilter, layerFilter }: BuildArgs): {
+function buildGraph({ data, layer1Expanded, providerFilter, layerFilter, workflowMode }: BuildArgs): {
   nodes: Node<AgentNodeData>[];
   edges: Edge[];
 } {
@@ -164,6 +173,16 @@ function buildGraph({ data, layer1Expanded, providerFilter, layerFilter }: Build
   });
   const visibleIds = new Set(visible.map((n) => n.id));
 
+  // In workflow mode, mark nodes that participate in the production cycle.
+  const wfEdges = data.workflow_edges ?? [];
+  const workflowNodeIds = new Set<string>();
+  if (workflowMode) {
+    for (const e of wfEdges) {
+      workflowNodeIds.add(e.from);
+      workflowNodeIds.add(e.to);
+    }
+  }
+
   const nodes: Node<AgentNodeData>[] = visible.map((n) => ({
     id: n.id,
     type: "agent",
@@ -178,18 +197,41 @@ function buildGraph({ data, layer1Expanded, providerFilter, layerFilter }: Build
       isGroup: n.id === "layer1_pipeline",
       collapsed: n.id === "layer1_pipeline" && !layer1Expanded,
       childrenCount: n.id === "layer1_pipeline" ? n.children.length : undefined,
+      inWorkflow: workflowMode && workflowNodeIds.has(n.id),
     },
   }));
 
-  const edges: Edge[] = data.edges
-    .filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to))
-    .map((e) => ({
-      id: `${e.from}-${e.to}`,
-      source: e.from,
-      target: e.to,
-      animated: false,
-      style: { stroke: "#475569", strokeWidth: 1.5 },
-    }));
+  let edges: Edge[];
+  if (workflowMode) {
+    // Render production workflow_edges with step labels + animated style + dashed loop-back.
+    edges = wfEdges
+      .filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to))
+      .map((e) => ({
+        id: `wf-${e.from}-${e.to}`,
+        source: e.from,
+        target: e.to,
+        label: e.step !== undefined ? `${e.step}` + (e.label ? ` ${e.label}` : "") : e.label,
+        labelStyle: { fill: "#a5f3fc", fontSize: 10, fontFamily: "monospace" },
+        labelBgStyle: { fill: "#0c1424", opacity: 0.9 },
+        labelBgPadding: [4, 2] as [number, number],
+        labelBgBorderRadius: 4,
+        animated: !e.loop, // animate forward edges; loop edge is static
+        style: e.loop
+          ? { stroke: "#fb923c", strokeWidth: 2, strokeDasharray: "6 4" }
+          : { stroke: "#22d3ee", strokeWidth: 2 },
+        type: e.loop ? "step" : "smoothstep",
+      }));
+  } else {
+    edges = data.edges
+      .filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to))
+      .map((e) => ({
+        id: `${e.from}-${e.to}`,
+        source: e.from,
+        target: e.to,
+        animated: false,
+        style: { stroke: "#475569", strokeWidth: 1.5 },
+      }));
+  }
 
   return layoutWithDagre(nodes, edges, "TB");
 }
@@ -206,6 +248,8 @@ export function AgentMap({ data: dataOverride }: AgentMapProps = {}) {
   const [layer1Expanded, setLayer1Expanded] = useState(false);
   const [providerFilter, setProviderFilter] = useState<AgentMapNode["provider"] | "all">("all");
   const [layerFilter, setLayerFilter] = useState<number | "all">("all");
+  // phase-20.2: when true, render directional production-cycle workflow_edges with step labels.
+  const [workflowMode, setWorkflowMode] = useState(false);
 
   useEffect(() => {
     if (dataOverride !== undefined) return;
@@ -231,8 +275,8 @@ export function AgentMap({ data: dataOverride }: AgentMapProps = {}) {
   }, [dataOverride]);
 
   const { nodes, edges } = useMemo(
-    () => buildGraph({ data, layer1Expanded, providerFilter, layerFilter }),
-    [data, layer1Expanded, providerFilter, layerFilter],
+    () => buildGraph({ data, layer1Expanded, providerFilter, layerFilter, workflowMode }),
+    [data, layer1Expanded, providerFilter, layerFilter, workflowMode],
   );
 
   function handleNodeClick(_e: React.MouseEvent, node: Node) {
@@ -280,6 +324,18 @@ export function AgentMap({ data: dataOverride }: AgentMapProps = {}) {
           className="rounded-md border border-navy-700 bg-navy-800/60 px-3 py-1 text-xs text-slate-200 hover:bg-navy-700/60"
         >
           Layer-1 skills: {layer1Expanded ? "expanded (click to collapse)" : "collapsed (click to expand)"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setWorkflowMode((p) => !p)}
+          className={`rounded-md border px-3 py-1 text-xs transition-colors ${
+            workflowMode
+              ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-300"
+              : "border-navy-700 bg-navy-800/60 text-slate-200 hover:bg-navy-700/60"
+          }`}
+          title="Toggle between static topology and the autonomous_loop production daily-cycle"
+        >
+          View: {workflowMode ? "production flow (click for topology)" : "static topology (click for flow)"}
         </button>
         {data && (
           <span className="ml-auto font-mono text-xs text-slate-500">

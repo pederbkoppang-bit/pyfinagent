@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # --- Vertex AI ---
     gemini_model: str = Field("claude-sonnet-4-6", description="Standard-tier model for enrichment + debate. Claude is the default; Gemini still selectable via the Settings UI. Field name preserved for backward compat -- applies to any provider via backend/agents/llm_client.py::make_client routing.")
     deep_think_model: str = Field("claude-opus-4-6", description="Deep-think-tier model for Moderator/Critic/Synthesis/RiskJudge. Claude default. Gemini 2.5 Flash (gemini-2.5-flash) still selectable via the Settings UI.")
+    apply_model_to_all_agents: bool = Field(False, description="phase-21.1: when true, override per-role models in model_tiers.resolve_model() with `gemini_model` (the Standard model selector) for ALL non-Gemini-locked roles. Gemini-only roles (RAG / Search Grounding / Vertex structured output) still use their hardcoded gemini-2.0-flash. Per-tier mas_main / mas_qa overrides are bypassed when this flag is true.")
     enable_thinking: bool = Field(False, description="Enable extended thinking on judge agents (requires gemini-2.5-flash or later)")
     thinking_budget_critic: int = Field(8192, description="Thinking budget for Critic agent (tokens)")
     thinking_budget_moderator: int = Field(8192, description="Thinking budget for Moderator agent (tokens)")
