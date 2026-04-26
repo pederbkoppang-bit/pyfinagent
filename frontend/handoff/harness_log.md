@@ -427,3 +427,19 @@ $ npx tsc --noEmit && \
 **Code changes:** 2 frontend files. No backend. No tests.
 
 **Archive:** new dir `handoff/archive/phase-16.52/`.
+
+## phase-16.54 -- 2026-04-26 -- Sovereign two-hero balance: shrink RedLineMonitor non-compact -- result=PASS
+
+**Researcher:** simple tier, internal-only gate (per pure-UI cycle precedent: 16.43, 16.46, 16.47, 16.48, 16.49, 16.52, 16.53). 5 internal files inspected. gate_passed=true. Operator-screenshot 2026-04-26 15:31:38 flagged ~160px dead space below Alpha Leaderboard on /sovereign two-hero row. Diagnosis: RedLineMonitor chart container `h-64` (256px) made total card ~440px while AlphaLeaderboard naturally ~280px.
+
+**Generate:** Single Edit at frontend/src/components/RedLineMonitor.tsx L107: `className={compact ? "h-72" : "h-64"}` -> `className={compact ? "h-72" : "h-48"}`. Compact branch (h-72, used by homepage hero via next/dynamic with min-h-[55svh] wrapper) intentionally preserved. New non-compact card ~376px, much closer to AlphaLeaderboard's ~280px.
+
+**Verification (immutable):** `cd frontend && npx tsc --noEmit` -> exit 0. Bonus: `npm run lint` -> 0 errors / 34 pre-existing warnings unchanged. git diff --stat: 1 file / 1 insertion / 1 deletion.
+
+**Q/A verdict:** PASS. 7 deterministic checks pass (harness-compliance-5, tsc, lint, edit-line-inspection, homepage-compact-regression, diff-stat-scope, llm-judgment).
+
+**Cycle-2:** not needed (first-pass PASS).
+
+**Code changes:** 1 file, 1-line edit. No tests, no other files.
+
+**Archive:** new dir `handoff/archive/phase-16.54/`.

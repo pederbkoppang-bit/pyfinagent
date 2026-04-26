@@ -34,3 +34,12 @@ timestamp	endpoint	ttl_before	ttl_after	p95_before	p95_after	hit_rate	status
 2026-03-22T14:13:01	backtest:experiments	10	10	1922	5143	0.0	discard
 2026-03-22T14:14:01	paper:trades	120	108	1922	161	0.0	keep
 2026-03-22T14:15:01	paper:trades	108	112	161	0	0.0	discard
+2026-04-26T15:30:13	reports:cost-summary	120	143	2	2	0.0	discard
+2026-04-26T15:31:13	settings:full	300	331	2	1644	0.0	discard
+2026-04-26T15:32:13	paper:round_trips	120	136	2	3398	0.0	discard
+2026-04-26T15:33:13	backtest:best	30	30	2	2948	0.0	discard
+2026-04-26T15:34:13	paper:trades	120	98	2	3034	0.0	discard
+2026-04-26T15:35:13	reports:cost-history	300	600	2	2	0.0	discard
+2026-04-26T15:36:13	paper:portfolio	60	72	2	2	0.0	discard
+2026-04-26T15:37:13	backtest:experiments	10	11	2	2	0.0	discard
+2026-04-26T15:38:13	reports:ticker	120	137	2	2684	0.0	discard

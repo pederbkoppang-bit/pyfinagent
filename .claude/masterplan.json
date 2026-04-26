@@ -5990,10 +5990,20 @@
           "contract": null,
           "retry_count": 0,
           "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Operator-flagged via screenshot 2026-04-26 15:18:54: settings page had ~30% dead whitespace on right at typical laptop widths. Diagnosis: 3 occurrences of `grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2` capping each tab's content at ~896px while the post-16.52 scrollable zone could fill ~1200px+. Fix: single Edit replace_all dropped `max-w-4xl` from the 3 grid wrappers (Models L601, Cost & Weights L794, Performance L978). Tab bar `max-w-fit` (L580) intentionally retained per canonical pattern (pills hug content, do NOT stretch). Verification: tsc --noEmit exit 0 + lint 0 errors + grep -c max-w-4xl == 0. No regression on other pages. Sister-cycle to 16.52 (which exposed this latent constraint by removing the SHELL constraint that previously masked it). See handoff/archive/phase-16.53/."
+        },
+        {
+          "id": "16.54",
+          "name": "Sovereign two-hero balance -- shrink RedLineMonitor non-compact height",
+          "status": "done",
+          "harness_required": true,
+          "verification": "cd frontend && npx tsc --noEmit",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Operator-flagged via screenshot 2026-04-26 15:31:38: ~160px dead space below Alpha Leaderboard on /sovereign two-hero row (RedLine card ~440px vs AlphaLeaderboard ~280px). Single Edit at frontend/src/components/RedLineMonitor.tsx L107 changed non-compact chart container from `h-64` (256px) to `h-48` (192px); compact branch (`h-72`, used by homepage hero via next/dynamic with min-h-[55svh] wrapper) intentionally preserved. Net: non-compact card ~376px, much closer to AlphaLeaderboard's ~280px. tsc --noEmit exit 0 + lint 0 errors. NO homepage regression (compact path unchanged). git diff --stat: 1 file / 1 insertion / 1 deletion. Horizontal scroll on AlphaLeaderboard is a separate issue (out of scope per contract). See handoff/archive/phase-16.54/."
         }
       ],
       "completed_at": null,
-      "notes": "31 of 33 sub-steps done. 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A). Continuation /batch (2026-04-26) added 16.52 (UX pass C: settings two-zone shell) + 16.53 (settings full-width content fix from operator screenshot)."
+      "notes": "32 of 34 sub-steps done. 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A). Continuation /batch (2026-04-26): 16.52 (UX pass C settings shell), 16.53 (settings full-width), 16.54 (sovereign two-hero balance)."
     },
     {
       "id": "phase-17",
