@@ -40,6 +40,11 @@ import {
   SettingsRefresh,
   IconWarning,
   IconCheck,
+  Brain,
+  Newspaper,
+  CalendarBlank,
+  Scales,
+  TrendUp,
 } from "@/lib/icons";
 
 // ── Sub-navigation tabs ───────────────────────────────────────────
@@ -805,6 +810,133 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+          </BentoCard>
+
+          {/* ── Signal Stack (phase-23.1) ─────────────────────── */}
+          <BentoCard className="lg:col-span-2">
+            <h3 className="mb-2 text-lg font-semibold text-slate-300">
+              <Brain size={20} weight="duotone" className="inline -mt-0.5" /> Signal Stack (Phase 23.1)
+            </h3>
+            <p className="mb-4 text-sm text-slate-500">
+              Overlay signals applied during paper trading candidate screening. Each is independent and default-OFF;
+              when enabled, the autonomous loop&apos;s Step 1 fetches the signal and the screener applies it as a
+              boost / penalty / catalyst-filter / meta-conviction.
+            </p>
+
+            {/* Row 1 — Macro Regime Filter */}
+            <div className="mt-3 flex items-start gap-3 rounded-lg border border-navy-700 bg-navy-800/40 p-3">
+              <input
+                type="checkbox"
+                id="signal-macro-regime"
+                checked={!!form.macro_regime_filter_enabled}
+                onChange={(e) => updateForm("macro_regime_filter_enabled", e.target.checked)}
+                className="mt-1 h-4 w-4 cursor-pointer rounded border-navy-600 bg-navy-900 text-sky-500 focus:ring-2 focus:ring-sky-500/50"
+              />
+              <label htmlFor="signal-macro-regime" className="flex-1 cursor-pointer text-sm">
+                <span className="flex items-center gap-1.5 font-medium text-slate-200">
+                  <Brain size={14} weight="fill" className="text-sky-400" />
+                  Macro Regime Filter
+                </span>
+                <p className="mt-1 text-xs text-slate-500">
+                  Daily FRED snapshot &rarr; Claude judge tags risk_on / risk_off / mixed. Boosts or penalises
+                  candidates by regime conviction multiplier (range 0.5&ndash;1.5).
+                </p>
+              </label>
+            </div>
+
+            {/* Row 2 — PEAD Signal */}
+            <div className="mt-3 flex items-start gap-3 rounded-lg border border-navy-700 bg-navy-800/40 p-3">
+              <input
+                type="checkbox"
+                id="signal-pead"
+                checked={!!form.pead_signal_enabled}
+                onChange={(e) => updateForm("pead_signal_enabled", e.target.checked)}
+                className="mt-1 h-4 w-4 cursor-pointer rounded border-navy-600 bg-navy-900 text-sky-500 focus:ring-2 focus:ring-sky-500/50"
+              />
+              <label htmlFor="signal-pead" className="flex-1 cursor-pointer text-sm">
+                <span className="flex items-center gap-1.5 font-medium text-slate-200">
+                  <TrendUp size={14} weight="fill" className="text-sky-400" />
+                  Earnings PEAD Signal
+                </span>
+                <p className="mt-1 text-xs text-slate-500">
+                  SEC 8-K press releases &rarr; Claude sentiment-surprise vs trailing-{form.pead_signal_lookback_quarters ?? 8}Q mean.
+                  Boosts positive-surprise reporters; filters strong-negative.
+                </p>
+              </label>
+            </div>
+
+            {/* Row 3 — Worldwide News Screen */}
+            <div className="mt-3 flex items-start gap-3 rounded-lg border border-navy-700 bg-navy-800/40 p-3">
+              <input
+                type="checkbox"
+                id="signal-news"
+                checked={!!form.news_screen_enabled}
+                onChange={(e) => updateForm("news_screen_enabled", e.target.checked)}
+                className="mt-1 h-4 w-4 cursor-pointer rounded border-navy-600 bg-navy-900 text-sky-500 focus:ring-2 focus:ring-sky-500/50"
+              />
+              <label htmlFor="signal-news" className="flex-1 cursor-pointer text-sm">
+                <span className="flex items-center gap-1.5 font-medium text-slate-200">
+                  <Newspaper size={14} weight="fill" className="text-sky-400" />
+                  Worldwide News Screen
+                </span>
+                <p className="mt-1 text-xs text-slate-500">
+                  8 RSS feeds (Google News US/UK/DE/JP, BBC, CNBC, Yahoo, FT) &rarr; Claude batch event classifier.
+                  Surfaces positive-polarity tickers as parallel candidates. Cap {form.news_screen_max_headlines ?? 100} headlines / cycle.
+                </p>
+              </label>
+            </div>
+
+            {/* Row 4 — Sector Calendars */}
+            <div className="mt-3 flex items-start gap-3 rounded-lg border border-navy-700 bg-navy-800/40 p-3">
+              <input
+                type="checkbox"
+                id="signal-sector"
+                checked={!!form.sector_calendars_enabled}
+                onChange={(e) => updateForm("sector_calendars_enabled", e.target.checked)}
+                className="mt-1 h-4 w-4 cursor-pointer rounded border-navy-600 bg-navy-900 text-sky-500 focus:ring-2 focus:ring-sky-500/50"
+              />
+              <label htmlFor="signal-sector" className="flex-1 cursor-pointer text-sm">
+                <span className="flex items-center gap-1.5 font-medium text-slate-200">
+                  <CalendarBlank size={14} weight="fill" className="text-sky-400" />
+                  Sector Event Calendars
+                </span>
+                <p className="mt-1 text-xs text-slate-500">
+                  FDA PDUFA dates + upcoming earnings ({form.sector_calendars_lookahead_days ?? 7}d lookahead).
+                  Catalyst boost +20% (FDA) / +10% (earnings); FILTERS OUT tickers within &plusmn;1 day of a binary FDA event.
+                </p>
+              </label>
+            </div>
+
+            {/* Row 5 — Meta-Scorer */}
+            <div className="mt-3 flex items-start gap-3 rounded-lg border border-navy-700 bg-navy-800/40 p-3">
+              <input
+                type="checkbox"
+                id="signal-meta"
+                checked={!!form.meta_scorer_enabled}
+                onChange={(e) => updateForm("meta_scorer_enabled", e.target.checked)}
+                className="mt-1 h-4 w-4 cursor-pointer rounded border-navy-600 bg-navy-900 text-violet-500 focus:ring-2 focus:ring-violet-500/50"
+              />
+              <label htmlFor="signal-meta" className="flex-1 cursor-pointer text-sm">
+                <span className="flex items-center gap-1.5 font-medium text-slate-200">
+                  <Scales size={14} weight="fill" className="text-violet-400" />
+                  LLM-as-Judge Meta-Scorer
+                </span>
+                <p className="mt-1 text-xs text-slate-500">
+                  After all overlays, ONE batched Claude call over top-{form.meta_scorer_max_batch ?? 30} candidates with
+                  every sub-signal &rarr; conviction 1&ndash;10. Anti-rubber-stamp prompt design (counterargument-first,
+                  randomized order). Final ranking key when enabled.
+                </p>
+              </label>
+            </div>
+
+            {/* Cost / privacy banner */}
+            <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-sky-700/50 bg-sky-900/20 px-3.5 py-2.5 text-sm text-sky-200">
+              <div>
+                <span className="font-medium">Default OFF.</span> All five flags ship disabled so paper-trading behaviour
+                is unchanged on first deploy. With every flag ON the cumulative cost is ~$0.10/day in Claude Haiku 4.5
+                inference (cycles 1+2+3+5; cycle 4 sector calendars is pure data-pull, zero LLM cost).
+              </div>
+            </div>
           </BentoCard>
         </div>
         )}

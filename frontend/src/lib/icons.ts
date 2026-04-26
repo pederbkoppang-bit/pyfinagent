@@ -105,6 +105,11 @@ export {
   // .claude/rules/frontend.md "icons via @/lib/icons" rule satisfied.
   TrendDown as TrendDown,
 
+  // phase-23.1.6 — Signal Stack canonical exports for Settings page
+  Newspaper as Newspaper,
+  GlobeHemisphereWest as GlobeHemisphereWest,
+  CalendarBlank as CalendarBlank,
+
   // ── GlassBox Icons ──
   Gauge as IconAlphaScore,
   MagnifyingGlass as IconSummary,

@@ -82,6 +82,20 @@ class FullSettings(BaseModel):
     anthropic_key_configured: bool = False
     openai_key_configured: bool = False
     github_token_configured: bool = False
+    # phase-23.1 — Signal Stack
+    macro_regime_filter_enabled: bool = False
+    macro_regime_model: str = "claude-haiku-4-5"
+    pead_signal_enabled: bool = False
+    pead_signal_model: str = "claude-haiku-4-5"
+    pead_signal_lookback_quarters: int = 8
+    news_screen_enabled: bool = False
+    news_screen_model: str = "claude-haiku-4-5"
+    news_screen_max_headlines: int = 100
+    sector_calendars_enabled: bool = False
+    sector_calendars_lookahead_days: int = 7
+    meta_scorer_enabled: bool = False
+    meta_scorer_model: str = "claude-haiku-4-5"
+    meta_scorer_max_batch: int = 30
 
 
 class SettingsUpdate(BaseModel):
@@ -100,6 +114,20 @@ class SettingsUpdate(BaseModel):
     lite_mode: Optional[bool] = None
     max_analysis_cost_usd: Optional[float] = Field(None, ge=0.01, le=10.0)
     max_synthesis_iterations: Optional[int] = Field(None, ge=1, le=3)
+    # phase-23.1 — Signal Stack
+    macro_regime_filter_enabled: Optional[bool] = None
+    macro_regime_model: Optional[str] = None
+    pead_signal_enabled: Optional[bool] = None
+    pead_signal_model: Optional[str] = None
+    pead_signal_lookback_quarters: Optional[int] = Field(None, ge=1, le=12)
+    news_screen_enabled: Optional[bool] = None
+    news_screen_model: Optional[str] = None
+    news_screen_max_headlines: Optional[int] = Field(None, ge=10, le=500)
+    sector_calendars_enabled: Optional[bool] = None
+    sector_calendars_lookahead_days: Optional[int] = Field(None, ge=1, le=30)
+    meta_scorer_enabled: Optional[bool] = None
+    meta_scorer_model: Optional[str] = None
+    meta_scorer_max_batch: Optional[int] = Field(None, ge=5, le=100)
 
 
 class ModelConfigUpdate(BaseModel):
@@ -200,6 +228,20 @@ _FIELD_TO_ENV = {
     "max_synthesis_iterations": "MAX_SYNTHESIS_ITERATIONS",
     # phase-21.1
     "apply_model_to_all_agents": "APPLY_MODEL_TO_ALL_AGENTS",
+    # phase-23.1 Signal Stack
+    "macro_regime_filter_enabled": "MACRO_REGIME_FILTER_ENABLED",
+    "macro_regime_model": "MACRO_REGIME_MODEL",
+    "pead_signal_enabled": "PEAD_SIGNAL_ENABLED",
+    "pead_signal_model": "PEAD_SIGNAL_MODEL",
+    "pead_signal_lookback_quarters": "PEAD_SIGNAL_LOOKBACK_QUARTERS",
+    "news_screen_enabled": "NEWS_SCREEN_ENABLED",
+    "news_screen_model": "NEWS_SCREEN_MODEL",
+    "news_screen_max_headlines": "NEWS_SCREEN_MAX_HEADLINES",
+    "sector_calendars_enabled": "SECTOR_CALENDARS_ENABLED",
+    "sector_calendars_lookahead_days": "SECTOR_CALENDARS_LOOKAHEAD_DAYS",
+    "meta_scorer_enabled": "META_SCORER_ENABLED",
+    "meta_scorer_model": "META_SCORER_MODEL",
+    "meta_scorer_max_batch": "META_SCORER_MAX_BATCH",
 }
 
 
@@ -239,6 +281,20 @@ def _settings_to_full(s: Settings) -> FullSettings:
         anthropic_key_configured=bool(getattr(s, "anthropic_api_key", "")),
         openai_key_configured=bool(getattr(s, "openai_api_key", "")),
         github_token_configured=bool(getattr(s, "github_token", "")),
+        # phase-23.1 Signal Stack
+        macro_regime_filter_enabled=bool(getattr(s, "macro_regime_filter_enabled", False)),
+        macro_regime_model=getattr(s, "macro_regime_model", "claude-haiku-4-5"),
+        pead_signal_enabled=bool(getattr(s, "pead_signal_enabled", False)),
+        pead_signal_model=getattr(s, "pead_signal_model", "claude-haiku-4-5"),
+        pead_signal_lookback_quarters=int(getattr(s, "pead_signal_lookback_quarters", 8)),
+        news_screen_enabled=bool(getattr(s, "news_screen_enabled", False)),
+        news_screen_model=getattr(s, "news_screen_model", "claude-haiku-4-5"),
+        news_screen_max_headlines=int(getattr(s, "news_screen_max_headlines", 100)),
+        sector_calendars_enabled=bool(getattr(s, "sector_calendars_enabled", False)),
+        sector_calendars_lookahead_days=int(getattr(s, "sector_calendars_lookahead_days", 7)),
+        meta_scorer_enabled=bool(getattr(s, "meta_scorer_enabled", False)),
+        meta_scorer_model=getattr(s, "meta_scorer_model", "claude-haiku-4-5"),
+        meta_scorer_max_batch=int(getattr(s, "meta_scorer_max_batch", 30)),
     )
 
 
@@ -265,6 +321,12 @@ async def update_settings(body: SettingsUpdate):
         raise HTTPException(status_code=400, detail=f"Invalid model: {body.gemini_model}")
     if body.deep_think_model is not None and body.deep_think_model not in _VALID_MODELS:
         raise HTTPException(status_code=400, detail=f"Invalid model: {body.deep_think_model}")
+
+    # phase-23.1: Validate signal-stack model fields against the same whitelist
+    for _field in ("macro_regime_model", "pead_signal_model", "news_screen_model", "meta_scorer_model"):
+        _val = getattr(body, _field, None)
+        if _val is not None and _val not in _VALID_MODELS:
+            raise HTTPException(status_code=400, detail=f"Invalid model: {_val}")
 
     # Validate pillar weights sum if any are being changed
     updates = body.model_dump(exclude_none=True)

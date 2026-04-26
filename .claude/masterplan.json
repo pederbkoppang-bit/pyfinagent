@@ -6881,7 +6881,7 @@
     {
       "id": "phase-23.1",
       "name": "Universe & Candidate-Chooser Upgrade -- AI signal stack on top of S&P 500 momentum screen",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "phase-23"
       ],
@@ -6958,8 +6958,23 @@
           "created_at": "2026-04-26T23:22:06Z",
           "completed_at": "2026-04-26T23:22:06Z",
           "notes": "Q/A PASS first try. 81/81 unit tests + immutable verification (real Claude Haiku 4.5 -> AAPL=7 NVDA=6). Six anti-rubber-stamp mitigations baked in. Architecture Option B: conviction_score ADDED alongside composite_score (audit trail). Fallback path returns clamped composite_score on LLM failure. Default OFF (meta_scorer_enabled=False)."
+        },
+        {
+          "id": "23.1.6",
+          "name": "Settings page Signal Stack toggles + backend settings_api.py extension for 13 new fields",
+          "status": "done",
+          "harness_required": true,
+          "verification": "source .venv/bin/activate && python -c \"from backend.api.settings_api import FullSettings, SettingsUpdate; expected = {'macro_regime_filter_enabled','macro_regime_model','pead_signal_enabled','pead_signal_model','pead_signal_lookback_quarters','news_screen_enabled','news_screen_model','news_screen_max_headlines','sector_calendars_enabled','sector_calendars_lookahead_days','meta_scorer_enabled','meta_scorer_model','meta_scorer_max_batch'}; missing = expected - set(FullSettings.model_fields.keys()); assert not missing; missing = expected - set(SettingsUpdate.model_fields.keys()); assert not missing; upd = SettingsUpdate(macro_regime_filter_enabled=True, news_screen_max_headlines=50); assert upd.macro_regime_filter_enabled is True and upd.news_screen_max_headlines == 50; print('ok 13 fields wired in FullSettings + SettingsUpdate')\"",
+          "contract": "handoff/archive/phase-23.1.6/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.6/phase-23.1.6-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.6/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.6/evaluator_critique.md",
+          "created_at": "2026-04-26T23:39:43Z",
+          "completed_at": "2026-04-26T23:39:43Z",
+          "notes": "Q/A PASS first try (12/12 checks). 95/95 unit tests + immutable verification (model_fields introspection). Frontend tsc clean. UI Signal Stack BentoCard with 5 toggles placed after Model Configuration card on Models tab. Default-OFF preserved at all 4 layers. Phase 2 follow-ups: 'why this candidate' panel, per-cycle numeric sliders, per-signal model selectors, browser E2E."
         }
-      ]
+      ],
+      "completed_at": "2026-04-26T23:39:43Z"
     }
   ]
 }

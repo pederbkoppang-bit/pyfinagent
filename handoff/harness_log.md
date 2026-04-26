@@ -14012,3 +14012,25 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Cost:** ONE Claude call/cycle (batched ≤30 candidates). ~$0.025/cycle (~15K input + 3K output tokens at Haiku pricing). Cumulative across all 5 cycles when all flags ON: ~$0.10/day.
 
 **Archive:** handoff/archive/phase-23.1.5/.
+
+## phase-23.1.6 -- 2026-04-27 -- Settings page Signal Stack toggles + backend settings_api.py extension -- result=PASS
+
+**Hypothesis:** The 13 new backend settings shipped in cycles 1-5 (5 enable flags + 4 model selectors + 4 numeric controls) need operator-facing UI exposure so toggles can be flipped without editing .env. Default-OFF discipline preserved at every layer (Settings model defaults, _settings_to_full propagation, frontend `?` optional types, UI checkbox `checked={!!form.flag}`).
+
+**Files:** backend/api/settings_api.py (+13 fields in 5 places: FullSettings + SettingsUpdate + _FIELD_TO_ENV + _settings_to_full + model-validation loop), frontend/src/lib/types.ts (+13 optional fields on FullSettings interface), frontend/src/lib/icons.ts (+3 identity re-exports: Newspaper, GlobeHemisphereWest, CalendarBlank), frontend/src/app/settings/page.tsx (NEW Signal Stack BentoCard with 5 toggle rows + cost banner; placed after Model Configuration), tests/api/test_settings_api_signal_stack.py (NEW 14 tests).
+
+**Verification (immutable):** `python -c "from backend.api.settings_api import FullSettings, SettingsUpdate; ...; print('ok 13 fields wired in FullSettings + SettingsUpdate')"` -> `ok 13 fields wired in FullSettings + SettingsUpdate` exit=0. Uses model_fields introspection (no need to instantiate FullSettings with all required existing fields).
+
+**Frontend type-check + lint:** `cd frontend && npx tsc --noEmit` silent (0 errors). `npm run lint` 0 errors / 35 pre-existing warnings (unrelated).
+
+**Q/A verdict:** PASS (1st pass). 12/12 checks: harness-compliance, syntax, verification, unit_tests, frontend_tsc, frontend_lint, default-off, UI BentoCard structure, type_extension, model_validation_loop, git_scope, icon_imports, research_gate.
+
+**95/95 unit tests pass** across the entire Phase-23.1 plan (14 settings + 12 macro + 18 PEAD + 21 news + 16 sector + 14 meta_scorer; no regression).
+
+**Honest disclosure (Phase 2 follow-ups):** "Why this candidate" panel deferred (requires extending screener.rank_candidates to attach _signal_tags + new API endpoint surface). Per-cycle numeric sliders + per-signal model selectors deferred (backend already accepts them; frontend UI is Phase 2). Browser E2E test deferred (no claude-in-chrome MCP).
+
+**Cost:** ZERO incremental runtime cost (pure UI + API plumbing). All 5 underlying signals retain default-OFF flags. Operator can now toggle them via Settings UI without restarting backend or editing .env.
+
+**This closes out the Phase-23.1 universe upgrade plan: 6/6 cycles shipped on first-try Q/A PASS.**
+
+**Archive:** handoff/archive/phase-23.1.6/.

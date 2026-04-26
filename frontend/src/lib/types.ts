@@ -546,6 +546,20 @@ export interface FullSettings {
   anthropic_key_configured?: boolean;
   openai_key_configured?: boolean;
   github_token_configured?: boolean;
+  // phase-23.1 — Signal Stack (5 enable flags + 4 model selectors + 4 numeric controls)
+  macro_regime_filter_enabled?: boolean;
+  macro_regime_model?: string;
+  pead_signal_enabled?: boolean;
+  pead_signal_model?: string;
+  pead_signal_lookback_quarters?: number;
+  news_screen_enabled?: boolean;
+  news_screen_model?: string;
+  news_screen_max_headlines?: number;
+  sector_calendars_enabled?: boolean;
+  sector_calendars_lookahead_days?: number;
+  meta_scorer_enabled?: boolean;
+  meta_scorer_model?: string;
+  meta_scorer_max_batch?: number;
 }
 
 export interface LatestCostSummary extends CostSummary {
