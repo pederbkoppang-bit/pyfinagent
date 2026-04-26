@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-26 | `203ced64` | phase-23.0: Dataform/orchestrator feasibility (DON'T ADOPT) + directive_versions --apply |
 | 2026-04-26 | `c305fc27` | phase-22.3: reconcile 4 pending tasks (#23, #25, #36, #54) |
 | 2026-04-26 | `de51c727` | phase-22: live model resolution in agent map + per-node Gemini-lock granularity |
 | 2026-04-26 | `3b3ff446` | phase-20 + 21: agent map workflow overlay + settings model propagation |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-24 | `46b76ef4` | feat: Claude as default LLM provider, Gemini switchable from Settings |
 | 2026-04-24 | `f2e8ce28` | fix(uat-16.2): GCP scope, RAG IAM+datastore, localhost auth, BQ schema |
 | 2026-04-24 | `3a22f0ee` | plan: add phase-16 full-application end-to-end UAT to masterplan |
-| 2026-04-24 | `8131bb70` | observability: Risk Judge REJECT + sub-$50 skip log lines |
 
 ---
 
+### v6.5.98 — phase-23.0: Dataform/orchestrator feasibility (DON'T ADOPT) + directi... (2026-04-26)
+
+- **phase-23.0: Dataform/orchestrator feasibility (DON'T ADOPT) + directive_versions --apply**
 ### v6.5.97 — phase-22.3: reconcile 4 pending tasks (#23, #25, #36, #54) (2026-04-26)
 
 - **phase-22.3: reconcile 4 pending tasks (#23, #25, #36, #54)**
