@@ -134,12 +134,25 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             except Exception as e:
                 logger.warning("PEAD signal fetch failed (non-fatal): %s", e)
 
+        news_signals = {}
+        if getattr(settings, "news_screen_enabled", False):
+            try:
+                from backend.services.news_screen import fetch_news_signals
+                news_signals = await fetch_news_signals(
+                    max_headlines=getattr(settings, "news_screen_max_headlines", 100),
+                )
+                logger.info("News screen produced %d ticker signals", len(news_signals))
+                summary["news_tickers_scored"] = len(news_signals)
+            except Exception as e:
+                logger.warning("News screen failed (non-fatal): %s", e)
+
         screen_data = screen_universe(period="6mo")
         candidates = rank_candidates(
             screen_data,
             top_n=settings.paper_screen_top_n,
             regime=regime,
             pead_signals=pead_signals or None,
+            news_signals=news_signals or None,
         )
         summary["screened"] = len(screen_data)
         summary["candidates"] = len(candidates)

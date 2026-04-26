@@ -13954,3 +13954,21 @@ Commit + push imminent.
 **Cost:** <$0.05/cycle (~2-5 8-K calls/day average for S&P 500). File cache per (ticker, quarter) prevents re-billing same press release. BQ persistence deferred to Phase 2.
 
 **Archive:** handoff/archive/phase-23.1.2/.
+
+## phase-23.1.3 -- 2026-04-27 -- Worldwide news idea generator (no-API-key RSS + Claude batch event extractor) -- result=PASS
+
+**Hypothesis:** Worldwide RSS feeds (Google News US/UK/DE/JP BUSINESS + BBC + CNBC + Yahoo + FT World) + ONE batched Claude Haiku 4.5 event-extraction call surfaces tradeable single-ticker signals at near-zero cost. Tickers with positive polarity + medium/high confidence enter the candidate pool BEFORE ranking -- surfacing names pure quant momentum would have missed.
+
+**Files:** backend/services/news_screen.py (NEW ~290 LOC -- NewsHeadlineSignal + NewsSignalBatch + 7-feed fetcher with follow_redirects + Jaccard 3-gram dedup + batched Claude call + 4h file cache + apply_news_to_score), backend/tools/screener.py (rank_candidates news_signals kwarg + news-only candidate surfacing), backend/services/autonomous_loop.py (Step 1 news fetch block), backend/config/settings.py (+news_screen_enabled, +news_screen_model, +news_screen_max_headlines), tests/services/test_news_screen.py (NEW 21 tests).
+
+**Verification (immutable):** `python -c "import asyncio; from backend.services.news_screen import fetch_news_signals; sigs = asyncio.run(fetch_news_signals(use_cache=False, max_headlines=20)); ...; print('ok tickers=' + str(len(sigs)) + ' sample=' + str(list(sigs.keys())[:5]))"` -> `ok tickers=3 sample=['AAPL', 'GOOGL', 'META']` exit=0. Real worldwide RSS + real Claude (no mocks).
+
+**Three E2E bugs surfaced and fixed (all in experiment_results):** (1) feeds.reuters.com no longer resolves -- Reuters deprecated their public RSS; replaced with CNBC + Yahoo Finance. (2) Google News RSS returns HTTP 302 -- httpx default does not follow redirects; fixed via `follow_redirects=True` on AsyncClient. (3) Korean/Japanese tickers (005930.KS, 7203.T) rejected by `^[A-Z]{1,6}` regex; fixed by allowing `[A-Z0-9]` body.
+
+**Q/A verdict:** PASS (1st pass). 14 deterministic checks green. 51/51 tests pass (12 macro_regime + 18 PEAD + 21 news_screen, no regression). Default-OFF discipline verified. Two non-blocking observations: 8 feeds shipped vs 7 in contract (Reuters substitution -- disclosed); magic 5.0*1.10 baseline in screener.py could be promoted to settings later.
+
+**Cost:** ONE Claude call/cycle (batched). $0.005-$0.015/cycle. 4h file cache.
+
+**Worldwide coverage:** 4 of 8 feeds are non-US-only (Google News UK/DE/JP, BBC, FT World). User-stated requirement satisfied.
+
+**Archive:** handoff/archive/phase-23.1.3/.

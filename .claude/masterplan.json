@@ -6916,6 +6916,20 @@
           "created_at": "2026-04-26T22:26:12Z",
           "completed_at": "2026-04-26T22:26:12Z",
           "notes": "Q/A PASS first try. 18 unit tests + immutable verification (real SEC EDGAR + real Claude on AAPL Q1 FY2026 -- press release sentiment 0.82). Three EDGAR-client bugs surfaced and fixed during E2E: (1) AsyncClient missing SEC_HEADERS -> 403; (2) brief's index.json URL pattern wrong; (3) index.json type field is icon name -- use filename pattern. Default OFF (pead_signal_enabled=False)."
+        },
+        {
+          "id": "23.1.3",
+          "name": "Worldwide news idea generator (no-API-key RSS + Claude batch event extractor)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "source .venv/bin/activate && python -c \"import asyncio; from backend.services.news_screen import fetch_news_signals; sigs = asyncio.run(fetch_news_signals(use_cache=False, max_headlines=20)); assert isinstance(sigs, dict); assert all(isinstance(t,str) and t==t.upper() for t in sigs.keys()); print('ok tickers=' + str(len(sigs)) + ' sample=' + str(list(sigs.keys())[:5]))\"",
+          "contract": "handoff/archive/phase-23.1.3/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.3/phase-23.1.3-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.3/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.3/evaluator_critique.md",
+          "created_at": "2026-04-26T22:45:23Z",
+          "completed_at": "2026-04-26T22:45:23Z",
+          "notes": "Q/A PASS first try. 51/51 unit tests + immutable verification (real RSS + real Claude -> ok tickers=3 [AAPL, GOOGL, META]). 8 worldwide feeds shipped (Reuters DNS dead -> swapped with CNBC + Yahoo). Three E2E bugs surfaced + fixed: Reuters DNS, Google 302 redirect, Korean ticker regex. Default OFF (news_screen_enabled=False)."
         }
       ]
     }

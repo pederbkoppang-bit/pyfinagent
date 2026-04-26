@@ -154,6 +154,7 @@ def rank_candidates(
     strategy: str = "momentum",
     regime=None,
     pead_signals=None,
+    news_signals=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -210,7 +211,28 @@ def rank_candidates(
                 continue
             score = new_score
 
+        if news_signals:
+            from backend.services.news_screen import apply_news_to_score
+            score = apply_news_to_score(score, stock.get("ticker"), news_signals)
+
         scored.append({**stock, "composite_score": round(score, 3)})
+
+    # phase-23.1.3: surface news-only candidates not already in screen_data.
+    # These are tickers the news screen flagged that pure-momentum rejected.
+    if news_signals:
+        existing_tickers = {s.get("ticker") for s in scored}
+        for ticker, sig in news_signals.items():
+            if ticker in existing_tickers:
+                continue
+            if sig.confidence == "low" or sig.impact_polarity != "positive":
+                continue
+            scored.append({
+                "ticker": ticker,
+                "composite_score": round(5.0 * 1.10, 3),  # mid-tier baseline + positive-news boost
+                "source": "news_only",
+                "news_event_type": sig.event_type,
+                "news_rationale": sig.rationale,
+            })
 
     scored.sort(key=lambda x: x["composite_score"], reverse=True)
     return scored[:top_n]
