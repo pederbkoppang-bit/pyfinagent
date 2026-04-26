@@ -6902,6 +6902,20 @@
           "created_at": "2026-04-26T22:06:08Z",
           "completed_at": "2026-04-26T22:06:08Z",
           "notes": "Q/A PASS on first pass. 12/12 unit tests + immutable verification command (real Claude Haiku 4.5 + real FRED). Three Anthropic structured-output gotchas surfaced and handled: additionalProperties:false (ConfigDict extra=forbid), min/max on numbers stripped via _strip_unsupported_schema_keys, maxLength clamped at parse time. Default OFF (macro_regime_filter_enabled=False) preserves existing autonomous_loop behavior."
+        },
+        {
+          "id": "23.1.2",
+          "name": "Earnings PEAD overlay (free SEC EDGAR 8-K + Claude sentiment-surprise vs trailing 8Q mean)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "source .venv/bin/activate && python -c \"import asyncio; from backend.services.pead_signal import compute_pead_signal_for_ticker; r = asyncio.run(compute_pead_signal_for_ticker('AAPL', use_cache=False)); assert r.sentiment_tag in {'positive_surprise','negative_surprise','neutral','insufficient_history'}; assert 0.0 <= r.sentiment_score <= 1.0; assert r.holding_window_days in {14,28,42,60}; assert len(r.rationale) <= 300; print('ok ticker=AAPL tag=' + r.sentiment_tag + ' sent=' + str(r.sentiment_score) + ' surprise=' + str(r.surprise_score))\"",
+          "contract": "handoff/archive/phase-23.1.2/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.2/phase-23.1.2-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.2/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.2/evaluator_critique.md",
+          "created_at": "2026-04-26T22:26:12Z",
+          "completed_at": "2026-04-26T22:26:12Z",
+          "notes": "Q/A PASS first try. 18 unit tests + immutable verification (real SEC EDGAR + real Claude on AAPL Q1 FY2026 -- press release sentiment 0.82). Three EDGAR-client bugs surfaced and fixed during E2E: (1) AsyncClient missing SEC_HEADERS -> 403; (2) brief's index.json URL pattern wrong; (3) index.json type field is icon name -- use filename pattern. Default OFF (pead_signal_enabled=False)."
         }
       ]
     }

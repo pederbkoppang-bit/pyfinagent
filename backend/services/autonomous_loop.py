@@ -124,8 +124,23 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             except Exception as e:
                 logger.warning("Macro regime fetch failed (non-fatal): %s", e)
 
+        pead_signals = {}
+        if getattr(settings, "pead_signal_enabled", False):
+            try:
+                from backend.services.pead_signal import fetch_pead_signals_for_recent_reporters
+                pead_signals = await fetch_pead_signals_for_recent_reporters()
+                logger.info("PEAD signals fetched: %d tickers", len(pead_signals))
+                summary["pead_tickers_scored"] = len(pead_signals)
+            except Exception as e:
+                logger.warning("PEAD signal fetch failed (non-fatal): %s", e)
+
         screen_data = screen_universe(period="6mo")
-        candidates = rank_candidates(screen_data, top_n=settings.paper_screen_top_n, regime=regime)
+        candidates = rank_candidates(
+            screen_data,
+            top_n=settings.paper_screen_top_n,
+            regime=regime,
+            pead_signals=pead_signals or None,
+        )
         summary["screened"] = len(screen_data)
         summary["candidates"] = len(candidates)
 

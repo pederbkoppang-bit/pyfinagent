@@ -153,6 +153,7 @@ def rank_candidates(
     top_n: int = 10,
     strategy: str = "momentum",
     regime=None,
+    pead_signals=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -201,6 +202,13 @@ def rank_candidates(
             score = apply_regime_to_score(
                 score, stock.get("sector"), SECTOR_ETFS, regime,
             )
+
+        if pead_signals:
+            from backend.services.pead_signal import apply_pead_to_score
+            new_score = apply_pead_to_score(score, stock.get("ticker"), pead_signals)
+            if new_score is None:
+                continue
+            score = new_score
 
         scored.append({**stock, "composite_score": round(score, 3)})
 

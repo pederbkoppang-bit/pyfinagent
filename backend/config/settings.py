@@ -151,6 +151,10 @@ class Settings(BaseSettings):
     # phase-23.1.1: macro regime filter (LLM-as-judge over FRED snapshot)
     macro_regime_filter_enabled: bool = Field(False, description="Apply daily macro regime as a conviction multiplier in screener rank_candidates")
     macro_regime_model: str = Field("claude-haiku-4-5", description="LLM used for daily macro regime classification")
+    # phase-23.1.2: earnings PEAD overlay (free SEC EDGAR + Claude sentiment-surprise)
+    pead_signal_enabled: bool = Field(False, description="Fetch SEC 8-K + Claude PEAD signals for tickers that reported in the last 7 days; apply boost/filter in screener")
+    pead_signal_model: str = Field("claude-haiku-4-5", description="LLM used for PEAD sentiment scoring on press-release text")
+    pead_signal_lookback_quarters: int = Field(8, description="Trailing quarters of PEAD sentiment used to compute surprise")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

@@ -13938,3 +13938,19 @@ Commit + push imminent.
 **Cost:** <$0.01/day with Haiku 4.5 (single LLM call, 24h file cache at backend/services/_cache/macro_regime.json).
 
 **Archive:** handoff/archive/phase-23.1.1/.
+
+## phase-23.1.2 -- 2026-04-27 -- Earnings PEAD overlay (free SEC EDGAR + Claude sentiment-surprise) -- result=PASS
+
+**Hypothesis:** Daily-batch SEC EDGAR 8-K Exhibit-99 fetch + Claude Haiku 4.5 sentiment scorer detects earnings sentiment-surprise (current vs trailing-8Q mean) for tickers reporting in the last week. Positive surprise boosts composite score by up to +30%; strong negative (surprise < -0.3) drops the candidate; mild negative penalises by up to -40%.
+
+**Files:** backend/services/pead_signal.py (NEW ~290 LOC -- PeadSignalOutput + EDGAR client + file cache + apply_pead_to_score), backend/tools/screener.py (rank_candidates pead_signals kwarg + drop-on-strong-negative), backend/services/autonomous_loop.py (Step 1 PEAD fetch block), backend/config/settings.py (+pead_signal_enabled, +pead_signal_model, +pead_signal_lookback_quarters), tests/services/test_pead_signal.py (NEW 18 tests).
+
+**Verification (immutable):** `python -c "import asyncio; from backend.services.pead_signal import compute_pead_signal_for_ticker; r = asyncio.run(compute_pead_signal_for_ticker('AAPL', use_cache=False)); ...; print('ok ticker=AAPL tag=' + r.sentiment_tag + ' sent=' + str(r.sentiment_score) + ' surprise=' + str(r.surprise_score))"` -> `ok ticker=AAPL tag=insufficient_history sent=0.82 surprise=0.0` exit=0. Real SEC EDGAR + real Claude (no mocks). AAPL Q1 FY2026 press release scored 0.82 sentiment.
+
+**Three EDGAR-client bugs surfaced and fixed during E2E (all in experiment_results):** (1) httpx.AsyncClient instantiated without SEC_HEADERS -> 403 on first call; fixed via `headers=SEC_HEADERS` in constructor. (2) Brief's `{accession}-index.json` URL pattern returned 404; correct endpoint is `index.json`. (3) EDGAR `index.json` `type` field is the icon name (`text.gif`), not the doc type; identify Exhibit 99 by FILENAME pattern (`ex99`/`ex-99`/`exhibit99`).
+
+**Q/A verdict:** PASS (1st pass). 5/5 harness-compliance, 7/7 deterministic checks, 7/7 LLM judgment. 30/30 tests pass (18 PEAD + 12 macro_regime no regression). Default-OFF discipline verified.
+
+**Cost:** <$0.05/cycle (~2-5 8-K calls/day average for S&P 500). File cache per (ticker, quarter) prevents re-billing same press release. BQ persistence deferred to Phase 2.
+
+**Archive:** handoff/archive/phase-23.1.2/.
