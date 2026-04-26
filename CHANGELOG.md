@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-26 | `514f0635` | phase-19.0: Claude Remote / Max programmatic handoff feasibility (decision doc) |
 | 2026-04-26 | `570ba19a` | phase-18: Agent Topology Map (18.0 plan + 18.1 backend + 18.2-18.4 frontend) |
 | 2026-04-26 | `897d1323` | phase-16.56 + 16.57: sovereign grid widen Alpha then revert RedLine 60% |
 | 2026-04-26 | `dd66299b` | phase-16.55: sovereign two-hero r2 - AlphaLeaderboard fills to match RedLine |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-24 | `dfd57ec1` | pre-prod: close BLOCKERS 1-3 + api.ts helpers + DRIFT status flips |
 | 2026-04-24 | `06a86333` | fix(BudgetDashboard): re-apply auth-aware fetch + null-guard (v2) |
 | 2026-04-24 | `1122a021` | feat: phase-10.5 sovereign UI + phase-15 observability tiles + phase-4.17 pre-go-live smoke test |
-| 2026-04-24 | `6eac048e` | Cycle 65: MAS harness NOOP -- 16 consecutive no-ops, all 9 remaining items blocked |
 
 ---
 
+### v6.5.93 — phase-19.0: Claude Remote / Max programmatic handoff feasibility (dec... (2026-04-26)
+
+- **phase-19.0: Claude Remote / Max programmatic handoff feasibility (decision doc)**
 ### v6.5.92 — phase-18: Agent Topology Map (18.0 plan + 18.1 backend + 18.2-18.4 fr... (2026-04-26)
 
 - **phase-18: Agent Topology Map (18.0 plan + 18.1 backend + 18.2-18.4 frontend)**
