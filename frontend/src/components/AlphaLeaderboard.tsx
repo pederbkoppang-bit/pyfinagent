@@ -143,7 +143,7 @@ export function AlphaLeaderboard({
   }
 
   return (
-    <BentoCard>
+    <BentoCard className="flex h-full flex-col">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Trophy size={18} className="text-amber-400" weight="fill" />
         <h3 className="text-sm font-semibold text-slate-300">Alpha Leaderboard</h3>
@@ -187,7 +187,7 @@ export function AlphaLeaderboard({
           <p className="mt-3 text-sm text-slate-400">No strategies recorded yet</p>
         </div>
       ) : (
-        <div data-testid="alpha-leaderboard" className="overflow-x-auto scrollbar-thin">
+        <div data-testid="alpha-leaderboard" className="flex-1 overflow-auto scrollbar-thin">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-navy-700 bg-navy-800/80">
               <tr>

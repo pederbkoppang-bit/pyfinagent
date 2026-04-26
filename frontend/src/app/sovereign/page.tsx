@@ -145,7 +145,7 @@ export default function SovereignPage() {
                 onWindowChange={setRedLineWindow}
               />
             </div>
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 h-full">
               <AlphaLeaderboard
                 entries={leaderboard}
                 loading={leaderboardLoading}

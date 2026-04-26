@@ -5999,11 +5999,21 @@
           "verification": "cd frontend && npx tsc --noEmit",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Operator-flagged via screenshot 2026-04-26 15:31:38: ~160px dead space below Alpha Leaderboard on /sovereign two-hero row (RedLine card ~440px vs AlphaLeaderboard ~280px). Single Edit at frontend/src/components/RedLineMonitor.tsx L107 changed non-compact chart container from `h-64` (256px) to `h-48` (192px); compact branch (`h-72`, used by homepage hero via next/dynamic with min-h-[55svh] wrapper) intentionally preserved. Net: non-compact card ~376px, much closer to AlphaLeaderboard's ~280px. tsc --noEmit exit 0 + lint 0 errors. NO homepage regression (compact path unchanged). git diff --stat: 1 file / 1 insertion / 1 deletion. Horizontal scroll on AlphaLeaderboard is a separate issue (out of scope per contract). See handoff/archive/phase-16.54/."
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Operator-flagged via screenshot 2026-04-26 15:31:38: ~160px dead space below Alpha Leaderboard on /sovereign two-hero row (RedLine card ~440px vs AlphaLeaderboard ~280px). Single Edit at frontend/src/components/RedLineMonitor.tsx L107 changed non-compact chart container from `h-64` (256px) to `h-48` (192px); compact branch (`h-72`, used by homepage hero via next/dynamic with min-h-[55svh] wrapper) intentionally preserved. Net: non-compact card ~376px, much closer to AlphaLeaderboard's ~280px. tsc --noEmit exit 0 + lint 0 errors. NO homepage regression (compact path unchanged). git diff --stat: 1 file / 1 insertion / 1 deletion. Horizontal scroll on AlphaLeaderboard is a separate issue (out of scope per contract). See handoff/archive/phase-16.54/. SUPERSEDED by 16.55: shrink approach was wrong direction; operator clarified Red Line should stay big and AlphaLeaderboard should fill instead. Restored to h-64 in 16.55."
+        },
+        {
+          "id": "16.55",
+          "name": "Sovereign two-hero balance r2 -- AlphaLeaderboard fills to match RedLine height",
+          "status": "done",
+          "harness_required": true,
+          "verification": "cd frontend && npx tsc --noEmit",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle; mid-cycle direction reversal handled cleanly). Operator clarified mid-cycle: 'Red Line Monitor could be bigg but Alpha Leaderboard should just match the hight of Red Line Monitor.' REVERSED 16.54's shrink approach. Final state: (1) frontend/src/components/RedLineMonitor.tsx L107 restored to `h-64` (256px chart) -- supersedes 16.54's h-48 + this cycle's intermediate h-40. Compact h-72 unchanged. (2) frontend/src/app/sovereign/page.tsx L139: removed items-start, added `h-full` to AlphaLeaderboard wrapper `<div className=\"lg:col-span-2 h-full\">`. (3) frontend/src/components/AlphaLeaderboard.tsx: BentoCard now `<BentoCard className=\"flex h-full flex-col\">`; table container changed from `overflow-x-auto scrollbar-thin` to `flex-1 overflow-auto scrollbar-thin`. AlphaLeaderboard CARD now fills its grid cell to match RedLineMonitor's height; inner table scrolls (both x and y) when content overflows. tsc --noEmit exit 0 + lint 0 errors. No homepage regression (compact path of RedLine + AlphaLeaderboard not used on homepage). Honest disclosure of mid-cycle reversal documented in experiment_results.md. See handoff/archive/phase-16.55/."
         }
       ],
       "completed_at": null,
-      "notes": "32 of 34 sub-steps done. 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A). Continuation /batch (2026-04-26): 16.52 (UX pass C settings shell), 16.53 (settings full-width), 16.54 (sovereign two-hero balance)."
+      "notes": "33 of 35 sub-steps done. 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A). Continuation /batch (2026-04-26): 16.52 (UX pass C settings shell), 16.53 (settings full-width), 16.54 (sovereign shrink RedLine -- superseded), 16.55 (sovereign two-hero r2: AlphaLeaderboard fills to match RedLine, RedLine restored to original size)."
     },
     {
       "id": "phase-17",

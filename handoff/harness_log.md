@@ -13632,3 +13632,22 @@ User-action items deferred per /batch scope: phase-5.2 (EODHD API key), phase-5.
 **Code changes:** 1 file, 3 single-string edits via replace_all. No new tests, no new files.
 
 **Archive:** new dir `handoff/archive/phase-16.53/`.
+
+## phase-16.55 -- 2026-04-26 -- Sovereign two-hero balance r2: AlphaLeaderboard fills RedLine height -- result=PASS
+
+**Researcher:** simple tier, internal-only gate. 4 internal files inspected. gate_passed=true. Mid-cycle direction reversal: operator clarified "Red Line Monitor could be bigg but Alpha Leaderboard should just match the hight of Red Line Monitor" AFTER initial shrink-direction implementation.
+
+**Generate (FINAL state, post-reversal):**
+- frontend/src/components/RedLineMonitor.tsx L107: restored `h-64` (was 16.54 h-48 then 16.55-mid h-40); compact h-72 preserved.
+- frontend/src/app/sovereign/page.tsx L139: removed items-start + added h-full to AlphaLeaderboard wrapper div (`<div className="lg:col-span-2 h-full">`).
+- frontend/src/components/AlphaLeaderboard.tsx: BentoCard now `className="flex h-full flex-col"`; table container `flex-1 overflow-auto scrollbar-thin` (was `overflow-x-auto`). AlphaLeaderboard CARD now fills its grid cell to match RedLine's natural height; table inside scrolls when content overflows (defense for many-strategy future).
+
+**Verification (immutable):** `cd frontend && npx tsc --noEmit` -> exit 0. Bonus: `npm run lint` -> 0 errors / 34 pre-existing warnings unchanged.
+
+**Q/A verdict:** PASS. 11 deterministic checks pass (harness-compliance-5, tsc, lint, RedLineMonitor h-64 restored, sovereign items-start removed, sovereign h-full added, AlphaLeaderboard BentoCard flex-h-full, AlphaLeaderboard table flex-1 overflow-auto, homepage compact preserved, reversal-disclosure honest, first Q/A spawn).
+
+**Cycle-2 (mid-cycle reversal):** Main pivoted within the cycle when the operator's clarification arrived AFTER initial implementation. Reversal applied cleanly; final state TS+lint clean. Documented in experiment_results.md disclosure #1.
+
+**Code changes:** 3 files. No tests. Compact path of RedLine + homepage hero unchanged.
+
+**Archive:** new dir `handoff/archive/phase-16.55/`.
