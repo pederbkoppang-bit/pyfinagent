@@ -6944,6 +6944,20 @@
           "created_at": "2026-04-26T23:06:42Z",
           "completed_at": "2026-04-26T23:06:42Z",
           "notes": "Q/A PASS first try. 67/67 unit tests + immutable verification (real RTTNews + real BQ -> events=0 sources=[]). Scaffolding shipped; both live data sources returned 0 (RTTNews is SPA / no static tables; BQ calendar empty). Honest disclosure in experiment_results includes Phase-2 remediation paths. Bonus: cycle-2 PEAD bug fixed (BigQueryClient missing settings arg). Default OFF (sector_calendars_enabled=False)."
+        },
+        {
+          "id": "23.1.5",
+          "name": "LLM-as-judge meta-scorer (single batched Claude call combines all sub-signals into conviction 1-10)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "source .venv/bin/activate && python -c \"import asyncio; from backend.services.meta_scorer import meta_score_candidates, MetaScoredCandidate; cands = [...]; out = asyncio.run(meta_score_candidates(cands)); ...; print('ok n=' + str(len(out)) + ' top=' + out[0]['ticker'] + '(' + str(out[0]['conviction_score']) + ') bottom=' + out[-1]['ticker'] + '(' + str(out[-1]['conviction_score']) + ')')\"",
+          "contract": "handoff/archive/phase-23.1.5/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.5/phase-23.1.5-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.5/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.5/evaluator_critique.md",
+          "created_at": "2026-04-26T23:22:06Z",
+          "completed_at": "2026-04-26T23:22:06Z",
+          "notes": "Q/A PASS first try. 81/81 unit tests + immutable verification (real Claude Haiku 4.5 -> AAPL=7 NVDA=6). Six anti-rubber-stamp mitigations baked in. Architecture Option B: conviction_score ADDED alongside composite_score (audit trail). Fallback path returns clamped composite_score on LLM failure. Default OFF (meta_scorer_enabled=False)."
         }
       ]
     }

@@ -13994,3 +13994,21 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Cost:** $0 LLM (pure data-pull). 1 HTTP + 1 BQ call/cycle when enabled. 6h file cache.
 
 **Archive:** handoff/archive/phase-23.1.4/.
+
+## phase-23.1.5 -- 2026-04-27 -- LLM-as-judge meta-scorer (single batched Claude call) -- result=PASS
+
+**Hypothesis:** A single batched Claude Haiku 4.5 call over 30 candidates with all sub-signals (momentum + macro + PEAD + news + sector) returns conviction 1-10 per candidate that genuinely re-weighs the multiplicative cascade. Six anti-rubber-stamp mitigations baked into the prompt (counterargument-first, explicit regime-momentum interaction, composite_score_pre_meta labeling, calibration anchors, randomized order with fixed seed, independence directive).
+
+**Files:** backend/services/meta_scorer.py (NEW ~225 LOC -- MetaScoredCandidate + MetaScorerBatch + _build_meta_prompt + meta_score_candidates + _fallback_conviction), backend/services/autonomous_loop.py (Step 1 meta-scorer call after rank_candidates), backend/config/settings.py (+meta_scorer_enabled, +meta_scorer_model, +meta_scorer_max_batch=30), tests/services/test_meta_scorer.py (NEW 14 tests).
+
+**Verification (immutable):** `python -c "import asyncio; from backend.services.meta_scorer import meta_score_candidates, MetaScoredCandidate; cands = [{...AAPL...}, {...NVDA...}]; out = asyncio.run(meta_score_candidates(cands)); ...; print('ok n=' + ... + ' top=' + ... + ' bottom=' + ...)"` -> `ok n=2 top=AAPL(7) bottom=NVDA(6)` exit=0. Real Claude Haiku 4.5 (no mocks). Conviction differential matches input data — AAPL has stronger signals than NVDA across all fields.
+
+**Architecture (Option B from brief):** conviction_score is ADDED alongside composite_score, not a replacement. Preserves audit trail; matches existing additive overlay pattern. Fallback path returns `clamp(round(composite_score), 1, 10)` when LLM unavailable so cycle still runs.
+
+**Anti-rubber-stamp design verified by Q/A:** all 6 mitigations confirmed in `_build_meta_prompt`: counterargument-first ("what could go WRONG"), regime-momentum rule (risk_off + momentum = warning), composite_score_pre_meta labeling, 9-10/1-2 calibration anchors, random.Random(0xC0FFEE).shuffle, INDEPENDENTLY directive.
+
+**Q/A verdict:** PASS (1st pass). 12/12 deterministic + judgment checks. 81/81 unit tests pass (12 macro + 18 PEAD + 21 news + 16 sector + 14 meta_scorer; no regression). Default-OFF discipline verified.
+
+**Cost:** ONE Claude call/cycle (batched ≤30 candidates). ~$0.025/cycle (~15K input + 3K output tokens at Haiku pricing). Cumulative across all 5 cycles when all flags ON: ~$0.10/day.
+
+**Archive:** handoff/archive/phase-23.1.5/.

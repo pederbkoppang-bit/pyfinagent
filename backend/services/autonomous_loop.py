@@ -165,6 +165,20 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             news_signals=news_signals or None,
             sector_events=sector_events or None,
         )
+
+        if getattr(settings, "meta_scorer_enabled", False):
+            try:
+                from backend.services.meta_scorer import meta_score_candidates
+                candidates = await meta_score_candidates(candidates, regime=regime)
+                if candidates:
+                    summary["meta_scored_top_conviction"] = candidates[0].get("conviction_score")
+                logger.info(
+                    "Meta-scorer ranked %d candidates (top conviction=%s)",
+                    len(candidates),
+                    candidates[0].get("conviction_score") if candidates else None,
+                )
+            except Exception as e:
+                logger.warning("Meta-scorer failed (non-fatal): %s", e)
         summary["screened"] = len(screen_data)
         summary["candidates"] = len(candidates)
 

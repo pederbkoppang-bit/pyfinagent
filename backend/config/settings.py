@@ -162,6 +162,10 @@ class Settings(BaseSettings):
     # phase-23.1.4: sector event calendars (FDA PDUFA + upcoming earnings; pure data-pull)
     sector_calendars_enabled: bool = Field(False, description="Pull FDA PDUFA + earnings calendars; boost catalyst tickers and filter ticker on day-of binary FDA event")
     sector_calendars_lookahead_days: int = Field(7, description="Lookahead window for upcoming earnings in BQ calendar query")
+    # phase-23.1.5: LLM-as-judge meta-scorer (single batched Claude call for conviction 1-10 per candidate)
+    meta_scorer_enabled: bool = Field(False, description="After multiplicative overlays, call Claude once over top-30 candidates with all sub-signals; conviction_score replaces composite_score for ranking")
+    meta_scorer_model: str = Field("claude-haiku-4-5", description="LLM used for the meta-scorer batch call")
+    meta_scorer_max_batch: int = Field(30, description="Max candidates sent to the meta-scorer in one batch (cap to bound LLM cost + cross-contamination)")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the
