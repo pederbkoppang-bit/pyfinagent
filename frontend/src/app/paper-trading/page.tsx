@@ -530,7 +530,7 @@ export default function PaperTradingPage() {
                   <RiskMonitorCard perf={perf} positions={positions} portfolio={portfolio} />
 
                   <div className="rounded-xl border border-navy-700 bg-navy-800/70 backdrop-blur-lg">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto scrollbar-thin">
                       <table className="w-full text-left text-sm">
                         <thead>
                           <tr className="border-b border-navy-700 text-xs uppercase text-slate-500">
@@ -614,7 +614,7 @@ export default function PaperTradingPage() {
 
               {tab === "trades" && (
                 <div className="rounded-xl border border-navy-700 bg-navy-800/70 backdrop-blur-lg">
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto scrollbar-thin">
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-navy-700 text-xs uppercase text-slate-500">

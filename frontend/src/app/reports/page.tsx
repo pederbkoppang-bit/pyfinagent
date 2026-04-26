@@ -22,6 +22,7 @@ import {
 } from "recharts";
 import { Sidebar } from "@/components/Sidebar";
 import { BentoCard } from "@/components/BentoCard";
+import { PageSkeleton } from "@/components/Skeleton";
 import { listReports, getReport } from "@/lib/api";
 import type { ReportSummary, SynthesisReport } from "@/lib/types";
 import {
@@ -220,37 +221,40 @@ function ReportsContent() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-slate-100">Reports</h2>
-          <p className="text-sm text-slate-500">Browse past analyses or compare companies side-by-side</p>
-        </div>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        {/* phase-16.49: canonical two-zone shell -- header + tab bar pinned, content scrolls */}
+        <div className="flex-shrink-0 px-6 pt-6 pb-0 md:px-8 md:pt-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-slate-100">Reports</h2>
+            <p className="text-sm text-slate-500">Browse past analyses or compare companies side-by-side</p>
+          </div>
 
-        {/* Tab bar */}
-        <div className="mb-6 flex gap-1 rounded-lg bg-navy-800/60 p-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? "bg-sky-500/10 text-sky-400"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <tab.icon size={16} weight={activeTab === tab.id ? "fill" : "regular"} />
-              {tab.label}
-            </button>
-          ))}
+          {/* Tab bar (pinned in fixed-header zone per frontend-layout.md §5) */}
+          <div className="mb-6 flex gap-1 rounded-lg bg-navy-800/60 p-1">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-sky-500/10 text-sky-400"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <tab.icon size={16} weight={activeTab === tab.id ? "fill" : "regular"} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
-
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
         {error && (
           <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-4">
             <pre className="whitespace-pre-wrap text-xs text-rose-300">{error}</pre>
           </div>
         )}
 
-        {loading && <p className="text-slate-400">Loading reports...</p>}
+        {loading && <PageSkeleton />}
 
         {/* ═══════════════ HISTORY TAB ═══════════════ */}
         {activeTab === "history" && !loading && (
@@ -479,7 +483,7 @@ function ReportsContent() {
                   <h3 className="mb-4 text-lg font-semibold text-slate-300">
                     <IconScoringMatrix size={20} weight="duotone" className="inline text-slate-400" /> Detailed Score Comparison
                   </h3>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto scrollbar-thin">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-700 text-left">
@@ -593,6 +597,7 @@ function ReportsContent() {
             )}
           </>
         )}
+        </div>
       </main>
     </div>
   );

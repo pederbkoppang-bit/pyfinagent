@@ -206,7 +206,7 @@ function RunSelector({
 
       {/* Dropdown Content */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-navy-800 border border-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-navy-800 border border-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto scrollbar-thin">
           {baselines.length === 0 ? (
             <div className="px-3 py-2 text-xs text-slate-500">No runs available</div>
           ) : (
@@ -680,55 +680,6 @@ export default function BacktestPage() {
             </div>
           </div>
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
-            <p className="text-sm text-rose-300">{error}</p>
-            {error.includes("Cannot") && (
-              <p className="mt-1 text-xs text-rose-300/60">
-                Make sure the backend is running: <code className="rounded bg-rose-900/40 px-1.5 py-0.5 font-mono">uvicorn backend.main:app --port 8000</code>
-              </p>
-            )}
-            <button onClick={() => { setError(null); setLoading(true); refresh(); }} className="mt-2 rounded bg-rose-900/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/60">
-              Retry
-            </button>
-          </div>
-        )}
-
-        {/* Backtest error with traceback */}
-        {btStatus?.status === "error" && btStatus.error && (
-          <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
-            <p className="text-sm font-medium text-rose-400">Backtest Error</p>
-            <p className="mt-1 font-mono text-xs text-rose-300/80">{btStatus.error}</p>
-            {btStatus.traceback && (
-              <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-rose-400/70 hover:text-rose-400">Show traceback</summary>
-                <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2 font-mono text-[11px] leading-relaxed text-rose-300/70">{btStatus.traceback}</pre>
-              </details>
-            )}
-          </div>
-        )}
-
-        {/* Ingest result banner */}
-        {ingestResult && (
-          <div
-            className={`mb-4 rounded-lg border p-3 ${
-              ingestResult.type === "success"
-                ? "border-emerald-500/30 bg-emerald-950/30"
-                : "border-rose-500/30 bg-rose-950/30"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <p className={`text-sm ${ingestResult.type === "success" ? "text-emerald-300" : "text-rose-300"}`}>
-                {ingestResult.message}
-              </p>
-              <button onClick={() => setIngestResult(null)} className="ml-3 text-xs text-slate-500 hover:text-slate-300">
-                dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
-
         {loading && <PageSkeleton />}
 
         {/* Unified run selector (Tier 4) — visible on all tabs except overview */}
@@ -788,6 +739,55 @@ export default function BacktestPage() {
 
         {/* ── Scrollable content zone ───────────────────────── */}
         <div className="flex-1 overflow-y-auto scroll-smooth scrollbar-thin px-6 py-6 md:px-8">
+
+        {/* Ingest result banner (relocated from fixed header in 16.52) */}
+        {ingestResult && (
+          <div
+            className={`mb-4 rounded-lg border p-3 ${
+              ingestResult.type === "success"
+                ? "border-emerald-500/30 bg-emerald-950/30"
+                : "border-rose-500/30 bg-rose-950/30"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <p className={`text-sm ${ingestResult.type === "success" ? "text-emerald-300" : "text-rose-300"}`}>
+                {ingestResult.message}
+              </p>
+              <button onClick={() => setIngestResult(null)} className="ml-3 text-xs text-slate-500 hover:text-slate-300">
+                dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* phase-16.49: error banners (relocated from fixed header) */}
+        {error && (
+          <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
+            <p className="text-sm text-rose-300">{error}</p>
+            {error.includes("Cannot") && (
+              <p className="mt-1 text-xs text-rose-300/60">
+                Make sure the backend is running: <code className="rounded bg-rose-900/40 px-1.5 py-0.5 font-mono">uvicorn backend.main:app --port 8000</code>
+              </p>
+            )}
+            <button onClick={() => { setError(null); setLoading(true); refresh(); }} className="mt-2 rounded bg-rose-900/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/60">
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Backtest error with traceback */}
+        {btStatus?.status === "error" && btStatus.error && (
+          <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
+            <p className="text-sm font-medium text-rose-400">Backtest Error</p>
+            <p className="mt-1 font-mono text-xs text-rose-300/80">{btStatus.error}</p>
+            {btStatus.traceback && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-rose-400/70 hover:text-rose-400">Show traceback</summary>
+                <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2 font-mono text-[11px] leading-relaxed text-rose-300/70">{btStatus.traceback}</pre>
+              </details>
+            )}
+          </div>
+        )}
 
         {/* Simple progress bar */}
         {(isRunning || isOptRunning) && (() => {
@@ -1052,7 +1052,7 @@ export default function BacktestPage() {
                 {results?.baselines && (
                   <BentoCard>
                     <h3 className="mb-4 text-lg font-semibold text-slate-300">Strategy vs Baselines</h3>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto scrollbar-thin">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-slate-700 text-left">
@@ -1115,7 +1115,7 @@ export default function BacktestPage() {
                 {results?.per_window && results.per_window.length > 0 && (
                   <BentoCard>
                     <h3 className="mb-4 text-lg font-semibold text-slate-300">Walk-Forward Windows</h3>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto scrollbar-thin">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-slate-700 text-left">
@@ -1298,7 +1298,7 @@ export default function BacktestPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="overflow-x-auto">
+                      <div className="overflow-x-auto scrollbar-thin">
                         <table className="w-full text-xs">
                           <thead>
                             <tr className="border-b border-slate-700">

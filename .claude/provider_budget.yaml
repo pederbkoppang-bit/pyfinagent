@@ -1,0 +1,46 @@
+# pyfinagent provider budget — daily USD floor + ceiling per LLM provider.
+#
+# phase-10.7.5: API-Credit Reallocator (backend/meta_evolution/provider_rebalancer.py)
+# Schema:
+#   total_daily_usd_budget: hard cap; matches kill-switch trip in cost_budget_api.py
+#   providers[]:
+#     name:               anthropic | google_vertex | openai | github_models
+#     priority_weight:    int >= 1; WFQ proportional allocation
+#     min_floor_usd:      guaranteed daily minimum; sum(floors) MUST <= total
+#     max_ceiling_usd:    monopolisation ceiling
+#     enabled:            bool; disabled providers excluded from weight denominator
+#
+# Feasibility invariant: sum(min_floor_usd) = 1.60 < total_daily_usd_budget = 5.00.
+# Allocator raises ValueError on schema load if violated.
+
+version: 1
+total_daily_usd_budget: 5.0
+
+providers:
+  - name: anthropic
+    priority_weight: 10
+    min_floor_usd: 1.00
+    max_ceiling_usd: 4.00
+    enabled: true
+    notes: Primary harness + Layer-2 MAS; Claude Opus/Sonnet/Haiku.
+
+  - name: google_vertex
+    priority_weight: 6
+    min_floor_usd: 0.50
+    max_ceiling_usd: 3.00
+    enabled: true
+    notes: 28 Layer-1 enrichment agents + Gemini fallback for Layer-2.
+
+  - name: openai
+    priority_weight: 2
+    min_floor_usd: 0.10
+    max_ceiling_usd: 1.50
+    enabled: true
+    notes: Secondary/fallback; gpt-* and o-series models.
+
+  - name: github_models
+    priority_weight: 1
+    min_floor_usd: 0.00
+    max_ceiling_usd: 0.50
+    enabled: true
+    notes: Free-tier llama/deepseek/grok/phi/mistral via GitHub Models.

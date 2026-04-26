@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { IconCheckCircle, IconInfo, IconWarning } from "@/lib/icons";
+import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import {
   getPaperCyclesHistory,
   getPaperFreshness,
@@ -126,7 +127,9 @@ export function OpsStatusBar({ nextRunAt }: Props) {
       <Divider />
       <CycleSegment fresh={fresh} latestCycle={latestCycle} />
       <Divider />
-      <SchedulerSegment nextRunAt={nextRunAt} />
+      <LastSegment lastStartedAt={latestCycle?.started_at ?? null} />
+      <Divider />
+      <NextSegment nextRunAt={nextRunAt} />
     </section>
   );
 }
@@ -313,11 +316,23 @@ function CycleSegment({
   );
 }
 
-function SchedulerSegment({ nextRunAt }: { nextRunAt?: string | null }) {
+// phase-16.44: split scheduler into Last + Next segments per user request.
+function LastSegment({ lastStartedAt }: { lastStartedAt: string | null }) {
+  return (
+    <div className="ml-auto flex items-center gap-2">
+      <SegmentLabel>Last</SegmentLabel>
+      <span className="font-mono text-xs text-slate-300" suppressHydrationWarning>
+        {lastStartedAt ? formatRelativeTime(lastStartedAt) : "—"}
+      </span>
+    </div>
+  );
+}
+
+function NextSegment({ nextRunAt }: { nextRunAt?: string | null }) {
   if (!nextRunAt) {
     return (
       <div className="flex items-center gap-2">
-        <SegmentLabel>Scheduler</SegmentLabel>
+        <SegmentLabel>Next</SegmentLabel>
         <span className="text-xs text-slate-500">—</span>
       </div>
     );
@@ -332,8 +347,8 @@ function SchedulerSegment({ nextRunAt }: { nextRunAt?: string | null }) {
         minute: "2-digit",
       });
   return (
-    <div className="ml-auto flex items-center gap-2">
-      <SegmentLabel>Next run</SegmentLabel>
+    <div className="flex items-center gap-2">
+      <SegmentLabel>Next</SegmentLabel>
       <span className="font-mono text-xs text-slate-300">{label}</span>
       <IconCheckCircle size={12} className="text-emerald-500/60" />
     </div>

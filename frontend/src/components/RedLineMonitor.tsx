@@ -104,7 +104,7 @@ export function RedLineMonitor({
         data-testid="red-line-chart"
         role="img"
         aria-label={`Red-line NAV chart, ${window} window, ${series.length} points, ${events.length} events`}
-        className={compact ? "h-full min-h-[16rem]" : "h-64"}
+        className={compact ? "h-72" : "h-64"}
       >
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart

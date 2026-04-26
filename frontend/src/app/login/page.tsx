@@ -32,7 +32,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0B1120]">
+    <div className="flex h-screen items-center justify-center overflow-hidden bg-[#0B1120]">
       <div className="w-full max-w-sm space-y-8 rounded-2xl border border-navy-700 bg-navy-800/60 p-8 shadow-xl">
         {/* Branding */}
         <div className="text-center">

@@ -187,7 +187,7 @@ export function AlphaLeaderboard({
           <p className="mt-3 text-sm text-slate-400">No strategies recorded yet</p>
         </div>
       ) : (
-        <div data-testid="alpha-leaderboard" className="overflow-x-auto">
+        <div data-testid="alpha-leaderboard" className="overflow-x-auto scrollbar-thin">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-navy-700 bg-navy-800/80">
               <tr>

@@ -3247,42 +3247,46 @@
         {
           "id": "10.7.5",
           "name": "API-credit reallocator with per-provider floors",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": "python -m pytest tests/meta_evolution/test_provider_rebalancer.py -v",
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. Net-new code: WFQ allocator + two-pass max-min rebalance for 4 LLM providers. .claude/provider_budget.yaml (36 lines, total $5/day, sum-of-floors $1.60 feasible). backend/meta_evolution/provider_rebalancer.py (~210 LOC, frozen Allocation dataclass + compute_allocations + allocate + rebalance; pure stdlib + pyyaml only; USD floats with round(x,6); ValueError on infeasible config). tests/meta_evolution/test_provider_rebalancer.py (~270 LOC, 17 tests). Cycle-2 fix during impl: pass-2 surplus redistribution refactored to exclude under-spent contributors from demanding list. 17/17 PASS. Real-yaml smoke {anthropic:2.63, gvertex:1.58, openai:0.53, github:0.26} sum $5.00. Pattern mirrors cron_allocator.py (10.7.4) discipline. Closes task list item #74. See handoff/archive/phase-10.7.5/."
         },
         {
           "id": "10.7.6",
           "name": "Weekly APScheduler wiring",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": "python -m pytest tests/scheduler/test_meta_cron.py -v",
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Net-new: backend/meta_evolution/cron.py (~155 LOC) with register_meta_evolution_cron(scheduler, *, replace_existing=True) + run_meta_evolution_cycle() dispatching to cron_allocator + provider_rebalancer + archetype_library each in independent try/except (Google SRE monitoring-tier fail-open). Sunday 02:00 America/New_York via CronTrigger kwargs (day_of_week='sun', hour=2, minute=0, timezone=ZoneInfo('America/New_York'), id='meta_evolution_weekly', replace_existing=True). tests/scheduler/__init__.py + tests/scheduler/test_meta_cron.py (~210 LOC, 11 tests using StubScheduler pattern + direct CronTrigger.get_next_fire_time(None, monday) trigger semantics check). 11/11 PASS. Live wiring into start_scheduler() is a follow-up one-liner. Closes task list item #75. See handoff/archive/phase-10.7.6/."
         },
         {
           "id": "10.7.7",
           "name": "Evaluator review gate for directive diffs",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": "python -m pytest tests/agents/test_evaluator_directive_review.py -v",
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Net-new: backend/meta_evolution/directive_review.py (~225 LOC) -- independent second-opinion judge for DirectiveVersion proposals. ReviewResult frozen dataclass with 5-dim rubric (clarity/alignment/safety/proportionality/factuality). aggregate=mean, ACCEPT_THRESHOLD=0.70 (stricter than rewriter self-floor 0.60). FAIL-CLOSED on LLM None/exception/non-dict/missing-dim/out-of-range (opposite of cron's fail-open: this is a SAFETY gate). Proposer's judge_score stripped from judge prompt (test grep verifies literal value absent). Empty proposed_text short-circuits before LLM call. Reuses _parse_llm_json from directive_rewriter.py. tests/agents/__init__.py + tests/agents/test_evaluator_directive_review.py (~225 LOC, 13 tests, mock-injection pattern). 13/13 PASS. directive_rewriter.py NOT modified -- gate is opt-in. Closes task list item #76. See handoff/archive/phase-10.7.7/."
         },
         {
           "id": "10.7.8",
           "name": "Runbook and rollback drill",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": "test -f docs/runbooks/meta_evolution_rollback.md && grep -q 'git revert' docs/runbooks/meta_evolution_rollback.md",
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Net-new: docs/runbooks/meta_evolution_rollback.md (~140 lines, 12 'git revert' occurrences). Mirrors alpaca-mcp-rollback.md template structure (9 sections: When-to-use, Immediate-rollback, Per-component table covering all 7 meta_evolution modules, State invariants, Permanent disable, Drill procedure with sign-off block, Escalation, Related runbooks, Notes-on-current-wiring-state). Includes CLAUDE.md session-restart caveat for .claude/agents/researcher.md reverts. Honest about current wiring state (cron not yet wired into start_scheduler; review not yet auto-called from rewriter). Internal-heavy research gate per pure-doc precedent (16.40, 16.43, 16.46, 16.47); git revert is canonical prior art. Closes task list item #77. See handoff/archive/phase-10.7.8/."
         }
       ]
     },
@@ -5866,10 +5870,120 @@
           "contract": null,
           "retry_count": 0,
           "notes": "Closed 2026-04-25. Q/A verdict: PASS. Authenticated-home lighthouse harness wiring shipped using existing LIGHTHOUSE_SKIP_AUTH=1 middleware bypass at frontend/src/middleware.ts:24 (Option C; saves ~60 LOC fragile JWE crypto vs Option A). Files: lighthouse_auth_home.js (180 lines, two modes: --probe-only static check + default full lighthouse run with finalUrl assertion), package.json +1 npm script, docs/runbooks/lighthouse-auth-home.md (95-line operator runbook with security note). Reuses lighthouse-wrapper.js via spawnSync. Live smoke-test confirmed safety net: probe-only returned exit 2 + helpful 'Restart with LIGHTHOUSE_SKIP_AUTH=1' message when bypass inactive. Pattern mirrors sovereign_route.js. Closes LAST non-user-action follow-up (#8). See handoff/archive/phase-16.41/."
+        },
+        {
+          "id": "16.42",
+          "name": "Home redesign: Recent Reports table + Quick Actions panel (no hardcoded data)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "test -f frontend/src/lib/formatRelativeTime.ts && test -f frontend/src/components/RecentReportsTable.tsx && test -f frontend/src/components/HomeQuickActionsPanel.tsx && grep -q RecentReportsTable frontend/src/app/page.tsx && grep -q HomeQuickActionsPanel frontend/src/app/page.tsx && cd frontend && npx tsc --noEmit",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS — tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
+        },
+        {
+          "id": "16.43",
+          "name": "Home polish: gate bar at top, equal-height columns, RedLine chart sizing",
+          "status": "done",
+          "harness_required": true,
+          "verification": "(cd frontend && npx tsc --noEmit) && grep -q 'compact ? \"h-72\"' frontend/src/components/RedLineMonitor.tsx && grep -q 'lg:items-stretch' frontend/src/app/page.tsx && grep -q 'h-full flex flex-col' frontend/src/components/RecentReportsTable.tsx && grep -q 'h-full flex flex-col' frontend/src/components/HomeQuickActionsPanel.tsx && ! grep -q 'min-h-\\[55svh\\]' frontend/src/app/page.tsx",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. 4 user-reported visual fixes shipped: (1) OpsStatusBar moved to top of scrollable zone (line 142 < RedLineMonitor 149), (2) chart container h-full+min-h replaced with explicit h-72 (288px) per recharts/recharts#172 ResponsiveContainer measurement bug, (3) min-h-[55svh] wrapper removed (was causing 200-300px dead whitespace below auto-sized BentoCard) + skeleton fallback also reduced to h-72, (4) lg:items-stretch + h-full + h-full flex flex-col on outer wrappers gives equal column heights. 4 frontend files edited; no backend changes. Live data probe confirmed backend correctly returns 31 NAV points all at 9499.5 (source: pre_inception, paper-trading not started yet -- flat line is correct). See handoff/archive/phase-16.43/."
+        },
+        {
+          "id": "16.44",
+          "name": "KPI scorecards under gate bar with comparison sub-text + Last/Next gate-bar segments",
+          "status": "done",
+          "harness_required": true,
+          "verification": "test -f frontend/src/lib/kpiMetrics.ts && (cd frontend && npx tsc --noEmit) && grep -q 'nextRunAt={ptStatus' frontend/src/app/page.tsx && grep -q 'kpiMetrics' frontend/src/app/page.tsx && grep -qE 'LastSegment|NextSegment' frontend/src/components/OpsStatusBar.tsx && grep -q 'subText' frontend/src/app/page.tsx",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"—\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
+        },
+        {
+          "id": "16.45",
+          "name": "Latest Transactions box between Recent Reports and Quick Actions",
+          "status": "done",
+          "harness_required": true,
+          "verification": "test -f frontend/src/components/LatestTransactionsBox.tsx && grep -q 'LatestTransactionsBox' frontend/src/app/page.tsx && grep -q 'lg:grid-cols-4' frontend/src/app/page.tsx && grep -q 'getPaperTrades' frontend/src/app/page.tsx && (cd frontend && npx tsc --noEmit)",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. New 3rd column on home cockpit. LatestTransactionsBox.tsx (150 LOC, mirrors RecentReportsTable pattern) + page.tsx grid lg:grid-cols-3 -> lg:grid-cols-4 with col-span 2/1/1. Wired to existing GET /api/paper-trading/trades?limit=5 endpoint (live probe returned 1 real trade: XOM BUY 2.924148 @ $170.99). Pure frontend composition; backend endpoint + getPaperTrades fetcher + PaperTrade type all already existed. Anti-hardcoding gate clean (0 sample tickers in source). User reported width follow-up immediately after PASS -- tracked in phase-16.46 width-rebalance. Backend was down between research + impl; restarted via TERM+KILL parent+child PIDs (now v6.5.86). See handoff/archive/phase-16.45/."
+        },
+        {
+          "id": "16.46",
+          "name": "Home grid width rebalance: Latest Transactions wider, Quick Actions narrower",
+          "status": "done",
+          "harness_required": true,
+          "verification": "(cd frontend && npx tsc --noEmit) && grep -q 'lg:grid-cols-5 lg:items-stretch' frontend/src/app/page.tsx && ! grep -q 'lg:grid-cols-4' frontend/src/app/page.tsx && [ \"$(grep -c 'lg:col-span-2 h-full' frontend/src/app/page.tsx)\" = '2' ] && [ \"$(grep -c 'lg:col-span-1 h-full' frontend/src/app/page.tsx)\" = '1' ]",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. Single-edit follow-up on 16.45. User reported LatestTransactionsBox at 25% width was too narrow (horizontal scroll, time column wrapping). Changed grid lg:grid-cols-4 (col-span 2/1/1 = 50%/25%/25%) to lg:grid-cols-5 (col-span 2/2/1 = 40%/40%/20%). Reports + Transactions now share equal width; Actions narrower (sufficient for short input + 3-row action list). Internal-only research brief honestly justified (Tailwind grid primitives unchanged since v3 2021). LatestTransactionsBox.tsx itself untouched -- existing flex-1 overflow-x-auto wrapper just won't trigger overflow at new width. Closes task list item #68. See handoff/archive/phase-16.46/."
+        },
+        {
+          "id": "16.47",
+          "name": "Quick Actions overflow fix: equal-thirds grid + shrink-protect internal layout",
+          "status": "done",
+          "harness_required": true,
+          "verification": "(cd frontend && npx tsc --noEmit) && grep -q 'lg:grid-cols-6 lg:items-stretch' frontend/src/app/page.tsx && ! grep -q 'lg:grid-cols-5' frontend/src/app/page.tsx && [ \"$(grep -c 'lg:col-span-2 h-full' frontend/src/app/page.tsx)\" = '3' ] && grep -q 'shrink-0' frontend/src/components/HomeQuickActionsPanel.tsx && grep -q 'min-w-0' frontend/src/components/HomeQuickActionsPanel.tsx",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening — Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
+        },
+        {
+          "id": "16.48",
+          "name": "UX audit pass A: low-risk pages + 5 components against frontend rules",
+          "status": "done",
+          "harness_required": true,
+          "verification": "(cd frontend && npx tsc --noEmit) && ! grep -q 'min-h-screen' frontend/src/app/login/page.tsx && grep -q 'flex flex-1 flex-col overflow-hidden' frontend/src/app/signals/page.tsx && grep -q 'flex flex-1 flex-col overflow-hidden' frontend/src/app/performance/page.tsx",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. Audited 5 pages (login, sovereign, signals, performance, home) + 5 components (Sidebar, OpsStatusBar, RedLineMonitor, StrategyDetail, AlphaLeaderboard) against .claude/rules/frontend.md + frontend-layout.md. Settings page (1243 LOC) was canonical reference, not modified. Found + fixed 6 violations across 4 files: (HIGH) login/page.tsx:35 min-h-screen -> h-screen+overflow-hidden; (MED) signals + performance pages adopted canonical two-zone shell (header pinned via flex-shrink-0, content scrolls via flex-1 overflow-y-auto); (LOW) performance + AlphaLeaderboard +scrollbar-thin on overflow-x-auto containers; (LOW) performance cost-history added loading spinner + empty state. tsc clean; lint phosphor count = 0; 34 pre-existing react-hooks warnings unchanged. Closes task list item #70. See handoff/archive/phase-16.48/."
+        },
+        {
+          "id": "16.49",
+          "name": "UX audit pass B: high-risk pages backtest/reports/agents/paper-trading",
+          "status": "done",
+          "harness_required": true,
+          "verification": "(cd frontend && npx tsc --noEmit) && grep -q 'flex flex-1 flex-col overflow-hidden' frontend/src/app/reports/page.tsx && grep -q 'PageSkeleton' frontend/src/app/reports/page.tsx && [ \"$(grep -c 'overflow-x-auto scrollbar-thin' frontend/src/app/backtest/page.tsx)\" -ge '3' ] && [ \"$(grep -c 'overflow-x-auto scrollbar-thin' frontend/src/app/paper-trading/page.tsx)\" -ge '2' ] && [ \"$(grep -c 'overflow-x-auto scrollbar-thin' frontend/src/app/reports/page.tsx)\" -ge '1' ]",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A cycle-1 CONDITIONAL (research brief missing JSON envelope -- protocol blocker, not code); Main appended envelope per CLAUDE.md cycle-2 flow; FRESH Q/A cycle-2 PASS. 11 violations fixed across 3 files (agents + paper-trading/learnings COMPLIANT, untouched): (CRITICAL) reports/page.tsx single-zone shell -> canonical two-zone with header+tab-bar pinned; (LOW) reports loading -> PageSkeleton; (LOW) reports +scrollbar-thin on table; (MED) backtest error banners cleanly relocated from fixed-header to scrollable zone (persistent errors were consuming viewport); (LOW) backtest +4 scrollbar-thin (3 overflow-x + 1 overflow-y); (LOW) paper-trading +2 scrollbar-thin (positions + trades). DEFERRED: backtest RunSelector relocation per researcher recommendation (layout-sensitive). tsc clean; phosphor lint = 0. Closes task list item #71. See handoff/archive/phase-16.49/."
+        },
+        {
+          "id": "16.50",
+          "name": "Dead-file sweep: 4 modules + 84 stale briefs deleted; defensive grep saved 2 false positives",
+          "status": "done",
+          "harness_required": true,
+          "verification": "! test -f backend/agents/planner_enhanced.py && ! test -f backend/agents/evidence_engine.py && ! test -f backend/agents/feature_generator.py && ! test -f backend/agents/openclaw_monitor.py && test -f backend/agents/openclaw_client.py && test -f backend/agents/meta_coordinator.py && python -c 'from backend.agents import multi_agent_orchestrator, orchestrator, planner_agent'",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. Defensive grep audit corrected prior explore-agent inventory: openclaw_client.py (2 live callers in mas_events.py:173 + multi_agent_orchestrator.py:253) and meta_coordinator.py (load-bearing in autonomous_loop.py:50/290/308/625 + skill_optimizer.py:825 despite misleading DEPRECATED header) BOTH PRESERVED. Final scope: 4 verified-dead modules deleted (planner_enhanced 336 LOC + evidence_engine 185 + feature_generator 195 + openclaw_monitor 216 = 932 LOC). 84 stale phase-X.Y-*.md briefs swept from handoff/current/ (each cross-referenced with handoff/archive/<phase>/). 10 phase-15.x briefs HELD (no archive dir; preserve as unique evidence pending future audit). 4 rolling files preserved. handoff/current count 189 -> 105. 64/64 regression tests PASS. git diff --stat: 933 deletions, 0 insertions; no stealth edits to live callers. Closes task list item #72. See handoff/archive/phase-16.50/."
+        },
+        {
+          "id": "16.51",
+          "name": "API dead-route audit -- doc-only deliverable",
+          "status": "done",
+          "harness_required": true,
+          "verification": "test -f docs/architecture/api-route-audit-2026-04-26.md && grep -q 'DEAD-CANDIDATE' docs/architecture/api-route-audit-2026-04-26.md && grep -q '/api/skills/optimize' docs/architecture/api-route-audit-2026-04-26.md && grep -q '/api/cost-budget/status' docs/architecture/api-route-audit-2026-04-26.md && grep -q 'Methodology' docs/architecture/api-route-audit-2026-04-26.md && grep -q '116 ' docs/architecture/api-route-audit-2026-04-26.md && [ \"$(wc -l < docs/architecture/api-route-audit-2026-04-26.md)\" -ge '100' ]",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. Doc-only audit (docs/architecture/api-route-audit-2026-04-26.md, 144 lines). 116 backend routes inventoried (researcher correction; prior estimate 114). Classification: HOT=78, HARNESS=6, DEAD-CANDIDATE=13, CONSERVATIVE-KEEP=18. 13 dead candidates: 5 in skills.py, 4 in signals.py, 2 in performance_api.py, 1 in cost_budget_api.py, 1 in backtest.py. Defensive corrections: /api/backtest/runs (HOT list endpoint), /api/paper-trading/cycles/history + live-prices (HOT in api.ts), /api/mas/events/ingest reclassified CONSERVATIVE-KEEP. Conservative-keep cluster (18 routes) deferred pending future use (jobs, observability, harness, mas-events, signals sub-routes, skills agents). NO route deletions this cycle. Doc serves as decision record + scaffolding for future authorized cleanup cycle. Future cleanup priority documented. Closes task list item #73. See handoff/archive/phase-16.51/."
+        },
+        {
+          "id": "16.52",
+          "name": "UX audit pass C -- settings two-zone refactor + backtest banner relocation",
+          "status": "done",
+          "harness_required": true,
+          "verification": "cd frontend && npx tsc --noEmit",
+          "contract": null,
+          "retry_count": 0,
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Researcher caught critical regression: settings page (the user-named 'canonical reference') was NOT actually canonical -- it used the OLD single-zone shell where the tab bar scrolled with content; the 8 pages fixed in 16.48/16.49 had moved to two-zone shell, settings was the outlier. Fixed: settings/page.tsx loading early-return + main return both refactored to two-zone shell (`flex flex-1 flex-col overflow-hidden` + `flex-shrink-0` header zone + `flex-1 overflow-y-auto scrollbar-thin` scrollable zone); active-tab color from `bg-slate-700 text-slate-100` to canonical `bg-sky-500/10 text-sky-400`. Also fixed: backtest/page.tsx ingestResult banner moved from fixed-header zone (was L687-704) into scrollable content zone above existing error banner. tsc --noEmit exit 0; lint 0 errors. 3 cosmetic items deferred per contract (reports tab bg color drift, settings max-w-fit, SETTINGS_TABS missing icon field). See handoff/archive/phase-16.52/."
         }
       ],
       "completed_at": null,
-      "notes": "19 of 21 sub-steps done, 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A; Gemini fallback covers until ANTHROPIC_API_KEY rotated). Autonomous follow-up backlog now CLEAR -- only user-action items remain (#21 key swap, #23/#25 depend on #21, #36 GITHUB_TOKEN, #54 BQ migration apply)."
+      "notes": "30 of 32 sub-steps done. 16.15 Q/A PASS (GO) received, awaiting Peder ack. 16.2 and 16.3 remain in-progress (non-blocker per Q/A). Continuation /batch (2026-04-26) added 16.52 (UX pass C: settings now actually canonical)."
     },
     {
       "id": "phase-17",
@@ -6120,7 +6234,7 @@
         {
           "id": "5.1",
           "name": "Broker Abstraction Layer",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python -c \"from backend.markets.alpaca_broker import AlpacaBroker; from backend.markets.broker_base import BrokerClient; assert issubclass(AlpacaBroker, BrokerClient); print('ok')\" && python scripts/harness/run_harness.py --dry-run --cycles 1",
@@ -6134,7 +6248,8 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "depends_on": []
+          "depends_on": [],
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). New package backend/markets/ (3 files, ~395 LOC): broker_base.py with BrokerClient(abc.ABC) + 6 abstract methods (submit_order, cancel_order, get_account, get_positions, get_orders, get_quote) + 4 frozen dataclasses (AccountInfo, PositionInfo, OrderInfo, QuoteInfo). FillResult re-exported from execution_router (no duplicate). alpaca_broker.py with AlpacaBroker concrete impl: submit_order delegates to execution_router._alpaca_real_fill (preserves max-notional clamp + live-key guard); other 5 methods call alpaca-py TradingClient(paper=True) lazily; ALL methods fail-open in creds-absent envs (zero-value dataclasses, empty lists, log warning, never raise); __init__ does NO I/O. __init__.py with _REGISTRY = {(\"US\", \"equity\"): AlpacaBroker} + get_broker(market, asset_class) factory (case-normalize + ValueError on miss). tests/markets/test_broker_base.py (~210 LOC, 15 tests, 12 from research plan + 3 defensive) all PASS. ExecutionRouter / PaperTrader UNCHANGED -- additive only. Harness dry-run 'HARNESS COMPLETE -- 1 cycles finished' (no regression). Closes task list item #79. See handoff/archive/phase-5.1/."
         },
         {
           "id": "5.2",
@@ -6182,7 +6297,7 @@
         {
           "id": "5.4",
           "name": "Multi-Asset Risk Engine Extension (equity + options + FX + futures)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python -c \"from backend.markets.risk_engine import RiskEngine; r=RiskEngine(); eq=r.compute_position_size('AAPL','equity',100000,0.2); opt=r.compute_position_size('AAPL240119C00150000','option',100000,0.3,delta=0.5); fx=r.compute_position_size('EUR_USD','fx',100000,0.08); assert all(x>0 for x in [eq,opt,fx]); print('ok')\"",
@@ -6199,12 +6314,13 @@
           "max_retries": 3,
           "depends_on": [
             "5.1"
-          ]
+          ],
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). New backend/markets/risk_engine.py (~135 LOC) -- stateless RiskEngine class. compute_position_size dispatches: equity=base_notional, option=base*abs(delta) (delta defaults to 1.0; sign-invariant), fx=max(1, round(base/1000))*1000 (OANDA universal micro-lot floor), future=base placeholder (5.8 contract-multiplier table TBD). Vol-targeting formula: equity * target_vol / max(asset_vol, 1e-6) clamped at max_leverage * equity. Defaults: target_vol=0.15 (matches BacktestTrader+BacktestEngine), max_leverage=3.0. Crypto asset_class explicitly raises ValueError per owner directive 2026-04-19. tests/markets/test_risk_engine.py (~165 LOC, 17 tests, 8 from research plan + 9 defensive). Immutable verification 'ok' + 17/17 pytest. NO modifications to BacktestTrader / portfolio_manager / kelly_allocator / paper_trader (additive only). No new deps. Closes task list item #80. See handoff/archive/phase-5.4/."
         },
         {
           "id": "5.6",
           "name": "Options Integration (Alpaca Options Level 3)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python -c \"from backend.markets.options.greeks import black_scholes_greeks; g=black_scholes_greeks(S=450,K=450,T=30/365,r=0.05,sigma=0.20,option_type='call'); assert 0.4<g['delta']<0.6; print('ok')\" && python -m backend.markets.options.options_ingestion --underlyings SPY QQQ --dry-run",
@@ -6220,7 +6336,8 @@
           "max_retries": 3,
           "depends_on": [
             "5.4"
-          ]
+          ],
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS (first cycle, no fix needed). Both immutable verification halves PASS: greeks ATM call delta = 0.5400 (in [0.45, 0.55]); options_ingestion --dry-run exits 0 with 6 INFO logs. New backend/markets/options/{__init__,greeks,options_ingestion}.py + scripts/migrations/create_options_snapshots_table.py + tests/markets/test_options_greeks.py (~565 LOC total). Greeks: scipy.stats.norm-based Black-Scholes (q=0); per-day theta + per-1%-vol vega; sign conventions (call delta>0, put delta<0, gamma/vega>0 both, theta<0 both); edge cases (T<=0 intrinsic, sigma floor, S/K<=0 raise). OCC parser handles padded + compact forms. Ingestion CLI: argparse --underlyings/--dry-run/--verbose; dry-run short-circuits no-I/O; live path lazy-imports alpaca-py options module + fail-opens. Migration: idempotent CREATE TABLE IF NOT EXISTS pyfinagent_hdw.options_snapshots (15 cols, partitioned by DATE(snapshot_ts), clustered by underlying+option_type), default dry-run. 13/13 pytest + 45/45 markets regression sweep. NO modifications to existing files (RiskEngine 5.4 already accepts delta via **kwargs). 2 success_criteria DEFERRED to user-action: BQ --apply for table creation (migration ready); live Alpaca Options Level 3 paper order (needs Level 3 keys). Closes task list item #81. See handoff/archive/phase-5.6/."
         },
         {
           "id": "5.7",

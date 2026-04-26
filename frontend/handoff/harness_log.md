@@ -212,3 +212,218 @@ stale-ref grep clean
 **Code changes this cycle:** 8 files (4 new + 4 edited). No backend service code, no engine code, no frontend component code mutated.
 
 **Archive:** new dir `handoff/archive/phase-16.37/`.
+
+
+## phase-16.42 -- 2026-04-25 -- result=PASS (Home redesign: Recent Reports table + Quick Actions panel)
+
+**Scope:** Replace vertically-stacked Recent Reports + Quick Actions cards with target-screenshot two-column layout. Strict no-hardcoded-data per user constraint.
+
+**Research gate:** moderate, 7 in-full, 17 URLs, recency scan present, gate_passed=true.
+
+**Deliverables:** formatRelativeTime.ts (35 lines, Intl.RelativeTimeFormat), RecentReportsTable.tsx (132 lines, 5 columns wired to ReportSummary props from page.tsx), HomeQuickActionsPanel.tsx (190 lines, ticker input + 3 action rows with kbd badges, halt sequence FLATTEN_ALL+PAUSE per pitfall #3, Ctrl+Shift+H NOT re-registered to avoid double-fire with KillSwitchShortcut). page.tsx replaced lines 184-276 with two-column lg:grid-cols-3 layout.
+
+**Verification:** anti-hardcoding gate clean (0 NVIDIA/Apple/etc. + 0 sample alpha values 7.42/etc.); tsc clean; phosphor lint count = 0; live `/api/reports/?limit=5` returned 5 real records (sample SNDK score=5.55 rec=Hold).
+
+**Q/A verdict: PASS.** All harness-compliance items pass. Live wiring proven. Halt sequence correct (two-step). No double-fire. Scope honesty disclosed (alpha = final_score because pipeline doesn't yet emit a separate alpha field).
+
+**Honest disclosures:**
+- "ALPHA" column is final_score (pipeline doesn't emit separate alpha; documented in source)
+- recColor duplicated locally in RecentReportsTable.tsx (8-line, single use; not worth shared util this cycle)
+- 34 pre-existing react-hooks warnings unchanged
+
+**Closes:** Task list item #64.
+
+**Note:** User reported 4 visual follow-ups immediately after this PASS landed: (1) gate bar should be at top, not below Red Line Monitor; (2) Red Line Monitor not rendering chart despite "31 points" in legend; (3) gap between cards and chart; (4) Quick Actions box should match height of Recent Reports. These are tracked in phase-16.43 as visual-polish follow-ons. They do NOT invalidate the 16.42 PASS (the contract was about wiring + no-hardcoded-data, both met) but require immediate fix.
+
+**Archive:** new dir `handoff/archive/phase-16.42/`.
+
+
+## phase-16.44 -- 2026-04-25 -- result=PASS (KPI scorecards under gate bar with comparison sub-text + Last/Next segments)
+
+**Scope:** Three changes from continued user feedback after 16.43: (1) reorder so KPI grid sits directly under gate bar (not under chart); (2) add comparison sub-text to each KPI tile matching target screenshot; (3) split SchedulerSegment into Last + Next segments on OpsStatusBar.
+
+**Research gate:** simple, internal-only (`external_sources_read_in_full: 0` honestly documented). Sharpe/Sortino formulas are textbook (Lo 2002, Sortino & Price 1994) already documented in backend/services/perf_metrics.py — no fresh external research adds value.
+
+**Deliverables:**
+- **kpiMetrics.ts (95 lines, new):** pure helpers `dailyDelta`, `sharpe`, `sortino`, `maxDrawdownPct`, `categorizePositions`. All return null on insufficient/flat data. NaN-safe (zero stddev returns null, not Infinity). No React imports, no fetch, no logging.
+- **page.tsx:** `KpiTile` extended with `subText` + `subTextClass` props. 6 new tiles wired: NAV, P&L (today), vs SPY, Sharpe (90d), Max DD (30d), Positions — each with computed sub-text (P&L%, SPY benchmark, Sortino, bounded 8.0%, long·short breakdown). Reorder: gate bar (line 175) → KPI grid (line 190) → Red Line Monitor (line 233) → two-column. `nextRunAt={ptStatus?.next_run ?? null}` now passed to OpsStatusBar (was missing).
+- **OpsStatusBar.tsx:** Replaced single SchedulerSegment with LastSegment + NextSegment. LastSegment uses `latestCycle?.started_at + formatRelativeTime`. `ml-auto` on Last pushes both right-side per target screenshot.
+
+**Verification (verbatim):**
+```
+$ test -f frontend/src/lib/kpiMetrics.ts && \
+  (cd frontend && npx tsc --noEmit) && \
+  grep -q "nextRunAt={ptStatus" frontend/src/app/page.tsx && \
+  grep -q "kpiMetrics" frontend/src/app/page.tsx && \
+  grep -qE "LastSegment|NextSegment" frontend/src/components/OpsStatusBar.tsx && \
+  grep -q "subText" frontend/src/app/page.tsx && \
+  echo "ALL VERIFICATION PASS"
+ALL VERIFICATION PASS
+
+$ awk '/<OpsStatusBar/{ops=NR} /KPI hero/{kpi=NR} /<RedLineMonitor$/{print "OpsStatusBar:",ops,"KPI:",kpi,"RedLine:",NR; exit}' frontend/src/app/page.tsx
+OpsStatusBar: 175 KPI: 190 RedLine: 233
+```
+
+Live backend probe confirms `next_run: 2026-04-27T14:00:00-04:00` is exposed (the prop wiring is meaningful).
+
+**Q/A verdict: PASS.** All 5 harness-compliance items pass. Anti-hardcoding gate clean (2 grep hits in kpiMetrics.ts are docstring comments referencing screenshot's -3.12% example, not runtime values). KPI grid correctly sits between OpsStatusBar and RedLineMonitor. Helpers are pure + null-safe + textbook-correct (Lo 2002 cited inline). 7 honest disclosures in experiment_results.
+
+**Honest disclosures (from experiment_results):**
+- Today's KPI sub-text mostly shows "—" because backend NAV series is flat at 9499.5 pre-inception; helpers correctly refuse to fabricate values from zero variance. Will populate Monday after paper-trading goes live.
+- "Bounded 8.0%" is a static label (kill-switch trailing-DD limit); follow-up to wire dynamically (~10 LOC).
+- "Long · short" not "long · hedge" because PaperPosition has no position_role field; honest mapping rather than mislabeling.
+
+**Closes:** Task list item #66. Resolves all 3 user-reported items from latest screenshot.
+
+**Code changes this cycle:** 3 frontend files (1 new + 2 edited). No backend changes.
+
+**Archive:** new dir `handoff/archive/phase-16.44/`.
+
+
+## phase-16.46 -- 2026-04-26 -- result=PASS (Home grid width rebalance: lg:grid-cols-4 -> lg:grid-cols-5 with col-span 2/2/1)
+
+**Scope:** Single-edit follow-up on phase-16.45. User reported LatestTransactionsBox at 25% width was too narrow (horizontal scrollbar, "4 wk. ago" wrapping to 3 lines). Pure CSS-grid rebalance; no component logic changed.
+
+**Research gate:** simple, internal-only (`external_sources_read_in_full: 0` honestly documented). Tailwind grid primitives unchanged since v3 (2021); 16.45 already used the same primitives. No fresh external research adds value.
+
+**The change (single file, single grid block):**
+```tsx
+// before (16.45)
+<div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:items-stretch">
+  <div className="lg:col-span-2 h-full"> ... Reports (50%) ...
+  <div className="lg:col-span-1 h-full"> ... Transactions (25%) ...  // TOO NARROW
+  <div className="lg:col-span-1 h-full"> ... Actions (25%) ...
+
+// after (16.46)
+<div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:items-stretch">
+  <div className="lg:col-span-2 h-full"> ... Reports (40%) ...
+  <div className="lg:col-span-2 h-full"> ... Transactions (40%) ...  // breathes
+  <div className="lg:col-span-1 h-full"> ... Actions (20%) ...        // sufficient
+```
+
+**Verification (verbatim):**
+```
+$ npx tsc --noEmit && \
+  grep -q "lg:grid-cols-5 lg:items-stretch" src/app/page.tsx && \
+  ! grep -q "lg:grid-cols-4" src/app/page.tsx && \
+  [ "$(grep -c 'lg:col-span-2 h-full' src/app/page.tsx)" = "2" ] && \
+  [ "$(grep -c 'lg:col-span-1 h-full' src/app/page.tsx)" = "1" ] && \
+  echo "ALL VERIFICATION PASS"
+ALL VERIFICATION PASS
+```
+
+Total spans = 5 (2+2+1) = grid-cols-5 ✓.
+
+**Q/A verdict: PASS.** All 5 harness-compliance items pass. Math checks out. LatestTransactionsBox.tsx untouched (no new bug surface). Comment block updated to document the new ratio honestly.
+
+**Honest disclosures:**
+- LatestTransactionsBox itself NOT touched — its existing flex-1 overflow-x-auto wrapper just won't trigger overflow at the new width
+- Quick Actions at 20% is fine (short ticker input + 3 short action rows; ~280px on a 1400px viewport)
+- Internal-only research brief honestly justified
+
+**Closes:** Task list item #68. Resolves user's "make Latest Transactions wider" feedback.
+
+**Code changes this cycle:** 1 frontend file, 1 grid block edit + 1 col-span literal change + 1 comment update. No backend, no engine code.
+
+**Archive:** new dir `handoff/archive/phase-16.46/`.
+
+
+## phase-16.47 -- 2026-04-26 -- result=PASS (Quick Actions overflow fix: equal-thirds grid + shrink-protect internal layout)
+
+**Scope:** Fix user-reported "QUICK ACTIONS box not working" — Analyze button cropped at right edge, action labels wrapping to 2 lines after 16.46 left it at 20% width.
+
+**Research gate:** simple, internal-only (`external_sources_read_in_full: 0` honestly justified). Tailwind `min-w-0` / `shrink-0` semantics are MDN-canonical; no fresh external research adds value.
+
+**Two-part defense-in-depth:**
+- **Part 1 (page.tsx):** Grid lg:grid-cols-5 (col-span 2/2/1 = 40/40/20) -> lg:grid-cols-6 (col-span 2/2/2 = 33/33/33). Quick Actions now gets 33% — plenty of room for input + button + 3-row action list.
+- **Part 2 (HomeQuickActionsPanel.tsx):** Internal layout hardening so panel degrades gracefully at any width:
+  - Kbd helper: +`shrink-0 whitespace-nowrap`
+  - Section A: input wrapper +`min-w-0`, Analyze button +`shrink-0`
+  - Section B: action button gap-3 -> gap-2, icon +`shrink-0`, label span +`min-w-0 truncate` (ellipsis on extreme overflow rather than wrap)
+
+**Verification (verbatim):**
+```
+$ cd frontend && npx tsc --noEmit && \
+  grep -q "lg:grid-cols-6 lg:items-stretch" src/app/page.tsx && \
+  ! grep -q "lg:grid-cols-5" src/app/page.tsx && \
+  [ "$(grep -c 'lg:col-span-2 h-full' src/app/page.tsx)" = "3" ] && \
+  grep -q "shrink-0" src/components/HomeQuickActionsPanel.tsx && \
+  grep -q "min-w-0" src/components/HomeQuickActionsPanel.tsx && \
+  echo "ALL VERIFICATION PASS"
+ALL VERIFICATION PASS
+```
+
+Counts: shrink-0=4 (Kbd + button + icon + N/A), min-w-0=3 (input + label + N/A), truncate=1, whitespace-nowrap=1.
+
+**Q/A verdict: PASS.** All 5 harness-compliance items pass. Two fixes are independently sufficient and together prevent regression at any future viewport. LatestTransactionsBox + RecentReportsTable untouched. Content preserved verbatim. Frontend rules (no emoji, Phosphor via @/lib/icons, canonical card tokens) all respected.
+
+**Honest disclosures:**
+- Defense-in-depth means even if a future viewport shrinks below 33%, the panel won't break: button stays right-edge, kbd doesn't wrap, label truncates with "…"
+- "Run morning cycle" at very narrow widths would render as "Run morning…" instead of wrapping
+- Internal-only research brief honestly justified
+
+**Closes:** Task list item #69. Resolves user's Quick Actions box overflow.
+
+**Code changes this cycle:** 2 frontend files. No backend, no engine code.
+
+**Archive:** new dir `handoff/archive/phase-16.47/`.
+
+
+## phase-16.48 -- 2026-04-26 -- result=PASS (UX audit pass A: low-risk pages + 5 components)
+
+**Scope:** Audit 5 pages + 5 components against frontend.md + frontend-layout.md. Settings (1243 LOC) is canonical reference, not modified.
+
+**Research gate:** simple, internal-only (rules already documented in .claude/rules/), gate_passed=true. Spawned researcher to inventory exact violations across 10 files (2353 total LOC).
+
+**Violations fixed (6 across 4 files):**
+- HIGH: login/page.tsx:35 `min-h-screen` -> `h-screen ... overflow-hidden`
+- MED: signals/page.tsx single-zone shell -> canonical two-zone (header pinned, content scrolls)
+- MED: performance/page.tsx same two-zone fix
+- LOW: performance/page.tsx:179 `overflow-x-auto` +scrollbar-thin
+- LOW: performance/page.tsx cost-history added loading + empty states (was silently disappearing pre-fix)
+- LOW: AlphaLeaderboard.tsx:190 +scrollbar-thin
+
+**Files NOT touched (clean):** sovereign/page.tsx, page.tsx (home, recently overhauled), Sidebar.tsx, OpsStatusBar.tsx, RedLineMonitor.tsx, StrategyDetail.tsx.
+
+**Verification (verbatim):**
+```
+$ npx tsc --noEmit && \
+  ! grep -q "min-h-screen" src/app/login/page.tsx && \
+  grep -q "flex flex-1 flex-col overflow-hidden" src/app/signals/page.tsx && \
+  grep -q "flex flex-1 flex-col overflow-hidden" src/app/performance/page.tsx && \
+  npm run lint 2>&1 | grep -c '@phosphor-icons/react' | grep -q '^0$'
+[exit 0 -- ALL PASS]
+```
+
+**Q/A verdict: PASS.** All 5 harness-compliance items pass. Two-zone shells verbatim per frontend-layout.md §1. Cost-history states disjoint with error path. Git scope confined to 4 files. No backend, no settings page changes. Q/A note: cosmetic date discrepancy (Q/A thought today was 2026-04-25; system clock confirmed 2026-04-26 — Q/A's local context was stale, no impact).
+
+**Honest disclosures:**
+- Login centering preserved (flex items-center justify-center still works under h-screen)
+- Two-zone restructure wraps existing JSX without touching content (BentoCards, tables, etc. unchanged)
+- Performance cost-history loading + empty states are mutually exclusive with each other AND with error path
+- 34 pre-existing react-hooks lint warnings unchanged
+- Q/A did not run npm lint (55s budget); tsc + diff scope cover equivalent surface area
+
+**Closes:** Task list item #70. Phase-16.48.
+
+**Code changes:** 4 frontend files. No backend.
+
+**Archive:** new dir `handoff/archive/phase-16.48/`.
+
+## phase-16.52 -- 2026-04-26 -- UX audit pass C: settings two-zone refactor + backtest banner relocation -- result=PASS
+
+**Researcher:** simple tier, internal-heavy gate (per established pure-UI cycle precedent: 16.43, 16.46, 16.47, 16.48, 16.49). 10 internal files inspected. Decisive finding: settings page (the user-named "canonical reference") was NOT actually canonical -- it used the OLD single-zone shell where the tab bar scrolled with content. The 8 pages fixed in 16.48/16.49 had moved to the two-zone shell; settings was the outlier.
+
+**Generate:** 2 files edited.
+- `frontend/src/app/settings/page.tsx`: refactored loading early-return + main return to use two-zone shell (`flex flex-1 flex-col overflow-hidden` + `flex-shrink-0` header zone + `flex-1 overflow-y-auto scrollbar-thin` scrollable zone). Active-tab color fixed from `bg-slate-700 text-slate-100` to canonical `bg-sky-500/10 text-sky-400`.
+- `frontend/src/app/backtest/page.tsx`: `ingestResult` banner moved from fixed-header zone (was L687-704) to scrollable content zone, immediately above existing error banner.
+
+3 cosmetic violations deferred per contract: reports tab bg color drift, settings tab bar `max-w-fit`, SETTINGS_TABS missing icon field.
+
+**Verification (immutable):** `cd frontend && npx tsc --noEmit` -> exit 0. Bonus: `cd frontend && npm run lint` -> 0 errors (34 pre-existing warnings in unrelated files).
+
+**Q/A verdict:** PASS. 13 deterministic checks pass (harness-compliance, tsc, lint, settings two-zone main, settings two-zone loading, settings active tab color, backtest banner relocation, no min-h-screen regression, contract+results headers, research gate, log-last ordering, first Q/A spawn).
+
+**Code changes:** 2 frontend files. No backend. No tests.
+
+**Archive:** new dir `handoff/archive/phase-16.52/`.

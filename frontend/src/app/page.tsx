@@ -7,9 +7,18 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { OpsStatusBar } from "@/components/OpsStatusBar";
 import { KillSwitchShortcut } from "@/components/KillSwitchShortcut";
-import { NavSignals, NavBacktest } from "@/lib/icons";
-import { listReports, getPaperTradingStatus, getPaperPortfolio, getSovereignRedLine } from "@/lib/api";
-import type { ReportSummary, PaperTradingStatus, PaperPosition } from "@/lib/types";
+import { RecentReportsTable } from "@/components/RecentReportsTable";
+import { HomeQuickActionsPanel } from "@/components/HomeQuickActionsPanel";
+import { LatestTransactionsBox } from "@/components/LatestTransactionsBox";
+import { listReports, getPaperTradingStatus, getPaperPortfolio, getPaperTrades, getSovereignRedLine } from "@/lib/api";
+import {
+  dailyDelta,
+  sharpe as kpiSharpe,
+  sortino as kpiSortino,
+  maxDrawdownPct,
+  categorizePositions,
+} from "@/lib/kpiMetrics";
+import type { ReportSummary, PaperTradingStatus, PaperPosition, PaperTrade } from "@/lib/types";
 import type {
   SovereignRedLinePoint,
   SovereignRedLineEvent,
@@ -17,26 +26,18 @@ import type {
 import type { RedLineWindow } from "@/components/RedLineMonitor";
 
 // phase-10.5.7: lazy-load the heavy Recharts bundle client-only.
-// ssr:false keeps the hero out of SSR so homepage TTFB stays fast;
-// skeleton fallback holds min-h-[55svh] to prevent CLS during load.
+// ssr:false keeps the hero out of SSR so homepage TTFB stays fast.
+// phase-16.43: skeleton height matches the chart's actual h-72 (288px)
+// instead of the old viewport-percent floor that caused dead whitespace.
 const RedLineMonitor = dynamic(
   () => import("@/components/RedLineMonitor").then((m) => m.RedLineMonitor),
   {
     ssr: false,
     loading: () => (
-      <div className="min-h-[55svh] animate-pulse rounded-xl border border-navy-700 bg-navy-800/40" />
+      <div className="h-72 animate-pulse rounded-xl border border-navy-700 bg-navy-800/40" />
     ),
   },
 );
-
-function recColor(rec: string) {
-  const r = rec?.toUpperCase() ?? "";
-  if (r.includes("STRONG_BUY") || r.includes("STRONG BUY")) return "bg-emerald-500/20 text-emerald-400";
-  if (r.includes("BUY")) return "bg-emerald-500/15 text-emerald-400";
-  if (r.includes("STRONG_SELL") || r.includes("STRONG SELL")) return "bg-rose-500/20 text-rose-400";
-  if (r.includes("SELL")) return "bg-rose-500/15 text-rose-400";
-  return "bg-amber-500/15 text-amber-400";
-}
 
 function fmtPct(v: number | null | undefined) {
   if (v == null) return "—";
@@ -49,11 +50,26 @@ function fmtUsd(v: number | null | undefined) {
   return `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function KpiTile({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+function KpiTile({
+  label,
+  value,
+  subText,
+  valueClass,
+  subTextClass,
+}: {
+  label: string;
+  value: string;
+  subText?: string | null;
+  valueClass?: string;
+  subTextClass?: string;
+}) {
   return (
     <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
-      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">{label}</p>
       <p className={`mt-1 text-2xl font-bold ${valueClass ?? "text-slate-100"}`}>{value}</p>
+      {subText && (
+        <p className={`mt-0.5 text-xs ${subTextClass ?? "text-slate-500"}`}>{subText}</p>
+      )}
     </div>
   );
 }
@@ -64,6 +80,8 @@ export default function HomePage() {
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [ptStatus, setPtStatus] = useState<PaperTradingStatus | null>(null);
   const [positions, setPositions] = useState<PaperPosition[]>([]);
+  const [trades, setTrades] = useState<PaperTrade[]>([]);
+  const [tradesError, setTradesError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [redLineWindow, setRedLineWindow] = useState<RedLineWindow>("30d");
@@ -73,16 +91,27 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [reps, status, portfolio] = await Promise.allSettled([
+      const [reps, status, portfolio, tradesResp] = await Promise.allSettled([
         listReports(5),
         getPaperTradingStatus(),
         getPaperPortfolio(),
+        getPaperTrades(5),
       ]);
       if (cancelled) return;
       if (reps.status === "fulfilled") setReports(reps.value);
       if (status.status === "fulfilled") setPtStatus(status.value);
       if (portfolio.status === "fulfilled") setPositions(portfolio.value.positions ?? []);
-      const allFailed = reps.status === "rejected" && status.status === "rejected" && portfolio.status === "rejected";
+      if (tradesResp.status === "fulfilled") {
+        setTrades(tradesResp.value.trades ?? []);
+      } else {
+        const reason = tradesResp.reason instanceof Error ? tradesResp.reason.message : "Trades unavailable";
+        setTradesError(reason);
+      }
+      const allFailed =
+        reps.status === "rejected" &&
+        status.status === "rejected" &&
+        portfolio.status === "rejected" &&
+        tradesResp.status === "rejected";
       if (allFailed) {
         const reason = reps.reason instanceof Error ? reps.reason.message : "Cannot reach backend.";
         setLoadError(reason);
@@ -114,8 +143,18 @@ export default function HomePage() {
   const pnl = nav?.pnl_pct;
   const benchmark = nav?.benchmark_return_pct;
   const alpha = pnl != null && benchmark != null ? pnl - benchmark : null;
-  const cash = nav?.cash ?? null;
-  const startingCapital = nav?.starting_capital ?? null;
+
+  // phase-16.44: KPI sub-text computed from real data (no hardcoded values).
+  // All return null on insufficient/flat data; the tile then renders "—".
+  const navSeries = redLineSeries.map((p) => ({ date: p.date, nav: p.nav }));
+  const today = dailyDelta(navSeries);
+  const sharpe90 = kpiSharpe(navSeries);
+  const sortino90 = kpiSortino(navSeries);
+  const dd30 = maxDrawdownPct(navSeries);
+  const posBreakdown = categorizePositions(positions);
+  // 8.0% trailing-DD limit comes from kill-switch breach.trailing_dd_limit_pct
+  // when available; show the static label until we wire it through.
+  const trailingDdLimit = "8.0%";
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -142,20 +181,13 @@ export default function HomePage() {
           {/* Invisible keyboard-shortcut + aria-live region */}
           <KillSwitchShortcut />
 
-          {/* phase-10.5.7 Red Line hero: takes at-least 55% of the small
-              viewport so it dominates the fold on a standard laptop. */}
-          <div className="mb-6 min-h-[55svh]">
-            <RedLineMonitor
-              series={redLineSeries}
-              events={redLineEvents}
-              window={redLineWindow}
-              onWindowChange={setRedLineWindow}
-              compact
-            />
+          {/* phase-16.43 + 16.44: gate bar at TOP, scorecards immediately
+              under it. Operator status (gate / kill / cycle / last / next)
+              is the most critical signal, so it leads the scrollable zone;
+              KPI tiles follow with comparison sub-text. */}
+          <div className="mb-6">
+            <OpsStatusBar nextRunAt={ptStatus?.next_run ?? null} />
           </div>
-
-          {/* Ops status bar (dense, one row; §4.5 canonical pattern) */}
-          <OpsStatusBar />
 
           {/* Error banner (conditional) */}
           {loadError && (
@@ -169,109 +201,88 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* KPI hero (6 tiles) */}
-          <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <KpiTile label="NAV"       value={loaded ? fmtUsd(navValue) : "—"} />
-            <KpiTile label="Cash"      value={loaded ? fmtUsd(cash) : "—"} />
-            <KpiTile label="Start Cap" value={loaded ? fmtUsd(startingCapital) : "—"} />
-            <KpiTile label="P&L"       value={loaded ? fmtPct(pnl) : "—"}
-              valueClass={pnl != null && pnl >= 0 ? "text-emerald-400" : "text-rose-400"} />
-            <KpiTile label="vs SPY"    value={loaded ? fmtPct(alpha) : "—"}
-              valueClass={alpha != null && alpha >= 0 ? "text-emerald-400" : "text-rose-400"} />
-            <KpiTile label="Positions" value={loaded ? String(positions.length || 0) : "—"} />
+          {/* phase-16.44: KPI hero with comparison sub-text under each value.
+              All sub-text values computed from real backend data via
+              kpiMetrics.ts helpers; null returns -> "—" (no hardcoded). */}
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <KpiTile
+              label="NAV"
+              value={loaded ? fmtUsd(navValue) : "—"}
+            />
+            <KpiTile
+              label="P&L (today)"
+              value={today != null ? `${today.dollars >= 0 ? "+" : ""}${fmtUsd(today.dollars).replace("$", "$")}` : "—"}
+              subText={today != null ? `${today.pct >= 0 ? "+" : ""}${today.pct.toFixed(2)}%` : null}
+              valueClass={today != null && today.dollars >= 0 ? "text-emerald-400" : today != null ? "text-rose-400" : undefined}
+              subTextClass={today != null && today.pct >= 0 ? "text-emerald-400/70" : today != null ? "text-rose-400/70" : undefined}
+            />
+            <KpiTile
+              label="vs SPY"
+              value={loaded ? fmtPct(alpha) : "—"}
+              subText={benchmark != null ? `SPY ${fmtPct(benchmark)}` : null}
+              valueClass={alpha != null && alpha >= 0 ? "text-emerald-400" : alpha != null ? "text-rose-400" : undefined}
+            />
+            <KpiTile
+              label="Sharpe (90d)"
+              value={sharpe90 != null ? sharpe90.toFixed(2) : "—"}
+              subText={sortino90 != null ? `Sortino ${sortino90.toFixed(2)}` : null}
+            />
+            <KpiTile
+              label="Max DD (30d)"
+              value={dd30 != null ? `${dd30.toFixed(2)}%` : "—"}
+              subText={`bounded ${trailingDdLimit}`}
+              valueClass={dd30 != null ? "text-rose-400" : undefined}
+            />
+            <KpiTile
+              label="Positions"
+              value={loaded ? String(posBreakdown.total) : "—"}
+              subText={loaded && posBreakdown.total > 0 ? `${posBreakdown.long} long · ${posBreakdown.short} short` : null}
+            />
           </div>
 
-          {/* Recent Reports */}
-          <div className="mb-8">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Recent Reports</h3>
-              <Link href="/reports" className="text-xs text-sky-400 hover:text-sky-300">View all</Link>
-            </div>
-            <div className="overflow-hidden rounded-xl border border-navy-700">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-navy-700 bg-navy-800/80">
-                  <tr>
-                    <th className="px-4 py-3 font-medium text-slate-400">Ticker</th>
-                    <th className="px-4 py-3 font-medium text-slate-400">Date</th>
-                    <th className="px-4 py-3 font-medium text-slate-400">Score</th>
-                    <th className="px-4 py-3 font-medium text-slate-400">Recommendation</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-navy-700/50">
-                  {loaded && reports.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-slate-600">
-                        No reports yet. Run your first analysis.
-                      </td>
-                    </tr>
-                  )}
-                  {reports.map((r) => (
-                    <tr
-                      key={`${r.ticker}-${r.analysis_date}`}
-                      className="cursor-pointer bg-navy-800/40 transition-colors hover:bg-navy-700/40"
-                      onClick={() => router.push(`/reports?ticker=${encodeURIComponent(r.ticker)}`)}
-                    >
-                      <td className="px-4 py-3 font-mono font-medium text-slate-200">{r.ticker}</td>
-                      <td className="px-4 py-3 text-slate-400">{r.analysis_date?.slice(0, 10)}</td>
-                      <td className="px-4 py-3">
-                        <span className="font-semibold text-slate-200">{r.final_score?.toFixed(1) ?? "—"}</span>
-                        <span className="text-slate-500">/10</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-block rounded-md px-2.5 py-1 text-xs font-medium ${recColor(r.recommendation)}`}>
-                          {r.recommendation?.replace(/_/g, " ") ?? "—"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {/* phase-16.43: Red Line chart uses its own h-72 floor -- the
+              previous 55-percent-viewport wrapper was creating empty
+              whitespace below the auto-sized BentoCard. */}
+          <div className="mb-6">
+            <RedLineMonitor
+              series={redLineSeries}
+              events={redLineEvents}
+              window={redLineWindow}
+              onWindowChange={setRedLineWindow}
+              compact
+            />
           </div>
 
-          {/* Quick Actions */}
-          <div>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Quick Actions</h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
-                <div className="mb-3 flex items-center gap-2">
-                  <NavSignals size={20} weight="duotone" className="text-sky-400" />
-                  <span className="text-sm font-medium text-slate-200">Analyze Ticker</span>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="TICKER"
-                    value={ticker}
-                    onChange={(e) => setTicker(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && ticker.trim()) {
-                        router.push(`/signals?ticker=${encodeURIComponent(ticker.trim())}`);
-                      }
-                    }}
-                    className="w-28 rounded-lg border border-navy-700 bg-navy-900 px-3 py-1.5 font-mono text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
-                  />
-                  <button
-                    onClick={() => {
-                      if (ticker.trim()) router.push(`/signals?ticker=${encodeURIComponent(ticker.trim())}`);
-                    }}
-                    className="rounded-lg bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-500"
-                  >
-                    Go
-                  </button>
-                </div>
-              </div>
-
-              <Link
-                href="/backtest"
-                className="group rounded-xl border border-navy-700 bg-navy-800/60 p-5 transition-colors hover:border-sky-600/30"
-              >
-                <div className="mb-2 flex items-center gap-2">
-                  <NavBacktest size={20} weight="duotone" className="text-sky-400" />
-                  <span className="text-sm font-medium text-slate-200">Run Backtest</span>
-                </div>
-                <p className="text-xs text-slate-500">Walk-forward backtesting with Triple Barrier labels</p>
-              </Link>
+          {/* phase-16.42 + 16.43 + 16.45 + 16.46 + 16.47: 3-box row on the
+              home cockpit. lg:grid-cols-6 with col-span 2/2/2 = equal
+              thirds (33% each). 16.46's 20% Actions slot was too narrow
+              (Analyze button cropped, action labels wrapping); equal
+              thirds gives all three boxes a fair shake. Internal layout
+              hardening (min-w-0 + shrink-0) in HomeQuickActionsPanel
+              keeps the panel safe at narrower viewports. */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-6 lg:items-stretch">
+            <div className="lg:col-span-2 h-full">
+              <RecentReportsTable
+                reports={reports}
+                loaded={loaded}
+                loadError={loadError}
+              />
+            </div>
+            <div className="lg:col-span-2 h-full">
+              <LatestTransactionsBox
+                trades={trades}
+                loaded={loaded}
+                loadError={tradesError}
+              />
+            </div>
+            <div className="lg:col-span-2 h-full">
+              <HomeQuickActionsPanel
+                ticker={ticker}
+                onTickerChange={setTicker}
+                onAnalyze={() => {
+                  if (ticker.trim()) router.push(`/signals?ticker=${encodeURIComponent(ticker.trim())}`);
+                }}
+              />
             </div>
           </div>
         </div>

@@ -87,16 +87,19 @@ export default function SignalsPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-100">
-            Market Signals & Intelligence
-          </h2>
-          <p className="text-sm text-slate-500">
-            Real-time enrichment data from 12 independent signal sources
-          </p>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        {/* phase-16.48: canonical two-zone shell -- header pinned, content scrolls */}
+        <div className="flex-shrink-0 px-6 pt-6 pb-0 md:px-8 md:pt-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-slate-100">
+              Market Signals & Intelligence
+            </h2>
+            <p className="text-sm text-slate-500">
+              Real-time enrichment data from 12 independent signal sources
+            </p>
+          </div>
         </div>
-
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
         {/* Input */}
         <div className="mb-8 flex gap-3">
           <input
@@ -181,6 +184,7 @@ export default function SignalsPage() {
             </p>
           </div>
         )}
+        </div>
       </main>
     </div>
   );

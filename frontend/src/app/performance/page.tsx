@@ -40,25 +40,28 @@ export default function PerformancePage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-100">
-              Recommendation Performance
-            </h2>
-            <p className="text-sm text-slate-500">
-              Track whether past recommendations were correct (learning loop)
-            </p>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        {/* phase-16.48: canonical two-zone shell -- header pinned, content scrolls */}
+        <div className="flex-shrink-0 px-6 pt-6 pb-0 md:px-8 md:pt-8">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-100">
+                Recommendation Performance
+              </h2>
+              <p className="text-sm text-slate-500">
+                Track whether past recommendations were correct (learning loop)
+              </p>
+            </div>
+            <button
+              onClick={handleEvaluate}
+              disabled={evaluating}
+              className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+            >
+              {evaluating ? "Evaluating..." : "Evaluate Outcomes"}
+            </button>
           </div>
-          <button
-            onClick={handleEvaluate}
-            disabled={evaluating}
-            className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {evaluating ? "Evaluating..." : "Evaluate Outcomes"}
-          </button>
         </div>
-
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
         {loading && <p className="text-slate-400">Loading performance data...</p>}
         {error && <p className="text-rose-400">{error}</p>}
 
@@ -122,6 +125,23 @@ export default function PerformancePage() {
         )}
 
         {/* ── Cost History ──────────────────────────────────────── */}
+        {/* phase-16.48: loading + empty states added so the section
+            doesn't silently disappear before data arrives. */}
+        {loading && costHistory.length === 0 && (
+          <div className="mt-8 flex items-center gap-3 py-8 text-slate-400">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
+            Loading cost history...
+          </div>
+        )}
+        {!loading && costHistory.length === 0 && !error && (
+          <div className="mt-8 flex flex-col items-center justify-center py-16 text-center">
+            <TabCost size={36} weight="duotone" className="text-slate-600" />
+            <p className="mt-3 text-sm text-slate-400">No cost history yet</p>
+            <p className="mt-1 text-xs text-slate-600">
+              Costs appear here after the first analysis runs
+            </p>
+          </div>
+        )}
         {costHistory.length > 0 && (
           <div className="mt-8">
             <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-300">
@@ -176,7 +196,7 @@ export default function PerformancePage() {
               <h4 className="mb-3 text-sm font-semibold text-slate-400">
                 Per-Analysis Cost
               </h4>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto scrollbar-thin">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-700 text-slate-500">
@@ -227,6 +247,7 @@ export default function PerformancePage() {
             </BentoCard>
           </div>
         )}
+        </div>
       </main>
     </div>
   );

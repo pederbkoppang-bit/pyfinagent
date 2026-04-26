@@ -510,22 +510,32 @@ export default function SettingsPage() {
     return (
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto scrollbar-thin p-8">
-          {loadError ? (
-            <div className="rounded-lg border border-rose-900 bg-rose-950/50 p-4">
-              <p className="text-sm font-medium text-rose-200">{loadError}</p>
-              {loadError.includes("Cannot reach") && (
-                <p className="mt-1 text-xs text-rose-300/60">
-                  Make sure the backend is running: <code className="rounded bg-rose-900/40 px-1.5 py-0.5 font-mono">uvicorn backend.main:app --port 8000</code>
-                </p>
-              )}
-              <button onClick={loadSettings} className="mt-2 rounded bg-rose-900/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/60">
-                Retry
-              </button>
+        <main className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-shrink-0 px-6 pt-6 pb-0 md:px-8 md:pt-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-slate-100">Settings</h2>
+              <p className="text-sm text-slate-500">
+                Configure models, scoring weights, cost controls, and performance
+              </p>
             </div>
-          ) : (
-            <PageSkeleton />
-          )}
+          </div>
+          <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
+            {loadError ? (
+              <div className="rounded-lg border border-rose-900 bg-rose-950/50 p-4">
+                <p className="text-sm font-medium text-rose-200">{loadError}</p>
+                {loadError.includes("Cannot reach") && (
+                  <p className="mt-1 text-xs text-rose-300/60">
+                    Make sure the backend is running: <code className="rounded bg-rose-900/40 px-1.5 py-0.5 font-mono">uvicorn backend.main:app --port 8000</code>
+                  </p>
+                )}
+                <button onClick={loadSettings} className="mt-2 rounded bg-rose-900/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/60">
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <PageSkeleton />
+            )}
+          </div>
         </main>
       </div>
     );
@@ -534,53 +544,58 @@ export default function SettingsPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-100">Settings</h2>
-            <p className="text-sm text-slate-500">
-              Configure models, scoring weights, cost controls, and performance
-            </p>
-          </div>
-          {activeTab !== "performance" && (
-            <div className="flex items-center gap-3">
-              {saveMsg && (
-                <span
-                  className={`text-sm ${
-                    saveMsg.includes("saved") ? "text-emerald-400" : "text-rose-400"
-                  }`}
-                >
-                  {saveMsg}
-                </span>
-              )}
-              <button
-                onClick={handleSave}
-                disabled={!hasChanges || saving}
-                className="rounded-lg bg-sky-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {saving ? "Saving..." : "Save All Settings"}
-              </button>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        {/* ── Fixed header zone ── */}
+        <div className="flex-shrink-0 px-6 pt-6 pb-0 md:px-8 md:pt-8">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-100">Settings</h2>
+              <p className="text-sm text-slate-500">
+                Configure models, scoring weights, cost controls, and performance
+              </p>
             </div>
-          )}
+            {activeTab !== "performance" && (
+              <div className="flex items-center gap-3">
+                {saveMsg && (
+                  <span
+                    className={`text-sm ${
+                      saveMsg.includes("saved") ? "text-emerald-400" : "text-rose-400"
+                    }`}
+                  >
+                    {saveMsg}
+                  </span>
+                )}
+                <button
+                  onClick={handleSave}
+                  disabled={!hasChanges || saving}
+                  className="rounded-lg bg-sky-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {saving ? "Saving..." : "Save All Settings"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Sub-navigation tabs */}
+          <div className="mb-6 flex gap-1 rounded-lg bg-slate-800/50 p-1 max-w-fit">
+            {SETTINGS_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-sky-500/10 text-sky-400"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Sub-navigation tabs */}
-        <div className="mb-6 flex gap-1 rounded-lg bg-slate-800/50 p-1 max-w-fit">
-          {SETTINGS_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? "bg-slate-700 text-slate-100 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
+        {/* ── Scrollable content zone ── */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
         {/* ── Models & Analysis Tab ─────────────────────── */}
         {activeTab === "models" && (
         <div className="grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2">
@@ -1236,6 +1251,7 @@ export default function SettingsPage() {
           </BentoCard>
         </div>
         )}
+        </div>
       </main>
     </div>
   );
