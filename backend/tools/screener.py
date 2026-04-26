@@ -152,6 +152,7 @@ def rank_candidates(
     screen_data: list[dict],
     top_n: int = 10,
     strategy: str = "momentum",
+    regime=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -194,6 +195,12 @@ def rank_candidates(
             score = mom_3m * 0.5 - abs(sma_dist) * 0.2 + mom_1m * 0.3
         else:
             score = mom_3m
+
+        if regime is not None:
+            from backend.services.macro_regime import apply_regime_to_score
+            score = apply_regime_to_score(
+                score, stock.get("sector"), SECTOR_ETFS, regime,
+            )
 
         scored.append({**stock, "composite_score": round(score, 3)})
 

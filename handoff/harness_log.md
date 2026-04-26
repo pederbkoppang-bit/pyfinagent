@@ -13922,3 +13922,19 @@ Commit + push imminent.
 **Q/A verdict:** PASS (skipped per pure-doc cycle precedent following 19.0; doc fully cites brief, no code changes, no risk surface).
 
 **Archive:** handoff/archive/phase-23/.
+
+## phase-23.1.1 -- 2026-04-27 -- Daily macro regime filter (LLM-as-judge over FRED) -- result=PASS
+
+**Hypothesis:** A single daily Claude Haiku 4.5 call over a 7-FRED-series snapshot returns a stable risk_on/risk_off/mixed/unknown regime tag + conviction multiplier (range [0.5, 1.5]) that, when applied as a scalar to screener.rank_candidates composite scores, lets the screener tone down sizing in risk-off regimes without rewriting the momentum base.
+
+**Files:** backend/services/macro_regime.py (NEW ~210 lines), backend/tools/fred_data.py (+VIXCLS, +BAMLH0A0HYM2), backend/tools/screener.py (rank_candidates regime kwarg), backend/services/autonomous_loop.py (Step 1 regime fetch), backend/config/settings.py (+macro_regime_filter_enabled, +macro_regime_model), tests/services/test_macro_regime.py (NEW 12 tests), tests/services/__init__.py (NEW).
+
+**Verification (immutable):** `python -c "import asyncio; from backend.services.macro_regime import compute_macro_regime; r = asyncio.run(compute_macro_regime(use_cache=False)); assert r.regime in {...}; assert 0.5 <= r.conviction_multiplier <= 1.5; assert isinstance(r.series_used, list) and len(r.series_used) >= 3; assert len(r.rationale) <= 300; print('ok regime=' + r.regime + ' mult=' + str(r.conviction_multiplier))"` -> `ok regime=risk_on mult=1.15` exit=0. Real Claude Haiku 4.5 + real FRED (no mocks).
+
+**Anthropic structured-output gotchas surfaced:** (1) `additionalProperties: false` mandatory on every object -- solved with ConfigDict(extra="forbid"); (2) `minimum`/`maximum` on number types NOT supported -- stripped via `_strip_unsupported_schema_keys` recursive helper; (3) `maxLength` on strings NOT enforced -- clamped to 300 chars at parse time. ge/le retained on Pydantic fields for runtime + test enforcement.
+
+**Q/A verdict:** PASS (1st pass). 5/5 harness-compliance, 6/6 deterministic checks, 6/6 LLM judgment dimensions. Real LLM + real FRED reproduced; 12/12 tests pass; default-OFF discipline verified (`macro_regime_filter_enabled=False` keeps existing autonomous_loop behavior intact).
+
+**Cost:** <$0.01/day with Haiku 4.5 (single LLM call, 24h file cache at backend/services/_cache/macro_regime.json).
+
+**Archive:** handoff/archive/phase-23.1.1/.

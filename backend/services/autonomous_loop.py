@@ -110,8 +110,22 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         logger.info("Paper trading: Step 1 -- Screening universe")
         summary["steps"].append("screening")
 
+        regime = None
+        if getattr(settings, "macro_regime_filter_enabled", False):
+            try:
+                from backend.services.macro_regime import compute_macro_regime
+                regime = await compute_macro_regime()
+                logger.info(
+                    "Macro regime: %s conviction=%.2f mult=%.2f",
+                    regime.regime, regime.conviction, regime.conviction_multiplier,
+                )
+                summary["macro_regime"] = regime.regime
+                summary["macro_regime_multiplier"] = regime.conviction_multiplier
+            except Exception as e:
+                logger.warning("Macro regime fetch failed (non-fatal): %s", e)
+
         screen_data = screen_universe(period="6mo")
-        candidates = rank_candidates(screen_data, top_n=settings.paper_screen_top_n)
+        candidates = rank_candidates(screen_data, top_n=settings.paper_screen_top_n, regime=regime)
         summary["screened"] = len(screen_data)
         summary["candidates"] = len(candidates)
 

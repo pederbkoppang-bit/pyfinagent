@@ -148,6 +148,9 @@ class Settings(BaseSettings):
     paper_reeval_frequency_days: int = Field(3, description="Re-evaluate existing holdings every N days")
     paper_transaction_cost_pct: float = Field(0.1, description="Simulated transaction cost per trade (%)")
     paper_max_daily_cost_usd: float = Field(2.0, description="Maximum LLM cost per daily trading cycle (USD)")
+    # phase-23.1.1: macro regime filter (LLM-as-judge over FRED snapshot)
+    macro_regime_filter_enabled: bool = Field(False, description="Apply daily macro regime as a conviction multiplier in screener rank_candidates")
+    macro_regime_model: str = Field("claude-haiku-4-5", description="LLM used for daily macro regime classification")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

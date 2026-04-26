@@ -6877,6 +6877,33 @@
           "notes": "Closed 2026-04-26. Researcher confirmed pyfinagent has zero SQL transformation layer to orchestrate -- all derived columns Python-computed. Recommendation DON'T ADOPT. Decision doc at docs/architecture/dataform-orchestrator-feasibility.md (~180 lines). 6 early-signal triggers documented for future re-audit. Bonus: ran scripts/migrations/create_directive_versions_table.py --apply -> table created in pyfinagent_pms (10 cols, partitioned by proposed_at, clustered by proposer + parent_version_id). Verified via google-cloud-bigquery client. See handoff/archive/phase-23.0/."
         }
       ]
+    },
+    {
+      "id": "phase-23.1",
+      "name": "Universe & Candidate-Chooser Upgrade -- AI signal stack on top of S&P 500 momentum screen",
+      "status": "in_progress",
+      "depends_on": [
+        "phase-23"
+      ],
+      "gate": null,
+      "description": "Phase 1 of multi-cycle universe upgrade. External research (40 KB, 11 sources read in full, gate_passed) confirmed S&P 500 IS sufficient as a starting universe (MarketSenseAI 2.0 hit 18.9% alpha on exactly that universe in 2024). The alpha leak is not the universe size -- it's that the screener uses pure quant momentum and does not consume the news/macro/sector signals already in the repo. Six-cycle plan: (1) macro regime filter (DONE), (2) earnings PEAD overlay, (3) worldwide news idea generator (no-API-key sources), (4) sector event calendars, (5) LLM-as-judge meta-scorer, (6) Settings + UI surface. Cost ceiling per cycle <$0.05/day in LLM inference. Default-OFF behind feature flags so existing autonomous_loop behavior is preserved.",
+      "created_at": "2026-04-26T22:06:08Z",
+      "steps": [
+        {
+          "id": "23.1.1",
+          "name": "Daily macro regime filter (LLM-as-judge over FRED) + screener conviction multiplier",
+          "status": "done",
+          "harness_required": true,
+          "verification": "source .venv/bin/activate && python -c \"import asyncio; from backend.services.macro_regime import compute_macro_regime; r = asyncio.run(compute_macro_regime(use_cache=False)); assert r.regime in {'risk_on','risk_off','mixed','unknown'}; assert 0.5 <= r.conviction_multiplier <= 1.5; assert isinstance(r.series_used, list) and len(r.series_used) >= 3; assert len(r.rationale) <= 300; print('ok regime=' + r.regime + ' mult=' + str(r.conviction_multiplier))\"",
+          "contract": "handoff/archive/phase-23.1.1/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.1/phase-23.1.1-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.1/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.1/evaluator_critique.md",
+          "created_at": "2026-04-26T22:06:08Z",
+          "completed_at": "2026-04-26T22:06:08Z",
+          "notes": "Q/A PASS on first pass. 12/12 unit tests + immutable verification command (real Claude Haiku 4.5 + real FRED). Three Anthropic structured-output gotchas surfaced and handled: additionalProperties:false (ConfigDict extra=forbid), min/max on numbers stripped via _strip_unsupported_schema_keys, maxLength clamped at parse time. Default OFF (macro_regime_filter_enabled=False) preserves existing autonomous_loop behavior."
+        }
+      ]
     }
   ]
 }

@@ -21,6 +21,8 @@ SERIES = {
     "T10Y2Y": "10Y-2Y Treasury Spread",
     "UMCSENT": "Consumer Sentiment",
     "DGS10": "10-Year Treasury Yield",
+    "VIXCLS": "CBOE VIX",
+    "BAMLH0A0HYM2": "ICE BofA HY OAS (credit stress)",
 }
 
 

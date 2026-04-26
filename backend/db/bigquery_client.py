@@ -548,6 +548,9 @@ class BigQueryClient:
 
     def save_paper_position(self, row: dict) -> None:
         """Insert position via DML (not streaming) to avoid buffer conflicts with UPDATE/DELETE."""
+        # Drop None values: typed-NULL parameters can't satisfy FLOAT64/INT64 columns,
+        # and omitted columns default to NULL automatically.
+        row = {k: v for k, v in row.items() if v is not None}
         table = self._pt_table("paper_positions")
         cols = ", ".join(row.keys())
         vals = ", ".join(f"@v_{k}" for k in row.keys())
@@ -559,7 +562,7 @@ class BigQueryClient:
             elif isinstance(v, int):
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
             else:
-                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v) if v is not None else None))
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))
         job_config = bigquery.QueryJobConfig(query_parameters=params)
         self.client.query(query, job_config=job_config).result()
 
@@ -591,6 +594,7 @@ class BigQueryClient:
 
     def save_paper_trade(self, row: dict) -> None:
         """Insert trade via DML to avoid streaming buffer conflicts."""
+        row = {k: v for k, v in row.items() if v is not None}
         table = self._pt_table("paper_trades")
         cols = ", ".join(row.keys())
         vals = ", ".join(f"@v_{k}" for k in row.keys())
@@ -602,7 +606,7 @@ class BigQueryClient:
             elif isinstance(v, int):
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
             else:
-                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v) if v is not None else None))
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))
         job_config = bigquery.QueryJobConfig(query_parameters=params)
         self.client.query(query, job_config=job_config).result()
 
@@ -621,6 +625,7 @@ class BigQueryClient:
 
     def save_paper_snapshot(self, row: dict) -> None:
         """Insert snapshot via DML to avoid streaming buffer conflicts."""
+        row = {k: v for k, v in row.items() if v is not None}
         table = self._pt_table("paper_portfolio_snapshots")
         cols = ", ".join(row.keys())
         vals = ", ".join(f"@v_{k}" for k in row.keys())
@@ -632,7 +637,7 @@ class BigQueryClient:
             elif isinstance(v, int):
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
             else:
-                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v) if v is not None else None))
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))
         job_config = bigquery.QueryJobConfig(query_parameters=params)
         self.client.query(query, job_config=job_config).result()
 
