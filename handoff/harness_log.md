@@ -14100,3 +14100,27 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 10/10 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.10/.
+
+## phase-23.1.11 -- 2026-04-27 -- Persist lite-Claude rows to analysis_results (Reports History tab) -- result=PASS
+
+**Hypothesis:** New `_persist_lite_analysis(analysis, bq)` async helper called after every successful `_run_single_analysis` in autonomous_loop Steps 3+4 writes a row to existing `analysis_results` table. Reports page History tab surfaces paper-trading candidates immediately. Path A — extend existing table; no migration, no new endpoint.
+
+**User trigger:** "shouldnt we see the reports here when candiates has been picked?" — operator viewing /reports History tab saw only old manual analyses (SNDK, GOOGL, AAPL...), not today's autonomous-cycle candidates (COHR, KEYS, GLW, INTC...). I confirmed via BQ: `analysis_results WHERE analysis_date >= '2026-04-26'` returned 0 rows. Same gap I documented in phase-23.1.7 as Phase-2 follow-up — now closed.
+
+**Files:** backend/services/autonomous_loop.py (3 edits: fix hardcoded "claude-sonnet-4" -> model_name; enrich market_data with name+industry; NEW _persist_lite_analysis async helper + 2 call sites in Step 3 + Step 4 guarded by settings.lite_mode), tests/services/test_persist_lite_analysis.py (NEW 8 tests), tests/verify_phase_23_1_11.py (NEW immutable verification script).
+
+**Path A justified:** zero BQ migration; Reports endpoint unchanged; outcome_tracker picks up rows automatically; NULL columns are storage-free in BQ Capacitor columnar format. Single grain (ticker x date x recommendation), single table, NULL columns honestly indicate which pipeline ran.
+
+**Verification (immutable):** `PYTHONPATH=. python tests/verify_phase_23_1_11.py` -> `Failed to persist lite analysis for COHR: BQ down\nok _persist_lite_analysis async + signature + save_report invocation + graceful BQ failure` exit=0. The "BQ down" line is intentional -- proves graceful-error path works.
+
+**Q/A verdict:** PASS (1st pass). 11/11 checks: 5-item audit + verification + pytest + syntax + source inspections (hardcoded model_name fixed; market_data enriched; helper signature/asyncio.to_thread; call sites guarded by lite_mode; no double-write -- full Gemini path's save_report at backend/api/analysis.py:201 only runs when lite_mode=False) + test inventory + git scope.
+
+**154/154 unit tests pass** (146 prior + 8 new).
+
+**What changes for operator at 09:30 ET tomorrow:** scheduled cycle fires -> N candidates analyzed -> N rows added to analysis_results. Reports History tab now shows today's autonomous picks (with company names + Claude reasoning) at the top. Click-through to detail page shows lite-row basics; Debate/Bull/Bear/Risk sections empty (correct -- lite path doesn't run them).
+
+**Honest disclosure:** existing 11 paper-trading trades from earlier cycles won't retroactively get analysis_results rows. Tomorrow's first cycle will be the first to populate. Frontend "Lite Analysis" badge to set expectations on sparse detail page is a Phase-2 polish item.
+
+**Phase-23.1 plan now 11/11 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.11/.

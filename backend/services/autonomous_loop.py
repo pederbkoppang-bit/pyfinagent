@@ -226,6 +226,12 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     candidate_analyses.append(analysis)
                     cost = analysis.get("total_cost_usd", 0.1)
                     total_analysis_cost += cost
+                    # phase-23.1.11: persist lite analysis to analysis_results so the
+                    # Reports History tab surfaces paper-trading candidates. The full
+                    # Gemini fallback path already calls bq.save_report itself, so
+                    # only persist when we're in lite_mode (avoids double-write).
+                    if settings.lite_mode:
+                        await _persist_lite_analysis(analysis, bq)
             except Exception as e:
                 logger.error(f"Failed to analyze candidate {ticker}: {e}")
 
@@ -241,6 +247,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     holding_analyses.append(analysis)
                     cost = analysis.get("total_cost_usd", 0.1)
                     total_analysis_cost += cost
+                    # phase-23.1.11: same persist logic as Step 3
+                    if settings.lite_mode:
+                        await _persist_lite_analysis(analysis, bq)
             except Exception as e:
                 logger.error(f"Failed to re-evaluate {ticker}: {e}")
 
@@ -568,19 +577,66 @@ Respond in this exact JSON format:
         "price_at_analysis": current_price,
         "analysis_date": datetime.now(timezone.utc).isoformat(),
         "total_cost_usd": 0.01,
+        # phase-23.1.11: full_report.source reflects the actual model_name (was hardcoded
+        # "claude-sonnet-4" — wrong since gemini_model can be a Claude variant or Gemini).
+        # market_data carries name + industry so the Reports History tab can render company name.
         "full_report": {
-            "source": "claude-sonnet-4",
+            "source": model_name,
             "analysis": analysis,
             "market_data": {
+                "name": name,
                 "price": current_price,
                 "market_cap": market_cap,
                 "pe_ratio": pe_ratio,
                 "sector": sector,
+                "industry": industry,
                 "momentum_20d": momentum_20d,
                 "momentum_60d": momentum_60d,
             },
         },
     }
+
+
+# phase-23.1.11: persist lite-Claude analyzer rows to analysis_results so the
+# Reports page History tab shows paper-trading candidates alongside manual
+# analyses. Path A from the research brief — write to existing table; ~14
+# fields populated, ~74 columns left NULL (storage-free in BQ columnar
+# format; honest signal that the full Gemini pipeline did not run).
+
+async def _persist_lite_analysis(analysis: dict, bq: BigQueryClient) -> None:
+    """Write a lite-Claude analysis row to analysis_results.
+
+    Non-fatal: any BQ error logs a warning but the trading cycle continues.
+    """
+    try:
+        ticker = analysis.get("ticker") or ""
+        if not ticker:
+            return
+        full_report = analysis.get("full_report") or {}
+        market_data = full_report.get("market_data") or {}
+        await asyncio.to_thread(
+            bq.save_report,
+            ticker=ticker,
+            company_name=market_data.get("name") or ticker,
+            final_score=float(analysis.get("final_score") or 0.0),
+            recommendation=analysis.get("recommendation") or "HOLD",
+            summary=(analysis.get("risk_assessment") or {}).get("reason", "") or "",
+            full_report=full_report,
+            price_at_analysis=analysis.get("price_at_analysis"),
+            market_cap=market_data.get("market_cap"),
+            pe_ratio=market_data.get("pe_ratio"),
+            sector=market_data.get("sector") or "",
+            industry=market_data.get("industry") or "",
+            recommendation_confidence=(full_report.get("analysis") or {}).get("confidence"),
+            total_cost_usd=float(analysis.get("total_cost_usd") or 0.01),
+            standard_model=full_report.get("source") or "",
+        )
+        logger.info("Lite analysis persisted to analysis_results for %s", ticker)
+    except Exception as exc:
+        logger.warning(
+            "Failed to persist lite analysis for %s: %s",
+            analysis.get("ticker", "?"), exc,
+        )
 
 
 async def _learn_from_closed_trades(tickers: list[str], bq: BigQueryClient, settings: Settings):

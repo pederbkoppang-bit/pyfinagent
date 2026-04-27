@@ -7028,9 +7028,23 @@
           "created_at": "2026-04-27T16:18:56Z",
           "completed_at": "2026-04-27T16:18:56Z",
           "notes": "User asked to show company name and sector on Positions and Trades tabs. NEW GET /ticker-meta endpoint with BQ-first / yfinance-fallback resolution, 24h cache. Positions +Company+Sector, Trades +Company. Q/A PASS first try (14/14). 146/146 unit tests."
+        },
+        {
+          "id": "23.1.11",
+          "name": "Persist lite-Claude analyzer rows to analysis_results so Reports History tab surfaces paper-trading candidates",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.11/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_11.py)",
+          "contract": "handoff/archive/phase-23.1.11/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.11/phase-23.1.11-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.11/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.11/evaluator_critique.md",
+          "created_at": "2026-04-27T20:43:17Z",
+          "completed_at": "2026-04-27T20:43:17Z",
+          "notes": "User noticed Reports History tab missing autonomous-cycle candidates (COHR/KEYS/GEV/...). Closes the Gap 3 deferred from phase-23.1.7. Path A: write to existing analysis_results table, ~14 fields populated, ~74 NULL. Q/A PASS first try (11/11). 154/154 unit tests."
         }
       ],
-      "completed_at": "2026-04-27T16:18:56Z"
+      "completed_at": "2026-04-27T20:43:17Z"
     }
   ]
 }
