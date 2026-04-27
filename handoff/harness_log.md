@@ -14034,3 +14034,25 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **This closes out the Phase-23.1 universe upgrade plan: 6/6 cycles shipped on first-try Q/A PASS.**
 
 **Archive:** handoff/archive/phase-23.1.6/.
+
+## phase-23.1.8 -- 2026-04-27 -- Positions table reactivity (live MV+P&L) + Stop Loss settings-driven default -- result=PASS
+
+**Hypothesis:** Two surgical edits make the Positions table genuinely reactive (Market Value + P&L recompute on every 30s yfinance live-price tick) and ensure every BUY carries a stop-loss safety net.
+
+**User trigger:** Operator screenshot showed 10 positions with stale Market Value, +0.00% P&L on most rows despite Current != Entry, and "—" for every Stop Loss. Asked "are these columns updating over time?"
+
+**Files:** frontend/src/app/paper-trading/page.tsx (4 new derived expressions inside positions.map; replace pos.market_value -> liveMarketValue and pos.unrealized_pnl_pct -> livePnlPct), backend/config/settings.py (NEW paper_default_stop_loss_pct field with Field(8.0, ge=1.0, le=50.0)), backend/services/portfolio_manager.py (_extract_stop_loss accepts optional settings param + final fallback chain; caller in decide_trades passes settings=settings), tests/services/test_extract_stop_loss.py (NEW 10 tests).
+
+**Verification (immutable):** asserts paper_default_stop_loss_pct field exists + lite-path produces 92.0 stop (was None before) + no-price still returns None + explicit risk_limits.stop_loss=87.5 still wins over 8% default. Output: `ok default=8.0% lite_stop=92.00 gemini_stop=87.5` exit=0.
+
+**Q/A verdict:** PASS (1st pass). 12/12 checks: 5 harness-compliance + verification cmd + 125/125 unit tests + frontend tsc clean + backward-compat (settings=None preserves old None return) + chain ordering invariant (explicit > pct > default) + caller updated + settings constraints + git scope.
+
+**Stop-loss research grounding:** O'Neil canonical 7-8% momentum stop. quant-investing.com 85-year backtest: 10% stop reduces max monthly loss -49.79% -> -11.34%, average return 1.01% -> 1.73%.
+
+**Behavior change:** strictly additive. Lite-path BUYs that previously got stop_loss_price=None now get 8% default. Existing 10 positions in BQ remain at None (intentional — historical entries we don't second-guess; tomorrow's BUYs will populate). Old code paths calling _extract_stop_loss without settings still work.
+
+**Frontend reactivity:** the existing useLivePrices polling cadence (30s) was already running; this cycle hooks Market Value + P&L into that data flow. Tomorrow at market open, all 10 positions will start ticking.
+
+**Phase-23.1 plan now 8/8 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.8/.

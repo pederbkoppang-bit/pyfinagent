@@ -172,6 +172,17 @@ class Settings(BaseSettings):
     # upper-end standard for long-only unlevered equity.
     paper_daily_loss_limit_pct: float = Field(4.0, description="Halt trading if intraday loss exceeds this %% of start-of-day NAV")
     paper_trailing_dd_limit_pct: float = Field(10.0, description="Halt trading if trailing drawdown from peak equity exceeds this %% (EOD)")
+    # phase-23.1.8: per-ticker stop-loss safety net for the lite Claude analyzer
+    # path which does not propose its own stop_loss. O'Neil canonical 7-8%; quant
+    # backtest evidence (quant-investing.com 85-year study) shows a 10% momentum
+    # stop reduces max monthly loss from -49.79% to -11.34% with average return
+    # 1.01% -> 1.73%. 8% is the documented sweet spot.
+    paper_default_stop_loss_pct: float = Field(
+        8.0,
+        ge=1.0,
+        le=50.0,
+        description="Default stop-loss as %% below entry price when analysis does not provide one (lite-path BUY). O'Neil canonical: 7-8%.",
+    )
 
     # --- Authentication ---
     auth_secret: str = Field("", description="NextAuth.js AUTH_SECRET for JWE decryption. Empty = auth disabled (dev mode).")

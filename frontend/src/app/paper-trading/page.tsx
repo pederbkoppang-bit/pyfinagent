@@ -562,6 +562,20 @@ export default function PaperTradingPage() {
                               const shown = live?.price ?? pos.current_price;
                               const ageLabel =
                                 live?.age_sec != null ? `${Math.round(live.age_sec)}s` : null;
+                              // phase-23.1.8: derive Market Value + P&L from live price on every render
+                              // so the table reacts to the 30s yfinance polling instead of waiting for
+                              // the daily mark_to_market cycle.
+                              const livePrice = live?.price ?? null;
+                              const liveMarketValue =
+                                livePrice != null ? livePrice * pos.quantity : pos.market_value;
+                              const liveCostBasis =
+                                pos.cost_basis != null && pos.cost_basis > 0
+                                  ? pos.cost_basis
+                                  : pos.avg_entry_price * pos.quantity;
+                              const livePnlPct =
+                                livePrice != null && liveCostBasis > 0
+                                  ? ((livePrice * pos.quantity - liveCostBasis) / liveCostBasis) * 100
+                                  : pos.unrealized_pnl_pct;
                               return (
                                 <tr
                                   key={pos.position_id}
@@ -590,10 +604,10 @@ export default function PaperTradingPage() {
                                     )}
                                   </td>
                                   <td className="px-4 py-3">
-                                    <Dollar value={pos.market_value} />
+                                    <Dollar value={liveMarketValue} />
                                   </td>
                                   <td className="px-4 py-3">
-                                    <PnlBadge value={pos.unrealized_pnl_pct} />
+                                    <PnlBadge value={livePnlPct} />
                                   </td>
                                   <td className="px-4 py-3 text-slate-500">
                                     {pos.stop_loss_price != null

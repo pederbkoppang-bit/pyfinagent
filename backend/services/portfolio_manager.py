@@ -143,7 +143,7 @@ def decide_trades(
         # Extract Risk Judge sizing
         risk_assessment = analysis.get("risk_assessment", {})
         position_pct = _extract_position_pct(risk_assessment, analysis)
-        stop_loss = _extract_stop_loss(risk_assessment, analysis)
+        stop_loss = _extract_stop_loss(risk_assessment, analysis, settings=settings)
         final_score = analysis.get("final_score", 0)
 
         # phase-23.1.7: pull the screener candidate dict (contains momentum / RSI /
@@ -231,8 +231,23 @@ def _extract_position_pct(risk_assessment: dict, analysis: dict) -> Optional[flo
     return None
 
 
-def _extract_stop_loss(risk_assessment: dict, analysis: dict) -> Optional[float]:
-    """Extract stop loss price from risk assessment."""
+def _extract_stop_loss(
+    risk_assessment: dict,
+    analysis: dict,
+    settings: Optional["Settings"] = None,
+) -> Optional[float]:
+    """Extract stop loss price from risk assessment.
+
+    Resolution order:
+      1. Explicit `risk_assessment.risk_limits.stop_loss` (absolute price)
+      2. Encoded `risk_assessment.risk_limits.stop_loss_pct` (% below entry)
+      3. phase-23.1.8 fallback: `settings.paper_default_stop_loss_pct` * entry
+         price. Activates on lite-Claude-analyzer BUYs where risk_assessment
+         is just `{"reason": "..."}` and risk_limits is absent.
+
+    Returns None when no price_at_analysis is available (cannot derive any
+    stop without an entry reference).
+    """
     limits = risk_assessment.get("risk_limits", {})
     if isinstance(limits, dict):
         stop = limits.get("stop_loss")
@@ -249,4 +264,12 @@ def _extract_stop_loss(risk_assessment: dict, analysis: dict) -> Optional[float]
             return float(price) * (1 - float(stop_pct) / 100.0)
         except (ValueError, TypeError):
             pass
+    # phase-23.1.8: settings-driven default (Option B from research brief)
+    if settings is not None and price:
+        default_pct = getattr(settings, "paper_default_stop_loss_pct", None)
+        if default_pct is not None:
+            try:
+                return float(price) * (1 - float(default_pct) / 100.0)
+            except (ValueError, TypeError):
+                pass
     return None

@@ -6986,9 +6986,23 @@
           "created_at": "2026-04-27T05:29:52Z",
           "completed_at": "2026-04-27T05:29:52Z",
           "notes": "Operator spotted gap: Agent Rationale drawer showed only 'Recommendation: BUY' with no actual reasoning. Closes 3 gaps. ZERO BQ migration. Q/A PASS first try. 115/115 unit tests."
+        },
+        {
+          "id": "23.1.8",
+          "name": "Positions table reactivity (live MV+P&L) + Stop Loss settings-driven default (8% O'Neil canon)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.8/contract.md (immutable verification command)",
+          "contract": "handoff/archive/phase-23.1.8/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.8/phase-23.1.8-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.8/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.8/evaluator_critique.md",
+          "created_at": "2026-04-27T15:11:43Z",
+          "completed_at": "2026-04-27T15:11:43Z",
+          "notes": "User saw stale Market Value + +0.00% P&L + '-' Stop Loss. Frontend now derives MV+P&L from yfinance live-price ticks (30s) on every render. Backend settings-driven 8% default stop-loss (O'Neil canon) when neither Gemini nor lite analyzer proposes one. Q/A PASS first try (12/12). 125/125 unit tests."
         }
       ],
-      "completed_at": "2026-04-27T05:29:52Z"
+      "completed_at": "2026-04-27T15:11:43Z"
     }
   ]
 }
