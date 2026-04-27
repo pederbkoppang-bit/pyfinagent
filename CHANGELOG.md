@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-27 | `e7e09d77` | phase-23.1.7: capture full agent rationale + signal stack into paper_trades.signals |
 | 2026-04-27 | `7c78097e` | phase-23.1.6: Settings page Signal Stack toggles + backend API extension |
 | 2026-04-27 | `35ff8f59` | phase-23.1.5: LLM-as-judge meta-scorer (single batched Claude call -> conviction 1-10) |
 | 2026-04-27 | `48233154` | phase-23.1.4: sector event calendars (FDA PDUFA + earnings catalyst overlay) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-26 | `5f69db00` | phase-16.53: settings full-width content fix (drop max-w-4xl) |
 | 2026-04-26 | `f0d46547` | phase-16.42-16.52 + 10.7.5-10.7.8 + 5.1/5.4/5.6: 12-cycle harness batch |
 | 2026-04-25 | `75f331fa` | phase-16.16-16.41 + 10.7.1-10.7.4: harness-driven backlog clearance |
-| 2026-04-24 | `70cbf355` | phase-17: wire Alpaca MCP + paper-trader router + max-notional clamp |
 
 ---
 
+### v6.5.105 — phase-23.1.7: capture full agent rationale + signal stack into paper_... (2026-04-27)
+
+- **phase-23.1.7: capture full agent rationale + signal stack into paper_trades.signals**
 ### v6.5.104 — phase-23.1.6: Settings page Signal Stack toggles + backend API extension (2026-04-27)
 
 - **phase-23.1.6: Settings page Signal Stack toggles + backend API extension**
