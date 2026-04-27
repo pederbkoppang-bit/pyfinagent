@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-27 | `1b8cdcdd` | phase-23.1.11: persist lite-Claude rows to analysis_results (Reports History tab) |
 | 2026-04-27 | `ddef603f` | phase-23.1.10: Company name + Sector on Positions and Trades (ticker-meta endpoint) |
 | 2026-04-27 | `6fd22e41` | phase-23.1.9: Paper Trading Manage tab — deposits + 10 paper-trading settings |
 | 2026-04-27 | `4e7794f4` | phase-23.1.8: positions table reactivity + stop-loss settings default |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-26 | `570ba19a` | phase-18: Agent Topology Map (18.0 plan + 18.1 backend + 18.2-18.4 frontend) |
 | 2026-04-26 | `897d1323` | phase-16.56 + 16.57: sovereign grid widen Alpha then revert RedLine 60% |
 | 2026-04-26 | `dd66299b` | phase-16.55: sovereign two-hero r2 - AlphaLeaderboard fills to match RedLine |
-| 2026-04-26 | `4bfb3bc4` | phase-16.54: sovereign two-hero balance - shrink RedLineMonitor non-compact |
 
 ---
 
+### v6.5.109 — phase-23.1.11: persist lite-Claude rows to analysis_results (Reports... (2026-04-27)
+
+- **phase-23.1.11: persist lite-Claude rows to analysis_results (Reports History tab)**
 ### v6.5.108 — phase-23.1.10: Company name + Sector on Positions and Trades (ticker-... (2026-04-27)
 
 - **phase-23.1.10: Company name + Sector on Positions and Trades (ticker-meta endpoint)**
