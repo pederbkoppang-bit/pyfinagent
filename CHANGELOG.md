@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-27 | `5145fd4a` | phase-23.1.12: honor operator's model choice + cycle pill amber-on-unknown |
 | 2026-04-27 | `1b8cdcdd` | phase-23.1.11: persist lite-Claude rows to analysis_results (Reports History tab) |
 | 2026-04-27 | `ddef603f` | phase-23.1.10: Company name + Sector on Positions and Trades (ticker-meta endpoint) |
 | 2026-04-27 | `6fd22e41` | phase-23.1.9: Paper Trading Manage tab — deposits + 10 paper-trading settings |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-26 | `514f0635` | phase-19.0: Claude Remote / Max programmatic handoff feasibility (decision doc) |
 | 2026-04-26 | `570ba19a` | phase-18: Agent Topology Map (18.0 plan + 18.1 backend + 18.2-18.4 frontend) |
 | 2026-04-26 | `897d1323` | phase-16.56 + 16.57: sovereign grid widen Alpha then revert RedLine 60% |
-| 2026-04-26 | `dd66299b` | phase-16.55: sovereign two-hero r2 - AlphaLeaderboard fills to match RedLine |
 
 ---
 
+### v6.5.110 — phase-23.1.12: honor operator's model choice + cycle pill amber-on-un... (2026-04-27)
+
+- **phase-23.1.12: honor operator's model choice + cycle pill amber-on-unknown**
 ### v6.5.109 — phase-23.1.11: persist lite-Claude rows to analysis_results (Reports... (2026-04-27)
 
 - **phase-23.1.11: persist lite-Claude rows to analysis_results (Reports History tab)**
