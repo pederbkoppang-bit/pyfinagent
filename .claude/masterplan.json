@@ -6972,9 +6972,23 @@
           "created_at": "2026-04-26T23:39:43Z",
           "completed_at": "2026-04-26T23:39:43Z",
           "notes": "Q/A PASS first try (12/12 checks). 95/95 unit tests + immutable verification (model_fields introspection). Frontend tsc clean. UI Signal Stack BentoCard with 5 toggles placed after Model Configuration card on Models tab. Default-OFF preserved at all 4 layers. Phase 2 follow-ups: 'why this candidate' panel, per-cycle numeric sliders, per-signal model selectors, browser E2E."
+        },
+        {
+          "id": "23.1.7",
+          "name": "Capture full agent rationale + signal stack into paper_trades.signals JSON for future learning",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.7/contract.md (immutable verification command)",
+          "contract": "handoff/archive/phase-23.1.7/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.7/phase-23.1.7-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.7/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.7/evaluator_critique.md",
+          "created_at": "2026-04-27T05:29:52Z",
+          "completed_at": "2026-04-27T05:29:52Z",
+          "notes": "Operator spotted gap: Agent Rationale drawer showed only 'Recommendation: BUY' with no actual reasoning. Closes 3 gaps. ZERO BQ migration. Q/A PASS first try. 115/115 unit tests."
         }
       ],
-      "completed_at": "2026-04-26T23:39:43Z"
+      "completed_at": "2026-04-27T05:29:52Z"
     }
   ]
 }

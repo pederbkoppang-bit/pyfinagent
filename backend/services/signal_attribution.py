@@ -98,7 +98,14 @@ def extract_signals_from_analysis(analysis: dict) -> list[dict]:
     # ── Trader layer ────
     rec = str(analysis.get("recommendation", "")).upper() or "HOLD"
     score = analysis.get("final_score")
-    trader_note = analysis.get("trader_note") or analysis.get("recommendation_reason") or ""
+    # phase-23.1.7: also extract the lite-Claude-analyzer reason at full_report.analysis.reason
+    # so the Trader rationale is the actual reasoning sentence, not the literal "Recommendation: BUY".
+    trader_note = (
+        analysis.get("trader_note")
+        or analysis.get("recommendation_reason")
+        or (analysis.get("full_report") or {}).get("analysis", {}).get("reason")
+        or ""
+    )
     signals.append({
         "agent": "Trader",
         "role": "decision",
@@ -110,7 +117,13 @@ def extract_signals_from_analysis(analysis: dict) -> list[dict]:
     risk = analysis.get("risk_assessment") or {}
     if isinstance(risk, dict):
         decision = risk.get("decision") or ""
-        reasoning = risk.get("reasoning") or risk.get("rationale") or ""
+        # phase-23.1.7: lite shape uses {"reason": "..."}; add as fallback alongside reasoning/rationale.
+        reasoning = (
+            risk.get("reasoning")
+            or risk.get("rationale")
+            or risk.get("reason")
+            or ""
+        )
         pos_pct = risk.get("recommended_position_pct")
         if decision or reasoning:
             signals.append({
@@ -123,13 +136,126 @@ def extract_signals_from_analysis(analysis: dict) -> list[dict]:
     return signals
 
 
+def extract_quant_signals(candidate: dict) -> list[dict]:
+    """Extract screener-layer quant signals from a `rank_candidates` dict.
+
+    Returns 0-2 rows: a "Quant" signal (momentum/RSI/vol/sector/composite_score)
+    and a "SignalStack" overlay signal (conviction + news + source tag from
+    cycles 1-5 overlays). Both conform to the {agent, role, rationale, weight}
+    shape so the drawer renders them with no schema changes downstream.
+    """
+    if not isinstance(candidate, dict):
+        return []
+
+    signals: list[dict] = []
+
+    # Quant metrics row
+    mom_1m = candidate.get("momentum_1m")
+    mom_3m = candidate.get("momentum_3m")
+    mom_6m = candidate.get("momentum_6m")
+    rsi = candidate.get("rsi_14")
+    vol = candidate.get("volatility_ann")
+    sector = candidate.get("sector", "")
+    composite = candidate.get("composite_score")
+
+    quant_parts: list[str] = []
+    if isinstance(mom_1m, (int, float)):
+        quant_parts.append(f"1m momentum {mom_1m:+.1f}%")
+    if isinstance(mom_3m, (int, float)):
+        quant_parts.append(f"3m momentum {mom_3m:+.1f}%")
+    if isinstance(mom_6m, (int, float)):
+        quant_parts.append(f"6m momentum {mom_6m:+.1f}%")
+    if isinstance(rsi, (int, float)):
+        quant_parts.append(f"RSI14 {rsi:.1f}")
+    if isinstance(vol, (int, float)):
+        quant_parts.append(f"ann_vol {vol:.2f}")
+    if sector:
+        quant_parts.append(f"sector {sector}")
+    if isinstance(composite, (int, float)):
+        quant_parts.append(f"composite_score {composite:.3f}")
+
+    if quant_parts:
+        signals.append({
+            "agent": "Quant",
+            "role": "screener",
+            "rationale": _trim("; ".join(quant_parts)),
+            "weight": float(composite) if isinstance(composite, (int, float)) else 0.0,
+        })
+
+    # SignalStack overlay row (regime + PEAD + news + sector event + meta-scorer conviction)
+    stack_parts: list[str] = []
+    conviction_score = candidate.get("conviction_score")
+    conviction_reason = candidate.get("conviction_reason", "")
+    news_event_type = candidate.get("news_event_type", "")
+    news_rationale = candidate.get("news_rationale", "")
+    regime_tag = candidate.get("regime_tag", "")
+    pead_tag = candidate.get("pead_tag", "")
+    sector_event_type = candidate.get("sector_event_type", "")
+    source_tag = candidate.get("source", "")
+
+    if regime_tag:
+        stack_parts.append(f"regime:{regime_tag}")
+    if pead_tag:
+        stack_parts.append(f"pead:{pead_tag}")
+    if isinstance(conviction_score, (int, float)):
+        stack_parts.append(f"conviction {conviction_score:.2f}")
+    if conviction_reason:
+        stack_parts.append(conviction_reason)
+    if news_event_type:
+        stack_parts.append(f"news:{news_event_type}")
+    if news_rationale:
+        stack_parts.append(news_rationale)
+    if sector_event_type:
+        stack_parts.append(f"sector_event:{sector_event_type}")
+    if source_tag and source_tag not in ("", "momentum"):
+        stack_parts.append(f"source:{source_tag}")
+
+    if stack_parts:
+        signals.append({
+            "agent": "SignalStack",
+            "role": "overlay",
+            "rationale": _trim("; ".join(stack_parts)),
+            "weight": float(conviction_score) if isinstance(conviction_score, (int, float)) else 0.0,
+        })
+
+    return signals
+
+
+def extract_all_signals(analysis: dict, candidate: dict | None = None) -> list[dict]:
+    """Combined extractor: agent rationale (analysis) + quant overlays (candidate).
+
+    Inserts the Quant / SignalStack rows BEFORE the Trader row so the drawer
+    ordering is Analyst -> Quant -> SignalStack -> Trader -> Risk. Pass
+    `candidate=None` for paths where no screener candidate is available
+    (sell side, full Gemini orchestrator).
+    """
+    signals = extract_signals_from_analysis(analysis)
+    if not candidate:
+        return signals
+    quant_sigs = extract_quant_signals(candidate)
+    if not quant_sigs:
+        return signals
+    trader_idx = next(
+        (i for i, s in enumerate(signals) if s.get("agent") == "Trader"),
+        len(signals),
+    )
+    return signals[:trader_idx] + quant_sigs + signals[trader_idx:]
+
+
 def group_signals_for_drawer(signals: list[dict]) -> dict:
     """
     Reshape flat signals into the progressive-disclosure tree shape the
     frontend drawer renders: {analyst[], debate{bull[], bear[]}, trader[], risk[]}.
     Keeps order and makes the hierarchy explicit.
     """
-    out: dict = {"analyst": [], "debate": {"bull": [], "bear": []}, "trader": [], "risk": []}
+    out: dict = {
+        "analyst": [],
+        "debate": {"bull": [], "bear": []},
+        "quant": [],          # phase-23.1.7
+        "signal_stack": [],   # phase-23.1.7
+        "trader": [],
+        "risk": [],
+    }
     for s in signals or []:
         role = s.get("role")
         agent = s.get("agent")
@@ -139,6 +265,10 @@ def group_signals_for_drawer(signals: list[dict]) -> dict:
             out["debate"]["bull"].append(s)
         elif agent == "Bear":
             out["debate"]["bear"].append(s)
+        elif agent == "Quant" or role == "screener":
+            out["quant"].append(s)
+        elif agent == "SignalStack" or role == "overlay":
+            out["signal_stack"].append(s)
         elif agent == "Trader" or role == "decision":
             out["trader"].append(s)
         elif agent == "RiskJudge" or role == "gate":

@@ -275,12 +275,17 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         logger.info("Paper trading: Step 6 -- Deciding trades")
         summary["steps"].append("deciding")
         positions = trader.get_positions()  # Refresh after MTM
+        # phase-23.1.7: thread the screener candidate dict through to the buy-side
+        # decider so the trade record captures momentum/RSI/composite_score and
+        # all signal-stack overlays in the rationale.
+        candidates_by_ticker = {c["ticker"]: c for c in candidates if c.get("ticker")}
         orders = decide_trades(
             current_positions=positions,
             candidate_analyses=candidate_analyses,
             holding_analyses=holding_analyses,
             portfolio_state=portfolio_state,
             settings=settings,
+            candidates_by_ticker=candidates_by_ticker,
         )
 
         # ── Step 7: Execute trades ───────────────────────────────

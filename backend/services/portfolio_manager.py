@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from backend.config.settings import Settings
-from backend.services.signal_attribution import extract_signals_from_analysis
+from backend.services.signal_attribution import extract_signals_from_analysis, extract_all_signals
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,7 @@ def decide_trades(
     holding_analyses: list[dict],
     portfolio_state: dict,
     settings: Settings,
+    candidates_by_ticker: dict[str, dict] | None = None,
 ) -> list[TradeOrder]:
     """
     Decide which trades to execute.
@@ -145,6 +146,10 @@ def decide_trades(
         stop_loss = _extract_stop_loss(risk_assessment, analysis)
         final_score = analysis.get("final_score", 0)
 
+        # phase-23.1.7: pull the screener candidate dict (contains momentum / RSI /
+        # composite_score / conviction / signal-stack tags) so the rationale captures
+        # ALL inputs that drove this decision, not just the LLM's verdict.
+        screener_candidate = (candidates_by_ticker or {}).get(ticker)
         buy_candidates.append({
             "ticker": ticker,
             "recommendation": rec,
@@ -154,7 +159,7 @@ def decide_trades(
             "analysis_id": analysis.get("analysis_date", ""),
             "final_score": final_score,
             "price": analysis.get("price_at_analysis"),
-            "signals": extract_signals_from_analysis(analysis),
+            "signals": extract_all_signals(analysis, candidate=screener_candidate),
         })
 
         decision = risk_assessment.get("decision", "") or ""
