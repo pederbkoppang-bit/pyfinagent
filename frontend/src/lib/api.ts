@@ -301,6 +301,14 @@ export function depositPaperFunds(amount: number): Promise<import("./types").Dep
   });
 }
 
+// phase-23.1.10 — batch fetch company name + sector for ticker rows
+export function getTickerMeta(
+  tickers: string[],
+): Promise<import("./types").TickerMetaResponse> {
+  const q = tickers.map(encodeURIComponent).join(",");
+  return apiFetch(`/api/paper-trading/ticker-meta?tickers=${q}`);
+}
+
 export function getPaperMetricsV2(): Promise<PaperMetricsV2> {
   return apiFetch("/api/paper-trading/metrics-v2");
 }

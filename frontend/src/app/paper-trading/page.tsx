@@ -33,6 +33,7 @@ import { AgentRationaleDrawer } from "@/components/AgentRationaleDrawer";
 import { MfeMaeScatter } from "@/components/MfeMaeScatter";
 import { OpsStatusBar } from "@/components/OpsStatusBar";
 import { useLivePrices } from "@/lib/useLivePrices";
+import { useTickerMeta } from "@/lib/useTickerMeta";
 import {
   LineChart,
   Line,
@@ -374,6 +375,18 @@ export default function PaperTradingPage() {
     tab === "positions" && positions.length > 0,
   );
 
+  // phase-23.1.10 — fetch company name + sector for all visible tickers (positions + trades)
+  const allTickersForMeta = useMemo(() => {
+    const set = new Set<string>();
+    positions.forEach((p) => p.ticker && set.add(p.ticker));
+    trades.forEach((t) => t.ticker && set.add(t.ticker));
+    return Array.from(set);
+  }, [positions, trades]);
+  const { meta: tickerMeta } = useTickerMeta(
+    allTickersForMeta,
+    allTickersForMeta.length > 0,
+  );
+
   const runNowIntervalRef = useRef<number | null>(null);
   const runNowTimeoutRef = useRef<number | null>(null);
   useEffect(() => {
@@ -704,6 +717,8 @@ export default function PaperTradingPage() {
                         <thead>
                           <tr className="border-b border-navy-700 text-xs uppercase text-slate-500">
                             <th className="px-4 py-3">Ticker</th>
+                            <th className="px-4 py-3">Company</th>
+                            <th className="px-4 py-3">Sector</th>
                             <th className="px-4 py-3">Qty</th>
                             <th className="px-4 py-3">Entry</th>
                             <th className="px-4 py-3">Current</th>
@@ -716,7 +731,7 @@ export default function PaperTradingPage() {
                         <tbody>
                           {positions.length === 0 ? (
                             <tr>
-                              <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                              <td colSpan={10} className="px-4 py-8 text-center text-slate-500">
                                 No open positions
                               </td>
                             </tr>
@@ -752,6 +767,12 @@ export default function PaperTradingPage() {
                                 >
                                   <td className="px-4 py-3 font-mono font-semibold text-slate-100">
                                     {pos.ticker}
+                                  </td>
+                                  <td className="px-4 py-3 text-xs text-slate-400">
+                                    {tickerMeta[pos.ticker]?.company_name ?? "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-xs text-slate-400">
+                                    {tickerMeta[pos.ticker]?.sector || "—"}
                                   </td>
                                   <td className="px-4 py-3">{pos.quantity.toFixed(2)}</td>
                                   <td className="px-4 py-3">${pos.avg_entry_price.toFixed(2)}</td>
@@ -804,6 +825,7 @@ export default function PaperTradingPage() {
                           <th className="px-4 py-3">Date</th>
                           <th className="px-4 py-3">Action</th>
                           <th className="px-4 py-3">Ticker</th>
+                          <th className="px-4 py-3">Company</th>
                           <th className="px-4 py-3">Qty</th>
                           <th className="px-4 py-3">Price</th>
                           <th className="px-4 py-3">Value</th>
@@ -814,7 +836,7 @@ export default function PaperTradingPage() {
                       <tbody>
                         {trades.length === 0 ? (
                           <tr>
-                            <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                            <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
                               No trades yet
                             </td>
                           </tr>
@@ -843,6 +865,9 @@ export default function PaperTradingPage() {
                               </td>
                               <td className="px-4 py-3 font-mono font-semibold text-slate-100">
                                 {t.ticker}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-slate-400">
+                                {tickerMeta[t.ticker]?.company_name ?? "—"}
                               </td>
                               <td className="px-4 py-3">{t.quantity.toFixed(2)}</td>
                               <td className="px-4 py-3">${t.price.toFixed(2)}</td>

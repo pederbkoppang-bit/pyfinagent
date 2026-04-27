@@ -7014,9 +7014,23 @@
           "created_at": "2026-04-27T15:52:02Z",
           "completed_at": "2026-04-27T15:52:02Z",
           "notes": "User asked for 'a new tab where the user can add more money and other paper trading settings'. NEW Manage tab + POST /deposit + 10 paper-trading fields (1 read-only + 9 writable). Deposit correctly increments both cash AND starting_capital so P&L stays anchored. Q/A PASS first try (12/12). 137/137 unit tests."
+        },
+        {
+          "id": "23.1.10",
+          "name": "Show Company name + Sector on Positions and Trades tables (ticker-meta endpoint, no BQ migration)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.10/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_10.py)",
+          "contract": "handoff/archive/phase-23.1.10/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.10/phase-23.1.10-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.10/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.10/evaluator_critique.md",
+          "created_at": "2026-04-27T16:18:56Z",
+          "completed_at": "2026-04-27T16:18:56Z",
+          "notes": "User asked to show company name and sector on Positions and Trades tabs. NEW GET /ticker-meta endpoint with BQ-first / yfinance-fallback resolution, 24h cache. Positions +Company+Sector, Trades +Company. Q/A PASS first try (14/14). 146/146 unit tests."
         }
       ],
-      "completed_at": "2026-04-27T15:52:02Z"
+      "completed_at": "2026-04-27T16:18:56Z"
     }
   ]
 }

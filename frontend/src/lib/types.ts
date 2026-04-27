@@ -584,6 +584,19 @@ export interface DepositResponse {
   deposited_at: string;
 }
 
+// phase-23.1.10 — ticker metadata for Positions/Trades tables
+export interface TickerMeta {
+  company_name: string;
+  sector: string;
+  source?: string;
+}
+
+export interface TickerMetaResponse {
+  meta: Record<string, TickerMeta>;
+  ttl_sec: number;
+  count: number;
+}
+
 export interface LatestCostSummary extends CostSummary {
   ticker?: string;
   analysis_date?: string;

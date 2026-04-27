@@ -637,6 +637,107 @@ async def run_now(dry_run: bool = False):
 _last_cycle_error: Optional[str] = None
 
 
+# phase-23.1.10 — ticker metadata (company name + sector) for Positions/Trades tables.
+# BQ-first lookup against analysis_results (zero rate-limit risk); yfinance fallback for
+# tickers we've never analyzed before. 24h cache via paper:ticker_meta TTL.
+
+def _yfinance_ticker_info(ticker: str) -> dict:
+    """Fetch company_name + sector from yfinance. Graceful on any error."""
+    try:
+        import yfinance as yf
+        info = yf.Ticker(ticker).info or {}
+        name = info.get("shortName") or info.get("longName") or ticker
+        sector = info.get("sector") or ""
+        return {"company_name": name, "sector": sector, "source": "yfinance"}
+    except Exception as e:  # network / rate-limit / unknown ticker
+        logger.debug("yfinance lookup failed for %s: %s", ticker, e)
+        return {"company_name": ticker, "sector": "", "source": "error"}
+
+
+def _fetch_ticker_meta(tickers: list[str], settings, bq) -> dict:
+    """Resolve {ticker -> {company_name, sector, source}}.
+
+    Strategy:
+      1. Single BQ query against analysis_results for most-recent
+         (company_name, sector) per ticker. company_name is well-populated;
+         sector often NULL on this table.
+      2. For tickers missing EITHER field, fall through to yfinance (slow but
+         caches for 24h via the route's get_api_cache).
+    """
+    out: dict[str, dict] = {}
+    if not tickers:
+        return {"meta": out, "ttl_sec": 86400, "count": 0}
+
+    # Step 1: BQ batch query
+    try:
+        query = (
+            "SELECT ticker, ANY_VALUE(company_name) AS company_name, "
+            "ANY_VALUE(sector) AS sector "
+            f"FROM `{settings.gcp_project_id}.{settings.bq_dataset_reports}.analysis_results` "
+            "WHERE ticker IN UNNEST(@tickers) GROUP BY ticker"
+        )
+        from google.cloud import bigquery as _bq
+        job_config = _bq.QueryJobConfig(query_parameters=[
+            _bq.ArrayQueryParameter("tickers", "STRING", tickers),
+        ])
+        rows = list(bq.client.query(query, job_config=job_config).result())
+        for r in rows:
+            t = r["ticker"]
+            name = r["company_name"]
+            sect = r["sector"]
+            if t and name:
+                out[t] = {
+                    "company_name": name,
+                    "sector": sect or "",
+                    "source": "bq",
+                }
+    except Exception as e:
+        logger.warning("ticker-meta BQ lookup failed (graceful fallback): %s", e)
+
+    # Step 2: yfinance fallback for tickers missing OR missing sector
+    import time
+    for t in tickers:
+        existing = out.get(t)
+        needs_yf = existing is None or not existing.get("sector")
+        if not needs_yf:
+            continue
+        info = _yfinance_ticker_info(t)
+        if existing:
+            # Keep BQ company_name if present, fill sector from yf
+            existing["sector"] = existing.get("sector") or info["sector"]
+            existing["source"] = "bq+yf" if existing["sector"] else "bq"
+        else:
+            out[t] = info
+        time.sleep(0.3)  # polite rate-limit guard
+
+    return {"meta": out, "ttl_sec": 86400, "count": len(out)}
+
+
+@router.get("/ticker-meta")
+async def get_ticker_meta(tickers: str = Query(...)):
+    """Return {ticker -> {company_name, sector}} for the comma-separated tickers.
+
+    Cached 24h. BQ-first; yfinance fallback. Max 50 tickers per call.
+    """
+    raw = [t.strip().upper() for t in tickers.split(",") if t.strip()]
+    if not raw:
+        raise HTTPException(400, "Provide at least one ticker")
+    if len(raw) > 50:
+        raise HTTPException(400, "Max 50 tickers per request")
+
+    settings = get_settings()
+    cache = get_api_cache()
+    cache_key = f"paper:ticker_meta:{','.join(sorted(raw))}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    bq = BigQueryClient(settings)
+    result = await asyncio.to_thread(_fetch_ticker_meta, raw, settings, bq)
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:ticker_meta"])
+    return result
+
+
 @router.post("/deposit")
 async def deposit_funds(req: DepositRequest):
     """Top up the virtual paper-trading fund.

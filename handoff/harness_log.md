@@ -14078,3 +14078,25 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 9/9 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.9/.
+
+## phase-23.1.10 -- 2026-04-27 -- Show Company name + Sector on Positions and Trades (ticker-meta endpoint) -- result=PASS
+
+**Hypothesis:** New `GET /api/paper-trading/ticker-meta` endpoint with BQ-first / yfinance-fallback resolution returns `{ticker -> {company_name, sector}}`, cached 24h. Frontend Positions table shows two new columns (Company, Sector); Trades table shows one (Company). Zero BQ migration; existing rows render correctly immediately.
+
+**User trigger:** "you should show company name and sector on positions and trades tab".
+
+**Files:** backend/api/paper_trading.py (NEW _yfinance_ticker_info + _fetch_ticker_meta + GET /ticker-meta endpoint -- BQ-first single batch query, yfinance fallback for missing fields, 0.3s sleep between yfinance calls, graceful on error), backend/services/api_cache.py (+paper:ticker_meta=86400.0 TTL entry), frontend/src/lib/types.ts (+TickerMeta + TickerMetaResponse), frontend/src/lib/api.ts (+getTickerMeta), frontend/src/lib/useTickerMeta.ts (NEW hook ~40 LOC), frontend/src/app/paper-trading/page.tsx (Positions +Company/Sector, Trades +Company; colSpans 8->10 and 8->9), tests/api/test_ticker_meta.py (NEW 9 tests), tests/verify_phase_23_1_10.py (NEW immutable verification script).
+
+**Resolution strategy:** BQ analysis_results has company_name populated but sector NULL. Endpoint handles all paths: BQ-only (source=bq), BQ-name + yfinance-sector merged (source=bq+yf), pure yfinance (source=yfinance), error fallback (source=error -> ticker symbol as name). Never raises.
+
+**Verification (immutable):** `PYTHONPATH=. python tests/verify_phase_23_1_10.py` -> `ok ticker-meta route registered + helpers callable + 24h TTL configured` exit=0. Asserts route on router + helpers callable + yfinance graceful fallback + ENDPOINT_TTLS entry.
+
+**Q/A verdict:** PASS (1st pass). 14/14 checks: syntax + verification + 146 unit tests + frontend tsc + BQ-first parameterized SQL + yfinance graceful + endpoint validation (400 on empty/>50) + 24h TTL + frontend integration + hook graceful + git scope + research gate + contract front-matter + harness_log not-yet-appended.
+
+**146/146 unit tests pass** (137 prior + 9 new in test_ticker_meta.py; no regression).
+
+**Honest disclosure:** Cold-cache latency ~3s for 10 tickers (yfinance polite-sleep 0.3s each); subsequent 24h cached. yfinance dependency for sector data; BQ-down still serves company names where available. Path A (BQ schema persistence) deferred to Phase 2.
+
+**Phase-23.1 plan now 10/10 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.10/.
