@@ -1057,6 +1057,39 @@ export default function PaperTradingPage() {
                           value={`$${(manageSettings.paper_starting_capital ?? 10000).toLocaleString()}`}
                           hint="Adjust via Top up fund (deposit only)."
                         />
+                        {/* phase-23.1.12: lite_mode toggle. Default false = full pipeline
+                            using the operator's standard + deep-think model selections. */}
+                        <div className="md:col-span-2 flex items-start gap-3 rounded-lg border border-navy-700 bg-navy-800/40 p-3">
+                          <input
+                            type="checkbox"
+                            id="paper-lite-mode"
+                            checked={
+                              manageDirty.lite_mode ?? manageSettings.lite_mode ?? false
+                            }
+                            onChange={(e) => {
+                              const next = e.target.checked;
+                              setManageDirty((d) => {
+                                const merged = { ...d };
+                                if (next === manageSettings.lite_mode) {
+                                  delete merged.lite_mode;
+                                } else {
+                                  merged.lite_mode = next;
+                                }
+                                return merged;
+                              });
+                            }}
+                            className="mt-1 h-4 w-4 cursor-pointer rounded border-navy-600 bg-navy-900 text-sky-500 focus:ring-2 focus:ring-sky-500/50"
+                          />
+                          <label htmlFor="paper-lite-mode" className="cursor-pointer text-sm">
+                            <span className="font-medium text-slate-200">Lite mode (cheap fast analysis)</span>
+                            <p className="mt-1 text-xs text-slate-500">
+                              When ON, paper trading uses a single 4-field Claude call (~$0.01/ticker)
+                              instead of the full 15-step orchestrator with debate / risk-judge / bias-audit
+                              ($0.50–2.00/ticker but much richer rationale and reports). The
+                              `paper_max_daily_cost_usd` cap below is the safety circuit-breaker either way.
+                            </p>
+                          </label>
+                        </div>
                         <PaperSettingNum
                           label="Max simultaneous positions"
                           field="paper_max_positions"

@@ -14124,3 +14124,25 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 11/11 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.11/.
+
+## phase-23.1.12 -- 2026-04-27 -- Honor operator's model choice (no forced lite_mode) + cycle pill amber-on-unknown -- result=PASS
+
+**Hypothesis:** Two operator-reported bugs fixed. (Bug 1) Removing the hardcoded `settings.lite_mode = True` in autonomous_loop.py Step 3 makes `_run_single_analysis` honor the operator's Settings choice — when they pick Sonnet/Opus and lite_mode=False, the FULL AnalysisOrchestrator with their models runs. paper_max_daily_cost_usd cap becomes the actual circuit-breaker per TradingAgents/FinCon convention. (Bug 2) OpsStatusBar.tsx worst-of-N aggregator collapses unknown -> amber per Google SRE / Azure WAF convention.
+
+**User trigger:** "in settings we have chosen full analysis with claude sonnet 4.6 and opus 4.6 ... investigate why our app is choosing The lite-Claude analyzer when settings says something else" + "[screenshot] also investigate why cycle shows green when we have unknown status from certain datapoints".
+
+**Files:** backend/services/autonomous_loop.py (removed `settings.lite_mode = True` hardcode + restore; refactored _run_single_analysis to branch on settings.lite_mode; lite path tagged with `_path=lite` marker; persist guards switched to `analysis._path == lite`), frontend/src/components/OpsStatusBar.tsx (unknown -> amber in worst-of-N), frontend/src/app/paper-trading/page.tsx (NEW lite_mode toggle in Manage tab Trading Settings card with cost trade-off hint), tests/services/test_run_single_analysis_branch.py (NEW 6 tests covering both branches + fallback paths), tests/verify_phase_23_1_12.py (NEW immutable verification script).
+
+**Verification (immutable):** `PYTHONPATH=. python tests/verify_phase_23_1_12.py` -> `ok lite_mode override removed + branch path correct + _path marker + OpsStatusBar amber-on-unknown` exit=0. Regex-asserts: no active settings.lite_mode = True assignment; if settings.lite_mode: branch in _run_single_analysis; AnalysisOrchestrator(settings) called with operator's settings (no fallback override); _path=lite marker in lite return dict; OpsStatusBar amber clause includes "unknown".
+
+**Q/A verdict:** PASS (1st pass). 12/12 checks: harness-compliance + verification + pytest + syntax + tsc + 2 source greps + persist guard + Manage tab toggle + test inventory + git scope + LLM judgment.
+
+**160/160 unit tests pass** (154 prior + 6 new; no regression).
+
+**What changes for operator:** when they keep lite_mode=False (default) and have Sonnet/Opus selected, tomorrow's cycle runs the FULL multi-agent orchestrator -- debate / bull-bear / risk-judge / bias all populated -- using their chosen models. paper_max_daily_cost_usd cap stops analysis after 1-3 candidates if Opus runs out of budget. The existing 11 lite-path trades are NOT retroactively re-analyzed (correctly disclosed).
+
+**Cost-surprise risk:** lite_mode=False + Opus 4.6 + max_daily_cost=$2.00 = ~1-2 full analyses/cycle vs lite mode's 5/cycle at $0.05 total. Operator-visible knobs: Settings page (model selectors); Manage tab (lite_mode + daily cap). Operator's choice fully transparent.
+
+**Phase-23.1 plan now 12/12 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.12/.

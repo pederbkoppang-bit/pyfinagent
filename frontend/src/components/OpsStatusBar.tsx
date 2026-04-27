@@ -270,13 +270,16 @@ function CycleSegment({
     { name: "heartbeat", band: fresh.heartbeat.band },
     ...Object.entries(fresh.sources).map(([n, s]) => ({ name: n, band: s.band })),
   ];
+  // phase-23.1.12: collapse `unknown` into amber per Google SRE / Azure WAF
+  // worst-of-N aggregation convention. Previously a green heartbeat with two
+  // unknown sources rendered as green — masking degraded state.
   const worst = bands.some((b) => b.band === "red")
     ? "red"
-    : bands.some((b) => b.band === "amber")
+    : bands.some((b) => b.band === "amber" || b.band === "unknown")
       ? "amber"
       : bands.every((b) => b.band === "green")
         ? "green"
-        : "unknown";
+        : "amber";
   const statusLabel = latestCycle?.status ?? "idle";
   return (
     <div

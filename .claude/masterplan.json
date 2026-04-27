@@ -7042,9 +7042,23 @@
           "created_at": "2026-04-27T20:43:17Z",
           "completed_at": "2026-04-27T20:43:17Z",
           "notes": "User noticed Reports History tab missing autonomous-cycle candidates (COHR/KEYS/GEV/...). Closes the Gap 3 deferred from phase-23.1.7. Path A: write to existing analysis_results table, ~14 fields populated, ~74 NULL. Q/A PASS first try (11/11). 154/154 unit tests."
+        },
+        {
+          "id": "23.1.12",
+          "name": "Honor operator's model choice (remove hardcoded lite_mode override) + cycle pill amber-on-unknown",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.12/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_12.py)",
+          "contract": "handoff/archive/phase-23.1.12/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.12/phase-23.1.12-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.12/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.12/evaluator_critique.md",
+          "created_at": "2026-04-27T21:02:20Z",
+          "completed_at": "2026-04-27T21:02:20Z",
+          "notes": "Operator: 'why our app is choosing lite-Claude when settings says Sonnet/Opus' + 'why cycle shows green when datapoints are unknown'. Bug 1: removed `settings.lite_mode = True` hardcode in autonomous_loop Step 3; _run_single_analysis branches on operator's lite_mode setting; full path runs AnalysisOrchestrator with operator's models (no Gemini fallback override). Bug 2: OpsStatusBar.tsx worst-of-N collapses unknown -> amber. Q/A PASS first try (12/12). 160/160 unit tests."
         }
       ],
-      "completed_at": "2026-04-27T20:43:17Z"
+      "completed_at": "2026-04-27T21:02:20Z"
     }
   ]
 }

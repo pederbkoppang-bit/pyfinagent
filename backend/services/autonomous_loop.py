@@ -207,13 +207,17 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         summary["new_to_analyze"] = len(analyze_tickers)
         summary["reeval_tickers"] = len(reeval_tickers)
 
-        # ── Step 3: Analyze candidates (lite mode) ───────────────
-        logger.info(f"Paper trading: Step 3 -- Analyzing {len(analyze_tickers)} new + {len(reeval_tickers)} re-evals")
+        # ── Step 3: Analyze candidates ───────────────────────────
+        # phase-23.1.12: removed the hardcoded `settings.lite_mode = True` override.
+        # The operator's lite_mode setting is now respected. Cost containment is
+        # enforced by `paper_max_daily_cost_usd` cap (the loop break below); the
+        # full Gemini orchestrator path is more expensive but the cap remains
+        # the circuit breaker.
+        logger.info(
+            "Paper trading: Step 3 -- Analyzing %d new + %d re-evals (lite_mode=%s)",
+            len(analyze_tickers), len(reeval_tickers), settings.lite_mode,
+        )
         summary["steps"].append("analyzing")
-
-        # Force lite mode for paper trading (cost control)
-        original_lite = settings.lite_mode
-        settings.lite_mode = True
 
         candidate_analyses = []
         for ticker in analyze_tickers:
@@ -226,11 +230,13 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     candidate_analyses.append(analysis)
                     cost = analysis.get("total_cost_usd", 0.1)
                     total_analysis_cost += cost
-                    # phase-23.1.11: persist lite analysis to analysis_results so the
-                    # Reports History tab surfaces paper-trading candidates. The full
-                    # Gemini fallback path already calls bq.save_report itself, so
-                    # only persist when we're in lite_mode (avoids double-write).
-                    if settings.lite_mode:
+                    # phase-23.1.11 + 23.1.12: persist analysis to analysis_results so
+                    # the Reports History tab surfaces it. Guard on the lite-path marker
+                    # (set by _run_claude_analysis) -- the full orchestrator path writes
+                    # its own row via bq.save_report inside run_full_analysis, so this
+                    # guard correctly avoids double-write while still capturing the
+                    # lite-fallback case (operator chose full but orchestrator failed).
+                    if analysis.get("_path") == "lite":
                         await _persist_lite_analysis(analysis, bq)
             except Exception as e:
                 logger.error(f"Failed to analyze candidate {ticker}: {e}")
@@ -247,14 +253,14 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     holding_analyses.append(analysis)
                     cost = analysis.get("total_cost_usd", 0.1)
                     total_analysis_cost += cost
-                    # phase-23.1.11: same persist logic as Step 3
-                    if settings.lite_mode:
+                    # phase-23.1.11 + 23.1.12: same lite-path-marker persist guard as Step 3
+                    if analysis.get("_path") == "lite":
                         await _persist_lite_analysis(analysis, bq)
             except Exception as e:
                 logger.error(f"Failed to re-evaluate {ticker}: {e}")
 
-        # Restore lite mode setting
-        settings.lite_mode = original_lite
+        # phase-23.1.12: no longer mutate settings.lite_mode here — operator's
+        # value is preserved across the cycle.
 
         # ── Step 5: Mark to market ───────────────────────────────
         logger.info("Paper trading: Step 5 -- Mark to market")
@@ -434,27 +440,30 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
 async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict]:
     """Run a single analysis and extract key fields for trade decisions.
 
-    Uses Claude for lightweight analysis (paper trading mode).
-    Falls back to full Gemini orchestrator if Claude is unavailable.
-    """
-    try:
-        return await _run_claude_analysis(ticker, settings)
-    except Exception as e:
-        logger.warning(f"Claude analysis failed for {ticker}: {e}, trying Gemini orchestrator")
+    phase-23.1.12: branches on `settings.lite_mode`:
+      - lite_mode=True (operator opted into cheap fast analysis) -> 4-field
+        Claude lite analyzer using `settings.gemini_model`.
+      - lite_mode=False (operator picked Sonnet/Opus and wants the full
+        pipeline) -> AnalysisOrchestrator with their `gemini_model` +
+        `deep_think_model`. Falls back to lite Claude if the orchestrator
+        fails (e.g. transient Vertex/Gemini outage).
 
-    # Fallback: full Gemini orchestrator. Force Gemini models explicitly
-    # here -- the user's standard/deep-think settings may be Claude (that's
-    # what just failed). Without this override the fallback routes the same
-    # Claude model back through make_client and lands on GitHub Models /
-    # other providers that also require keys we may not have.
+    Cost containment is via `paper_max_daily_cost_usd` cap in the calling
+    cycle loop -- not via silent forced-lite.
+    """
+    if settings.lite_mode:
+        try:
+            return await _run_claude_analysis(ticker, settings)
+        except Exception as e:
+            logger.warning("Lite analysis failed for %s (lite_mode=True): %s", ticker, e)
+            return None
+
+    # Full pipeline path (operator chose lite_mode=False)
     try:
-        fallback_settings = settings.model_copy()
-        fallback_settings.gemini_model = "gemini-2.0-flash"
-        fallback_settings.deep_think_model = "gemini-2.5-flash"
-        orchestrator = AnalysisOrchestrator(fallback_settings)
+        orchestrator = AnalysisOrchestrator(settings)
         report = await orchestrator.run_full_analysis(ticker)
         if not report:
-            return None
+            raise RuntimeError("orchestrator returned empty report")
 
         synthesis = report.get("final_synthesis", {})
         rec = synthesis.get("recommendation", {})
@@ -473,7 +482,16 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
             "full_report": report,
         }
     except Exception as e:
-        logger.error(f"Both Claude and Gemini analysis failed for {ticker}: {e}")
+        logger.warning(
+            "Full orchestrator failed for %s: %s -- falling back to lite Claude analyzer",
+            ticker, e,
+        )
+
+    # Last-resort fallback: try lite path so the cycle still produces a decision
+    try:
+        return await _run_claude_analysis(ticker, settings)
+    except Exception as e:
+        logger.error("Both full and lite paths failed for %s: %s", ticker, e)
         return None
 
 
@@ -571,6 +589,10 @@ Respond in this exact JSON format:
 
     return {
         "ticker": ticker,
+        # phase-23.1.12: marker so the cycle loop knows this came from the lite
+        # path (and therefore needs explicit persist via _persist_lite_analysis).
+        # The full orchestrator path writes its own row directly.
+        "_path": "lite",
         "recommendation": analysis["action"],
         "final_score": analysis["score"],
         "risk_assessment": {"reason": analysis["reason"]},
