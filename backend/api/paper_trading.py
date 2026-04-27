@@ -9,7 +9,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.config.settings import get_settings
 from backend.db.bigquery_client import BigQueryClient
@@ -43,6 +43,13 @@ class StartRequest(BaseModel):
 class KillSwitchActionRequest(BaseModel):
     """Confirmation token required for destructive actions (4.5.7)."""
     confirmation: str  # must equal the action name (e.g. "FLATTEN_ALL")
+
+
+class DepositRequest(BaseModel):
+    """phase-23.1.9: top up the virtual fund. Increments BOTH current_cash AND
+    starting_capital so total_pnl_pct denominator stays anchored (a deposit is
+    P&L-neutral by definition)."""
+    amount: float = Field(..., gt=0, le=1_000_000, description="USD to deposit (0 < x <= $1M)")
 
 
 class StartResponse(BaseModel):
@@ -628,6 +635,62 @@ async def run_now(dry_run: bool = False):
 
 
 _last_cycle_error: Optional[str] = None
+
+
+@router.post("/deposit")
+async def deposit_funds(req: DepositRequest):
+    """Top up the virtual paper-trading fund.
+
+    phase-23.1.9: increments BOTH `current_cash` AND `starting_capital` so
+    `total_pnl_pct = (nav - starting_capital) / starting_capital * 100` stays
+    anchored. A deposit is P&L-neutral by definition; without bumping the
+    starting_capital the operator would see a fake gain.
+    """
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    trader = PaperTrader(settings, bq)
+
+    portfolio = await asyncio.to_thread(trader.get_or_create_portfolio)
+    balance_before = float(portfolio.get("current_cash") or 0.0)
+    starting_before = float(portfolio.get("starting_capital") or 0.0)
+    nav_before = float(portfolio.get("total_nav") or starting_before)
+
+    new_cash = round(balance_before + req.amount, 2)
+    new_starting = round(starting_before + req.amount, 2)
+    new_nav = round(nav_before + req.amount, 2)
+    new_pnl_pct = (
+        round(((new_nav - new_starting) / new_starting) * 100, 4)
+        if new_starting > 0 else 0.0
+    )
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    updated = {
+        **portfolio,
+        "current_cash": new_cash,
+        "starting_capital": new_starting,
+        "total_nav": new_nav,
+        "total_pnl_pct": new_pnl_pct,
+        "updated_at": now_iso,
+    }
+    await asyncio.to_thread(bq.upsert_paper_portfolio, updated)
+    get_api_cache().invalidate("paper:*")
+
+    logger.info(
+        "[paper_trading] deposit accepted: amount=$%.2f portfolio=%s "
+        "cash %.2f -> %.2f, starting %.2f -> %.2f, nav %.2f -> %.2f",
+        req.amount, portfolio.get("portfolio_id", "default"),
+        balance_before, new_cash, starting_before, new_starting, nav_before, new_nav,
+    )
+
+    return {
+        "status": "deposited",
+        "amount": req.amount,
+        "new_cash": new_cash,
+        "new_starting_capital": new_starting,
+        "new_nav": new_nav,
+        "new_pnl_pct": new_pnl_pct,
+        "deposited_at": now_iso,
+    }
 
 
 async def _run_cycle_background(settings):

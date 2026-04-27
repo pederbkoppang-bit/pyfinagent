@@ -14056,3 +14056,25 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 8/8 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.8/.
+
+## phase-23.1.9 -- 2026-04-27 -- Paper Trading "Manage" tab (deposits + 9 paper-trading settings) -- result=PASS
+
+**Hypothesis:** A new "Manage" tab on the Paper Trading page lets the operator (a) deposit more capital without losing P&L meaningfulness, and (b) tune paper-trading-specific settings without leaving the page. Deposits increment BOTH current_cash AND starting_capital so total_pnl_pct denominator stays anchored.
+
+**User trigger:** "make a new tab where the user can add more money and other paper trading settings". Operator screenshot showed Paper Trading page with no way to top up the virtual fund.
+
+**Files:** backend/api/settings_api.py (10 paper-trading fields x 4 places: FullSettings, SettingsUpdate, _FIELD_TO_ENV, _settings_to_full -- paper_starting_capital is read-only by design), backend/api/paper_trading.py (NEW DepositRequest Pydantic model + POST /deposit endpoint), frontend/src/lib/types.ts (10 optional paper fields + DepositResponse), frontend/src/lib/api.ts (depositPaperFunds), frontend/src/app/paper-trading/page.tsx (NEW "manage" tab + 7 state vars + handleDeposit + handleSettingsSave + ReadOnlyField + PaperSettingNum helper components), tests/api/test_paper_trading_deposit.py (NEW 12 tests), tests/verify_phase_23_1_9.py (NEW immutable verification script).
+
+**Verification (immutable):** `PYTHONPATH=. python tests/verify_phase_23_1_9.py` -> `ok 10 paper fields wired + DepositRequest validates` exit=0. Asserts: 10 fields exist in FullSettings + 9 writable in SettingsUpdate + DepositRequest validates 500.0 + rejects 0 (gt=0) + rejects 2_000_000 (le=1_000_000).
+
+**P&L correctness:** deposit increments BOTH `current_cash` AND `starting_capital` AND `total_nav` so `total_pnl_pct = ((nav - starting) / starting) * 100` stays meaningful. Matches Alpaca / Robinhood / Webull paper trading conventions per research brief.
+
+**Q/A verdict:** PASS (1st pass). 12/12 checks: harness-compliance + verification + unit tests + syntax + frontend tsc + git scope + deposit endpoint correctness + settings field audit + paper_starting_capital read-only discipline + frontend Manage tab structure + P&L anchor invariant + research gate.
+
+**137/137 unit tests pass** (12 new + 125 prior; no regression across all 9 cycles in phase-23.1 plan).
+
+**Honest disclosure:** Deposit audit-trail is stdout `logger.info` for v1 (no `paper_deposits` BQ table). Phase-2 follow-ups: BQ audit table, deposit history UI, withdraw button, idempotency keys.
+
+**Phase-23.1 plan now 9/9 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.9/.

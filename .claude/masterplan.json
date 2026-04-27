@@ -7000,9 +7000,23 @@
           "created_at": "2026-04-27T15:11:43Z",
           "completed_at": "2026-04-27T15:11:43Z",
           "notes": "User saw stale Market Value + +0.00% P&L + '-' Stop Loss. Frontend now derives MV+P&L from yfinance live-price ticks (30s) on every render. Backend settings-driven 8% default stop-loss (O'Neil canon) when neither Gemini nor lite analyzer proposes one. Q/A PASS first try (12/12). 125/125 unit tests."
+        },
+        {
+          "id": "23.1.9",
+          "name": "Paper Trading Manage tab \u2014 deposit endpoint + 10 paper-trading settings exposed in API/UI",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.9/contract.md (immutable verification: PYTHONPATH=. python tests/verify_phase_23_1_9.py)",
+          "contract": "handoff/archive/phase-23.1.9/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.9/phase-23.1.9-research-brief.md",
+          "experiment_results": "handoff/archive/phase-23.1.9/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.9/evaluator_critique.md",
+          "created_at": "2026-04-27T15:52:02Z",
+          "completed_at": "2026-04-27T15:52:02Z",
+          "notes": "User asked for 'a new tab where the user can add more money and other paper trading settings'. NEW Manage tab + POST /deposit + 10 paper-trading fields (1 read-only + 9 writable). Deposit correctly increments both cash AND starting_capital so P&L stays anchored. Q/A PASS first try (12/12). 137/137 unit tests."
         }
       ],
-      "completed_at": "2026-04-27T15:11:43Z"
+      "completed_at": "2026-04-27T15:52:02Z"
     }
   ]
 }

@@ -14,6 +14,9 @@ import {
   startPaperTrading,
   stopPaperTrading,
   triggerPaperTradingCycle,
+  depositPaperFunds,
+  getFullSettings,
+  updateSettings,
 } from "@/lib/api";
 import type {
   PaperTradingStatus,
@@ -23,6 +26,7 @@ import type {
   PaperPerformance,
   PaperPortfolio,
   PaperReconciliation,
+  FullSettings,
 } from "@/lib/types";
 import { PaperReconciliationChart } from "@/components/PaperReconciliationChart";
 import { AgentRationaleDrawer } from "@/components/AgentRationaleDrawer";
@@ -59,6 +63,95 @@ function Dollar({ value }: { value: number | null | undefined }) {
     <span className="text-slate-200">
       ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
+  );
+}
+
+// phase-23.1.9 — Manage tab helpers
+
+function ReadOnlyField({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs uppercase tracking-wider text-slate-500">{label}</label>
+      <div className="rounded-md border border-navy-700 bg-navy-900/50 px-3 py-2 text-sm text-slate-300">
+        {value}
+      </div>
+      {hint && <p className="mt-1 text-xs text-slate-600">{hint}</p>}
+    </div>
+  );
+}
+
+type PaperNumKey =
+  | "paper_max_positions"
+  | "paper_max_daily_cost_usd"
+  | "paper_default_stop_loss_pct"
+  | "paper_screen_top_n"
+  | "paper_analyze_top_n"
+  | "paper_transaction_cost_pct"
+  | "paper_daily_loss_limit_pct"
+  | "paper_trailing_dd_limit_pct"
+  | "paper_min_cash_reserve_pct";
+
+function PaperSettingNum({
+  label,
+  field,
+  settings,
+  dirty,
+  setDirty,
+  min,
+  max,
+  step,
+  hint,
+}: {
+  label: string;
+  field: PaperNumKey;
+  settings: import("@/lib/types").FullSettings;
+  dirty: Partial<import("@/lib/types").FullSettings>;
+  setDirty: React.Dispatch<React.SetStateAction<Partial<import("@/lib/types").FullSettings>>>;
+  min: number;
+  max: number;
+  step: number;
+  hint?: string;
+}) {
+  const stored = settings[field];
+  const draft = dirty[field];
+  const value = (draft ?? stored ?? "") as number | string;
+  return (
+    <div>
+      <label className="mb-1 block text-xs uppercase tracking-wider text-slate-500">{label}</label>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => {
+          const raw = e.target.value;
+          const next = raw === "" ? undefined : Number(raw);
+          setDirty((d) => {
+            const merged = { ...d };
+            if (next === undefined || next === stored) {
+              delete merged[field];
+            } else {
+              merged[field] = next;
+            }
+            return merged;
+          });
+        }}
+        className="w-full rounded-md border border-navy-600 bg-navy-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500/50 focus:outline-none"
+      />
+      {hint && <p className="mt-1 text-xs text-slate-600">{hint}</p>}
+      {draft !== undefined && (
+        <p className="mt-1 text-[10px] uppercase tracking-wider text-amber-400">unsaved</p>
+      )}
+    </div>
   );
 }
 
@@ -242,6 +335,7 @@ const TABS = [
   { id: "chart", label: "NAV Chart" },
   { id: "reality-gap", label: "Reality gap" },
   { id: "exit-quality", label: "Exit quality" },
+  { id: "manage", label: "Manage" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -262,6 +356,17 @@ export default function PaperTradingPage() {
   const [reconciliation, setReconciliation] = useState<PaperReconciliation | null>(null);
   const [reconciliationLoading, setReconciliationLoading] = useState(false);
   const [rationaleTradeId, setRationaleTradeId] = useState<string | null>(null);
+
+  // phase-23.1.9 — Manage tab state
+  const [manageSettings, setManageSettings] = useState<FullSettings | null>(null);
+  const [manageDirty, setManageDirty] = useState<Partial<FullSettings>>({});
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const [depositSuccess, setDepositSuccess] = useState<string | null>(null);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
 
   const positionTickers = useMemo(() => positions.map((p) => p.ticker), [positions]);
   const { prices: livePrices } = useLivePrices(
@@ -376,6 +481,70 @@ export default function PaperTradingPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to trigger cycle");
       setActionLoading(false);
+    }
+  };
+
+  // phase-23.1.9 — Manage tab: load settings when the tab opens
+  useEffect(() => {
+    if (tab !== "manage" || manageSettings) return;
+    let cancelled = false;
+    getFullSettings()
+      .then((s) => {
+        if (!cancelled) setManageSettings(s);
+      })
+      .catch((e) => {
+        if (!cancelled) setSettingsError(e instanceof Error ? e.message : "Failed to load settings");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, manageSettings]);
+
+  const handleDeposit = async () => {
+    setDepositError(null);
+    setDepositSuccess(null);
+    const amt = parseFloat(depositAmount);
+    if (!Number.isFinite(amt) || amt <= 0 || amt > 1_000_000) {
+      setDepositError("Enter an amount between $1 and $1,000,000.");
+      return;
+    }
+    setDepositLoading(true);
+    try {
+      const r = await depositPaperFunds(amt);
+      setDepositSuccess(
+        `Deposited $${r.amount.toLocaleString()} — new NAV $${r.new_nav.toLocaleString()} ` +
+          `(starting capital now $${r.new_starting_capital.toLocaleString()})`,
+      );
+      setDepositAmount("");
+      // Refresh hero metrics
+      const [s, p] = await Promise.all([getPaperTradingStatus(), getPaperPortfolio()]);
+      setStatus(s);
+      setPortfolio(p.portfolio);
+      setPositions(p.positions);
+    } catch (e) {
+      setDepositError(e instanceof Error ? e.message : "Deposit failed");
+    } finally {
+      setDepositLoading(false);
+    }
+  };
+
+  const handleSettingsSave = async () => {
+    if (Object.keys(manageDirty).length === 0) {
+      setSettingsError("No changes to save.");
+      return;
+    }
+    setSettingsError(null);
+    setSettingsSuccess(null);
+    setSettingsSaving(true);
+    try {
+      const updated = await updateSettings(manageDirty);
+      setManageSettings(updated);
+      setManageDirty({});
+      setSettingsSuccess("Settings saved.");
+    } catch (e) {
+      setSettingsError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -769,6 +938,196 @@ export default function PaperTradingPage() {
               )}
 
               {tab === "exit-quality" && <MfeMaeScatter />}
+
+              {tab === "manage" && (
+                <div className="space-y-6">
+                  {/* ── Top up Fund ─────────────────────────────────── */}
+                  <div className="rounded-xl border border-navy-700 bg-navy-800/70 p-6">
+                    <h3 className="mb-1 text-lg font-semibold text-slate-100">Top up fund</h3>
+                    <p className="mb-4 text-sm text-slate-500">
+                      Deposit additional virtual capital. The amount is added to BOTH the cash
+                      balance AND the starting capital so total P&amp;L % stays meaningful (a deposit
+                      is P&amp;L-neutral by definition).
+                    </p>
+                    <div className="flex flex-wrap items-end gap-3">
+                      <div className="flex-1 min-w-[12rem]">
+                        <label htmlFor="deposit-amount" className="mb-1 block text-xs uppercase tracking-wider text-slate-500">
+                          Amount (USD)
+                        </label>
+                        <div className="flex items-center rounded-md border border-navy-600 bg-navy-900 px-3 py-2 focus-within:border-sky-500/50">
+                          <span className="mr-2 text-slate-500">$</span>
+                          <input
+                            id="deposit-amount"
+                            type="number"
+                            min={1}
+                            max={1_000_000}
+                            step={100}
+                            value={depositAmount}
+                            onChange={(e) => setDepositAmount(e.target.value)}
+                            placeholder="5000"
+                            className="w-full bg-transparent text-slate-100 placeholder:text-slate-600 focus:outline-none"
+                            disabled={depositLoading}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleDeposit}
+                        disabled={depositLoading || !depositAmount}
+                        className="rounded-md bg-emerald-600/30 px-5 py-2.5 text-sm font-medium text-emerald-200 hover:bg-emerald-600/50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {depositLoading ? "Depositing..." : "Deposit"}
+                      </button>
+                    </div>
+                    {depositError && (
+                      <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-sm text-rose-300">
+                        {depositError}
+                      </div>
+                    )}
+                    {depositSuccess && (
+                      <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-950/30 p-3 text-sm text-emerald-300">
+                        {depositSuccess}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Trading Settings ─────────────────────────────── */}
+                  <div className="rounded-xl border border-navy-700 bg-navy-800/70 p-6">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-100">Trading settings</h3>
+                        <p className="text-sm text-slate-500">
+                          Paper-trading-specific knobs. Changes persist via the .env file.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSettingsSave}
+                        disabled={settingsSaving || Object.keys(manageDirty).length === 0}
+                        className="rounded-md bg-sky-600/30 px-5 py-2.5 text-sm font-medium text-sky-200 hover:bg-sky-600/50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {settingsSaving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+
+                    {!manageSettings && !settingsError && (
+                      <p className="text-sm text-slate-500">Loading settings…</p>
+                    )}
+                    {settingsError && (
+                      <div className="mb-3 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-sm text-rose-300">
+                        {settingsError}
+                      </div>
+                    )}
+                    {settingsSuccess && (
+                      <div className="mb-3 rounded-lg border border-emerald-500/30 bg-emerald-950/30 p-3 text-sm text-emerald-300">
+                        {settingsSuccess}
+                      </div>
+                    )}
+
+                    {manageSettings && (
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {/* Read-only: starting capital */}
+                        <ReadOnlyField
+                          label="Starting capital"
+                          value={`$${(manageSettings.paper_starting_capital ?? 10000).toLocaleString()}`}
+                          hint="Adjust via Top up fund (deposit only)."
+                        />
+                        <PaperSettingNum
+                          label="Max simultaneous positions"
+                          field="paper_max_positions"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={1}
+                          max={50}
+                          step={1}
+                        />
+                        <PaperSettingNum
+                          label="Daily LLM cost cap (USD)"
+                          field="paper_max_daily_cost_usd"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={0.1}
+                          max={50}
+                          step={0.1}
+                        />
+                        <PaperSettingNum
+                          label="Default stop-loss (%)"
+                          field="paper_default_stop_loss_pct"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={1}
+                          max={50}
+                          step={0.5}
+                          hint="O'Neil canonical: 7-8%."
+                        />
+                        <PaperSettingNum
+                          label="Screen top-N candidates"
+                          field="paper_screen_top_n"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={1}
+                          max={100}
+                          step={1}
+                        />
+                        <PaperSettingNum
+                          label="Analyze top-K with LLM"
+                          field="paper_analyze_top_n"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={1}
+                          max={50}
+                          step={1}
+                        />
+                        <PaperSettingNum
+                          label="Transaction cost (%)"
+                          field="paper_transaction_cost_pct"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={0}
+                          max={5}
+                          step={0.05}
+                        />
+                        <PaperSettingNum
+                          label="Daily loss limit (%)"
+                          field="paper_daily_loss_limit_pct"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={0.5}
+                          max={25}
+                          step={0.5}
+                        />
+                        <PaperSettingNum
+                          label="Trailing drawdown limit (%)"
+                          field="paper_trailing_dd_limit_pct"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={1}
+                          max={50}
+                          step={0.5}
+                        />
+                        <PaperSettingNum
+                          label="Min cash reserve (%)"
+                          field="paper_min_cash_reserve_pct"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={0}
+                          max={50}
+                          step={0.5}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
 

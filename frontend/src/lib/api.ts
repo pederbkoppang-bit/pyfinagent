@@ -293,6 +293,14 @@ export function triggerPaperTradingCycle(): Promise<{ status: string; message: s
   return apiFetch("/api/paper-trading/run-now", { method: "POST" });
 }
 
+// phase-23.1.9 — top up the virtual paper-trading fund
+export function depositPaperFunds(amount: number): Promise<import("./types").DepositResponse> {
+  return apiFetch("/api/paper-trading/deposit", {
+    method: "POST",
+    body: JSON.stringify({ amount }),
+  });
+}
+
 export function getPaperMetricsV2(): Promise<PaperMetricsV2> {
   return apiFetch("/api/paper-trading/metrics-v2");
 }

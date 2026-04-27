@@ -96,6 +96,17 @@ class FullSettings(BaseModel):
     meta_scorer_enabled: bool = False
     meta_scorer_model: str = "claude-haiku-4-5"
     meta_scorer_max_batch: int = 30
+    # phase-23.1.9 — Paper trading settings
+    paper_starting_capital: float = 10000.0  # informational read-only
+    paper_max_positions: int = 10
+    paper_max_daily_cost_usd: float = 2.0
+    paper_default_stop_loss_pct: float = 8.0
+    paper_screen_top_n: int = 10
+    paper_analyze_top_n: int = 5
+    paper_transaction_cost_pct: float = 0.1
+    paper_daily_loss_limit_pct: float = 4.0
+    paper_trailing_dd_limit_pct: float = 10.0
+    paper_min_cash_reserve_pct: float = 5.0
 
 
 class SettingsUpdate(BaseModel):
@@ -128,6 +139,16 @@ class SettingsUpdate(BaseModel):
     meta_scorer_enabled: Optional[bool] = None
     meta_scorer_model: Optional[str] = None
     meta_scorer_max_batch: Optional[int] = Field(None, ge=5, le=100)
+    # phase-23.1.9 — Paper trading settings (paper_starting_capital is NOT writable post-init)
+    paper_max_positions: Optional[int] = Field(None, ge=1, le=50)
+    paper_max_daily_cost_usd: Optional[float] = Field(None, ge=0.10, le=50.0)
+    paper_default_stop_loss_pct: Optional[float] = Field(None, ge=1.0, le=50.0)
+    paper_screen_top_n: Optional[int] = Field(None, ge=1, le=100)
+    paper_analyze_top_n: Optional[int] = Field(None, ge=1, le=50)
+    paper_transaction_cost_pct: Optional[float] = Field(None, ge=0.0, le=5.0)
+    paper_daily_loss_limit_pct: Optional[float] = Field(None, ge=0.5, le=25.0)
+    paper_trailing_dd_limit_pct: Optional[float] = Field(None, ge=1.0, le=50.0)
+    paper_min_cash_reserve_pct: Optional[float] = Field(None, ge=0.0, le=50.0)
 
 
 class ModelConfigUpdate(BaseModel):
@@ -242,6 +263,16 @@ _FIELD_TO_ENV = {
     "meta_scorer_enabled": "META_SCORER_ENABLED",
     "meta_scorer_model": "META_SCORER_MODEL",
     "meta_scorer_max_batch": "META_SCORER_MAX_BATCH",
+    # phase-23.1.9 — Paper trading settings
+    "paper_max_positions": "PAPER_MAX_POSITIONS",
+    "paper_max_daily_cost_usd": "PAPER_MAX_DAILY_COST_USD",
+    "paper_default_stop_loss_pct": "PAPER_DEFAULT_STOP_LOSS_PCT",
+    "paper_screen_top_n": "PAPER_SCREEN_TOP_N",
+    "paper_analyze_top_n": "PAPER_ANALYZE_TOP_N",
+    "paper_transaction_cost_pct": "PAPER_TRANSACTION_COST_PCT",
+    "paper_daily_loss_limit_pct": "PAPER_DAILY_LOSS_LIMIT_PCT",
+    "paper_trailing_dd_limit_pct": "PAPER_TRAILING_DD_LIMIT_PCT",
+    "paper_min_cash_reserve_pct": "PAPER_MIN_CASH_RESERVE_PCT",
 }
 
 
@@ -295,6 +326,17 @@ def _settings_to_full(s: Settings) -> FullSettings:
         meta_scorer_enabled=bool(getattr(s, "meta_scorer_enabled", False)),
         meta_scorer_model=getattr(s, "meta_scorer_model", "claude-haiku-4-5"),
         meta_scorer_max_batch=int(getattr(s, "meta_scorer_max_batch", 30)),
+        # phase-23.1.9 Paper trading settings
+        paper_starting_capital=float(getattr(s, "paper_starting_capital", 10000.0)),
+        paper_max_positions=int(getattr(s, "paper_max_positions", 10)),
+        paper_max_daily_cost_usd=float(getattr(s, "paper_max_daily_cost_usd", 2.0)),
+        paper_default_stop_loss_pct=float(getattr(s, "paper_default_stop_loss_pct", 8.0)),
+        paper_screen_top_n=int(getattr(s, "paper_screen_top_n", 10)),
+        paper_analyze_top_n=int(getattr(s, "paper_analyze_top_n", 5)),
+        paper_transaction_cost_pct=float(getattr(s, "paper_transaction_cost_pct", 0.1)),
+        paper_daily_loss_limit_pct=float(getattr(s, "paper_daily_loss_limit_pct", 4.0)),
+        paper_trailing_dd_limit_pct=float(getattr(s, "paper_trailing_dd_limit_pct", 10.0)),
+        paper_min_cash_reserve_pct=float(getattr(s, "paper_min_cash_reserve_pct", 5.0)),
     )
 
 

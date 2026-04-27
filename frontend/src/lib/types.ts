@@ -560,6 +560,28 @@ export interface FullSettings {
   meta_scorer_enabled?: boolean;
   meta_scorer_model?: string;
   meta_scorer_max_batch?: number;
+  // phase-23.1.9 — Paper trading settings
+  paper_starting_capital?: number;  // read-only after init; mutated only via deposit
+  paper_max_positions?: number;
+  paper_max_daily_cost_usd?: number;
+  paper_default_stop_loss_pct?: number;
+  paper_screen_top_n?: number;
+  paper_analyze_top_n?: number;
+  paper_transaction_cost_pct?: number;
+  paper_daily_loss_limit_pct?: number;
+  paper_trailing_dd_limit_pct?: number;
+  paper_min_cash_reserve_pct?: number;
+}
+
+// phase-23.1.9 — Paper Trading deposit endpoint response
+export interface DepositResponse {
+  status: string;
+  amount: number;
+  new_cash: number;
+  new_starting_capital: number;
+  new_nav: number;
+  new_pnl_pct: number;
+  deposited_at: string;
 }
 
 export interface LatestCostSummary extends CostSummary {
