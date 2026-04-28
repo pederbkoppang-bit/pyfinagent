@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-28 | `5b350e4d` | phase-23.1.13: sector concentration enforcement (v1) |
 | 2026-04-27 | `5145fd4a` | phase-23.1.12: honor operator's model choice + cycle pill amber-on-unknown |
 | 2026-04-27 | `1b8cdcdd` | phase-23.1.11: persist lite-Claude rows to analysis_results (Reports History tab) |
 | 2026-04-27 | `ddef603f` | phase-23.1.10: Company name + Sector on Positions and Trades (ticker-meta endpoint) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-26 | `9c31ed70` | phase-16.58: close pending Anthropic key swap (task #21) |
 | 2026-04-26 | `514f0635` | phase-19.0: Claude Remote / Max programmatic handoff feasibility (decision doc) |
 | 2026-04-26 | `570ba19a` | phase-18: Agent Topology Map (18.0 plan + 18.1 backend + 18.2-18.4 frontend) |
-| 2026-04-26 | `897d1323` | phase-16.56 + 16.57: sovereign grid widen Alpha then revert RedLine 60% |
 
 ---
 
+### v6.5.111 — phase-23.1.13: sector concentration enforcement (v1) (2026-04-28)
+
+- **phase-23.1.13: sector concentration enforcement (v1)**
 ### v6.5.110 — phase-23.1.12: honor operator's model choice + cycle pill amber-on-un... (2026-04-27)
 
 - **phase-23.1.12: honor operator's model choice + cycle pill amber-on-unknown**
