@@ -150,6 +150,17 @@ def decide_trades(
         # composite_score / conviction / signal-stack tags) so the rationale captures
         # ALL inputs that drove this decision, not just the LLM's verdict.
         screener_candidate = (candidates_by_ticker or {}).get(ticker)
+        # phase-23.1.13: capture sector for the per-sector cap. Resolution order:
+        # screener candidate (preferred -- enriched in autonomous_loop via
+        # _fetch_ticker_meta) -> analysis full_report.market_data.sector ->
+        # analysis.sector -> "Unknown" sentinel.
+        cand_sector = ""
+        if screener_candidate:
+            cand_sector = screener_candidate.get("sector") or ""
+        if not cand_sector:
+            full_report = analysis.get("full_report") or {}
+            md = full_report.get("market_data") or {}
+            cand_sector = md.get("sector") or analysis.get("sector") or ""
         buy_candidates.append({
             "ticker": ticker,
             "recommendation": rec,
@@ -159,6 +170,7 @@ def decide_trades(
             "analysis_id": analysis.get("analysis_date", ""),
             "final_score": final_score,
             "price": analysis.get("price_at_analysis"),
+            "sector": cand_sector or "Unknown",
             "signals": extract_all_signals(analysis, candidate=screener_candidate),
         })
 
@@ -172,12 +184,39 @@ def decide_trades(
     # Sort by final_score descending (best opportunities first)
     buy_candidates.sort(key=lambda x: x.get("final_score", 0), reverse=True)
 
+    # phase-23.1.13: build sector_counts from current positions NOT being sold,
+    # plus a meta lookup for legacy positions that lack a sector field. The cap
+    # is `settings.paper_max_per_sector` (0 disables). We block a candidate's
+    # BUY when its sector has already reached the cap; non-blocked sectors go
+    # through normally. Increments after each accepted BUY so 3rd+ candidates
+    # in the same sector skip cleanly.
+    max_per_sector = int(getattr(settings, "paper_max_per_sector", 0) or 0)
+    sector_counts: dict[str, int] = {}
+    if max_per_sector > 0:
+        for pos in current_positions:
+            if pos["ticker"] in selling_tickers:
+                continue
+            s = (pos.get("sector") or "").strip() or "Unknown"
+            sector_counts[s] = sector_counts.get(s, 0) + 1
+
     for cand in buy_candidates:
         if remaining_positions >= settings.paper_max_positions:
             break
 
         if available_cash <= 0:
             break
+
+        # phase-23.1.13: per-GICS-sector cap (default 2). 0 disables the check.
+        if max_per_sector > 0:
+            cand_sector = cand.get("sector") or "Unknown"
+            current_in_sector = sector_counts.get(cand_sector, 0)
+            if current_in_sector >= max_per_sector:
+                logger.info(
+                    "Skipping BUY %s: sector %s at cap (%d/%d)",
+                    cand["ticker"], cand_sector,
+                    current_in_sector, max_per_sector,
+                )
+                continue
 
         # Position size: min(risk_judge_pct * NAV, available_cash)
         position_pct = cand["position_pct"] or 10.0  # Default 10% if Risk Judge didn't specify
@@ -206,6 +245,10 @@ def decide_trades(
         ))
         available_cash -= buy_amount
         remaining_positions += 1
+        # phase-23.1.13: increment sector count after a BUY clears the cap
+        if max_per_sector > 0:
+            cs = cand.get("sector") or "Unknown"
+            sector_counts[cs] = sector_counts.get(cs, 0) + 1
 
     logger.info(f"Trade decisions: {len([o for o in orders if o.action == 'SELL'])} sells, "
                 f"{len([o for o in orders if o.action == 'BUY'])} buys")

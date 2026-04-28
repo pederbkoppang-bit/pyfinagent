@@ -172,9 +172,40 @@ async def get_portfolio():
         raise HTTPException(404, "Paper portfolio not initialized")
 
     positions = await asyncio.to_thread(trader.get_positions)
+
+    # phase-23.1.13: backend-authoritative sector breakdown so the Risk Monitor
+    # and any future monitoring (Slack, dashboards) read the same numbers.
+    # Uses the cached _fetch_ticker_meta helper -- BQ-first / yfinance-fallback,
+    # 24h cached -- so this adds near-zero latency to the portfolio endpoint.
+    sector_breakdown: dict[str, dict] = {}
+    try:
+        tickers = [p["ticker"] for p in positions if p.get("ticker")]
+        if tickers:
+            meta_resp = await asyncio.to_thread(_fetch_ticker_meta, tickers, settings, bq)
+            meta_map = (meta_resp or {}).get("meta", {})
+            total_value = float(portfolio.get("total_nav") or 0.0)
+            if total_value <= 0:
+                total_value = sum(float(p.get("market_value") or 0.0) for p in positions) or 1.0
+            for p in positions:
+                t = p.get("ticker") or ""
+                sector = (meta_map.get(t, {}) or {}).get("sector") or "Unknown"
+                weight_pct = (float(p.get("market_value") or 0.0) / total_value) * 100.0
+                row = sector_breakdown.setdefault(
+                    sector, {"count": 0, "weight_pct": 0.0, "tickers": []},
+                )
+                row["count"] += 1
+                row["weight_pct"] += weight_pct
+                row["tickers"].append(t)
+            for s in sector_breakdown.values():
+                s["weight_pct"] = round(s["weight_pct"], 2)
+    except Exception as e:
+        logger.warning("Sector breakdown computation failed (non-fatal): %s", e)
+        sector_breakdown = {}
+
     result = {
         "portfolio": portfolio,
         "positions": positions,
+        "sector_breakdown": sector_breakdown,
     }
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:portfolio"])
     return result

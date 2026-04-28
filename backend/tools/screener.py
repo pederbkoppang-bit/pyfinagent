@@ -66,12 +66,20 @@ def screen_universe(
     min_avg_volume: int = 100_000,
     min_price: float = 5.0,
     period: str = "6mo",
+    sector_lookup: Optional[dict] = None,
 ) -> list[dict]:
     """
     Screen a universe of tickers using quant factors.
     Returns raw screening data for each ticker that passes basic filters.
 
     Cost: $0 (yfinance only, no LLM, no API keys)
+
+    phase-23.1.13: optional `sector_lookup={ticker: sector}` is attached to
+    each result dict so downstream rank_candidates / portfolio_manager can
+    enforce sector concentration without extra yfinance fetches. Caller
+    typically builds this via `_fetch_ticker_meta` (BQ-first / yfinance
+    fallback). Backward compatible: when None, results lack the sector field
+    and any sector-aware logic falls back to None / "Unknown" handling.
     """
     if tickers is None:
         tickers = get_sp500_tickers()
@@ -129,7 +137,7 @@ def screen_universe(
             sma_50 = float(close.tail(50).mean()) if len(close) >= 50 else current_price
             sma_distance = (current_price - sma_50) / sma_50 * 100
 
-            results.append({
+            row = {
                 "ticker": ticker,
                 "current_price": round(current_price, 2),
                 "avg_volume_20d": int(avg_vol),
@@ -139,7 +147,18 @@ def screen_universe(
                 "rsi_14": round(rsi, 1) if rsi else None,
                 "volatility_ann": round(volatility, 4) if volatility else None,
                 "sma_50_distance_pct": round(sma_distance, 2),
-            })
+            }
+            # phase-23.1.13: attach sector when caller provided the lookup.
+            # The lookup is built via _fetch_ticker_meta (BQ-first/yfinance fallback)
+            # so we pay zero extra cost in the screener inner loop.
+            if sector_lookup:
+                meta = sector_lookup.get(ticker)
+                if isinstance(meta, dict):
+                    row["sector"] = meta.get("sector") or ""
+                    row["company_name"] = meta.get("company_name") or ticker
+                elif isinstance(meta, str):
+                    row["sector"] = meta
+            results.append(row)
         except Exception as e:
             logger.debug(f"Skipping {ticker}: {e}")
             continue

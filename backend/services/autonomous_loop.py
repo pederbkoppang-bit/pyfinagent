@@ -166,6 +166,31 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             sector_events=sector_events or None,
         )
 
+        # phase-23.1.13: enrich top-N candidates with GICS sector via the
+        # already-cached ticker_meta endpoint (BQ-first / yfinance fallback).
+        # `_fetch_ticker_meta` is sync; wrap in to_thread. Cost: at most 10-30
+        # tickers; 24h cache per ticker means subsequent cycles incur near zero
+        # latency. Without this enrichment, decide_trades sees `sector=None` on
+        # every candidate and the new sector cap is a no-op.
+        if candidates:
+            try:
+                from backend.api.paper_trading import _fetch_ticker_meta
+                top_tickers = [c["ticker"] for c in candidates if c.get("ticker")]
+                meta_response = await asyncio.to_thread(
+                    _fetch_ticker_meta, top_tickers, settings, bq,
+                )
+                meta_map = (meta_response or {}).get("meta", {})
+                for c in candidates:
+                    info = meta_map.get(c.get("ticker"), {})
+                    sector = info.get("sector") or ""
+                    if sector:
+                        c["sector"] = sector
+                    company = info.get("company_name")
+                    if company and not c.get("company_name"):
+                        c["company_name"] = company
+            except Exception as e:
+                logger.warning("Ticker meta enrichment failed (non-fatal): %s", e)
+
         if getattr(settings, "meta_scorer_enabled", False):
             try:
                 from backend.services.meta_scorer import meta_score_candidates

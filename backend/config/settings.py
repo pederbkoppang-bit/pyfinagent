@@ -141,6 +141,10 @@ class Settings(BaseSettings):
     paper_trading_enabled: bool = Field(False, description="Enable autonomous paper trading scheduler")
     paper_starting_capital: float = Field(10000.0, description="Initial virtual cash for paper portfolio")
     paper_max_positions: int = Field(10, description="Maximum simultaneous open positions")
+    # phase-23.1.13: hard cap per GICS sector (default 2 = at least 5 sectors for a 10-position portfolio).
+    # Mirrors SEC 1940 Act "concentrated" threshold (25% NAV per sector) when paired with 10% per-position cap.
+    # 0 disables the cap entirely (legacy behavior); the existing 11/11-Technology bug is the documented failure mode.
+    paper_max_per_sector: int = Field(2, ge=0, le=20, description="Maximum BUY positions in any single GICS sector. 0 = no limit (legacy).")
     paper_min_cash_reserve_pct: float = Field(5.0, description="Minimum cash reserve as % of NAV")
     paper_screen_top_n: int = Field(10, description="Number of candidates from quant screening")
     paper_analyze_top_n: int = Field(5, description="Number of candidates to deep-analyze per day")

@@ -99,6 +99,7 @@ class FullSettings(BaseModel):
     # phase-23.1.9 — Paper trading settings
     paper_starting_capital: float = 10000.0  # informational read-only
     paper_max_positions: int = 10
+    paper_max_per_sector: int = 2  # phase-23.1.13
     paper_max_daily_cost_usd: float = 2.0
     paper_default_stop_loss_pct: float = 8.0
     paper_screen_top_n: int = 10
@@ -141,6 +142,7 @@ class SettingsUpdate(BaseModel):
     meta_scorer_max_batch: Optional[int] = Field(None, ge=5, le=100)
     # phase-23.1.9 — Paper trading settings (paper_starting_capital is NOT writable post-init)
     paper_max_positions: Optional[int] = Field(None, ge=1, le=50)
+    paper_max_per_sector: Optional[int] = Field(None, ge=0, le=20)  # phase-23.1.13
     paper_max_daily_cost_usd: Optional[float] = Field(None, ge=0.10, le=50.0)
     paper_default_stop_loss_pct: Optional[float] = Field(None, ge=1.0, le=50.0)
     paper_screen_top_n: Optional[int] = Field(None, ge=1, le=100)
@@ -265,6 +267,7 @@ _FIELD_TO_ENV = {
     "meta_scorer_max_batch": "META_SCORER_MAX_BATCH",
     # phase-23.1.9 — Paper trading settings
     "paper_max_positions": "PAPER_MAX_POSITIONS",
+    "paper_max_per_sector": "PAPER_MAX_PER_SECTOR",  # phase-23.1.13
     "paper_max_daily_cost_usd": "PAPER_MAX_DAILY_COST_USD",
     "paper_default_stop_loss_pct": "PAPER_DEFAULT_STOP_LOSS_PCT",
     "paper_screen_top_n": "PAPER_SCREEN_TOP_N",
@@ -329,6 +332,7 @@ def _settings_to_full(s: Settings) -> FullSettings:
         # phase-23.1.9 Paper trading settings
         paper_starting_capital=float(getattr(s, "paper_starting_capital", 10000.0)),
         paper_max_positions=int(getattr(s, "paper_max_positions", 10)),
+        paper_max_per_sector=int(getattr(s, "paper_max_per_sector", 2)),  # phase-23.1.13
         paper_max_daily_cost_usd=float(getattr(s, "paper_max_daily_cost_usd", 2.0)),
         paper_default_stop_loss_pct=float(getattr(s, "paper_default_stop_loss_pct", 8.0)),
         paper_screen_top_n=int(getattr(s, "paper_screen_top_n", 10)),

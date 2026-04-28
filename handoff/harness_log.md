@@ -14146,3 +14146,44 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 12/12 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.12/.
+
+---
+
+## Cycle 1 -- 2026-04-28 17:15 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.63% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## phase-23.1.13 -- 2026-04-28 -- Sector concentration enforcement (v1) -- result=PASS
+
+**Hypothesis:** Hard cap of `paper_max_per_sector=2` (default) in `decide_trades` blocks the 11/11-Technology bug shown in the operator screenshot. Sector field flows end-to-end: ticker-meta lookup -> screener candidate -> portfolio_manager cap -> Risk Monitor display. Risk Monitor renders BOTH single-position weight AND actual sector concentration as separate rows.
+
+**User trigger:** "[screenshot] deep research how we should diversify our portfolio. currently we are putting all our eggs in one basket in one sector". 11/11 positions in Technology; Risk Monitor "Concentration: OK" was misleading (computed single-position weight, not sector concentration).
+
+**Files:** backend/config/settings.py (+paper_max_per_sector Field(2, ge=0, le=20)), backend/api/settings_api.py (expose in FullSettings + SettingsUpdate + _FIELD_TO_ENV + _settings_to_full), backend/tools/screener.py (screen_universe accepts sector_lookup kwarg, attaches sector + company_name), backend/services/autonomous_loop.py (after rank_candidates, _fetch_ticker_meta enriches top-N with sector + company; non-fatal try/except), backend/services/portfolio_manager.py (decide_trades resolves sector with priority screener > analysis > "Unknown"; sector_counts excluding sells; skip-on-cap with log; increment after BUY), backend/api/paper_trading.py (/portfolio returns sector_breakdown), frontend/src/lib/types.ts (FullSettings +paper_max_per_sector?), frontend/src/app/paper-trading/page.tsx (RiskMonitorCard receives tickerMeta; renders Position size + Sector concentration as separate rows; Manage tab adds paper_max_per_sector PaperSettingNum), tests/services/test_sector_concentration.py (NEW 6 tests), tests/services/test_screener_sector_propagation.py (NEW 4 tests), tests/verify_phase_23_1_13.py (NEW 7-claim immutable verification).
+
+**Research foundation:** TWO briefs both gate_passed: external (566 lines, 13 sources read in full) + internal audit (351 lines, 13 internal files inspected, 5 critical gaps documented). Both converged on the same v1 plan.
+
+**Verification (immutable):** `PYTHONPATH=. python tests/verify_phase_23_1_13.py` -> `ok paper_max_per_sector + screen_universe.sector_lookup + decide_trades cap + autonomous_loop ticker_meta enrichment + RiskMonitor sector check + Manage tab toggle + /portfolio sector_breakdown` exit=0.
+
+**Q/A verdict:** PASS (1st pass). 16/16 checks: harness-compliance + research briefs gate-passed + contract front-matter + experiment_results verbatim + harness_log pre-append + first QA + verification cmd exit 0 + 170 unit tests + syntax (9 files) + frontend tsc clean + git diff scope + LLM judgment (contract alignment + mutation resistance + scope honesty + backward-compat cap=0).
+
+**170/170 unit tests pass** (160 prior + 10 new across test_sector_concentration.py and test_screener_sector_propagation.py; no regression across 13 phase-23.1 cycles).
+
+**What changes for operator at 09:30 ET tomorrow:** buy loop stops at 2 Tech positions; remaining slots forced into other sectors (Energy, Financials, Health, Industrials, etc.). Risk Monitor shows two rows -- "Position size" (existing single-position >20% check) + "Sector concentration: HIGH (N/M Sector)" amber when >50% of positions in one sector. /portfolio API returns sector_breakdown. Operator-tunable in Manage tab (range 0-20; 0 disables).
+
+**Honest disclosure:** existing 11 Technology positions NOT auto-liquidated -- cap blocks NEW buys; existing positions remain until natural sell signal. Default cap=2 is practitioner consensus per external research, not derived from operator's risk profile (adjustable). GICS classification depends on yfinance Yahoo labels (close to but not strict GICS).
+
+**Phase-23.1 plan now 13/13 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.13/.

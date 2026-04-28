@@ -563,6 +563,7 @@ export interface FullSettings {
   // phase-23.1.9 — Paper trading settings
   paper_starting_capital?: number;  // read-only after init; mutated only via deposit
   paper_max_positions?: number;
+  paper_max_per_sector?: number;  // phase-23.1.13
   paper_max_daily_cost_usd?: number;
   paper_default_stop_loss_pct?: number;
   paper_screen_top_n?: number;

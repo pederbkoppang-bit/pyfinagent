@@ -91,6 +91,7 @@ function ReadOnlyField({
 
 type PaperNumKey =
   | "paper_max_positions"
+  | "paper_max_per_sector"
   | "paper_max_daily_cost_usd"
   | "paper_default_stop_loss_pct"
   | "paper_screen_top_n"
@@ -255,10 +256,12 @@ function RiskMonitorCard({
   perf,
   positions,
   portfolio,
+  tickerMeta,
 }: {
   perf: PaperPerformance | null;
   positions: PaperPosition[];
   portfolio: PaperPortfolio | null;
+  tickerMeta: Record<string, { sector: string }>;
 }) {
   const maxDd = perf?.max_drawdown_pct ?? 0;
   const navDenom = portfolio?.total_nav ?? 10000;
@@ -267,6 +270,29 @@ function RiskMonitorCard({
   );
   const maxPos = concentrations.length > 0 ? Math.max(...concentrations) : null;
   const concentrationHigh = maxPos != null && maxPos > 20;
+
+  // phase-23.1.13: actual sector concentration check (was: single-position weight only).
+  // Renders "HIGH (N/M Sector)" amber when >50% of positions are in one sector AND the
+  // portfolio has at least 3 positions (below 3 the concept is meaningless).
+  const sectorCounts: Record<string, number> = {};
+  for (const p of positions) {
+    const s = tickerMeta[p.ticker]?.sector || "Unknown";
+    sectorCounts[s] = (sectorCounts[s] ?? 0) + 1;
+  }
+  const sectorEntries = Object.entries(sectorCounts);
+  let maxSectorName = "";
+  let maxSectorCount = 0;
+  for (const [name, count] of sectorEntries) {
+    if (count > maxSectorCount) {
+      maxSectorName = name;
+      maxSectorCount = count;
+    }
+  }
+  const sectorConcentrationHigh =
+    positions.length >= 3 && maxSectorCount / positions.length > 0.5;
+  const sectorConcentrationLabel = sectorConcentrationHigh
+    ? `HIGH (${maxSectorCount}/${positions.length} ${maxSectorName})`
+    : "OK";
   return (
     <div className="rounded-xl border border-navy-700 bg-navy-800/70 p-4">
       <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -295,7 +321,7 @@ function RiskMonitorCard({
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-slate-400">Concentration</span>
+          <span className="text-slate-400">Position size</span>
           <span
             className={clsx(
               "rounded px-2 py-0.5 text-xs font-medium",
@@ -304,7 +330,20 @@ function RiskMonitorCard({
                 : "bg-emerald-500/10 text-emerald-400",
             )}
           >
-            {concentrationHigh ? "HIGH" : "OK"}
+            {concentrationHigh ? `HIGH (>20%)` : "OK"}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-400">Sector concentration</span>
+          <span
+            className={clsx(
+              "rounded px-2 py-0.5 text-xs font-medium",
+              sectorConcentrationHigh
+                ? "bg-amber-500/10 text-amber-400"
+                : "bg-emerald-500/10 text-emerald-400",
+            )}
+          >
+            {sectorConcentrationLabel}
           </span>
         </div>
         <div className="mt-2">
@@ -709,7 +748,7 @@ export default function PaperTradingPage() {
               {/* Tier 6: Tab content */}
               {tab === "positions" && (
                 <div className="space-y-4">
-                  <RiskMonitorCard perf={perf} positions={positions} portfolio={portfolio} />
+                  <RiskMonitorCard perf={perf} positions={positions} portfolio={portfolio} tickerMeta={tickerMeta} />
 
                   <div className="rounded-xl border border-navy-700 bg-navy-800/70 backdrop-blur-lg">
                     <div className="overflow-x-auto scrollbar-thin">
@@ -1099,6 +1138,17 @@ export default function PaperTradingPage() {
                           min={1}
                           max={50}
                           step={1}
+                        />
+                        <PaperSettingNum
+                          label="Max positions per sector"
+                          field="paper_max_per_sector"
+                          settings={manageSettings}
+                          dirty={manageDirty}
+                          setDirty={setManageDirty}
+                          min={0}
+                          max={20}
+                          step={1}
+                          hint="Default 2 = at least 5 distinct sectors for a 10-position portfolio. 0 disables (legacy)."
                         />
                         <PaperSettingNum
                           label="Daily LLM cost cap (USD)"
