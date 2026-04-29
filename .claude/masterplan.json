@@ -7098,9 +7098,23 @@
           "created_at": "2026-04-29T20:25:00Z",
           "completed_at": "2026-04-29T20:25:00Z",
           "notes": "User flagged WDC twice in trades view. BQ forensics: 2 WDC trades 5 min apart (21:12 + 21:17 on 26.4) -> $950.90 cash leak; XOM test_paper_trade orphan -> $500.50 leak. Total $1,451.40 phantom outflow. Root cause: cycle 0e8c4a20 errored mid-BUY after cash debit but before position write was visible across BQ jobs (snapshot-isolation), cycle a54a21fc 4min later saw no WDC, bought again. Fix A: idempotency guard in execute_buy (30-min lookback + 1% qty tolerance). Fix B: save_paper_position now MERGE on ticker (natural key). Fix E: cleanup script (--dry-run/--apply) deleted dup rows + refunded $1,451.40 to cash. Live BQ reconciliation: 0 dups, 0 orphans, $0 leak. Q/A PASS first try (5/5 harness audit). 12/12 tests. Research gate: 8 sources read in full."
+        },
+        {
+          "id": "23.1.16",
+          "name": "ticker-meta latency fix (parallel yfinance + per-ticker cache + startup prewarm)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.16/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_16.py)",
+          "contract": "handoff/archive/phase-23.1.16/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.16/phase-23.1.16-external-research.md (also internal audit)",
+          "experiment_results": "handoff/archive/phase-23.1.16/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.16/evaluator_critique.md",
+          "created_at": "2026-04-29T20:45:00Z",
+          "completed_at": "2026-04-29T20:45:00Z",
+          "notes": "User flagged 'sector and names have high latency' on /paper-trading. Three causes: serial yfinance loop with sleep(0.3) (~18s/14 tickers), set-level cache key (one position change busts whole cache), no backend startup prewarm. Fix A: ThreadPoolExecutor(max_workers=5) + as_completed, drop sleep. Fix B: per-ticker cache keys paper:ticker_meta:single:{TICKER}. Fix C: lifespan asyncio.create_task(_prewarm_ticker_meta()) for current paper_positions. Live measurement: 18s -> 3s parallel prewarm; 14-ticker cached endpoint 4.7ms; fresh ticker 2.5s. Q/A PASS first try. 13/13 tests. Research gate: 10 sources read in full."
         }
       ],
-      "completed_at": "2026-04-29T20:25:00Z"
+      "completed_at": "2026-04-29T20:45:00Z"
     }
   ]
 }

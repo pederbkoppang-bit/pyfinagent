@@ -1,234 +1,119 @@
 ---
-step: phase-23.1.15
+step: phase-23.1.16
 verdict: PASS
 qa_pass: 1
-cycle_date: 2026-04-29
-checks_run:
-  - harness_compliance_audit
-  - syntax_ast
-  - immutable_verification_command
-  - pytest_idempotency_and_sector
-  - merge_upsert_visual_inspection
-  - idempotency_guard_placement_inspection
-  - mutation_resistance_token_audit
-  - scope_honesty_audit
-  - research_gate_envelope_audit
-  - git_diff_scope
+date: 2026-04-29
+agent: qa (merged qa-evaluator + harness-verifier)
 ---
 
-# Q/A Critique — phase-23.1.15
+# Q/A Critique — phase-23.1.16
 
-## 1. Harness-compliance audit (5-item gate, FIRST)
+## 1. Harness-compliance audit (5 items, run FIRST)
 
-| # | Item | Status | Evidence |
-|---|------|--------|----------|
-| 1 | Both research briefs present + envelope `gate_passed:true` | PASS | `handoff/current/phase-23.1.15-external-research.md` (envelope: `external_sources_read_in_full=8`, `urls_collected=18`, `recency_scan_performed=true`, `gate_passed=true`) + `phase-23.1.15-internal-codebase-audit.md` |
-| 2 | `contract.md` front-matter `step: phase-23.1.15` + immutable verification listed | PASS | `verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_15.py'` |
-| 3 | `experiment_results.md` `step: phase-23.1.15` + reproducible verification | PASS | front-matter matches; verification command produced canonical ok-line on re-run |
-| 4 | `harness_log.md` does NOT yet contain `23.1.15` (log-LAST invariant) | PASS | `grep -c "23.1.15" handoff/harness_log.md` = 0 |
-| 5 | First Q/A spawn for this step (no prior `evaluator_critique.md` for 23.1.15) | PASS | top-level `evaluator_critique.md` was the prior step's; being overwritten now |
+| # | Check | Result |
+|---|---|---|
+| 1 | Both research briefs present in `handoff/current/`? | PASS — `phase-23.1.16-external-research.md` (gate JSON `gate_passed: true`, `external_sources_read_in_full: 10`) AND `phase-23.1.16-internal-codebase-audit.md` both present |
+| 2 | `contract.md` has `step: phase-23.1.16` + immutable verification cmd? | PASS — `step: phase-23.1.16`, verification = `source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_16.py` |
+| 3 | `experiment_results.md` has `step: phase-23.1.16` + reproducible verification output? | PASS — step id matches, `verification_command` field matches contract, output reproduced live (see §2A below) |
+| 4 | `handoff/harness_log.md` does NOT yet contain `23.1.16` entry (log-LAST invariant)? | PASS — `grep -c 23.1.16` returned 0; log will be appended AFTER this PASS verdict, BEFORE masterplan status flip |
+| 5 | First Q/A spawn for this step? | PASS — prior `evaluator_critique.md` content was for phase-23.1.15 (now overwritten); `qa_pass: 1` for 23.1.16 |
 
-All five harness-compliance items satisfied before any code check.
+No protocol breaches. Proceeding to deterministic checks.
 
-## 2. Deterministic checks
+## 2. Deterministic checks (cannot hallucinate)
 
 ### A. Immutable verification command
-
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_15.py
-ok execute_buy idempotency-guard + paper_positions MERGE upsert + get_paper_trades_for_ticker_since helper + cleanup script (dry-run/apply) + 4 new tests pass
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_16.py
+ok ThreadPoolExecutor parallel yfinance + per-ticker cache keys + lifespan prewarm + 4 new perf tests pass
+EXIT=0
 ```
+PASS — exit 0 + ok-line emitted.
 
-Exit code 0. Canonical ok-line emitted.
-
-### B. Pytest
-
+### B. Pytest (existing + new perf suite)
 ```
-$ python -m pytest tests/services/test_trade_idempotency.py tests/services/test_sector_concentration.py -q
-............                                                             [100%]
-12 passed in 0.79s
+$ python -m pytest tests/api/test_ticker_meta_perf.py tests/api/test_ticker_meta.py -q
+13 passed, 1 warning in 2.53s
 ```
+PASS — all 13 tests green (9 existing test_ticker_meta + 4 new test_ticker_meta_perf).
 
-12/12 PASS — matches contract acceptance criterion.
-
-### C. AST syntax
-
+### C. AST syntax of all touched files
 ```
-$ python -c "import ast; [ast.parse(open(p).read()) for p in [...]]; print('all syntax ok')"
 all syntax ok
 ```
+PASS — `paper_trading.py`, `main.py`, `test_ticker_meta_perf.py`, `verify_phase_23_1_16.py` all parse.
 
-Five files parsed: `paper_trader.py`, `bigquery_client.py`,
-`test_trade_idempotency.py`, `verify_phase_23_1_15.py`,
-`cleanup_phase_23_1_15.py`.
-
-### D. Post-state reconciliation
-
-`experiment_results.md` line 129 reports the live BQ reconciliation
-result: **14 join_rows, 0 dup_trade_tickers, 0 orphan_trades, $0.00
-leak_dollars**. WDC and XOM cash leaks resolved end-to-end.
-
-### E. git diff scope
-
-Modified: `backend/services/paper_trader.py`,
-`backend/db/bigquery_client.py`,
-`handoff/current/{contract,experiment_results}.md`. New:
-`scripts/cleanup_phase_23_1_15.py`,
-`tests/services/test_trade_idempotency.py`,
-`tests/verify_phase_23_1_15.py`,
-`handoff/current/phase-23.1.15-{external-research,internal-codebase-audit}.md`.
-All within prompted whitelist. No incidental drive-bys.
-
-### F. MERGE inspection — `save_paper_position` (bigquery_client.py:550-580)
-
-Confirmed the body is now a MERGE:
-
-```sql
-MERGE `{table}` T
-USING (...) S
-ON T.ticker = S.ticker
-WHEN MATCHED THEN UPDATE SET ...
-WHEN NOT MATCHED THEN INSERT ...
+### D. Frontend tsc
 ```
+$ cd frontend && npx tsc --noEmit
+EXIT=0
+```
+PASS — silent / exit 0 (no frontend touched, but baseline preserved).
 
-Idempotent natural-key write. Behavior-equivalent to INSERT when no
-match exists (backwards-compat preserved). Defensive
-`raise ValueError("save_paper_position requires 'ticker' field for
-MERGE key")` guards against silent fallthrough.
+### E. Backend log inspection (live prewarm evidence)
+```
+20:40:18 I [main] Prewarming ticker-meta cache for 14 tickers...
+20:40:21 I [main] Ticker-meta prewarm complete (14 resolved)
+```
+PASS — lifespan prewarm task fires on boot, completes in ~3s for 14 tickers (matches the parallel-yfinance budget claimed in `experiment_results.md`).
 
-### G. Idempotency guard placement — `execute_buy` (paper_trader.py:102-129)
+### F. Git diff scope
+Modified: `backend/api/paper_trading.py`, `backend/main.py`, `handoff/current/{contract,experiment_results}.md` — all expected.
+New: `tests/api/test_ticker_meta_perf.py`, `tests/verify_phase_23_1_16.py`, `handoff/current/phase-23.1.16-{external-research,internal-codebase-audit}.md` — all expected.
+Other modifications (archive moves for 23.1.14/23.1.15, audit JSONLs, heartbeat) are hook-driven housekeeping, not in-scope code drift.
+PASS — no unexpected files touched.
 
-Guard fires AFTER the `existing` snapshot lookup at line 95 and
-BEFORE `trade_id` generation at line 137 and any BQ trade write.
-The guard:
+`checks_run`: `["harness_audit", "syntax", "verification_command", "pytest_13", "frontend_tsc", "backend_log", "git_scope"]`
 
-1. Only runs when `not existing` (cycle 1 already booked + position
-   wrote → guard never fires; cycle 2 saw stale snapshot → guard
-   catches the duplicate).
-2. Looks back 30 minutes in `paper_trades` for matching BUY at
-   near-identical quantity (1% tolerance for FP rounding).
-3. Returns `None` (skip) on match — no cash debit, no trade write.
-4. Wrapped in `try/except` with non-fatal log on failure (defensive
-   default-open is acceptable since the original double-buy path
-   is still less likely than a guard-query glitch).
+## 3. LLM judgment (contract alignment + anti-rubber-stamp)
 
-## 3. LLM judgment
+### Contract alignment (A + B + C)
+- **A — Parallel yfinance via ThreadPoolExecutor.** Confirmed: `paper_trading.py` `_fetch_ticker_meta` uses `ThreadPoolExecutor(max_workers=5)` + `as_completed`; the `time.sleep(0.3)` was removed. Mutation-resistance grep finds both tokens.
+- **B — Per-ticker cache keys.** Confirmed: `paper:ticker_meta:single:<TICKER>` key shape present in source and asserted by `verify_phase_23_1_16.py`.
+- **C — Lifespan prewarm.** Confirmed: `_prewarm_ticker_meta` defined in `main.py`, fired via `asyncio.create_task(_prewarm_ticker_meta())` before `yield`. Asserted by verify script AND empirically observed in `backend.log` (§E above).
 
-### Contract alignment
-
-Contract `## Plan steps` lists exactly Fix A (idempotency guard) +
-Fix B (MERGE upsert) + Fix E (cleanup script). Diff implements all
-three:
-
-| Fix | Location | Implemented |
-|-----|----------|-------------|
-| A — idempotency guard in `execute_buy` | `paper_trader.py:102-129` | YES |
-| B — MERGE upsert in `save_paper_position` | `bigquery_client.py:550-580` | YES |
-| E — cleanup script (dry-run + apply) | `scripts/cleanup_phase_23_1_15.py` | YES |
-
-Skipped C (deterministic `client_order_id`) and D (nightly drift
-audit) are explicitly listed in `## Phase 2 (deferred)` of
-experiment_results — scope-honest deferral matching the contract.
-
-### Mutation resistance
-
-`tests/verify_phase_23_1_15.py` asserts on regression-detecting
-tokens that would trip on naive reverts:
-
-- `"get_paper_trades_for_ticker_since"` (helper presence)
-- `"timedelta(minutes=30)"` (look-back window literal)
-- regex `def save_paper_position\(self.*?MERGE\s+`` (DOTALL match
-  forces MERGE inside the function body, not just somewhere in the
-  file)
-- `"ON T.ticker = S.ticker"` (correct MERGE key — guards against
-  copy-paste errors)
-- "WHEN MATCHED" + "WHEN NOT MATCHED" (both branches)
-- `"requires 'ticker' field for MERGE key"` (defensive raise on
-  missing key — guards against silent fallthrough)
-
-Each token is distinct enough that a casual revert (e.g. "switch
-back to INSERT but keep the helper") would still fail at least one
-assertion. Good mutation-resistance design.
+### Mutation-resistance
+The verify script greps for distinct-and-load-bearing tokens that an attacker couldn't trivially fake: `ThreadPoolExecutor(max_workers=5)`, `as_completed`, `paper:ticker_meta:single:`, `_prewarm_ticker_meta`, `asyncio.create_task(_prewarm_ticker_meta())`. Removing any of the three fixes (parallel exec, per-ticker keys, lifespan prewarm) flips an assertion. PASS.
 
 ### Anti-rubber-stamp / scope honesty
+`experiment_results.md` explicitly discloses:
+- **Page load during prewarm still cold** (3s window after boot) — acknowledged at "Known limitations" item 1, not glossed over.
+- **yfinance rate-limit ceiling is empirical** (not contractual; depends on yfinance #2431 / #2557 trajectory) — item 2.
+- **Phase-2 deferrals enumerated**: dedicated `ticker_meta` BQ table (researcher's "single-row MERGE is BQ anti-pattern" caveat carried through), frontend progressive rendering, SWR on cache hits >12h — all listed at "Phase 2 (deferred)".
+PASS — no overclaiming; honest reality-gap disclosure.
 
-`experiment_results.md` lines 145-170 contain four explicit
-disclosures:
-
-1. Mid-cleanup column-type bug surfaced live during `--apply` —
-   first run partially failed on STRING-vs-TIMESTAMP at Step 3,
-   was fixed mid-flight, recovery UPDATE issued. Script as shipped
-   is now correct end-to-end. **This is exactly the kind of
-   honest "we hit a snag" disclosure the anti-rubber-stamp leg
-   wants.**
-2. 30-minute idempotency window has a known edge case (intraday
-   buy-sell-rebuy) — explicit caveat with a remediation path.
-3. MERGE overwrites `entry_date` for existing tickers — preserved
-   prior delete+insert behavior; refactor deferred.
-4. No real-money risk — paper trading only.
-
-Phase 2 deferred list matches the contract scope: collapse
-delete+insert, deterministic `client_order_id`, nightly drift
-audit. No silent overclaim.
-
-### Research-gate compliance
-
-Contract front-matter cites both research briefs. External brief
-envelope reports 8 sources read in full (>=5 floor), 18 URLs
-collected, recency scan performed (2026 BQ MERGE engineering blog
-inline), `gate_passed: true`. Internal audit has file:line
-anchors on every claim per its envelope summary. Gate cleanly
-cleared.
+### Live measurement disclosure
+cURL timings included in `experiment_results.md`:
+- 4.7ms (`0.004684s`) full cache hit (post-prewarm).
+- 2.5s (`2.545972s`) single fresh yfinance fetch (no prewarm hit).
+- Computed worst-case wall clock floor of ~one round-trip vs prior ~18s serial.
+PASS — empirical, reproducible numbers.
 
 ### Backwards compatibility
+- Per-ticker cache keys are additive (old aggregate key not relied upon by other call sites — internal codebase audit confirmed).
+- ThreadPoolExecutor preserves the per-ticker dict return shape consumed by callers.
+- Prewarm is non-fatal: wrapped to skip when paper_positions empty / yfinance unavailable, and `asyncio.create_task` does not block lifespan startup.
+PASS.
 
-- Idempotency guard only triggers when `not existing` — mainstream
-  path (existing position) is untouched.
-- MERGE-when-no-row behaves identically to INSERT-when-no-row.
-- Cleanup script is `--dry-run` by default; `--apply` is opt-in.
-- 12 existing sector-concentration tests still pass.
+### Research-gate compliance
+Contract references both research briefs in its references section, and the external brief's gate JSON envelope shows `external_sources_read_in_full: 10` (≥5 floor), `recency_scan_performed: true`, `gate_passed: true`. Three-variant query discipline visible. Hierarchy includes peer-reviewed/official sources (Python concurrency docs, FastAPI lifespan docs, yfinance issue threads) + practitioner sources. PASS.
 
 ## 4. Verdict
-
-**PASS.**
-
-All three contract fixes implemented, all 12 tests pass, immutable
-verification exits 0, post-state reconciliation confirms zero leak,
-mutation-resistance tokens are sharp, scope honesty is high (mid-
-cleanup bug + recovery disclosed without spin), research gate
-cleared with 8 sources + recency scan, and the diff stays within
-the contract whitelist.
-
-Recommended next-step actions for Main:
-
-1. Append `## Cycle N -- 2026-04-29 -- phase=23.1.15 result=PASS`
-   block to `handoff/harness_log.md` (log-LAST invariant; not yet
-   present, correctly).
-2. Flip `.claude/masterplan.json` step phase-23.1.15 → `status:
-   done` AFTER the log append.
-3. Track Phase 2 deferred items as new masterplan substeps
-   (`client_order_id`, nightly drift audit, collapse
-   delete+insert) so they don't get lost.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 3 immutable acceptance criteria met (idempotency guard + MERGE upsert + cleanup script). Verification command exit=0 with canonical ok-line. 12/12 pytest pass. Mutation-resistance tokens sharp. Scope-honesty disclosures complete (mid-cleanup column-type bug + recovery path). Research gate cleared (8 sources, recency scan, gate_passed:true). Post-state BQ reconciliation: 0 dup_trade_tickers, 0 orphan_trades, $0.00 leak.",
+  "reason": "All 3 contract criteria (A parallel yfinance ThreadPoolExecutor, B per-ticker cache keys, C lifespan prewarm) implemented and verified. Deterministic: verify exit=0 + ok-line, 13/13 pytest, AST clean, frontend tsc clean, backend.log shows live prewarm fire+complete in 3s for 14 tickers, cURL evidence 4.7ms cache hit / 2.5s fresh fetch (vs prior ~18s serial). Mutation-resistance script greps 5 distinct load-bearing tokens. Scope honesty: page-load-during-prewarm window + yfinance rate-limit ceiling + 3 Phase-2 deferrals (BQ ticker_meta table, frontend progressive rendering, SWR) all disclosed. Research gate cleared (10 sources read in full, 3-variant queries, recency scan).",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": [
-    "harness_compliance_audit",
-    "syntax_ast",
-    "immutable_verification_command",
-    "pytest_idempotency_and_sector",
-    "merge_upsert_visual_inspection",
-    "idempotency_guard_placement_inspection",
-    "mutation_resistance_token_audit",
-    "scope_honesty_audit",
-    "research_gate_envelope_audit",
-    "git_diff_scope"
-  ]
+  "checks_run": ["harness_audit", "syntax", "verification_command", "pytest_13", "frontend_tsc", "backend_log", "git_scope", "mutation_tokens", "research_gate", "scope_honesty"]
 }
 ```
+
+## 5. Next steps for Main
+
+1. Append cycle entry to `handoff/harness_log.md` with `result=PASS` (LOG step — must come before masterplan status flip).
+2. Flip `phase-23.1.16` to `status: done` in `.claude/masterplan.json`.
+3. The `archive-handoff` PostToolUse hook will rotate the 5 files into `handoff/archive/phase-23.1.16/` on status flip.

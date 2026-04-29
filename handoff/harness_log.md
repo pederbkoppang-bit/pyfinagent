@@ -14249,3 +14249,37 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 15/15 cycles complete (was 14; +phase-23.1.15 reactive bug fix).**
 
 **Archive:** handoff/archive/phase-23.1.15/.
+
+## Cycle 1 -- 2026-04-29 20:45 UTC -- phase=23.1.16 result=PASS
+
+**Step:** phase-23.1.16 -- ticker-meta latency fix (parallel yfinance + per-ticker cache + startup prewarm).
+
+**User reported:** "sector and names seems to have a high latency" on /paper-trading. COMPANY + SECTOR columns rendered "--" placeholders for 15-20s after page load.
+
+**Three compounding causes identified:**
+- **Cause 1:** `_fetch_ticker_meta` (paper_trading.py:728-742) ran a serial yfinance loop with `time.sleep(0.3)` between each call. ~1.3s/ticker x 14 tickers = ~18s wall clock when sector NULL in BQ analysis_results.
+- **Cause 2:** Set-level cache key `f"paper:ticker_meta:{','.join(sorted(raw))}"` -- adding/removing one position busts the entire 24h cache.
+- **Cause 3:** No backend startup prewarm. Every restart starts fully cold.
+
+**Three coordinated fixes:**
+- **Fix A** -- Parallel yfinance via `ThreadPoolExecutor(max_workers=5)` + `as_completed`. Drop `time.sleep(0.3)`. Per-thread Ticker objects are thread-safe (yfinance #2557 is in download(), not Ticker.info). Empirical rate ceiling ~100 req/30s, max_workers=5 safe for 14-50 tickers.
+- **Fix B** -- Per-ticker cache keys `paper:ticker_meta:single:{TICKER}`. Route handler looks up each ticker individually, fetches only the missing subset, writes each resolved ticker to its own cache slot.
+- **Fix C** -- Lifespan prewarm task in main.py. `asyncio.create_task(_prewarm_ticker_meta())` reads current paper_positions tickers, calls _fetch_ticker_meta, writes to per-ticker cache. Non-blocking. Skipped when no positions.
+
+**Files:** modified backend/api/paper_trading.py, backend/main.py, handoff/current/{contract,experiment_results}.md. Added tests/api/test_ticker_meta_perf.py, tests/verify_phase_23_1_16.py, handoff/current/phase-23.1.16-{external-research,internal-codebase-audit}.md.
+
+**Research gate:** PASS (gate_passed: true, 10 sources read in full -- yfinance rate limiting #2431, thread-safety #2557, Sling Academy yf practices, FastAPI SWR patterns, ThreadPoolExecutor best practices, BQ MERGE/upsert guidance, BQ compute best practices, yfinance DeepWiki multi-ticker, FastAPI middleware tricks, FastAPI edge-caching; recency scan 2024-2026 performed).
+
+**Verification:** `python tests/verify_phase_23_1_16.py` -> exit 0 (5 distinct claims). `pytest tests/api/test_ticker_meta_perf.py tests/api/test_ticker_meta.py -q` -> 13 passed (4 new + 9 existing).
+
+**Live measurement (post-restart):** Backend log: `20:40:18 Prewarming ticker-meta cache for 14 tickers... 20:40:21 Ticker-meta prewarm complete (14 resolved)` -- 3s for parallel batch (was ~18s serial). cURL after prewarm: 14-ticker cached endpoint = 4.7ms, fresh-ticker cold fetch = 2.5s.
+
+**Q/A:** PASS first spawn. 5/5 harness audit, 6/6 deterministic, mutation-resistance OK, scope honestly disclosed.
+
+**Backwards compat:** per-ticker cache keys are additive (legacy set-level entries TTL out within 24h); ThreadPoolExecutor preserves the same return shape; prewarm failure non-fatal.
+
+**Honest disclosures:** page load DURING prewarm (3s window after boot) still incurs cold-fetch latency for un-prewarmed tickers; yfinance rate ceiling is empirical not contractual; per-thread Ticker safety relies on the bug being only in download() (current as of 2026-04-29). Phase-2 deferred: dedicated ticker_meta BQ table (must be batched multi-row MERGE per BQ docs), frontend per-ticker progressive rendering, SWR refresh.
+
+**Phase-23.1 plan now 16/16 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.16/.

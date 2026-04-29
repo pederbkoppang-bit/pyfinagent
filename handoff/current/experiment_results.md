@@ -1,181 +1,155 @@
 ---
-step: phase-23.1.15
+step: phase-23.1.16
 cycle_date: 2026-04-29
 result: PASS_PENDING_QA
-verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_15.py'
+verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_16.py'
 ---
 
-# Experiment Results — phase-23.1.15
+# Experiment Results — phase-23.1.16
 
 ## Summary
 
-User flagged "Western Digital Corporation appears twice" in trades view
-while position count says 14. BQ forensics confirmed two integrity
-violations causing ~$1,451 phantom cash debit:
+User reported COMPANY + SECTOR columns showing "—" placeholders for
+~15-20s after page load on /paper-trading. Three compounding causes
+fixed in one cycle.
 
-**Bug A — WDC duplicate trade.** TWO distinct trade_ids 5 minutes
-apart on 2026-04-26 (`56072f0c…` 21:12:28 + `e5447bd9…` 21:17:41),
-each debiting $949.95+fee. paper_positions had only ONE WDC row
-(cost_basis $949.95, entry_date 21:17:41). Net cash leak: $950.90.
+**Cause 1 — Serial yfinance loop with sleep.** `_fetch_ticker_meta`
+(paper_trading.py:728-742) did `for t in tickers: ... yfinance ...
+time.sleep(0.3)`. ~1.3s/ticker × 14 = ~18s wall clock when sector
+NULL in BQ.
 
-**Bug B — XOM orphan trade.** 1 trade ($500, reason
-`test_paper_trade`) from 2026-03-28 with no matching position.
-Net cash leak: $500.50.
+**Cause 2 — Set-level cache key.**
+`f"paper:ticker_meta:{','.join(sorted(raw))}"` — adding/removing
+one position busts the entire 24h cache.
 
-**Root cause** (per cycle_history.jsonl): cycle `0e8c4a20`
-(21:11:35→21:12:31) errored AFTER booking the WDC trade and
-debiting cash but before its position write was visible. Cycle
-`a54a21fc` 4 min later read `get_positions()`, saw no WDC
-(BigQuery snapshot-isolation across separate jobs — confirmed in
-the external research brief), dropped through `execute_buy`'s
-else-branch, created a fresh position row and debited cash again.
-No idempotency defense.
+**Cause 3 — No backend prewarm.** Every backend restart starts
+fully cold; first user landing eats the full yfinance cost.
 
-## Fix surfaces
+## Three coordinated fixes
 
-**Fix A — Idempotency guard in `paper_trader.execute_buy`** (after
-the existing-position lookup). When `existing is None`, query
-paper_trades for the same ticker + action='BUY' in the last 30
-minutes within 1% qty tolerance. If a match is found, log a
-warning and return None. Defends against crash-and-retry
-double-buys regardless of whether the underlying race is BQ
-snapshot lag, transient query error, or future schedule overlap.
+**Fix A — Parallel yfinance via ThreadPoolExecutor**
+(paper_trading.py:728-757). Replaced serial loop with
+`ThreadPoolExecutor(max_workers=5)` + `as_completed`. Drop
+`time.sleep(0.3)`. Each worker creates its own `Ticker` object
+(thread-safe path; the bug in yfinance #2557 is in `download()`,
+not `Ticker.info`). Empirical rate ceiling ~100 req/30s — 5
+workers safe for 14-50 ticker batches.
 
-**Fix B — MERGE upsert in
-`bigquery_client.save_paper_position`**. Plain `INSERT INTO` was
-replaced with `MERGE … ON T.ticker = S.ticker WHEN MATCHED THEN
-UPDATE … WHEN NOT MATCHED THEN INSERT …`. ticker is now the
-natural-key idempotency boundary at the BQ layer. Two writes for
-the same ticker no longer produce two rows; the second silently
-upserts. Backwards compatible: every existing caller's behavior
-is unchanged for the new-row case.
+**Fix B — Per-ticker cache keys** (paper_trading.py route
+handler). New cache key shape:
+`paper:ticker_meta:single:{TICKER}`. Route handler looks up each
+ticker individually, fetches only the missing subset, and writes
+each resolved ticker back to its own cache slot. Adding/removing
+one position now leaves the other 13 cache hits intact.
 
-**Fix E — Cleanup script** (`scripts/cleanup_phase_23_1_15.py`).
-Two-mode: `--dry-run` (default) prints SQL + diff; `--apply` (with
-optional `--yes` for headless) executes the DELETE+UPDATE chain.
-DELETEs target the two specific trade_ids by hash; UPDATE refunds
-$1,451.40 to current_cash. Idempotent: re-runs after success
-no-op on the DELETEs and skip the UPDATE.
+**Fix C — Backend startup prewarm** (main.py lifespan). Added
+`asyncio.create_task(_prewarm_ticker_meta())` before `yield` in
+the lifespan context manager. Reads current paper_positions
+tickers, calls `_fetch_ticker_meta`, writes to per-ticker cache
+slots. Non-blocking — backend boots normally even if BQ /
+yfinance is unavailable. Skipped when paper_positions is empty.
 
 ## Files modified
 
-- `backend/services/paper_trader.py` (+ idempotency-guard block in
-  `execute_buy`, +1 import: `timedelta`)
-- `backend/db/bigquery_client.py` (rewrote `save_paper_position` to
-  MERGE; new helper `get_paper_trades_for_ticker_since`)
+- `backend/api/paper_trading.py` (+30 lines: ThreadPoolExecutor block in
+  `_fetch_ticker_meta`, per-ticker cache logic in `/ticker-meta` route)
+- `backend/main.py` (+30 lines: `_prewarm_ticker_meta` task in lifespan)
 
 ## Files added
 
-- `scripts/cleanup_phase_23_1_15.py` (213 lines, two-mode cleanup)
-- `tests/services/test_trade_idempotency.py` (4 tests)
-- `tests/verify_phase_23_1_15.py` (immutable verification)
+- `tests/api/test_ticker_meta_perf.py` (4 new tests)
+- `tests/verify_phase_23_1_16.py` (immutable verification)
 
 ## Verification command output
 
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_15.py
-ok execute_buy idempotency-guard + paper_positions MERGE upsert + get_paper_trades_for_ticker_since helper + cleanup script (dry-run/apply) + 4 new tests pass
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_16.py
+ok ThreadPoolExecutor parallel yfinance + per-ticker cache keys + lifespan prewarm + 4 new perf tests pass
 ```
 Exit 0.
 
 ## Test results
 
 ```
-$ pytest tests/services/test_trade_idempotency.py tests/services/test_sector_concentration.py -q
-............                                                             [100%]
-12 passed in 0.81s
+$ pytest tests/api/test_ticker_meta_perf.py tests/api/test_ticker_meta.py -q
+.............                                                            [100%]
+13 passed in 2.85s
 ```
-4 new idempotency tests + 8 phase-23.1.13/14 sector tests all green.
+9 existing + 4 new = 13 ticker-meta tests green.
 
-## Cleanup script execution log
+## Live measurement (post backend restart)
 
-The cleanup ran in two stages due to a column-type mismatch
-discovered live (paper_portfolio.updated_at is STRING, not
-TIMESTAMP):
+Backend log confirms prewarm fired:
+```
+20:40:18 I [main] Prewarming ticker-meta cache for 14 tickers...
+20:40:21 I [main] Ticker-meta prewarm complete (14 resolved)
+```
+3-second wall clock for all 14 tickers (was ~18s serial).
 
-1. **First `--apply`** (20:17): Steps 1+2 DELETEs succeeded
-   (WDC duplicate row gone, XOM test row gone). Step 3 UPDATE
-   failed with `BadRequest: Value of type TIMESTAMP cannot be
-   assigned to updated_at, which has type STRING`.
-2. **Fix shipped**: cleanup script now uses
-   `FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S+00:00',
-   CURRENT_TIMESTAMP())` to write the ISO string the column expects.
-3. **Second `--apply`** (20:18): Both DELETEs returned 0 rows
-   (idempotent — already gone). The script's `(1 if X_deleted else 0)`
-   gate then short-circuited Step 3 — protective design but it
-   meant the missed refund from stage 1 wasn't applied.
-4. **One-shot recovery UPDATE** (20:18): ran the +$1,451.40
-   credit directly via the Python BQ client. Result:
-   `current_cash` $694.99 → $2,146.39.
+cURL timing (after prewarm finished):
+```
+$ curl -o /dev/null -w "%{time_total}s" "/api/paper-trading/ticker-meta?tickers=<14 prewarmed>"
+0.004684s        # 4.7ms — full cache hit
 
-## Post-state reconciliation (BQ verify)
-
-```sql
-WITH trades AS (
-  SELECT ticker, SUM(total_value) AS sum_value, COUNT(*) AS n_trades
-  FROM paper_trades GROUP BY ticker
-),
-positions AS (
-  SELECT ticker, cost_basis FROM paper_positions
-)
-SELECT
-  COUNT(*) AS join_rows,
-  SUM(CASE WHEN n_trades > 1 THEN 1 ELSE 0 END) AS dup_trade_tickers,
-  SUM(CASE WHEN positions.cost_basis IS NULL THEN 1 ELSE 0 END) AS orphan_trades,
-  ROUND(SUM(COALESCE(sum_value, 0)) - SUM(COALESCE(cost_basis, 0)), 2) AS leak_dollars
-FROM trades FULL OUTER JOIN positions USING (ticker)
+$ curl -o /dev/null -w "%{time_total}s" "/api/paper-trading/ticker-meta?tickers=ACME"
+2.545972s        # single fresh yfinance fetch (no prewarm hit)
 ```
 
-Result: **14 join_rows, 0 dup_trade_tickers, 0 orphan_trades,
-$0.00 leak**. Books reconcile.
+So for the user landing on /paper-trading **after** prewarm completes
+(~3s after backend boot), all 14 columns populate within 5ms. Even
+in the worst case (page load DURING prewarm), each missing ticker is
+parallelized and the wall clock floor is ~one yfinance round-trip
+(2.5s) instead of the previous 18s serial.
 
 ## Backwards compatibility
 
-- Idempotency guard fires only on the `existing is None` path —
-  positions that already exist still flow through the additive
-  update branch unchanged.
-- MERGE is functionally identical to plain INSERT when no matching
-  row exists; behavior change only on the duplicate-write path.
-- 30-minute window covers the observed 5-minute cycle re-entry
-  with headroom; daily-cycle apps don't typically buy the same
-  ticker twice within 30 minutes intentionally.
-- Cleanup script is dry-run by default; `--apply` requires
-  explicit opt-in.
+- Per-ticker cache keys are additive — a miss falls through to
+  `_fetch_ticker_meta`, same return shape as before.
+- ThreadPoolExecutor parallel fetch keeps the same `{ticker:
+  {company_name, sector, source}}` return shape; callers see no
+  API change.
+- Prewarm failure is logged non-fatal — backend boots normally
+  even if BQ or yfinance is unavailable.
+- Old set-level cache key `paper:ticker_meta:{joined}` is no
+  longer written; legacy entries (if any) will TTL out within
+  24h.
 
 ## Honest disclosures
 
-1. **Mid-cleanup column-type bug surfaced live.** First `--apply`
-   ran the two DELETEs successfully, but Step 3 UPDATE failed
-   on a `STRING` column receiving a TIMESTAMP. The script was
-   fixed and re-run, then a one-shot recovery UPDATE was issued
-   to apply the missed refund. Final state is correct (BQ
-   reconciliation shows zero leak), but the path was bumpy. The
-   script as shipped is now correct end-to-end if re-run from
-   scratch.
+1. **Page load during prewarm** still incurs cold-fetch latency
+   for un-prewarmed tickers. Fix C reduces the window where
+   that happens (3s after boot) but doesn't eliminate it. A user
+   refreshing within 3s of backend restart will still see "—"
+   briefly.
 
-2. **Idempotency guard window is 30 minutes**. A ticker bought,
-   sold, and re-bought within 30 min would currently be blocked
-   by the guard. This is unlikely under daily cycles but could
-   bite a future intraday strategy. If that becomes a concern,
-   tighten the qty-tolerance check or add a `bypass_idempotency`
-   kwarg.
+2. **yfinance rate-limit ceiling is empirical**, not contractual.
+   The ~100 req/30s ceiling comes from community reports
+   (yfinance #2431). For the current 14-position portfolio, 5
+   concurrent workers is well under the ceiling. If the
+   portfolio scales to 50+ positions, may need to drop
+   max_workers or stagger.
 
-3. **MERGE upsert overwrites the entry_date when called for an
-   existing ticker.** This was already the behavior of the
-   delete+insert pattern at line 144-161 (which we kept). Future
-   refactor could collapse that block to a single MERGE — left
-   for Phase 2.
+3. **Per-thread `Ticker` instances avoid the #2557 bug** because
+   that issue is in `yf.download()` (shared `_DFS` global), not
+   `Ticker.info` (per-instance). Confirmed via researcher code
+   inspection. If yfinance ships a future fix that changes
+   semantics, may need to re-verify.
 
-4. **No real-money risk** — paper trading only. The phantom debit
-   was virtual cash.
+4. **No frontend changes** — `useTickerMeta.ts` is unchanged.
+   It still re-fetches the whole batch on key change. Future
+   refinement (deferred to Phase 2): the hook could maintain
+   per-ticker state and surface partial loading per row. Current
+   user impact is minor since the per-ticker cache + prewarm
+   keeps the slow path narrow.
 
 ## Phase 2 (deferred)
 
-- Collapse the manual delete+insert pattern in execute_buy /
-  mark_to_market / execute_sell partial-exit to single MERGE
-  calls (cleaner, fewer write hops).
-- Add a deterministic `client_order_id` field on paper_trades
-  set by `decide_trades` (e.g.,
-  `f"{cycle_id}-{ticker}-{action}"`) — Alpaca-style idempotency.
-- Run a one-time data-integrity audit job nightly that reports
-  trade-vs-position reconciliation drift to Slack.
+- Dedicated `ticker_meta` BQ table for cross-restart durability
+  (researcher noted: single-row MERGE is BQ anti-pattern, must
+  be batched multi-row MERGE). Useful when prewarm doesn't run
+  or for entirely new tickers.
+- Frontend per-ticker progressive rendering — surface partial
+  loading state in `useTickerMeta` so the UI doesn't wait on
+  the slowest fetcher.
+- Stale-while-revalidate (SWR) on cache hits older than 12h —
+  serve cached value immediately, kick off background refresh.

@@ -725,21 +725,36 @@ def _fetch_ticker_meta(tickers: list[str], settings, bq) -> dict:
     except Exception as e:
         logger.warning("ticker-meta BQ lookup failed (graceful fallback): %s", e)
 
-    # Step 2: yfinance fallback for tickers missing OR missing sector
-    import time
-    for t in tickers:
-        existing = out.get(t)
-        needs_yf = existing is None or not existing.get("sector")
-        if not needs_yf:
-            continue
-        info = _yfinance_ticker_info(t)
-        if existing:
-            # Keep BQ company_name if present, fill sector from yf
-            existing["sector"] = existing.get("sector") or info["sector"]
-            existing["source"] = "bq+yf" if existing["sector"] else "bq"
-        else:
-            out[t] = info
-        time.sleep(0.3)  # polite rate-limit guard
+    # Step 2: yfinance fallback for tickers missing OR missing sector.
+    # phase-23.1.16: parallel via ThreadPoolExecutor (max_workers=5) instead
+    # of the previous serial loop with sleep(0.3). yfinance has no batch-info
+    # API; per-Ticker is the only path. Per-thread Ticker objects are
+    # thread-safe (the bug in #2557 is in yfinance.download, not Ticker.info).
+    # Wall-clock for 14 tickers: ~18s -> ~3s.
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    tickers_needing_yf = [
+        t for t in tickers
+        if out.get(t) is None or not out.get(t, {}).get("sector")
+    ]
+    if tickers_needing_yf:
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            futures = {
+                pool.submit(_yfinance_ticker_info, t): t
+                for t in tickers_needing_yf
+            }
+            for future in as_completed(futures):
+                t = futures[future]
+                try:
+                    info = future.result()
+                except Exception as e:
+                    logger.warning("yfinance worker failed for %s: %s", t, e)
+                    continue
+                existing = out.get(t)
+                if existing:
+                    existing["sector"] = existing.get("sector") or info["sector"]
+                    existing["source"] = "bq+yf" if existing["sector"] else "bq"
+                else:
+                    out[t] = info
 
     return {"meta": out, "ttl_sec": 86400, "count": len(out)}
 
@@ -748,7 +763,13 @@ def _fetch_ticker_meta(tickers: list[str], settings, bq) -> dict:
 async def get_ticker_meta(tickers: str = Query(...)):
     """Return {ticker -> {company_name, sector}} for the comma-separated tickers.
 
-    Cached 24h. BQ-first; yfinance fallback. Max 50 tickers per call.
+    phase-23.1.16: per-ticker cache keys so adding/removing one position
+    doesn't bust the whole 24h cache. Each resolved ticker is stored at
+    `paper:ticker_meta:single:{TICKER}`. On a request, we look up each
+    ticker individually; only the missing subset goes through
+    `_fetch_ticker_meta` (BQ-first / parallel-yfinance fallback).
+
+    Cached 24h. Max 50 tickers per call.
     """
     raw = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not raw:
@@ -758,15 +779,25 @@ async def get_ticker_meta(tickers: str = Query(...)):
 
     settings = get_settings()
     cache = get_api_cache()
-    cache_key = f"paper:ticker_meta:{','.join(sorted(raw))}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
 
-    bq = BigQueryClient(settings)
-    result = await asyncio.to_thread(_fetch_ticker_meta, raw, settings, bq)
-    cache.set(cache_key, result, ENDPOINT_TTLS["paper:ticker_meta"])
-    return result
+    out_meta: dict[str, dict] = {}
+    missing: list[str] = []
+    for t in raw:
+        cached = cache.get(f"paper:ticker_meta:single:{t}")
+        if cached is not None:
+            out_meta[t] = cached
+        else:
+            missing.append(t)
+
+    if missing:
+        bq = BigQueryClient(settings)
+        result = await asyncio.to_thread(_fetch_ticker_meta, missing, settings, bq)
+        ttl = ENDPOINT_TTLS["paper:ticker_meta"]
+        for t, info in (result.get("meta") or {}).items():
+            out_meta[t] = info
+            cache.set(f"paper:ticker_meta:single:{t}", info, ttl)
+
+    return {"meta": out_meta, "ttl_sec": 86400, "count": len(out_meta)}
 
 
 @router.post("/deposit")

@@ -182,6 +182,39 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.warning(f"Failed to start ticket queue processor: {e}")
 
+    # phase-23.1.16: prewarm ticker-meta cache for current paper_positions
+    # tickers so the first user landing on /paper-trading sees populated
+    # COMPANY + SECTOR columns within 1-2s instead of 15-20s. Non-blocking;
+    # failure is logged non-fatal and backend boots normally.
+    async def _prewarm_ticker_meta():
+        try:
+            import asyncio as _asyncio
+            from backend.api.paper_trading import _fetch_ticker_meta
+            from backend.config.settings import get_settings as _get_settings
+            from backend.db.bigquery_client import BigQueryClient as _BQ
+            from backend.services.api_cache import (
+                ENDPOINT_TTLS as _TTLS,
+                get_api_cache as _get_cache,
+            )
+            settings = _get_settings()
+            bq = _BQ(settings)
+            positions = await _asyncio.to_thread(bq.get_paper_positions)
+            tickers = sorted({p.get("ticker") for p in positions if p.get("ticker")})
+            if not tickers:
+                logging.info("Ticker-meta prewarm: no current positions, skipped")
+                return
+            logging.info("Prewarming ticker-meta cache for %d tickers...", len(tickers))
+            result = await _asyncio.to_thread(_fetch_ticker_meta, tickers, settings, bq)
+            cache = _get_cache()
+            ttl = _TTLS["paper:ticker_meta"]
+            for t, info in (result.get("meta") or {}).items():
+                cache.set(f"paper:ticker_meta:single:{t}", info, ttl)
+            logging.info("Ticker-meta prewarm complete (%d resolved)", len(result.get("meta") or {}))
+        except Exception as e:
+            logging.warning("Ticker-meta prewarm failed (non-fatal): %s", e)
+
+    asyncio.create_task(_prewarm_ticker_meta())
+
     try:
         yield
     finally:
