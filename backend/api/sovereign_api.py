@@ -127,10 +127,15 @@ def _fetch_snapshots(window_days: int) -> list[dict]:
     try:
         client = _bq_client()
         # snapshot_date is stored as STRING ('YYYY-MM-DD'); parse with PARSE_DATE.
+        # phase-23.1.18: MAX(total_nav) instead of ANY_VALUE — defense-in-depth
+        # for legacy duplicate rows. Going forward, save_paper_snapshot uses
+        # MERGE on snapshot_date so each day has exactly one row, but the
+        # MAX guards against stale-pre-repair rows being picked if any sneak
+        # in via a path that bypasses the MERGE.
         sql = f"""
           SELECT
             snapshot_date AS d,
-            ANY_VALUE(total_nav) AS nav
+            MAX(total_nav) AS nav
           FROM `{_GCP_PROJECT}.financial_reports.paper_portfolio_snapshots`
           WHERE PARSE_DATE('%Y-%m-%d', snapshot_date)
                 >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)

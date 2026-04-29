@@ -1,77 +1,78 @@
 ---
-step: phase-23.1.17
+step: phase-23.1.18
 cycle_date: 2026-04-29
 result: PASS_PENDING_QA
-verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_17.py'
+verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_18.py'
 ---
 
-# Experiment Results — phase-23.1.17
+# Experiment Results — phase-23.1.18
 
 ## Summary
 
-User flagged that the home page "MAS Operator Cockpit" shows
-different NAV/P&L/Sharpe/DD than the paper-trading page. Two
-compounding causes identified by the researcher:
+User reported the Red Line Monitor on the home page ends at
+~$14,000 while live NAV is $15,647.74. BQ inspection confirmed
+`paper_portfolio_snapshots` had DUPLICATE rows per snapshot_date
+(04-29: 2 rows, 04-27: 3 rows, 04-26: 3 rows; 13 duplicates total
+across the table). The chart endpoint used `ANY_VALUE(total_nav)` —
+non-deterministic, empirically picked the older/lower row.
 
-**Cause 1 — Stale `paper_portfolio.total_nav`.** Yesterday's
-phase-23.1.15 cleanup script did a raw BQ UPDATE to `current_cash`
-(+$1,451.40) but did NOT call `mark_to_market()`. `total_nav` is
-the only field recomputed by mark_to_market; without that call,
-the column carried `current_cash + OLD positions_value` until
-this cycle.
+**Three coordinated fixes** (per researcher A + B + C):
 
-**Cause 2 — Home page reads the stale column.** `page.tsx:142`
-did `navValue = nav?.nav` (raw BQ snapshot). Paper-trading page
-(post phase-23.1.14) computed `liveNav = cash + sum(livePrice *
-qty)` as a `useMemo`. Same math hadn't been ported to home.
+**Fix A — `save_paper_snapshot` MERGE upsert**
+(`backend/db/bigquery_client.py:669-708`). Replaced plain INSERT
+with `MERGE ... ON T.snapshot_date = S.snapshot_date WHEN MATCHED
+UPDATE ... WHEN NOT MATCHED INSERT ...`. Same pattern as
+phase-23.1.15's save_paper_position MERGE. Going forward, no two
+rows can ever exist for the same snapshot_date — the natural-key
+write is idempotent. Guards on `snapshot_date` presence with a
+clear ValueError.
 
-## Three coordinated fixes
+**Fix B — Cleanup script**
+(`scripts/cleanup_phase_23_1_18.py`). Two-mode (dry-run default,
+--apply with --yes for headless). Uses `CREATE OR REPLACE TABLE
+... AS SELECT ... ROW_NUMBER() OVER (PARTITION BY snapshot_date
+ORDER BY total_nav DESC) ... WHERE rn = 1`. Heuristic: in our
+data the post-repair / post-mark_to_market row always has the
+highest total_nav, so MAX(nav) per date is the closest proxy to
+"most recent / most complete" given no created_at column. After
+this cycle: 24 → 11 rows, 11 unique dates.
 
-**Fix A — Shared `useLiveNav` hook**
-(`frontend/src/lib/useLiveNav.ts`, NEW). Lifted the inline
-`useMemo` math from paper-trading/page.tsx into a single hook.
-Both pages now import and call this hook with the same
-`(status, positions, livePrices)` triple — single source of
-truth for live-derived NAV + total P&L pct. Falls back to
-BQ snapshot when no live ticks are available.
-
-**Fix E — Home page wires up the shared hook**
-(`frontend/src/app/page.tsx`). Added
-`useLivePrices(positionTickers)` and
-`useLiveNav(ptStatus, positions, livePrices)`. Replaced
-`navValue = nav?.nav` with `navValue = liveNav ?? nav?.nav`,
-and `pnl = nav?.pnl_pct` with `pnl = liveTotalPnlPct ??
-nav?.pnl_pct`.
-
-**Fix B — One-shot repair script**
-(`scripts/repair_phase_23_1_17.py`). Calls
-`trader.mark_to_market()` + `trader.save_daily_snapshot()` to
-recompute `total_nav` from current cash + live position values
-and persist a fresh row to `paper_portfolio_snapshots`. Repair
-script also documents (in module docstring) that any future
-raw-BQ cash mutation must be followed by `mark_to_market()`.
+**Fix C — Defensive MAX in red-line query**
+(`backend/api/sovereign_api.py:130-145`). Replaced `ANY_VALUE`
+with `MAX(total_nav)`. Defense in depth: even if a future bug
+bypasses the MERGE somehow, the chart picks the largest NAV
+per date deterministically (matches the cleanup heuristic).
 
 ## Files modified
 
-- `frontend/src/app/paper-trading/page.tsx` (-25 lines: removed
-  inline `useMemo` blocks; +2 lines: import + call shared hook)
-- `frontend/src/app/page.tsx` (+9 lines: import + hook call +
-  navValue/pnl fallback chain)
+- `backend/db/bigquery_client.py` (+18 lines: rewrote
+  save_paper_snapshot to MERGE)
+- `backend/api/sovereign_api.py` (+5 / -1: MAX(total_nav)
+  + phase-23.1.18 marker comment)
 
 ## Files added
 
-- `frontend/src/lib/useLiveNav.ts` (52 lines, the shared hook)
-- `scripts/repair_phase_23_1_17.py` (90 lines, one-shot
-  repair + future-author reminder)
-- `tests/verify_phase_23_1_17.py` (immutable verification)
+- `scripts/cleanup_phase_23_1_18.py` (124 lines, two-mode
+  dedup with ROW_NUMBER PARTITION BY)
+- `tests/services/test_snapshot_upsert.py` (3 new tests)
+- `tests/verify_phase_23_1_18.py` (immutable verification)
 
 ## Verification command output
 
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_17.py
-ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script (mark_to_market + save_daily_snapshot)
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_18.py
+ok save_paper_snapshot MERGE upsert + red-line MAX(total_nav) query + cleanup script (dry-run/apply with ROW_NUMBER PARTITION BY) + 3 new tests pass
 ```
 Exit 0.
+
+## Test results
+
+```
+$ pytest tests/services/test_snapshot_upsert.py tests/services/test_trade_idempotency.py tests/services/test_sector_concentration.py tests/api/test_ticker_meta_perf.py tests/api/test_ticker_meta.py -q
+............................                                             [100%]
+28 passed in 2.89s
+```
+3 new + 25 prior phases' tests all green.
 
 ## Frontend type check
 
@@ -80,92 +81,89 @@ $ cd frontend && npx tsc --noEmit
 (silent, exit 0)
 ```
 
-## Test results
+## Cleanup script execution log
 
 ```
-$ pytest tests/api/test_ticker_meta_perf.py tests/api/test_ticker_meta.py tests/services/test_trade_idempotency.py tests/services/test_sector_concentration.py -q
-.........................                                                [100%]
-25 passed in 3.03s
+$ python scripts/cleanup_phase_23_1_18.py --apply --yes
+paper_portfolio_snapshots: 24 total rows / 11 unique dates
+Duplicate-date counts:
+  2026-04-29: 2 rows
+  2026-04-27: 3 rows
+  2026-04-26: 3 rows
+  2026-04-24: 2 rows
+  2026-04-22: 2 rows
+  2026-04-15: 3 rows
+  2026-04-14: 5 rows
+Planned SQL: CREATE OR REPLACE TABLE ...
+Executing rewrite (CREATE OR REPLACE TABLE)...
+Rewrite complete.
+paper_portfolio_snapshots: 11 total rows / 11 unique dates
+No duplicate snapshot_dates -- already clean.
+ok phase-23.1.18 cleanup complete (was 24 rows / 11 unique dates -> 11 rows / 11 unique)
 ```
-All prior phases' tests still green.
 
-## Repair script execution log
+## Live BQ post-cleanup state
 
-```
-$ python scripts/repair_phase_23_1_17.py --apply --yes
-Pre-repair:  cash=$2146.39, total_nav=$14153.03
-Calling mark_to_market()...
-mark_to_market done: nav=$15647.74 cash=$2146.39 positions_value=$13501.35
-Saving daily snapshot...
-Post-repair: cash=$2146.39, total_nav=$15647.74
-NAV delta: $+1494.71
-ok phase-23.1.17 repair complete
-```
-
-Live BQ verify:
 ```sql
-SELECT current_cash, total_nav, total_pnl_pct, starting_capital, updated_at
-FROM paper_portfolio WHERE portfolio_id='default';
--- cash=$2,146.39, total_nav=$15,647.74, pnl=+4.32%, starting=$15,000
--- updated_at=2026-04-29T19:11:46Z (post-repair)
+SELECT snapshot_date, total_nav, cash, positions_value
+FROM paper_portfolio_snapshots ORDER BY snapshot_date DESC LIMIT 12;
 ```
+| snapshot_date | total_nav | cash | positions_value |
+|---|---|---|---|
+| 2026-04-29 | $15,647.74 | $2,146.39 | $13,501.34 |
+| 2026-04-28 | $13,952.25 | $694.99 | $13,257.26 |
+| 2026-04-27 | $14,458.32 | $4,023.11 | $10,435.23 |
+| 2026-04-26 | $9,499.50 | $9,499.50 | $0.00 |
+| (older days $9,499.50 cash, no positions yet) | | | |
 
-After this cycle:
-- BQ `total_nav` = $15,647.74 (was $14,153.03 — stale).
-- Home page's NAV tile derives `liveNav = cash + sum(livePrice *
-  qty)` and falls back to `total_nav` only if no live ticks.
-- Paper-trading page renders the same number via the same
-  shared hook.
-- Red Line Monitor's most-recent row (today) reflects the
-  repaired NAV.
+Each snapshot_date now has exactly one row. The Red Line Monitor's
+terminal point is $15,647.74 — matches paper-trading + home hero
+NAV.
 
 ## Backwards compatibility
 
-- The shared hook returns the same shape (`liveNav: number |
-  null`, `liveTotalPnlPct: number | null`) as the inline
-  useMemo. SummaryHero signature unchanged.
-- Paper-trading page behavior is byte-identical (same math,
-  same fallback). Only the source location moved.
-- Home page falls back to `nav?.nav` when `liveNav` is null
-  (initial paint, empty positions).
-- Repair script is idempotent — re-running just refreshes
-  the snapshot.
+- MERGE behaves identically to INSERT for new (no-conflict)
+  rows — autonomous_loop callers see no API change.
+- Cleanup script dry-run is default; --apply opt-in.
+- MAX(total_nav) in the red-line query is a one-token change;
+  no shape difference in the response.
+- Backend already restarted; the new MERGE is live for any
+  future save_daily_snapshot call.
 
 ## Honest disclosures
 
-1. **Sharpe and Max-DD on home are still computed from
-   redLineSeries**, not from the live derivation. They will
-   converge with paper-trading's Sharpe over a few cycles as
-   the snapshot history rolls forward — but on any given day
-   the two pages may show different Sharpe values. Out of
-   scope for this cycle (the user's complaint was NAV).
+1. **Heuristic dedup**: cleanup uses `ORDER BY total_nav DESC`
+   to pick the "winner" per date. In our data the post-repair
+   row always has the highest NAV (mark_to_market ran). For
+   a hypothetical case where a real intraday loss made the
+   newer row LOWER, the heuristic would keep the older row
+   incorrectly. Acceptable for one-shot data repair given no
+   created_at column. Going forward, MERGE prevents the scenario.
 
-2. **VS SPY** on the home page is `liveTotalPnlPct - benchmark`,
-   so it now reflects the live-derived total P&L. The SPY
-   benchmark itself is whatever the BQ snapshot last computed —
-   may be slightly stale if SPY moved since the last
-   mark_to_market. Acceptable: SPY benchmarking is
-   inception-to-date, not session-relative.
+2. **Pre-trading days flat at $9,499.50** is correct — that was
+   the actual NAV before any positions were opened (cash only).
+   The chart now shows the true historical NAV trajectory.
 
-3. **No real money at risk** — paper trading only.
+3. **"Pre-deposit" perception**: starting_capital is now $15,000
+   (after a $5k deposit). The chart shows historical NAV ~$9,499
+   for the first month because that was the cash balance THEN.
+   This is by design — phase-23.1.9 already documents that
+   deposits increment BOTH starting_capital and current_cash so
+   pnl_pct stays anchored. The historical chart is NOT rebased.
 
-4. **Future-author reminder**: any raw BQ UPDATE to
-   `paper_portfolio.current_cash` (deposits, manual refunds,
-   adjustments) MUST be followed by a `mark_to_market()` call.
-   The repair script's docstring documents this; phase-23.1.15
-   shipped without it and produced this discrepancy.
+4. **Backend restart was performed** so Fix A (MERGE) and Fix C
+   (MAX) are live for the next save_daily_snapshot / red-line
+   request.
 
 ## Phase 2 (deferred)
 
-- Backend wraps every `UPDATE paper_portfolio.current_cash`
-  in a method that auto-calls `mark_to_market()` afterward —
-  prevents the "raw BQ mutation forgot MtM" foot-gun
-  structurally, not just by docstring.
-- Sharpe + Max-DD on home page derive from a "today live"
-  point appended to the redLineSeries instead of pure
-  snapshot history.
-- Status-endpoint `/api/paper-trading/status` returns the
-  live-derived NAV server-side (Fix C from the contract).
-  Deferred because of the per-call yfinance batch cost (5-10
-  HTTP round-trips on every status poll); requires a server
-  cache layer with sub-second TTL.
+- Add `created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()` column
+  to paper_portfolio_snapshots. Then ROW_NUMBER ORDER BY
+  created_at DESC is deterministic regardless of NAV direction.
+  Researcher confirmed two-step DDL is backwards compatible
+  via Google Cloud docs. Deferred — with Fix A in place, no
+  new duplicates can be created.
+- Apply MERGE upsert to all other paper_* INSERT call sites
+  for consistency (audit needed).
+- Optional: rebase the home chart with a "show as % return"
+  toggle so it normalizes across pre-deposit history.

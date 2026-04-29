@@ -14316,3 +14316,36 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 17/17 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.17/.
+
+## Cycle 1 -- 2026-04-29 21:48 UTC -- phase=23.1.18 result=PASS
+
+**Step:** phase-23.1.18 -- Red Line Monitor terminal NAV fix (paper_portfolio_snapshots dedup + MERGE upsert + deterministic red-line query).
+
+**User flagged:** "this graph doesnt have the right numbers" -- Red Line Monitor on home page ended at ~$14,000 while live NAV is $15,647.74.
+
+**Root cause:** paper_portfolio_snapshots had DUPLICATE rows per snapshot_date because save_paper_snapshot did plain INSERT INTO. autonomous_loop calls save_daily_snapshot at TWO sites (line 309 + 424), and the phase-23.1.17 repair script added another row for today. /api/sovereign/red-line used `ANY_VALUE(total_nav)` which is non-deterministic -- empirically picked the older/lower row. Schema has no created_at column.
+
+**BQ inspection (pre-fix):** 24 rows / 11 unique dates. 04-29 had 2 rows ($14,153 stale + $15,647 post-repair). 04-27 had 3 rows. 04-26 had 3 rows. 04-15/04-14 each had 3-5 duplicates from earlier double-writes.
+
+**Three coordinated fixes (A + B + C):**
+- **Fix A** -- save_paper_snapshot now MERGE on snapshot_date (mirrors phase-23.1.15's save_paper_position pattern). One row per day, idempotent re-writes within a date.
+- **Fix B** -- scripts/cleanup_phase_23_1_18.py rewrites the table with `CREATE OR REPLACE TABLE ... ROW_NUMBER() OVER (PARTITION BY snapshot_date ORDER BY total_nav DESC) WHERE rn = 1`. Heuristic since no created_at: in our data the post-repair row always has the highest total_nav. Result: 24 -> 11 rows / 11 unique dates.
+- **Fix C** -- _fetch_snapshots in sovereign_api.py uses `MAX(total_nav)` instead of ANY_VALUE. Defense-in-depth even after dedup.
+
+**Files:** modified backend/db/bigquery_client.py, backend/api/sovereign_api.py, handoff/current/{contract,experiment_results}.md. Added scripts/cleanup_phase_23_1_18.py, tests/services/test_snapshot_upsert.py, tests/verify_phase_23_1_18.py, handoff/current/phase-23.1.18-{external-research,internal-codebase-audit}.md.
+
+**Research gate:** PASS (gate_passed: true, 6 sources read in full -- oneuptime MERGE upsert + dedup streaming + non-deterministic-MERGE 2026, Google Cloud dedup tutorial, BQ default-values docs, Hevo upsert primer; recency scan 2024-2026 performed).
+
+**Verification:** `python tests/verify_phase_23_1_18.py` -> exit 0 (4 distinct claims). `pytest tests/services/test_snapshot_upsert.py + 4 prior phases' suites -q` -> 28 passed.
+
+**Live BQ post-cleanup:** 04-29 = $15,647.74 (matches paper-trading + home hero). All 11 dates unique. Backend restarted -- new MERGE live for next save_daily_snapshot.
+
+**Q/A:** PASS first spawn. 5/5 harness audit + 11/11 deterministic checks. Code-token inspection confirmed MERGE on snapshot_date, MAX(total_nav) in query, ROW_NUMBER PARTITION BY in cleanup.
+
+**Backwards compat:** MERGE identical to INSERT for new (no-conflict) rows; cleanup dry-run default; backend restarted; no frontend changes.
+
+**Honest disclosures:** ORDER BY total_nav DESC is heuristic (could mis-pick if a real intraday loss made the newer row LOWER); pre-trading days flat at $9,499.50 is the actual historical NAV before any positions; chart not rebased to current $15k starting_capital. Phase-2 deferred: created_at column for deterministic ordering, MERGE for other paper_* tables, % return toggle on chart.
+
+**Phase-23.1 plan now 18/18 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.18/.

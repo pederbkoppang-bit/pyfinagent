@@ -667,12 +667,36 @@ class BigQueryClient:
     # -- Snapshots --
 
     def save_paper_snapshot(self, row: dict) -> None:
-        """Insert snapshot via DML to avoid streaming buffer conflicts."""
+        """Upsert snapshot via MERGE on snapshot_date (idempotent natural key).
+
+        phase-23.1.18: replaced plain INSERT with MERGE so multiple
+        save_daily_snapshot calls in the same UTC day overwrite the
+        existing row instead of producing duplicates. Closes the bug class
+        where the Red Line Monitor's ANY_VALUE picked a stale row when
+        autonomous_loop wrote a snapshot, then a later cycle/repair wrote
+        another for the same date.
+        """
         row = {k: v for k, v in row.items() if v is not None}
+        if "snapshot_date" not in row:
+            raise ValueError(
+                "save_paper_snapshot requires 'snapshot_date' field for MERGE key"
+            )
         table = self._pt_table("paper_portfolio_snapshots")
         cols = ", ".join(row.keys())
         vals = ", ".join(f"@v_{k}" for k in row.keys())
-        query = f"INSERT INTO `{table}` ({cols}) VALUES ({vals})"
+        set_clauses = ", ".join(
+            f"T.{k} = S.{k}" for k in row.keys() if k != "snapshot_date"
+        )
+        source_select = ", ".join(f"@v_{k} AS {k}" for k in row.keys())
+        query = f"""
+            MERGE `{table}` T
+            USING (SELECT {source_select}) S
+            ON T.snapshot_date = S.snapshot_date
+            WHEN MATCHED THEN
+                UPDATE SET {set_clauses}
+            WHEN NOT MATCHED THEN
+                INSERT ({cols}) VALUES ({vals})
+        """
         params = []
         for k, v in row.items():
             if isinstance(v, float):

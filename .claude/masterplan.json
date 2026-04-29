@@ -7126,9 +7126,23 @@
           "created_at": "2026-04-29T21:18:00Z",
           "completed_at": "2026-04-29T21:18:00Z",
           "notes": "User flagged home cockpit and paper-trading disagreed on NAV ($14,153 vs $15,664). Two causes: phase-23.1.15 cleanup script bumped current_cash without calling mark_to_market, leaving total_nav stale; home page read the stale column directly while paper-trading derived it live. Fix A: shared useLiveNav.ts hook (lift inline useMemo). Fix E: home page imports + uses the hook with BQ snapshot fallback. Fix B: one-shot repair_phase_23_1_17.py runs mark_to_market + save_daily_snapshot. Live BQ post-repair: total_nav $14,153 -> $15,647 (+$1,494). Both pages now render the same value. Q/A PASS first try. 25/25 tests. Research gate: 6 sources read in full. Future-author docstring reminder: raw BQ cash mutations must be followed by mark_to_market."
+        },
+        {
+          "id": "23.1.18",
+          "name": "Red Line Monitor terminal NAV fix (paper_portfolio_snapshots dedup + MERGE upsert + MAX query)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.18/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_18.py)",
+          "contract": "handoff/archive/phase-23.1.18/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.18/phase-23.1.18-external-research.md (also internal audit)",
+          "experiment_results": "handoff/archive/phase-23.1.18/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.18/evaluator_critique.md",
+          "created_at": "2026-04-29T21:48:00Z",
+          "completed_at": "2026-04-29T21:48:00Z",
+          "notes": "User flagged Red Line graph wrong terminal NAV ($14k vs live $15.6k). Root cause: paper_portfolio_snapshots had 24 rows / 11 unique dates due to plain-INSERT save_paper_snapshot + dual-call autonomous_loop + phase-23.1.17 repair add. /api/sovereign/red-line used ANY_VALUE -- non-deterministic. Fix A: save_paper_snapshot MERGE on snapshot_date. Fix B: cleanup script ROW_NUMBER PARTITION BY snapshot_date ORDER BY total_nav DESC -> 24 rows -> 11 rows / 11 unique. Fix C: red-line query uses MAX(total_nav). Q/A PASS first try (5/5 harness + 11/11 deterministic). 28/28 tests. Research gate: 6 sources read in full. Phase-2 deferred: created_at column, MERGE for other paper_* tables."
         }
       ],
-      "completed_at": "2026-04-29T21:18:00Z"
+      "completed_at": "2026-04-29T21:48:00Z"
     }
   ]
 }

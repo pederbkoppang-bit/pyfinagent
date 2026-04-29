@@ -1,252 +1,103 @@
 ---
-step: phase-23.1.17
+step: phase-23.1.18
 verdict: PASS
 qa_pass: 1
-cycle_date: 2026-04-29
-checks_run:
-  - harness_compliance_audit
-  - syntax_ast
-  - immutable_verification_command
-  - pytest_25
-  - frontend_tsc_noemit
-  - git_diff_scope
-  - code_inspection_hook_consumption
-  - repair_log_nav_delta
-  - llm_judgment_contract_alignment
-  - llm_judgment_mutation_resistance
-  - llm_judgment_scope_honesty
-  - llm_judgment_research_gate
+date: 2026-04-29
 ---
 
-# Q/A Critique — phase-23.1.17
+# Q/A Critique — phase-23.1.18
 
-## Verdict: **PASS**
+## Harness compliance audit (5-item, FIRST)
 
-Single Q/A pass. All deterministic checks green. LLM-judgment leg
-finds the contract honored, the mutation-resistance test
-non-trivial, scope honestly disclosed, research gate cleared.
+| # | Check | Result |
+|---|-------|--------|
+| 1 | Both research briefs in handoff/current/ | PASS — `phase-23.1.18-external-research.md` (gate_passed: true, 6 sources read in full, recency scan present) AND `phase-23.1.18-internal-codebase-audit.md` both present |
+| 2 | contract.md `step: phase-23.1.18` + immutable verification command | PASS — line 2 has `step: phase-23.1.18`, contract references `python tests/verify_phase_23_1_18.py` as immutable cmd |
+| 3 | experiment_results.md `step: phase-23.1.18`, output reproducible | PASS — line 2 has `step: phase-23.1.18`; verification cmd reproduced (exit 0, ok-line below) |
+| 4 | harness_log.md does NOT yet contain "23.1.18" entry | PASS — `grep -c "23.1.18" handoff/harness_log.md` returns 0; log-LAST invariant intact |
+| 5 | First Q/A spawn for this step | PASS — `qa_pass: 1` |
 
-## 1. Harness-compliance audit (5 items)
+## Deterministic checks
 
-| # | Item | Result |
-|---|------|--------|
-| 1 | Both research briefs in `handoff/current/`? | PASS — `phase-23.1.17-external-research.md` (gate JSON `gate_passed: true`, `external_sources_read_in_full: 6`, `urls_collected: 16`, `recency_scan_performed: true`) and `phase-23.1.17-internal-codebase-audit.md` both present. Floor of 5 sources cleared. |
-| 2 | `contract.md` step + immutable verification? | PASS — `step: phase-23.1.17`, immutable cmd `source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_17.py`. |
-| 3 | `experiment_results.md` step + reproducible verification output? | PASS — `step: phase-23.1.17`, verbatim output captured (`ok useLiveNav shared hook ...`), reproduced live this cycle. |
-| 4 | `harness_log.md` does NOT yet contain `23.1.17`? | PASS — `grep -c "23.1.17"` returns 0. Log-LAST invariant intact. |
-| 5 | First Q/A spawn for this step? | PASS — no prior `evaluator_critique.md` for 23.1.17 (current file is 23.1.16's, about to be overwritten). |
+### A. Immutable verification command — PASS
 
-## 2. Deterministic checks
-
-### A. Immutable verification command
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_17.py
-ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script (mark_to_market + save_daily_snapshot)
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_18.py
+ok save_paper_snapshot MERGE upsert + red-line MAX(total_nav) query + cleanup script (dry-run/apply with ROW_NUMBER PARTITION BY) + 3 new tests pass
 EXIT=0
 ```
-**PASS** — exit 0, exact ok-line as documented in `experiment_results.md`.
 
-### B. Pytest (25 tests across 4 files)
+Exit 0 + ok-line. All required tokens (MERGE inside save_paper_snapshot via DOTALL regex, ON T.snapshot_date = S.snapshot_date, MAX(total_nav) AS nav, ANY_VALUE absence, ROW_NUMBER OVER, PARTITION BY snapshot_date) verified.
+
+### B. Pytest — PASS (28 passed)
+
 ```
-$ source .venv/bin/activate && python -m pytest tests/api/test_ticker_meta_perf.py tests/api/test_ticker_meta.py tests/services/test_trade_idempotency.py tests/services/test_sector_concentration.py -q
-.........................                                                [100%]
-25 passed, 1 warning in 2.50s
+tests/services/test_snapshot_upsert.py
+tests/services/test_trade_idempotency.py
+tests/services/test_sector_concentration.py
+tests/api/test_ticker_meta_perf.py
+tests/api/test_ticker_meta.py
+============================== 28 passed, 1 warning in 2.84s
 ```
-**PASS** — 25 passed exactly, no regressions.
 
-### C. AST syntax (Python)
-```
-$ python -c "import ast; [ast.parse(open(p).read()) for p in ['scripts/repair_phase_23_1_17.py','tests/verify_phase_23_1_17.py']]; print('all syntax ok')"
-all syntax ok
-```
-**PASS**.
+### C. AST syntax — PASS
 
-### D. Frontend `tsc --noEmit`
-```
-$ cd frontend && npx tsc --noEmit
-EXIT=0  (silent)
-```
-**PASS** — clean.
+All 5 files (`backend/db/bigquery_client.py`, `backend/api/sovereign_api.py`, `scripts/cleanup_phase_23_1_18.py`, `tests/verify_phase_23_1_18.py`, `tests/services/test_snapshot_upsert.py`) parse cleanly. Output: `all syntax ok`.
 
-### E. BQ / repair log inspection
-`experiment_results.md` lines 95-103 record:
-- Pre-repair: cash=$2146.39, total_nav=$14153.03
-- mark_to_market done: nav=$15647.74 cash=$2146.39 positions_value=$13501.35
-- Post-repair: cash=$2146.39, total_nav=$15647.74
-- NAV delta: $+1494.71 (matches the user-reported $1,451.40 cleanup
-  refund + ~$43 of intervening positions drift — economically
-  plausible).
-**PASS** — repair log ties out: stale `total_nav` corrected to
-live-derived value. Cash unchanged (correct — only positions
-revaluation was needed).
+### D. BQ verify (post-state, from experiment_results.md) — PASS
 
-### F. Git diff scope
-`git status --porcelain` shows ONLY the expected files:
-- Modified: `frontend/src/app/page.tsx`,
-  `frontend/src/app/paper-trading/page.tsx`,
-  `handoff/current/{contract,experiment_results}.md`
-- New: `frontend/src/lib/useLiveNav.ts`,
-  `scripts/repair_phase_23_1_17.py`,
-  `tests/verify_phase_23_1_17.py`,
-  `handoff/current/phase-23.1.17-{external-research,internal-codebase-audit}.md`
-- Plus orthogonal masterplan-bookkeeping noise (heartbeat,
-  cycle_history, audit jsonl, archive renames for prior phases)
-  which are infra-managed, not in scope.
+- Pre-cleanup: `paper_portfolio_snapshots: 24 total rows / 11 unique dates`
+- Post-cleanup: `paper_portfolio_snapshots: 11 total rows / 11 unique dates`
+- Cleanup ok-line: `ok phase-23.1.18 cleanup complete (was 24 rows / 11 unique dates -> 11 rows / 11 unique)`
+- 2026-04-29 row carries `total_nav $15,647.74` matching live paper-trading NAV (line 113 of experiment_results.md).
 
-**PASS** — no scope creep.
+### E. Frontend tsc — PASS
 
-### G. Code inspection
-- `frontend/src/lib/useLiveNav.ts`: 51 LoC, single named export
-  `useLiveNav(status, positions, livePrices)` returning
-  `{ liveNav, liveTotalPnlPct }`. Math is line-for-line the prior
-  inline `useMemo` — cash + sum(livePrice * qty) with
-  `current_price`/`avg_entry_price` fallbacks per position;
-  pnl-pct anchored to `starting_capital` (deposit-aware per
-  phase-23.1.9). Falls back to `status?.portfolio.nav` when
-  positions empty or no live ticks. Memo deps correct
-  (`[positions, livePrices, status]` and `[liveNav, status]`).
-- `frontend/src/app/page.tsx:14-15,143-153`: imports both
-  `useLivePrices` and `useLiveNav`; calls
-  `useLiveNav(ptStatus, positions, livePrices)`; `navValue =
-  liveNav ?? nav?.nav` (correct nullish-coalesce fallback);
-  `pnl = liveTotalPnlPct ?? nav?.pnl_pct`. No inline math
-  duplication.
-- `frontend/src/app/paper-trading/page.tsx:35-36,431-433,
-  767-768`: imports the hook; calls
-  `useLiveNav(status, positions, livePrices)`; threads results
-  to `SummaryHero`. The `const liveNav = useMemo(...)` block is
-  gone (verification asserts `"const liveNav = useMemo" not in
-  pt_src`). `SummaryHero` accepts the new props at signature
-  level (lines 181-194). Behavior preserved.
+`cd frontend && npx tsc --noEmit` exits 0, silent.
 
-**PASS** — single source of truth honored on both pages.
+### F. git diff scope — PASS
 
-## 3. LLM judgment leg
+Modified: `backend/db/bigquery_client.py`, `backend/api/sovereign_api.py`, `handoff/current/contract.md`, `handoff/current/experiment_results.md`. New: `scripts/cleanup_phase_23_1_18.py`, `tests/services/test_snapshot_upsert.py`, `tests/verify_phase_23_1_18.py`, `handoff/current/phase-23.1.18-{external-research,internal-codebase-audit}.md`. Other modified files (TSV experiment results, audit jsonls, .archive-baseline, cycle_history) are non-step churn from harness/observation. No scope creep.
 
-### Contract alignment
-Contract specifies Fixes A + E + B + D (prophylactic docstring) +
-tests. All present:
-- A — `useLiveNav.ts` shared hook (acceptance criterion 1, 2 met)
-- E — home page wires it up (acceptance criterion 6 met by visual
-  parity through identical math)
-- B — repair script (acceptance criterion 6 met: BQ `total_nav`
-  was $14,153.03; now $15,647.74, matches live-derived value
-  within fee tolerance)
-- D — `repair_phase_23_1_17.py` module docstring (line 17) warns
-  future authors that any cash mutation MUST be followed by
-  `mark_to_market()`
-- Tests — `tests/verify_phase_23_1_17.py` is the immutable
-  contract verification (per the contract, replaces the optional
-  Jest test it offered)
+### G. Code inspection — PASS
 
-**PASS**.
+- `save_paper_snapshot` (backend/db/bigquery_client.py:670+): MERGE on `snapshot_date` with WHEN MATCHED + WHEN NOT MATCHED branches confirmed.
+- `_fetch_snapshots` (backend/api/sovereign_api.py:130+): `MAX(total_nav) AS nav`, comment "phase-23.1.18: MAX(total_nav) instead of ANY_VALUE — defense-in-depth".
+- `scripts/cleanup_phase_23_1_18.py`: `ROW_NUMBER() OVER (PARTITION BY snapshot_date ORDER BY total_nav DESC)`, dry-run default with `--apply`/`--yes` opt-in.
 
-### Mutation-resistance / anti-rubber-stamp
-The verification script greps for distinct, load-bearing tokens
-(not just file existence):
-- `export function useLiveNav` — would fail if hook were renamed
-  or made default-export
-- `liveNav: number | null` AND `liveTotalPnlPct: number | null` —
-  return-shape contract enforced
-- `useLiveNav(ptStatus, positions, livePrices)` — exact home-page
-  call site
-- `useLiveNav(status, positions, livePrices)` — exact paper-
-  trading call site (note different `ptStatus` vs `status` var
-  names — a real consumption check, not a copy-paste)
-- `liveNav ?? nav?.nav` — fallback semantics in the right order
-- `trader.mark_to_market()` AND `save_daily_snapshot` — repair
-  script can't claim success by no-op
-- `--apply` AND `args.apply` — explicit-mutation guard required
-- Negative assertion: `"const liveNav = useMemo" not in pt_src` —
-  would fail if someone re-added the inline math instead of
-  using the hook (anti-regression)
+## LLM judgment
 
-This is a non-trivial mutation-resistance test; planted token
-removal would be detected. **PASS**.
+| Criterion | Verdict | Notes |
+|-----------|---------|-------|
+| Contract alignment | PASS | Fix A (MERGE), Fix B (cleanup script), Fix C (MAX(total_nav)) all implemented and verified by immutable cmd |
+| Mutation-resistance | PASS | verify_phase_23_1_18.py greps for distinct, hard-to-spoof tokens including DOTALL regex anchoring MERGE inside save_paper_snapshot, explicit ANY_VALUE absence in red-line query |
+| Anti-rubber-stamp / scope honesty | PASS | "Honest disclosures" section 1 candidly flags NAV-DESC tie-breaker is heuristic and would fail in hypothetical real-loss case; section 3 explicitly states "historical chart is NOT rebased" — no overclaim |
+| Phase-2 deferrals listed | PASS | Three deferrals: (1) created_at column for deterministic ordering, (2) MERGE upsert for other paper_* tables, (3) % return toggle for chart |
+| Backwards compat | PASS | "MERGE behaves identically to INSERT for new (no-conflict) rows"; cleanup dry-run default; backend restarted |
+| Research-gate compliance | PASS | external research gate_passed: true with 6 sources fetched in full; internal audit present |
 
-### Scope honesty
-`experiment_results.md` "Honest disclosures" + "Phase 2
-(deferred)" sections explicitly call out:
-1. Sharpe + Max-DD on home are STILL snapshot-derived, not
-   converted to live derivation (out-of-scope, will converge
-   over time)
-2. VS SPY caveat — benchmark is from the BQ snapshot, may be
-   slightly stale
-3. No real money at risk
-4. Future-author reminder — any raw BQ cash mutation must be
-   followed by `mark_to_market()`
+## Verdict
 
-Plus three Phase-2 deferrals: backend auto-MtM wrapper, home
-Sharpe live derivation, server-side status endpoint live NAV.
+**PASS** — All deterministic checks green (verification cmd exit 0, 28/28 pytest, syntax OK, frontend tsc OK, git diff scope clean, BQ post-state matches live NAV $15,647.74). Code inspection confirms all three required tokens (MERGE in save_paper_snapshot, MAX(total_nav) in red-line, ROW_NUMBER PARTITION BY in cleanup). Honest disclosures explicitly call out the heuristic tie-breaker limitation and pre-deposit chart non-rebasing — no rubber-stamping. Phase-2 deferrals enumerated. Harness compliance: research briefs present, contract pre-commit, no premature log entry, first Q/A pass.
 
-**PASS** — over-claim resisted; the user's narrow complaint (NAV
-mismatch) is addressed; tangential metrics flagged for follow-up.
-
-### Research-gate compliance
-- External brief: 6 sources read in full (Limina IBOR, Limina
-  PMS, Limina batch-vs-event, TanStack Query, SWR mutation,
-  Bennett NAV), 16 URLs collected, recency scan performed,
-  `gate_passed: true`. Floor of 5 cleared.
-- Internal codebase audit present with 6 files inspected and
-  file:line anchors.
-- Contract `Research-gate summary` section cites both briefs and
-  the key findings (Limina live-extract pattern, TanStack
-  shared-key pattern, A+E+B sequencing recommendation).
-
-**PASS** — research gate satisfied per `.claude/rules/research-gate.md`.
-
-### Backwards compatibility
-Hook return shape (`{ liveNav: number | null;
-liveTotalPnlPct: number | null }`) matches the prior inline
-`useMemo` shape exactly. SummaryHero signature unchanged at the
-caller (paper-trading page passes the same two scalars under the
-same prop names). Home page falls back to BQ snapshot when
-`liveNav` is null (initial paint, empty positions). **PASS**.
-
-## 4. Violated criteria
-
-None.
-
-## 5. violation_details
-
-```json
+## violated_criteria
 []
-```
 
-## 6. certified_fallback
+## violation_details
+[]
 
-`false` — first Q/A pass for this step; no retry budget consumed.
+## certified_fallback
+false
 
-## 7. Final JSON
-
-```json
-{
-  "ok": true,
-  "verdict": "PASS",
-  "reason": "All immutable verification checks green: tests/verify_phase_23_1_17.py exit 0; pytest 25/25; tsc clean; AST clean; repair log shows total_nav $14,153.03 -> $15,647.74 matching live-derived value. Contract Fixes A+E+B+D all implemented with non-trivial mutation-resistance test. Scope deferrals (home Sharpe/Max-DD, server-side status NAV, backend auto-MtM wrapper) honestly disclosed. Research gate cleared (6 sources read in full, 16 URLs, recency scan, gate_passed: true).",
-  "violated_criteria": [],
-  "violation_details": [],
-  "certified_fallback": false,
-  "checks_run": [
-    "harness_compliance_audit",
-    "syntax_ast",
-    "immutable_verification_command",
-    "pytest_25",
-    "frontend_tsc_noemit",
-    "git_diff_scope",
-    "code_inspection_hook_consumption",
-    "repair_log_nav_delta",
-    "llm_judgment_contract_alignment",
-    "llm_judgment_mutation_resistance",
-    "llm_judgment_scope_honesty",
-    "llm_judgment_research_gate"
-  ]
-}
-```
-
-## Recommendation to Main
-
-Proceed to LOG (append `harness_log.md` with cycle entry for
-phase-23.1.17, result=PASS) and THEN flip masterplan
-`phase-23.1.17` status to `done`. Order matters (log-LAST
-invariant per `feedback_log_last.md`).
+## checks_run
+- harness_compliance_audit_5_item
+- syntax_ast_5_files
+- immutable_verification_command
+- pytest_28_tests
+- frontend_tsc
+- git_diff_scope
+- bq_post_state_disclosure_review
+- code_token_inspection
+- mutation_resistance_review
+- scope_honesty_review
+- research_gate_envelope_review
