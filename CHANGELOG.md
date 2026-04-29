@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-29 | `3cc08e6a` | phase-23.1.16: ticker-meta latency fix (parallel + per-ticker cache + prewarm) |
 | 2026-04-29 | `881ef4aa` | phase-23.1.15: trade idempotency + paper_positions MERGE upsert |
 | 2026-04-29 | `56963d53` | phase-23.1.14: legacy-position sector lookup + live NAV scoreboards |
 | 2026-04-28 | `5b350e4d` | phase-23.1.13: sector concentration enforcement (v1) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-26 | `c305fc27` | phase-22.3: reconcile 4 pending tasks (#23, #25, #36, #54) |
 | 2026-04-26 | `de51c727` | phase-22: live model resolution in agent map + per-node Gemini-lock granularity |
 | 2026-04-26 | `3b3ff446` | phase-20 + 21: agent map workflow overlay + settings model propagation |
-| 2026-04-26 | `9c31ed70` | phase-16.58: close pending Anthropic key swap (task #21) |
 
 ---
 
+### v6.5.114 — phase-23.1.16: ticker-meta latency fix (parallel + per-ticker cache +... (2026-04-29)
+
+- **phase-23.1.16: ticker-meta latency fix (parallel + per-ticker cache + prewarm)**
 ### v6.5.113 — phase-23.1.15: trade idempotency + paper_positions MERGE upsert (2026-04-29)
 
 - **phase-23.1.15: trade idempotency + paper_positions MERGE upsert**
