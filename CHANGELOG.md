@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-29 | `fdcc2823` | phase-23.1.19: backend FD-exhaustion fix (sqlite3 closing()) + regression guard |
 | 2026-04-29 | `629eea3b` | phase-23.1.18: paper_portfolio_snapshots dedup + MERGE upsert |
 | 2026-04-29 | `4937a3e7` | phase-23.1.17: home/paper hero SSOT via shared useLiveNav hook |
 | 2026-04-29 | `3cc08e6a` | phase-23.1.16: ticker-meta latency fix (parallel + per-ticker cache + prewarm) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-27 | `5a6a6e17` | phase-23.1.2: earnings PEAD overlay (free SEC EDGAR + Claude sentiment-surprise) |
 | 2026-04-27 | `743d65e5` | phase-23.1.1: macro regime filter (LLM-as-judge over FRED) + screener conviction multiplier |
 | 2026-04-26 | `203ced64` | phase-23.0: Dataform/orchestrator feasibility (DON'T ADOPT) + directive_versions --apply |
-| 2026-04-26 | `c305fc27` | phase-22.3: reconcile 4 pending tasks (#23, #25, #36, #54) |
 
 ---
 
+### v6.5.117 — phase-23.1.19: backend FD-exhaustion fix (sqlite3 closing()) + regres... (2026-04-29)
+
+- **phase-23.1.19: backend FD-exhaustion fix (sqlite3 closing()) + regression guard**
 ### v6.5.116 — phase-23.1.18: paper_portfolio_snapshots dedup + MERGE upsert (2026-04-29)
 
 - **phase-23.1.18: paper_portfolio_snapshots dedup + MERGE upsert**
