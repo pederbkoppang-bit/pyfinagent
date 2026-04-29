@@ -1,157 +1,181 @@
 ---
-step: phase-23.1.14
+step: phase-23.1.15
 cycle_date: 2026-04-29
 result: PASS_PENDING_QA
-verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_14.py'
+verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_15.py'
 ---
 
-# Experiment Results — phase-23.1.14
+# Experiment Results — phase-23.1.15
 
 ## Summary
 
-Two coordinated bug fixes shipped under one harness cycle.
+User flagged "Western Digital Corporation appears twice" in trades view
+while position count says 14. BQ forensics confirmed two integrity
+violations causing ~$1,451 phantom cash debit:
 
-**Bug A (sector cap blind to legacy positions) — fixed.** Existing 11
-positions in BQ `paper_positions` predate the sector column, so
-`pos.get("sector")` returned None for all of them, sending every
-legacy row into the "Unknown" bucket. New Tech BUYs (MU, KEYS) were
-trivially passing the `paper_max_per_sector=2` cap.
+**Bug A — WDC duplicate trade.** TWO distinct trade_ids 5 minutes
+apart on 2026-04-26 (`56072f0c…` 21:12:28 + `e5447bd9…` 21:17:41),
+each debiting $949.95+fee. paper_positions had only ONE WDC row
+(cost_basis $949.95, entry_date 21:17:41). Net cash leak: $950.90.
 
-**Fix site:** `backend/services/autonomous_loop.py` between
-`positions = trader.get_positions()` (post-MTM refresh) and
-`orders = decide_trades(...)`. New block:
-1. Computes `legacy_tickers` — positions whose `sector` field is empty.
-2. Calls `_fetch_ticker_meta` via `asyncio.to_thread` (same pattern
-   already used at line 179 for top-N candidate enrichment;
-   `_fetch_ticker_meta` is sync def with 24h cache, BQ-first /
-   yfinance-fallback).
-3. Mutates each position dict with the resolved sector before passing
-   to `decide_trades`.
-4. Skipped when `paper_max_per_sector == 0` (zero extra cost when
-   cap disabled).
-5. Best-effort: failure logged non-fatal, cycle continues.
+**Bug B — XOM orphan trade.** 1 trade ($500, reason
+`test_paper_trade`) from 2026-03-28 with no matching position.
+Net cash leak: $500.50.
 
-**Bug B (stale NAV scoreboards) — fixed.** Hero metric cards (NAV,
-Total P&L) read `status?.portfolio.nav` / `pnl_pct` — both BQ snapshot
-fields updated only at end-of-cycle. Position table immediately below
-already derived live values from `useLivePrices` on every 30s
-yfinance tick, producing a $329.49 visible discrepancy
-($13,952.25 hero vs $14,281.74 table sum).
+**Root cause** (per cycle_history.jsonl): cycle `0e8c4a20`
+(21:11:35→21:12:31) errored AFTER booking the WDC trade and
+debiting cash but before its position write was visible. Cycle
+`a54a21fc` 4 min later read `get_positions()`, saw no WDC
+(BigQuery snapshot-isolation across separate jobs — confirmed in
+the external research brief), dropped through `execute_buy`'s
+else-branch, created a fresh position row and debited cash again.
+No idempotency defense.
 
-**Fix sites in `frontend/src/app/paper-trading/page.tsx`:**
-1. `useLivePrices` — lifted the `tab === "positions"` gate. Live ticks
-   now flow regardless of which tab is active.
-2. New `useMemo` for `liveNav = cash + sum(livePrice * qty)` and
-   `liveTotalPnlPct = (liveNav - starting_capital) / starting_capital
-   * 100`. Falls back to BQ snapshot when no ticks are available
-   (initial paint, empty positions).
-3. `SummaryHero` extended with `liveNav` + `liveTotalPnlPct` props.
-   Renders them when present; falls back to BQ snapshot otherwise.
-   Cash, Sharpe, Positions stay from BQ snapshot (correct — they
-   don't change between ticks).
+## Fix surfaces
+
+**Fix A — Idempotency guard in `paper_trader.execute_buy`** (after
+the existing-position lookup). When `existing is None`, query
+paper_trades for the same ticker + action='BUY' in the last 30
+minutes within 1% qty tolerance. If a match is found, log a
+warning and return None. Defends against crash-and-retry
+double-buys regardless of whether the underlying race is BQ
+snapshot lag, transient query error, or future schedule overlap.
+
+**Fix B — MERGE upsert in
+`bigquery_client.save_paper_position`**. Plain `INSERT INTO` was
+replaced with `MERGE … ON T.ticker = S.ticker WHEN MATCHED THEN
+UPDATE … WHEN NOT MATCHED THEN INSERT …`. ticker is now the
+natural-key idempotency boundary at the BQ layer. Two writes for
+the same ticker no longer produce two rows; the second silently
+upserts. Backwards compatible: every existing caller's behavior
+is unchanged for the new-row case.
+
+**Fix E — Cleanup script** (`scripts/cleanup_phase_23_1_15.py`).
+Two-mode: `--dry-run` (default) prints SQL + diff; `--apply` (with
+optional `--yes` for headless) executes the DELETE+UPDATE chain.
+DELETEs target the two specific trade_ids by hash; UPDATE refunds
+$1,451.40 to current_cash. Idempotent: re-runs after success
+no-op on the DELETEs and skip the UPDATE.
 
 ## Files modified
 
-- `backend/services/autonomous_loop.py` (+38 lines: legacy-position
-  sector enrichment block before decide_trades)
-- `frontend/src/app/paper-trading/page.tsx` (+30 lines: lifted
-  useLivePrices gate, two useMemo hooks, SummaryHero props)
+- `backend/services/paper_trader.py` (+ idempotency-guard block in
+  `execute_buy`, +1 import: `timedelta`)
+- `backend/db/bigquery_client.py` (rewrote `save_paper_position` to
+  MERGE; new helper `get_paper_trades_for_ticker_since`)
 
 ## Files added
 
-- `tests/services/test_sector_concentration.py` (2 new tests)
-- `tests/verify_phase_23_1_14.py` (immutable verification, exits 0
-  with one ok-line covering 5 distinct claims)
+- `scripts/cleanup_phase_23_1_15.py` (213 lines, two-mode cleanup)
+- `tests/services/test_trade_idempotency.py` (4 tests)
+- `tests/verify_phase_23_1_15.py` (immutable verification)
 
 ## Verification command output
 
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_14.py
-ok autonomous_loop legacy-position sector enrichment + page.tsx live-derived NAV/Total-P&L scoreboards + useLivePrices gate lifted + 2 new sector-concentration tests pass
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_15.py
+ok execute_buy idempotency-guard + paper_positions MERGE upsert + get_paper_trades_for_ticker_since helper + cleanup script (dry-run/apply) + 4 new tests pass
 ```
-
 Exit 0.
 
 ## Test results
 
 ```
-$ pytest tests/services/test_sector_concentration.py tests/services/test_screener_sector_propagation.py -q
+$ pytest tests/services/test_trade_idempotency.py tests/services/test_sector_concentration.py -q
 ............                                                             [100%]
-12 passed in 0.32s
+12 passed in 0.81s
+```
+4 new idempotency tests + 8 phase-23.1.13/14 sector tests all green.
+
+## Cleanup script execution log
+
+The cleanup ran in two stages due to a column-type mismatch
+discovered live (paper_portfolio.updated_at is STRING, not
+TIMESTAMP):
+
+1. **First `--apply`** (20:17): Steps 1+2 DELETEs succeeded
+   (WDC duplicate row gone, XOM test row gone). Step 3 UPDATE
+   failed with `BadRequest: Value of type TIMESTAMP cannot be
+   assigned to updated_at, which has type STRING`.
+2. **Fix shipped**: cleanup script now uses
+   `FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S+00:00',
+   CURRENT_TIMESTAMP())` to write the ISO string the column expects.
+3. **Second `--apply`** (20:18): Both DELETEs returned 0 rows
+   (idempotent — already gone). The script's `(1 if X_deleted else 0)`
+   gate then short-circuited Step 3 — protective design but it
+   meant the missed refund from stage 1 wasn't applied.
+4. **One-shot recovery UPDATE** (20:18): ran the +$1,451.40
+   credit directly via the Python BQ client. Result:
+   `current_cash` $694.99 → $2,146.39.
+
+## Post-state reconciliation (BQ verify)
+
+```sql
+WITH trades AS (
+  SELECT ticker, SUM(total_value) AS sum_value, COUNT(*) AS n_trades
+  FROM paper_trades GROUP BY ticker
+),
+positions AS (
+  SELECT ticker, cost_basis FROM paper_positions
+)
+SELECT
+  COUNT(*) AS join_rows,
+  SUM(CASE WHEN n_trades > 1 THEN 1 ELSE 0 END) AS dup_trade_tickers,
+  SUM(CASE WHEN positions.cost_basis IS NULL THEN 1 ELSE 0 END) AS orphan_trades,
+  ROUND(SUM(COALESCE(sum_value, 0)) - SUM(COALESCE(cost_basis, 0)), 2) AS leak_dollars
+FROM trades FULL OUTER JOIN positions USING (ticker)
 ```
 
-8 tests in `test_sector_concentration.py` (6 from phase-23.1.13 +
-2 new for phase-23.1.14) + 4 tests in `test_screener_sector_propagation.py`
-all green.
-
-## Frontend type-check
-
-```
-$ cd frontend && npx tsc --noEmit
-(silent, exit 0)
-```
+Result: **14 join_rows, 0 dup_trade_tickers, 0 orphan_trades,
+$0.00 leak**. Books reconcile.
 
 ## Backwards compatibility
 
-- `paper_max_per_sector=0` short-circuits the new enrichment block
-  (zero extra yfinance calls when cap disabled).
-- When `livePrices` is empty (initial paint, no positions), `liveNav`
-  falls back to `status?.portfolio.nav` — no UI regression.
-- `SummaryHero` accepts `liveNav: null` / `liveTotalPnlPct: null`
-  and renders the BQ snapshot as before.
-- 24h `_fetch_ticker_meta` cache means subsequent cycles incur
-  near-zero overhead for already-resolved tickers.
-
-## What we did NOT change
-
-- Did not migrate the BQ `paper_positions` schema to add a `sector`
-  column. The runtime enrichment is the bridge until a future schema
-  migration; cost is bounded by the 24h cache.
-- Did not derive Sharpe live — Sharpe needs a return series, so it
-  stays from the BQ snapshot. This is consistent with the position
-  table which also doesn't show a live Sharpe.
-- Did not derive `Cash` live — cash only changes at trade execution,
-  which still produces a BQ snapshot update.
-- Did not refactor `decide_trades` to be async — would have ripple
-  effects across the autonomous_loop call graph. The sync wrapper
-  via `asyncio.to_thread` in the caller is the cleaner path
-  (confirmed by the external research brief: BBC Engineering +
-  Sentry FastAPI both recommend `asyncio.to_thread` over caller
-  refactor for one-off bridges).
+- Idempotency guard fires only on the `existing is None` path —
+  positions that already exist still flow through the additive
+  update branch unchanged.
+- MERGE is functionally identical to plain INSERT when no matching
+  row exists; behavior change only on the duplicate-write path.
+- 30-minute window covers the observed 5-minute cycle re-entry
+  with headroom; daily-cycle apps don't typically buy the same
+  ticker twice within 30 minutes intentionally.
+- Cleanup script is dry-run by default; `--apply` requires
+  explicit opt-in.
 
 ## Honest disclosures
 
-1. **Cannot directly verify Bug A fix in production until tomorrow's
-   cycle.** The autonomous loop runs daily at market open; today's
-   cycle already completed. I can confirm the code path is correct
-   via unit tests + verification script, but the live "tomorrow's
-   MU + KEYS BUYs are blocked because 11 Tech positions counted
-   correctly" assertion only runs at next cycle.
+1. **Mid-cleanup column-type bug surfaced live.** First `--apply`
+   ran the two DELETEs successfully, but Step 3 UPDATE failed
+   on a `STRING` column receiving a TIMESTAMP. The script was
+   fixed and re-run, then a one-shot recovery UPDATE was issued
+   to apply the missed refund. Final state is correct (BQ
+   reconciliation shows zero leak), but the path was bumpy. The
+   script as shipped is now correct end-to-end if re-run from
+   scratch.
 
-2. **`_fetch_ticker_meta` cache is in-memory** (`api_cache`). If the
-   backend restarts mid-day, the next cycle pays the BQ-first /
-   yfinance-fallback latency for legacy tickers (one-time cost,
-   then re-cached for 24h).
+2. **Idempotency guard window is 30 minutes**. A ticker bought,
+   sold, and re-bought within 30 min would currently be blocked
+   by the guard. This is unlikely under daily cycles but could
+   bite a future intraday strategy. If that becomes a concern,
+   tighten the qty-tolerance check or add a `bypass_idempotency`
+   kwarg.
 
-3. **Bug B fix uses `livePrices[t].price ?? pos.current_price ??
-   pos.avg_entry_price` fallback chain** — when a single ticker has
-   no live price, it gracefully degrades to the last-known BQ price.
-   This means `liveNav` always reflects the freshest available data
-   per ticker, not all-or-nothing.
+3. **MERGE upsert overwrites the entry_date when called for an
+   existing ticker.** This was already the behavior of the
+   delete+insert pattern at line 144-161 (which we kept). Future
+   refactor could collapse that block to a single MERGE — left
+   for Phase 2.
 
-4. **`tab === "positions"` gate lifted means yfinance ticks fire on
-   every tab.** Cost: at most `positions.length` extra polls per 30s
-   when user is on Manage / Trades / Reality-gap tabs. Bounded by
-   `paper_max_positions` setting (default 12). Net cost: negligible
-   (yfinance is free).
+4. **No real-money risk** — paper trading only. The phantom debit
+   was virtual cash.
 
 ## Phase 2 (deferred)
 
-- BQ schema migration: add `sector` column to `paper_positions`,
-  backfill from yfinance, drop the runtime enrichment block as
-  scaffolding.
-- Live Sharpe via rolling-window return series from
-  `paper_snapshots`.
-- Risk Monitor live sector concentration (already partially live in
-  phase-23.1.13 via tickerMeta — could surface real-time alerts when
-  a sector exceeds the cap mid-day).
+- Collapse the manual delete+insert pattern in execute_buy /
+  mark_to_market / execute_sell partial-exit to single MERGE
+  calls (cleaner, fewer write hops).
+- Add a deterministic `client_order_id` field on paper_trades
+  set by `decide_trades` (e.g.,
+  `f"{cycle_id}-{ticker}-{action}"`) — Alpaca-style idempotency.
+- Run a one-time data-integrity audit job nightly that reports
+  trade-vs-position reconciliation drift to Slack.

@@ -7084,9 +7084,23 @@
           "created_at": "2026-04-29T17:40:00Z",
           "completed_at": "2026-04-29T17:40:00Z",
           "notes": "Two coordinated bugs from 23.1.13 forensic review. Bug A: legacy BQ paper_positions rows have empty sector field; pos.get('sector') returned None for all 11 -> sector_counts['Technology']=0 -> new Tech BUYs (MU/KEYS) trivially passed cap. Fix: enrich positions via _fetch_ticker_meta + asyncio.to_thread in autonomous_loop between get_positions() and decide_trades(). Bug B: hero scoreboards (NAV, Total P&L) read stale BQ snapshot while position table was live -> $329.49 visible discrepancy. Fix: lifted tab gate on useLivePrices, added useMemo for liveNav = cash + sum(livePrice * qty), extended SummaryHero with new props. Q/A PASS first try (5/5 harness audit + 6/6 deterministic checks). 12/12 sector tests. Research gate: 6 sources read in full."
+        },
+        {
+          "id": "23.1.15",
+          "name": "Trade idempotency + paper_positions MERGE upsert + WDC/XOM cash leak cleanup",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.15/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_15.py)",
+          "contract": "handoff/archive/phase-23.1.15/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.15/phase-23.1.15-external-research.md (also internal audit)",
+          "experiment_results": "handoff/archive/phase-23.1.15/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.15/evaluator_critique.md",
+          "created_at": "2026-04-29T20:25:00Z",
+          "completed_at": "2026-04-29T20:25:00Z",
+          "notes": "User flagged WDC twice in trades view. BQ forensics: 2 WDC trades 5 min apart (21:12 + 21:17 on 26.4) -> $950.90 cash leak; XOM test_paper_trade orphan -> $500.50 leak. Total $1,451.40 phantom outflow. Root cause: cycle 0e8c4a20 errored mid-BUY after cash debit but before position write was visible across BQ jobs (snapshot-isolation), cycle a54a21fc 4min later saw no WDC, bought again. Fix A: idempotency guard in execute_buy (30-min lookback + 1% qty tolerance). Fix B: save_paper_position now MERGE on ticker (natural key). Fix E: cleanup script (--dry-run/--apply) deleted dup rows + refunded $1,451.40 to cash. Live BQ reconciliation: 0 dups, 0 orphans, $0 leak. Q/A PASS first try (5/5 harness audit). 12/12 tests. Research gate: 8 sources read in full."
         }
       ],
-      "completed_at": "2026-04-29T17:40:00Z"
+      "completed_at": "2026-04-29T20:25:00Z"
     }
   ]
 }

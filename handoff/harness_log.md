@@ -14211,3 +14211,41 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 14/14 cycles complete (was 13; +phase-23.1.14 reactive bug fix).**
 
 **Archive:** handoff/archive/phase-23.1.14/.
+
+## Cycle 1 -- 2026-04-29 20:25 UTC -- phase=23.1.15 result=PASS
+
+**Step:** phase-23.1.15 -- Trade idempotency + paper_positions MERGE upsert + WDC/XOM cash leak cleanup.
+
+**User flagged:** "Western Digital Corporation appears twice" in trades view while position count says 14.
+
+**BQ forensics confirmed two integrity violations:**
+- WDC: TWO distinct trade_ids 5 minutes apart on 2026-04-26 (`56072f0c...` 21:12:28 + `e5447bd9...` 21:17:41), each debiting $949.95+fee. paper_positions had only ONE WDC row (cost_basis $949.95, entry_date 21:17:41 -- proving cycle 2 hit the else-branch). Net cash leak: $950.90.
+- XOM: 1 trade ($500, reason `test_paper_trade`) from 2026-03-28 with no matching position. Net cash leak: $500.50.
+- Total phantom outflow: $1,451.40.
+
+**Root cause** (per cycle_history.jsonl forensics): cycle `0e8c4a20` (21:11:35-21:12:31) errored AFTER booking the WDC trade and debiting cash but before its position write was visible. Cycle `a54a21fc` 4 min later read get_positions(), saw no WDC (BigQuery snapshot-isolation across separate jobs -- confirmed in external research brief), dropped through execute_buy's else-branch, created a fresh position row and debited cash again. No idempotency defense.
+
+**Three coordinated fixes:**
+1. **Fix A -- Idempotency guard in paper_trader.execute_buy** (after the existing-position lookup). When `existing is None`, query paper_trades for same ticker + action='BUY' in last 30 min within 1% qty tolerance; if hit, log + return None.
+2. **Fix B -- MERGE upsert in bigquery_client.save_paper_position**. Plain INSERT replaced with `MERGE ... ON T.ticker = S.ticker WHEN MATCHED THEN UPDATE ... WHEN NOT MATCHED THEN INSERT ...`. ticker is now the natural-key idempotency boundary at the BQ layer. New helper `get_paper_trades_for_ticker_since`.
+3. **Fix E -- Cleanup script** scripts/cleanup_phase_23_1_15.py with --dry-run default + --apply mode. Two DELETEs (WDC duplicate + XOM test orphan) + one UPDATE (refund $1,451.40 to current_cash). Idempotent re-run.
+
+**Cleanup execution:** First --apply ran the two DELETEs successfully but Step 3 UPDATE failed with `BadRequest: Value of type TIMESTAMP cannot be assigned to updated_at, which has type STRING`. Script fixed to use FORMAT_TIMESTAMP for ISO-string output. Second --apply was idempotent no-op on DELETEs; the missed refund was applied via one-shot Python BQ client UPDATE.
+
+**Files:** modified backend/services/paper_trader.py, backend/db/bigquery_client.py, handoff/current/{contract,experiment_results}.md. Added scripts/cleanup_phase_23_1_15.py, tests/services/test_trade_idempotency.py, tests/verify_phase_23_1_15.py, handoff/current/phase-23.1.15-{external-research,internal-codebase-audit}.md.
+
+**Research gate:** PASS (gate_passed: true, 8 sources read in full -- BigQuery transactions, reliability-intro, DML blog, Hevo MERGE upsert, Architecture Weekly dedup, BQ transactions Hevo, oneuptime MERGE 2026, Medium MERGE-vs-dedup; recency scan 2024-2026 performed).
+
+**Verification:** `python tests/verify_phase_23_1_15.py` -> exit 0 (5 distinct claims). `pytest tests/services/test_trade_idempotency.py tests/services/test_sector_concentration.py -q` -> 12 passed (4 idempotency + 8 sector).
+
+**Post-state BQ reconciliation:** 14 join_rows, 0 dup_trade_tickers, 0 orphan_trades, $0.00 leak. current_cash $694.99 -> $2,146.39 (refund applied). Books reconcile.
+
+**Q/A:** PASS on first spawn. 5/5 harness audit + deterministic checks + mutation-resistance + scope honesty all green.
+
+**Backwards compat:** idempotency guard fires only on `existing is None` path; MERGE is functionally identical to INSERT when no matching row exists; cleanup script dry-run by default.
+
+**Honest disclosures:** mid-cleanup column-type bug surfaced live; 30-min idempotency window could block intentional same-day re-buy; MERGE inherits the existing entry_date overwrite behavior. Phase-2 deferred: collapse delete+insert pattern, deterministic client_order_id field, nightly drift-audit job.
+
+**Phase-23.1 plan now 15/15 cycles complete (was 14; +phase-23.1.15 reactive bug fix).**
+
+**Archive:** handoff/archive/phase-23.1.15/.

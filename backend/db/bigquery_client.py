@@ -547,14 +547,35 @@ class BigQueryClient:
         return dict(rows[0]) if rows else None
 
     def save_paper_position(self, row: dict) -> None:
-        """Insert position via DML (not streaming) to avoid buffer conflicts with UPDATE/DELETE."""
+        """Upsert position via MERGE on ticker (idempotent natural-key write).
+
+        phase-23.1.15: replaced plain INSERT with MERGE so a duplicate write
+        for the same ticker UPDATEs the existing row instead of producing a
+        second row. Closes the bug class where a get_positions() snapshot-lag
+        in execute_buy would route a write through the else-branch and silently
+        overwrite the entry_date / position_id.
+        """
         # Drop None values: typed-NULL parameters can't satisfy FLOAT64/INT64 columns,
         # and omitted columns default to NULL automatically.
         row = {k: v for k, v in row.items() if v is not None}
+        if "ticker" not in row:
+            raise ValueError("save_paper_position requires 'ticker' field for MERGE key")
         table = self._pt_table("paper_positions")
         cols = ", ".join(row.keys())
         vals = ", ".join(f"@v_{k}" for k in row.keys())
-        query = f"INSERT INTO `{table}` ({cols}) VALUES ({vals})"
+        set_clauses = ", ".join(
+            f"T.{k} = S.{k}" for k in row.keys() if k != "ticker"
+        )
+        source_select = ", ".join(f"@v_{k} AS {k}" for k in row.keys())
+        query = f"""
+            MERGE `{table}` T
+            USING (SELECT {source_select}) S
+            ON T.ticker = S.ticker
+            WHEN MATCHED THEN
+                UPDATE SET {set_clauses}
+            WHEN NOT MATCHED THEN
+                INSERT ({cols}) VALUES ({vals})
+        """
         params = []
         for k, v in row.items():
             if isinstance(v, float):
@@ -618,6 +639,28 @@ class BigQueryClient:
         """
         job_config = bigquery.QueryJobConfig(query_parameters=[
             bigquery.ScalarQueryParameter("limit", "INT64", limit),
+        ])
+        return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
+
+    def get_paper_trades_for_ticker_since(
+        self, ticker: str, since_iso: str, action: str = "BUY",
+    ) -> list[dict]:
+        """phase-23.1.15: idempotency-guard helper. Return all paper_trades
+        rows for the given ticker + action whose created_at >= since_iso,
+        ordered by created_at DESC. Used by execute_buy to detect a
+        crash-and-retry duplicate before booking a new trade.
+        """
+        query = f"""
+            SELECT * FROM `{self._pt_table("paper_trades")}`
+            WHERE ticker = @ticker
+              AND action = @action
+              AND created_at >= @since_iso
+            ORDER BY created_at DESC
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
+            bigquery.ScalarQueryParameter("action", "STRING", action),
+            bigquery.ScalarQueryParameter("since_iso", "STRING", since_iso),
         ])
         return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
 

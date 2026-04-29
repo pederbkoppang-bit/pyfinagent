@@ -7,7 +7,7 @@ All persistence through BigQueryClient. No real money involved.
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import yfinance as yf
@@ -98,6 +98,35 @@ class PaperTrader:
             return None
 
         quantity = amount_usd / price
+
+        # phase-23.1.15: idempotency guard. Crash-and-retry between
+        # autonomous-loop cycles can produce a phantom double-buy: cycle 1
+        # books the trade + debits cash but errors before the position write
+        # lands visibly; cycle 2 sees no existing position and books again.
+        # Guard: when no `existing` position is in our snapshot, look back
+        # 30 minutes in paper_trades for a matching BUY at near-identical
+        # quantity (1% tolerance for rounding). If found, skip.
+        if not existing:
+            try:
+                cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+                recent_trades = self.bq.get_paper_trades_for_ticker_since(
+                    ticker, cutoff, action="BUY",
+                )
+                if recent_trades:
+                    recent_qty = float(recent_trades[0].get("quantity") or 0)
+                    if recent_qty > 0:
+                        delta = abs(recent_qty - quantity) / max(recent_qty, quantity)
+                        if delta < 0.01:
+                            logger.warning(
+                                "Idempotency guard: skipping duplicate BUY for %s "
+                                "(recent trade %s at %s qty=%.4f vs proposed %.4f)",
+                                ticker, recent_trades[0].get("trade_id"),
+                                recent_trades[0].get("created_at"),
+                                recent_qty, quantity,
+                            )
+                            return None
+            except Exception as e:
+                logger.warning("Idempotency guard query failed (non-fatal): %s", e)
         now = datetime.now(timezone.utc).isoformat()
 
         # phase-17.5: route every buy through ExecutionRouter so the
