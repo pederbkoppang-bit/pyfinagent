@@ -14187,3 +14187,27 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 13/13 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.13/.
+
+## Cycle 1 -- 2026-04-29 17:40 UTC -- phase=23.1.14 result=PASS
+
+**Step:** phase-23.1.14 -- Legacy-position sector lookup + live-derived NAV scoreboards.
+
+**Two coordinated bugs from phase-23.1.13 fixed:**
+
+**Bug A (sector cap blind to legacy positions):** existing 11 BQ paper_positions rows predate the sector column, so `pos.get("sector")` returned None for all. Every legacy position fell into "Unknown" bucket; new Tech BUYs (MU, KEYS today) trivially passed the `paper_max_per_sector=2` cap. Fix: enrich `current_positions` with their true GICS sector via `_fetch_ticker_meta` + `asyncio.to_thread` in `autonomous_loop.py` between `trader.get_positions()` post-MTM refresh and `decide_trades(...)`. Same pattern already used at line 179 for top-N candidate enrichment. Skipped when cap disabled. Best-effort: failure non-fatal.
+
+**Bug B (stale NAV scoreboards):** Hero metric cards read `status?.portfolio.nav` / `pnl_pct` -- both BQ snapshot fields updated only at end-of-cycle. Position table immediately below already derived live values from `useLivePrices` on every 30s yfinance tick; produced a $329.49 visible discrepancy ($13,952.25 hero vs $14,281.74 table sum). Fix in `frontend/src/app/paper-trading/page.tsx`: lifted the `tab === "positions"` gate on `useLivePrices`, added `useMemo` for `liveNav = cash + sum(livePrice * qty)` and `liveTotalPnlPct = (liveNav - starting_capital) / starting_capital * 100`, extended `SummaryHero` with new props. Cash/Sharpe/Positions remain from BQ snapshot.
+
+**Files:** modified `backend/services/autonomous_loop.py`, `frontend/src/app/paper-trading/page.tsx`, `tests/services/test_sector_concentration.py`. Added `tests/verify_phase_23_1_14.py`, `handoff/current/phase-23.1.14-{external-research,internal-codebase-audit}.md`.
+
+**Research gate:** PASS (gate_passed: true, 6 sources read in full -- Alpaca account-plans, IBKR snapshot guide, Python asyncio docs, BBC Engineering asyncio Part 5, Sentry FastAPI run_in_executor, Fume Finance NAV calc; recency scan 2024-2026 performed).
+
+**Verification:** `python tests/verify_phase_23_1_14.py` -> exit 0, ok-line covering 5 distinct claims (autonomous_loop enrichment, page.tsx live derivation, useLivePrices gate lifted, 2 new tests pass). `pytest tests/services/test_sector_concentration.py tests/services/test_screener_sector_propagation.py -q` -> 12 passed (8 sector-concentration + 4 screener-propagation). `cd frontend && npx tsc --noEmit` -> exit 0 silent.
+
+**Q/A:** PASS on first spawn. 5/5 harness-compliance audit, 6/6 deterministic checks, contract-to-diff 1:1 alignment, mutation-resistance script greps 11+ distinct tokens. Honest scope disclosures: Bug A live-verifiable only at tomorrow's cycle (autonomous loop is daily); in-memory `_fetch_ticker_meta` cache invalidates on backend restart; BQ schema migration explicitly deferred to Phase 2.
+
+**Backwards compat:** `paper_max_per_sector=0` short-circuits the new enrichment block (zero extra yfinance calls when disabled). `liveNav` falls back to `status?.portfolio.nav` when `livePrices` is empty (initial paint, no positions). 24h cache means subsequent cycles incur near-zero overhead.
+
+**Phase-23.1 plan now 14/14 cycles complete (was 13; +phase-23.1.14 reactive bug fix).**
+
+**Archive:** handoff/archive/phase-23.1.14/.

@@ -7070,9 +7070,23 @@
           "created_at": "2026-04-28T17:30:48Z",
           "completed_at": "2026-04-28T17:30:48Z",
           "notes": "User asked for diversification \u2014 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
+        },
+        {
+          "id": "23.1.14",
+          "name": "Legacy-position sector lookup + live-derived NAV scoreboards",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.14/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_14.py)",
+          "contract": "handoff/archive/phase-23.1.14/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.14/phase-23.1.14-external-research.md (also internal audit)",
+          "experiment_results": "handoff/archive/phase-23.1.14/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.14/evaluator_critique.md",
+          "created_at": "2026-04-29T17:40:00Z",
+          "completed_at": "2026-04-29T17:40:00Z",
+          "notes": "Two coordinated bugs from 23.1.13 forensic review. Bug A: legacy BQ paper_positions rows have empty sector field; pos.get('sector') returned None for all 11 -> sector_counts['Technology']=0 -> new Tech BUYs (MU/KEYS) trivially passed cap. Fix: enrich positions via _fetch_ticker_meta + asyncio.to_thread in autonomous_loop between get_positions() and decide_trades(). Bug B: hero scoreboards (NAV, Total P&L) read stale BQ snapshot while position table was live -> $329.49 visible discrepancy. Fix: lifted tab gate on useLivePrices, added useMemo for liveNav = cash + sum(livePrice * qty), extended SummaryHero with new props. Q/A PASS first try (5/5 harness audit + 6/6 deterministic checks). 12/12 sector tests. Research gate: 6 sources read in full."
         }
       ],
-      "completed_at": "2026-04-28T17:30:48Z"
+      "completed_at": "2026-04-29T17:40:00Z"
     }
   ]
 }

@@ -177,18 +177,28 @@ function MetricCard({
 function SummaryHero({
   status,
   perf,
+  liveNav,
+  liveTotalPnlPct,
 }: {
   status: PaperTradingStatus | null;
   perf: PaperPerformance | null;
+  liveNav: number | null;
+  liveTotalPnlPct: number | null;
 }) {
-  const pnl = status?.portfolio.pnl_pct ?? 0;
+  // phase-23.1.14: NAV + Total P&L derive live from cash + sum(livePrice*qty)
+  // when ticks are available, falling back to the BQ snapshot otherwise. This
+  // matches the position table's existing live derivation so scoreboards and
+  // table rows stay consistent on every 30s yfinance tick.
+  const navDisplay = liveNav ?? status?.portfolio.nav ?? null;
+  const pnlDisplay = liveTotalPnlPct ?? status?.portfolio.pnl_pct ?? null;
   const bench = status?.portfolio.benchmark_return_pct ?? 0;
+  const vsBench = (pnlDisplay ?? 0) - bench;
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      <MetricCard label="NAV"><Dollar value={status?.portfolio.nav} /></MetricCard>
+      <MetricCard label="NAV"><Dollar value={navDisplay} /></MetricCard>
       <MetricCard label="Cash"><Dollar value={status?.portfolio.cash} /></MetricCard>
-      <MetricCard label="Total P&L"><PnlBadge value={status?.portfolio.pnl_pct} /></MetricCard>
-      <MetricCard label="vs SPY"><PnlBadge value={pnl - bench} /></MetricCard>
+      <MetricCard label="Total P&L"><PnlBadge value={pnlDisplay} /></MetricCard>
+      <MetricCard label="vs SPY"><PnlBadge value={vsBench} /></MetricCard>
       <MetricCard label="Sharpe">
         <span className="text-slate-200">{perf?.sharpe_ratio?.toFixed(2) ?? "—"}</span>
       </MetricCard>
@@ -409,10 +419,36 @@ export default function PaperTradingPage() {
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
 
   const positionTickers = useMemo(() => positions.map((p) => p.ticker), [positions]);
+  // phase-23.1.14: lift the tab gate so live ticks flow regardless of which
+  // tab is active. The SummaryHero NAV / Total P&L need a live-derived value
+  // to match the position table on every 30s tick (Alpaca-style continuous MtM).
   const { prices: livePrices } = useLivePrices(
     positionTickers,
-    tab === "positions" && positions.length > 0,
+    positions.length > 0,
   );
+
+  // phase-23.1.14: live-derive NAV + Total P&L pct so scoreboards match the
+  // position table on every 30s tick. Falls back to status.portfolio.nav when
+  // no ticks are available yet (initial paint, empty positions).
+  const liveNav = useMemo(() => {
+    if (positions.length === 0) return status?.portfolio.nav ?? null;
+    const cash = status?.portfolio.cash ?? 0;
+    const hasAnyLive = positions.some((p) => livePrices[p.ticker]?.price != null);
+    if (!hasAnyLive) return status?.portfolio.nav ?? null;
+    const positionsValue = positions.reduce((sum, pos) => {
+      const lp = livePrices[pos.ticker]?.price ?? pos.current_price ?? pos.avg_entry_price;
+      return sum + lp * pos.quantity;
+    }, 0);
+    return cash + positionsValue;
+  }, [positions, livePrices, status]);
+
+  const liveTotalPnlPct = useMemo(() => {
+    const startingCapital = status?.portfolio.starting_capital ?? null;
+    if (liveNav == null || startingCapital == null || startingCapital <= 0) {
+      return status?.portfolio.pnl_pct ?? null;
+    }
+    return ((liveNav - startingCapital) / startingCapital) * 100;
+  }, [liveNav, status]);
 
   // phase-23.1.10 — fetch company name + sector for all visible tickers (positions + trades)
   const allTickersForMeta = useMemo(() => {
@@ -743,7 +779,12 @@ export default function PaperTradingPage() {
               <OpsStatusBar nextRunAt={status?.next_run} />
 
               {/* Full-width KPI hero — the portfolio-level metrics. */}
-              <SummaryHero status={status} perf={perf} />
+              <SummaryHero
+                status={status}
+                perf={perf}
+                liveNav={liveNav}
+                liveTotalPnlPct={liveTotalPnlPct}
+              />
 
               {/* Tier 6: Tab content */}
               {tab === "positions" && (

@@ -315,6 +315,45 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         logger.info("Paper trading: Step 6 -- Deciding trades")
         summary["steps"].append("deciding")
         positions = trader.get_positions()  # Refresh after MTM
+
+        # phase-23.1.14: enrich legacy positions whose `sector` field is empty
+        # (BQ paper_positions rows predating the sector column migration).
+        # decide_trades reads pos.get("sector") to seed sector_counts; without
+        # this enrichment those rows fall into "Unknown" and the sector cap is
+        # silently bypassed for tickers whose true GICS sector already exceeds
+        # the cap. Same _fetch_ticker_meta + asyncio.to_thread pattern used at
+        # the candidate-enrichment site above. Skipped when cap is disabled.
+        max_per_sector = int(getattr(settings, "paper_max_per_sector", 0) or 0)
+        if max_per_sector > 0 and positions:
+            legacy_tickers = [
+                p["ticker"] for p in positions
+                if not (p.get("sector") or "").strip()
+            ]
+            if legacy_tickers:
+                try:
+                    from backend.api.paper_trading import _fetch_ticker_meta
+                    pos_meta_response = await asyncio.to_thread(
+                        _fetch_ticker_meta, legacy_tickers, settings, bq,
+                    )
+                    pos_meta_map = (pos_meta_response or {}).get("meta", {})
+                    enriched_count = 0
+                    for p in positions:
+                        if (p.get("sector") or "").strip():
+                            continue
+                        info = pos_meta_map.get(p["ticker"], {}) or {}
+                        sector = info.get("sector") or ""
+                        if sector:
+                            p["sector"] = sector
+                            enriched_count += 1
+                    logger.info(
+                        "Enriched %d legacy positions with sector (of %d missing)",
+                        enriched_count, len(legacy_tickers),
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Legacy position sector enrichment failed (non-fatal): %s", e,
+                    )
+
         # phase-23.1.7: thread the screener candidate dict through to the buy-side
         # decider so the trade record captures momentum/RSI/composite_score and
         # all signal-stack overlays in the rationale.

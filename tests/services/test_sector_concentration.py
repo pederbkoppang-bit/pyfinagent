@@ -124,6 +124,52 @@ def test_diverse_sectors_all_booked():
     assert len(buys) == 5
 
 
+def test_legacy_position_with_enriched_sector_blocks_same_sector_buy():
+    """phase-23.1.14: positions whose sector was empty in BQ but enriched
+    upstream (autonomous_loop._fetch_ticker_meta) must count toward the cap.
+    Simulates the post-enrichment state: 2 Tech positions with sector populated.
+    A new Tech BUY must be blocked, an Energy BUY must pass."""
+    enriched_positions = [
+        {"ticker": "INTC", "sector": "Technology", "quantity": 10, "current_price": 100, "avg_entry_price": 100, "market_value": 1000, "recommendation": "BUY"},
+        {"ticker": "AAPL", "sector": "Technology", "quantity": 5, "current_price": 200, "avg_entry_price": 200, "market_value": 1000, "recommendation": "BUY"},
+    ]
+    candidates = [_analysis("MU", "Technology"), _analysis("XOM", "Energy")]
+    orders = decide_trades(
+        current_positions=enriched_positions,
+        candidate_analyses=candidates,
+        holding_analyses=[],
+        portfolio_state=_portfolio_state(cash=8000),
+        settings=_settings(max_per_sector=2),
+    )
+    buys = [o for o in orders if o.action == "BUY"]
+    assert {o.ticker for o in buys} == {"XOM"}
+
+
+def test_legacy_position_without_enrichment_falls_into_unknown():
+    """phase-23.1.14 regression guard: positions with `sector=None`
+    (BQ paper_positions rows predating the sector column) fall into the
+    'Unknown' bucket. sector_counts['Technology'] stays 0, and new Tech BUYs
+    pass the cap. This is the Bug A baseline that the autonomous_loop
+    enrichment block exists to prevent in production."""
+    legacy_positions = [
+        {"ticker": "INTC", "sector": None, "quantity": 10, "current_price": 100, "avg_entry_price": 100, "market_value": 1000, "recommendation": "BUY"},
+        {"ticker": "AAPL", "sector": None, "quantity": 5, "current_price": 200, "avg_entry_price": 200, "market_value": 1000, "recommendation": "BUY"},
+    ]
+    candidates = [_analysis("MU", "Technology"), _analysis("KEYS", "Technology")]
+    orders = decide_trades(
+        current_positions=legacy_positions,
+        candidate_analyses=candidates,
+        holding_analyses=[],
+        portfolio_state=_portfolio_state(cash=8000),
+        settings=_settings(max_per_sector=2),
+    )
+    buys = [o for o in orders if o.action == "BUY"]
+    # Both Tech BUYs pass because the legacy positions are in 'Unknown' bucket
+    # not 'Technology'. This documents the bug; production fix lives in
+    # autonomous_loop.py which enriches before calling decide_trades.
+    assert {o.ticker for o in buys} == {"MU", "KEYS"}
+
+
 def test_sector_priority_via_candidates_by_ticker():
     """When screener candidate has sector, decide_trades uses it (over analysis fallback)."""
     candidates = [_analysis("INTC", "Technology")]

@@ -1,110 +1,157 @@
 ---
-step: phase-23.1.13
-cycle_date: 2026-04-28
+step: phase-23.1.14
+cycle_date: 2026-04-29
 result: PASS_PENDING_QA
-verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_13.py'
+verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_14.py'
 ---
 
-# Experiment Results — phase-23.1.13
+# Experiment Results — phase-23.1.14
 
-## What was built
+## Summary
 
-Hard sector cap of **2 positions per GICS sector** (operator-tunable via Manage tab) eliminates the 11/11-Technology bug. Risk Monitor now reflects actual sector concentration (was misleadingly green). Sector field flows end-to-end: ticker-meta lookup → screener candidate → portfolio_manager cap → trade execution.
+Two coordinated bug fixes shipped under one harness cycle.
+
+**Bug A (sector cap blind to legacy positions) — fixed.** Existing 11
+positions in BQ `paper_positions` predate the sector column, so
+`pos.get("sector")` returned None for all of them, sending every
+legacy row into the "Unknown" bucket. New Tech BUYs (MU, KEYS) were
+trivially passing the `paper_max_per_sector=2` cap.
+
+**Fix site:** `backend/services/autonomous_loop.py` between
+`positions = trader.get_positions()` (post-MTM refresh) and
+`orders = decide_trades(...)`. New block:
+1. Computes `legacy_tickers` — positions whose `sector` field is empty.
+2. Calls `_fetch_ticker_meta` via `asyncio.to_thread` (same pattern
+   already used at line 179 for top-N candidate enrichment;
+   `_fetch_ticker_meta` is sync def with 24h cache, BQ-first /
+   yfinance-fallback).
+3. Mutates each position dict with the resolved sector before passing
+   to `decide_trades`.
+4. Skipped when `paper_max_per_sector == 0` (zero extra cost when
+   cap disabled).
+5. Best-effort: failure logged non-fatal, cycle continues.
+
+**Bug B (stale NAV scoreboards) — fixed.** Hero metric cards (NAV,
+Total P&L) read `status?.portfolio.nav` / `pnl_pct` — both BQ snapshot
+fields updated only at end-of-cycle. Position table immediately below
+already derived live values from `useLivePrices` on every 30s
+yfinance tick, producing a $329.49 visible discrepancy
+($13,952.25 hero vs $14,281.74 table sum).
+
+**Fix sites in `frontend/src/app/paper-trading/page.tsx`:**
+1. `useLivePrices` — lifted the `tab === "positions"` gate. Live ticks
+   now flow regardless of which tab is active.
+2. New `useMemo` for `liveNav = cash + sum(livePrice * qty)` and
+   `liveTotalPnlPct = (liveNav - starting_capital) / starting_capital
+   * 100`. Falls back to BQ snapshot when no ticks are available
+   (initial paint, empty positions).
+3. `SummaryHero` extended with `liveNav` + `liveTotalPnlPct` props.
+   Renders them when present; falls back to BQ snapshot otherwise.
+   Cash, Sharpe, Positions stay from BQ snapshot (correct — they
+   don't change between ticks).
 
 ## Files modified
 
-| File | Change |
-|---|---|
-| `backend/config/settings.py` | NEW `paper_max_per_sector: int = Field(2, ge=0, le=20)` (0 disables; default 2 = ≥5 sectors for a 10-position portfolio per SEC 25% concentration threshold convention) |
-| `backend/api/settings_api.py` | Expose `paper_max_per_sector` (FullSettings + SettingsUpdate + _FIELD_TO_ENV + _settings_to_full) |
-| `backend/tools/screener.py` | `screen_universe` accepts optional `sector_lookup` kwarg; attaches `sector` + `company_name` to each result dict (backward compat: works without lookup) |
-| `backend/services/autonomous_loop.py` | After `rank_candidates` returns top-N, calls `_fetch_ticker_meta` (BQ-first / yfinance-fallback, already 24h cached) to enrich with sector + company. Non-fatal on error. |
-| `backend/services/portfolio_manager.py` | `decide_trades` resolves sector with priority: screener candidate → `analysis.full_report.market_data.sector` → `analysis.sector` → "Unknown". Builds `sector_counts` from `current_positions` (excluding sells); skips BUYs whose sector is at the cap; logs each skip with reason; increments after each accepted BUY |
-| `backend/api/paper_trading.py` | `/portfolio` endpoint returns `sector_breakdown: {sector: {count, weight_pct, tickers}}` computed via `_fetch_ticker_meta` lookup |
-| `frontend/src/lib/types.ts` | `FullSettings.paper_max_per_sector?` |
-| `frontend/src/app/paper-trading/page.tsx` | `RiskMonitorCard` receives `tickerMeta`; computes sector counts; renders BOTH "Position size" (>20% NAV per single position, the existing check) AND "Sector concentration" (>50% of positions in one sector) as separate rows. Manage tab adds `paper_max_per_sector` `PaperSettingNum` with hint |
-| `tests/services/test_sector_concentration.py` | NEW (6 tests on decide_trades cap behavior) |
-| `tests/services/test_screener_sector_propagation.py` | NEW (4 tests on sector_lookup wiring) |
-| `tests/verify_phase_23_1_13.py` | NEW immutable verification (7-claim source-level assertion) |
+- `backend/services/autonomous_loop.py` (+38 lines: legacy-position
+  sector enrichment block before decide_trades)
+- `frontend/src/app/paper-trading/page.tsx` (+30 lines: lifted
+  useLivePrices gate, two useMemo hooks, SummaryHero props)
 
-## Verbatim verification command output
+## Files added
+
+- `tests/services/test_sector_concentration.py` (2 new tests)
+- `tests/verify_phase_23_1_14.py` (immutable verification, exits 0
+  with one ok-line covering 5 distinct claims)
+
+## Verification command output
 
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_13.py
-ok paper_max_per_sector + screen_universe.sector_lookup + decide_trades cap + autonomous_loop ticker_meta enrichment + RiskMonitor sector check + Manage tab toggle + /portfolio sector_breakdown
-exit=0
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_14.py
+ok autonomous_loop legacy-position sector enrichment + page.tsx live-derived NAV/Total-P&L scoreboards + useLivePrices gate lifted + 2 new sector-concentration tests pass
 ```
 
-7 claims asserted in one shot:
-1. `paper_max_per_sector` field present on Settings + FullSettings + SettingsUpdate (default 2)
-2. `screen_universe` accepts `sector_lookup` kwarg
-3. `portfolio_manager.py` source contains `max_per_sector`, `sector_counts`, "at cap" log
-4. `autonomous_loop.py` calls `_fetch_ticker_meta` to enrich candidates
-5. `paper-trading/page.tsx` source contains `sectorConcentrationHigh` + uses `tickerMeta` in `RiskMonitorCard`
-6. Manage tab exposes `field="paper_max_per_sector"`
-7. `/portfolio` endpoint returns `sector_breakdown`
+Exit 0.
 
-## Unit test results
+## Test results
 
 ```
-$ source .venv/bin/activate && python -m pytest tests/api/ tests/services/ -v --no-header -q
-collected 170 items
-... 170 passed in 3.69s
+$ pytest tests/services/test_sector_concentration.py tests/services/test_screener_sector_propagation.py -q
+............                                                             [100%]
+12 passed in 0.32s
 ```
 
-10 new + 160 prior = 170/170 tests pass. Zero regression across 13 phase-23.1 cycles.
+8 tests in `test_sector_concentration.py` (6 from phase-23.1.13 +
+2 new for phase-23.1.14) + 4 tests in `test_screener_sector_propagation.py`
+all green.
 
 ## Frontend type-check
 
 ```
 $ cd frontend && npx tsc --noEmit
-(silent — 0 errors)
+(silent, exit 0)
 ```
 
-## Research foundation
+## Backwards compatibility
 
-| Brief | Lines | Sources | Verdict |
-|---|---|---|---|
-| `phase-23.1.13-external-research.md` | 566 | 13 read in full + 12 snippet-only | gate_passed: true |
-| `phase-23.1.13-internal-codebase-audit.md` | 351 | 13 internal files | gate_passed: true |
+- `paper_max_per_sector=0` short-circuits the new enrichment block
+  (zero extra yfinance calls when cap disabled).
+- When `livePrices` is empty (initial paint, no positions), `liveNav`
+  falls back to `status?.portfolio.nav` — no UI regression.
+- `SummaryHero` accepts `liveNav: null` / `liveTotalPnlPct: null`
+  and renders the BQ snapshot as before.
+- 24h `_fetch_ticker_meta` cache means subsequent cycles incur
+  near-zero overhead for already-resolved tickers.
 
-Both halves converged on the same v1 plan. External brief recommends "max 2 positions per GICS sector + 25% NAV cap + minimum 4 sectors + 10% per-position cap" as the canonical hard-rule set; we ship the position-count cap (2) and rely on the existing per-position 10% sizing convention to approximate the NAV cap (≤20% per sector in practice). Min-sectors enforcement deferred to Phase 2 to allow operator to ramp gradually.
+## What we did NOT change
 
-## What changes for the operator at 09:30 ET tomorrow
+- Did not migrate the BQ `paper_positions` schema to add a `sector`
+  column. The runtime enrichment is the bridge until a future schema
+  migration; cost is bounded by the 24h cache.
+- Did not derive Sharpe live — Sharpe needs a return series, so it
+  stays from the BQ snapshot. This is consistent with the position
+  table which also doesn't show a live Sharpe.
+- Did not derive `Cash` live — cash only changes at trade execution,
+  which still produces a BQ snapshot update.
+- Did not refactor `decide_trades` to be async — would have ripple
+  effects across the autonomous_loop call graph. The sync wrapper
+  via `asyncio.to_thread` in the caller is the cleaner path
+  (confirmed by the external research brief: BBC Engineering +
+  Sentry FastAPI both recommend `asyncio.to_thread` over caller
+  refactor for one-off bridges).
 
-| Before | After |
-|---|---|
-| Buy loop blindly fills 11/11 with momentum-clustered Tech names | Buy loop stops at 2 Tech positions; remaining slots forced into other sectors (Energy / Financials / Health / Industrials / etc.) |
-| Risk Monitor "Concentration: OK" — misleading green when 11/11 Tech | Two rows: "Position size" (existing single-position >20% check) + "Sector concentration: HIGH (N/M Sector)" amber when >50% of positions in one sector |
-| `/portfolio` API has no sector data | Returns `sector_breakdown` (count + weight_pct + tickers per GICS sector); used by Risk Monitor and any future dashboards/Slack |
-| Operator can't tune the cap | Manage tab → "Max positions per sector" input (range 0-20; 0 disables) |
-| Regime tilt + sector calendars overlays = no-ops because sector=None at ranking step | `sector` populated via `_fetch_ticker_meta` enrichment after `rank_candidates`; downstream overlays now operate on real data |
+## Honest disclosures
 
-## Cost / latency
+1. **Cannot directly verify Bug A fix in production until tomorrow's
+   cycle.** The autonomous loop runs daily at market open; today's
+   cycle already completed. I can confirm the code path is correct
+   via unit tests + verification script, but the live "tomorrow's
+   MU + KEYS BUYs are blocked because 11 Tech positions counted
+   correctly" assertion only runs at next cycle.
 
-- One `_fetch_ticker_meta` call per cycle for the top-N (≤30) candidates after ranking
-- 24h cache means subsequent cycles + `/portfolio` requests hit cache → ~0ms
-- Cold-cache hit: ~3s for 30 yfinance lookups (already exists from phase-23.1.10; we reuse the cached result)
-- Zero LLM cost added
+2. **`_fetch_ticker_meta` cache is in-memory** (`api_cache`). If the
+   backend restarts mid-day, the next cycle pays the BQ-first /
+   yfinance-fallback latency for legacy tickers (one-time cost,
+   then re-cached for 24h).
 
-## Out of scope (per contract; Phase-2)
+3. **Bug B fix uses `livePrices[t].price ?? pos.current_price ??
+   pos.avg_entry_price` fallback chain** — when a single ticker has
+   no live price, it gracefully degrades to the last-known BQ price.
+   This means `liveNav` always reflects the freshest available data
+   per ticker, not all-or-nothing.
 
-- New `sector` column on `paper_positions` BQ schema (--apply migration; for v1 sector is read live via `_fetch_ticker_meta` cache lookup)
-- HRP / risk-parity post-selection optimizer
-- Sector-neutral re-ranking (rank within sector before merging)
-- Correlation-cluster deduplication
-- Forced rebalance when EXISTING positions exceed cap (cap only blocks NEW buys for v1)
-- Min-sectors enforcement (≥4 distinct sectors)
-- Strict 25% NAV-per-sector hard cap (position-count cap of 2 with 10% per-position cap implies ~20% max — close to canonical 25% for v1)
+4. **`tab === "positions"` gate lifted means yfinance ticks fire on
+   every tab.** Cost: at most `positions.length` extra polls per 30s
+   when user is on Manage / Trades / Reality-gap tabs. Bounded by
+   `paper_max_positions` setting (default 12). Net cost: negligible
+   (yfinance is free).
 
-## Honest disclosure
+## Phase 2 (deferred)
 
-- **Existing 11 Technology positions are NOT auto-liquidated.** The cap blocks NEW buys; existing concentrated positions remain until they hit a stop-loss / sell signal naturally. To force diversification immediately, the operator can manually flatten and let tomorrow's cycle build a fresh 2-per-sector portfolio under the new rules.
-- **GICS classification depends on yfinance**, which uses Yahoo Finance sector labels (e.g., "Technology" not strict GICS "Information Technology"). Most US large-caps map cleanly; some edge cases (Berkshire = Financials in GICS, "Financial Services" in yfinance) work fine for cap purposes since labels are stable per ticker.
-- **Default cap=2 is a practitioner consensus value**, not derived from the operator's specific risk profile. Adjustable via Manage tab. Setting to 0 disables the cap (legacy behavior).
-- **The `paper_max_positions: 10` cap still applies** — combined with `paper_max_per_sector: 2`, this implies the system can only hold positions across at least 5 distinct sectors before stopping (which is the diversification goal).
-
-## What's next
-
-1. Spawn fresh Q/A
-2. On PASS: log → flip → archive → commit → restart backend + frontend
+- BQ schema migration: add `sector` column to `paper_positions`,
+  backfill from yfinance, drop the runtime enrichment block as
+  scaffolding.
+- Live Sharpe via rolling-window return series from
+  `paper_snapshots`.
+- Risk Monitor live sector concentration (already partially live in
+  phase-23.1.13 via tickerMeta — could surface real-time alerts when
+  a sector exceeds the cap mid-day).
