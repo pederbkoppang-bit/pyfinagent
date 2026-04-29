@@ -230,8 +230,10 @@ class ResponseDeliveryService:
             int: Number of responses delivered
         """
         # Get resolved tickets (these need response delivery)
+        # phase-23.1.19: closing() wrap to release FD.
         import sqlite3
-        with sqlite3.connect(self.db.db_path) as conn:
+        from contextlib import closing
+        with closing(sqlite3.connect(self.db.db_path)) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("""
                 SELECT id FROM tickets 
@@ -266,8 +268,10 @@ class ResponseDeliveryService:
 
     def get_delivery_stats(self) -> Dict[str, int]:
         """Get delivery statistics."""
+        # phase-23.1.19: closing() wrap to release FD.
         import sqlite3
-        with sqlite3.connect(self.db.db_path) as conn:
+        from contextlib import closing
+        with closing(sqlite3.connect(self.db.db_path)) as conn:
             # Count resolved tickets (these have responses to deliver)
             cursor = conn.execute("""
                 SELECT COUNT(*) FROM tickets 

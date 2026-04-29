@@ -43,9 +43,11 @@ class StuckTaskReaper:
     async def check_and_reap(self):
         """Check for stuck tickets and kill them."""
         # Get all IN_PROGRESS tickets
+        # phase-23.1.19: closing() wrap to release FD on every reaper tick.
         try:
             import sqlite3
-            with sqlite3.connect(self.db.db_path) as conn:
+            from contextlib import closing
+            with closing(sqlite3.connect(self.db.db_path)) as conn:
                 cursor = conn.execute("""
                     SELECT id, ticket_number, source, sender_id, assigned_at 
                     FROM tickets 

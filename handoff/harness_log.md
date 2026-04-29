@@ -14349,3 +14349,39 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 18/18 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.18/.
+
+## Cycle 1 -- 2026-04-29 22:12 UTC -- phase=23.1.19 result=PASS
+
+**Step:** phase-23.1.19 -- Backend FD-exhaustion crash fix (sqlite3 closing()) + regression guard + RLIMIT log.
+
+**User reported:** "backend crashed fix it and make sure it doesnt happen again."
+
+**Root cause:** backend.log showed recurring `OSError: [Errno 24] Too many open files: '.../limits.yaml'`. limits_loader.py used `with path.open()` correctly -- the leak was upstream. Researcher's audit found **23 sites across 7 files** using the leaky pattern `with sqlite3.connect(...) as conn:` which Python docs explicitly state does NOT close the connection (only manages the transaction). Each call leaked 1 connection = 3 FDs (main DB + WAL + shm). With ticket_queue_processor running every 5s in lifespan, FDs accumulated to the macOS soft limit (8192) and the process couldn't open ANY file -- governance watcher's 10s tick was the visible victim.
+
+**Pre-fix lsof evidence:** 9 FDs to tickets.db immediately after backend restart (one batch already leaked 3 connections).
+
+**Three coordinated fixes (A + B + C):**
+- **Fix A** -- Wrapped all 23 sites with `contextlib.closing()`. Pattern: `with closing(sqlite3.connect(p)) as conn, conn:` -- combined context managers. Outer closes the FD; inner restores commit/rollback semantics. Sites: tickets_db.py (15), ticket_queue_processor.py (1), sla_monitor.py (2), response_delivery.py (2), stuck_task_reaper.py (1), commands.py (1), direct_responder.py (1).
+- **Fix B** -- New `tests/db/test_tickets_db_no_fd_leak.py`. Uses psutil.Process().num_fds() before/after 100 method iterations; asserts net delta <= 5. Pre-fix repro confirmed: same loop without closing() grows by exactly 100 FDs (1 per call).
+- **Fix C** -- backend/main.py lifespan logs RLIMIT_NOFILE soft+hard at boot. WARNs when soft < 4096. Operational early-warning so future low-limit anomalies are caught at boot.
+
+**Files:** modified backend/db/tickets_db.py, backend/services/{ticket_queue_processor,sla_monitor,response_delivery,stuck_task_reaper}.py, backend/slack_bot/{commands,direct_responder}.py, backend/main.py, handoff/current/{contract,experiment_results}.md. Added tests/db/{__init__.py,test_tickets_db_no_fd_leak.py}, tests/verify_phase_23_1_19.py, handoff/current/phase-23.1.19-{external-research,internal-codebase-audit}.md.
+
+**Research gate:** PASS (gate_passed: true, 6 sources read in full -- Python sqlite3 official docs, Python.org core-dev discussion, alexwlchan.net 2024 TIL on the exact bug, blog.rtwilson worked example, Python resource module docs, psutil docs; recency scan 2024-2026 performed; 15 URLs collected).
+
+**Verification:** `python tests/verify_phase_23_1_19.py` -> exit 0 (4 distinct claims). `pytest tests/db/test_tickets_db_no_fd_leak.py + 5 prior phases' suites -q` -> 29 passed.
+
+**Live measurement (post backend restart with fix):**
+- `lsof -p <pid> | grep -c tickets.db` = **0** (was 9 pre-fix immediately after restart).
+- backend.log: `RLIMIT_NOFILE: soft=8192 hard=16384` (launchd plist `NumberOfFiles=16384` is the HARD limit; macOS soft default is 8192).
+- Total process FDs: 342 (was 348 immediately after restart, grew to crash).
+
+**Q/A:** PASS first spawn. 5/5 harness audit + 11/11 deterministic checks + scope honesty + mutation-resistance regex (negative lookbehind for `closing(` prevents backslide).
+
+**Backwards compat:** combined-CM `with closing(...) as conn, conn:` preserves identical commit/rollback semantics; no caller change. RLIMIT log informational only.
+
+**Honest disclosures:** initial 17-site grep was wrong (researcher found 23 -- sla_monitor +2, response_delivery +2, stuck_task_reaper +1); macOS soft limit is 8192 NOT the 16384 from launchd plist (plist sets HARD); leak no longer accumulates over time. Phase-2 deferred: thread-local single-connection refactor, broader leak audit (httpx, aiohttp), periodic FD-count metric.
+
+**Phase-23.1 plan now 19/19 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.19/.

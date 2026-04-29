@@ -35,14 +35,16 @@ class TicketQueueProcessor:
 
     def _increment_retries(self, ticket_id: int):
         """Increment the retry counter for a ticket."""
+        # phase-23.1.19: closing() ensures the connection actually closes
+        # (sqlite3's `with conn:` only manages the transaction, not the FD).
         import sqlite3
+        from contextlib import closing
         try:
-            with sqlite3.connect(self.db.db_path) as conn:
+            with closing(sqlite3.connect(self.db.db_path)) as conn, conn:
                 conn.execute(
                     "UPDATE tickets SET retries = COALESCE(retries, 0) + 1 WHERE id = ?",
                     (ticket_id,)
                 )
-                conn.commit()
         except Exception as e:
             logger.error(f"Failed to increment retries for ticket {ticket_id}: {e}")
 

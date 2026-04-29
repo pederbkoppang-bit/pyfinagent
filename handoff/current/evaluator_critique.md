@@ -1,103 +1,108 @@
 ---
-step: phase-23.1.18
+step: phase-23.1.19
+cycle_date: 2026-04-29
 verdict: PASS
 qa_pass: 1
-date: 2026-04-29
+checks_run:
+  - harness_compliance_audit
+  - immutable_verification_command
+  - pytest_29_tests
+  - ast_syntax
+  - bare_pattern_grep
+  - live_lsof_fd_count
+  - rlimit_log_inspection
+  - git_diff_scope
+  - mutation_resistance_regex
+  - scope_honesty_disclosures
+  - phase2_deferral_disclosure
 ---
 
-# Q/A Critique — phase-23.1.18
+# Q/A Critique — phase-23.1.19
 
-## Harness compliance audit (5-item, FIRST)
+Single Q/A pass (qa_pass=1). Verdict: **PASS**.
 
-| # | Check | Result |
-|---|-------|--------|
-| 1 | Both research briefs in handoff/current/ | PASS — `phase-23.1.18-external-research.md` (gate_passed: true, 6 sources read in full, recency scan present) AND `phase-23.1.18-internal-codebase-audit.md` both present |
-| 2 | contract.md `step: phase-23.1.18` + immutable verification command | PASS — line 2 has `step: phase-23.1.18`, contract references `python tests/verify_phase_23_1_18.py` as immutable cmd |
-| 3 | experiment_results.md `step: phase-23.1.18`, output reproducible | PASS — line 2 has `step: phase-23.1.18`; verification cmd reproduced (exit 0, ok-line below) |
-| 4 | harness_log.md does NOT yet contain "23.1.18" entry | PASS — `grep -c "23.1.18" handoff/harness_log.md` returns 0; log-LAST invariant intact |
-| 5 | First Q/A spawn for this step | PASS — `qa_pass: 1` |
+## 1. Harness-compliance audit (5 items)
 
-## Deterministic checks
+| # | Item | Result |
+|---|------|--------|
+| 1 | Both research briefs in handoff/current/ | PASS — phase-23.1.19-external-research.md and phase-23.1.19-internal-codebase-audit.md both present |
+| 2 | contract.md `step: phase-23.1.19` + immutable verification | PASS — frontmatter step matches; verification cmd `source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_19.py` |
+| 3 | experiment_results.md `step: phase-23.1.19`, reproducible | PASS — frontmatter matches; verification cmd reproduces exit 0 + ok-line |
+| 4 | harness_log.md does NOT yet contain "23.1.19" | PASS — log-LAST invariant intact (Main appends after Q/A PASS) |
+| 5 | First Q/A spawn for this step | PASS — no prior critique for 23.1.19 in current/ or archive/phase-23.1.19/ |
 
-### A. Immutable verification command — PASS
+## 2. Deterministic checks
 
+### A. Immutable verification command
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_18.py
-ok save_paper_snapshot MERGE upsert + red-line MAX(total_nav) query + cleanup script (dry-run/apply with ROW_NUMBER PARTITION BY) + 3 new tests pass
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_19.py
+ok 23 sqlite3.connect sites wrapped with closing() across 7 files + tickets_db imports closing + main.py logs RLIMIT_NOFILE + FD-leak regression test passes
 EXIT=0
 ```
+PASS — exit 0, ok-line present and matches contract.
 
-Exit 0 + ok-line. All required tokens (MERGE inside save_paper_snapshot via DOTALL regex, ON T.snapshot_date = S.snapshot_date, MAX(total_nav) AS nav, ANY_VALUE absence, ROW_NUMBER OVER, PARTITION BY snapshot_date) verified.
-
-### B. Pytest — PASS (28 passed)
-
+### B. Pytest (29 tests)
 ```
-tests/services/test_snapshot_upsert.py
-tests/services/test_trade_idempotency.py
-tests/services/test_sector_concentration.py
-tests/api/test_ticker_meta_perf.py
-tests/api/test_ticker_meta.py
-============================== 28 passed, 1 warning in 2.84s
+29 passed, 1 warning in 2.66s
 ```
+PASS — exact target count.
 
-### C. AST syntax — PASS
+### C. AST syntax (10 files)
+```
+all syntax ok
+```
+PASS — every file in scope parses.
 
-All 5 files (`backend/db/bigquery_client.py`, `backend/api/sovereign_api.py`, `scripts/cleanup_phase_23_1_18.py`, `tests/verify_phase_23_1_18.py`, `tests/services/test_snapshot_upsert.py`) parse cleanly. Output: `all syntax ok`.
+### D. Bare-pattern grep (zero leak sites)
+```
+$ grep -rn "with sqlite3.connect" backend/
+(zero results)
+```
+PASS — every site is closing()-wrapped.
 
-### D. BQ verify (post-state, from experiment_results.md) — PASS
+### E. Live FD evidence + RLIMIT log
+```
+PID=40904 (uvicorn backend.main)
+lsof | grep tickets.db = 0
+backend.log: 22:06:55 I [main] RLIMIT_NOFILE: soft=8192 hard=16384
+```
+PASS — running backend has zero leaked tickets.db FDs; RLIMIT log line present at boot.
 
-- Pre-cleanup: `paper_portfolio_snapshots: 24 total rows / 11 unique dates`
-- Post-cleanup: `paper_portfolio_snapshots: 11 total rows / 11 unique dates`
-- Cleanup ok-line: `ok phase-23.1.18 cleanup complete (was 24 rows / 11 unique dates -> 11 rows / 11 unique)`
-- 2026-04-29 row carries `total_nav $15,647.74` matching live paper-trading NAV (line 113 of experiment_results.md).
+### F. git diff scope
+PASS — modified set matches contract: 7 sqlite3-touching files (tickets_db, ticket_queue_processor, sla_monitor, response_delivery, stuck_task_reaper, slack_bot/commands, slack_bot/direct_responder), plus backend/main.py, contract.md, experiment_results.md. New: tests/db/{__init__.py, test_tickets_db_no_fd_leak.py}, tests/verify_phase_23_1_19.py, two phase-23.1.19 research briefs. Other modified files (frontend tsconfig, harness audit jsonl, archive moves) are out-of-scope churn from prior cycles or hooks — not part of this step's diff.
 
-### E. Frontend tsc — PASS
+## 3. LLM-judgment leg
 
-`cd frontend && npx tsc --noEmit` exits 0, silent.
+### Contract alignment (A + B + C)
+- **A — closing() wraps**: 23 sites across 7 files, verified by deterministic check D. PASS.
+- **B — regression test**: tests/db/test_tickets_db_no_fd_leak.py exists, runs in pytest suite, asserts net FD delta ≤ 5 over 100 iterations of update_ticket_status / get_ticket_stats. PASS.
+- **C — RLIMIT log**: backend/main.py logs RLIMIT_NOFILE at lifespan startup with soft/hard, WARN when soft<4096. Verified live in backend.log. PASS.
 
-### F. git diff scope — PASS
+### Mutation-resistance
+The verification regex `(?<!closing\()with\s+sqlite3\.connect\(` uses a negative lookbehind that strongly resists backslide. Any future commit that reintroduces a bare `with sqlite3.connect(...)` in any of the 7 files fails the verification immediately. The companion assertion (`with closing(sqlite3.connect` must appear >=1 in each file) prevents the inverse mutation of replacing all wraps with non-sqlite code that incidentally avoids the bare pattern. Strong mutation barrier. PASS.
 
-Modified: `backend/db/bigquery_client.py`, `backend/api/sovereign_api.py`, `handoff/current/contract.md`, `handoff/current/experiment_results.md`. New: `scripts/cleanup_phase_23_1_18.py`, `tests/services/test_snapshot_upsert.py`, `tests/verify_phase_23_1_18.py`, `handoff/current/phase-23.1.18-{external-research,internal-codebase-audit}.md`. Other modified files (TSV experiment results, audit jsonls, .archive-baseline, cycle_history) are non-step churn from harness/observation. No scope creep.
+### Anti-rubber-stamp / scope honesty
+- `experiment_results.md:121-126` candidly admits initial scan found 17 sites; researcher's full audit corrected to 23. No silent fix — disclosed.
+- `experiment_results.md:127-129` discloses the launchd `NumberOfFiles=16384` plist key is the **HARD** limit; soft is 8192 (macOS default). 8192 is bound by the system, not the plist. Important correction documented openly.
+- The boot log line confirms soft=8192 hard=16384, matching the disclosure verbatim.
 
-### G. Code inspection — PASS
+### Phase-2 deferrals (3 listed)
+`experiment_results.md:141-153` explicitly lists three deferrals:
+1. Refactor TicketsDB to a single thread-local connection (more invasive).
+2. Broader leak audit beyond sqlite3 (file/socket FDs in other modules).
+3. Periodic hourly FD-count log for trend monitoring.
+PASS — scope honesty intact.
 
-- `save_paper_snapshot` (backend/db/bigquery_client.py:670+): MERGE on `snapshot_date` with WHEN MATCHED + WHEN NOT MATCHED branches confirmed.
-- `_fetch_snapshots` (backend/api/sovereign_api.py:130+): `MAX(total_nav) AS nav`, comment "phase-23.1.18: MAX(total_nav) instead of ANY_VALUE — defense-in-depth".
-- `scripts/cleanup_phase_23_1_18.py`: `ROW_NUMBER() OVER (PARTITION BY snapshot_date ORDER BY total_nav DESC)`, dry-run default with `--apply`/`--yes` opt-in.
+### Live evidence
+- Pre/post lsof: `before=4 after=104 delta=100` for the bare-pattern reproducer (proves the leak is real).
+- Post-fix lsof on running backend: 0 leaked tickets.db FDs.
+- RLIMIT_NOFILE log line in backend.log confirmed at 22:06:55.
+PASS — empirical proof the fix works in production.
 
-## LLM judgment
+## 4. Verdict
 
-| Criterion | Verdict | Notes |
-|-----------|---------|-------|
-| Contract alignment | PASS | Fix A (MERGE), Fix B (cleanup script), Fix C (MAX(total_nav)) all implemented and verified by immutable cmd |
-| Mutation-resistance | PASS | verify_phase_23_1_18.py greps for distinct, hard-to-spoof tokens including DOTALL regex anchoring MERGE inside save_paper_snapshot, explicit ANY_VALUE absence in red-line query |
-| Anti-rubber-stamp / scope honesty | PASS | "Honest disclosures" section 1 candidly flags NAV-DESC tie-breaker is heuristic and would fail in hypothetical real-loss case; section 3 explicitly states "historical chart is NOT rebased" — no overclaim |
-| Phase-2 deferrals listed | PASS | Three deferrals: (1) created_at column for deterministic ordering, (2) MERGE upsert for other paper_* tables, (3) % return toggle for chart |
-| Backwards compat | PASS | "MERGE behaves identically to INSERT for new (no-conflict) rows"; cleanup dry-run default; backend restarted |
-| Research-gate compliance | PASS | external research gate_passed: true with 6 sources fetched in full; internal audit present |
+**PASS** — all 5 harness-compliance items satisfied, all 6 deterministic checks (A–F) satisfied, mutation-resistance is strong, scope honesty maintained (17→23 correction, launchd soft-limit clarification), Phase-2 deferrals explicit, live evidence on the running backend confirms zero leaked FDs.
 
-## Verdict
-
-**PASS** — All deterministic checks green (verification cmd exit 0, 28/28 pytest, syntax OK, frontend tsc OK, git diff scope clean, BQ post-state matches live NAV $15,647.74). Code inspection confirms all three required tokens (MERGE in save_paper_snapshot, MAX(total_nav) in red-line, ROW_NUMBER PARTITION BY in cleanup). Honest disclosures explicitly call out the heuristic tie-breaker limitation and pre-deposit chart non-rebasing — no rubber-stamping. Phase-2 deferrals enumerated. Harness compliance: research briefs present, contract pre-commit, no premature log entry, first Q/A pass.
-
-## violated_criteria
-[]
-
-## violation_details
-[]
-
-## certified_fallback
-false
-
-## checks_run
-- harness_compliance_audit_5_item
-- syntax_ast_5_files
-- immutable_verification_command
-- pytest_28_tests
-- frontend_tsc
-- git_diff_scope
-- bq_post_state_disclosure_review
-- code_token_inspection
-- mutation_resistance_review
-- scope_honesty_review
-- research_gate_envelope_review
+violated_criteria: []
+violation_details: []
+certified_fallback: false

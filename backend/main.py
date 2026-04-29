@@ -112,6 +112,22 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logging.info(f"PyFinAgent backend starting (project={settings.gcp_project_id})")
 
+    # phase-23.1.19: log RLIMIT_NOFILE so FD-exhaustion crashes are easy to
+    # diagnose. The launchd plist sets NumberOfFiles=16384; if the soft limit
+    # at boot is dramatically lower, FDs run out faster than expected.
+    try:
+        import resource as _resource
+        _soft, _hard = _resource.getrlimit(_resource.RLIMIT_NOFILE)
+        logging.info("RLIMIT_NOFILE: soft=%d hard=%d", _soft, _hard)
+        if _soft < 4096:
+            logging.warning(
+                "RLIMIT_NOFILE soft=%d is dangerously low; backend will crash "
+                "after a few hours of normal traffic. Run: ulimit -n 65536",
+                _soft,
+            )
+    except Exception:
+        logging.warning("could not read RLIMIT_NOFILE", exc_info=True)
+
     # phase-4.9.2: Immutable risk limits boot-loader. Installs
     # SIGHUP-ignore + on-disk watcher that os._exit(2)s the process
     # if limits.yaml is mutated at runtime. Runs in the main thread

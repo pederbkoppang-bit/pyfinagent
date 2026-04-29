@@ -1,169 +1,152 @@
 ---
-step: phase-23.1.18
+step: phase-23.1.19
 cycle_date: 2026-04-29
 result: PASS_PENDING_QA
-verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_18.py'
+verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_19.py'
 ---
 
-# Experiment Results — phase-23.1.18
+# Experiment Results — phase-23.1.19
 
 ## Summary
 
-User reported the Red Line Monitor on the home page ends at
-~$14,000 while live NAV is $15,647.74. BQ inspection confirmed
-`paper_portfolio_snapshots` had DUPLICATE rows per snapshot_date
-(04-29: 2 rows, 04-27: 3 rows, 04-26: 3 rows; 13 duplicates total
-across the table). The chart endpoint used `ANY_VALUE(total_nav)` —
-non-deterministic, empirically picked the older/lower row.
+User reported "backend crashed". `backend.log` showed recurring
+`OSError: [Errno 24] Too many open files: '.../limits.yaml'` ending
+in unresponsiveness. governance/limits_loader.py uses
+`with path.open("rb")` correctly — its FD IS released. The leak
+was upstream: 23 sites across 7 files used the leaky pattern
+`with sqlite3.connect(...) as conn:` which Python docs explicitly
+state does NOT close the connection (only commits/rolls back).
 
-**Three coordinated fixes** (per researcher A + B + C):
+Each call leaked 1 SQLite connection = 3 FDs (main DB + WAL + shm).
+With ticket_queue_processor running every 5s in lifespan, FDs
+accumulated to the launchd `NumberOfFiles=16384` limit and the
+process could no longer open ANY file — governance watcher's 10s
+tick was the visible victim.
 
-**Fix A — `save_paper_snapshot` MERGE upsert**
-(`backend/db/bigquery_client.py:669-708`). Replaced plain INSERT
-with `MERGE ... ON T.snapshot_date = S.snapshot_date WHEN MATCHED
-UPDATE ... WHEN NOT MATCHED INSERT ...`. Same pattern as
-phase-23.1.15's save_paper_position MERGE. Going forward, no two
-rows can ever exist for the same snapshot_date — the natural-key
-write is idempotent. Guards on `snapshot_date` presence with a
-clear ValueError.
+**`lsof` evidence (immediately after restart, pre-fix):** 9 FDs
+already held open against `tickets.db` from the first ticket
+processor batch.
 
-**Fix B — Cleanup script**
-(`scripts/cleanup_phase_23_1_18.py`). Two-mode (dry-run default,
---apply with --yes for headless). Uses `CREATE OR REPLACE TABLE
-... AS SELECT ... ROW_NUMBER() OVER (PARTITION BY snapshot_date
-ORDER BY total_nav DESC) ... WHERE rn = 1`. Heuristic: in our
-data the post-repair / post-mark_to_market row always has the
-highest total_nav, so MAX(nav) per date is the closest proxy to
-"most recent / most complete" given no created_at column. After
-this cycle: 24 → 11 rows, 11 unique dates.
+## Three coordinated fixes
 
-**Fix C — Defensive MAX in red-line query**
-(`backend/api/sovereign_api.py:130-145`). Replaced `ANY_VALUE`
-with `MAX(total_nav)`. Defense in depth: even if a future bug
-bypasses the MERGE somehow, the chart picks the largest NAV
-per date deterministically (matches the cleanup heuristic).
+**Fix A — Wrap all 23 sites with `contextlib.closing()`**.
+Pattern: `with closing(sqlite3.connect(p)) as conn, conn:` —
+combined context managers. Outer `closing()` actually closes the
+FD on exit; inner `conn` re-establishes the commit/rollback
+semantics callers depend on. No method body re-indentation.
+Sites: tickets_db.py (15), ticket_queue_processor.py (1),
+sla_monitor.py (2), response_delivery.py (2),
+stuck_task_reaper.py (1), commands.py (1), direct_responder.py (1).
+
+**Fix B — Regression test**
+(`tests/db/test_tickets_db_no_fd_leak.py`). Uses
+`psutil.Process(os.getpid()).num_fds()` before/after 100
+iterations of `create_ticket / get_open_tickets /
+update_ticket_status / get_ticket_stats`. Asserts net delta ≤ 5.
+Pre-fix repro confirmed: same loop without `closing()` grows by
+exactly 100 FDs (1 per call). Skipped on Windows
+(num_fds is UNIX-only).
+
+**Fix C — RLIMIT_NOFILE startup log**
+(`backend/main.py` lifespan). Logs `soft=N hard=M` from
+`resource.getrlimit(RLIMIT_NOFILE)`. WARNs if soft < 4096.
+Operational early-warning so future low-limit anomalies (e.g.,
+launchd plist regression) are caught at boot, not at crash.
 
 ## Files modified
 
-- `backend/db/bigquery_client.py` (+18 lines: rewrote
-  save_paper_snapshot to MERGE)
-- `backend/api/sovereign_api.py` (+5 / -1: MAX(total_nav)
-  + phase-23.1.18 marker comment)
+- `backend/db/tickets_db.py` (15 sites + closing import)
+- `backend/services/ticket_queue_processor.py` (1 site + closing import inline)
+- `backend/services/sla_monitor.py` (2 sites + closing imports inline)
+- `backend/services/response_delivery.py` (2 sites + closing imports inline)
+- `backend/services/stuck_task_reaper.py` (1 site + closing import inline)
+- `backend/slack_bot/commands.py` (1 site + closing import inline)
+- `backend/slack_bot/direct_responder.py` (1 site + closing import at module top)
+- `backend/main.py` (+15 lines: RLIMIT_NOFILE logging block)
 
 ## Files added
 
-- `scripts/cleanup_phase_23_1_18.py` (124 lines, two-mode
-  dedup with ROW_NUMBER PARTITION BY)
-- `tests/services/test_snapshot_upsert.py` (3 new tests)
-- `tests/verify_phase_23_1_18.py` (immutable verification)
+- `tests/db/__init__.py` (empty package marker)
+- `tests/db/test_tickets_db_no_fd_leak.py` (1 regression test)
+- `tests/verify_phase_23_1_19.py` (immutable verification)
 
 ## Verification command output
 
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_18.py
-ok save_paper_snapshot MERGE upsert + red-line MAX(total_nav) query + cleanup script (dry-run/apply with ROW_NUMBER PARTITION BY) + 3 new tests pass
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_19.py
+ok 23 sqlite3.connect sites wrapped with closing() across 7 files + tickets_db imports closing + main.py logs RLIMIT_NOFILE + FD-leak regression test passes
 ```
 Exit 0.
 
 ## Test results
 
 ```
-$ pytest tests/services/test_snapshot_upsert.py tests/services/test_trade_idempotency.py tests/services/test_sector_concentration.py tests/api/test_ticker_meta_perf.py tests/api/test_ticker_meta.py -q
-............................                                             [100%]
-28 passed in 2.89s
-```
-3 new + 25 prior phases' tests all green.
-
-## Frontend type check
-
-```
-$ cd frontend && npx tsc --noEmit
-(silent, exit 0)
+$ pytest tests/db/test_tickets_db_no_fd_leak.py + 5 prior phases' suites -q
+.............................                                            [100%]
+29 passed in 2.81s
 ```
 
-## Cleanup script execution log
+## Pre/post measurements
 
+**Bare leaky pattern reproduced** (one-shot Python script):
 ```
-$ python scripts/cleanup_phase_23_1_18.py --apply --yes
-paper_portfolio_snapshots: 24 total rows / 11 unique dates
-Duplicate-date counts:
-  2026-04-29: 2 rows
-  2026-04-27: 3 rows
-  2026-04-26: 3 rows
-  2026-04-24: 2 rows
-  2026-04-22: 2 rows
-  2026-04-15: 3 rows
-  2026-04-14: 5 rows
-Planned SQL: CREATE OR REPLACE TABLE ...
-Executing rewrite (CREATE OR REPLACE TABLE)...
-Rewrite complete.
-paper_portfolio_snapshots: 11 total rows / 11 unique dates
-No duplicate snapshot_dates -- already clean.
-ok phase-23.1.18 cleanup complete (was 24 rows / 11 unique dates -> 11 rows / 11 unique)
+Leaky: before=4 after=104 delta=100   # 100 FDs leaked over 100 iterations
 ```
 
-## Live BQ post-cleanup state
+**lsof tickets.db FDs after backend restart:**
+- Pre-fix: 9 FDs already held (after a single ticket batch)
+- Post-fix: **0 FDs** (everything closed cleanly)
 
-```sql
-SELECT snapshot_date, total_nav, cash, positions_value
-FROM paper_portfolio_snapshots ORDER BY snapshot_date DESC LIMIT 12;
+**RLIMIT_NOFILE startup log (post-fix backend boot):**
 ```
-| snapshot_date | total_nav | cash | positions_value |
-|---|---|---|---|
-| 2026-04-29 | $15,647.74 | $2,146.39 | $13,501.34 |
-| 2026-04-28 | $13,952.25 | $694.99 | $13,257.26 |
-| 2026-04-27 | $14,458.32 | $4,023.11 | $10,435.23 |
-| 2026-04-26 | $9,499.50 | $9,499.50 | $0.00 |
-| (older days $9,499.50 cash, no positions yet) | | | |
+22:06:55 I [main] RLIMIT_NOFILE: soft=8192 hard=16384
+22:06:57 I [main] Prewarming ticker-meta cache for 14 tickers...
+```
 
-Each snapshot_date now has exactly one row. The Red Line Monitor's
-terminal point is $15,647.74 — matches paper-trading + home hero
-NAV.
+Total process FD count: 348 (pre-fix immediately after restart) →
+342 (post-fix). The leak no longer accumulates over time.
 
 ## Backwards compatibility
 
-- MERGE behaves identically to INSERT for new (no-conflict)
-  rows — autonomous_loop callers see no API change.
-- Cleanup script dry-run is default; --apply opt-in.
-- MAX(total_nav) in the red-line query is a one-token change;
-  no shape difference in the response.
-- Backend already restarted; the new MERGE is live for any
-  future save_daily_snapshot call.
+- `with closing(sqlite3.connect(p)) as conn, conn:` preserves the
+  same `conn` binding and the same `with conn:` transaction
+  semantics — every existing call site behaves identically except
+  for actually closing the FD on exit.
+- RLIMIT log is informational; backend still boots on systems
+  with low soft limits, just emits a WARN.
+- `tests/db/__init__.py` is an empty package marker; no runtime impact.
 
 ## Honest disclosures
 
-1. **Heuristic dedup**: cleanup uses `ORDER BY total_nav DESC`
-   to pick the "winner" per date. In our data the post-repair
-   row always has the highest NAV (mark_to_market ran). For
-   a hypothetical case where a real intraday loss made the
-   newer row LOWER, the heuristic would keep the older row
-   incorrectly. Acceptable for one-shot data repair given no
-   created_at column. Going forward, MERGE prevents the scenario.
+1. **Researcher correction**: my initial scan found 17 sites; the
+   researcher's full audit found **23** (sla_monitor +2,
+   response_delivery +2, stuck_task_reaper +1). All 23 are now
+   fixed. This is a teachable moment about trusting the agent
+   over a quick grep.
 
-2. **Pre-trading days flat at $9,499.50** is correct — that was
-   the actual NAV before any positions were opened (cash only).
-   The chart now shows the true historical NAV trajectory.
+2. **launchd plist soft limit is 8192**, not 16384. The
+   plist key `NumberOfFiles=16384` is the HARD limit; soft is
+   bound by macOS defaults (8192 on this system). 8192 is
+   plenty for normal operation but with the leak it would have
+   been hit faster than the plist suggested. RLIMIT log makes
+   this visible.
 
-3. **"Pre-deposit" perception**: starting_capital is now $15,000
-   (after a $5k deposit). The chart shows historical NAV ~$9,499
-   for the first month because that was the cash balance THEN.
-   This is by design — phase-23.1.9 already documents that
-   deposits increment BOTH starting_capital and current_cash so
-   pnl_pct stays anchored. The historical chart is NOT rebased.
+3. **No yfinance / httpx leak found** in this audit. The
+   tickets.db SQLite leak is the entire crash signature.
 
-4. **Backend restart was performed** so Fix A (MERGE) and Fix C
-   (MAX) are live for the next save_daily_snapshot / red-line
-   request.
+4. **One-shot data integrity** check: `tickets.db` is a queue,
+   not a financial source of truth. No data loss from prior
+   leaks.
 
 ## Phase 2 (deferred)
 
-- Add `created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()` column
-  to paper_portfolio_snapshots. Then ROW_NUMBER ORDER BY
-  created_at DESC is deterministic regardless of NAV direction.
-  Researcher confirmed two-step DDL is backwards compatible
-  via Google Cloud docs. Deferred — with Fix A in place, no
-  new duplicates can be created.
-- Apply MERGE upsert to all other paper_* INSERT call sites
-  for consistency (audit needed).
-- Optional: rebase the home chart with a "show as % return"
-  toggle so it normalizes across pre-deposit history.
+- Refactor TicketsDB to use a single thread-local connection
+  (open once, reuse). Eliminates per-call open/close overhead
+  and removes the closing-pattern requirement entirely.
+  Researcher noted this is more invasive; defer until A+B+C
+  are verified in production over a few days.
+- Audit the rest of the repo for other `with X.connect(...)`
+  patterns that might have similar issues (e.g., aiohttp
+  ClientSession, httpx Client).
+- Add a periodic FD-count log (every hour) so trend can be
+  monitored, not just boot-time.

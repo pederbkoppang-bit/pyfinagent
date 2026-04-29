@@ -7140,9 +7140,23 @@
           "created_at": "2026-04-29T21:48:00Z",
           "completed_at": "2026-04-29T21:48:00Z",
           "notes": "User flagged Red Line graph wrong terminal NAV ($14k vs live $15.6k). Root cause: paper_portfolio_snapshots had 24 rows / 11 unique dates due to plain-INSERT save_paper_snapshot + dual-call autonomous_loop + phase-23.1.17 repair add. /api/sovereign/red-line used ANY_VALUE -- non-deterministic. Fix A: save_paper_snapshot MERGE on snapshot_date. Fix B: cleanup script ROW_NUMBER PARTITION BY snapshot_date ORDER BY total_nav DESC -> 24 rows -> 11 rows / 11 unique. Fix C: red-line query uses MAX(total_nav). Q/A PASS first try (5/5 harness + 11/11 deterministic). 28/28 tests. Research gate: 6 sources read in full. Phase-2 deferred: created_at column, MERGE for other paper_* tables."
+        },
+        {
+          "id": "23.1.19",
+          "name": "Backend FD-exhaustion crash fix (sqlite3 closing()) + regression guard + RLIMIT log",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.19/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_19.py)",
+          "contract": "handoff/archive/phase-23.1.19/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.19/phase-23.1.19-external-research.md (also internal audit)",
+          "experiment_results": "handoff/archive/phase-23.1.19/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.19/evaluator_critique.md",
+          "created_at": "2026-04-29T22:12:00Z",
+          "completed_at": "2026-04-29T22:12:00Z",
+          "notes": "Backend crashed with OSError: [Errno 24] Too many open files. Limits-loader was the victim, not the source. Researcher audit found 23 sites across 7 files using the leaky `with sqlite3.connect()` pattern that Python docs explicitly state does NOT close the connection. Fix A: wrapped all 23 sites with `closing(sqlite3.connect(p)) as conn, conn:` (combined CMs preserve commit/rollback while actually closing FD). Fix B: tests/db/test_tickets_db_no_fd_leak.py uses psutil.num_fds() before/after 100 iters (asserts delta <= 5). Pre-fix repro confirmed delta = 100. Fix C: main.py lifespan logs RLIMIT_NOFILE soft+hard at boot, WARNs if soft<4096. Live post-fix lsof: 0 FDs to tickets.db (was 9 immediately after restart pre-fix). Q/A PASS first try (5/5 harness + 11/11 deterministic). 29/29 tests. Research gate: 6 sources read in full."
         }
       ],
-      "completed_at": "2026-04-29T21:48:00Z"
+      "completed_at": "2026-04-29T22:12:00Z"
     }
   ]
 }

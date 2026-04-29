@@ -8,6 +8,7 @@ Uses SQLite for simplicity and to avoid additional infrastructure requirements.
 import sqlite3
 import json
 import logging
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -53,7 +54,7 @@ class TicketsDB:
         
     def _init_database(self):
         """Initialize the database schema."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             conn.execute("PRAGMA foreign_keys = ON")
             
             # Create tickets table
@@ -153,7 +154,7 @@ class TicketsDB:
         """
         response_sla, resolution_sla = self._calculate_sla_seconds(priority)
         
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             ticket_number = self._get_next_ticket_number(conn)
             
             cursor = conn.execute("""
@@ -180,7 +181,7 @@ class TicketsDB:
 
     def is_duplicate_envelope(self, envelope_id: str) -> bool:
         """Check if a Slack envelope_id has already been processed."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             cursor = conn.execute(
                 "SELECT id FROM tickets WHERE slack_envelope_id = ? LIMIT 1",
                 (envelope_id,)
@@ -189,7 +190,7 @@ class TicketsDB:
 
     def mark_duplicate(self, envelope_id: str) -> Optional[int]:
         """Mark a ticket as duplicate by envelope_id."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             cursor = conn.execute(
                 "UPDATE tickets SET status = 'DUPLICATE' WHERE slack_envelope_id = ?",
                 (envelope_id,)
@@ -207,7 +208,7 @@ class TicketsDB:
 
     def get_ticket(self, ticket_id: int) -> Optional[Dict[str, Any]]:
         """Get a ticket by ID."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,))
             row = cursor.fetchone()
@@ -220,7 +221,7 @@ class TicketsDB:
 
     def get_ticket_by_number(self, ticket_number: int) -> Optional[Dict[str, Any]]:
         """Get a ticket by ticket number."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT * FROM tickets WHERE ticket_number = ?", (ticket_number,))
             row = cursor.fetchone()
@@ -233,7 +234,7 @@ class TicketsDB:
 
     def get_open_tickets(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Get all open tickets, ordered by priority and creation time (FIFO)."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("""
                 SELECT * FROM tickets 
@@ -303,7 +304,7 @@ class TicketsDB:
         
         sql = f"UPDATE tickets SET {', '.join(updates)} WHERE id = ?"
         
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             cursor = conn.execute(sql, params)
             success = cursor.rowcount > 0
             if success:
@@ -316,7 +317,7 @@ class TicketsDB:
     def acknowledge_ticket(self, ticket_id: int) -> bool:
         """Mark ticket as acknowledged."""
         now = datetime.now(timezone.utc).isoformat()
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             cursor = conn.execute(
                 "UPDATE tickets SET acknowledged_at = ? WHERE id = ?",
                 (now, ticket_id)
@@ -328,7 +329,7 @@ class TicketsDB:
 
     def get_ticket_stats(self) -> Dict[str, Any]:
         """Get ticket system statistics."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             # Basic counts
             cursor = conn.execute("""
                 SELECT 
@@ -365,7 +366,7 @@ class TicketsDB:
 
     def get_sla_breaches(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get tickets that have breached their SLA."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("""
                 SELECT *,
@@ -386,7 +387,7 @@ class TicketsDB:
 
     def cleanup_old_tickets(self, days_old: int = 30) -> int:
         """Archive tickets older than specified days. Returns number of archived tickets."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             cursor = conn.execute("""
                 UPDATE tickets 
                 SET status = 'CLOSED' 
@@ -401,7 +402,7 @@ class TicketsDB:
 
     def get_ticket_queue_position(self, ticket_id: int) -> int:
         """Get queue position for a ticket (1-based index in OPEN/IN_PROGRESS queue)."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             # Count how many OPEN/IN_PROGRESS/ASSIGNED tickets were created before this one
             cursor = conn.execute("""
                 SELECT COUNT(*) 
@@ -418,7 +419,7 @@ class TicketsDB:
         DYNAMIC QUEUE POSITIONING: Update queue_position for all OPEN/IN_PROGRESS/ASSIGNED tickets.
         Returns list of tickets whose position CHANGED (for notification purposes).
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             # Get all active tickets ordered by creation time
             cursor = conn.execute("""
                 SELECT id, queue_position FROM tickets
@@ -458,7 +459,7 @@ class TicketsDB:
         Returns:
             dict: Purge statistics (deleted_count, counter_reset)
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             # Get count before deletion
             cursor = conn.execute("SELECT COUNT(*) FROM tickets")
             deleted_count = cursor.fetchone()[0]

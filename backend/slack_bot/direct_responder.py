@@ -14,6 +14,7 @@ import logging
 import subprocess
 import json
 import sqlite3
+from contextlib import closing  # phase-23.1.19: ensure FD release
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -191,7 +192,7 @@ def _build_ticket_status() -> str:
         if not db_path.exists():
             return "📋 No ticket database found."
 
-        with sqlite3.connect(str(db_path)) as conn:
+        with closing(sqlite3.connect(str(db_path))) as conn:
             # Count by status
             cursor = conn.execute(
                 "SELECT status, COUNT(*) FROM tickets GROUP BY status"

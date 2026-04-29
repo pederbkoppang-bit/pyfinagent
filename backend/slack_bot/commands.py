@@ -232,21 +232,21 @@ def register_commands(app: AsyncApp):
         
         # CLEAR QUEUE COMMAND - Hard reset
         if "clear queue" in text_lower:
-            logger.warning("🚨 CLEAR QUEUE COMMAND RECEIVED - EXECUTING HARD RESET")
+            logger.warning("CLEAR QUEUE COMMAND RECEIVED - EXECUTING HARD RESET")
             try:
                 import sqlite3
                 import subprocess
-                
+                from contextlib import closing  # phase-23.1.19: ensure FD release
+
                 # Kill all Python processes (subagents, workers)
                 subprocess.run(["pkill", "-9", "-f", "python"], timeout=5)
-                
+
                 # Drop database
                 db = get_ingestion_service().db
-                with sqlite3.connect(db.db_path) as conn:
+                with closing(sqlite3.connect(db.db_path)) as conn, conn:
                     conn.execute("DELETE FROM tickets")
                     conn.execute("DELETE FROM ticket_counter")
                     conn.execute("INSERT INTO ticket_counter (id, current_number) VALUES (1, 0)")
-                    conn.commit()
                 
                 await say("🔄 HARD RESET COMPLETE\n✅ Database purged\n✅ Counter reset to #1\n✅ Ready for fresh start")
                 logger.info("✅ CLEAR QUEUE: Database reset, ticket counter at 0")

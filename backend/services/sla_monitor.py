@@ -45,12 +45,15 @@ class SLAMonitoringService:
     
     def check_active_sla_breaches(self) -> List[Dict[str, Any]]:
         """Check for tickets that are currently breaching their SLA."""
+        # phase-23.1.19: closing() ensures FD release; sqlite3's `with conn:`
+        # alone only manages the transaction.
         import sqlite3
-        
+        from contextlib import closing
+
         breaches = []
         now = datetime.now(timezone.utc)
-        
-        with sqlite3.connect(self.db.db_path) as conn:
+
+        with closing(sqlite3.connect(self.db.db_path)) as conn:
             conn.row_factory = sqlite3.Row
             
             # Get tickets that haven't been resolved and might be breaching SLA
@@ -102,11 +105,13 @@ class SLAMonitoringService:
     
     def get_sla_compliance_stats(self, hours_back: int = 24) -> Dict[str, Any]:
         """Get SLA compliance statistics for the past N hours."""
+        # phase-23.1.19: closing() wrap (read-only path; FD still leaks otherwise).
         import sqlite3
-        
+        from contextlib import closing
+
         cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_back)
-        
-        with sqlite3.connect(self.db.db_path) as conn:
+
+        with closing(sqlite3.connect(self.db.db_path)) as conn:
             conn.row_factory = sqlite3.Row
             
             # Get resolved tickets from the time period
