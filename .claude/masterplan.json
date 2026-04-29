@@ -7112,9 +7112,23 @@
           "created_at": "2026-04-29T20:45:00Z",
           "completed_at": "2026-04-29T20:45:00Z",
           "notes": "User flagged 'sector and names have high latency' on /paper-trading. Three causes: serial yfinance loop with sleep(0.3) (~18s/14 tickers), set-level cache key (one position change busts whole cache), no backend startup prewarm. Fix A: ThreadPoolExecutor(max_workers=5) + as_completed, drop sleep. Fix B: per-ticker cache keys paper:ticker_meta:single:{TICKER}. Fix C: lifespan asyncio.create_task(_prewarm_ticker_meta()) for current paper_positions. Live measurement: 18s -> 3s parallel prewarm; 14-ticker cached endpoint 4.7ms; fresh ticker 2.5s. Q/A PASS first try. 13/13 tests. Research gate: 10 sources read in full."
+        },
+        {
+          "id": "23.1.17",
+          "name": "Home/paper-trading hero metrics SSOT (shared useLiveNav hook + stale total_nav repair)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.17/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_17.py)",
+          "contract": "handoff/archive/phase-23.1.17/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.17/phase-23.1.17-external-research.md (also internal audit)",
+          "experiment_results": "handoff/archive/phase-23.1.17/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.17/evaluator_critique.md",
+          "created_at": "2026-04-29T21:18:00Z",
+          "completed_at": "2026-04-29T21:18:00Z",
+          "notes": "User flagged home cockpit and paper-trading disagreed on NAV ($14,153 vs $15,664). Two causes: phase-23.1.15 cleanup script bumped current_cash without calling mark_to_market, leaving total_nav stale; home page read the stale column directly while paper-trading derived it live. Fix A: shared useLiveNav.ts hook (lift inline useMemo). Fix E: home page imports + uses the hook with BQ snapshot fallback. Fix B: one-shot repair_phase_23_1_17.py runs mark_to_market + save_daily_snapshot. Live BQ post-repair: total_nav $14,153 -> $15,647 (+$1,494). Both pages now render the same value. Q/A PASS first try. 25/25 tests. Research gate: 6 sources read in full. Future-author docstring reminder: raw BQ cash mutations must be followed by mark_to_market."
         }
       ],
-      "completed_at": "2026-04-29T20:45:00Z"
+      "completed_at": "2026-04-29T21:18:00Z"
     }
   ]
 }

@@ -1,133 +1,149 @@
 ---
-step: phase-23.1.16
-title: ticker-meta latency fix (parallel yfinance + per-ticker cache + startup prewarm)
+step: phase-23.1.17
+title: Home page hero metrics SSOT — share liveNav hook with paper-trading + repair stale total_nav snapshot
 cycle_date: 2026-04-29
 harness_required: true
-verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_16.py'
-research_brief: handoff/current/phase-23.1.16-external-research.md (also see phase-23.1.16-internal-codebase-audit.md)
+verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_17.py'
+research_brief: handoff/current/phase-23.1.17-external-research.md (also see phase-23.1.17-internal-codebase-audit.md)
 ---
 
-# Contract — phase-23.1.16
+# Contract — phase-23.1.17
 
 ## Hypothesis
 
-User reports COMPANY + SECTOR columns on the Positions tab show
-"—" placeholders for ~15-20s after page load. Three compounding
-causes confirmed in the internal audit:
+User reported the home page (MAS Operator Cockpit) shows different
+NAV/P&L/Sharpe/DD than the paper-trading page. Two compounding causes
+identified by the researcher:
 
-1. **Serial yfinance loop** in `_fetch_ticker_meta`
-   (`backend/api/paper_trading.py:728-742`): `for t in tickers: ...
-   yfinance.Ticker(t).info ... time.sleep(0.3)`. Per-ticker
-   ~1.3s × 14 tickers = ~18s wall clock.
-2. **Sector NULL in `analysis_results`**: BQ Step 1 returns
-   `company_name` but `sector` is usually NULL, forcing yfinance
-   fallback for every ticker on cold cache.
-3. **Set-level cache key**: `f"paper:ticker_meta:{','.join(sorted(raw))}"`
-   — adding/removing one position busts the 24h cache for the
-   entire ticker set.
+**Cause 1 — Stale `paper_portfolio.total_nav`.** Yesterday's
+phase-23.1.15 cleanup script did a raw BQ UPDATE to `current_cash`
+(+$1,451.40) but did NOT call `mark_to_market()`. The
+`mark_to_market` function in `paper_trader.py` is the only code
+path that recomputes `total_nav = current_cash + total_positions_value`
+and writes it back. Without that call, `total_nav` is now
+`current_cash + OLD positions_value` — off by both the refund and
+intervening price drift.
 
-If we (A) parallelize the yfinance loop with a bounded
-ThreadPoolExecutor (max_workers=5), (B) switch to per-ticker
-cache keys so partial cache hits work, and (C) prewarm the cache
-at backend startup for current paper_positions tickers, then the
-first user landing on the page after a backend restart sees
-populated COMPANY + SECTOR columns within 1-2s instead of 15-20s,
-and ongoing position changes incur near-zero refetch cost.
+**Cause 2 — Home page reads the stale column directly.**
+`frontend/src/app/page.tsx:142` does `navValue = nav?.nav` (raw BQ
+snapshot). Paper-trading page (post phase-23.1.14) computes
+`liveNav = cash + sum(livePrice * qty)` as a `useMemo`. Home page
+was never updated to use this derivation, so it shows the stale
+total_nav.
+
+If we (A) extract the live-derive logic into a shared hook
+`useLiveNav`, (E) use it on the home page, and (B) run
+`mark_to_market()` once to repair the stale `total_nav` column,
+then the two pages match and the BQ table reflects reality.
 
 ## Research-gate summary
 
-- External brief: `handoff/current/phase-23.1.16-external-research.md`
-  — 10 sources read in full (yfinance rate limiting #2431,
-  thread-safety #2557, Sling Academy yfinance practices, FastAPI
-  SWR patterns, ThreadPoolExecutor best practices, BQ MERGE/upsert
-  guidance, BQ compute best practices, yfinance DeepWiki multi-ticker,
-  FastAPI middleware tricks, FastAPI edge-caching). 22 URLs
-  collected. Recency scan 2024-2026 performed. `gate_passed: true`.
-- Internal audit: `handoff/current/phase-23.1.16-internal-codebase-audit.md`
-  — 7 files inspected with file:line anchors and concrete patch
-  sketches.
+- External brief: `handoff/current/phase-23.1.17-external-research.md`
+  — 6 sources read in full (Limina batch-vs-event-driven, Limina
+  IBOR guide, TanStack Query overview, SWR mutation docs, Limina
+  PMS guide, Bennett NAV calculation). 16 URLs collected.
+  Recency scan 2024-2026. `gate_passed: true`.
+- Internal audit: `handoff/current/phase-23.1.17-internal-codebase-audit.md`
+  — 6 files inspected with file:line anchors and concrete patches.
 
 Key findings:
-- yfinance has no real batch-info API; ThreadPoolExecutor with
-  separate `Ticker` instances per thread is the canonical
-  parallelism pattern. Empirical rate ceiling ~100 requests /
-  30s. `max_workers=5` is safe for 14-50 ticker batches.
-- `APICache` is thread-safe (threading.Lock), so per-ticker
-  concurrent writes are safe.
-- `backend/main.py` already uses `lifespan` async context manager
-  with `asyncio.create_task` patterns — natural place to attach
-  the prewarm.
-- `paper_positions` BQ schema has NO sector column → Fix E
-  (read-from-positions) skipped.
-- Researcher recommends A + B + C for phase-23.1.16. Defer Fix D
-  (dedicated `ticker_meta` BQ table) to Phase 2 — single-row
-  MERGE is BQ anti-pattern (per Google Cloud docs); if pursued
-  later, must be a batched multi-row MERGE.
+- Limina IBOR: "live-extract pattern (recompute on demand from
+  transactions) outperforms stored snapshot for operator dashboard
+  consistency. Cash mutations that bypass revaluation create
+  stale state."
+- TanStack Query / SWR: shared query key / shared hook = SSOT
+  across pages. pyfinagent uses raw `apiFetch`, so a shared
+  custom hook is the correct substitute.
+- Researcher recommends **A + E + B** with MtM-first sequencing.
+  Defers Fix C (backend status endpoint always returns
+  live-derived NAV) — too expensive (5-10 yfinance calls per
+  status poll on every page load).
 
 ## Plan steps
 
-1. **Fix A — Parallel yfinance via ThreadPoolExecutor.** In
-   `backend/api/paper_trading.py:728-742` replace the serial
-   loop with `ThreadPoolExecutor(max_workers=5)` + `as_completed`.
-   Drop `time.sleep(0.3)`. Keep the function `def` (sync) — the
-   pool is created/destroyed inside the function, no event-loop
-   coupling. Both call sites (`/ticker-meta` route and
-   `autonomous_loop`) already wrap via `asyncio.to_thread`.
+1. **Fix A — Extract `useLiveNav` shared hook**:
+   `frontend/src/lib/useLiveNav.ts`. Inputs: `status` (from
+   `getPaperTradingStatus`), `positions` (from `getPaperPositions`),
+   `livePrices` (from `useLivePrices`). Returns
+   `{ liveNav, liveTotalPnlPct }`. Same math currently inline in
+   `paper-trading/page.tsx`. Falls back to BQ snapshot when
+   `livePrices` is empty.
 
-2. **Fix B — Per-ticker cache keys.** In the `/ticker-meta`
-   route handler, look up each ticker individually from the
-   cache; collect a `missing` list; call `_fetch_ticker_meta`
-   only for the missing subset; merge results; write each
-   resolved ticker back to its own cache slot. Cache key shape:
-   `paper:ticker_meta:single:{TICKER}` with the same 24h TTL.
+2. **Refactor paper-trading page** to use the shared hook —
+   delete the inline `useMemo` blocks, import the hook, pass
+   results unchanged to `SummaryHero`. Behavior unchanged.
 
-3. **Fix C — Startup prewarm.** In `backend/main.py` lifespan,
-   after backend boot, fire `asyncio.create_task(_prewarm_ticker_meta())`
-   that reads current `paper_positions` tickers and calls
-   `_fetch_ticker_meta` to warm the cache. Non-blocking; failure
-   logged non-fatal. Skipped if `paper_positions` is empty.
+3. **Fix E — Home page uses the shared hook**. Add the same
+   `useLivePrices(positionTickers, positions.length > 0)` call.
+   Replace `navValue = nav?.nav` with the hook's `liveNav`.
+   The "P&L (today)" tile keeps its redLine source (it's a
+   *daily delta*, not a total — orthogonal). Add a fallback:
+   when `liveNav` is null, use `nav?.nav`.
 
-4. **Tests** (`tests/api/test_ticker_meta_perf.py`): 3 new tests:
-   - Per-ticker cache hits return without calling
-     `_fetch_ticker_meta` for the cached subset.
-   - ThreadPoolExecutor max_workers cap is respected (count
-     concurrent calls).
-   - Prewarm task short-circuits when `paper_positions` is
-     empty.
+4. **Fix B — Repair stale total_nav**. One-time script
+   `scripts/repair_phase_23_1_17.py` that calls
+   `PaperTrader(settings, bq).mark_to_market()` once + saves a
+   fresh `paper_portfolio_snapshots` row. Idempotent; logs
+   before/after total_nav. After this, the redLine series'
+   most-recent point reflects post-refund + current MtM.
 
-5. **Immutable verification** (`tests/verify_phase_23_1_16.py`):
-   greps for the ThreadPoolExecutor block, per-ticker cache
-   key shape, prewarm task, runs the new tests.
+5. **Fix D (prophylactic)** — add a docstring note in
+   `scripts/cleanup_phase_23_1_15.py` and the new repair script
+   reminding future authors that ANY cash mutation must be
+   followed by `mark_to_market()` (or a comment in
+   `bigquery_client.update_paper_portfolio_cash` if such a method
+   exists).
+
+6. **Tests** (`tests/lib/test_use_live_nav.test.ts` if Jest set
+   up; otherwise a Python sanity test that asserts the hook's
+   math matches `cash + sum(livePrice * qty)`).
+   Plus `tests/services/test_repair_total_nav.py` mocking
+   `mark_to_market` and asserting it's called.
+
+7. **Immutable verification** (`tests/verify_phase_23_1_17.py`):
+   asserts `useLiveNav.ts` exists, home page imports it, paper-
+   trading page imports it (refactored), repair script exists
+   and calls mark_to_market.
 
 ## Immutable verification command
 
 ```bash
-source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_16.py
+source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_17.py
 ```
 
-Must exit 0 with one ok-line.
+Must exit 0.
 
 ## Acceptance criteria
 
-- `pytest tests/api/test_ticker_meta.py tests/api/test_ticker_meta_perf.py -q` passes.
-- `python tests/verify_phase_23_1_16.py` exits 0.
-- `cd frontend && npx tsc --noEmit` exit 0.
-- Manual smoke: backend restart → wait 5s → GET /api/paper-trading/ticker-meta?tickers=<14-tickers> returns within 3-4s on cold cache (down from 15-20s).
-- Backend startup logs show "Prewarming ticker-meta cache for N tickers..." line.
+- `useLiveNav.ts` exists in `frontend/src/lib/` and is a single
+  file with a clear default-export hook.
+- Both `paper-trading/page.tsx` and `page.tsx` import it; no
+  duplicated `liveNav = useMemo(...)` logic.
+- `cd frontend && npx tsc --noEmit` clean.
+- `pytest -q` passes including any new tests.
+- `python tests/verify_phase_23_1_17.py` exit 0.
+- After running the repair script, BQ
+  `paper_portfolio.total_nav` matches the live-derived NAV
+  within fee tolerance.
+- Home page hero NAV matches paper-trading page NAV (visual
+  parity).
 
 ## Backwards compatibility
 
-- Per-ticker cache keys land alongside the legacy set-level key — a
-  miss on the per-ticker key still falls through to `_fetch_ticker_meta`.
-- ThreadPoolExecutor parallel fetch keeps the same return shape;
-  callers see no API change.
-- Prewarm failure is logged non-fatal — backend boots normally even
-  if BQ or yfinance is unavailable.
+- The shared hook returns the same shape (`liveNav: number |
+  null`, `liveTotalPnlPct: number | null`) as the inline
+  useMemo. SummaryHero signature unchanged.
+- Repair script is one-shot data fix; idempotent re-runs are
+  harmless (mark_to_market is itself idempotent).
+- Home page falls back to `status.portfolio.nav` when
+  `liveNav` is null (consistent with paper-trading's existing
+  behavior).
 
 ## References
 
-- `handoff/current/phase-23.1.16-external-research.md`
-- `handoff/current/phase-23.1.16-internal-codebase-audit.md`
-- `backend/api/paper_trading.py:670-769` (the slow path)
-- `backend/services/api_cache.py` (APICache thread-safe)
-- `backend/main.py:109-196` (lifespan with asyncio.create_task patterns)
+- `handoff/current/phase-23.1.17-external-research.md`
+- `handoff/current/phase-23.1.17-internal-codebase-audit.md`
+- `backend/services/paper_trader.py:384-395` (mark_to_market)
+- `frontend/src/app/page.tsx:141-153` (home hero math)
+- `frontend/src/app/paper-trading/page.tsx:430-460` (existing
+  inline useLiveNav math)

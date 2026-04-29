@@ -14283,3 +14283,36 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 16/16 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.16/.
+
+## Cycle 1 -- 2026-04-29 21:18 UTC -- phase=23.1.17 result=PASS
+
+**Step:** phase-23.1.17 -- Home/paper-trading hero metrics SSOT (shared useLiveNav hook + stale total_nav repair).
+
+**User flagged:** home page (MAS Operator Cockpit) shows $14,153 NAV / +1.44% P&L / 2.91 Sharpe / -1.28% DD; paper-trading page shows $15,664 NAV / +4.43% Total P&L / -0.71 Sharpe -- two pages disagree by $1,511, almost exactly the phase-23.1.15 cleanup refund of $1,451.40 plus drift.
+
+**Two compounding causes (per researcher):**
+- **Cause 1:** Stale `paper_portfolio.total_nav`. The phase-23.1.15 cleanup did a raw BQ UPDATE to `current_cash` but did NOT call `mark_to_market()`. mark_to_market is the only path that recomputes `total_nav = current_cash + sum(live position MV)` and writes it back.
+- **Cause 2:** Home page reads the stale column directly (`nav?.nav`). Paper-trading page (post phase-23.1.14) computes `liveNav = cash + sum(livePrice * qty)` as a `useMemo`. Same math hadn't been ported to home.
+
+**Three coordinated fixes (A + E + B):**
+- **Fix A** -- Created `frontend/src/lib/useLiveNav.ts` shared hook. Lifted the inline `useMemo` math from paper-trading/page.tsx into a single source of truth. Returns `{ liveNav, liveTotalPnlPct }` with BQ-snapshot fallback.
+- **Fix E** -- Home `frontend/src/app/page.tsx` imports `useLivePrices` + `useLiveNav`, replaces `navValue = nav?.nav` with `navValue = liveNav ?? nav?.nav` and `pnl = liveTotalPnlPct ?? nav?.pnl_pct`.
+- **Fix B** -- One-shot `scripts/repair_phase_23_1_17.py` that calls `trader.mark_to_market()` + `trader.save_daily_snapshot()`. Module docstring documents that any future raw cash mutation must be followed by mark_to_market().
+
+**Files:** modified frontend/src/app/page.tsx, frontend/src/app/paper-trading/page.tsx (refactored to consume shared hook), handoff/current/{contract,experiment_results}.md. Added frontend/src/lib/useLiveNav.ts, scripts/repair_phase_23_1_17.py, tests/verify_phase_23_1_17.py, handoff/current/phase-23.1.17-{external-research,internal-codebase-audit}.md.
+
+**Research gate:** PASS (gate_passed: true, 6 sources read in full -- Limina batch-vs-event-driven, Limina IBOR guide, TanStack Query overview, SWR mutation docs, Limina PMS, Bennett NAV calc; recency scan 2024-2026 performed).
+
+**Verification:** `python tests/verify_phase_23_1_17.py` -> exit 0 (5 distinct claims). `pytest tests/api/test_ticker_meta_perf.py tests/api/test_ticker_meta.py tests/services/test_trade_idempotency.py tests/services/test_sector_concentration.py -q` -> 25 passed (full regression). Frontend tsc -> exit 0 silent.
+
+**Live BQ post-repair:** cash $2,146.39, total_nav $15,647.74 (was $14,153.03), pnl +4.32%. NAV delta $+1,494.71 = $1,451.40 refund + ~$43 drift. Both pages now render the same value via the shared hook.
+
+**Q/A:** PASS first spawn. 5/5 harness audit + 7/7 deterministic + 4/4 LLM judgment.
+
+**Backwards compat:** hook return shape preserved (`liveNav: number | null`, `liveTotalPnlPct: number | null`); paper-trading behavior byte-identical; home page falls back to BQ snapshot when no live ticks.
+
+**Honest disclosures:** Sharpe + Max-DD on home are still computed from redLineSeries (snapshot-derived) -- will converge as snapshot history rolls forward. VS SPY uses live total_pnl_pct - benchmark; SPY benchmark itself stale within mark-to-market cadence. Future-author reminder documented in repair script: any raw BQ UPDATE to `current_cash` MUST be followed by mark_to_market(). Phase-2 deferred: backend auto-MtM wrapper, home Sharpe live derivation, server-side live NAV derivation.
+
+**Phase-23.1 plan now 17/17 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.17/.

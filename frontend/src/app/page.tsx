@@ -11,6 +11,8 @@ import { RecentReportsTable } from "@/components/RecentReportsTable";
 import { HomeQuickActionsPanel } from "@/components/HomeQuickActionsPanel";
 import { LatestTransactionsBox } from "@/components/LatestTransactionsBox";
 import { listReports, getPaperTradingStatus, getPaperPortfolio, getPaperTrades, getSovereignRedLine } from "@/lib/api";
+import { useLivePrices } from "@/lib/useLivePrices";
+import { useLiveNav } from "@/lib/useLiveNav";
 import {
   dailyDelta,
   sharpe as kpiSharpe,
@@ -138,9 +140,17 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [redLineWindow]);
 
+  // phase-23.1.17: live-derive NAV + Total P&L pct via shared useLiveNav hook
+  // so the home cockpit and the paper-trading page render the same number on
+  // every 30s tick. Falls back to the BQ snapshot value when no live ticks
+  // are available (initial paint, empty positions).
+  const positionTickers = positions.map((p) => p.ticker).filter(Boolean);
+  const { prices: livePrices } = useLivePrices(positionTickers, positions.length > 0);
+  const { liveNav, liveTotalPnlPct } = useLiveNav(ptStatus, positions, livePrices);
+
   const nav = ptStatus?.portfolio;
-  const navValue = nav?.nav;
-  const pnl = nav?.pnl_pct;
+  const navValue = liveNav ?? nav?.nav;
+  const pnl = liveTotalPnlPct ?? nav?.pnl_pct;
   const benchmark = nav?.benchmark_return_pct;
   const alpha = pnl != null && benchmark != null ? pnl - benchmark : null;
 

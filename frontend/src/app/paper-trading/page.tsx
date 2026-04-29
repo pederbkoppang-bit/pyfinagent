@@ -33,6 +33,7 @@ import { AgentRationaleDrawer } from "@/components/AgentRationaleDrawer";
 import { MfeMaeScatter } from "@/components/MfeMaeScatter";
 import { OpsStatusBar } from "@/components/OpsStatusBar";
 import { useLivePrices } from "@/lib/useLivePrices";
+import { useLiveNav } from "@/lib/useLiveNav";
 import { useTickerMeta } from "@/lib/useTickerMeta";
 import {
   LineChart,
@@ -427,28 +428,9 @@ export default function PaperTradingPage() {
     positions.length > 0,
   );
 
-  // phase-23.1.14: live-derive NAV + Total P&L pct so scoreboards match the
-  // position table on every 30s tick. Falls back to status.portfolio.nav when
-  // no ticks are available yet (initial paint, empty positions).
-  const liveNav = useMemo(() => {
-    if (positions.length === 0) return status?.portfolio.nav ?? null;
-    const cash = status?.portfolio.cash ?? 0;
-    const hasAnyLive = positions.some((p) => livePrices[p.ticker]?.price != null);
-    if (!hasAnyLive) return status?.portfolio.nav ?? null;
-    const positionsValue = positions.reduce((sum, pos) => {
-      const lp = livePrices[pos.ticker]?.price ?? pos.current_price ?? pos.avg_entry_price;
-      return sum + lp * pos.quantity;
-    }, 0);
-    return cash + positionsValue;
-  }, [positions, livePrices, status]);
-
-  const liveTotalPnlPct = useMemo(() => {
-    const startingCapital = status?.portfolio.starting_capital ?? null;
-    if (liveNav == null || startingCapital == null || startingCapital <= 0) {
-      return status?.portfolio.pnl_pct ?? null;
-    }
-    return ((liveNav - startingCapital) / startingCapital) * 100;
-  }, [liveNav, status]);
+  // phase-23.1.17: live-derive NAV + Total P&L pct via shared useLiveNav hook
+  // (same single-source-of-truth as the home page MAS Operator Cockpit).
+  const { liveNav, liveTotalPnlPct } = useLiveNav(status, positions, livePrices);
 
   // phase-23.1.10 — fetch company name + sector for all visible tickers (positions + trades)
   const allTickersForMeta = useMemo(() => {
