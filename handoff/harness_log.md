@@ -14385,3 +14385,51 @@ The scaffolding is VERIFIED correct by 16 unit tests on synthetic HTML fixtures.
 **Phase-23.1 plan now 19/19 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.19/.
+
+## Cycle 1 -- 2026-04-30 18:55 UTC -- phase=23.1.20+21+22 result=PASS
+
+**Step:** phase-23.1.22 (consolidates 23.1.20 + 23.1.21) -- The actual root cause of pause/resume hang: kill_switch reentrant-lock deadlock.
+
+**User reported (3x):** "Request to /api/paper-trading/resume timed out after 30 seconds" / "backend crashed" / "audit why backend is down."
+
+**ROOT CAUSE (caught via faulthandler SIGUSR1 dump on a LIVE hung backend at 18:42:54 today):**
+
+```
+Current thread:
+  File ".../kill_switch.py", line 95 in snapshot   <- wants self._lock
+  File ".../kill_switch.py", line 116 in resume    <- already holds self._lock
+```
+
+`threading.Lock()` is NOT reentrant. `pause()` and `resume()` acquired self._lock and then called `self.snapshot()` which tried to re-acquire the SAME lock — instant process-wide deadlock that froze the asyncio event loop. Every prior pause/resume hang was THIS bug.
+
+**Three coordinated cycles bundled into one ship:**
+
+- **23.1.20** -- pause/resume timeout hardening (defense in depth). asyncio.timeout(5) wraps resume_trading + kill-switch GET BQ calls; returns 503 + Retry-After: 5 on TimeoutError. bq.get_paper_portfolio enforces result(timeout=30) per CLAUDE.md rule.
+- **23.1.21** -- silent-hang investigation + post-mortem instrumentation. Replaced ThreadPoolExecutor(max_workers=1) in _spawn_real_agent with threading.Thread(daemon=True) + join(timeout=60) (the executor's __exit__ was calling shutdown(wait=True), blocking asyncio forever on stuck Anthropic HTTP). Registered faulthandler on SIGUSR1 -- THIS IS WHAT CAUGHT THE DEADLOCK. Added external launchd watchdog (60s interval, 3-fail threshold, SIGUSR1 then kickstart). Added ProcessType=Interactive + LegacyTimers=true to backend plist (App Nap exemption).
+- **23.1.22** -- THE actual fix. New _snapshot_locked() helper that doesn't re-acquire the lock; pause()/resume() call it directly. Public snapshot() unchanged.
+
+**Files:** modified backend/services/kill_switch.py, backend/services/ticket_queue_processor.py, backend/api/paper_trading.py, backend/db/bigquery_client.py, backend/main.py, ~/Library/LaunchAgents/com.pyfinagent.backend.plist, handoff/current/{contract,experiment_results}.md. Added scripts/launchd/{backend_watchdog.sh, com.pyfinagent.backend-watchdog.plist}, tests/services/{test_kill_switch_no_deadlock.py, test_spawn_agent_no_block.py}, tests/api/test_pause_resume_timeout.py, tests/verify_phase_23_1_22.py, handoff/current/phase-23.1.{20,21}-{external-research,internal-codebase-audit}.md.
+
+**Research gates:** PASS for 23.1.20 (6 sources read in full), 23.1.21 (7 sources). 23.1.22 was research-on-demand (root cause discovered via instrumentation from 23.1.21).
+
+**Verification:** `python tests/verify_phase_23_1_22.py` -> exit 0. `pytest tests/services/test_kill_switch_no_deadlock.py tests/services/test_spawn_agent_no_block.py tests/api/test_pause_resume_timeout.py -q` -> 10 passed.
+
+**Live functional proof:**
+```
+$ python -c "import asyncio; ...pause then resume then pause"
+pause: 0.00s
+resume: 1.49s   (pre-fix: infinite deadlock)
+pause-2: 0.00s
+```
+
+**SIGUSR1 diagnostic verified:** `kill -USR1 <pid>` writes 17-thread stack dump to backend.log within 200ms. This is the tool that closed the 19-hour silent-hang case AND the deadlock case.
+
+**Q/A:** PASS first-clean spawn (the initial Q/A wrote a wrong-step critique by mistake; retry produced the correct evaluation). 5/5 harness audit + 8/8 deterministic checks.
+
+**Backwards compat:** _snapshot_locked is private; snapshot() public API unchanged. asyncio.timeout(5) is well above normal BQ latency. faulthandler is purely additive. Watchdog is a separate process.
+
+**Honest disclosures (3-cycle cascade):** 23.1.20 chased BQ-timeout (wrong tree). 23.1.21 caught a separate ThreadPoolExecutor blocker (real second bug). 23.1.22 nailed the actual deadlock. The 23.1.21 faulthandler was the diagnostic that closed the case. Phase-2 deferred: audit other `with self._lock:` blocks for re-entrant patterns; consider RLock as defensive default.
+
+**Phase-23.1 plan now 22/22 cycles complete.**
+
+**Archive:** handoff/archive/phase-23.1.{20,21,22}/.

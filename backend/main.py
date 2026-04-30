@@ -112,6 +112,22 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logging.info(f"PyFinAgent backend starting (project={settings.gcp_project_id})")
 
+    # phase-23.1.21: register faulthandler on SIGUSR1 so a hung process can
+    # be diagnosed without a kill. Operators (or the watchdog) send
+    # `kill -USR1 <pid>` to dump all thread stacks to stderr (which is
+    # tee'd into backend.log via the launchd plist). Then `kickstart -k`
+    # for actual restart. Diagnosing a 19-hour silent hang post-mortem
+    # is impossible without this.
+    try:
+        import faulthandler
+        import signal as _signal
+        # all_threads=True dumps every Python thread; chain=False prevents
+        # the previous SIGUSR1 handler (none here) from running afterward.
+        faulthandler.register(_signal.SIGUSR1, all_threads=True, chain=False)
+        logging.info("faulthandler registered on SIGUSR1 (kill -USR1 PID for stack dump)")
+    except Exception:
+        logging.warning("faulthandler registration failed", exc_info=True)
+
     # phase-23.1.19: log RLIMIT_NOFILE so FD-exhaustion crashes are easy to
     # diagnose. The launchd plist sets NumberOfFiles=16384; if the soft limit
     # at boot is dramatically lower, FDs run out faster than expected.

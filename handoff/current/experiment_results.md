@@ -1,152 +1,161 @@
 ---
-step: phase-23.1.19
-cycle_date: 2026-04-29
+step: phase-23.1.22
+cycle_date: 2026-04-30
 result: PASS_PENDING_QA
-verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_19.py'
+verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_22.py'
+covers: [phase-23.1.20, phase-23.1.21, phase-23.1.22]
 ---
 
-# Experiment Results — phase-23.1.19
+# Experiment Results — phase-23.1.22 (consolidates 23.1.20 + 23.1.21)
 
-## Summary
+## Summary — root cause via SIGUSR1 dump
 
-User reported "backend crashed". `backend.log` showed recurring
-`OSError: [Errno 24] Too many open files: '.../limits.yaml'` ending
-in unresponsiveness. governance/limits_loader.py uses
-`with path.open("rb")` correctly — its FD IS released. The leak
-was upstream: 23 sites across 7 files used the leaky pattern
-`with sqlite3.connect(...) as conn:` which Python docs explicitly
-state does NOT close the connection (only commits/rolls back).
+User reported "pause/resume crashes the backend, 30s timeout"
+multiple times across yesterday and today. Initial hypotheses
+chased downstream symptoms:
+- **23.1.20** thought BQ slowness was the cause (added 5s
+  timeout + 503 + Retry-After to resume_trading + kill-switch
+  GET).
+- **23.1.21** caught a separate 19-hour silent hang via
+  forensics (root cause: ThreadPoolExecutor shutdown(wait=True)
+  blocking event loop on stuck Anthropic call). Shipped daemon
+  thread + faulthandler + external watchdog + ProcessType=Interactive.
 
-Each call leaked 1 SQLite connection = 3 FDs (main DB + WAL + shm).
-With ticket_queue_processor running every 5s in lifespan, FDs
-accumulated to the launchd `NumberOfFiles=16384` limit and the
-process could no longer open ANY file — governance watcher's 10s
-tick was the visible victim.
+**The actual root cause was found TODAY when the user clicked
+resume at 18:42:54.** I caught the hang fresh and sent SIGUSR1
+to the running backend (the faulthandler I'd just shipped in
+phase-23.1.21). The thread dump showed:
 
-**`lsof` evidence (immediately after restart, pre-fix):** 9 FDs
-already held open against `tickets.db` from the first ticket
-processor batch.
+```
+Current thread:
+  File ".../kill_switch.py", line 95 in snapshot   ← wants self._lock
+  File ".../kill_switch.py", line 116 in resume    ← already holds self._lock
+```
 
-## Three coordinated fixes
+`threading.Lock()` is **NOT reentrant**. `resume()` acquires
+the lock, then calls `self.snapshot()` which tries to acquire
+the SAME lock — instant deadlock that froze the entire asyncio
+event loop. Same bug in `pause()`.
 
-**Fix A — Wrap all 23 sites with `contextlib.closing()`**.
-Pattern: `with closing(sqlite3.connect(p)) as conn, conn:` —
-combined context managers. Outer `closing()` actually closes the
-FD on exit; inner `conn` re-establishes the commit/rollback
-semantics callers depend on. No method body re-indentation.
-Sites: tickets_db.py (15), ticket_queue_processor.py (1),
-sla_monitor.py (2), response_delivery.py (2),
-stuck_task_reaper.py (1), commands.py (1), direct_responder.py (1).
+This is THE actual bug. Phases 20 and 21 are valuable defenses
+in depth, but neither would have helped — the hang was a Python
+deadlock entirely inside in-memory state.
 
-**Fix B — Regression test**
-(`tests/db/test_tickets_db_no_fd_leak.py`). Uses
-`psutil.Process(os.getpid()).num_fds()` before/after 100
-iterations of `create_ticket / get_open_tickets /
-update_ticket_status / get_ticket_stats`. Asserts net delta ≤ 5.
-Pre-fix repro confirmed: same loop without `closing()` grows by
-exactly 100 FDs (1 per call). Skipped on Windows
-(num_fds is UNIX-only).
+## Three coordinated cycles (all landed)
 
-**Fix C — RLIMIT_NOFILE startup log**
-(`backend/main.py` lifespan). Logs `soft=N hard=M` from
-`resource.getrlimit(RLIMIT_NOFILE)`. WARNs if soft < 4096.
-Operational early-warning so future low-limit anomalies (e.g.,
-launchd plist regression) are caught at boot, not at crash.
+### phase-23.1.20 — timeout hardening (defense in depth)
+- `resume_trading` BQ call wrapped in `asyncio.timeout(5)`;
+  returns 503 + `Retry-After: 5` on TimeoutError
+- `get_kill_switch_state` same hardening; degrades gracefully
+  with portfolio=None on timeout
+- `bq.get_paper_portfolio` enforces 30s `result(timeout=30)`
+  (CLAUDE.md "BQ timeout: 30s" rule)
+
+### phase-23.1.21 — diagnostic + auto-recovery + secondary root cause
+- **`_spawn_real_agent`**: replaced `ThreadPoolExecutor(max_workers=1)`
+  with `threading.Thread(daemon=True)` + `join(timeout=60)`.
+  ThreadPoolExecutor's `__exit__` calls `shutdown(wait=True)`
+  which blocks the asyncio caller forever if the worker is
+  stuck on a non-cancellable HTTP read.
+- **faulthandler SIGUSR1**: `backend/main.py` lifespan registers
+  `faulthandler.register(SIGUSR1, all_threads=True)`. **This is
+  what caught today's deadlock.**
+- **External watchdog**: `scripts/launchd/backend_watchdog.sh`
+  + `.plist`. Pings /api/health every 60s. On 3 consecutive
+  failures: SIGUSR1 (capture stack), then `launchctl kickstart -k`.
+- **App Nap exemption**: `ProcessType=Interactive` +
+  `LegacyTimers=true` in backend plist.
+
+### phase-23.1.22 — THE actual deadlock fix
+- New `_snapshot_locked()` helper that doesn't re-acquire the
+  lock. `pause()` and `resume()` call it directly. Public
+  `snapshot()` still acquires the lock for external callers.
 
 ## Files modified
 
-- `backend/db/tickets_db.py` (15 sites + closing import)
-- `backend/services/ticket_queue_processor.py` (1 site + closing import inline)
-- `backend/services/sla_monitor.py` (2 sites + closing imports inline)
-- `backend/services/response_delivery.py` (2 sites + closing imports inline)
-- `backend/services/stuck_task_reaper.py` (1 site + closing import inline)
-- `backend/slack_bot/commands.py` (1 site + closing import inline)
-- `backend/slack_bot/direct_responder.py` (1 site + closing import at module top)
-- `backend/main.py` (+15 lines: RLIMIT_NOFILE logging block)
+- `backend/services/kill_switch.py` (+11 lines: `_snapshot_locked`
+  helper, `pause`/`resume` use it instead of `snapshot()`)
+- `backend/services/ticket_queue_processor.py` (daemon-thread
+  pattern replacing ThreadPoolExecutor)
+- `backend/api/paper_trading.py` (asyncio.timeout(5) wraps
+  + JSONResponse import)
+- `backend/db/bigquery_client.py` (result(timeout=30))
+- `backend/main.py` (faulthandler register)
+- `~/Library/LaunchAgents/com.pyfinagent.backend.plist`
+  (ProcessType=Interactive, LegacyTimers=true)
 
 ## Files added
 
-- `tests/db/__init__.py` (empty package marker)
-- `tests/db/test_tickets_db_no_fd_leak.py` (1 regression test)
-- `tests/verify_phase_23_1_19.py` (immutable verification)
+- `tests/services/test_kill_switch_no_deadlock.py` (4 tests)
+- `tests/services/test_spawn_agent_no_block.py` (3 tests)
+- `tests/api/test_pause_resume_timeout.py` (3 tests)
+- `tests/verify_phase_23_1_22.py` (immutable verification —
+  consolidates the three cycles)
+- `scripts/launchd/backend_watchdog.sh` + `.plist` (installed
+  via `launchctl load -w`)
+- `handoff/current/phase-23.1.{20,21,22}-{external-research,internal-codebase-audit}.md`
 
-## Verification command output
+## Live verification (post-fix backend)
 
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_19.py
-ok 23 sqlite3.connect sites wrapped with closing() across 7 files + tickets_db imports closing + main.py logs RLIMIT_NOFILE + FD-leak regression test passes
+$ python -c "from backend.api.paper_trading import pause_trading, resume_trading, KillSwitchActionRequest
+import asyncio, time
+t0 = time.monotonic(); print(asyncio.run(pause_trading(...)))   # 0.00s
+t0 = time.monotonic(); print(asyncio.run(resume_trading(...)))  # 1.71s (BQ breach check)
+t0 = time.monotonic(); print(asyncio.run(pause_trading(...)))   # 0.00s"
 ```
-Exit 0.
+
+Pre-fix: hung indefinitely. Post-fix: 0-2 seconds.
+
+```
+$ kill -USR1 <pid>
+# Stack dump of all 17 threads written to backend.log within 200ms.
+# This is the diagnostic that caught the deadlock today.
+```
 
 ## Test results
 
 ```
-$ pytest tests/db/test_tickets_db_no_fd_leak.py + 5 prior phases' suites -q
-.............................                                            [100%]
-29 passed in 2.81s
+$ pytest tests/services/test_kill_switch_no_deadlock.py tests/services/test_spawn_agent_no_block.py tests/api/test_pause_resume_timeout.py -q
+..........                                                                [100%]
+10 passed in 15.42s
 ```
-
-## Pre/post measurements
-
-**Bare leaky pattern reproduced** (one-shot Python script):
-```
-Leaky: before=4 after=104 delta=100   # 100 FDs leaked over 100 iterations
-```
-
-**lsof tickets.db FDs after backend restart:**
-- Pre-fix: 9 FDs already held (after a single ticket batch)
-- Post-fix: **0 FDs** (everything closed cleanly)
-
-**RLIMIT_NOFILE startup log (post-fix backend boot):**
-```
-22:06:55 I [main] RLIMIT_NOFILE: soft=8192 hard=16384
-22:06:57 I [main] Prewarming ticker-meta cache for 14 tickers...
-```
-
-Total process FD count: 348 (pre-fix immediately after restart) →
-342 (post-fix). The leak no longer accumulates over time.
 
 ## Backwards compatibility
 
-- `with closing(sqlite3.connect(p)) as conn, conn:` preserves the
-  same `conn` binding and the same `with conn:` transaction
-  semantics — every existing call site behaves identically except
-  for actually closing the FD on exit.
-- RLIMIT log is informational; backend still boots on systems
-  with low soft limits, just emits a WARN.
-- `tests/db/__init__.py` is an empty package marker; no runtime impact.
+- `_snapshot_locked` is a private helper; `snapshot()` public
+  API unchanged.
+- daemon-thread pattern preserves return shape on success.
+- asyncio.timeout(5) is well above normal BQ latency.
+- faulthandler registration is purely additive.
+- Watchdog is a separate process; backend works without it.
 
 ## Honest disclosures
 
-1. **Researcher correction**: my initial scan found 17 sites; the
-   researcher's full audit found **23** (sla_monitor +2,
-   response_delivery +2, stuck_task_reaper +1). All 23 are now
-   fixed. This is a teachable moment about trusting the agent
-   over a quick grep.
+1. **Cascade of three phases for one root cause**. Phase-23.1.20
+   chased BQ-timeout (wrong tree). Phase-23.1.21 caught the
+   ThreadPoolExecutor blocker (real, but a SECOND bug —
+   different code path, different symptom). Phase-23.1.22
+   nailed the deadlock. The phase-23.1.21 faulthandler was
+   the diagnostic that closed the case.
 
-2. **launchd plist soft limit is 8192**, not 16384. The
-   plist key `NumberOfFiles=16384` is the HARD limit; soft is
-   bound by macOS defaults (8192 on this system). 8192 is
-   plenty for normal operation but with the leak it would have
-   been hit faster than the plist suggested. RLIMIT log makes
-   this visible.
+2. **The 23.1.20 + 23.1.21 fixes are still load-bearing.**
+   They harden against future BQ slowness, future stuck
+   subagent calls, App Nap suspension, and provide post-mortem
+   dump capability. The user-visible "pause hangs" is the
+   23.1.22 deadlock; the others guard against different
+   failure modes.
 
-3. **No yfinance / httpx leak found** in this audit. The
-   tickets.db SQLite leak is the entire crash signature.
-
-4. **One-shot data integrity** check: `tickets.db` is a queue,
-   not a financial source of truth. No data loss from prior
-   leaks.
+3. **No data integrity risk.** All fixes are operational —
+   no trade or position state was affected.
 
 ## Phase 2 (deferred)
 
-- Refactor TicketsDB to use a single thread-local connection
-  (open once, reuse). Eliminates per-call open/close overhead
-  and removes the closing-pattern requirement entirely.
-  Researcher noted this is more invasive; defer until A+B+C
-  are verified in production over a few days.
-- Audit the rest of the repo for other `with X.connect(...)`
-  patterns that might have similar issues (e.g., aiohttp
-  ClientSession, httpx Client).
-- Add a periodic FD-count log (every hour) so trend can be
-  monitored, not just boot-time.
+- Audit ALL `with self._lock:` blocks for re-entrant call
+  patterns. Currently only `pause`/`resume` were buggy, but
+  the same shape could exist in `KillSwitchState.update_*`
+  paths or other services.
+- Consider switching `KillSwitchState._lock` from
+  `threading.Lock()` to `threading.RLock()` as a defensive
+  default. RLock has slightly higher overhead but is
+  reentrant.

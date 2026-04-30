@@ -192,8 +192,6 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             system = system_prompts.get(agent_id, "You are a helpful assistant.")
 
             # 🔧 CRITICAL: Add 60-second timeout to prevent watchdog kills
-            import concurrent.futures
-            
             def call_anthropic():
                 """Synchronous Anthropic call with heartbeat logging."""
                 start = time.time()
@@ -227,16 +225,33 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                     logger.error(f"❌ Agent {agent_id} failed after {elapsed:.1f}s: {str(api_error)[:200]}")
                     raise api_error
             
-            # Execute with 60-second timeout
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(call_anthropic)
+            # phase-23.1.21: replaced ThreadPoolExecutor (whose `with` block calls
+            # shutdown(wait=True) on exit, blocking the asyncio event loop forever
+            # if the worker thread is stuck on a non-cancellable HTTP TCP read)
+            # with a daemon Thread that does NOT block the caller. If the call
+            # exceeds 60s we abandon the thread (it will be cleaned up at process
+            # exit) and raise the timeout exception.
+            import threading
+            result_holder: dict = {}
+
+            def _worker():
                 try:
-                    response_text = future.result(timeout=60)
-                    return response_text
-                except concurrent.futures.TimeoutError:
-                    logger.error(f"⏱️ TIMEOUT: Agent {agent_id} exceeded 60s for ticket #{ticket_number}")
-                    # TRIGGER FAILOVER
-                    raise Exception(f"Agent {agent_id} timeout (60s exceeded) - FAILOVER TRIGGERED")
+                    result_holder["value"] = call_anthropic()
+                except Exception as e:
+                    result_holder["error"] = e
+
+            worker_thread = threading.Thread(target=_worker, daemon=True, name=f"agent-{agent_id}")
+            worker_thread.start()
+            worker_thread.join(timeout=60)
+            if worker_thread.is_alive():
+                logger.error(
+                    "TIMEOUT: Agent %s exceeded 60s for ticket #%s (daemon thread "
+                    "abandoned to avoid blocking event loop)", agent_id, ticket_number,
+                )
+                raise Exception(f"Agent {agent_id} timeout (60s exceeded) - FAILOVER TRIGGERED")
+            if "error" in result_holder:
+                raise result_holder["error"]
+            return result_holder.get("value", "")
 
         except Exception as e:
             error_msg = str(e)[:500]

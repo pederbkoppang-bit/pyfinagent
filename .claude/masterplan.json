@@ -7154,9 +7154,23 @@
           "created_at": "2026-04-29T22:12:00Z",
           "completed_at": "2026-04-29T22:12:00Z",
           "notes": "Backend crashed with OSError: [Errno 24] Too many open files. Limits-loader was the victim, not the source. Researcher audit found 23 sites across 7 files using the leaky `with sqlite3.connect()` pattern that Python docs explicitly state does NOT close the connection. Fix A: wrapped all 23 sites with `closing(sqlite3.connect(p)) as conn, conn:` (combined CMs preserve commit/rollback while actually closing FD). Fix B: tests/db/test_tickets_db_no_fd_leak.py uses psutil.num_fds() before/after 100 iters (asserts delta <= 5). Pre-fix repro confirmed delta = 100. Fix C: main.py lifespan logs RLIMIT_NOFILE soft+hard at boot, WARNs if soft<4096. Live post-fix lsof: 0 FDs to tickets.db (was 9 immediately after restart pre-fix). Q/A PASS first try (5/5 harness + 11/11 deterministic). 29/29 tests. Research gate: 6 sources read in full."
+        },
+        {
+          "id": "23.1.22",
+          "name": "kill_switch reentrant-lock deadlock fix (consolidates 23.1.20 timeout hardening + 23.1.21 silent-hang investigation)",
+          "status": "done",
+          "harness_required": true,
+          "verification": "see handoff/archive/phase-23.1.22/contract.md (immutable: PYTHONPATH=. python tests/verify_phase_23_1_22.py)",
+          "contract": "handoff/archive/phase-23.1.22/contract.md",
+          "research_brief": "handoff/archive/phase-23.1.22/phase-23.1.{20,21}-{external-research,internal-codebase-audit}.md (23.1.22 was research-on-demand via faulthandler instrumentation)",
+          "experiment_results": "handoff/archive/phase-23.1.22/experiment_results.md",
+          "evaluator_critique": "handoff/archive/phase-23.1.22/evaluator_critique.md",
+          "created_at": "2026-04-30T18:55:00Z",
+          "completed_at": "2026-04-30T18:55:00Z",
+          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry — first attempt wrote critique for wrong step)."
         }
       ],
-      "completed_at": "2026-04-29T22:12:00Z"
+      "completed_at": "2026-04-30T18:55:00Z"
     }
   ]
 }

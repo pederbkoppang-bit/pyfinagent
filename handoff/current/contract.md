@@ -1,124 +1,141 @@
 ---
-step: phase-23.1.19
-title: backend FD leak fix (sqlite3 closing()) + regression guard + RLIMIT log
-cycle_date: 2026-04-29
+step: phase-23.1.21
+title: Backend silent-hang root-cause fix (daemon thread + faulthandler + external watchdog)
+cycle_date: 2026-04-30
 harness_required: true
-verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_19.py'
-research_brief: handoff/current/phase-23.1.19-external-research.md (also see phase-23.1.19-internal-codebase-audit.md)
+verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_21.py'
+research_brief: handoff/current/phase-23.1.21-external-research.md (also see phase-23.1.21-internal-codebase-audit.md)
 ---
 
-# Contract — phase-23.1.19
+# Contract — phase-23.1.21
 
 ## Hypothesis
 
-Backend crashed with `OSError: [Errno 24] Too many open files` on
-`limits.yaml`. The governance watcher uses `with path.open("rb")`
-correctly — its FDs ARE released. The leak is upstream.
+User flagged "backend is down" via UI red-dot. Forensic state:
+PID 40904 ran 20h12m alive but silent — last log line at
+23:13:35 yesterday during normal operation. Process state `S`
+(sleeping), 17 threads, 449 FDs (well under limit), no error,
+no crash, no exit. launchd `KeepAlive=true` did NOT respawn
+because it only fires on EXIT, not hang. Even APScheduler's
+5-second `process_batch` jobs stopped logging — the entire
+asyncio event loop was blocked.
 
-`grep -c "with sqlite3.connect"` initially identified 17 sites;
-researcher's full audit found **23 sites across 7 files**:
+**Root cause** (per researcher's audit, confidence HIGH):
+`backend/services/ticket_queue_processor.py::_spawn_real_agent`
+creates a `ThreadPoolExecutor(max_workers=1)` inside a `with`
+block, calls `future.result(timeout=60)`, and the executor's
+`__exit__` calls `shutdown(wait=True)`. If the underlying
+Anthropic HTTP call hangs at the TCP level (no RST), the
+worker thread never terminates and the `with` block never
+exits, blocking `loop.run_in_executor(...)`, blocking
+`process_single_ticket`, blocking `process_queue_batch`,
+blocking the entire event loop. No new requests served. No
+new logs. TCP accept loop dead.
 
-- `backend/db/tickets_db.py`: 15 sites
-- `backend/services/ticket_queue_processor.py`: 1 site
-- `backend/services/sla_monitor.py`: 2 sites
-- `backend/services/response_delivery.py`: 2 sites
-- `backend/services/stuck_task_reaper.py`: 1 site
-- `backend/slack_bot/commands.py`: 1 site
-- `backend/slack_bot/direct_responder.py`: 1 site
-
-**Root cause:** Python sqlite3 docs explicitly state
-`with sqlite3.connect(...) as conn:` only commits/rolls back the
-transaction, **does NOT close the connection**. Each call leaks 1
-SQLite connection = 3 FDs (main db + WAL + shm). With
-`ticket_queue_processor` running every 5s in lifespan, FDs
-accumulate to the OS soft limit and the process can no longer
-open ANY file (governance watcher victim).
-
-If we (A) wrap every site with `contextlib.closing(...)` so the
-connection actually closes, (B) add a regression test that asserts
-no FD growth across 100 method calls, and (C) log RLIMIT_NOFILE at
-boot with a WARNING when soft limit is dangerously low, then this
-class of bug is closed and any future regression is caught both
-locally (test) and operationally (boot log).
+If we (1) replace the `ThreadPoolExecutor` with a
+`threading.Thread(daemon=True)` so the asyncio caller is
+released even when the worker thread is stuck, (2) register
+`faulthandler` on `SIGUSR1` so future hangs can dump thread
+stacks before kicking, (3) add an external launchd watchdog
+that curls `/api/health` every 60s and `kickstart -k`s on 3
+failures, and (4) add `ProcessType=Interactive` to the plist
+to defensively exempt from App Nap, then this class of
+silent hang is structurally closed AND auto-recovered AND
+post-mortem-debuggable.
 
 ## Research-gate summary
 
-- External brief: `handoff/current/phase-23.1.19-external-research.md`
-  — 6 sources read in full (Python sqlite3 official docs, Python.org
-  discussion thread, alexwlchan.net 2024 TIL, blog.rtwilson worked
-  example, Python resource module docs, psutil docs). 15 URLs
-  collected. Recency scan 2024-2026 confirms no Python 3.14 change
-  to sqlite3 context manager semantics. `gate_passed: true`.
-- Internal audit: `handoff/current/phase-23.1.19-internal-codebase-audit.md`
-  — 7 files inspected with all 23 file:line anchors and concrete
-  patches.
-
-Researcher recommends **A + B + C**. Defers D (thread-local
-connection refactor) — more invasive; A is sufficient.
+- External brief: `handoff/current/phase-23.1.21-external-research.md`
+  — 7 sources read in full (launchd.plist man page, Python
+  faulthandler docs, APScheduler user guide, APScheduler pool
+  docs, Apple App Nap docs, uvicorn.org, OneUptime blog).
+  Recency scan 2024-2026. `gate_passed: true`.
+- Internal audit: `handoff/current/phase-23.1.21-internal-codebase-audit.md`
+  — 11 files inspected. Threading-lock inventory, App Nap
+  analysis, APScheduler thread-pool analysis, phase-23.1.19
+  closing-pattern verification, launchd KeepAlive semantics,
+  heartbeat file analysis. **Top hypothesis identified the
+  exact code path with file:line anchors.**
 
 ## Plan steps
 
-1. **Fix A — Wrap all 23 sites with `contextlib.closing()`**.
-   Pattern:
+1. **Fix Root-Cause** — `backend/services/ticket_queue_processor.py::_spawn_real_agent`
+   (~line 231): replace `with ThreadPoolExecutor(max_workers=1) as pool:`
+   pattern with `threading.Thread(target=..., daemon=True)`. After
+   `thread.join(timeout=60)`, if `thread.is_alive()`, log a
+   warning and return failure (the daemon thread will be cleaned
+   up at process exit; the asyncio caller is released).
+
+2. **Fix C — faulthandler SIGUSR1** in `backend/main.py` lifespan:
    ```python
-   from contextlib import closing
-   with closing(sqlite3.connect(path)) as conn:
-       with conn:        # restore commit/rollback semantics
-           ...
+   import faulthandler, signal
+   faulthandler.register(signal.SIGUSR1, all_threads=True, chain=False)
    ```
-   For pure-read methods, the inner `with conn:` is optional but
-   kept for consistency with write methods.
+   Operators (or the watchdog) send SIGUSR1 first to capture
+   thread state in stderr, then SIGKILL via kickstart.
 
-2. **Fix B — Regression test**
-   `tests/db/test_tickets_db_no_fd_leak.py`. Uses
-   `psutil.Process(os.getpid()).num_fds()` before / after 100
-   iterations of common TicketsDB methods. Asserts net delta ≤ 5.
-   Skipped on Windows (psutil.num_fds is UNIX-only).
+3. **Fix A — External watchdog launchd job**
+   (`scripts/launchd/com.pyfinagent.backend-watchdog.plist` +
+   `scripts/launchd/backend_watchdog.sh`). Runs every 60s.
+   curls `/api/health` with 5s timeout. On 3 consecutive
+   failures: `kill -USR1 $PID` (capture stack), wait 2s,
+   `launchctl kickstart -k gui/<uid>/com.pyfinagent.backend`.
+   Counter file in `~/Library/Caches/`.
 
-3. **Fix C — Startup RLIMIT_NOFILE log** in `backend/main.py`
-   lifespan entry. Logs `(soft, hard)` from
-   `resource.getrlimit(resource.RLIMIT_NOFILE)`. WARNs when
-   soft < 4096.
+4. **Fix D — App Nap exemption** in
+   `~/Library/LaunchAgents/com.pyfinagent.backend.plist`:
+   `ProcessType: Interactive` + `LegacyTimers: true`. Belt-and-
+   suspenders defensive add.
 
-4. **Immutable verification**
-   `tests/verify_phase_23_1_19.py` — greps the source for the
-   `closing(` wrap at every previously-leaky site, asserts no
-   bare `with sqlite3.connect` pattern remains in the 7 files,
-   confirms the new test exists and passes, confirms
-   `RLIMIT_NOFILE` is logged from `main.py`.
+5. **Fix E — Document** in `CLAUDE.md` Critical Rules: manual
+   recovery command + watchdog architecture + faulthandler
+   diagnostic.
+
+6. **Tests**:
+   - `tests/services/test_spawn_agent_no_block.py` —
+     mock the agent call to hang forever; assert the asyncio
+     caller is released within 65s with a clear failure status
+     (not a 30s+ hang).
+   - `tests/test_watchdog_script.py` — exercise the
+     `backend_watchdog.sh` logic via shell-script execution
+     against a stub /health that returns 503.
+
+7. **Immutable verification** (`tests/verify_phase_23_1_21.py`):
+   asserts daemon-thread pattern in _spawn_real_agent,
+   faulthandler block in main.py, watchdog plist + script
+   exist, ProcessType in launchd plist.
 
 ## Immutable verification command
 
 ```bash
-source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_19.py
+source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_21.py
 ```
 
 Must exit 0 with one ok-line.
 
 ## Acceptance criteria
 
-- `pytest tests/db/test_tickets_db_no_fd_leak.py -q` passes.
-- `python tests/verify_phase_23_1_19.py` exits 0.
-- `lsof -p <backend pid>` after backend restart + 5 minutes of
-  ticket-processor activity shows ≤ 5 FDs to tickets.db (was 9
-  immediately after restart, growing).
-- backend.log shows `RLIMIT_NOFILE: soft=N hard=M` at startup.
-- No new `OSError: [Errno 24]` lines in backend.log.
+- `pytest tests/services/test_spawn_agent_no_block.py -q` passes.
+- `python tests/verify_phase_23_1_21.py` exits 0.
+- Backend `kill -USR1 <pid>` writes a stack dump to backend.log.
+- Watchdog plist installed via `launchctl load` and visible
+  in `launchctl list`.
 
 ## Backwards compatibility
 
-- `closing()` wraps the connection — no API change for callers.
-- Inner `with conn:` preserves commit/rollback semantics that
-  callers rely on.
-- Test is sandboxed via `tmp_path` and skipped on Windows.
-- RLIMIT log is informational; backend always boots even on
-  low-limit systems (just logs WARN).
+- Daemon-thread replacement preserves the same return shape on
+  success; only the timeout path is now non-blocking.
+- faulthandler registration is purely additive (a signal
+  handler) — zero impact on normal flow.
+- Watchdog is a separate process that can be installed but is
+  optional — backend works without it.
+- ProcessType=Interactive is a hint to launchd; not a behavior
+  change for the process itself.
 
 ## References
 
-- `handoff/current/phase-23.1.19-external-research.md`
-- `handoff/current/phase-23.1.19-internal-codebase-audit.md`
-- Python sqlite3 docs:
-  https://docs.python.org/3/library/sqlite3.html (canonical
-  source for the bug)
-- 23 fix sites listed in the internal audit by file:line
+- `handoff/current/phase-23.1.21-external-research.md`
+- `handoff/current/phase-23.1.21-internal-codebase-audit.md`
+- `backend/services/ticket_queue_processor.py:231` (the hang site)
+- `backend/main.py:109+` (lifespan startup)
+- `~/Library/LaunchAgents/com.pyfinagent.backend.plist`

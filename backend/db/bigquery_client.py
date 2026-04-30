@@ -486,7 +486,11 @@ class BigQueryClient:
         job_config = bigquery.QueryJobConfig(query_parameters=[
             bigquery.ScalarQueryParameter("pid", "STRING", portfolio_id),
         ])
-        rows = list(self.client.query(query, job_config=job_config).result())
+        # phase-23.1.20: enforce CLAUDE.md "BQ timeout: 30s" so a hung BQ job
+        # doesn't strand a thread indefinitely. The async caller wraps this in
+        # asyncio.timeout(5) for the user-facing 503; the 30s here is the
+        # belt-and-suspenders ceiling for the worker thread itself.
+        rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
         return dict(rows[0]) if rows else None
 
     def _run_dml_with_retry(self, query: str, job_config, max_retries: int = 3) -> None:

@@ -91,14 +91,21 @@ class KillSwitchState:
         with self._lock:
             return self._paused
 
+    def _snapshot_locked(self) -> dict:
+        """phase-23.1.22: lock-free snapshot helper. Caller MUST already hold
+        self._lock. Used by pause()/resume() which re-entered the same
+        threading.Lock() via snapshot() and deadlocked the entire process.
+        Found via faulthandler SIGUSR1 dump on a live hung backend."""
+        return {
+            "paused": self._paused,
+            "pause_reason": self._pause_reason,
+            "sod_nav": self._sod_nav,
+            "peak_nav": self._peak_nav,
+        }
+
     def snapshot(self) -> dict:
         with self._lock:
-            return {
-                "paused": self._paused,
-                "pause_reason": self._pause_reason,
-                "sod_nav": self._sod_nav,
-                "peak_nav": self._peak_nav,
-            }
+            return self._snapshot_locked()
 
     # ── State transitions ──────────────────────────────────────────
     def pause(self, trigger: str = "manual", details: Optional[dict] = None) -> dict:
@@ -106,14 +113,18 @@ class KillSwitchState:
             self._paused = True
             self._pause_reason = trigger
             self._append_audit("pause", trigger=trigger, details=details or {})
-            return self.snapshot()
+            # phase-23.1.22: call _snapshot_locked, NOT snapshot(), to avoid
+            # re-acquiring self._lock (threading.Lock is not reentrant).
+            return self._snapshot_locked()
 
     def resume(self, trigger: str = "manual", details: Optional[dict] = None) -> dict:
         with self._lock:
             self._paused = False
             self._pause_reason = None
             self._append_audit("resume", trigger=trigger, details=details or {})
-            return self.snapshot()
+            # phase-23.1.22: call _snapshot_locked, NOT snapshot(), to avoid
+            # re-acquiring self._lock (threading.Lock is not reentrant).
+            return self._snapshot_locked()
 
     def update_sod_nav(self, nav: float) -> None:
         """Record start-of-day NAV for daily-loss calculation. Idempotent per day."""

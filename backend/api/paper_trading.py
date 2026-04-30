@@ -9,6 +9,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from backend.config.settings import get_settings
@@ -340,7 +341,15 @@ async def get_kill_switch_state():
     """
     settings = get_settings()
     bq = BigQueryClient(settings)
-    portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
+    # phase-23.1.20: 5s timeout on the BQ portfolio fetch (same hardening as
+    # /resume). On timeout we still return the in-memory pause state and a
+    # null breach, so the UI badge stays informative.
+    try:
+        async with asyncio.timeout(5):
+            portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
+    except TimeoutError:
+        logger.warning("get_kill_switch_state: BQ portfolio fetch timed out after 5s")
+        portfolio = None
     nav = float((portfolio or {}).get("total_nav") or (portfolio or {}).get("starting_capital") or 0.0)
     breach = evaluate_breach(
         current_nav=nav,
@@ -379,7 +388,23 @@ async def resume_trading(req: KillSwitchActionRequest):
     # breach on brief recoveries (documented anti-pattern in RESEARCH.md 4.5.7).
     settings = get_settings()
     bq = BigQueryClient(settings)
-    portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
+    # phase-23.1.20: 5s timeout on the BQ breach-check so a slow / hung BQ
+    # doesn't strand the user on a 30s frontend AbortController. On timeout
+    # we return 503 + Retry-After so the UI can surface a useful error and
+    # auto-retry per RFC 9110.
+    try:
+        async with asyncio.timeout(5):
+            portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
+    except TimeoutError:
+        logger.warning("resume_trading: BQ breach-check timed out after 5s")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "BigQuery breach-check timed out; retry in a few seconds",
+                "error": "bq_timeout",
+            },
+            headers={"Retry-After": "5"},
+        )
     nav = float((portfolio or {}).get("total_nav") or 0.0)
     breach = evaluate_breach(
         current_nav=nav,

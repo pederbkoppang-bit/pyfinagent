@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pyfinagent.backend-watchdog</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/ford/.openclaw/workspace/pyfinagent/scripts/launchd/backend_watchdog.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>60</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/ford/.openclaw/workspace/pyfinagent/handoff/logs/backend-watchdog.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/ford/.openclaw/workspace/pyfinagent/handoff/logs/backend-watchdog.log</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/ford/.openclaw/workspace/pyfinagent</string>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
