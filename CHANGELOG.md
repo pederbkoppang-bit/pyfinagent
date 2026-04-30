@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-04-30 | `0ed72940` | phase-23.1.22: kill_switch reentrant-lock deadlock + 23.1.20+21 hardening |
 | 2026-04-29 | `fdcc2823` | phase-23.1.19: backend FD-exhaustion fix (sqlite3 closing()) + regression guard |
 | 2026-04-29 | `629eea3b` | phase-23.1.18: paper_portfolio_snapshots dedup + MERGE upsert |
 | 2026-04-29 | `4937a3e7` | phase-23.1.17: home/paper hero SSOT via shared useLiveNav hook |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-27 | `76d89aa4` | phase-23.1.3: worldwide news idea generator (no-API-key RSS + Claude batch extractor) |
 | 2026-04-27 | `5a6a6e17` | phase-23.1.2: earnings PEAD overlay (free SEC EDGAR + Claude sentiment-surprise) |
 | 2026-04-27 | `743d65e5` | phase-23.1.1: macro regime filter (LLM-as-judge over FRED) + screener conviction multiplier |
-| 2026-04-26 | `203ced64` | phase-23.0: Dataform/orchestrator feasibility (DON'T ADOPT) + directive_versions --apply |
 
 ---
 
+### v6.5.118 — phase-23.1.22: kill_switch reentrant-lock deadlock + 23.1.20+21 harde... (2026-04-30)
+
+- **phase-23.1.22: kill_switch reentrant-lock deadlock + 23.1.20+21 hardening**
 ### v6.5.117 — phase-23.1.19: backend FD-exhaustion fix (sqlite3 closing()) + regres... (2026-04-29)
 
 - **phase-23.1.19: backend FD-exhaustion fix (sqlite3 closing()) + regression guard**
