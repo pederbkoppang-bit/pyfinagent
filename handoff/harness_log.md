@@ -14433,3 +14433,44 @@ pause-2: 0.00s
 **Phase-23.1 plan now 22/22 cycles complete.**
 
 **Archive:** handoff/archive/phase-23.1.{20,21,22}/.
+
+## Cycle 1 -- 2026-05-04 20:55 UTC -- phase=23.2.0 audit walk-through (23.2.1-23.2.16 + 23.2.A) result=PASS_WITH_FINDINGS
+
+**Step:** Walk every 23.2.X investigation step from the masterplan (16 steps) + research-only audit of agent rationale drawer.
+
+**Findings summary:**
+
+| Step | Status | Note |
+|------|--------|------|
+| 23.2.1 autonomous loop daily | FAIL_FIXED | 5 of 9 expected snapshots; 04-30 to 05-03 missing (watchdog kicks). Fix shipped in phase-23.1.23 just prior. |
+| 23.2.2 phantom trade reconciliation | FAIL_FINDING | STX orphan: 1 BUY 04-26 23:44 for $949.48 (`new_buy_signal`), no position. Pre-23.1.15-fix legacy artifact; needs cleanup script. |
+| 23.2.3 FD leak regression | PASS | 0 FDs to tickets.db post-restart. All 29934 Errno 24 entries are pre-23.1.19. |
+| 23.2.4 pause/resume deadlock regression | PASS | 4-cycle test: pause 0.00s, resume 1.26s, pause 0.00s, resume 1.25s. |
+| 23.2.5 kill-switch never falsely fired | PASS | All `pause` triggers are manual/test/bench. 3 peak_update events on 04-30/05-01/05-04 confirm loop fired (then got killed). |
+| 23.2.6 sector cap actually blocked Tech buys | INCOMPLETE | `paper_max_per_sector=2` setting present. paper_positions has no sector column (in-memory only). 13 of 14 positions are Technology -- bought 04-26 BEFORE the 04-28 cap shipped. Live verify pending tomorrow's cycle. |
+| 23.2.7 Red Line terminal NAV matches live | PASS | Latest snapshot $15,620.84 = BQ total_nav = computed cash+sum_mv (penny variance). Repair-script holding. |
+| 23.2.8 home/paper SSOT | PASS | Both render same NAV via phase-23.1.17 useLiveNav. |
+| 23.2.9 ticker-meta latency | PASS | Prewarm fires every boot (11 logged). |
+| 23.2.10 watchdog has not fired in 7 days | FAIL_FIXED | 3 kicks (04-30, 05-01, 05-04 all ~18:00 UTC) -- all caused by phase-23.1.23 mark_to_market event-loop block. Fix shipped today. |
+| 23.2.11 BQ table freshness | PARTIAL | paper_portfolio + snapshots fresh (manual repair). paper_positions + paper_trades stale 05-01 (3-day gap caused by loop kicks). Will resolve next cycle. |
+| 23.2.12 Layer-1 enrichment pipeline | PARTIAL | analysis_results last row 2026-03-08 (~8 weeks). 28-agent pipeline dormant in paper-trading path (lite-path only). Code intact; full pipeline only via /analyze manual. |
+| 23.2.13 governance limits-loader | PASS | "governance: immutable limits loaded" digest=edf822591bb1 on every boot. Watcher thread visible in stack dumps. |
+| 23.2.14 lock re-entrance audit | PARTIAL | kill_switch.py done in phase-23.1.22 (5 sites + _snapshot_locked helper). 9 other modules with threading.Lock not yet audited. |
+| 23.2.15 per-cycle smoke tests | SKIPPED | P2 / 45min. Each cycle has own immutable verification already passing. |
+| 23.2.16 Phase-2 triage | DONE | Top-3 highest-leverage: (1) paper_positions sector column, (2) auto-MtM wrapper post-cash-mutations, (3) drawer Option B (suppress duplicate RiskJudge). |
+
+**Plus phase-23.2.A research-only audit of agent rationale drawer:**
+
+User screenshot showed FIX BUY rationale with 3 agents: Quant (weight 57.31), Trader (weight 8.00), Risk Judge (weight 0.00, narrative byte-identical to Trader). Researcher (a0cad80a) read 8 internal files in full + sampled 3 live BQ trades:
+- **Verdict: sufficient_as_designed = FALSE.**
+- Risk Judge weight=0.0 is BY DESIGN in lite-path -- `signal_attribution.py:127` reads `risk.get("recommended_position_pct")` which only exists in full pipeline.
+- Risk Judge narrative copies Trader because lite analyzer produces single reason field; `signal_attribution.py:122-124` reads same source for both.
+- 25 of 28 Layer-1 agents leave no trace in drawer (the 11 enrichment + 4 debate agents are in `enrichment_signals` but `signal_attribution.py` only reads 4 keys: analyst_summary, debate, trader_note, risk_assessment).
+- Real Risk Judge (`risk_debate.py`) is a 4-agent debate -- architecturally sound, just never activated in current paper trading cycle.
+- Three Phase-2 fix options: A pipeline_mode badge (1h), B suppress duplicate RiskJudge (2h), C route full pipeline for high-conviction (8h+).
+
+**Files added:** handoff/current/phase-23.2.A-agent-rationale-audit.md (researcher output).
+
+**No code changed in this cycle (verification + research only, per user instruction).** All passes / fails / findings documented for the operator. Tomorrow's 20:00 CEST autonomous cycle is the live verification of 23.2.1, 23.2.6, 23.2.10, 23.2.11.
+
+**Phase-23.2.0 audit walk-through complete.**
