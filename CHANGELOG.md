@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-04 | `ad9d773c` | phase-23.2.2-fix + 23.2.A-fix: STX cleanup + drawer Option B |
 | 2026-05-04 | `47f9a20f` | phase-23.2.0 walk-through: 16 verification steps + agent rationale audit |
 | 2026-05-04 | `4251fd1d` | phase-23.1.23: wrap blocking trader.* calls in asyncio.to_thread |
 | 2026-05-04 | `ad52870e` | phase-23.2.0: 1-week post-deployment audit + 16 investigation steps |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-27 | `e7e09d77` | phase-23.1.7: capture full agent rationale + signal stack into paper_trades.signals |
 | 2026-04-27 | `7c78097e` | phase-23.1.6: Settings page Signal Stack toggles + backend API extension |
 | 2026-04-27 | `35ff8f59` | phase-23.1.5: LLM-as-judge meta-scorer (single batched Claude call -> conviction 1-10) |
-| 2026-04-27 | `48233154` | phase-23.1.4: sector event calendars (FDA PDUFA + earnings catalyst overlay) |
 
 ---
 
+### v6.5.122 — phase-23.2.2-fix + 23.2.A-fix: STX cleanup + drawer Option B (2026-05-04)
+
+- **phase-23.2.2-fix + 23.2.A-fix: STX cleanup + drawer Option B**
 ### v6.5.121 — phase-23.2.0 walk-through: 16 verification steps + agent rationale audit (2026-05-04)
 
 - **phase-23.2.0 walk-through: 16 verification steps + agent rationale audit**
