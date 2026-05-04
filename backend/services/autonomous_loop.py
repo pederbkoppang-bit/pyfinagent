@@ -208,7 +208,12 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         summary["candidates"] = len(candidates)
 
         # ── Step 2: Filter candidates ────────────────────────────
-        positions = trader.get_positions()
+        # phase-23.1.23: wrap blocking trader.* calls in asyncio.to_thread so
+        # they don't freeze the asyncio event loop. mark_to_market in
+        # particular does ~14 positions x (yfinance + 2 BQ DML) = 42 blocking
+        # network ops which previously blocked /api/health past the watchdog
+        # threshold and got the backend kickstart-killed daily.
+        positions = await asyncio.to_thread(trader.get_positions)
         held_tickers = {p["ticker"] for p in positions}
         new_candidates = [c for c in candidates if c["ticker"] not in held_tickers]
         analyze_tickers = [c["ticker"] for c in new_candidates[:settings.paper_analyze_top_n]]
@@ -288,16 +293,18 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         # value is preserved across the cycle.
 
         # ── Step 5: Mark to market ───────────────────────────────
+        # phase-23.1.23: mark_to_market does ~42 blocking ops (14 pos x 3);
+        # offload to threadpool so /api/health stays responsive.
         logger.info("Paper trading: Step 5 -- Mark to market")
         summary["steps"].append("mark_to_market")
-        portfolio_state = trader.mark_to_market()
+        portfolio_state = await asyncio.to_thread(trader.mark_to_market)
 
         # ── Step 5.5: Kill-switch evaluation (4.5.7) ─────────────
         # If a daily-loss or trailing-DD limit is breached, auto-flatten and
         # pause before any new-order decisions. Also short-circuits if the
         # system is already paused from a prior cycle's breach.
         from backend.services.kill_switch import get_state as _ks_state
-        ks_check = trader.check_and_enforce_kill_switch()
+        ks_check = await asyncio.to_thread(trader.check_and_enforce_kill_switch)
         summary["kill_switch"] = ks_check
         if ks_check.get("triggered") or _ks_state().is_paused():
             logger.warning("Paper trading: kill-switch active -- skipping decide/execute")
@@ -305,8 +312,12 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             summary["halted"] = True
             ks_today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             _log_cycle_signals_to_bq(bq, [], ks_today)
-            final_state = trader.mark_to_market()
-            trader.save_daily_snapshot(trades_today=0, analysis_cost_today=total_analysis_cost)
+            final_state = await asyncio.to_thread(trader.mark_to_market)
+            await asyncio.to_thread(
+                trader.save_daily_snapshot,
+                trades_today=0,
+                analysis_cost_today=total_analysis_cost,
+            )
             _last_run = datetime.now(timezone.utc).isoformat()
             _last_result = summary
             return summary
@@ -314,7 +325,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         # ── Step 6: Decide trades ────────────────────────────────
         logger.info("Paper trading: Step 6 -- Deciding trades")
         summary["steps"].append("deciding")
-        positions = trader.get_positions()  # Refresh after MTM
+        positions = await asyncio.to_thread(trader.get_positions)  # Refresh after MTM (phase-23.1.23)
 
         # phase-23.1.14: enrich legacy positions whose `sector` field is empty
         # (BQ paper_positions rows predating the sector column migration).
@@ -373,10 +384,13 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         closed_tickers = []
 
         # Sells first
+        # phase-23.1.23: execute_sell/execute_buy also do blocking BQ + yfinance
+        # + ExecutionRouter ops; offload to threadpool.
         for order in orders:
             if order.action != "SELL":
                 continue
-            trade = trader.execute_sell(
+            trade = await asyncio.to_thread(
+                trader.execute_sell,
                 ticker=order.ticker,
                 quantity=order.quantity,
                 price=order.price,
@@ -398,7 +412,8 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             if price <= 0:
                 logger.warning(f"Dropping BUY for {order.ticker}: price={price} (yfinance returned empty or zero)")
                 continue
-            trade = trader.execute_buy(
+            trade = await asyncio.to_thread(
+                trader.execute_buy,
                 ticker=order.ticker,
                 amount_usd=order.amount_usd or 0,
                 price=price,
@@ -418,10 +433,12 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         summary["signals_logged"] = signals_logged
 
         # ── Step 8: Final mark-to-market + snapshot ──────────────
+        # phase-23.1.23: same async wrap as Step 5.
         logger.info("Paper trading: Step 8 -- Final snapshot")
         summary["steps"].append("snapshot")
-        final_state = trader.mark_to_market()
-        snapshot = trader.save_daily_snapshot(
+        final_state = await asyncio.to_thread(trader.mark_to_market)
+        snapshot = await asyncio.to_thread(
+            trader.save_daily_snapshot,
             trades_today=trades_executed,
             analysis_cost_today=total_analysis_cost,
         )
