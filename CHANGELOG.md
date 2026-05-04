@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-04 | `4251fd1d` | phase-23.1.23: wrap blocking trader.* calls in asyncio.to_thread |
 | 2026-05-04 | `ad52870e` | phase-23.2.0: 1-week post-deployment audit + 16 investigation steps |
 | 2026-04-30 | `0ed72940` | phase-23.1.22: kill_switch reentrant-lock deadlock + 23.1.20+21 hardening |
 | 2026-04-29 | `fdcc2823` | phase-23.1.19: backend FD-exhaustion fix (sqlite3 closing()) + regression guard |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-27 | `35ff8f59` | phase-23.1.5: LLM-as-judge meta-scorer (single batched Claude call -> conviction 1-10) |
 | 2026-04-27 | `48233154` | phase-23.1.4: sector event calendars (FDA PDUFA + earnings catalyst overlay) |
 | 2026-04-27 | `76d89aa4` | phase-23.1.3: worldwide news idea generator (no-API-key RSS + Claude batch extractor) |
-| 2026-04-27 | `5a6a6e17` | phase-23.1.2: earnings PEAD overlay (free SEC EDGAR + Claude sentiment-surprise) |
 
 ---
 
+### v6.5.120 — phase-23.1.23: wrap blocking trader.* calls in asyncio.to_thread (2026-05-04)
+
+- **phase-23.1.23: wrap blocking trader.* calls in asyncio.to_thread**
 ### v6.5.119 — phase-23.2.0: 1-week post-deployment audit + 16 investigation steps (2026-05-04)
 
 - **phase-23.2.0: 1-week post-deployment audit + 16 investigation steps**
