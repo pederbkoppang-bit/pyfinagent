@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-04 | `b920a56a` | phase-23.2.17: PaperTrader.adjust_cash_and_mtm helper |
 | 2026-05-04 | `c854386f` | phase-23.2.6-fix: paper_positions.sector column migration + persist on BUY |
 | 2026-05-04 | `8be19174` | phase-23.2.14: lock re-entrance audit — ALL CLEAN |
 | 2026-05-04 | `ad9d773c` | phase-23.2.2-fix + 23.2.A-fix: STX cleanup + drawer Option B |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-27 | `ddef603f` | phase-23.1.10: Company name + Sector on Positions and Trades (ticker-meta endpoint) |
 | 2026-04-27 | `6fd22e41` | phase-23.1.9: Paper Trading Manage tab — deposits + 10 paper-trading settings |
 | 2026-04-27 | `4e7794f4` | phase-23.1.8: positions table reactivity + stop-loss settings default |
-| 2026-04-27 | `e7e09d77` | phase-23.1.7: capture full agent rationale + signal stack into paper_trades.signals |
 
 ---
 
+### v6.5.125 — phase-23.2.17: PaperTrader.adjust_cash_and_mtm helper (2026-05-04)
+
+- **phase-23.2.17: PaperTrader.adjust_cash_and_mtm helper**
 ### v6.5.124 — phase-23.2.6-fix: paper_positions.sector column migration + persist o... (2026-05-04)
 
 - **phase-23.2.6-fix: paper_positions.sector column migration + persist on BUY**
