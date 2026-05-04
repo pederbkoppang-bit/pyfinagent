@@ -27,6 +27,7 @@ class TradeOrder:
     risk_judge_position_pct: Optional[float] = None
     price: Optional[float] = None
     signals: list[dict] = field(default_factory=list)  # 4.5.5 agent attribution
+    sector: str = ""  # phase-23.2.6-fix: persisted to paper_positions.sector at execute_buy
 
 
 # Recommendations that imply selling
@@ -242,6 +243,7 @@ def decide_trades(
             risk_judge_position_pct=cand["position_pct"],
             price=cand.get("price"),
             signals=cand.get("signals", []),
+            sector=cand.get("sector", ""),  # phase-23.2.6-fix
         ))
         available_cash -= buy_amount
         remaining_positions += 1

@@ -77,6 +77,7 @@ class PaperTrader:
         stop_loss_price: Optional[float] = None,
         risk_judge_position_pct: Optional[float] = None,
         signals: Optional[list[dict]] = None,
+        sector: Optional[str] = None,  # phase-23.2.6-fix: persist GICS sector
     ) -> Optional[dict]:
         """Buy shares of a ticker. Returns the trade record or None if can't execute."""
         portfolio = self.get_or_create_portfolio()
@@ -186,6 +187,10 @@ class PaperTrader:
                 "recommendation": reason,
                 "risk_judge_position_pct": risk_judge_position_pct,
                 "stop_loss_price": stop_loss_price,
+                # phase-23.2.6-fix: prefer the new sector arg; preserve existing
+                # if the new BUY didn't carry one (None-drop in save_paper_position
+                # leaves the existing column untouched via MERGE).
+                "sector": sector or (existing.get("sector") or None),
             }
             self.bq.save_paper_position(pos_row)
         else:
@@ -204,6 +209,7 @@ class PaperTrader:
                 "recommendation": reason,
                 "risk_judge_position_pct": risk_judge_position_pct,
                 "stop_loss_price": stop_loss_price,
+                "sector": sector or None,  # phase-23.2.6-fix
             }
             self.bq.save_paper_position(pos_row)
 

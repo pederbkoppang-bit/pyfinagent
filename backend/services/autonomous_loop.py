@@ -423,6 +423,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 stop_loss_price=order.stop_loss_price,
                 risk_judge_position_pct=order.risk_judge_position_pct,
                 signals=order.signals,
+                sector=order.sector or None,  # phase-23.2.6-fix
             )
             if trade:
                 trades_executed += 1
