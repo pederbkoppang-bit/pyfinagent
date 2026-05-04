@@ -485,6 +485,51 @@ class PaperTrader:
         logger.info(f"flatten_all closed {len(closed)} positions (reason={reason})")
         return {"closed_count": len(closed), "closed": closed, "reason": reason}
 
+    def adjust_cash_and_mtm(
+        self, delta: float, reason: str = "manual_adjustment",
+    ) -> dict:
+        """phase-23.2.17: helper for raw cash mutations that MUST be followed
+        by mark_to_market. Bug class history:
+
+        - phase-23.1.15 cleanup script bumped current_cash without MtM ->
+          stale total_nav silently broke the home-cockpit Red Line and the
+          paper_portfolio_snapshots row stayed wrong for 5 days
+          (phase-23.1.17 had to add a separate repair script).
+        - phase-23.2.2 STX cleanup repeated the same pattern + manual
+          repair invocation.
+
+        Going forward, ANY raw cash mutation (refunds, deposits via DML,
+        manual corrections) should call this helper. It:
+        1. Reads current_cash, applies delta, writes back via
+           upsert_paper_portfolio.
+        2. Calls mark_to_market() so total_nav is recomputed from current
+           live position values + new cash.
+        3. Saves a daily_snapshot so paper_portfolio_snapshots reflects
+           the post-mutation state immediately (Red Line stays correct).
+
+        Logs an audit line so operators can grep for `cash_mtm_adjust`.
+        """
+        portfolio = self.get_or_create_portfolio()
+        old_cash = float(portfolio.get("current_cash") or 0.0)
+        new_cash = round(old_cash + delta, 2)
+        # Use upsert_paper_portfolio (already wraps current_cash + updated_at).
+        self._update_portfolio_cash(new_cash)
+        logger.info(
+            "cash_mtm_adjust: cash %.2f -> %.2f (delta %+.2f) reason=%s",
+            old_cash, new_cash, delta, reason,
+        )
+        # Recompute total_nav from live positions + new cash.
+        mtm = self.mark_to_market()
+        # Persist a snapshot so the Red Line + dashboard reflect this state.
+        self.save_daily_snapshot(trades_today=0, analysis_cost_today=0.0)
+        return {
+            "old_cash": old_cash,
+            "new_cash": new_cash,
+            "delta": delta,
+            "reason": reason,
+            "post_nav": mtm.get("nav"),
+        }
+
     def check_and_enforce_kill_switch(self) -> dict:
         """
         Evaluate daily-loss + trailing-DD limits. If either breached, auto-
