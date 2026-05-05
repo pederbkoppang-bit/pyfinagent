@@ -53,6 +53,24 @@ if [ -n "$PID" ]; then
     sleep 2
 fi
 
+# phase-23.2.18: post a Slack alert BEFORE the kickstart -k SIGKILL so the
+# operator is told the backend is being force-restarted. SIGKILL bypasses
+# Python finally blocks; the in-process notifier cannot fire from inside
+# the doomed process. Read the webhook URL out of backend/.env without
+# sourcing the file (avoid leaking other secrets into this script's env).
+ENV_FILE="$(cd "$(dirname "$0")/../.." && pwd)/backend/.env"
+WEBHOOK_URL=""
+if [ -f "$ENV_FILE" ]; then
+    WEBHOOK_URL=$(grep -E '^SLACK_WEBHOOK_URL=' "$ENV_FILE" | head -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+fi
+if [ -n "$WEBHOOK_URL" ]; then
+    HOSTNAME_S=$(hostname -s 2>/dev/null || hostname)
+    PAYLOAD=$(printf '{"text":"[P1] pyfinagent backend kickstart -k on %s. Watchdog: 3 consecutive /api/health failures. PID=%s. SIGUSR1 stack dump captured to backend.log. Backend is being force-restarted now."}' "$HOSTNAME_S" "${PID:-?}")
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $LOG_TAG posting Slack alert before kickstart"
+    curl -sS -m 5 -X POST -H 'Content-Type: application/json' -d "$PAYLOAD" "$WEBHOOK_URL" >/dev/null 2>&1 || \
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $LOG_TAG Slack alert curl failed (continuing to kickstart)"
+fi
+
 UID_NUM=$(id -u)
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $LOG_TAG kickstart -k gui/$UID_NUM/$SERVICE_LABEL"
 launchctl kickstart -k "gui/$UID_NUM/$SERVICE_LABEL"

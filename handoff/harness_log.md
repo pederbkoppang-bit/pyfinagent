@@ -14474,3 +14474,38 @@ User screenshot showed FIX BUY rationale with 3 agents: Quant (weight 57.31), Tr
 **No code changed in this cycle (verification + research only, per user instruction).** All passes / fails / findings documented for the operator. Tomorrow's 20:00 CEST autonomous cycle is the live verification of 23.2.1, 23.2.6, 23.2.10, 23.2.11.
 
 **Phase-23.2.0 audit walk-through complete.**
+
+## Cycle 1 -- 2026-05-05 -- phase=23.2.18 result=PASS
+
+**Step:** phase-23.2.18 -- Silent cycle stop + missing operator notification.
+
+**User reported:** "agents has paused it process without notifiing me. use full harness with our mas agents to investigate why and make sure it doesnt happen again."
+
+**ROOT CAUSE (two-level):**
+
+1. The 04-30 / 05-01 / 05-04 cycles hung the asyncio event loop -> /api/health stopped responding -> external watchdog (phase-23.1.21) issued `launchctl kickstart -k` (SIGKILL). SIGKILL bypasses Python `try/finally`, so `record_cycle_end` never ran, `cycle_history.jsonl` got no completion row, `.cycle_heartbeat.json` froze at `event=start`.
+
+2. **The 05-05 silent hang is a NEW failure mode introduced by phase-23.1.23.** That fix wrapped blocking `trader.*` calls in `asyncio.to_thread()` to free the event loop (so `/api/health` stays responsive and the watchdog stays silent), but added NO per-call timeouts. A stalled yfinance / BQ call inside any of the 13 `to_thread` sites now hangs `await asyncio.to_thread(...)` indefinitely. Event loop alive (watchdog happy), cycle never advances, no completion row, no notification. Today's `handoff/.cycle_heartbeat.json` is stuck at `cycle_id=435644e4 event=start updated_at=2026-05-05T18:00:00.089876+00:00` — exact symptom.
+
+3. **Compounding bug:** `backend/services/observability/alerting.py:127-129` called `send_trading_escalation(severity=..., title=..., details=...)` — but that helper is `async def` AND requires `app: AsyncApp` as the first arg (it lives in the SEPARATE `slack_bot` process). Call missed both `await` AND the `app` arg, so every cron alert raised TypeError into the fail-open `except` and was silently dropped. **This explains why the operator has never received a notification from any pyfinagent alert path.**
+
+**Four coordinated fixes:**
+
+- **Fix A (root cause of missing notification)** — `backend/services/observability/alerting.py` rewritten. `raise_cron_alert` is now `async def` and routes through `backend/tools/slack.send_notification` (existing async webhook helper, no AsyncApp coupling). New `raise_cron_alert_sync` wrapper schedules / runs the coroutine for sync callers. Reads `slack_webhook_url` from settings; fail-open if not configured.
+- **Fix B (cycle hang ceiling + alert)** — `backend/services/autonomous_loop.py` wraps the entire cycle body in `async with asyncio.timeout(settings.paper_cycle_max_seconds)` (default 1800s). New `except asyncio.TimeoutError` clause records `status=timeout`. Post-finally `raise_cron_alert_sync` fires on any non-`completed`/non-`skipped` status with cycle_id, status, error, last 5 steps, trades_executed.
+- **Fix C (kill-switch auto-pause alert)** — `backend/services/kill_switch.py` `pause()` fires `raise_cron_alert_sync` when `trigger` not in `{manual, test, test-pre, bench-1, bench-2, bench-3}`. Manual/test/bench triggers stay silent so pytest doesn't spam Slack.
+- **Fix D (watchdog Slack hook before SIGKILL)** — `scripts/launchd/backend_watchdog.sh` reads `SLACK_WEBHOOK_URL` from `backend/.env` (grep+cut+sed, no sourcing) and `curl -X POST -m 5` posts a `[P1] kickstart -k` alert BEFORE the `launchctl kickstart -k` line. `||` falls through to a log line on curl failure so kickstart still runs.
+
+**Files:** modified `backend/services/observability/alerting.py`, `backend/services/autonomous_loop.py`, `backend/services/kill_switch.py`, `scripts/launchd/backend_watchdog.sh`, `handoff/current/{contract,experiment_results}.md`. Added `tests/services/test_cycle_failure_alerts.py` (7 tests), `tests/verify_phase_23_2_18.py` (5-check verifier), `handoff/current/phase-23.2.18-{external-research,internal-codebase-audit}.md`.
+
+**Research gate:** PASS (`gate_passed: true`, 8 sources read in full -- Python asyncio docs 3.14, SuperFastPython timeouts, AnyIO threads (key finding: cannot forcibly cancel threads), OneUptime Heartbeat+DeadMansSwitch 2026, dev.to 2026 async patterns, asyncio pitfalls, Cronitor heartbeat, Seifrajhi monitoring stack; recency scan 2024-2026 with 4 new findings; 18 URLs collected; 7 internal files inspected with file:line anchors).
+
+**Verification:** `python tests/verify_phase_23_2_18.py` -> exit 0 (5/5 OK). `pytest tests/services/test_cycle_failure_alerts.py -q` -> 7 passed. `pytest tests/services/test_kill_switch_no_deadlock.py tests/services/test_spawn_agent_no_block.py tests/services/test_snapshot_upsert.py tests/db/test_tickets_db_no_fd_leak.py tests/api/test_pause_resume_timeout.py -q` -> 14 passed (prior phase regression).
+
+**Q/A:** PASS first-clean spawn (a86524a215724fa3e). 5/5 harness audit + 8/8 contract criteria PASS with file:line evidence + mutation-resistance walkthrough confirms single revert of any fix surface is caught by the verifier or pytest suite. No second-opinion shopping; first Q/A pass for this step.
+
+**Backwards compat:** `raise_cron_alert` was non-functional before (silent TypeError); making it async is strict improvement. `asyncio.timeout(1800)` well above observed 2-5min cycle durations. Watchdog curl is `-m 5` best-effort. `raise_cron_alert_sync` is new; not yet imported by legacy code. Kill_switch alert gated by trigger allowlist so existing test suite (uses `manual`/`test`/`bench-*` exclusively) emits zero Slack traffic.
+
+**Honest disclosures:** (1) The OUTER 1800s ceiling catches silent hangs but does NOT fix the underlying yfinance/BQ stall — Phase-2 deferred per-call `asyncio.wait_for` or AnyIO `from_thread.check_cancelled()`. (2) Live backend (PID 86223) still has old code in memory; operator must restart for fix to be active for next cycle. (3) Live Slack webhook was NOT exercised end-to-end; pytest monkey-patches the helper. Operator can validate via `KillSwitchState().pause(trigger="manual_test_alert")` (note: trigger != "manual" -> WILL fire). (4) Default deduper threshold is 3-occurrences-in-5-min; one-off failures dedup-suppress until the second hit unless severity bumped to P0. (5) Watchdog Slack hook depends on `SLACK_WEBHOOK_URL` being set in `backend/.env`; unset -> silent skip + kickstart still runs.
+
+**Pre-23.2.18 evidence (forensic):** `handoff/cycle_history.jsonl` last completion row 2026-04-29; cycles on 04-30 / 05-01 / 05-04 / 05-05 all started but no completion row. `handoff/logs/backend-watchdog.log` shows `kickstart -k` events 04-30T18:02:21Z, 05-01T18:04:15Z, 05-04T18:04:08Z (= silent SIGKILL); 05-05 had zero kicks (= silent hang via the new mode). `handoff/kill_switch_audit.jsonl` `peak_update` events on each date confirm cycles started; absence of `pause trigger=auto` events confirms no kill-switch trip was the cause.

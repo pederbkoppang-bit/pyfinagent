@@ -1,165 +1,258 @@
 ---
-step: phase-23.1.22
-cycle_date: 2026-04-29
+step: phase-23.2.18
+cycle_date: 2026-05-05
 verdict: PASS
-qa_pass: 1
-covers: [phase-23.1.20, phase-23.1.21, phase-23.1.22]
-checks_run:
-  - harness_compliance_audit
-  - immutable_verification_command
-  - pytest_10_tests
-  - source_grep_snapshot_locked
-  - live_functional_smoke_pause_resume
-  - mutation_resistance_regex
-  - scope_honesty_disclosures
-  - backwards_compat_check
 ---
 
-# Q/A Critique — phase-23.1.22 (consolidates 23.1.20 + 23.1.21 + 23.1.22)
+# Evaluator Critique — phase-23.2.18
 
-Single Q/A pass (qa_pass=1). Verdict: **PASS**.
+Step driver: user reported "agents has paused its process without
+notifying me." Two-level root cause was (a) silent cycle hang inside
+unbounded `asyncio.to_thread` post-23.1.23, and (b) `raise_cron_alert`
+in `observability/alerting.py` calling an async helper without
+`await` and without the required `AsyncApp` argument, so every cron
+alert raised TypeError into the fail-open `except` and was silently
+dropped. Fix shipped today routes alerts via the webhook helper,
+adds an outer `asyncio.timeout` ceiling on the cycle, and posts a
+Slack alert from the watchdog before SIGKILL.
 
-This critique OVERWRITES a prior file mistakenly written for
-phase-23.1.19. The current step is phase-23.1.22 — a consolidated
-ship of three sequential cycles culminating in the actual root-cause
-fix (kill_switch reentrant-lock deadlock).
+## Harness-compliance audit (5/5 mandatory FIRST)
 
-## 1. Harness-compliance audit (5 items)
+1. **Researcher spawned before contract: PASS.** Two researcher
+   artifacts in `handoff/current/`:
+   `phase-23.2.18-external-research.md` (8 sources read in full,
+   18 URLs collected, 3-variant query discipline visible, recency
+   scan 2024-2026 with 4 new findings) and
+   `phase-23.2.18-internal-codebase-audit.md` (7 internal files
+   inspected with file:line anchors). Contract `## Research-gate
+   summary` cites both. JSON-equivalent gate evidence reported in
+   experiment_results.md ("gate_passed: true").
+2. **Contract written before GENERATE: PASS.** `contract.md`
+   frontmatter `cycle_date: 2026-05-05`. Hypothesis names the
+   `raise_cron_alert` TypeError bug at the file:line level — only
+   knowable from the audit which preceded GENERATE. Plan steps
+   1-7 enumerate the fixes BEFORE `experiment_results` describes
+   them as completed. Order: research -> contract -> generate is
+   intact.
+3. **`experiment_results.md` exists and references verification
+   command: PASS.** Frontmatter:
+   `verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_18.py'`.
+   Matches `contract.md` `## Immutable verification command` line
+   for line.
+4. **`harness_log.md` NOT yet appended (LOG IS LAST): PASS.**
+   `grep -c "phase-23.2.18" handoff/harness_log.md` returns `0`.
+   Per `feedback_log_last.md`, the operator MUST append the cycle
+   entry AFTER this Q/A PASS and BEFORE flipping masterplan
+   status. This pass is not yet shadowed by a premature log line.
+5. **No second-opinion shopping: PASS.** This is the FIRST Q/A
+   pass for phase-23.2.18. The on-disk `evaluator_critique.md`
+   that this rewrite supersedes was the stale 04-30
+   phase-23.1.22 critique. No prior CONDITIONAL/FAIL verdict for
+   23.2.18 on unchanged evidence is being re-litigated.
 
-| # | Item | Result |
-|---|------|--------|
-| 1 | Research briefs for 23.1.20 + 23.1.21 in handoff/current/ | PASS — phase-23.1.20-{external-research,internal-codebase-audit}.md and phase-23.1.21-{external-research,internal-codebase-audit}.md all 4 present. 23.1.22 is the documented research-on-demand path: root cause was found via SIGUSR1 instrumentation shipped in 23.1.21, no separate brief needed. |
-| 2 | contract.md `step:` matches phase-23.1.22 | PARTIAL — contract.md front-matter says `step: phase-23.1.21`. The contract was authored for the 23.1.21 cycle that shipped the faulthandler. The 23.1.22 deadlock fix was the consequence of running 23.1.21's faulthandler in production. The experiment_results.md correctly declares `step: phase-23.1.22` and `covers: [20,21,22]`. Treated as a CONSOLIDATED-SHIP exception, not a violation: the contract documents the reasoning that got us to the diagnostic, and the experiment_results documents what the diagnostic revealed. Verification command in contract is for 23.1.21 but the **immutable verification asserted by Main is 23.1.22's** (`tests/verify_phase_23_1_22.py`), which exists and passes. Disclosed for the record; not blocking. |
-| 3 | experiment_results.md `step: phase-23.1.22` + covers field | PASS — front-matter declares `step: phase-23.1.22`, `covers: [phase-23.1.20, phase-23.1.21, phase-23.1.22]`. |
-| 4 | harness_log.md does NOT yet contain "23.1.22" | PASS — `grep -c "23.1.20\|23.1.21\|23.1.22" handoff/harness_log.md` returns 0. Log-LAST invariant intact (Main appends after Q/A PASS, before flipping masterplan). |
-| 5 | First Q/A spawn for phase-23.1.22 specifically | PASS — prior critique on disk was for phase-23.1.19 (different step entirely). This is the inaugural pass for 23.1.22. |
+## Deterministic checks (verbatim Bash output)
 
-## 2. Deterministic checks
-
-### A. Immutable verification command
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_1_22.py
-ok kill_switch deadlock fix (_snapshot_locked) + daemon-thread spawn + faulthandler SIGUSR1 + asyncio.timeout(5) + BQ result(timeout=30) + watchdog plist + 10 new tests pass
-EXIT=0
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_18.py
+OK backend/services/observability/alerting.py
+OK backend/services/autonomous_loop.py
+OK backend/services/kill_switch.py
+OK scripts/launchd/backend_watchdog.sh
+OK tests/services/test_cycle_failure_alerts.py
+
+phase-23.2.18 verification: ALL PASS (5/5)
 ```
-PASS — exit 0, ok-line present, all 7 internal assertions satisfied.
 
-### B. Pytest (10 tests across 3 files)
 ```
-$ pytest tests/services/test_kill_switch_no_deadlock.py tests/services/test_spawn_agent_no_block.py tests/api/test_pause_resume_timeout.py -q
-.......... [100%]
-10 passed, 1 warning in 14.90s
+$ PYTHONPATH=. pytest tests/services/test_cycle_failure_alerts.py -q
+.......                                                                  [100%]
+7 passed in 0.02s
 ```
-PASS — exact target count (4 + 3 + 3).
 
-### C. Source-level grep — deadlock fix
 ```
-$ grep -n "_snapshot_locked\|phase-23.1.22" backend/services/kill_switch.py
-94:    def _snapshot_locked(self) -> dict:
-95:        """phase-23.1.22: lock-free snapshot helper. Caller MUST already hold
-108:            return self._snapshot_locked()
-116:            # phase-23.1.22: call _snapshot_locked, NOT snapshot(), to avoid
-118:            return self._snapshot_locked()
-125:            # phase-23.1.22: call _snapshot_locked, NOT snapshot(), to avoid
-127:            return self._snapshot_locked()
+$ PYTHONPATH=. pytest tests/services/test_kill_switch_no_deadlock.py \
+                     tests/services/test_spawn_agent_no_block.py \
+                     tests/api/test_pause_resume_timeout.py -q
+..........                                                               [100%]
+10 passed, 1 warning in 14.96s
 ```
-PASS — `_snapshot_locked` defined at L94, called from 3 sites under
-the lock (snapshot public API at 108, pause at 118, resume at 127),
-phase-23.1.22 marker present.
 
-### D. Live functional smoke (the smoking-gun proof)
+(One unrelated DeprecationWarning from google.genai; not a regression.)
+
 ```
-$ python -c "import asyncio, time
-from backend.api.paper_trading import pause_trading, resume_trading, KillSwitchActionRequest
-t0=time.monotonic(); asyncio.run(pause_trading(KillSwitchActionRequest(confirmation='PAUSE'))); print(f'pause={time.monotonic()-t0:.2f}s')
-t0=time.monotonic(); asyncio.run(resume_trading(KillSwitchActionRequest(confirmation='RESUME'))); print(f'resume={time.monotonic()-t0:.2f}s')"
-pause=0.00s
-resume=1.49s
+$ bash -n scripts/launchd/backend_watchdog.sh && echo BASH_OK
+BASH_OK
 ```
-PASS — both completed well under the 5s asyncio.timeout(5) ceiling.
-Pre-fix behavior was indefinite deadlock (the entire reason this
-cycle exists). This is the empirical proof that the reentrant-lock
-deadlock is gone.
 
-### E. Faulthandler diagnostic (already proven on hung backend)
-The experiment_results.md documents the SIGUSR1 dump from today
-at 18:42:54 that revealed the deadlock at kill_switch.py:95 (snapshot
-wanting self._lock) called from kill_switch.py:116 (resume already
-holding self._lock). This is the diagnostic that closed the case
-and is itself the artifact of the 23.1.21 faulthandler ship. No
-re-execution needed; the dump is what motivated the 23.1.22 fix.
+```
+$ grep -c 'async with asyncio.timeout(' backend/services/autonomous_loop.py
+1
+$ grep -c 'raise_cron_alert_sync' backend/services/autonomous_loop.py backend/services/kill_switch.py
+backend/services/autonomous_loop.py:2
+backend/services/kill_switch.py:2
+$ grep -c 'curl -sS -m 5 -X POST' scripts/launchd/backend_watchdog.sh
+1
+$ grep -nE '^async def raise_cron_alert' backend/services/observability/alerting.py
+119:async def raise_cron_alert(
+$ grep -F 'send_notification' backend/services/observability/alerting.py | head -3
+`backend.tools.slack.send_notification` (an async webhook helper). Two
+    Routes through the webhook helper at `backend.tools.slack.send_notification`,
+        from backend.tools.slack import send_notification
+```
 
-## 3. LLM-judgment leg
+```
+$ grep -c "phase-23.2.18" handoff/harness_log.md
+0
+```
 
-### Contract alignment
-The plan covered 4 fixes (daemon thread, faulthandler, watchdog,
-ProcessType=Interactive) for 23.1.21. All four landed and verify.
-The 23.1.22 deadlock fix is the consequence of 23.1.21's diagnostic
-firing in production — a textbook research-on-demand pattern (F2 in
-CLAUDE.md): the planner's hypothesis was wrong about ThreadPoolExecutor
-being THE root cause for the user-visible "pause hangs" symptom; the
-real bug surfaced once the diagnostic was live. The honest disclosure
-in experiment_results.md §"Honest disclosures" item 1 explicitly
-admits this: "Phase-23.1.20 chased BQ-timeout (wrong tree).
-Phase-23.1.21 caught the ThreadPoolExecutor blocker (real, but a
-SECOND bug — different code path). Phase-23.1.22 nailed the deadlock."
-PASS.
+(Confirms LOG IS LAST: not yet appended.)
 
-### Mutation-resistance
-verify_phase_23_1_22.py uses regex anchors that resist drift:
-- `re.search(r"def pause\(self.*?def resume", ks, DOTALL)` then
-  `assert "self._snapshot_locked()" in pause_body` — any future
-  edit that reverts pause() to `self.snapshot()` (re-introducing
-  the deadlock) fails immediately.
-- Same anchor for resume().
-- `assert "phase-23.1.22" in ks` ensures the marker stays.
-- `assert "threading.Thread(target=_worker, daemon=True"` and
-  `"worker_thread.join(timeout=60)"` lock in the daemon-thread
-  pattern.
-- `assert api_src.count("async with asyncio.timeout(5)") >= 2`
-  locks in the timeout hardening on resume + kill-switch GET.
-- `assert "result(timeout=30)" in bq_src` locks in the BQ ceiling.
-- `assert "faulthandler.register" in main_src and "all_threads=True"`
-  locks in the diagnostic.
-- Watchdog plist + script existence checks.
-Strong mutation barrier across all four shipped concerns.
-PASS.
+## Per-criterion verdict table
 
-### Anti-rubber-stamp / scope honesty
-experiment_results.md §"Honest disclosures" candidly:
-1. Admits 23.1.20 chased the wrong tree (BQ timeout not the cause).
-2. Admits 23.1.21's ThreadPoolExecutor fix was a SECOND bug (real
-   but different code path / different symptom).
-3. Names 23.1.22 as THE root cause for the user-visible "pause/resume
-   crashes the backend" complaint.
-4. Notes phases 20+21 are still load-bearing as defenses-in-depth
-   for different failure modes.
-5. Phase-2 deferrals listed: audit other `with self._lock:` blocks
-   for re-entrant patterns; consider RLock as defensive default.
-No silent fixes. No overclaim. PASS.
+| # | Criterion | Verdict | Evidence (file:line or output) |
+|---|-----------|---------|--------------------------------|
+| 1 | non-`completed` status fires Slack | PASS | `autonomous_loop.py:533-539` post-finally `raise_cron_alert_sync` block guarded on `summary["status"] not in ("completed", "skipped")` (per experiment_results.md and on-disk read of the post-finally block). Tested by `test_raise_cron_alert_fires_webhook_on_cycle_error` (P1 alert + correct payload). |
+| 2 | outer asyncio.timeout ceiling | PASS | `autonomous_loop.py:108` `_cycle_timeout = float(getattr(settings, "paper_cycle_max_seconds", 1800.0))` and `:115` `async with asyncio.timeout(_cycle_timeout):` wrapping the entire try body. `:507-511` `except asyncio.TimeoutError` records `status="timeout"` and falls through to finally. |
+| 3 | `raise_cron_alert` no longer drops | PASS | `alerting.py:119` `async def raise_cron_alert(...)`; `:169` `await send_notification(webhook, message, metadata, alert_type=alert_type)`. AsyncApp coupling removed. `:185-219` sync wrapper detects running loop or runs via `asyncio.run`. Tested: `test_raise_cron_alert_fires_webhook_on_cycle_error` golden + `test_raise_cron_alert_fail_open_when_no_webhook` graceful-no-webhook. |
+| 4 | watchdog Slack before kickstart | PASS | `backend_watchdog.sh:60-72` reads `SLACK_WEBHOOK_URL` from `backend/.env` via grep+cut+sed (no source — addresses research-gate concern about leaking other env vars). `:70` `curl -sS -m 5 -X POST` posts JSON before `:76` `launchctl kickstart -k`. The verifier's regex check (`re.search(r'^launchctl kickstart -k\b', ...)` plus `curl_pos < kick_pos`) confirms ordering at the executable line, not the comment. |
+| 5 | kill_switch auto-pause alerts | PASS | `kill_switch.py:122` `_MANUAL_TRIGGERS = {"manual", "test", "test-pre", "bench-1", "bench-2", "bench-3"}`; `:123-137` calls `raise_cron_alert_sync` with severity P1 only when `trigger not in _MANUAL_TRIGGERS`. The alert dispatch is OUTSIDE the lock (`:118` releases via `_snapshot_locked()` exit) so the webhook cannot deadlock kill-switch state. Tested: `test_kill_switch_auto_pause_fires_alert` + `test_kill_switch_manual_pause_does_not_alert` (asserts ALL 6 manual/test/bench triggers stay silent). |
+| 6 | regression test exists + passes | PASS | `tests/services/test_cycle_failure_alerts.py` 7 tests, all green (`7 passed in 0.02s`). Coverage: golden webhook fire, fail-open no-webhook, sync wrapper from no-loop, kill-switch auto-pause, kill-switch manual-allowlist (6 triggers), dedup threshold, P0 dedup bypass. Adjacent regression suite (`test_kill_switch_no_deadlock` + `test_spawn_agent_no_block` + `test_pause_resume_timeout`) 10 passed in 14.96s — new alert dispatch did NOT regress phase-23.1.22 lock semantics. |
+| 7 | ast.parse passes for modified .py | PASS | `verify_phase_23_2_18.py` calls `ast.parse(text)` on `alerting.py`, `autonomous_loop.py`, `kill_switch.py`, `test_cycle_failure_alerts.py`; verifier exits 0 (5/5). |
+| 8 | `python tests/verify_phase_23_2_18.py` exits 0 | PASS | Verbatim above: `phase-23.2.18 verification: ALL PASS (5/5)`. |
 
-### Backwards compatibility
-- `_snapshot_locked` is a private helper (underscore prefix);
-  `snapshot()` public API unchanged (still acquires lock, then
-  delegates to `_snapshot_locked()` at L108).
-- Daemon-thread pattern preserves return shape on success path;
-  only the timeout/stuck path is now non-blocking.
-- asyncio.timeout(5) is well above normal BQ latency (resume took
-  1.49s in live smoke).
-- faulthandler registration is purely additive.
-- Watchdog runs as a separate launchd job; backend works without it.
-PASS.
+## Mutation-resistance findings
 
-## 4. Verdict
+For each fix, would a single `git revert` of the relevant hunk be
+caught by the verifier?
 
-**PASS** — all 5 harness-compliance items satisfied (item 2 noted
-as a documented consolidated-ship exception, not a violation), all
-deterministic checks (A–E) green, the live functional smoke proves
-the deadlock is gone (pause=0.00s, resume=1.49s vs. pre-fix
-infinite hang), mutation-resistance is strong across all four shipped
-concerns, scope honesty intact (3-cycle cascade openly disclosed),
-phase-2 deferrals explicit, backwards compatibility preserved.
+- **Fix A (alerting.py async)**: revert -> `raise_cron_alert`
+  becomes `def` (sync). `verify_phase_23_2_18.py:38`
+  `assert isinstance(funcs["raise_cron_alert"], ast.AsyncFunctionDef)`
+  fails. Also `test_raise_cron_alert_fires_webhook_on_cycle_error`
+  fails. **Caught.**
+- **Fix B (autonomous_loop outer timeout)**: revert -> `async with
+  asyncio.timeout(` line removed. `verify_phase_23_2_18.py:50`
+  `assert "asyncio.timeout(" in text` fails. **Caught.**
+- **Fix B (autonomous_loop post-finally alert)**: revert ->
+  `raise_cron_alert_sync` removed from autonomous_loop.py.
+  `verify_phase_23_2_18.py:54` fails. **Caught.**
+- **Fix C (kill_switch allowlist)**: revert ->
+  `raise_cron_alert_sync` removed from kill_switch.py.
+  `verify_phase_23_2_18.py:63` fails. Also
+  `test_kill_switch_auto_pause_fires_alert` fails. **Caught.**
+- **Fix D (watchdog curl)**: revert -> curl line gone or moved
+  AFTER `launchctl kickstart -k`. The verifier's `assert curl_pos
+  < kick_pos` (regex on actual executable line) catches both
+  deletion and reordering. **Caught.**
+- **Test deletion**: deleting `test_cycle_failure_alerts.py` ->
+  `check_test_exists()` reads the file and `read_text(...)` raises
+  FileNotFoundError, which propagates as ERROR -> nonzero exit.
+  **Caught.**
 
-violated_criteria: []
-violation_details: []
-certified_fallback: false
+**Acknowledged gap (not blocking)**: the verifier's allowlist check
+is `assert '"manual"' in text and '"bench-1"' in text`. Removing
+`"test"` or `"test-pre"` alone would NOT trip the verifier — but
+`test_kill_switch_manual_pause_does_not_alert` explicitly drives
+all 6 triggers and asserts ZERO alerts, so a removed allowlist
+trigger fails at the pytest layer. Combined coverage is sufficient.
+
+## Scope honesty
+
+Contract authorized 8 criteria + 7 plan steps. Experiment_results
+delivered exactly that scope:
+
+- 5 code files modified + 1 verifier added + 1 test file added.
+  All 5 code targets are listed in `contract.md` plan steps 1-5.
+- No drift into unrelated areas (no BQ schema, paper trader,
+  frontend, or scheduler changes).
+- Out-of-scope items in `contract.md` ("cooperative thread
+  cancellation via AnyIO", "stale-heartbeat APScheduler detector",
+  "send_trading_escalation refactor") are explicitly NOT touched
+  in `experiment_results.md`. The HONEST DISCLOSURES section
+  re-acknowledges that the 1800s outer ceiling does not fix the
+  underlying yfinance/BQ stall — only catches it. That is exactly
+  what the contract authorized. No overclaim.
+
+## Research-gate compliance
+
+- 5+ sources read in full: PASS. 8 sources fetched via WebFetch.
+- Recency scan (last 2 years): PASS. Dedicated section with 4 new
+  findings (3.11 TaskGroup, asyncio.timeout context manager, AnyIO
+  4.x check_cancelled(), OneUptime 2026 dead-man's-switch).
+- 3-query variant discipline: PASS. 7 queries spanning current-year
+  frontier (`...2026`), last-2-year (`...2025`), and year-less
+  canonical (`asyncio to_thread blocking thread cannot cancel
+  timeout worker thread continues running`).
+- 10+ URLs collected: PASS. 18 unique (8 read-in-full + 10
+  snippet-only).
+- file:line anchors per internal claim: PASS. Internal audit cites
+  `autonomous_loop.py:179, 216, 300, 307, ...`,
+  `observability/alerting.py:127-129`, `kill_switch.py:115`,
+  `scripts/launchd/backend_watchdog.sh:55-58`.
+- Source-quality hierarchy: PASS. Official docs (Python asyncio,
+  AnyIO, Cronitor) + authoritative blogs (SuperFastPython,
+  OneUptime, Seifrajhi). No community-tier source load-bearing.
+- gate_passed: true: PASS (asserted in experiment_results.md
+  research-gate-evidence section).
+
+## Honest-disclosure check
+
+`experiment_results.md` "Honest disclosures" section names FIVE
+caveats NOT proven by deterministic checks:
+
+1. The 1800s outer ceiling catches but does NOT fix the underlying
+   yfinance/BQ per-call stall. Phase-2 hardening required.
+2. The watchdog Slack hook depends on `SLACK_WEBHOOK_URL` being
+   set in `backend/.env`. Fail-open if unset.
+3. P1 dedup default threshold is 3/5min; first-occurrence cycle
+   failures dedup-suppress. Operator can switch to P0 or set
+   `alert_consecutive_failure_threshold=1` for instant alerting.
+4. Live backend was not restarted; uvicorn `--reload` only loads
+   on file save; running PID still has old code. Operator must
+   restart for the fix to be active for the NEXT cycle.
+5. Live functional proof of the alert path was NOT exercised
+   against the real Slack webhook — pytest monkey-patches the
+   helper. Operator can validate end-to-end via
+   `kill_switch.get_state().pause(trigger="manual_test_alert")`.
+
+These are honest, non-overclaiming, and important for the operator.
+No section claims a status broader than what deterministic checks
+and pytest monkey-patches can prove. Disclosure passes.
+
+## Violated criteria
+
+None.
+
+## Violation details
+
+None.
+
+## Certified fallback
+
+false.
+
+## Final verdict
+
+**PASS.**
+
+All 8 immutable success criteria verified by deterministic checks
+plus pytest. All 5 verifier checks green (5/5). All 7 cycle-failure
+regression tests green. Adjacent kill-switch / pause-resume / spawn
+suites green (10 passed) — no regression on phase-23.1.22 lock
+fixes from the new alert dispatch. Mutation-resistance walkthrough
+confirms a single revert of any of the 5 fix surfaces would be
+caught either by the verifier or by the pytest layer.
+
+Operator next steps (per LOG IS LAST + masterplan flip discipline):
+
+1. Append `## Cycle N -- 2026-05-05 -- phase=23.2.18 result=PASS`
+   block to `handoff/harness_log.md`.
+2. Flip `phase-23.2.18` status to `done` in
+   `.claude/masterplan.json`.
+3. Restart backend so `--reload` picks up the new code (or save
+   any backend file to trigger reload). Tomorrow's 18:00 UTC
+   cycle is the live verification.
+4. Optional end-to-end Slack test:
+   `kill_switch.get_state().pause(trigger="manual_test_alert")` —
+   the trigger string is NOT in the manual allowlist, so it WILL
+   fire the alert.

@@ -105,398 +105,410 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             if k in best_params
         }
 
+    _cycle_timeout = float(getattr(settings, "paper_cycle_max_seconds", 1800.0))
     try:
-        # ── Step 1: Screen universe (free) ───────────────────────
-        logger.info("Paper trading: Step 1 -- Screening universe")
-        summary["steps"].append("screening")
+        # phase-23.2.18: outer asyncio.timeout ceiling so a stuck
+        # asyncio.to_thread (yfinance/BQ blocking call inside a worker
+        # thread the asyncio side cannot cancel) cannot hang the cycle
+        # indefinitely. On TimeoutError, status is recorded and the
+        # operator is alerted in the post-finally block.
+        async with asyncio.timeout(_cycle_timeout):
+            # ── Step 1: Screen universe (free) ───────────────────────
+            logger.info("Paper trading: Step 1 -- Screening universe")
+            summary["steps"].append("screening")
 
-        regime = None
-        if getattr(settings, "macro_regime_filter_enabled", False):
-            try:
-                from backend.services.macro_regime import compute_macro_regime
-                regime = await compute_macro_regime()
-                logger.info(
-                    "Macro regime: %s conviction=%.2f mult=%.2f",
-                    regime.regime, regime.conviction, regime.conviction_multiplier,
-                )
-                summary["macro_regime"] = regime.regime
-                summary["macro_regime_multiplier"] = regime.conviction_multiplier
-            except Exception as e:
-                logger.warning("Macro regime fetch failed (non-fatal): %s", e)
+            regime = None
+            if getattr(settings, "macro_regime_filter_enabled", False):
+                try:
+                    from backend.services.macro_regime import compute_macro_regime
+                    regime = await compute_macro_regime()
+                    logger.info(
+                        "Macro regime: %s conviction=%.2f mult=%.2f",
+                        regime.regime, regime.conviction, regime.conviction_multiplier,
+                    )
+                    summary["macro_regime"] = regime.regime
+                    summary["macro_regime_multiplier"] = regime.conviction_multiplier
+                except Exception as e:
+                    logger.warning("Macro regime fetch failed (non-fatal): %s", e)
 
-        pead_signals = {}
-        if getattr(settings, "pead_signal_enabled", False):
-            try:
-                from backend.services.pead_signal import fetch_pead_signals_for_recent_reporters
-                pead_signals = await fetch_pead_signals_for_recent_reporters()
-                logger.info("PEAD signals fetched: %d tickers", len(pead_signals))
-                summary["pead_tickers_scored"] = len(pead_signals)
-            except Exception as e:
-                logger.warning("PEAD signal fetch failed (non-fatal): %s", e)
+            pead_signals = {}
+            if getattr(settings, "pead_signal_enabled", False):
+                try:
+                    from backend.services.pead_signal import fetch_pead_signals_for_recent_reporters
+                    pead_signals = await fetch_pead_signals_for_recent_reporters()
+                    logger.info("PEAD signals fetched: %d tickers", len(pead_signals))
+                    summary["pead_tickers_scored"] = len(pead_signals)
+                except Exception as e:
+                    logger.warning("PEAD signal fetch failed (non-fatal): %s", e)
 
-        news_signals = {}
-        if getattr(settings, "news_screen_enabled", False):
-            try:
-                from backend.services.news_screen import fetch_news_signals
-                news_signals = await fetch_news_signals(
-                    max_headlines=getattr(settings, "news_screen_max_headlines", 100),
-                )
-                logger.info("News screen produced %d ticker signals", len(news_signals))
-                summary["news_tickers_scored"] = len(news_signals)
-            except Exception as e:
-                logger.warning("News screen failed (non-fatal): %s", e)
+            news_signals = {}
+            if getattr(settings, "news_screen_enabled", False):
+                try:
+                    from backend.services.news_screen import fetch_news_signals
+                    news_signals = await fetch_news_signals(
+                        max_headlines=getattr(settings, "news_screen_max_headlines", 100),
+                    )
+                    logger.info("News screen produced %d ticker signals", len(news_signals))
+                    summary["news_tickers_scored"] = len(news_signals)
+                except Exception as e:
+                    logger.warning("News screen failed (non-fatal): %s", e)
 
-        sector_events = {}
-        if getattr(settings, "sector_calendars_enabled", False):
-            try:
-                from backend.services.sector_calendars import fetch_sector_events
-                sector_events = await fetch_sector_events()
-                logger.info("Sector calendars: %d events", len(sector_events))
-                summary["sector_events"] = len(sector_events)
-            except Exception as e:
-                logger.warning("Sector calendars failed (non-fatal): %s", e)
+            sector_events = {}
+            if getattr(settings, "sector_calendars_enabled", False):
+                try:
+                    from backend.services.sector_calendars import fetch_sector_events
+                    sector_events = await fetch_sector_events()
+                    logger.info("Sector calendars: %d events", len(sector_events))
+                    summary["sector_events"] = len(sector_events)
+                except Exception as e:
+                    logger.warning("Sector calendars failed (non-fatal): %s", e)
 
-        screen_data = screen_universe(period="6mo")
-        candidates = rank_candidates(
-            screen_data,
-            top_n=settings.paper_screen_top_n,
-            regime=regime,
-            pead_signals=pead_signals or None,
-            news_signals=news_signals or None,
-            sector_events=sector_events or None,
-        )
-
-        # phase-23.1.13: enrich top-N candidates with GICS sector via the
-        # already-cached ticker_meta endpoint (BQ-first / yfinance fallback).
-        # `_fetch_ticker_meta` is sync; wrap in to_thread. Cost: at most 10-30
-        # tickers; 24h cache per ticker means subsequent cycles incur near zero
-        # latency. Without this enrichment, decide_trades sees `sector=None` on
-        # every candidate and the new sector cap is a no-op.
-        if candidates:
-            try:
-                from backend.api.paper_trading import _fetch_ticker_meta
-                top_tickers = [c["ticker"] for c in candidates if c.get("ticker")]
-                meta_response = await asyncio.to_thread(
-                    _fetch_ticker_meta, top_tickers, settings, bq,
-                )
-                meta_map = (meta_response or {}).get("meta", {})
-                for c in candidates:
-                    info = meta_map.get(c.get("ticker"), {})
-                    sector = info.get("sector") or ""
-                    if sector:
-                        c["sector"] = sector
-                    company = info.get("company_name")
-                    if company and not c.get("company_name"):
-                        c["company_name"] = company
-            except Exception as e:
-                logger.warning("Ticker meta enrichment failed (non-fatal): %s", e)
-
-        if getattr(settings, "meta_scorer_enabled", False):
-            try:
-                from backend.services.meta_scorer import meta_score_candidates
-                candidates = await meta_score_candidates(candidates, regime=regime)
-                if candidates:
-                    summary["meta_scored_top_conviction"] = candidates[0].get("conviction_score")
-                logger.info(
-                    "Meta-scorer ranked %d candidates (top conviction=%s)",
-                    len(candidates),
-                    candidates[0].get("conviction_score") if candidates else None,
-                )
-            except Exception as e:
-                logger.warning("Meta-scorer failed (non-fatal): %s", e)
-        summary["screened"] = len(screen_data)
-        summary["candidates"] = len(candidates)
-
-        # ── Step 2: Filter candidates ────────────────────────────
-        # phase-23.1.23: wrap blocking trader.* calls in asyncio.to_thread so
-        # they don't freeze the asyncio event loop. mark_to_market in
-        # particular does ~14 positions x (yfinance + 2 BQ DML) = 42 blocking
-        # network ops which previously blocked /api/health past the watchdog
-        # threshold and got the backend kickstart-killed daily.
-        positions = await asyncio.to_thread(trader.get_positions)
-        held_tickers = {p["ticker"] for p in positions}
-        new_candidates = [c for c in candidates if c["ticker"] not in held_tickers]
-        analyze_tickers = [c["ticker"] for c in new_candidates[:settings.paper_analyze_top_n]]
-
-        # Determine holdings due for re-evaluation
-        reeval_tickers = []
-        now = datetime.now(timezone.utc)
-        for pos in positions:
-            last_date = pos.get("last_analysis_date", "")
-            if not last_date:
-                reeval_tickers.append(pos["ticker"])
-                continue
-            try:
-                last_dt = datetime.fromisoformat(last_date.replace("Z", "+00:00"))
-                days_since = (now - last_dt).days
-                if days_since >= settings.paper_reeval_frequency_days:
-                    reeval_tickers.append(pos["ticker"])
-            except (ValueError, TypeError):
-                reeval_tickers.append(pos["ticker"])
-
-        summary["new_to_analyze"] = len(analyze_tickers)
-        summary["reeval_tickers"] = len(reeval_tickers)
-
-        # ── Step 3: Analyze candidates ───────────────────────────
-        # phase-23.1.12: removed the hardcoded `settings.lite_mode = True` override.
-        # The operator's lite_mode setting is now respected. Cost containment is
-        # enforced by `paper_max_daily_cost_usd` cap (the loop break below); the
-        # full Gemini orchestrator path is more expensive but the cap remains
-        # the circuit breaker.
-        logger.info(
-            "Paper trading: Step 3 -- Analyzing %d new + %d re-evals (lite_mode=%s)",
-            len(analyze_tickers), len(reeval_tickers), settings.lite_mode,
-        )
-        summary["steps"].append("analyzing")
-
-        candidate_analyses = []
-        for ticker in analyze_tickers:
-            if total_analysis_cost >= settings.paper_max_daily_cost_usd:
-                logger.warning(f"Daily cost cap (${settings.paper_max_daily_cost_usd}) reached, stopping analysis")
-                break
-            try:
-                analysis = await _run_single_analysis(ticker, settings)
-                if analysis:
-                    candidate_analyses.append(analysis)
-                    cost = analysis.get("total_cost_usd", 0.1)
-                    total_analysis_cost += cost
-                    # phase-23.1.11 + 23.1.12: persist analysis to analysis_results so
-                    # the Reports History tab surfaces it. Guard on the lite-path marker
-                    # (set by _run_claude_analysis) -- the full orchestrator path writes
-                    # its own row via bq.save_report inside run_full_analysis, so this
-                    # guard correctly avoids double-write while still capturing the
-                    # lite-fallback case (operator chose full but orchestrator failed).
-                    if analysis.get("_path") == "lite":
-                        await _persist_lite_analysis(analysis, bq)
-            except Exception as e:
-                logger.error(f"Failed to analyze candidate {ticker}: {e}")
-
-        # ── Step 4: Re-evaluate holdings ─────────────────────────
-        holding_analyses = []
-        for ticker in reeval_tickers:
-            if total_analysis_cost >= settings.paper_max_daily_cost_usd:
-                logger.warning(f"Daily cost cap reached, stopping re-evaluation")
-                break
-            try:
-                analysis = await _run_single_analysis(ticker, settings)
-                if analysis:
-                    holding_analyses.append(analysis)
-                    cost = analysis.get("total_cost_usd", 0.1)
-                    total_analysis_cost += cost
-                    # phase-23.1.11 + 23.1.12: same lite-path-marker persist guard as Step 3
-                    if analysis.get("_path") == "lite":
-                        await _persist_lite_analysis(analysis, bq)
-            except Exception as e:
-                logger.error(f"Failed to re-evaluate {ticker}: {e}")
-
-        # phase-23.1.12: no longer mutate settings.lite_mode here — operator's
-        # value is preserved across the cycle.
-
-        # ── Step 5: Mark to market ───────────────────────────────
-        # phase-23.1.23: mark_to_market does ~42 blocking ops (14 pos x 3);
-        # offload to threadpool so /api/health stays responsive.
-        logger.info("Paper trading: Step 5 -- Mark to market")
-        summary["steps"].append("mark_to_market")
-        portfolio_state = await asyncio.to_thread(trader.mark_to_market)
-
-        # ── Step 5.5: Kill-switch evaluation (4.5.7) ─────────────
-        # If a daily-loss or trailing-DD limit is breached, auto-flatten and
-        # pause before any new-order decisions. Also short-circuits if the
-        # system is already paused from a prior cycle's breach.
-        from backend.services.kill_switch import get_state as _ks_state
-        ks_check = await asyncio.to_thread(trader.check_and_enforce_kill_switch)
-        summary["kill_switch"] = ks_check
-        if ks_check.get("triggered") or _ks_state().is_paused():
-            logger.warning("Paper trading: kill-switch active -- skipping decide/execute")
-            summary["steps"].append("kill_switch_halted")
-            summary["halted"] = True
-            ks_today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-            _log_cycle_signals_to_bq(bq, [], ks_today)
-            final_state = await asyncio.to_thread(trader.mark_to_market)
-            await asyncio.to_thread(
-                trader.save_daily_snapshot,
-                trades_today=0,
-                analysis_cost_today=total_analysis_cost,
+            screen_data = screen_universe(period="6mo")
+            candidates = rank_candidates(
+                screen_data,
+                top_n=settings.paper_screen_top_n,
+                regime=regime,
+                pead_signals=pead_signals or None,
+                news_signals=news_signals or None,
+                sector_events=sector_events or None,
             )
-            _last_run = datetime.now(timezone.utc).isoformat()
-            _last_result = summary
-            return summary
 
-        # ── Step 6: Decide trades ────────────────────────────────
-        logger.info("Paper trading: Step 6 -- Deciding trades")
-        summary["steps"].append("deciding")
-        positions = await asyncio.to_thread(trader.get_positions)  # Refresh after MTM (phase-23.1.23)
-
-        # phase-23.1.14: enrich legacy positions whose `sector` field is empty
-        # (BQ paper_positions rows predating the sector column migration).
-        # decide_trades reads pos.get("sector") to seed sector_counts; without
-        # this enrichment those rows fall into "Unknown" and the sector cap is
-        # silently bypassed for tickers whose true GICS sector already exceeds
-        # the cap. Same _fetch_ticker_meta + asyncio.to_thread pattern used at
-        # the candidate-enrichment site above. Skipped when cap is disabled.
-        max_per_sector = int(getattr(settings, "paper_max_per_sector", 0) or 0)
-        if max_per_sector > 0 and positions:
-            legacy_tickers = [
-                p["ticker"] for p in positions
-                if not (p.get("sector") or "").strip()
-            ]
-            if legacy_tickers:
+            # phase-23.1.13: enrich top-N candidates with GICS sector via the
+            # already-cached ticker_meta endpoint (BQ-first / yfinance fallback).
+            # `_fetch_ticker_meta` is sync; wrap in to_thread. Cost: at most 10-30
+            # tickers; 24h cache per ticker means subsequent cycles incur near zero
+            # latency. Without this enrichment, decide_trades sees `sector=None` on
+            # every candidate and the new sector cap is a no-op.
+            if candidates:
                 try:
                     from backend.api.paper_trading import _fetch_ticker_meta
-                    pos_meta_response = await asyncio.to_thread(
-                        _fetch_ticker_meta, legacy_tickers, settings, bq,
+                    top_tickers = [c["ticker"] for c in candidates if c.get("ticker")]
+                    meta_response = await asyncio.to_thread(
+                        _fetch_ticker_meta, top_tickers, settings, bq,
                     )
-                    pos_meta_map = (pos_meta_response or {}).get("meta", {})
-                    enriched_count = 0
-                    for p in positions:
-                        if (p.get("sector") or "").strip():
-                            continue
-                        info = pos_meta_map.get(p["ticker"], {}) or {}
+                    meta_map = (meta_response or {}).get("meta", {})
+                    for c in candidates:
+                        info = meta_map.get(c.get("ticker"), {})
                         sector = info.get("sector") or ""
                         if sector:
-                            p["sector"] = sector
-                            enriched_count += 1
+                            c["sector"] = sector
+                        company = info.get("company_name")
+                        if company and not c.get("company_name"):
+                            c["company_name"] = company
+                except Exception as e:
+                    logger.warning("Ticker meta enrichment failed (non-fatal): %s", e)
+
+            if getattr(settings, "meta_scorer_enabled", False):
+                try:
+                    from backend.services.meta_scorer import meta_score_candidates
+                    candidates = await meta_score_candidates(candidates, regime=regime)
+                    if candidates:
+                        summary["meta_scored_top_conviction"] = candidates[0].get("conviction_score")
                     logger.info(
-                        "Enriched %d legacy positions with sector (of %d missing)",
-                        enriched_count, len(legacy_tickers),
+                        "Meta-scorer ranked %d candidates (top conviction=%s)",
+                        len(candidates),
+                        candidates[0].get("conviction_score") if candidates else None,
                     )
                 except Exception as e:
-                    logger.warning(
-                        "Legacy position sector enrichment failed (non-fatal): %s", e,
-                    )
+                    logger.warning("Meta-scorer failed (non-fatal): %s", e)
+            summary["screened"] = len(screen_data)
+            summary["candidates"] = len(candidates)
 
-        # phase-23.1.7: thread the screener candidate dict through to the buy-side
-        # decider so the trade record captures momentum/RSI/composite_score and
-        # all signal-stack overlays in the rationale.
-        candidates_by_ticker = {c["ticker"]: c for c in candidates if c.get("ticker")}
-        orders = decide_trades(
-            current_positions=positions,
-            candidate_analyses=candidate_analyses,
-            holding_analyses=holding_analyses,
-            portfolio_state=portfolio_state,
-            settings=settings,
-            candidates_by_ticker=candidates_by_ticker,
-        )
+            # ── Step 2: Filter candidates ────────────────────────────
+            # phase-23.1.23: wrap blocking trader.* calls in asyncio.to_thread so
+            # they don't freeze the asyncio event loop. mark_to_market in
+            # particular does ~14 positions x (yfinance + 2 BQ DML) = 42 blocking
+            # network ops which previously blocked /api/health past the watchdog
+            # threshold and got the backend kickstart-killed daily.
+            positions = await asyncio.to_thread(trader.get_positions)
+            held_tickers = {p["ticker"] for p in positions}
+            new_candidates = [c for c in candidates if c["ticker"] not in held_tickers]
+            analyze_tickers = [c["ticker"] for c in new_candidates[:settings.paper_analyze_top_n]]
 
-        # ── Step 7: Execute trades ───────────────────────────────
-        logger.info(f"Paper trading: Step 7 -- Executing {len(orders)} trades")
-        summary["steps"].append("executing")
-        closed_tickers = []
+            # Determine holdings due for re-evaluation
+            reeval_tickers = []
+            now = datetime.now(timezone.utc)
+            for pos in positions:
+                last_date = pos.get("last_analysis_date", "")
+                if not last_date:
+                    reeval_tickers.append(pos["ticker"])
+                    continue
+                try:
+                    last_dt = datetime.fromisoformat(last_date.replace("Z", "+00:00"))
+                    days_since = (now - last_dt).days
+                    if days_since >= settings.paper_reeval_frequency_days:
+                        reeval_tickers.append(pos["ticker"])
+                except (ValueError, TypeError):
+                    reeval_tickers.append(pos["ticker"])
 
-        # Sells first
-        # phase-23.1.23: execute_sell/execute_buy also do blocking BQ + yfinance
-        # + ExecutionRouter ops; offload to threadpool.
-        for order in orders:
-            if order.action != "SELL":
-                continue
-            trade = await asyncio.to_thread(
-                trader.execute_sell,
-                ticker=order.ticker,
-                quantity=order.quantity,
-                price=order.price,
-                reason=order.reason,
-                signals=order.signals,
-            )
-            if trade:
-                trades_executed += 1
-                closed_tickers.append(order.ticker)
+            summary["new_to_analyze"] = len(analyze_tickers)
+            summary["reeval_tickers"] = len(reeval_tickers)
 
-        # Then buys
-        for order in orders:
-            if order.action != "BUY":
-                continue
-            price = order.price
-            if price is None:
-                from backend.services.paper_trader import _get_live_price
-                price = _get_live_price(order.ticker) or 0
-            if price <= 0:
-                logger.warning(f"Dropping BUY for {order.ticker}: price={price} (yfinance returned empty or zero)")
-                continue
-            trade = await asyncio.to_thread(
-                trader.execute_buy,
-                ticker=order.ticker,
-                amount_usd=order.amount_usd or 0,
-                price=price,
-                reason=order.reason,
-                analysis_id=order.analysis_id,
-                risk_judge_decision=order.risk_judge_decision,
-                stop_loss_price=order.stop_loss_price,
-                risk_judge_position_pct=order.risk_judge_position_pct,
-                signals=order.signals,
-                sector=order.sector or None,  # phase-23.2.6-fix
-            )
-            if trade:
-                trades_executed += 1
-
-        # ── Step 7.5: Log signals to BQ signals_log ─────────────
-        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        signals_logged = _log_cycle_signals_to_bq(bq, orders, today_str)
-        summary["signals_logged"] = signals_logged
-
-        # ── Step 8: Final mark-to-market + snapshot ──────────────
-        # phase-23.1.23: same async wrap as Step 5.
-        logger.info("Paper trading: Step 8 -- Final snapshot")
-        summary["steps"].append("snapshot")
-        final_state = await asyncio.to_thread(trader.mark_to_market)
-        snapshot = await asyncio.to_thread(
-            trader.save_daily_snapshot,
-            trades_today=trades_executed,
-            analysis_cost_today=total_analysis_cost,
-        )
-
-        # ── Step 9: Learn from closed trades ─────────────────────
-        if closed_tickers:
-            summary["steps"].append("learning")
-            try:
-                await _learn_from_closed_trades(closed_tickers, bq, settings)
-            except Exception as e:
-                logger.error(f"Learning step failed (non-fatal): {e}")
-
-        # ── Step 10: MetaCoordinator health check ────────────────
-        try:
-            snapshots = bq.get_paper_snapshots(limit=60)
-            from backend.services.perf_tracker import get_perf_tracker
-            health = MetaCoordinator.gather_health(
-                bq_client=bq,
-                perf_tracker=get_perf_tracker(),
-                paper_snapshots=snapshots,
-            )
-            decision = _coordinator.decide(health)
-            summary["coordinator"] = {
-                "action": decision.action,
-                "reason": decision.reason,
-                "target_agents": decision.target_agents,
-                "priority": decision.priority,
-                "health": {
-                    "sharpe": round(health.sharpe_ratio, 4),
-                    "accuracy": round(health.agent_accuracy, 4),
-                    "p95_latency_ms": round(health.p95_latency_ms, 1),
-                },
-            }
+            # ── Step 3: Analyze candidates ───────────────────────────
+            # phase-23.1.12: removed the hardcoded `settings.lite_mode = True` override.
+            # The operator's lite_mode setting is now respected. Cost containment is
+            # enforced by `paper_max_daily_cost_usd` cap (the loop break below); the
+            # full Gemini orchestrator path is more expensive but the cap remains
+            # the circuit breaker.
             logger.info(
-                f"MetaCoordinator decision: {decision.action} "
-                f"(reason={decision.reason})"
+                "Paper trading: Step 3 -- Analyzing %d new + %d re-evals (lite_mode=%s)",
+                len(analyze_tickers), len(reeval_tickers), settings.lite_mode,
             )
-        except Exception as e:
-            logger.warning(f"MetaCoordinator step failed (non-fatal): {e}")
+            summary["steps"].append("analyzing")
 
-        # ── Done ─────────────────────────────────────────────────
-        summary.update({
-            "status": "completed",
-            "nav": final_state["nav"],
-            "pnl_pct": final_state["pnl_pct"],
-            "trades_executed": trades_executed,
-            "analysis_cost": round(total_analysis_cost, 4),
-            "closed_tickers": closed_tickers,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
-        _last_run = summary["timestamp"]
+            candidate_analyses = []
+            for ticker in analyze_tickers:
+                if total_analysis_cost >= settings.paper_max_daily_cost_usd:
+                    logger.warning(f"Daily cost cap (${settings.paper_max_daily_cost_usd}) reached, stopping analysis")
+                    break
+                try:
+                    analysis = await _run_single_analysis(ticker, settings)
+                    if analysis:
+                        candidate_analyses.append(analysis)
+                        cost = analysis.get("total_cost_usd", 0.1)
+                        total_analysis_cost += cost
+                        # phase-23.1.11 + 23.1.12: persist analysis to analysis_results so
+                        # the Reports History tab surfaces it. Guard on the lite-path marker
+                        # (set by _run_claude_analysis) -- the full orchestrator path writes
+                        # its own row via bq.save_report inside run_full_analysis, so this
+                        # guard correctly avoids double-write while still capturing the
+                        # lite-fallback case (operator chose full but orchestrator failed).
+                        if analysis.get("_path") == "lite":
+                            await _persist_lite_analysis(analysis, bq)
+                except Exception as e:
+                    logger.error(f"Failed to analyze candidate {ticker}: {e}")
+
+            # ── Step 4: Re-evaluate holdings ─────────────────────────
+            holding_analyses = []
+            for ticker in reeval_tickers:
+                if total_analysis_cost >= settings.paper_max_daily_cost_usd:
+                    logger.warning(f"Daily cost cap reached, stopping re-evaluation")
+                    break
+                try:
+                    analysis = await _run_single_analysis(ticker, settings)
+                    if analysis:
+                        holding_analyses.append(analysis)
+                        cost = analysis.get("total_cost_usd", 0.1)
+                        total_analysis_cost += cost
+                        # phase-23.1.11 + 23.1.12: same lite-path-marker persist guard as Step 3
+                        if analysis.get("_path") == "lite":
+                            await _persist_lite_analysis(analysis, bq)
+                except Exception as e:
+                    logger.error(f"Failed to re-evaluate {ticker}: {e}")
+
+            # phase-23.1.12: no longer mutate settings.lite_mode here — operator's
+            # value is preserved across the cycle.
+
+            # ── Step 5: Mark to market ───────────────────────────────
+            # phase-23.1.23: mark_to_market does ~42 blocking ops (14 pos x 3);
+            # offload to threadpool so /api/health stays responsive.
+            logger.info("Paper trading: Step 5 -- Mark to market")
+            summary["steps"].append("mark_to_market")
+            portfolio_state = await asyncio.to_thread(trader.mark_to_market)
+
+            # ── Step 5.5: Kill-switch evaluation (4.5.7) ─────────────
+            # If a daily-loss or trailing-DD limit is breached, auto-flatten and
+            # pause before any new-order decisions. Also short-circuits if the
+            # system is already paused from a prior cycle's breach.
+            from backend.services.kill_switch import get_state as _ks_state
+            ks_check = await asyncio.to_thread(trader.check_and_enforce_kill_switch)
+            summary["kill_switch"] = ks_check
+            if ks_check.get("triggered") or _ks_state().is_paused():
+                logger.warning("Paper trading: kill-switch active -- skipping decide/execute")
+                summary["steps"].append("kill_switch_halted")
+                summary["halted"] = True
+                ks_today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                _log_cycle_signals_to_bq(bq, [], ks_today)
+                final_state = await asyncio.to_thread(trader.mark_to_market)
+                await asyncio.to_thread(
+                    trader.save_daily_snapshot,
+                    trades_today=0,
+                    analysis_cost_today=total_analysis_cost,
+                )
+                _last_run = datetime.now(timezone.utc).isoformat()
+                _last_result = summary
+                return summary
+
+            # ── Step 6: Decide trades ────────────────────────────────
+            logger.info("Paper trading: Step 6 -- Deciding trades")
+            summary["steps"].append("deciding")
+            positions = await asyncio.to_thread(trader.get_positions)  # Refresh after MTM (phase-23.1.23)
+
+            # phase-23.1.14: enrich legacy positions whose `sector` field is empty
+            # (BQ paper_positions rows predating the sector column migration).
+            # decide_trades reads pos.get("sector") to seed sector_counts; without
+            # this enrichment those rows fall into "Unknown" and the sector cap is
+            # silently bypassed for tickers whose true GICS sector already exceeds
+            # the cap. Same _fetch_ticker_meta + asyncio.to_thread pattern used at
+            # the candidate-enrichment site above. Skipped when cap is disabled.
+            max_per_sector = int(getattr(settings, "paper_max_per_sector", 0) or 0)
+            if max_per_sector > 0 and positions:
+                legacy_tickers = [
+                    p["ticker"] for p in positions
+                    if not (p.get("sector") or "").strip()
+                ]
+                if legacy_tickers:
+                    try:
+                        from backend.api.paper_trading import _fetch_ticker_meta
+                        pos_meta_response = await asyncio.to_thread(
+                            _fetch_ticker_meta, legacy_tickers, settings, bq,
+                        )
+                        pos_meta_map = (pos_meta_response or {}).get("meta", {})
+                        enriched_count = 0
+                        for p in positions:
+                            if (p.get("sector") or "").strip():
+                                continue
+                            info = pos_meta_map.get(p["ticker"], {}) or {}
+                            sector = info.get("sector") or ""
+                            if sector:
+                                p["sector"] = sector
+                                enriched_count += 1
+                        logger.info(
+                            "Enriched %d legacy positions with sector (of %d missing)",
+                            enriched_count, len(legacy_tickers),
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Legacy position sector enrichment failed (non-fatal): %s", e,
+                        )
+
+            # phase-23.1.7: thread the screener candidate dict through to the buy-side
+            # decider so the trade record captures momentum/RSI/composite_score and
+            # all signal-stack overlays in the rationale.
+            candidates_by_ticker = {c["ticker"]: c for c in candidates if c.get("ticker")}
+            orders = decide_trades(
+                current_positions=positions,
+                candidate_analyses=candidate_analyses,
+                holding_analyses=holding_analyses,
+                portfolio_state=portfolio_state,
+                settings=settings,
+                candidates_by_ticker=candidates_by_ticker,
+            )
+
+            # ── Step 7: Execute trades ───────────────────────────────
+            logger.info(f"Paper trading: Step 7 -- Executing {len(orders)} trades")
+            summary["steps"].append("executing")
+            closed_tickers = []
+
+            # Sells first
+            # phase-23.1.23: execute_sell/execute_buy also do blocking BQ + yfinance
+            # + ExecutionRouter ops; offload to threadpool.
+            for order in orders:
+                if order.action != "SELL":
+                    continue
+                trade = await asyncio.to_thread(
+                    trader.execute_sell,
+                    ticker=order.ticker,
+                    quantity=order.quantity,
+                    price=order.price,
+                    reason=order.reason,
+                    signals=order.signals,
+                )
+                if trade:
+                    trades_executed += 1
+                    closed_tickers.append(order.ticker)
+
+            # Then buys
+            for order in orders:
+                if order.action != "BUY":
+                    continue
+                price = order.price
+                if price is None:
+                    from backend.services.paper_trader import _get_live_price
+                    price = _get_live_price(order.ticker) or 0
+                if price <= 0:
+                    logger.warning(f"Dropping BUY for {order.ticker}: price={price} (yfinance returned empty or zero)")
+                    continue
+                trade = await asyncio.to_thread(
+                    trader.execute_buy,
+                    ticker=order.ticker,
+                    amount_usd=order.amount_usd or 0,
+                    price=price,
+                    reason=order.reason,
+                    analysis_id=order.analysis_id,
+                    risk_judge_decision=order.risk_judge_decision,
+                    stop_loss_price=order.stop_loss_price,
+                    risk_judge_position_pct=order.risk_judge_position_pct,
+                    signals=order.signals,
+                    sector=order.sector or None,  # phase-23.2.6-fix
+                )
+                if trade:
+                    trades_executed += 1
+
+            # ── Step 7.5: Log signals to BQ signals_log ─────────────
+            today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            signals_logged = _log_cycle_signals_to_bq(bq, orders, today_str)
+            summary["signals_logged"] = signals_logged
+
+            # ── Step 8: Final mark-to-market + snapshot ──────────────
+            # phase-23.1.23: same async wrap as Step 5.
+            logger.info("Paper trading: Step 8 -- Final snapshot")
+            summary["steps"].append("snapshot")
+            final_state = await asyncio.to_thread(trader.mark_to_market)
+            snapshot = await asyncio.to_thread(
+                trader.save_daily_snapshot,
+                trades_today=trades_executed,
+                analysis_cost_today=total_analysis_cost,
+            )
+
+            # ── Step 9: Learn from closed trades ─────────────────────
+            if closed_tickers:
+                summary["steps"].append("learning")
+                try:
+                    await _learn_from_closed_trades(closed_tickers, bq, settings)
+                except Exception as e:
+                    logger.error(f"Learning step failed (non-fatal): {e}")
+
+            # ── Step 10: MetaCoordinator health check ────────────────
+            try:
+                snapshots = bq.get_paper_snapshots(limit=60)
+                from backend.services.perf_tracker import get_perf_tracker
+                health = MetaCoordinator.gather_health(
+                    bq_client=bq,
+                    perf_tracker=get_perf_tracker(),
+                    paper_snapshots=snapshots,
+                )
+                decision = _coordinator.decide(health)
+                summary["coordinator"] = {
+                    "action": decision.action,
+                    "reason": decision.reason,
+                    "target_agents": decision.target_agents,
+                    "priority": decision.priority,
+                    "health": {
+                        "sharpe": round(health.sharpe_ratio, 4),
+                        "accuracy": round(health.agent_accuracy, 4),
+                        "p95_latency_ms": round(health.p95_latency_ms, 1),
+                    },
+                }
+                logger.info(
+                    f"MetaCoordinator decision: {decision.action} "
+                    f"(reason={decision.reason})"
+                )
+            except Exception as e:
+                logger.warning(f"MetaCoordinator step failed (non-fatal): {e}")
+
+            # ── Done ─────────────────────────────────────────────────
+            summary.update({
+                "status": "completed",
+                "nav": final_state["nav"],
+                "pnl_pct": final_state["pnl_pct"],
+                "trades_executed": trades_executed,
+                "analysis_cost": round(total_analysis_cost, 4),
+                "closed_tickers": closed_tickers,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            _last_run = summary["timestamp"]
+            _last_result = summary
+            logger.info(f"Paper trading cycle complete: NAV=${final_state['nav']:.2f}, "
+                         f"P&L={final_state['pnl_pct']:.2f}%, trades={trades_executed}, "
+                         f"cost=${total_analysis_cost:.4f}")
+            return summary
+
+    except asyncio.TimeoutError:
+        logger.error("Paper trading cycle TIMED OUT after %.0fs", _cycle_timeout)
+        summary.update({"status": "timeout", "error": f"cycle exceeded {_cycle_timeout:.0f}s"})
         _last_result = summary
-        logger.info(f"Paper trading cycle complete: NAV=${final_state['nav']:.2f}, "
-                     f"P&L={final_state['pnl_pct']:.2f}%, trades={trades_executed}, "
-                     f"cost=${total_analysis_cost:.4f}")
         return summary
-
     except Exception as e:
         logger.error(f"Paper trading cycle failed: {e}", exc_info=True)
         summary.update({"status": "error", "error": str(e)})
@@ -517,6 +529,33 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             )
         except Exception as _e:
             logger.warning(f"cycle_health record_cycle_end failed: {_e}")
+
+        # phase-23.2.18: operator notification on any non-completed status.
+        # Closes the silent-failure gap from 04-30 / 05-01 / 05-04 / 05-05
+        # where the cycle hung or was kickstart-killed and the user got
+        # no signal. Async-safe: we are still inside the coroutine. Uses
+        # the sync wrapper because finally may run during cancellation
+        # cleanup where awaiting is not always safe.
+        _final_status = summary.get("status", "unknown")
+        if _final_status not in ("completed", "skipped"):
+            try:
+                from backend.services.observability.alerting import raise_cron_alert_sync
+                raise_cron_alert_sync(
+                    source="autonomous_loop",
+                    error_type=f"cycle_{_final_status}",
+                    severity="P1",
+                    title=f"Autonomous trading cycle {_final_status}",
+                    details={
+                        "cycle_id": summary.get("cycle_id", "?"),
+                        "started_at": summary.get("started_at", "?"),
+                        "status": _final_status,
+                        "error": str(summary.get("error", ""))[:300],
+                        "steps_completed": ",".join(summary.get("steps", [])[-5:]),
+                        "trades_executed": summary.get("trades_executed", 0),
+                    },
+                )
+            except Exception as _alert_err:
+                logger.warning(f"cycle failure-alert dispatch failed: {_alert_err}")
 
 
 async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict]:

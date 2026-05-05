@@ -12,12 +12,23 @@ The dedup rule: an alert fires when there have been `consecutive_failure_thresho
 again until `repeat_hours` have passed. Critical severity bypasses all of
 this and always fires.
 
-Alerts route through the existing `backend/slack_bot/scheduler.py::
-send_trading_escalation(severity, title, details)` which handles Slack +
-iMessage (P0) fan-out.
+phase-23.2.18 (2026-05-05): rewrote the routing path. The previous version
+called `backend.slack_bot.scheduler.send_trading_escalation` without `await`
+and without the required `app: AsyncApp` argument, so every alert raised
+TypeError into the fail-open `except` and was silently dropped. The
+slack_bot process is also separate from the backend, so the AsyncApp
+coupling was wrong by construction. We now route through
+`backend.tools.slack.send_notification` (an async webhook helper). Two
+public entry points:
+
+- `raise_cron_alert(...)` -- async, awaitable. Use from async paths.
+- `raise_cron_alert_sync(...)` -- sync wrapper. Schedules the
+  coroutine via the running loop if one exists, else `asyncio.run`.
+  Use from sync paths (kill_switch.pause, cycle_health.record_cycle_end).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 from collections import deque
@@ -57,7 +68,6 @@ class AlertDeduper:
     ) -> bool:
         now = datetime.now(timezone.utc)
 
-        # critical alerts bypass dedup entirely
         if severity in _CRITICAL_SEVERITIES:
             with self._lock:
                 st = self._state.setdefault((source, error_type), _AlertState())
@@ -69,13 +79,11 @@ class AlertDeduper:
             key = (source, error_type)
             st = self._state.setdefault(key, _AlertState())
             st.occurrences.append(now)
-            # evict occurrences older than window
             cutoff = now - self.window
             while st.occurrences and st.occurrences[0] < cutoff:
                 st.occurrences.popleft()
             if len(st.occurrences) < self.threshold:
                 return False
-            # respect repeat interval
             if st.last_fired_at is not None and (now - st.last_fired_at) < self.repeat:
                 return False
             st.last_fired_at = now
@@ -108,25 +116,61 @@ def _get_default_deduper() -> AlertDeduper:
     return _DEFAULT_DEDUPER
 
 
-def raise_cron_alert(
+async def raise_cron_alert(
     source: str,
     error_type: str,
     severity: str,
     title: str,
-    details: str,
+    details: dict | str,
 ) -> bool:
     """Dedup-aware cron alert. Returns True iff an alert was actually emitted.
 
-    Fail-open: if Slack routing is not configured or raises, we log a
-    WARNING and return False. Never raises out.
+    Routes through the webhook helper at `backend.tools.slack.send_notification`,
+    not the AsyncApp-coupled `send_trading_escalation` (which lives in the
+    separate slack_bot process). Fail-open: if the webhook is not configured
+    or raises, log a WARNING and return False. Never raises out.
+
+    Args:
+        source: subsystem id, e.g. "autonomous_loop", "kill_switch".
+        error_type: short tag for dedup, e.g. "cycle_timeout", "auto_pause".
+        severity: "P0" | "P1" | "P2".
+        title: short alert title.
+        details: dict (preferred) or str -- key/value context lines.
     """
     deduper = _get_default_deduper()
     if not deduper.should_fire(source, error_type, severity=severity):
         return False
-    try:
-        from backend.slack_bot.scheduler import send_trading_escalation
 
-        send_trading_escalation(severity=severity, title=title, details=details)
+    try:
+        from backend.config.settings import get_settings
+        from backend.tools.slack import send_notification
+
+        settings = get_settings()
+        webhook = getattr(settings, "slack_webhook_url", "") or ""
+        if not webhook:
+            logger.warning(
+                "raise_cron_alert: slack_webhook_url not configured "
+                "(source=%s severity=%s title=%r)",
+                source, severity, title,
+            )
+            return False
+
+        if isinstance(details, dict):
+            metadata = {str(k): str(v) for k, v in details.items()}
+        else:
+            metadata = {"details": str(details)}
+        metadata.setdefault("source", source)
+        metadata.setdefault("severity", severity)
+        metadata.setdefault("error_type", error_type)
+
+        alert_type = "error" if severity in _CRITICAL_SEVERITIES or severity == "P1" else "warning"
+        message = f"[{severity}] {title}"
+
+        await send_notification(webhook, message, metadata, alert_type=alert_type)
+        logger.warning(
+            "raise_cron_alert sent: source=%s severity=%s title=%r",
+            source, severity, title,
+        )
         return True
     except Exception as exc:
         logger.warning(
@@ -135,6 +179,43 @@ def raise_cron_alert(
             severity,
             exc,
         )
+        return False
+
+
+def raise_cron_alert_sync(
+    source: str,
+    error_type: str,
+    severity: str,
+    title: str,
+    details: dict | str,
+) -> bool:
+    """Sync wrapper for `raise_cron_alert`. Use from sync code paths.
+
+    If a running loop is detected, schedules the coroutine on it (returns
+    True optimistically since fire-and-forget). Otherwise runs the coroutine
+    to completion via `asyncio.run` and returns the actual result.
+
+    Always fail-open: never raises out.
+    """
+    coro = raise_cron_alert(source, error_type, severity, title, details)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None and loop.is_running():
+        try:
+            loop.create_task(coro)
+            return True
+        except Exception as exc:
+            logger.warning("raise_cron_alert_sync schedule failed: %r", exc)
+            coro.close()
+            return False
+
+    try:
+        return asyncio.run(coro)
+    except Exception as exc:
+        logger.warning("raise_cron_alert_sync run failed: %r", exc)
         return False
 
 
@@ -147,5 +228,6 @@ def reset_default_deduper() -> None:
 __all__ = [
     "AlertDeduper",
     "raise_cron_alert",
+    "raise_cron_alert_sync",
     "reset_default_deduper",
 ]

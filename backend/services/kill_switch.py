@@ -115,7 +115,27 @@ class KillSwitchState:
             self._append_audit("pause", trigger=trigger, details=details or {})
             # phase-23.1.22: call _snapshot_locked, NOT snapshot(), to avoid
             # re-acquiring self._lock (threading.Lock is not reentrant).
-            return self._snapshot_locked()
+            snap = self._snapshot_locked()
+        # phase-23.2.18: operator alert on auto-pause. Manual / test / bench
+        # triggers stay silent. Outside the lock so the webhook path can
+        # block briefly without holding kill-switch state.
+        _MANUAL_TRIGGERS = {"manual", "test", "test-pre", "bench-1", "bench-2", "bench-3"}
+        if trigger not in _MANUAL_TRIGGERS:
+            try:
+                from backend.services.observability.alerting import raise_cron_alert_sync
+                raise_cron_alert_sync(
+                    source="kill_switch",
+                    error_type=f"auto_pause_{trigger}",
+                    severity="P1",
+                    title=f"Kill-switch AUTO-PAUSED trading (trigger={trigger})",
+                    details={
+                        "trigger": trigger,
+                        **{str(k): str(v) for k, v in (details or {}).items()},
+                    },
+                )
+            except Exception as _alert_err:
+                logger.warning(f"kill_switch pause-alert dispatch failed: {_alert_err}")
+        return snap
 
     def resume(self, trigger: str = "manual", details: Optional[dict] = None) -> dict:
         with self._lock:
