@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-05 | `f2e632b2` | phase-23.2.19: SOD NAV daily-roll fix + Go-Live Gate per-criterion tooltip |
 | 2026-05-05 | `ed2c4108` | phase-23.2.18: silent cycle stop fix + working operator notification path |
 | 2026-05-04 | `b920a56a` | phase-23.2.17: PaperTrader.adjust_cash_and_mtm helper |
 | 2026-05-04 | `c854386f` | phase-23.2.6-fix: paper_positions.sector column migration + persist on BUY |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-27 | `5145fd4a` | phase-23.1.12: honor operator's model choice + cycle pill amber-on-unknown |
 | 2026-04-27 | `1b8cdcdd` | phase-23.1.11: persist lite-Claude rows to analysis_results (Reports History tab) |
 | 2026-04-27 | `ddef603f` | phase-23.1.10: Company name + Sector on Positions and Trades (ticker-meta endpoint) |
-| 2026-04-27 | `6fd22e41` | phase-23.1.9: Paper Trading Manage tab — deposits + 10 paper-trading settings |
 
 ---
 
+### v6.5.127 — phase-23.2.19: SOD NAV daily-roll fix + Go-Live Gate per-criterion to... (2026-05-05)
+
+- **phase-23.2.19: SOD NAV daily-roll fix + Go-Live Gate per-criterion tooltip**
 ### v6.5.126 — phase-23.2.18: silent cycle stop fix + working operator notification... (2026-05-05)
 
 - **phase-23.2.18: silent cycle stop fix + working operator notification path**
