@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-05 | `b1be0126` | phase-23.2.21: pin ADC-backed BigQuery MCP server in .mcp.json |
 | 2026-05-05 | `cfbbda2a` | phase-23.2.20: cycle freshness BQ TIMESTAMP_DIFF type-coercion fix |
 | 2026-05-05 | `f2e632b2` | phase-23.2.19: SOD NAV daily-roll fix + Go-Live Gate per-criterion tooltip |
 | 2026-05-05 | `ed2c4108` | phase-23.2.18: silent cycle stop fix + working operator notification path |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-29 | `56963d53` | phase-23.1.14: legacy-position sector lookup + live NAV scoreboards |
 | 2026-04-28 | `5b350e4d` | phase-23.1.13: sector concentration enforcement (v1) |
 | 2026-04-27 | `5145fd4a` | phase-23.1.12: honor operator's model choice + cycle pill amber-on-unknown |
-| 2026-04-27 | `1b8cdcdd` | phase-23.1.11: persist lite-Claude rows to analysis_results (Reports History tab) |
 
 ---
 
+### v6.5.129 — phase-23.2.21: pin ADC-backed BigQuery MCP server in .mcp.json (2026-05-05)
+
+- **phase-23.2.21: pin ADC-backed BigQuery MCP server in .mcp.json**
 ### v6.5.128 — phase-23.2.20: cycle freshness BQ TIMESTAMP_DIFF type-coercion fix (2026-05-05)
 
 - **phase-23.2.20: cycle freshness BQ TIMESTAMP_DIFF type-coercion fix**
