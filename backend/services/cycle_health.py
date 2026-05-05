@@ -163,17 +163,38 @@ def _bq_max_event_age(bq: Any, table_logical: str, time_col: str) -> Optional[fl
     Method 1 per Metaplane: SELECT MAX(time_col) FROM table. Returns age in
     seconds, or None if the query fails / table empty. Uses the BQ client's
     existing _pt_table() helper for table name resolution.
+
+    phase-23.2.20: wraps `MAX({time_col})` in `SAFE.TIMESTAMP(...)` so
+    STRING-typed timestamp columns (paper_trades.created_at as RFC3339,
+    paper_portfolio_snapshots.snapshot_date as bare YYYY-MM-DD) are coerced
+    to TIMESTAMP. Without this wrapper TIMESTAMP_DIFF rejects the call with
+    `Unable to coerce type STRING to expected type TIMESTAMP` and the
+    function silently returns None — the operator sees "unknown" bands
+    forever. SAFE.TIMESTAMP returns NULL on malformed input rather than
+    raising, preserving the fail-open contract for monitoring queries.
+    Note: bare-date inputs (e.g. snapshot_date='2026-05-05') parse to
+    midnight UTC, so the reported age is "since midnight" not "since the
+    actual write time" — acceptable approximation for daily snapshots.
     """
     try:
         table = bq._pt_table(table_logical)
-        sql = f"SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX({time_col}), SECOND) AS age FROM `{table}`"
+        sql = (
+            f"SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), "
+            f"SAFE.TIMESTAMP(MAX({time_col})), SECOND) AS age "
+            f"FROM `{table}`"
+        )
         rows = list(bq.client.query(sql).result())
         if not rows:
             return None
         age = rows[0].get("age") if hasattr(rows[0], "get") else rows[0][0]
         return float(age) if age is not None else None
     except Exception as e:
-        logger.debug(f"bq_max_event_age({table_logical}.{time_col}) failed: {e}")
+        # phase-23.2.20: was logger.debug -- silent at default INFO level.
+        # Bumped to WARNING so future schema regressions surface in the
+        # backend log without operators having to enable DEBUG.
+        logger.warning(
+            "bq_max_event_age(%s.%s) failed: %s", table_logical, time_col, e
+        )
         return None
 
 

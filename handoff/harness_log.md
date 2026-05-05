@@ -14540,3 +14540,42 @@ User screenshot showed FIX BUY rationale with 3 agents: Quant (weight 57.31), Tr
 **Backwards compat:** `update_sod_nav(nav)` keeps existing single-arg call shape (default `date=None` -> today). Boot replay handles legacy audit rows lacking `date` via `ts` fallback. Kill-switch endpoint adds new key `sod_date`; all existing fields unchanged. OpsStatusBar `GateSegment` outer rendering identical (same chips, counts, IconInfo); only the `title=` attribute string changed.
 
 **Honest disclosures:** (1) First-cycle re-anchor: the next cycle to run will write a new sod_snapshot with today's NAV and the daily-loss% will jump from -81.8% to ~0% -- visible signal that the fix is working. (2) Pure-UTC date comparison rolls every UTC midnight regardless of weekend/market holiday; correct for cron mon-fri 14:00 EDT cycles. (3) No backfill of the legacy 04-20 audit row; boot replay handles it via `ts` fallback. (4) Native multi-line `title=` is mouse-only / no keyboard or screen-reader access; WCAG 1.4.13 explicitly exempts native title=, sufficient for an internal operator UI on Chrome. Safari pre-17 historically rendered \n as one line; acceptable degradation.
+
+## Cycle 1 -- 2026-05-05 -- phase=23.2.20 result=PASS
+
+**Step:** phase-23.2.20 -- Cycle freshness BQ TIMESTAMP_DIFF type-coercion fix + silent-failure visibility.
+
+**User reported:** Cycle segment of OpsStatusBar showed two gray "unknown" circles (paper_trades, paper_snapshots) -- "i meant we have unknown for two circles".
+
+**ROOT CAUSE:**
+
+`backend/services/cycle_health.py:_bq_max_event_age` ran:
+```sql
+SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX({col}), SECOND) AS age FROM `{table}`
+```
+Both columns are STRING in BigQuery:
+- `paper_trades.created_at`: STRING REQUIRED, RFC3339 format like `2026-05-01T18:02:39.679773+00:00`
+- `paper_portfolio_snapshots.snapshot_date`: STRING NULLABLE, bare date like `2026-05-05`
+
+BigQuery rejected with `BadRequest 400: Argument 2: Unable to coerce type STRING to expected type TIMESTAMP`. The function swallowed the exception at `logger.debug` (silent at default INFO level) and returned None, so `compute_freshness` rendered `band: "unknown"` indefinitely. Also dbt-fusion#599 is an independent reproduction of the same type mismatch in another codebase.
+
+The `logger.debug` swallow had been masking this since the columns became STRING -- operator had no signal that BQ was rejecting. Direct python+BQ test confirmed the fix shape (`SAFE.TIMESTAMP(MAX(col))`) works for both column formats.
+
+**Two coordinated fixes:**
+
+- **Fix A (SAFE.TIMESTAMP wrapper)** -- `backend/services/cycle_health.py:161-200`. SQL changed to `SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE.TIMESTAMP(MAX({col})), SECOND) AS age FROM {table}`. `SAFE.TIMESTAMP()` accepts both RFC3339 strings and bare dates (the latter parsing to midnight UTC -- acceptable approximation for daily snapshots, flagged in the inline comment). `SAFE.*` returns NULL on malformed input rather than raising, preserving the fail-open contract for monitoring queries.
+- **Fix B (silent-failure visibility)** -- same function's except clause: bumped from `logger.debug(...)` to `logger.warning(...)` so future schema regressions surface in normal backend logs without operators having to enable DEBUG.
+
+**Files:** modified `backend/services/cycle_health.py`, `handoff/current/{contract,experiment_results,evaluator_critique}.md`. Added `tests/services/test_freshness_query_shape.py` (5 tests), `tests/verify_phase_23_2_20.py` (2-check verifier), `handoff/current/phase-23.2.20-{external-research,internal-codebase-audit}.md`.
+
+**Research gate:** PASS (`gate_passed: true`, 6 sources read in full -- Medium SAFE BigQuery, OWOX 2025 timestamp guide, Secoda type casting, Reintech BQ error handling, Index.dev silent-failures, TDS BQ optimization; 16 URLs collected; recency scan 2024-2026 with no breaking changes; 5 internal files inspected with file:line anchors; bigquery_client.py:308 verified NOT the same bug -- uses bound TIMESTAMP parameter).
+
+**Verification:** `python tests/verify_phase_23_2_20.py` -> exit 0 (2/2 OK). `pytest tests/services/test_freshness_query_shape.py -q` -> 5 passed. Prior-phase regression `pytest tests/services/test_cycle_failure_alerts.py tests/services/test_kill_switch_no_deadlock.py tests/services/test_sod_daily_roll.py tests/services/test_snapshot_upsert.py tests/db/test_tickets_db_no_fd_leak.py tests/api/test_pause_resume_timeout.py -q` -> 26 passed.
+
+**Live BQ probe (against production):** `_bq_max_event_age(bq, "paper_trades", "created_at")` -> 350302.0s (~4 days, band=red); `_bq_max_event_age(bq, "paper_portfolio_snapshots", "snapshot_date")` -> 69663.0s (~19h, band=green). Both bands NO LONGER "unknown".
+
+**Q/A:** PASS first-clean spawn (a0bb97e32a2de6f11). 5/5 harness audit + 7/7 contract criteria with file:line evidence + mutation-resistance walkthrough confirms 3-layer revert detection (verifier + pytest + live BQ). No second-opinion shopping; first Q/A pass for this step.
+
+**Backwards compat:** `SAFE.TIMESTAMP()` returns NULL on malformed input rather than raising; `_bq_max_event_age` still returns None on failure, preserving the fail-open contract. Logger bump from DEBUG to WARNING is purely additive. No schema changes, no API shape changes, no UI changes.
+
+**Honest disclosures:** (1) The `paper_trades=red` band is real, not a false positive -- it correctly unmasks the underlying staleness (last paper_trade row is 2026-05-01, ~4 days old) caused by the cycle-hang issue addressed in phase-23.2.18. The phase-23.2.18 alert path will Slack-notify on the next cycle failure. (2) Bare-date `SAFE.TIMESTAMP("YYYY-MM-DD")` parses to midnight UTC, so `snapshot_date` ages are reported "since 00:00 UTC" not "since the actual write time" -- acceptable approximation for daily snapshots. (3) No migration of STRING columns to TIMESTAMP/DATE; surgical fix only. (4) `bigquery_client.py:308` checked and ruled out (uses bound TIMESTAMP parameter, not STRING). (5) Live backend not auto-restarted; operator must restart to guarantee freshness endpoint reflects fix immediately, or wait for next module reload.

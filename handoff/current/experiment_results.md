@@ -1,162 +1,152 @@
 ---
-step: phase-23.2.19
+step: phase-23.2.20
 cycle_date: 2026-05-05
 result: PASS_PENDING_QA
-verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_19.py'
+verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_20.py'
 ---
 
-# Experiment Results — phase-23.2.19
+# Experiment Results — phase-23.2.20
 
 ## Hypothesis recap
 
-User screenshot showed `KILL ACTIVE -81.8%` (impossible drawdown) and
-`GATE 1/5 NOT ELIGIBLE` (uninformative tooltip). Live API confirmed
-`sod_nav=$9499.50, current_nav=$17270.87` -- a stale SOD anchor from
-2026-04-20 because `paper_trader.check_and_enforce_kill_switch` had an
-`else: pass` stub for the daily-roll branch. `today` was computed at
-line 547 but never used. After 15 days the audit log still held a
-single sod_snapshot row at $9499.50.
+User screenshot showed two gray "unknown" circles on the Cycle segment
+(paper_trades, paper_snapshots). Live `/api/paper-trading/freshness`
+returned `last_tick_age_sec=null, band=unknown` for both. Forensic:
+`backend/services/cycle_health.py:_bq_max_event_age` ran
+`SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX(col), SECOND)` against
+columns that are STRING in BigQuery (`paper_trades.created_at` and
+`paper_portfolio_snapshots.snapshot_date`). BigQuery rejected with
+`Unable to coerce type STRING to expected type TIMESTAMP`. The function
+swallowed the exception at `logger.debug` (silent at INFO default) and
+returned None, so the band rendered "unknown" indefinitely.
 
 ## What was changed
 
-### Fix A -- KillSwitchState tracks sod_date
-`backend/services/kill_switch.py`:
-- New `_sod_date: Optional[str]` field on `KillSwitchState`.
-- Boot replay reads explicit `date` from the audit row when present;
-  falls back to parsing `ts` for legacy rows (`fromisoformat` ->
-  UTC date string). Existing 04-20 row maps to `_sod_date="2026-04-20"`.
-- `update_sod_nav(nav, date=None)` now accepts an optional `date` kwarg
-  and writes both `nav` and `date` into the audit row. `date=None`
-  defaults to today's UTC date.
-- `_snapshot_locked()` returns `sod_date` alongside the existing keys.
+### Fix A — SAFE.TIMESTAMP wrapper
+`backend/services/cycle_health.py:161-188`:
+- SQL changed to
+  `SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE.TIMESTAMP(MAX({col})), SECOND) AS age FROM {table}`.
+- `SAFE.TIMESTAMP()` accepts both RFC3339 strings (`paper_trades.created_at`
+  = `2026-05-01T18:02:39.679773+00:00`) and bare dates
+  (`paper_portfolio_snapshots.snapshot_date` = `2026-05-05`); the latter
+  parses to midnight UTC (acceptable approximation for daily snapshots).
+- `SAFE.*` returns NULL on malformed input rather than raising, preserving
+  the fail-open contract for monitoring queries.
 
-### Fix B -- daily roll in paper_trader
-`backend/services/paper_trader.py:546-554`:
-Replaced the `if/else: pass` stub with a single guard:
-```python
-if snap.get("sod_nav") is None or snap.get("sod_date") != today:
-    state.update_sod_nav(nav, date=today)
-```
-First cycle of a new UTC calendar day re-anchors SOD to that day's
-open NAV. Same-day re-calls are no-ops (the comparison is False, no
-new audit row written). Restart-idempotent: boot replay restores
-`_sod_date`, so a mid-day restart preserves the morning's anchor.
-
-### Fix C -- API exposes sod_date
-`backend/api/paper_trading.py:355-371`:
-`/api/paper-trading/kill-switch` response now includes `sod_date` so
-the UI / operator can see when daily-loss% was last re-anchored.
-
-### Fix D -- Per-criterion gate tooltip
-`frontend/src/components/OpsStatusBar.tsx`:
-`GateSegment` now builds a multi-line title string mirroring the
-labels from `GoLiveGateWidget.tsx:92-123`. Each line:
-`[PASS|FAIL] <label> (<actual>)`. All 5 booleans
-(`trades_ge_100`, `psr_ge_95_sustained_30d`, `dsr_ge_95`,
-`sr_gap_le_30pct`, `max_dd_within_tolerance`) referenced. Native
-multi-line `title=` per WCAG 1.4.13 native-attr exemption (operator
-UI, mouse-driven). No new component, no new CSS, no JS.
+### Fix B — Silent-failure visibility
+Same function's except clause: bumped from `logger.debug(...)` to
+`logger.warning(...)`. Default backend log level is INFO, so any future
+schema regression will surface in normal logs. Inline comment explains
+why.
 
 ### Tests
-- `tests/services/test_sod_daily_roll.py` -- 8 tests:
-  - `test_snapshot_now_includes_sod_date` -- snapshot shape contract
-  - `test_update_sod_nav_stamps_explicit_date_in_audit_row` -- writer
-  - `test_update_sod_nav_default_date_is_today` -- default kwarg
-  - `test_paper_trader_rolls_sod_on_new_day` -- the core bug fix
-  - `test_paper_trader_does_not_roll_same_day` -- idempotency
-  - `test_boot_replay_restores_sod_date_from_explicit_field` -- forward
-  - `test_boot_replay_falls_back_to_ts_for_legacy_rows` -- backward compat
-  - `test_legacy_row_then_new_day_rolls_correctly` -- exact prod path
-- `tests/verify_phase_23_2_19.py` -- 5-check immutable verifier.
+- `tests/services/test_freshness_query_shape.py` — 5 tests, all pass:
+  - `test_sql_uses_safe_timestamp_wrapper` — asserts SQL contains `SAFE.TIMESTAMP(MAX(`
+  - `test_returns_age_on_successful_query`
+  - `test_returns_none_on_empty_result`
+  - `test_returns_none_when_age_is_null` — the SAFE.TIMESTAMP-NULL path
+  - `test_failed_query_logs_at_warning_not_debug` — uses `caplog` to assert WARNING-level log
+- `tests/verify_phase_23_2_20.py` — 2-check immutable verifier (regex-asserts SAFE.TIMESTAMP and `logger.warning` in `_bq_max_event_age`; asserts test names exist).
 
 ## Files modified / added
 
 ```
-backend/services/kill_switch.py             -- _sod_date field + boot replay + update_sod_nav signature + snapshot
-backend/services/paper_trader.py            -- daily-roll guard
-backend/api/paper_trading.py                -- /kill-switch endpoint exposes sod_date
-frontend/src/components/OpsStatusBar.tsx    -- multi-line per-criterion tooltip
-tests/services/test_sod_daily_roll.py       -- NEW, 8 regression tests
-tests/verify_phase_23_2_19.py               -- NEW, 5-check verifier
-handoff/current/contract.md                 -- updated for phase-23.2.19
-handoff/current/phase-23.2.19-external-research.md      -- researcher output
-handoff/current/phase-23.2.19-internal-codebase-audit.md -- researcher output
+backend/services/cycle_health.py                       -- SAFE.TIMESTAMP wrapper + warning-level log
+tests/services/test_freshness_query_shape.py           -- NEW, 5 regression tests
+tests/verify_phase_23_2_20.py                          -- NEW, 2-check verifier
+handoff/current/contract.md                            -- updated for phase-23.2.20
+handoff/current/phase-23.2.20-external-research.md     -- researcher output
+handoff/current/phase-23.2.20-internal-codebase-audit.md -- researcher output
 ```
 
 ## Verification (verbatim output)
 
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_19.py
-OK backend/services/kill_switch.py
-OK backend/services/paper_trader.py
-OK backend/api/paper_trading.py
-OK frontend/src/components/OpsStatusBar.tsx
-OK tests/services/test_sod_daily_roll.py
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_20.py
+OK backend/services/cycle_health.py
+OK tests/services/test_freshness_query_shape.py
 
-phase-23.2.19 verification: ALL PASS (5/5)
+phase-23.2.20 verification: ALL PASS (2/2)
 
-$ PYTHONPATH=. pytest tests/services/test_sod_daily_roll.py -q
-........                                                                 [100%]
-8 passed in 0.02s
+$ PYTHONPATH=. pytest tests/services/test_freshness_query_shape.py -q
+.....                                                                    [100%]
+5 passed in 0.01s
 
 $ PYTHONPATH=. pytest tests/services/test_cycle_failure_alerts.py \
                      tests/services/test_kill_switch_no_deadlock.py \
-                     tests/services/test_snapshot_upsert.py -q
-14 passed in 0.97s
+                     tests/services/test_sod_daily_roll.py \
+                     tests/services/test_snapshot_upsert.py \
+                     tests/db/test_tickets_db_no_fd_leak.py \
+                     tests/api/test_pause_resume_timeout.py -q
+26 passed, 1 warning in 14.35s
 
-$ cd frontend && npx --no-install tsc --noEmit
-(no output - clean)
+$ PYTHONPATH=. python -c "from backend.config.settings import get_settings; from backend.db.bigquery_client import BigQueryClient; from backend.services.cycle_health import _bq_max_event_age; bq = BigQueryClient(get_settings()); print('paper_trades age:', _bq_max_event_age(bq, 'paper_trades', 'created_at')); print('paper_portfolio_snapshots age:', _bq_max_event_age(bq, 'paper_portfolio_snapshots', 'snapshot_date'))"
+paper_trades age: 350302.0
+paper_portfolio_snapshots age: 69663.0
 ```
+
+Live `compute_freshness` post-fix:
+```json
+{
+  "sources": {
+    "paper_trades": {"last_tick_age_sec": 350305.0, "ratio": 4.054, "band": "red"},
+    "paper_snapshots": {"last_tick_age_sec": 69665.0, "ratio": 0.806, "band": "green"}
+  },
+  ...
+}
+```
+
+The `paper_trades` red band correctly flags an underlying real problem
+(no trades since 05-01 due to the cycle-hang issue addressed in
+phase-23.2.18). Pre-fix this stale-trade signal was masked by
+"unknown".
 
 ## Research-gate evidence
 
-Researcher (a0d307cf3d1e4f3c3) returned `gate_passed: true`:
-- 7 sources read in full via WebFetch (24a11y title-attribute trials,
-  Sarah Higley tooltips-WCAG-2.1, W3C SC 1.4.13 -- confirms native
-  title= EXEMPT from hoverable/dismissable, MDN tooltip role updated
-  Nov-2025, Trading Technologies SOD doctrine, flook.co tooltip
-  accessibility, W3C/WAI ARIA APG tooltip pattern).
-- 17 URLs collected; 10 in snippet-only.
-- Recency scan 2024-2026 performed; no breaking changes (WCAG 2.2
-  Oct-2023 unchanged 1.4.13).
-- 7 internal files inspected with file:line anchors.
+Researcher (ab8e01334b8517a2a) returned `gate_passed: true`:
+- 6 sources read in full via WebFetch (Medium SAFE BigQuery, OWOX 2025
+  timestamp guide, Secoda type casting, Reintech BQ error handling,
+  Index.dev silent-failures, TDS BQ optimization).
+- 16 URLs collected; 10 in snippet-only.
+- Recency scan 2024-2026 — no breaking changes; dbt-fusion#599 is an
+  independent reproduction of the same TIMESTAMP_DIFF type mismatch.
+- 5 internal files inspected; confirmed `bigquery_client.py:308`'s
+  TIMESTAMP_DIFF is NOT the same bug (uses bound TIMESTAMP param).
+- Key external finding: SAFE.TIMESTAMP() returns NULL on malformed
+  input rather than failing the query — preferred for monitoring
+  queries that must not fail-loudly on a single bad row.
+- Key internal finding: silent `logger.debug` at the swallowed-exception
+  site was the observability failure; bug had been latent since the
+  columns became STRING.
 
 ## Backwards compatibility
 
-- `update_sod_nav(nav)` keeps its existing single-arg call shape
-  (`date` defaults to today). Existing callers untouched.
-- Boot replay handles legacy audit rows lacking `date` via `ts`
-  fallback. Production's lone 04-20 row is parsed correctly.
-- Kill-switch endpoint adds a new key `sod_date`; all existing fields
-  unchanged. UI consumers are forward-compatible.
-- OpsStatusBar `GateSegment` outer rendering unchanged (same chips,
-  counts, IconInfo). Only the `title=` attribute string changed.
+- `SAFE.TIMESTAMP()` returns NULL on malformed input rather than
+  raising; `_bq_max_event_age` still returns None on failure,
+  preserving the fail-open contract.
+- `logger.warning` bump is purely additive: more log output, no
+  behavioral change for callers or tests.
+- No schema changes, no API shape changes, no UI changes.
 
 ## Honest disclosures
 
-- **First-cycle behavior:** the next cycle to run will re-anchor SOD
-  to that cycle's NAV. The displayed daily-loss% will jump from -81.8%
-  to ~0% as soon as the cycle fires. Operator should expect this as
-  the visible signal that the fix is working.
-- **Pure-UTC date comparison:** rolls every UTC midnight regardless of
-  weekend / market holiday. For paper trading this is correct (cycles
-  run on cron mon-fri 14:00 EDT = ~18:00 UTC, so each cycle's first
-  anchor is that day's open). If the operator wants weekend-skip
-  semantics in the future, that's a follow-up.
-- **No backfill of legacy audit rows.** The lone 04-20 row stays
-  unchanged; boot replay handles it via `ts` fallback. New rows
-  written post-fix have explicit `date`.
-- **WCAG posture:** native multi-line `title=` is informational-only.
-  Mouse-only reveal; no keyboard or screen-reader access. WCAG 1.4.13
-  exempts native browser title= explicitly. If a screen-reader user
-  joins the team, upgrade to `role="tooltip"` + `aria-describedby`
-  with a small dedicated component.
-- **Live `current_nav` was $17270.87 at fix time.** The next cycle (or
-  next backend restart's first kill-switch poll) will write a new
-  sod_snapshot with today's NAV. Operator can verify in
-  `handoff/kill_switch_audit.jsonl` -- new row should appear with
-  `date: "2026-05-05"` and a non-stale nav.
-- **The frontend tooltip uses native `title`.** Tooltip newlines
-  render in most browsers but Safari historically rendered them as
-  one line until ~Safari 17. Acceptable degradation for an internal
-  operator UI on Chrome.
+- **The "red" band on paper_trades is real, not a false positive.** The
+  fix unmasks an underlying staleness (last paper_trade row is from
+  2026-05-01, ~4 days old) caused by the cycle-hang issue addressed
+  in phase-23.2.18. The red signal is correct and operator-actionable.
+- **`SAFE.TIMESTAMP("YYYY-MM-DD")` parses to midnight UTC.** For
+  `snapshot_date='2026-05-05'` the reported age is "since
+  2026-05-05T00:00:00 UTC", not "since the actual snapshot write
+  time". Acceptable approximation for daily snapshots; flagged in the
+  inline comment.
+- **Live backend was not restarted as part of this phase.** The fix is
+  in code that the live process holds via the python module — uvicorn
+  --reload picks it up on save. Operator should restart explicitly to
+  guarantee freshness endpoint immediately reflects the fix; otherwise
+  next module reload (or backend restart for any reason) suffices.
+- **No migration of the STRING columns to TIMESTAMP/DATE.** Surgical
+  fix only. A future phase could add a `created_at_ts: TIMESTAMP`
+  column with a backfill, but that's a separate effort.
+- **`bigquery_client.py:308` was checked and is NOT affected.** Its
+  `TIMESTAMP_DIFF` operates on a column bound via `ScalarQueryParameter
+  (..., 'TIMESTAMP', ts)` — both sides are TIMESTAMP. No fix needed.
