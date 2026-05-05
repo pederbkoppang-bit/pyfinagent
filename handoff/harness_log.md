@@ -14509,3 +14509,34 @@ User screenshot showed FIX BUY rationale with 3 agents: Quant (weight 57.31), Tr
 **Honest disclosures:** (1) The OUTER 1800s ceiling catches silent hangs but does NOT fix the underlying yfinance/BQ stall — Phase-2 deferred per-call `asyncio.wait_for` or AnyIO `from_thread.check_cancelled()`. (2) Live backend (PID 86223) still has old code in memory; operator must restart for fix to be active for next cycle. (3) Live Slack webhook was NOT exercised end-to-end; pytest monkey-patches the helper. Operator can validate via `KillSwitchState().pause(trigger="manual_test_alert")` (note: trigger != "manual" -> WILL fire). (4) Default deduper threshold is 3-occurrences-in-5-min; one-off failures dedup-suppress until the second hit unless severity bumped to P0. (5) Watchdog Slack hook depends on `SLACK_WEBHOOK_URL` being set in `backend/.env`; unset -> silent skip + kickstart still runs.
 
 **Pre-23.2.18 evidence (forensic):** `handoff/cycle_history.jsonl` last completion row 2026-04-29; cycles on 04-30 / 05-01 / 05-04 / 05-05 all started but no completion row. `handoff/logs/backend-watchdog.log` shows `kickstart -k` events 04-30T18:02:21Z, 05-01T18:04:15Z, 05-04T18:04:08Z (= silent SIGKILL); 05-05 had zero kicks (= silent hang via the new mode). `handoff/kill_switch_audit.jsonl` `peak_update` events on each date confirm cycles started; absence of `pause trigger=auto` events confirms no kill-switch trip was the cause.
+
+## Cycle 1 -- 2026-05-05 -- phase=23.2.19 result=PASS
+
+**Step:** phase-23.2.19 -- SOD NAV daily-roll fix + Go-Live Gate per-criterion tooltip.
+
+**User reported:** Ops Status Bar screenshot at 20:44 CEST showing `KILL ACTIVE -81.8% / -0.0%` (impossible drawdown) and `GATE 1/5 NOT ELIGIBLE` with a useless one-line tooltip.
+
+**ROOT CAUSE:**
+
+1. `KILL -81.8%` = stale-SOD display bug. Live `/api/paper-trading/kill-switch` returned `sod_nav=$9499.50` (the pre-trading flat NAV from 2026-04-20) and `current_nav=$17270.87`. Daily-loss formula `(sod-current)/sod*100 = -81.8%`. Confirmed via `handoff/kill_switch_audit.jsonl` -- exactly ONE `sod_snapshot` row ever written, dated `2026-04-20T12:01:03.965687+00:00 nav=9499.5`. Root cause at `backend/services/paper_trader.py:546-554`: the `else` branch of the daily-roll guard was a `pass` with a TODO comment. `today` was computed at line 547 but never compared. Once `_sod_nav` was non-None it stayed frozen forever. Kill-switch breach gate itself was unaffected (`any_breached: false` because -81.8% is a gain in this sign convention).
+
+2. `GATE 1/5 NOT ELIGIBLE` = by-design (paper-to-live promotion gate, criteria correctly not yet met), but the OpsStatusBar tooltip at line 164 was just `"1/5 checks passing"`. User couldn't see WHICH criterion is the 1 passing or which 4 are blocking without leaving the page.
+
+**Four coordinated fixes:**
+
+- **Fix A (KillSwitchState tracks sod_date)** -- `backend/services/kill_switch.py`. New `_sod_date: Optional[str]` field. `update_sod_nav(nav, date=None)` accepts an optional UTC date kwarg and writes both `nav` and `date` into the audit row. Boot replay reads explicit `date` when present; falls back to parsing `ts` for legacy rows (`fromisoformat` -> UTC date). The lone production 04-20 row maps to `_sod_date="2026-04-20"`. `_snapshot_locked()` returns `sod_date` alongside existing keys.
+- **Fix B (daily roll in paper_trader)** -- `backend/services/paper_trader.py:546-554`. Replaced the `if/else: pass` stub with a single guard: `if snap.get("sod_nav") is None or snap.get("sod_date") != today: state.update_sod_nav(nav, date=today)`. Same-day re-call is a no-op. Restart-idempotent: boot replay restores `_sod_date`, so a mid-day restart preserves the morning's anchor.
+- **Fix C (API exposes sod_date)** -- `backend/api/paper_trading.py:355-371`. `/api/paper-trading/kill-switch` response now includes `sod_date`.
+- **Fix D (Per-criterion gate tooltip)** -- `frontend/src/components/OpsStatusBar.tsx`. `GateSegment` now builds a multi-line title string mirroring the labels from `GoLiveGateWidget.tsx:92-123`. All 5 booleans referenced. Native multi-line `title=` per WCAG 1.4.13 native-attr exemption (operator UI).
+
+**Files:** modified `backend/services/kill_switch.py`, `backend/services/paper_trader.py`, `backend/api/paper_trading.py`, `frontend/src/components/OpsStatusBar.tsx`, `handoff/current/{contract,experiment_results,evaluator_critique}.md`. Added `tests/services/test_sod_daily_roll.py` (8 tests), `tests/verify_phase_23_2_19.py` (5-check verifier), `handoff/current/phase-23.2.19-{external-research,internal-codebase-audit}.md`.
+
+**Research gate:** PASS (`gate_passed: true`, 7 sources read in full -- 24a11y title-attribute trials, Sarah Higley tooltips-WCAG-2.1, W3C SC 1.4.13 confirms native title= EXEMPT, MDN tooltip role updated Nov-2025, Trading Technologies SOD reset doctrine, flook.co tooltip accessibility, W3C/WAI ARIA APG tooltip pattern; recency scan 2024-2026 with no breaking changes; 17 URLs collected; 7 internal files inspected with file:line anchors).
+
+**Verification:** `python tests/verify_phase_23_2_19.py` -> exit 0 (5/5 OK). `pytest tests/services/test_sod_daily_roll.py -q` -> 8 passed. Prior-phase regression `pytest tests/services/test_cycle_failure_alerts.py tests/services/test_kill_switch_no_deadlock.py tests/services/test_snapshot_upsert.py tests/db/test_tickets_db_no_fd_leak.py tests/api/test_pause_resume_timeout.py -q` -> 18 passed. `npx tsc --noEmit` -> clean exit 0.
+
+**Q/A:** PASS first-clean spawn (aa09318cc8a8b44dd). 5/5 harness audit + 8/8 contract criteria with file:line evidence + mutation-resistance walkthrough confirms revert-detection coverage. No second-opinion shopping; first Q/A pass for this step.
+
+**Backwards compat:** `update_sod_nav(nav)` keeps existing single-arg call shape (default `date=None` -> today). Boot replay handles legacy audit rows lacking `date` via `ts` fallback. Kill-switch endpoint adds new key `sod_date`; all existing fields unchanged. OpsStatusBar `GateSegment` outer rendering identical (same chips, counts, IconInfo); only the `title=` attribute string changed.
+
+**Honest disclosures:** (1) First-cycle re-anchor: the next cycle to run will write a new sod_snapshot with today's NAV and the daily-loss% will jump from -81.8% to ~0% -- visible signal that the fix is working. (2) Pure-UTC date comparison rolls every UTC midnight regardless of weekend/market holiday; correct for cron mon-fri 14:00 EDT cycles. (3) No backfill of the legacy 04-20 audit row; boot replay handles it via `ts` fallback. (4) Native multi-line `title=` is mouse-only / no keyboard or screen-reader access; WCAG 1.4.13 explicitly exempts native title=, sufficient for an internal operator UI on Chrome. Safari pre-17 historically rendered \n as one line; acceptable degradation.

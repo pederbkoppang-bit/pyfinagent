@@ -47,6 +47,7 @@ class KillSwitchState:
         self._paused = False
         self._pause_reason: Optional[str] = None
         self._sod_nav: Optional[float] = None  # start-of-day NAV snapshot
+        self._sod_date: Optional[str] = None  # phase-23.2.19: UTC date of the SOD anchor
         self._peak_nav: Optional[float] = None  # trailing high-water mark
         self._load_from_audit()
 
@@ -68,6 +69,20 @@ class KillSwitchState:
                         self._pause_reason = None
                     elif row.get("event") == "sod_snapshot":
                         self._sod_nav = float(row.get("nav") or 0.0) or None
+                        # phase-23.2.19: prefer explicit `date` (rows written
+                        # post-fix); fall back to parsing `ts` for legacy
+                        # rows that pre-date the schema bump.
+                        sod_date = row.get("date")
+                        if not sod_date:
+                            ts = row.get("ts")
+                            if ts:
+                                try:
+                                    sod_date = datetime.fromisoformat(
+                                        str(ts).replace("Z", "+00:00")
+                                    ).astimezone(timezone.utc).date().isoformat()
+                                except Exception:
+                                    sod_date = None
+                        self._sod_date = sod_date
                     elif row.get("event") == "peak_update":
                         self._peak_nav = float(row.get("nav") or 0.0) or None
         except Exception as e:
@@ -95,11 +110,15 @@ class KillSwitchState:
         """phase-23.1.22: lock-free snapshot helper. Caller MUST already hold
         self._lock. Used by pause()/resume() which re-entered the same
         threading.Lock() via snapshot() and deadlocked the entire process.
-        Found via faulthandler SIGUSR1 dump on a live hung backend."""
+        Found via faulthandler SIGUSR1 dump on a live hung backend.
+
+        phase-23.2.19: includes sod_date so callers can decide whether to
+        re-anchor SOD on a new UTC calendar day."""
         return {
             "paused": self._paused,
             "pause_reason": self._pause_reason,
             "sod_nav": self._sod_nav,
+            "sod_date": self._sod_date,
             "peak_nav": self._peak_nav,
         }
 
@@ -146,11 +165,21 @@ class KillSwitchState:
             # re-acquiring self._lock (threading.Lock is not reentrant).
             return self._snapshot_locked()
 
-    def update_sod_nav(self, nav: float) -> None:
-        """Record start-of-day NAV for daily-loss calculation. Idempotent per day."""
+    def update_sod_nav(self, nav: float, date: Optional[str] = None) -> None:
+        """Record start-of-day NAV for daily-loss calculation.
+
+        phase-23.2.19: now stamps the UTC `date` alongside `nav`. Caller
+        passes today's UTC ISO date (`datetime.now(timezone.utc).date().isoformat()`)
+        when re-anchoring on a new calendar day; default None falls back
+        to today. The audit row gets both `nav` and `date` so a future
+        boot replay can detect daily-roll boundaries without parsing `ts`.
+        """
+        if date is None:
+            date = datetime.now(timezone.utc).date().isoformat()
         with self._lock:
             self._sod_nav = float(nav)
-            self._append_audit("sod_snapshot", nav=self._sod_nav)
+            self._sod_date = date
+            self._append_audit("sod_snapshot", nav=self._sod_nav, date=self._sod_date)
 
     def update_peak(self, nav: float) -> None:
         """Ratchet the trailing high-water mark upward. Never moves down."""

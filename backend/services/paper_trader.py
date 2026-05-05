@@ -542,16 +542,16 @@ class PaperTrader:
         state = get_state()
         # Ratchet the peak upward (monotonic).
         state.update_peak(nav)
-        # Record start-of-day NAV once per calendar day (best-effort).
+        # phase-23.2.19: idempotent daily SOD roll. Re-anchor when either
+        # (a) we have never written SOD before, or (b) the SOD anchor date
+        # is older than today's UTC date. Same-day re-calls are no-ops at
+        # the audit-log level because the comparison evaluates to False.
+        # Restart-idempotent: boot replay restores _sod_date, so the first
+        # cycle after a mid-day restart sees the morning's SOD and skips.
         snap = state.snapshot()
         today = datetime.now(timezone.utc).date().isoformat()
-        if snap.get("sod_nav") is None:
-            state.update_sod_nav(nav)
-        else:
-            # idempotent daily roll -- reset when the audit log's latest sod
-            # is older than today. The audit log is append-only; peek via the
-            # snapshot date via a best-effort check on the JSONL tail.
-            pass
+        if snap.get("sod_nav") is None or snap.get("sod_date") != today:
+            state.update_sod_nav(nav, date=today)
 
         breach = evaluate_breach(
             current_nav=nav,

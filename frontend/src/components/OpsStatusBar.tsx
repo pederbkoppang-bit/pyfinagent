@@ -160,8 +160,22 @@ function GateSegment({ gate }: { gate: GoLiveGate | null }) {
   const passes = Object.values(gate.booleans).filter(Boolean).length;
   const total = Object.values(gate.booleans).length;
   const eligible = gate.promote_eligible;
+  // phase-23.2.19: per-criterion tooltip mirroring GoLiveGateWidget labels.
+  // Native multi-line title= is sufficient under WCAG 1.4.13 native-attr
+  // exemption (operator-only UI). Full breakdown still lives on the paper-
+  // trading page's GoLiveGateWidget; this is the at-a-glance summary.
+  const { booleans: b, details: d, thresholds: t } = gate;
+  const tooltipLines: string[] = [
+    `GATE CHECKS (${passes}/${total} passing)`,
+    `${b.trades_ge_100 ? "PASS" : "FAIL"}: >=${t.trades} trades (${d.n_round_trips} closed round trips)`,
+    `${b.psr_ge_95_sustained_30d ? "PASS" : "FAIL"}: PSR >= ${t.psr.toFixed(2)} (${t.psr_sustained_days}d) (${d.psr != null ? `${d.psr.toFixed(3)}, n_obs=${d.n_obs}` : "insufficient data"})`,
+    `${b.dsr_ge_95 ? "PASS" : "FAIL"}: DSR >= ${t.dsr.toFixed(2)} (${d.dsr != null ? d.dsr.toFixed(3) : "n/a"})`,
+    `${b.sr_gap_le_30pct ? "PASS" : "FAIL"}: Reality gap <= ${(t.sr_gap * 100).toFixed(0)}% (${d.latest_reconciliation_divergence_pct.toFixed(2)}%)`,
+    `${b.max_dd_within_tolerance ? "PASS" : "FAIL"}: Max DD <= ${t.max_dd_pct.toFixed(0)}% (${d.realized_max_dd_pct.toFixed(2)}%)`,
+  ];
+  const tooltip = tooltipLines.join("\n");
   return (
-    <div className="flex items-center gap-2" title={`${passes}/${total} checks passing`}>
+    <div className="flex items-center gap-2" title={tooltip}>
       <SegmentLabel>Gate</SegmentLabel>
       <span
         className={clsx(

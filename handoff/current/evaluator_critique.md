@@ -1,223 +1,252 @@
 ---
-step: phase-23.2.18
+step: phase-23.2.19
 cycle_date: 2026-05-05
 verdict: PASS
 ---
 
-# Evaluator Critique — phase-23.2.18
+# Evaluator Critique — phase-23.2.19
 
-Step driver: user reported "agents has paused its process without
-notifying me." Two-level root cause was (a) silent cycle hang inside
-unbounded `asyncio.to_thread` post-23.1.23, and (b) `raise_cron_alert`
-in `observability/alerting.py` calling an async helper without
-`await` and without the required `AsyncApp` argument, so every cron
-alert raised TypeError into the fail-open `except` and was silently
-dropped. Fix shipped today routes alerts via the webhook helper,
-adds an outer `asyncio.timeout` ceiling on the cycle, and posts a
-Slack alert from the watchdog before SIGKILL.
+Step driver: user screenshot of OpsStatusBar showed `KILL ACTIVE -81.8% / -0.0%`
+(the daily-loss% impossible due to a stale 2026-04-20 SOD anchor — the only
+sod_snapshot row in `handoff/kill_switch_audit.jsonl`) and `GATE 1/5 NOT
+ELIGIBLE` with a one-line tooltip that did not name which criterion was
+passing or which were blocking. Root cause was the `else: pass` stub in
+`backend/services/paper_trader.py:550-554` — `today` was computed at line 547
+but never compared, so `_sod_nav` froze forever once first written. Fix
+shipped today threads `_sod_date` through `KillSwitchState` (boot replay
++ snapshot + audit row), wires a date-comparison guard in
+`check_and_enforce_kill_switch`, exposes `sod_date` in the kill-switch API,
+and replaces the GateSegment's generic `title` with a 6-line
+PASS/FAIL-per-criterion native multi-line tooltip mirroring
+GoLiveGateWidget labels.
 
 ## Harness-compliance audit (5/5 mandatory FIRST)
 
-1. **Researcher spawned before contract: PASS.** Two researcher
-   artifacts in `handoff/current/`:
-   `phase-23.2.18-external-research.md` (8 sources read in full,
-   18 URLs collected, 3-variant query discipline visible, recency
-   scan 2024-2026 with 4 new findings) and
-   `phase-23.2.18-internal-codebase-audit.md` (7 internal files
-   inspected with file:line anchors). Contract `## Research-gate
-   summary` cites both. JSON-equivalent gate evidence reported in
-   experiment_results.md ("gate_passed: true").
-2. **Contract written before GENERATE: PASS.** `contract.md`
-   frontmatter `cycle_date: 2026-05-05`. Hypothesis names the
-   `raise_cron_alert` TypeError bug at the file:line level — only
-   knowable from the audit which preceded GENERATE. Plan steps
-   1-7 enumerate the fixes BEFORE `experiment_results` describes
-   them as completed. Order: research -> contract -> generate is
-   intact.
-3. **`experiment_results.md` exists and references verification
-   command: PASS.** Frontmatter:
-   `verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_18.py'`.
-   Matches `contract.md` `## Immutable verification command` line
-   for line.
+1. **Researcher spawned BEFORE contract: PASS.** Both researcher artifacts
+   exist in `handoff/current/`:
+   `phase-23.2.19-external-research.md` (7 sources read in full via
+   WebFetch, 17 URLs collected, 3-variant query discipline visible per
+   topic, dedicated 2024-2026 recency scan section reporting "no breaking
+   changes") and `phase-23.2.19-internal-codebase-audit.md` (7 internal
+   files inspected with file:line anchors -- `kill_switch.py:45-51`,
+   `paper_trader.py:549`, `OpsStatusBar.tsx:151-178`,
+   `GoLiveGateWidget.tsx:92-123`, etc.). Contract `## Research-gate
+   summary` cites both by name. JSON envelope at end of external-research
+   reports `gate_passed: true`, `external_sources_read_in_full: 7`.
+
+2. **Contract written BEFORE GENERATE: PASS.** `contract.md` frontmatter
+   `cycle_date: 2026-05-05`. Plan steps 1-7 enumerate the fixes BEFORE
+   `experiment_results.md` describes them as completed. Hypothesis names
+   the `else: pass` stub at `paper_trader.py:550-554` as the precise root
+   cause -- only knowable from the audit, which preceded GENERATE. Order
+   research -> contract -> generate is intact.
+
+3. **`experiment_results.md` exists and references verification command:
+   PASS.** Frontmatter:
+   `verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_19.py'`.
+   Matches `contract.md` `verification:` field byte-for-byte.
+
 4. **`harness_log.md` NOT yet appended (LOG IS LAST): PASS.**
-   `grep -c "phase-23.2.18" handoff/harness_log.md` returns `0`.
-   Per `feedback_log_last.md`, the operator MUST append the cycle
-   entry AFTER this Q/A PASS and BEFORE flipping masterplan
-   status. This pass is not yet shadowed by a premature log line.
-5. **No second-opinion shopping: PASS.** This is the FIRST Q/A
-   pass for phase-23.2.18. The on-disk `evaluator_critique.md`
-   that this rewrite supersedes was the stale 04-30
-   phase-23.1.22 critique. No prior CONDITIONAL/FAIL verdict for
-   23.2.18 on unchanged evidence is being re-litigated.
+   `grep -c 'phase-23.2.19' handoff/harness_log.md` returns `0`. Per
+   `feedback_log_last.md`, operator must append AFTER this Q/A PASS and
+   BEFORE flipping masterplan status. Not yet shadowed.
+
+5. **No second-opinion shopping: PASS.** This is the FIRST Q/A pass for
+   phase-23.2.19. The on-disk `evaluator_critique.md` overwritten by this
+   file was the prior-step phase-23.2.18 PASS critique. Counter of prior
+   CONDITIONAL verdicts for this step-id = 0 (last harness_log entry was
+   `phase=23.2.18 result=PASS`). 3rd-CONDITIONAL auto-FAIL rule does NOT
+   apply.
 
 ## Deterministic checks (verbatim Bash output)
 
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_18.py
-OK backend/services/observability/alerting.py
-OK backend/services/autonomous_loop.py
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_19.py
 OK backend/services/kill_switch.py
-OK scripts/launchd/backend_watchdog.sh
-OK tests/services/test_cycle_failure_alerts.py
+OK backend/services/paper_trader.py
+OK backend/api/paper_trading.py
+OK frontend/src/components/OpsStatusBar.tsx
+OK tests/services/test_sod_daily_roll.py
 
-phase-23.2.18 verification: ALL PASS (5/5)
-```
-
-```
-$ PYTHONPATH=. pytest tests/services/test_cycle_failure_alerts.py -q
-.......                                                                  [100%]
-7 passed in 0.02s
+phase-23.2.19 verification: ALL PASS (5/5)
 ```
 
 ```
-$ PYTHONPATH=. pytest tests/services/test_kill_switch_no_deadlock.py \
-                     tests/services/test_spawn_agent_no_block.py \
+$ PYTHONPATH=. pytest tests/services/test_sod_daily_roll.py -q
+........                                                                 [100%]
+8 passed in 0.01s
+```
+
+```
+$ PYTHONPATH=. pytest tests/services/test_cycle_failure_alerts.py \
+                     tests/services/test_kill_switch_no_deadlock.py \
+                     tests/services/test_snapshot_upsert.py \
+                     tests/db/test_tickets_db_no_fd_leak.py \
                      tests/api/test_pause_resume_timeout.py -q
-..........                                                               [100%]
-10 passed, 1 warning in 14.96s
+..................                                                       [100%]
+18 passed, 1 warning in 14.33s
 ```
 
-(One unrelated DeprecationWarning from google.genai; not a regression.)
+(Sole warning is an unrelated google-genai DeprecationWarning -- not a
+regression.)
 
 ```
-$ bash -n scripts/launchd/backend_watchdog.sh && echo BASH_OK
-BASH_OK
+$ cd frontend && npx --no-install tsc --noEmit
+(no output; exit 0 -- clean)
 ```
 
 ```
-$ grep -c 'async with asyncio.timeout(' backend/services/autonomous_loop.py
+$ grep -c '_sod_date' backend/services/kill_switch.py
+5
+$ grep -c 'sod_date' backend/services/paper_trader.py
+2
+$ grep -c 'sod_date' backend/api/paper_trading.py
 1
-$ grep -c 'raise_cron_alert_sync' backend/services/autonomous_loop.py backend/services/kill_switch.py
-backend/services/autonomous_loop.py:2
-backend/services/kill_switch.py:2
-$ grep -c 'curl -sS -m 5 -X POST' scripts/launchd/backend_watchdog.sh
-1
-$ grep -nE '^async def raise_cron_alert' backend/services/observability/alerting.py
-119:async def raise_cron_alert(
-$ grep -F 'send_notification' backend/services/observability/alerting.py | head -3
-`backend.tools.slack.send_notification` (an async webhook helper). Two
-    Routes through the webhook helper at `backend.tools.slack.send_notification`,
-        from backend.tools.slack import send_notification
-```
-
-```
-$ grep -c "phase-23.2.18" handoff/harness_log.md
+$ grep -c 'tooltipLines' frontend/src/components/OpsStatusBar.tsx
+2
+$ grep -c 'phase-23.2.19' handoff/harness_log.md
 0
 ```
 
-(Confirms LOG IS LAST: not yet appended.)
-
 ## Per-criterion verdict table
 
-| # | Criterion | Verdict | Evidence (file:line or output) |
-|---|-----------|---------|--------------------------------|
-| 1 | non-`completed` status fires Slack | PASS | `autonomous_loop.py:533-539` post-finally `raise_cron_alert_sync` block guarded on `summary["status"] not in ("completed", "skipped")` (per experiment_results.md and on-disk read of the post-finally block). Tested by `test_raise_cron_alert_fires_webhook_on_cycle_error` (P1 alert + correct payload). |
-| 2 | outer asyncio.timeout ceiling | PASS | `autonomous_loop.py:108` `_cycle_timeout = float(getattr(settings, "paper_cycle_max_seconds", 1800.0))` and `:115` `async with asyncio.timeout(_cycle_timeout):` wrapping the entire try body. `:507-511` `except asyncio.TimeoutError` records `status="timeout"` and falls through to finally. |
-| 3 | `raise_cron_alert` no longer drops | PASS | `alerting.py:119` `async def raise_cron_alert(...)`; `:169` `await send_notification(webhook, message, metadata, alert_type=alert_type)`. AsyncApp coupling removed. `:185-219` sync wrapper detects running loop or runs via `asyncio.run`. Tested: `test_raise_cron_alert_fires_webhook_on_cycle_error` golden + `test_raise_cron_alert_fail_open_when_no_webhook` graceful-no-webhook. |
-| 4 | watchdog Slack before kickstart | PASS | `backend_watchdog.sh:60-72` reads `SLACK_WEBHOOK_URL` from `backend/.env` via grep+cut+sed (no source — addresses research-gate concern about leaking other env vars). `:70` `curl -sS -m 5 -X POST` posts JSON before `:76` `launchctl kickstart -k`. The verifier's regex check (`re.search(r'^launchctl kickstart -k\b', ...)` plus `curl_pos < kick_pos`) confirms ordering at the executable line, not the comment. |
-| 5 | kill_switch auto-pause alerts | PASS | `kill_switch.py:122` `_MANUAL_TRIGGERS = {"manual", "test", "test-pre", "bench-1", "bench-2", "bench-3"}`; `:123-137` calls `raise_cron_alert_sync` with severity P1 only when `trigger not in _MANUAL_TRIGGERS`. The alert dispatch is OUTSIDE the lock (`:118` releases via `_snapshot_locked()` exit) so the webhook cannot deadlock kill-switch state. Tested: `test_kill_switch_auto_pause_fires_alert` + `test_kill_switch_manual_pause_does_not_alert` (asserts ALL 6 manual/test/bench triggers stay silent). |
-| 6 | regression test exists + passes | PASS | `tests/services/test_cycle_failure_alerts.py` 7 tests, all green (`7 passed in 0.02s`). Coverage: golden webhook fire, fail-open no-webhook, sync wrapper from no-loop, kill-switch auto-pause, kill-switch manual-allowlist (6 triggers), dedup threshold, P0 dedup bypass. Adjacent regression suite (`test_kill_switch_no_deadlock` + `test_spawn_agent_no_block` + `test_pause_resume_timeout`) 10 passed in 14.96s — new alert dispatch did NOT regress phase-23.1.22 lock semantics. |
-| 7 | ast.parse passes for modified .py | PASS | `verify_phase_23_2_18.py` calls `ast.parse(text)` on `alerting.py`, `autonomous_loop.py`, `kill_switch.py`, `test_cycle_failure_alerts.py`; verifier exits 0 (5/5). |
-| 8 | `python tests/verify_phase_23_2_18.py` exits 0 | PASS | Verbatim above: `phase-23.2.18 verification: ALL PASS (5/5)`. |
+| # | Criterion | Verdict | Evidence (file:line) |
+|---|-----------|---------|----------------------|
+| 1 | `KillSwitchState` exposes `sod_date` in snapshot; set on `update_sod_nav`; restored on boot from latest `sod_snapshot` row's explicit `date` field, falling back to parsing `ts` for legacy rows | PASS | `kill_switch.py:50` declares `_sod_date: Optional[str] = None`; `:121` `_snapshot_locked` returns `"sod_date": self._sod_date`; `:75-85` boot replay reads explicit `row.get("date")` and falls back via `datetime.fromisoformat(...).astimezone(timezone.utc).date().isoformat()`; `:181-182` `update_sod_nav` writes `self._sod_date = date` and the audit row carries both `nav` and `date`. Unit-test coverage: `test_snapshot_now_includes_sod_date`, `test_boot_replay_restores_sod_date_from_explicit_field`, `test_boot_replay_falls_back_to_ts_for_legacy_rows` (all green). |
+| 2 | `paper_trader.check_and_enforce_kill_switch` calls `update_sod_nav(current_nav)` whenever `snap.get("sod_date")` does NOT equal today's UTC date | PASS | `paper_trader.py:551-554`: `snap = state.snapshot(); today = datetime.now(timezone.utc).date().isoformat(); if snap.get("sod_nav") is None or snap.get("sod_date") != today: state.update_sod_nav(nav, date=today)`. Replaces the prior `else: pass` stub. Test coverage: `test_paper_trader_rolls_sod_on_new_day`, `test_paper_trader_does_not_roll_same_day`, `test_legacy_row_then_new_day_rolls_correctly` (all green). |
+| 3 | `/api/paper-trading/kill-switch` returns `sod_date` in its response | PASS | `paper_trading.py:366`: `"sod_date": state.get("sod_date"),` inside the response dict alongside existing `sod_nav`, `peak_nav`, `current_nav`, etc. Backwards-compat: existing fields untouched. |
+| 4 | `OpsStatusBar` GateSegment tooltip lists each of the 5 booleans with PASS/FAIL + threshold + actual, one criterion per line; existing eligible/passes/total rendering unchanged | PASS | `OpsStatusBar.tsx:168-176`: `tooltipLines: string[] = [...]` constructs 6 lines (header + 5 criteria), each `${b.<key> ? "PASS" : "FAIL"}: <label> (<actual>)`. All 5 boolean keys (`trades_ge_100`, `psr_ge_95_sustained_30d`, `dsr_ge_95`, `sr_gap_le_30pct`, `max_dd_within_tolerance`) referenced. `:176` `const tooltip = tooltipLines.join("\n");` `:178` `<div ... title={tooltip}>` — multi-line native tooltip. `:185-188` outer rendering (ELIGIBLE pill + `passes/total` mono span + IconInfo) unchanged. |
+| 5 | Regression test `tests/services/test_sod_daily_roll.py` covers first-cycle write, same-day no-op, new-day roll | PASS | New file, 8 tests, all green. Covers: snapshot shape (`test_snapshot_now_includes_sod_date`), explicit-date stamp (`test_update_sod_nav_stamps_explicit_date_in_audit_row`), default-today (`test_update_sod_nav_default_date_is_today`), new-day roll (`test_paper_trader_rolls_sod_on_new_day`), idempotency (`test_paper_trader_does_not_roll_same_day`), boot-replay both paths (`test_boot_replay_restores_sod_date_from_explicit_field` + `test_boot_replay_falls_back_to_ts_for_legacy_rows`), exact prod path (`test_legacy_row_then_new_day_rolls_correctly`). |
+| 6 | Frontend build / `tsc --noEmit` passes | PASS | `npx --no-install tsc --noEmit` exits 0 with no output. The 5 boolean keys + the threshold/details fields used in the tooltip exist on `GoLiveGate` per the existing types definitions (otherwise tsc would have emitted `Property 'trades_ge_100' does not exist on type ...`). |
+| 7 | `ast.parse` passes for every modified `.py` file | PASS | The verifier explicitly calls `ast.parse(text)` on each of `kill_switch.py`, `paper_trader.py`, `paper_trading.py`, and `test_sod_daily_roll.py` (lines 31, 46, 57, 85 of `verify_phase_23_2_19.py`). Verifier exits 0. |
+| 8 | `python tests/verify_phase_23_2_19.py` exits 0 | PASS | Verbatim above: `phase-23.2.19 verification: ALL PASS (5/5)`. |
 
 ## Mutation-resistance findings
 
-For each fix, would a single `git revert` of the relevant hunk be
-caught by the verifier?
+For each of the 4 fix surfaces, would a single `git revert` of the relevant
+hunk be caught by the verifier OR by pytest?
 
-- **Fix A (alerting.py async)**: revert -> `raise_cron_alert`
-  becomes `def` (sync). `verify_phase_23_2_18.py:38`
-  `assert isinstance(funcs["raise_cron_alert"], ast.AsyncFunctionDef)`
-  fails. Also `test_raise_cron_alert_fires_webhook_on_cycle_error`
-  fails. **Caught.**
-- **Fix B (autonomous_loop outer timeout)**: revert -> `async with
-  asyncio.timeout(` line removed. `verify_phase_23_2_18.py:50`
-  `assert "asyncio.timeout(" in text` fails. **Caught.**
-- **Fix B (autonomous_loop post-finally alert)**: revert ->
-  `raise_cron_alert_sync` removed from autonomous_loop.py.
-  `verify_phase_23_2_18.py:54` fails. **Caught.**
-- **Fix C (kill_switch allowlist)**: revert ->
-  `raise_cron_alert_sync` removed from kill_switch.py.
-  `verify_phase_23_2_18.py:63` fails. Also
-  `test_kill_switch_auto_pause_fires_alert` fails. **Caught.**
-- **Fix D (watchdog curl)**: revert -> curl line gone or moved
-  AFTER `launchctl kickstart -k`. The verifier's `assert curl_pos
-  < kick_pos` (regex on actual executable line) catches both
-  deletion and reordering. **Caught.**
-- **Test deletion**: deleting `test_cycle_failure_alerts.py` ->
-  `check_test_exists()` reads the file and `read_text(...)` raises
-  FileNotFoundError, which propagates as ERROR -> nonzero exit.
-  **Caught.**
+- **Fix A1 (kill_switch.py `_sod_date` field)**: revert -> `_sod_date`
+  attribute removed. `verify_phase_23_2_19.py:32` `assert "_sod_date" in
+  text` fails. **Caught.**
+- **Fix A2 (kill_switch.py snapshot includes sod_date)**: revert -> snapshot
+  drops the field. `verify_phase_23_2_19.py:35` `assert '"sod_date":
+  self._sod_date' in text` fails AND `test_snapshot_now_includes_sod_date`
+  fails (`'sod_date' not in snap`). **Caught at two layers.**
+- **Fix A3 (kill_switch.py update_sod_nav signature gains `date`)**:
+  revert -> back to `def update_sod_nav(self, nav: float)`.
+  `verify_phase_23_2_19.py:33` `assert "def update_sod_nav(self, nav: float, date:" in text`
+  fails AND `test_update_sod_nav_stamps_explicit_date_in_audit_row` fails
+  (TypeError on the `date=` kwarg). **Caught at two layers.**
+- **Fix A4 (kill_switch.py boot replay reads `date` + ts fallback)**:
+  revert -> only `nav` parsed. `verify_phase_23_2_19.py:37` `assert
+  "row.get(\"date\")"` fails; `:39` `assert "fromisoformat" in text` fails;
+  `test_boot_replay_restores_sod_date_from_explicit_field` and
+  `test_boot_replay_falls_back_to_ts_for_legacy_rows` both fail.
+  **Caught at three layers.**
+- **Fix B (paper_trader.py daily-roll guard)**: revert -> back to
+  `else: pass`. `verify_phase_23_2_19.py:47` `assert 'snap.get("sod_date")'
+  in text` fails AND `:49` `assert 'state.update_sod_nav(nav, date=today)'`
+  fails AND `test_paper_trader_rolls_sod_on_new_day` fails (sod_nav stays
+  at yesterday's value). **Caught at three layers.**
+- **Fix C (paper_trading.py API exposes sod_date)**: revert -> response
+  drops the key. `verify_phase_23_2_19.py:58` `assert 'state.get("sod_date")'
+  in text or '"sod_date":' in text` fails. **Caught.**
+- **Fix D (OpsStatusBar.tsx multi-line tooltip)**: revert -> back to
+  generic `title="N/M checks passing"`. `verify_phase_23_2_19.py:67-72`
+  iterates all 5 boolean keys and asserts each is present in the file
+  text -- removing any single key fails the verifier. `:75` `assert
+  "tooltipLines" in text or "tooltip" in text` fails. `:77` `assert
+  'title={tooltip}' in text or 'title={tooltipLines.join' in text` fails.
+  **Caught at three layers.**
+- **Test deletion**: deleting `tests/services/test_sod_daily_roll.py` ->
+  `check_test_exists()` `_read(rel)` raises `FileNotFoundError`, caught
+  by `except Exception` -> `failed += 1` -> nonzero exit. **Caught.**
 
-**Acknowledged gap (not blocking)**: the verifier's allowlist check
-is `assert '"manual"' in text and '"bench-1"' in text`. Removing
-`"test"` or `"test-pre"` alone would NOT trip the verifier — but
-`test_kill_switch_manual_pause_does_not_alert` explicitly drives
-all 6 triggers and asserts ZERO alerts, so a removed allowlist
-trigger fails at the pytest layer. Combined coverage is sufficient.
+**Acknowledged narrow gap (not blocking)**: `verify_phase_23_2_19.py`'s
+`check_test_exists()` enumerates 6 test names (lines 86-93). It does NOT
+explicitly require `test_update_sod_nav_default_date_is_today`. Deleting
+that single test alone would not trip the verifier. But the test file is
+otherwise unchanged and pytest still drives all 8 tests on every CI run,
+so removal would surface in any subsequent pytest invocation. Combined
+verifier + pytest coverage is sufficient.
 
 ## Scope honesty
 
-Contract authorized 8 criteria + 7 plan steps. Experiment_results
-delivered exactly that scope:
+Contract authorized 8 immutable success criteria + 7 plan steps + 3
+explicit "Out of scope" items (ARIA tooltip component, audit-log
+backfill, market-calendar awareness). Experiment_results delivered
+exactly that scope:
 
-- 5 code files modified + 1 verifier added + 1 test file added.
-  All 5 code targets are listed in `contract.md` plan steps 1-5.
-- No drift into unrelated areas (no BQ schema, paper trader,
-  frontend, or scheduler changes).
-- Out-of-scope items in `contract.md` ("cooperative thread
-  cancellation via AnyIO", "stale-heartbeat APScheduler detector",
-  "send_trading_escalation refactor") are explicitly NOT touched
-  in `experiment_results.md`. The HONEST DISCLOSURES section
-  re-acknowledges that the 1800s outer ceiling does not fix the
-  underlying yfinance/BQ stall — only catches it. That is exactly
-  what the contract authorized. No overclaim.
+- 4 production code files modified (`kill_switch.py`, `paper_trader.py`,
+  `paper_trading.py`, `OpsStatusBar.tsx`) -- exactly the 4 named in plan
+  steps 1-4.
+- 1 new regression test file + 1 new verifier file -- per plan steps
+  5-6.
+- No drift into unrelated areas (no BQ schema changes, no new ARIA
+  primitives, no audit-log mutations, no market-calendar logic).
+- Out-of-scope items NOT touched and explicitly re-acknowledged in
+  experiment_results "Backwards compatibility" + "Honest disclosures"
+  sections (no ARIA tooltip, no backfill of legacy 04-20 row, pure-UTC
+  rolling regardless of weekend/holiday).
+- Honest disclosure of expected first-cycle behavior (the displayed
+  daily-loss% will jump from -81.8% to ~0% on next cycle) -- this is
+  exactly what the contract authorized and is the visible signal that
+  the fix is working. No overclaim.
 
 ## Research-gate compliance
 
-- 5+ sources read in full: PASS. 8 sources fetched via WebFetch.
-- Recency scan (last 2 years): PASS. Dedicated section with 4 new
-  findings (3.11 TaskGroup, asyncio.timeout context manager, AnyIO
-  4.x check_cancelled(), OneUptime 2026 dead-man's-switch).
-- 3-query variant discipline: PASS. 7 queries spanning current-year
-  frontier (`...2026`), last-2-year (`...2025`), and year-less
-  canonical (`asyncio to_thread blocking thread cannot cancel
-  timeout worker thread continues running`).
-- 10+ URLs collected: PASS. 18 unique (8 read-in-full + 10
+- 5+ sources read in full: PASS. 7 sources fetched via WebFetch
+  (24a11y title-attribute, Sarah Higley tooltips-WCAG-2.1, W3C SC
+  1.4.13 understanding, MDN tooltip role Nov-2025, Trading
+  Technologies SOD docs, flook.co tooltip accessibility, W3C/WAI
+  ARIA APG tooltip pattern). All count as authoritative
+  (peer/official-docs/named-researcher) -- no community-tier source
+  load-bearing.
+- Recency scan (last 2 years): PASS. Dedicated section with explicit
+  finding "no breaking changes in the 2024-2026 window" + named
+  recent updates (MDN tooltip_role updated 2025-11-04, WCAG 2.2 final
+  Oct-2023 unchanged 1.4.13).
+- 3-query variant discipline: PASS. External research lists 4
+  variants for the SOD topic (current-year frontier, last-2-year,
+  year-less canonical, supplemental year-less) and 3 for the tooltip
+  topic. Visible in the "Queries run" subsection.
+- 10+ URLs collected: PASS. 17 unique URLs (7 in full + 10
   snippet-only).
 - file:line anchors per internal claim: PASS. Internal audit cites
-  `autonomous_loop.py:179, 216, 300, 307, ...`,
-  `observability/alerting.py:127-129`, `kill_switch.py:115`,
-  `scripts/launchd/backend_watchdog.sh:55-58`.
-- Source-quality hierarchy: PASS. Official docs (Python asyncio,
-  AnyIO, Cronitor) + authoritative blogs (SuperFastPython,
-  OneUptime, Seifrajhi). No community-tier source load-bearing.
-- gate_passed: true: PASS (asserted in experiment_results.md
-  research-gate-evidence section).
+  `kill_switch.py:45-51`, `:53-74`, `:149-153`, `:173-207`;
+  `paper_trader.py:546-554`; `OpsStatusBar.tsx:151-178`, `:164`,
+  `:216`, `:287`; `GoLiveGateWidget.tsx:92-123`;
+  `paper_trading.py:355-371`.
+- gate_passed: true: PASS (asserted in JSON envelope at end of
+  external-research file).
 
 ## Honest-disclosure check
 
-`experiment_results.md` "Honest disclosures" section names FIVE
-caveats NOT proven by deterministic checks:
+`experiment_results.md` "Honest disclosures" section names 5 caveats
+NOT proven by deterministic checks alone:
 
-1. The 1800s outer ceiling catches but does NOT fix the underlying
-   yfinance/BQ per-call stall. Phase-2 hardening required.
-2. The watchdog Slack hook depends on `SLACK_WEBHOOK_URL` being
-   set in `backend/.env`. Fail-open if unset.
-3. P1 dedup default threshold is 3/5min; first-occurrence cycle
-   failures dedup-suppress. Operator can switch to P0 or set
-   `alert_consecutive_failure_threshold=1` for instant alerting.
-4. Live backend was not restarted; uvicorn `--reload` only loads
-   on file save; running PID still has old code. Operator must
-   restart for the fix to be active for the NEXT cycle.
-5. Live functional proof of the alert path was NOT exercised
-   against the real Slack webhook — pytest monkey-patches the
-   helper. Operator can validate end-to-end via
-   `kill_switch.get_state().pause(trigger="manual_test_alert")`.
+1. **First-cycle re-anchor behavior**: the next cycle to run will
+   re-anchor SOD; daily-loss% will jump from -81.8% to ~0%. Operator
+   should expect this as the visible signal that the fix is live.
+   (Cannot be unit-tested without live cycle execution.)
+2. **Pure-UTC date comparison rolls every day** including weekends and
+   holidays. Disclosed as acceptable-for-paper-trading, with weekend-
+   skip semantics flagged as future work.
+3. **No backfill of legacy audit rows**: lone 04-20 row stays
+   unchanged; boot replay handles it via `ts` fallback. Not proven by
+   any deterministic check, but verified by
+   `test_legacy_row_then_new_day_rolls_correctly`.
+4. **WCAG posture**: native multi-line `title=` is mouse-reveal only;
+   no keyboard / screen-reader access. Disclosed as acceptable under
+   WCAG 1.4.13 native-title= exemption for an internal operator UI.
+5. **Safari multi-line `title=`**: historically rendered as one line
+   pre-Safari 17. Acceptable degradation for an internal operator
+   tool primarily used on Chrome.
 
-These are honest, non-overclaiming, and important for the operator.
-No section claims a status broader than what deterministic checks
-and pytest monkey-patches can prove. Disclosure passes.
+These are honest, non-overclaiming, and important for the operator. No
+section claims a status broader than what deterministic checks plus
+pytest can prove. Disclosure passes.
 
 ## Violated criteria
 
@@ -235,24 +264,28 @@ false.
 
 **PASS.**
 
-All 8 immutable success criteria verified by deterministic checks
-plus pytest. All 5 verifier checks green (5/5). All 7 cycle-failure
-regression tests green. Adjacent kill-switch / pause-resume / spawn
-suites green (10 passed) — no regression on phase-23.1.22 lock
-fixes from the new alert dispatch. Mutation-resistance walkthrough
-confirms a single revert of any of the 5 fix surfaces would be
-caught either by the verifier or by the pytest layer.
+All 8 immutable success criteria verified by deterministic checks plus
+pytest. Verifier 5/5 green. New regression suite 8/8 green. Adjacent
+suites (cycle_failure_alerts + kill_switch_no_deadlock + snapshot_upsert
++ tickets_db_no_fd_leak + pause_resume_timeout) 18/18 green -- no
+regression on phase-23.1.22 lock fixes or phase-23.2.18 alert path from
+the new SOD daily-roll write. `tsc --noEmit` clean. Mutation-resistance
+walkthrough confirms each of the 4 fix surfaces has 2-3 layers of
+catch (verifier + pytest), and the test-deletion case fails via
+`FileNotFoundError`.
 
 Operator next steps (per LOG IS LAST + masterplan flip discipline):
 
-1. Append `## Cycle N -- 2026-05-05 -- phase=23.2.18 result=PASS`
-   block to `handoff/harness_log.md`.
-2. Flip `phase-23.2.18` status to `done` in
-   `.claude/masterplan.json`.
-3. Restart backend so `--reload` picks up the new code (or save
-   any backend file to trigger reload). Tomorrow's 18:00 UTC
-   cycle is the live verification.
-4. Optional end-to-end Slack test:
-   `kill_switch.get_state().pause(trigger="manual_test_alert")` —
-   the trigger string is NOT in the manual allowlist, so it WILL
-   fire the alert.
+1. Append `## Cycle N -- 2026-05-05 -- phase=23.2.19 result=PASS` block
+   to `handoff/harness_log.md`.
+2. Flip `phase-23.2.19` status to `done` in `.claude/masterplan.json`.
+3. Restart backend (or save any backend file to trigger
+   uvicorn `--reload`) so the daily-roll guard is live for the next
+   cycle. The operator can verify in
+   `handoff/kill_switch_audit.jsonl` -- a new row with
+   `date: "2026-05-05"` (or whatever today is at restart time) and a
+   non-stale `nav` should appear after the next
+   `check_and_enforce_kill_switch` invocation.
+4. Optional UI verification: open the paper-trading page, hover the
+   GATE segment in the Ops Status Bar -- the tooltip should now show
+   6 lines (header + 5 criteria) instead of `1/5 checks passing`.

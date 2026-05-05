@@ -361,6 +361,9 @@ async def get_kill_switch_state():
         "paused": state["paused"],
         "pause_reason": state["pause_reason"],
         "sod_nav": state["sod_nav"],
+        # phase-23.2.19: surface the SOD anchor date so the UI can show
+        # when daily-loss% was last re-anchored (rolls every UTC midnight).
+        "sod_date": state.get("sod_date"),
         "peak_nav": state["peak_nav"],
         "current_nav": nav,
         "breach": breach,
