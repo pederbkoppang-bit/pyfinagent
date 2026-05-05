@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-05 | `ed2c4108` | phase-23.2.18: silent cycle stop fix + working operator notification path |
 | 2026-05-04 | `b920a56a` | phase-23.2.17: PaperTrader.adjust_cash_and_mtm helper |
 | 2026-05-04 | `c854386f` | phase-23.2.6-fix: paper_positions.sector column migration + persist on BUY |
 | 2026-05-04 | `8be19174` | phase-23.2.14: lock re-entrance audit — ALL CLEAN |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-27 | `1b8cdcdd` | phase-23.1.11: persist lite-Claude rows to analysis_results (Reports History tab) |
 | 2026-04-27 | `ddef603f` | phase-23.1.10: Company name + Sector on Positions and Trades (ticker-meta endpoint) |
 | 2026-04-27 | `6fd22e41` | phase-23.1.9: Paper Trading Manage tab — deposits + 10 paper-trading settings |
-| 2026-04-27 | `4e7794f4` | phase-23.1.8: positions table reactivity + stop-loss settings default |
 
 ---
 
+### v6.5.126 — phase-23.2.18: silent cycle stop fix + working operator notification... (2026-05-05)
+
+- **phase-23.2.18: silent cycle stop fix + working operator notification path**
 ### v6.5.125 — phase-23.2.17: PaperTrader.adjust_cash_and_mtm helper (2026-05-04)
 
 - **phase-23.2.17: PaperTrader.adjust_cash_and_mtm helper**
