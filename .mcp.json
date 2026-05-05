@@ -9,6 +9,17 @@
         "ALPACA_API_SECRET_KEY": "${ALPACA_API_SECRET_KEY:-}",
         "ALPACA_PAPER_TRADE": "true"
       }
+    },
+    "bigquery": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from", "mcp-server-bigquery==0.3.2",
+        "mcp-server-bigquery",
+        "--project", "sunny-might-477607-p8",
+        "--location", "US"
+      ],
+      "env": {}
     }
   }
 }

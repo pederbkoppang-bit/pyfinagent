@@ -83,11 +83,14 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 
 ## BigQuery Access (MCP)
 
-The BigQuery MCP server is **harness-injected** (not pinned in `.mcp.json`).
-The harness environment injects it with **read AND write**
-access to project **`sunny-might-477607-p8`**. Prefer these tools over
-spinning up a Python `bigquery.Client` for ad-hoc inspection, validation, and
-analytics — they're faster, require no auth plumbing, and leave no local state.
+The BigQuery MCP server is **pinned in `.mcp.json`** as of phase-23.2.21.
+Package: `mcp-server-bigquery==0.3.2` (LucasHild, Feb 2026), launched via
+`uvx`, mirroring the alpaca MCP shape. Authenticates via the user's
+**Application Default Credentials** (`~/.config/gcloud/application_default_credentials.json`)
+— no per-session OAuth, no env vars. Project + location are passed as
+CLI args (`--project sunny-might-477607-p8 --location US`). Prefer these
+tools over spinning up a Python `bigquery.Client` for ad-hoc inspection,
+validation, and analytics — they leave no local state.
 
 **Project:** `sunny-might-477607-p8`
 
@@ -101,29 +104,35 @@ analytics — they're faster, require no auth plumbing, and leave no local state
 | `financial_reports` | us-central1 | Financial filings |
 | `all_billing_data` | EU | GCP billing export |
 
-**Available MCP tools** (names are `mcp__<server-id>__<tool>`; discover via `ToolSearch` with query `bigquery`):
-- `list_dataset_ids` — enumerate datasets in a project
-- `list_table_ids` — enumerate tables in a dataset
-- `get_dataset_info` / `get_table_info` — schema + metadata
-- `execute_sql_readonly` — SELECT only, safe default
-- `execute_sql` — full DML/DDL (INSERT, UPDATE, DELETE, MERGE, CREATE, DROP)
+**Available MCP tools** (names are `mcp__bigquery__<tool>`; discover via `ToolSearch` with query `bigquery`):
+- `mcp__bigquery__list-tables` — enumerate tables in the configured project/dataset
+- `mcp__bigquery__describe-table` — return schema + metadata for a table
+- `mcp__bigquery__execute-query` — arbitrary SQL (read AND write — no separate
+  readonly variant on this package). Denied by default in `.claude/settings.json`
+  so write-class queries require explicit user approval per call.
 
 **Rules:**
-1. **Default to `execute_sql_readonly`.** Only use `execute_sql` when the task
-   explicitly requires a mutation, and show the SQL in the session log first.
+1. **Default to `list-tables` / `describe-table` for inspection.** Only reach for
+   `execute-query` when SQL is truly required. Each `execute-query` call is gated
+   by an approval prompt (deny rule in `.claude/settings.json`).
 2. **Always bound queries.** Add `LIMIT` and partition/date filters on
    `historical_*` tables or costs balloon fast.
 3. **Obey the 30s timeout rule** from Critical Rules above — if a query risks
-   exceeding it, add filters or sample instead.
+   exceeding it, add filters or sample instead. The pinned MCP accepts
+   `--timeout` if a different ceiling is needed.
 4. **Never `DROP` or unqualified `DELETE`** without explicit owner approval
-   (see `.claude/context/owner.md`).
+   (see `.claude/context/owner.md`). The deny rule on `execute-query`
+   already forces a prompt; treat that prompt as a real gate, not a rubber-stamp.
 5. **Migration scripts still live in** `scripts/migrations/*.py` and use the
    Python `google-cloud-bigquery` client for schema changes that need to be
    version-controlled and re-runnable. Don't replace those with ad-hoc MCP
    calls — use MCP for *inspection*, migrations for *change*.
-6. **If MCP tools aren't present** in a given session (e.g. the server didn't
-   attach), fall back to `bq` CLI or the Python client with `GCP_PROJECT_ID`
-   from `backend/.env`.
+6. **If MCP tools aren't present** in a given session (e.g. the server failed
+   to attach, or the user hasn't restarted Claude Code since the pin), fall
+   back to the Python client with `GCP_PROJECT_ID` from `backend/.env`. ADC
+   on the user's Mac covers both paths.
+7. **Smoke test** lives at `scripts/mcp_servers/smoke_test_bigquery_mcp.py`.
+   Run it after upgrading the pinned version or if the server stops attaching.
 
 **Typical uses during autonomous runs:**
 - Sanity-check that a backtest's input tables have fresh data before running

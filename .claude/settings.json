@@ -137,7 +137,7 @@
       "mcp__alpaca__replace_order",
       "mcp__alpaca__close_position",
       "mcp__alpaca__close_all_positions",
-      "mcp__bigquery__execute_sql",
+      "mcp__bigquery__execute-query",
       "Bash(rm -rf *)",
       "Bash(git push --force *)",
       "Bash(git push -f *)",

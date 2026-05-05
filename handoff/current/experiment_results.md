@@ -1,152 +1,159 @@
 ---
-step: phase-23.2.20
+step: phase-23.2.21
 cycle_date: 2026-05-05
 result: PASS_PENDING_QA
-verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_20.py'
+verification_command: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_21.py'
 ---
 
-# Experiment Results — phase-23.2.20
+# Experiment Results — phase-23.2.21
 
 ## Hypothesis recap
 
-User screenshot showed two gray "unknown" circles on the Cycle segment
-(paper_trades, paper_snapshots). Live `/api/paper-trading/freshness`
-returned `last_tick_age_sec=null, band=unknown` for both. Forensic:
-`backend/services/cycle_health.py:_bq_max_event_age` ran
-`SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX(col), SECOND)` against
-columns that are STRING in BigQuery (`paper_trades.created_at` and
-`paper_portfolio_snapshots.snapshot_date`). BigQuery rejected with
-`Unable to coerce type STRING to expected type TIMESTAMP`. The function
-swallowed the exception at `logger.debug` (silent at INFO default) and
-returned None, so the band rendered "unknown" indefinitely.
+User: "BQ MCP needs OAuth — fix this." The discoverable BQ MCP today
+is the Claude.ai-hosted proxy at `bigquery.googleapis.com/mcp` which
+demands per-session OAuth and ignores the user's ADC. `.mcp.json` had
+no BQ MCP pinned. CLAUDE.md's "harness-injected" claim was aspirational —
+no harness file actually injects one. Researcher recommendation:
+pin LucasHild's `mcp-server-bigquery==0.3.2` (Feb 2026) via uvx,
+mirroring the existing alpaca MCP shape; ADC fires automatically when
+no `--key-file` is passed.
 
 ## What was changed
 
-### Fix A — SAFE.TIMESTAMP wrapper
-`backend/services/cycle_health.py:161-188`:
-- SQL changed to
-  `SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE.TIMESTAMP(MAX({col})), SECOND) AS age FROM {table}`.
-- `SAFE.TIMESTAMP()` accepts both RFC3339 strings (`paper_trades.created_at`
-  = `2026-05-01T18:02:39.679773+00:00`) and bare dates
-  (`paper_portfolio_snapshots.snapshot_date` = `2026-05-05`); the latter
-  parses to midnight UTC (acceptable approximation for daily snapshots).
-- `SAFE.*` returns NULL on malformed input rather than raising, preserving
-  the fail-open contract for monitoring queries.
+### Fix A — Pinned BQ MCP server in `.mcp.json`
+New `bigquery` entry beside the existing `alpaca` server:
+- `command: uvx`
+- `args: ["--from", "mcp-server-bigquery==0.3.2", "mcp-server-bigquery", "--project", "sunny-might-477607-p8", "--location", "US"]`
+- `env: {}` (no env vars; ADC fires from `~/.config/gcloud/application_default_credentials.json`)
 
-### Fix B — Silent-failure visibility
-Same function's except clause: bumped from `logger.debug(...)` to
-`logger.warning(...)`. Default backend log level is INFO, so any future
-schema regression will surface in normal logs. Inline comment explains
-why.
+### Fix B — `.claude/settings.json` deny list updated
+- Removed obsolete `mcp__bigquery__execute_sql` (underscored — matches
+  no real tool on LucasHild's server, was a dead rule giving a false
+  sense of guard).
+- Added `mcp__bigquery__execute-query` (hyphenated — LucasHild's actual
+  tool name). Read-class tools (`list-tables`, `describe-table`)
+  remain default-ask, ergonomic for inspection.
 
-### Tests
-- `tests/services/test_freshness_query_shape.py` — 5 tests, all pass:
-  - `test_sql_uses_safe_timestamp_wrapper` — asserts SQL contains `SAFE.TIMESTAMP(MAX(`
-  - `test_returns_age_on_successful_query`
-  - `test_returns_none_on_empty_result`
-  - `test_returns_none_when_age_is_null` — the SAFE.TIMESTAMP-NULL path
-  - `test_failed_query_logs_at_warning_not_debug` — uses `caplog` to assert WARNING-level log
-- `tests/verify_phase_23_2_20.py` — 2-check immutable verifier (regex-asserts SAFE.TIMESTAMP and `logger.warning` in `_bq_max_event_age`; asserts test names exist).
+### Fix C — CLAUDE.md "BigQuery Access (MCP)" section rewritten
+- Dropped the "harness-injected" myth.
+- Replaced the imaginary tool list (`execute_sql_readonly`,
+  `list_dataset_ids`, `get_dataset_info`, `get_table_info`,
+  `list_table_ids`, `execute_sql`) with the actual three tools
+  exposed by LucasHild: `list-tables`, `describe-table`, `execute-query`.
+- Updated Rule 1 — there is no readonly variant; default to
+  `list-tables` / `describe-table` for inspection, escalate to
+  `execute-query` only when SQL is needed (deny rule prompts for
+  approval per call).
+- Added Rule 7 pointing to the smoke test script.
+
+### Fix D — Smoke test script
+`scripts/mcp_servers/smoke_test_bigquery_mcp.py` spawns the MCP server
+via stdio, performs the MCP handshake (`initialize` ->
+`notifications/initialized`), then `tools/list` and `tools/call
+list-tables`. Asserts the response references the project AND
+`pyfinagent_*` datasets. 30-second timeout. Exit 0 on success.
+
+### Verifier
+`tests/verify_phase_23_2_21.py` (5 checks, all atomic):
+- `.mcp.json` has the pinned bigquery entry with correct args
+- `.claude/settings.json` deny list includes the hyphenated rule and
+  excludes the obsolete underscored one
+- CLAUDE.md retired the harness-injected wording and lists actual tools
+- Smoke test script exists with the pinned version
+- **Smoke test runs end-to-end against live ADC and exits 0**
 
 ## Files modified / added
 
 ```
-backend/services/cycle_health.py                       -- SAFE.TIMESTAMP wrapper + warning-level log
-tests/services/test_freshness_query_shape.py           -- NEW, 5 regression tests
-tests/verify_phase_23_2_20.py                          -- NEW, 2-check verifier
-handoff/current/contract.md                            -- updated for phase-23.2.20
-handoff/current/phase-23.2.20-external-research.md     -- researcher output
-handoff/current/phase-23.2.20-internal-codebase-audit.md -- researcher output
+.mcp.json                                            -- pinned bigquery server
+.claude/settings.json                                -- deny rule renamed (underscore -> hyphen)
+CLAUDE.md                                            -- BigQuery Access (MCP) section rewritten
+scripts/mcp_servers/smoke_test_bigquery_mcp.py       -- NEW, end-to-end MCP probe
+tests/verify_phase_23_2_21.py                        -- NEW, 5-check verifier
+handoff/current/contract.md                          -- updated for phase-23.2.21
+handoff/current/phase-23.2.21-external-research.md   -- researcher output
+handoff/current/phase-23.2.21-internal-codebase-audit.md -- researcher output
 ```
 
 ## Verification (verbatim output)
 
 ```
-$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_20.py
-OK backend/services/cycle_health.py
-OK tests/services/test_freshness_query_shape.py
+$ uvx --from mcp-server-bigquery==0.3.2 mcp-server-bigquery --help
+(installs cleanly on Python 3.14, prints help with --project/--location/--key-file/--dataset/--timeout)
 
-phase-23.2.20 verification: ALL PASS (2/2)
+$ source .venv/bin/activate && python scripts/mcp_servers/smoke_test_bigquery_mcp.py
+spawning: uvx --from mcp-server-bigquery==0.3.2 mcp-server-bigquery --project sunny-might-477607-p8 --location US
+OK initialize -- server=bigquery
+OK tools/list -- ['describe-table', 'execute-query', 'list-tables']
+OK tools/call list-tables -- response references project + pyfinagent_*
+(server stderr tail confirms: Found 6 datasets, Found 33 tables)
 
-$ PYTHONPATH=. pytest tests/services/test_freshness_query_shape.py -q
-.....                                                                    [100%]
-5 passed in 0.01s
+$ source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_21.py
+OK .mcp.json
+OK .claude/settings.json
+OK CLAUDE.md
+OK scripts/mcp_servers/smoke_test_bigquery_mcp.py
+OK scripts/mcp_servers/smoke_test_bigquery_mcp.py -- end-to-end
 
-$ PYTHONPATH=. pytest tests/services/test_cycle_failure_alerts.py \
-                     tests/services/test_kill_switch_no_deadlock.py \
-                     tests/services/test_sod_daily_roll.py \
-                     tests/services/test_snapshot_upsert.py \
-                     tests/db/test_tickets_db_no_fd_leak.py \
-                     tests/api/test_pause_resume_timeout.py -q
-26 passed, 1 warning in 14.35s
-
-$ PYTHONPATH=. python -c "from backend.config.settings import get_settings; from backend.db.bigquery_client import BigQueryClient; from backend.services.cycle_health import _bq_max_event_age; bq = BigQueryClient(get_settings()); print('paper_trades age:', _bq_max_event_age(bq, 'paper_trades', 'created_at')); print('paper_portfolio_snapshots age:', _bq_max_event_age(bq, 'paper_portfolio_snapshots', 'snapshot_date'))"
-paper_trades age: 350302.0
-paper_portfolio_snapshots age: 69663.0
+phase-23.2.21 verification: ALL PASS (5/5)
 ```
-
-Live `compute_freshness` post-fix:
-```json
-{
-  "sources": {
-    "paper_trades": {"last_tick_age_sec": 350305.0, "ratio": 4.054, "band": "red"},
-    "paper_snapshots": {"last_tick_age_sec": 69665.0, "ratio": 0.806, "band": "green"}
-  },
-  ...
-}
-```
-
-The `paper_trades` red band correctly flags an underlying real problem
-(no trades since 05-01 due to the cycle-hang issue addressed in
-phase-23.2.18). Pre-fix this stale-trade signal was masked by
-"unknown".
 
 ## Research-gate evidence
 
-Researcher (ab8e01334b8517a2a) returned `gate_passed: true`:
-- 6 sources read in full via WebFetch (Medium SAFE BigQuery, OWOX 2025
-  timestamp guide, Secoda type casting, Reintech BQ error handling,
-  Index.dev silent-failures, TDS BQ optimization).
-- 16 URLs collected; 10 in snippet-only.
-- Recency scan 2024-2026 — no breaking changes; dbt-fusion#599 is an
-  independent reproduction of the same TIMESTAMP_DIFF type mismatch.
-- 5 internal files inspected; confirmed `bigquery_client.py:308`'s
-  TIMESTAMP_DIFF is NOT the same bug (uses bound TIMESTAMP param).
-- Key external finding: SAFE.TIMESTAMP() returns NULL on malformed
-  input rather than failing the query — preferred for monitoring
-  queries that must not fail-loudly on a single bad row.
-- Key internal finding: silent `logger.debug` at the swallowed-exception
-  site was the observability failure; bug had been latent since the
-  columns became STRING.
+Researcher (ac6de9d55afe579de) returned `gate_passed: true`:
+- 7 sources read in full via WebFetch (Google BQ MCP docs, LucasHild
+  GitHub, PyPI listing, ergut alternative, MCP Toolbox quickstart,
+  Google Cloud blog on remote BQ MCP, Anthropic Claude Code MCP docs).
+- 17 URLs collected; 10 in snippet-only.
+- Recency scan 2024-2026; 3 query variants per topic.
+- 6 internal files inspected.
+- Concrete recommendation with three flagged caveats; all three
+  addressed in this generate phase.
+
+## Operator handoff (mandatory)
+
+The pinned MCP server is loaded by the harness at session start.
+**The user MUST `/clear` (or restart Claude Code) for the new BQ MCP
+to attach to the next conversation.** Until then:
+- The current session continues with whatever MCP tools are already
+  in scope.
+- The smoke test (`scripts/mcp_servers/smoke_test_bigquery_mcp.py`)
+  proves the pinned MCP works standalone with ADC — independent of
+  Claude Code attachment status.
+
+After `/clear`, ToolSearch with query `bigquery` should return
+`mcp__bigquery__list-tables`, `mcp__bigquery__describe-table`,
+`mcp__bigquery__execute-query`. The Claude.ai-hosted OAuth-demanding
+proxy should no longer be needed.
 
 ## Backwards compatibility
 
-- `SAFE.TIMESTAMP()` returns NULL on malformed input rather than
-  raising; `_bq_max_event_age` still returns None on failure,
-  preserving the fail-open contract.
-- `logger.warning` bump is purely additive: more log output, no
-  behavioral change for callers or tests.
-- No schema changes, no API shape changes, no UI changes.
+- The old deny rule matched no real tool; removing it has no behavioral
+  effect. Adding the hyphenated rule is strictly more protective.
+- `.mcp.json` change is additive; alpaca MCP is unaffected.
+- CLAUDE.md changes are doc-only; no code path depends on the wording.
+- The Python `bigquery.Client` fallback path remains valid for any
+  session where the MCP fails to attach.
 
 ## Honest disclosures
 
-- **The "red" band on paper_trades is real, not a false positive.** The
-  fix unmasks an underlying staleness (last paper_trade row is from
-  2026-05-01, ~4 days old) caused by the cycle-hang issue addressed
-  in phase-23.2.18. The red signal is correct and operator-actionable.
-- **`SAFE.TIMESTAMP("YYYY-MM-DD")` parses to midnight UTC.** For
-  `snapshot_date='2026-05-05'` the reported age is "since
-  2026-05-05T00:00:00 UTC", not "since the actual snapshot write
-  time". Acceptable approximation for daily snapshots; flagged in the
-  inline comment.
-- **Live backend was not restarted as part of this phase.** The fix is
-  in code that the live process holds via the python module — uvicorn
-  --reload picks it up on save. Operator should restart explicitly to
-  guarantee freshness endpoint immediately reflects the fix; otherwise
-  next module reload (or backend restart for any reason) suffices.
-- **No migration of the STRING columns to TIMESTAMP/DATE.** Surgical
-  fix only. A future phase could add a `created_at_ts: TIMESTAMP`
-  column with a backfill, but that's a separate effort.
-- **`bigquery_client.py:308` was checked and is NOT affected.** Its
-  `TIMESTAMP_DIFF` operates on a column bound via `ScalarQueryParameter
-  (..., 'TIMESTAMP', ts)` — both sides are TIMESTAMP. No fix needed.
+- **The pinned MCP only loads after the user restarts Claude Code.**
+  Until `/clear` or app restart, the deferred-tool list still shows
+  the OAuth proxy. The smoke test confirms the pinned server works
+  standalone via uvx + ADC, but Claude Code itself won't see it
+  until it re-reads `.mcp.json`.
+- **Tool surface is narrower than CLAUDE.md previously claimed.** No
+  separate readonly variant; `execute-query` is dual-use and gated by
+  the deny rule. There is no `list_dataset_ids` / `get_dataset_info`
+  on this package — a future phase could write a thin wrapper if those
+  primitives are missed, but `list-tables` + `describe-table` cover
+  most inspection workflows.
+- **Bare-date / RFC3339 string columns still need SAFE.TIMESTAMP wraps**
+  in any SQL we write through `execute-query` — same pitfall as
+  phase-23.2.20. The pin doesn't change SQL semantics.
+- **Pin version drift.** `0.3.2` is current as of 2026-05-05. Bumping
+  later requires re-running the smoke test on Python 3.14.
+- **uvx PATH dependency.** Same as the existing alpaca MCP. If
+  Claude Code is launched from the GUI on a fresh user account, uvx
+  may not be on PATH and both MCPs will fail to attach. Already
+  proven OK in this environment because alpaca attaches fine.
