@@ -14,10 +14,21 @@ from __future__ import annotations
 
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
+from backend.services import kill_switch
 from backend.services.kill_switch import KillSwitchState
+
+
+@pytest.fixture(autouse=True)
+def _isolated_kill_switch_audit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """phase-23.2.22: redirect kill_switch._AUDIT_PATH to tmp so tests cannot
+    write real pause/resume events to production handoff/kill_switch_audit.jsonl."""
+    p = tmp_path / "kill_switch_audit.jsonl"
+    monkeypatch.setattr(kill_switch, "_AUDIT_PATH", p)
+    return p
 
 
 def test_pause_does_not_deadlock_on_self_lock():

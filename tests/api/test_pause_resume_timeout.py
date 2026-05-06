@@ -4,10 +4,25 @@ from __future__ import annotations
 
 import asyncio
 import time
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+
+from backend.services import kill_switch
+
+
+@pytest.fixture(autouse=True)
+def _isolated_kill_switch_audit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """phase-23.2.22: redirect kill_switch._AUDIT_PATH to tmp so this file's
+    `pause_trading` / `resume_trading` calls don't write real pause events to
+    production handoff/kill_switch_audit.jsonl. test_pause_unaffected_no_bq_call
+    in particular invokes the live pause endpoint which goes through the
+    module-level _state singleton."""
+    p = tmp_path / "kill_switch_audit.jsonl"
+    monkeypatch.setattr(kill_switch, "_AUDIT_PATH", p)
+    return p
 
 
 def _slow_get_paper_portfolio(_pid: str = "default"):

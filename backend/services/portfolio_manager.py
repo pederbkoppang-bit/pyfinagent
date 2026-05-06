@@ -202,6 +202,15 @@ def decide_trades(
 
     for cand in buy_candidates:
         if remaining_positions >= settings.paper_max_positions:
+            # phase-23.2.22: emit a diagnostic line so 0-trade cycles are
+            # diagnosable from logs without forensic analysis. Without this
+            # the loop silently `break`s and the cycle reports "Executing 0
+            # trades" with no explanation -- making the position cap look
+            # like a bug.
+            logger.info(
+                "Position cap reached: %d held >= %d max -- skipping all BUY candidates",
+                remaining_positions, settings.paper_max_positions,
+            )
             break
 
         if available_cash <= 0:

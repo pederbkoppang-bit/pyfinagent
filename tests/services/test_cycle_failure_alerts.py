@@ -26,6 +26,7 @@ These tests assert the fix:
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
@@ -40,6 +41,18 @@ def _reset_dedup():
     alerting.reset_default_deduper()
     yield
     alerting.reset_default_deduper()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_kill_switch_audit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """phase-23.2.22: redirect kill_switch._AUDIT_PATH to tmp so tests cannot
+    write real pause events to production handoff/kill_switch_audit.jsonl.
+    Pre-fix forensic: a 2026-05-05 pytest run wrote 7 spurious pause events
+    (drawdown_breach + manual + test + test-pre + bench-1/2/3) into prod,
+    creating a latent boot-paused risk for the next backend restart."""
+    p = tmp_path / "kill_switch_audit.jsonl"
+    monkeypatch.setattr(kill_switch, "_AUDIT_PATH", p)
+    return p
 
 
 @pytest.fixture
