@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-07 | `39f905c6` | phase-23.3.2: slack-bot heartbeat-push wiring + 4 core jobs in registry |
 | 2026-05-07 | `ad4e8b57` | phase-23.3.1: main APScheduler audit -- name + id labels for /cron |
 | 2026-05-07 | `caa3ad49` | phase-23.3.0: Q/A roster verification + masterplan phase-23.3 audit plan |
 | 2026-05-07 | `39141ec3` | phase-23.2.24: fix Rules-of-Hooks bug + harden Q/A with ESLint coverage |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-30 | `0ed72940` | phase-23.1.22: kill_switch reentrant-lock deadlock + 23.1.20+21 hardening |
 | 2026-04-29 | `fdcc2823` | phase-23.1.19: backend FD-exhaustion fix (sqlite3 closing()) + regression guard |
 | 2026-04-29 | `629eea3b` | phase-23.1.18: paper_portfolio_snapshots dedup + MERGE upsert |
-| 2026-04-29 | `4937a3e7` | phase-23.1.17: home/paper hero SSOT via shared useLiveNav hook |
 
 ---
 
+### v6.5.135 — phase-23.3.2: slack-bot heartbeat-push wiring + 4 core jobs in registry (2026-05-07)
+
+- **phase-23.3.2: slack-bot heartbeat-push wiring + 4 core jobs in registry**
 ### v6.5.134 — phase-23.3.1: main APScheduler audit -- name + id labels for /cron (2026-05-07)
 
 - **phase-23.3.1: main APScheduler audit -- name + id labels for /cron**
