@@ -919,6 +919,7 @@ def _add_scheduler_job(settings):
         day_of_week="mon-fri",
         timezone=ZoneInfo("America/New_York"),
         id=_scheduler_job_id,
+        name="Paper trading daily run",  # phase-23.3.1: human-readable label
         replace_existing=True,
     )
 

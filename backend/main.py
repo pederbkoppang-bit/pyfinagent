@@ -213,8 +213,16 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logging.warning(f"Queue processor batch error: {e}")
         
-        # Schedule batch processing every 5 seconds
-        processor_job = queue_scheduler.add_job(process_batch, 'interval', seconds=5)
+        # Schedule batch processing every 5 seconds.
+        # phase-23.3.1: pass explicit id + name so /cron Jobs tab shows
+        # human-readable identifiers instead of an APScheduler-generated
+        # UUID and `lifespan.<locals>.process_batch` qualname.
+        processor_job = queue_scheduler.add_job(
+            process_batch, 'interval', seconds=5,
+            id="ticket_queue_process_batch",
+            name="Ticket queue batch processor",
+            replace_existing=True,
+        )
         queue_scheduler.start()
         # phase-23.2.23: register so /api/jobs/all can introspect
         _register_cron_scheduler("queue", queue_scheduler)

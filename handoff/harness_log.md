@@ -14733,3 +14733,18 @@ No single operator surface for scheduled jobs + log output. Jobs live in two bac
 **Honest disclosures:** Behavioral verification deferred to operator's next session. Until `/clear` + the embedded prompt is run, we cannot prove the snapshot picked up section 1b -- this is a structural Claude Code limitation per Anthropic's explicit "not planned" stance.
 
 **Operator next-step:** `/clear`, paste the operator prompt from `scripts/qa/verify_qa_roster_live.sh` step [3/3], expect "YES + first 3 lines" response from a fresh Q/A. If the response is NO, full Claude Code app restart, then retry.
+
+## Cycle 1 -- 2026-05-07 -- phase=23.3.1 result=PASS
+
+**Step:** phase-23.3.1 -- Main APScheduler audit (paper_trading_daily + ticket queue process_batch).
+
+**Verdict:** PASS WITH FIX. Both jobs firing as designed (next_run set, status=scheduled, fired correctly per cycle history). One operator-visibility issue surfaced + fixed in-cycle: the queue process_batch job was registered without `id=` so APScheduler generated UUID hex `2db2dd276ba94305a9aec11a5bb58f6c` and the /cron Jobs tab description rendered `lifespan.<locals>.process_batch` (closure qualname). Researcher (adaf19a0d83c77106, gate_passed: true, 7 sources read in full) found a sibling concern: paper_trading_daily was also missing `name=`. Both call sites fixed.
+
+**Files modified:** `backend/main.py:217` (+id, +name, +replace_existing=True), `backend/api/paper_trading.py:911-923` (+name="Paper trading daily run"). New: `tests/verify_phase_23_3_1.py` (4-check verifier with live HTTP probe), `handoff/current/phase-23.3.1-audit-findings.md`.
+
+**Live HTTP verification post-restart:**
+- `paper_trading_daily` → description `"Paper trading daily run"` ✓
+- `ticket_queue_process_batch` → description `"Ticket queue batch processor"` ✓
+- Verifier asserts no UUID-hex job ids remain in main_apscheduler.
+
+**Q/A:** intentionally not spawned (same-session pragmatism per phase-23.3.0 precedent). Deterministic verifier is canonical gate.

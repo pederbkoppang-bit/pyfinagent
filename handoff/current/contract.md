@@ -1,105 +1,102 @@
 ---
-step: phase-23.3.0
-title: Q/A roster verification — confirm new "1b. Frontend lint" rubric will be live in next session
+step: phase-23.3.1
+title: Main APScheduler audit — paper_trading_daily + queue process_batch (job naming)
 cycle_date: 2026-05-07
 harness_required: true
-verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_3_0.py'
-research_brief: handoff/current/phase-23.3.0-external-research.md (also see phase-23.3.0-internal-codebase-audit.md)
+verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_3_1.py'
+research_brief: handoff/current/phase-23.3.1-external-research.md (also see phase-23.3.1-internal-codebase-audit.md)
 ---
 
-# Contract — phase-23.3.0
+# Contract — phase-23.3.1
 
 ## Hypothesis
 
-Phase-23.2.24 added "### 1b. Frontend lint + typecheck" to
-`.claude/agents/qa.md`. CLAUDE.md states agent definitions are
-snapshotted at session start. The Q/A subagent that ran in the SAME
-session as the edit could not have section 1b in its in-memory system
-prompt — yet its critique reported the section present. Resolution
-(per researcher): the Q/A read the FILE FROM DISK via the Read tool,
-which reflects current disk state. That READ is NOT the same as its
-own system prompt. The new rubric will only be reliably resident in
-fresh subagent spawns starting from the NEXT session.
+Live `/api/jobs/all` returns 2 main-process APScheduler jobs:
+- `paper_trading_daily` — id ✓, next_run ✓, but no `name=` so the
+  `description` column on /cron renders "_scheduled_run" (the qualname).
+- Anonymous queue process_batch — id is the auto-generated UUID
+  `2db2dd276ba94305a9aec11a5bb58f6c`; description is
+  `lifespan.<locals>.process_batch`.
 
-This step's job is verification: prove the on-disk state is correct,
-prove the change is committed and pushed (so the next session picks
-it up regardless of branch), and document the next-session
-verification protocol the operator can run.
+Researcher confirmed both `add_job` calls are missing `name=` and the
+queue call is missing `id=` and `replace_existing=True`. APScheduler
+docs explicitly say "MUST define an explicit ID and use
+replace_existing=True or you will get a new copy of the job every
+time your application restarts." Audit verdict: jobs ARE working as
+designed (next_run set, fired correctly), but operator-visibility on
+the /cron page is degraded by missing labels.
+
+Two-line fix.
 
 ## Research-gate summary
 
-Researcher (a0496b0fb1e8447fe) returned `gate_passed: true`:
-- 7 sources read in full (Anthropic Claude Code official sub-agents
-  doc + Issue #5865 closed "not planned" 2025 + 5 community sources)
-- 14 URLs collected; 7 in snippet-only
-- Recency scan 2024-2026 — no hot-reload introduced
-- 7 internal files inspected
-- Concrete recommendation: literal next-session verification command
+Researcher (adaf19a0d83c77106) returned `gate_passed: true`:
+- 7 sources read in full (APScheduler 3.x base scheduler + Job module
+  + User Guide + 4.x API + migration guide + agronholm Issue #487 +
+  flask-apscheduler Issue #7)
+- 17 URLs collected; 10 in snippet-only
+- Recency scan 2024-2026 (no new findings supersede 3.x guidance)
+- 3 internal files inspected with file:line anchors
+- Concrete recommendation: literal kwargs to add to both call sites
 
-Key finding (verbatim from official docs):
-"Subagents are loaded at session start. If you add or edit a subagent
-file directly on disk, restart your session to load it. Subagents
-created through the `/agents` interface take effect immediately
-without a restart." (https://code.claude.com/docs/en/sub-agents)
+## Immutable success criteria (verbatim)
 
-## Immutable success criteria (verbatim — DO NOT EDIT)
-
-1. The on-disk state of `.claude/agents/qa.md` includes the literal
-   line `### 1b. Frontend lint + typecheck` AND a literal `npx eslint .`
-   AND a literal `tsc --noEmit` command in the surrounding code block.
-2. `git log origin/main` includes the phase-23.2.24 commit subject
-   "phase-23.2.24: fix Rules-of-Hooks bug + harden Q/A with ESLint
-   coverage" so any next session pulling main will have the new rubric.
-3. A new operator-runnable smoke `scripts/qa/verify_qa_roster_live.sh`
-   exists and prints (a) the on-disk section header, (b) the relevant
-   lines around it, and (c) a manual-procedure note instructing the
-   operator to spawn Q/A in a NEW session and ask the standard
-   self-disclosure question.
-4. A new doc cross-reference is added to `CLAUDE.md` near the existing
-   "Agent definition changes require session restart" rule pointing to
-   the new smoke script and the per-step-protocol's retry-on-FAIL
-   subsection, so the operator can find the verification path without
-   re-deriving it.
-5. `python tests/verify_phase_23_3_0.py` exits 0 and asserts:
-   - Criterion 1 (on-disk section + commands)
-   - Criterion 2 (commit on origin/main)
-   - Criterion 3 (smoke script exists + executable bit + correct content)
-   - Criterion 4 (CLAUDE.md cross-reference present)
-6. `bash -n scripts/qa/verify_qa_roster_live.sh` exits 0 (script
-   syntactically valid).
+1. `backend/main.py` — the queue scheduler `add_job(process_batch, ...)`
+   call now passes `id="ticket_queue_process_batch"`,
+   `name="Ticket queue batch processor"`, and
+   `replace_existing=True`.
+2. `backend/api/paper_trading.py` — the existing
+   `_scheduler.add_job(_scheduled_run, ...)` call now passes
+   `name="Paper trading daily run"` (existing `id=_scheduler_job_id`
+   and `replace_existing=True` unchanged).
+3. Live `/api/jobs/all` after backend restart shows BOTH jobs with
+   human-readable `id` and `description`. Specifically:
+   - `paper_trading_daily` has `description: "Paper trading daily run"`.
+   - The queue job has `id: "ticket_queue_process_batch"` and
+     `description: "Ticket queue batch processor"`. No UUID hex
+     string.
+4. `python tests/verify_phase_23_3_1.py` exits 0.
+5. `python -c "import ast; ast.parse(open(P).read())"` passes for
+   both modified files.
+6. The audit deliverable `handoff/current/phase-23.3.1-audit-findings.md`
+   exists and documents: (a) both jobs verified working as designed
+   (next_run, status), (b) the labels-fix applied, (c) any sibling
+   concerns flagged but deferred (none expected).
 
 ## Plan steps
 
-1. **Smoke script** `scripts/qa/verify_qa_roster_live.sh`:
-   - Print on-disk header + surrounding context.
-   - Print git status of phase-23.2.24 commit (local vs origin/main).
-   - Print the literal self-disclosure prompt the operator should
-     give a fresh Q/A in their next session.
-2. **CLAUDE.md addition** — one short cross-reference paragraph
-   under "Agent definition changes require session restart" pointing
-   to the smoke script + retry-on-FAIL subsection.
-3. **Verifier** `tests/verify_phase_23_3_0.py` — 4 deterministic
-   checks per criteria 1-4 + a `bash -n` syntax check on the script.
-4. **Append to harness_log** AFTER Q/A PASS.
+1. Edit `backend/main.py:217` to add the three kwargs.
+2. Edit `backend/api/paper_trading.py:914` to add `name=`.
+3. Restart backend; capture verbatim `/api/jobs/all` output for the
+   experiment_results + audit-findings.
+4. Write `tests/verify_phase_23_3_1.py` — AST + grep + live HTTP probe
+   that asserts the response contains the new id and description.
+5. Write `handoff/current/phase-23.3.1-audit-findings.md` summarising
+   the audit verdict + delta.
+6. Append `harness_log.md` AFTER Q/A PASS.
 
 ## Out of scope
 
-- Forcing a hot-reload: Anthropic explicitly declined this in
-  Issue #5865. Don't reinvent.
-- Migrating qa.md to interface-managed form: separate refactor.
-- Re-running phase-23.2.24's Q/A in a fresh session: that's the
-  OPERATOR's job after restart, not this phase's.
+- Migration to APScheduler 4.x (`add_schedule` API) — separate effort.
+- Renaming any other anonymous APScheduler jobs across the codebase
+  beyond the 2 called out above (researcher confirmed no other
+  callsites in the main process).
+- Slack-bot jobs (separate process, covered by phase-23.3.2/3).
 
 ## Backwards compatibility
 
-- Pure additive: new script + CLAUDE.md paragraph + new verifier.
+- Renaming the queue job's id from auto-UUID to
+  `"ticket_queue_process_batch"` is safe — researcher's grep found
+  zero callsites depending on the auto-UUID.
+- Adding `name=` is purely cosmetic; no behavior change.
+- `replace_existing=True` is idempotent for the in-memory job store
+  (queue_scheduler default) but follows project convention and is
+  future-proof for a possible JobStore migration.
 
 ## References
 
-- Researcher: `handoff/current/phase-23.3.0-external-research.md`,
-  `handoff/current/phase-23.3.0-internal-codebase-audit.md`
-- Anthropic Claude Code docs: https://code.claude.com/docs/en/sub-agents
-- Issue #5865: https://github.com/anthropics/claude-code/issues/5865
-- `.claude/agents/qa.md` (the file with section 1b)
-- `CLAUDE.md` (existing snapshot rule)
-- `docs/runbooks/per-step-protocol.md` (retry-on-FAIL loop, phase-23.2.24)
+- Researcher: `handoff/current/phase-23.3.1-{external-research,internal-codebase-audit}.md`
+- `backend/main.py:217` (queue add_job)
+- `backend/api/paper_trading.py:914` (paper_trading_daily add_job)
+- `backend/api/cron_dashboard_api.py:143` (description = job.name OR job.id)
+- APScheduler 3.x User Guide: explicit-id-+-replace_existing rule
