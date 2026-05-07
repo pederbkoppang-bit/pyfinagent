@@ -1,195 +1,105 @@
 ---
-step: phase-23.2.24
-title: Fix React Rules-of-Hooks bug + harden Q/A with frontend lint coverage
+step: phase-23.3.0
+title: Q/A roster verification — confirm new "1b. Frontend lint" rubric will be live in next session
 cycle_date: 2026-05-07
 harness_required: true
-verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_24.py'
-research_brief: handoff/current/phase-23.2.24-external-research.md (also see phase-23.2.24-internal-codebase-audit.md)
+verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_3_0.py'
+research_brief: handoff/current/phase-23.3.0-external-research.md (also see phase-23.3.0-internal-codebase-audit.md)
 ---
 
-# Contract — phase-23.2.24
+# Contract — phase-23.3.0
 
 ## Hypothesis
 
-User opened `/cron` after phase-23.2.23 shipped and saw a runtime
-React error: "React has detected a change in the order of Hooks
-called by JobsTab. ... 9. undefined / useMemo." The Q/A for
-phase-23.2.23 returned PASS without catching this.
+Phase-23.2.24 added "### 1b. Frontend lint + typecheck" to
+`.claude/agents/qa.md`. CLAUDE.md states agent definitions are
+snapshotted at session start. The Q/A subagent that ran in the SAME
+session as the edit could not have section 1b in its in-memory system
+prompt — yet its critique reported the section present. Resolution
+(per researcher): the Q/A read the FILE FROM DISK via the Read tool,
+which reflects current disk state. That READ is NOT the same as its
+own system prompt. The new rubric will only be reliably resident in
+fresh subagent spawns starting from the NEXT session.
 
-User feedback (verbatim 2026-05-07): "the code didnt work as you see
-it should also check everything like copilot review on github with a
-workflow that everything works. if not it is sent back to main for
-fixing. research how copilot reviw on github is setup."
-
-**Two distinct issues:**
-
-A) **Bug location**: `frontend/src/app/cron/page.tsx::JobsTab` line
-   218 calls `useMemo` AFTER three conditional early returns at lines
-   171, 180, 205. Classic Rules-of-Hooks violation. React detects
-   hook-count mismatch between renders and errors at runtime in dev
-   mode. Production build behavior is undefined.
-
-B) **Q/A coverage gap**: `.claude/agents/qa.md:41-54` deterministic
-   checks block lists `python -c "import ast"`, `test -f`, the
-   immutable verification command, and `pytest`. It does NOT include
-   a frontend `eslint` invocation. The bug WOULD have been caught by
-   `npx eslint . --max-warnings=0` because
-   `frontend/eslint.config.mjs:34` already sets
-   `react-hooks/rules-of-hooks: "error"`. The gap is that Q/A never
-   runs the project's own lint script.
-
-**TypeScript can't catch this.** Hook-call ordering is a runtime
-execution-order constraint with no model in the type system. ESLint
-react-hooks plugin performs AST-level control-flow analysis and IS
-the canonical guard.
-
-**Anthropic harness pattern is structurally sound.** The existing
-FAIL→Main→re-Q/A loop is already what the user wants ("send back to
-main for fixing"). What's missing is check coverage — Q/A needs to
-run the right commands. GitHub Copilot review (per researcher's
-audit) is advisory-only and cannot block merges; the pyfinagent
-harness is structurally STRONGER once the check rubric is fixed.
+This step's job is verification: prove the on-disk state is correct,
+prove the change is committed and pushed (so the next session picks
+it up regardless of branch), and document the next-session
+verification protocol the operator can run.
 
 ## Research-gate summary
 
-Researcher (ac0bca7dac3b163da) returned `gate_passed: true`:
-- 10 sources read in full via WebFetch (GitHub Copilot review configure
-  + use docs, React rules-of-hooks docs, Next.js ESLint config,
-  ESLint configure-rules, Anthropic harness-design + multi-agent
-  research, KAIRI Copilot 2025 analysis, dev.to Copilot guide 2026,
-  eslint-plugin-react-hooks rules index)
-- 20 URLs collected; 10 in snippet-only
-- Recency scan 2024-2026 with 3-variant query discipline; ESLint 9
-  flat config + Copilot review GA (Apr 2025) + agentic update Mar 2026
-  noted
-- 7 internal files inspected with file:line anchors
-- Concrete recommendation: literal commands + literal diff snippet
-  for `qa.md`
+Researcher (a0496b0fb1e8447fe) returned `gate_passed: true`:
+- 7 sources read in full (Anthropic Claude Code official sub-agents
+  doc + Issue #5865 closed "not planned" 2025 + 5 community sources)
+- 14 URLs collected; 7 in snippet-only
+- Recency scan 2024-2026 — no hot-reload introduced
+- 7 internal files inspected
+- Concrete recommendation: literal next-session verification command
+
+Key finding (verbatim from official docs):
+"Subagents are loaded at session start. If you add or edit a subagent
+file directly on disk, restart your session to load it. Subagents
+created through the `/agents` interface take effect immediately
+without a restart." (https://code.claude.com/docs/en/sub-agents)
 
 ## Immutable success criteria (verbatim — DO NOT EDIT)
 
-1. `frontend/src/app/cron/page.tsx::JobsTab` is restructured so EVERY
-   hook (`useState`, `useRef`, `useCallback`, `useEffect`, `useMemo`)
-   is called BEFORE any conditional `return`. The `useMemo` call must
-   move above the loading/error/empty early-return branches OR be
-   replaced with a different idiom that respects Rules-of-Hooks.
-2. `cd frontend && npx eslint .` exits 0 (errors-only). The
-   hook-order class of bug surfaces as an ERROR (`rules-of-hooks` is
-   already set to `"error"` severity in
-   `frontend/eslint.config.mjs:34`) so this catches the actual user
-   complaint. The codebase contains 37 pre-existing WARNINGS
-   (set-state-in-effect, exhaustive-deps, an unused eslint-disable
-   directive) that this phase intentionally does NOT fix because the
-   user asked for the cron crash + Q/A hardening, not a 37-warning
-   cleanup. Those warnings are documented in the Honest Disclosures
-   section as a phase-2 deferral with their current count baseline.
-3. `cd frontend && npx tsc --noEmit` exits 0.
-4. `.claude/agents/qa.md` is updated to include a new mandatory
-   deterministic-check section "1b. Frontend lint" containing the
-   literal commands above. Q/A must run them for ANY phase whose
-   diff touches `frontend/**` or `.claude/agents/qa.md` itself. The
-   section must explicitly state that `tsc --noEmit` does NOT catch
-   hook-order violations and that ESLint with
-   `react-hooks/rules-of-hooks: "error"` is the canonical guard.
-5. `tests/verify_phase_23_2_24.py` runs `npx eslint . --max-warnings=0`
-   from `frontend/` and asserts exit 0. This becomes a regression
-   net so a future hook-order violation in any frontend file fails
-   the verifier deterministically. (Subsequent phase verifiers can
-   reuse the helper.)
-6. `frontend/package.json` lint script is unchanged at `"eslint ."`
-   (errors-only). Tightening to `--max-warnings=N` with a baseline
-   is deferred — see criterion 2 honest-disclosures discussion.
-7. `docs/runbooks/per-step-protocol.md` (or a clearly cross-linked
-   section) documents the explicit retry-on-FAIL loop: when Q/A
-   returns FAIL, Main reads `violated_criteria`, fixes the blockers,
-   updates `experiment_results.md`, then spawns a fresh Q/A. Max-3
-   retries before `certified_fallback`. Cite Anthropic's
-   harness-design doc and the existing 3rd-CONDITIONAL auto-FAIL
-   rule so this is unified, not contradicting.
-8. The phase's experiment_results.md "Honest disclosures" section
-   names the phase-23.2.23 Q/A miss as a real-world example — what
-   was missed, why, and what the new rubric would have done.
-9. `python tests/verify_phase_23_2_24.py` exits 0 with all checks
-   green, including the live ESLint run.
-10. The `/cron` page renders without console errors when opened in
-    a browser. Best-effort verification via the existing axe / build
-    tooling; if that's not feasible inside the harness, document the
-    manual reproduction steps the user can run.
+1. The on-disk state of `.claude/agents/qa.md` includes the literal
+   line `### 1b. Frontend lint + typecheck` AND a literal `npx eslint .`
+   AND a literal `tsc --noEmit` command in the surrounding code block.
+2. `git log origin/main` includes the phase-23.2.24 commit subject
+   "phase-23.2.24: fix Rules-of-Hooks bug + harden Q/A with ESLint
+   coverage" so any next session pulling main will have the new rubric.
+3. A new operator-runnable smoke `scripts/qa/verify_qa_roster_live.sh`
+   exists and prints (a) the on-disk section header, (b) the relevant
+   lines around it, and (c) a manual-procedure note instructing the
+   operator to spawn Q/A in a NEW session and ask the standard
+   self-disclosure question.
+4. A new doc cross-reference is added to `CLAUDE.md` near the existing
+   "Agent definition changes require session restart" rule pointing to
+   the new smoke script and the per-step-protocol's retry-on-FAIL
+   subsection, so the operator can find the verification path without
+   re-deriving it.
+5. `python tests/verify_phase_23_3_0.py` exits 0 and asserts:
+   - Criterion 1 (on-disk section + commands)
+   - Criterion 2 (commit on origin/main)
+   - Criterion 3 (smoke script exists + executable bit + correct content)
+   - Criterion 4 (CLAUDE.md cross-reference present)
+6. `bash -n scripts/qa/verify_qa_roster_live.sh` exits 0 (script
+   syntactically valid).
 
 ## Plan steps
 
-1. **Fix `frontend/src/app/cron/page.tsx::JobsTab`** by moving
-   `useMemo` above the early returns. The `useMemo` callback must
-   tolerate `jobs === null` (return `{}`); the rendering code below
-   the early returns is unaffected because `jobs` is non-null when
-   it runs.
-2. **Update `frontend/package.json`** lint script to add
-   `--max-warnings=0`.
-3. **Update `.claude/agents/qa.md`** — insert the literal "1b.
-   Frontend lint" section per researcher's diff snippet, with the
-   `cd frontend && npx eslint . --max-warnings=0` and
-   `cd frontend && npx tsc --noEmit` commands and the explanation
-   that TypeScript does NOT catch hook-order violations.
-4. **Update `docs/runbooks/per-step-protocol.md`** — add (or
-   tighten) the §4-EVALUATE retry-on-FAIL section. Quote Anthropic
-   harness-design. Specify the max-3 ceiling already in
-   `feedback_harness_rigor.md` / 3rd-CONDITIONAL auto-FAIL.
-5. **New `tests/verify_phase_23_2_24.py`** — runs `npx eslint .
-   --max-warnings=0` AND `npx tsc --noEmit` from `frontend/` via
-   subprocess. Captures verbatim output on failure. Also greps
-   qa.md for the new section header.
-6. **Run full regression**: `verify_phase_23_2_23.py` should still
-   pass (cron page exists + tabs + no emoji); new
-   `verify_phase_23_2_24.py` should pass; backend pytest unaffected.
-7. **Live browser check**: best-effort instructions in
-   experiment_results.md for the user (open localhost:3000/cron in
-   the existing dev server, confirm no console errors).
-8. **Append `harness_log.md`** AFTER Q/A PASS, BEFORE any
-   masterplan flip.
+1. **Smoke script** `scripts/qa/verify_qa_roster_live.sh`:
+   - Print on-disk header + surrounding context.
+   - Print git status of phase-23.2.24 commit (local vs origin/main).
+   - Print the literal self-disclosure prompt the operator should
+     give a fresh Q/A in their next session.
+2. **CLAUDE.md addition** — one short cross-reference paragraph
+   under "Agent definition changes require session restart" pointing
+   to the smoke script + retry-on-FAIL subsection.
+3. **Verifier** `tests/verify_phase_23_3_0.py` — 4 deterministic
+   checks per criteria 1-4 + a `bash -n` syntax check on the script.
+4. **Append to harness_log** AFTER Q/A PASS.
 
 ## Out of scope
 
-- Adding ESLint to the harness's pre-commit hook (a separate phase
-  with its own deny-list audit).
-- Migrating other React components to verify they don't have similar
-  hook-order violations beyond what `eslint . --max-warnings=0`
-  catches automatically across the entire repo.
-- Building a GitHub Actions workflow that mirrors Copilot review
-  semantics (the researcher's analysis confirms our existing harness
-  is structurally stronger; replicating Copilot's advisory-only
-  pattern would be a downgrade).
-- Restructuring qa.md to add per-domain check matrices (e.g., "if
-  diff touches `backend/services/cycle_health.py`, run X"). The
-  generic "if frontend touched, run lint" is sufficient for now.
-- Adding a Playwright / browser-runtime smoke test (heavyweight; out
-  of scope for a check that's already statically caught).
+- Forcing a hot-reload: Anthropic explicitly declined this in
+  Issue #5865. Don't reinvent.
+- Migrating qa.md to interface-managed form: separate refactor.
+- Re-running phase-23.2.24's Q/A in a fresh session: that's the
+  OPERATOR's job after restart, not this phase's.
 
 ## Backwards compatibility
 
-- The hook-order fix preserves `useMemo` semantics — `grouped` is
-  still recomputed only when `jobs` changes; the only difference is
-  that the empty case `jobs === null` produces `{}` and the empty
-  Object.entries map is rendered through the same JSX path.
-- `--max-warnings=0` strictly tightens lint; any existing warnings
-  in the codebase that would surface need to be cleaned in this
-  phase OR explicitly suppressed with a per-line `// eslint-disable`
-  comment + reason.
-- `qa.md` change is purely additive to the deterministic-check list;
-  existing checks unaffected. Future Q/A runs that don't touch
-  `frontend/**` will skip the new section.
-- `per-step-protocol.md` change is doc-only.
-- `package.json` change tightens local `npm run lint` only; CI is
-  already separate.
+- Pure additive: new script + CLAUDE.md paragraph + new verifier.
 
 ## References
 
-- Researcher: `handoff/current/phase-23.2.24-external-research.md`,
-  `handoff/current/phase-23.2.24-internal-codebase-audit.md`
-- Bug: `frontend/src/app/cron/page.tsx:218`
-- Existing config: `frontend/eslint.config.mjs:34` (rule already
-  enabled but never run by Q/A)
-- Q/A definition: `.claude/agents/qa.md:41-54`
-- React official docs: rules-of-hooks
-- Anthropic harness-design (file-based handoff, retry-on-FAIL)
-- GitHub Copilot review docs (confirms advisory-only — pyfinagent
-  harness already stronger)
+- Researcher: `handoff/current/phase-23.3.0-external-research.md`,
+  `handoff/current/phase-23.3.0-internal-codebase-audit.md`
+- Anthropic Claude Code docs: https://code.claude.com/docs/en/sub-agents
+- Issue #5865: https://github.com/anthropics/claude-code/issues/5865
+- `.claude/agents/qa.md` (the file with section 1b)
+- `CLAUDE.md` (existing snapshot rule)
+- `docs/runbooks/per-step-protocol.md` (retry-on-FAIL loop, phase-23.2.24)

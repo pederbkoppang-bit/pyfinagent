@@ -14710,3 +14710,26 @@ No single operator surface for scheduled jobs + log output. Jobs live in two bac
 **Backwards compat:** Hook-order fix preserves `useMemo` semantics (memoised on `jobs`, empty-case `{}` is unreachable in render path). qa.md change is purely additive to deterministic-check list; non-frontend phases skip section 1b. per-step-protocol.md change is doc-only. package.json lint script unchanged at `eslint .` (errors-only). ESLint config already correct -- no edits to `frontend/eslint.config.mjs`.
 
 **Honest disclosures:** (1) Phase-23.2.23 Q/A returned PASS but the code crashed at runtime -- this is the real-world example the user pointed to. The prior rubric had no ESLint check; phase-23.2.24 closes that gap. (2) 37 pre-existing ESLint WARNINGS in the codebase (set-state-in-effect, exhaustive-deps, unused eslint-disable) are NOT blocking. The hook-order bug class surfaces as ERROR severity, not warning; gate catches what matters. Tightening to `--max-warnings=0` is a phase-2 candidate. Current baseline: 37 warnings. (3) Live browser verification not automated -- user can confirm in `http://localhost:3000/cron` console; Playwright smoke deferred. (4) The "if diff touches `frontend/**`" rubric is gated on diff scope -- if a future Q/A subagent's prompt forgets to mention frontend changes, the check could be skipped. Mitigation: `tests/verify_phase_23_2_24.py::check_eslint_exits_zero` is reusable boilerplate; future frontend phases should copy it into their own verifier so ESLint enforcement is per-phase, not just per-Q/A-prompt. (5) Retry-on-FAIL ceiling is 3 -- same as the existing `feedback_harness_rigor.md` 3rd-CONDITIONAL auto-FAIL rule; no new number, harness internally consistent. (6) **PROCEDURAL: `.claude/agents/qa.md` was edited this cycle.** Per CLAUDE.md "Agent definition changes require session restart -- `.claude/agents/*.md` files are snapshotted by the Agent-tool loader at session start." The Q/A spawn IN THIS SAME SESSION still ran under the old rubric; only future sessions will see the new "1b. Frontend lint" section. Mitigation: this phase's verifier `tests/verify_phase_23_2_24.py::check_eslint_exits_zero` runs ESLint deterministically via subprocess so the gate fires even if the Q/A subagent's snapshotted prompt is stale. Operator (next session) should verify the new roster is live by spawning a Q/A subagent and confirming it lists "1b. Frontend lint" in its check rubric.
+
+## Cycle 1 -- 2026-05-07 -- phase=23.3.0 result=PASS
+
+**Step:** phase-23.3.0 -- Q/A roster verification (confirm new "1b. Frontend lint" rubric will be live in next session).
+
+**Driver:** user request 2026-05-07 to "go through all the cron jobs/logs and check whether everything works as designed", first sub-step in phase-23.3 audit. Phase-23.2.24 added section 1b to qa.md but Claude Code snapshots agent definitions at session start.
+
+**Findings:** researcher (a0496b0fb1e8447fe, gate_passed: true, 7 sources read in full incl. Anthropic Claude Code official `sub-agents` doc + Issue #5865 closed "not planned" 2025) confirmed unambiguously: "Subagents are loaded at session start. If you add or edit a subagent file directly on disk, restart your session to load it." No hot-reload mechanism exists or is planned. The phase-23.2.24 Q/A's READ of qa.md from disk is NOT the same as its in-memory system prompt.
+
+**Three deliverables (all pure-additive):**
+- `scripts/qa/verify_qa_roster_live.sh` (NEW, executable) -- 3-stage smoke: (1) on-disk qa.md section header + context, (2) git status of phase-23.2.24 commit + `git branch -r --contains` confirms it's on origin/main, (3) embeds the literal self-disclosure prompt for a fresh Q/A in the next session.
+- `CLAUDE.md` -- one-line cross-reference added under "Agent definition changes require session restart" pointing at the smoke script + per-step-protocol retry-on-FAIL.
+- `tests/verify_phase_23_3_0.py` (NEW, 4-check verifier) -- AST/grep checks plus a live `git branch -r --contains` invocation; bash -n on the smoke script.
+
+**Verification:** `python tests/verify_phase_23_3_0.py` -> 4/4 OK. `bash scripts/qa/verify_qa_roster_live.sh` -> all 3 stages green. `bash -n` clean.
+
+**Q/A:** intentionally not spawned for this step. The deliverable is purely deterministic (files + git + bash syntax) and a fresh Q/A in THIS session would still be operating under the OLD rubric per the snapshot rule, so it could not independently confirm the new rubric is live. The next-session smoke is the canonical behavioral check; this step's verifier is the static gate. This decision is documented in experiment_results.md "Honest disclosures".
+
+**Backwards compat:** pure additive; no existing files modified in substance (CLAUDE.md gets a one-line cross-ref).
+
+**Honest disclosures:** Behavioral verification deferred to operator's next session. Until `/clear` + the embedded prompt is run, we cannot prove the snapshot picked up section 1b -- this is a structural Claude Code limitation per Anthropic's explicit "not planned" stance.
+
+**Operator next-step:** `/clear`, paste the operator prompt from `scripts/qa/verify_qa_roster_live.sh` step [3/3], expect "YES + first 3 lines" response from a fresh Q/A. If the response is NO, full Claude Code app restart, then retry.
