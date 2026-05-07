@@ -13,7 +13,7 @@ import {
   LogoIcon, IconKey, IconSignOut,
 } from "@/lib/icons";
 import type { Icon } from "@/lib/icons";
-import { CaretDown, X, Robot, Graph } from "@/lib/icons";
+import { CaretDown, X, Robot, Graph, Clock } from "@/lib/icons";
 import { healthCheck } from "@/lib/api";
 
 interface NavItem { href: string; label: string; icon: Icon }
@@ -55,6 +55,8 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/agents", label: "MAS Dashboard", icon: Robot },
       { href: "/agent-map", label: "Agent Map", icon: Graph },
+      // phase-23.2.23: cron jobs + log tails operator dashboard
+      { href: "/cron", label: "Cron / Logs", icon: Clock },
     ],
   },
 ];

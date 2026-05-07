@@ -21,6 +21,10 @@ from backend.api.auth import get_current_user
 from backend.api.backtest import router as backtest_router
 from backend.api.charts import router as charts_router
 from backend.api.investigate import router as investigate_router
+from backend.api.cron_dashboard_api import (
+    router as cron_dashboard_router,
+    register_scheduler as _register_cron_scheduler,
+)
 from backend.api.paper_trading import router as paper_trading_router, init_scheduler
 from backend.api.performance_api import router as performance_router
 from backend.api.portfolio import router as portfolio_router
@@ -167,6 +171,8 @@ async def lifespan(app: FastAPI):
             scheduler = AsyncIOScheduler()
             init_scheduler(scheduler)
             scheduler.start()
+            # phase-23.2.23: register so /api/jobs/all can introspect
+            _register_cron_scheduler("main", scheduler)
             logging.info("Paper trading scheduler started")
         except ImportError:
             logging.warning("APScheduler not installed, paper trading scheduler disabled")
@@ -210,6 +216,8 @@ async def lifespan(app: FastAPI):
         # Schedule batch processing every 5 seconds
         processor_job = queue_scheduler.add_job(process_batch, 'interval', seconds=5)
         queue_scheduler.start()
+        # phase-23.2.23: register so /api/jobs/all can introspect
+        _register_cron_scheduler("queue", queue_scheduler)
         logging.info("Ticket queue processor started (Phase 3.2.1)")
     except Exception as e:
         logging.warning(f"Failed to start ticket queue processor: {e}")
@@ -373,6 +381,8 @@ app.include_router(settings_router)
 app.include_router(signals_router)
 app.include_router(skills_router)
 app.include_router(mas_events_router)
+# phase-23.2.23 cron / logs operator dashboard
+app.include_router(cron_dashboard_router)
 
 # phase-10.11 autoresearch sprint-state tile endpoint.
 from backend.api.harness_autoresearch import router as harness_autoresearch_router

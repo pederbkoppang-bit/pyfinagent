@@ -1,162 +1,191 @@
 ---
-step: phase-23.2.22
-title: Test-audit-log isolation + position-cap diagnostic logging
+step: phase-23.2.23
+title: Cron / Logs operator dashboard page + supporting backend endpoints
 cycle_date: 2026-05-07
 harness_required: true
-verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_22.py'
-research_brief: handoff/current/phase-23.2.22-external-research.md (also see phase-23.2.22-internal-codebase-audit.md)
+verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_2_23.py'
+research_brief: handoff/current/phase-23.2.23-external-research.md (also see phase-23.2.23-internal-codebase-audit.md)
 ---
 
-# Contract — phase-23.2.22
+# Contract — phase-23.2.23
 
 ## Hypothesis
 
-User screenshot: OpsStatusBar Cycle segment shows `paper_trades: red`,
-heartbeat green, paper_snapshots green. User asked (A) why trading
-stopped, (B) is the red dot supposed to recover when they resume
-trading.
-
-**Answer to B (no code change required):** YES — the band logic in
-`backend/services/cycle_health.py:_band` is purely a function of
-`age_sec / cycle_interval_sec`. As soon as a single new row lands in
-`paper_trades` with a recent `created_at`, the ratio drops to ~0 and
-the band flips back to green on the next freshness poll. The dot is
-a symptom indicator, not a latch. This will be re-stated in
-experiment_results.md and then the user-facing reply.
-
-**Answer to A (real bugs):** Forensic — last paper_trade was
-2026-05-01T18:02:39 (FIX BUY, 6 days ago). Cycles on 05-05 and 05-06
-ran successfully (heartbeat=end, all 8 steps logged), but Step 7
-showed `Executing 0 trades` from 17 candidates (3 new + 14 re-evals).
-Researcher (ab745941eaa332650) found two distinct issues:
-
-**Issue A — position-cap blocks all buys without telling anyone.**
-`paper_max_positions=10`; live `paper_positions` count = 14;
-`backend/services/portfolio_manager.py:204` `break`s the buy loop
-immediately on every cycle because `14 >= 10`. SELL signals require
-`recommendation in _SELL_RECS` or `signal_downgrade` — with no
-catalyst, HOLD recommendations don't free slots. The behavior is
-working-as-designed but **silent**: no log line says "blocked by
-position cap (14 >= 10)" so future 0-trade cycles look like a bug.
-
-**Issue B — pytest writes real events to production audit log.**
-`backend/services/kill_switch.py:21-26` defines `_AUDIT_PATH` as a
-module-level constant pointing at production
-`handoff/kill_switch_audit.jsonl`. Two test files instantiate
-`KillSwitchState()` and call `.pause(...)` without redirecting the
-path: `tests/services/test_cycle_failure_alerts.py:139,154` and
-`tests/services/test_kill_switch_no_deadlock.py:25,45,66`. Forensic:
-`handoff/kill_switch_audit.jsonl` already contains 7 spurious pause
-events from the 2026-05-05 20:07:52 pytest run, including a
-`drawdown_breach details={"daily_loss_pct":-2.5}` row that NEVER
-HAPPENED in production. **Latent restart risk**: the audit log ends
-with test pauses + no following resume. Next backend restart would
-boot `_paused=True` and `autonomous_loop.py` would short-circuit
-forever, with no alert.
+User: "We need a new page where we see all the cron jobs and the logs."
+Today the user has no single place to see what's scheduled and what's
+recently logged — APScheduler jobs live in two processes (FastAPI +
+slack_bot), launchd jobs live in plists, logs live in
+`handoff/logs/*.log` + `backend.log`. Researcher recommendation: a new
+`/cron` route with two tabs (Jobs / Logs) backed by two new authenticated
+read-only endpoints (`/api/jobs/all` and `/api/logs/tail`).
 
 ## Research-gate summary
 
-Researcher (ab745941eaa332650) returned `gate_passed: true`:
-- 7 sources read in full via WebFetch (pytest tmp_path docs, pytest
-  monkeypatch docs, pytest fixture autouse pattern, append-only
-  audit-log isolation references, Kelly-criterion / position-cap
-  literature, recency scan articles)
-- 17 URLs collected; 10 in snippet-only
-- Recency scan 2024-2026 with 3-variant query discipline
-- 10 internal files inspected; concrete fix shape for each issue
-- Reference: `tests/services/test_sod_daily_roll.py:31-35` already
-  uses the canonical `monkeypatch.setattr(ks, "_AUDIT_PATH", tmp)`
-  pattern — the offending tests just need the same fixture.
+Researcher (ae12e50f28b1313fd) returned `gate_passed: true`:
+- 6 sources read in full via WebFetch (LogRocket UI patterns,
+  Potapov SSE-vs-polling 2025, APScheduler base scheduler docs,
+  GitHub Primer progressive disclosure, PortSwigger path traversal,
+  Apache Airflow UI overview)
+- 16 URLs collected; 10 in snippet-only
+- Recency scan 2024-2026; GitHub Actions 1000-line backscroll +
+  Potapov 2025 SSE recommendation are the new findings; canonical
+  short-poll guidance is acceptable for a single-developer local app
+- 11 internal files inspected with file:line anchors
+- 13 known scheduled jobs documented (2 main + 11 slack_bot/launchd)
+- Concrete recommendation: route, sidebar entry, tab layout, endpoint
+  shapes, allowlist constraints
 
 ## Immutable success criteria (verbatim — DO NOT EDIT)
 
-1. `tests/services/test_cycle_failure_alerts.py` adds an autouse
-   module-scope `tmp_audit` fixture that monkeypatches
-   `backend.services.kill_switch._AUDIT_PATH` to `tmp_path /
-   "kill_switch_audit.jsonl"` for every test in that file.
-2. `tests/services/test_kill_switch_no_deadlock.py` adds the same
-   autouse `tmp_audit` fixture.
-3. After running the full suite, `handoff/kill_switch_audit.jsonl`
-   gets ZERO new rows from those two files. Verifier asserts this
-   by snapshotting size before / after a `pytest` run.
-4. The 2026-05-05 20:07:52 audit pollution gets a CLEAN-UP marker:
-   a `cleanup` event row appended to `handoff/kill_switch_audit.jsonl`
-   noting that the prior 7 pause events from that timestamp were
-   pytest leakage and should be ignored on boot replay. Plus an
-   explicit `resume` event so the next backend restart does NOT
-   boot paused.
-5. `backend/services/cycle_health.py` is unchanged (the red-dot
-   recovery is by design; we are NOT touching the band logic).
-6. `backend/services/portfolio_manager.py` adds a single diagnostic
-   `logger.info` line at the position-cap break point: `"Position
-   cap reached: %d held >= %d max — skipping all BUY candidates"`.
-   No behavior change. No threshold change. No setting change.
-7. Regression test `tests/services/test_position_cap_logging.py` (new):
-   confirms the log line fires with the expected substrings when
-   `decide_trades` is invoked with positions ≥ cap.
-8. `python tests/verify_phase_23_2_22.py` exits 0.
-9. `python -c "import ast; ast.parse(open(P).read())"` passes for
-   every modified .py file.
+1. New backend endpoint `GET /api/jobs/all` returns a JSON envelope
+   `{jobs: [{id, source, schedule, next_run, last_run, status,
+   description}], generated_at}`. `source` is one of
+   `{main_apscheduler, slack_bot, launchd}`. Slack-bot and launchd
+   entries come from a curated static manifest if cross-process
+   introspection is not available; main_apscheduler entries come
+   from live `scheduler.get_jobs()` introspection.
+2. New backend endpoint `GET /api/logs/tail?log=<key>&lines=<n>`
+   returns the last N lines of an allowlisted log file as
+   `{log: <key>, lines: ["...", ...], n_returned, total_size_bytes}`.
+   The `log` parameter is REJECTED unless it matches the allowlist
+   `{backend, watchdog, restart, harness, autoresearch,
+   mas_harness_launchd}`. `lines` is clamped to `[10, 1000]`.
+   Path traversal MUST be impossible — the endpoint never accepts
+   nor echoes a raw path.
+3. Both endpoints are protected by the existing auth middleware
+   (i.e., NOT added to `_PUBLIC_PATHS`).
+4. New page `frontend/src/app/cron/page.tsx` follows the standard
+   6-tier shell (`flex h-screen overflow-hidden` outer, `<Sidebar />`,
+   `flex-shrink-0` header zone, `flex-1 overflow-y-auto scrollbar-thin`
+   content zone) per `.claude/rules/frontend-layout.md`. Two tabs:
+   `Jobs` and `Logs`. Phosphor icons only (no emoji).
+5. Sidebar entry added: `{ href: "/cron", label: "Cron / Logs", icon:
+   Clock }` in the System section of `frontend/src/components/Sidebar.tsx`
+   (between MAS Dashboard and Agent Map). `Clock` exported from
+   `frontend/src/lib/icons.ts`.
+6. Jobs tab renders a sortable table with columns id / source /
+   schedule / next_run / last_run / status. Status color-coded:
+   emerald=ok, rose=failed, amber=in_progress, slate=never_run.
+   No emoji. Empty state for "no jobs reported" with a Phosphor
+   `IconWarning` and a link back to `/agents`.
+7. Logs tab renders a dropdown (the 6 allowlisted keys), a lines
+   selector (50/100/200/500/1000), a monospace pre block with the
+   tail, and a "Refresh" button. Auto-refresh polls every 5s when
+   the page is focused; counts consecutive failures and stops after
+   5 per `.claude/rules/frontend.md`. Loading + error + empty states
+   per the same rule.
+8. Backend tests:
+   - `tests/api/test_jobs_all.py` — at least 3 tests: shape contract,
+     auth required, every entry has the documented keys.
+   - `tests/api/test_logs_tail.py` — at least 4 tests: allowlist
+     enforced (rejects an arbitrary path), lines clamp enforced
+     (10/1000), happy-path tail returns the last N lines, auth
+     required.
+9. `python tests/verify_phase_23_2_23.py` exits 0 (asserts file
+   existence, sidebar entry, allowlist constants, page shell
+   structure, no-emoji, AST parse).
+10. `cd frontend && npx --no-install tsc --noEmit` exits 0 (no new
+    type errors).
+11. The new page renders against the live backend (localhost:8000
+    healthy) and shows at least the `paper_trading_daily` and
+    `process_batch` jobs from `scheduler.get_jobs()`. Verified via
+    a smoke check using `curl /api/jobs/all` after backend restart.
 
 ## Plan steps
 
-1. `tests/services/test_cycle_failure_alerts.py`:
-   - Add `tmp_audit` autouse fixture at module scope copying the
-     pattern from `test_sod_daily_roll.py:31-35`.
-2. `tests/services/test_kill_switch_no_deadlock.py`:
-   - Same autouse fixture; verify all 4 existing tests still pass
-     (they instantiate `KillSwitchState()` 5 times).
-3. Append two cleanup rows to production
-   `handoff/kill_switch_audit.jsonl`:
-   - One `cleanup` event documenting the 2026-05-05 20:07:52 pytest
-     leakage so future audits see the disclosure.
-   - One `resume` event with `trigger="manual_post_test_cleanup"` so
-     boot replay terminates in the unpaused state.
-4. `backend/services/portfolio_manager.py:204`:
-   - Add `logger.info("Position cap reached: %d held >= %d max -- skipping all BUY candidates", remaining_positions, settings.paper_max_positions)` BEFORE the existing `break`.
-5. New `tests/services/test_position_cap_logging.py`:
-   - Mock `decide_trades` deps (settings, candidates, current_positions=15
-     items, etc) and `caplog.at_level(logging.INFO)`; assert the
-     INFO log line fires with both `15` and `10` substrings present.
-6. New `tests/verify_phase_23_2_22.py`:
-   - AST-parse modified files
-   - assert `_AUDIT_PATH` monkeypatch is referenced in both test files
-   - assert position-cap log message exists in `portfolio_manager.py`
-   - assert audit-log cleanup `resume` event is present
-7. Run prior-phase regression suite + new tests; verify
-   `handoff/kill_switch_audit.jsonl` did NOT grow during pytest.
-8. Append `harness_log.md` AFTER Q/A PASS, BEFORE any masterplan flip.
+1. **Track the running APScheduler instances** in a module-level
+   registry so `/api/jobs/all` can call `.get_jobs()`. Edit
+   `backend/main.py` lifespan: store `scheduler` and `queue_scheduler`
+   into a module-level dict (e.g., `_running_schedulers["main"] =
+   scheduler; _running_schedulers["queue"] = queue_scheduler`). No
+   behavior change to existing scheduling.
+2. **New backend file** `backend/api/cron_dashboard_api.py`:
+   - `GET /api/jobs/all` — merges (a) live introspection of the two
+     APSchedulers via `scheduler.get_jobs()`, (b) static manifest of
+     slack_bot's 11 jobs (mirroring `_PHASE9_JOB_IDS` +
+     morning/evening_digest/watchdog_health_check/prompt_leak_redteam
+     from `slack_bot/scheduler.py`), (c) static launchd manifest
+     (`com.pyfinagent.backend-watchdog.plist`).
+   - `GET /api/logs/tail?log=<key>&lines=<n>`:
+     - `_LOG_PATHS` allowlist dict mapping key → resolved Path.
+     - Reject unknown keys with HTTP 400.
+     - Clamp `lines` to `[10, 1000]`.
+     - Stream-tail using `collections.deque(open(p, encoding='utf-8',
+       errors='replace'), maxlen=lines)`.
+     - Returns `{log, lines: [...], n_returned, total_size_bytes}`.
+   - Register the new router in `backend/main.py`.
+3. **Tests**:
+   - `tests/api/test_jobs_all.py` — uses `TestClient` against a
+     stubbed scheduler; asserts shape and key presence; asserts auth
+     required (401 without token).
+   - `tests/api/test_logs_tail.py` — uses `tmp_path` to create fake
+     allowlisted log files with predictable lines; asserts shape,
+     allowlist rejection (400 on `log=etc/passwd` and unknown key),
+     line clamp (lines=5 -> 10, lines=10000 -> 1000), auth required.
+4. **Frontend**:
+   - `frontend/src/app/cron/page.tsx` — 6-tier shell, two tabs, polled
+     fetch via `apiGet`. No new component primitives — reuse existing
+     button / card / scrollbar-thin classes from prior pages.
+   - `frontend/src/components/Sidebar.tsx` — add the System entry.
+   - `frontend/src/lib/icons.ts` — re-export `Clock` directly.
+   - `frontend/src/lib/types.ts` — add `JobInfo` and `LogTailResponse`
+     types.
+   - `frontend/src/lib/api.ts` — add `getAllJobs` and `getLogTail`
+     thin wrappers.
+5. **Verifier** `tests/verify_phase_23_2_23.py`:
+   - AST-parse modified .py files
+   - Assert allowlist dict + `_LOG_PATHS` keys present in
+     `cron_dashboard_api.py`.
+   - Assert both endpoints registered in `backend/main.py`.
+   - Assert sidebar entry references `/cron`.
+   - Assert the new page file exists with the required shell + tabs.
+   - Grep no-emoji on new frontend files.
+   - Run the new pytests.
+6. **Live verification** (after backend restart):
+   - `curl http://127.0.0.1:8000/api/jobs/all -H "Authorization: ..."`
+     returns a non-empty job list including `paper_trading_daily`.
+   - `curl /api/logs/tail?log=watchdog&lines=20` returns 20 lines.
+7. **Append `harness_log.md`** AFTER Q/A PASS.
 
 ## Out of scope
 
-- Raising `paper_max_positions` from 10 to 15 (operator decision; not
-  a bug fix).
-- Time-based forced-sell of positions held > N days (research phase).
-- Tightening re-eval sell trigger to include HOLD on winners (research
-  phase).
-- Changing the band thresholds in `_band` (the red-dot recovery is
-  already correct).
-- Frontend changes (the red→green explanation goes in the user reply,
-  not in code).
+- **Slack-bot live introspection.** The slack_bot is a separate
+  process; cross-process IPC for live `get_jobs()` is overkill for a
+  single-developer local app. Static manifest with last-fired
+  timestamp from the existing job_status_api heartbeat registry is
+  sufficient. A future phase could wire a `POST /api/jobs/heartbeat`
+  for the slack_bot to push its `next_run_time` on each fire.
+- **Server-Sent Events for log streaming.** Researcher endorsed SSE
+  but flagged short-poll as acceptable for a local app. Polling at 5s
+  with stop-after-5-failures matches existing conventions.
+- **Log rotation / archival.** Existing logs are append-only; rotation
+  is out of scope.
+- **Job-trigger (start/stop/run-now) actions.** Read-only first; any
+  action surface should be a separate phase with its own deny-list
+  audit (matches the `mcp__bigquery__execute-query` precedent).
+- **Cost / rate-limit metrics.** Already covered by
+  `/api/observability/cost-budget` and the existing dashboard tile.
 
 ## Backwards compatibility
 
-- `tmp_audit` fixture is purely additive in test files; no production
-  code changes for the test-isolation fix.
-- `logger.info` line is purely additive; no behavior change to
-  `decide_trades`.
-- Audit-log cleanup `resume` event is consistent with the existing
-  schema (just another line in the JSONL); the `cleanup` event is a
-  new event type but `_load_from_audit` only acts on `pause`,
-  `resume`, `sod_snapshot`, `peak_update` — unknown event types are
-  silently ignored.
+- New endpoints; no existing route changes.
+- New page; no existing route changes.
+- New sidebar entry; existing entries untouched.
+- Scheduler-registry is module-level dict population; existing code
+  paths are byte-identical.
+- No schema changes, no settings changes.
 
 ## References
 
-- Researcher: `handoff/current/phase-23.2.22-external-research.md`,
-  `handoff/current/phase-23.2.22-internal-codebase-audit.md`
-- `backend/services/kill_switch.py:21-26` (the `_AUDIT_PATH` constant)
-- `backend/services/portfolio_manager.py:204` (the position-cap break)
-- `tests/services/test_sod_daily_roll.py:31-35` (canonical fixture
-  pattern to copy)
-- pytest official docs: `tmp_path`, `monkeypatch`, `autouse=True`
+- Researcher: `handoff/current/phase-23.2.23-external-research.md`,
+  `handoff/current/phase-23.2.23-internal-codebase-audit.md`
+- `backend/main.py:163-220` (scheduler init sites)
+- `backend/api/paper_trading.py:895-934` (paper_trading_daily registration)
+- `backend/slack_bot/scheduler.py:31-90, 336-382` (slack-bot jobs +
+  phase-9 registry)
+- `backend/api/job_status_api.py` (existing heartbeat registry, reused)
+- `frontend/src/app/agents/page.tsx` (precedent for system-internals page)
+- `.claude/rules/frontend-layout.md` (6-tier shell mandatory)
+- `.claude/rules/frontend.md` (polling stop-after-5 rule, no emoji)
+- PortSwigger path-traversal allowlist guidance
+- Apache Airflow tabbed-UI precedent

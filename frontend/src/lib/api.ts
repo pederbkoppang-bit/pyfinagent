@@ -716,3 +716,18 @@ export function getSovereignStrategy(
 ): Promise<StrategyDetailResponse> {
   return apiFetch(`/api/sovereign/strategy/${encodeURIComponent(strategyId)}`);
 }
+
+// phase-23.2.23 cron / logs operator dashboard
+import type { AllJobsResponse, LogTailResponse } from "./types";
+
+export function getAllJobs(): Promise<AllJobsResponse> {
+  return apiFetch("/api/jobs/all");
+}
+
+export function getLogTail(
+  log: string,
+  lines: number = 200,
+): Promise<LogTailResponse> {
+  const qs = new URLSearchParams({ log, lines: String(lines) });
+  return apiFetch(`/api/logs/tail?${qs.toString()}`);
+}

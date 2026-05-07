@@ -1117,3 +1117,30 @@ export interface AltDataResponse {
   f13?: AltData13FHolding[] | null;
   ic_eval?: AltDataICEval | null;
 }
+
+// phase-23.2.23 cron / logs operator dashboard
+export type JobSource = "main_apscheduler" | "slack_bot" | "launchd";
+
+export interface JobInfo {
+  id: string;
+  source: JobSource;
+  schedule: string;
+  next_run: string | null;
+  last_run: string | null;
+  status: string;
+  description: string;
+}
+
+export interface AllJobsResponse {
+  jobs: JobInfo[];
+  generated_at: string;
+  n_total: number;
+}
+
+export interface LogTailResponse {
+  log: string;
+  lines: string[];
+  n_returned: number;
+  total_size_bytes: number;
+  exists: boolean;
+}
