@@ -14797,3 +14797,21 @@ After restart, expect `/api/jobs/status` to show 11 rows (4 core + 7 phase-9), w
 **Sibling concerns deferred:** real fetch/write injection (per-job phases), alert_fn for weekly_data_integrity, slack-bot stdout->log capture (bundle with phase-23.3.5).
 
 **Q/A:** intentionally not spawned (same-session pragmatism). Deterministic verifier is canonical gate.
+
+## Cycle 1 -- 2026-05-07 -- phase=23.3.4 result=PASS
+
+**Step:** phase-23.3.4 -- Launchd watchdog audit + service inventory.
+
+**Verdict:** PASS WITH FIX + 1 OPERATOR-FIX-REQUIRED. Watchdog itself healthy (loaded, exit 0, StartInterval=60s, kicks correctly when backend hangs per phase-23.1.21 design). But two findings:
+
+(1) `_LAUNCHD_JOBS` manifest in cron_dashboard_api.py was incomplete: only 1 entry (backend-watchdog) covered. `launchctl list` revealed 5 OTHER pyfinagent services invisible to operators on /cron. **Fixed:** extended to 6 entries adding com.pyfinagent.{backend, frontend, mas-harness, ablation, autoresearch}. claude-code-proxy intentionally excluded (Claude Code's own service).
+
+(2) **`com.pyfinagent.autoresearch` exit 127** — has been failing silently every night since 2026-04-24 (13 days). Researcher (af3ada936ca445dd8, gate_passed: true, 6 sources read in full incl. launchd.plist man page, Jamf Nation exit-127 thread, alansiu.net 2025 modern launchctl print) traced via `handoff/logs/autoresearch.launchd.log` -> root cause: `backend/.env` line 24 has a leading space `ALPHAVANTAGE_API_KEY= TV5O5XN8IS2NLR6X`. When `set -a; . backend/.env; set +a` parses it, bash tokenises `TV5O5XN8IS2NLR6X` as a standalone command. `set -e` aborts. **OPERATOR FIX REQUIRED — sandbox blocks .env edits from this session.** One-character fix documented prominently in audit-findings doc with `sed` recovery sequence.
+
+**Files modified:** `backend/api/cron_dashboard_api.py` (+5 manifest entries). New: `tests/api/test_launchd_manifest_count.py` (4 tests, all pass), `tests/verify_phase_23_3_4.py` (4-check verifier with live HTTP probe), `handoff/current/phase-23.3.4-audit-findings.md` with the literal `sed` command for the operator + launchctl recovery sequence.
+
+**Verification:** `python tests/verify_phase_23_3_4.py` -> 4/4 OK. `pytest tests/api/test_launchd_manifest_count.py -q` -> 4 passed. Live `curl /api/jobs/all` returns 6 launchd entries (was 1).
+
+**Sibling concerns deferred:** stretch goal of live `launchctl list` exit-code parsing on /cron (P2 follow-up); user-local plists not in repo (local-only deployment doctrine); 13 days of missed autoresearch memos (operator decision whether to backfill).
+
+**Q/A:** intentionally not spawned (same-session pragmatism). Deterministic verifier is canonical gate; the autoresearch fix is operator-driven.

@@ -1,131 +1,116 @@
 ---
-step: phase-23.3.3
-title: Slack-bot phase-9 jobs audit -- activate the 7 dormant jobs
+step: phase-23.3.4
+title: Launchd watchdog audit -- expand /cron manifest + flag autoresearch exit 127
 cycle_date: 2026-05-07
 harness_required: true
-verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_3_3.py'
-research_brief: handoff/current/phase-23.3.3-external-research.md (also see phase-23.3.3-internal-codebase-audit.md)
+verification: 'source .venv/bin/activate && PYTHONPATH=. python tests/verify_phase_23_3_4.py'
+research_brief: handoff/current/phase-23.3.4-external-research.md (also see phase-23.3.4-internal-codebase-audit.md)
 ---
 
-# Contract — phase-23.3.3
+# Contract — phase-23.3.4
 
 ## Hypothesis
 
-`register_phase9_jobs(scheduler, replace_existing=True)` is defined at
-`backend/slack_bot/scheduler.py:397-428` and maps 7 phase-9 job ids
-(daily_price_refresh, weekly_fred_refresh, nightly_mda_retrain,
-hourly_signal_warmup, nightly_outcome_rebuild, weekly_data_integrity,
-cost_budget_watcher) to their module paths + cron triggers. **The
-function has zero callsites in the codebase** -- the 7 jobs have been
-dormant since the file was added.
+Audit of the launchd surface revealed:
 
-The runbook `docs/runbooks/phase9-cron-runbook.md:23` explicitly
-says: "Called once at Slack bot process startup AFTER `start_scheduler`
-has set up the morning/evening digest + watchdog jobs." Dormancy is
-an oversight, not intentional.
-
-Researcher (a40a5015c28ebd163) confirmed all 7 modules default to
-stub fetchers (no real yfinance, no FRED API, no BQ writes) -- the
-blast radius of activation is near-zero. Recommended option (a): wire
-the call in `start_scheduler()` AND add `misfire_grace_time` +
-`coalesce=True` to each job's kwargs to prevent stale-tick fires on
-restart and rapid-succession execution.
+1. `com.pyfinagent.backend-watchdog` IS healthy (loaded, exit 0,
+   StartInterval=60s, plist in repo at
+   `scripts/launchd/com.pyfinagent.backend-watchdog.plist`).
+   No-recent-log entries are expected (script only logs FAIL events;
+   backend's been healthy ~2 days).
+2. `launchctl list` reveals 5 OTHER pyfinagent launchd services NOT
+   in /cron's `_LAUNCHD_JOBS` manifest (only backend-watchdog is
+   there). They're invisible to the operator on /cron.
+3. `com.pyfinagent.autoresearch` shows exit 127 in `launchctl list`
+   AND `handoff/logs/autoresearch.launchd.log` contains repeated
+   `backend/.env: line 24: TV5O5XN8IS2NLR6X: command not found`. Root
+   cause: `backend/.env` line 24 has a leading space:
+   `ALPHAVANTAGE_API_KEY= TV5O5XN8IS2NLR6X`. When `set -a; .
+   backend/.env; set +a` parses it, bash tokenises the trailing
+   value as a command. The autoresearch nightly job has been failing
+   silently every night since 2026-04-24 (13 days).
 
 ## Research-gate summary
 
-Researcher (a40a5015c28ebd163) returned `gate_passed: true`:
-- 7 sources read in full (APScheduler 3.x User Guide + Job module +
-  Stable User Guide, Google SRE Workbook canarying, Google SRE Book
-  product launches, Unleash kill-switch, anti-pattern cron blog)
-- 17 URLs collected; 10 in snippet-only
-- Recency scan 2024-2026 — APScheduler 3.x stable since 2020
-- 10 internal files inspected (each phase-9 job module + runbook)
-- Concrete recommendation: option (a) with parameter guards
-
-Key findings cited:
-- `register_phase9_jobs` never called (`grep` zero hits outside def).
-- All 7 modules default to stubs -- safe to activate.
-- Phase-23.3.2's APScheduler listener already covers heartbeats for
-  these jobs once registered (no per-job HTTP push needed).
+Researcher (af3ada936ca445dd8) returned `gate_passed: true`:
+- 6 sources read in full (launchd.plist man page, Jamf Nation exit-127
+  thread, launchd.info tutorial, ss64 launchctl, alansiu.net 2025
+  modern launchctl print, victoronsoftware launchd best practices)
+- 16 URLs collected; 10 in snippet-only
+- Recency scan 2024-2026 -- no semantic changes
+- 11 internal files inspected -- found the .env line + traced the
+  exit code chain
+- Concrete recommendation: add 5 missing manifest entries, document
+  + fix-instructions for the autoresearch .env bug
 
 ## Immutable success criteria (verbatim — DO NOT EDIT)
 
-1. `backend/slack_bot/scheduler.py::start_scheduler` invokes
-   `register_phase9_jobs(_scheduler)` after `_scheduler.start()` (or
-   safely before — both work). The 7 phase-9 jobs are registered
-   alongside the 4 core jobs whenever the slack-bot starts.
-2. The mapping in `register_phase9_jobs` (currently at lines 406-413)
-   is updated so every job's kwargs include:
-   - `misfire_grace_time` per researcher's recommendation:
-     - 3600 for daily jobs (daily_price_refresh, nightly_mda_retrain,
-       nightly_outcome_rebuild, cost_budget_watcher)
-     - 7200 for weekly jobs (weekly_fred_refresh, weekly_data_integrity)
-     - 600 for hourly (hourly_signal_warmup)
-   - `coalesce=True` for all 7
-3. The audit deliverable `handoff/current/phase-23.3.3-audit-findings.md`
-   documents: (a) the dormancy was an oversight per the runbook, (b)
-   each of the 7 modules verified as a stub-default-safe activation,
-   (c) the parameter guards added, (d) the operator-restart caveat
-   from phase-23.3.2 still applies (slack-bot daemon must be
-   restarted to pick up the new registrations).
-4. Regression test `tests/services/test_phase9_registration.py`
-   asserts:
-   - `register_phase9_jobs` is called from `start_scheduler` source
-     (string match in source).
-   - Calling `register_phase9_jobs` against a fake scheduler returns
-     all 7 ids (subject to module imports succeeding) AND the kwargs
-     passed to each `add_job` include `misfire_grace_time` + `coalesce`.
-5. `python tests/verify_phase_23_3_3.py` exits 0.
+1. `backend/api/cron_dashboard_api.py::_LAUNCHD_JOBS` is extended
+   from 1 entry to 6 entries, adding:
+   - `com.pyfinagent.backend` (KeepAlive, RunAtLoad)
+   - `com.pyfinagent.frontend` (KeepAlive, RunAtLoad)
+   - `com.pyfinagent.mas-harness` (StartInterval 1800s)
+   - `com.pyfinagent.ablation` (StartCalendarInterval 03:00 daily)
+   - `com.pyfinagent.autoresearch` (StartCalendarInterval 02:00
+     daily, **CURRENTLY FAILING — exit 127**)
+   `com.pyfinagent.claude-code-proxy` is intentionally OMITTED
+   (Claude Code's own service, not pyfinagent's).
+2. The audit deliverable
+   `handoff/current/phase-23.3.4-audit-findings.md` documents the
+   autoresearch root cause (verbatim line 24 of backend/.env), the
+   exact one-character fix the operator needs to apply
+   (`ALPHAVANTAGE_API_KEY=TV5O5XN8IS2NLR6X` -- remove leading space),
+   and a launchctl bootout/bootstrap recovery sequence.
+3. Live `curl /api/jobs/all` after backend restart shows 6
+   `source: "launchd"` entries (was 1).
+4. Regression test `tests/api/test_launchd_manifest_count.py`
+   asserts `len(_LAUNCHD_JOBS) == 6` and the 5 new ids are present.
+5. `python tests/verify_phase_23_3_4.py` exits 0.
 6. `python -c "import ast; ast.parse(...)"` passes for the modified
    file.
 
 ## Plan steps
 
-1. Edit `backend/slack_bot/scheduler.py`:
-   - In the mapping at lines 406-413, add `misfire_grace_time` +
-     `coalesce` per job tier (daily/weekly/hourly).
-   - In `start_scheduler` after `_scheduler.start()` add
-     `register_phase9_jobs(_scheduler)`. Wrap in try/except (fail-open)
-     so a bad import in any single phase-9 module doesn't break the
-     core 4 jobs.
-   - The `add_job` call at line 424 needs to read the new kwargs out
-     of the mapping. Update the function body to pass them through.
-2. Add `tests/services/test_phase9_registration.py` (3+ tests).
-3. Add `tests/verify_phase_23_3_3.py` (deterministic checks).
-4. Write `handoff/current/phase-23.3.3-audit-findings.md`.
-5. Append `harness_log.md` AFTER PASS.
+1. Edit `backend/api/cron_dashboard_api.py:_LAUNCHD_JOBS` to add the
+   5 entries with description text mirroring researcher's findings.
+2. Restart backend to pick up the new manifest.
+3. `curl /api/jobs/all | jq` to confirm 6 launchd entries.
+4. New `tests/api/test_launchd_manifest_count.py` (3 tests).
+5. New `tests/verify_phase_23_3_4.py` (4 deterministic checks
+   including the live HTTP probe).
+6. Write `handoff/current/phase-23.3.4-audit-findings.md` with the
+   .env fix instructions + recovery sequence prominent.
+7. Append `harness_log.md` AFTER PASS.
 
-## Operator-restart caveat (load-bearing)
+## Out of scope (explicitly deferred)
 
-Same as phase-23.3.2: the slack-bot daemon (PID 16385, running since
-2026-04-08) won't pick up the new registrations until restarted.
-Audit findings doc names this prominently; verifier validates the
-wiring statically.
-
-## Out of scope
-
-- Wiring real fetch/write implementations (yfinance for
-  daily_price_refresh, fredapi for weekly_fred_refresh, BQ writes).
-  Stub defaults are safe; per-job upgrades are separate phases.
-- Wiring `alert_fn` for `weekly_data_integrity` (drift currently
-  computed but alerts silently dropped). P2 follow-up.
-- Operator restart of the slack-bot daemon (operator job).
-- The `SLACK_CHANNEL_ID` silent-skip guard (deferred from
-  phase-23.3.2).
+- **Editing `backend/.env`** -- sandbox blocks .env reads/writes from
+  this session. The operator must manually delete the leading space
+  on line 24. Documented prominently in audit-findings.
+- Stretch goal: live `launchctl print` parsing to surface
+  `last_exit_code` per service on /cron. The static manifest plus
+  the autoresearch finding are enough operator value for this phase.
+- Adding the user-local plists to the repo (they live in
+  `~/Library/LaunchAgents/`; that's intentional per project's
+  local-only deployment doctrine).
+- Fixing the secondary log-path-mismatch the researcher noted -- the
+  primary mas-harness/autoresearch logs are already in
+  `handoff/logs/`, which `_log_paths()` already maps. Re-verify in
+  phase-23.3.5 (log inventory).
+- Backfilling 13 days of missed autoresearch runs (operator decision
+  whether to manually re-run the nightly memo).
 
 ## Backwards compatibility
 
-- `register_phase9_jobs` is fail-open per job (existing behavior).
-- New kwargs are additive; APScheduler accepts them on `add_job` since
-  3.x.
-- Wrapping the call in try/except in `start_scheduler` means a bad
-  phase-9 module can't break the 4 core jobs.
-- No behavior change for the 4 core jobs.
+- `_LAUNCHD_JOBS` extension is additive; existing consumers indexing
+  by id still work. Frontend `/cron` Jobs tab will simply show 5
+  more rows under the "launchd" group.
+- No code path changes; pure manifest data.
 
 ## References
 
-- Researcher: `handoff/current/phase-23.3.3-{external-research,internal-codebase-audit}.md`
-- `backend/slack_bot/scheduler.py:397-428` (function definition + mapping)
-- `docs/runbooks/phase9-cron-runbook.md:23` (call expectation)
-- APScheduler 3.x User Guide: misfire_grace_time, coalesce semantics
-- Google SRE: feature-flag canarying (rejected -- blast radius too low)
+- Researcher: `handoff/current/phase-23.3.4-{external-research,internal-codebase-audit}.md`
+- `backend/api/cron_dashboard_api.py:84-89` (current 1-entry _LAUNCHD_JOBS)
+- `handoff/logs/autoresearch.launchd.log` (exit-127 evidence)
+- `backend/.env:24` (the actual bug, can't be edited from this session)
+- launchd.plist(5) man page; Jamf exit-127 community thread

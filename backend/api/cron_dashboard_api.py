@@ -84,9 +84,23 @@ _SLACK_BOT_JOBS: tuple[dict[str, str], ...] = (
      "description": "Cost-budget watcher + soft-cap alerts"},
 )
 
+# phase-23.3.4: extended from 1 to 6 entries after launchd audit. Plists
+# for the 5 new services live in `~/Library/LaunchAgents/` (user-local,
+# not in repo per local-only deployment doctrine). `claude-code-proxy`
+# is intentionally omitted -- it is Claude Code's own service.
 _LAUNCHD_JOBS: tuple[dict[str, str], ...] = (
     {"id": "com.pyfinagent.backend-watchdog", "schedule": "launchd interval 60s",
      "description": "External liveness watchdog (SIGUSR1 + kickstart -k after 3 fails)"},
+    {"id": "com.pyfinagent.backend",          "schedule": "launchd KeepAlive RunAtLoad",
+     "description": "FastAPI backend daemon (uvicorn :8000); auto-respawns on EXIT"},
+    {"id": "com.pyfinagent.frontend",         "schedule": "launchd KeepAlive RunAtLoad",
+     "description": "Next.js frontend dev server (:3000)"},
+    {"id": "com.pyfinagent.mas-harness",      "schedule": "launchd interval 1800s",
+     "description": "MAS harness optimizer cycle (every 30 min)"},
+    {"id": "com.pyfinagent.ablation",         "schedule": "launchd cron 03:00 daily",
+     "description": "Nightly feature ablation experiment"},
+    {"id": "com.pyfinagent.autoresearch",     "schedule": "launchd cron 02:00 daily",
+     "description": "Nightly autoresearch memo (FAILING exit 127 since 2026-04-24 -- see phase-23.3.4 audit)"},
 )
 
 
