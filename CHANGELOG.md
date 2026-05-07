@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-07 | `0f1e6379` | phase-23.2.23: Cron / Logs operator dashboard page + endpoints |
 | 2026-05-07 | `6e9d142e` | phase-23.2.22: test-audit isolation + position-cap diagnostic logging |
 | 2026-05-05 | `b1be0126` | phase-23.2.21: pin ADC-backed BigQuery MCP server in .mcp.json |
 | 2026-05-05 | `cfbbda2a` | phase-23.2.20: cycle freshness BQ TIMESTAMP_DIFF type-coercion fix |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-29 | `3cc08e6a` | phase-23.1.16: ticker-meta latency fix (parallel + per-ticker cache + prewarm) |
 | 2026-04-29 | `881ef4aa` | phase-23.1.15: trade idempotency + paper_positions MERGE upsert |
 | 2026-04-29 | `56963d53` | phase-23.1.14: legacy-position sector lookup + live NAV scoreboards |
-| 2026-04-28 | `5b350e4d` | phase-23.1.13: sector concentration enforcement (v1) |
 
 ---
 
+### v6.5.131 — phase-23.2.23: Cron / Logs operator dashboard page + endpoints (2026-05-07)
+
+- **phase-23.2.23: Cron / Logs operator dashboard page + endpoints**
 ### v6.5.130 — phase-23.2.22: test-audit isolation + position-cap diagnostic logging (2026-05-07)
 
 - **phase-23.2.22: test-audit isolation + position-cap diagnostic logging**
