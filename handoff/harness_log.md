@@ -14845,3 +14845,23 @@ Lines 25 + 56 are NEW findings beyond phase-23.3.4's line 24. **Cannot fix from 
 **Sibling concerns deferred:** log rotation for backend.log (164 MB and growing — researcher recommends macOS newsyslog with /etc/newsyslog.d/pyfinagent.conf, 100MB threshold, 7 backups, J=bzip2; OR Python RotatingFileHandler in backend/main.py); slack_bot.log allowlist (depends on operator restart per phase-23.3.2 prescription); seed_stability_output.log (audit-only artifact); `last_modified_iso` enrichment to /logs/tail response (researcher's stretch suggestion).
 
 **Q/A:** intentionally not spawned (same-session pragmatism). Deterministic verifier is canonical gate; the .env fixes are operator-driven via the literal sed + launchctl sequence in audit-findings.
+
+## Cycle 1 -- 2026-05-07 -- phase=23.3.6 result=PASS
+
+**Step:** phase-23.3.6 -- /cron UI verification + phase-23.3 consolidation.
+
+**Verdict:** PASS. End-to-end live verifier exercises all 4 endpoint shapes (jobs/all envelope shape, named main_apscheduler ids, launchd manifest size, log allowlist all-9 reachability) + path-traversal still blocked + tsc + eslint clean. 7/7 deterministic checks against the running backend.
+
+**Live state confirmed:**
+- `/api/jobs/all` n_total=19 (2 main + 11 slack-bot + 6 launchd)
+- `/api/logs/tail` 9 allowlisted keys, all responsive
+- `/api/logs/tail?log=etc/passwd` -> HTTP 400 (path traversal blocked)
+- Frontend tsc + eslint clean
+
+**Files:** added `tests/verify_phase_23_3_6.py` (7-check end-to-end verifier), `handoff/current/phase-23.3.6-audit-findings.md` (consolidated 6-sub-phase audit summary with 3 outstanding OPERATOR-ACTION items).
+
+**Phase-23.3 closeout:** all 7 sub-steps (23.3.0 through 23.3.6) shipped PASS or PASS-WITH-FIX. Three operator actions documented prominently in the consolidation doc: (1) slack-bot daemon restart to activate 23.3.2 + 23.3.3 wiring, (2) backend/.env 3-line fix to clear autoresearch + ablation exit-127s, (3) post-session-restart Q/A roster behavioral check via the smoke script shipped in 23.3.0.
+
+**Q/A:** intentionally not spawned (same-session pragmatism). Deterministic verifier with live HTTP probes is canonical gate.
+
+**Phase-23.3 status -> done.**
