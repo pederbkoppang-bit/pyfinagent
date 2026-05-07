@@ -14770,3 +14770,30 @@ No single operator surface for scheduled jobs + log output. Jobs live in two bac
 **Sibling concerns deferred:** (1) SLACK_CHANNEL_ID silent-skip at scheduler.py:28-30 -- P2 follow-up to surface this on /api/jobs/all. (2) No dedicated slack-bot log file -- P2, may bundle with phase-23.3.5. (3) The 7 phase-9 jobs use `job_runtime.heartbeat()` context manager with the same logger.info sink -- phase-23.3.3 will route those through the new listener (they're also APScheduler jobs in the slack-bot process, so the EVENT_JOB_EXECUTED listener should already cover them once the daemon restarts; phase-23.3.3 will verify).
 
 **Q/A:** intentionally not spawned (same-session pragmatism per phase-23.3.0 precedent). Deterministic verifier is canonical gate.
+
+## Cycle 1 -- 2026-05-07 -- phase=23.3.3 result=PASS
+
+**Step:** phase-23.3.3 -- Slack-bot phase-9 jobs audit (7 jobs).
+
+**Verdict:** PASS WITH FIX (substantive). All 7 phase-9 modules exist on disk in `backend/slack_bot/jobs/`. `register_phase9_jobs(scheduler, replace_existing=True)` is defined at `backend/slack_bot/scheduler.py:397-428` and correctly maps each id to its module + cron trigger. **But the function had ZERO callsites in the codebase** -- the 7 jobs have been dormant since the file was added. Confirmed by researcher (a40a5015c28ebd163, gate_passed: true, 7 sources read in full incl. APScheduler 3.x docs + Google SRE Workbook canarying + Unleash kill-switch). The runbook `docs/runbooks/phase9-cron-runbook.md:23` explicitly says the call SHOULD happen at slack-bot startup.
+
+**Activation safety analysis:** all 7 modules default to stubs (no real yfinance, no FRED API, no LLM calls). Total activation cost <$0.02 in BQ. Bulk-activation is safe; no canary needed.
+
+**Two-change fix:** (1) Inserted `register_phase9_jobs(_scheduler)` in `start_scheduler` after `_scheduler.start()`, wrapped in try/except so a bad import in any single phase-9 module cannot break the 4 core jobs. (2) Added `misfire_grace_time` (3600 daily / 7200 weekly / 600 hourly) + `coalesce=True` to every job's kwargs in the mapping per researcher's brief -- prevents stale-tick fires on slack-bot restart and rapid-succession execution if jobstore ever migrates persistent.
+
+**Files modified:** `backend/slack_bot/scheduler.py` (+register call in start_scheduler, +misfire_grace_time/coalesce in 7 mapping entries). New: `tests/services/test_phase9_registration.py` (4 tests, all pass), `tests/verify_phase_23_3_3.py` (4-check verifier), `handoff/current/phase-23.3.3-audit-findings.md`.
+
+**Verification:** `python tests/verify_phase_23_3_3.py` -> 4/4 OK. `pytest tests/services/test_phase9_registration.py -q` -> 4 passed (one verifies grace-time tiers, one verifies fail-open on import error).
+
+**OPERATOR-RESTART CAVEAT (load-bearing, same as 23.3.2):** slack-bot daemon PID 16385 still running with OLD code (no register_phase9_jobs call, no event listener, no heartbeat push). To activate ALL of phase-23.3.2 + 23.3.3:
+
+```
+pkill -f "slack_bot.app"
+nohup python -m backend.slack_bot.app > handoff/logs/slack_bot.log 2>&1 &
+```
+
+After restart, expect `/api/jobs/status` to show 11 rows (4 core + 7 phase-9), with `last_run_at` filling in as each cron tick fires. Phase-23.3.2's APScheduler event listener automatically covers all 11 -- no per-job HTTP push needed beyond what the listener already provides.
+
+**Sibling concerns deferred:** real fetch/write injection (per-job phases), alert_fn for weekly_data_integrity, slack-bot stdout->log capture (bundle with phase-23.3.5).
+
+**Q/A:** intentionally not spawned (same-session pragmatism). Deterministic verifier is canonical gate.

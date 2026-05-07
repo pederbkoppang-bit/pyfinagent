@@ -133,6 +133,15 @@ def start_scheduler(app: AsyncApp):
         settings.watchdog_interval_minutes,
     )
 
+    # phase-23.3.3: register the 7 phase-9 jobs (previously dormant -- the
+    # function was defined but never called). Fail-open so a bad import in
+    # any single phase-9 module cannot break the 4 core jobs above.
+    try:
+        registered = register_phase9_jobs(_scheduler)
+        logger.info("phase-9 jobs registered: %s", registered)
+    except Exception as exc:
+        logger.warning("register_phase9_jobs fail-open at startup: %r", exc)
+
 
 async def _send_morning_digest(app: AsyncApp):
     """Fetch portfolio performance and post morning digest."""
@@ -401,16 +410,31 @@ def register_phase9_jobs(scheduler, replace_existing: bool = True) -> list[str]:
     Pass `replace_existing=True` so reloads do not raise `ConflictingIdError`.
 
     Fail-open per job: a missing job module does not block the others.
+
+    phase-23.3.3: each entry now passes `misfire_grace_time` + `coalesce=True`
+    so a slack-bot restart that crosses a scheduled tick does NOT immediately
+    fire the missed tick. Grace times: 3600s daily, 7200s weekly, 600s hourly.
     """
     registered: list[str] = []
+    # phase-23.3.3: include APScheduler safety params per researcher's brief.
+    # `misfire_grace_time` prevents stale-tick fires on restart;
+    # `coalesce=True` collapses missed ticks into one fire (defensive for
+    # any future jobstore migration; harmless with default in-memory store).
     mapping = {
-        "daily_price_refresh": ("backend.slack_bot.jobs.daily_price_refresh", "cron", {"hour": 1}),
-        "weekly_fred_refresh": ("backend.slack_bot.jobs.weekly_fred_refresh", "cron", {"day_of_week": "sun", "hour": 2}),
-        "nightly_mda_retrain": ("backend.slack_bot.jobs.nightly_mda_retrain", "cron", {"hour": 3}),
-        "hourly_signal_warmup": ("backend.slack_bot.jobs.hourly_signal_warmup", "cron", {"minute": 5}),
-        "nightly_outcome_rebuild": ("backend.slack_bot.jobs.nightly_outcome_rebuild", "cron", {"hour": 4}),
-        "weekly_data_integrity": ("backend.slack_bot.jobs.weekly_data_integrity", "cron", {"day_of_week": "mon", "hour": 5}),
-        "cost_budget_watcher": ("backend.slack_bot.jobs.cost_budget_watcher", "cron", {"hour": 6}),
+        "daily_price_refresh":     ("backend.slack_bot.jobs.daily_price_refresh", "cron",
+                                    {"hour": 1, "misfire_grace_time": 3600, "coalesce": True}),
+        "weekly_fred_refresh":     ("backend.slack_bot.jobs.weekly_fred_refresh", "cron",
+                                    {"day_of_week": "sun", "hour": 2, "misfire_grace_time": 7200, "coalesce": True}),
+        "nightly_mda_retrain":     ("backend.slack_bot.jobs.nightly_mda_retrain", "cron",
+                                    {"hour": 3, "misfire_grace_time": 3600, "coalesce": True}),
+        "hourly_signal_warmup":    ("backend.slack_bot.jobs.hourly_signal_warmup", "cron",
+                                    {"minute": 5, "misfire_grace_time": 600, "coalesce": True}),
+        "nightly_outcome_rebuild": ("backend.slack_bot.jobs.nightly_outcome_rebuild", "cron",
+                                    {"hour": 4, "misfire_grace_time": 3600, "coalesce": True}),
+        "weekly_data_integrity":   ("backend.slack_bot.jobs.weekly_data_integrity", "cron",
+                                    {"day_of_week": "mon", "hour": 5, "misfire_grace_time": 7200, "coalesce": True}),
+        "cost_budget_watcher":     ("backend.slack_bot.jobs.cost_budget_watcher", "cron",
+                                    {"hour": 6, "misfire_grace_time": 3600, "coalesce": True}),
     }
     for job_id, (module_path, trigger, kwargs) in mapping.items():
         try:
