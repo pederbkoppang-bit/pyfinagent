@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-07 | `ad4e8b57` | phase-23.3.1: main APScheduler audit -- name + id labels for /cron |
 | 2026-05-07 | `caa3ad49` | phase-23.3.0: Q/A roster verification + masterplan phase-23.3 audit plan |
 | 2026-05-07 | `39141ec3` | phase-23.2.24: fix Rules-of-Hooks bug + harden Q/A with ESLint coverage |
 | 2026-05-07 | `0f1e6379` | phase-23.2.23: Cron / Logs operator dashboard page + endpoints |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-04-29 | `fdcc2823` | phase-23.1.19: backend FD-exhaustion fix (sqlite3 closing()) + regression guard |
 | 2026-04-29 | `629eea3b` | phase-23.1.18: paper_portfolio_snapshots dedup + MERGE upsert |
 | 2026-04-29 | `4937a3e7` | phase-23.1.17: home/paper hero SSOT via shared useLiveNav hook |
-| 2026-04-29 | `3cc08e6a` | phase-23.1.16: ticker-meta latency fix (parallel + per-ticker cache + prewarm) |
 
 ---
 
+### v6.5.134 — phase-23.3.1: main APScheduler audit -- name + id labels for /cron (2026-05-07)
+
+- **phase-23.3.1: main APScheduler audit -- name + id labels for /cron**
 ### v6.5.133 — phase-23.3.0: Q/A roster verification + masterplan phase-23.3 audit plan (2026-05-07)
 
 - **phase-23.3.0: Q/A roster verification + masterplan phase-23.3 audit plan**
