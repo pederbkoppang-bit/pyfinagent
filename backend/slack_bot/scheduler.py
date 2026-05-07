@@ -4,10 +4,15 @@ Uses APScheduler to run tasks within the Slack bot process.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import httpx
+from apscheduler.events import (
+    EVENT_JOB_ERROR,
+    EVENT_JOB_EXECUTED,
+    EVENT_JOB_MISSED,
+)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from slack_bolt.async_app import AsyncApp
 
@@ -17,7 +22,40 @@ from backend.slack_bot.formatters import format_morning_digest, format_evening_d
 logger = logging.getLogger(__name__)
 
 _BACKEND_URL = "http://backend:8000"
+# phase-23.3.2: heartbeat-push target. Pyfinagent is local-only on a single
+# Mac per memory/project_local_only_deployment.md, so the slack-bot process
+# can reach the main backend at localhost. Kept separate from _BACKEND_URL
+# above (which uses the docker-network hostname) so a docker-compose
+# resurrection wouldn't accidentally point heartbeats at a stale host.
+_HEARTBEAT_URL = "http://127.0.0.1:8000/api/jobs/heartbeat"
 _scheduler: AsyncIOScheduler | None = None
+
+
+def _aps_to_heartbeat(event) -> None:
+    """phase-23.3.2: APScheduler event listener that POSTs each terminal
+    job event to the main backend's /api/jobs/heartbeat. Fail-open: any
+    exception is swallowed so the slack-bot scheduler never breaks.
+
+    Wired in start_scheduler() below for EVENT_JOB_EXECUTED |
+    EVENT_JOB_ERROR | EVENT_JOB_MISSED. Closes the gap that
+    /api/jobs/status returned all 'never_run' for a month.
+    """
+    try:
+        exc = getattr(event, "exception", None)
+        status = "ok" if not exc else "failed"
+        payload = {
+            "job": getattr(event, "job_id", "unknown"),
+            "status": status,
+            "finished_at": datetime.now(timezone.utc).isoformat(),
+            "error": repr(exc) if exc else None,
+        }
+        # Sync httpx (the listener runs in APScheduler's executor, not
+        # asyncio). Tight 3s timeout so a stuck main backend cannot
+        # block the listener.
+        with httpx.Client(timeout=3.0) as client:
+            client.post(_HEARTBEAT_URL, json=payload)
+    except Exception as e:
+        logger.warning("aps_to_heartbeat fail-open: %r", e)
 
 
 def start_scheduler(app: AsyncApp):
@@ -76,6 +114,14 @@ def start_scheduler(app: AsyncApp):
         args=[app],
         id="prompt_leak_redteam",
         replace_existing=True,
+    )
+
+    # phase-23.3.2: wire heartbeat-push so /api/jobs/status reflects
+    # real fires for the 4 core jobs + 7 phase-9 jobs. Listener fires
+    # on every terminal scheduler event; fail-open if backend down.
+    _scheduler.add_listener(
+        _aps_to_heartbeat,
+        EVENT_JOB_EXECUTED | EVENT_JOB_ERROR | EVENT_JOB_MISSED,
     )
 
     _scheduler.start()

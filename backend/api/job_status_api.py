@@ -46,9 +46,12 @@ def structured_log(endpoint: str, duration_ms: float, status: str, **extra) -> N
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
-# Canonical phase-9 job names. Mirrors `_PHASE9_JOB_IDS` in
-# `backend/slack_bot/scheduler.py:336-344`. Hardcoded here so the endpoint
-# returns 7 rows even before the Slack-bot process connects.
+# Canonical job names pre-seeded into the registry so /api/jobs/status
+# returns rows even before any heartbeat fires. Two groups:
+#  - phase-9 jobs from `backend/slack_bot/scheduler.py:336-344`
+#  - phase-23.3.2 added the 4 core slack-bot jobs (registered at
+#    `backend/slack_bot/scheduler.py:35-79`) so their fires now show
+#    up via the new EVENT_JOB_EXECUTED listener.
 _JOB_NAMES: tuple[str, ...] = (
     "daily_price_refresh",       # phase-9.2
     "weekly_fred_refresh",       # phase-9.3
@@ -57,6 +60,10 @@ _JOB_NAMES: tuple[str, ...] = (
     "nightly_outcome_rebuild",   # phase-9.6
     "weekly_data_integrity",     # phase-9.7
     "cost_budget_watcher",       # phase-9.8
+    "morning_digest",            # phase-23.3.2 (4 core slack-bot jobs)
+    "evening_digest",            # phase-23.3.2
+    "watchdog_health_check",     # phase-23.3.2
+    "prompt_leak_redteam",       # phase-23.3.2
 )
 
 

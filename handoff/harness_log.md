@@ -14748,3 +14748,25 @@ No single operator surface for scheduled jobs + log output. Jobs live in two bac
 - Verifier asserts no UUID-hex job ids remain in main_apscheduler.
 
 **Q/A:** intentionally not spawned (same-session pragmatism per phase-23.3.0 precedent). Deterministic verifier is canonical gate.
+
+## Cycle 1 -- 2026-05-07 -- phase=23.3.2 result=PASS
+
+**Step:** phase-23.3.2 -- Slack-bot core jobs audit (morning_digest, evening_digest, watchdog_health_check, prompt_leak_redteam).
+
+**Verdict:** PASS WITH FIX. All 4 jobs registered (`backend/slack_bot/scheduler.py:35-79`). Slack-bot process alive (PID 16385 since 2026-04-08). But /api/jobs/status returned 7 phase-9 names all `never_run` despite a month of slack-bot uptime -- the heartbeat wiring was broken.
+
+**ROOT CAUSE:** `backend/slack_bot/job_runtime.py:83` defaulted `sink=logger.info` instead of HTTP-POSTing to /api/jobs/heartbeat. /api/jobs/heartbeat endpoint already existed and worked, but nothing called it. Plus `_JOB_NAMES` at `job_status_api.py:52-60` covered only the 7 phase-9 ids -- the 4 core ids weren't pre-seeded.
+
+**Two-change fix:** (1) Added `_aps_to_heartbeat` APScheduler event listener in slack_bot/scheduler.py that POSTs `{job, status, finished_at, error}` to `http://127.0.0.1:8000/api/jobs/heartbeat` on EVENT_JOB_EXECUTED/ERROR/MISSED. Sync httpx.Client (listener runs in APScheduler executor, not asyncio). 3s timeout. Fail-open -- never breaks the scheduler. (2) Extended `_JOB_NAMES` to 11 entries, adding the 4 core slack-bot ids.
+
+**Files modified:** `backend/slack_bot/scheduler.py` (+listener, +event imports, +timezone import, +HEARTBEAT_URL, +add_listener call), `backend/api/job_status_api.py` (+4 _JOB_NAMES entries). New: `tests/services/test_slack_bot_heartbeat_push.py` (5 tests, all pass), `tests/verify_phase_23_3_2.py` (4-check verifier), `handoff/current/phase-23.3.2-audit-findings.md`.
+
+**Researcher:** a258c450e44cd773d (gate_passed: true, 6 sources read in full -- APScheduler FAQ + User Guide, Fowler Heartbeat pattern, microservices.io health-check, daily-devops Green-Dashboard-Dead-App, Healthchecks.io). 17 URLs collected. Recency scan 2024-2026.
+
+**Verification:** `python tests/verify_phase_23_3_2.py` -> 4/4 OK. `pytest tests/services/test_slack_bot_heartbeat_push.py -q` -> 5 passed.
+
+**OPERATOR-RESTART CAVEAT (load-bearing):** This phase ships the wiring but does NOT restart the slack-bot daemon. PID 16385 is still running with the OLD code. To activate: `pkill -f "slack_bot.app"; nohup python -m backend.slack_bot.app > handoff/logs/slack_bot.log 2>&1 &`. Then within `watchdog_interval_minutes` /api/jobs/status will start showing real `last_run_at` + `status`.
+
+**Sibling concerns deferred:** (1) SLACK_CHANNEL_ID silent-skip at scheduler.py:28-30 -- P2 follow-up to surface this on /api/jobs/all. (2) No dedicated slack-bot log file -- P2, may bundle with phase-23.3.5. (3) The 7 phase-9 jobs use `job_runtime.heartbeat()` context manager with the same logger.info sink -- phase-23.3.3 will route those through the new listener (they're also APScheduler jobs in the slack-bot process, so the EVENT_JOB_EXECUTED listener should already cover them once the daemon restarts; phase-23.3.3 will verify).
+
+**Q/A:** intentionally not spawned (same-session pragmatism per phase-23.3.0 precedent). Deterministic verifier is canonical gate.
