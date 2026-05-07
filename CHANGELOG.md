@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-07 | `73196650` | phase-23.3.5: log allowlist fix -- live paths + 3 .env bugs surfaced |
 | 2026-05-07 | `a80f4640` | phase-23.3.4: launchd audit -- 6-entry manifest + autoresearch finding |
 | 2026-05-07 | `d0ae4d28` | phase-23.3.3: activate 7 dormant phase-9 slack-bot jobs |
 | 2026-05-07 | `39f905c6` | phase-23.3.2: slack-bot heartbeat-push wiring + 4 core jobs in registry |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-04 | `47f9a20f` | phase-23.2.0 walk-through: 16 verification steps + agent rationale audit |
 | 2026-05-04 | `4251fd1d` | phase-23.1.23: wrap blocking trader.* calls in asyncio.to_thread |
 | 2026-05-04 | `ad52870e` | phase-23.2.0: 1-week post-deployment audit + 16 investigation steps |
-| 2026-04-30 | `0ed72940` | phase-23.1.22: kill_switch reentrant-lock deadlock + 23.1.20+21 hardening |
 
 ---
 
+### v6.5.138 — phase-23.3.5: log allowlist fix -- live paths + 3 .env bugs surfaced (2026-05-07)
+
+- **phase-23.3.5: log allowlist fix -- live paths + 3 .env bugs surfaced**
 ### v6.5.137 — phase-23.3.4: launchd audit -- 6-entry manifest + autoresearch finding (2026-05-07)
 
 - **phase-23.3.4: launchd audit -- 6-entry manifest + autoresearch finding**
