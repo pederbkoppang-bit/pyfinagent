@@ -53,6 +53,33 @@ source .venv/bin/activate && <step.verification.command>
 python -m pytest tests/ -v --timeout=30
 ```
 
+### 1b. Frontend lint + typecheck (REQUIRED if diff touches `frontend/**`)
+
+phase-23.2.24: a runtime React Rules-of-Hooks violation shipped in
+phase-23.2.23 (`frontend/src/app/cron/page.tsx::JobsTab` called
+`useMemo` after early returns) because the prior Q/A deterministic
+checks did not include ESLint. `tsc --noEmit` does NOT catch hook-order
+violations -- hook-call ordering is a runtime execution-order
+constraint with no model in the type system. ESLint's
+`react-hooks/rules-of-hooks` rule (severity `"error"` in
+`frontend/eslint.config.mjs:34`) performs AST-level control-flow
+analysis and IS the canonical guard.
+
+For ANY phase whose diff touches `frontend/**` or `.claude/agents/qa.md`,
+Q/A MUST run BOTH of these and capture verbatim exit codes:
+
+```bash
+cd /Users/ford/.openclaw/workspace/pyfinagent/frontend && npx eslint .
+cd /Users/ford/.openclaw/workspace/pyfinagent/frontend && npx tsc --noEmit
+```
+
+Either non-zero exit = FAIL. Note: `eslint .` defaults to errors-only
+exit-1 semantics; warnings do NOT fail the gate. The hook-order rule
+is set to `"error"` severity in the project config so the canonical
+class of bug surfaces as an error.
+
+Total runtime ~30-40s, well within the 55s Q/A budget.
+
 ### 2. Existing results check
 
 Read in order:

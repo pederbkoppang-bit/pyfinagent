@@ -168,6 +168,18 @@ function JobsTab() {
     return () => clearInterval(id);
   }, [load]);
 
+  // phase-23.2.24: Rules-of-Hooks fix. useMemo MUST be called on every
+  // render -- it cannot live below conditional early returns. Tolerate
+  // jobs === null (return {}); the early-return branches below will then
+  // skip the rendering of `grouped` entirely.
+  const grouped = useMemo(() => {
+    const out: Record<string, JobInfo[]> = {};
+    for (const j of jobs ?? []) {
+      (out[j.source] ??= []).push(j);
+    }
+    return out;
+  }, [jobs]);
+
   if (jobs === null && error === null) {
     return (
       <div className="flex items-center gap-3 py-12 text-slate-400">
@@ -213,15 +225,6 @@ function JobsTab() {
       </div>
     );
   }
-
-  // Group by source for readability
-  const grouped = useMemo(() => {
-    const out: Record<string, JobInfo[]> = {};
-    for (const j of jobs ?? []) {
-      (out[j.source] ??= []).push(j);
-    }
-    return out;
-  }, [jobs]);
 
   return (
     <div className="space-y-6">

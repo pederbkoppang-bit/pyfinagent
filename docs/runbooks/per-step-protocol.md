@@ -137,6 +137,42 @@ fails, the LLM judgment wins (scope honesty, anti-rubber-stamp,
 mutation-resistance are load-bearing). Log the split in
 `harness_log.md`.
 
+#### Retry-on-FAIL loop (phase-23.2.24, formalised)
+
+When Q/A returns `verdict: FAIL` or `verdict: CONDITIONAL`, the
+canonical recovery loop is:
+
+1. **Main reads** the verdict's `violated_criteria` +
+   `violation_details` from `handoff/current/evaluator_critique.md`.
+   Do NOT respawn Q/A first; you'd be second-opinion-shopping on
+   unchanged evidence.
+2. **Main fixes** the blockers AND updates the handoff files:
+   - Code/doc changes for whatever was flagged.
+   - Append a "Cycle-2 follow-up (post-Q/A-N)" section to
+     `experiment_results.md` naming what changed and why. This is
+     the file-based handoff Anthropic's harness-design doc
+     prescribes: communication via files, fresh agent instances.
+3. **Main spawns a FRESH Q/A** (new subagent instance, not
+   `SendMessage` to the prior one). The fresh Q/A reads the UPDATED
+   files; the new verdict reflects the FIX, not a different opinion
+   on the same evidence.
+4. **Loop ceiling**: max 3 retries before `certified_fallback`. The
+   3rd-CONDITIONAL auto-FAIL clause below complements this — if a
+   step accumulates 3 CONDITIONALs without intervening PASS/FAIL,
+   the next Q/A must FAIL outright.
+
+This is the documented pattern (Anthropic harness-design + how-we-built
+multi-agent-research blog 2026 — "if more research is needed it can
+create additional subagents"). It is NOT verdict-shopping. The
+distinguishing test: did the FILES CHANGE between Q/A-N and Q/A-(N+1)?
+If yes → legitimate retry. If no → forbidden second-opinion-shop.
+
+GitHub Copilot Code Review (researcher's audit, phase-23.2.24) is
+strictly weaker — Copilot only posts "Comment" reviews, never blocks
+merges, and has no automatic re-review on push without explicit
+ruleset config. The pyfinagent harness's blocking FAIL→Main→fresh-Q/A
+loop is structurally stronger; do NOT downgrade to mirror Copilot.
+
 #### CONDITIONAL escalation clause (3rd-CONDITIONAL auto-FAIL)
 
 A CONDITIONAL verdict is appropriate when: (a) underlying functionality
