@@ -22,13 +22,19 @@ const TABS: { id: TabId; label: string; icon: typeof Clock }[] = [
   { id: "logs", label: "Logs", icon: FileText },
 ];
 
+// phase-23.3.5: keys must match backend _log_paths exactly. After the
+// audit found 3 keys pointing at stale duplicates and 3 missing keys,
+// the dropdown grew from 6 to 9 entries.
 const LOG_KEYS: { key: string; label: string }[] = [
-  { key: "backend",             label: "backend.log" },
-  { key: "watchdog",            label: "backend-watchdog.log" },
-  { key: "restart",             label: "backend-restart.log" },
-  { key: "harness",             label: "mas-harness.log" },
-  { key: "autoresearch",        label: "autoresearch.log" },
-  { key: "mas_harness_launchd", label: "mas-harness.launchd.log" },
+  { key: "backend",              label: "backend.log" },
+  { key: "watchdog",             label: "backend-watchdog.log" },
+  { key: "restart",              label: "backend-restart.log" },
+  { key: "harness",              label: "mas-harness.log" },
+  { key: "mas_harness_launchd",  label: "mas-harness.launchd.log" },
+  { key: "autoresearch",         label: "autoresearch.log" },
+  { key: "autoresearch_launchd", label: "autoresearch.launchd.log" },
+  { key: "ablation",             label: "ablation.log" },
+  { key: "ablation_launchd",     label: "ablation.launchd.log" },
 ];
 
 const LINE_OPTIONS = [50, 100, 200, 500, 1000];

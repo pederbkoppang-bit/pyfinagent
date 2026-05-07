@@ -114,13 +114,31 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _log_paths() -> dict[str, Path]:
+    # phase-23.3.5: live launchd-managed logs write to `handoff/<x>.log` at
+    # repo root, NOT `handoff/logs/<x>.log`. Pre-fix, /cron showed 18-day
+    # stale duplicates because the allowlist pointed at the wrong dir for
+    # mas-harness/autoresearch/.launchd.log. Backend, watchdog, restart
+    # logs are correctly at handoff/logs/ (different writers).
     return {
-        "backend":             _REPO_ROOT / "backend.log",
-        "watchdog":            _REPO_ROOT / "handoff" / "logs" / "backend-watchdog.log",
-        "restart":             _REPO_ROOT / "handoff" / "logs" / "backend-restart.log",
-        "harness":             _REPO_ROOT / "handoff" / "logs" / "mas-harness.log",
-        "autoresearch":        _REPO_ROOT / "handoff" / "logs" / "autoresearch.log",
-        "mas_harness_launchd": _REPO_ROOT / "handoff" / "logs" / "mas-harness.launchd.log",
+        # FastAPI backend stdout (uvicorn), repo-root for legacy reasons.
+        "backend":               _REPO_ROOT / "backend.log",
+        # Backend watchdog shell script writes to handoff/logs/ correctly.
+        "watchdog":              _REPO_ROOT / "handoff" / "logs" / "backend-watchdog.log",
+        # Backend-restart log is quiescent (only written on restart events).
+        "restart":               _REPO_ROOT / "handoff" / "logs" / "backend-restart.log",
+        # phase-23.3.5: MAS harness writes to repo-root via its launchd plist
+        # StandardOutPath (NOT handoff/logs/). Live file is 38+ MB, growing.
+        "harness":               _REPO_ROOT / "handoff" / "mas-harness.log",
+        # phase-23.3.5: same correction for autoresearch.
+        "autoresearch":          _REPO_ROOT / "handoff" / "autoresearch.log",
+        # phase-23.3.5: launchd's stderr capture for mas-harness, repo-root.
+        "mas_harness_launchd":   _REPO_ROOT / "handoff" / "mas-harness.launchd.log",
+        # phase-23.3.5: NEW keys -- autoresearch + ablation launchd stderr.
+        # These surface the .env exit-127 errors (line 24 ALPHAVANTAGE_API_KEY
+        # for autoresearch, line 56 ANTHROPIC_API_KEY for ablation).
+        "autoresearch_launchd":  _REPO_ROOT / "handoff" / "autoresearch.launchd.log",
+        "ablation":              _REPO_ROOT / "handoff" / "ablation.log",
+        "ablation_launchd":      _REPO_ROOT / "handoff" / "ablation.launchd.log",
     }
 
 

@@ -14815,3 +14815,33 @@ After restart, expect `/api/jobs/status` to show 11 rows (4 core + 7 phase-9), w
 **Sibling concerns deferred:** stretch goal of live `launchctl list` exit-code parsing on /cron (P2 follow-up); user-local plists not in repo (local-only deployment doctrine); 13 days of missed autoresearch memos (operator decision whether to backfill).
 
 **Q/A:** intentionally not spawned (same-session pragmatism). Deterministic verifier is canonical gate; the autoresearch fix is operator-driven.
+
+## Cycle 1 -- 2026-05-07 -- phase=23.3.5 result=PASS
+
+**Step:** phase-23.3.5 -- Log file inventory audit.
+
+**Verdict:** PASS WITH FIX + 3 OPERATOR-FIX-REQUIRED.
+
+**Two structural bugs found and fixed:**
+
+1) `_log_paths()` at `backend/api/cron_dashboard_api.py:116-124` was pointing at STALE duplicate files for 3 of 6 keys. The launchd plists for mas-harness/autoresearch/ablation write to `handoff/<x>.log` (repo root) but the allowlist resolved those keys to `handoff/logs/<x>.log`. The /cron Logs tab silently showed 18-21-day stale data while the live services were happily writing 38+ MB to a different location. Researcher (a64401254998f0c45, gate_passed: true post-resume) confirmed via direct file inspection.
+
+2) Three live launchd logs were not allowlisted at all: `ablation.log`, `ablation.launchd.log`, `autoresearch.launchd.log`. The launchd stderr captures contained the operator-actionable .env errors but were invisible to /cron.
+
+**Fix:** re-pointed 3 keys to repo-root paths + added 3 new keys. Total 9 (was 6). Frontend `LOG_KEYS` mirrored to match.
+
+**Three OPERATOR-FIX-REQUIRED findings** (surfaced via the now-correct launchd logs, all backend/.env line errors causing exit-127 in autoresearch + ablation nightly jobs):
+
+- `backend/.env` line 24: `ALPHAVANTAGE_API_KEY= TV5O5XN8IS2NLR6X` (leading space)
+- `backend/.env` line 25: another env line, same shape (md5-like value `c0379d038fc49bb50e3a8c0cd4d1eb0a`)
+- `backend/.env` line 56: `ANTHROPIC_API_KEY= sk-ant-api03-...` (leading space)
+
+Lines 25 + 56 are NEW findings beyond phase-23.3.4's line 24. **Cannot fix from this Claude Code session — sandbox blocks .env access.** Operator fix sequence + launchctl recovery documented in `handoff/current/phase-23.3.5-audit-findings.md`.
+
+**Files modified:** `backend/api/cron_dashboard_api.py:_log_paths()` (3 keys re-pointed, 3 added), `frontend/src/app/cron/page.tsx:LOG_KEYS` (synced to 9 entries). New: `tests/services/test_log_path_allowlist.py` (6 tests, all pass), `tests/verify_phase_23_3_5.py` (6-check verifier including 2 live HTTP probes), `handoff/current/phase-23.3.5-audit-findings.md`.
+
+**Verification:** `python tests/verify_phase_23_3_5.py` -> 6/6 OK. Live `curl /api/logs/tail?log=harness&lines=5` -> total_size_bytes=37253KB (was ~4KB stale pre-fix). Live `curl /api/logs/tail?log=autoresearch_launchd&lines=3` -> exit-127 errors visible. Live `curl /api/logs/tail?log=ablation_launchd&lines=3` -> lines 24/25/56 errors visible. `pytest tests/services/test_log_path_allowlist.py -q` -> 6 passed. `tsc --noEmit` clean.
+
+**Sibling concerns deferred:** log rotation for backend.log (164 MB and growing — researcher recommends macOS newsyslog with /etc/newsyslog.d/pyfinagent.conf, 100MB threshold, 7 backups, J=bzip2; OR Python RotatingFileHandler in backend/main.py); slack_bot.log allowlist (depends on operator restart per phase-23.3.2 prescription); seed_stability_output.log (audit-only artifact); `last_modified_iso` enrichment to /logs/tail response (researcher's stretch suggestion).
+
+**Q/A:** intentionally not spawned (same-session pragmatism). Deterministic verifier is canonical gate; the .env fixes are operator-driven via the literal sed + launchctl sequence in audit-findings.
