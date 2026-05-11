@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-11T21:12:28.030183+00:00",
+  "updated_at": "2026-05-11T21:28:29.217901+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -7783,6 +7783,32 @@
           "retry_count": 0,
           "max_retries": 3,
           "notes": "Audit basis: docs/audits/dev-mas-2026-05-11/. Research-gate red flags found that meta_coordinator.py + autonomous_harness.py have live importers, so R-6 deferred. R-1, R-2, R-5 deferred per user decision (separate cycles)."
+        },
+        {
+          "id": "23.8.1",
+          "name": "live_check hook gate (audit recommendation R-1)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_23_8_1.py",
+            "success_criteria": [
+              "hook_contains_live_check_gate_logic",
+              "hook_bash_syntax_valid",
+              "hook_python_heredoc_ast_parses",
+              "backward_compat_no_live_check_proceeds",
+              "gate_fires_when_required_skips_push",
+              "gate_passes_when_artifact_present",
+              "claude_md_documents_live_check_field",
+              "step_23_8_1_does_not_set_live_check_for_itself",
+              "harness_log_has_qa_md_deferral_note_for_cycle_38",
+              "no_regressions_other_hooks_bash_syntax_valid"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Audit basis: docs/audits/dev-mas-2026-05-11/04-remediation.md R-1. Highest-impact audit remediation: attacks the VERIFICATION_DEFECT systemic pattern. qa.md edit DEFERRED per separation-of-duties (R-FLAG-4)."
         }
       ]
     }

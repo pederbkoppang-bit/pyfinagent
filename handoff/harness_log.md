@@ -16206,3 +16206,68 @@ PASS (12/12) EXIT=0
 - **R-6 deferred**: `backend/autonomous_harness.py` + `backend/agents/meta_coordinator.py` deletions require prior refactor of `backend/services/autonomous_loop.py:19,50,462-488,896-897` (module-level `MetaCoordinator` import) and `scripts/risk/phase4_9_redteam.py:58` (`autonomous_harness` import). Deleting either file without that refactor breaks paper trading and the phase-4.9 red-team script.
 
 **Phase-23.8.0 status -> done.**
+
+## Cycle 38 -- 2026-05-11 -- phase=23.8.1 result=PASS
+
+**Step:** live_check hook gate (audit recommendation R-1) — the highest-impact remediation from the 2026-05-11 dev-MAS audit (`docs/audits/dev-mas-2026-05-11/04-remediation.md` R-1). Directly attacks the VERIFICATION_DEFECT systemic pattern named in Phase 3 of the audit.
+
+**What landed:**
+- NEW `.claude/hooks/lib/live_check_gate.py` (75 LOC) — standalone Python helper exposing `gate_decision(masterplan_path, step_id, handoff_current_dir) -> "proceed" | "passed" | "skip"`. Walks the masterplan tree, finds the step, reads `verification.live_check`, checks `handoff/current/live_check_<step_id>.md` existence. Fail-open on any error.
+- EDIT `.claude/hooks/auto-commit-and-push.sh:119-143` — invokes the helper between STEP_ID detection and the commit-subject step. `skip` -> log WARN + exit 0 (no commit, no push). `passed` -> log INFO + continue. `proceed/*` -> continue as today. Consistent with the hook's existing fail-open discipline.
+- EDIT `CLAUDE.md` — new bullet under "Per-step auto-push" documenting the `verification.live_check` field, the artifact path, the WARN-and-skip behavior, the operator workflow, and the fail-open guarantee.
+- NEW `tests/verify_phase_23_8_1.py` (210 LOC, 10 immutable claims). Includes three BEHAVIORAL tests (claims 4, 5, 6) that plant synthetic temp masterplans + assert the gate's actual decisions (`proceed`, `skip`, `passed`).
+
+**Researcher:** moderate tier, 7 sources read in full via WebFetch (Anthropic harness-design, Anthropic multi-agent research, Claude Code hooks doc, Praetorian deterministic-orchestration 2025, Atlan AI-observability 2026, Arize AI-observability 2026, Vadim verification-gate 2026). 17 URLs collected. Recency scan: no 2024-2026 source argues against file-based pre-push gates on velocity grounds. Three-variant search-query discipline observed. `gate_passed: true`.
+
+**Research-gate red flags surfaced (action taken):**
+- R-FLAG-1: no prior live_check gating in `auto-commit-and-push.sh` — R-1 is genuinely new (confirmed by full-file review).
+- R-FLAG-2: masterplan.json `verification` objects use only `command` + `success_criteria` keys today — adding `live_check` is additive-only.
+- R-FLAG-3: no JSON-schema validator enforces the masterplan schema at runtime; the `$schema: "masterplan-v1"` string is decorative.
+- R-FLAG-4: editing `.claude/agents/qa.md` to mention `live_check_<step_id>.md` in its existing_results_check bullets would trigger separation-of-duties. **Action: deferred to a follow-on session** (see qa.md-deferral block below).
+- R-FLAG-5: PostToolUse `decision: "block"` stops the next model call, not the current tool — correct for R-1's scope (gating the push, not the status flip).
+
+**Verbatim verifier result (after this log append):**
+```
+=== phase-23.8.1 verifier ===
+  [PASS] 1. hook_contains_live_check_gate_logic
+  [PASS] 2. hook_bash_syntax_valid
+  [PASS] 3. hook_python_heredoc_ast_parses
+  [PASS] 4. backward_compat_no_live_check_proceeds
+  [PASS] 5. gate_fires_when_required_skips_push
+  [PASS] 6. gate_passes_when_artifact_present
+  [PASS] 7. claude_md_documents_live_check_field
+  [PASS] 8. step_23_8_1_does_not_set_live_check_for_itself
+  [PASS] 9. harness_log_has_qa_md_deferral_note_for_cycle_38
+  [PASS] 10. no_regressions_other_hooks_bash_syntax_valid
+PASS (10/10) EXIT=0
+```
+
+**Q/A verdict:** PASS (first spawn; 0 prior verdicts). 5/5 harness-compliance items satisfied. Behavioral mutation-resistance tests (claims 4-6) PASS. Fail-open discipline verified by Q/A inspection of `live_check_gate.py:57-72`. Hook wiring `skip` -> WARN+exit0 / `passed` -> INFO+continue / `proceed/*` -> continue is correct per Q/A inspection of `auto-commit-and-push.sh:123-148`. Backward-compat regression test (claim 4) PASSES. ≥5 tier-1/tier-2 URLs cited verbatim in the research summary. Log-last protocol intact (log not yet appended at Q/A spawn time; first phase=23.8.1 entry lands in THIS cycle entry).
+
+**No regressions:** `bash -n` on all 9 hooks in `.claude/hooks/` passes (claim 10). Step 23.8.1 itself has NO `live_check` field on its own verification (claim 8) — the gate does not block this step's auto-push (chicken-and-egg avoided).
+
+**Operator-visible behavior change:**
+- Hook gate is DORMANT by default. All existing masterplan steps continue to auto-push exactly as before. The gate is opt-in per-step.
+- Future steps that touch user-visible UI / persisted data / production paths can declare `verification.live_check: "<expected shape>"` to require a `handoff/current/live_check_<step_id>.md` artifact before the auto-push fires.
+- When the gate fires, `handoff/logs/auto-push.log` gets a clear WARN line explaining what's missing. The masterplan Write itself is never blocked; only the push is held.
+
+**qa.md DEFERRAL NOTE (R-FLAG-4 from research gate):**
+
+`.claude/agents/qa.md` was NOT edited in this cycle. The natural follow-on edit — adding `handoff/current/live_check_<step_id>.md (if present)` as a fifth bullet under qa.md's "### 2. Existing results check" section (lines 83-93) — is **deferred to a separate session** per CLAUDE.md's rule:
+
+> "**Separation of duties on agent edits.** The same Claude Code session should not both author an agent `.md` change AND self-evaluate work that depends on it. For substantive edits to `.claude/agents/`, leave a note in `handoff/harness_log.md` requesting Peder review before the next step depends on the change."
+
+The same session cannot author qa.md AND self-evaluate the live_check gate (which is the work that depends on it). Additionally, CLAUDE.md notes "**Agent definition changes require session restart**" — even if the qa.md edit were made in this session, Q/A's snapshot would not include the new bullet until a restart. The follow-on session should:
+1. Edit `.claude/agents/qa.md:88` to add `- handoff/current/live_check_<step_id>.md (if present and live_check field set)` to the existing_results_check bullet list.
+2. Restart the Claude Code session to load the new qa.md.
+3. Run `scripts/qa/verify_qa_roster_live.sh`-style verification to confirm Q/A's snapshot picked up the change.
+4. Then any future step that sets `verification.live_check` will be evaluated by a Q/A that knows to read the live_check artifact.
+
+Until that follow-on lands, the live_check gate is operational at the hook layer (the auto-push gate fires correctly per claims 4-6) but Q/A does not auto-read the live_check files during evaluation — operators / Main must surface the file content in `experiment_results.md` for Q/A to see.
+
+**R-2 / R-5 / R-6 deferral context (unchanged from Cycle 37):**
+- **R-2** (TaskCompleted hook delete/promote) — out of scope; separate cycle.
+- **R-5** (qa.md fail-mode change) — per user decision; needs separate session + Peder review.
+- **R-6** (delete deprecated stubs) — needs prior refactor of `autonomous_loop.py` + `phase4_9_redteam.py` per Cycle 37 research-gate findings.
+
+**Phase-23.8.1 status -> done.**

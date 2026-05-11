@@ -120,6 +120,30 @@ if [ -z "$STEP_ID" ]; then
     exit 0
 fi
 
+# --- live_check gate (phase-23.8.1 / audit R-1) ---
+# If the newly-done step has a non-empty verification.live_check field,
+# require handoff/current/live_check_<step_id>.md to exist before pushing.
+# Helper is a standalone Python module so the gate logic is unit-testable
+# (see tests/verify_phase_23_8_1.py). Fail-open to "proceed" on any
+# helper error -- consistent with the rest of this hook's discipline of
+# never blocking the masterplan Write that triggered it.
+GATE_HELPER="$PROJECT_ROOT/.claude/hooks/lib/live_check_gate.py"
+if [ -f "$GATE_HELPER" ]; then
+    GATE_DECISION=$(python3 "$GATE_HELPER" "$MASTERPLAN" "$STEP_ID" "$PROJECT_ROOT/handoff/current" 2>/dev/null || echo "proceed")
+    case "$GATE_DECISION" in
+        skip)
+            log "WARN: live_check field set for $STEP_ID but handoff/current/live_check_${STEP_ID}.md is missing -- auto-push skipped. Create the file with verbatim live-system evidence and re-trigger by re-editing the masterplan, OR run \`git push origin main\` manually if appropriate."
+            exit 0
+            ;;
+        passed)
+            log "INFO: live_check artifact present for $STEP_ID -- gate satisfied"
+            ;;
+        proceed|*)
+            # No live_check field set, or unrecognized output -> proceed as today.
+            ;;
+    esac
+fi
+
 # --- Build commit subject ---
 # Prefer "phase-<id>: <name>" if the id looks like a phase-style number,
 # else just "<id>: <name>".
