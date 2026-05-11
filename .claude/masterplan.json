@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-11T21:28:29.217901+00:00",
+  "updated_at": "2026-05-11T21:42:37.262283+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -7809,6 +7809,32 @@
           "retry_count": 0,
           "max_retries": 3,
           "notes": "Audit basis: docs/audits/dev-mas-2026-05-11/04-remediation.md R-1. Highest-impact audit remediation: attacks the VERIFICATION_DEFECT systemic pattern. qa.md edit DEFERRED per separation-of-duties (R-FLAG-4)."
+        },
+        {
+          "id": "23.8.2",
+          "name": "Delete TaskCompleted hook (audit recommendation R-2 Option A)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_23_8_2.py",
+            "success_criteria": [
+              "settings_json_valid",
+              "task_completed_hook_block_removed",
+              "other_hook_keys_intact",
+              "project_md_no_longer_lists_task_completed_gate",
+              "per_step_protocol_old_line_226_prose_removed",
+              "per_step_protocol_old_line_248_prose_removed",
+              "per_step_protocol_has_retirement_note",
+              "step_2_13_historical_assertion_now_expectedly_fails",
+              "harness_log_has_2_13_breakage_disclosure",
+              "no_regressions_other_hooks_bash_syntax_valid"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Audit basis: docs/audits/dev-mas-2026-05-11/04-remediation.md R-2 Option A. Controlled breakage: step 2.13 historical verification command (assert 'TaskCompleted' in s['hooks']) will now fail if re-run; the audit explicitly supersedes that historical assertion per H-2 BLOCKING finding."
         }
       ]
     }

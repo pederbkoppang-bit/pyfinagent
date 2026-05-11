@@ -16271,3 +16271,68 @@ Until that follow-on lands, the live_check gate is operational at the hook layer
 - **R-6** (delete deprecated stubs) — needs prior refactor of `autonomous_loop.py` + `phase4_9_redteam.py` per Cycle 37 research-gate findings.
 
 **Phase-23.8.1 status -> done.**
+
+## Cycle 39 -- 2026-05-11 -- phase=23.8.2 result=PASS
+
+**Step:** Delete the TaskCompleted hook (audit recommendation R-2 Option A).
+
+**Audit basis:** `docs/audits/dev-mas-2026-05-11/04-remediation.md` R-2 + Phase 2 H-1 (BLOCKING) + H-2 (BLOCKING) — the TaskCompleted hook was an unnamed agent with unconstrained tool access (`bypassPermissions` default) that fired after every TaskCompleted event, duplicating Q/A's work with a weaker rubric. Per HARNESS-DOC "agents tend to confidently praise their own work" the lever is a SINGLE independent evaluator; running two dilutes independence rather than reinforcing it. EFFECTIVE-DOC "add complexity only when it demonstrably improves outcomes" — the hook added cost + verdict-conflict potential with no marginal benefit.
+
+**What landed:**
+- DELETED `.claude/settings.json:101-111` — the entire `TaskCompleted` hook block (1 agent-prompt entry, type=`agent`, no `tools` field, no `model` field, timeout=60s).
+- EDITED `.claude/context/project.md:19` — removed "TaskCompleted gate," from the hooks inventory; added a sentence noting the retirement + audit ref + that Q/A is the sole evaluator. Also surfaced the live_check gate (shipped in cycle 38, was missing from the inventory).
+- EDITED `docs/runbooks/per-step-protocol.md` — two prose lines reframed: the line under "Never do > 2. Self-evaluation" and the line under "Why Main drifts > Main self-evaluates under time pressure". Both now explicitly say "no hook backstop; always spawn Q/A manually" and cite the retirement.
+- NEW `tests/verify_phase_23_8_2.py` — 10 immutable claims, including the inverted-assertion mutation test (claim 8) and a hook bash-syntax regression check (claim 10).
+
+**Researcher:** simple tier (~300 words target), 6 sources read in full via WebFetch (Anthropic harness-design, Anthropic building-effective-agents, Claude Code hooks doc, najx.dev CI/CD anti-patterns, Anthropic effective-harnesses, Epsilla blog). 16 URLs collected. Recency scan: no 2024-2026 source defends running multiple redundant evaluators on the same artifact. Defense-in-depth literature targets external adversaries, not internal harness design. `gate_passed: true`. Researcher correctly identified TWO surfaces beyond settings.json that needed updating (project.md:19 + per-step-protocol.md two lines) — Main would have missed both without the research gate.
+
+**Q/A verdict:** PASS (first spawn; no verdict-shopping; 0 prior phase=23.8.2 entries). 5/5 harness-compliance items satisfied. Verifier 10/10 after this log append. Mutation-resistance via claim 8's inverted assertion confirmed by Q/A. Scope-honesty disclosures verified: Stop hook NOT touched (H-3 was DEGRADES not BLOCKING; different role); R-5 + R-6 + qa.md-follow-on still deferred; controlled breakage of step 2.13 explicitly disclosed (not buried).
+
+**Verbatim verifier result (after this log append):**
+```
+=== phase-23.8.2 verifier ===
+  [PASS] 1. settings_json_valid
+  [PASS] 2. task_completed_hook_block_removed
+  [PASS] 3. other_hook_keys_intact
+  [PASS] 4. project_md_no_longer_lists_task_completed_gate
+  [PASS] 5. per_step_protocol_old_line_226_prose_removed
+  [PASS] 6. per_step_protocol_old_line_248_prose_removed
+  [PASS] 7. per_step_protocol_has_retirement_note
+  [PASS] 8. step_2_13_historical_assertion_now_expectedly_fails
+  [PASS] 9. harness_log_has_2_13_breakage_disclosure
+  [PASS] 10. no_regressions_other_hooks_bash_syntax_valid
+PASS (10/10) EXIT=0
+```
+
+**Controlled breakage disclosure (step 2.13):**
+
+`.claude/masterplan.json:214` contains step **2.13**'s immutable verification command:
+
+```
+python3 -c "import json; s=json.load(open('.claude/settings.json')); assert 'TaskCompleted' in s['hooks']; assert 'Stop' in s['hooks']; assert len(s.get('permissions',{}).get('allow',[])) >= 5; print('PASS')"
+```
+
+After this cycle, the `assert 'TaskCompleted' in s['hooks']` line raises AssertionError. This is **expected and acceptable** because:
+
+1. **Per CLAUDE.md immutability**: "Never edit verification criteria in masterplan.json — they are immutable." So the assertion cannot be patched.
+2. **Audit explicitly supersedes**: the dev-MAS audit (2026-05-11) found the hook violates the H-1 (BLOCKING — unconstrained tool access) and H-2 (BLOCKING — redundancy with Q/A) findings. R-2 Option A is the documented remediation.
+3. **Step 2.13 is `done`**: the assertion already ran successfully when the step was marked done. The verification command is a historical record of state-at-time, not a recurring check that re-runs on every cycle.
+4. **No automated process re-runs old verification commands**: nothing in the harness loops back to re-execute superseded verifications.
+5. **Verifier claim 8 captures the new state**: the inverted-assertion mutation test runs the EXACT verbatim historical assertion and confirms it now raises, proving the delete actually changed state.
+
+This trade-off is documented in three places: `handoff/current/contract.md` §"Known controlled breakage", `handoff/current/experiment_results.md` §"Known controlled breakage", and this harness_log entry.
+
+**Operator-visible behavior change:**
+- Q/A is now the SOLE evaluator (matches the CLAUDE.md "agents tend to confidently praise their own work" doctrine — one independent evaluator, not two redundant ones).
+- No more verdict conflicts between TaskCompleted-hook-agent and Q/A.
+- Saved ~60s per Task completion (the hook's timeout budget).
+- `.claude/context/project.md:19` now accurately lists the hook roster.
+
+**R-5 / R-6 / qa.md-follow-on still deferred (unchanged from prior cycles):**
+- **R-5** (qa.md fail-mode change from fail-OPEN to fail-CLOSED on `stop_hook_active`) — needs separate session + Peder review per separation-of-duties.
+- **R-6** (delete `backend/autonomous_harness.py` + `backend/agents/meta_coordinator.py`) — needs prior refactor of `autonomous_loop.py:19,50,462-488,896-897` + `phase4_9_redteam.py:58`.
+- **qa.md follow-on** to mention `live_check_<step_id>.md` in existing_results_check (lines 83-93) — deferred from cycle 38 per separation-of-duties.
+
+**Stop hook NOT modified** (out of scope). Audit H-3 was DEGRADES (not BLOCKING). Stop hook fires only at session end — different role from TaskCompleted, not redundant with Q/A. The loop-prevention concern in H-3 is a separate cleanup that could happen later.
+
+**Phase-23.8.2 status -> done.**

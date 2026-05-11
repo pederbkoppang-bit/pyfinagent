@@ -223,8 +223,10 @@ contract.md` to `handoff/archive/phase-<id>/`.
    No step is exempt. (The research-gate miss on 7 of 9 phase-4.8
    cycles started this way.)
 2. **Self-evaluation** — Main directly reporting PASS without
-   spawning Q/A. The TaskCompleted hook should fire; if it didn't,
-   spawn Q/A manually.
+   spawning Q/A. Always spawn Q/A manually after every GENERATE;
+   there is no hook backstop (the TaskCompleted hook was retired in
+   phase-23.8.2 per audit recommendation R-2 — see
+   `docs/audits/dev-mas-2026-05-11/04-remediation.md`).
 3. **Rewrite success criteria** to fit an incomplete implementation.
    Criteria are immutable.
 4. **Batched done-marking** — marking multiple steps done in one
@@ -245,8 +247,11 @@ sub-agents audit:
 - Main skips Researcher when it "feels confident" about the topic.
   Fix: `InstructionsLoaded` hook reloads this rule every session
   start; Researcher description uses "MUST BE USED" phrasing.
-- Main self-evaluates under time pressure. Fix: TaskCompleted hook
-  is load-bearing; never bypass.
+- Main self-evaluates under time pressure. Fix: always spawn Q/A
+  explicitly after every GENERATE — no automatic hook backstop.
+  (The TaskCompleted hook was retired in phase-23.8.2 because the
+  audit found it was a weaker, parallel evaluator that diluted
+  Q/A's independence rather than reinforcing it.)
 - Main second-opinion-shops after CONDITIONAL. Fix: require
   SendMessage-to-same-agent after any fix.
 

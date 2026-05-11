@@ -98,18 +98,6 @@
         ]
       }
     ],
-    "TaskCompleted": [
-      {
-        "hooks": [
-          {
-            "type": "agent",
-            "prompt": "Cross-verify the just-completed task. Read .claude/masterplan.json, find the matching step, run verification checks in order: deterministic first (syntax, tests, file existence), then existing evaluator critiques, then harness dry-run if within timeout. Return JSON {ok, reason, violated_criteria, checks_run}.",
-            "timeout": 60,
-            "asyncRewake": true
-          }
-        ]
-      }
-    ],
     "TeammateIdle": [
       {
         "hooks": [

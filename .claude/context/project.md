@@ -16,7 +16,7 @@ PyFinAgent is an autonomous AI-powered trading signal system. Goal: generate val
 - Machine-readable masterplan: `.claude/masterplan.json` (6 phases, 29 steps)
 - Three subagents: researcher, qa-evaluator, harness-verifier (in `.claude/agents/`)
 - `/masterplan` skill for navigating plan state
-- Hooks: changelog on commit, memory sync on masterplan changes, TaskCompleted gate, Stop gate, TeammateIdle
+- Hooks: changelog on commit, memory sync on masterplan changes, auto-commit-and-push on step-done (with optional live_check gate, phase-23.8.1), Stop gate, TeammateIdle. The TaskCompleted hook was retired in phase-23.8.2 (audit R-2 Option A) — Q/A is now the sole evaluator.
 - Agent teams enabled: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 - Handoff: `handoff/current/` (active cycle), `handoff/archive/` (historical by phase)
 
