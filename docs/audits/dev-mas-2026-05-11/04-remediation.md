@@ -164,6 +164,19 @@ prompt-stated. Failure modes are explicit.
 
 ### R-6 — Delete deprecated stubs
 
+> **CLOSURE (phase-23.8.3, 2026-05-11)**: this recommendation
+> **superseded** by header-correction. The audit took the
+> "DEPRECATED — Phase 4 stub" file headers at face value, but
+> cycle 37's research gate (phase-23.8.0) found both files are
+> LIVE with active importers (`autonomous_loop.py:19,50,462-488,896-897`
+> for `meta_coordinator.py`; `scripts/risk/phase4_9_redteam.py:58`
+> for `autonomous_harness.py`). Deleting them would break paper
+> trading + FINRA-15-09 negative tests. Cycle 40 (phase-23.8.3)
+> closed R-6 by correcting the misleading headers so future
+> auditors see the live status. A future delete cycle would need
+> to refactor the importers first. The original audit text below
+> is preserved as a historical record.
+
 **Problem**: Phase 2 finding C-A7. `backend/autonomous_harness.py`
 and `backend/agents/meta_coordinator.py` are explicit
 `DEPRECATED — Phase 4 stub` files left on disk.

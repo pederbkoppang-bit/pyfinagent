@@ -4,8 +4,10 @@ Houses the metrics + machinery that observe how the system improves over
 time (alpha velocity, recursive prompt optimization, cron budget
 allocation, evaluator review gate).
 
-Distinct from the DEPRECATED `backend/agents/meta_coordinator.py` Phase-4
-stub. Do not extend that module; build new work here.
+Distinct from the legacy `backend/agents/meta_coordinator.py` module
+(which remains ACTIVE for `autonomous_loop.py` + `skill_optimizer.py`
+but should NOT be extended — see phase-23.8.3 closure of audit R-6).
+Build all new dev-loop work here under `backend/meta_evolution/`.
 """
 from backend.meta_evolution.archetype_library import (
     ALLOWED_REGIMES,

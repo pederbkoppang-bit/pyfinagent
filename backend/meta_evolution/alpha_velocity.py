@@ -15,8 +15,10 @@ Persisted to `pyfinagent_pms.alpha_velocity_samples` (BQ table created
 by `scripts/migrations/create_alpha_velocity_table.py`). Partitioned by
 DATE(window_start), clustered on (strategy_id, macro_regime).
 
-Distinct from the DEPRECATED `backend/agents/meta_coordinator.py` Phase-4
-stub. Build all phase-10.7 work in `backend/meta_evolution/`.
+Distinct from the legacy `backend/agents/meta_coordinator.py` module
+(which remains ACTIVE for its existing callers but should NOT be
+extended — see phase-23.8.3 closure of audit R-6). Build all
+phase-10.7 work in `backend/meta_evolution/`.
 """
 from __future__ import annotations
 

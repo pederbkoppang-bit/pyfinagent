@@ -1,9 +1,25 @@
 """
-DEPRECATED — Phase 4 stub. Not part of the active MAS architecture.
+ACTIVE legacy MAS coordinator — do not extend, but do not delete.
 
-The active MAS lives in multi_agent_orchestrator.py (Anthropic pattern).
-This file is kept for backward compatibility with autonomous_loop.py
-and skill_optimizer.py but should not be extended.
+phase-23.8.3 header correction (audit R-6 closure): this module was
+previously labeled as obsolete but is in fact actively imported by
+two production paths:
+
+- `backend/services/autonomous_loop.py:19,50,462-488,896-897` — module-level
+  import + instantiation + daily-cycle health check + `get_coordinator()`
+  public accessor. Deleting this file breaks paper trading at startup.
+- `backend/agents/skill_optimizer.py:825` (lazy try/except) — MetaCoordinator
+  MDA→Agent bridge for targeted skill optimization.
+
+For new dev-loop infrastructure, build under `backend/meta_evolution/`
+(the active package per phase-10.7). This file is kept ACTIVE for the
+above callers but should NOT be extended with new functionality.
+
+Architecture context (still accurate):
+The active MAS-orchestration entry point is
+`multi_agent_orchestrator.py` (Anthropic multi-agent pattern). This
+MetaCoordinator is a cross-loop sequencer used by the autonomous
+daily cycle, distinct from the Layer-2 conversational MAS.
 
 Original purpose:
 MetaCoordinator — Cross-loop sequencing for the three optimization loops.

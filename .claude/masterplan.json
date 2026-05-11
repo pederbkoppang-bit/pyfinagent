@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-11T21:42:37.262283+00:00",
+  "updated_at": "2026-05-11T21:55:26.451997+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -7835,6 +7835,32 @@
           "retry_count": 0,
           "max_retries": 3,
           "notes": "Audit basis: docs/audits/dev-mas-2026-05-11/04-remediation.md R-2 Option A. Controlled breakage: step 2.13 historical verification command (assert 'TaskCompleted' in s['hooks']) will now fail if re-run; the audit explicitly supersedes that historical assertion per H-2 BLOCKING finding."
+        },
+        {
+          "id": "23.8.3",
+          "name": "Correct misleading DEPRECATED headers on live-imported modules (closes audit R-6 by header correction, not deletion)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_23_8_3.py",
+            "success_criteria": [
+              "meta_coordinator_header_no_longer_says_deprecated_phase_4_stub",
+              "meta_coordinator_header_says_active_with_importers",
+              "autonomous_harness_header_no_longer_says_deprecated_phase_4_stub",
+              "autonomous_harness_header_says_active_with_callers",
+              "meta_evolution_init_contrast_label_updated",
+              "meta_evolution_alpha_velocity_contrast_label_updated",
+              "audit_remediation_md_has_r6_closure_note",
+              "no_regressions_targeted_modules_import",
+              "no_regressions_live_importers_still_import",
+              "harness_log_has_r6_closure_note"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Audit basis: docs/audits/dev-mas-2026-05-11/04-remediation.md R-6 + 02-per-agent.md C-A7. Closes R-6 by correcting misleading headers (the audit took 'DEPRECATED -- Phase 4 stub' at face value; researcher gate at cycle 37 caught that the files are LIVE)."
         }
       ]
     }

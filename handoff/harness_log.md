@@ -16336,3 +16336,49 @@ This trade-off is documented in three places: `handoff/current/contract.md` §"K
 **Stop hook NOT modified** (out of scope). Audit H-3 was DEGRADES (not BLOCKING). Stop hook fires only at session end — different role from TaskCompleted, not redundant with Q/A. The loop-prevention concern in H-3 is a separate cleanup that could happen later.
 
 **Phase-23.8.2 status -> done.**
+
+## Cycle 40 -- 2026-05-11 -- phase=23.8.3 result=PASS
+
+**Step:** Correct misleading "DEPRECATED — Phase 4 stub" headers on two live-imported modules. Closes audit R-6 by **header correction, not deletion**.
+
+**Audit basis:** `docs/audits/dev-mas-2026-05-11/04-remediation.md` R-6 + Phase 2 C-A7. The audit recommended deleting `backend/agents/meta_coordinator.py` + `backend/autonomous_harness.py` based on their self-declared "DEPRECATED — Phase 4 stub" headers. Cycle 37's research gate (phase-23.8.0) caught that both files are LIVE with active importers. This cycle closes R-6 by **correcting the misleading headers** so future auditors / researchers / Main spawns see the accurate live status rather than re-making the same mistake.
+
+**What landed:**
+- EDIT `backend/agents/meta_coordinator.py` lines 1-19 — header rewritten to open with "**ACTIVE legacy MAS coordinator — do not extend, but do not delete.**" Header now explicitly names the live importers (`autonomous_loop.py:19,50,462-488,896-897` + `skill_optimizer.py:825`) and cites the phase-23.8.3 R-6 closure. The previous "should not be extended" guidance preserved (it was sound; only the "DEPRECATED — Phase 4 stub" label was wrong).
+- EDIT `backend/autonomous_harness.py` lines 1-11 — header rewritten to open with "**ACTIVE — do not delete; ... `promote_strategy`, `PromotionBlocked`, and `_BLOCKLIST_PATH` are live and used by FINRA-compliance enforcement.**" Explicitly cites `scripts/risk/phase4_9_redteam.py:58` + the phase-4.9.8 contract (FINRA Notice 15-09).
+- EDIT `backend/meta_evolution/__init__.py:7` + `backend/meta_evolution/alpha_velocity.py:18` — contrast labels updated from "Distinct from the DEPRECATED `backend/agents/meta_coordinator.py` Phase-4 stub" to "Distinct from the legacy `backend/agents/meta_coordinator.py` module (which remains ACTIVE for its existing callers ... — see phase-23.8.3 closure of audit R-6)." (Researcher caught these two cross-references during the research gate; they weren't in my own pre-cycle scan.)
+- EDIT `docs/audits/dev-mas-2026-05-11/04-remediation.md` — appended a "**CLOSURE (phase-23.8.3, 2026-05-11)**" block at the start of the R-6 section explaining that the proposal was superseded by header correction. Original audit text preserved as historical record below the closure block.
+- NEW `tests/verify_phase_23_8_3.py` — 10 immutable claims, including 2 import-regression claims (8, 9) that run actual `import` statements in subprocesses to catch any header-edit-induced syntax breakage.
+
+**Researcher:** simple tier, 6 sources read in full via WebFetch (HARNESS-DOC, EFFECTIVE-DOC, arXiv 2504.04372v2 "LLMs trust comments as ground truth" [2025], propelcode.ai "stale docstrings degrade agent decisions" [2026], pensero.ai "Knight Capital dead-code reactivation" [2026], abseil.io SWE Book ch15 "deprecation notices must be actionable"). 16 URLs collected. Recency scan: no 2024-2026 source defends preserving misleading deprecation notices for historical fidelity. Three-variant search-query discipline observed. `gate_passed: true`. Researcher correctly surfaced two NEW findings beyond what the original audit + cycle 37 caught: the contrast-label cross-references in `meta_evolution/__init__.py` and `meta_evolution/alpha_velocity.py` — would have been missed without the gate.
+
+**Q/A verdict:** PASS (first spawn; 0 prior verdicts; no verdict-shopping). 5/5 harness-compliance items satisfied. Verifier 10/10 after this log append. Mutation-resistance verified via the citation-rewording surface: the first verifier run failed claims 1+3 because the new header narrative quoted the old "DEPRECATED — Phase 4 stub" string verbatim ("previously marked 'DEPRECATED — Phase 4 stub' but is..."); reworded to "previously labeled as obsolete" without the literal phrase. Claims cannot be tricked by quoting. Import-regression claims (8, 9) PASS — both targeted modules + their live importers still import cleanly. Audit closure framing consistent across three surfaces (file headers, audit doc CLOSURE block, contract/experiment_results).
+
+**Verbatim verifier result (after this log append):**
+```
+=== phase-23.8.3 verifier ===
+  [PASS] 1. meta_coordinator_header_no_longer_says_deprecated_phase_4_stub
+  [PASS] 2. meta_coordinator_header_says_active_with_importers
+  [PASS] 3. autonomous_harness_header_no_longer_says_deprecated_phase_4_stub
+  [PASS] 4. autonomous_harness_header_says_active_with_callers
+  [PASS] 5. meta_evolution_init_contrast_label_updated
+  [PASS] 6. meta_evolution_alpha_velocity_contrast_label_updated
+  [PASS] 7. audit_remediation_md_has_r6_closure_note
+  [PASS] 8. no_regressions_targeted_modules_import
+  [PASS] 9. no_regressions_live_importers_still_import
+  [PASS] 10. harness_log_has_r6_closure_note
+PASS (10/10) EXIT=0
+```
+
+**No regressions:** zero logic / behavior changes in this cycle. Only docstrings + comment lines edited. Import-regression claims confirm syntax intact for `meta_coordinator`, `autonomous_harness`, `autonomous_loop`, and `skill_optimizer`.
+
+**Operator-visible behavior change:** none. This is a documentation-quality fix. The benefit is forward-looking: future Researcher / Main / Q/A spawns reading these files will see the accurate ACTIVE status rather than infer "deletable" from the old DEPRECATED label. Per the 2025 arXiv finding cited in the research brief, LLMs treat comment content as ground truth; the old headers were actively misleading future agent decision-making.
+
+**R-6 status — closed by header correction.** The actual deletion of either file remains BLOCKED pending a future refactor cycle that removes their live importers. The audit's R-6 framing of "just delete" is now corrected on three surfaces: the file headers themselves, the audit doc closure block, and this harness_log entry.
+
+**Audit-remediation progress after Cycle 40:**
+- **Shipped**: R-1 (live_check gate, cycle 38), R-2 (TaskCompleted delete, cycle 39), R-3 (rename Layer-2 labels, cycle 37), R-4 (META_PLAN runtime config, cycle 37), R-6 (header correction, this cycle), R-7 (28→5→3 mapping paragraph, cycle 37).
+- **Properly deferred**: R-5 (qa.md fail-mode, needs separate session + Peder review per separation-of-duties); qa.md `existing_results_check` update for `live_check_<step_id>.md` (also needs separate session).
+- **Out of original audit scope (observed during execution)**: auto-commit-and-push hook not auto-firing on Edits in 3 consecutive cycles — diagnostic cycle pending.
+
+**Phase-23.8.3 status -> done.**

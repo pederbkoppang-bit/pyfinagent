@@ -1,13 +1,25 @@
 """
-DEPRECATED — Phase 4 stub. Not part of the active MAS architecture.
+ACTIVE — do not delete; safe to leave dormant for the AutonomousHarness
+class but the module-level symbols `promote_strategy`, `PromotionBlocked`,
+and `_BLOCKLIST_PATH` are live and used by FINRA-compliance enforcement.
 
-The active harness is run_harness.py (Planner → Generator → Evaluator pattern).
-The active MAS orchestrator is backend/agents/multi_agent_orchestrator.py.
-This file is a skeleton for future autonomous cycling and should not be extended
-until Phase 4 activates.
+phase-23.8.3 header correction (audit R-6 closure): this module was
+previously labeled as obsolete but is in fact actively imported by:
 
-Original purpose:
-Autonomous Harness — Self-driving backtest + optimization loop.
+- `scripts/risk/phase4_9_redteam.py:58` — imports `_BLOCKLIST_PATH`,
+  `promote_strategy`, and `PromotionBlocked` to enforce the phase-4.9.8
+  contract (FINRA Notice 15-09 pre-trade-control negative tests). The
+  red-team script monkey-patches `_BLOCKLIST_PATH` to a temp file and
+  asserts `promote_strategy('intentionally_bad_strategy')` raises
+  `PromotionBlocked` because no Gauntlet report exists for that
+  strategy.
+
+For new self-driving harness work, build under `scripts/harness/`
+(`run_harness.py` is the active Planner → Generator → Evaluator
+implementation) or `backend/agents/multi_agent_orchestrator.py` for
+the in-app MAS layer. This file is kept ACTIVE for the above red-team
+script but the unused `AutonomousHarness` class skeleton should NOT
+be extended.
 """
 
 import asyncio
