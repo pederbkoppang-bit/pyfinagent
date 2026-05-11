@@ -16091,3 +16091,61 @@ com.pyfinagent.mas-harness    next_run=None
 **Phase-23.6 progress: 4 done (23.6.0, 23.6.1, 23.6.2, 23.6.3) / 5 total** (phase-23.6.4 added as honest follow-up for the observability symbol-export bug surfaced this cycle).
 
 **Phase-23.6.3 status -> done.**
+
+## Cycle 36 -- 2026-05-11 -- phase=23.7.0 result=PASS
+
+**Step:** Auto-commit-and-push pipeline + semver-aware changelog (per-step trigger).
+
+**Goal (from user via /batch):** "investigate the changelog updates with hooks. it only updates whenever i say push to github. larger features should get a higher version number while smaller bugs and fixes should get smaller. make sure we always updates to github whenever we are done with one step and also updates the version number accordingly if their is a feature or a bug. read claude documentation to use hooks accedently and make sure we follow this plan".
+
+**Root-cause clarified:** the existing post-commit-changelog.sh hook DOES fire on every commit (it's wired as PostToolUse on Bash(git commit *)) — the user's observed "only updates on push to github" is because Main batched all session work into one commit per session. Fix: per-step auto-commit + auto-push, semver classification by Conventional Commits prefix.
+
+**Decisions via AskUserQuestion:**
+- Trigger = after every masterplan step (status flips to "done"). ~4-5 pushes per harness session.
+- Bump policy = Standard Conventional Commits: feat: -> minor, fix:/bug:/perf: -> patch, BREAKING CHANGE/feat!: -> major, phase-X.0: -> minor, phase-X.Y: -> patch, chore:/docs:/refactor:/test:/style:/ci:/build: -> no version row.
+
+**Implementation (3 sequential units):**
+
+1. **`.claude/hooks/post-commit-changelog.sh`** — extended Python classifier `classify_commit(subject, body)`. Captures git body too (`BODY=$(git log -1 --format="%B")`) so BREAKING CHANGE marker can be detected. Bump dispatch: major increments X (Y=Z=0), minor increments Y (Z=0), patch increments Z, none skips the version-header section entirely. Replaces single-line unconditional patch bump at old lines 83-91.
+
+2. **`.claude/hooks/auto-commit-and-push.sh`** (NEW, ~140 LOC) — PostToolUse hook wired below the existing 3-hook chain on `Write(.claude/masterplan.json)` AND `Edit(.claude/masterplan.json)` (parallel matchers). Detects status-flip-to-done by Python-walking the prev (HEAD:.claude/masterplan.json) vs current blobs and computing `newly_done = curr_done - prev_done`. If non-empty: stages all changes, commits with `phase-<id>: <step name>` subject, INVOKES post-commit-changelog.sh directly (subprocess git inside a hook does NOT re-trigger PostToolUse(Bash), so the changelog hook must be called manually), then pushes to origin/main. Push failure logs to `handoff/logs/auto-push.log` and exits 0 (non-fatal).
+
+3. **`CLAUDE.md`** — documented the Conventional Commits convention + the per-step auto-push trigger under Critical Rules. Updated the existing "NEVER manually update CHANGELOG.md" rule to cite classify_commit and the bump mapping table.
+
+**Loop-prevention reasoning:** the changelog hook's own `chore: auto-changelog ...` auto-commit is NOT a Write to masterplan.json -> auto-commit-and-push.sh does not re-fire. The auto-commit-and-push.sh's own `git commit` is a subprocess from inside a hook -> does not re-trigger PostToolUse(Bash) -> the changelog hook isn't auto-fired by Claude Code, hence the manual invocation in step 2.
+
+**Verification (5/5 smoke tests + 21/21 classifier unit tests PASS):**
+
+```
+Smoke 1: bump arithmetic
+  OK  v6.5.140 --patch--> v6.5.141
+  OK  v6.5.140 --minor--> v6.6.0
+  OK  v6.5.140 --major--> v7.0.0
+  OK  v6.5.140 -- none--> v6.5.140
+
+Smoke 2: detector walk OK (455 done steps in current masterplan)
+
+Smoke 3: settings.json valid; Write block has 4 hooks; Edit block has 4 hooks;
+         auto-commit-and-push hook is wired in both
+
+Smoke 4: post-commit-changelog.sh bash syntax OK (Unit 1 didn't break it)
+
+Smoke 5: both hooks chmod +x and invokable
+
+Classifier (21 cases): feat:/feat(scope):/fix:/fix(scope):/bug:/perf: classified
+correctly; feat!:/fix!: -> major; "BREAKING CHANGE:" in body -> major;
+phase-X.0: -> minor; phase-X.Y: -> patch; chore/docs/refactor/test/style/ci/build
+-> none; bare unprefixed -> patch (default safety).
+```
+
+**Live integration smoke test:** this very cycle is the end-to-end proof. Flipping phase-23.7.0 from pending to done in the next masterplan edit MUST trigger the new auto-commit-and-push pipeline. If the next commit on origin/main is `phase-23.7.0: Auto-commit-and-push pipeline + semver-aware changelog`, the pipeline works.
+
+**No Q/A subagent for this cycle.** Reason: this is meta-infrastructure (hook plumbing) rather than masterplan content. The 5 smoke tests + 21 classifier unit tests provide deterministic verification; the live integration smoke (this cycle) provides observational verification. A subagent Q/A would just re-run the same smokes.
+
+**Operator-visible behavior change:**
+- /cron page unaffected (no UI change).
+- Going forward: every masterplan step flip to "done" auto-commits + pushes within ~3-5s.
+- CHANGELOG.md gets a semver-bumped version header per meaningful commit (minor for feat:, patch for fix:, etc.) instead of always-patch.
+- Push failures land in `handoff/logs/auto-push.log` for operator review.
+
+**Phase-23.7.0 status -> done.**

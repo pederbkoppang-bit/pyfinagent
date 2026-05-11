@@ -63,6 +63,37 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/commit-reminder.sh\"",
             "statusMessage": "Checking commit state..."
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/auto-commit-and-push.sh\"",
+            "statusMessage": "Auto-commit + push on step-done..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "if": "Edit(.claude/masterplan.json)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/masterplan-memory-sync.sh\"",
+            "statusMessage": "Syncing masterplan to memory..."
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/archive-handoff.sh\"",
+            "statusMessage": "Archiving handoff files..."
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/commit-reminder.sh\"",
+            "statusMessage": "Checking commit state..."
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/auto-commit-and-push.sh\"",
+            "statusMessage": "Auto-commit + push on step-done..."
           }
         ]
       }

@@ -19,6 +19,8 @@ MAX_ROWS=20
 # Get latest commit info
 HASH=$(git log -1 --format="%h" 2>/dev/null || echo "unknown")
 MSG=$(git log -1 --format="%s" 2>/dev/null | head -c 100 || echo "unknown")
+# Capture the full body too so the Python classifier can detect BREAKING CHANGE markers.
+BODY=$(git log -1 --format="%B" 2>/dev/null || echo "")
 DATE=$(date +%Y-%m-%d)
 
 # Skip changelog/drift commits to prevent infinite loop
@@ -37,8 +39,8 @@ fi
 
 NEW_ROW="| ${DATE} | \`${HASH}\` | ${MSG} |"
 
-# Insert new row + auto-bump version
-python3 - "$CHANGELOG" "$NEW_ROW" "$MAX_ROWS" "$DATE" "$MSG" << 'PYEOF'
+# Insert new row + auto-bump version (semver-aware)
+python3 - "$CHANGELOG" "$NEW_ROW" "$MAX_ROWS" "$DATE" "$MSG" "$BODY" << 'PYEOF'
 import sys
 import re
 
@@ -47,11 +49,49 @@ new_row = sys.argv[2]
 max_rows = int(sys.argv[3])
 today = sys.argv[4]
 commit_subject = sys.argv[5] if len(sys.argv) > 5 else "Continued Development"
+commit_body = sys.argv[6] if len(sys.argv) > 6 else ""
 
-# chore: commits (auto-changelog entries, harness logs, housekeeping)
-# don't deserve a new version header or bullet. They still get a Recent
-# Activity row so the git-log trail stays visible.
-is_chore = commit_subject.lower().startswith("chore:")
+
+def classify_commit(subject: str, body: str) -> str:
+    """Return 'major' / 'minor' / 'patch' / 'none' per Conventional Commits +
+    phase-X.Y conventions documented in CLAUDE.md.
+
+    - BREAKING CHANGE in body OR feat!: / fix!: prefix -> major
+    - feat: / feat(scope): -> minor
+    - fix: / bug: / perf: -> patch
+    - phase-X.0: -> minor (new top-level phase kickoff)
+    - phase-X.Y: -> patch (sub-step)
+    - chore: / docs: / refactor: / test: / style: / ci: / build: -> none
+    - anything else -> patch (default safety)
+    """
+    s = subject.strip()
+    b = body or ""
+    # Major: explicit ! suffix on type prefix, or BREAKING CHANGE: line in body
+    if re.match(r"^[a-z]+(?:\([^)]*\))?!:", s):
+        return "major"
+    if re.search(r"^BREAKING CHANGE:", b, re.MULTILINE):
+        return "major"
+    # phase-X.0: -> minor; phase-X.Y: (Y>=1) -> patch
+    m_phase = re.match(r"^phase-(\d+)\.(\d+)(?:\.\d+)?:", s)
+    if m_phase:
+        return "minor" if m_phase.group(2) == "0" else "patch"
+    # Conventional Commits type prefixes
+    m_type = re.match(r"^([a-z]+)(?:\([^)]*\))?:", s)
+    if m_type:
+        t = m_type.group(1)
+        if t == "feat":
+            return "minor"
+        if t in ("fix", "bug", "perf"):
+            return "patch"
+        if t in ("chore", "docs", "refactor", "test", "style", "ci", "build"):
+            return "none"
+    return "patch"
+
+
+bump_type = classify_commit(commit_subject, commit_body)
+# Back-compat alias used by the bullet-injection block below: "none" means
+# no version row AND no bullet (same semantics as the old is_chore flag).
+is_chore = bump_type == "none"
 
 # Condense the subject for a version-header title: strip a leading
 # "prefix: " scope marker and cap length so it fits the What's New card.
@@ -80,11 +120,17 @@ for i, line in enumerate(lines):
         current_version = (major, minor, patch)
         break
 
-# Bump patch version on every meaningful commit. Chore commits (auto-
-# changelog entries, harness logs) do not bump -- they just append a
-# Recent Activity row below.
-if not is_chore and version_idx is not None and current_version is not None:
-    new_major, new_minor, new_patch = current_version[0], current_version[1], current_version[2] + 1
+# Bump version per Conventional-Commits classifier (see classify_commit
+# above). "none" -> no version header (just Recent Activity row).
+# "patch" -> Z+1, "minor" -> Y+1/Z=0, "major" -> X+1/Y=0/Z=0.
+if bump_type != "none" and version_idx is not None and current_version is not None:
+    major, minor, patch = current_version
+    if bump_type == "major":
+        new_major, new_minor, new_patch = major + 1, 0, 0
+    elif bump_type == "minor":
+        new_major, new_minor, new_patch = major, minor + 1, 0
+    else:  # patch
+        new_major, new_minor, new_patch = major, minor, patch + 1
     new_version_header = f"### v{new_major}.{new_minor}.{new_patch} \u2014 {header_title} ({today})\n"
     # Insert new version header before the old one, with a separator.
     lines.insert(version_idx, "\n")

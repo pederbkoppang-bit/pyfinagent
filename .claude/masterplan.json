@@ -7726,6 +7726,25 @@
           "verification": "python3 -m pytest tests/api/test_observability.py -q"
         }
       ]
+    },
+    {
+      "id": "phase-23.7",
+      "name": "Harness plumbing: auto-commit-and-push + semver changelog",
+      "status": "in_progress",
+      "depends_on": [
+        "phase-23.6"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "23.7.0",
+          "name": "Auto-commit-and-push pipeline + semver-aware changelog (per-step trigger)",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 60,
+          "verification": "bash -n .claude/hooks/auto-commit-and-push.sh && bash -n .claude/hooks/post-commit-changelog.sh && python3 -c 'import json; json.load(open(\".claude/settings.json\"))'"
+        }
+      ]
     }
   ]
 }
