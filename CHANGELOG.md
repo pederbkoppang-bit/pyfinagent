@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `52e565d6` | phase-23.8.4: Auto-commit hook auto-fire diagnostic: add invocation debug log + preserve `if` pre... |
 | 2026-05-11 | `22409053` | phase-23.8.3: Correct misleading DEPRECATED headers on live-imported modules (closes audit R-6 by... |
 | 2026-05-11 | `48a005c4` | phase-23.8.2: Delete TaskCompleted hook (audit recommendation R-2 Option A) |
 | 2026-05-11 | `824f16f4` | phase-23.8.1: live_check hook gate (audit recommendation R-1) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-07 | `0f1e6379` | phase-23.2.23: Cron / Logs operator dashboard page + endpoints |
 | 2026-05-07 | `6e9d142e` | phase-23.2.22: test-audit isolation + position-cap diagnostic logging |
 | 2026-05-05 | `b1be0126` | phase-23.2.21: pin ADC-backed BigQuery MCP server in .mcp.json |
-| 2026-05-05 | `cfbbda2a` | phase-23.2.20: cycle freshness BQ TIMESTAMP_DIFF type-coercion fix |
 
 ---
 
+### v6.6.5 — phase-23.8.4: Auto-commit hook auto-fire diagnostic: add invocation d... (2026-05-12)
+
+- **phase-23.8.4: Auto-commit hook auto-fire diagnostic: add invocation debug log + preserve `if` pre...**
 ### v6.6.4 — phase-23.8.3: Correct misleading DEPRECATED headers on live-imported... (2026-05-11)
 
 - **phase-23.8.3: Correct misleading DEPRECATED headers on live-imported modules (closes audit R-6 by...**
