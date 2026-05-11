@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-11 | `2301b977` | phase-23.6: harness MAS cycles 23.6.0-23.6.3 + observability follow-up |
 | 2026-05-07 | `f8b5e181` | phase-23.3.6: /cron UI verification + phase-23.3 consolidation |
 | 2026-05-07 | `73196650` | phase-23.3.5: log allowlist fix -- live paths + 3 .env bugs surfaced |
 | 2026-05-07 | `a80f4640` | phase-23.3.4: launchd audit -- 6-entry manifest + autoresearch finding |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-04 | `8be19174` | phase-23.2.14: lock re-entrance audit — ALL CLEAN |
 | 2026-05-04 | `ad9d773c` | phase-23.2.2-fix + 23.2.A-fix: STX cleanup + drawer Option B |
 | 2026-05-04 | `47f9a20f` | phase-23.2.0 walk-through: 16 verification steps + agent rationale audit |
-| 2026-05-04 | `4251fd1d` | phase-23.1.23: wrap blocking trader.* calls in asyncio.to_thread |
 
 ---
 
+### v6.5.140 — phase-23.6: harness MAS cycles 23.6.0-23.6.3 + observability follow-up (2026-05-11)
+
+- **phase-23.6: harness MAS cycles 23.6.0-23.6.3 + observability follow-up**
 ### v6.5.139 — phase-23.3.6: /cron UI verification + phase-23.3 consolidation (2026-05-07)
 
 - **phase-23.3.6: /cron UI verification + phase-23.3 consolidation**
