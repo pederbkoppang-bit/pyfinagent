@@ -51,8 +51,8 @@ bugs that have been failing the nightly autoresearch + ablation jobs
 silently:
 
 ```
-backend/.env: line 24: TV5O5XN8IS2NLR6X: command not found
-backend/.env: line 25: c0379d038fc49bb50e3a8c0cd4d1eb0a: command not found
+backend/.env: line 24: [REDACTED-phase-23.3.7]: command not found
+backend/.env: line 25: [REDACTED-phase-23.3.7]: command not found
 backend/.env: line 56: sk-ant-api03-fx4D_..._RQAA: command not found
 ```
 

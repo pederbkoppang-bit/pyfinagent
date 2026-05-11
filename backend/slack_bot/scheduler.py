@@ -3,6 +3,7 @@ Scheduled jobs: morning digest, evening digest, and watchdog health check.
 Uses APScheduler to run tasks within the Slack bot process.
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -21,6 +22,12 @@ from backend.slack_bot.formatters import format_morning_digest, format_evening_d
 
 logger = logging.getLogger(__name__)
 
+# phase-23.5.3.1: _BACKEND_URL is no longer referenced by any handler.
+# Kept here for documentation -- this is the URL that would resolve under
+# Docker-compose networking. All in-process callers (watchdog probe via
+# _HEALTH_PROBE_URL, digests via _LOCAL_BACKEND_URL, heartbeats via
+# _HEARTBEAT_URL) now use 127.0.0.1 directly because pyfinagent runs as
+# a Mac host process and the `backend` DNS alias does not resolve.
 _BACKEND_URL = "http://backend:8000"
 # phase-23.3.2: heartbeat-push target. Pyfinagent is local-only on a single
 # Mac per memory/project_local_only_deployment.md, so the slack-bot process
@@ -28,7 +35,22 @@ _BACKEND_URL = "http://backend:8000"
 # above (which uses the docker-network hostname) so a docker-compose
 # resurrection wouldn't accidentally point heartbeats at a stale host.
 _HEARTBEAT_URL = "http://127.0.0.1:8000/api/jobs/heartbeat"
+# phase-23.5.2.6: separate health-probe URL pinned to localhost. _BACKEND_URL
+# uses the Docker DNS alias which doesn't resolve on host-process slack-bot
+# deployments -- causing the watchdog to spam Slack every 15 minutes with
+# `Backend unreachable` alerts even when the backend was healthy.
+_HEALTH_PROBE_URL = "http://127.0.0.1:8000/api/health"
+# phase-23.5.3.1: shared base URL for digest handlers. Same rationale as
+# _HEALTH_PROBE_URL -- localhost-pinned because the Docker alias above
+# doesn't resolve from a Mac host process. Used by _send_morning_digest
+# and _send_evening_digest below.
+_LOCAL_BACKEND_URL = "http://127.0.0.1:8000"
 _scheduler: AsyncIOScheduler | None = None
+# phase-23.5.2.6: track watchdog state across fires so we only post on
+# transitions (None->False, True->False, False->True). Steady-state fires
+# log only. Reset to None on daemon restart -- intentional; first-fire
+# state is the post-restart baseline.
+_watchdog_last_was_healthy: bool | None = None
 
 
 def _aps_to_heartbeat(event) -> None:
@@ -43,11 +65,25 @@ def _aps_to_heartbeat(event) -> None:
     try:
         exc = getattr(event, "exception", None)
         status = "ok" if not exc else "failed"
+        job_id = getattr(event, "job_id", "unknown")
+        # phase-23.5.2.5: surface the NEXT fire's run-time so /api/jobs/all
+        # can populate `next_run` without waiting on a separate state push
+        # for jobs that fire often. Fail-open if get_job returns None
+        # (possible mid-EVENT_JOB_MISSED transition).
+        next_run_iso: str | None = None
+        try:
+            if _scheduler is not None:
+                job_obj = _scheduler.get_job(job_id)
+                if job_obj is not None and job_obj.next_run_time is not None:
+                    next_run_iso = job_obj.next_run_time.isoformat()
+        except Exception as inner:
+            logger.warning("aps_to_heartbeat next_run lookup fail-open for %s: %r", job_id, inner)
         payload = {
-            "job": getattr(event, "job_id", "unknown"),
+            "job": job_id,
             "status": status,
             "finished_at": datetime.now(timezone.utc).isoformat(),
             "error": repr(exc) if exc else None,
+            "next_run_time": next_run_iso,
         }
         # Sync httpx (the listener runs in APScheduler's executor, not
         # asyncio). Tight 3s timeout so a stuck main backend cannot
@@ -56,6 +92,36 @@ def _aps_to_heartbeat(event) -> None:
             client.post(_HEARTBEAT_URL, json=payload)
     except Exception as e:
         logger.warning("aps_to_heartbeat fail-open: %r", e)
+
+
+def _seed_next_run_registry() -> None:
+    """phase-23.5.2.5: after the scheduler starts, push a one-time
+    `status="scheduled"` heartbeat for every registered job so the
+    backend's job-status registry has next_run_time populated BEFORE
+    any job fires. Without this seed, /api/jobs/all surfaces
+    `next_run=null` for jobs that haven't fired since the slack-bot
+    daemon started.
+
+    Fail-open per job: a single failed POST does not abort the loop.
+    """
+    if _scheduler is None:
+        return
+    try:
+        jobs = list(_scheduler.get_jobs())
+    except Exception as exc:
+        logger.warning("_seed_next_run_registry get_jobs fail-open: %r", exc)
+        return
+    for j in jobs:
+        try:
+            payload = {
+                "job": j.id,
+                "status": "scheduled",
+                "next_run_time": j.next_run_time.isoformat() if j.next_run_time else None,
+            }
+            with httpx.Client(timeout=3.0) as client:
+                client.post(_HEARTBEAT_URL, json=payload)
+        except Exception as exc:
+            logger.warning("_seed_next_run_registry fail-open for %s: %r", j.id, exc)
 
 
 def start_scheduler(app: AsyncApp):
@@ -136,11 +202,28 @@ def start_scheduler(app: AsyncApp):
     # phase-23.3.3: register the 7 phase-9 jobs (previously dormant -- the
     # function was defined but never called). Fail-open so a bad import in
     # any single phase-9 module cannot break the 4 core jobs above.
+    #
+    # phase-23.6.1: capture the running event loop AND pass `app` so that
+    # `register_phase9_jobs` can inject production fetch/write/alert fns
+    # (via `_production_fns` factories). The loop is needed by the
+    # `make_alert_fn_for_*` factories to bridge sync->async Slack posts via
+    # `asyncio.run_coroutine_threadsafe`. `start_scheduler` is called from
+    # `async def main()` in `app.py:46`, so a running loop is guaranteed.
     try:
-        registered = register_phase9_jobs(_scheduler)
+        running_loop = asyncio.get_running_loop()
+    except RuntimeError as exc:
+        logger.warning("start_scheduler: no running loop (production-fn wiring will be skipped): %r", exc)
+        running_loop = None
+    try:
+        registered = register_phase9_jobs(_scheduler, app=app, loop=running_loop)
         logger.info("phase-9 jobs registered: %s", registered)
     except Exception as exc:
         logger.warning("register_phase9_jobs fail-open at startup: %r", exc)
+
+    # phase-23.5.2.5: seed registry with next_run_time for every job so
+    # /api/jobs/all has data before any job fires. Run AFTER phase-9
+    # registration so all 11 jobs are visible to get_jobs().
+    _seed_next_run_registry()
 
 
 async def _send_morning_digest(app: AsyncApp):
@@ -149,10 +232,10 @@ async def _send_morning_digest(app: AsyncApp):
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            portfolio_res = await client.get(f"{_BACKEND_URL}/api/portfolio/performance")
+            portfolio_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/portfolio/performance")
             portfolio_data = portfolio_res.json() if portfolio_res.status_code == 200 else {}
 
-            reports_res = await client.get(f"{_BACKEND_URL}/api/reports/?limit=5")
+            reports_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/reports/?limit=5")
             reports_data = reports_res.json() if reports_res.status_code == 200 else []
 
         blocks = format_morning_digest(portfolio_data, reports_data)
@@ -174,11 +257,16 @@ async def _send_evening_digest(app: AsyncApp):
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            portfolio_res = await client.get(f"{_BACKEND_URL}/api/portfolio/performance")
+            portfolio_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/portfolio/performance")
             portfolio_data = portfolio_res.json() if portfolio_res.status_code == 200 else {}
 
-            trades_res = await client.get(f"{_BACKEND_URL}/api/paper-trading/trades?limit=10")
-            trades_data = trades_res.json() if trades_res.status_code == 200 else []
+            trades_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/paper-trading/trades?limit=10")
+            # phase-23.5.7.1: /api/paper-trading/trades returns the dict envelope
+            # {"trades": [...], "count": N} (paper_trading.py:226). Unwrap at the
+            # HTTP boundary so format_evening_digest's `trades_today[:10]` slice
+            # gets a list, not a dict (which raises KeyError: slice(...)).
+            _raw = trades_res.json() if trades_res.status_code == 200 else []
+            trades_data = _raw.get("trades", []) if isinstance(_raw, dict) else _raw
 
         blocks = format_evening_digest(portfolio_data, trades_data)
 
@@ -194,51 +282,72 @@ async def _send_evening_digest(app: AsyncApp):
 
 
 async def _watchdog_health_check(app: AsyncApp):
-    """Probe backend health endpoint; post to Slack only on failure."""
+    """Probe backend health endpoint; post to Slack only on state transitions.
+
+    phase-23.5.2.6: state-transition gating. Posts to Slack only on:
+        None -> False  (first probe failed; alert)
+        True -> False  (down: alert)
+        False -> True  (recovery: alert)
+    Steady-state (None->True, True->True, False->False) logs only.
+    """
+    global _watchdog_last_was_healthy
+
     settings = get_settings()
+    is_healthy = False
+    detail = ""
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{_BACKEND_URL}/api/health")
+            resp = await client.get(_HEALTH_PROBE_URL)
             if resp.status_code == 200 and resp.json().get("status") == "ok":
-                logger.debug("Watchdog health check passed")
-                return
+                is_healthy = True
+                detail = f"HTTP {resp.status_code}"
+            else:
+                detail = f"HTTP {resp.status_code}, body did not have status=ok"
+    except Exception as exc:
+        detail = f"unreachable: {type(exc).__name__}"
 
-        await app.client.chat_postMessage(
-            channel=settings.slack_channel_id,
-            blocks=[{
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": (
-                        ":warning: *Watchdog Alert* -- Backend health check failed\n"
-                        f"Status: {resp.status_code} at {datetime.now().strftime('%H:%M:%S')}"
-                    ),
-                },
-            }],
-            text="Watchdog Alert: backend health check failed",
-        )
-        logger.warning("Watchdog health check failed -- status %d", resp.status_code)
+    prior = _watchdog_last_was_healthy
+    _watchdog_last_was_healthy = is_healthy
 
-    except Exception:
+    # Decide whether to post.
+    post: tuple[str, str] | None = None  # (emoji+text, fallback_text)
+    if is_healthy:
+        if prior is False:
+            post = (
+                f":white_check_mark: *Watchdog Recovery* -- Backend reachable again\n"
+                f"Time: {datetime.now().strftime('%H:%M:%S')}",
+                "Watchdog Recovery: backend reachable",
+            )
+            logger.info("Watchdog recovery -- %s", detail)
+        else:
+            # None->True (clean baseline) or True->True (steady) -- silent.
+            logger.debug("Watchdog steady-healthy -- %s", detail)
+    else:
+        if prior is None or prior is True:
+            # None->False (post-restart already broken) or True->False (transition).
+            post = (
+                f":rotating_light: *Watchdog Alert* -- Backend unreachable\n"
+                f"Detail: {detail} at {datetime.now().strftime('%H:%M:%S')}",
+                "Watchdog Alert: backend unreachable",
+            )
+            logger.warning("Watchdog unhealthy transition -- %s", detail)
+        else:
+            # False->False (steady-down) -- log only; do NOT spam.
+            logger.warning("Watchdog steady-unhealthy -- %s", detail)
+
+    if post is not None:
         try:
             await app.client.chat_postMessage(
                 channel=settings.slack_channel_id,
                 blocks=[{
                     "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": (
-                            ":rotating_light: *Watchdog Alert* -- Backend unreachable\n"
-                            f"Time: {datetime.now().strftime('%H:%M:%S')}"
-                        ),
-                    },
+                    "text": {"type": "mrkdwn", "text": post[0]},
                 }],
-                text="Watchdog Alert: backend unreachable",
+                text=post[1],
             )
         except Exception:
-            pass
-        logger.exception("Watchdog health check -- backend unreachable")
+            logger.exception("Watchdog Slack post failed")
 
 
 def pause_signals() -> bool:
@@ -403,7 +512,13 @@ _PHASE9_JOB_IDS: tuple[str, ...] = (
 )
 
 
-def register_phase9_jobs(scheduler, replace_existing: bool = True) -> list[str]:
+def register_phase9_jobs(
+    scheduler,
+    replace_existing: bool = True,
+    *,
+    app: "AsyncApp | None" = None,
+    loop: "asyncio.AbstractEventLoop | None" = None,
+) -> list[str]:
     """Register all phase-9 jobs on the passed scheduler. Returns the job IDs registered.
 
     `scheduler` is any object with `.add_job(func, trigger=..., id=..., replace_existing=...)`.
@@ -414,8 +529,46 @@ def register_phase9_jobs(scheduler, replace_existing: bool = True) -> list[str]:
     phase-23.3.3: each entry now passes `misfire_grace_time` + `coalesce=True`
     so a slack-bot restart that crosses a scheduled tick does NOT immediately
     fire the missed tick. Grace times: 3600s daily, 7200s weekly, 600s hourly.
+
+    phase-23.6.1: when `app` and `loop` are both provided, each registered
+    callable is wrapped in `functools.partial(run, **prod_fns)` to inject
+    real fetch/write/alert functions from `_production_fns`. When either is
+    None (e.g. unit tests calling `register_phase9_jobs(StubScheduler())`),
+    the bare `run` is registered — preserving existing test-injection paths.
     """
+    import functools
     registered: list[str] = []
+
+    # phase-23.6.1: build per-job production-fn dicts (only when caller wires
+    # a real Slack app + asyncio loop). Factories live in `_production_fns`.
+    prod_fns_per_job: dict[str, dict] = {}
+    if app is not None and loop is not None:
+        try:
+            from backend.slack_bot.jobs import _production_fns as pf
+            channel = get_settings().slack_channel_id or ""
+            prod_fns_per_job = {
+                "daily_price_refresh": {
+                    "fetch_fn": pf.make_price_fetch_fn(),
+                    "write_fn": pf.make_price_write_fn(),
+                },
+                "weekly_fred_refresh": {
+                    "fetch_fn": pf.make_fred_fetch_fn(),
+                    "write_fn": pf.make_fred_write_fn(),
+                },
+                "nightly_outcome_rebuild": {
+                    "ledger_fetch_fn": pf.make_ledger_fetch_fn(),
+                    "outcome_write_fn": pf.make_outcome_write_fn(),
+                },
+                "cost_budget_watcher": {
+                    "alert_fn": pf.make_alert_fn_for_budget(app, loop, channel),
+                },
+                "weekly_data_integrity": {
+                    "alert_fn": pf.make_alert_fn_for_integrity(app, loop, channel),
+                },
+            }
+        except Exception as exc:
+            logger.warning("register_phase9_jobs: production-fn wiring fail-open: %r", exc)
+            prod_fns_per_job = {}
     # phase-23.3.3: include APScheduler safety params per researcher's brief.
     # `misfire_grace_time` prevents stale-tick fires on restart;
     # `coalesce=True` collapses missed ticks into one fire (defensive for
@@ -440,10 +593,14 @@ def register_phase9_jobs(scheduler, replace_existing: bool = True) -> list[str]:
         try:
             import importlib
             mod = importlib.import_module(module_path)
-            func = getattr(mod, "run")
+            run_fn = getattr(mod, "run")
         except Exception as exc:
             logger.warning("register_phase9_jobs: %s import fail-open: %r", job_id, exc)
             continue
+        # phase-23.6.1: partial-apply production fns when wired; fall back to
+        # bare run when caller didn't pass app+loop (preserves test injection).
+        prod_fns = prod_fns_per_job.get(job_id, {})
+        func = functools.partial(run_fn, **prod_fns) if prod_fns else run_fn
         try:
             scheduler.add_job(func, trigger=trigger, id=job_id, replace_existing=replace_existing, **kwargs)
             registered.append(job_id)

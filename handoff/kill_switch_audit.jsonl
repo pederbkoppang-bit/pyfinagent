@@ -205,3 +205,8 @@
 {"ts": "2026-05-06T22:23:43.128252+00:00", "event": "pause", "trigger": "manual", "details": {}}
 {"ts": "2026-05-06T22:26:04.691071+00:00", "event": "pause", "trigger": "manual", "details": {}}
 {"ts": "2026-05-06T22:30:07.251573+00:00", "event": "resume", "trigger": "manual_post_test_cleanup_v2", "details": {"phase": "23.2.22", "note": "second cleanup after extending tmp_audit fixture to test_pause_resume_timeout.py (3rd polluting file the researcher missed)"}}
+{"ts": "2026-05-07T18:06:11.931252+00:00", "event": "sod_snapshot", "nav": 16959.21, "date": "2026-05-07"}
+{"ts": "2026-05-08T18:02:38.408151+00:00", "event": "peak_update", "nav": 17672.71}
+{"ts": "2026-05-08T18:02:38.410334+00:00", "event": "sod_snapshot", "nav": 17672.71, "date": "2026-05-08"}
+{"ts": "2026-05-11T18:02:38.518109+00:00", "event": "peak_update", "nav": 18626.63}
+{"ts": "2026-05-11T18:02:38.519747+00:00", "event": "sod_snapshot", "nav": 18626.63, "date": "2026-05-11"}

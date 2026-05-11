@@ -19,7 +19,7 @@ parent_phase: phase-16
 
 2. **Anthropic key state**: still `sk-ant-oat01-*` prefix. Per `backend/config/settings.py:86`, `Settings()` reads the env var fresh on construction (no caching). Bouncing backend after a future user-side swap will pick up the new key without code changes.
 
-3. **autoresearch ENOENT root cause CONFIRMED**: `handoff/autoresearch.launchd.log:1` shows verbatim `backend/.env: line 25: TV5O5XN8IS2NLR6X: command not found`. The plist does NOT embed `ANTHROPIC_API_KEY` — env comes from `set -a; . backend/.env; set +a` inside `run_nightly.sh`. Fixing `.env` line 25 is sufficient; no plist reload needed beyond `launchctl kickstart`.
+3. **autoresearch ENOENT root cause CONFIRMED**: `handoff/autoresearch.launchd.log:1` shows verbatim `backend/.env: line 25: [REDACTED-phase-23.3.7]: command not found`. The plist does NOT embed `ANTHROPIC_API_KEY` — env comes from `set -a; . backend/.env; set +a` inside `run_nightly.sh`. Fixing `.env` line 25 is sufficient; no plist reload needed beyond `launchctl kickstart`.
 
 4. **Success criteria are "record state"**: `alpha_velocity_table_exists` + `anthropic_key_state_recorded` + `autoresearch_state_recorded` + `no_silent_user_action_simulation`. The cycle PASSes when state is honestly recorded (NOT when user-actions are simulated). Same pattern as 16.20/16.23 CONDITIONAL precedents.
 

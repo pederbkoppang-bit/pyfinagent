@@ -216,7 +216,7 @@ from zoneinfo import ZoneInfo
 
 Evidence: `autoresearch.launchd.log` contains exactly:
 ```
-/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: TV5O5XN8IS2NLR6X: command not found
+/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: [REDACTED-phase-23.3.7]: command not found
 ```
 
 The POSIX dot-source `set -a; . backend/.env; set +a` in `run_nightly.sh` tries to execute the shell, not just set variables. If `.env` line 25 is something like:

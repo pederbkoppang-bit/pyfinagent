@@ -23,7 +23,7 @@ parent_phase: phase-16
    - Both files need `from zoneinfo import ZoneInfo` import added (zoneinfo is stdlib in 3.9+).
 
 2. **autoresearch ENOENT exit=127 root cause IDENTIFIED** (not venv corruption!):
-   - **`.env` line 25 has unquoted value** that bash interprets as a command. Specific log entry: `/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: TV5O5XN8IS2NLR6X: command not found`.
+   - **`.env` line 25 has unquoted value** that bash interprets as a command. Specific log entry: `/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: [REDACTED-phase-23.3.7]: command not found`.
    - When `run_nightly.sh:16` does `set -a; . backend/.env; set +a`, it bombs at line 25 and **all env vars at/after that line are NOT exported**.
    - Cascades to gpt_researcher's `parse_llm()` raising `ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>'`.
    - Fix is a user-runnable `.env` quote fix — NOT a code change. I document the fix command; user runs it.

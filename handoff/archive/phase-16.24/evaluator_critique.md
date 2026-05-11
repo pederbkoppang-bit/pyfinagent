@@ -25,7 +25,7 @@
 ## Diagnosis verification
 
 - **launchd_stderr_log_exists**: YES. `launchctl print` reports stderr path = `/Users/ford/.openclaw/workspace/pyfinagent/handoff/autoresearch.launchd.log`. File present.
-- **error_pattern_matches_main_claim**: YES, **exactly**. Tail of the log: `/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: TV5O5XN8IS2NLR6X: command not found`. Main's diagnosis (`.env` line 25 unquoted value being interpreted as a shell command by `set -a; source .env; set +a` in `run_nightly.sh`) is fully evidence-backed, not speculative. Last exit code = 127, consistent with command-not-found.
+- **error_pattern_matches_main_claim**: YES, **exactly**. Tail of the log: `/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: [REDACTED-phase-23.3.7]: command not found`. Main's diagnosis (`.env` line 25 unquoted value being interpreted as a shell command by `set -a; source .env; set +a` in `run_nightly.sh`) is fully evidence-backed, not speculative. Last exit code = 127, consistent with command-not-found.
 - **venv_eliminated**: Implicitly confirmed. The `command not found` is from bash sourcing the .env, occurring before any python invocation -- this rules out venv/pyvenv.cfg as the failure point. The brief explicitly considered the broken-venv hypothesis (sources 16-18 in the brief on Homebrew symlink breakage) and ruled it out via this log evidence.
 - **key_state_starts_with**: `sk-ant-oat` (OAuth token still in place, Claude Code subscription path). Key swap NOT yet applied -- consistent with Main's standing-reminder framing.
 

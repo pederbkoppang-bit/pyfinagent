@@ -55,6 +55,7 @@ pyfinagent-app/.streamlit/secrets.toml
 backend/.env.env.bak-*
 backend/.env.*.bak-*
 *.env.bak-*
+backend/.env.bak*
 
 # Playwright Chrome binary (installed by `playwright install`)
 frontend/chrome/

@@ -179,3 +179,90 @@ def test_logs_tail_returns_empty_when_log_missing(tmp_path: Path, monkeypatch: p
     assert body["n_returned"] == 0
     assert body["exists"] is False
     assert body["total_size_bytes"] == 0
+
+
+# ── phase-23.5.2.5: heartbeat-bridge merge ────────────────────────
+
+
+def test_jobs_all_slack_bot_merges_registry_when_present(monkeypatch: pytest.MonkeyPatch):
+    """phase-23.5.2.5: slack_bot rows must surface real status / last_run /
+    next_run from job_status_api._registry when a row exists, instead of the
+    static "manifest" placeholder.
+    """
+    cda._RUNNING_SCHEDULERS.clear()
+    fake_snapshot = {
+        "morning_digest": {
+            "name": "morning_digest",
+            "status": "ok",
+            "last_run_at": "2026-05-08T12:00:00+00:00",
+            "last_duration_s": 1.4,
+            "next_run_time": "2026-05-09T12:00:00-04:00",
+        }
+    }
+    monkeypatch.setattr(cda.job_status_api, "get_registry_snapshot", lambda: fake_snapshot)
+
+    import asyncio
+    body = asyncio.run(cda.get_all_jobs())
+    md = next(j for j in body["jobs"] if j["id"] == "morning_digest")
+    assert md["source"] == "slack_bot"
+    assert md["status"] == "ok"
+    assert md["last_run"] == "2026-05-08T12:00:00+00:00"
+    assert md["next_run"] == "2026-05-09T12:00:00-04:00"
+
+
+def test_jobs_all_slack_bot_falls_back_to_never_run_when_registry_empty(monkeypatch: pytest.MonkeyPatch):
+    """phase-23.5.2.5: when the registry has no row for a manifest entry,
+    the merged row must surface status="never_run" (NOT "manifest"), per
+    the researcher brief on Prefect / Airflow / Dagster vocabulary.
+    """
+    cda._RUNNING_SCHEDULERS.clear()
+    monkeypatch.setattr(cda.job_status_api, "get_registry_snapshot", lambda: {})
+
+    import asyncio
+    body = asyncio.run(cda.get_all_jobs())
+    slack_jobs = [j for j in body["jobs"] if j["source"] == "slack_bot"]
+    assert len(slack_jobs) == len(cda._SLACK_BOT_JOBS)
+    for j in slack_jobs:
+        assert j["status"] == "never_run", f"{j['id']} expected never_run, got {j['status']!r}"
+        assert j["next_run"] is None
+        assert j["last_run"] is None
+
+
+def test_jobs_all_launchd_uses_launchctl_bridge(monkeypatch: pytest.MonkeyPatch):
+    """phase-23.5.13.2: launchd entries now flow through `_launchctl_state`
+    (NOT `_static_to_dict`). Status reflects the live launchctl state; never
+    the legacy `"manifest"` placeholder.
+    """
+    cda._RUNNING_SCHEDULERS.clear()
+    monkeypatch.setattr(cda.job_status_api, "get_registry_snapshot", lambda: {})
+
+    fake_state = {
+        "status": "running",
+        "last_exit_code": None,
+        "pid": 12345,
+        "runs": 7,
+        "next_run": None,
+        "last_run": None,
+    }
+    monkeypatch.setattr(cda, "_launchctl_state", lambda label: fake_state)
+
+    import asyncio
+    body = asyncio.run(cda.get_all_jobs())
+    launchd_jobs = [j for j in body["jobs"] if j["source"] == "launchd"]
+    assert len(launchd_jobs) == len(cda._LAUNCHD_JOBS)
+    # phase-23.6.3: ablation + autoresearch derive next_run from their
+    # StartCalendarInterval plists; the other 4 launchd entries keep
+    # next_run = None (StartInterval / KeepAlive — no scheduled fire).
+    _CALENDAR_INTERVAL_IDS = {"com.pyfinagent.ablation", "com.pyfinagent.autoresearch"}
+    for j in launchd_jobs:
+        assert j["status"] == "running", f"{j['id']} expected running, got {j['status']!r}"
+        assert j["status"] != "manifest"
+        if j["id"] in _CALENDAR_INTERVAL_IDS:
+            assert isinstance(j["next_run"], str), f"{j['id']} next_run must be ISO string, got {j['next_run']!r}"
+            # ISO 8601 with timezone offset (aware datetime)
+            from datetime import datetime as _dt
+            parsed = _dt.fromisoformat(j["next_run"])
+            assert parsed.tzinfo is not None, f"{j['id']} next_run must be tz-aware"
+        else:
+            assert j["next_run"] is None, f"{j['id']} next_run must be None, got {j['next_run']!r}"
+        assert j["last_run"] is None

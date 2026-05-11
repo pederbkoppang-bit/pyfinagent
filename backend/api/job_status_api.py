@@ -71,8 +71,11 @@ class JobStatus(BaseModel):
     name: str
     last_run_at: Optional[str] = None        # ISO-8601 UTC, None when never_run
     last_duration_s: Optional[float] = None
-    status: str = "never_run"                # never_run | ok | failed | in_progress | skipped_idempotent
+    status: str = "never_run"                # never_run | ok | failed | in_progress | skipped_idempotent | scheduled
     last_error: Optional[str] = None
+    # phase-23.5.2.5: next fire time pushed by slack-bot's APScheduler listener
+    # + startup state-push so /api/jobs/all can surface it. ISO-8601 with tz.
+    next_run_time: Optional[str] = None
 
 
 class JobStatusResponse(BaseModel):
@@ -103,10 +106,34 @@ def record_heartbeat(event: dict) -> None:
         return
     with _lock:
         row = _registry.setdefault(job, {"name": job})
+        # phase-23.5.2.5: status="scheduled" is a startup-seed event; it carries
+        # next_run_time but does NOT overwrite last_run_at or last_error.
+        if status == "scheduled":
+            if "next_run_time" in event:
+                row["next_run_time"] = event.get("next_run_time")
+            row.setdefault("status", "scheduled")
+            # Don't clobber a real terminal status with "scheduled" if one exists.
+            if row.get("status") in (None, "never_run"):
+                row["status"] = "scheduled"
+            return
         row["last_run_at"] = event.get("finished_at")
         row["last_duration_s"] = event.get("duration_s")
         row["status"] = str(status) if status is not None else "unknown"
         row["last_error"] = event.get("error")
+        if "next_run_time" in event:
+            row["next_run_time"] = event.get("next_run_time")
+
+
+def get_registry_snapshot() -> dict[str, dict]:
+    """phase-23.5.2.5: thread-safe copy of the registry for cross-module reads.
+
+    Used by `backend/api/cron_dashboard_api.py` to merge real
+    last_run_at + status + next_run_time into the slack_bot manifest
+    rows of `/api/jobs/all`. Returns a shallow copy of `_registry`
+    under `_lock` so the caller cannot mutate registry state.
+    """
+    with _lock:
+        return {k: dict(v) for k, v in _registry.items()}
 
 
 @router.get("/status", response_model=JobStatusResponse)
@@ -128,6 +155,7 @@ def get_job_status() -> JobStatusResponse:
                     last_duration_s=row.get("last_duration_s"),
                     status=row.get("status", "never_run"),
                     last_error=row.get("last_error"),
+                    next_run_time=row.get("next_run_time"),
                 )
             )
     structured_log(
@@ -155,5 +183,6 @@ __all__ = [
     "JobStatus",
     "JobStatusResponse",
     "record_heartbeat",
+    "get_registry_snapshot",
     "_JOB_NAMES",
 ]

@@ -45,7 +45,7 @@ has been failing silently for **13 days** with a one-character bug in
 
 **Root cause** (researcher af3ada936ca445dd8 traced via
 `handoff/logs/autoresearch.launchd.log` which contains repeated
-`backend/.env: line 24: TV5O5XN8IS2NLR6X: command not found`):
+`backend/.env: line 24: [REDACTED-phase-23.3.7]: command not found`):
 
 `backend/.env` line 24 has a leading space:
 

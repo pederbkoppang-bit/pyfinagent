@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-07T19:08:43.423343+00:00",
+  "updated_at": "2026-05-10T08:16:50.990583+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -7183,7 +7183,7 @@
         {
           "id": "23.2.1",
           "name": "Verify autonomous loop ran daily for 7+ days",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "estimated_minutes": 10,
           "verification": "bq SELECT DATE(snapshot_date), COUNT(*) FROM paper_portfolio_snapshots WHERE PARSE_DATE('%Y-%m-%d', snapshot_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 9 DAY) GROUP BY 1 ORDER BY 1; expect ~9 rows, no gaps"
@@ -7314,7 +7314,7 @@
     {
       "id": "phase-23.3",
       "name": "Cron jobs + logs comprehensive audit",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-23.1"
       ],
@@ -7325,58 +7325,405 @@
         {
           "id": "23.3.0",
           "name": "Q/A roster verification -- confirm new '1b. Frontend lint' rubric is live in fresh subagent spawn",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 15,
-          "verification": "Spawn fresh Q/A subagent and confirm its check rubric includes 'cd frontend && npx eslint .' and 'tsc --noEmit'. Snapshot semantics per CLAUDE.md mean qa.md edits only take effect in NEW sessions."
+          "verification": "Spawn fresh Q/A subagent and confirm its check rubric includes 'cd frontend && npx eslint .' and 'tsc --noEmit'. Snapshot semantics per CLAUDE.md mean qa.md edits only take effect in NEW sessions.",
+          "completed_at": "2026-05-07T19:18:01.245408+00:00"
         },
         {
           "id": "23.3.1",
           "name": "Main APScheduler audit -- paper_trading_daily + queue process_batch",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 30,
-          "verification": "Confirm paper_trading_daily has a non-null next_run_time consistent with cron(mon-fri 14:00 ET). Confirm queue process_batch fires every 5s. Confirm both introspectable via /api/jobs/all and visible on /cron page."
+          "verification": "Confirm paper_trading_daily has a non-null next_run_time consistent with cron(mon-fri 14:00 ET). Confirm queue process_batch fires every 5s. Confirm both introspectable via /api/jobs/all and visible on /cron page.",
+          "completed_at": "2026-05-07T19:26:03.323104+00:00"
         },
         {
           "id": "23.3.2",
           "name": "Slack-bot core jobs audit -- morning/evening_digest, watchdog_health_check, prompt_leak_redteam",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 30,
-          "verification": "Confirm slack-bot process is running OR document why it isn't. If running, confirm each of the 4 core jobs is registered. If not running, document the operator expectation (manifest-only display on /cron is correct)."
+          "verification": "Confirm slack-bot process is running OR document why it isn't. If running, confirm each of the 4 core jobs is registered. If not running, document the operator expectation (manifest-only display on /cron is correct).",
+          "completed_at": "2026-05-07T19:37:35.690106+00:00"
         },
         {
           "id": "23.3.3",
           "name": "Slack-bot phase-9 jobs audit -- 7 phase-9 cron jobs",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "estimated_minutes": 30,
-          "verification": "Inventory the 7 phase-9 jobs in slack_bot/scheduler.py: daily_price_refresh, weekly_fred_refresh, nightly_mda_retrain, hourly_signal_warmup, nightly_outcome_rebuild, weekly_data_integrity, cost_budget_watcher. Confirm each is registered (static manifest is OK). Confirm heartbeat registry wiring at /api/jobs/status returns expected shape."
+          "verification": "Inventory the 7 phase-9 jobs in slack_bot/scheduler.py: daily_price_refresh, weekly_fred_refresh, nightly_mda_retrain, hourly_signal_warmup, nightly_outcome_rebuild, weekly_data_integrity, cost_budget_watcher. Confirm each is registered (static manifest is OK). Confirm heartbeat registry wiring at /api/jobs/status returns expected shape.",
+          "completed_at": "2026-05-07T19:47:46.670531+00:00"
         },
         {
           "id": "23.3.4",
           "name": "Launchd watchdog audit -- backend-watchdog plist + script + log",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 20,
-          "verification": "Confirm com.pyfinagent.backend-watchdog is loaded in launchctl and firing every 60s. Tail handoff/logs/backend-watchdog.log for recent OK / FAIL entries. Confirm the SLACK_WEBHOOK_URL pre-kickstart curl wire is intact (phase-23.2.18)."
+          "verification": "Confirm com.pyfinagent.backend-watchdog is loaded in launchctl and firing every 60s. Tail handoff/logs/backend-watchdog.log for recent OK / FAIL entries. Confirm the SLACK_WEBHOOK_URL pre-kickstart curl wire is intact (phase-23.2.18).",
+          "completed_at": "2026-05-07T19:57:56.001452+00:00"
         },
         {
           "id": "23.3.5",
           "name": "Log file inventory audit -- 6 allowlisted logs being written + tailable",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 25,
-          "verification": "For each of the 6 allowlisted log keys (backend, watchdog, restart, harness, autoresearch, mas_harness_launchd) confirm the file exists, is being appended to OR documented as quiescent, and is tail-readable via /api/logs/tail. Surface any stale logs as findings."
+          "verification": "For each of the 6 allowlisted log keys (backend, watchdog, restart, harness, autoresearch, mas_harness_launchd) confirm the file exists, is being appended to OR documented as quiescent, and is tail-readable via /api/logs/tail. Surface any stale logs as findings.",
+          "completed_at": "2026-05-07T20:07:43.993582+00:00"
         },
         {
           "id": "23.3.6",
           "name": "/cron page UI verification -- browser smoke test against live state",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 25,
-          "verification": "Open http://localhost:3000/cron in a browser-equivalent smoke (curl + page-server-side hydration check). Confirm no React console errors. Confirm Jobs tab renders the 13 known jobs grouped by source. Confirm Logs tab dropdown lists the 6 allowlisted keys and a sample tail renders cleanly."
+          "verification": "Open http://localhost:3000/cron in a browser-equivalent smoke (curl + page-server-side hydration check). Confirm no React console errors. Confirm Jobs tab renders the 13 known jobs grouped by source. Confirm Logs tab dropdown lists the 6 allowlisted keys and a sample tail renders cleanly.",
+          "completed_at": "2026-05-07T20:11:15.750690+00:00"
+        }
+      ],
+      "completed_at": "2026-05-07T20:11:15.750833+00:00"
+    },
+    {
+      "id": "phase-23.4",
+      "name": "Frontend hotfix -- /login Internal Server Error (stale .next/ build cache)",
+      "status": "done",
+      "depends_on": [
+        "phase-23.3"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "23.4.0",
+          "name": "Recover frontend from stale .next/ corruption (login 500)",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 15,
+          "verification": "curl -s -o /dev/null -w %{http_code} http://localhost:3000/login returns 200; curl -sL http://localhost:3000/ -o /tmp/_root.html && grep -E \"<html|<title\" /tmp/_root.html; cd frontend && npx --no-install tsc --noEmit; cd frontend && npx --no-install eslint . --quiet"
+        }
+      ]
+    },
+    {
+      "id": "phase-23.5",
+      "name": "Cron job liveness -- next_run + status populates for all 19 jobs",
+      "status": "done",
+      "depends_on": [
+        "phase-23.3",
+        "phase-23.4"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "23.5.1",
+          "name": "Cron job verification: paper_trading_daily (main_apscheduler)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "paper_trading_daily",
+          "job_source": "main_apscheduler",
+          "job_schedule": "cron[day_of_week='mon-fri', hour='14', minute='0']",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"paper_trading_daily\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.2",
+          "name": "Cron job verification: ticket_queue_process_batch (main_apscheduler)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "ticket_queue_process_batch",
+          "job_source": "main_apscheduler",
+          "job_schedule": "interval[0:00:05]",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"ticket_queue_process_batch\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.2.5",
+          "name": "Bridge slack-bot heartbeat registry into /api/jobs/all + next_run push",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 60,
+          "verification": "python3 -c 'import json,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); slack=[j for j in r[\"jobs\"] if j[\"source\"]==\"slack_bot\"]; assert len(slack)==11, f\"want 11 slack_bot, got {len(slack)}\"; non_manifest=[j for j in slack if j[\"status\"]!=\"manifest\"]; assert len(non_manifest)>=6, f\"expect >=6 jobs surfaced from registry (the ones with last_run_at populated): {[(j[\"id\"], j[\"status\"]) for j in slack]}\"; with_nr=[j for j in slack if j[\"next_run\"]]; assert len(with_nr)==11, f\"all 11 slack_bot jobs must have next_run populated: {[(j[\"id\"], j[\"next_run\"]) for j in slack]}\"; print(\"OK\", len(slack), \"slack_bot jobs;\", len(non_manifest), \"non-manifest;\", len(with_nr), \"with next_run\")'"
+        },
+        {
+          "id": "23.5.2.6",
+          "name": "Investigate watchdog_health_check Slack spam (every 15 min) and fix",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 45,
+          "verification": "python3 -c 'import sys; from pathlib import Path; src=Path(\"backend/slack_bot\").rglob(\"*.py\"); paths=list(src); assert any(\"watchdog\" in p.name.lower() for p in paths) or any(\"watchdog\" in p.read_text(encoding=\"utf-8\") for p in paths), \"no watchdog source found\"; print(\"OK source located\")' && python3 tests/verify_phase_23_5_2_6.py"
+        },
+        {
+          "id": "23.5.3",
+          "name": "Cron job verification: morning_digest (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "morning_digest",
+          "job_source": "slack_bot",
+          "job_schedule": "cron daily morning_digest_hour:00 ET",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"morning_digest\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.3.1",
+          "name": "Fix Docker-alias hostname in _send_morning_digest + _send_evening_digest",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 30,
+          "verification": "python3 tests/verify_phase_23_5_3_1.py"
+        },
+        {
+          "id": "23.5.4",
+          "name": "Cron job verification: evening_digest (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "evening_digest",
+          "job_source": "slack_bot",
+          "job_schedule": "cron daily evening_digest_hour:00 ET",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"evening_digest\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.5",
+          "name": "Cron job verification: watchdog_health_check (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "watchdog_health_check",
+          "job_source": "slack_bot",
+          "job_schedule": "interval watchdog_interval_minutes",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"watchdog_health_check\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.6",
+          "name": "Cron job verification: prompt_leak_redteam (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "prompt_leak_redteam",
+          "job_source": "slack_bot",
+          "job_schedule": "cron daily 03:15 ET",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"prompt_leak_redteam\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.7",
+          "name": "Cron job verification: daily_price_refresh (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "daily_price_refresh",
+          "job_source": "slack_bot",
+          "job_schedule": "phase-9.2 cron",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"daily_price_refresh\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.7.1",
+          "name": "Fix format_evening_digest KeyError on dict-shaped trades_today",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 30,
+          "verification": "python3 tests/verify_phase_23_5_7_1.py"
+        },
+        {
+          "id": "23.5.8",
+          "name": "Cron job verification: weekly_fred_refresh (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "weekly_fred_refresh",
+          "job_source": "slack_bot",
+          "job_schedule": "phase-9.3 cron",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"weekly_fred_refresh\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.9",
+          "name": "Cron job verification: nightly_mda_retrain (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "nightly_mda_retrain",
+          "job_source": "slack_bot",
+          "job_schedule": "phase-9.4 cron",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"nightly_mda_retrain\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.10",
+          "name": "Cron job verification: hourly_signal_warmup (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "hourly_signal_warmup",
+          "job_source": "slack_bot",
+          "job_schedule": "phase-9.5 interval",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"hourly_signal_warmup\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.11",
+          "name": "Cron job verification: nightly_outcome_rebuild (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "nightly_outcome_rebuild",
+          "job_source": "slack_bot",
+          "job_schedule": "phase-9.6 cron",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"nightly_outcome_rebuild\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.12",
+          "name": "Cron job verification: weekly_data_integrity (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "weekly_data_integrity",
+          "job_source": "slack_bot",
+          "job_schedule": "phase-9.7 cron",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"weekly_data_integrity\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.13",
+          "name": "Cron job verification: cost_budget_watcher (slack_bot)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "cost_budget_watcher",
+          "job_source": "slack_bot",
+          "job_schedule": "phase-9.8 interval",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"cost_budget_watcher\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.13.2",
+          "name": "Bridge launchd job state into /api/jobs/all (launchctl print parser)",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 90,
+          "verification": "python3 -c 'import json,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); ld=[j for j in r[\"jobs\"] if j[\"source\"]==\"launchd\"]; assert len(ld)==6, f\"want 6 launchd, got {len(ld)}\"; non_manifest=[j for j in ld if j[\"status\"]!=\"manifest\"]; assert len(non_manifest)>=4, f\"expect >=4 launchd jobs surfaced from launchctl: {[(j[chr(34)+chr(105)+chr(100)+chr(34)], j[chr(34)+chr(115)+chr(116)+chr(97)+chr(116)+chr(117)+chr(115)+chr(34)]) for j in ld]}\"; print(\"OK\", len(ld), \"launchd;\", len(non_manifest), \"non-manifest\")' && python3 tests/verify_phase_23_5_13_2.py"
+        },
+        {
+          "id": "23.5.14",
+          "name": "Cron job verification: com.pyfinagent.backend-watchdog (launchd)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "com.pyfinagent.backend-watchdog",
+          "job_source": "launchd",
+          "job_schedule": "launchd interval 60s",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"com.pyfinagent.backend-watchdog\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"next_run\") is not None, f\"next_run null: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"], j[\"next_run\"])'"
+        },
+        {
+          "id": "23.5.13.3",
+          "name": "Amend launchd-substep verification criteria (drop unmeetable next_run assertion)",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 30,
+          "verification": "python3 tests/verify_phase_23_5_13_3.py"
+        },
+        {
+          "id": "23.5.15",
+          "name": "Cron job verification: com.pyfinagent.backend (launchd)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "com.pyfinagent.backend",
+          "job_source": "launchd",
+          "job_schedule": "launchd KeepAlive RunAtLoad",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"com.pyfinagent.backend\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"status\") in (\"running\",\"ok\",\"failed\",\"not_loaded\",\"unknown\"), f\"status not in known set: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"])'"
+        },
+        {
+          "id": "23.5.16",
+          "name": "Cron job verification: com.pyfinagent.frontend (launchd)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "com.pyfinagent.frontend",
+          "job_source": "launchd",
+          "job_schedule": "launchd KeepAlive RunAtLoad",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"com.pyfinagent.frontend\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"status\") in (\"running\",\"ok\",\"failed\",\"not_loaded\",\"unknown\"), f\"status not in known set: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"])'"
+        },
+        {
+          "id": "23.5.17",
+          "name": "Cron job verification: com.pyfinagent.mas-harness (launchd)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "com.pyfinagent.mas-harness",
+          "job_source": "launchd",
+          "job_schedule": "launchd interval 1800s",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"com.pyfinagent.mas-harness\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"status\") in (\"running\",\"ok\",\"failed\",\"not_loaded\",\"unknown\"), f\"status not in known set: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"])'"
+        },
+        {
+          "id": "23.5.18",
+          "name": "Cron job verification: com.pyfinagent.ablation (launchd)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "com.pyfinagent.ablation",
+          "job_source": "launchd",
+          "job_schedule": "launchd cron 03:00 daily",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"com.pyfinagent.ablation\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"status\") in (\"running\",\"ok\",\"failed\",\"not_loaded\",\"unknown\"), f\"status not in known set: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"])'"
+        },
+        {
+          "id": "23.5.19",
+          "name": "Cron job verification: com.pyfinagent.autoresearch (launchd)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 12,
+          "job_id": "com.pyfinagent.autoresearch",
+          "job_source": "launchd",
+          "job_schedule": "launchd cron 02:00 daily",
+          "verification": "python3 -c 'import json,sys,urllib.request as u; r=json.load(u.urlopen(\"http://localhost:8000/api/jobs/all\")); j=next((x for x in r[\"jobs\"] if x[\"id\"]==\"com.pyfinagent.autoresearch\"), None); assert j is not None, \"job missing\"; assert j.get(\"status\") != \"manifest\", f\"status still manifest: {j}\"; assert j.get(\"status\") in (\"running\",\"ok\",\"failed\",\"not_loaded\",\"unknown\"), f\"status not in known set: {j}\"; print(\"OK\", j[\"id\"], j[\"status\"])'"
+        }
+      ]
+    },
+    {
+      "id": "phase-23.6",
+      "name": "Resolve persistent items deferred from phase-23.5",
+      "status": "in_progress",
+      "depends_on": [
+        "phase-23.5"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "23.6.0",
+          "name": "Ship dotenv-syntax validator + document operator-fix for backend/.env leading-space bug",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 30,
+          "verification": "python3 tests/verify_phase_23_6_0.py"
+        },
+        {
+          "id": "23.6.1",
+          "name": "Wire production fetch/write/alert fns in register_phase9_jobs (4 stub-affected jobs)",
+          "status": "done",
+          "priority": "P0",
+          "estimated_minutes": 90,
+          "verification": "python3 tests/verify_phase_23_6_1.py"
+        },
+        {
+          "id": "23.6.2",
+          "name": "Cosmetic fixes: real cron labels in _SLACK_BOT_JOBS + update stale autoresearch description",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 25,
+          "verification": "python3 tests/verify_phase_23_6_2.py"
+        },
+        {
+          "id": "23.6.3",
+          "name": "Plist-derived next-fire-time for StartCalendarInterval launchd jobs (ablation + autoresearch)",
+          "status": "done",
+          "priority": "P1",
+          "estimated_minutes": 60,
+          "verification": "python3 tests/verify_phase_23_6_3.py"
+        },
+        {
+          "id": "23.6.4",
+          "name": "Restore missing observability symbols in backend/api/harness_autoresearch.py (surfaced during 23.6.3)",
+          "status": "pending",
+          "priority": "P2",
+          "estimated_minutes": 30,
+          "verification": "python3 -m pytest tests/api/test_observability.py -q"
         }
       ]
     }

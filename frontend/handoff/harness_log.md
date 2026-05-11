@@ -443,3 +443,58 @@ $ npx tsc --noEmit && \
 **Code changes:** 1 file, 1-line edit. No tests, no other files.
 
 **Archive:** new dir `handoff/archive/phase-16.54/`.
+
+## phase-18.2 -- 2026-04-26 -- AgentMap component scaffold (React Flow + dagre, mock) -- result=PASS
+
+**Researcher:** simple tier, internal-only (builds on 18.0). gate_passed=true.
+
+**Generate:** Installed @xyflow/react ^12.10.2 + dagre ^0.8.5 + @types/dagre. Created frontend/src/components/AgentMap.tsx (~165 LOC) with custom AgentNode (provider color borders + dashed-for-harness), dagre TB layout memoized via useMemo, dark theme, 3-node mock data (main+researcher+qa), AgentMapProps interface for 18.3 to swap in real data, data-testid markers.
+
+**Verification (immutable):** `cd frontend && npm run build` -> exit 0 (14 routes built). Bonus: tsc --noEmit silent.
+
+**Q/A verdict:** PASS. 18 deterministic checks pass.
+
+**Cycle-2:** not needed. First-pass clean.
+
+**Archive:** new dir `handoff/archive/phase-18.2/`.
+
+## phase-22.1 + 22.2 -- 2026-04-26 -- Live model resolution + per-node Gemini-lock granularity -- result=PASS
+
+**Researcher:** moderate tier, internal-only (6 files in full; gate doctrine soft-spot noted by Q/A but accepted for this code-audit). Direct answer to operator question: 21 of 28 Layer-1 skills are Claude-swappable; 1 hard-locked (RAGAgent / Vertex AI Search dep at orchestrator.py:365-405); 4 grounding-dependent (Market/Competitor/DeepDive/EnhancedMacro -- degrade gracefully, lose live citations); 2 pure-Python (BiasDetector/ConflictDetector).
+
+**Generate (combined backend + frontend):**
+- _inventory.json v2->v3: per-node `gemini_locked` + `grounding_dependent` + `lock_reason`. 1 locked, 4 grounding flagged.
+- model_tiers.py: NEW `layer1_swappable` role with gemini-2.0-flash default, NOT in _GEMINI_LOCKED_ROLES. Layer-1 swappable skills now use this so override propagates.
+- agent_map.py: _NODE_ID_TO_ROLE map + _inject_live_model() helper. Endpoint injects live_model per node; locked nodes always show static gemini.
+- AgentMap.tsx: AgentNodeData + AgentNode render LOCKED amber badge + SEARCH sky badge; displayModel = liveModel ?? model.
+- 5 new inventory tests + 7 new live-model tests + 1 updated 21.1 test (gemini-prefix != locked anymore).
+
+**Two cycle-2 fixes during impl (caught by failing tests):**
+1. Layer-1 swappable skills mapped to `gemini_enrichment` role (which is locked) → introduced new `layer1_swappable` role.
+2. Old test_gemini_locked_roles_set_is_correct asserted gemini-prefix == locked → updated to explicit set check.
+
+**Verification:** 38/38 tests pass. tsc + npm build clean. Live endpoint smoke: version=3, 1 locked (rag_agent), 4 grounding, 42 nodes have live_model. skill_optimizer correctly resolves to operator's Standard Model (claude-opus-4-6 in current settings).
+
+**Q/A verdict:** PASS. 10 deterministic checks pass + LLM judgment confirms operator question answered honestly + lock granularity correct + no false-locked or false-swappable nodes detected.
+
+**Archive:** handoff/archive/phase-22.1/ + handoff/archive/phase-22.2/.
+
+## phase-23.1.7 -- 2026-04-27 -- Capture full agent rationale + signal stack into paper_trades.signals JSON for future learning -- result=PASS
+
+**Hypothesis:** Three coordinated edits (no BQ migration) close all 3 gaps blocking the outcome_tracker / agent_memories learning loop. Every BUY trade row's `signals` JSON now contains Quant metrics + SignalStack overlays + Trader's actual reasoning + Risk Judge's actual reasoning.
+
+**User trigger:** Operator looked at the Agent Rationale drawer and saw only "Trader (decision) | Recommendation: BUY | weight 6.00" — asked "do we have enough information for AGENT RATIONALE for future learnings?" Honest answer: NO. Investigation found 3 gaps (signal_attribution wrong keys, screener overlays discarded, lite analyses not in BQ).
+
+**Files:** backend/services/signal_attribution.py (3 fallback-chain extensions + 2 new functions extract_quant_signals/extract_all_signals + group_signals_for_drawer routing), backend/services/portfolio_manager.py (candidates_by_ticker param + use extract_all_signals on buy side), backend/services/autonomous_loop.py (Step 6 builds candidates_by_ticker dict and passes), frontend/src/components/AgentRationaleDrawer.tsx (Rationale.tree adds quant/signal_stack optional + 2 new <Layer> renders), tests/services/test_signal_attribution.py (NEW 20 tests).
+
+**Verification (immutable):** synthesizes lite-shape analysis + screener candidate, calls extract_all_signals, asserts {Quant, SignalStack, Trader, RiskJudge} <= agents AND Trader rationale contains the actual Claude reason ("Q1 beat") AND Risk rationale contains the actual reasoning ("Strong momentum") AND group_signals_for_drawer produces new tree keys -> `ok agents=['Quant', 'RiskJudge', 'SignalStack', 'Trader'] tree_keys=['analyst', 'debate', 'quant', 'risk', 'signal_stack', 'trader']` exit=0.
+
+**Q/A verdict:** PASS (1st pass). 11/11 deterministic + 5/5 harness-compliance + 6/6 LLM judgment. 115/115 unit tests pass (95 prior + 20 new; no regression across 7 cycles). Frontend tsc clean.
+
+**What this enables:** future SQL `SELECT ticker, JSON_EXTRACT_SCALAR(s, '$.rationale') ... FROM paper_trades, UNNEST(JSON_EXTRACT_ARRAY(signals)) s WHERE created_at > '2026-04-27'` returns one row per (trade, agent), enabling pattern-matching like "did regime:risk_off trades underperform?", "did news:earnings_beat catalysts predict alpha?", "did high-conviction (>=8) meta-scorer picks beat low-conviction?". The BM25 reflection loop now has REAL textual context to reflect on.
+
+**Slimmer-scope choice:** zero BQ migration shipped this cycle. New `paper_trading_analyses` table + ALTER TABLE paper_trades + outcome_tracker fallback explicitly deferred to Phase 2 (operator --apply needed). Trade-off: future-learning queries pay a small JSON_EXTRACT_* cost for Phase-1, but the data IS queryable starting tomorrow morning.
+
+**Phase-23.1 plan now 7/7 cycles complete** — universe-upgrade work + rationale capture for learning all shipped.
+
+**Archive:** handoff/archive/phase-23.1.7/.

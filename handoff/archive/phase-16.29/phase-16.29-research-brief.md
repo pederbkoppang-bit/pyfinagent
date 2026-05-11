@@ -68,7 +68,7 @@ Searched for 2025-2026 literature on BigQuery DDL migration safety, Anthropic SD
 
 4. **autoresearch root cause confirmed: line 25 of backend/.env is the ALPHAVANTAGE key without quotes.** The launchd log at `handoff/autoresearch.launchd.log` contains exactly:
    ```
-   /Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: TV5O5XN8IS2NLR6X: command not found
+   /Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: [REDACTED-phase-23.3.7]: command not found
    ```
    The `run_nightly.sh` script uses `set -a; . backend/.env; set +a` (lines 16-20). When bash sources the .env file, an unquoted value on a line like `ALPHAVANTAGE_API_KEY=TV5O5XN8IS2NLR6X` should parse fine (no spaces/special chars) -- BUT if the actual line 25 is a bare value without a key prefix (e.g., a line that is just `TV5O5XN8IS2NLR6X` with no `KEY=` prefix), bash tries to execute it as a command.
    
@@ -96,7 +96,7 @@ Searched for 2025-2026 literature on BigQuery DDL migration safety, Anthropic SD
 | `~/Library/LaunchAgents/com.pyfinagent.autoresearch.plist` | 39 | LaunchAgent definition | EnvironmentVariables does NOT include ANTHROPIC_API_KEY; env comes from .env sourcing in script |
 | `handoff/autoresearch.launchd.log` | 1 | Runtime error log | Confirms: "line 25: TV5O5XN8IS2NLR6X: command not found" -- exit 127 |
 
-**Critical clarification on "line 25"**: The error message says `backend/.env: line 25: TV5O5XN8IS2NLR6X: command not found`. Line 25 of `backend/.env` (not `run_nightly.sh` line 25) is the problem. `run_nightly.sh:25` is harmless (`. "$REPO/.venv/bin/activate"`). The .env file's line 25 contains a bare value that bash tries to execute.
+**Critical clarification on "line 25"**: The error message says `backend/.env: line 25: [REDACTED-phase-23.3.7]: command not found`. Line 25 of `backend/.env` (not `run_nightly.sh` line 25) is the problem. `run_nightly.sh:25` is harmless (`. "$REPO/.venv/bin/activate"`). The .env file's line 25 contains a bare value that bash tries to execute.
 
 ---
 

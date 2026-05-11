@@ -100,8 +100,8 @@ Only the backend-watchdog is version-controlled. All other pyfinagent launchd se
 The `autoresearch.launchd.log` file at `handoff/` (1326 bytes, last modified 2026-05-07T02:00) contains repeated lines of the form:
 
 ```
-/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 24: TV5O5XN8IS2NLR6X: command not found
-/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: TV5O5XN8IS2NLR6X: command not found
+/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 24: [REDACTED-phase-23.3.7]: command not found
+/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: [REDACTED-phase-23.3.7]: command not found
 ```
 
 ### Analysis

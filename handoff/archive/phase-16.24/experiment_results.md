@@ -39,7 +39,7 @@ backend/autoresearch/cron.py:1
 **Root cause IDENTIFIED:** `backend/.env` line 25 has an unquoted value bash interprets as a command invocation. Specific log entry from `~/Library/Logs/autoresearch.launchd.log` (or the plist-mapped stderr path):
 
 ```
-/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: TV5O5XN8IS2NLR6X: command not found
+/Users/ford/.openclaw/workspace/pyfinagent/backend/.env: line 25: [REDACTED-phase-23.3.7]: command not found
 ```
 
 **Cascade:**
