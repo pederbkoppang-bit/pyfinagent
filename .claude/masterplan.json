@@ -7811,6 +7811,358 @@
           "notes": "Audit basis: docs/audits/dev-mas-2026-05-11/04-remediation.md R-1. Highest-impact audit remediation: attacks the VERIFICATION_DEFECT systemic pattern. qa.md edit DEFERRED per separation-of-duties (R-FLAG-4)."
         }
       ]
+    },
+    {
+      "id": "phase-24",
+      "name": "Application Coherence Audit & Repair",
+      "status": "pending",
+      "depends_on": [
+        "phase-23"
+      ],
+      "gate": null,
+      "notes": "Owner-initiated audit. Plan file: /root/.claude/plans/now-make-a-plan-optimized-snail.md. Symptoms: (1) no stop-loss SELL ever fired, (2) lite-path suspected on paper trading, (3) BUYs landing with NULL stop_loss_price, (4) no new analysis reports written, (5) no meta-evolution heartbeat, (6) compute-burn ledger not persisted to BQ, (7) frontend↔backend wiring unverified end-to-end. Each step follows the harness 5-file protocol (research → contract → generate → Q/A → log) per CLAUDE.md.",
+      "steps": [
+        {
+          "id": "24.0",
+          "name": "Production-state snapshot",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/audit/phase_24_snapshot.py --out handoff/current/snapshot.json && python -c \"import json; d=json.load(open('handoff/current/snapshot.json')); assert d.get('lite_mode') is not None and d.get('positions_total') is not None and d.get('positions_without_stop') is not None\"",
+            "success_criteria": [
+              "snapshot_script_exists",
+              "snapshot_json_has_lite_mode_field",
+              "snapshot_json_has_positions_total_field",
+              "snapshot_json_has_positions_without_stop_field",
+              "snapshot_json_has_paper_trades_last_30d_split_by_path",
+              "snapshot_json_has_harness_learning_log_last_5",
+              "snapshot_json_has_mcp_attached_servers_list",
+              "snapshot_json_writes_to_handoff_current",
+              "no_writes_outside_handoff_current"
+            ],
+            "live_check": "handoff/current/snapshot.json contents pasted into handoff/current/live_check_24_0.md showing real (non-synthetic) numbers"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.1",
+          "name": "Symptom-to-cause matrix",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "test -f docs/audits/phase-24-coherence-2026-05-11/symptoms.md && python -c \"import re; s=open('docs/audits/phase-24-coherence-2026-05-11/symptoms.md').read(); assert s.count('| ') >= 30 and 'TBD' not in s\"",
+            "success_criteria": [
+              "matrix_file_exists",
+              "matrix_has_at_least_6_symptom_rows",
+              "every_row_cites_file_line",
+              "every_row_references_remediation_step_in_phase_24",
+              "every_row_references_a_success_criterion",
+              "no_TBD_cells"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.2",
+          "name": "Wire check_stop_losses() into the autonomous loop (Bug 1)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_stop_loss_execution.py -v",
+            "success_criteria": [
+              "autonomous_loop_calls_check_stop_losses_pre_decide_trades",
+              "test_stop_hit_emits_sell_order",
+              "test_stop_just_missed_does_not_emit_sell",
+              "test_null_stop_does_not_false_positive",
+              "decide_trades_branch_at_portfolio_manager_py_81_to_89_unchanged",
+              "no_rewrite_of_paper_trader_check_stop_losses",
+              "pytest_exits_0"
+            ],
+            "live_check": "BQ row from pyfinagent_pms.paper_trades showing a SELL with reason='stop_loss' executed after the next autonomous cycle, saved in handoff/current/live_check_24_2.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.3",
+          "name": "Guarantee every BUY has a stop-loss (Bug 3)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_stop_loss_coverage.py -v",
+            "success_criteria": [
+              "extract_stop_loss_returns_non_null_when_settings_default_present",
+              "lite_claude_analyzer_schema_requires_stop_loss_pct",
+              "full_orchestrator_path_yields_non_null_stop_loss",
+              "fallback_path_yields_non_null_stop_loss",
+              "settings_default_paper_default_stop_loss_pct_documented_with_research_citation",
+              "pytest_exits_0"
+            ],
+            "live_check": "BQ query 'SELECT COUNT(*) FROM pyfinagent_pms.paper_positions WHERE stop_loss_price IS NULL AND entry_date > <phase-24.3 deploy date>' returns 0, saved in handoff/current/live_check_24_3.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.4",
+          "name": "Surface orchestrator-fallback events (Bug 2 observability)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_orchestrator_fallback_logging.py -v && cd frontend && npm run build",
+            "success_criteria": [
+              "fallback_to_lite_writes_event_to_bq",
+              "event_includes_exception_class_ticker_cycle_id",
+              "frontend_paper_trading_page_renders_analysis_source_badge",
+              "api_ts_surfaces_new_field",
+              "frontend_build_passes",
+              "pytest_exits_0"
+            ],
+            "live_check": "Screenshot of paper-trading page showing at least one BUY row tagged with the analysis-source badge, plus a BQ row from pyfinagent_data.orchestrator_events with event_kind='fallback_to_lite'; saved in handoff/current/live_check_24_4.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.5",
+          "name": "Daily kill-switch parity audit",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_kill_switch_parity.py -v",
+            "success_criteria": [
+              "kill_switch_uses_post_mtm_pnl",
+              "thresholds_configurable_via_settings",
+              "trip_writes_to_observable_table_or_log",
+              "trip_blocks_subsequent_buys_in_same_cycle",
+              "frontend_paper_trading_or_performance_page_surfaces_trip_event",
+              "pytest_exits_0"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.5b",
+          "name": "Persist the compute-burn ledger to BigQuery (north-star instrumentation)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_cost_ledger_writer.py -v",
+            "success_criteria": [
+              "cost_ledger_writer_module_exists",
+              "writer_called_once_per_analysis_in_layer_1_pipeline",
+              "writer_called_once_per_mas_run_in_layer_2",
+              "writer_called_once_per_cycle_aggregation_in_autonomous_loop",
+              "bq_table_pyfinagent_data_llm_call_log_schema_documented",
+              "migration_script_exists_under_scripts_migrations_if_table_missing",
+              "cost_tracker_py_legacy_model_ids_retired_or_repriced",
+              "no_runtime_routing_hits_claude_opus_4_dash_or_claude_sonnet_4_dash",
+              "pytest_exits_0"
+            ],
+            "live_check": "BQ row count from pyfinagent_data.llm_call_log before/after a cycle, plus the row showing the most expensive agent for that cycle; saved in handoff/current/live_check_24_5b.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.6",
+          "name": "Wire daily-analysis scheduler (Bug 4 - no new reports)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_main_lifespan.py::test_analysis_scheduler_registered -v",
+            "success_criteria": [
+              "main_py_lifespan_registers_daily_analysis_cycle_job",
+              "job_id_is_daily_analysis_cycle",
+              "cadence_is_configurable_via_settings",
+              "cron_dashboard_manifest_includes_new_job",
+              "run_daily_cycle_function_reused_no_rewrite",
+              "frontend_cron_page_shows_new_job",
+              "pytest_exits_0"
+            ],
+            "live_check": "BQ query 'SELECT MAX(analysis_date) FROM pyfinagent_data.analysis_results' returns timestamp AFTER phase-24.6 deploy date, plus 'curl http://localhost:8000/api/jobs/all | jq' showing the daily_analysis_cycle job; saved in handoff/current/live_check_24_6.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.7",
+          "name": "Wire meta-evolution weekly cron (Bug 5 - no autoresearch)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/test_main_lifespan.py::test_meta_evolution_scheduler_registered -v",
+            "success_criteria": [
+              "main_py_lifespan_calls_register_meta_evolution_cron",
+              "job_id_is_meta_evolution_weekly",
+              "cron_dashboard_manifest_includes_new_job",
+              "directive_review_rubric_unchanged",
+              "docs_audits_phase_24_loops_md_distinguishes_layer3_and_layer4",
+              "pytest_exits_0"
+            ],
+            "live_check": "BQ row from the meta-evolution log table with run_timestamp > phase-24.7 deploy date; saved in handoff/current/live_check_24_7.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.8",
+          "name": "Skill-prompt freshness sweep",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/audit/skill_prompt_lint.py --strict",
+            "success_criteria": [
+              "skill_prompt_lint_script_exists",
+              "zero_stale_model_ids_reported",
+              "zero_deprecated_google_search_grounding_patterns_reported",
+              "at_least_one_anthropic_doc_url_per_claude_prompt",
+              "linter_exits_0"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.9",
+          "name": "Anthropic-doc alignment pass",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "test -f docs/audits/phase-24-coherence-2026-05-11/anthropic_alignment.md && ! grep -rE 'claude-opus-4[^-]|claude-sonnet-4[^-.]' backend/ --include='*.py' | grep -v '_test\\|test_\\|tests/'",
+            "success_criteria": [
+              "alignment_checklist_exists",
+              "at_least_80_percent_of_callsites_green",
+              "every_red_row_has_followup_ticket_id",
+              "cost_tracker_py_claude_opus_4_1_pricing_retired_or_corrected",
+              "no_runtime_callsite_routes_to_claude_opus_4_or_claude_sonnet_4_legacy",
+              "files_api_evaluation_recorded_with_decision",
+              "batch_api_evaluation_recorded_with_decision",
+              "researcher_brief_cites_at_least_5_anthropic_docs_read_in_full"
+            ],
+            "live_check": "diff of backend/agents/cost_tracker.py before/after retirement plus the alignment checklist; saved in handoff/current/live_check_24_9.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.10",
+          "name": "Gemini / Vertex alignment pass",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "test -f docs/audits/phase-24-coherence-2026-05-11/gemini_alignment.md",
+            "success_criteria": [
+              "alignment_checklist_exists",
+              "model_id_audit_complete_no_gemini_1_5_pro_in_production",
+              "google_search_grounding_usage_audited_for_gemini_locked_agents",
+              "json_schema_enforcement_consistent_across_layer1_skills",
+              "token_budgets_match_claude_md_spec_enrichment_1024_debate_1536_synthesis_4096",
+              "every_red_row_has_followup_ticket_id",
+              "researcher_brief_cites_at_least_5_google_docs_read_in_full"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.11",
+          "name": "MCP inventory + gap analysis",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "test -f docs/audits/phase-24-coherence-2026-05-11/mcp_inventory.md && python -c \"import json; mcp=json.load(open('.mcp.json')); assert set(mcp.get('mcpServers',{}).keys()) >= {'alpaca','bigquery'}\"",
+            "success_criteria": [
+              "mcp_inventory_md_exists",
+              "attached_section_lists_alpaca_and_bigquery_with_health_check",
+              "rejected_candidates_section_lists_at_least_8_candidates",
+              "every_rejected_candidate_cites_duplicating_python_module",
+              "final_recommendation_recorded_no_additions_or_explicit_addition_with_rationale",
+              "researcher_brief_cites_at_least_5_mcp_or_protocol_sources_read_in_full"
+            ],
+            "live_check": "output of mcp__bigquery__list-tables and a read-only mcp__alpaca__<tool> call both succeeding, plus the rejected-candidates table; saved in handoff/current/live_check_24_11.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.12",
+          "name": "Frontend page-by-page wiring audit",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "test -f docs/audits/phase-24-coherence-2026-05-11/frontend_audit.md && cd frontend && npm run build",
+            "success_criteria": [
+              "frontend_audit_md_exists",
+              "one_row_per_page_under_frontend_src_app",
+              "endpoint_column_filled_for_every_page",
+              "live_data_column_y_or_followup_ticket_for_every_page",
+              "error_loading_empty_states_column_present_for_every_page",
+              "npm_run_build_passes_no_errors",
+              "no_emojis_introduced_per_claude_md_frontend_rules"
+            ],
+            "live_check": "screenshots of every page rendered against the live backend or a curl-of-each-endpoint transcript, saved under handoff/current/screenshots_24_12/ and indexed in handoff/current/live_check_24_12.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "24.13",
+          "name": "End-to-end golden-path integration test (phase-24 gate)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "source .venv/bin/activate && pytest backend/tests/integration/test_golden_path_phase_24.py -v",
+            "success_criteria": [
+              "test_full_or_lite_path_respects_settings",
+              "test_every_buy_has_non_null_stop_loss_price",
+              "test_position_below_stop_is_sell_executed_same_cycle",
+              "test_fallback_event_logged_when_orchestrator_fails",
+              "test_report_file_written_on_scheduled_cycle",
+              "test_meta_evolution_heartbeat_row_written",
+              "test_llm_call_log_row_appended_with_cost_breakdown",
+              "all_seven_assertions_pass",
+              "pytest_exits_0"
+            ],
+            "live_check": "verbatim pytest -v output saved in handoff/current/live_check_24_13.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
