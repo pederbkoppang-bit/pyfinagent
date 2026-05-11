@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-11 | `e51d602` | chore: append session audit log entries |
 | 2026-05-11 | `ebce808` | chore: append session audit log entries |
 | 2026-05-11 | `7a5798a` | chore: append session audit log entries |
 | 2026-05-11 | `70a46d8` | chore: append session audit log entries |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-07 | `0f1e6379` | phase-23.2.23: Cron / Logs operator dashboard page + endpoints |
 | 2026-05-07 | `6e9d142e` | phase-23.2.22: test-audit isolation + position-cap diagnostic logging |
 | 2026-05-05 | `b1be0126` | phase-23.2.21: pin ADC-backed BigQuery MCP server in .mcp.json |
-| 2026-05-05 | `cfbbda2a` | phase-23.2.20: cycle freshness BQ TIMESTAMP_DIFF type-coercion fix |
 
 ---
 
