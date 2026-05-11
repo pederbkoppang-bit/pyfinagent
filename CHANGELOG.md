@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-11 | `15e43800` | feat(models): bump Layer-2 agents to Claude Opus 4.7 |
 | 2026-05-11 | `75c6b130` | fix(hooks): retry git add -A once + capture stderr in auto-commit-and-push |
 | 2026-05-11 | `5b1b453f` | phase-23.7.0: Auto-commit-and-push pipeline + semver-aware changelog (per-step trigger) |
 | 2026-05-11 | `2301b977` | phase-23.6: harness MAS cycles 23.6.0-23.6.3 + observability follow-up |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-05 | `ed2c4108` | phase-23.2.18: silent cycle stop fix + working operator notification path |
 | 2026-05-04 | `b920a56a` | phase-23.2.17: PaperTrader.adjust_cash_and_mtm helper |
 | 2026-05-04 | `c854386f` | phase-23.2.6-fix: paper_positions.sector column migration + persist on BUY |
-| 2026-05-04 | `8be19174` | phase-23.2.14: lock re-entrance audit — ALL CLEAN |
 
 ---
 
+### v6.6.0 — feat(models): bump Layer-2 agents to Claude Opus 4.7 (2026-05-11)
+
+- **feat(models): bump Layer-2 agents to Claude Opus 4.7**
 ### v6.5.142 — fix(hooks): retry git add -A once + capture stderr in auto-commit-and... (2026-05-11)
 
 - **fix(hooks): retry git add -A once + capture stderr in auto-commit-and-push**
