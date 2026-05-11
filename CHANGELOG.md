@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-11 | `5b1b453f` | phase-23.7.0: Auto-commit-and-push pipeline + semver-aware changelog (per-step trigger) |
 | 2026-05-11 | `2301b977` | phase-23.6: harness MAS cycles 23.6.0-23.6.3 + observability follow-up |
 | 2026-05-07 | `f8b5e181` | phase-23.3.6: /cron UI verification + phase-23.3 consolidation |
 | 2026-05-07 | `73196650` | phase-23.3.5: log allowlist fix -- live paths + 3 .env bugs surfaced |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-04 | `c854386f` | phase-23.2.6-fix: paper_positions.sector column migration + persist on BUY |
 | 2026-05-04 | `8be19174` | phase-23.2.14: lock re-entrance audit — ALL CLEAN |
 | 2026-05-04 | `ad9d773c` | phase-23.2.2-fix + 23.2.A-fix: STX cleanup + drawer Option B |
-| 2026-05-04 | `47f9a20f` | phase-23.2.0 walk-through: 16 verification steps + agent rationale audit |
 
 ---
 
+### v6.5.141 — phase-23.7.0: Auto-commit-and-push pipeline + semver-aware changelog... (2026-05-11)
+
+- **phase-23.7.0: Auto-commit-and-push pipeline + semver-aware changelog (per-step trigger)**
 ### v6.5.140 — phase-23.6: harness MAS cycles 23.6.0-23.6.3 + observability follow-up (2026-05-11)
 
 - **phase-23.6: harness MAS cycles 23.6.0-23.6.3 + observability follow-up**
