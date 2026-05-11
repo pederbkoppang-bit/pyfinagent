@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-11 | `7a5798a` | chore: append session audit log entries |
 | 2026-05-11 | `70a46d8` | chore: append session audit log entries |
 | 2026-05-11 | `4d950f4` | chore: append session audit log entries |
 | 2026-05-11 | `15e43800` | feat(models): bump Layer-2 agents to Claude Opus 4.7 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-05 | `b1be0126` | phase-23.2.21: pin ADC-backed BigQuery MCP server in .mcp.json |
 | 2026-05-05 | `cfbbda2a` | phase-23.2.20: cycle freshness BQ TIMESTAMP_DIFF type-coercion fix |
 | 2026-05-05 | `f2e632b2` | phase-23.2.19: SOD NAV daily-roll fix + Go-Live Gate per-criterion tooltip |
-| 2026-05-05 | `ed2c4108` | phase-23.2.18: silent cycle stop fix + working operator notification path |
 
 ---
 
