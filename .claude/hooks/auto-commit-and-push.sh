@@ -137,10 +137,23 @@ fi
 # Broad capture; the pre-commit pre-tool-use-danger guard + gitignore for
 # .env files cover safety. git add -A also picks up untracked archive
 # snapshots from archive-handoff.sh (which runs ahead of us in the chain).
-git add -A 2>/dev/null || {
-    log "git add -A failed for step $STEP_ID"
-    exit 0
-}
+# Retry once: when the PostToolUse hook chain runs all 4 hooks back-to-back,
+# the sibling masterplan-memory-sync.sh + archive-handoff.sh occasionally
+# leave .git/index.lock or a transient FS state that makes the first
+# `git add -A` race. A single 1s retry resolves it empirically (observed
+# 2026-05-11 during phase-23.7.0 live integration test).
+add_stderr=$(git add -A 2>&1)
+add_rc=$?
+if [ "$add_rc" -ne 0 ]; then
+    log "git add -A attempt 1 failed (rc=$add_rc): $add_stderr -- retrying after 1s"
+    sleep 1
+    add_stderr=$(git add -A 2>&1)
+    add_rc=$?
+    if [ "$add_rc" -ne 0 ]; then
+        log "git add -A attempt 2 failed (rc=$add_rc): $add_stderr -- giving up"
+        exit 0
+    fi
+fi
 
 # Nothing to commit? Maybe sibling hooks already committed. Silent exit.
 if git diff --cached --quiet 2>/dev/null; then
