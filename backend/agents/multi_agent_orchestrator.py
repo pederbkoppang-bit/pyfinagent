@@ -23,8 +23,8 @@ Ford NEVER evaluates his own output. A different agent does.
 
 Models:
   Communication: claude-sonnet-4-6 (routing + quality gate)
-  Main / Ford:   claude-opus-4-6   (planning + synthesis)
-  Q&A / Analyst: claude-opus-4-6   (quantitative analysis)
+  Main / Ford:   claude-opus-4-7   (planning + synthesis)
+  Q&A / Analyst: claude-opus-4-7   (quantitative analysis)
   Researcher:    claude-sonnet-4-6 (literature + evidence)
 
 References:
@@ -151,7 +151,7 @@ class MultiAgentOrchestrator:
                 )
                 memory, _ = init_session_memory()
                 self._masker = create_masker(
-                    model_name="claude-opus-4-6",
+                    model_name="claude-opus-4-7",
                     memory=memory,
                 )
             except Exception as e:
@@ -933,7 +933,7 @@ class MultiAgentOrchestrator:
         )
         return handoff
 
-    def should_reset_context(self, messages: list[dict], model: str = "claude-opus-4-6") -> bool:
+    def should_reset_context(self, messages: list[dict], model: str = "claude-opus-4-7") -> bool:
         """Check if context should be reset (approaching 80% of window)."""
         from backend.agents.harness_memory import approx_token_count, get_context_window
         total = sum(approx_token_count(str(m.get("content", ""))) for m in messages)

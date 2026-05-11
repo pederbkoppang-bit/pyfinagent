@@ -52,9 +52,9 @@ def test_endpoint_injects_live_model_field():
     with _patched(s):
         out = get_agent_map()
     nodes = out["nodes"]
-    # mas_main role -> claude-opus-4-6 default
+    # mas_main role -> claude-opus-4-7 default
     main_node = next(n for n in nodes if n["id"] == "main")
-    assert main_node.get("live_model") == "claude-opus-4-6"
+    assert main_node.get("live_model") == "claude-opus-4-7"
 
 
 def test_swappable_nodes_get_default_when_override_off():

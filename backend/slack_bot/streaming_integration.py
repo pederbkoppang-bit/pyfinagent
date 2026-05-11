@@ -7,8 +7,8 @@ then Ford (Opus 4.6) / Q&A / Researcher for execution.
 
 Models:
   Communication: claude-sonnet-4-6 (classification + quality gate)
-  Ford (Main):   claude-opus-4-6   (orchestration + synthesis)
-  Q&A Analyst:   claude-opus-4-6   (quantitative reasoning)
+  Ford (Main):   claude-opus-4-7   (orchestration + synthesis)
+  Q&A Analyst:   claude-opus-4-7   (quantitative reasoning)
   Researcher:    claude-sonnet-4-6 (literature + evidence)
 
 References:

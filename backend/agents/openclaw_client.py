@@ -7,7 +7,7 @@ OpenClaw Gateway's OpenAI-compatible /v1/chat/completions endpoint.
 Every MAS agent call becomes an OpenClaw session:
   model: "openclaw/qa"       → routes to the QA agent
   model: "openclaw/research"  → routes to the Researcher agent
-  x-openclaw-model: "anthropic/claude-opus-4-6"  → overrides backend model
+  x-openclaw-model: "anthropic/claude-opus-4-7"  → overrides backend model
   x-openclaw-session-key: "mas:qa:123"  → persistent session
 
 Benefits:
@@ -46,8 +46,8 @@ AGENT_ID_MAP = {
 # Model overrides (OpenClaw agents have defaults, but we can override)
 AGENT_MODEL_OVERRIDES = {
     "communication": "anthropic/claude-sonnet-4-6",
-    "main": "anthropic/claude-opus-4-6",
-    "qa": "anthropic/claude-opus-4-6",
+    "main": "anthropic/claude-opus-4-7",
+    "qa": "anthropic/claude-opus-4-7",
     "research": "anthropic/claude-sonnet-4-6",
 }
 

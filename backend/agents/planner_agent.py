@@ -34,7 +34,7 @@ STRATEGIC GOAL (Meta Plan):
 class PlannerAgent:
     """LLM-as-Planner for autonomous feature generation."""
 
-    def __init__(self, model: str = "claude-opus-4-6"):
+    def __init__(self, model: str = "claude-opus-4-7"):
         """Initialize planner with Anthropic client."""
         self.client = Anthropic()
         self.model = model
@@ -243,7 +243,7 @@ Return revised proposal in JSON format."""
         return revised
 
 
-def get_planner_agent(model: str = "claude-opus-4-6") -> PlannerAgent:
+def get_planner_agent(model: str = "claude-opus-4-7") -> PlannerAgent:
     """Get or create global planner agent."""
     global _planner
     if '_planner' not in globals():

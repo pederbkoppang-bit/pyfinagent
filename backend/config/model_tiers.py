@@ -43,9 +43,9 @@ _BUILD_TIER: dict[str, str] = {
     # agent_definitions.py:127
     "mas_communication": "claude-sonnet-4-6",
     # agent_definitions.py:177
-    "mas_main": "claude-opus-4-6",
+    "mas_main": "claude-opus-4-7",
     # agent_definitions.py:225
-    "mas_qa": "claude-opus-4-6",
+    "mas_qa": "claude-opus-4-7",
     # agent_definitions.py:271
     "mas_research": "claude-sonnet-4-6",
     # scripts/autoresearch/run_memo.py env_defaults
@@ -54,7 +54,7 @@ _BUILD_TIER: dict[str, str] = {
     # fell through to Gemini). MF-47.
     "autoresearch_fast": "claude-haiku-4-5",
     "autoresearch_smart": "claude-sonnet-4-6",
-    "autoresearch_strategic": "claude-opus-4-6",
+    "autoresearch_strategic": "claude-opus-4-7",
     # settings.py:28 -- TRULY Gemini-locked (Vertex AI Search / Search Grounding /
     # Vertex structured-output schemas). DO NOT swap to Claude.
     "gemini_enrichment": "gemini-2.0-flash",

@@ -163,12 +163,12 @@ Please provide a helpful response. This will be sent back to the user via {ticke
 
             # Select model based on agent type (per Peder's explicit spec)
             agent_model_map = {
-                "main": "claude-opus-4-6",       # Opus 4-6 for main agent (complex reasoning)
-                "q-and-a": "claude-opus-4-6",   # Opus 4-6 for Q&A agent (accuracy required)
+                "main": "claude-opus-4-7",       # Opus 4-7 for main agent (complex reasoning)
+                "q-and-a": "claude-opus-4-7",   # Opus 4-7 for Q&A agent (accuracy required)
                 "research": "claude-sonnet-4-6" # Sonnet 4-6 for research (cost efficient)
             }
-            
-            model_name = agent_model_map.get(agent_id, "claude-opus-4-6")
+
+            model_name = agent_model_map.get(agent_id, "claude-opus-4-7")
 
             # Create Anthropic client
             # Check for API key from environment or settings
