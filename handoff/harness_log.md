@@ -16149,3 +16149,60 @@ phase-X.0: -> minor; phase-X.Y: -> patch; chore/docs/refactor/test/style/ci/buil
 - Push failures land in `handoff/logs/auto-push.log` for operator review.
 
 **Phase-23.7.0 status -> done.**
+
+## Cycle 37 -- 2026-05-11 -- phase=23.8.0 result=PASS
+
+**Step:** Dev-MAS audit remediation Bundle-1 (R-3 / R-4 / R-7; R-5 and R-6 deferred).
+
+**Audit basis:** `docs/audits/dev-mas-2026-05-11/` (this session, four phases: roster, per-agent, symptoms, remediation). The audit found 8 BLOCKING + 22 DEGRADES findings in Phase 2 + a SCOPING_GAP / INSUFFICIENT_EVIDENCE / VERIFICATION_DEFECT trio across the three operator-reported symptoms. R-3 / R-4 / R-7 are the safe / low-risk subset of the seven Phase-4 recommendations.
+
+**What landed:**
+- R-3 (namespace-collision rename): `agent_definitions.py` Ford → "Ford (Slack Orchestrator)" + Researcher → "Slack Researcher" + Communication-prose update with a one-line note distinguishing Layer-2 from Layer-3 agents; `ARCHITECTURE.md` Layer-2 diagram boxes updated (Ford → "Ford (Slack Orch.)", Researcher → "Slack Researcher") + model strings refreshed to claude-opus-4-7; `CLAUDE.md` rule scoped from "**The MAS is exactly 3 agents**" → "**The Harness MAS layer (Layer 3) is exactly 3 agents**" with pointer at `_inventory.json`.
+- R-4 (META_PLAN extraction): new `backend/backtest/experiments/meta_plan.json` (7 numeric keys); `planner_agent.py` refactored to read from JSON via `_load_meta_plan_text()` and cache on `self.meta_plan_text`; new unit test `tests/agents/test_planner_meta_plan_config.py` with 6 tests (incl. mutation-resistance via overridden-path round-trip). All 6 tests pass.
+- R-7 (28→5→3 mapping): new "How the 28 skills surface in the operator UI" subsection in `ARCHITECTURE.md` after the "Total Layer 1 agents: 28" line. Closes the SCOPING_GAP from Symptom 2.
+- Verifier `tests/verify_phase_23_8_0.py` (new, 195 lines, 12 immutable claims). 12/12 PASS after this log append.
+
+**Research-gate red flags (action taken):**
+- R-6 (delete deprecated stubs) **descoped** after research found `backend/agents/meta_coordinator.py` is imported at module level by `backend/services/autonomous_loop.py:19,50,462-488,896-897` (active health check + `get_coordinator()` public accessor; lazy second importer at `skill_optimizer.py:825`). Deleting it would break paper trading at startup. `backend/autonomous_harness.py` similarly imported by `scripts/risk/phase4_9_redteam.py:58` (FINRA Notice 15-09 negative tests). Both deletes require prior refactor of importers; deferred to a future step.
+
+**R-5 deferred** (per user decision; the same Claude Code session cannot author `.claude/agents/qa.md` and self-evaluate). Future session + Peder review required. The qa.md fail-OPEN-on-stop-hook-active behavior at `qa.md:188-189` remains in place for now (this contradicts the DirectiveReview fail-CLOSED pattern documented at `backend/meta_evolution/directive_review.py:17-21`).
+
+**R-6 deferred** (per research-gate findings above). Path forward: a separate cycle must (a) refactor `autonomous_loop.py` to remove its hard `MetaCoordinator` dependency or stub out the methods it calls, (b) refactor `phase4_9_redteam.py` to either inline the autonomous_harness functions it uses or mock them, (c) only then delete the two stub files.
+
+**R-1 (live_check hook gate) + R-2 (TaskCompleted hook delete/promote) — out of scope** for this cycle. Separate future cycles; both touch dev-MAS infrastructure (`.claude/hooks/`, `.claude/settings.json`) with higher blast radius.
+
+**Researcher:** moderate tier, 6 sources read in full via WebFetch (Anthropic harness-design, building-effective-agents, multi-agent-research-system; Claude Code sub-agents doc; blakecrosley.com 2025 agent-architecture guide; foojay.io 2025/2026 best practices). 16 URLs collected. Recency scan performed: no 2024-2026 source argues FOR hardcoded thresholds in agent system prompts. Three-variant search-query discipline observed. `gate_passed: true`. Researcher correctly flagged that the audit's "stale scaffolding is dead weight" was a paraphrase, not a verbatim HARNESS-DOC quote; the contract cites the verbatim version ("every component in a harness encodes an assumption about what the model can't do on its own, and those assumptions are worth stress testing"). Researcher ALSO correctly flagged the R-6 live-importer red flag before any code was deleted — this is the research gate doing exactly its documented job.
+
+**Verbatim verifier result (after this log append):**
+```
+=== phase-23.8.0 verifier ===
+  [PASS] 1. ford_label_renamed_to_slack_orchestrator
+  [PASS] 2. researcher_label_renamed_to_slack_researcher
+  [PASS] 3. communication_prose_updated
+  [PASS] 4. architecture_md_layer2_labels_updated
+  [PASS] 5. claude_md_three_agent_rule_scoped_to_layer3
+  [PASS] 6. meta_plan_json_exists_with_7_keys
+  [PASS] 7. planner_agent_reads_from_meta_plan_json
+  [PASS] 8. test_planner_meta_plan_config_passes
+  [PASS] 9. architecture_md_has_28_to_5_to_3_mapping_paragraph
+  [PASS] 10. harness_log_has_r5_and_r6_deferral_notes
+  [PASS] 11. no_import_regressions_active_modules
+  [PASS] 12. no_import_regressions_deferred_stubs_still_importable
+PASS (12/12) EXIT=0
+```
+
+**Q/A verdict:** PASS (first spawn; no verdict-shopping). Harness-compliance audit: 5/5 items satisfied. Verifier 11/12 at Q/A time (claim 10 expected-fail per log-last); now 12/12 after this append. Mutation-resistance test exists at `tests/agents/test_planner_meta_plan_config.py:69` (planted-values round-trip). Scope honesty strong (R-5/R-6 deferrals concrete-evidenced). Research-gate compliance verified (≥5 source-hierarchy URLs cited verbatim).
+
+**No regressions:** `python -c "import backend.agents.planner_agent; import backend.agents.agent_definitions; import backend.services.autonomous_loop; print('OK')"` exits 0. `python -c "import backend.autonomous_harness; import backend.agents.meta_coordinator; print('OK')"` exits 0 (R-6 stubs intentionally preserved).
+
+**Operator-visible behavior change:**
+- `agent_definitions.py` display names are unambiguous (`Ford (Slack Orchestrator)` vs Layer-3 Main; `Slack Researcher` vs Layer-3 `researcher.md`). Slack logs and traces will surface the new labels.
+- META_PLAN is no longer hardcoded — operator can tune `sharpe_target`, `max_drawdown_pct`, etc. by editing `backend/backtest/experiments/meta_plan.json` directly (no code redeploy).
+- `ARCHITECTURE.md` "How the 28 skills surface in the operator UI" subsection explains why a BUY card shows 3 rationale rows (lite mode), 5 (full mode), and where the full 28-agent data lives (`paper_trades.enrichment_signals`).
+- CLAUDE.md "3 agents" rule scoped — future readers won't conflate Layer 2 and Layer 3.
+
+**R-5 / R-6 deferral notes** (also recorded in `experiment_results.md`):
+- **R-5 deferred**: `.claude/agents/qa.md` fail-OPEN-on-stop-hook-active fix needs a separate session (separation-of-duties; the qa.md change cannot be self-evaluated by the session that authored it). Requires Peder review per CLAUDE.md "Separation of duties on agent edits".
+- **R-6 deferred**: `backend/autonomous_harness.py` + `backend/agents/meta_coordinator.py` deletions require prior refactor of `backend/services/autonomous_loop.py:19,50,462-488,896-897` (module-level `MetaCoordinator` import) and `scripts/risk/phase4_9_redteam.py:58` (`autonomous_harness` import). Deleting either file without that refactor breaks paper trading and the phase-4.9 red-team script.
+
+**Phase-23.8.0 status -> done.**

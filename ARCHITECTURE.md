@@ -119,6 +119,44 @@ Signal → BigQuery → Frontend → Slack notifications
 
 **Total Layer 1 agents: 28** (skill .md files in `backend/agents/skills/`)
 
+### How the 28 skills surface in the operator UI
+
+The 28 Layer-1 skills do **not** render as 28 individual rationale rows
+in the per-trade BUY/SELL card. They aggregate through two reduction
+steps before reaching the operator:
+
+1. **28 → 5 progressive-disclosure layers** (full-pipeline path). The
+   rationale drawer follows the TradingAgents progressive-disclosure
+   pattern (Xiao et al., 2024). Layer-1 outputs are grouped by
+   `backend/services/signal_attribution.py:57-157` into five categories:
+   - **Analyst** — `analyst_summary` / `synthesis` from `synthesis_agent.md`
+   - **Debate** — `debate.bull_argument` + `debate.bear_argument`
+     (collapses Bull / Bear / Devil's Advocate / Moderator outputs)
+   - **Quant** — momentum / RSI / vol / composite score from the
+     screener candidate dict
+   - **Trader** — `recommendation` + `trader_note` (the final BUY /
+     SELL / HOLD decision)
+   - **Risk** — `risk_assessment` (collapses Aggressive / Conservative
+     / Neutral analysts + final RiskJudge verdict)
+2. **5 → 3 rows in lite-mode** (default for autonomous paper trading).
+   When `settings.lite_mode == true` (the production default for cost
+   reasons — see `local_only_deployment` auto-memory),
+   `orchestrator.py:1014, 1443, 1530-1532` skips deep_dive, debate, and
+   the full Risk-Judge debate. The drawer then renders **3 rows**: Quant
+   (from screener), Trader (the lite-Claude reason), and RiskJudge (the
+   gate label; in lite mode this row is auto-relabeled to "Lite-path:
+   Risk Judge inherited Trader's reasoning..." per phase-23.2.A-fix in
+   `backend/services/signal_attribution.py:131-155`).
+
+If an operator opens a BUY card and sees only three rationale rows, the
+pipeline ran in **lite mode**, not full. The full 28-agent enrichment
+data is still inside `paper_trades.enrichment_signals` (in BQ) and the
+on-demand `/analyze ticker` endpoint runs the full pipeline. The
+autonomous trading cycle uses lite mode by default. Authoritative
+internal audit: `handoff/current/phase-23.2.A-agent-rationale-audit.md`
+(2026-04-29). Audit cross-reference:
+`docs/audits/dev-mas-2026-05-11/03-symptoms.md` (Symptom 2).
+
 ### Support Modules
 
 | Module | Purpose |
@@ -166,13 +204,16 @@ User (Slack / iMessage / webchat)
   (0 tokens)   │                                        │
                ▼                                        ▼
 ┌──────────────────────┐  ┌──────────┐  ┌──────────────────┐
-│ Ford (Main Agent)    │  │ Analyst  │  │ Researcher       │
-│ claude-opus-4-6      │  │ (Q&A)   │  │ claude-sonnet-4-6│
-│ max: 1500 tok        │  │ opus-4-6│  │ max: 3000 tok    │
+│ Ford (Slack Orch.)   │  │ Analyst  │  │ Slack Researcher │
+│ claude-opus-4-7      │  │ (Q&A)   │  │ claude-sonnet-4-6│
+│ max: 1500 tok        │  │ opus-4-7│  │ max: 3000 tok    │
 │ Orchestrates, plans  │  │ max:2500│  │ Literature, arXiv │
 │ Triggers harness     │  │ Quant   │  │ Papers, evidence  │
 │ Delegates to QA/Res  │  │ analysis│  │ RESEARCH.md       │
 └──────────┬───────────┘  └─────────┘  └──────────────────┘
+(Layer-2 in-app agents — distinct from the Layer-3 Claude Code harness
+subagents `researcher.md` and `qa.md`; see `backend/agents/_inventory.json`
+for the full multi-layer roster.)
            │
            ▼  "More research needed?" (max 3 rounds)
 ┌────────────────────────────┐

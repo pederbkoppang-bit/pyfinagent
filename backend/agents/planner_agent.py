@@ -11,34 +11,63 @@ Uses Claude Opus for high-quality reasoning.
 """
 
 import json
+import os
 
 from backend.utils import json_io
 import logging
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from anthropic import Anthropic
 
 logger = logging.getLogger(__name__)
 
-META_PLAN = """
-STRATEGIC GOAL (Meta Plan):
-- Maximize Sharpe Ratio > 1.2
-- Maintain annual returns 50-100%
-- Keep maximum drawdown < 20%
-- Limit trades to <50/month to minimize friction
-- Avoid sector concentration > 30% (sector-level risk)
-- Survive 2× transaction cost stress test
-"""
+# phase-23.8.0 (R-4): meta-plan thresholds are READ FROM CONFIG, not
+# hardcoded. Edit the JSON file, not this module. See
+# docs/audits/dev-mas-2026-05-11/04-remediation.md R-4 + the
+# contract at handoff/archive/phase-23.8.0/contract.md for rationale.
+_META_PLAN_JSON_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "backend" / "backtest" / "experiments" / "meta_plan.json"
+)
+
+
+def _load_meta_plan_text(path: Path = _META_PLAN_JSON_PATH) -> str:
+    """Render the STRATEGIC GOAL prompt block from meta_plan.json.
+
+    Reads numeric thresholds and substitutes them into the same prose
+    shape PlannerAgent previously used. Returns the formatted block
+    (no surrounding triple-quotes).
+    """
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return (
+        "\n"
+        "STRATEGIC GOAL (Meta Plan):\n"
+        f"- Maximize Sharpe Ratio > {data['sharpe_target']}\n"
+        f"- Maintain annual returns {data['annual_return_min_pct']}-{data['annual_return_max_pct']}%\n"
+        f"- Keep maximum drawdown < {data['max_drawdown_pct']}%\n"
+        f"- Limit trades to <{data['max_trades_per_month']}/month to minimize friction\n"
+        f"- Avoid sector concentration > {data['sector_concentration_max_pct']}% (sector-level risk)\n"
+        f"- Survive {data['cost_stress_multiple']}× transaction cost stress test\n"
+    )
 
 
 class PlannerAgent:
     """LLM-as-Planner for autonomous feature generation."""
 
     def __init__(self, model: str = "claude-opus-4-7"):
-        """Initialize planner with Anthropic client."""
+        """Initialize planner with Anthropic client.
+
+        phase-23.8.0 (R-4): META_PLAN text is now loaded from
+        meta_plan.json at instantiation time and cached on the
+        instance. Edit the JSON, not the code, to change strategic
+        thresholds. Failure to read the JSON raises immediately so
+        the planner cannot silently use stale or absent values.
+        """
         self.client = Anthropic()
         self.model = model
         self.conversation_history = []
+        self.meta_plan_text = _load_meta_plan_text()
 
     def generate_proposal(
         self,
@@ -76,7 +105,7 @@ class PlannerAgent:
         evidence = self._summarize_evidence(recent_results, current_best_sharpe, weaknesses)
 
         # System prompt with meta-plan
-        system_prompt = f"""{META_PLAN}
+        system_prompt = f"""{self.meta_plan_text}
 
 YOU ARE: LLM-as-Planner for pyfinAgent, an autonomous trading strategy optimizer.
 
@@ -196,7 +225,7 @@ Run {i}:
 
         logger.info("[think] Planner: Reflecting on evaluator feedback...")
 
-        system_prompt = f"""{META_PLAN}
+        system_prompt = f"""{self.meta_plan_text}
 
 YOU ARE: LLM-as-Planner, reflecting on feedback from the Evaluator agent.
 

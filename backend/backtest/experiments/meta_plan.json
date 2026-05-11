@@ -1,0 +1,11 @@
+{
+  "_doc": "Strategic-target meta-plan for PlannerAgent. Read at PlannerAgent instantiation and rendered into the system prompt. Edit values here, NOT in planner_agent.py. Extracted from hardcoded constants in phase-23.8.0 (audit basis: docs/audits/dev-mas-2026-05-11/04-remediation.md R-4).",
+  "_source_history": "Initial values copied verbatim from the META_PLAN block previously at backend/agents/planner_agent.py:23-31 (pre-23.8.0). Adjust as the project's empirical floors move; do not freeze.",
+  "sharpe_target": 1.2,
+  "annual_return_min_pct": 50,
+  "annual_return_max_pct": 100,
+  "max_drawdown_pct": 20,
+  "max_trades_per_month": 50,
+  "sector_concentration_max_pct": 30,
+  "cost_stress_multiple": 2
+}

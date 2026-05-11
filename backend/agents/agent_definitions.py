@@ -161,10 +161,12 @@ TIER 3 — HARNESS TRIGGER (full Planner→Generator→Evaluator cycle):
     "Develop a new momentum signal that passes robustness" → MAIN (triggers_harness=true)
     "Optimize the model hyperparameters" → MAIN (triggers_harness=true)
 
-AVAILABLE AGENTS:
-  MAIN (Ford, Opus 4.6) — Operational + orchestrator. Can trigger harness cycles.
-  QA (Analyst, Opus 4.6) — Quantitative reasoning, analysis, recommendations.
-  RESEARCH (Researcher, Sonnet 4.6) — Literature, papers, methods, evidence.
+AVAILABLE AGENTS (in-app Slack/iMessage Layer-2 agents; distinct from the
+Layer-3 Claude Code harness subagents that share similar names — see
+backend/agents/_inventory.json):
+  MAIN (Ford / Slack Orchestrator) — Operational + orchestrator. Can trigger harness cycles.
+  QA (Analyst) — Quantitative reasoning, analysis, recommendations.
+  RESEARCH (Slack Researcher) — Literature, papers, methods, evidence.
 
 RESPOND WITH ONLY THIS JSON, nothing else:
 {{"primary": "main|qa|research", "secondary": null|"qa"|"research"|"main", "reasoning": "brief explanation", "complexity": "simple|moderate|complex", "triggers_harness": false|true}}
@@ -175,7 +177,7 @@ RESPOND WITH ONLY THIS JSON, nothing else:
 
     AgentType.MAIN: AgentConfig(
         agent_type=AgentType.MAIN,
-        name="Ford (Main Agent)",
+        name="Ford (Slack Orchestrator)",
         model=resolve_model("mas_main"),
         max_tokens=1500,
         description="Operational orchestrator — coordinates work, can trigger harness cycles",
@@ -269,7 +271,7 @@ RESPONSE STYLE:
 
     AgentType.RESEARCH: AgentConfig(
         agent_type=AgentType.RESEARCH,
-        name="Researcher",
+        name="Slack Researcher",
         model=resolve_model("mas_research"),
         max_tokens=3000,
         description="Deep research with literature access and RESEARCH.md integration",

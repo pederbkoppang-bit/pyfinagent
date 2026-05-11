@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-10T08:16:50.990583+00:00",
+  "updated_at": "2026-05-11T21:12:28.030183+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -664,7 +664,7 @@
     },
     {
       "id": "phase-4.5",
-      "name": "Paper Trading Dashboard v2 \u2014 Evaluation-Grade",
+      "name": "Paper Trading Dashboard v2 — Evaluation-Grade",
       "status": "done",
       "depends_on": [
         "phase-2"
@@ -676,7 +676,7 @@
       "steps": [
         {
           "id": "4.5.0",
-          "name": "Architecture & Contract \u2014 Paper Trading Dashboard v2",
+          "name": "Architecture & Contract — Paper Trading Dashboard v2",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -732,7 +732,7 @@
         },
         {
           "id": "4.5.3",
-          "name": "Reconciliation overlay \u2014 paper-live vs parallel OOS backtest on NAV chart",
+          "name": "Reconciliation overlay — paper-live vs parallel OOS backtest on NAV chart",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -809,7 +809,7 @@
         },
         {
           "id": "4.5.7",
-          "name": "Kill-switch v2 \u2014 Pause / Resume / Flatten-all + daily loss + trailing DD limits",
+          "name": "Kill-switch v2 — Pause / Resume / Flatten-all + daily loss + trailing DD limits",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -4597,7 +4597,7 @@
     },
     {
       "id": "phase-4.16",
-      "name": "Harness Discipline Patches (research-gate \u22655, handoff layout, docs)",
+      "name": "Harness Discipline Patches (research-gate ≥5, handoff layout, docs)",
       "steps": [
         {
           "id": "4.16.1",
@@ -5012,7 +5012,7 @@
     {
       "id": "phase-12",
       "status": "done",
-      "name": "Rainbow deploys \u2014 safe-update pattern",
+      "name": "Rainbow deploys — safe-update pattern",
       "description": "Implement Brandon Dimcheff's Rainbow Deploys pattern (https://brandon.dimcheff.com/2018/02/rainbow-deploys-with-kubernetes/) so dependency bumps, model-version flips, and framework migrations can be rolled out behind labeled colored Deployments/Services and rolled back by flipping a selector. Extends classic blue/green to N simultaneous versions (red/orange/yellow/green/blue/indigo/violet) so the harness can run a canary on ~5% traffic, compare live SLOs against the active color, and promote/demote without a rolling restart. User-requested on 2026-04-19 as future-proofing for the Vertex->google-genai migration (phase-11) and any subsequent SDK bumps.",
       "created_at": "2026-04-19T12:22:40.849756+00:00",
       "steps": [
@@ -5089,7 +5089,7 @@
         },
         {
           "id": "12.4",
-          "name": "First Rainbow migration \u2014 candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
+          "name": "First Rainbow migration — candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -5303,7 +5303,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday \u2014 proves _default_bq_logger wired end-to-end to real BQ."
+          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday — proves _default_bq_logger wired end-to-end to real BQ."
         },
         {
           "id": "16.8",
@@ -5321,7 +5321,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 \u2014 flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
+          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 — flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
         },
         {
           "id": "16.9",
@@ -5340,7 +5340,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data \u2014 latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
+          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data — latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
         },
         {
           "id": "16.10",
@@ -5377,7 +5377,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend \u2014 correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
+          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend — correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
         },
         {
           "id": "16.12",
@@ -5396,7 +5396,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table \u2014 non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
+          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table — non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
         },
         {
           "id": "16.13",
@@ -5859,7 +5859,7 @@
           "verification": "N=$(grep -l '3rd-CONDITIONAL\\|3-consecutive-CONDITIONAL\\|third consecutive CONDITIONAL\\|3rd consecutive' CLAUDE.md docs/runbooks/per-step-protocol.md .claude/agents/qa.md .claude/rules/*.md 2>/dev/null | wc -l | tr -d ' '); [ \"$N\" -ge 3 ]",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under \u00a74 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under §4 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
         },
         {
           "id": "16.41",
@@ -5879,7 +5879,7 @@
           "verification": "test -f frontend/src/lib/formatRelativeTime.ts && test -f frontend/src/components/RecentReportsTable.tsx && test -f frontend/src/components/HomeQuickActionsPanel.tsx && grep -q RecentReportsTable frontend/src/app/page.tsx && grep -q HomeQuickActionsPanel frontend/src/app/page.tsx && cd frontend && npx tsc --noEmit",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS \u2014 tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS — tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
         },
         {
           "id": "16.43",
@@ -5899,7 +5899,7 @@
           "verification": "test -f frontend/src/lib/kpiMetrics.ts && (cd frontend && npx tsc --noEmit) && grep -q 'nextRunAt={ptStatus' frontend/src/app/page.tsx && grep -q 'kpiMetrics' frontend/src/app/page.tsx && grep -qE 'LastSegment|NextSegment' frontend/src/components/OpsStatusBar.tsx && grep -q 'subText' frontend/src/app/page.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"\u2014\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"—\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
         },
         {
           "id": "16.45",
@@ -5929,7 +5929,7 @@
           "verification": "(cd frontend && npx tsc --noEmit) && grep -q 'lg:grid-cols-6 lg:items-stretch' frontend/src/app/page.tsx && ! grep -q 'lg:grid-cols-5' frontend/src/app/page.tsx && [ \"$(grep -c 'lg:col-span-2 h-full' frontend/src/app/page.tsx)\" = '3' ] && grep -q 'shrink-0' frontend/src/components/HomeQuickActionsPanel.tsx && grep -q 'min-w-0' frontend/src/components/HomeQuickActionsPanel.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening \u2014 Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening — Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
         },
         {
           "id": "16.48",
@@ -6163,7 +6163,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency \u2014 drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
+          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency — drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
         },
         {
           "id": "17.7",
@@ -7003,7 +7003,7 @@
         },
         {
           "id": "23.1.9",
-          "name": "Paper Trading Manage tab \u2014 deposit endpoint + 10 paper-trading settings exposed in API/UI",
+          "name": "Paper Trading Manage tab — deposit endpoint + 10 paper-trading settings exposed in API/UI",
           "status": "done",
           "harness_required": true,
           "verification": "see handoff/archive/phase-23.1.9/contract.md (immutable verification: PYTHONPATH=. python tests/verify_phase_23_1_9.py)",
@@ -7069,7 +7069,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.13/evaluator_critique.md",
           "created_at": "2026-04-28T17:30:48Z",
           "completed_at": "2026-04-28T17:30:48Z",
-          "notes": "User asked for diversification \u2014 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
+          "notes": "User asked for diversification — 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
         },
         {
           "id": "23.1.14",
@@ -7167,7 +7167,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.22/evaluator_critique.md",
           "created_at": "2026-04-30T18:55:00Z",
           "completed_at": "2026-04-30T18:55:00Z",
-          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry \u2014 first attempt wrote critique for wrong step)."
+          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry — first attempt wrote critique for wrong step)."
         },
         {
           "id": "23.2.0",
@@ -7743,6 +7743,46 @@
           "priority": "P0",
           "estimated_minutes": 60,
           "verification": "bash -n .claude/hooks/auto-commit-and-push.sh && bash -n .claude/hooks/post-commit-changelog.sh && python3 -c 'import json; json.load(open(\".claude/settings.json\"))'"
+        }
+      ]
+    },
+    {
+      "id": "phase-23.8",
+      "name": "Dev-MAS Audit Remediation",
+      "status": "pending",
+      "depends_on": [
+        "phase-23.7"
+      ],
+      "description": "Land the safe / low-risk subset of recommendations from the 2026-05-11 dev-MAS audit (docs/audits/dev-mas-2026-05-11/). Higher-risk recommendations (R-1 hook gate, R-2 hook delete, R-5 qa.md fail-mode, R-6 stub deletes) deferred to separate cycles.",
+      "gate": null,
+      "steps": [
+        {
+          "id": "23.8.0",
+          "name": "Dev-MAS audit remediation Bundle-1 (R-3 / R-4 / R-7; R-6 deferred after research gate)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_23_8_0.py",
+            "success_criteria": [
+              "ford_label_renamed_to_slack_orchestrator",
+              "researcher_label_renamed_to_slack_researcher",
+              "communication_prose_updated",
+              "architecture_md_layer2_labels_updated",
+              "claude_md_three_agent_rule_scoped_to_layer3",
+              "meta_plan_json_exists_with_7_keys",
+              "planner_agent_reads_from_meta_plan_json",
+              "test_planner_meta_plan_config_passes",
+              "architecture_md_has_28_to_5_to_3_mapping_paragraph",
+              "harness_log_has_r5_and_r6_deferral_notes",
+              "no_import_regressions_active_modules",
+              "no_import_regressions_deferred_stubs_still_importable"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Audit basis: docs/audits/dev-mas-2026-05-11/. Research-gate red flags found that meta_coordinator.py + autonomous_harness.py have live importers, so R-6 deferred. R-1, R-2, R-5 deferred per user decision (separate cycles)."
         }
       ]
     }
