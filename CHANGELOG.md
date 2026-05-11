@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-11 | `d1a3f68` | chore: hook-written audit log entries from phase-24 session |
 | 2026-05-11 | `8944e9c` | phase-24.0: add Application Coherence Audit phase with 15 verification steps |
 | 2026-05-11 | `824f16f4` | phase-23.8.1: live_check hook gate (audit recommendation R-1) |
 | 2026-05-11 | `93cd3101` | phase-23.8.0: Dev-MAS audit remediation Bundle-1 (R-3 / R-4 / R-7; R-6 deferred after research gate) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-07 | `6e9d142e` | phase-23.2.22: test-audit isolation + position-cap diagnostic logging |
 | 2026-05-05 | `b1be0126` | phase-23.2.21: pin ADC-backed BigQuery MCP server in .mcp.json |
 | 2026-05-05 | `cfbbda2a` | phase-23.2.20: cycle freshness BQ TIMESTAMP_DIFF type-coercion fix |
-| 2026-05-05 | `f2e632b2` | phase-23.2.19: SOD NAV daily-roll fix + Go-Live Gate per-criterion tooltip |
 
 ---
 
