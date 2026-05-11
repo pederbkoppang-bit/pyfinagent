@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-11 | `824f16f4` | phase-23.8.1: live_check hook gate (audit recommendation R-1) |
 | 2026-05-11 | `93cd3101` | phase-23.8.0: Dev-MAS audit remediation Bundle-1 (R-3 / R-4 / R-7; R-6 deferred after research gate) |
 | 2026-05-11 | `15e43800` | feat(models): bump Layer-2 agents to Claude Opus 4.7 |
 | 2026-05-11 | `75c6b130` | fix(hooks): retry git add -A once + capture stderr in auto-commit-and-push |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-05 | `cfbbda2a` | phase-23.2.20: cycle freshness BQ TIMESTAMP_DIFF type-coercion fix |
 | 2026-05-05 | `f2e632b2` | phase-23.2.19: SOD NAV daily-roll fix + Go-Live Gate per-criterion tooltip |
 | 2026-05-05 | `ed2c4108` | phase-23.2.18: silent cycle stop fix + working operator notification path |
-| 2026-05-04 | `b920a56a` | phase-23.2.17: PaperTrader.adjust_cash_and_mtm helper |
 
 ---
 
+### v6.6.2 — phase-23.8.1: live_check hook gate (audit recommendation R-1) (2026-05-11)
+
+- **phase-23.8.1: live_check hook gate (audit recommendation R-1)**
 ### v6.6.1 — phase-23.8.0: Dev-MAS audit remediation Bundle-1 (R-3 / R-4 / R-7; R-... (2026-05-11)
 
 - **phase-23.8.0: Dev-MAS audit remediation Bundle-1 (R-3 / R-4 / R-7; R-6 deferred after research gate)**
