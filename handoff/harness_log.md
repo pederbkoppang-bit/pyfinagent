@@ -16382,3 +16382,72 @@ PASS (10/10) EXIT=0
 - **Out of original audit scope (observed during execution)**: auto-commit-and-push hook not auto-firing on Edits in 3 consecutive cycles — diagnostic cycle pending.
 
 **Phase-23.8.3 status -> done.**
+
+## Cycle 41 -- 2026-05-12 -- phase=23.8.4 result=PASS
+
+**Step:** Auto-commit hook auto-fire diagnostic — add invocation debug log + preserve `if` predicate (observability-first). Addresses the open observation from Cycle 40 (`phase-23.8.3` experiment_results.md:148, contract.md:208): the `auto-commit-and-push.sh` hook did not auto-fire on `Edit` calls to `.claude/masterplan.json` in cycles 38/39/40; operator had to manually trigger commit/push.
+
+**What landed:**
+- EDIT `.claude/hooks/auto-commit-and-push.sh` lines 33-42 — inserted a one-line `log "INVOKED auto-commit-and-push pid=$$"` call after the `log()` helper definition and BEFORE the `if [ ! -f "$MASTERPLAN" ]` masterplan-exists guard, with a 5-line comment block explaining the observability rationale and pointing at the existing `newly_done` filter.
+- NO change to `.claude/settings.json` — the `if "Edit(.claude/masterplan.json)"` and `if "Write(.claude/masterplan.json)"` predicates are explicitly preserved on both PostToolUse matchers (verifier claims 2 + 3 are regression checks).
+- NEW `tests/verify_phase_23_8_4.py` (280 LOC, stdlib-only) — 11 immutable claims, including 3 behavioral tests (claims 7, 8, 10) and one mutation-resistance test (claim 10 strips the INVOKED line from a tmpdir copy of the script via `re.sub`, invokes the mutated copy, asserts the actual auto-push.log INVOKED count does NOT increase — proves claim 7 is anchored to literal behavior, not no-op grep).
+- ADDED step 23.8.4 to `.claude/masterplan.json` phase-23.8 with audit_basis citing the Cycle 40 observation. Criteria revised pre-contract from "drop the `if` predicate" to "preserve `if` predicate + add INVOKED log" after researcher gate rejected the original aggressive plan.
+
+**Researcher:** simple tier, 6 sources read in full via WebFetch (Claude Code hooks reference, Anthropic harness-design, Anthropic building-effective-agents, Anthropic multi-agent research system, Pixelmojo practitioner guide, GetAIPerks guide). 15 URLs collected. Recency scan: no 2025-2026 source defends preserving an unreliable filter; multiple sources advocate moving filtering into scripts. Three-variant search-query discipline observed (`"Claude Code hooks if matcher 2026"`, `"Claude Code hooks 2025"`, `"Claude Code hooks"` + `"event-driven hook silent failure"`). `gate_passed: true`. **Researcher REJECTED the original "drop the if predicate" plan** — sibling hooks would fire on every Edit (wasteful), and we lack observability to confirm the hypothesis. Revised plan: observability-first, decide wiring after data.
+
+**Research-gate red flags surfaced (action taken):**
+- R-FLAG-1: `if` field IS documented at `code.claude.com/docs/en/hooks` (just under-specified for `.claude/`-prefixed paths). The original plan was premature.
+- R-FLAG-2: Sibling hooks (`masterplan-memory-sync.sh`, `archive-handoff.sh`, `commit-reminder.sh`) all have own internal filtering and are idempotent — safe to fire on every Edit, BUT wasteful churn. **Action: keep `if` predicate.**
+- R-FLAG-3: stdin-based in-script file-path filtering is risky because stdin may already be consumed by sibling hooks earlier in the chain — log a fixed-string INVOKED marker instead.
+- R-FLAG-4: Production practitioner guides (Pixelmojo 2026, GetAIPerks) route file-specific filtering inside command scripts, NOT in declarative `if` predicates — supports treating `if` as an under-tested surface.
+- R-FLAG-5: No prior cycle researched this hook's behavior — new research surface, no re-research conflict.
+
+**Verbatim verifier result (after this log append):**
+```
+=== phase-23.8.4 verifier ===
+  [PASS] 1. settings_json_valid
+  [PASS] 2. edit_matcher_if_predicate_preserved
+  [PASS] 3. write_matcher_if_predicate_preserved
+  [PASS] 4. auto_commit_hook_has_invoked_log_at_top
+  [PASS] 5. auto_commit_hook_bash_syntax_valid
+  [PASS] 6. auto_commit_hook_still_filters_by_newly_done
+  [PASS] 7. invocation_writes_invoked_line_to_auto_push_log
+  [PASS] 8. invoked_line_includes_timestamp_marker_and_hook_name
+  [PASS] 9. no_regressions_other_hooks_bash_syntax_valid
+  [PASS] 10. mutation_resistance_removing_invoked_line_breaks_behavioral_claim
+  [PASS] 11. harness_log_has_cycle_41_entry
+PASS (11/11) EXIT=0
+```
+
+**Q/A verdict:** PASS (first spawn; 0 prior verdicts; no verdict-shopping). 5/5 harness-compliance items satisfied. Verifier 10/11 at Q/A-spawn time (claim 11 expected-fail per log-last protocol); now 11/11 after this log append. Mutation-resistance traced character-by-character — the regex `r'log "INVOKED auto-commit-and-push pid=\$\$"\n'` matches the literal hook line `log "INVOKED auto-commit-and-push pid=$$"` followed by `\n`. Behavioral spot-check confirmed delta=1 INVOKED line per invocation. Settings.json `if` predicates preserved on both Edit + Write matchers per `git diff --stat .claude/settings.json` returning empty. Sibling-hook bash syntax: all 9 hooks pass. Surprise observation (over-fire on hook-edit + verifier-write) honestly disclosed in `experiment_results.md` `## Surprise observation` top-level section — NOT buried. Pre-contract criteria revision verified as in-spirit (revision occurred BEFORE contract was written; immutability begins at contract-time per CLAUDE.md).
+
+**Surprise observation from this cycle (NEW DATA on the `if`-predicate misbehavior):**
+
+The INVOKED log immediately produced evidence that the `if` predicate is **too permissive in the OPPOSITE direction** from the cycle 38/39/40 reports:
+
+- `[2026-05-11T22:17:48Z] INVOKED auto-commit-and-push pid=76339` — fired during this cycle's Edit to `.claude/hooks/auto-commit-and-push.sh`. The `if "Edit(.claude/masterplan.json)"` predicate should have BLOCKED this fire (the edited path was `.claude/hooks/auto-commit-and-push.sh`, NOT `.claude/masterplan.json`).
+- `[2026-05-11T22:20:07Z] INVOKED auto-commit-and-push pid=76578` — fired during this cycle's Write to `tests/verify_phase_23_8_4.py`. The `if "Write(.claude/masterplan.json)"` predicate should have BLOCKED this fire (the written path was outside `.claude/` entirely).
+
+**The asymmetry:**
+- **Under-fires** (cycles 38/39/40): missed legitimate Edit to masterplan.json — operator had to manually trigger.
+- **Over-fires** (this cycle): fired on Edit/Write to paths that do NOT match the `if` predicate.
+
+This is observable evidence (NOT a hypothesis) that the `if` predicate is unreliable in BOTH directions. The observability instrument did exactly what it was designed to do: made the `if`-predicate misbehavior visible. The data now supports a future phase-23.8.5+ decision to drop the `if` predicate, accepting wasteful sibling-hook churn as the cost of reliability — but that wiring change is explicitly OUT OF SCOPE for cycle 41 (`contract.md::What this is NOT`).
+
+**No regressions:** zero behavior change beyond the single `log` line. The `newly_done` git-diff filter (lines 44-114) is unchanged — the script still only commits/pushes on actual step-done flips. The live_check gate (lines 123-148) is unchanged — orthogonal to this fix. The hook's existing fail-open discipline (exits 0 on errors, never breaks the masterplan Write) is preserved. All sibling hooks pass `bash -n`.
+
+**Operator-visible behavior change:**
+- `handoff/logs/auto-push.log` will accumulate INVOKED lines at every hook invocation. This is desired observability — operators can grep `INVOKED auto-commit-and-push` to see every dispatch.
+- On the NEXT masterplan step flip with the new log enabled (this cycle itself, plus subsequent steps): the auto-push.log will show:
+  - INVOKED line at hook entry (always)
+  - Followed either by silent exit (newly_done empty) or by commit/changelog/push output (newly_done non-empty)
+- If a future cycle reports "hook didn't fire on masterplan flip", the auto-push.log will provide unambiguous evidence: no INVOKED line = `if` predicate silently blocked dispatch; INVOKED line + no commit = newly_done detection failed.
+
+**Audit-remediation progress after Cycle 41:**
+- **Shipped**: R-1 (live_check gate, cycle 38), R-2 (TaskCompleted delete, cycle 39), R-3 (rename Layer-2 labels, cycle 37), R-4 (META_PLAN runtime config, cycle 37), R-6 (header correction, cycle 40), R-7 (28→5→3 mapping paragraph, cycle 37). **Plus**: auto-commit hook observability (this cycle — out-of-original-audit; observed during cycles 38-40).
+- **Properly deferred**: R-5 (qa.md fail-mode, needs separate session + Peder review per separation-of-duties); qa.md `existing_results_check` update for `live_check_<step_id>.md` (also needs separate session).
+- **NEW DEFERRED (cycle 41 finding)**: phase-23.8.5+ wiring change — drop the `if` predicate now that we have observable evidence of its unreliability in BOTH directions. Deferred to a separate cycle with at least one more masterplan-step observation under the new INVOKED log to obtain Scenario A/B/C confirmation from the contract.
+
+**Stress-test doctrine reminder (HARNESS-DOC):** the `if` predicate over-fire / under-fire pair is a textbook example of "stale scaffolding" that this cycle's instrumentation will help us decide whether to remove. The next session should periodically re-evaluate whether the `if` predicate is doing useful work or just adding noise.
+
+**Phase-23.8.4 status -> done.**

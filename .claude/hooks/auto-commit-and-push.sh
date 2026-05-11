@@ -34,6 +34,13 @@ mkdir -p "$LOG_DIR"
 ts() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 log() { echo "[$(ts)] $*" >> "$LOG_FILE"; }
 
+# phase-23.8.4 observability: every invocation produces a log entry so the
+# next cycle that mis-fires can distinguish "hook never dispatched" (no
+# INVOKED line) from "hook dispatched but newly_done was empty" (INVOKED
+# line followed by silent exit at line ~114). Cheap; the existing
+# newly_done detection still gates the actual commit/push work.
+log "INVOKED auto-commit-and-push pid=$$"
+
 if [ ! -f "$MASTERPLAN" ]; then
     exit 0
 fi

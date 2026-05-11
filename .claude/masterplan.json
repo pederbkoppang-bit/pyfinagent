@@ -7861,6 +7861,33 @@
           "retry_count": 0,
           "max_retries": 3,
           "notes": "Audit basis: docs/audits/dev-mas-2026-05-11/04-remediation.md R-6 + 02-per-agent.md C-A7. Closes R-6 by correcting misleading headers (the audit took 'DEPRECATED -- Phase 4 stub' at face value; researcher gate at cycle 37 caught that the files are LIVE)."
+        },
+        {
+          "id": "23.8.4",
+          "name": "Auto-commit hook auto-fire diagnostic: add invocation debug log + preserve `if` predicate (observability-first)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_23_8_4.py",
+            "success_criteria": [
+              "settings_json_valid",
+              "edit_matcher_if_predicate_preserved",
+              "write_matcher_if_predicate_preserved",
+              "auto_commit_hook_has_invoked_log_at_top",
+              "auto_commit_hook_bash_syntax_valid",
+              "auto_commit_hook_still_filters_by_newly_done",
+              "invocation_writes_invoked_line_to_auto_push_log",
+              "invoked_line_includes_timestamp_marker_and_hook_name",
+              "no_regressions_other_hooks_bash_syntax_valid",
+              "mutation_resistance_removing_invoked_line_breaks_behavioral_claim",
+              "harness_log_has_cycle_41_entry"
+            ]
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Observed empirically in cycles 38/39/40: the auto-commit-and-push.sh hook did NOT auto-fire on Edit calls to .claude/masterplan.json; operator had to manually trigger commit/push. Hypothesis was: drop the undocumented `if` predicate. Research gate at cycle 41 REJECTED that plan — sibling hooks (masterplan-memory-sync, archive-handoff, commit-reminder) would then fire on every Edit call (wasteful), and the `if` field IS documented (just under-specified for `.claude/`-prefixed paths). Revised research-supported plan: observability-first. Keep the `if` predicate as best-effort filter; add a single `log INVOKED ...` line near the top of auto-commit-and-push.sh so EVERY invocation produces observable evidence in auto-push.log. Next cycle that fails will show definitively: no INVOKED line = `if` predicate silently blocked the hook; INVOKED line + silent exit = hook fired but newly_done was empty. Pre-contract criteria update permitted because no contract has been written yet (criteria immutability begins at contract-time). live_check NOT required: success verifiable from on-disk artifacts."
         }
       ]
     }
