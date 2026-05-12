@@ -8295,7 +8295,7 @@
         {
           "id": "24.12",
           "name": "Frontend UI/UX presentation-layer audit (design system, accessibility, responsive, per-page UX flows, cross-tab KPI consistency, visual regression baseline)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "24.0",

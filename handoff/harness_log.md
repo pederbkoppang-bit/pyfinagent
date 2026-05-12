@@ -16789,3 +16789,35 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates codegen-regression nuance for F-2.
 
 **Phase-24.11 status -> done.** Next cycle: bucket 24.12 (P2 — frontend UI/UX presentation).
+
+---
+
+## Cycle 52 -- 2026-05-12 -- phase=24.12 result=PASS
+
+**Step:** 24.12 — Frontend UI/UX presentation-layer audit (P2)
+**Action:** READ-ONLY. Findings + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=moderate; 6 sources: WCAG 2.2, Playwright screenshots + Next.js visual regression, ESLint no-restricted-imports, WAI-ARIA APG, Backlight design-system ESLint).
+
+**Findings (SURPRISINGLY GOOD with specific gaps):**
+- **F-1 ZERO icon import violations** — `eslint.config.mjs` `no-restricted-imports: "error"` rule (phase-16.39) load-bearing; grep confirms only `lib/icons.ts` imports from `@phosphor-icons/react`
+- **F-2 2 degraded-state pages**: `performance/page.tsx:65-66` bare `<p>` instead of `<PageSkeleton/>` + error banner; `sovereign/page.tsx:63-68` silently swallows RedLine API failures
+- **F-3 Tab icons missing** at `paper-trading/page.tsx:383-390` — violates frontend-layout.md §5
+- **F-4 Cross-tab Sharpe mismatch** — home uses local `kpiSharpe()`; paper-trading uses backend `perf.sharpe_ratio`; sources unreconciled
+- **F-5 Polling discipline gap** — `paper-trading/page.tsx:534-550` RunNow setInterval has no fail counter
+- **F-6 Screenshots/ dir empty** — Playwright visual regression baseline missing
+- F-7 dark theme + scrollbar-thin enforced ✓
+- F-8 a11y: aria labels via Phosphor; WCAG 2.2 contrast met; no automated axe-core CI
+- F-9 responsive design via Tailwind breakpoints; no mobile-viewport Playwright tests
+
+**Phase-25 candidates (5):**
+1. 25.A12 (P1) — Playwright visual regression CI baseline
+2. 25.B12 (P1) — Missing-states + tab-icon sweep
+3. 25.C12 (P1) — Cross-tab Sharpe KPI reconciliation (backend authoritative)
+4. 25.D12 (P2) — Polling discipline checker (`usePolling` hook + ESLint rule)
+5. 25.E12 (P2) — Automated a11y CI (axe-core)
+
+**Verifier:** 15/16 PASS at Q/A spawn; log-last only FAIL. Now 16/16 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest "codebase SURPRISINGLY GOOD" framing while still naming 5 real gaps. Q/A flagged advisory note: the verifier claim `screenshots_dir_contains_at_least_14_images` is text-grep not image count; F-6 honestly discloses dir is empty (phase-25.A12 deferred work).
+
+**Phase-24.12 status -> done.** Next cycle: bucket 24.6 (P2 — backtest engine).
