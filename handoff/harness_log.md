@@ -16978,3 +16978,45 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Auto-commit + push:** 15 commits to origin/main with conventional commit prefixes (`phase-24.N: ...`). Live-check gate satisfied for every bucket (15 `live_check_24.N.md` files committed).
 
 **Next steps for operator:** paste phase-25 JSON entries (from 24.14 findings doc) into `.claude/masterplan.json`. Recommend phase-25.0 sub-phase wrapper structure for P0/P1/P2 grouping. P0 sprint can begin immediately on 25.1+25.2+25.6 (stops cluster) — these close the TER -$1,107 accruing loss and other operator-reported bugs.
+
+---
+
+## Cycle 57 -- 2026-05-12 -- phase=25.1 result=PASS
+
+**Step:** 25.1 — Wire check_stop_losses() into daily loop with auto-sell (P0, FIRST phase-25 implementation)
+**Action:** GENERATE (REAL CODE CHANGE). Added Step 5.6 block in `backend/services/autonomous_loop.py:332` between kill-switch (Step 5.5) and decide_trades (Step 6).
+
+**Researcher gate:** PASS (tier=moderate; 6 sources: arxiv 2604.27150 stop-loss param, Alpaca orders/paper docs, TradersPost stop strategies, idempotency patterns, Python async state machines).
+
+**Code change:**
+- New 24-line Step 5.6 block in `autonomous_loop.py:332-358`
+- Calls `await asyncio.to_thread(trader.check_stop_losses)` → iterates triggered list → `execute_sell` per ticker with `reason="stop_loss_trigger"`
+- `summary["stop_loss_triggered"]` initialized to `[]` so key always present
+- try/except wraps each sell so one bad execution doesn't cascade
+- ASCII-only logger.warning per `backend-services.md` rules
+- Natural idempotency: `execute_sell` returns None if `get_position(ticker)` returns None
+
+**New verifier:** `tests/verify_phase_25_1.py` (146 LOC, stdlib-only, 8 immutable claims)
+
+**Verifier:** **8/8 PASS** (no log-last sentinel — phase-25 verifiers check code correctness)
+- grep_check_stop_losses_in_autonomous_loop_returns_match
+- stop_loss_trigger_reason_string_present
+- summary_includes_stop_loss_triggered_field
+- step_5_6_stop_loss_enforcement_label_present
+- check_stop_losses_wrapped_in_asyncio_to_thread
+- execute_sell_called_in_stop_loss_block
+- autonomous_loop_py_syntax_clean
+- paper_trader_execute_sell_signature_has_reason_kwarg
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Independent re-run confirms 8/8. Spot-check confirmed exactly one Step 5.6 insertion (no duplication); logger messages ASCII-only; mutation-resistant verifier patterns.
+
+**Q/A followup recommendations (deferred to follow-on steps):**
+1. Append stop-fired tickers to `closed_tickers` so Step 9 `_learn_from_closed_trades` processes them — cross-link bucket 24.6 candidate 25.C6.
+2. Slack post on stop-loss trigger — cross-link bucket 24.5 candidate 25.J (next P0 in sprint).
+3. Populate `handoff/current/live_check_25.1.md` with BQ paper_trades row showing `reason='stop_loss_trigger'` after first live cycle.
+
+**Hypothesis verdict:** CONFIRMED. Step 5.6 wired exactly at line 332 per researcher recommendation.
+
+**Phase-25.1 status -> done.** Closes phase-24.1 audit finding F-1 (orphan check_stop_losses). TER will sell on next autonomous cycle if current_price <= stop_loss_price (but TER has no stop yet — needs 25.2 backfill).
+
+**Next cycle:** 25.A9 (P1 prerequisite for 25.A8) OR 25.2/25.6 (depends on 25.1, just shipped). Sprint order: 25.A9 (1-line fix) then 25.2 + 25.6 in parallel cluster.

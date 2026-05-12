@@ -8408,7 +8408,7 @@
         {
           "id": "25.1",
           "name": "Wire check_stop_losses() into daily loop with auto-sell",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,

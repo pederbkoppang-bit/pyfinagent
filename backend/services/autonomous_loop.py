@@ -329,6 +329,34 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 _last_result = summary
                 return summary
 
+            # ── Step 5.6: Stop-loss enforcement (phase-25.1) ─────────
+            # Wire check_stop_losses() into the cycle. Closes phase-24.1 audit
+            # finding F-1 (orphan check_stop_losses with zero callers; TER held
+            # at -12.30%). execute_sell is naturally idempotent: get_position
+            # returns None if already sold, so retries are safe.
+            logger.info("Paper trading: Step 5.6 -- Stop-loss enforcement")
+            summary["steps"].append("stop_loss_enforcement")
+            summary["stop_loss_triggered"] = []
+            triggered_stops = await asyncio.to_thread(trader.check_stop_losses)
+            for sl_ticker in triggered_stops:
+                try:
+                    sl_trade = await asyncio.to_thread(
+                        trader.execute_sell,
+                        ticker=sl_ticker,
+                        quantity=None,
+                        price=None,
+                        reason="stop_loss_trigger",
+                        signals=None,
+                    )
+                    if sl_trade:
+                        summary["stop_loss_triggered"].append(sl_ticker)
+                        logger.warning(
+                            "Paper trading: stop-loss triggered for %s -- sold at %s",
+                            sl_ticker, sl_trade.get("price"),
+                        )
+                except Exception as sl_exc:
+                    logger.exception("Stop-loss execute_sell failed for %s: %s", sl_ticker, sl_exc)
+
             # ── Step 6: Decide trades ────────────────────────────────
             logger.info("Paper trading: Step 6 -- Deciding trades")
             summary["steps"].append("deciding")
