@@ -138,13 +138,15 @@ class CostTracker:
         #   cache reads  = 0.1x base input (90% discount)
         #   cache writes = 1.25x base input (5-min TTL, default)
         #                = 2.00x base input (1-hour TTL, extended-cache-ttl beta)
-        # MF-48 (2026-04-18): cache_write_premium was not charged; now
-        # defaulting to the 5-min 1.25x surcharge. When we adopt 1h TTL
-        # via `anthropic-beta: extended-cache-ttl-2025-04-11`, bump to 2.0.
+        # phase-25.A9 (2026-05-12): bumped to 2.0x. llm_client.py:773-779 already
+        # passes `"ttl": "1h"` on every caching call, so the actual Anthropic charge
+        # is the 1h-TTL 2.0x rate (not the 5-min 1.25x). Prior 1.25x under-reported
+        # cache-write cost by ~60% (e.g., $0.026 reported vs $0.041 actual for a
+        # 4096-token Opus 4.7 system prompt). Closes phase-24.9 audit finding F-1.
         if cache_read > 0 or cache_creation > 0:
             regular_input = max(0, input_tokens - cache_read - cache_creation)
             cached_read_cost = cache_read * pricing[0] * 0.1 / 1_000_000
-            cache_write_cost = cache_creation * pricing[0] * 1.25 / 1_000_000
+            cache_write_cost = cache_creation * pricing[0] * 2.0 / 1_000_000
             regular_cost = regular_input * pricing[0] / 1_000_000
             output_cost = output_tokens * pricing[1] / 1_000_000
             cost = cached_read_cost + cache_write_cost + regular_cost + output_cost

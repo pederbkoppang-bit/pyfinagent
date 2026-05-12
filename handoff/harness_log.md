@@ -17020,3 +17020,32 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Phase-25.1 status -> done.** Closes phase-24.1 audit finding F-1 (orphan check_stop_losses). TER will sell on next autonomous cycle if current_price <= stop_loss_price (but TER has no stop yet — needs 25.2 backfill).
 
 **Next cycle:** 25.A9 (P1 prerequisite for 25.A8) OR 25.2/25.6 (depends on 25.1, just shipped). Sprint order: 25.A9 (1-line fix) then 25.2 + 25.6 in parallel cluster.
+
+---
+
+## Cycle 58 -- 2026-05-12 -- phase=25.A9 result=PASS
+
+**Step:** 25.A9 — Fix cache-write cost premium 1.25x → 2.0x (P1, prerequisite for 25.A8)
+**Action:** GENERATE. 1-line constant change at `backend/agents/cost_tracker.py:149` + updated comment block.
+
+**Researcher gate:** REUSED from phase-24.9 (cycle 13, gate_passed=true, 7 sources). Q/A confirmed reuse is justified for 1-line implementation of an already-audited finding.
+
+**Code change:**
+- `cache_write_cost = cache_creation * pricing[0] * 1.25 / 1_000_000` → `* 2.0 /`
+- Comment block updated with phase-25.A9 attribution + llm_client.py:773-779 cross-link explaining 1h-TTL opt-in
+- Closes phase-24.9 audit finding F-1 (~60% cost under-report)
+
+**New verifier:** `tests/verify_phase_25_A9.py` (75 LOC, stdlib-only, 5 immutable claims):
+- cache_write_premium_constant_equals_2_0
+- old_1_25_multiplier_removed_from_calculation
+- phase_25_A9_attribution_comment_present
+- cost_tracker_py_syntax_clean
+- cost_tracker_math_for_4096_token_write_at_5_per_mtok_equals_0_04096_usd
+
+**Verifier: 5/5 PASS**
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Mutation-resistance covered by 3 independent verifier claims. TTL=1h opt-in verified at actual file path (`backend/agents/llm_client.py:778`). Contract had a cosmetic path typo (services/ vs agents/) — non-blocking.
+
+**Hypothesis:** CONFIRMED. Math round-trip: 4096 × $5/MTok × 2.0 ÷ 1M = $0.04096 (was $0.0256 — 60% under-report closed).
+
+**Phase-25.A9 status -> done.** Next cycle: 25.A8 (cost-budget hard-block) — now has accurate cost data prerequisite.
