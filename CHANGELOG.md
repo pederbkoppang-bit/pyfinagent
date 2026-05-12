@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `4578d8c4` | phase-24.2: Pipeline routing + report persistence audit (lite-vs-full branching; reports -> BQ; 2... |
 | 2026-05-12 | `8646bf62` | phase-24.5: Slack notifications + operator alerting audit (wrong P&L digests, missing trade/kill-... |
 | 2026-05-12 | `b6a2a35f` | phase-24.4: Agent topology + per-agent rationale flow audit (Trader/RiskJudge byte-identical text... |
 | 2026-05-12 | `30b4de6c` | phase-24.1: Trading-execution + governance audit (stop-loss orphan, missing-stops-on-entry, zero-... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-07 | `d0ae4d28` | phase-23.3.3: activate 7 dormant phase-9 slack-bot jobs |
 | 2026-05-07 | `39f905c6` | phase-23.3.2: slack-bot heartbeat-push wiring + 4 core jobs in registry |
 | 2026-05-07 | `ad4e8b57` | phase-23.3.1: main APScheduler audit -- name + id labels for /cron |
-| 2026-05-07 | `caa3ad49` | phase-23.3.0: Q/A roster verification + masterplan phase-23.3 audit plan |
 
 ---
 
+### v6.7.4 — phase-24.2: Pipeline routing + report persistence audit (lite-vs-full... (2026-05-12)
+
+- **phase-24.2: Pipeline routing + report persistence audit (lite-vs-full branching; reports -> BQ; 2...**
 ### v6.7.3 — phase-24.5: Slack notifications + operator alerting audit (wrong P&L... (2026-05-12)
 
 - **phase-24.5: Slack notifications + operator alerting audit (wrong P&L digests, missing trade/kill-...**
