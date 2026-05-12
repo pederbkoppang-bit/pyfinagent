@@ -8604,7 +8604,7 @@
         {
           "id": "25.A2",
           "name": "Wire bq.save_report() into full pipeline persistence",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

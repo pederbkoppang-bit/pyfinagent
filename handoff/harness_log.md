@@ -17235,3 +17235,24 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 - 25.J: BQ paper_trades polling job in slack_bot to dispatch trade confirmations
 
 **Next cycles:** P1 sprint (Week 3-4 per 24.14 sequencing). Recommended start: 25.A2 (wire bq.save_report into full pipeline) since it has no deps and immediately closes the empty `/reports` bug.
+
+---
+
+## Cycle 66 -- 2026-05-12 -- phase=25.A2 result=PASS
+
+**Step:** 25.A2 — Wire bq.save_report into full pipeline (P1; first P1 in sprint)
+**Action:** GENERATE. Closes phase-24.2 audit F-2 (orchestrator.py had zero save_report calls; /reports empty).
+
+**Code change (single file: `backend/services/autonomous_loop.py`):**
+- L649: full-pipeline return dict gains `"_path": "full"` marker
+- L277, L295: persist guards changed `== "lite"` → `in ("lite", "full")`
+- L795: `_persist_lite_analysis` renamed to `_persist_analysis`; docstring corrected
+- L272-275: stale comment about run_full_analysis self-persisting fixed (now correctly notes it did NOT, per phase-24.2 audit)
+
+**New verifier:** `tests/verify_phase_25_A2.py` (115 LOC, 8 immutable claims) — **8/8 PASS**
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Mutation-resistance: 3 independent paths (marker, guard, function rename). Stale-comment correction substantive (audit-citation), not append. Zero legacy callsites remaining.
+
+**Phase-25.A2 status -> done.** /reports page will now populate with both lite and full pipeline rows tagged by `_path` field.
+
+**Next cycle:** 25.A (decouple RiskJudge with independent LLM call; no deps).

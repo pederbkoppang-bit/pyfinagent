@@ -267,14 +267,15 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                         candidate_analyses.append(analysis)
                         cost = analysis.get("total_cost_usd", 0.1)
                         total_analysis_cost += cost
-                        # phase-23.1.11 + 23.1.12: persist analysis to analysis_results so
-                        # the Reports History tab surfaces it. Guard on the lite-path marker
-                        # (set by _run_claude_analysis) -- the full orchestrator path writes
-                        # its own row via bq.save_report inside run_full_analysis, so this
-                        # guard correctly avoids double-write while still capturing the
-                        # lite-fallback case (operator chose full but orchestrator failed).
-                        if analysis.get("_path") == "lite":
-                            await _persist_lite_analysis(analysis, bq)
+                        # phase-23.1.11 + 23.1.12 + phase-25.A2: persist analysis to
+                        # analysis_results so the Reports History tab surfaces it.
+                        # phase-25.A2 (closes phase-24.2 F-2): full-path also persists now
+                        # via the same helper. Stale doc-comment from before phase-25.A2
+                        # claimed run_full_analysis did its own save_report — it did NOT
+                        # (orchestrator.py had zero save_report calls); persistence is
+                        # now uniformly done here for both lite and full paths.
+                        if analysis.get("_path") in ("lite", "full"):
+                            await _persist_analysis(analysis, bq)
                 except Exception as e:
                     logger.error(f"Failed to analyze candidate {ticker}: {e}")
 
@@ -290,9 +291,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                         holding_analyses.append(analysis)
                         cost = analysis.get("total_cost_usd", 0.1)
                         total_analysis_cost += cost
-                        # phase-23.1.11 + 23.1.12: same lite-path-marker persist guard as Step 3
-                        if analysis.get("_path") == "lite":
-                            await _persist_lite_analysis(analysis, bq)
+                        # phase-23.1.11 + 23.1.12 + phase-25.A2: persist both lite and full paths
+                        if analysis.get("_path") in ("lite", "full"):
+                            await _persist_analysis(analysis, bq)
                 except Exception as e:
                     logger.error(f"Failed to re-evaluate {ticker}: {e}")
 
@@ -642,6 +643,10 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
             "analysis_date": datetime.now(timezone.utc).isoformat(),
             "total_cost_usd": cost_summary.get("total_cost_usd", 0.1) if isinstance(cost_summary, dict) else 0.1,
             "full_report": report,
+            # phase-25.A2: marker so _persist_analysis guard picks up full-pipeline rows.
+            # Closes phase-24.2 audit F-2 (orchestrator.py had zero save_report calls;
+            # /reports page empty because full-path runs evaporated without persistence).
+            "_path": "full",
         }
     except Exception as e:
         logger.warning(
@@ -787,10 +792,16 @@ Respond in this exact JSON format:
 # fields populated, ~74 columns left NULL (storage-free in BQ columnar
 # format; honest signal that the full Gemini pipeline did not run).
 
-async def _persist_lite_analysis(analysis: dict, bq: BigQueryClient) -> None:
-    """Write a lite-Claude analysis row to analysis_results.
+async def _persist_analysis(analysis: dict, bq: BigQueryClient) -> None:
+    """phase-25.A2: write an analysis row to analysis_results.
 
-    Non-fatal: any BQ error logs a warning but the trading cycle continues.
+    Generalized from `_persist_lite_analysis` to handle BOTH lite and full
+    paths (closes phase-24.2 F-2 — full pipeline previously evaporated
+    without persistence; /reports page was empty).
+
+    Reads `_path` from the analysis dict for honest source tagging in the
+    persisted row (lite vs full). Non-fatal: any BQ error logs a warning
+    but the trading cycle continues.
     """
     try:
         ticker = analysis.get("ticker") or ""
