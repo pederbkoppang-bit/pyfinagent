@@ -7933,7 +7933,7 @@
         {
           "id": "24.1",
           "name": "Trading-execution + governance audit (stop-loss orphan, missing-stops-on-entry, zero-sells-ever, sector caps, position limits)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "24.0",

@@ -16498,3 +16498,42 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Hypothesis verdict:** CONFIRMED. The 15-bucket structure is sufficient and non-overlapping to cover the entire pyfinagent codebase against the profit-maximization red-line goal. All 6 concrete operator-reported bugs land in P0 buckets (24.1, 24.4, 24.5).
 
 **Phase-24.0 status -> done.** Charter complete; 24.1-24.14 unlocked. Next cycle starts P0 bucket 24.1 (trading-execution + governance — stop-loss orphan).
+
+---
+
+## Cycle 43 -- 2026-05-12 -- phase=24.1 result=PASS
+
+**Step:** 24.1 — Trading-execution + governance audit (P0)
+**Priority:** P0 — first P0 bucket in the phase-24 audit; closes the most user-impactful live bug (stop-loss orphan)
+**Action taken:** Phase-24 is READ-ONLY by charter. Wrote findings doc at `docs/audits/phase-24-2026-05-12/24.1-execution-trading-findings.md` (22 KB) + research brief + contract. NO code changes.
+
+**Researcher gate:** PASS (`gate_passed: true`, tier=complex)
+- 5 external sources read in full: Anthropic harness-design, arxiv 2604.27150 (stop-loss param, April 2026), Frontiers 2024 (disposition effect debiasing), Alpaca orders-at-alpaca, Semnet agentic governance 2026
+- 11 snippet-only sources; 16 URLs total
+- Three-variant search across 4 topics (stop-loss design, disposition effect, broker order lifecycle, AI trading safety)
+- Recency scan (2024-2026): 3 findings — arxiv 2604 (10% stop + ATR overlay optimal), Frontiers 2024 (binding orders only overcome disposition effect), Microsoft Agent Governance Toolkit
+
+**Findings doc highlights:**
+- F-1: `check_stop_losses()` is orphan; verbatim grep evidence (defined `paper_trader.py:414`, zero production callers)
+- F-2: `autonomous_loop.py` 904-line full scan — zero matches for `check_stop_losses`. Kill-switch at line 314 is NAV-level; no per-position stop step
+- F-3: `portfolio_manager.py:82-88` silently bypasses None stops via `if stop and current ...` truthiness
+- F-4: `_extract_stop_loss()` fallback at `portfolio_manager.py:288-329` only applies to NEW buys — pre-phase-23.1.8 positions never backfilled
+- F-5: 11-position table (5 STOP_SET: FIX, MU, KEYS, GEV, COHR + 6 NO_STOP: ON, INTC, TER, DELL, GLW, CIEN)
+- F-6: TER -12.30% no-sell case — 4 reasons traced (orphan stop, None-bypass, no LLM SELL signal, kill-switch is NAV-level)
+- F-7: Governance gap — `limits.yaml:max_sector_weight_pct: 0.30` immutable but never consulted by `decide_trades()`; `max_position_notional_pct: 0.05` never enforced in `execute_buy()`
+
+**Phase-25 candidates emitted (6):**
+1. **phase-25.1 (P0)** — Wire `check_stop_losses()` into the daily loop with auto-sell
+2. **phase-25.2 (P0)** — Backfill missing stops with same-cycle re-check (TER sells immediately)
+3. **phase-25.3 (P1)** — "No-sells-in-N-days" anomaly watchdog (cross-ref bucket 24.5)
+4. **phase-25.4 (P1)** — Connect `limits.yaml:max_sector_weight_pct` to `decide_trades()` (governance coupling)
+5. **phase-25.5 (P1)** — Enforce `max_position_notional_pct` in `execute_buy()` (concentrate-risk reduction)
+6. **phase-25.6 (P0)** — "No-stop-on-entry" hard block in `execute_buy()` (database-constraint-at-app-layer)
+
+**Generator (Main):** N/A — read-only audit. No code mutation.
+**Verifier:** 13/14 PASS at Q/A spawn time. Single FAIL: `harness_log_has_phase_24_24_1_cycle_entry` (expected log-last gating signal). Now 14/14 after this append.
+**Q/A verdict:** PASS (first spawn; 0 prior verdicts; no verdict-shopping). 5/5 harness-compliance items CONFIRM. 5/5 LLM-judgment legs satisfactory: anti-rubber-stamp confirms `signals_server.check_stop_loss` at line 1052 surfaced in Open Q #3; scope-honesty acknowledges 5-vs-6 stop-less count ambiguity; research-gate compliance verbatim.
+
+**Hypothesis verdict:** CONFIRMED. All four sub-hypotheses validated: orphan stop, 6 positions no-stop, TER no-sell, governance gap. Bug-closure path: candidates 25.1 + 25.2 close the user-impactful bug in one phase-25 pair.
+
+**Phase-24.1 status -> done.** Next cycle: bucket 24.4 (P0 — agent rationale aliasing) per audit priority order.
