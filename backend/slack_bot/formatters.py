@@ -624,6 +624,58 @@ def format_accuracy_report(
     return blocks
 
 
+def format_trade_confirmation(trade: dict) -> list[dict]:
+    """phase-25.J: format a paper-trade confirmation as Block Kit blocks.
+
+    Receives the trade dict shape returned by `paper_trader.execute_buy/sell`:
+        {trade_id, ticker, action, quantity, price, total_value,
+         transaction_cost, reason, created_at, ...}
+
+    Closes phase-24.5 audit F-5(a) — no send_trade_confirmation existed.
+    Special-cases reason='stop_loss_trigger' with a rotating-light icon so
+    operators immediately recognize 25.1-driven stop sells.
+    """
+    action = str(trade.get("action") or "TRADE").upper()
+    ticker = str(trade.get("ticker") or "?")
+    quantity = float(trade.get("quantity") or 0.0)
+    price = float(trade.get("price") or 0.0)
+    total_value = float(trade.get("total_value") or 0.0)
+    reason = str(trade.get("reason") or "n/a")
+
+    is_stop_loss = reason == "stop_loss_trigger"
+    icon = ":rotating_light:" if is_stop_loss else (
+        ":chart_with_upwards_trend:" if action == "BUY"
+        else ":chart_with_downwards_trend:"
+    )
+
+    title = f"{icon} {action} {ticker}"
+    if is_stop_loss:
+        title = f"{icon} STOP-LOSS TRIGGERED: SELL {ticker}"
+
+    blocks: list[dict] = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": _truncate(title, 150), "emoji": True},
+        },
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Quantity:* {quantity:.4f}"},
+                {"type": "mrkdwn", "text": f"*Price:* ${price:.4f}"},
+                {"type": "mrkdwn", "text": f"*Total Value:* ${total_value:,.2f}"},
+                {"type": "mrkdwn", "text": f"*Reason:* {_truncate(reason, 80)}"},
+            ],
+        },
+    ]
+    trade_id = trade.get("trade_id")
+    if trade_id:
+        blocks.append({
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": f"trade_id: `{trade_id}`"}],
+        })
+    return blocks
+
+
 def format_escalation_alert(
     severity: str,
     title: str,

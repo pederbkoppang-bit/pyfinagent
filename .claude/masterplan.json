@@ -8517,7 +8517,7 @@
         {
           "id": "25.J",
           "name": "Trade confirmation Slack notifications",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "25.1",

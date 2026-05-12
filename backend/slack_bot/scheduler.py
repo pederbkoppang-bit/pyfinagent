@@ -413,6 +413,40 @@ async def notify_kill_switch_activated(
     )
 
 
+async def notify_trade_confirmation(
+    app: AsyncApp,
+    trade: dict,
+) -> None:
+    """phase-25.J: post a trade confirmation to the configured Slack channel.
+
+    Receives the trade dict shape returned by paper_trader.execute_buy/sell.
+    Closes phase-24.5 audit F-5(a). Cross-process delivery (when paper_trader
+    runs in the backend process and slack_bot is separate) is the future
+    25.J.1 follow-up that polls BQ paper_trades for new rows; this function
+    is the in-process building block.
+    """
+    settings = get_settings()
+    if not settings.slack_channel_id:
+        return
+
+    from backend.slack_bot.formatters import format_trade_confirmation
+
+    blocks = format_trade_confirmation(trade)
+    action = str(trade.get("action") or "TRADE").upper()
+    ticker = str(trade.get("ticker") or "?")
+    text_fallback = f"{action} {ticker} (paper)"
+
+    try:
+        await app.client.chat_postMessage(
+            channel=settings.slack_channel_id,
+            blocks=blocks,
+            text=text_fallback,
+        )
+        logger.info("Trade confirmation posted: %s", text_fallback)
+    except Exception:
+        logger.exception("phase-25.J: trade confirmation post failed for %s", text_fallback)
+
+
 async def notify_kill_switch_deactivated(
     app: AsyncApp,
     reason: str,

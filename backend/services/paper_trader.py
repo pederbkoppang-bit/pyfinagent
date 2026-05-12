@@ -8,7 +8,7 @@ import json
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Callable, Optional
 
 import yfinance as yf
 
@@ -32,9 +32,25 @@ logger = logging.getLogger(__name__)
 class PaperTrader:
     """Virtual trade execution engine backed by BigQuery."""
 
-    def __init__(self, settings: Settings, bq_client: BigQueryClient):
+    def __init__(self, settings: Settings, bq_client: BigQueryClient,
+                 trade_notifier: "Optional[Callable[[dict], None]]" = None):
         self.settings = settings
         self.bq = bq_client
+        # phase-25.J: optional hook invoked after every successful trade.
+        # Receives the persisted trade dict. Used by Slack/operator-alert
+        # wiring. None by default (no behavior change for callers that
+        # don't need notification). Failures inside the hook are caught
+        # and logged so they never break trade execution.
+        self.trade_notifier = trade_notifier
+
+    def _maybe_notify_trade(self, trade: dict) -> None:
+        """phase-25.J: best-effort dispatch to the optional trade_notifier."""
+        if self.trade_notifier is None:
+            return
+        try:
+            self.trade_notifier(trade)
+        except Exception as e:
+            logger.exception("phase-25.J: trade_notifier hook failed (non-fatal): %s", e)
 
     # ── Portfolio State ──────────────────────────────────────────
 
@@ -237,6 +253,8 @@ class PaperTrader:
 
         logger.info(f"BUY {quantity:.4f} x {ticker} @ ${exec_price:.2f} "
                     f"(source={exec_source}) = ${quantity*exec_price:.2f} (fee: ${tx_cost:.2f})")
+        # phase-25.J: fire trade_notifier hook (Slack confirmation when wired)
+        self._maybe_notify_trade(trade)
         return trade
 
     def execute_sell(
@@ -364,6 +382,10 @@ class PaperTrader:
         self._update_portfolio_cash(new_cash)
 
         logger.info(f"SELL {sell_qty:.4f} x {ticker} @ ${price:.2f} = ${sell_value:.2f} (fee: ${tx_cost:.2f})")
+        # phase-25.J: fire trade_notifier hook (Slack confirmation when wired).
+        # Stop-loss-trigger sells (from autonomous_loop Step 5.6 via 25.1) also
+        # flow through this notifier since they use the same execute_sell path.
+        self._maybe_notify_trade(trade)
         return trade
 
     # ── Mark-to-Market ───────────────────────────────────────────

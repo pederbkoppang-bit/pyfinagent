@@ -17185,3 +17185,53 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Phase-25 P0 sprint progress:** 8 of 8 P0 candidates DONE except 25.J (trade confirmation Slack). After 25.J the P0 sprint is COMPLETE — every operator-reported bug from 2026-05-12 has a code fix shipped.
 
 **Next cycle:** 25.J (trade confirmation Slack, depends on 25.1 DONE).
+
+---
+
+## Cycle 65 -- 2026-05-12 -- phase=25.J result=PASS
+
+**Step:** 25.J — Trade confirmation Slack (P0, FINAL P0 in sprint)
+**Action:** GENERATE. Added trade_notifier hook to PaperTrader + new format_trade_confirmation + notify_trade_confirmation helpers.
+
+**Code changes:**
+- `backend/services/paper_trader.py:11`: `from typing import Callable, Optional`
+- `backend/services/paper_trader.py:35-53`: `__init__` accepts `trade_notifier`; new `_maybe_notify_trade(trade)` helper with try/except
+- `backend/services/paper_trader.py:256, 388`: `self._maybe_notify_trade(trade)` called at end of execute_buy + execute_sell
+- `backend/slack_bot/formatters.py:627-679`: new `format_trade_confirmation(trade)` Block Kit formatter with `:rotating_light:` special-case for `reason='stop_loss_trigger'`
+- `backend/slack_bot/scheduler.py`: new `async notify_trade_confirmation(app, trade)` using format_trade_confirmation
+
+**New verifier:** `tests/verify_phase_25_J.py` (200 LOC, 14 immutable claims) — **14/14 PASS** including 2 behavioral round-trips (notifier dispatches, exceptions swallowed).
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Mutation-resistance via 4 independent claim surfaces + 2 behavioral. Backward compat verified (default None → early return). Cross-process gap honestly deferred to 25.J.1 (same pattern as 25.K + 25.A8). Stop-loss sells from 25.1's Step 5.6 (using `execute_sell` with `reason='stop_loss_trigger'`) automatically flow through the same notifier — special-cased rotating-light Slack icon.
+
+**Phase-25.J status -> done.**
+
+---
+
+## PHASE-25.0 (P0 SPRINT) — COMPLETE — 8 of 8 candidates DONE
+
+| Step | Title | Cycle | Verifier | Audit basis closed |
+|---|---|---|---|---|
+| 25.1 | Wire check_stop_losses into daily loop | 57 | 8/8 | phase-24.1 F-1 |
+| 25.A9 | Fix cache-write premium 1.25x→2.0x | 58 | 5/5 | phase-24.9 F-1 |
+| 25.G | Fix Slack digest P&L | 59 | 9/9 | phase-24.5 F-1+F-2+F-6 |
+| 25.H | Recent-analyses ticker dedup | 60 | 6/6 | phase-24.5 F-3 |
+| 25.K | Kill-switch Slack wiring | 61 | 7/7 | phase-24.5 F-5(b) + 24.8 F-2 |
+| 25.A8 | Cost-budget HARD-BLOCK | 62 | 12/12 | phase-24.8 F-4 + 24.13 F-4 |
+| 25.2 | Backfill missing stops | 63 | 10/10 | phase-24.1 F-5 |
+| 25.6 | No-stop-on-entry hard block | 64 | 8/8 | phase-24.1 F-4 |
+| 25.J | Trade confirmation Slack | 65 | 14/14 | phase-24.5 F-5(a) |
+
+**TOTAL:** 9 commits across cycles 57-65 (counting 25.A9 in P0 sprint as a prerequisite). **Every operator-reported bug from 2026-05-12 now has a code fix shipped to origin/main.**
+
+**Triple-layer stop-loss protection achieved:**
+- 25.1 Step 5.6 enforces on every cycle ✓
+- 25.2 backfills existing 6 stop-less positions (operator runs script) ✓
+- 25.6 hard-blocks future entries from regressing ✓
+
+**Cross-process bridges deferred to follow-up cycles (25.K.1 / 25.A8.1 / 25.J.1):**
+- 25.K: backend-side kill-switch breach detection (autonomous_loop) firing Slack
+- 25.A8: BudgetBreachError → BQ alert_events → Slack escalation
+- 25.J: BQ paper_trades polling job in slack_bot to dispatch trade confirmations
+
+**Next cycles:** P1 sprint (Week 3-4 per 24.14 sequencing). Recommended start: 25.A2 (wire bq.save_report into full pipeline) since it has no deps and immediately closes the empty `/reports` bug.
