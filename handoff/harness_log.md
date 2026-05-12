@@ -17135,3 +17135,24 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Phase-25 P0 sprint progress:** 6 of 8 P0 candidates done (25.1 ✓, 25.G ✓, 25.H ✓, 25.K ✓, 25.A9 ✓ prerequisite, 25.A8 ✓). Remaining P0: 25.2 + 25.6 (depend on 25.1) + 25.J (depend on 25.1).
 
 **Next cycle:** 25.2 (backfill missing stops; depends on 25.1 DONE).
+
+---
+
+## Cycle 63 -- 2026-05-12 -- phase=25.2 result=PASS
+
+**Step:** 25.2 — Backfill missing stops with same-cycle re-check (P0; depends on 25.1 DONE)
+**Action:** GENERATE. New `PaperTrader.backfill_missing_stops()` method + one-shot operator script + verifier with behavioral round-trip.
+
+**Code changes:**
+- `backend/services/paper_trader.py`: new 74-LOC `backfill_missing_stops(default_pct=None) -> dict` method. Iterates open positions, skips if stop_loss_price already set OR avg_entry_price unavailable, otherwise computes `stop = entry * (1 - default_pct/100)` and persists via `bq.save_paper_position`. Returns `{backfilled, skipped, count_backfilled, count_skipped}`.
+- `scripts/maintenance/backfill_stops.py`: new 87-LOC one-shot operator script. Lists stop-less positions with projected stop + current price + "WILL TRIGGER STOP NEXT CYCLE" flag. Interactive [y/N] confirm; `--yes` for CI.
+
+**New verifier:** `tests/verify_phase_25_2.py` (170 LOC, 10 immutable claims) — **10/10 PASS** including behavioral round-trip via MagicMock asserting math (100 × 0.92 = 92.0) and idempotency (skip-if-stop-set).
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Mutation-resistance: 3 independent claims (method def + formula + save_paper_position call) + behavioral round-trip. Same-cycle re-check honestly disclosed as IMPLICIT via 25.1's Step 5.6 enforcement (delegation, not duplication — the next autonomous cycle picks up the newly-set stops automatically).
+
+**Phase-25.2 status -> done.** Closes phase-24.1 F-5 (6 stop-less positions). Once operator runs `python scripts/maintenance/backfill_stops.py --yes`, the very next autonomous cycle's Step 5.6 (25.1) will sell TER (-12.30% < $92 stop) and any other positions below their newly-set 8% stop.
+
+**Phase-25 P0 sprint progress:** 7 of 8 P0 candidates done. Remaining: 25.6 (depends on 25.1 DONE) + 25.J (depends on 25.1 DONE).
+
+**Next cycle:** 25.6 (no-stop-on-entry hard block).

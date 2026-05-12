@@ -422,6 +422,75 @@ class PaperTrader:
                 triggered.append(pos["ticker"])
         return triggered
 
+    def backfill_missing_stops(self, default_pct: float | None = None) -> dict:
+        """phase-25.2: backfill stop_loss_price for positions where it is None.
+
+        For each open position with `stop_loss_price` None/missing, compute
+        `stop = avg_entry_price * (1 - default_pct / 100)` and persist via
+        `save_paper_position`. Closes phase-24.1 audit finding F-5: 6 of 11
+        current positions (ON, INTC, TER, DELL, GLW, CIEN) pre-date the
+        phase-23.1.8 entry-path fallback and have stop_loss_price=None.
+
+        Args:
+            default_pct: stop percentage below entry. Defaults to
+                `settings.paper_default_stop_loss_pct` (8.0 per O'Neil
+                canonical + arxiv 2604.27150 finding).
+
+        Returns:
+            {
+              "backfilled": [list of {ticker, entry_price, stop_loss_price}],
+              "skipped":    [list of tickers that already had stops],
+              "count_backfilled": N,
+              "count_skipped": M,
+            }
+        """
+        if default_pct is None:
+            default_pct = float(getattr(self.settings, "paper_default_stop_loss_pct", 8.0))
+
+        positions = self.get_positions()
+        backfilled: list[dict] = []
+        skipped: list[str] = []
+
+        for pos in positions:
+            ticker = pos.get("ticker")
+            if not ticker:
+                continue
+            if pos.get("stop_loss_price"):
+                skipped.append(ticker)
+                continue
+            entry_price = float(pos.get("avg_entry_price") or 0.0)
+            if entry_price <= 0:
+                logger.warning(
+                    "backfill_missing_stops: %s has avg_entry_price=%s; cannot compute stop -- skipping",
+                    ticker, entry_price,
+                )
+                skipped.append(ticker)
+                continue
+            stop_loss_price = round(entry_price * (1.0 - default_pct / 100.0), 4)
+            # Preserve existing position row and only mutate the stop field.
+            updated = {**pos, "stop_loss_price": stop_loss_price}
+            try:
+                self.bq.save_paper_position(updated)
+                backfilled.append({
+                    "ticker": ticker,
+                    "entry_price": entry_price,
+                    "stop_loss_price": stop_loss_price,
+                })
+                logger.warning(
+                    "phase-25.2: backfilled stop_loss_price=%.4f for %s (entry %.4f, %.1f%% below)",
+                    stop_loss_price, ticker, entry_price, default_pct,
+                )
+            except Exception as e:
+                logger.exception("backfill_missing_stops save_paper_position failed for %s: %s", ticker, e)
+                skipped.append(ticker)
+
+        return {
+            "backfilled": backfilled,
+            "skipped": skipped,
+            "count_backfilled": len(backfilled),
+            "count_skipped": len(skipped),
+        }
+
     # ── Snapshot ─────────────────────────────────────────────────
 
     def save_daily_snapshot(self, trades_today: int = 0, analysis_cost_today: float = 0.0) -> dict:

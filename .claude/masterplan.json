@@ -8430,7 +8430,7 @@
         {
           "id": "25.2",
           "name": "Backfill missing stops with same-cycle re-check",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "25.1",
