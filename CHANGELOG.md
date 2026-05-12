@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `b6a2a35f` | phase-24.4: Agent topology + per-agent rationale flow audit (Trader/RiskJudge byte-identical text... |
 | 2026-05-12 | `30b4de6c` | phase-24.1: Trading-execution + governance audit (stop-loss orphan, missing-stops-on-entry, zero-... |
 | 2026-05-12 | `a17c85d6` | phase-24.0: Phase-24 audit charter + red-line invariants (gates 24.1-24.13) |
 | 2026-05-12 | `52e565d6` | phase-23.8.4: Auto-commit hook auto-fire diagnostic: add invocation debug log + preserve `if` pre... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-07 | `ad4e8b57` | phase-23.3.1: main APScheduler audit -- name + id labels for /cron |
 | 2026-05-07 | `caa3ad49` | phase-23.3.0: Q/A roster verification + masterplan phase-23.3 audit plan |
 | 2026-05-07 | `39141ec3` | phase-23.2.24: fix Rules-of-Hooks bug + harden Q/A with ESLint coverage |
-| 2026-05-07 | `0f1e6379` | phase-23.2.23: Cron / Logs operator dashboard page + endpoints |
 
 ---
 
+### v6.7.2 — phase-24.4: Agent topology + per-agent rationale flow audit (Trader/R... (2026-05-12)
+
+- **phase-24.4: Agent topology + per-agent rationale flow audit (Trader/RiskJudge byte-identical text...**
 ### v6.7.1 — phase-24.1: Trading-execution + governance audit (stop-loss orphan, m... (2026-05-12)
 
 - **phase-24.1: Trading-execution + governance audit (stop-loss orphan, missing-stops-on-entry, zero-...**
