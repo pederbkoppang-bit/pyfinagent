@@ -16634,3 +16634,35 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. F-1..F-7 all present. Anti-rubber-stamp validates honest hypothesis correction (F-2 BOTH paths fail) and skill-count discrepancy disclosure (F-5).
 
 **Phase-24.2 status -> done.** Next cycle: bucket 24.3 (P1 — autoresearch daily-loop wiring).
+
+---
+
+## Cycle 47 -- 2026-05-12 -- phase=24.3 result=PASS
+
+**Step:** 24.3 — Autoresearch ↔ daily-loop wiring audit (P1)
+**Action:** READ-ONLY. Findings + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=complex; 6 sources: Anthropic MAS + harness-design, Snowflake champion-challenger, MLOps Feb 2026, DataRobot, arxiv 2512.02227).
+
+**Findings (hypothesis CONFIRMED with severe corollaries):**
+- Zero cross-module imports between `autoresearch/`+`meta_evolution/` and `autonomous_loop.py` (grep verified)
+- Sunday `meta_evolution/cron.py:87-152` cron is YAML-only (cron_allocator + provider_rebalancer + archetype_library)
+- `friday_promotion.py:121-131` writes flat TSV `weekly_ledger.tsv` with no listener
+- `monthly_champion_challenger.py:76` hard-codes `actual_replacement: False`
+- `autoresearch/cron.py:29-38` registers `func=lambda: None` — nightly cron is stub
+- `optimizer_best.json` (only daily-loop wire) has no scheduled writer
+- `alpha_velocity` BQ writes never read — orphan table
+- Industry consensus (Snowflake/DataRobot/Databricks): registry-alias polling pattern
+
+**Phase-25 candidates (6):**
+1. 25.A3 (P0) — Write `pyfinagent_data.promoted_strategies` BQ table on Friday
+2. 25.B3 (P0) — `load_promoted_params()` queries BQ at cycle start
+3. 25.C3 (P1) — Strategy registry with `status` field + flip `actual_replacement`
+4. 25.D3 (P1) — Shadow challenger (20% A/B) in daily cycle
+5. 25.E3 (P1) — Wire `rollback.py` → BQ + Slack escalation
+6. 25.F3 (P1) — Replace `autoresearch/cron.py` stub with real APScheduler wiring
+
+**Verifier:** 11/12 PASS at Q/A spawn; log-last only FAIL. Now 12/12 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest `SkillOptimizer` naming-gap disclosure (verifier anchor name doesn't exist in repo; functional equivalent is autoresearch proposer/gate/promoter chain).
+
+**Phase-24.3 status -> done.** Next cycle: bucket 24.7 (P1 — data quality + BQ freshness + yfinance fallback).
