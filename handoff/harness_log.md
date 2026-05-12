@@ -16760,3 +16760,32 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest WORKING-vs-GAPS partition.
 
 **Phase-24.10 status -> done.** Next cycle: bucket 24.11 (P2 — frontend↔backend wiring).
+
+---
+
+## Cycle 51 -- 2026-05-12 -- phase=24.11 result=PASS
+
+**Step:** 24.11 — Frontend↔Backend wiring data-layer audit (P2)
+**Action:** READ-ONLY. Findings + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=moderate; 5 sources: Next.js data fetching, React useEffect docs, TanStack Query, FastAPI client codegen, pydantic-to-typescript).
+
+**Findings (hypothesis CONFIRMED):**
+- 119 backend routes (main.py:379-413) vs 83 frontend api.ts functions
+- Orphan: `/paper-trading/learnings/page.tsx:6-9` says "Live data hookup lands in a follow-up backend step"; no `/api/paper-trading/learnings` route; `VirtualFundLearnings` component renders empty-state only
+- Type drift at 2 minor points: ReportSummary.analysis_date (datetime/string — benign); SynthesisReport enrichment (Pydantic Optional[dict] vs TS fully-typed — TS more precise; codegen-from-Pydantic would REGRESS)
+- 7 `unknown` return types in api.ts defeat type safety (getReport, getSignal, getMacroIndicators, getPaperCyclesHistory, getPaperLivePrices, runBacktest, runDataIngestion)
+- Stray types: `GoLiveGate` exported from component; sovereign interfaces inline in api.ts:568-709
+- Auth correctly propagated via `apiFetch` Bearer middleware
+
+**Phase-25 candidates (5):**
+1. 25.A11 (P1) — Wire learnings backend (new `/api/paper-trading/learnings` route)
+2. 25.B11 (P2) — OpenAPI-based TS codegen with override layer for drift prevention
+3. 25.C11 (P2) — Consolidate stray types into types.ts
+4. 25.D11 (P2) — Replace 7 `unknown` return types with concrete interfaces
+5. 25.E11 (P2) — TanStack Query migration for `/paper-trading` page
+
+**Verifier:** 13/14 PASS at Q/A spawn; log-last only FAIL. Now 14/14 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates codegen-regression nuance for F-2.
+
+**Phase-24.11 status -> done.** Next cycle: bucket 24.12 (P2 — frontend UI/UX presentation).

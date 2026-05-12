@@ -8262,7 +8262,7 @@
         {
           "id": "24.11",
           "name": "Frontend<->Backend wiring data layer audit (types, drift, API contract, learnings-page hookup)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "24.0",
