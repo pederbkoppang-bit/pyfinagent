@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `9c5eb8ad` | phase-25.A: Decouple RiskJudge with independent LLM call in lite path |
 | 2026-05-12 | `48b7b29a` | phase-25.A11: Wire /paper-trading/learnings backend endpoint |
 | 2026-05-12 | `1c38721d` | phase-25.B12: Missing-states + tab-icon sweep across degraded pages |
 | 2026-05-12 | `436f2e10` | phase-25.A2: Wire bq.save_report() into full pipeline persistence |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `58fdc820` | phase-24.6: Backtest engine + walk-forward + quant optimizer + live-vs-backtest reconciliation audit |
 | 2026-05-12 | `0445d55e` | phase-24.12: Frontend UI/UX presentation-layer audit (design system, accessibility, responsive, p... |
 | 2026-05-12 | `958c0680` | phase-24.11: Frontend<->Backend wiring data layer audit (types, drift, API contract, learnings-pa... |
-| 2026-05-12 | `db1aaea2` | phase-24.10: MCP infrastructure + permissions + security audit (auth, secrets, deny rules, new-MC... |
 
 ---
 
+### v6.7.28 — phase-25.A: Decouple RiskJudge with independent LLM call in lite path (2026-05-12)
+
+- **phase-25.A: Decouple RiskJudge with independent LLM call in lite path**
 ### v6.7.27 — phase-25.A11: Wire /paper-trading/learnings backend endpoint (2026-05-12)
 
 - **phase-25.A11: Wire /paper-trading/learnings backend endpoint**
