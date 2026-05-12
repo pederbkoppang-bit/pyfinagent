@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `0445d55e` | phase-24.12: Frontend UI/UX presentation-layer audit (design system, accessibility, responsive, p... |
 | 2026-05-12 | `958c0680` | phase-24.11: Frontend<->Backend wiring data layer audit (types, drift, API contract, learnings-pa... |
 | 2026-05-12 | `db1aaea2` | phase-24.10: MCP infrastructure + permissions + security audit (auth, secrets, deny rules, new-MC... |
 | 2026-05-12 | `e8b660e4` | phase-24.8: Observability + monitoring + safety rails audit (watchdog, kill-switch, SLA, governan... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-11 | `75c6b130` | fix(hooks): retry git add -A once + capture stderr in auto-commit-and-push |
 | 2026-05-11 | `5b1b453f` | phase-23.7.0: Auto-commit-and-push pipeline + semver-aware changelog (per-step trigger) |
 | 2026-05-11 | `2301b977` | phase-23.6: harness MAS cycles 23.6.0-23.6.3 + observability follow-up |
-| 2026-05-07 | `f8b5e181` | phase-23.3.6: /cron UI verification + phase-23.3 consolidation |
 
 ---
 
+### v6.7.10 — phase-24.12: Frontend UI/UX presentation-layer audit (design system,... (2026-05-12)
+
+- **phase-24.12: Frontend UI/UX presentation-layer audit (design system, accessibility, responsive, p...**
 ### v6.7.9 — phase-24.11: Frontend<->Backend wiring data layer audit (types, drift... (2026-05-12)
 
 - **phase-24.11: Frontend<->Backend wiring data layer audit (types, drift, API contract, learnings-pa...**
