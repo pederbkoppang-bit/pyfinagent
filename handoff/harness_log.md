@@ -16697,3 +16697,34 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates F-2 honestly surfacing the `pyfinagent_hdw` doc-vs-code surprise.
 
 **Phase-24.7 status -> done.** Next cycle: bucket 24.8 (P1 — observability + safety rails).
+
+---
+
+## Cycle 49 -- 2026-05-12 -- phase=24.8 result=PASS
+
+**Step:** 24.8 — Observability + monitoring + safety rails audit (P1)
+**Action:** READ-ONLY. Findings + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=complex; 6 sources: harness-design, Google SRE Book monitoring, arxiv 2511.13725 AutoGuard, MS Agent Governance Toolkit April 2026, Sakura Sky kill-switch primitives, fahimulhaq practitioner post).
+
+**Working rails (verified):**
+- Kill-switch reachable from `OpsStatusBar.tsx:96-130` (PAUSE/RESUME/FLATTEN_ALL)
+- Auto-pause + Slack alert at `kill_switch.py:144-156`
+- Watchdog fires `kickstart -k` + Slack — `handoff/logs/backend-watchdog.log` shows 3 restarts in 12 days
+
+**Critical gaps:**
+- Cost budget `tripped=True` flag is honor-system only — `llm_client.py` has zero budget checks before LLM calls
+- SLA escalation uses `imsg` binary (macOS-specific) with no Slack fallback
+- Governance watcher `os._exit(2)` at `limits_loader.py:156` with no pre-exit Slack alert
+
+**Phase-25 candidates (5):**
+1. 25.A8 (P0) — Cost-budget HARD-BLOCK in `llm_client.py`
+2. 25.B8 (P1) — SLA Slack fallback (replace imsg-only path)
+3. 25.C8 (P1) — Governance watcher pre-exit Slack alert
+4. 25.D8 (P1) — Kill-switch `/kill-switch` Slack slash command
+5. 25.E8 (P2) — `/observability/status` aggregator endpoint
+
+**Verifier:** 14/15 PASS at Q/A spawn; log-last only FAIL. Now 15/15 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest WORKING vs CRITICAL-GAP distinction.
+
+**Phase-24.8 status -> done.** Next cycle: bucket 24.10 (P1 — MCP infrastructure + security).

@@ -8159,7 +8159,7 @@
         {
           "id": "24.8",
           "name": "Observability + monitoring + safety rails audit (watchdog, kill-switch, SLA, governance limits, cost-budget, alerting paths)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "24.0",
