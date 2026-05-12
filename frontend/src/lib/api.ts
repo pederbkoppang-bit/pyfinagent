@@ -289,6 +289,13 @@ export function getPaperPerformance(): Promise<PaperPerformance> {
   return apiFetch("/api/paper-trading/performance");
 }
 
+// phase-25.A11 -- virtual-fund learnings summary (closes orphan UI page)
+export function getPaperLearnings(
+  windowDays = 30,
+): Promise<import("./types").VirtualFundLearningsData> {
+  return apiFetch(`/api/paper-trading/learnings?window_days=${windowDays}`);
+}
+
 export function triggerPaperTradingCycle(): Promise<{ status: string; message: string }> {
   return apiFetch("/api/paper-trading/run-now", { method: "POST" });
 }

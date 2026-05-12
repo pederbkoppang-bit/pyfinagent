@@ -1144,3 +1144,32 @@ export interface LogTailResponse {
   total_size_bytes: number;
   exists: boolean;
 }
+
+export interface ReconciliationDivergence {
+  symbol: string;
+  side: "buy" | "sell";
+  paper_fill: number;
+  sim_fill: number;
+  drift_pct: number;
+  ts: string;
+}
+
+export interface KillSwitchTrigger {
+  reason: string;
+  count: number;
+}
+
+export interface RegimeBucket {
+  regime: string;
+  n_trades: number;
+  return_pct: number;
+  sharpe: number | null;
+}
+
+export interface VirtualFundLearningsData {
+  reconciliation_divergences: ReconciliationDivergence[];
+  kill_switch_triggers: KillSwitchTrigger[];
+  regime_buckets: RegimeBucket[];
+  window_days?: number;
+  collected_at?: string;
+}

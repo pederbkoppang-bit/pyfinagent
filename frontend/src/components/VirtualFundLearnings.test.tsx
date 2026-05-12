@@ -1,9 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
-import {
-  VirtualFundLearnings,
-  type VirtualFundLearningsData,
-} from "./VirtualFundLearnings";
+import { VirtualFundLearnings } from "./VirtualFundLearnings";
+import type { VirtualFundLearningsData } from "@/lib/types";
 
 // 15 divergences -- component should render the TOP 10 by abs drift.
 const MANY_DIVERGENCES = Array.from({ length: 15 }, (_, i) => ({

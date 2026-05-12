@@ -8802,7 +8802,7 @@
         {
           "id": "25.A11",
           "name": "Wire /paper-trading/learnings backend endpoint",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8819,7 +8819,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Closes orphan UI page surfaced by bucket 24.11."
+          "notes": "Closes orphan UI page surfaced by bucket 24.11. Cycle 68 PASS first-spawn. 10/10 verifier (incl. behavioral round-trip). Frontend tsc+eslint clean. regime_buckets=[] first-pass intentional + documented gap (no per-trade regime column on paper_trades yet)."
         },
         {
           "id": "25.B12",

@@ -3,8 +3,10 @@ Paper Trading API — endpoints for autonomous virtual fund management.
 """
 
 import asyncio
+import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -549,6 +551,126 @@ async def get_reconciliation():
     bq = BigQueryClient(settings)
     result = await asyncio.to_thread(compute_reconciliation, bq)
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:reconciliation"])
+    return result
+
+
+# phase-25.A11: kill-switch audit JSONL location, mirrored from
+# backend/services/kill_switch.py::_AUDIT_PATH. Reading is local-file only,
+# no BQ required.
+_KILL_SWITCH_AUDIT_PATH = Path(__file__).resolve().parents[2] / "handoff" / "kill_switch_audit.jsonl"
+
+
+def _compute_learnings(bq: BigQueryClient, window_days: int) -> dict:
+    """phase-25.A11: build the VirtualFundLearningsData response shape.
+
+    Three sections, each independent so a failure in one does not nuke the
+    other two (component already handles empty arrays gracefully):
+      1. reconciliation_divergences -- per round-trip drift between entry
+         (sim proxy) and exit (paper fill).
+      2. kill_switch_triggers -- aggregate counts from the local audit
+         JSONL filtered to event=pause within the window.
+      3. regime_buckets -- empty for first pass (no per-trade regime tag
+         column in paper_trades today; closes phase-24.11 F-1 without a
+         schema migration).
+    """
+    from collections import Counter
+    from backend.services.paper_round_trips import pair_round_trips
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+
+    # 1. Reconciliation divergences via round-trip pairing.
+    divergences: list[dict] = []
+    try:
+        trades = bq.get_paper_trades_in_window(window_days) or []
+        round_trips = pair_round_trips(trades)
+        for rt in round_trips:
+            entry_price = float(rt.get("entry_price") or 0.0)
+            exit_price = float(rt.get("exit_price") or 0.0)
+            if entry_price <= 0:
+                continue
+            drift_pct = (exit_price - entry_price) / entry_price * 100.0
+            divergences.append({
+                "symbol": rt.get("ticker"),
+                "side": "sell",
+                "paper_fill": round(exit_price, 4),
+                "sim_fill": round(entry_price, 4),
+                "drift_pct": round(drift_pct, 4),
+                "ts": rt.get("exit_date") or "",
+            })
+        divergences.sort(key=lambda d: abs(d["drift_pct"]), reverse=True)
+        divergences = divergences[:100]
+    except Exception as e:
+        logger.warning("get_learnings: divergence computation failed: %s", e)
+
+    # 2. Kill-switch trigger distribution from the local audit JSONL.
+    trigger_counts: Counter = Counter()
+    try:
+        if _KILL_SWITCH_AUDIT_PATH.exists():
+            with _KILL_SWITCH_AUDIT_PATH.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if row.get("event") != "pause":
+                        continue
+                    ts_raw = row.get("ts") or row.get("timestamp")
+                    if not ts_raw:
+                        continue
+                    try:
+                        ts = datetime.fromisoformat(str(ts_raw).replace("Z", "+00:00"))
+                    except ValueError:
+                        continue
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    if ts < cutoff:
+                        continue
+                    trigger_counts[row.get("trigger") or "unknown"] += 1
+    except Exception as e:
+        logger.warning("get_learnings: kill-switch audit read failed: %s", e)
+
+    kill_switch_triggers = [
+        {"reason": reason, "count": count}
+        for reason, count in trigger_counts.most_common()
+    ]
+
+    # 3. Regime buckets -- per-trade regime tag not persisted today;
+    # documented gap, return empty array. The component empty-state
+    # already shows "No regime buckets computed yet."
+    regime_buckets: list[dict] = []
+    logger.info(
+        "get_learnings: regime_buckets empty (paper_trades has no per-trade "
+        "regime column; populate in a follow-up step)"
+    )
+
+    return {
+        "reconciliation_divergences": divergences,
+        "kill_switch_triggers": kill_switch_triggers,
+        "regime_buckets": regime_buckets,
+        "window_days": window_days,
+        "collected_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/learnings")
+async def get_learnings(window_days: int = Query(30, ge=1, le=365)):
+    """phase-25.A11: virtual-fund learnings summary for the paper-trading
+    learnings page. Three sections: reconciliation drift per round-trip,
+    kill-switch trigger distribution, and regime buckets. Closes
+    phase-24.11 F-1 (orphan UI page wired to live backend).
+    """
+    cache = get_api_cache()
+    cache_key = f"paper:learnings:{window_days}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    result = await asyncio.to_thread(_compute_learnings, bq, window_days)
+    cache.set(cache_key, result, ENDPOINT_TTLS["paper:learnings"])
     return result
 
 

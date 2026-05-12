@@ -17281,3 +17281,32 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 3 of 19 P1 candidates done (25.A9 ✓ prerequisite + 25.A2 ✓ + 25.B12 ✓).
 
 **Next cycle:** 25.A11 (wire /paper-trading/learnings backend; no deps; closes orphan UI page from phase-24.11).
+
+---
+
+## Cycle 68 -- 2026-05-12 -- phase=25.A11 result=PASS
+
+**Step:** 25.A11 -- Wire /paper-trading/learnings backend endpoint (P1)
+**Action:** GENERATE. Closes phase-24.11 audit F-1 (orphan UI page wired to live backend).
+
+**Code changes:**
+- `backend/api/paper_trading.py`: new imports (`json`, `timedelta`, `Path`); new `_KILL_SWITCH_AUDIT_PATH` constant; new `_compute_learnings(bq, window_days)` helper with per-section try/except; new `GET /learnings` route with `window_days: int = Query(30, ge=1, le=365)`.
+- `backend/db/bigquery_client.py`: new `get_paper_trades_in_window(window_days)` method with `result(timeout=30)` per CLAUDE.md rule.
+- `backend/services/api_cache.py`: `ENDPOINT_TTLS["paper:learnings"] = 300.0`.
+- `frontend/src/lib/types.ts`: appended 4 interfaces (`ReconciliationDivergence`, `KillSwitchTrigger`, `RegimeBucket`, `VirtualFundLearningsData`) -- promoted from the component.
+- `frontend/src/components/VirtualFundLearnings.tsx`: dropped local `export interface` declarations; now `import type { VirtualFundLearningsData } from "@/lib/types"`.
+- `frontend/src/components/VirtualFundLearnings.test.tsx`: import path updated to `@/lib/types`.
+- `frontend/src/lib/api.ts`: new `getPaperLearnings(windowDays = 30)` export.
+- `frontend/src/app/paper-trading/learnings/page.tsx`: converted from static wrapper to fetch wrapper -- `useEffect` calls `getPaperLearnings(30)`, passes `data`/`loading`/`error` props to `<VirtualFundLearnings />`; stale "Live data hookup lands in a follow-up backend step" comment removed.
+
+**New verifier:** `tests/verify_phase_25_A11.py` (200+ LOC, 10 immutable claims) -- **10/10 PASS, EXIT=0**. Claim 10 is a behavioral round-trip: calls `_compute_learnings(MockBQ(), 30)` with deliberately-missing audit JSONL and asserts the locked dict shape end-to-end.
+
+**Frontend gates:** TS clean (`npx tsc --noEmit` exit 0); ESLint 0 errors, 0 warnings on touched files; existing `VirtualFundLearnings.test.tsx` 5/5 pass (type promotion source-compatible).
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Mutation-resistance via claim 10. `regime_buckets: []` first-pass behavior honestly disclosed in contract + brief + results + code (logger.info note) -- not a silent bug. Future step can add a per-trade regime column.
+
+**Phase-25.A11 status -> done.** Closes phase-24.11 F-1.
+
+**P1 sprint progress:** 4 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11).
+
+**Next cycle candidate:** 25.A6 (live-vs-backtest Sharpe reconciliation) OR 25.C12 (cross-tab Sharpe KPI reconciliation) OR 25.A (decouple RiskJudge with independent LLM call) -- pick by operator priority.

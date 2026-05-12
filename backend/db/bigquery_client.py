@@ -656,6 +656,23 @@ class BigQueryClient:
         ])
         return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
 
+    def get_paper_trades_in_window(self, window_days: int) -> list[dict]:
+        """phase-25.A11: paper_trades rows whose created_at falls within the
+        last `window_days` days. Used by /api/paper-trading/learnings to
+        compute reconciliation divergences and regime buckets without
+        pulling the full table. 30s BQ timeout per CLAUDE.md rule.
+        """
+        query = f"""
+            SELECT * FROM `{self._pt_table("paper_trades")}`
+            WHERE created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @window_days DAY)
+            ORDER BY created_at DESC
+            LIMIT 2000
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("window_days", "INT64", window_days),
+        ])
+        return [dict(r) for r in self.client.query(query, job_config=job_config).result(timeout=30)]
+
     def get_paper_trades_for_ticker_since(
         self, ticker: str, since_iso: str, action: str = "BUY",
     ) -> list[dict]:
