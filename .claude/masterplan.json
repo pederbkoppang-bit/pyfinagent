@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-12T15:05:28.000000+00:00",
+  "updated_at": "2026-05-12T18:58:02.356888+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -7894,7 +7894,7 @@
     {
       "id": "phase-24",
       "name": "Application-Wide Audit & Profit-Maximization Alignment",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-23.8"
       ],
@@ -8392,6 +8392,992 @@
           "retry_count": 0,
           "max_retries": 3,
           "notes": "Final synthesis bucket. Aggregates all 14 prior buckets' phase-25 candidates into a single ranked list with P0/P1/P2 priorities. Output: proposed phase-25 masterplan JSON entries the operator can paste into masterplan.json."
+        }
+      ]
+    },
+    {
+      "id": "phase-25",
+      "name": "Phase-24 remediation: 45 ranked code-change candidates from buckets 24.0-24.13",
+      "status": "pending",
+      "harness_required": true,
+      "summary": "Auto-generated from docs/audits/phase-24-2026-05-12/24.14-final-synthesis-findings.md (cycle 56, 2026-05-12). 8 P0 + 19 P1 + 18 P2 = 45 distinct candidates after deduplication. P0 closes every operator-reported bug from 2026-05-12 (stop-loss orphan, +$0.00 digests, 5x SNDK, missing notifications, cost-budget honor-system). P1 closes red-line goal-c (strategy switching) and goal-d (profit_per_llm_dollar observability). P2 polish (LLM cost optimization, frontend states, MCP infrastructure).",
+      "description": "Source: docs/audits/phase-24-2026-05-12/. Each step's audit_basis field back-references the originating bucket. Dependency-ordering: 25.A9 precedes 25.A8; 25.A3->25.B3->25.C3->25.R registry-alias chain; 25.A precedes 25.B; 25.1 precedes 25.2 + 25.6; 25.F3 precedes 25.A3. Sequencing per 24.14 findings doc: Week 1-2 P0 stops + Slack clusters; Week 3-4 P0 cleanup + P1 start; Week 5-8 strategy switching; Week 9-12 observability; Week 13-16 LLM optimization; Week 17+ P2 polish.",
+      "audit_basis": "phase-24 audit complete (15/15 buckets PASS, cycles 42-56, 2026-05-12). Full findings docs at docs/audits/phase-24-2026-05-12/. Final synthesis at 24.14-final-synthesis-findings.md.",
+      "gate": null,
+      "steps": [
+        {
+          "id": "25.1",
+          "name": "Wire check_stop_losses() into daily loop with auto-sell",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.1 F-1, F-2: paper_trader.py:414-423 orphan check_stop_losses; autonomous_loop.py:314 kill-switch wired but no stop-loss step",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_1.py",
+            "success_criteria": [
+              "grep_check_stop_losses_in_autonomous_loop_returns_match",
+              "unit_test_position_at_stop_triggers_execute_sell",
+              "summary_includes_stop_loss_triggered_field"
+            ],
+            "live_check": "BQ paper_trades row with reason='stop_loss_trigger' visible after next cycle"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Closes TER -12.30% no-sell. Cluster with 25.2 + 25.6."
+        },
+        {
+          "id": "25.2",
+          "name": "Backfill missing stops with same-cycle re-check",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "25.1",
+          "audit_basis": "bucket 24.1 F-5: 6 of 11 positions (ON, INTC, TER, DELL, GLW, CIEN) have stop_loss_price=None; pre-phase-23.1.8 entries",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_2.py",
+            "success_criteria": [
+              "all_open_positions_have_stop_loss_price_not_null_in_bq",
+              "ter_position_closed_or_sell_trade_with_reason_stop_loss_backfill_exists",
+              "backfill_uses_paper_default_stop_loss_pct_against_avg_entry_price"
+            ],
+            "live_check": "BQ paper_positions WHERE status='OPEN' AND stop_loss_price IS NULL returns 0 rows"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Atomic backfill + immediate check so TER sells in same run."
+        },
+        {
+          "id": "25.6",
+          "name": "No-stop-on-entry hard block in execute_buy()",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "25.1",
+          "audit_basis": "bucket 24.1 F-4: _extract_stop_loss fallback at portfolio_manager.py:288-329 only applies to NEW buys",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_6.py",
+            "success_criteria": [
+              "execute_buy_with_none_stop_loss_synthesizes_default_8pct",
+              "warning_log_emitted_when_default_stop_applied",
+              "no_new_positions_with_stop_loss_price_null_post_25_6"
+            ],
+            "live_check": "BQ paper_positions for any new position post-25.6 has stop_loss_price NOT NULL"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Database-constraint-at-app-layer; defense-in-depth."
+        },
+        {
+          "id": "25.G",
+          "name": "Fix Slack digest P&L data source (endpoint + field key)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.5 F-1, F-2: scheduler.py:235 calls /api/portfolio/performance (legacy in-memory); formatters.py:322 reads total_return_pct vs actual total_pnl_pct",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_G.py",
+            "success_criteria": [
+              "morning_digest_p_and_l_matches_paper_trading_portfolio_endpoint",
+              "evening_digest_p_and_l_matches",
+              "portfolio_slash_command_p_and_l_matches"
+            ],
+            "live_check": "Slack screenshot showing non-zero P&L in next morning digest"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Two-level bug fix in single PR: wrong endpoint + wrong field key."
+        },
+        {
+          "id": "25.H",
+          "name": "Recent-analyses ticker dedup (5x SNDK fix)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.5 F-3: bigquery_client.py:258-268 ORDER BY analysis_date DESC LIMIT 5 with no ticker dedup",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_H.py",
+            "success_criteria": [
+              "get_recent_reports_returns_at_most_one_row_per_ticker_for_limit_5",
+              "morning_digest_recent_analyses_shows_distinct_tickers"
+            ],
+            "live_check": "Slack morning digest Recent Analyses shows 5 distinct tickers"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "SQL fix: QUALIFY ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY analysis_date DESC) = 1."
+        },
+        {
+          "id": "25.J",
+          "name": "Trade confirmation Slack notifications",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "25.1",
+          "audit_basis": "bucket 24.5 F-5(a): no send_trade_confirmation function; paper_trader.execute_trade silent",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_J.py",
+            "success_criteria": [
+              "execute_buy_emits_slack_message_on_success",
+              "execute_sell_emits_slack_message_on_success",
+              "stop_loss_trigger_emits_slack_message"
+            ],
+            "live_check": "Slack post visible within 60s of next execute_buy or stop trigger"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Critical for stop-loss visibility per 25.1+25.2 wiring."
+        },
+        {
+          "id": "25.K",
+          "name": "Wire kill-switch state changes to Slack",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.5 F-5(b) + 24.8 F-2: pause_signals at scheduler.py:353-366 only logs INFO; no Slack post on kill-switch activation",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_K.py",
+            "success_criteria": [
+              "kill_switch_activate_emits_p0_slack_escalation",
+              "kill_switch_deactivate_emits_p1_slack_escalation",
+              "pause_signals_calls_send_trading_escalation_before_shutdown"
+            ],
+            "live_check": "Manual kill-switch press \u2192 Slack alert delivered within 30s"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "send_trading_escalation infrastructure exists at scheduler.py:369-423 with zero call sites."
+        },
+        {
+          "id": "25.A8",
+          "name": "Cost-budget HARD-BLOCK in llm_client.py",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "25.A9",
+          "audit_basis": "bucket 24.8 F-4 + 24.13 F-4: cost_budget.tripped tracked but llm_client.py never checks before LLM API calls; honor-system only",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A8.py",
+            "success_criteria": [
+              "llm_client_raises_budget_breach_error_when_tripped_true",
+              "autonomous_loop_catches_budget_breach_skips_cycle_emits_slack",
+              "manual_reset_via_post_cost_budget_reset_clears_block"
+            ],
+            "live_check": "Inject tripped=True via test fixture; confirm autonomous cycle skips with Slack alert"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Depends on 25.A9 for accurate cost data."
+        },
+        {
+          "id": "25.A9",
+          "name": "Fix cache-write cost premium 1.25x to 2.0x",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.9 F-1: cost_tracker.py:147 CACHE_WRITE_PREMIUM under-reports by 60% (1h TTL already opted-in at llm_client.py:773-779)",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A9.py",
+            "success_criteria": [
+              "cache_write_premium_constant_equals_2_0",
+              "cost_tracker_test_for_4096_token_write_charges_2x_base"
+            ],
+            "live_check": "Re-process recent BQ cost rows; verify cumulative cost increases by expected ratio"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Prerequisite for 25.A8."
+        },
+        {
+          "id": "25.A2",
+          "name": "Wire bq.save_report() into full pipeline persistence",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.2 F-2: orchestrator.py has zero save_report calls; full pipeline outputs evaporate; /reports empty",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A2.py",
+            "success_criteria": [
+              "grep_save_report_in_autonomous_loop_returns_match",
+              "reports_table_grows_per_full_pipeline_run",
+              "stale_comment_at_autonomous_loop_py_273_corrected"
+            ],
+            "live_check": "Frontend /reports page shows non-zero recent rows after next full-pipeline cycle"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Fixes user-reported empty /reports page."
+        },
+        {
+          "id": "25.A",
+          "name": "Decouple RiskJudge with independent LLM call in lite path",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.4 F-1: autonomous_loop.py:719 risk_assessment.reason=analysis.reason aliasing; one LLM call for both Trader and RiskJudge",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A.py",
+            "success_criteria": [
+              "risk_assessment_reasoning_distinct_from_analysis_reason",
+              "risk_weight_greater_than_zero_for_lite_path",
+              "second_llm_call_with_risk_specific_prompt_invoked"
+            ],
+            "live_check": "BQ paper_trades signals column shows distinct trader_rationale vs risk_rationale text on next cycle"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Structural fix; cosmetic patch at signal_attribution.py:131-154 removed in 25.B."
+        },
+        {
+          "id": "25.A3",
+          "name": "Write promoted strategies to pyfinagent_data.promoted_strategies BQ table",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.3 F-3: friday_promotion.py:121-131 writes only to weekly_ledger.tsv flat file with no subscriber",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A3.py",
+            "success_criteria": [
+              "bigquery_promoted_strategies_table_exists",
+              "friday_promotion_writes_row_per_promotion",
+              "schema_includes_strategy_id_params_json_dsr_pbo_status"
+            ],
+            "live_check": "BQ promoted_strategies row visible after next Friday promotion run"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Prerequisite for 25.B3, 25.C3, 25.R."
+        },
+        {
+          "id": "25.B3",
+          "name": "Daily loop reads latest promoted strategy via load_promoted_params()",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "25.A3",
+          "audit_basis": "bucket 24.3 F-6: autonomous_loop.py:33-43 reads only optimizer_best.json; no BQ promoted_strategies query",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_B3.py",
+            "success_criteria": [
+              "load_promoted_params_function_exists_in_autonomous_loop",
+              "fallback_to_optimizer_best_json_if_bq_unavailable",
+              "autonomous_cycle_logs_show_promoted_strategy_loaded"
+            ],
+            "live_check": "BQ promoted_strategies query returns active row; autonomous_loop log confirms params merged"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Depends on 25.A3 (table must exist)."
+        },
+        {
+          "id": "25.C3",
+          "name": "Strategy registry with status field; flip actual_replacement",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "25.B3",
+          "audit_basis": "bucket 24.3 F-4: monthly_champion_challenger.py:76 hard-codes actual_replacement: False",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_C3.py",
+            "success_criteria": [
+              "strategy_registry_table_has_status_field_active_shadow_retired",
+              "actual_replacement_no_longer_hardcoded_false",
+              "monthly_approval_flips_status_from_shadow_to_active"
+            ],
+            "live_check": "Monthly HITL approval test flips registry status atomically"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Industry registry-alias pattern (Snowflake/DataRobot)."
+        },
+        {
+          "id": "25.R",
+          "name": "Strategy auto-switching policy (closes red-line goal-c)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "25.C3",
+          "audit_basis": "bucket 24.13 F-3: strategy-switching mechanism does not exist; goal-c of red-line absent",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_R.py",
+            "success_criteria": [
+              "promoter_writes_registry_with_status_active_on_gate_clear",
+              "autonomous_loop_uses_registry_as_primary_strategy_source",
+              "format_strategy_switch_slack_notification_implemented"
+            ],
+            "live_check": "Live: a strategy switch event posts P0 Slack alert and is reflected in next-cycle decisions"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "FIRST-MOVER per arxiv 2503.21422 (no published trading system has this)."
+        },
+        {
+          "id": "25.Q",
+          "name": "Real-time profit_per_llm_dollar metric (closes red-line goal-d)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "25.A9",
+          "audit_basis": "bucket 24.13 F-2: sovereign_api.py:394-395 hardcoded zero LLM costs; missing pyfinagent_pms.strategy_deployments view",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_Q.py",
+            "success_criteria": [
+              "sovereign_api_compute_cost_returns_non_zero_anthropic_vertex_costs",
+              "new_api_sovereign_efficiency_endpoint_returns_profit_per_llm_dollar",
+              "metric_persisted_to_bq_for_30d_window"
+            ],
+            "live_check": "GET /api/sovereign/efficiency returns valid ratio; not hardcoded zero"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "FIRST-MOVER metric per arxiv 2503.21422 survey."
+        },
+        {
+          "id": "25.A6",
+          "name": "Explicit live-vs-backtest Sharpe reconciliation",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.6 F-3: paper_go_live_gate.py:91-94 uses NAV-divergence proxy honestly disclosed; no explicit Sharpe comparison",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A6.py",
+            "success_criteria": [
+              "new_function_compute_live_realized_sharpe_vs_backtest_exists",
+              "paper_go_live_gate_uses_explicit_sharpe_not_nav_proxy",
+              "threshold_at_30pct_per_industry_benchmark"
+            ],
+            "live_check": "Reconciliation report shows explicit live_sharpe - backtest_sharpe gap on next cycle"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Industry benchmark 20-30% live decay (arxiv 2512.12924)."
+        },
+        {
+          "id": "25.D6",
+          "name": "Planner plateau-detection lock-file enforcement",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.6 F-5: 62-experiment plateau bypassed planner Rule 1 strategy-switch",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_D6.py",
+            "success_criteria": [
+              "lock_file_strategy_switch_required_written_on_plateau",
+              "optimizer_run_endpoint_returns_409_when_lock_present",
+              "operator_action_clears_lock"
+            ],
+            "live_check": "Trigger 10 consecutive discards; confirm lock file created and next run blocked"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Prevents 62-experiment plateau recurrence."
+        },
+        {
+          "id": "25.A11",
+          "name": "Wire /paper-trading/learnings backend endpoint",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.11 F-1: orphan page with inline comment Live data hookup lands in a follow-up backend step",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A11.py",
+            "success_criteria": [
+              "new_get_api_paper_trading_learnings_endpoint_returns_data",
+              "frontend_learnings_page_renders_non_empty_states",
+              "virtualfundlearningsdata_type_in_types_ts"
+            ],
+            "live_check": "GET /api/paper-trading/learnings?window_days=30 returns valid VirtualFundLearningsData"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Closes orphan UI page surfaced by bucket 24.11."
+        },
+        {
+          "id": "25.B12",
+          "name": "Missing-states + tab-icon sweep across degraded pages",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.12 F-2 + F-3: performance/page.tsx:65-66 bare <p>; sovereign/page.tsx:63-68 silent swallow; paper-trading TABS missing icon field",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_B12.py",
+            "success_criteria": [
+              "performance_page_uses_pageskeleton_and_error_banner",
+              "sovereign_page_surfaces_redline_api_errors_in_ui",
+              "paper_trading_tabs_array_has_icon_field_for_each_tab"
+            ],
+            "live_check": "Visual check: performance loading state, sovereign error state, paper-trading tab icons all present"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Mechanical alignment with frontend-layout.md \u00a75."
+        },
+        {
+          "id": "25.C12",
+          "name": "Cross-tab Sharpe KPI reconciliation (backend authoritative)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.12 F-4: home page kpiSharpe() local computation diverges from /paper-trading perf.sharpe_ratio API",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_C12.py",
+            "success_criteria": [
+              "home_page_uses_api_sharpe_ratio_not_local_kpisharpe",
+              "paper_trading_portfolio_endpoint_returns_sharpe_ratio_field",
+              "deprecation_marker_on_kpisharpe_function"
+            ],
+            "live_check": "Home and /paper-trading show identical Sharpe ratio for same window"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Backend authoritative; cross-link bucket 24.11."
+        },
+        {
+          "id": "25.A12",
+          "name": "Playwright visual regression CI baseline",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.12 F-6: docs/audits/phase-24-2026-05-12/screenshots/ empty; no baseline images",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A12.py",
+            "success_criteria": [
+              "playwright_config_ts_exists",
+              "github_actions_visual_regression_yml_passes",
+              "screenshots_dir_populated_with_per_page_baselines"
+            ],
+            "live_check": "CI run produces visual-regression report; baseline images committed"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Masks dynamic timestamps per Ash Connolly guidance."
+        },
+        {
+          "id": "25.B9",
+          "name": "Bump system prompt above 4096-token cache threshold",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.9 F-2: llm_client.py:751-759 system prompt ~35 tokens; below threshold; cache_control silently skipped",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_B9.py",
+            "success_criteria": [
+              "system_prompt_consolidates_skill_and_schema_above_4096_tokens",
+              "usage_meta_cache_read_input_tokens_grows_post_25_B9",
+              "cache_hit_rate_proxy_increases_to_30_percent_or_higher"
+            ],
+            "live_check": "BQ cost_tracker_events show cache_read_input_tokens > 0 in cycles post-25.B9"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Combined with 25.D9 Files API for compound savings."
+        },
+        {
+          "id": "25.C9",
+          "name": "Adopt Batch API for non-interactive pipeline steps (50% savings)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.9 F-4: 28-agent pipeline calls synchronously; Batch API offers 50% flat discount",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_C9.py",
+            "success_criteria": [
+              "batchclient_wrapper_implemented_in_llm_client",
+              "steps_1_through_7_use_batchclient_in_backtest_mode_with_n_greater_than_3_tickers",
+              "cost_tracker_records_is_batch_true_for_50_percent_pricing"
+            ],
+            "live_check": "Backtest run with >3 tickers shows is_batch=True in cost_tracker_events; total cost ~50% lower"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Estimated $15-30/month savings."
+        },
+        {
+          "id": "25.D9",
+          "name": "Adopt Files API for skill markdowns (~97% token reduction)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.9 F-5: skill markdowns ~500-3000 tokens each re-injected every call; file_id reference eliminates",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_D9.py",
+            "success_criteria": [
+              "upload_file_function_in_llm_client",
+              "skill_file_ids_loaded_at_orchestrator_startup",
+              "per_cycle_skill_content_input_tokens_reduced_by_at_least_90_percent"
+            ],
+            "live_check": "BQ cost_tracker_events show ~97% reduction in skill-content input tokens post-25.D9"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Files API beta header files-api-2025-04-14."
+        },
+        {
+          "id": "25.E9",
+          "name": "Adopt native Citations; deprecate CitationAgent",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.9 F-6: multi_agent_orchestrator.py:1284-1333 runs separate Sonnet call for footnotes; native Citations does this server-side at zero extra cost",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_E9.py",
+            "success_criteria": [
+              "citations_enabled_true_on_document_content_blocks",
+              "citationagent_class_marked_deprecated",
+              "q_and_a_response_includes_citation_metadata"
+            ],
+            "live_check": "Q&A response shows inline citations without separate LLM call"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Cross-link guard at llm_client.py:874-881 (citations vs response_schema)."
+        },
+        {
+          "id": "25.A7",
+          "name": "Per-table freshness endpoint covering all 5 data tables",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.7 F-1: cycle_health.py:214-228 queries only paper_trades + paper_portfolio_snapshots; 5 historical tables unmonitored",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A7.py",
+            "success_criteria": [
+              "api_observability_freshness_returns_per_table_ages_for_5_tables",
+              "sla_bands_green_amber_red_implemented_per_table",
+              "slack_alarm_fires_on_critical_band"
+            ],
+            "live_check": "GET /api/observability/freshness response includes historical_prices + historical_fundamentals + historical_macro + signals_log + paper_portfolio_snapshots with SLA bands"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Aligns with Dataplex DQ framework."
+        },
+        {
+          "id": "25.B",
+          "name": "Remove cosmetic aliasing patch after 25.A decouples calls",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "25.A",
+          "audit_basis": "bucket 24.4 F-2: signal_attribution.py:131-154 is_lite_dup detection becomes dead code after 25.A",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_B.py",
+            "success_criteria": [
+              "is_lite_dup_branch_removed_from_signal_attribution",
+              "lite_path_amber_badge_removed_from_frontend"
+            ],
+            "live_check": "Code review: no is_lite_dup references in main branch post-25.B"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.C",
+          "name": "Surface Layer-1 28-skill outputs in drawer when full pipeline runs",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.4 F-4: full Gemini pipeline computes 28-skill outputs but extract_signals_from_analysis ignores them",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_C.py",
+            "success_criteria": [
+              "signal_attribution_extracts_layer1_skill_keys",
+              "drawer_renders_layer1_skills_sub_tree_when_full_pipeline_ran",
+              "gate_on_settings_lite_mode_false"
+            ],
+            "live_check": "Drawer tree on next full-pipeline trade has layer1_skills sub-tree with >=3 entries"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.D",
+          "name": "Normalize per-agent contribution weights to 0-1 range",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.4 F-5: Trader weight 1-10 scale; RiskJudge weight 0-1; drawer mixes scales",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_D.py",
+            "success_criteria": [
+              "all_weights_normalized_to_0_to_1_in_signal_attribution",
+              "total_contribution_weight_summary_displayed_at_top_of_drawer"
+            ],
+            "live_check": "Visual: drawer shows weight 0.0-1.0 with total summary"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.E",
+          "name": "Drawer summary vs full toggle (?full=1 query param)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "25.C",
+          "audit_basis": "bucket 24.4 F-3: drawer shows only 3-5 rows; with 25.C populating layer-1 outputs, full view could have 20+ rows",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_E.py",
+            "success_criteria": [
+              "api_paper_trading_trades_trade_id_rationale_supports_full_query_param",
+              "frontend_drawer_toggle_button_implemented"
+            ],
+            "live_check": "?full=1 returns >5 signals on a full-pipeline trade"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.F",
+          "name": "Byte-identical regression test for aliasing detection",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.4 F-6: prevent re-introduction of risk=trader aliasing",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_F.py",
+            "success_criteria": [
+              "pytest_test_lite_path_byte_identical_flagged_passes",
+              "pytest_test_full_path_distinct_rationale_passes"
+            ],
+            "live_check": "pytest tests/test_signal_attribution.py passes both regression tests"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.L",
+          "name": "Drawdown alarm with tiered thresholds",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.5 F-5(c) + 24.8: /drawdown endpoint exists but no threshold-check alert wiring",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_L.py",
+            "success_criteria": [
+              "drawdown_threshold_check_in_morning_digest_or_cycle",
+              "p1_slack_alert_at_3pct_5pct_10pct_drawdown_tiers"
+            ],
+            "live_check": "Inject 5%+ drawdown via fixture; Slack alert delivered"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.M",
+          "name": "Cost-budget Slack alert wire repair (no silent fail-open)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "25.A9",
+          "audit_basis": "bucket 24.5 F-5(d): cost_budget_watcher alert_fn silently drops if wiring fails at scheduler.py:562-571",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_M.py",
+            "success_criteria": [
+              "make_alert_fn_for_budget_raises_loudly_on_wiring_error",
+              "scheduler_register_phase9_jobs_logs_error_visibly"
+            ],
+            "live_check": "Inject wiring failure; confirm error logged at WARNING+ not fail-open silent"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.N",
+          "name": "Cycle-completion summary Slack notification",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "25.A2",
+          "audit_basis": "bucket 24.5 F-5(e): no per-cycle summary post-completion; operator has no signal whether cycle succeeded",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_N.py",
+            "success_criteria": [
+              "format_cycle_summary_function_in_formatters",
+              "autonomous_loop_emits_slack_at_cycle_completion"
+            ],
+            "live_check": "Slack post after each completed autonomous cycle with duration, trades, stops, mode"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.O",
+          "name": "Error escalation Slack routing (logger.exception promotion)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.5 F-5(f): scheduler.py logger.exception sites do not promote to send_trading_escalation",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_O.py",
+            "success_criteria": [
+              "high_severity_exceptions_route_to_p1_slack",
+              "dedup_fingerprint_by_exception_class_plus_endpoint"
+            ],
+            "live_check": "Inject scheduled-job exception; Slack alert delivered with dedup"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.P",
+          "name": "Weekly autoresearch summary Slack notification",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "25.F3",
+          "audit_basis": "bucket 24.5 F-5(g): meta_evolution/cron.py Sunday run has no Slack summary post-completion",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_P.py",
+            "success_criteria": [
+              "format_autoresearch_summary_in_formatters",
+              "meta_evolution_cron_emits_slack_on_sunday_completion"
+            ],
+            "live_check": "After next Sunday cron, Slack post with champion vs challenger, promotions, regressions"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.S",
+          "name": "Daily P&L attribution report per ticker",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "25.Q",
+          "audit_basis": "bucket 24.13 F-6: SHARP arxiv finding attribution is load-bearing; no per-ticker pnl_per_cost_usd today",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_S.py",
+            "success_criteria": [
+              "per_ticker_attribution_computed_at_cycle_completion",
+              "new_api_paper_trading_attribution_endpoint_returns_per_ticker_data"
+            ],
+            "live_check": "GET /api/paper-trading/attribution?window=7d returns per-ticker pnl_usd, llm_cost_usd, pnl_per_cost_usd"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.B6",
+          "name": "Seed-stability test run + baseline commit + CI gate",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.6 F-2: random_state=42 hardcoded but handoff/data/seed_stability_results.json may be stale/absent",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_B6.py",
+            "success_criteria": [
+              "seed_stability_results_json_committed_with_baseline",
+              "github_actions_seed_stability_check_yml_passes",
+              "stddev_threshold_enforced_in_ci"
+            ],
+            "live_check": "CI run completes seed-stability test; baseline checked into repo"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.D7",
+          "name": "preload_macro() max-age guard (35-day FRED-monthly default)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.7 F-5: cache.py:184-228 has idempotency but no max-age check; stale macro silently powers backtests",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_D7.py",
+            "success_criteria": [
+              "preload_macro_checks_max_age_days_35_before_caching",
+              "warning_log_emitted_on_stale_data_refuse_to_preload"
+            ],
+            "live_check": "Inject macro data with timestamp >35 days old; preload refuses with WARNING log"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.E7",
+          "name": "yfinance_tool.get_price_history() try/except + counter",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.7 F-4: yfinance_tool.py:84-88 is completely unguarded (no try/except, no logging)",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_E7.py",
+            "success_criteria": [
+              "get_price_history_returns_error_dict_on_failure",
+              "failure_counter_incremented_and_persisted_to_bq"
+            ],
+            "live_check": "Inject yfinance rate-limit; verify error returned not propagated"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.B7",
+          "name": "yfinance fallback counter persisted to BQ + WARNING log promotion",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.7 F-3: orchestrator.py:1141 logs at INFO (suppressed at WARNING level); no counter; no Slack alarm",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_B7.py",
+            "success_criteria": [
+              "orchestrator_yfinance_fallback_logs_at_warning_level",
+              "new_bigquery_table_data_source_events_populated",
+              "counter_aggregable_for_pct_yfinance_fallback_dominance"
+            ],
+            "live_check": "BQ data_source_events table grows per cycle with yfinance_fallback rows"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.A10",
+          "name": "Alpaca MCP tool-surface smoke test + deny-list reconcile",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.10 F-2: .claude/settings.json deny list authored at adoption; no smoke test enumerates live tool surface",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_A10.py",
+            "success_criteria": [
+              "scripts_mcp_servers_smoke_test_alpaca_mcp_py_exists_and_passes",
+              "reconcile_alpaca_deny_list_py_passes_no_unauthorized_writes"
+            ],
+            "live_check": "CI smoke test enumerates Alpaca server tools and reconciles vs deny list"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.B10",
+          "name": "SecretStr migration for API keys/tokens",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "bucket 24.10 F-4: settings.py:87-92,192 plain str API keys; repr(settings) could leak in stack traces",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_B10.py",
+            "success_criteria": [
+              "anthropic_api_key_is_secretstr_type",
+              "openai_alpaca_auth_slack_keys_all_secretstr",
+              "downstream_consumers_use_get_secret_value"
+            ],
+            "live_check": "Test: repr(settings) shows '**********' for all sensitive fields"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
+        },
+        {
+          "id": "25.C7",
+          "name": "Unified /api/observability/data-freshness endpoint",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "25.A7",
+          "audit_basis": "bucket 24.7 F-1 + F-7: existing /freshness scoped to paper trading only; gap between endpoint name and coverage",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_C7.py",
+            "success_criteria": [
+              "new_route_data_freshness_in_observability_api",
+              "frontend_observability_page_renders_per_table_table_with_bands"
+            ],
+            "live_check": "GET /api/observability/data-freshness returns per-table ages with SLA bands"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": ""
         }
       ]
     }
