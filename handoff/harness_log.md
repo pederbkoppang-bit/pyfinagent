@@ -16666,3 +16666,34 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest `SkillOptimizer` naming-gap disclosure (verifier anchor name doesn't exist in repo; functional equivalent is autoresearch proposer/gate/promoter chain).
 
 **Phase-24.3 status -> done.** Next cycle: bucket 24.7 (P1 — data quality + BQ freshness + yfinance fallback).
+
+---
+
+## Cycle 48 -- 2026-05-12 -- phase=24.7 result=PASS
+
+**Step:** 24.7 — Data quality + BQ freshness + yfinance fallback hygiene audit (P1)
+**Action:** READ-ONLY. Findings + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=moderate; 6 sources: Metaplane BQ freshness, OneUptime Dataplex DQ Feb 2026, Manik Hossain 2026, OneUptime Python circuit-breakers Jan 2026, craakash yfinance 2025, GCP BigQuery best-practices).
+
+**Findings (hypothesis CONFIRMED with major surprise):**
+- `/freshness` endpoint (`cycle_health.py:214-228`) only queries 2 paper-trading tables; blind to `historical_prices`, `historical_fundamentals`, `historical_macro`, `signals_log`, plus paper portfolio snapshots
+- **Surprise**: `data_ingestion.py:34` routes historical tables to `financial_reports` dataset, NOT `pyfinagent_hdw` per CLAUDE.md. Doc-vs-code discrepancy disclosed honestly
+- `orchestrator.py:1141` yfinance fallback logs at INFO (default WARNING suppresses it) — silent
+- `yfinance_tool.py:84-88` `get_price_history()` completely unguarded (no try/except, no logging)
+- `cache.py:184-228` `preload_macro()` has idempotency guard but NO max-age check — stale macro silently powers backtests
+- `data_ingestion.py:113` `data.empty` check handles total batch failure but not per-ticker partial empties
+- `signals_log` (written every cycle at `bigquery_client.py:386-392`) is not monitored by /freshness
+
+**Phase-25 candidates (6):**
+1. 25.A7 (P1) — Per-table freshness endpoint covering all 5 data tables with SLA bands
+2. 25.B7 (P1) — yfinance-fallback counter + WARNING log + BQ persistence
+3. 25.C7 (P1) — Unified `/api/observability/data-freshness` endpoint
+4. 25.D7 (P1) — `preload_macro()` max-age guard (default 35d for FRED-monthly)
+5. 25.E7 (P1) — `yfinance_tool.get_price_history()` try/except + counter
+6. 25.F7 (P2) — Doc fix or migration: `financial_reports` vs `pyfinagent_hdw`
+
+**Verifier:** 12/13 PASS at Q/A spawn; log-last only FAIL. Now 13/13 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates F-2 honestly surfacing the `pyfinagent_hdw` doc-vs-code surprise.
+
+**Phase-24.7 status -> done.** Next cycle: bucket 24.8 (P1 — observability + safety rails).

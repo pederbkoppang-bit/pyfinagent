@@ -8127,7 +8127,7 @@
         {
           "id": "24.7",
           "name": "Data quality + BQ freshness + yfinance fallback hygiene audit",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "24.0",
