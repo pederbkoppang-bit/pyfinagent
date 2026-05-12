@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `d9d23a36` | phase-25.H: Recent-analyses ticker dedup (5x SNDK fix) |
 | 2026-05-12 | `55241e3a` | phase-25.G: Fix Slack digest P&L data source (endpoint + field key) |
 | 2026-05-12 | `7a2e2728` | phase-25.A9: Fix cache-write cost premium 1.25x to 2.0x |
 | 2026-05-12 | `c90cf57a` | phase-25.1: Wire check_stop_losses() into daily loop with auto-sell |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `b6a2a35f` | phase-24.4: Agent topology + per-agent rationale flow audit (Trader/RiskJudge byte-identical text... |
 | 2026-05-12 | `30b4de6c` | phase-24.1: Trading-execution + governance audit (stop-loss orphan, missing-stops-on-entry, zero-... |
 | 2026-05-12 | `a17c85d6` | phase-24.0: Phase-24 audit charter + red-line invariants (gates 24.1-24.13) |
-| 2026-05-12 | `52e565d6` | phase-23.8.4: Auto-commit hook auto-fire diagnostic: add invocation debug log + preserve `if` pre... |
 
 ---
 
+### v6.7.19 — phase-25.H: Recent-analyses ticker dedup (5x SNDK fix) (2026-05-12)
+
+- **phase-25.H: Recent-analyses ticker dedup (5x SNDK fix)**
 ### v6.7.18 — phase-25.G: Fix Slack digest P&L data source (endpoint + field key) (2026-05-12)
 
 - **phase-25.G: Fix Slack digest P&L data source (endpoint + field key)**
