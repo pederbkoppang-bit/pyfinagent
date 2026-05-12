@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `e9751036` | phase-25.R: Strategy auto-switching policy (closes red-line goal-c) |
 | 2026-05-12 | `b51bb893` | phase-25.C3: Strategy registry with status field; flip actual_replacement |
 | 2026-05-12 | `8a322219` | phase-25.B3: Daily loop reads latest promoted strategy via load_promoted_params() |
 | 2026-05-12 | `2a864210` | phase-25.A3: Write promoted strategies to pyfinagent_data.promoted_strategies BQ table |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `bc0777b2` | phase-24: Application-Wide Audit & Profit-Maximization Alignment |
 | 2026-05-12 | `4a5015ba` | phase-24.14: Final synthesis + ranked phase-25.x candidate list (prioritized executable code-chan... |
 | 2026-05-12 | `fce6b929` | phase-24.13: Profit-maximization red-line alignment synthesis (cost vs P&L, strategy switching, c... |
-| 2026-05-12 | `ec59be47` | phase-24.9: LLM provider conformance audit (Claude + Gemini, prompt caching, thinking, tool-use, ... |
 
 ---
 
+### v6.7.32 — phase-25.R: Strategy auto-switching policy (closes red-line goal-c) (2026-05-12)
+
+- **phase-25.R: Strategy auto-switching policy (closes red-line goal-c)**
 ### v6.7.31 — phase-25.C3: Strategy registry with status field; flip actual_replace... (2026-05-12)
 
 - **phase-25.C3: Strategy registry with status field; flip actual_replacement**
