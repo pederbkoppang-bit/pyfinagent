@@ -32,6 +32,16 @@ import { PaperReconciliationChart } from "@/components/PaperReconciliationChart"
 import { AgentRationaleDrawer } from "@/components/AgentRationaleDrawer";
 import { MfeMaeScatter } from "@/components/MfeMaeScatter";
 import { OpsStatusBar } from "@/components/OpsStatusBar";
+// phase-25.B12: tab icons via canonical barrel (no direct @phosphor-icons/react import)
+import {
+  TabPositions,
+  TabTrades,
+  TabNavChart,
+  TabRealityGap,
+  TabExitQuality,
+  TabManage,
+  type Icon,
+} from "@/lib/icons";
 import { useLivePrices } from "@/lib/useLivePrices";
 import { useLiveNav } from "@/lib/useLiveNav";
 import { useTickerMeta } from "@/lib/useTickerMeta";
@@ -380,13 +390,14 @@ function RiskMonitorCard({
 
 // ── Tab definitions ───────────────────────────────────────────────
 
-const TABS = [
-  { id: "positions", label: "Positions" },
-  { id: "trades", label: "Trades" },
-  { id: "chart", label: "NAV Chart" },
-  { id: "reality-gap", label: "Reality gap" },
-  { id: "exit-quality", label: "Exit quality" },
-  { id: "manage", label: "Manage" },
+// phase-25.B12: tab icons per frontend-layout.md §5 (closes phase-24.12 F-3)
+const TABS: { id: string; label: string; icon: Icon }[] = [
+  { id: "positions", label: "Positions", icon: TabPositions },
+  { id: "trades", label: "Trades", icon: TabTrades },
+  { id: "chart", label: "NAV Chart", icon: TabNavChart },
+  { id: "reality-gap", label: "Reality gap", icon: TabRealityGap },
+  { id: "exit-quality", label: "Exit quality", icon: TabExitQuality },
+  { id: "manage", label: "Manage", icon: TabManage },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];

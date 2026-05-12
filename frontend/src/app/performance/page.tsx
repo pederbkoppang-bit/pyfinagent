@@ -6,6 +6,8 @@ import { BentoCard } from "@/components/BentoCard";
 import { evaluateOutcomes, getPerformanceStats, getCostHistory } from "@/lib/api";
 import type { PerformanceStats, CostHistoryEntry } from "@/lib/types";
 import { IconDeepThink, TabCost } from "@/lib/icons";
+// phase-25.B12: replace bare <p> loading/error with canonical PageSkeleton + rose error banner
+import { PageSkeleton } from "@/components/Skeleton";
 
 export default function PerformancePage() {
   const [stats, setStats] = useState<PerformanceStats | null>(null);
@@ -62,8 +64,19 @@ export default function PerformancePage() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
-        {loading && <p className="text-slate-400">Loading performance data...</p>}
-        {error && <p className="text-rose-400">{error}</p>}
+        {/* phase-25.B12: canonical loading + error states per frontend.md rules */}
+        {loading && <PageSkeleton />}
+        {error && (
+          <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
+            <p className="text-sm text-rose-300">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-2 rounded-md border border-rose-500/40 px-3 py-1 text-xs text-rose-300 transition-colors hover:bg-rose-950/50"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {stats && (
           <div className="grid grid-cols-12 gap-6">

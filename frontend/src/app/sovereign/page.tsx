@@ -42,6 +42,8 @@ export default function SovereignPage() {
   const [redLineEvents, setRedLineEvents] = useState<
     { date: string; label: string; detail?: string | null }[]
   >([]);
+  // phase-25.B12: surface RedLine API failures to the UI (closes phase-24.12 F-2)
+  const [redLineError, setRedLineError] = useState<string | null>(null);
 
   // phase-10.5.4 ComputeCostBreakdown state (30d hardcoded; no selector required).
   const [costData, setCostData] = useState<ProviderCostPoint[]>([]);
@@ -59,11 +61,18 @@ export default function SovereignPage() {
         if (ignore) return;
         setRedLineSeries(d.series ?? []);
         setRedLineEvents(d.events ?? []);
+        setRedLineError(null);
       })
-      .catch(() => {
+      .catch((err) => {
         if (ignore) return;
+        // phase-25.B12: surface RedLine API failure to UI, not silently swallow.
+        // Closes phase-24.12 F-2 sovereign silent-swallow audit finding.
+        console.error("phase-25.B12: RedLine fetch failed:", err);
         setRedLineSeries([]);
         setRedLineEvents([]);
+        setRedLineError(
+          err instanceof Error ? err.message : "Failed to load RedLine data",
+        );
       });
     return () => {
       ignore = true;
@@ -135,6 +144,18 @@ export default function SovereignPage() {
           data-sovereign-content
           className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8"
         >
+          {/* phase-25.B12: surface RedLine fetch errors instead of silent swallow */}
+          {redLineError && (
+            <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
+              <p className="text-sm text-rose-300">RedLine data unavailable: {redLineError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 rounded-md border border-rose-500/40 px-3 py-1 text-xs text-rose-300 transition-colors hover:bg-rose-950/50"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {/* Two-hero row: RedLine (3/5) + Leaderboard (2/5) */}
           <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
             <div className="lg:col-span-3">

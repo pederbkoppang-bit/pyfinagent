@@ -191,6 +191,13 @@ export {
   ChartBarHorizontal as ChartBarHorizontal,
   ChartLineUp as ChartLineUp,
   ChartPolar as ChartPolar,
+  // phase-25.B12: aliases for paper-trading tab icons (frontend-layout.md §5)
+  Wallet as TabPositions,
+  Receipt as TabTrades,
+  ChartLineUp as TabNavChart,
+  ChartBar as TabRealityGap,
+  TrendUp as TabExitQuality,
+  Gear as TabManage,
   Check as Check,
   CheckCircle as CheckCircle,
   ClipboardText as ClipboardText,

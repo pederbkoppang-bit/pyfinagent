@@ -8824,7 +8824,7 @@
         {
           "id": "25.B12",
           "name": "Missing-states + tab-icon sweep across degraded pages",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

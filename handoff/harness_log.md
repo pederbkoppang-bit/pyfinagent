@@ -17256,3 +17256,28 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Phase-25.A2 status -> done.** /reports page will now populate with both lite and full pipeline rows tagged by `_path` field.
 
 **Next cycle:** 25.A (decouple RiskJudge with independent LLM call; no deps).
+
+---
+
+## Cycle 67 -- 2026-05-12 -- phase=25.B12 result=PASS
+
+**Step:** 25.B12 — Missing states + tab icons sweep (P1)
+**Action:** GENERATE. Three frontend fixes closing phase-24.12 F-2 + F-3.
+
+**Code changes:**
+- `performance/page.tsx`: PageSkeleton + rose error banner with Retry (was bare `<p>` tags)
+- `sovereign/page.tsx`: new `redLineError` state + setter in catch + rose banner (was silent swallow)
+- `paper-trading/page.tsx`: TABS array gains `icon: Icon` field on each entry; icons imported via `@/lib/icons` canonical barrel
+- `lib/icons.ts`: new aliases `TabPositions/TabTrades/TabNavChart/TabRealityGap/TabExitQuality/TabManage`
+
+**New verifier:** `tests/verify_phase_25_B12.py` (115 LOC, 9 immutable claims) — **9/9 PASS**
+
+**Frontend gates:** TS clean (`npx tsc --noEmit`); ESLint 0 errors on touched files; zero direct `@phosphor-icons/react` imports preserved (phase-24.12 F-1 condition).
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates canonical barrel preservation. Visual confirmation deferred to operator live-check.
+
+**Phase-25.B12 status -> done.** Closes phase-24.12 F-2 (degraded states on perf + sovereign pages) and F-3 (missing tab icons).
+
+**P1 sprint progress:** 3 of 19 P1 candidates done (25.A9 ✓ prerequisite + 25.A2 ✓ + 25.B12 ✓).
+
+**Next cycle:** 25.A11 (wire /paper-trading/learnings backend; no deps; closes orphan UI page from phase-24.11).
