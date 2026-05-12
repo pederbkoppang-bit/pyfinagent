@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `e8b660e4` | phase-24.8: Observability + monitoring + safety rails audit (watchdog, kill-switch, SLA, governan... |
 | 2026-05-12 | `03047b1a` | phase-24.7: Data quality + BQ freshness + yfinance fallback hygiene audit |
 | 2026-05-12 | `038dee5e` | phase-24.3: Autoresearch <-> daily-loop wiring audit (cron isolation; meta-evolution feedback loop) |
 | 2026-05-12 | `4578d8c4` | phase-24.2: Pipeline routing + report persistence audit (lite-vs-full branching; reports -> BQ; 2... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-07 | `f8b5e181` | phase-23.3.6: /cron UI verification + phase-23.3 consolidation |
 | 2026-05-07 | `73196650` | phase-23.3.5: log allowlist fix -- live paths + 3 .env bugs surfaced |
 | 2026-05-07 | `a80f4640` | phase-23.3.4: launchd audit -- 6-entry manifest + autoresearch finding |
-| 2026-05-07 | `d0ae4d28` | phase-23.3.3: activate 7 dormant phase-9 slack-bot jobs |
 
 ---
 
+### v6.7.7 — phase-24.8: Observability + monitoring + safety rails audit (watchdog... (2026-05-12)
+
+- **phase-24.8: Observability + monitoring + safety rails audit (watchdog, kill-switch, SLA, governan...**
 ### v6.7.6 — phase-24.7: Data quality + BQ freshness + yfinance fallback hygiene a... (2026-05-12)
 
 - **phase-24.7: Data quality + BQ freshness + yfinance fallback hygiene audit**
