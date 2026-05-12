@@ -759,6 +759,48 @@ class BigQueryClient:
             row["params"] = {}
         return row
 
+    def update_promoted_strategy_status(
+        self,
+        strategy_id: str,
+        new_status: str,
+        *,
+        week_iso: str | None = None,
+    ) -> None:
+        """phase-25.C3: flip the status of a promoted_strategies row.
+
+        If week_iso is provided, the WHERE clause is tightened to
+        (strategy_id, week_iso) -- the precise targeting used by the
+        monthly HITL approval path. If week_iso is None, updates all
+        rows with the given strategy_id (testing / single-row scenarios).
+        Parameterized SQL (no injection on strategy_id). 30s BQ timeout
+        per CLAUDE.md.
+        """
+        table = f"{self.settings.gcp_project_id}.pyfinagent_data.promoted_strategies"
+        if week_iso is not None:
+            query = f"""
+                UPDATE `{table}`
+                SET status = @new_status
+                WHERE strategy_id = @strategy_id
+                  AND week_iso = @week_iso
+            """
+            params = [
+                bigquery.ScalarQueryParameter("new_status", "STRING", new_status),
+                bigquery.ScalarQueryParameter("strategy_id", "STRING", strategy_id),
+                bigquery.ScalarQueryParameter("week_iso", "STRING", week_iso),
+            ]
+        else:
+            query = f"""
+                UPDATE `{table}`
+                SET status = @new_status
+                WHERE strategy_id = @strategy_id
+            """
+            params = [
+                bigquery.ScalarQueryParameter("new_status", "STRING", new_status),
+                bigquery.ScalarQueryParameter("strategy_id", "STRING", strategy_id),
+            ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(query, job_config=job_config).result(timeout=30)
+
     def get_paper_trades_in_window(self, window_days: int) -> list[dict]:
         """phase-25.A11: paper_trades rows whose created_at falls within the
         last `window_days` days. Used by /api/paper-trading/learnings to

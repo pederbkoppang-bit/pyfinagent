@@ -17388,3 +17388,29 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 7 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3).
 
 **Next cycle candidate:** 25.C3 (P1 status state-machine; depends on 25.B3 done) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation; no deps) OR 25.B (P2 cosmetic-patch removal).
+
+---
+
+## Cycle 72 -- 2026-05-12 -- phase=25.C3 result=PASS
+
+**Step:** 25.C3 -- Strategy registry status field; flip actual_replacement (P1)
+**Action:** GENERATE. Closes phase-24.3 audit F-4 (monthly_champion_challenger.py:75 + :263 hard-coded actual_replacement=False; no BQ status flip on monthly HITL approval).
+
+**Code changes:**
+- `backend/config/settings.py`: new `real_capital_enabled: bool = Field(False, ...)` (SR 11-7 paper-only gate; default False preserves existing invariant).
+- `backend/db/bigquery_client.py`: new `update_promoted_strategy_status(strategy_id, new_status, *, week_iso=None)` with parameterized UPDATE + `result(timeout=30)`.
+- `backend/autoresearch/monthly_champion_challenger.py`:
+  - `run_monthly_sortino_gate` gains `real_capital_enabled: bool = False` kwarg.
+  - Hardcoded `"actual_replacement": False` (line 75) replaced with derivation `bool(real_capital_enabled)`; value snapshotted into the persisted state row so approval-time audit reads back the same value (no drift between fire and approval).
+  - `record_approval` gains `status_update_fn: Callable[[str, str], None] | None = None` kwarg. On `status='approved'`, calls `status_update_fn(challenger_id, "active")` inside a try/except (fail-open: BQ failure doesn't roll back in-memory state).
+  - `_emit_deployment_log_row` notes f-string now interpolates the snapshotted `actual_replacement` (was literal `False`).
+
+**New verifier:** `tests/verify_phase_25_C3.py` (350+ LOC, 12 immutable claims) -- **12/12 PASS, EXIT=0**. Four **behavioral round-trips**: approval-flip (status_update_fn called once with (challenger_id, "active")), rejection no-flip, derived actual_replacement (True->True, False->False), BQ UPDATE round-trip (parameterized SQL + result(timeout=30)).
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Anti-rubber-stamp: 10 plausible mutations mapped to specific verifier claims; no non-covered spirit-breaking mutation identified. Scope honest: prior-active-row supersession deferred to 25.R; SR 11-7 invariant preserved by default-False flag.
+
+**Phase-25.C3 status -> done.** Status state machine now wired: monthly HITL approval flips `pending` -> `active` atomically. Unblocks **25.R** (strategy auto-switching policy / red-line goal-c).
+
+**P1 sprint progress:** 8 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3). Full chain 25.A3 -> 25.B3 -> 25.C3 complete; 25.R unblocked.
+
+**Next cycle candidate:** 25.R (P1 strategy auto-switching policy; closes red-line goal-c) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation; no deps) OR 25.B (P2 cosmetic-patch removal).

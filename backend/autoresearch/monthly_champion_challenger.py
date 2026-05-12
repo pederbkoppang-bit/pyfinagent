@@ -57,22 +57,35 @@ def run_monthly_sortino_gate(
     slack_fn: Callable[[str, dict[str, Any]], None] | None = None,
     state_path: Path | None = None,
     now: datetime | None = None,
+    real_capital_enabled: bool = False,
 ) -> dict[str, Any]:
     """Run the monthly champion/challenger Sortino gate.
 
-    `actual_replacement` is hard-coded False -- paper-only promotion.
+    phase-25.C3: `actual_replacement` is no longer hardcoded -- it is now
+    derived from the injected `real_capital_enabled` kwarg (which defaults
+    to False, preserving the SR 11-7 paper-only invariant). Callers wire
+    this from `Settings.real_capital_enabled`; that setting also defaults
+    to False, so end-to-end behavior is unchanged until an operator
+    explicitly toggles the flag after a compliance pass.
     """
     spath = Path(state_path) if state_path is not None else _DEFAULT_STATE_PATH
     now_dt = now or datetime.now(timezone.utc)
     month_key = f"{eval_date.year:04d}-{eval_date.month:02d}"
 
+    # phase-25.C3: actual_replacement is now DERIVED from the injected
+    # real_capital_enabled flag instead of hardcoded False. The flag
+    # defaults to False, so the SR 11-7 paper-only invariant is preserved
+    # by default; operators must explicitly toggle Settings.real_capital_enabled
+    # after a compliance review to deploy approved strategies against real
+    # capital.
+    actual_replacement = bool(real_capital_enabled)
     result: dict[str, Any] = {
         "fired": False,
         "gate_pass": False,
         "approval_pending": False,
         "approved": False,
         "expired": False,
-        "actual_replacement": False,
+        "actual_replacement": actual_replacement,
         "reason": None,
         "sortino_delta": None,
         "dd_ratio": None,
@@ -179,6 +192,11 @@ def run_monthly_sortino_gate(
         "dd_ratio": float(dd_ratio),
         "pbo": float(challenger_pbo),
         "challenger_id": challenger_id,
+        # phase-25.C3: snapshot the gate-fire `actual_replacement` derivation
+        # so the later approval audit log can record the same value without
+        # re-evaluating the flag (avoids drift if Settings changes between
+        # fire and approval).
+        "actual_replacement": actual_replacement,
     }
     _save_state(state, spath)
 
@@ -205,6 +223,7 @@ def record_approval(
     state_path: Path | None = None,
     now: datetime | None = None,
     bq_fn: Callable[[dict[str, Any]], None] | None = None,
+    status_update_fn: Callable[[str, str], None] | None = None,
 ) -> dict[str, Any]:
     """Transition a pending approval to approved / rejected.
 
@@ -215,6 +234,12 @@ def record_approval(
     (approved / rejected / lazily-expired), it is invoked with a
     `strategy_deployments_log`-shaped dict. Fail-open: bq_fn exceptions
     are logged and swallowed so the in-memory transition still completes.
+
+    phase-25.C3: when `status_update_fn` is provided AND the transition
+    lands on `status == "approved"`, the function is invoked with
+    `(challenger_id, "active")` to flip the BQ `promoted_strategies` row.
+    Fail-open: status_update_fn exceptions are logged and swallowed.
+    Callers typically wire `bq_client.update_promoted_strategy_status`.
     """
     if status not in ("approved", "rejected"):
         raise ValueError(f"status must be approved|rejected, got {status!r}")
@@ -236,6 +261,20 @@ def record_approval(
     state[month_key] = row
     _save_state(state, spath)
     _emit_deployment_log_row(row, bq_fn, now_dt)
+
+    # phase-25.C3: flip the BQ promoted_strategies row to "active" on approval.
+    # Fail-open: a BQ failure here logs a warning but does NOT roll back the
+    # in-memory state transition (the JSON state file is the source of truth
+    # for the HITL workflow; BQ is the audit subscriber).
+    if status == "approved" and status_update_fn is not None:
+        try:
+            status_update_fn(str(row.get("challenger_id") or ""), "active")
+        except Exception as exc:
+            logger.warning(
+                "record_approval: status_update_fn fail-open for %s: %r",
+                month_key,
+                exc,
+            )
     return row
 
 
@@ -247,6 +286,11 @@ def _emit_deployment_log_row(
     """Fail-open BQ audit emission for terminal HITL transitions."""
     if bq_fn is None:
         return
+    # phase-25.C3: actual_replacement is now read from the state row that
+    # the gate-fire path persisted (snapshotted at gate-fire time, not
+    # re-derived here to avoid drift if Settings changes between fire and
+    # approval). Defaults to False if the row predates the 25.C3 schema.
+    actual_replacement = bool(row.get("actual_replacement", False))
     log_row = {
         "strategy_id": str(row.get("challenger_id", "")),
         "status": str(row.get("status", "")),
@@ -260,7 +304,7 @@ def _emit_deployment_log_row(
             f"month={row.get('month','')} "
             f"sortino_delta={row.get('sortino_delta')} "
             f"dd_ratio={row.get('dd_ratio')} "
-            f"actual_replacement=False"
+            f"actual_replacement={actual_replacement}"
         ),
     }
     try:

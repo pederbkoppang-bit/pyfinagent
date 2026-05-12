@@ -139,6 +139,10 @@ class Settings(BaseSettings):
 
     # --- Paper Trading ---
     paper_trading_enabled: bool = Field(False, description="Enable autonomous paper trading scheduler")
+    # phase-25.C3: SR 11-7 paper-only gate. MUST remain False until a compliance
+    # review wires the real-capital deployment path. Consumed by
+    # backend/autoresearch/monthly_champion_challenger.py::run_monthly_sortino_gate.
+    real_capital_enabled: bool = Field(False, description="SR 11-7 paper-only gate; toggling to True deploys approved strategies against real capital")
     paper_starting_capital: float = Field(10000.0, description="Initial virtual cash for paper portfolio")
     paper_max_positions: int = Field(10, description="Maximum simultaneous open positions")
     # phase-23.1.13: hard cap per GICS sector (default 2 = at least 5 sectors for a 10-position portfolio).

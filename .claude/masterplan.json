@@ -8692,7 +8692,7 @@
         {
           "id": "25.C3",
           "name": "Strategy registry with status field; flip actual_replacement",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "25.B3",
@@ -8709,7 +8709,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Industry registry-alias pattern (Snowflake/DataRobot)."
+          "notes": "Industry registry-alias pattern (Snowflake/DataRobot). Cycle 72 PASS first-spawn. 12/12 verifier (incl. 4 behavioral: approval-flip, rejection-no-flip, derived actual_replacement, BQ UPDATE round-trip). SR 11-7 invariant preserved (real_capital_enabled default=False)."
         },
         {
           "id": "25.R",
