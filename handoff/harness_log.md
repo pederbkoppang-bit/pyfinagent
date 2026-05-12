@@ -16728,3 +16728,35 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest WORKING vs CRITICAL-GAP distinction.
 
 **Phase-24.8 status -> done.** Next cycle: bucket 24.10 (P1 — MCP infrastructure + security).
+
+---
+
+## Cycle 50 -- 2026-05-12 -- phase=24.10 result=PASS
+
+**Step:** 24.10 — MCP infrastructure + permissions + security audit (P1)
+**Action:** READ-ONLY. Findings + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=moderate; 6 sources: MCP security spec, arxiv 2603.22489 threat model, WebAuthn passkey production analysis, Red Hat MCP risks, pydantic-settings 2026, financial MCP servers 2026).
+
+**Findings (hypothesis CONFIRMED with 3 gaps):**
+- `.mcp.json` correctly pins `alpaca-mcp-server==2.0.1` + `mcp-server-bigquery==0.3.2`
+- `.claude/settings.json:153-158` denies 5 Alpaca writes + BQ execute-query
+- WebAuthn correctly wired via NextAuth v5 `enableWebAuthn: true` (experimental flag)
+- No committed secrets; backend/.env correctly gitignored
+- Secrets rotation schedule current; no overdue at 2026-05-12
+- **Gap 1:** Alpaca tool surface not exhaustively audited — minor version bump could silently add unblocked writes
+- **Gap 2:** API keys in `settings.py:87-92,192` defined as plain `str` (should be `SecretStr` for log masking)
+- **Gap 3:** No Alpaca MCP smoke test (only BQ has `smoke_test_bigquery_mcp.py`)
+
+**Phase-25 candidates (6):**
+1. 25.A10 (P1) — Alpaca MCP tool-surface smoke test + deny-list reconcile
+2. 25.B10 (P1) — SecretStr migration for API keys
+3. 25.C10 (P2) — Finnhub MCP (news MCP + signals MCP combined)
+4. 25.D10 (P2) — Alpha Vantage MCP
+5. 25.E10 (P2) — MCP SHA256 digest pinning (supply-chain hardening)
+6. 25.F10 (P2) — Wire `secrets_rotation_check.py` to Slack weekly
+
+**Verifier:** 14/15 PASS at Q/A spawn; log-last only FAIL. Now 15/15 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest WORKING-vs-GAPS partition.
+
+**Phase-24.10 status -> done.** Next cycle: bucket 24.11 (P2 — frontend↔backend wiring).

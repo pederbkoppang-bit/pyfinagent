@@ -8228,7 +8228,7 @@
         {
           "id": "24.10",
           "name": "MCP infrastructure + permissions + security audit (auth, secrets, deny rules, new-MCP gap analysis)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "24.0",
