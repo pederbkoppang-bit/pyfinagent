@@ -8363,7 +8363,7 @@
         {
           "id": "24.14",
           "name": "Final synthesis + ranked phase-25.x candidate list (prioritized executable code-change steps)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "24.13",
