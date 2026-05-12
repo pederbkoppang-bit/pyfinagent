@@ -17112,3 +17112,26 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Phase-25.K status -> done.** Closes phase-24.5 F-5(b) + phase-24.8 F-2 silent-pause bug.
 
 **Next cycle:** 25.A8 (cost-budget HARD-BLOCK, depends on 25.A9 which is done) OR 25.2 (backfill stops, depends on 25.1 which is done) OR 25.6 (no-stop-on-entry, depends on 25.1).
+
+---
+
+## Cycle 62 -- 2026-05-12 -- phase=25.A8 result=PASS
+
+**Step:** 25.A8 — Cost-budget HARD-BLOCK in llm_client.py (P0; depends on 25.A9 DONE)
+**Action:** GENERATE. Added BudgetBreachError + _check_cost_budget() in llm_client.py + 3 patch sites + autonomous_loop catch.
+
+**Code changes:**
+- `backend/agents/llm_client.py`: new `BudgetBreachError(RuntimeError)`, `_check_cost_budget()` helper with 60s TTL cache + `COST_BUDGET_HARD_BLOCK_DISABLED` env-var escape hatch, `reset_cost_budget_cache()` for manual invalidation. `_check_cost_budget()` called at top of `GeminiClient.generate_content` (L528), `OpenAIClient.generate_content` (L710), `ClaudeClient.generate_content` (L844). Abstract `LLMClient.generate_content` at L358 correctly skipped.
+- `backend/services/autonomous_loop.py:540-560`: outer `except Exception as e` block adds `type(e).__name__ == "BudgetBreachError"` branch → `summary['status'] = 'budget_breach'` + WARNING log. Loose coupling via `__name__` check avoids circular import.
+
+**New verifier:** `tests/verify_phase_25_A8.py` (170 LOC, 12 immutable claims) — **12/12 PASS** including behavioral round-trip test (env var → reload → call → no exception).
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Mutation-resistance: 3-call-site claim + behavioral round-trip ensures every client provider blocked correctly. Anti-rubber-stamp: Slack-emit cross-link (25.A8.1) honestly disclosed as system-level deferred, paralleling accepted 25.K cross-process gap.
+
+**Non-blocking concern flagged**: success_criterion #2 includes "emits Slack" which is system-level (25.A8.1), not in-process. Q/A called it as user-precedented system-level AND (Slack via cross-process BQ event poll → 25.A8.1 follow-up).
+
+**Phase-25.A8 status -> done.** Closes phase-24.8 F-4 + phase-24.13 F-4 + phase-24.13 F-3 (red-line goal-b cost discipline). Budget is now ENFORCEMENT, not observational.
+
+**Phase-25 P0 sprint progress:** 6 of 8 P0 candidates done (25.1 ✓, 25.G ✓, 25.H ✓, 25.K ✓, 25.A9 ✓ prerequisite, 25.A8 ✓). Remaining P0: 25.2 + 25.6 (depend on 25.1) + 25.J (depend on 25.1).
+
+**Next cycle:** 25.2 (backfill missing stops; depends on 25.1 DONE).

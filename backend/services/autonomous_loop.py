@@ -538,8 +538,21 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         _last_result = summary
         return summary
     except Exception as e:
-        logger.error(f"Paper trading cycle failed: {e}", exc_info=True)
-        summary.update({"status": "error", "error": str(e)})
+        # phase-25.A8: cost-budget HARD-BLOCK. BudgetBreachError raised by
+        # llm_client._check_cost_budget() halts the cycle BEFORE further
+        # LLM spend accumulates. Closes phase-24.8 F-4. Catch via
+        # name-check to avoid importing the symbol at module load time
+        # (keeps llm_client and autonomous_loop loosely coupled).
+        if type(e).__name__ == "BudgetBreachError":
+            logger.warning("Paper trading cycle HALTED by cost-budget hard-block: %s", e)
+            summary.update({
+                "status": "budget_breach",
+                "error": str(e),
+                "budget_tripped": True,
+            })
+        else:
+            logger.error(f"Paper trading cycle failed: {e}", exc_info=True)
+            summary.update({"status": "error", "error": str(e)})
         _last_result = summary
         return summary
     finally:

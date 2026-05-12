@@ -8561,7 +8561,7 @@
         {
           "id": "25.A8",
           "name": "Cost-budget HARD-BLOCK in llm_client.py",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "25.A9",

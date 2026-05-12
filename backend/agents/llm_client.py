@@ -47,6 +47,101 @@ def _normalize_model_name(model_name: str) -> str:
         return model_name
     return model_name.split("/", 1)[1]
 
+
+# phase-25.A8: cost-budget HARD-BLOCK. Closes phase-24.8 F-4 (cost_budget
+# tracked the `tripped` flag but llm_client never consulted it; honor-system
+# only). Now every generate_content call raises BudgetBreachError BEFORE
+# touching the network when today's BQ spend exceeds the configured caps.
+# Combined with phase-25.A9 (corrected 2.0x cache-write premium) the
+# budget signal is accurate AND enforced.
+
+import os
+import threading
+import time as _time
+
+_BUDGET_CACHE_LOCK = threading.Lock()
+_BUDGET_CACHE_TTL_S = 60.0  # avoid hot-path BQ scans
+_BUDGET_CACHE_VALUE: tuple[float, bool, str] = (0.0, False, "init")
+
+
+class BudgetBreachError(RuntimeError):
+    """Raised when cost budget is tripped and an LLM call is blocked.
+
+    phase-25.A8: caught by `backend/services/autonomous_loop.py` at the
+    cycle level to skip the cycle + emit P0 Slack escalation. Manual
+    `POST /api/cost-budget/reset` clears the breach for the next cycle.
+    """
+
+
+def _check_cost_budget() -> None:
+    """Best-effort sync cost-budget check called by every generate_content.
+
+    Reads today's BQ spend and compares to daily/monthly caps. Caches
+    for 60s (`_BUDGET_CACHE_TTL_S`) so the hot path adds at most one BQ
+    INFORMATION_SCHEMA.JOBS scan per minute. Fail-open: returns silently
+    on any error (network, BQ permission, missing env vars) so a broken
+    budget API never halts trading.
+
+    Raises:
+        BudgetBreachError: when tripped == True. Carries the breach
+            reason ("daily" or "monthly") + spend numbers so callers
+            can include them in the Slack escalation.
+    """
+    # Test/dev escape hatch: COST_BUDGET_HARD_BLOCK_DISABLED=1 turns the gate off.
+    if os.environ.get("COST_BUDGET_HARD_BLOCK_DISABLED", "").lower() in ("1", "true", "yes"):
+        return
+
+    global _BUDGET_CACHE_VALUE
+    now = _time.time()
+    with _BUDGET_CACHE_LOCK:
+        cached_ts, cached_tripped, cached_reason = _BUDGET_CACHE_VALUE
+        if now - cached_ts < _BUDGET_CACHE_TTL_S:
+            if cached_tripped:
+                raise BudgetBreachError(
+                    f"cost_budget tripped (cached): reason={cached_reason}"
+                )
+            return
+
+    try:
+        from backend.config.settings import get_settings
+        from backend.slack_bot.jobs.cost_budget_watcher import _default_fetch_spend
+        settings = get_settings()
+        daily_cap = float(getattr(settings, "cost_budget_daily_usd", 5.0))
+        monthly_cap = float(getattr(settings, "cost_budget_monthly_usd", 50.0))
+        daily_usd, monthly_usd = _default_fetch_spend()
+    except Exception as exc:
+        # Fail-open: never let a broken budget API halt trading.
+        logger.warning("cost_budget hard-block fail-open: %r", exc)
+        with _BUDGET_CACHE_LOCK:
+            _BUDGET_CACHE_VALUE = (now, False, "fail_open")
+        return
+
+    daily = float(daily_usd or 0.0)
+    monthly = float(monthly_usd or 0.0)
+    tripped = daily >= daily_cap or monthly >= monthly_cap
+    if daily >= daily_cap:
+        reason = f"daily ${daily:.2f} >= cap ${daily_cap:.2f}"
+    elif monthly >= monthly_cap:
+        reason = f"monthly ${monthly:.2f} >= cap ${monthly_cap:.2f}"
+    else:
+        reason = "ok"
+
+    with _BUDGET_CACHE_LOCK:
+        _BUDGET_CACHE_VALUE = (now, tripped, reason)
+
+    if tripped:
+        raise BudgetBreachError(
+            f"cost_budget tripped: {reason} (daily={daily:.2f}/cap={daily_cap:.2f}, "
+            f"monthly={monthly:.2f}/cap={monthly_cap:.2f})"
+        )
+
+
+def reset_cost_budget_cache() -> None:
+    """Force-invalidate the cached budget state. Call after a manual reset."""
+    global _BUDGET_CACHE_VALUE
+    with _BUDGET_CACHE_LOCK:
+        _BUDGET_CACHE_VALUE = (0.0, False, "manual_reset")
+
 # ---------------------------------------------------------------------------
 # GitHub Models catalog — models available via models.github.ai/inference
 # with a GitHub PAT (Copilot Pro subscription).
@@ -429,6 +524,8 @@ class GeminiClient(LLMClient):
         return schema
 
     def generate_content(self, prompt: str, generation_config: dict | None = None) -> LLMResponse:
+        # phase-25.A8: hard-block when cost budget tripped. Raises BudgetBreachError.
+        _check_cost_budget()
         """phase-11.3 migrated path: google-genai SDK via GeminiModelBundle.
 
         Legacy shape (vertexai): `self._model.generate_content(prompt,
@@ -609,6 +706,8 @@ class OpenAIClient(LLMClient):
         return OpenAI(**kwargs)
 
     def generate_content(self, prompt: str, generation_config: dict | None = None) -> LLMResponse:
+        # phase-25.A8: hard-block when cost budget tripped. Raises BudgetBreachError.
+        _check_cost_budget()
         config = generation_config or {}
         max_tokens = config.get("max_output_tokens", 2048)
         temperature = config.get("temperature", 0.0)
@@ -741,6 +840,8 @@ class ClaudeClient(LLMClient):
         }
 
     def generate_content(self, prompt: str, generation_config: dict | None = None) -> LLMResponse:
+        # phase-25.A8: hard-block when cost budget tripped. Raises BudgetBreachError.
+        _check_cost_budget()
         config = generation_config or {}
         max_tokens = config.get("max_output_tokens", 2048)
         temperature = config.get("temperature", 0.0)
