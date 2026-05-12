@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `2a864210` | phase-25.A3: Write promoted strategies to pyfinagent_data.promoted_strategies BQ table |
 | 2026-05-12 | `9c5eb8ad` | phase-25.A: Decouple RiskJudge with independent LLM call in lite path |
 | 2026-05-12 | `48b7b29a` | phase-25.A11: Wire /paper-trading/learnings backend endpoint |
 | 2026-05-12 | `1c38721d` | phase-25.B12: Missing-states + tab-icon sweep across degraded pages |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `ec59be47` | phase-24.9: LLM provider conformance audit (Claude + Gemini, prompt caching, thinking, tool-use, ... |
 | 2026-05-12 | `58fdc820` | phase-24.6: Backtest engine + walk-forward + quant optimizer + live-vs-backtest reconciliation audit |
 | 2026-05-12 | `0445d55e` | phase-24.12: Frontend UI/UX presentation-layer audit (design system, accessibility, responsive, p... |
-| 2026-05-12 | `958c0680` | phase-24.11: Frontend<->Backend wiring data layer audit (types, drift, API contract, learnings-pa... |
 
 ---
 
+### v6.7.29 — phase-25.A3: Write promoted strategies to pyfinagent_data.promoted_st... (2026-05-12)
+
+- **phase-25.A3: Write promoted strategies to pyfinagent_data.promoted_strategies BQ table**
 ### v6.7.28 — phase-25.A: Decouple RiskJudge with independent LLM call in lite path (2026-05-12)
 
 - **phase-25.A: Decouple RiskJudge with independent LLM call in lite path**
