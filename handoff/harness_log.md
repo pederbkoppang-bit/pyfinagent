@@ -17310,3 +17310,31 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 4 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11).
 
 **Next cycle candidate:** 25.A6 (live-vs-backtest Sharpe reconciliation) OR 25.C12 (cross-tab Sharpe KPI reconciliation) OR 25.A (decouple RiskJudge with independent LLM call) -- pick by operator priority.
+
+---
+
+## Cycle 69 -- 2026-05-12 -- phase=25.A result=PASS
+
+**Step:** 25.A -- Decouple RiskJudge with independent LLM call in lite path (P1)
+**Action:** GENERATE. Closes phase-24.4 audit F-1 (autonomous_loop.py:765 aliased `risk_assessment.reason = analysis["reason"]`).
+
+**Code changes (single file: `backend/services/autonomous_loop.py`):**
+- New module-level constants above `_run_claude_analysis`: `_LITE_RISK_JUDGE_SYSTEM` (three risk axes -- volatility/concentration/valuation, verbatim independence directive "NOT to validate the trader's recommendation"), `_LITE_RISK_JUDGE_TEMPLATE` (5-field JSON return + nested risk_limits), `_LITE_RISK_DEFAULT` (safe fallback dict).
+- Inside `_run_claude_analysis`, after the trader parse + log:
+  - Builds risk prompt via `_LITE_RISK_JUDGE_TEMPLATE.format(...)`.
+  - Makes a SECOND `client.messages.create` with `system=_LITE_RISK_JUDGE_SYSTEM`.
+  - Parses with `re.search(r"\{.*\}", risk_text, re.DOTALL)` (nested object capture).
+  - Falls back to `_LITE_RISK_DEFAULT` on parse failure or any exception; logs warning.
+  - Builds 6-field `risk_assessment` dict: decision/reasoning/reason(alias)/recommended_position_pct/risk_level/risk_limits.
+  - `logger.info` emits the new risk decision + position pct.
+- Return dict (line ~765) now binds `"risk_assessment": risk_assessment` (was the aliasing one-line dict).
+
+**New verifier:** `tests/verify_phase_25_A.py` (270+ LOC, 10 immutable claims) -- **10/10 PASS, EXIT=0**. Claims 6 + 8 + 9 are **behavioral**: monkey-patch `anthropic.Anthropic` with fakes that return DIFFERENT text for trader vs risk calls (gated on `system` kwarg), call the actual coroutine end-to-end, and assert distinct rationale + position_pct > 0 + fallback-on-malformed + consumer-side `signal_attribution` emits a RiskJudge row with weight > 0.
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Anti-rubber-stamp: 5 canonical mutations enumerated, all caught. Scope honest: cosmetic patch at `signal_attribution.py:131-154` intentionally left to 25.B (now inert by data). Cost: +~$0.003/ticker for the second Sonnet call, within existing $0.01/ticker accounting ceiling -- no budget config change.
+
+**Phase-25.A status -> done.** Unblocks 25.B (cosmetic-patch removal).
+
+**P1 sprint progress:** 5 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A).
+
+**Next cycle candidate:** 25.B (P2 -- remove cosmetic aliasing patch now inert; depends on 25.A done) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation) OR 25.A3 (P1 promoted_strategies BQ table, unlocks 25.B3 chain).

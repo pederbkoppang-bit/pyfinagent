@@ -662,6 +662,48 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
         return None
 
 
+# phase-25.A: independent Risk Judge for the lite path. The trader and the
+# risk judge are TWO distinct LLM calls now; the judge's system prompt forces
+# evaluation along volatility/concentration/valuation axes rather than
+# rubber-stamping the trader. Pattern grounded in ATLAS arXiv 2510.15949 +
+# EvidentlyAI rubric-based judge guidance + Anthropic structured-output
+# recommendations. See handoff/archive/phase-25.A/research_brief.md.
+_LITE_RISK_JUDGE_SYSTEM = (
+    "You are an independent Risk Judge for a paper trading portfolio. "
+    "Your role is to evaluate position risk -- NOT to validate the trader's recommendation. "
+    "Evaluate the following three axes independently, then size the position:\n"
+    "  1. VOLATILITY: Is 20d or 60d momentum extreme (>15% either direction)? High = reduce size.\n"
+    "  2. CONCENTRATION: Would adding this position exceed 10% of portfolio in one sector? High = reduce size.\n"
+    "  3. VALUATION: Is P/E > 40 or market cap < $2B (micro-cap)? High = reduce size.\n"
+    "Derive a recommended_position_pct (1-10) from these axes alone. "
+    "Do not simply agree with the trader.\n"
+    "Respond ONLY with valid JSON."
+)
+
+_LITE_RISK_JUDGE_TEMPLATE = (
+    "Stock: {ticker} ({name})\n"
+    "Sector: {sector} | P/E: {pe_ratio:.1f} | Market Cap: ${market_cap_b:.1f}B\n"
+    "20d momentum: {momentum_20d:+.1f}% | 60d momentum: {momentum_60d:+.1f}%\n"
+    "Trader recommendation: {trader_action} (confidence: {trader_confidence})\n\n"
+    "Evaluate the three risk axes above. Return JSON:\n"
+    "{{\n"
+    '  "decision": "APPROVE_FULL" | "APPROVE_REDUCED" | "APPROVE_HEDGED" | "REJECT",\n'
+    '  "recommended_position_pct": <float 1-10>,\n'
+    '  "risk_level": "LOW" | "MODERATE" | "HIGH" | "EXTREME",\n'
+    '  "reasoning": "<one sentence per axis, then position conclusion>",\n'
+    '  "risk_limits": {{"stop_loss_pct": <float>, "max_drawdown_pct": <float>}}\n'
+    "}}"
+)
+
+_LITE_RISK_DEFAULT = {
+    "decision": "APPROVE_REDUCED",
+    "recommended_position_pct": 3.0,
+    "risk_level": "MODERATE",
+    "reasoning": "risk-judge parse failed; falling back to conservative default sizing",
+    "risk_limits": {"stop_loss_pct": 10.0, "max_drawdown_pct": 15.0},
+}
+
+
 async def _run_claude_analysis(ticker: str, settings: Settings) -> dict:
     """Lightweight Claude-based analysis for paper trading decisions."""
     import anthropic
@@ -754,6 +796,67 @@ Respond in this exact JSON format:
 
     logger.info(f"Claude analysis for {ticker}: {analysis['action']} (confidence={analysis['confidence']}, score={analysis['score']})")
 
+    # phase-25.A: SECOND, INDEPENDENT LLM call -- the Risk Judge. Closes
+    # phase-24.4 F-1 (the lite path previously aliased the trader's reason
+    # into risk_assessment). The risk judge system prompt forces evaluation
+    # along volatility/concentration/valuation axes -- it does NOT validate
+    # the trader's recommendation. Cost impact: ~$0.003/ticker, already
+    # accounted in the existing $0.01/ticker ceiling.
+    risk_prompt = _LITE_RISK_JUDGE_TEMPLATE.format(
+        ticker=ticker,
+        name=name,
+        sector=sector,
+        pe_ratio=pe_ratio or 0.0,
+        market_cap_b=(market_cap or 0) / 1e9,
+        momentum_20d=momentum_20d,
+        momentum_60d=momentum_60d,
+        trader_action=analysis["action"],
+        trader_confidence=analysis["confidence"],
+    )
+    try:
+        risk_response = await asyncio.to_thread(
+            client.messages.create,
+            model=model_name,
+            max_tokens=300,
+            system=_LITE_RISK_JUDGE_SYSTEM,
+            messages=[{"role": "user", "content": risk_prompt}],
+        )
+        risk_text = risk_response.content[0].text.strip()
+        # re.DOTALL so the nested risk_limits object is captured.
+        risk_json_match = re.search(r"\{.*\}", risk_text, re.DOTALL)
+        if risk_json_match:
+            risk_dict = json_io.loads(risk_json_match.group())
+        else:
+            risk_dict = dict(_LITE_RISK_DEFAULT)
+            logger.warning(
+                "Lite risk judge for %s: no JSON in response -- using default sizing", ticker,
+            )
+    except Exception as exc:
+        risk_dict = dict(_LITE_RISK_DEFAULT)
+        logger.warning("Lite risk judge for %s failed (%s) -- using default sizing", ticker, exc)
+
+    risk_reasoning = str(risk_dict.get("reasoning") or _LITE_RISK_DEFAULT["reasoning"])
+    risk_assessment = {
+        "decision": str(risk_dict.get("decision") or _LITE_RISK_DEFAULT["decision"]),
+        "reasoning": risk_reasoning,
+        # Backward-compat alias: bq.save_report at line ~818 reads
+        # risk_assessment.get("reason", "") for the summary column.
+        "reason": risk_reasoning,
+        "recommended_position_pct": float(
+            risk_dict.get("recommended_position_pct")
+            or _LITE_RISK_DEFAULT["recommended_position_pct"]
+        ),
+        "risk_level": str(risk_dict.get("risk_level") or _LITE_RISK_DEFAULT["risk_level"]),
+        "risk_limits": dict(risk_dict.get("risk_limits") or _LITE_RISK_DEFAULT["risk_limits"]),
+    }
+    logger.info(
+        "Lite risk judge for %s: decision=%s position_pct=%.1f risk_level=%s",
+        ticker,
+        risk_assessment["decision"],
+        risk_assessment["recommended_position_pct"],
+        risk_assessment["risk_level"],
+    )
+
     return {
         "ticker": ticker,
         # phase-23.1.12: marker so the cycle loop knows this came from the lite
@@ -762,7 +865,7 @@ Respond in this exact JSON format:
         "_path": "lite",
         "recommendation": analysis["action"],
         "final_score": analysis["score"],
-        "risk_assessment": {"reason": analysis["reason"]},
+        "risk_assessment": risk_assessment,
         "price_at_analysis": current_price,
         "analysis_date": datetime.now(timezone.utc).isoformat(),
         "total_cost_usd": 0.01,

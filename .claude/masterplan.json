@@ -8626,7 +8626,7 @@
         {
           "id": "25.A",
           "name": "Decouple RiskJudge with independent LLM call in lite path",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8643,7 +8643,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Structural fix; cosmetic patch at signal_attribution.py:131-154 removed in 25.B."
+          "notes": "Structural fix; cosmetic patch at signal_attribution.py:131-154 removed in 25.B. Cycle 69 PASS first-spawn. 10/10 verifier (incl. 3 behavioral round-trips). Cost +~$0.003/ticker within existing $0.01 accounting."
         },
         {
           "id": "25.A3",
