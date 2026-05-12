@@ -8095,7 +8095,7 @@
         {
           "id": "24.6",
           "name": "Backtest engine + walk-forward + quant optimizer + live-vs-backtest reconciliation audit",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "24.0",

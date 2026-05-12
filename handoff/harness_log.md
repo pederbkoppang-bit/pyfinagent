@@ -16821,3 +16821,33 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest "codebase SURPRISINGLY GOOD" framing while still naming 5 real gaps. Q/A flagged advisory note: the verifier claim `screenshots_dir_contains_at_least_14_images` is text-grep not image count; F-6 honestly discloses dir is empty (phase-25.A12 deferred work).
 
 **Phase-24.12 status -> done.** Next cycle: bucket 24.6 (P2 — backtest engine).
+
+---
+
+## Cycle 53 -- 2026-05-12 -- phase=24.6 result=PASS
+
+**Step:** 24.6 — Backtest engine + walk-forward + live-vs-backtest reconciliation audit (P2)
+**Action:** READ-ONLY. Findings + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=moderate; 6 sources: arxiv 2512.12924 walk-forward 2025, reasonabledeviations AFML, FICO champion-challenger, Anthropic built-multi-agent, QuantInsti WFO, Wikipedia WFO).
+
+**Findings (PARTIALLY CONFIRMED):**
+- F-1 Walk-forward correct (expanding windows + embargo + 3 sub-periods) — CPCV is canonical Lopez de Prado upgrade, not implemented
+- F-2 Seed `random_state=42` hardcoded at 4 sites; endpoint exists at `/api/backtest/harness/seed-stability` but `handoff/data/seed_stability_results.json` not in git status → stale/absent
+- F-3 NO explicit `live_realized_sharpe vs backtest_predicted_sharpe`; `paper_go_live_gate.py:91-94` uses NAV-divergence proxy (honest comment)
+- F-4 MDA backtest→live channel WORKING via `mda_cache.json`; NO live→backtest feedback
+- F-5 62-experiment plateau (`quant_results.tsv` run `0083971f` 2026-04-21) bypassed planner Rule 1 strategy-switch
+- F-6 25 backtest endpoints — comprehensive operator surface
+- F-7 DSR/PBO/reality-gap gates correct (0.95 / 0.20 / 0.5 thresholds)
+
+**Phase-25 candidates (5):**
+1. 25.A6 (P1) — Explicit live-vs-backtest Sharpe reconciliation
+2. 25.B6 (P2) — Seed-stability test run + baseline commit + CI gate
+3. 25.C6 (P1) — Live → optimizer warmstart feedback (close one-directional gap)
+4. 25.D6 (P1) — Planner plateau-detection lock-file enforcement
+5. 25.E6 (P2) — CPCV refactor (Lopez de Prado canonical multi-path)
+
+**Verifier:** 12/13 PASS at Q/A spawn; log-last only FAIL. Now 13/13 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest "structurally sound but specific gaps" framing.
+
+**Phase-24.6 status -> done.** Next cycle: bucket 24.9 (P2 — LLM provider conformance).
