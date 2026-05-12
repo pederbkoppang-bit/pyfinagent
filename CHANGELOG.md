@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `fce6b929` | phase-24.13: Profit-maximization red-line alignment synthesis (cost vs P&L, strategy switching, c... |
 | 2026-05-12 | `ec59be47` | phase-24.9: LLM provider conformance audit (Claude + Gemini, prompt caching, thinking, tool-use, ... |
 | 2026-05-12 | `58fdc820` | phase-24.6: Backtest engine + walk-forward + quant optimizer + live-vs-backtest reconciliation audit |
 | 2026-05-12 | `0445d55e` | phase-24.12: Frontend UI/UX presentation-layer audit (design system, accessibility, responsive, p... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-11 | `824f16f4` | phase-23.8.1: live_check hook gate (audit recommendation R-1) |
 | 2026-05-11 | `93cd3101` | phase-23.8.0: Dev-MAS audit remediation Bundle-1 (R-3 / R-4 / R-7; R-6 deferred after research gate) |
 | 2026-05-11 | `15e43800` | feat(models): bump Layer-2 agents to Claude Opus 4.7 |
-| 2026-05-11 | `75c6b130` | fix(hooks): retry git add -A once + capture stderr in auto-commit-and-push |
 
 ---
 
+### v6.7.13 — phase-24.13: Profit-maximization red-line alignment synthesis (cost v... (2026-05-12)
+
+- **phase-24.13: Profit-maximization red-line alignment synthesis (cost vs P&L, strategy switching, c...**
 ### v6.7.12 — phase-24.9: LLM provider conformance audit (Claude + Gemini, prompt c... (2026-05-12)
 
 - **phase-24.9: LLM provider conformance audit (Claude + Gemini, prompt caching, thinking, tool-use, ...**
