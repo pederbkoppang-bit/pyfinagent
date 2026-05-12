@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `c90cf57a` | phase-25.1: Wire check_stop_losses() into daily loop with auto-sell |
 | 2026-05-12 | `bc0777b2` | phase-24: Application-Wide Audit & Profit-Maximization Alignment |
 | 2026-05-12 | `4a5015ba` | phase-24.14: Final synthesis + ranked phase-25.x candidate list (prioritized executable code-chan... |
 | 2026-05-12 | `fce6b929` | phase-24.13: Profit-maximization red-line alignment synthesis (cost vs P&L, strategy switching, c... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `52e565d6` | phase-23.8.4: Auto-commit hook auto-fire diagnostic: add invocation debug log + preserve `if` pre... |
 | 2026-05-11 | `22409053` | phase-23.8.3: Correct misleading DEPRECATED headers on live-imported modules (closes audit R-6 by... |
 | 2026-05-11 | `48a005c4` | phase-23.8.2: Delete TaskCompleted hook (audit recommendation R-2 Option A) |
-| 2026-05-11 | `824f16f4` | phase-23.8.1: live_check hook gate (audit recommendation R-1) |
 
 ---
 
+### v6.7.16 — phase-25.1: Wire check_stop_losses() into daily loop with auto-sell (2026-05-12)
+
+- **phase-25.1: Wire check_stop_losses() into daily loop with auto-sell**
 ### v6.7.15 — phase-24: Application-Wide Audit & Profit-Maximization Alignment (2026-05-12)
 
 - **phase-24: Application-Wide Audit & Profit-Maximization Alignment**
