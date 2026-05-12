@@ -111,6 +111,24 @@ class ComputeCostResponse(BaseModel):
     note: Optional[str] = None
 
 
+class EfficiencyResponse(BaseModel):
+    """phase-25.Q: profit_per_llm_dollar response (closes red-line goal-d).
+
+    `profit_per_llm_dollar` is NULL when `llm_cost_usd == 0` to avoid the
+    divide-by-zero failure mode (no published trading system has this
+    metric -- first-mover, so contract semantics must be unambiguous).
+    """
+    window: str
+    profit_per_llm_dollar: Optional[float] = None
+    realized_pnl_usd: float
+    llm_cost_usd: float
+    anthropic_cost_usd: float = 0.0
+    vertex_cost_usd: float = 0.0
+    openai_cost_usd: float = 0.0
+    computed_at: str
+    note: Optional[str] = None
+
+
 # ── Helpers ───────────────────────────────────────────────────────
 
 
@@ -213,6 +231,59 @@ def _fetch_strategy_deployments() -> Optional[list[dict]]:
         return [dict(r) for r in rows]
     except Exception:
         return None
+
+
+def _fetch_llm_cost_by_provider(window_days: int) -> dict:
+    """phase-25.Q: aggregate LLM cost per provider over the last
+    `window_days` days from `llm_call_log` joined with `MODEL_PRICING`
+    in Python (no native BQ pricing table -- the dict is the source of
+    truth).
+
+    Maps `provider="gemini"` -> bucket `"vertex"` so the response shape
+    matches `ProviderCostPoint.{anthropic, vertex, openai}` exactly.
+
+    Returns:
+        {"anthropic": float, "vertex": float, "openai": float}
+        plus a debug `"_per_model"` list when fail-open conditions allow.
+
+    Fail-open: any exception logs a warning and returns three zeros so
+    the caller's response shape is preserved.
+    """
+    out: dict[str, float] = {"anthropic": 0.0, "vertex": 0.0, "openai": 0.0}
+    try:
+        from backend.agents.cost_tracker import MODEL_PRICING, _DEFAULT_PRICING
+
+        client = _bq_client()
+        sql = f"""
+            SELECT
+                provider,
+                model,
+                SUM(input_tok)  AS in_tok,
+                SUM(output_tok) AS out_tok
+            FROM `{_GCP_PROJECT}.pyfinagent_data.llm_call_log`
+            WHERE ts >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days DAY)
+              AND ok = TRUE
+            GROUP BY provider, model
+        """
+        from google.cloud import bigquery
+        params = [bigquery.ScalarQueryParameter("days", "INT64", window_days)]
+        cfg = bigquery.QueryJobConfig(query_parameters=params)
+        rows = list(client.query(sql, job_config=cfg, timeout=30).result())
+        for r in rows:
+            provider_raw = (r.get("provider") or "").lower()
+            model = r.get("model") or ""
+            in_tok = int(r.get("in_tok") or 0)
+            out_tok = int(r.get("out_tok") or 0)
+            pricing = MODEL_PRICING.get(model, _DEFAULT_PRICING)
+            cost = (in_tok * pricing[0] + out_tok * pricing[1]) / 1_000_000.0
+            # Map gemini -> vertex bucket for response-shape compatibility.
+            bucket = "vertex" if provider_raw == "gemini" else provider_raw
+            if bucket in out:
+                out[bucket] += cost
+    except Exception as exc:
+        logger.warning("sovereign compute-cost: llm cost fail-open: %r", exc)
+        out = {"anthropic": 0.0, "vertex": 0.0, "openai": 0.0}
+    return out
 
 
 def _fetch_bq_daily_bytes(window_days: int) -> list[dict]:
@@ -371,6 +442,17 @@ def get_compute_cost(
     days = _WINDOW_DAYS[window]
     bq_daily = _fetch_bq_daily_bytes(days)
 
+    # phase-25.Q: pull real LLM costs from llm_call_log + MODEL_PRICING
+    # (was hardcoded 0.0 zeros at this site -- bucket 24.13 F-2). Window
+    # totals are split evenly across days for the daily-breakdown view
+    # (per-day granularity is a follow-up enhancement; the totals dict
+    # is what the UI primarily renders).
+    llm_costs = _fetch_llm_cost_by_provider(days)
+    n_days = max(1, len(bq_daily))
+    per_day_anthropic = llm_costs.get("anthropic", 0.0) / n_days
+    per_day_vertex = llm_costs.get("vertex", 0.0) / n_days
+    per_day_openai = llm_costs.get("openai", 0.0) / n_days
+
     # BQ on-demand pricing $6.25 / TiB.
     bytes_per_tib = 1024**4
     daily: list[ProviderCostPoint] = []
@@ -381,17 +463,20 @@ def get_compute_cost(
         daily.append(
             ProviderCostPoint(
                 date=row["d"],
-                anthropic=0.0,
-                vertex=0.0,
-                openai=0.0,
+                anthropic=round(per_day_anthropic, 4),
+                vertex=round(per_day_vertex, 4),
+                openai=round(per_day_openai, 4),
                 bigquery=round(bq_usd, 4),
                 altdata=0.0,
             )
         )
 
-    # llm_call_log + altdata cost rollups are future hooks; defaulted to 0
-    # so the contract's "all 5 keys always present" rule holds today.
+    # phase-25.Q: totals dict now sums actual LLM costs. altdata stays 0
+    # (out of scope; future hook).
     totals = {k: 0.0 for k in _PROVIDER_KEYS}
+    totals["anthropic"] = round(llm_costs.get("anthropic", 0.0), 4)
+    totals["vertex"] = round(llm_costs.get("vertex", 0.0), 4)
+    totals["openai"] = round(llm_costs.get("openai", 0.0), 4)
     totals["bigquery"] = round(bq_total, 4)
     grand = sum(totals.values())
 
@@ -413,6 +498,129 @@ def get_compute_cost(
         "ok" if daily else "empty",
         window=window,
         grand_total_usd=grand,
+    )
+    return response
+
+
+@router.get("/efficiency", response_model=EfficiencyResponse)
+def get_efficiency(
+    window: Literal["7d", "30d", "90d"] = Query("30d"),
+    persist: bool = Query(
+        False, description="Write a snapshot row to pyfinagent_data.efficiency_snapshots"
+    ),
+) -> EfficiencyResponse:
+    """phase-25.Q: profit_per_llm_dollar metric (closes red-line goal-d).
+
+    Numerator: realized P&L over the window (sum of round-trip
+    `realized_pnl_usd` from paper_trades). Denominator: LLM cost (sum of
+    anthropic + vertex + openai) over the same window. Returns NULL ratio
+    when denominator is zero to avoid divide-by-zero. The metric is a
+    first-mover per arxiv 2503.21422 (Mar 2025 survey).
+
+    Optional `persist=true` writes a snapshot row keyed on
+    (snapshot_date, window_days) for trend tracking.
+    """
+    start = time.perf_counter()
+    cache = get_api_cache()
+    key = f"sovereign:efficiency:{window}:{persist}"
+    cached = cache.get(key)
+    if cached is not None:
+        structured_log(
+            "/api/sovereign/efficiency",
+            (time.perf_counter() - start) * 1000,
+            "cache_hit",
+            window=window,
+            persist=persist,
+        )
+        return cached
+
+    days = _WINDOW_DAYS[window]
+    computed_at = datetime.now(timezone.utc).isoformat()
+
+    # Numerator: realized P&L over the window.
+    realized_pnl_usd = 0.0
+    pnl_note = None
+    try:
+        from backend.config.settings import get_settings
+        from backend.db.bigquery_client import BigQueryClient
+        from backend.services.paper_round_trips import pair_round_trips
+
+        settings = get_settings()
+        bq = BigQueryClient(settings)
+        trades = bq.get_paper_trades_in_window(days) or []
+        round_trips = pair_round_trips(trades)
+        realized_pnl_usd = sum(
+            float(rt.get("realized_pnl_usd") or 0.0) for rt in round_trips
+        )
+    except Exception as exc:
+        logger.warning("sovereign efficiency: P&L fail-open: %r", exc)
+        pnl_note = f"pnl_fail_open:{type(exc).__name__}"
+
+    # Denominator: LLM cost over the window (anthropic + vertex + openai).
+    llm_costs = _fetch_llm_cost_by_provider(days)
+    anthropic_cost = float(llm_costs.get("anthropic", 0.0))
+    vertex_cost = float(llm_costs.get("vertex", 0.0))
+    openai_cost = float(llm_costs.get("openai", 0.0))
+    llm_cost_usd = anthropic_cost + vertex_cost + openai_cost
+
+    # Zero-denominator contract: return None for the ratio, not infinity.
+    if llm_cost_usd > 0:
+        profit_per_llm_dollar: Optional[float] = realized_pnl_usd / llm_cost_usd
+    else:
+        profit_per_llm_dollar = None
+
+    note_parts: list[str] = []
+    if pnl_note:
+        note_parts.append(pnl_note)
+    if profit_per_llm_dollar is None:
+        note_parts.append("llm_cost_usd=0 -- ratio undefined")
+    note = "; ".join(note_parts) if note_parts else None
+
+    response = EfficiencyResponse(
+        window=window,
+        profit_per_llm_dollar=profit_per_llm_dollar,
+        realized_pnl_usd=round(realized_pnl_usd, 4),
+        llm_cost_usd=round(llm_cost_usd, 4),
+        anthropic_cost_usd=round(anthropic_cost, 4),
+        vertex_cost_usd=round(vertex_cost, 4),
+        openai_cost_usd=round(openai_cost, 4),
+        computed_at=computed_at,
+        note=note,
+    )
+
+    # Optional persistence to BQ for trend tracking.
+    if persist:
+        try:
+            from backend.config.settings import get_settings
+            from backend.db.bigquery_client import BigQueryClient
+
+            settings = get_settings()
+            bq = BigQueryClient(settings)
+            snapshot_date = datetime.now(timezone.utc).date().isoformat()
+            bq.save_efficiency_snapshot({
+                "snapshot_date": snapshot_date,
+                "window_days": days,
+                "profit_per_llm_dollar": profit_per_llm_dollar,
+                "realized_pnl_usd": realized_pnl_usd,
+                "llm_cost_usd": llm_cost_usd,
+                "anthropic_cost_usd": anthropic_cost,
+                "vertex_cost_usd": vertex_cost,
+                "openai_cost_usd": openai_cost,
+                "computed_at": computed_at,
+            })
+        except Exception as exc:
+            logger.warning(
+                "sovereign efficiency: persist fail-open: %r", exc,
+            )
+
+    cache.set(key, response, _CACHE_TTL)
+    structured_log(
+        "/api/sovereign/efficiency",
+        (time.perf_counter() - start) * 1000,
+        "ok",
+        window=window,
+        persist=persist,
+        ratio=profit_per_llm_dollar,
     )
     return response
 

@@ -8736,7 +8736,7 @@
         {
           "id": "25.Q",
           "name": "Real-time profit_per_llm_dollar metric (closes red-line goal-d)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "25.A9",
@@ -8753,7 +8753,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "FIRST-MOVER metric per arxiv 2503.21422 survey."
+          "notes": "FIRST-MOVER metric per arxiv 2503.21422 survey. Cycle 74 PASS first-spawn. 11/11 verifier (incl. 4 behavioral: happy/zero-cost/persist/gemini-vertex-mapping). Closes RED-LINE GOAL-D. Combined with 25.R (goal-c), both auto-switching + observability red-line gaps closed."
         },
         {
           "id": "25.A6",

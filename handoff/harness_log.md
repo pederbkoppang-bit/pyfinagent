@@ -17447,3 +17447,33 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 9 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R). RED-LINE GOAL-C CLOSED. Remaining red-line gap: goal-d (covered by 25.Q).
 
 **Next cycle candidate:** 25.Q (P1 real-time profit_per_llm_dollar; closes red-line goal-d) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation) OR 25.B (P2 cosmetic-patch removal).
+
+---
+
+## Cycle 74 -- 2026-05-12 -- phase=25.Q result=PASS
+
+**Step:** 25.Q -- Real-time profit_per_llm_dollar metric (P1; closes RED-LINE GOAL-D, FIRST-MOVER per arxiv 2503.21422)
+**Action:** GENERATE. Closes phase-24.13 audit F-2 (sovereign_api.py:386-390 hardcoded LLM cost=0; no profit_per_llm_dollar metric anywhere).
+
+**Code changes:**
+- `scripts/migrations/add_efficiency_snapshots.py` (new): idempotent `CREATE TABLE IF NOT EXISTS pyfinagent_data.efficiency_snapshots` with 9 columns. PARTITION BY snapshot_date, CLUSTER BY window_days. Default dry-run + `--apply`.
+- `backend/db/bigquery_client.py`: new `save_efficiency_snapshot(row)` MERGE on natural key `(snapshot_date, window_days)` + `result(timeout=30)`.
+- `backend/api/sovereign_api.py`:
+  - New `_fetch_llm_cost_by_provider(window_days)` helper queries `llm_call_log` + joins `MODEL_PRICING` in Python. Maps `provider="gemini" -> "vertex"` bucket. Fail-open.
+  - Fixed hardcoded zeros at the old L386-390 site -- BOTH per-day rows AND the totals dict now source from the same `_fetch_llm_cost_by_provider` call (single regression surface).
+  - New `EfficiencyResponse` Pydantic model with `profit_per_llm_dollar: Optional[float]` (None when llm_cost==0; first-mover contract).
+  - New `GET /api/sovereign/efficiency?window=7d|30d|90d&persist=false` route. Computes ratio = realized P&L / LLM cost; optional persistence.
+
+**New verifier:** `tests/verify_phase_25_Q.py` (350+ LOC, 11 immutable claims) -- **11/11 PASS, EXIT=0**. Four **behavioral round-trips**: happy path (ratio=10.0), zero-cost (None not inf), persist=True (save called once with row shape), gemini->vertex provider mapping.
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. 8 plausible mutations mapped to specific catching claims; no spirit-breaking non-covered mutation. Both hardcoded-zero sites share a single helper -- regression-resistant by construction. Zero-denominator None contract documented + behaviorally enforced. First-mover claim genuine + recency-scan-confirmed.
+
+**RED-LINE GOAL-D CLOSED.** Per arxiv 2503.21422 (March 2025 survey), no published autonomous trading system has this metric. pyfinagent is now the first-mover.
+
+**Combined with 25.R (cycle 73), BOTH RED-LINE GOAL-C AND GOAL-D ARE NOW CLOSED.** Remaining red-line goals (a "profit" + b "low cost") are operational/policy concerns not single-step addressable.
+
+**Phase-25.Q status -> done.**
+
+**P1 sprint progress:** 10 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q). RED-LINE GOAL-C and GOAL-D BOTH CLOSED.
+
+**Next cycle candidate:** 25.A6 (P1 live-vs-backtest Sharpe reconciliation; no deps) OR 25.A7 (P1 per-table freshness endpoint; no deps) OR 25.B (P2 cosmetic-patch removal; trivial cleanup).

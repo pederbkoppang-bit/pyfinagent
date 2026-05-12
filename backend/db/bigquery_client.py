@@ -801,6 +801,57 @@ class BigQueryClient:
         job_config = bigquery.QueryJobConfig(query_parameters=params)
         self.client.query(query, job_config=job_config).result(timeout=30)
 
+    def save_efficiency_snapshot(self, row: dict) -> None:
+        """phase-25.Q: persist a profit_per_llm_dollar snapshot to
+        `pyfinagent_data.efficiency_snapshots`. MERGE on natural key
+        `(snapshot_date, window_days)` so re-running on the same day
+        upserts instead of duplicating. 30s BQ timeout per CLAUDE.md.
+
+        Required keys: snapshot_date, window_days, realized_pnl_usd,
+        llm_cost_usd, anthropic_cost_usd, vertex_cost_usd, openai_cost_usd,
+        computed_at. Optional: profit_per_llm_dollar (may be None).
+        """
+        if not row.get("snapshot_date") or row.get("window_days") is None:
+            raise ValueError(
+                "save_efficiency_snapshot requires 'snapshot_date' and 'window_days' MERGE keys"
+            )
+        table = f"{self.settings.gcp_project_id}.pyfinagent_data.efficiency_snapshots"
+        type_map = {
+            "snapshot_date": ("DATE", str),
+            "window_days": ("INT64", int),
+            "profit_per_llm_dollar": ("FLOAT64", float),
+            "realized_pnl_usd": ("FLOAT64", float),
+            "llm_cost_usd": ("FLOAT64", float),
+            "anthropic_cost_usd": ("FLOAT64", float),
+            "vertex_cost_usd": ("FLOAT64", float),
+            "openai_cost_usd": ("FLOAT64", float),
+            "computed_at": ("TIMESTAMP", str),
+        }
+        # Filter to known cols + drop None values (so NULL is preserved
+        # automatically for missing optional fields).
+        filtered = {k: v for k, v in row.items() if k in type_map and v is not None}
+        cols = list(filtered.keys())
+        source_select = ", ".join(f"@v_{k} AS {k}" for k in cols)
+        vals = ", ".join(f"@v_{k}" for k in cols)
+        set_clauses = ", ".join(
+            f"T.{k} = S.{k}" for k in cols if k not in ("snapshot_date", "window_days")
+        )
+        query = f"""
+            MERGE `{table}` T
+            USING (SELECT {source_select}) S
+            ON T.snapshot_date = S.snapshot_date AND T.window_days = S.window_days
+            WHEN MATCHED THEN
+                UPDATE SET {set_clauses}
+            WHEN NOT MATCHED THEN
+                INSERT ({", ".join(cols)}) VALUES ({vals})
+        """
+        params = [
+            bigquery.ScalarQueryParameter(f"v_{k}", type_map[k][0], type_map[k][1](v))
+            for k, v in filtered.items()
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(query, job_config=job_config).result(timeout=30)
+
     def get_paper_trades_in_window(self, window_days: int) -> list[dict]:
         """phase-25.A11: paper_trades rows whose created_at falls within the
         last `window_days` days. Used by /api/paper-trading/learnings to
