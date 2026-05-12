@@ -7966,7 +7966,7 @@
         {
           "id": "24.2",
           "name": "Pipeline routing + report persistence audit (lite-vs-full branching; reports -> BQ; 28-skill / 15-step orchestrator)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "24.0",

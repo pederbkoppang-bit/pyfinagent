@@ -16603,3 +16603,34 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance items CONFIRM. Anti-rubber-stamp confirms F-4 honestly distinguishes config vs code. Scope-honesty confirms open questions explicit. 37 grep anchor hits across content-specific regex.
 
 **Phase-24.5 status -> done.** Phase-24 P0 buckets (24.1 + 24.4 + 24.5) COMPLETE. Next cycle: bucket 24.2 (P1 — pipeline routing).
+
+---
+
+## Cycle 46 -- 2026-05-12 -- phase=24.2 result=PASS
+
+**Step:** 24.2 — Pipeline routing + report persistence audit (P1)
+**Action:** READ-ONLY. Findings doc + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=complex; 5 sources: harness-design, built-multi-agent, building-effective-agents, Gemini structured-output, arxiv 2404.14618v1 hybrid cost-quality routing).
+
+**Findings (hypothesis CONFIRMED with critical correction):**
+- Branch at `autonomous_loop.py:575` `if settings.lite_mode:` — confirmed
+- BOTH lite AND full paths fail to populate `/reports` from paper-trading flow. `orchestrator.py` contains ZERO `bq.save_report` calls (only one BQ import at L444 for agent memory)
+- Only manual `/api/analysis` endpoint (`analysis.py:201`) writes to reports table
+- Comment at `autonomous_loop.py:273` ("full orchestrator writes its own row via bq.save_report") is doc rot
+- Lite-path persistence guarded by `_path == "lite"` at L276/294; full path returns no `_path` marker → bypassed
+- Default `settings.lite_mode = False` (`settings.py:119`) — full is default but outputs evaporate
+- Skills count: **31** (not 28 per master prompt); honestly flagged for doc reconciliation
+- Cost ratio: lite ~$0.01/ticker; full ~$0.10-0.20/ticker (10-20x)
+
+**Phase-25 candidates (5):**
+1. 25.A2 (P0) — Wire `bq.save_report(...)` after `run_full_analysis` returns
+2. 25.B2 (P1) — Unify `_persist_analysis` accepting `_path` marker (`"lite"|"full"`)
+3. 25.C2 (P1) — `full_pipeline_tickers: list[str]` setting for per-ticker hybrid routing
+4. 25.D2 (P2) — A/B quality lift measurement (lite vs full)
+5. 25.E2 (P2) — `/reports` lite-vs-full badge rendering
+
+**Verifier:** 12/13 PASS at Q/A spawn; log-last gap only FAIL. Now 13/13 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. F-1..F-7 all present. Anti-rubber-stamp validates honest hypothesis correction (F-2 BOTH paths fail) and skill-count discrepancy disclosure (F-5).
+
+**Phase-24.2 status -> done.** Next cycle: bucket 24.3 (P1 — autoresearch daily-loop wiring).
