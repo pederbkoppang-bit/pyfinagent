@@ -43,6 +43,37 @@ def load_best_params() -> dict:
     return params
 
 
+def load_promoted_params(bq: BigQueryClient) -> dict:
+    """phase-25.B3: prefer the latest BQ-promoted strategy params over the
+    local optimizer_best.json snapshot. Closes phase-24.3 F-6 -- before
+    this fix the daily cycle could not pick up newly promoted strategies
+    written by `backend/autoresearch/friday_promotion.py`.
+
+    Three-tier fallback:
+      1. BQ row found with non-empty params -> return those params + log.
+      2. BQ returns None or empty params -> fall back to load_best_params().
+      3. BQ raises (network / table missing / etc.) -> fall back to
+         load_best_params(). Never raises out of this function.
+    """
+    try:
+        row = bq.get_latest_promoted_strategy()
+        if row and row.get("params"):
+            logger.info(
+                "Loaded promoted params (DSR %s week=%s): %s",
+                row.get("dsr", "?"),
+                row.get("week_iso", "?"),
+                list((row.get("params") or {}).keys()),
+            )
+            return row["params"]
+        logger.info("No active promoted strategy in BQ, falling back to optimizer_best")
+    except Exception as exc:
+        logger.warning(
+            "Promoted strategy BQ unavailable, falling back to optimizer_best: %s",
+            exc,
+        )
+    return load_best_params()
+
+
 # Module-level state
 _running = False
 _last_run: Optional[str] = None
@@ -96,8 +127,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
     summary["cycle_id"] = _cycle_id
     summary["started_at"] = _cycle_started_at
 
-    # Load optimizer best params for strategy decisions
-    best_params = load_best_params()
+    # phase-25.B3: prefer the latest BQ-promoted strategy params; falls back
+    # to optimizer_best.json if BQ has nothing active or is unavailable.
+    best_params = load_promoted_params(bq)
     if best_params:
         summary["best_params_sharpe"] = best_params.get("sharpe", "?")
         summary["strategy_params"] = {

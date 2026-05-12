@@ -717,6 +717,48 @@ class BigQueryClient:
         job_config = bigquery.QueryJobConfig(query_parameters=params)
         self.client.query(query, job_config=job_config).result(timeout=30)
 
+    def get_latest_promoted_strategy(
+        self,
+        status_filter: list[str] | None = None,
+    ) -> dict | None:
+        """phase-25.B3: read the latest row from
+        `pyfinagent_data.promoted_strategies` filtered to the given statuses,
+        ordered by `(promoted_at DESC, dsr DESC)`. Default filter
+        `["pending", "active"]` because 25.A3 hardcodes status="pending"
+        until 25.C3's state machine lands -- a stricter "active" filter
+        today would always return None.
+
+        Returns None when no row matches. Returns a dict with the row
+        columns plus a parsed `params` dict (JSON column is unpacked from
+        `params_json` via json.loads). 30s BQ timeout per CLAUDE.md.
+        """
+        if status_filter is None:
+            status_filter = ["pending", "active"]
+        table = f"{self.settings.gcp_project_id}.pyfinagent_data.promoted_strategies"
+        query = f"""
+            SELECT
+                strategy_id, week_iso,
+                TO_JSON_STRING(params) AS params_json,
+                dsr, pbo, status, allocation_pct, promoted_at, sortino_monthly
+            FROM `{table}`
+            WHERE status IN UNNEST(@statuses)
+            ORDER BY promoted_at DESC, dsr DESC
+            LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ArrayQueryParameter("statuses", "STRING", status_filter),
+        ])
+        rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
+        if not rows:
+            return None
+        row = dict(rows[0])
+        params_raw = row.pop("params_json", None)
+        try:
+            row["params"] = json.loads(params_raw) if params_raw else {}
+        except (json.JSONDecodeError, TypeError):
+            row["params"] = {}
+        return row
+
     def get_paper_trades_in_window(self, window_days: int) -> list[dict]:
         """phase-25.A11: paper_trades rows whose created_at falls within the
         last `window_days` days. Used by /api/paper-trading/learnings to

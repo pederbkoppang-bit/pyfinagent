@@ -17362,3 +17362,29 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 6 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3).
 
 **Next cycle candidate:** 25.B3 (P1 daily-loop reader; depends on 25.A3 done) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation; no deps) OR 25.B (P2 cosmetic-patch removal; trivial cleanup after 25.A).
+
+---
+
+## Cycle 71 -- 2026-05-12 -- phase=25.B3 result=PASS
+
+**Step:** 25.B3 -- Daily loop reads latest promoted strategy via load_promoted_params() (P1)
+**Action:** GENERATE. Closes phase-24.3 audit F-6 (autonomous_loop.py:33-43 read only optimizer_best.json; no BQ promoted_strategies query existed).
+
+**Code changes:**
+- `backend/db/bigquery_client.py`: new `get_latest_promoted_strategy(status_filter=None)` reader. Default filter `["pending", "active"]` because 25.A3 hardcodes status="pending" until 25.C3's state machine lands. SELECT uses `TO_JSON_STRING(params) AS params_json` (BQ JSON columns are non-serializable in `dict(row)`); reader inverts via `json.loads` with try/except -> `params={}` on malformed JSON. `ORDER BY promoted_at DESC, dsr DESC LIMIT 1`. `result(timeout=30)`.
+- `backend/services/autonomous_loop.py`: new `load_promoted_params(bq) -> dict` with 3-tier fallback (BQ row -> `optimizer_best.json` via `load_best_params()` -> `{}`). Three distinct log lines for happy / empty / exception paths. Caller in `run_daily_cycle` now `best_params = load_promoted_params(bq)` (was `load_best_params()`).
+
+**New verifier:** `tests/verify_phase_25_B3.py` (300+ LOC, 11 immutable claims) -- **11/11 PASS, EXIT=0**. Five **behavioral round-trips**:
+- happy path -> returns BQ params + emits expected log
+- empty path -> falls back + emits fallback log
+- exception path -> falls back + emits exception-detail log
+- JSON round-trip -> reader inverts `TO_JSON_STRING(params)` via `json.loads`
+- malformed JSON -> safe `params={}` fallback (no exception)
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Mutation-resistance: 8 plausible mutations mapped to specific verifier claims; no spirit-breaking non-covered mutation identified. Scope honest: status state-machine deferred to 25.C3.
+
+**Phase-25.B3 status -> done.** Daily cycle now reads promoted strategies from BQ, unblocking 25.C3 (status state machine: pending -> active -> superseded/rolled_back).
+
+**P1 sprint progress:** 7 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3).
+
+**Next cycle candidate:** 25.C3 (P1 status state-machine; depends on 25.B3 done) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation; no deps) OR 25.B (P2 cosmetic-patch removal).

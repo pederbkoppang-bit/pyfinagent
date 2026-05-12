@@ -8670,7 +8670,7 @@
         {
           "id": "25.B3",
           "name": "Daily loop reads latest promoted strategy via load_promoted_params()",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "25.A3",
@@ -8687,7 +8687,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Depends on 25.A3 (table must exist)."
+          "notes": "Depends on 25.A3 (table must exist). Cycle 71 PASS first-spawn. 11/11 verifier (incl. 5 behavioral round-trips: happy/empty/exception/json-roundtrip/malformed-json). 3-tier fallback (BQ -> optimizer_best.json -> {})."
         },
         {
           "id": "25.C3",
