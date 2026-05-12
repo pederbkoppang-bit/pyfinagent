@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `436f2e10` | phase-25.A2: Wire bq.save_report() into full pipeline persistence |
 | 2026-05-12 | `a1791417` | phase-25.J: Trade confirmation Slack notifications |
 | 2026-05-12 | `ee14becf` | phase-25.6: No-stop-on-entry hard block in execute_buy() |
 | 2026-05-12 | `48b662ec` | phase-25.2: Backfill missing stops with same-cycle re-check |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `db1aaea2` | phase-24.10: MCP infrastructure + permissions + security audit (auth, secrets, deny rules, new-MC... |
 | 2026-05-12 | `e8b660e4` | phase-24.8: Observability + monitoring + safety rails audit (watchdog, kill-switch, SLA, governan... |
 | 2026-05-12 | `03047b1a` | phase-24.7: Data quality + BQ freshness + yfinance fallback hygiene audit |
-| 2026-05-12 | `038dee5e` | phase-24.3: Autoresearch <-> daily-loop wiring audit (cron isolation; meta-evolution feedback loop) |
 
 ---
 
+### v6.7.25 — phase-25.A2: Wire bq.save_report() into full pipeline persistence (2026-05-12)
+
+- **phase-25.A2: Wire bq.save_report() into full pipeline persistence**
 ### v6.7.24 — phase-25.J: Trade confirmation Slack notifications (2026-05-12)
 
 - **phase-25.J: Trade confirmation Slack notifications**
