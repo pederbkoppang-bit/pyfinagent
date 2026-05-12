@@ -14,7 +14,9 @@ silently promotes nothing.
 """
 from __future__ import annotations
 
+import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +38,7 @@ def run_friday_promotion(
     starting_allocation_pct: float = _STARTING_ALLOCATION_PCT,
     gate: PromotionGate | None = None,
     ledger_path: Path | None = None,
+    bq_client: Any | None = None,
 ) -> dict[str, Any]:
     """Run the Friday promotion gate for `week_iso`.
 
@@ -138,6 +141,37 @@ def run_friday_promotion(
             "already_fired": False,
             "error": "ledger_write_failed",
         }
+
+    # phase-25.A3: BQ subscriber. Persists one row per promoted candidate to
+    # `pyfinagent_data.promoted_strategies` so the daily autonomous loop
+    # (25.B3 follow-up) can read promoted params from a typed table instead
+    # of parsing the flat TSV ledger. Per-row try/except: a BQ write failure
+    # never poisons sibling rows nor blocks the function return -- the TSV
+    # ledger already has the canonical record at this point.
+    if bq_client is not None:
+        promoted_at_iso = datetime.now(timezone.utc).isoformat()
+        sortino_monthly = _safe_float(row.get("sortino_monthly"), 0.0)
+        for c in top:
+            try:
+                bq_row = {
+                    "strategy_id": str(c.get("trial_id", "")),
+                    "week_iso": week_iso,
+                    "params": json.dumps(c.get("params") or {}),
+                    "dsr": _safe_float(c.get("dsr"), 0.0),
+                    "pbo": _safe_float(c.get("pbo"), 1.0),
+                    "status": "pending",
+                    "allocation_pct": float(starting_allocation_pct),
+                    "promoted_at": promoted_at_iso,
+                    "sortino_monthly": sortino_monthly,
+                }
+                bq_client.save_promoted_strategy(bq_row)
+            except Exception as exc:
+                logger.warning(
+                    "friday_promotion: BQ write failed for strategy %s week %s: %s",
+                    c.get("trial_id"),
+                    week_iso,
+                    exc,
+                )
 
     return {
         "promoted_ids": promoted_ids,

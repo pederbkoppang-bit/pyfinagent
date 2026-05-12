@@ -656,6 +656,67 @@ class BigQueryClient:
         ])
         return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
 
+    def save_promoted_strategy(self, row: dict) -> None:
+        """phase-25.A3: persist one promotion row to
+        `pyfinagent_data.promoted_strategies`. MERGE on the natural key
+        `(week_iso, strategy_id)` so re-running a Friday promotion is
+        idempotent. 30s BQ timeout per CLAUDE.md rule.
+
+        Required keys: strategy_id, week_iso, dsr, pbo, status, promoted_at.
+        Optional: params (JSON string), allocation_pct, sortino_monthly,
+        rejection_reason. `params` is stored as JSON via PARSE_JSON(@v_params)
+        because there is no native JSON BQ parameter type.
+        """
+        if not row.get("strategy_id") or not row.get("week_iso"):
+            raise ValueError(
+                "save_promoted_strategy requires 'strategy_id' and 'week_iso' MERGE-key fields"
+            )
+        table = f"{self.settings.gcp_project_id}.pyfinagent_data.promoted_strategies"
+
+        # Field type registry for parameter binding + SELECT casting.
+        type_map = {
+            "strategy_id": ("STRING", str),
+            "week_iso": ("STRING", str),
+            "params": ("STRING", str),
+            "dsr": ("FLOAT64", float),
+            "pbo": ("FLOAT64", float),
+            "status": ("STRING", str),
+            "allocation_pct": ("FLOAT64", float),
+            "promoted_at": ("TIMESTAMP", str),  # ISO string accepted by BQ
+            "sortino_monthly": ("FLOAT64", float),
+            "rejection_reason": ("STRING", str),
+        }
+        filtered = {k: v for k, v in row.items() if k in type_map and v is not None}
+
+        cols = list(filtered.keys())
+        # SOURCE SELECT: cast each param, with PARSE_JSON for params.
+        def _src_expr(k: str) -> str:
+            return f"PARSE_JSON(@v_{k}) AS {k}" if k == "params" else f"@v_{k} AS {k}"
+        source_select = ", ".join(_src_expr(k) for k in cols)
+        # INSERT values list: same as SELECT pattern (parameterless aliases).
+        def _ins_expr(k: str) -> str:
+            return f"PARSE_JSON(@v_{k})" if k == "params" else f"@v_{k}"
+        vals = ", ".join(_ins_expr(k) for k in cols)
+        set_clauses = ", ".join(
+            f"T.{k} = S.{k}" for k in cols if k not in ("week_iso", "strategy_id")
+        )
+
+        query = f"""
+            MERGE `{table}` T
+            USING (SELECT {source_select}) S
+            ON T.week_iso = S.week_iso AND T.strategy_id = S.strategy_id
+            WHEN MATCHED THEN
+                UPDATE SET {set_clauses}
+            WHEN NOT MATCHED THEN
+                INSERT ({", ".join(cols)}) VALUES ({vals})
+        """
+        params = [
+            bigquery.ScalarQueryParameter(f"v_{k}", type_map[k][0], type_map[k][1](v))
+            for k, v in filtered.items()
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(query, job_config=job_config).result(timeout=30)
+
     def get_paper_trades_in_window(self, window_days: int) -> list[dict]:
         """phase-25.A11: paper_trades rows whose created_at falls within the
         last `window_days` days. Used by /api/paper-trading/learnings to

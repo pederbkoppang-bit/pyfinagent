@@ -8648,7 +8648,7 @@
         {
           "id": "25.A3",
           "name": "Write promoted strategies to pyfinagent_data.promoted_strategies BQ table",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8665,7 +8665,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Prerequisite for 25.B3, 25.C3, 25.R."
+          "notes": "Prerequisite for 25.B3, 25.C3, 25.R. Cycle 70 PASS first-spawn. 10/10 verifier (incl. behavioral round-trip via fake bq_client). Migration dry-run prints 10-col DDL; --apply gated to operator per CLAUDE.md BQ write rules."
         },
         {
           "id": "25.B3",

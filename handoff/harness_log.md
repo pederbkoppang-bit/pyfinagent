@@ -17338,3 +17338,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 5 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A).
 
 **Next cycle candidate:** 25.B (P2 -- remove cosmetic aliasing patch now inert; depends on 25.A done) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation) OR 25.A3 (P1 promoted_strategies BQ table, unlocks 25.B3 chain).
+
+---
+
+## Cycle 70 -- 2026-05-12 -- phase=25.A3 result=PASS
+
+**Step:** 25.A3 -- Write promoted strategies to pyfinagent_data.promoted_strategies BQ table (P1)
+**Action:** GENERATE. Closes phase-24.3 audit F-3 (friday_promotion.py wrote only to flat TSV; no BQ subscriber).
+
+**Code changes:**
+- `scripts/migrations/create_promoted_strategies_table.py` (new): idempotent `CREATE TABLE IF NOT EXISTS` migration mirroring `create_options_snapshots_table.py`. 10 columns, `params JSON`, PARTITION BY DATE(promoted_at), CLUSTER BY strategy_id, week_iso. Default dry-run + `--apply` flag.
+- `backend/db/bigquery_client.py`: new `save_promoted_strategy(row)` MERGE on natural key `(week_iso, strategy_id)`. `params` handled via `PARSE_JSON(@v_params)` because there's no native JSON BQ parameter type. `result(timeout=30)` per CLAUDE.md.
+- `backend/autoresearch/friday_promotion.py`: new `json` + `datetime, timezone` imports; `run_friday_promotion` signature gains `bq_client: Any | None = None` kwarg; after the ledger-append success block, when `bq_client is not None` loops over `top` and calls `bq_client.save_promoted_strategy(row)` with per-row try/except (BQ write failure logs a warning but never blocks the function return).
+
+**New verifier:** `tests/verify_phase_25_A3.py` (270+ LOC, 10 immutable claims) -- **10/10 PASS, EXIT=0**. Claim 9 is a **behavioral round-trip**: fake bq_client + fake ledger + always-promoting fake gate calls `run_friday_promotion` end-to-end; asserts `save_promoted_strategy` called exactly once with the correct dict shape (strategy_id, week_iso, status=`pending`, params JSON-round-trip, etc.). Claim 10 asserts `bq_client=None` still succeeds + ledger append still fires -- no regression for existing callers.
+
+**Migration dry-run:** exit 0, prints full 10-column DDL.
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Mutation-resistance via behavioral claim 9 (inspects called_row dict keys + values; not just call existence). Scope honesty: contract correctly defers live `--apply` BQ execution to operator (CLAUDE.md write-gate rule).
+
+**Phase-25.A3 status -> done.** Unblocks 25.B3 (daily-loop reader) -> 25.C3 (state machine) -> 25.R (auto-switching policy / red-line goal-c).
+
+**P1 sprint progress:** 6 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3).
+
+**Next cycle candidate:** 25.B3 (P1 daily-loop reader; depends on 25.A3 done) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation; no deps) OR 25.B (P2 cosmetic-patch removal; trivial cleanup after 25.A).
