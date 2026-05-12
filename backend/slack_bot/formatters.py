@@ -676,6 +676,87 @@ def format_trade_confirmation(trade: dict) -> list[dict]:
     return blocks
 
 
+def format_strategy_switch(event: dict) -> list[dict]:
+    """phase-25.R: format a Strategy Auto-Switch event as Block Kit blocks.
+
+    Closes red-line goal-c (dynamically shift strategy to whichever is making
+    the most money). Fires when `Promoter.write_to_registry` flips a new
+    strategy to status="active" and supersedes the prior active row.
+
+    Required event keys: new_strategy_id, prior_strategy_id (may be None),
+    dsr, pbo, allocation_pct, switched_at (ISO), week_iso.
+
+    Returns Block Kit list[dict]. P0 visual (rotating-light) + structured
+    fields for at-a-glance diff between the new and superseded strategies.
+    """
+    new_id = str(event.get("new_strategy_id") or "(unknown)")
+    prior_id_raw = event.get("prior_strategy_id")
+    prior_id = str(prior_id_raw) if prior_id_raw else "(none -- first promotion)"
+    dsr = event.get("dsr")
+    pbo = event.get("pbo")
+    allocation = event.get("allocation_pct")
+    switched_at = str(event.get("switched_at") or "")
+    week_iso = str(event.get("week_iso") or "")
+
+    def _fmt_num(v, fmt: str = "{:.3f}") -> str:
+        if v is None:
+            return "n/a"
+        try:
+            return fmt.format(float(v))
+        except (TypeError, ValueError):
+            return str(v)
+
+    blocks: list[dict] = [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": ":rotating_light: Strategy Auto-Switch (P0)",
+                "emoji": True,
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"*New active strategy:* `{new_id}` "
+                    f"(week {week_iso}, switched {switched_at})"
+                ),
+            },
+        },
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Strategy ID:* {new_id}"},
+                {"type": "mrkdwn", "text": f"*Week:* {week_iso or '(unknown)'}"},
+                {"type": "mrkdwn", "text": f"*DSR:* {_fmt_num(dsr)}"},
+                {"type": "mrkdwn", "text": f"*PBO:* {_fmt_num(pbo)}"},
+                {"type": "mrkdwn", "text": f"*Allocation %:* {_fmt_num(allocation, '{:.2%}')}"},
+                {"type": "mrkdwn", "text": f"*Switched at:* {switched_at or '(unknown)'}"},
+            ],
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Superseded:* `{prior_id}`",
+            },
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": ":robot_face: phase-25.R auto-switching policy * Closes red-line goal-c",
+                }
+            ],
+        },
+    ]
+    return blocks
+
+
 def format_escalation_alert(
     severity: str,
     title: str,

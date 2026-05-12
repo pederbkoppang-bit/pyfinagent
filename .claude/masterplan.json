@@ -8714,7 +8714,7 @@
         {
           "id": "25.R",
           "name": "Strategy auto-switching policy (closes red-line goal-c)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "25.C3",
@@ -8731,7 +8731,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "FIRST-MOVER per arxiv 2503.21422 (no published trading system has this)."
+          "notes": "FIRST-MOVER per arxiv 2503.21422 (no published trading system has this). Cycle 73 PASS first-spawn. 11/11 verifier (incl. 6 behavioral round-trips). Closes RED-LINE GOAL-C. Pipeline: friday_promotion(25.A3) -> {HITL(25.C3) OR auto(25.R)} -> daily_read(25.B3)."
         },
         {
           "id": "25.Q",

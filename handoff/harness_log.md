@@ -17414,3 +17414,36 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 8 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3). Full chain 25.A3 -> 25.B3 -> 25.C3 complete; 25.R unblocked.
 
 **Next cycle candidate:** 25.R (P1 strategy auto-switching policy; closes red-line goal-c) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation; no deps) OR 25.B (P2 cosmetic-patch removal).
+
+---
+
+## Cycle 73 -- 2026-05-12 -- phase=25.R result=PASS
+
+**Step:** 25.R -- Strategy auto-switching policy (P1; closes RED-LINE GOAL-C)
+**Action:** GENERATE. Closes phase-24.13 audit F-3 (strategy-switching mechanism does not exist).
+
+**Code changes:**
+- `backend/autoresearch/promoter.py`: new imports (json, logging, datetime, timezone); new module logger; new `Promoter.write_to_registry(bq_client, trial, *, week_iso, slack_fn=None) -> dict`. Runs `promote()` gate first; on pass: (1) looks up prior active via `get_latest_promoted_strategy`, flips it to `superseded` (different strategy_id only); (2) writes new row with `status="active"` via `save_promoted_strategy`; (3) fires P0 Slack only after successful BQ write (never lies about state). Per-call try/except on each side effect. `@dataclass(frozen=True)` invariant preserved (no `self.*` mutation).
+- `backend/slack_bot/formatters.py`: new `format_strategy_switch(event: dict) -> list[dict]` builds 6-block Block Kit payload (header with rotating-light P0 emoji + section + 6-field grid + superseded + divider + context footer). Handles None prior gracefully ("(none -- first promotion)"). Mirrors `format_escalation_alert` pattern.
+
+**New verifier:** `tests/verify_phase_25_R.py` (370+ LOC, 11 immutable claims) -- **11/11 PASS, EXIT=0**. Six **behavioral round-trips**:
+- happy path: gate-pass, prior active exists -> save status=active + supersede prior + slack.
+- gate-fail: shadow_days too low -> NO writes + NO slack.
+- first-promotion: prior active None -> no supersede call, save+slack still fire.
+- BQ fail-open: save raises -> no crash AND slack NOT called (don't lie).
+- formatter Block Kit shape: >=3 blocks + header + new_id + phase-25.R attribution.
+- None-prior graceful: no literal "None" in output.
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. 5 plausible mutations mapped to specific catching claims; fail-open Slack-after-BQ-failure semantic verified. Scope honest: goal-d (profit_per_llm_dollar) correctly deferred to 25.Q; Path B (monthly HITL) untouched.
+
+**RED-LINE GOAL-C CLOSED.** Complete pipeline now wired end-to-end:
+- friday_promotion writes `pending` (25.A3)
+- monthly HITL approval flips to `active` (25.C3) -- OR --
+- Promoter.write_to_registry auto-flips to `active` + supersedes prior + fires P0 Slack (25.R)
+- daily loop reads via load_promoted_params (25.B3) -> trades on the new params
+
+**Phase-25.R status -> done.**
+
+**P1 sprint progress:** 9 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R). RED-LINE GOAL-C CLOSED. Remaining red-line gap: goal-d (covered by 25.Q).
+
+**Next cycle candidate:** 25.Q (P1 real-time profit_per_llm_dollar; closes red-line goal-d) OR 25.A6 (P1 live-vs-backtest Sharpe reconciliation) OR 25.B (P2 cosmetic-patch removal).
