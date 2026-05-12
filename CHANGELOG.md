@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `958c0680` | phase-24.11: Frontend<->Backend wiring data layer audit (types, drift, API contract, learnings-pa... |
 | 2026-05-12 | `db1aaea2` | phase-24.10: MCP infrastructure + permissions + security audit (auth, secrets, deny rules, new-MC... |
 | 2026-05-12 | `e8b660e4` | phase-24.8: Observability + monitoring + safety rails audit (watchdog, kill-switch, SLA, governan... |
 | 2026-05-12 | `03047b1a` | phase-24.7: Data quality + BQ freshness + yfinance fallback hygiene audit |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-11 | `5b1b453f` | phase-23.7.0: Auto-commit-and-push pipeline + semver-aware changelog (per-step trigger) |
 | 2026-05-11 | `2301b977` | phase-23.6: harness MAS cycles 23.6.0-23.6.3 + observability follow-up |
 | 2026-05-07 | `f8b5e181` | phase-23.3.6: /cron UI verification + phase-23.3 consolidation |
-| 2026-05-07 | `73196650` | phase-23.3.5: log allowlist fix -- live paths + 3 .env bugs surfaced |
 
 ---
 
+### v6.7.9 — phase-24.11: Frontend<->Backend wiring data layer audit (types, drift... (2026-05-12)
+
+- **phase-24.11: Frontend<->Backend wiring data layer audit (types, drift, API contract, learnings-pa...**
 ### v6.7.8 — phase-24.10: MCP infrastructure + permissions + security audit (auth,... (2026-05-12)
 
 - **phase-24.10: MCP infrastructure + permissions + security audit (auth, secrets, deny rules, new-MC...**
