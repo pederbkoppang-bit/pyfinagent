@@ -232,7 +232,7 @@ async def _send_morning_digest(app: AsyncApp):
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            portfolio_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/portfolio/performance")
+            portfolio_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/paper-trading/portfolio")
             portfolio_data = portfolio_res.json() if portfolio_res.status_code == 200 else {}
 
             reports_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/reports/?limit=5")
@@ -257,7 +257,7 @@ async def _send_evening_digest(app: AsyncApp):
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            portfolio_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/portfolio/performance")
+            portfolio_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/paper-trading/portfolio")
             portfolio_data = portfolio_res.json() if portfolio_res.status_code == 200 else {}
 
             trades_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/paper-trading/trades?limit=10")

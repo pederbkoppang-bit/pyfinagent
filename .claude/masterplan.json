@@ -8474,7 +8474,7 @@
         {
           "id": "25.G",
           "name": "Fix Slack digest P&L data source (endpoint + field key)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,

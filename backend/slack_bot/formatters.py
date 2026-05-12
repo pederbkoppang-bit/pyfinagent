@@ -103,7 +103,8 @@ def format_portfolio_summary(data: dict) -> list[dict]:
     positions = data.get("positions", [])
     total_value = data.get("total_value", 0)
     total_pnl = data.get("total_pnl", 0)
-    total_return = data.get("total_return_pct", 0)
+    # phase-25.G: paper_trading endpoint returns total_pnl_pct, not total_return_pct
+    total_return = data.get("total_pnl_pct", data.get("total_return_pct", 0))
 
     pnl_emoji = ":chart_with_upwards_trend:" if total_pnl >= 0 else ":chart_with_downwards_trend:"
     pnl_sign = "+" if total_pnl >= 0 else ""
@@ -318,7 +319,8 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list) -> list[di
     # Portfolio section
     if portfolio_data:
         total_pnl = portfolio_data.get("total_pnl", 0)
-        total_return = portfolio_data.get("total_return_pct", 0)
+        # phase-25.G: paper_trading endpoint returns total_pnl_pct, not total_return_pct
+        total_return = portfolio_data.get("total_pnl_pct", portfolio_data.get("total_return_pct", 0))
         sign = "+" if total_pnl >= 0 else ""
         emoji = ":chart_with_upwards_trend:" if total_pnl >= 0 else ":chart_with_downwards_trend:"
 
@@ -362,7 +364,8 @@ def format_evening_digest(portfolio_data: dict, trades_today: list) -> list[dict
 
     if portfolio_data:
         total_pnl = portfolio_data.get("total_pnl", 0)
-        total_return = portfolio_data.get("total_return_pct", 0)
+        # phase-25.G: paper_trading endpoint returns total_pnl_pct, not total_return_pct
+        total_return = portfolio_data.get("total_pnl_pct", portfolio_data.get("total_return_pct", 0))
         sign = "+" if total_pnl >= 0 else ""
         emoji = ":chart_with_upwards_trend:" if total_pnl >= 0 else ":chart_with_downwards_trend:"
 

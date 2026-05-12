@@ -17049,3 +17049,25 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Hypothesis:** CONFIRMED. Math round-trip: 4096 × $5/MTok × 2.0 ÷ 1M = $0.04096 (was $0.0256 — 60% under-report closed).
 
 **Phase-25.A9 status -> done.** Next cycle: 25.A8 (cost-budget hard-block) — now has accurate cost data prerequisite.
+
+---
+
+## Cycle 59 -- 2026-05-12 -- phase=25.G result=PASS
+
+**Step:** 25.G — Fix Slack digest P&L data source (endpoint + field key) (P0)
+**Action:** GENERATE. 7 edits across 3 files closing phase-24.5 F-1 + F-2 + F-6.
+
+**Code changes:**
+- `scheduler.py:235, 260`: `/api/portfolio/performance` → `/api/paper-trading/portfolio` (morning + evening digests)
+- `commands.py:138`: same endpoint fix (`/portfolio` slash command)
+- `formatters.py:106, 321, 365`: `total_return_pct` → `total_pnl_pct` with backward-compatible fallback chain (each site adds phase-25.G attribution comment)
+
+**New verifier:** `tests/verify_phase_25_G.py` (110 LOC, 9 immutable claims) — **9/9 PASS**
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Legacy `/api/portfolio/performance` zeroed in `backend/slack_bot/`. Researcher reuse from phase-24.5 cycle 4 justified for verbatim audit-mandated fix. Non-blocking note: field-key verifier could be tightened to `>=3` occurrences (suggested follow-up; low independent-regression risk per shared edit pattern).
+
+**Live-check:** deferred to operator next-morning digest screenshot showing non-zero P&L.
+
+**Phase-25.G status -> done.** Closes phase-24.5 F-1 (wrong endpoint) + F-2 (wrong field key) + F-6 (slash command same bug).
+
+**Next cycle:** 25.H (recent-analyses ticker dedup, no deps).

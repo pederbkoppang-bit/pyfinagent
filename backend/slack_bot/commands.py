@@ -135,7 +135,7 @@ def register_commands(app: AsyncApp):
 
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
-                res = await client.get(f"{_BACKEND_URL}/api/portfolio/performance")
+                res = await client.get(f"{_BACKEND_URL}/api/paper-trading/portfolio")
                 res.raise_for_status()
                 data = res.json()
                 blocks = format_portfolio_summary(data)
