@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `038dee5e` | phase-24.3: Autoresearch <-> daily-loop wiring audit (cron isolation; meta-evolution feedback loop) |
 | 2026-05-12 | `4578d8c4` | phase-24.2: Pipeline routing + report persistence audit (lite-vs-full branching; reports -> BQ; 2... |
 | 2026-05-12 | `8646bf62` | phase-24.5: Slack notifications + operator alerting audit (wrong P&L digests, missing trade/kill-... |
 | 2026-05-12 | `b6a2a35f` | phase-24.4: Agent topology + per-agent rationale flow audit (Trader/RiskJudge byte-identical text... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-07 | `a80f4640` | phase-23.3.4: launchd audit -- 6-entry manifest + autoresearch finding |
 | 2026-05-07 | `d0ae4d28` | phase-23.3.3: activate 7 dormant phase-9 slack-bot jobs |
 | 2026-05-07 | `39f905c6` | phase-23.3.2: slack-bot heartbeat-push wiring + 4 core jobs in registry |
-| 2026-05-07 | `ad4e8b57` | phase-23.3.1: main APScheduler audit -- name + id labels for /cron |
 
 ---
 
+### v6.7.5 — phase-24.3: Autoresearch <-> daily-loop wiring audit (cron isolation;... (2026-05-12)
+
+- **phase-24.3: Autoresearch <-> daily-loop wiring audit (cron isolation; meta-evolution feedback loop)**
 ### v6.7.4 — phase-24.2: Pipeline routing + report persistence audit (lite-vs-full... (2026-05-12)
 
 - **phase-24.2: Pipeline routing + report persistence audit (lite-vs-full branching; reports -> BQ; 2...**
