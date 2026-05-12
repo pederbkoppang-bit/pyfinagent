@@ -8029,7 +8029,7 @@
         {
           "id": "24.4",
           "name": "Agent topology + per-agent rationale flow audit (Trader/RiskJudge byte-identical text + sparse drawer)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "24.0",

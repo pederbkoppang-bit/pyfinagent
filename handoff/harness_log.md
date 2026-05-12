@@ -16537,3 +16537,35 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Hypothesis verdict:** CONFIRMED. All four sub-hypotheses validated: orphan stop, 6 positions no-stop, TER no-sell, governance gap. Bug-closure path: candidates 25.1 + 25.2 close the user-impactful bug in one phase-25 pair.
 
 **Phase-24.1 status -> done.** Next cycle: bucket 24.4 (P0 — agent rationale aliasing) per audit priority order.
+
+---
+
+## Cycle 44 -- 2026-05-12 -- phase=24.4 result=PASS
+
+**Step:** 24.4 — Agent topology + per-agent rationale flow audit (P0)
+**Action taken:** READ-ONLY by charter. Wrote findings doc at `docs/audits/phase-24-2026-05-12/24.4-agent-rationale-findings.md` (~21 KB) + research brief + contract. NO code changes.
+
+**Researcher gate:** PASS (tier=complex; 6 sources read in full: built-multi-agent, harness-design, building-effective-agents, demystifying-evals, Du et al. Society of Minds, NIST agentic-AI probes).
+
+**Smoking gun:** `backend/services/autonomous_loop.py:719` `"risk_assessment": {"reason": analysis["reason"]}`. Lite path makes ONE LLM call; both Trader (via `analysis.reason`) and RiskJudge (via `risk_assessment.reason`) consume the same string. No independent risk LLM call exists.
+
+**Cosmetic patch identified:** `backend/services/signal_attribution.py:131-154` detects byte-identical pairs (weight=0.0 + rationale match) and substitutes a "lite-path" badge — display only, not a structural fix.
+
+**Hypothesis correction (honest disclosure):** the audit prompt named `multi_agent_orchestrator.py` as the suspected aliasing site. Investigation refined this — that file is the Slack/iMessage Layer-2 orchestrator and does NOT drive paper-trade rationale. Actual aliasing is in `autonomous_loop.py` + `signal_attribution.py`. Surfaced in 3 places (contract, findings F-5, experiment_results).
+
+**Sparse-drawer arithmetic:** lite path → 2-3 rows (Trader + RiskJudge + maybe Quant); full Gemini → 4-5 rows. Layer-1 28-skill outputs NEVER persisted into `signals` JSON column. The 43-node topology (from `_inventory.json`) sees ~10-25% drawer coverage at best.
+
+**Phase-25 candidates emitted (6):**
+1. **25.A (P0)** — Decouple RiskJudge in lite path (independent LLM call)
+2. **25.B (P1)** — Remove cosmetic aliasing patch after 25.A complete
+3. **25.C (P1)** — Surface Layer-1 28-skill outputs in drawer
+4. **25.D (P2)** — Normalize per-agent contribution weights to 0-1
+5. **25.E (P2)** — "Summary vs full" drawer toggle (`?full=1`)
+6. **25.F (P1)** — Byte-identical regression test
+
+**Verifier:** 12/13 PASS at Q/A spawn time; log-last gap is the only FAIL. Now 13/13 after this append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance items CONFIRM. Anti-rubber-stamp specifically validates the honest hypothesis correction. Mutation-resistance confirms content-specific anchors. Scope-honesty confirms open questions explicit (Layer-1 persistence, signals_server cross-link, RiskJudge prompt scope).
+
+**Hypothesis verdict:** CONFIRMED AND REFINED. RiskJudge aliasing is structural (lite-path single LLM call), sparse drawer is architectural (Layer-1 outputs unpersisted), `multi_agent_orchestrator.py` was the wrong file.
+
+**Phase-24.4 status -> done.** Next cycle: bucket 24.5 (P0 — Slack notifications) per priority order.
