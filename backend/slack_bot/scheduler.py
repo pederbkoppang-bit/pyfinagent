@@ -350,20 +350,86 @@ async def _watchdog_health_check(app: AsyncApp):
             logger.exception("Watchdog Slack post failed")
 
 
-def pause_signals() -> bool:
+def pause_signals(app: "AsyncApp | None" = None) -> bool:
     """Shut down the scheduler, stopping all signal-related jobs.
 
     Returns True if the scheduler was running and is now stopped,
     False if it was already stopped or never started.
     This is the rollback command for Go-Live checklist item 4.4.6.4.
+
+    phase-25.K: when `app` is provided, fires a P0 Slack escalation
+    BEFORE the shutdown via send_trading_escalation. Closes phase-24.5
+    F-5(b) audit finding (pause_signals only logged INFO; no Slack post).
+    Falls back silently if app is None (preserves callers that use
+    pause_signals as a pure rollback without Slack wiring).
     """
     global _scheduler
     if _scheduler is not None and _scheduler.running:
+        # phase-25.K: notify Slack BEFORE shutting down so the alert routes
+        # through the still-running app instance. asyncio.create_task is
+        # fire-and-forget; failures are logged but do not block rollback.
+        if app is not None:
+            try:
+                asyncio.create_task(notify_kill_switch_activated(
+                    app=app,
+                    trigger="manual_rollback_via_pause_signals",
+                    details={
+                        "caller": "pause_signals",
+                        "scheduler_state": "running",
+                        "go_live_checklist_item": "4.4.6.4",
+                    },
+                ))
+            except Exception:
+                logger.exception("phase-25.K: failed to schedule kill-switch Slack alert")
         _scheduler.shutdown(wait=False)
         logger.info("Scheduler shut down -- all signal jobs paused (rollback 4.4.6.4)")
         return True
     logger.info("Scheduler was not running -- no action taken")
     return False
+
+
+async def notify_kill_switch_activated(
+    app: AsyncApp,
+    trigger: str,
+    details: dict,
+) -> None:
+    """Notify Slack + iMessage of kill-switch activation (P0 severity).
+
+    phase-25.K: thin wrapper around send_trading_escalation specifically
+    for the kill-switch use case. Callers should be anywhere the kill
+    switch fires: pause_signals(), paper_trader.check_and_enforce_kill_switch(),
+    or operator-triggered flatten endpoints. Closes phase-24.5 F-5(b) audit.
+    """
+    await send_trading_escalation(
+        app=app,
+        severity="P0",
+        title="Kill Switch Activated",
+        details={"trigger": trigger, **details},
+        actions=[
+            "Inspect handoff/kill_switch_audit.jsonl for full breach details",
+            "Run /portfolio to confirm positions are flat",
+            "Investigate root cause before resume",
+        ],
+    )
+
+
+async def notify_kill_switch_deactivated(
+    app: AsyncApp,
+    reason: str,
+) -> None:
+    """Notify Slack of kill-switch resume (P1 severity).
+
+    phase-25.K: lighter-severity counterpart to notify_kill_switch_activated.
+    Use after operator-triggered resume to inform the team that
+    autonomous trading is back online.
+    """
+    await send_trading_escalation(
+        app=app,
+        severity="P1",
+        title="Kill Switch Resumed",
+        details={"reason": reason},
+        actions=["Monitor next autonomous cycle for healthy completion"],
+    )
 
 
 async def send_trading_escalation(

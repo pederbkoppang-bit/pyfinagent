@@ -8539,7 +8539,7 @@
         {
           "id": "25.K",
           "name": "Wire kill-switch state changes to Slack",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,

@@ -17092,3 +17092,23 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Phase-25.H status -> done.** Closes phase-24.5 F-3.
 
 **Next cycle:** 25.K (wire kill-switch Slack, no deps).
+
+---
+
+## Cycle 61 -- 2026-05-12 -- phase=25.K result=PASS
+
+**Step:** 25.K — Wire kill-switch state changes to Slack (P0)
+**Action:** GENERATE. Modified `pause_signals` + added two async helpers in `backend/slack_bot/scheduler.py`.
+
+**Code changes:**
+- `pause_signals(app: AsyncApp | None = None) -> bool`: optional app param; fires P0 Slack escalation BEFORE shutdown when app provided; backward compat preserved
+- new `async notify_kill_switch_activated(app, trigger, details)`: P0 wrapper around `send_trading_escalation` with operator-actionable details (audit log, /portfolio, root-cause-before-resume)
+- new `async notify_kill_switch_deactivated(app, reason)`: P1 wrapper for resume
+
+**New verifier:** `tests/verify_phase_25_K.py` (105 LOC, 7 immutable claims) — **7/7 PASS**
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Backward compat verified (pause_signals() with no args still works via `app=None` default). Mutation-resistance covered (verifier catches helper removal, create_task removal, severity downgrade, or title rename). Cross-process gap (backend-side breach detection in autonomous_loop.py:316) honestly deferred to phase-25.K.1 follow-up with concrete plan (BQ event polling).
+
+**Phase-25.K status -> done.** Closes phase-24.5 F-5(b) + phase-24.8 F-2 silent-pause bug.
+
+**Next cycle:** 25.A8 (cost-budget HARD-BLOCK, depends on 25.A9 which is done) OR 25.2 (backfill stops, depends on 25.1 which is done) OR 25.6 (no-stop-on-entry, depends on 25.1).
