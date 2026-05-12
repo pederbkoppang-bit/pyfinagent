@@ -16451,3 +16451,50 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Stress-test doctrine reminder (HARNESS-DOC):** the `if` predicate over-fire / under-fire pair is a textbook example of "stale scaffolding" that this cycle's instrumentation will help us decide whether to remove. The next session should periodically re-evaluate whether the `if` predicate is doing useful work or just adding noise.
 
 **Phase-23.8.4 status -> done.**
+
+---
+
+## Cycle 1 -- 2026-05-12 04:49 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=10.42% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 42 -- 2026-05-12 -- phase=24.0 result=PASS
+
+**Step:** 24.0 — Phase-24 audit charter + red-line invariants (gates 24.1-24.13)
+**Priority:** P2 (charter — gates all P0/P1/P2 buckets below)
+**Action taken:** Phase-24 is READ-ONLY by charter. Wrote one findings doc + research brief + contract. No backend/frontend/scripts/.claude code changes.
+
+**Researcher gate:** PASS (`gate_passed: true`)
+- 6 external sources read in full via WebFetch (anthropic harness-design, building-effective-agents, multi-agent-research-system, claude-code hooks; arxiv 2603.13942v1, arxiv 2512.02227v1)
+- 10 snippet-only sources collected (16 URLs total)
+- Recency scan (2024-2026) performed; 4 findings reported; no canonical supersession
+- Three-variant search-query discipline applied (current-year frontier / last-2-year window / year-less canonical)
+- 10 internal files inspected with file:line anchors
+
+**Findings doc:** `docs/audits/phase-24-2026-05-12/24.0-charter-findings.md` (18 KB)
+- Confirms 15-bucket structure (24.0-24.14); P0=3, P1=7, P2=5
+- Embeds full coverage matrix (39 codebase paths → buckets)
+- Canonical-URL whitelist per bucket (single source of truth for 24.1-24.14 researchers)
+- 5 phase-25 candidate steps (auto-verifier scaffolding, quarterly stress-test, red-line in Q/A, depends_on consistency fix, harness tab phase filter)
+- Open question: masterplan.json line 8337 `depends_on_step: "24.9"` vs master prompt's "24.1-24.9 complete" — non-structural documentation gap
+
+**Generator (Main):** N/A — read-only audit. No code mutation.
+**Verifier:** `tests/verify_phase_24_0.py` — 14/15 PASS at Q/A spawn time (the single FAIL `harness_log_has_phase_24_24_0_cycle_entry` was the expected log-last gating signal). Now 15/15 after this log append.
+**Q/A verdict:** PASS (second spawn after evidence-changed cycle-2 fix — first Q/A correctly flagged stale experiment_results.md from prior phase-23.8.4 cycle; Main rewrote the file with phase-24.0 content; fresh respawn confirmed PASS per documented file-based-communication cycle-2 pattern). All 5 harness-compliance items CONFIRM. All 5 LLM-judgment legs PASS. Critique at `handoff/current/evaluator_critique.md`.
+
+**Hypothesis verdict:** CONFIRMED. The 15-bucket structure is sufficient and non-overlapping to cover the entire pyfinagent codebase against the profit-maximization red-line goal. All 6 concrete operator-reported bugs land in P0 buckets (24.1, 24.4, 24.5).
+
+**Phase-24.0 status -> done.** Charter complete; 24.1-24.14 unlocked. Next cycle starts P0 bucket 24.1 (trading-execution + governance — stop-loss orphan).

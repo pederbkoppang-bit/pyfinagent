@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-11T21:55:26.451997+00:00",
+  "updated_at": "2026-05-12T15:05:28.000000+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -664,7 +664,7 @@
     },
     {
       "id": "phase-4.5",
-      "name": "Paper Trading Dashboard v2 — Evaluation-Grade",
+      "name": "Paper Trading Dashboard v2 \u2014 Evaluation-Grade",
       "status": "done",
       "depends_on": [
         "phase-2"
@@ -676,7 +676,7 @@
       "steps": [
         {
           "id": "4.5.0",
-          "name": "Architecture & Contract — Paper Trading Dashboard v2",
+          "name": "Architecture & Contract \u2014 Paper Trading Dashboard v2",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -732,7 +732,7 @@
         },
         {
           "id": "4.5.3",
-          "name": "Reconciliation overlay — paper-live vs parallel OOS backtest on NAV chart",
+          "name": "Reconciliation overlay \u2014 paper-live vs parallel OOS backtest on NAV chart",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -809,7 +809,7 @@
         },
         {
           "id": "4.5.7",
-          "name": "Kill-switch v2 — Pause / Resume / Flatten-all + daily loss + trailing DD limits",
+          "name": "Kill-switch v2 \u2014 Pause / Resume / Flatten-all + daily loss + trailing DD limits",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -4597,7 +4597,7 @@
     },
     {
       "id": "phase-4.16",
-      "name": "Harness Discipline Patches (research-gate ≥5, handoff layout, docs)",
+      "name": "Harness Discipline Patches (research-gate \u22655, handoff layout, docs)",
       "steps": [
         {
           "id": "4.16.1",
@@ -5012,7 +5012,7 @@
     {
       "id": "phase-12",
       "status": "done",
-      "name": "Rainbow deploys — safe-update pattern",
+      "name": "Rainbow deploys \u2014 safe-update pattern",
       "description": "Implement Brandon Dimcheff's Rainbow Deploys pattern (https://brandon.dimcheff.com/2018/02/rainbow-deploys-with-kubernetes/) so dependency bumps, model-version flips, and framework migrations can be rolled out behind labeled colored Deployments/Services and rolled back by flipping a selector. Extends classic blue/green to N simultaneous versions (red/orange/yellow/green/blue/indigo/violet) so the harness can run a canary on ~5% traffic, compare live SLOs against the active color, and promote/demote without a rolling restart. User-requested on 2026-04-19 as future-proofing for the Vertex->google-genai migration (phase-11) and any subsequent SDK bumps.",
       "created_at": "2026-04-19T12:22:40.849756+00:00",
       "steps": [
@@ -5089,7 +5089,7 @@
         },
         {
           "id": "12.4",
-          "name": "First Rainbow migration — candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
+          "name": "First Rainbow migration \u2014 candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -5303,7 +5303,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday — proves _default_bq_logger wired end-to-end to real BQ."
+          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday \u2014 proves _default_bq_logger wired end-to-end to real BQ."
         },
         {
           "id": "16.8",
@@ -5321,7 +5321,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 — flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
+          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 \u2014 flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
         },
         {
           "id": "16.9",
@@ -5340,7 +5340,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data — latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
+          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data \u2014 latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
         },
         {
           "id": "16.10",
@@ -5377,7 +5377,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend — correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
+          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend \u2014 correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
         },
         {
           "id": "16.12",
@@ -5396,7 +5396,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table — non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
+          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table \u2014 non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
         },
         {
           "id": "16.13",
@@ -5859,7 +5859,7 @@
           "verification": "N=$(grep -l '3rd-CONDITIONAL\\|3-consecutive-CONDITIONAL\\|third consecutive CONDITIONAL\\|3rd consecutive' CLAUDE.md docs/runbooks/per-step-protocol.md .claude/agents/qa.md .claude/rules/*.md 2>/dev/null | wc -l | tr -d ' '); [ \"$N\" -ge 3 ]",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under §4 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under \u00a74 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
         },
         {
           "id": "16.41",
@@ -5879,7 +5879,7 @@
           "verification": "test -f frontend/src/lib/formatRelativeTime.ts && test -f frontend/src/components/RecentReportsTable.tsx && test -f frontend/src/components/HomeQuickActionsPanel.tsx && grep -q RecentReportsTable frontend/src/app/page.tsx && grep -q HomeQuickActionsPanel frontend/src/app/page.tsx && cd frontend && npx tsc --noEmit",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS — tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS \u2014 tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
         },
         {
           "id": "16.43",
@@ -5899,7 +5899,7 @@
           "verification": "test -f frontend/src/lib/kpiMetrics.ts && (cd frontend && npx tsc --noEmit) && grep -q 'nextRunAt={ptStatus' frontend/src/app/page.tsx && grep -q 'kpiMetrics' frontend/src/app/page.tsx && grep -qE 'LastSegment|NextSegment' frontend/src/components/OpsStatusBar.tsx && grep -q 'subText' frontend/src/app/page.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"—\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"\u2014\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
         },
         {
           "id": "16.45",
@@ -5929,7 +5929,7 @@
           "verification": "(cd frontend && npx tsc --noEmit) && grep -q 'lg:grid-cols-6 lg:items-stretch' frontend/src/app/page.tsx && ! grep -q 'lg:grid-cols-5' frontend/src/app/page.tsx && [ \"$(grep -c 'lg:col-span-2 h-full' frontend/src/app/page.tsx)\" = '3' ] && grep -q 'shrink-0' frontend/src/components/HomeQuickActionsPanel.tsx && grep -q 'min-w-0' frontend/src/components/HomeQuickActionsPanel.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening — Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening \u2014 Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
         },
         {
           "id": "16.48",
@@ -6163,7 +6163,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency — drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
+          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency \u2014 drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
         },
         {
           "id": "17.7",
@@ -7003,7 +7003,7 @@
         },
         {
           "id": "23.1.9",
-          "name": "Paper Trading Manage tab — deposit endpoint + 10 paper-trading settings exposed in API/UI",
+          "name": "Paper Trading Manage tab \u2014 deposit endpoint + 10 paper-trading settings exposed in API/UI",
           "status": "done",
           "harness_required": true,
           "verification": "see handoff/archive/phase-23.1.9/contract.md (immutable verification: PYTHONPATH=. python tests/verify_phase_23_1_9.py)",
@@ -7069,7 +7069,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.13/evaluator_critique.md",
           "created_at": "2026-04-28T17:30:48Z",
           "completed_at": "2026-04-28T17:30:48Z",
-          "notes": "User asked for diversification — 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
+          "notes": "User asked for diversification \u2014 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
         },
         {
           "id": "23.1.14",
@@ -7167,7 +7167,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.22/evaluator_critique.md",
           "created_at": "2026-04-30T18:55:00Z",
           "completed_at": "2026-04-30T18:55:00Z",
-          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry — first attempt wrote critique for wrong step)."
+          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry \u2014 first attempt wrote critique for wrong step)."
         },
         {
           "id": "23.2.0",
@@ -7887,7 +7887,511 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Observed empirically in cycles 38/39/40: the auto-commit-and-push.sh hook did NOT auto-fire on Edit calls to .claude/masterplan.json; operator had to manually trigger commit/push. Hypothesis was: drop the undocumented `if` predicate. Research gate at cycle 41 REJECTED that plan — sibling hooks (masterplan-memory-sync, archive-handoff, commit-reminder) would then fire on every Edit call (wasteful), and the `if` field IS documented (just under-specified for `.claude/`-prefixed paths). Revised research-supported plan: observability-first. Keep the `if` predicate as best-effort filter; add a single `log INVOKED ...` line near the top of auto-commit-and-push.sh so EVERY invocation produces observable evidence in auto-push.log. Next cycle that fails will show definitively: no INVOKED line = `if` predicate silently blocked the hook; INVOKED line + silent exit = hook fired but newly_done was empty. Pre-contract criteria update permitted because no contract has been written yet (criteria immutability begins at contract-time). live_check NOT required: success verifiable from on-disk artifacts."
+          "notes": "Observed empirically in cycles 38/39/40: the auto-commit-and-push.sh hook did NOT auto-fire on Edit calls to .claude/masterplan.json; operator had to manually trigger commit/push. Hypothesis was: drop the undocumented `if` predicate. Research gate at cycle 41 REJECTED that plan \u2014 sibling hooks (masterplan-memory-sync, archive-handoff, commit-reminder) would then fire on every Edit call (wasteful), and the `if` field IS documented (just under-specified for `.claude/`-prefixed paths). Revised research-supported plan: observability-first. Keep the `if` predicate as best-effort filter; add a single `log INVOKED ...` line near the top of auto-commit-and-push.sh so EVERY invocation produces observable evidence in auto-push.log. Next cycle that fails will show definitively: no INVOKED line = `if` predicate silently blocked the hook; INVOKED line + silent exit = hook fired but newly_done was empty. Pre-contract criteria update permitted because no contract has been written yet (criteria immutability begins at contract-time). live_check NOT required: success verifiable from on-disk artifacts."
+        }
+      ]
+    },
+    {
+      "id": "phase-24",
+      "name": "Application-Wide Audit & Profit-Maximization Alignment",
+      "status": "pending",
+      "depends_on": [
+        "phase-23.8"
+      ],
+      "description": "Comprehensive read-only audit of the entire application surface (15 buckets covering trading-execution, pipeline routing, autoresearch, agent rationale, Slack notifications, backtest, data quality, observability, LLM conformance, MCP/security, frontend data + UI/UX, profit-max red-line, synthesis). Approved plan: /Users/ford/.claude/plans/sunny-jingling-deer.md (2026-05-12). Output: 15 findings docs at docs/audits/phase-24-2026-05-12/ proposing ranked phase-25 code-change candidates. Phase-24 itself produces NO code changes.",
+      "gate": null,
+      "steps": [
+        {
+          "id": "24.0",
+          "name": "Phase-24 audit charter + red-line invariants (gates 24.1-24.13)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "project_system_goal.md (memory) + /Users/ford/.claude/plans/sunny-jingling-deer.md (approved plan 2026-05-12)",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_0.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_0_charter_findings_md",
+              "charter_cites_project_system_goal_memory",
+              "charter_embeds_coverage_matrix_for_backend_frontend_infrastructure",
+              "charter_lists_15_buckets_24_0_through_24_14",
+              "charter_documents_research_gate_canonical_url_whitelist_per_bucket",
+              "charter_documents_findings_md_path_convention",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "anthropic_harness_design_url_cited_verbatim",
+              "harness_log_has_phase_24_0_cycle_entry"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.0-charter-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.0-charter-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Charter bucket. Establishes the audit red-line ('maximize profit at lowest cost; shift to winning strategy'), the canonical-URL whitelist each subsequent bucket must read in full, the findings-doc path convention, and the coverage matrix mapping every backend/frontend/infrastructure subdir to a bucket. Gates 24.1-24.13. NO code changes; audit-only."
+        },
+        {
+          "id": "24.1",
+          "name": "Trading-execution + governance audit (stop-loss orphan, missing-stops-on-entry, zero-sells-ever, sector caps, position limits)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "24.0",
+          "audit_basis": "backend/services/paper_trader.py:414-423 orphan check_stop_losses; TER -12.30% no-stop evidence in /paper-trading screenshot; backend/governance/; user bug report 2026-05-12",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_1.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_1_execution_trading_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_paper_trader_py",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_1_cycle_entry",
+              "executive_summary_section_present",
+              "findings_cites_paper_trader_py_414_423_orphan_with_grep_evidence",
+              "findings_tags_all_11_current_portfolio_positions_by_stop_presence",
+              "findings_documents_ter_minus_12_30_no_sell_case",
+              "findings_audits_governance_limits_loader_watcher"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.1-execution-trading-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.1-execution-trading-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P0 bucket \u2014 addresses the most user-impacting live bug (no stops firing on negative positions). Must produce phase-25 candidates that wire check_stop_losses() into the daily loop, ensure entry-path attaches stops, backfill the 5 stop-less positions, and add a no-sells-in-N-days anomaly watchdog."
+        },
+        {
+          "id": "24.2",
+          "name": "Pipeline routing + report persistence audit (lite-vs-full branching; reports -> BQ; 28-skill / 15-step orchestrator)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "24.0",
+          "audit_basis": "backend/services/autonomous_loop.py:564-615 branching; _persist_lite_analysis at lines 749-777; backend/agents/orchestrator.py 28-skill pipeline opt-in only",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_2.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_2_pipeline_routing_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_autonomous_loop_py",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_2_cycle_entry",
+              "executive_summary_section_present",
+              "findings_cites_autonomous_loop_branching_at_564_615",
+              "findings_documents_why_full_28_skill_pipeline_is_unreached",
+              "findings_traces_report_persistence_lite_vs_full_gap"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.2-pipeline-routing-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.2-pipeline-routing-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P1 bucket \u2014 explains why /reports page is empty (lite-only persistence) and why full 28-skill pipeline never runs in paper trading. Cross-links with 24.4 (rationale drawer sparse because lite skips per-ticker agents)."
+        },
+        {
+          "id": "24.3",
+          "name": "Autoresearch <-> daily-loop wiring audit (cron isolation; meta-evolution feedback loop)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "24.0",
+          "audit_basis": "backend/meta_evolution/cron.py:87-125 Sunday cron; zero cross-module imports between backend/autoresearch/ and backend/services/autonomous_loop.py",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_3.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_3_autoresearch_wiring_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_anthropic_harness_design",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_3_cycle_entry",
+              "executive_summary_section_present",
+              "findings_documents_meta_evolution_cron_decoupling",
+              "findings_documents_skill_optimizer_active_strategy_gap"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.3-autoresearch-wiring-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.3-autoresearch-wiring-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P1 bucket \u2014 explains why no autoresearch has evolved the application. Champion/challenger A/B testing runs but never feeds back into daily strategy selection."
+        },
+        {
+          "id": "24.4",
+          "name": "Agent topology + per-agent rationale flow audit (Trader/RiskJudge byte-identical text + sparse drawer)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "24.0",
+          "audit_basis": "/paper-trading FIX rationale drawer screenshot (Trader and RiskJudge byte-identical, weight 0.00 on RiskJudge); backend/agents/multi_agent_orchestrator.py; backend/agents/agent_definitions.py; agent-map endpoint",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_4.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_4_agent_rationale_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_multi_agent_orchestrator_py",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_4_cycle_entry",
+              "executive_summary_section_present",
+              "findings_documents_trader_riskjudge_byte_identical_text_with_file_line_anchor",
+              "findings_explains_sparse_drawer_3_of_20_agents",
+              "findings_proposes_layer_1_28_skill_surfacing"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.4-agent-rationale-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.4-agent-rationale-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P0 bucket \u2014 the RiskJudge rationale is byte-identical to the Trader's, meaning the risk gate provides ZERO independent verification. Same anti-pattern Anthropic warned about (cycle 39 / R-2 / 'agents tend to confidently praise their own work'). Must surface Layer-1 28-skill outputs in per-trade rationale."
+        },
+        {
+          "id": "24.5",
+          "name": "Slack notifications + operator alerting audit (wrong P&L digests, missing trade/kill-switch/drawdown/error alerts, slash-command correctness)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "24.0",
+          "audit_basis": "#ford-approvals screenshots: Morning Digest (May 11 2026 2:00 PM) and Evening Digest (11:00 PM) both show Portfolio +$0.00 +0.0% when portfolio has 11 active positions; Recent Analyses shows 5x SNDK; missing trade/kill-switch/drawdown/error notification types entirely; backend/slack_bot/app.py",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_5.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_5_slack_notifications_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_slack_bot",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_5_cycle_entry",
+              "executive_summary_section_present",
+              "findings_documents_wrong_pnl_data_source_bug_with_file_line_anchor",
+              "findings_documents_5x_sndk_recent_analyses_bug_with_query_anchor",
+              "findings_audits_morning_digest_2pm_schedule_bug",
+              "findings_enumerates_missing_notification_types_trade_killswitch_drawdown_error",
+              "findings_audits_slash_commands_portfolio_analyze_report"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.5-slack-notifications-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.5-slack-notifications-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P0 bucket \u2014 Slack is the operator's primary real-time surface and it's broken: wrong P&L in digests, wrong tickers in recent-analyses, mis-scheduled morning digest, no trade confirmations, no kill-switch alerts, no drawdown alarms, no error escalations. User cannot trust the live system without these."
+        },
+        {
+          "id": "24.6",
+          "name": "Backtest engine + walk-forward + quant optimizer + live-vs-backtest reconciliation audit",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "24.0",
+          "audit_basis": "backend/backtest/backtest_engine.py (1167 LOC) + backend/backtest/quant_optimizer.py; backend/api/backtest.py (25 endpoints); experiments/optimizer_best.json",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_6.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_6_backtest_engine_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_backtest_engine_py",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_6_cycle_entry",
+              "executive_summary_section_present",
+              "findings_audits_walk_forward_correctness",
+              "findings_audits_seed_stability",
+              "findings_audits_live_vs_backtest_reconciliation_drift"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.6-backtest-engine-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.6-backtest-engine-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P2 bucket \u2014 major subsystem (1167 LOC) powering /backtest page. Are backtest results actually predictive of live P&L? Champion/challenger discipline."
+        },
+        {
+          "id": "24.7",
+          "name": "Data quality + BQ freshness + yfinance fallback hygiene audit",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "24.0",
+          "audit_basis": "backend/db/bigquery_client.py + schemas; backend/api/paper_trading.py::freshness; backend/tools/; CLAUDE.md BQ-timeout-30s rule; pyfinagent_data + _staging + _hdw + _pms datasets",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_7.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_7_data_quality_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_bigquery_client_py",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_7_cycle_entry",
+              "executive_summary_section_present",
+              "findings_audits_bq_table_freshness_across_datasets",
+              "findings_audits_yfinance_fallback_pattern",
+              "findings_audits_signal_freshness"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.7-data-quality-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.7-data-quality-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P1 bucket \u2014 are the BQ tables actually getting fresh data? Stale data == stale signals == bad trades."
+        },
+        {
+          "id": "24.8",
+          "name": "Observability + monitoring + safety rails audit (watchdog, kill-switch, SLA, governance limits, cost-budget, alerting paths)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "24.0",
+          "audit_basis": "backend/services/watchdog*.py + kill_switch*.py + sla_monitor*.py; backend/governance/; backend/api/cost_budget_api.py; backend/api/observability_api.py; handoff/logs/backend-watchdog.log",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_8.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_8_observability_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_observability_api_py",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_8_cycle_entry",
+              "executive_summary_section_present",
+              "findings_audits_watchdog_wiring",
+              "findings_audits_killswitch_state_machine",
+              "findings_audits_sla_monitor_paths",
+              "findings_audits_cost_budget_enforcement",
+              "findings_audits_governance_limits_hot_reload"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.8-observability-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.8-observability-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P1 bucket \u2014 safety rails. Is the kill-switch actually wired? Watchdog firing on backend down? SLA monitor catching slow cycles? Cost budget enforced or honor-system?"
+        },
+        {
+          "id": "24.9",
+          "name": "LLM provider conformance audit (Claude + Gemini, prompt caching, thinking, tool-use, structured output, grounding)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "24.0",
+          "audit_basis": "backend/services/llm_client.py; backend/services/cost_tracker.py; Anthropic API docs (caching, thinking, tool-use, batch, files, citations); Google Generative AI docs (structured output, grounding, thinking)",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_9.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_9_llm_conformance_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_anthropic_com_engineering",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_9_cycle_entry",
+              "executive_summary_section_present",
+              "findings_audits_prompt_caching_depth_ephemeral_1h",
+              "findings_audits_extended_thinking_budgets",
+              "findings_audits_tool_use_loop_max_turns",
+              "findings_audits_structured_output_schema_enforcement",
+              "findings_audits_google_search_grounding_usage",
+              "findings_identifies_unused_anthropic_features_batch_files_citations"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.9-llm-conformance-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.9-llm-conformance-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P2 bucket \u2014 checks the existing AI infrastructure against the latest Anthropic + Google docs. Identifies features we don't use (batch, files API, citations) that could reduce cost or improve quality."
+        },
+        {
+          "id": "24.10",
+          "name": "MCP infrastructure + permissions + security audit (auth, secrets, deny rules, new-MCP gap analysis)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "24.0",
+          "audit_basis": ".mcp.json (alpaca, bigquery); .claude/settings.json deny rules; backend/auth/ NextAuth + WebAuthn; backend/.env secrets; modelcontextprotocol.io specification",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_10.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_10_mcp_security_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_modelcontextprotocol_io",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_10_cycle_entry",
+              "executive_summary_section_present",
+              "findings_audits_mcp_pinned_servers_alpaca_bigquery",
+              "findings_audits_deny_rule_surface_completeness",
+              "findings_audits_nextauth_webauthn_flow",
+              "findings_audits_backend_env_secret_handling",
+              "findings_proposes_new_mcps_signals_news_slack"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.10-mcp-security-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.10-mcp-security-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P1 bucket \u2014 security posture + MCP gap analysis. Should we have a signals MCP? News MCP? Are deny rules tight enough on broker API write ops?"
+        },
+        {
+          "id": "24.11",
+          "name": "Frontend<->Backend wiring data layer audit (types, drift, API contract, learnings-page hookup)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "24.0",
+          "audit_basis": "14 frontend pages x 132 endpoints; frontend/src/lib/api.ts + types.ts; backend/api/models.py Pydantic models",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_11.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_11_frontend_data_wiring_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_frontend_src_lib_api_ts",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_11_cycle_entry",
+              "executive_summary_section_present",
+              "findings_audits_type_drift_between_pydantic_and_typescript",
+              "findings_audits_every_page_to_endpoint_mapping",
+              "findings_audits_learnings_page_backend_hookup_gap",
+              "findings_audits_auth_header_propagation"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.11-frontend-data-wiring-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.11-frontend-data-wiring-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P2 bucket \u2014 already mostly clean per Phase-1 exploration. Confirms type sync, identifies orphan pages."
+        },
+        {
+          "id": "24.12",
+          "name": "Frontend UI/UX presentation-layer audit (design system, accessibility, responsive, per-page UX flows, cross-tab KPI consistency, visual regression baseline)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "24.0",
+          "audit_basis": ".claude/rules/frontend.md + frontend-layout.md; 14 pages; Phosphor icons + dark theme + scrollbar-thin conventions",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_12.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_12_ui_ux_presentation_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_claude_rules_frontend_md",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_12_cycle_entry",
+              "executive_summary_section_present",
+              "findings_audits_design_system_conformance_phosphor_dark_scrollbar",
+              "findings_audits_per_page_error_loading_empty_states",
+              "findings_audits_a11y_keyboard_aria_contrast",
+              "findings_audits_responsive_design_breakpoints",
+              "findings_audits_cross_tab_kpi_reconciliation",
+              "screenshots_dir_contains_at_least_14_images"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.12-ui-ux-presentation-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.12-ui-ux-presentation-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P2 bucket \u2014 UI/UX audit. Visual regression baseline = Playwright screenshots of all 14 pages committed to screenshots/."
+        },
+        {
+          "id": "24.13",
+          "name": "Profit-maximization red-line alignment synthesis (cost vs P&L, strategy switching, cost-budget enforcement)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "24.9",
+          "audit_basis": "project_system_goal.md memory; depends on 24.1+24.2+24.3+24.4+24.5+24.6+24.7+24.8+24.9 findings",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_13.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_13_redline_synthesis_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_project_system_goal_md",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_13_cycle_entry",
+              "executive_summary_section_present",
+              "synthesis_references_all_prior_buckets_24_1_through_24_9",
+              "synthesis_quantifies_cost_vs_pnl_ratio",
+              "synthesis_audits_strategy_switching_mechanism",
+              "synthesis_audits_cost_budget_enforcement_path"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.13-redline-synthesis-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.13-redline-synthesis-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "P1 bucket \u2014 depends on 24.1-24.9 findings being complete. Asks: does current behavior match 'maximize profit at lowest cost; shift to winning strategy'? Quantifies the gap."
+        },
+        {
+          "id": "24.14",
+          "name": "Final synthesis + ranked phase-25.x candidate list (prioritized executable code-change steps)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "24.13",
+          "audit_basis": "depends on 24.0-24.13 findings",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_24_14.py",
+            "success_criteria": [
+              "findings_md_exists_at_docs_audits_phase_24_2026_05_12_24_14_final_synthesis_findings_md",
+              "research_gate_envelope_present_with_gate_passed_true",
+              "external_sources_count_at_least_5",
+              "canonical_url_cited_verbatim_phase_25",
+              "recency_scan_2024_2026_section_present",
+              "at_least_three_phase_25_candidate_steps_proposed",
+              "each_candidate_step_has_files_list_with_absolute_paths",
+              "each_candidate_step_has_draft_verification_command",
+              "harness_log_has_phase_24_24_14_cycle_entry",
+              "executive_summary_section_present",
+              "synthesis_lists_at_least_25_phase_25_candidates_ranked",
+              "synthesis_groups_candidates_by_priority_p0_p1_p2",
+              "synthesis_each_candidate_has_audit_basis_back_reference",
+              "synthesis_emits_proposed_masterplan_step_entries_in_json"
+            ],
+            "live_check": "ls docs/audits/phase-24-2026-05-12/24.14-final-synthesis-findings.md && head -30 docs/audits/phase-24-2026-05-12/24.14-final-synthesis-findings.md"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Final synthesis bucket. Aggregates all 14 prior buckets' phase-25 candidates into a single ranked list with P0/P1/P2 priorities. Output: proposed phase-25 masterplan JSON entries the operator can paste into masterplan.json."
         }
       ]
     }
