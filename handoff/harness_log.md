@@ -17477,3 +17477,24 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 10 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q). RED-LINE GOAL-C and GOAL-D BOTH CLOSED.
 
 **Next cycle candidate:** 25.A6 (P1 live-vs-backtest Sharpe reconciliation; no deps) OR 25.A7 (P1 per-table freshness endpoint; no deps) OR 25.B (P2 cosmetic-patch removal; trivial cleanup).
+
+---
+
+## Cycle 75 -- 2026-05-13 -- phase=25.A6 result=PASS
+
+**Step:** 25.A6 -- Explicit live-vs-backtest Sharpe reconciliation (P1)
+**Action:** GENERATE. Closes phase-24.6 F-3 (paper_go_live_gate.py:87-94 used NAV-divergence as a proxy for the Sharpe gap; NAV divergence is a dollar measure, Sharpe gap is risk-adjusted-return -- different quantities).
+
+**Code changes:**
+- `backend/services/perf_metrics.py`: new imports (json, Path, datetime, Any); new module constants `_OPTIMIZER_BEST_PATH` + `SR_GAP_THRESHOLD = 0.30`; new private helpers `_load_optimizer_best_sharpe`, `_shadow_curve_sharpe(bq, min_points, rf_rate)`, `_reconciliation_divergence_pct(bq)`. New public `compute_sharpe_gap(bq, *, backtest_sharpe_source="optimizer_best", risk_free_rate=0.04, min_snapshots=6) -> dict` with 4-tier fallback (`optimizer_best` -> `shadow_curve` -> `proxy_fallback` -> `no_data`) and industry-benchmark threshold 30% per Jacquier et al. arxiv 2501.03938.
+- `backend/services/paper_go_live_gate.py`: new `from backend.services.perf_metrics import compute_sharpe_gap` import; lines 87-94 (legacy `sr_gap_proxy = latest_divergence_pct / 100.0`) REMOVED + replaced with `sharpe_gap = compute_sharpe_gap(bq)`; `booleans["sr_gap_le_30pct"]` now derives from `sharpe_gap.gap_within_threshold` (None -> False); `details` augmented with 6 new fields (`live_sharpe`, `backtest_sharpe`, `sharpe_gap_rel`, `sharpe_gap_source`, `sharpe_gap_proxy_fallback`, `sharpe_gap_note`). Legacy `latest_reconciliation_divergence_pct` preserved as sibling signal.
+
+**New verifier:** `tests/verify_phase_25_A6.py` (380+ LOC, 11 immutable claims) -- **11/11 PASS, EXIT=0**. Six **behavioral round-trips**: primary-source happy path, threshold-failure (gap > 30%), no-data (all None), shadow-curve fallback, proxy fallback, compute_gate integration. Test snapshots inject Gaussian noise so the Sharpe formula returns finite values (not clamped to 0.0 from zero-variance constant returns).
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Anti-rubber-stamp: 5 plausible mutations mapped to catching claims; no spirit-breaking non-covered mutation. Scope honest: SR_GAP_THRESHOLD value preserved (0.30 per industry benchmark); legacy divergence number kept as sibling signal in `details`; fallback chain triple-documented (code + brief + contract).
+
+**Phase-25.A6 status -> done.** Sharpe-gap measurement is now canonical; gate fires on the correct quantity.
+
+**P1 sprint progress:** 11 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6). RED-LINE GOAL-C and GOAL-D both closed; reality-gap measurement now explicit.
+
+**Next cycle candidate:** 25.A7 (P1 per-table freshness endpoint; no deps) OR 25.D6 (P1 planner plateau-detection lock-file; no deps) OR 25.B (P2 cosmetic-patch removal).

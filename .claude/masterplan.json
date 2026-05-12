@@ -8758,7 +8758,7 @@
         {
           "id": "25.A6",
           "name": "Explicit live-vs-backtest Sharpe reconciliation",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8775,7 +8775,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Industry benchmark 20-30% live decay (arxiv 2512.12924)."
+          "notes": "Industry benchmark 20-30% live decay (arxiv 2512.12924). Cycle 75 PASS first-spawn. 11/11 verifier (incl. 6 behavioral: primary/fail/no-data/shadow/proxy/gate-integration). SR_GAP_THRESHOLD=0.30 per Jacquier et al. 2501.03938. 4-tier fallback (optimizer_best -> shadow_curve -> proxy_fallback -> no_data)."
         },
         {
           "id": "25.D6",

@@ -27,6 +27,7 @@ from typing import Any
 
 from backend.services.paper_metrics_v2 import compute_metrics_v2
 from backend.services.paper_round_trips import pair_round_trips
+from backend.services.perf_metrics import compute_sharpe_gap
 from backend.services.reconciliation import compute_reconciliation
 
 logger = logging.getLogger(__name__)
@@ -81,17 +82,22 @@ def compute_gate(bq: Any) -> dict:
     snapshots = bq.get_paper_snapshots(limit=PSR_SUSTAINED_DAYS) or []
     realized_max_dd = _snapshot_max_dd_pct(snapshots)
 
-    # Reconciliation drives the reality-gap (SR gap) check. If yfinance can't
-    # resolve prices, reconciliation returns a series with zero divergence -- in
-    # that case we fall back to a neutral "can't prove" and leave the gate red.
+    # phase-25.A6: explicit Sharpe-gap reconciliation. The legacy proxy
+    # used `latest_divergence_pct / 100.0` as a stand-in -- closes phase-24.6
+    # F-3 (NAV divergence is a dollar measure; Sharpe gap is risk-adjusted-
+    # return measure; they are different quantities). The new helper has a
+    # 3-tier fallback (optimizer_best -> shadow curve -> divergence proxy)
+    # so existing operator behavior is preserved when explicit backtest
+    # Sharpe is unavailable.
+    sharpe_gap = compute_sharpe_gap(bq)
+    sr_gap_le = sharpe_gap.get("gap_within_threshold")
+
+    # Keep the legacy divergence number in `details` as a sibling signal --
+    # operators still find it informative even when the explicit Sharpe gap
+    # is the authoritative measurement.
     recon = compute_reconciliation(bq)
     recon_summary = recon.get("summary", {})
     latest_divergence_pct = float(recon_summary.get("latest_divergence_pct") or 0.0)
-    # Use divergence as a proxy for Sharpe gap when explicit backtest Sharpe
-    # isn't available -- stays conservative (higher divergence -> failed gate).
-    # If latest divergence > SR_GAP_THRESHOLD*100, fail.
-    sr_gap_proxy = latest_divergence_pct / 100.0  # normalize to ratio
-    sr_gap_le = sr_gap_proxy <= SR_GAP_THRESHOLD
 
     booleans = {
         "trades_ge_100": bool(n_round_trips >= TRADES_THRESHOLD),
@@ -99,7 +105,8 @@ def compute_gate(bq: Any) -> dict:
             psr is not None and psr >= PSR_THRESHOLD and metrics.get("n_obs", 0) >= PSR_SUSTAINED_DAYS
         ),
         "dsr_ge_95": bool(dsr is not None and dsr >= DSR_THRESHOLD),
-        "sr_gap_le_30pct": bool(sr_gap_le),
+        # phase-25.A6: None coerces to False, keeping the gate red on no-data.
+        "sr_gap_le_30pct": bool(sr_gap_le) if sr_gap_le is not None else False,
         "max_dd_within_tolerance": bool(realized_max_dd <= MAX_DD_ABS_TOLERANCE),
     }
     promote_eligible = all(booleans.values())
@@ -115,6 +122,13 @@ def compute_gate(bq: Any) -> dict:
             "n_obs": metrics.get("n_obs", 0),
             "latest_reconciliation_divergence_pct": round(latest_divergence_pct, 4),
             "realized_max_dd_pct": round(realized_max_dd, 4),
+            # phase-25.A6: explicit Sharpe-gap diagnostics for the UI.
+            "live_sharpe": sharpe_gap.get("live_sharpe"),
+            "backtest_sharpe": sharpe_gap.get("backtest_sharpe"),
+            "sharpe_gap_rel": sharpe_gap.get("gap_rel"),
+            "sharpe_gap_source": sharpe_gap.get("source"),
+            "sharpe_gap_proxy_fallback": sharpe_gap.get("proxy_fallback"),
+            "sharpe_gap_note": sharpe_gap.get("note"),
         },
         "thresholds": {
             "trades": TRADES_THRESHOLD,

@@ -15,10 +15,13 @@ Research basis:
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional, Sequence
 
 import numpy as np
 
@@ -110,6 +113,174 @@ def compute_sharpe_from_snapshots(
     if not np.isfinite(sharpe) or abs(sharpe) > 100.0:
         return 0.0
     return round(sharpe, 2)
+
+
+# ── Live-vs-Backtest Sharpe reconciliation (phase-25.A6) ─────────
+
+
+_OPTIMIZER_BEST_PATH = Path(__file__).resolve().parents[1] / "backtest" / "experiments" / "optimizer_best.json"
+
+# phase-25.A6: industry-benchmark Sharpe-gap threshold. Jacquier et al.
+# arxiv 2501.03938 (Jan 2025): 30-50% IS-to-OOS decay range; 30% is the
+# stricter lower bound for a single-strategy system. Man Group uses 50%.
+# This constant mirrors backend/services/paper_go_live_gate.py:38 -- both
+# point at the same value so a future change is centralized.
+SR_GAP_THRESHOLD = 0.30
+
+
+def _load_optimizer_best_sharpe() -> Optional[float]:
+    """Read `optimizer_best.json["sharpe"]` if available; None otherwise."""
+    try:
+        if not _OPTIMIZER_BEST_PATH.exists():
+            return None
+        with _OPTIMIZER_BEST_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        sharpe = data.get("sharpe")
+        return float(sharpe) if sharpe is not None else None
+    except Exception:
+        return None
+
+
+def _shadow_curve_sharpe(
+    bq: Any, min_points: int, risk_free_rate: float,
+) -> Optional[float]:
+    """Compute Sharpe from the reconciliation shadow-backtest NAV curve.
+
+    The shadow curve is the existing backtest-equivalent path that
+    `compute_reconciliation` already builds (frictionless yfinance fills).
+    Returns None on any failure (caller falls through to the next tier).
+    """
+    try:
+        from backend.services.reconciliation import compute_reconciliation
+        recon = compute_reconciliation(bq) or {}
+        series = recon.get("series") or []
+        if len(series) < min_points:
+            return None
+        navs = [float(pt.get("backtest_nav") or 0.0) for pt in series]
+        navs = [n for n in navs if n > 0]
+        if len(navs) < min_points:
+            return None
+        # Mirror the formula in compute_sharpe_from_snapshots for parity.
+        nav_arr = np.array(navs, dtype=float)
+        daily_returns = np.diff(nav_arr) / nav_arr[:-1]
+        sharpe = compute_sharpe(daily_returns, risk_free_rate)
+        if not np.isfinite(sharpe) or abs(sharpe) > 100.0:
+            return None
+        return round(float(sharpe), 2)
+    except Exception:
+        return None
+
+
+def _reconciliation_divergence_pct(bq: Any) -> Optional[float]:
+    """Tertiary fallback: latest reconciliation divergence pct (legacy proxy)."""
+    try:
+        from backend.services.reconciliation import compute_reconciliation
+        recon = compute_reconciliation(bq) or {}
+        summary = recon.get("summary") or {}
+        v = summary.get("latest_divergence_pct")
+        return float(v) if v is not None else None
+    except Exception:
+        return None
+
+
+def compute_sharpe_gap(
+    bq: Any,
+    *,
+    backtest_sharpe_source: str = "optimizer_best",
+    risk_free_rate: float = 0.04,
+    min_snapshots: int = 6,
+) -> dict:
+    """phase-25.A6: explicit live-vs-backtest Sharpe gap. Industry benchmark
+    threshold 30% (Jacquier et al. arxiv 2501.03938; 30-50% IS-to-OOS decay
+    range, 30% the stricter lower bound).
+
+    Closes phase-24.6 F-3 -- `paper_go_live_gate.compute_gate` previously used
+    NAV-divergence as a proxy for the Sharpe gap. NAV divergence is a dollar
+    quantity; Sharpe gap is a risk-adjusted-return quantity. They are not
+    the same measurement.
+
+    Fallback chain (returned in `source`):
+      1. "optimizer_best": read `optimizer_best.json["sharpe"]`.
+      2. "shadow_curve": derive backtest Sharpe from `reconciliation.series.backtest_nav`.
+      3. "proxy_fallback": use `reconciliation.summary.latest_divergence_pct / 100`
+         as `gap_rel`; sets `proxy_fallback=True` so operators see the legacy proxy.
+      4. "no_data": all of the above unavailable; `gap_within_threshold=None`
+         so the calling gate stays red.
+
+    Returns dict with keys:
+      live_sharpe, backtest_sharpe, gap_abs, gap_rel, threshold,
+      gap_within_threshold, source, note, proxy_fallback, computed_at.
+    """
+    threshold = SR_GAP_THRESHOLD
+    note_parts: list[str] = []
+
+    # Live Sharpe from paper snapshots.
+    snapshots: list[dict] = []
+    try:
+        snapshots = bq.get_paper_snapshots(limit=365) or []
+    except Exception as exc:
+        note_parts.append(f"paper_snapshots_fail:{type(exc).__name__}")
+        snapshots = []
+    if len(snapshots) < min_snapshots:
+        live_sharpe: Optional[float] = None
+    else:
+        live_sharpe = compute_sharpe_from_snapshots(snapshots, risk_free_rate=risk_free_rate)
+        if live_sharpe == 0.0:
+            # 0.0 from the helper means "could not compute" (clamped or insufficient).
+            # Treat as None to make the no-data path unambiguous.
+            live_sharpe = None
+
+    # Backtest Sharpe with fallback chain.
+    backtest_sharpe: Optional[float] = None
+    proxy_fallback = False
+    source = "no_data"
+
+    if backtest_sharpe_source != "optimizer_best":
+        note_parts.append(f"requested_source={backtest_sharpe_source}")
+
+    primary = _load_optimizer_best_sharpe()
+    if primary is not None:
+        backtest_sharpe = primary
+        source = "optimizer_best"
+    else:
+        secondary = _shadow_curve_sharpe(bq, min_snapshots, risk_free_rate)
+        if secondary is not None:
+            backtest_sharpe = secondary
+            source = "shadow_curve"
+
+    gap_abs: Optional[float] = None
+    gap_rel: Optional[float] = None
+    gap_within_threshold: Optional[bool] = None
+
+    if live_sharpe is not None and backtest_sharpe is not None and abs(backtest_sharpe) > 0:
+        gap_abs = abs(live_sharpe - backtest_sharpe)
+        gap_rel = gap_abs / abs(backtest_sharpe)
+        gap_within_threshold = gap_rel <= threshold
+    else:
+        # Final fallback: legacy NAV-divergence proxy if backtest Sharpe is unavailable.
+        divergence_pct = _reconciliation_divergence_pct(bq)
+        if divergence_pct is not None:
+            proxy_fallback = True
+            source = "proxy_fallback"
+            gap_rel = divergence_pct / 100.0
+            gap_within_threshold = gap_rel <= threshold
+            note_parts.append("using NAV-divergence proxy; backtest Sharpe unavailable")
+        else:
+            note_parts.append("no backtest Sharpe + no divergence proxy; gate stays red")
+
+    note = "; ".join(note_parts) if note_parts else None
+    return {
+        "live_sharpe": live_sharpe,
+        "backtest_sharpe": backtest_sharpe,
+        "gap_abs": round(gap_abs, 4) if gap_abs is not None else None,
+        "gap_rel": round(gap_rel, 4) if gap_rel is not None else None,
+        "threshold": threshold,
+        "gap_within_threshold": gap_within_threshold,
+        "source": source,
+        "note": note,
+        "proxy_fallback": proxy_fallback,
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 # ── Benchmark Comparison ─────────────────────────────────────────
