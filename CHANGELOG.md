@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-12 | `ee14becf` | phase-25.6: No-stop-on-entry hard block in execute_buy() |
 | 2026-05-12 | `48b662ec` | phase-25.2: Backfill missing stops with same-cycle re-check |
 | 2026-05-12 | `275bbce6` | phase-25.A8: Cost-budget HARD-BLOCK in llm_client.py |
 | 2026-05-12 | `b184dc2c` | phase-25.K: Wire kill-switch state changes to Slack |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `03047b1a` | phase-24.7: Data quality + BQ freshness + yfinance fallback hygiene audit |
 | 2026-05-12 | `038dee5e` | phase-24.3: Autoresearch <-> daily-loop wiring audit (cron isolation; meta-evolution feedback loop) |
 | 2026-05-12 | `4578d8c4` | phase-24.2: Pipeline routing + report persistence audit (lite-vs-full branching; reports -> BQ; 2... |
-| 2026-05-12 | `8646bf62` | phase-24.5: Slack notifications + operator alerting audit (wrong P&L digests, missing trade/kill-... |
 
 ---
 
+### v6.7.23 — phase-25.6: No-stop-on-entry hard block in execute_buy() (2026-05-12)
+
+- **phase-25.6: No-stop-on-entry hard block in execute_buy()**
 ### v6.7.22 — phase-25.2: Backfill missing stops with same-cycle re-check (2026-05-12)
 
 - **phase-25.2: Backfill missing stops with same-cycle re-check**
