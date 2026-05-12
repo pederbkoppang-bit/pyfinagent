@@ -16851,3 +16851,43 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates honest "structurally sound but specific gaps" framing.
 
 **Phase-24.6 status -> done.** Next cycle: bucket 24.9 (P2 — LLM provider conformance).
+
+---
+
+## Cycle 54 -- 2026-05-12 -- phase=24.9 result=PASS
+
+**Step:** 24.9 — LLM provider conformance audit (Claude + Gemini) (P2)
+**Action:** READ-ONLY. Findings + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=complex; 7 sources: Anthropic prompt-caching, extended-thinking, batch-processing, tool-use, Files+Batch guide, mager.co prompt-caching practical guide, Gemini thinking mode).
+
+**Findings (3 bugs + 3 unused features + 4 correct):**
+
+**Bugs:**
+- F-1 `cost_tracker.py:147` `CACHE_WRITE_PREMIUM = 1.25` should be 2.0 (1h TTL already opted-in at `llm_client.py:773-779`); ~60% under-report on writes
+- F-2 `llm_client.py:751-759` system prompt ~35 tokens — below 4096-token Opus 4.7/Haiku 4.5 cache threshold; `cache_control` silently skipped
+- F-3 `llm_client.py:709-713` in-process `_cache_hits/_cache_misses` counters are per-instance; server-side cache reads cross instances; rely on `UsageMeta.cache_read_input_tokens` instead
+
+**Unused features (high-value adoption):**
+- F-4 Batch API (50% flat discount) — 28-agent pipeline always calls synchronously
+- F-5 Files API — skill markdowns re-injected every call (~97% reduction possible with `file_id`)
+- F-6 Native Citations — `CitationAgent` at `multi_agent_orchestrator.py:1284-1333` makes 1 extra LLM call per Q&A
+
+**Correct/working:**
+- F-7 Thinking budgets defensible (Critic/Moderator 8192, RiskJudge 4096); Synthesis 4096 candidate for reduction (structured output reduces marginal gains)
+- F-8 Gemini grounding correctly Gemini-only (`orchestrator.py:407-419` `supports_grounding` gate)
+- F-9 Tool-use loop bounded
+- F-10 Structured output via `response_schema`
+
+**Phase-25 candidates (6):**
+1. 25.A9 (P1) — Fix cache-write premium 1.25x → 2.0x (1-line)
+2. 25.B9 (P1) — Bump system prompt above 4096-token cache threshold
+3. 25.C9 (P1) — Adopt Batch API (50% savings on non-interactive steps)
+4. 25.D9 (P1) — Adopt Files API for skill markdowns (~97% token reduction)
+5. 25.E9 (P1) — Adopt native Citations (deprecate `CitationAgent`)
+6. 25.F9 (P2) — Profile + tune Synthesis thinking 4096 → 2048
+
+**Verifier:** 15/16 PASS at Q/A spawn; log-last only FAIL. Now 16/16 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates clean partition of 3 bugs vs 3 unused features vs 4 correct subsystems.
+
+**Phase-24.9 status -> done.** Next cycle: bucket 24.13 (P1 — profit-maximization synthesis).

@@ -8193,7 +8193,7 @@
         {
           "id": "24.9",
           "name": "LLM provider conformance audit (Claude + Gemini, prompt caching, thinking, tool-use, structured output, grounding)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "24.0",
