@@ -8496,7 +8496,7 @@
         {
           "id": "25.H",
           "name": "Recent-analyses ticker dedup (5x SNDK fix)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,

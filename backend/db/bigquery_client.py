@@ -255,9 +255,19 @@ class BigQueryClient:
         logger.info(f"Report saved for {ticker}")
 
     def get_recent_reports(self, limit: int = 20) -> list[dict]:
+        # phase-25.H: dedup by ticker before LIMIT so digests don't show "5x SNDK".
+        # Pattern: rank rows per ticker by analysis_date DESC, then keep rank=1 only.
+        # Closes phase-24.5 audit F-3.
         query = f"""
+            WITH ranked AS (
+                SELECT
+                    ticker, company_name, analysis_date, final_score, recommendation, summary,
+                    ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY analysis_date DESC) AS rk
+                FROM `{self.reports_table}`
+            )
             SELECT ticker, company_name, analysis_date, final_score, recommendation, summary
-            FROM `{self.reports_table}`
+            FROM ranked
+            WHERE rk = 1
             ORDER BY analysis_date DESC
             LIMIT @limit
         """

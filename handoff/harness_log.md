@@ -17071,3 +17071,24 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Phase-25.G status -> done.** Closes phase-24.5 F-1 (wrong endpoint) + F-2 (wrong field key) + F-6 (slash command same bug).
 
 **Next cycle:** 25.H (recent-analyses ticker dedup, no deps).
+
+---
+
+## Cycle 60 -- 2026-05-12 -- phase=25.H result=PASS
+
+**Step:** 25.H — Recent-analyses ticker dedup (5x SNDK fix) (P0)
+**Action:** GENERATE. CTE-based dedup in `backend/db/bigquery_client.py:get_recent_reports`.
+
+**Code change:** rewrote SELECT to wrap in `ranked` CTE with `ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY analysis_date DESC) AS rk` + `WHERE rk = 1`. ScalarQueryParameter preserved (no SQL injection regression).
+
+**New verifier:** `tests/verify_phase_25_H.py` (75 LOC, 6 immutable claims) — **6/6 PASS**
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Caller compatibility verified:
+- `backend/api/reports.py:37` (limit=20 default) — UI now shows 20 distinct tickers
+- `backend/services/outcome_tracker.py:92` (limit=100) — improved: outcome learning now sees more distinct tickers, no longer crowded by duplicates
+
+**Non-blocking note:** outcome attribution metrics may shift due to broader distinct-ticker pool. Worth tracking in 25.S (daily P&L attribution).
+
+**Phase-25.H status -> done.** Closes phase-24.5 F-3.
+
+**Next cycle:** 25.K (wire kill-switch Slack, no deps).
