@@ -8061,7 +8061,7 @@
         {
           "id": "24.5",
           "name": "Slack notifications + operator alerting audit (wrong P&L digests, missing trade/kill-switch/drawdown/error alerts, slash-command correctness)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "24.0",

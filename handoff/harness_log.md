@@ -16569,3 +16569,37 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Hypothesis verdict:** CONFIRMED AND REFINED. RiskJudge aliasing is structural (lite-path single LLM call), sparse drawer is architectural (Layer-1 outputs unpersisted), `multi_agent_orchestrator.py` was the wrong file.
 
 **Phase-24.4 status -> done.** Next cycle: bucket 24.5 (P0 — Slack notifications) per priority order.
+
+---
+
+## Cycle 45 -- 2026-05-12 -- phase=24.5 result=PASS
+
+**Step:** 24.5 — Slack notifications + operator alerting audit (P0)
+**Action:** READ-ONLY. Findings doc + brief + contract. No code changes.
+
+**Researcher gate:** PASS (tier=complex; 5 sources: Slack Alert block April 2026, oneuptime monitoring/dedup Feb-Jan 2026, stockalarm trading alerts, harness-design).
+
+**Four discrete bugs traced:**
+1. **Wrong P&L endpoint** — `scheduler.py:235` calls `/api/portfolio/performance` (legacy in-memory, always empty post-restart). Correct: `/api/paper-trading/portfolio`. Same bug in `/portfolio` slash command at `commands.py:138`.
+2. **Wrong field key** — `formatters.py:322` reads `total_return_pct`; endpoints return `total_pnl_pct`. Double bug compounds F-1.
+3. **No ticker dedup (5x SNDK)** — `bigquery_client.py:258-268` `ORDER BY analysis_date DESC LIMIT 5` returns 5x same ticker.
+4. **2 PM digest = `.env` config, NOT code** — `scheduler.py:144` correctly uses `ZoneInfo("America/New_York")`. Operator's `.env` has `MORNING_DIGEST_HOUR=14`. Honest disclosure: this is config-side fix.
+
+**Missing notifications (5 categories):** trade confirmation, kill-switch alert, drawdown alarm, cost-budget breach, cycle-completion summary, error-escalation routing, weekly autoresearch summary. Infrastructure (`send_trading_escalation` at `scheduler.py:369-423`) is production-ready; zero call sites wire these triggers.
+
+**Phase-25 candidates (10):**
+1. 25.G (P0) — Fix digest endpoint + field key (single PR)
+2. 25.H (P0) — Recent-analyses ticker dedup via QUALIFY ROW_NUMBER
+3. 25.I (P0) — `.env` fix + startup log echo of effective cron
+4. 25.J (P0) — Trade confirmation notifications
+5. 25.K (P0) — Wire kill-switch state to Slack
+6. 25.L (P1) — Drawdown alarm with tiered thresholds
+7. 25.M (P1) — Cost-budget breach alert wire repair
+8. 25.N (P1) — Cycle-completion summary
+9. 25.O (P1) — Error escalation routing (logger.exception promotion)
+10. 25.P (P2) — Weekly autoresearch summary
+
+**Verifier:** 14/15 PASS at Q/A spawn; log-last gap is only FAIL. Now 15/15 after this append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance items CONFIRM. Anti-rubber-stamp confirms F-4 honestly distinguishes config vs code. Scope-honesty confirms open questions explicit. 37 grep anchor hits across content-specific regex.
+
+**Phase-24.5 status -> done.** Phase-24 P0 buckets (24.1 + 24.4 + 24.5) COMPLETE. Next cycle: bucket 24.2 (P1 — pipeline routing).
