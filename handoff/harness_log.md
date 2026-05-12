@@ -16891,3 +16891,35 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates clean partition of 3 bugs vs 3 unused features vs 4 correct subsystems.
 
 **Phase-24.9 status -> done.** Next cycle: bucket 24.13 (P1 — profit-maximization synthesis).
+
+---
+
+## Cycle 55 -- 2026-05-12 -- phase=24.13 result=PASS
+
+**Step:** 24.13 — Profit-maximization red-line alignment synthesis (P1)
+**Depends on:** 24.1-24.9 (all complete)
+**Action:** READ-ONLY. Synthesis findings doc. No code changes.
+
+**Researcher gate:** PASS (tier=complex; 6 sources: Anthropic built-multi-agent, Markowitz MPT canonical, arxiv SHARP May 2026, ATLAS Oct 2025, AI-Trader Dec 2025, arxiv 2503.21422 survey March 2025).
+
+**Findings — 4 compounding misalignments against red-line goal:**
+1. **(a) Anti-profit**: stop-loss orphan (`paper_trader.py:414`); TER -12.30% (~-$1,107); 6 of 11 positions stop-less
+2. **(b) Anti-cost**: `llm_client.py` ignores `cost_budget.tripped`; `cost_tracker.py:147` 1.25x undercount; cache silently no-ops below 4096-token threshold; full-pipeline waste ~$1.50/day
+3. **(c) Anti-switching**: zero autoresearch imports in autonomous_loop; `monthly_champion_challenger.py:76 actual_replacement=False`; `autoresearch/cron.py:29-38 lambda: None` stub
+4. **(d) Unobservable**: `sovereign_api.py:394-395` hardcoded zero LLM costs; missing `pyfinagent_pms.strategy_deployments` BQ view (self-disclosed at L336); no `profit_per_llm_dollar` metric
+
+**Industry context** (arxiv 2503.21422 March 2025 survey): NO published autonomous trading system has profit-per-LLM-dollar metric. pyfinagent first-mover.
+
+**Coverage matrix** confirms every red-line sub-goal (a-d) has ≥4 surfaced findings across buckets 24.1-24.9.
+
+**Phase-25 candidates (3 NEW + 2 cross-link):**
+1. **25.Q (P1)** — Real-time `profit_per_llm_dollar` metric (FIRST-MOVER per arxiv 2503.21422)
+2. **25.R (P1)** — Strategy auto-switching policy (depends on 24.3 candidates 25.A3-25.C3)
+3. **25.S (P2)** — Daily P&L attribution report (per SHARP arxiv 2605.06822 — attribution is load-bearing)
+4. **25.T** — Cost-budget HARD-BLOCK (cross-link bucket 24.8 25.A8)
+5. **25.U** — Plateau-detection enforced rotation (cross-link bucket 24.6 25.D6)
+
+**Verifier:** 13/14 PASS at Q/A spawn; log-last only FAIL. Now 14/14 after append.
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Anti-rubber-stamp validates 24.13's distinct contribution is SYNTHESIS + 3 NEW candidates closing goal-c/goal-d gaps that no single 24.1-24.9 bucket owned.
+
+**Phase-24.13 status -> done.** Final cycle: bucket 24.14 (final synthesis + ranked phase-25.x list).

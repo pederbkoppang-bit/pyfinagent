@@ -8330,7 +8330,7 @@
         {
           "id": "24.13",
           "name": "Profit-maximization red-line alignment synthesis (cost vs P&L, strategy switching, cost-budget enforcement)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "24.9",
