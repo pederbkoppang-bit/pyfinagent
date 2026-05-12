@@ -80,6 +80,24 @@ class PaperTrader:
         sector: Optional[str] = None,  # phase-23.2.6-fix: persist GICS sector
     ) -> Optional[dict]:
         """Buy shares of a ticker. Returns the trade record or None if can't execute."""
+        # phase-25.6: no-stop-on-entry HARD BLOCK. If stop_loss_price is None
+        # at entry, synthesize one from settings.paper_default_stop_loss_pct
+        # (8% default per O'Neil canonical + arxiv 2604.27150) so every new
+        # position has a stop in BQ. Closes phase-24.1 audit finding F-4
+        # (_extract_stop_loss fallback only applied to NEW buys; positions
+        # bought before phase-23.1.8 had stop_loss_price=None forever).
+        # Defense-in-depth alongside 25.2 backfill: prevents regression
+        # if an upstream resolution chain (risk_judge -> portfolio_manager
+        # -> execute_buy) ever passes None again.
+        if stop_loss_price is None:
+            default_pct = float(getattr(self.settings, "paper_default_stop_loss_pct", 8.0))
+            if price > 0:
+                stop_loss_price = round(price * (1.0 - default_pct / 100.0), 4)
+                logger.warning(
+                    "phase-25.6: no stop_loss_price provided for %s; defaulting to %.4f (%.1f%% below entry %.4f)",
+                    ticker, stop_loss_price, default_pct, price,
+                )
+
         portfolio = self.get_or_create_portfolio()
         cash = portfolio["current_cash"]
 

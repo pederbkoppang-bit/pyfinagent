@@ -8452,7 +8452,7 @@
         {
           "id": "25.6",
           "name": "No-stop-on-entry hard block in execute_buy()",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "25.1",

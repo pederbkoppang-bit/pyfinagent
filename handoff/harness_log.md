@@ -17156,3 +17156,32 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Phase-25 P0 sprint progress:** 7 of 8 P0 candidates done. Remaining: 25.6 (depends on 25.1 DONE) + 25.J (depends on 25.1 DONE).
 
 **Next cycle:** 25.6 (no-stop-on-entry hard block).
+
+---
+
+## Cycle 64 -- 2026-05-12 -- phase=25.6 result=PASS
+
+**Step:** 25.6 — No-stop-on-entry hard block in execute_buy() (P0; depends on 25.1)
+**Action:** GENERATE. Added 18-line None-check block at top of `execute_buy()` synthesizing default 8% stop when stop_loss_price arg is None.
+
+**Code change:** `backend/services/paper_trader.py:execute_buy()` — block ordered BEFORE `portfolio = self.get_or_create_portfolio()`:
+- `if stop_loss_price is None:` check
+- `default_pct = getattr(self.settings, "paper_default_stop_loss_pct", 8.0)` with 8.0 fallback
+- `if price > 0:` guard (avoids zero-stop degenerate)
+- `stop_loss_price = round(price * (1.0 - default_pct / 100.0), 4)`
+- `logger.warning` (operator-visible) with phase-25.6 tag
+
+**New verifier:** `tests/verify_phase_25_6.py` (130 LOC, 8 immutable claims) — **8/8 PASS**
+
+**Q/A verdict:** PASS (first spawn). 5/5 harness-compliance CONFIRM. Mutation-resistance covered by 4 independent claims (None-check, default_pct usage, formula, log fire). Ordering verified: synthesis happens BEFORE persistence so the computed stop flows into the rest of execute_buy.
+
+**Triple-layer protection now in place:**
+- **25.1** Step 5.6 enforces stops on every cycle (DONE)
+- **25.2** backfills existing stop-less positions (DONE)
+- **25.6** hard-blocks future stop-less entries (DONE)
+
+**Phase-25.6 status -> done.** Closes phase-24.1 F-4 (entry-path fallback regression risk).
+
+**Phase-25 P0 sprint progress:** 8 of 8 P0 candidates DONE except 25.J (trade confirmation Slack). After 25.J the P0 sprint is COMPLETE — every operator-reported bug from 2026-05-12 has a code fix shipped.
+
+**Next cycle:** 25.J (trade confirmation Slack, depends on 25.1 DONE).
