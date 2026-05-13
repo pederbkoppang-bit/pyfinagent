@@ -18182,3 +18182,29 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 38 of ~40 phase-25 steps complete (+ 25.C9.1).
 
 **Next P2 candidates:** 25.C9.2 (run_full_analysis hot-path adoption), 25.D9.1 (caller-side Files API), 25.S.1 (per-call ticker tagging).
+
+---
+
+## Cycle 104 -- 2026-05-13 -- phase=25.D9.1 result=PASS
+
+**Step:** 25.D9.1 -- Caller-side Files API adoption, skill_file_id wiring in run_*_agent calls (P2; depends on 25.D9 done cycle 81). NEW masterplan entry inserted between 25.D9 and 25.E9.
+**Action:** GENERATE. Closes the caller-side gap from 25.D9 (mechanism shipped; 11 enrichment call sites still inlined skill markdown).
+
+**North-star alignment:** Directly cuts the cost denominator in Net System Alpha. Per Anthropic Files API docs, each Claude-mode enrichment call drops from 5K-15K skill tokens to ~8 token file_id reference (98-99.5% reduction). Multiplied by 11 agents and many tickers, materially propagates into `profit_per_llm_dollar` (25.Q efficiency_snapshots).
+
+**Code changes:**
+- `backend/agents/orchestrator.py`: NEW `_skill_gen_config(skill_stem: str) -> dict | None` method (near `_run_enrichment_batch`). Returns `{"skill_file_id": "<file_id>"}` when `_skill_file_ids` is populated AND has the stem; returns None otherwise (Gemini fallback OR missing stem -- no KeyError). Wired 11 enrichment call sites to pass `generation_config=self._skill_gen_config("<stem>")`: run_insider/options/social_sentiment/patent/earnings_tone/alt_data/sector_analysis/nlp_sentiment/anomaly/scenario/quant_model_agent.
+
+**Research-gate:** tier=moderate, 5 sources fetched in full (Anthropic Files API docs + Prompt Caching docs + jangwook.net 2025 + dev.to caching guide + Finout 2026 pricing). 12 URLs collected. Recency scan: 2026-03-06 default-TTL change already handled at `llm_client.py:1185-1198`. gate_passed=true.
+
+**New verifier:** `tests/verify_phase_25_D9_1.py` -- **5/5 PASS, EXIT=0**. 1 AST helper-exists + 1 grep call-site-count + 3 LIVE behavioral helper tests (empty dict / mapped stem / unmapped stem).
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance: 3 behavioral cases + literal call-site grep (11 matches at lines 839/846/853/860/867/883/890/897/904/911/945). Scope honesty: `cache_control` on document block deferred to 25.D9.2 (one-dict-update follow-up). Caller safety: Gemini path unaffected (`_skill_file_ids` empty -> helper returns None -> existing inline path preserved).
+
+**Live-check artefact:** `handoff/current/live_check_25.D9.1.md` documenting BQ cost_tracker query proof + cost calculus.
+
+**Phase-25.D9.1 status -> done.** Caller-side wiring RESOLVED.
+
+**Cumulative phase-25 progress:** 39 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.D9.2 (cache_control on doc block), 25.C9.2 (run_full_analysis batch refactor), 25.S.1 (per-call ticker tagging).

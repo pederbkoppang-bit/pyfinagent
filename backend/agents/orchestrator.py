@@ -566,6 +566,33 @@ class AnalysisOrchestrator:
                 else:
                     raise
 
+    def _skill_gen_config(self, skill_stem: str) -> dict | None:
+        """phase-25.D9.1: build the per-call generation_config dict that
+        threads a pre-uploaded Anthropic Files API `file_id` into the
+        request payload.
+
+        Returns:
+            `{"skill_file_id": "<file_id>"}` when the orchestrator was
+            initialized with a Claude general_client AND 25.D9 successfully
+            populated `self._skill_file_ids` for the given stem.
+            `None` otherwise -- Gemini path, upload failure, missing stem.
+
+        The `None` return is the safe fallback: `_generate_with_retry`
+        already handles `generation_config=None` (line 511); callers see
+        the existing inline-skill path with zero overhead.
+
+        North-star: each Claude-path Files API call drops from 5K-15K
+        skill tokens to ~8 token file_id ref (98-99.5% reduction per
+        Anthropic Files API docs).
+        """
+        fid_map = getattr(self, "_skill_file_ids", None)
+        if not fid_map:
+            return None
+        fid = fid_map.get(skill_stem)
+        if not fid:
+            return None
+        return {"skill_file_id": fid}
+
     def _run_enrichment_batch(
         self,
         requests: list[dict],
@@ -836,35 +863,35 @@ class AnalysisOrchestrator:
         """Analyze insider trading patterns."""
         logger.info(f"Insider Agent: analyzing Form 4 data for {ticker}")
         prompt = prompts.get_insider_prompt(ticker, insider_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Insider")
+        response = self._generate_with_retry(self.general_client, prompt, "Insider", generation_config=self._skill_gen_config("insider_agent"))
         return {"text": _extract_text(response), "data": insider_data}
 
     def run_options_agent(self, ticker: str, options_data: dict) -> dict:
         """Analyze options flow for institutional signals."""
         logger.info(f"Options Agent: analyzing flow for {ticker}")
         prompt = prompts.get_options_prompt(ticker, options_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Options")
+        response = self._generate_with_retry(self.general_client, prompt, "Options", generation_config=self._skill_gen_config("options_agent"))
         return {"text": _extract_text(response), "data": options_data}
 
     def run_social_sentiment_agent(self, ticker: str, sentiment_data: dict) -> dict:
         """Analyze social media and news sentiment."""
         logger.info(f"Social Sentiment Agent: analyzing for {ticker}")
         prompt = prompts.get_social_sentiment_prompt(ticker, sentiment_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Social Sentiment")
+        response = self._generate_with_retry(self.general_client, prompt, "Social Sentiment", generation_config=self._skill_gen_config("social_sentiment_agent"))
         return {"text": _extract_text(response), "data": sentiment_data}
 
     def run_patent_agent(self, ticker: str, patent_data: dict) -> dict:
         """Analyze patent/innovation data."""
         logger.info(f"Patent Agent: analyzing innovation for {ticker}")
         prompt = prompts.get_patent_prompt(ticker, patent_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Patent")
+        response = self._generate_with_retry(self.general_client, prompt, "Patent", generation_config=self._skill_gen_config("patent_agent"))
         return {"text": _extract_text(response), "data": patent_data}
 
     def run_earnings_tone_agent(self, ticker: str, transcript_data: dict) -> dict:
         """Analyze earnings call tone."""
         logger.info(f"Earnings Tone Agent: analyzing transcript for {ticker}")
         prompt = prompts.get_earnings_tone_prompt(ticker, transcript_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Earnings Tone")
+        response = self._generate_with_retry(self.general_client, prompt, "Earnings Tone", generation_config=self._skill_gen_config("earnings_tone_agent"))
         return {"text": _extract_text(response), "data": transcript_data}
 
     def run_enhanced_macro_agent(self, ticker: str, av_data: dict, fred_macro: dict) -> dict:
@@ -880,42 +907,42 @@ class AnalysisOrchestrator:
         """Analyze alternative data signals."""
         logger.info(f"Alt Data Agent: analyzing trends for {ticker}")
         prompt = prompts.get_alt_data_prompt(ticker, alt_data_result, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Alt Data")
+        response = self._generate_with_retry(self.general_client, prompt, "Alt Data", generation_config=self._skill_gen_config("alt_data_agent"))
         return {"text": _extract_text(response), "data": alt_data_result}
 
     def run_sector_analysis_agent(self, ticker: str, sector_data: dict) -> dict:
         """Analyze sector relative strength and rotation."""
         logger.info(f"Sector Agent: analyzing sector for {ticker}")
         prompt = prompts.get_sector_analysis_prompt(ticker, sector_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Sector")
+        response = self._generate_with_retry(self.general_client, prompt, "Sector", generation_config=self._skill_gen_config("sector_agent"))
         return {"text": _extract_text(response), "data": sector_data}
 
     def run_nlp_sentiment_agent(self, ticker: str, nlp_data: dict) -> dict:
         """Analyze transformer-based NLP sentiment."""
         logger.info(f"NLP Sentiment Agent: analyzing for {ticker}")
         prompt = prompts.get_nlp_sentiment_prompt(ticker, nlp_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "NLP Sentiment")
+        response = self._generate_with_retry(self.general_client, prompt, "NLP Sentiment", generation_config=self._skill_gen_config("nlp_sentiment_agent"))
         return {"text": _extract_text(response), "data": nlp_data}
 
     def run_anomaly_agent(self, ticker: str, anomaly_data: dict) -> dict:
         """Analyze statistical anomalies."""
         logger.info(f"Anomaly Agent: analyzing for {ticker}")
         prompt = prompts.get_anomaly_detection_prompt(ticker, anomaly_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Anomaly")
+        response = self._generate_with_retry(self.general_client, prompt, "Anomaly", generation_config=self._skill_gen_config("anomaly_agent"))
         return {"text": _extract_text(response), "data": anomaly_data}
 
     def run_scenario_agent(self, ticker: str, mc_data: dict) -> dict:
         """Analyze Monte Carlo scenario results."""
         logger.info(f"Scenario Agent: analyzing risk for {ticker}")
         prompt = prompts.get_scenario_analysis_prompt(ticker, mc_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Scenario")
+        response = self._generate_with_retry(self.general_client, prompt, "Scenario", generation_config=self._skill_gen_config("scenario_agent"))
         return {"text": _extract_text(response), "data": mc_data}
 
     def run_quant_model_agent(self, ticker: str, qm_data: dict) -> dict:
         """Analyze quant model MDA-weighted factor signal."""
         logger.info(f"Quant Model Agent: analyzing factor signal for {ticker}")
         prompt = prompts.get_quant_model_prompt(ticker, qm_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Quant Model")
+        response = self._generate_with_retry(self.general_client, prompt, "Quant Model", generation_config=self._skill_gen_config("quant_model_agent"))
         return {"text": _extract_text(response), "data": qm_data}
 
     # ── Synthesis ────────────────────────────────────────────────────
