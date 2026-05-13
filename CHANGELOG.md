@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `bbc5c8a3` | phase-25.O: Error escalation Slack routing (logger.exception promotion) |
 | 2026-05-13 | `f2b53402` | phase-25.N: Cycle-completion summary Slack notification |
 | 2026-05-13 | `09b6de70` | phase-25.B7: yfinance fallback counter persisted to BQ + WARNING log promotion |
 | 2026-05-13 | `d679d7a3` | phase-25.M: Cost-budget Slack alert wire repair (no silent fail-open) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `e9751036` | phase-25.R: Strategy auto-switching policy (closes red-line goal-c) |
 | 2026-05-12 | `b51bb893` | phase-25.C3: Strategy registry with status field; flip actual_replacement |
 | 2026-05-12 | `8a322219` | phase-25.B3: Daily loop reads latest promoted strategy via load_promoted_params() |
-| 2026-05-12 | `2a864210` | phase-25.A3: Write promoted strategies to pyfinagent_data.promoted_strategies BQ table |
 
 ---
 
+### v6.7.49 — phase-25.O: Error escalation Slack routing (logger.exception promotion) (2026-05-13)
+
+- **phase-25.O: Error escalation Slack routing (logger.exception promotion)**
 ### v6.7.48 — phase-25.N: Cycle-completion summary Slack notification (2026-05-13)
 
 - **phase-25.N: Cycle-completion summary Slack notification**
