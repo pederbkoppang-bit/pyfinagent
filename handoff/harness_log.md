@@ -17809,3 +17809,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 23 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7 + 25.M).
 
 **Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing in drawer), 25.B7 (yfinance fallback counter), 25.D (P2 backlog).
+
+---
+
+## Cycle 88 -- 2026-05-13 -- phase=25.B7 result=PASS
+
+**Step:** 25.B7 -- yfinance fallback counter persisted to BQ + WARNING log promotion (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.7 F-3.
+
+**Code changes:**
+- `backend/agents/orchestrator.py:1162`: promoted log from `logger.info("AV empty for %s -- using %d yfinance articles as fallback")` to `logger.warning(...)` (was suppressed at default WARNING level); added fail-open `try/except` wrapping `self.bq.save_data_source_event(ticker=..., source="yfinance_fallback", kind="fallback", article_count=..., notes="AV sentiment_summary empty")`.
+- `backend/db/bigquery_client.py`: NEW `save_data_source_event(...)` method with parameterized `INSERT INTO pyfinagent_data.data_source_events` (event_id auto-UUID, event_time auto-UTC, 30s timeout per CLAUDE.md).
+- `scripts/migrations/create_data_source_events_table.py`: NEW idempotent migration modeled on 25.Q (CREATE TABLE IF NOT EXISTS, --apply flag, dry-run default). Schema: 7 columns (event_id, event_time, ticker, source, kind, article_count, notes) partitioned by `DATE(event_time)`, clustered by `source`.
+
+**New verifier:** `tests/verify_phase_25_B7.py` -- **5/5 PASS, EXIT=0**. 1 regex log-promotion claim + 1 AST method-signature claim + 1 migration-script structural claim + 1 schema-aggregable claim (source/event_time/PARTITION/CLUSTER) + 1 behavioral round-trip confirming the orchestrator-side call kwargs.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance noted (regex + AST + behavioral). Schema is correctly aggregable for `pct_yfinance_fallback_dominance = COUNTIF(source='yfinance_fallback') / COUNT(*)`.
+
+**Live-check artefact:** `handoff/current/live_check_25.B7.md` documenting migration apply + BQ query proofs.
+
+**Phase-25.B7 status -> done.** Bucket 24.7 F-3 RESOLVED.
+
+**Cumulative phase-25 progress:** 24 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7 + 25.M + 25.B7).
+
+**Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing in drawer), 25.N, 25.O, 25.D backlog.

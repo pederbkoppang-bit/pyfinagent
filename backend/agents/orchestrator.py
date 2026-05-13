@@ -1159,7 +1159,27 @@ class AnalysisOrchestrator:
                 })
             articles = fallback_articles
             if fallback_articles:
-                logger.info("AV empty for %s -- using %d yfinance articles as fallback", ticker, len(fallback_articles))
+                # phase-25.B7: promote to WARNING (was INFO; suppressed in
+                # default views) so AV-down conditions surface immediately,
+                # and persist a row to data_source_events so the operator can
+                # compute pct_yfinance_fallback_dominance over any window.
+                logger.warning(
+                    "AV empty for %s -- using %d yfinance articles as fallback",
+                    ticker,
+                    len(fallback_articles),
+                )
+                try:
+                    self.bq.save_data_source_event(
+                        ticker=ticker,
+                        source="yfinance_fallback",
+                        kind="fallback",
+                        article_count=len(fallback_articles),
+                        notes="AV sentiment_summary empty",
+                    )
+                except Exception as _bq_exc:
+                    logger.warning(
+                        "save_data_source_event fail-open for %s: %r", ticker, _bq_exc
+                    )
 
         # Sector routing: determine which tools to skip
         sector_for_routing = ""

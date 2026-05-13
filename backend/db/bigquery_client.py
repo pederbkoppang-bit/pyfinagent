@@ -852,6 +852,53 @@ class BigQueryClient:
         job_config = bigquery.QueryJobConfig(query_parameters=params)
         self.client.query(query, job_config=job_config).result(timeout=30)
 
+    def save_data_source_event(
+        self,
+        *,
+        ticker: str,
+        source: str,
+        kind: str = "fallback",
+        article_count: int | None = None,
+        notes: str | None = None,
+        event_id: str | None = None,
+        event_time: str | None = None,
+    ) -> None:
+        """phase-25.B7: append a row to `pyfinagent_data.data_source_events`.
+
+        One row per data-source decision (primary use / fallback firing).
+        Powers the operator metric:
+
+            pct_yfinance_fallback_dominance
+              = COUNTIF(source='yfinance_fallback') / COUNT(*)
+              over a chosen rolling window.
+
+        Fail-open: BQ failures are logged at WARNING and re-raised only if
+        the caller wraps the call in their own try/except. Per CLAUDE.md
+        30s timeout rule.
+        """
+        import uuid
+        from datetime import datetime, timezone
+
+        evt_id = event_id or str(uuid.uuid4())
+        evt_time = event_time or datetime.now(timezone.utc).isoformat()
+
+        table = f"{self.settings.gcp_project_id}.pyfinagent_data.data_source_events"
+        query = f"""
+            INSERT INTO `{table}` (event_id, event_time, ticker, source, kind, article_count, notes)
+            VALUES (@event_id, @event_time, @ticker, @source, @kind, @article_count, @notes)
+        """
+        params = [
+            bigquery.ScalarQueryParameter("event_id", "STRING", evt_id),
+            bigquery.ScalarQueryParameter("event_time", "TIMESTAMP", evt_time),
+            bigquery.ScalarQueryParameter("ticker", "STRING", str(ticker)),
+            bigquery.ScalarQueryParameter("source", "STRING", str(source)),
+            bigquery.ScalarQueryParameter("kind", "STRING", str(kind)),
+            bigquery.ScalarQueryParameter("article_count", "INT64", int(article_count) if article_count is not None else None),
+            bigquery.ScalarQueryParameter("notes", "STRING", str(notes) if notes is not None else None),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(query, job_config=job_config).result(timeout=30)
+
     def get_paper_trades_in_window(self, window_days: int) -> list[dict]:
         """phase-25.A11: paper_trades rows whose created_at falls within the
         last `window_days` days. Used by /api/paper-trading/learnings to

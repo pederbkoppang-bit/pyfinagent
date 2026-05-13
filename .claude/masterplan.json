@@ -9296,7 +9296,7 @@
         {
           "id": "25.B7",
           "name": "yfinance fallback counter persisted to BQ + WARNING log promotion",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
@@ -9313,7 +9313,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 88 PASS 5/5; QA single-spawn PASS; live-check at handoff/current/live_check_25.B7.md; migration apply pending operator"
         },
         {
           "id": "25.A10",
