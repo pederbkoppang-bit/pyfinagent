@@ -17598,3 +17598,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 15 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12).
 
 **Next cycle candidate:** 25.B9 (P1 system-prompt cache threshold) OR 25.C9 (P1 Batch API for non-interactive pipeline steps) OR 25.D9 (P1 Files API for skill markdowns) OR 25.E9 (P1 native Citations).
+
+---
+
+## Cycle 80 -- 2026-05-13 -- phase=25.B9 result=PASS
+
+**Step:** 25.B9 -- Bump system prompt above 4096-token cache threshold (P1)
+**Action:** GENERATE. Closes phase-24.9 F-2 (system prompt was ~10-400 tokens; below all per-model Anthropic cache write thresholds; `cache_control` silently no-opped on every call).
+
+**Code changes (single file: `backend/agents/llm_client.py`):**
+- New module-level constant `_HOUSE_INSTRUCTIONS: str` (19,026 chars / ~5,436 estimated tokens at Anthropic's chars/3.5 heuristic). Sections: persona + core mandates + JSON output rules + 5-pillar reasoning framework + agent interaction rules + anti-patterns + safety anchor + glossary + GICS sector reference + strategy-archetype calibration + reasoning protocol + risk-management constraints + auditability standards + 3 worked examples (BUY/SELL/HOLD).
+- `ClaudeClient.generate_content` (line ~858): `system_prompt = "You are a financial analysis AI."` -> `system_prompt = _HOUSE_INSTRUCTIONS`. Schema-append block after it unchanged; dynamic content rides after the cached prefix.
+- `cache_control={"type":"ephemeral","ttl":"1h"}` wiring preserved (no regression in caching wiring; only the prompt size changes so the cache now registers).
+
+**New verifier:** `tests/verify_phase_25_B9.py` (300+ LOC, 11 immutable claims) -- **11/11 PASS, EXIT=0**. Three **behavioral round-trips**: cache-hit-rate proxy via CostTracker (0.5 >= 0.30), cache_read_input_tokens grows over 3 calls, ClaudeClient construction (no regression). Token-count assertion via chars/3.5 heuristic (4096+ tokens).
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. 8 spirit-breaking mutations covered (revert literal, shrink below 4096, drop cache_control, inline skill/schema, etc.). Scope honest: Files API deferred to 25.D9; chars/3.5 disclosed as heuristic; hit-rate proxy disclosed as simulated CostTracker (not live API); live BQ check deferred to live_check_25.B9.md.
+
+**Expected cost impact:** ~40-60% reduction in Claude input-token cost once cache reads dominate the pipeline (per arXiv 2601.06007 + Anthropic pricing math). Break-even: ~3 calls within 1h TTL.
+
+**Phase-25.B9 status -> done.** Cache writes now register; compound with 25.D9 (Files API) deferred to next cycle.
+
+**P1 sprint progress:** 16 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12 + 25.B9).
+
+**Next cycle candidate:** 25.C9 (P1 Batch API for non-interactive pipeline steps; 50% savings) OR 25.D9 (P1 Files API for skill markdowns; ~97% token reduction) OR 25.E9 (P1 native Citations).

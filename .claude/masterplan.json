@@ -8890,7 +8890,7 @@
         {
           "id": "25.B9",
           "name": "Bump system prompt above 4096-token cache threshold",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8907,7 +8907,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Combined with 25.D9 Files API for compound savings."
+          "notes": "Combined with 25.D9 Files API for compound savings. Cycle 80 PASS first-spawn. 11/11 verifier (incl. 3 behavioral). _HOUSE_INSTRUCTIONS sized at 5436 est tokens (chars=19026), comfortably above 4096."
         },
         {
           "id": "25.C9",
