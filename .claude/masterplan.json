@@ -9043,7 +9043,7 @@
         {
           "id": "25.D",
           "name": "Normalize per-agent contribution weights to 0-1 range",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
@@ -9059,7 +9059,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 93 PASS 5/5; QA single-spawn PASS; live-check at handoff/current/live_check_25.D.md; 22 unit tests green post-normalization"
         },
         {
           "id": "25.E",

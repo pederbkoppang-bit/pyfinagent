@@ -54,6 +54,27 @@ def _trim(text: Any, limit: int = 500) -> str:
     return s
 
 
+def _clamp01(w: Any) -> float:
+    """phase-25.D: clamp a weight value to [0.0, 1.0].
+
+    Used by extractors to ensure ALL signal weights live on the same 0-1
+    scale (the drawer renders them with .toFixed(2) and a per-trade
+    total-contribution summary; mixed scales violate Few+Cleveland-McGill
+    scale-consistency principles).
+
+    Out-of-range inputs are clamped silently; non-numeric inputs become 0.0.
+    """
+    try:
+        f = float(w)
+    except (TypeError, ValueError):
+        return 0.0
+    if f < 0.0:
+        return 0.0
+    if f > 1.0:
+        return 1.0
+    return f
+
+
 def extract_signals_from_analysis(analysis: dict) -> list[dict]:
     """
     Build the ordered list of signal rows for one analysis dict. Returns an
@@ -106,11 +127,15 @@ def extract_signals_from_analysis(analysis: dict) -> list[dict]:
         or (analysis.get("full_report") or {}).get("analysis", {}).get("reason")
         or ""
     )
+    # phase-25.D: normalize final_score (0-10 scale) to 0-1 to match
+    # RiskJudge / Analyst / Bull/Bear scales. The drawer's total-contribution
+    # summary requires a unified scale.
+    trader_weight = _clamp01(float(score) / 10.0) if isinstance(score, (int, float)) else 0.0
     signals.append({
         "agent": "Trader",
         "role": "decision",
         "rationale": _trim(trader_note) or f"Recommendation: {rec}",
-        "weight": float(score) if isinstance(score, (int, float)) else 0.0,
+        "weight": trader_weight,
     })
 
     # ── Risk layer ────
@@ -132,7 +157,8 @@ def extract_signals_from_analysis(analysis: dict) -> list[dict]:
             # lite-path duplicate-detection block that lived here was dead
             # code after cycle 69 (25.A) -- removed.
             risk_rationale = _trim(reasoning) or f"Decision: {decision}"
-            risk_weight = float(pos_pct) if isinstance(pos_pct, (int, float)) else 0.0
+            # phase-25.D: recommended_position_pct is already 0-1; clamp for safety.
+            risk_weight = _clamp01(pos_pct) if isinstance(pos_pct, (int, float)) else 0.0
             signals.append({
                 "agent": "RiskJudge",
                 "role": "gate",
@@ -182,11 +208,13 @@ def extract_quant_signals(candidate: dict) -> list[dict]:
         quant_parts.append(f"composite_score {composite:.3f}")
 
     if quant_parts:
+        # phase-25.D: normalize composite_score (0-10 scale) to 0-1.
+        quant_weight = _clamp01(float(composite) / 10.0) if isinstance(composite, (int, float)) else 0.0
         signals.append({
             "agent": "Quant",
             "role": "screener",
             "rationale": _trim("; ".join(quant_parts)),
-            "weight": float(composite) if isinstance(composite, (int, float)) else 0.0,
+            "weight": quant_weight,
         })
 
     # SignalStack overlay row (regime + PEAD + news + sector event + meta-scorer conviction)
@@ -218,11 +246,13 @@ def extract_quant_signals(candidate: dict) -> list[dict]:
         stack_parts.append(f"source:{source_tag}")
 
     if stack_parts:
+        # phase-25.D: normalize conviction_score (0-10 scale) to 0-1.
+        stack_weight = _clamp01(float(conviction_score) / 10.0) if isinstance(conviction_score, (int, float)) else 0.0
         signals.append({
             "agent": "SignalStack",
             "role": "overlay",
             "rationale": _trim("; ".join(stack_parts)),
-            "weight": float(conviction_score) if isinstance(conviction_score, (int, float)) else 0.0,
+            "weight": stack_weight,
         })
 
     return signals

@@ -57,11 +57,12 @@ def _screener_candidate() -> dict:
 # ── Trader extraction ───────────────────────────────────────────
 
 def test_trader_extracts_lite_full_report_reason():
-    """phase-23.1.7 fix: full_report.analysis.reason must surface as Trader rationale."""
+    """phase-23.1.7 fix: full_report.analysis.reason must surface as Trader rationale.
+    phase-25.D: Trader weight is now normalized to 0-1 (was 0-10)."""
     sigs = extract_signals_from_analysis(_lite_analysis(reason="Q1 beat with margin expansion"))
     trader = next(s for s in sigs if s["agent"] == "Trader")
     assert "Q1 beat" in trader["rationale"]
-    assert trader["weight"] == 7.0
+    assert trader["weight"] == 0.7  # phase-25.D: final_score=7 -> 0.7
 
 
 def test_trader_falls_back_to_recommendation_when_no_reason_anywhere():
@@ -172,7 +173,7 @@ def test_extract_quant_signals_full_candidate():
     assert "ann_vol 0.28" in r
     assert "sector Technology" in r
     assert "composite_score 8.450" in r
-    assert quant["weight"] == 8.45
+    assert quant["weight"] == 0.845  # phase-25.D: composite_score=8.45 -> 0.845
 
 
 def test_extract_quant_signals_empty_candidate():
@@ -206,7 +207,7 @@ def test_signalstack_includes_all_overlays():
     assert "Q1 beat consensus" in r
     assert "sector_event:earnings" in r
     assert "source:news_only" in r
-    assert stack["weight"] == 8.0
+    assert stack["weight"] == 0.8  # phase-25.D: conviction_score=8 -> 0.8
 
 
 def test_signalstack_only_with_partial_overlay_fields():

@@ -120,6 +120,7 @@ export function AgentRationaleDrawer({ tradeId, onClose }: Props) {
 
         {data && data.signals.length > 0 && (
           <div className="space-y-3">
+            <TotalWeightSummary signals={data.signals} />
             <Layer title="Analyst" items={data.tree.analyst} />
             <DebateLayer bull={data.tree.debate.bull} bear={data.tree.debate.bear} />
             <Layer title="Quant" items={data.tree.quant ?? []} />
@@ -174,6 +175,26 @@ function Layer({
         ))}
       </div>
     </details>
+  );
+}
+
+function TotalWeightSummary({ signals }: { signals: Signal[] }) {
+  // phase-25.D: all signal weights now normalized to 0-1 in extract_signals_from_analysis.
+  // Sum is informational -- a total of 4.5 across 6 signals indicates near-saturation.
+  const total = signals.reduce((acc, s) => acc + (typeof s.weight === "number" ? s.weight : 0), 0);
+  const count = signals.length;
+  return (
+    <div className="rounded-lg border border-sky-500/30 bg-sky-950/20 p-3">
+      <p className="text-xs uppercase tracking-wider text-slate-400">
+        Total contribution weight
+      </p>
+      <p className="mt-1 font-mono text-sm text-slate-200">
+        {total.toFixed(2)}
+        <span className="ml-2 text-xs text-slate-500">
+          across {count} signal{count === 1 ? "" : "s"} (avg {(total / Math.max(count, 1)).toFixed(2)})
+        </span>
+      </p>
+    </div>
   );
 }
 

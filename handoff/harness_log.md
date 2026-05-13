@@ -17926,3 +17926,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 28 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing), 25.D (P2 backlog), 25.E.
+
+---
+
+## Cycle 93 -- 2026-05-13 -- phase=25.D result=PASS
+
+**Step:** 25.D -- Normalize per-agent contribution weights to 0-1 range (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.4 F-5.
+
+**Code changes:**
+- `backend/services/signal_attribution.py`: NEW `_clamp01(w)` helper + 4 weight normalizations: Trader `final_score/10`, RiskJudge `pos_pct` (already 0-1, now safety-clamped), Quant `composite_score/10`, SignalStack `conviction_score/10`. All clamped to [0,1] defensively.
+- `tests/services/test_signal_attribution.py`: updated 3 expected values to match new scale (7.0->0.7, 8.45->0.845, 8.0->0.8).
+- `frontend/src/components/AgentRationaleDrawer.tsx`: NEW `TotalWeightSummary` component rendering "Total contribution weight: X.XX across N signals (avg Y.YY)" at the top of the layered cascade.
+
+**New verifier:** `tests/verify_phase_25_D.py` -- **5/5 PASS, EXIT=0**. Structural normalization claim + drawer wire claim + full 22-test pytest suite + behavioral all-weights-in-[0,1] claim with intentional saturation (composite_score=12.5 clamped to 1.0) + Trader=0.9 sanity check.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. ESLint + tsc clean on touched frontend file. Mutation-resistance strong (intentionally-saturated input exercises the clamp).
+
+**Live-check artefact:** `handoff/current/live_check_25.D.md` documenting the visual proof workflow.
+
+**Phase-25.D status -> done.** Bucket 24.4 F-5 RESOLVED.
+
+**Cumulative phase-25 progress:** 29 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.E (P2 backlog), 25.C (Layer-1 28-skill output surfacing -- frontend-heavy).
