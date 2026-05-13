@@ -17691,6 +17691,50 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 
 **Phase-25.S status -> done.** Operators can now answer "which tickers earned the most relative to LLM cost?" -- direct operationalization of red-line goal-c at per-ticker granularity.
 
-**P1 sprint progress:** 19 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12 + 25.B9 + 25.D9 + 25.E9 + 25.S). Phase-25 P1 sprint COMPLETE.
+**P1 sprint progress (corrected):** 18 of 19 P1 candidates done (25.S was P2). Cycle 83 log line had an off-by-one count. Remaining P1: 25.C9 (Batch API).
 
 **Next cycle candidate:** 25.C9 (P1 Batch API for non-interactive pipeline steps; 50% savings) -- last untouched P1 with no deps. OR move to P2 backlog: 25.B (cosmetic-patch removal; depends on 25.A done), 25.S.1 (per-call ticker tagging in llm_call_log).
+
+---
+
+## Cycle 84 -- 2026-05-13 -- phase=25.C9 result=PASS
+
+**Step:** 25.C9 -- Adopt Batch API for non-interactive pipeline steps (P1; LAST P1 in phase-25 sprint)
+**Action:** GENERATE. Closes phase-24.9 F-4 (28-agent pipeline calls synchronously; Anthropic Batch API offers 50% flat discount on input+output tokens).
+
+**Code changes:**
+- `backend/agents/llm_client.py`: new `BatchClient` class sibling of `ClaudeClient`. Public API: `submit(requests) -> batch_id`, `poll(batch_id, max_wait_sec, initial_delay_sec) -> str`, `fetch(batch_id) -> dict[custom_id, LLMResponse]`. Exponential backoff (5s -> 60s cap) in poll. Errored rows surface as `LLMResponse(text="", thoughts="errored: <msg>")` -- distinct from genuine empty responses. Class docstring documents the routing rule (`n_tickers > 3 AND backtest_mode`) for criterion 2 structural verification.
+- `backend/agents/cost_tracker.py`: `AgentCostEntry` gains `is_batch: bool = False` field. `CostTracker.record(..., is_batch=False)` kwarg. When `is_batch=True`, `cost *= 0.5` (50% Batch discount stacks with caching).
+
+**New verifier:** `tests/verify_phase_25_C9.py` (340+ LOC, 12 immutable claims) -- **12/12 PASS, EXIT=0**. Four **behavioral round-trips**: submit returns batch_id, poll lifecycle in_progress -> ended, exact 0.5 cost-halving ratio, fetch handles succeeded+errored rows distinctly.
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. 6 spirit-breaking mutations covered (drop 0.5 multiplier, drop is_batch field, missing fetch, poll never ends, drop errored surfacing, drop routing-rule docstring). Scope honest: orchestrator hot-path adoption deferred to 25.C9.1 (mirrors 25.D9 pattern); cost reduction lands when 25.C9.1 wires `_generate_with_retry()` at `orchestrator.py:488`.
+
+**Cost impact projection:** stacks with caching (0.1× × 0.5 = 0.05× standard input price on cache hits). Combined with cycles 80+81+82+84 (Anthropic adoption mini-sprint), expected ~70-85% reduction on backtest input-token cost vs the pre-phase-25 baseline.
+
+**Phase-25.C9 status -> done.**
+
+## PHASE-25 P1 SPRINT -- COMPLETE
+
+**19 of 19 P1 candidates done** across cycles 67-84 plus the 25.S P2 attribution metric:
+- **Audit close-outs:** 25.A11 (orphan UI learnings), 25.A (RiskJudge decouple), 25.A3 (promoted_strategies BQ table), 25.B3 (daily reader), 25.C3 (state machine), 25.R (auto-switching ⇒ red-line goal-c CLOSED), 25.Q (profit_per_llm_dollar ⇒ red-line goal-d CLOSED), 25.A6 (Sharpe-gap reconciliation), 25.A7 (per-table freshness + Slack alarm), 25.D6 (plateau lock-file), 25.B12 (degraded UI states + tab icons), 25.A12 (Playwright CI baseline), 25.C12 (cross-tab Sharpe SSOT), 25.A9 + 25.A2 (prereq closeouts).
+- **Anthropic adoption mini-sprint:** 25.B9 (system prompt above 4096-token cache threshold), 25.D9 (Files API for skill markdowns), 25.E9 (native Citations), 25.C9 (Batch API).
+- **P2 attribution:** 25.S (per-ticker P&L attribution; depends on 25.Q done).
+
+**Cumulative cost savings projected** (vs pre-phase-25 baseline):
+- 25.B9: cache writes register -> 40-60% input-token reduction on cached prefix path.
+- 25.D9: Files API mechanism shipped -> 98.5% per-skill body reduction once 25.D9.1 lands caller adoption.
+- 25.E9: native Citations -> ~$0.01-0.02/Q&A response saved (eliminated post-processing Sonnet call).
+- 25.C9: Batch API mechanism shipped -> 50% flat discount + stacks with caching = 0.05× cache-hit cost in batch mode, once 25.C9.1 wires the orchestrator routing.
+
+**Red-line goals:**
+- goal-a (profit): operationally driven; observability via 25.Q + 25.S.
+- goal-b (low cost): mechanism shipped via Anthropic adoption mini-sprint; live reduction depends on caller-side adoption (25.D9.1 + 25.C9.1).
+- goal-c (auto-switching): CLOSED by 25.R.
+- goal-d (observability): CLOSED by 25.Q.
+
+**Next sprint candidates (P2 + follow-ups):**
+- 25.C9.1 (orchestrator wires `_generate_with_retry` to BatchClient on `backtest_mode=True AND n_tickers>3`).
+- 25.D9.1 (Layer-1 agents pass `config["skill_file_id"]` to consume the uploaded skills).
+- 25.S.1 (per-call ticker tagging in `llm_call_log` for exact attribution).
+- 25.B (P2 cosmetic-patch removal at `signal_attribution.py:131-154`; depends on 25.A done).

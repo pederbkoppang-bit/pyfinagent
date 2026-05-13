@@ -93,6 +93,11 @@ class AgentCostEntry:
     # Phase 2.12: Prompt caching metrics
     cache_creation_input_tokens: int = 0
     cache_read_input_tokens: int = 0
+    # phase-25.C9: when True, the recorded cost_usd reflects the 50% flat
+    # discount from Anthropic's Batch API. Set by callers that route a
+    # non-interactive request through `BatchClient` (n>3 tickers in
+    # backtest mode). Closes phase-24.9 F-4.
+    is_batch: bool = False
 
 
 @dataclass
@@ -111,6 +116,7 @@ class CostTracker:
         response: object,
         is_deep_think: bool = False,
         is_grounded: bool = False,
+        is_batch: bool = False,
     ) -> Optional[AgentCostEntry]:
         """
         Extract token counts from a Vertex AI response and record the entry.
@@ -153,6 +159,12 @@ class CostTracker:
         else:
             cost = (input_tokens * pricing[0] + output_tokens * pricing[1]) / 1_000_000
 
+        # phase-25.C9: Batch API 50% flat discount stacks with caching.
+        # When `is_batch=True`, halve the computed cost before recording.
+        # Closes phase-24.9 F-4.
+        if is_batch:
+            cost *= 0.5
+
         entry = AgentCostEntry(
             agent_name=agent_name,
             model=model,
@@ -164,6 +176,7 @@ class CostTracker:
             is_grounded=is_grounded,
             cache_creation_input_tokens=cache_creation,
             cache_read_input_tokens=cache_read,
+            is_batch=is_batch,
         )
 
         with self._lock:

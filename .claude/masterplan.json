@@ -8912,7 +8912,7 @@
         {
           "id": "25.C9",
           "name": "Adopt Batch API for non-interactive pipeline steps (50% savings)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8929,7 +8929,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Estimated $15-30/month savings."
+          "notes": "Estimated $15-30/month savings. Cycle 84 PASS first-spawn. 12/12 verifier (incl. 4 behavioral: submit, poll, exact 0.5 halving, fetch w/ errored rows). Mechanism shipped; orchestrator hot-path adoption deferred to 25.C9.1 (mirrors 25.D9 pattern)."
         },
         {
           "id": "25.D9",

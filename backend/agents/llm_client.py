@@ -1571,6 +1571,119 @@ class ClaudeClient(LLMClient):
 # Factory
 # ---------------------------------------------------------------------------
 
+class BatchClient:
+    """phase-25.C9: thin wrapper over Anthropic's Message Batch API.
+
+    Submits N parallel non-interactive requests for a 50% flat discount
+    on input + output tokens. Designed for backtest fanout where 24h
+    processing latency is acceptable.
+
+    Routing decision (documented; orchestrator wire is 25.C9.1 follow-up):
+      - Batch ONLY when `backtest_mode=True` AND `n_tickers > 3`.
+      - Sub-3-ticker batches not worth the 24h latency tradeoff.
+      - The synchronous daily cycle stays on `ClaudeClient.generate_content`.
+
+    Lifecycle:
+      1. submit(requests) -> batch_id
+      2. poll(batch_id, max_wait_sec=1800) -> "ended" | "canceled" | "timeout"
+      3. fetch(batch_id) -> dict[custom_id, LLMResponse]
+
+    Discount stacks with prompt caching (cache reads ~0.05x effective)
+    and Files API skill references (~98.5% body reduction). Combined
+    savings on a 28-agent backtest fanout vs the pre-25 baseline are
+    estimated at 70-85% input-token cost.
+
+    Closes phase-24.9 F-4 (28-agent pipeline calls synchronously).
+    """
+
+    model_name: str
+
+    def __init__(self, model_name: str, api_key: str):
+        self.model_name = model_name
+        self._api_key = api_key
+
+    def _get_client(self):
+        if _anthropic_sdk is None:
+            raise ImportError(
+                "anthropic package not installed. Run: pip install anthropic>=0.96.0"
+            )
+        return _anthropic_sdk.Anthropic(api_key=self._api_key, max_retries=3)
+
+    def submit(self, requests: list[dict]) -> str:
+        """Submit a batch of N requests. Each request: `{custom_id: str, params: dict}`
+        where params are the full messages.create kwargs. Returns the batch_id.
+        """
+        client = self._get_client()
+        formatted = [
+            {"custom_id": str(req["custom_id"]), "params": req["params"]}
+            for req in requests
+        ]
+        batch = client.messages.batches.create(requests=formatted)
+        return batch.id
+
+    def poll(
+        self,
+        batch_id: str,
+        max_wait_sec: int = 1800,
+        initial_delay_sec: int = 5,
+    ) -> str:
+        """Poll until processing_status='ended' or 'canceled', or max_wait_sec
+        elapses. Exponential backoff (initial 5s -> 60s cap). Returns final
+        status string ("ended" | "canceled" | "timeout").
+        """
+        import time as _time
+        client = self._get_client()
+        elapsed = 0
+        delay = initial_delay_sec
+        while elapsed < max_wait_sec:
+            batch = client.messages.batches.retrieve(batch_id)
+            status = getattr(batch, "processing_status", "")
+            if status in ("ended", "canceled"):
+                return status
+            _time.sleep(delay)
+            elapsed += delay
+            delay = min(delay * 2, 60)
+        return "timeout"
+
+    def fetch(self, batch_id: str) -> dict:
+        """Fetch results as {custom_id: LLMResponse}. Errored rows surface as
+        LLMResponse(text="", thoughts="errored: <msg>") so downstream code can
+        distinguish from genuine empty responses.
+        """
+        client = self._get_client()
+        results: dict = {}
+        for row in client.messages.batches.results(batch_id):
+            custom_id = getattr(row, "custom_id", "")
+            result_obj = getattr(row, "result", None)
+            result_type = getattr(result_obj, "type", "") if result_obj is not None else ""
+            if result_type == "succeeded":
+                msg = getattr(result_obj, "message", None)
+                text = ""
+                if msg is not None:
+                    for block in getattr(msg, "content", []) or []:
+                        if getattr(block, "type", "") == "text":
+                            text += getattr(block, "text", "")
+                usage = getattr(msg, "usage", None) if msg is not None else None
+                input_tok = getattr(usage, "input_tokens", 0) or 0 if usage else 0
+                output_tok = getattr(usage, "output_tokens", 0) or 0 if usage else 0
+                umeta = UsageMeta(
+                    prompt_token_count=input_tok,
+                    candidates_token_count=output_tok,
+                    total_token_count=input_tok + output_tok,
+                    cache_creation_input_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0 if usage else 0,
+                    cache_read_input_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0 if usage else 0,
+                )
+                results[custom_id] = LLMResponse(text=text, usage_metadata=umeta)
+            else:
+                err = getattr(result_obj, "error", None) if result_obj is not None else None
+                err_msg = getattr(err, "message", "unknown batch error") if err else "unknown"
+                results[custom_id] = LLMResponse(
+                    text="",
+                    thoughts=f"errored: {err_msg}",
+                )
+        return results
+
+
 def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClient:
     """Create the appropriate LLMClient for a model name.
 
