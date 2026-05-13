@@ -637,6 +637,41 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 )
             except Exception as _alert_err:
                 logger.warning(f"cycle failure-alert dispatch failed: {_alert_err}")
+        elif _final_status == "completed":
+            # phase-25.N: emit a P3 cycle-completed summary so operators get a
+            # positive signal per cycle (not just on failure). Closes audit
+            # bucket 24.5 F-5(e). Dedup key 'cycle_completed_summary' is
+            # distinct from the failure path so the two paths never collide.
+            try:
+                from backend.services.observability.alerting import raise_cron_alert_sync
+                _duration_sec = None
+                try:
+                    if _cycle_started_at:
+                        from datetime import datetime as _dt, timezone as _tz
+                        _start = _dt.fromisoformat(str(_cycle_started_at).replace("Z", "+00:00")) \
+                            if isinstance(_cycle_started_at, str) else _cycle_started_at
+                        _now = _dt.now(_tz.utc)
+                        _duration_sec = (_now - _start).total_seconds()
+                except Exception:
+                    pass
+                raise_cron_alert_sync(
+                    source="autonomous_loop",
+                    error_type="cycle_completed_summary",
+                    severity="P3",
+                    title="Autonomous trading cycle completed",
+                    details={
+                        "cycle_id": summary.get("cycle_id", "?"),
+                        "started_at": str(summary.get("started_at", "?")),
+                        "duration_sec": _duration_sec if _duration_sec is not None else "?",
+                        "trades_executed": summary.get("trades_executed", 0),
+                        "stops_executed": summary.get("stops_executed", 0),
+                        "mode": summary.get("mode", "full"),
+                        "recommendations_count": summary.get("recommendations_count", 0),
+                        "status": _final_status,
+                    },
+                )
+            except Exception as _summary_err:
+                logger.warning(f"cycle summary-alert dispatch failed: {_summary_err}")
 
 
 async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict]:

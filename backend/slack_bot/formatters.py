@@ -676,6 +676,83 @@ def format_trade_confirmation(trade: dict) -> list[dict]:
     return blocks
 
 
+def format_cycle_summary(summary: dict) -> list[dict]:
+    """phase-25.N: format a completed autonomous-cycle summary as Block Kit blocks.
+
+    Closes audit bucket 24.5 F-5(e): the loop currently posts only on failure;
+    operators get no Slack signal on the happy path. This formatter is invoked
+    by `autonomous_loop._final_status == "completed"`.
+
+    Required summary keys: cycle_id, started_at, status. Optional: ended_at,
+    duration_sec, trades_executed, stops_executed, mode (full/lite/dry_run),
+    recommendations_count.
+
+    Returns Block Kit list[dict] (header + section + fields + context).
+    """
+    cycle_id = str(summary.get("cycle_id") or "(unknown)")
+    started_at = str(summary.get("started_at") or "")
+    status = str(summary.get("status") or "unknown")
+    duration = summary.get("duration_sec")
+    trades = summary.get("trades_executed")
+    stops = summary.get("stops_executed")
+    mode = str(summary.get("mode") or "(unknown)")
+    recs = summary.get("recommendations_count")
+
+    def _fmt_int(v) -> str:
+        if v is None:
+            return "n/a"
+        try:
+            return f"{int(v)}"
+        except (TypeError, ValueError):
+            return str(v)
+
+    def _fmt_sec(v) -> str:
+        if v is None:
+            return "n/a"
+        try:
+            s = float(v)
+            if s < 60:
+                return f"{s:.0f}s"
+            return f"{s / 60:.1f}m"
+        except (TypeError, ValueError):
+            return str(v)
+
+    blocks: list[dict] = [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f":bar_chart: Autonomous Cycle {status.title()}",
+                "emoji": True,
+            },
+        },
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Cycle ID:* `{cycle_id}`"},
+                {"type": "mrkdwn", "text": f"*Started:* {started_at or '(unknown)'}"},
+                {"type": "mrkdwn", "text": f"*Duration:* {_fmt_sec(duration)}"},
+                {"type": "mrkdwn", "text": f"*Mode:* {mode}"},
+                {"type": "mrkdwn", "text": f"*Trades:* {_fmt_int(trades)}"},
+                {"type": "mrkdwn", "text": f"*Stops:* {_fmt_int(stops)}"},
+                {"type": "mrkdwn", "text": f"*Recs:* {_fmt_int(recs)}"},
+                {"type": "mrkdwn", "text": f"*Status:* {status}"},
+            ],
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": ":robot_face: phase-25.N cycle-summary digest * Closes bucket 24.5 F-5(e)",
+                }
+            ],
+        },
+    ]
+    return blocks
+
+
 def format_strategy_switch(event: dict) -> list[dict]:
     """phase-25.R: format a Strategy Auto-Switch event as Block Kit blocks.
 

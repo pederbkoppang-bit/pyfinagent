@@ -17833,3 +17833,26 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 24 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7 + 25.M + 25.B7).
 
 **Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing in drawer), 25.N, 25.O, 25.D backlog.
+
+---
+
+## Cycle 89 -- 2026-05-13 -- phase=25.N result=PASS
+
+**Step:** 25.N -- Cycle-completion summary Slack notification (P2; depends on 25.A2).
+**Action:** GENERATE. Closes audit bucket 24.5 F-5(e).
+
+**Code changes:**
+- `backend/slack_bot/formatters.py`: NEW `format_cycle_summary(summary: dict) -> list[dict]` returning Block Kit blocks (header + 8-field section + divider + context).
+- `backend/services/autonomous_loop.py`: NEW `elif _final_status == "completed":` branch in the finally block emitting a P3 cycle-summary alert via `raise_cron_alert_sync(error_type="cycle_completed_summary", severity="P3", title="Autonomous trading cycle completed", details={cycle_id, started_at, duration_sec, trades_executed, stops_executed, mode, recommendations_count, status})`. Duration computed by parsing `_cycle_started_at` (ISO string) with defensive try/except.
+
+**New verifier:** `tests/verify_phase_25_N.py` -- **5/5 PASS, EXIT=0**. AST function-signature claim + regex branch-detection claim + Block Kit shape claim + behavioral round-trip + dedup-key distinctness.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (AST + regex + Block Kit shape + behavioral round-trip + key-collision check).
+
+**Live-check artefact:** `handoff/current/live_check_25.N.md` documenting the curl trigger + expected Slack payload.
+
+**Phase-25.N status -> done.** Bucket 24.5 F-5(e) RESOLVED.
+
+**Cumulative phase-25 progress:** 25 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7 + 25.M + 25.B7 + 25.N).
+
+**Next P2 candidates:** 25.O (error escalation Slack routing), 25.C (Layer-1 28-skill output surfacing).

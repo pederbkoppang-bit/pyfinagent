@@ -9148,7 +9148,7 @@
         {
           "id": "25.N",
           "name": "Cycle-completion summary Slack notification",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "25.A2",
@@ -9164,7 +9164,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 89 PASS 5/5; QA single-spawn PASS; live-check at handoff/current/live_check_25.N.md"
         },
         {
           "id": "25.O",
