@@ -318,6 +318,103 @@ async def get_performance():
     return result
 
 
+# phase-25.S: per-ticker P&L attribution + proportional LLM cost split.
+# Closes phase-24.13 F-6 (SHARP arxiv finding: attribution is load-bearing for
+# alpha; no published per-ticker pnl_per_cost_usd metric existed -- pyfinagent
+# is a first-mover on the per-ticker variant of the 25.Q aggregate metric).
+def _compute_attribution(bq: BigQueryClient, window_days: int) -> dict:
+    """Aggregate per-ticker realized P&L + proportional LLM cost split.
+
+    LLM cost is split across tickers in proportion to each ticker's share of
+    paper_trades rows in the window. This is a first-pass approximation;
+    per-call ticker tagging in `llm_call_log` is a follow-up step (25.S.1).
+
+    Returns a dict with `per_ticker` (list), `totals`, `window_days`,
+    `computed_at`, and a `note` documenting the approximation.
+    """
+    from collections import Counter, defaultdict
+    from backend.services.paper_round_trips import pair_round_trips
+    from backend.api.sovereign_api import _fetch_llm_cost_by_provider
+
+    trades = bq.get_paper_trades_in_window(window_days) or []
+    round_trips = pair_round_trips(trades)
+
+    pnl_by_ticker: dict[str, float] = defaultdict(float)
+    rt_count: Counter = Counter()
+    for rt in round_trips:
+        t = rt.get("ticker") or ""
+        pnl_by_ticker[t] += float(rt.get("realized_pnl_usd") or 0.0)
+        rt_count[t] += 1
+
+    analysis_count: Counter = Counter()
+    for tr in trades:
+        t = tr.get("ticker") or ""
+        analysis_count[t] += 1
+    total_analyses = sum(analysis_count.values())
+
+    llm_costs = _fetch_llm_cost_by_provider(window_days)
+    total_llm = (
+        float(llm_costs.get("anthropic", 0.0))
+        + float(llm_costs.get("vertex", 0.0))
+        + float(llm_costs.get("openai", 0.0))
+    )
+
+    per_ticker: list[dict] = []
+    for t in sorted({*pnl_by_ticker.keys(), *analysis_count.keys()}):
+        n_an = int(analysis_count.get(t, 0))
+        pnl = float(pnl_by_ticker.get(t, 0.0))
+        if total_analyses > 0 and total_llm > 0 and n_an > 0:
+            ticker_llm = total_llm * (n_an / total_analyses)
+        else:
+            ticker_llm = 0.0
+        ratio: Optional[float] = (pnl / ticker_llm) if ticker_llm > 0 else None
+        per_ticker.append({
+            "ticker": t,
+            "realized_pnl_usd": round(pnl, 4),
+            "llm_cost_usd": round(ticker_llm, 4),
+            "pnl_per_cost_usd": round(ratio, 4) if ratio is not None else None,
+            "n_round_trips": int(rt_count.get(t, 0)),
+            "n_analyses": n_an,
+        })
+
+    total_pnl = sum(p["realized_pnl_usd"] for p in per_ticker)
+    total_ratio: Optional[float] = (total_pnl / total_llm) if total_llm > 0 else None
+    return {
+        "window_days": window_days,
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+        "per_ticker": per_ticker,
+        "totals": {
+            "realized_pnl_usd": round(total_pnl, 4),
+            "llm_cost_usd": round(total_llm, 4),
+            "pnl_per_cost_usd": round(total_ratio, 4) if total_ratio is not None else None,
+        },
+        "note": (
+            "LLM cost split proportionally by analysis count per ticker "
+            "(first pass; per-ticker tagging in llm_call_log is a follow-up step)."
+        ),
+    }
+
+
+@router.get("/attribution")
+async def get_attribution(window_days: int = Query(7, ge=1, le=365)):
+    """phase-25.S: per-ticker realized P&L + LLM cost split.
+
+    Closes phase-24.13 F-6 (SHARP attribution gap). Operators can answer
+    "which tickers earned the most relative to LLM cost?" -- the per-ticker
+    variant of 25.Q's aggregate profit_per_llm_dollar metric.
+    """
+    cache = get_api_cache()
+    cache_key = f"paper:attribution:{window_days}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    settings = get_settings()
+    bq = BigQueryClient(settings)
+    result = await asyncio.to_thread(_compute_attribution, bq, window_days)
+    cache.set(cache_key, result, ENDPOINT_TTLS.get("paper:attribution", 300.0))
+    return result
+
+
 @router.get("/cycles/history")
 async def get_cycles_history(limit: int = Query(10, ge=1, le=100)):
     """Return the last N autonomous-loop runs (JSONL tail at handoff/cycle_history.jsonl).

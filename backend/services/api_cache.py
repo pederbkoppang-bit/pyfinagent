@@ -130,6 +130,7 @@ ENDPOINT_TTLS: dict[str, float] = {
     "paper:gate": 120.0,
     "paper:mfe_mae_scatter": 120.0,
     "paper:learnings": 300.0,
+    "paper:attribution": 300.0,
     "paper:ticker_meta": 86400.0,  # phase-23.1.10: company name + sector lookup, 24h cache
     # Settings
     "settings:full": 300.0,

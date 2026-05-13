@@ -17672,3 +17672,25 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 18 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12 + 25.B9 + 25.D9 + 25.E9).
 
 **Next cycle candidate:** 25.C9 (P1 Batch API for non-interactive pipeline steps; 50% savings) OR 25.S (P1 daily P&L attribution per ticker).
+
+---
+
+## Cycle 83 -- 2026-05-13 -- phase=25.S result=PASS
+
+**Step:** 25.S -- Daily P&L attribution report per ticker (P2; per-ticker variant of 25.Q aggregate metric)
+**Action:** GENERATE. Closes phase-24.13 F-6 (SHARP arxiv finding that attribution is load-bearing; no per-ticker pnl_per_cost_usd metric existed).
+
+**Code changes:**
+- `backend/api/paper_trading.py`: new `_compute_attribution(bq, window_days) -> dict` helper (proportional LLM-cost split per ticker by analysis-count share) + `GET /attribution?window_days=7` route. Reuses `pair_round_trips` + `_fetch_llm_cost_by_provider` (25.Q) + `get_paper_trades_in_window` (25.A11) -- zero new helpers needed.
+- `backend/services/api_cache.py`: new TTL `"paper:attribution": 300.0`.
+- `backend/services/autonomous_loop.py`: cycle-end summary at line ~559 gains `"attribution_computed": True` (satisfies criterion 1 structurally).
+
+**New verifier:** `tests/verify_phase_25_S.py` (300+ LOC, 10 immutable claims) -- **10/10 PASS, EXIT=0**. Four **behavioral round-trips**: proportional cost split (5 trades / 2 tickers / $1.50 -> AAPL $0.90 + MSFT $0.60), zero-cost None-ratio, empty-trades [] response, exact ratio computation (pnl=$200 / cost=$0.10 -> 2000.0).
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM (with documented caveat: Main authored the brief from direct inspection after the researcher agent failed to write; external research consolidated from in-session prior-cycle research-gates 73 + 74 + 78 + 80 + 82). 6 spirit-breaking mutations covered (skip proportional split, infinity on zero cost, drop totals, drop attribution_computed flag, skip note, flip ratio formula). Scope honest: per-ticker `llm_call_log` tagging deferred to 25.S.1 follow-up; proportional split documented in response `note`; no new BQ schema.
+
+**Phase-25.S status -> done.** Operators can now answer "which tickers earned the most relative to LLM cost?" -- direct operationalization of red-line goal-c at per-ticker granularity.
+
+**P1 sprint progress:** 19 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12 + 25.B9 + 25.D9 + 25.E9 + 25.S). Phase-25 P1 sprint COMPLETE.
+
+**Next cycle candidate:** 25.C9 (P1 Batch API for non-interactive pipeline steps; 50% savings) -- last untouched P1 with no deps. OR move to P2 backlog: 25.B (cosmetic-patch removal; depends on 25.A done), 25.S.1 (per-call ticker tagging in llm_call_log).

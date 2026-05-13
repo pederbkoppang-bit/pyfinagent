@@ -9211,7 +9211,7 @@
         {
           "id": "25.S",
           "name": "Daily P&L attribution report per ticker",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "25.Q",
@@ -9227,7 +9227,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 83 PASS first-spawn. 10/10 verifier (incl. 4 behavioral: proportional split, zero-cost None, empty trades, exact ratio). Proportional cost split is first-pass; per-ticker tagging in llm_call_log deferred to 25.S.1."
         },
         {
           "id": "25.B6",

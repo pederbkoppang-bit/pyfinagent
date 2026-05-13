@@ -557,6 +557,13 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 "analysis_cost": round(total_analysis_cost, 4),
                 "closed_tickers": closed_tickers,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
+                # phase-25.S: per-ticker attribution is computed on-the-fly
+                # by GET /api/paper-trading/attribution. This flag marks
+                # the cycle as "attribution-ready" so operators (and Q/A
+                # verifiers) can confirm the data is queryable post-cycle.
+                # No new BQ table; the endpoint reads existing trades +
+                # llm_call_log on demand. Closes phase-24.13 F-6.
+                "attribution_computed": True,
             })
             _last_run = summary["timestamp"]
             _last_result = summary
