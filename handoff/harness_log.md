@@ -17856,3 +17856,26 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 25 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7 + 25.M + 25.B7 + 25.N).
 
 **Next P2 candidates:** 25.O (error escalation Slack routing), 25.C (Layer-1 28-skill output surfacing).
+
+---
+
+## Cycle 90 -- 2026-05-13 -- phase=25.O result=PASS
+
+**Step:** 25.O -- Error escalation Slack routing, logger.exception promotion (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.5 F-5(f).
+
+**Code changes:**
+- `backend/slack_bot/scheduler.py`: NEW `_route_exception_to_p1(exc, *, endpoint, source="scheduler", extra=None)` helper (lines 26-72) that builds `fingerprint = f"{type(exc).__name__}:{endpoint}"` (Sentry/PagerDuty canonical) and calls `raise_cron_alert_sync(severity="P1", error_type=fingerprint, title=..., details={endpoint, exception_class, exception_repr, **extra})`. Fully fail-open.
+- Wired at 4 high-severity `logger.exception` sites: morning_digest (300), evening_digest (331), kill_switch_alert_schedule (434), ticker_alert (610). Each site preserves the existing logger.exception stacktrace AND adds the P1 Slack ping.
+
+**New verifier:** `tests/verify_phase_25_O.py` -- **5/5 PASS, EXIT=0**. 1 AST signature claim + 1 fingerprint regex claim + 1 severity-P1 regex claim (accepts both single + double quote ast.unparse output) + 1 call-site count claim + 1 behavioral round-trip patching `raise_cron_alert_sync` and confirming `error_type="ValueError:morning_digest"` + `severity="P1"`.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (AST + regex + behavioral patch round-trip). Scope honestly bounded -- watchdog and trade-confirmation sites explicitly deferred.
+
+**Live-check artefact:** `handoff/current/live_check_25.O.md` documenting the inject-digest-failure command + expected dedup behavior.
+
+**Phase-25.O status -> done.** Bucket 24.5 F-5(f) RESOLVED.
+
+**Cumulative phase-25 progress:** 26 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7 + 25.M + 25.B7 + 25.N + 25.O).
+
+**Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing), 25.D (P2 backlog), 25.L, 25.F.

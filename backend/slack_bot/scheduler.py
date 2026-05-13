@@ -22,6 +22,54 @@ from backend.slack_bot.formatters import format_morning_digest, format_evening_d
 
 logger = logging.getLogger(__name__)
 
+
+def _route_exception_to_p1(
+    exc: BaseException,
+    *,
+    endpoint: str,
+    source: str = "scheduler",
+    extra: dict | None = None,
+) -> None:
+    """phase-25.O: route a high-severity caught exception to P1 Slack.
+
+    Closes audit bucket 24.5 F-5(f). Designed to be called AFTER an existing
+    `logger.exception(...)` site so the stacktrace is preserved in the log
+    AND a deduplicated P1 alert reaches Slack.
+
+    Dedup fingerprint follows Sentry/PagerDuty canonical pattern:
+        `f"{type(exc).__name__}:{endpoint}"`
+    so the same exception class at the same endpoint deduplicates within
+    the AlertDeduper window, while a distinct combination opens a fresh
+    incident.
+
+    Fully fail-open: if alerting itself raises, we log at WARNING and swallow.
+    """
+    try:
+        from backend.services.observability.alerting import raise_cron_alert_sync
+        fingerprint = f"{type(exc).__name__}:{endpoint}"
+        details: dict = {
+            "endpoint": endpoint,
+            "exception_class": type(exc).__name__,
+            "exception_repr": repr(exc)[:300],
+        }
+        if extra:
+            for k, v in extra.items():
+                details[str(k)] = str(v)[:300]
+        raise_cron_alert_sync(
+            source=source,
+            error_type=fingerprint,
+            severity="P1",
+            title=f"Scheduler exception in {endpoint}",
+            details=details,
+        )
+    except Exception as _alert_err:
+        logger.warning(
+            "_route_exception_to_p1 fail-open (endpoint=%s exc_class=%s): %r",
+            endpoint,
+            type(exc).__name__,
+            _alert_err,
+        )
+
 # phase-23.5.3.1: _BACKEND_URL is no longer referenced by any handler.
 # Kept here for documentation -- this is the URL that would resolve under
 # Docker-compose networking. All in-process callers (watchdog probe via
@@ -247,8 +295,9 @@ async def _send_morning_digest(app: AsyncApp):
         )
         logger.info("Morning digest sent")
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to send morning digest")
+        _route_exception_to_p1(exc, endpoint="morning_digest")
 
 
 async def _send_evening_digest(app: AsyncApp):
@@ -277,8 +326,9 @@ async def _send_evening_digest(app: AsyncApp):
         )
         logger.info("Evening digest sent")
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to send evening digest")
+        _route_exception_to_p1(exc, endpoint="evening_digest")
 
 
 async def _watchdog_health_check(app: AsyncApp):
@@ -379,8 +429,9 @@ def pause_signals(app: "AsyncApp | None" = None) -> bool:
                         "go_live_checklist_item": "4.4.6.4",
                     },
                 ))
-            except Exception:
+            except Exception as exc:
                 logger.exception("phase-25.K: failed to schedule kill-switch Slack alert")
+                _route_exception_to_p1(exc, endpoint="kill_switch_alert_schedule")
         _scheduler.shutdown(wait=False)
         logger.info("Scheduler shut down -- all signal jobs paused (rollback 4.4.6.4)")
         return True
@@ -554,8 +605,9 @@ async def send_analysis_alert(app: AsyncApp, ticker: str, report: dict):
             text=f"Analysis complete: {ticker} -- {action} ({score:.1f}/10)",
             attachments=[{"color": color, "blocks": []}],
         )
-    except Exception:
+    except Exception as exc:
         logger.exception(f"Failed to send alert for {ticker}")
+        _route_exception_to_p1(exc, endpoint="ticker_alert", extra={"ticker": ticker})
 
 
 async def _nightly_prompt_leak_redteam(app: AsyncApp):
