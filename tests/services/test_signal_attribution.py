@@ -274,11 +274,13 @@ def test_group_signals_preserves_existing_layers():
 
 def test_group_signals_empty_input():
     tree = group_signals_for_drawer([])
+    # phase-25.C: layer1_skills bucket added for Layer-1 enrichment outputs.
     assert tree == {
         "analyst": [],
         "debate": {"bull": [], "bear": []},
         "quant": [],
         "signal_stack": [],
+        "layer1_skills": [],
         "trader": [],
         "risk": [],
     }
@@ -289,10 +291,10 @@ def test_group_signals_empty_input():
 def test_drawer_json_shape_matches_typescript_interface():
     sigs = extract_all_signals(_lite_analysis(), candidate=_screener_candidate())
     tree = group_signals_for_drawer(sigs)
-    # TypeScript Rationale.tree expects these keys
-    expected_keys = {"analyst", "debate", "quant", "signal_stack", "trader", "risk"}
+    # TypeScript Rationale.tree expects these keys (phase-25.C adds layer1_skills).
+    expected_keys = {"analyst", "debate", "quant", "signal_stack", "layer1_skills", "trader", "risk"}
     assert set(tree.keys()) == expected_keys
     # Each signal in each bucket has the {agent, role, rationale, weight} shape
-    for bucket in ("analyst", "quant", "signal_stack", "trader", "risk"):
+    for bucket in ("analyst", "quant", "signal_stack", "layer1_skills", "trader", "risk"):
         for s in tree[bucket]:
             assert set(s.keys()) >= {"agent", "role", "rationale", "weight"}

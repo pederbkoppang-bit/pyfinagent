@@ -9021,7 +9021,7 @@
         {
           "id": "25.C",
           "name": "Surface Layer-1 28-skill outputs in drawer when full pipeline runs",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
@@ -9038,7 +9038,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 94 PASS 7/7; QA single-spawn PASS; live-check at handoff/current/live_check_25.C.md; 22 unit tests green; unblocks 25.E"
         },
         {
           "id": "25.D",

@@ -75,6 +75,71 @@ def _clamp01(w: Any) -> float:
     return f
 
 
+# phase-25.C: canonical Layer-1 enrichment skill keys in the full-pipeline
+# analysis dict (see orchestrator.py:1385-1397). Each is `{signal, summary, analysis}`.
+LAYER1_SKILL_KEYS: list[tuple[str, str]] = [
+    ("insider", "Insider"),
+    ("options", "Options"),
+    ("social_sentiment", "Social Sentiment"),
+    ("patent", "Patent"),
+    ("earnings_tone", "Earnings Tone"),
+    ("alt_data", "Alt Data"),
+    ("sector_analysis", "Sector"),
+    ("nlp_sentiment", "NLP Sentiment"),
+    ("anomaly", "Anomaly"),
+    ("scenario", "Scenario"),
+    ("quant_model", "Quant Model"),
+]
+
+
+def _signal_to_weight(signal_value: str) -> float:
+    """phase-25.C: map a skill signal label to a 0-1 confidence weight.
+
+    BUY / SELL: 1.0 (full conviction in one direction).
+    HOLD / NEUTRAL: 0.5 (partial conviction).
+    N/A / ERROR / "" / UNAVAILABLE: 0.0 (no signal).
+    """
+    if not isinstance(signal_value, str) or not signal_value:
+        return 0.0
+    s = signal_value.strip().upper()
+    if s in ("BUY", "SELL"):
+        return 1.0
+    if s in ("HOLD", "NEUTRAL"):
+        return 0.5
+    return 0.0  # N/A, ERROR, UNAVAILABLE, unknown
+
+
+def extract_layer1_signals(analysis: dict, *, lite_mode: bool = False) -> list[dict]:
+    """phase-25.C: extract per-skill Layer-1 signals from a full-pipeline
+    analysis dict. Each canonical skill entry produces one row in the
+    drawer's "Layer-1 Skills" section.
+
+    Gate: returns [] when `lite_mode=True` (explicit override) OR when the
+    analysis dict contains none of the canonical layer-1 keys (which is
+    the natural lite-mode shape -- the lite path skips enrichment).
+
+    Closes audit bucket 24.4 F-4.
+    """
+    if not isinstance(analysis, dict) or lite_mode:
+        return []
+    out: list[dict] = []
+    for key, display_name in LAYER1_SKILL_KEYS:
+        node = analysis.get(key)
+        if not isinstance(node, dict):
+            continue
+        sig = node.get("signal", "")
+        summary = node.get("summary", "") or node.get("analysis", "")
+        if not summary or (isinstance(sig, str) and sig.strip().upper() in ("N/A", "")):
+            continue
+        out.append({
+            "agent": display_name,
+            "role": "skill_output",
+            "rationale": _trim(summary),
+            "weight": _clamp01(_signal_to_weight(sig)),
+        })
+    return out
+
+
 def extract_signals_from_analysis(analysis: dict) -> list[dict]:
     """
     Build the ordered list of signal rows for one analysis dict. Returns an
@@ -258,15 +323,26 @@ def extract_quant_signals(candidate: dict) -> list[dict]:
     return signals
 
 
-def extract_all_signals(analysis: dict, candidate: dict | None = None) -> list[dict]:
-    """Combined extractor: agent rationale (analysis) + quant overlays (candidate).
+def extract_all_signals(
+    analysis: dict,
+    candidate: dict | None = None,
+    *,
+    lite_mode: bool = False,
+) -> list[dict]:
+    """Combined extractor: layer-1 skills + agent rationale (analysis) +
+    quant overlays (candidate).
+
+    phase-25.C: prepends Layer-1 skill outputs (from the full Gemini pipeline)
+    BEFORE the Analyst row so the drawer ordering becomes
+    Layer-1 Skills -> Analyst -> Bull/Bear -> Quant -> SignalStack -> Trader -> Risk.
 
     Inserts the Quant / SignalStack rows BEFORE the Trader row so the drawer
     ordering is Analyst -> Quant -> SignalStack -> Trader -> Risk. Pass
     `candidate=None` for paths where no screener candidate is available
     (sell side, full Gemini orchestrator).
     """
-    signals = extract_signals_from_analysis(analysis)
+    layer1_sigs = extract_layer1_signals(analysis, lite_mode=lite_mode)
+    signals = layer1_sigs + extract_signals_from_analysis(analysis)
     if not candidate:
         return signals
     quant_sigs = extract_quant_signals(candidate)
@@ -288,15 +364,19 @@ def group_signals_for_drawer(signals: list[dict]) -> dict:
     out: dict = {
         "analyst": [],
         "debate": {"bull": [], "bear": []},
-        "quant": [],          # phase-23.1.7
-        "signal_stack": [],   # phase-23.1.7
+        "quant": [],            # phase-23.1.7
+        "signal_stack": [],     # phase-23.1.7
+        "layer1_skills": [],    # phase-25.C
         "trader": [],
         "risk": [],
     }
     for s in signals or []:
         role = s.get("role")
         agent = s.get("agent")
-        if agent == "Analyst":
+        if role == "skill_output":
+            # phase-25.C: Layer-1 enrichment outputs (insider, options, etc.)
+            out["layer1_skills"].append(s)
+        elif agent == "Analyst":
             out["analyst"].append(s)
         elif agent == "Bull":
             out["debate"]["bull"].append(s)

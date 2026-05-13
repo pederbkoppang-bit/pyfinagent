@@ -21,8 +21,9 @@ interface Rationale {
   tree: {
     analyst: Signal[];
     debate: { bull: Signal[]; bear: Signal[] };
-    quant?: Signal[];          // phase-23.1.7
-    signal_stack?: Signal[];   // phase-23.1.7
+    quant?: Signal[];           // phase-23.1.7
+    signal_stack?: Signal[];    // phase-23.1.7
+    layer1_skills?: Signal[];   // phase-25.C
     trader: Signal[];
     risk: Signal[];
   };
@@ -121,6 +122,7 @@ export function AgentRationaleDrawer({ tradeId, onClose }: Props) {
         {data && data.signals.length > 0 && (
           <div className="space-y-3">
             <TotalWeightSummary signals={data.signals} />
+            <Layer title="Layer-1 Skills" items={data.tree.layer1_skills ?? []} />
             <Layer title="Analyst" items={data.tree.analyst} />
             <DebateLayer bull={data.tree.debate.bull} bear={data.tree.debate.bear} />
             <Layer title="Quant" items={data.tree.quant ?? []} />

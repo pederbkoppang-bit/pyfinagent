@@ -17950,3 +17950,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 29 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.E (P2 backlog), 25.C (Layer-1 28-skill output surfacing -- frontend-heavy).
+
+---
+
+## Cycle 94 -- 2026-05-13 -- phase=25.C result=PASS
+
+**Step:** 25.C -- Surface Layer-1 28-skill outputs in drawer when full pipeline runs (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.4 F-4.
+
+**Code changes:**
+- `backend/services/signal_attribution.py`: NEW `LAYER1_SKILL_KEYS` constant (11 enrichment-agent (key, display_name) pairs from orchestrator.py:1385-1397), `_signal_to_weight` mapping (BUY/SELL=1.0, HOLD/NEUTRAL=0.5, N/A/ERROR/""=0.0), `extract_layer1_signals(analysis, *, lite_mode=False)` with structural + explicit gates, `extract_all_signals` prepends layer-1 signals before Analyst, `group_signals_for_drawer` adds `layer1_skills` bucket.
+- `tests/services/test_signal_attribution.py`: updated 2 existing tests (test_group_signals_empty_input, test_drawer_json_shape_matches_typescript_interface) to expect the new `layer1_skills` key.
+- `frontend/src/components/AgentRationaleDrawer.tsx`: Rationale.tree extended with `layer1_skills?: Signal[]`; `<Layer title="Layer-1 Skills" items={data.tree.layer1_skills ?? []} />` rendered between TotalWeightSummary and Analyst.
+
+**New verifier:** `tests/verify_phase_25_C.py` -- **7/7 PASS, EXIT=0**. AST signature claim + lite-shape empty result + full-shape >=3 entries + explicit lite_mode gate + signal->weight mapping + drawer interface+render wire + group_signals_for_drawer routing.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Two-path gate (data-shape + lite_mode kwarg) gives independent verification. Scope narrowing from "28 skills" (orchestrator label) to "11 top-level skill outputs" (data-dict reality) honestly disclosed.
+
+**Live-check artefact:** `handoff/current/live_check_25.C.md`.
+
+**Phase-25.C status -> done.** Bucket 24.4 F-4 RESOLVED. Unblocks 25.E (drawer summary/full toggle).
+
+**Cumulative phase-25 progress:** 30 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.E (now unblocked), 25.F3, 25.B6, 25.B10.
