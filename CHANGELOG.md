@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `9b4f2572` | phase-25.E7: yfinance_tool.get_price_history() try/except + counter |
 | 2026-05-13 | `e0dfcab0` | phase-25.B6: Seed-stability test run + baseline commit + CI gate |
 | 2026-05-13 | `d3f34caf` | phase-25.B10: SecretStr migration for API keys/tokens |
 | 2026-05-13 | `12a0990d` | phase-25.E: Drawer summary vs full toggle (?full=1 query param) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `63f2c96b` | phase-25.D9: Adopt Files API for skill markdowns (~97% token reduction) |
 | 2026-05-13 | `92e29ef6` | phase-25.B9: Bump system prompt above 4096-token cache threshold |
 | 2026-05-13 | `73c9ba39` | phase-25.A12: Playwright visual regression CI baseline |
-| 2026-05-13 | `db928080` | phase-25.C12: Cross-tab Sharpe KPI reconciliation (backend authoritative) |
 
 ---
 
+### v6.7.57 — phase-25.E7: yfinance_tool.get_price_history() try/except + counter (2026-05-13)
+
+- **phase-25.E7: yfinance_tool.get_price_history() try/except + counter**
 ### v6.7.56 — phase-25.B6: Seed-stability test run + baseline commit + CI gate (2026-05-13)
 
 - **phase-25.B6: Seed-stability test run + baseline commit + CI gate**
