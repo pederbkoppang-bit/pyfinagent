@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `d3f34caf` | phase-25.B10: SecretStr migration for API keys/tokens |
 | 2026-05-13 | `12a0990d` | phase-25.E: Drawer summary vs full toggle (?full=1 query param) |
 | 2026-05-13 | `ddd518aa` | phase-25.C: Surface Layer-1 28-skill outputs in drawer when full pipeline runs |
 | 2026-05-13 | `f3a305c9` | phase-25.D: Normalize per-agent contribution weights to 0-1 range |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `73c9ba39` | phase-25.A12: Playwright visual regression CI baseline |
 | 2026-05-13 | `db928080` | phase-25.C12: Cross-tab Sharpe KPI reconciliation (backend authoritative) |
 | 2026-05-13 | `e8a2a2fc` | phase-25.D6: Planner plateau-detection lock-file enforcement |
-| 2026-05-13 | `d254719c` | phase-25.A7: Per-table freshness endpoint covering all 5 data tables |
 
 ---
 
+### v6.7.55 — phase-25.B10: SecretStr migration for API keys/tokens (2026-05-13)
+
+- **phase-25.B10: SecretStr migration for API keys/tokens**
 ### v6.7.54 — phase-25.E: Drawer summary vs full toggle (?full=1 query param) (2026-05-13)
 
 - **phase-25.E: Drawer summary vs full toggle (?full=1 query param)**
