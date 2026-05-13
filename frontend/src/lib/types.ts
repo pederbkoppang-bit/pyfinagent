@@ -1180,3 +1180,32 @@ export interface VirtualFundLearningsData {
   window_days?: number;
   collected_at?: string;
 }
+
+export type FreshnessBand = "green" | "amber" | "red" | "unknown";
+
+export interface FreshnessSource {
+  last_tick_age_sec: number | null;
+  interval_sec: number | null;
+  ratio: number | null;
+  band: FreshnessBand;
+}
+
+export interface FreshnessResponse {
+  sources: Record<string, FreshnessSource>;
+  overall_band: FreshnessBand;
+  heartbeat?: {
+    updated_at?: string | null;
+    event?: string | null;
+    cycle_id?: string | null;
+    age_sec?: number | null;
+    ratio?: number | null;
+    band?: FreshnessBand;
+  };
+  bq_ingest_lag_sec?: number | null;
+  thresholds?: {
+    warn_ratio?: number;
+    critical_ratio?: number;
+    cycle_interval_sec?: number;
+  };
+  computed_at?: string;
+}

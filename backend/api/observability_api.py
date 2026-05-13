@@ -41,6 +41,25 @@ async def get_observability_freshness() -> dict[str, Any]:
     return await _asyncio.to_thread(_cf, bq, cycle_interval_sec)
 
 
+@router.get("/data-freshness")
+async def get_observability_data_freshness() -> dict[str, Any]:
+    """phase-25.C7: unified per-table freshness across the 6 data sources
+    covered by `compute_freshness` (paper signals + historical price/macro/
+    fundamentals tables added in 25.A7). Identical payload to /freshness;
+    the rename clarifies that the scope is the full data warehouse, not
+    just paper-trading signals.
+    """
+    import asyncio as _asyncio
+    from backend.config.settings import get_settings as _get_settings
+    from backend.db.bigquery_client import BigQueryClient as _BQ
+    from backend.services.cycle_health import compute_freshness as _cf
+
+    settings = _get_settings()
+    bq = _BQ(settings)
+    cycle_interval_sec = float(getattr(settings, "paper_cycle_interval_sec", 24 * 3600.0))
+    return await _asyncio.to_thread(_cf, bq, cycle_interval_sec)
+
+
 @router.get("/latency")
 def get_observability_latency(
     window: int = Query(300, ge=10, le=3600),

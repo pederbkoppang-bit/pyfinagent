@@ -17759,3 +17759,29 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 19 P1 done + 25.S P2 + 25.B P2 = 21 of ~40 phase-25 steps complete.
 
 **Next P2 candidates (per masterplan):** 25.C (P2 surface Layer-1 28-skill outputs in drawer), 25.B7 (P2 yfinance fallback counter), 25.M (P2 cost-budget Slack alert wire), 25.C7 (P2 unified data-freshness endpoint).
+
+---
+
+## Cycle 86 -- 2026-05-13 -- phase=25.C7 result=PASS
+
+**Step:** 25.C7 -- Unified `/api/observability/data-freshness` endpoint + frontend page (P2; depends on 25.A7).
+**Action:** GENERATE.
+
+**Code changes:**
+- `backend/api/observability_api.py`: added `get_observability_data_freshness` route at `/api/observability/data-freshness`, identical to the existing `/freshness` alias (thin delegation to `cycle_health.compute_freshness`); 6-table coverage inherited from 25.A7 extension.
+- `frontend/src/lib/types.ts`: added `FreshnessBand`, `FreshnessSource`, `FreshnessResponse` interfaces.
+- `frontend/src/lib/api.ts`: added typed `getObservabilityDataFreshness()` client.
+- `frontend/src/app/observability/page.tsx` (NEW, ~160 LOC): per-table table (Source | Age | SLA Interval | Ratio | Band) with `BandPill` rendering; 30s auto-refresh; loading/error/empty states.
+- `frontend/src/components/Sidebar.tsx`: added "Data Freshness" nav entry under System group.
+
+**New verifier:** `tests/verify_phase_25_C7.py` -- **5/5 PASS, EXIT=0**. 4 structural claims (route decorator regex, AST handler-body inspection for compute_freshness+to_thread, frontend page existence + table + band pill + client wire, Sidebar nav link) + 1 behavioral round-trip mocking `compute_freshness` + `BigQueryClient` + `get_settings` and confirming the handler returns the mocked payload with `overall_band='green'`.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean: research_brief authored from prior-cycle 25.A7 research-gate (transparent consolidation pattern), contract written before generate, results captured, masterplan still pending, no prior verdicts to second-opinion-shop. ESLint + tsc clean (excluding pre-existing 25.A12 Playwright noise).
+
+**Live-check artefact:** `handoff/current/live_check_25.C7.md` documenting curl + jq smoke commands + browser visit URL.
+
+**Phase-25.C7 status -> done.** Closes bucket 24.7 F-1 + F-7 (the endpoint-name vs scope gap).
+
+**Cumulative phase-25 progress:** 22 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7).
+
+**Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing in drawer), 25.B7 (yfinance fallback counter), 25.M (cost-budget Slack alert wire), 25.D (P2 backlog).

@@ -382,6 +382,10 @@ export function getPaperFreshness(): Promise<unknown> {
   return apiFetch("/api/paper-trading/freshness");
 }
 
+export function getObservabilityDataFreshness(): Promise<import("./types").FreshnessResponse> {
+  return apiFetch<import("./types").FreshnessResponse>("/api/observability/data-freshness");
+}
+
 export function getPaperCyclesHistory(limit = 10): Promise<{ cycles: unknown[]; count: number }> {
   return apiFetch(`/api/paper-trading/cycles/history?limit=${limit}`);
 }
