@@ -9085,7 +9085,7 @@
         {
           "id": "25.F",
           "name": "Byte-identical regression test for aliasing detection",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
@@ -9101,7 +9101,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 91 PASS 4/4; QA single-spawn PASS; live-check at handoff/current/live_check_25.F.md"
         },
         {
           "id": "25.L",

@@ -106,6 +106,59 @@ def test_risk_skipped_when_neither_decision_nor_reasoning():
     assert not any(s["agent"] == "RiskJudge" for s in sigs)
 
 
+# ── phase-25.F regression: lock 25.B aliasing-cleanup ───────────
+
+def test_lite_path_byte_identical_flagged():
+    """phase-25.F: byte-identical RiskJudge/Trader rationale must NOT carry
+    a `lite_path` field. Cycle 85 (25.B) removed that aliasing-detection
+    branch; this test prevents silent reintroduction.
+    """
+    identical = "Strong momentum, position 2% of NAV"
+    a = {
+        "recommendation": "BUY",
+        "final_score": 7,
+        "trader_note": identical,
+        "risk_assessment": {
+            "reasoning": identical,
+            "recommended_position_pct": 0.02,
+        },
+    }
+    sigs = extract_signals_from_analysis(a)
+    risk = next((s for s in sigs if s["agent"] == "RiskJudge"), None)
+    assert risk is not None, "RiskJudge entry must be present"
+    assert "lite_path" not in risk, (
+        f"RiskJudge must NOT carry lite_path key (got keys={list(risk.keys())}). "
+        "25.B removed the byte-identical aliasing-detection branch; reintroducing it is a regression."
+    )
+    assert set(risk.keys()) == {"agent", "role", "rationale", "weight"}, (
+        f"RiskJudge must have exactly the canonical 4 keys; got {set(risk.keys())}"
+    )
+
+
+def test_full_path_distinct_rationale():
+    """phase-25.F: post-25.A full path -- RiskJudge `reasoning` is distinct
+    from the Trader rationale and surfaces verbatim with weight from
+    `recommended_position_pct`.
+    """
+    a = {
+        "recommendation": "BUY",
+        "final_score": 7,
+        "trader_note": "Q1 beat, momentum +12% over 3m",
+        "risk_assessment": {
+            "reasoning": "Volatility within acceptable band; position cap 3% of NAV",
+            "recommended_position_pct": 0.03,
+        },
+    }
+    sigs = extract_signals_from_analysis(a)
+    risk = next((s for s in sigs if s["agent"] == "RiskJudge"), None)
+    assert risk is not None
+    assert "Volatility within acceptable band" in risk["rationale"]
+    assert "position cap 3% of NAV" in risk["rationale"]
+    assert risk["weight"] == 0.03
+    assert risk["role"] == "gate"
+    assert "lite_path" not in risk
+
+
 # ── Quant signals ───────────────────────────────────────────────
 
 def test_extract_quant_signals_full_candidate():

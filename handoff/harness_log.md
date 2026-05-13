@@ -17879,3 +17879,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 26 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7 + 25.M + 25.B7 + 25.N + 25.O).
 
 **Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing), 25.D (P2 backlog), 25.L, 25.F.
+
+---
+
+## Cycle 91 -- 2026-05-13 -- phase=25.F result=PASS
+
+**Step:** 25.F -- Byte-identical regression tests for aliasing detection (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.4 F-6.
+
+**Code changes:**
+- `tests/services/test_signal_attribution.py`: added two regression tests:
+  - `test_lite_path_byte_identical_flagged` -- asserts the post-25.B shape carries NO `lite_path` key and has exactly the canonical 4 keys (`{agent, role, rationale, weight}`) even when RiskJudge reasoning is byte-identical to Trader rationale.
+  - `test_full_path_distinct_rationale` -- asserts the post-25.A normal-shape RiskJudge entry has verbatim reasoning + weight from `recommended_position_pct` + role="gate".
+
+**New verifier:** `tests/verify_phase_25_F.py` -- **4/4 PASS, EXIT=0**. 2 def-presence claims via regex + 2 pytest-invocation claims (subprocess pytest with -k filter; asserts exit=0 + both "PASSED" lines in output).
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (canonical 4-key shape catches any cosmetic-field reintroduction). Pure unit tests, no I/O, no caller risk.
+
+**Live-check artefact:** `handoff/current/live_check_25.F.md` documenting the direct pytest invocation + expected counts.
+
+**Phase-25.F status -> done.** Bucket 24.4 F-6 RESOLVED.
+
+**Cumulative phase-25 progress:** 27 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing), 25.D (P2 backlog), 25.L.
