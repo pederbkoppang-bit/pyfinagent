@@ -205,6 +205,22 @@ async def get_portfolio():
         logger.warning("Sector breakdown computation failed (non-fatal): %s", e)
         sector_breakdown = {}
 
+    # phase-25.C12: backend-authoritative Sharpe so home + paper-trading
+    # pages render identical numbers (closes phase-24.12 F-4 where the
+    # home page's local kpiSharpe diverges by ~0.16 Sharpe units at 4% RFR
+    # because it does NOT subtract the risk-free rate). Same canonical
+    # helper as /performance at line 276; fail-open to None on snapshot
+    # fetch failure. Field lives INSIDE the `portfolio` dict so frontend
+    # `PaperPortfolio` interface stays the single point of extension.
+    portfolio_sharpe: Optional[float] = None
+    try:
+        snapshots_for_sharpe = await asyncio.to_thread(bq.get_paper_snapshots, limit=365)
+        if snapshots_for_sharpe:
+            portfolio_sharpe = compute_sharpe_from_snapshots(snapshots_for_sharpe)
+    except Exception as exc:
+        logger.warning("get_portfolio: sharpe_ratio fail-open: %r", exc)
+    portfolio["sharpe_ratio"] = portfolio_sharpe
+
     result = {
         "portfolio": portfolio,
         "positions": positions,

@@ -54,6 +54,15 @@ function stdDev(xs: number[], mu: number): number {
   return Math.sqrt(variance);
 }
 
+/**
+ * @deprecated phase-25.C12: prefer the backend-authoritative
+ * `sharpe_ratio` field from `/api/paper-trading/portfolio` or
+ * `/api/paper-trading/performance`. Local computation uses a
+ * different formula (no risk-free rate subtraction) and diverges
+ * from the API value by ~0.16 Sharpe units at 4% RFR. New
+ * consumers should call the API; this function remains for
+ * backwards compatibility + rolling-deploy fallback only.
+ */
 export function sharpe(series: NavPoint[], periodsPerYear = 252): number | null {
   const rets = dailyReturns(series);
   if (rets.length < 2) return null;

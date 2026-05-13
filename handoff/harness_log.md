@@ -17547,3 +17547,28 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 13 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6).
 
 **Next cycle candidate:** 25.A10 (P1 Alpaca MCP tool-surface smoke test) OR 25.A12 (P1 Playwright visual regression CI baseline) OR 25.B (P2 cosmetic-patch removal).
+
+---
+
+## Cycle 78 -- 2026-05-13 -- phase=25.C12 result=PASS
+
+**Step:** 25.C12 -- Cross-tab Sharpe KPI reconciliation (backend authoritative) (P1)
+**Action:** GENERATE. Closes phase-24.12 F-4 (home page kpiSharpe diverges from /performance perf.sharpe_ratio).
+
+**Root cause (researcher's finding):** divergence is FORMULA-based, not input-based. Frontend `kpiMetrics.ts::sharpe` skips the RFR subtraction that backend `compute_sharpe` performs, creating a ~0.16 Sharpe-unit gap at 4% RFR on a ~1.17-Sharpe system.
+
+**Code changes:**
+- `backend/api/paper_trading.py::get_portfolio` -- fetches `bq.get_paper_snapshots(limit=365)` after sector_breakdown block; computes `portfolio_sharpe = compute_sharpe_from_snapshots(snapshots)` via the canonical helper; assigns `portfolio["sharpe_ratio"] = portfolio_sharpe` inside the portfolio dict (so frontend `PaperPortfolio` interface is the single extension point). Per-call try/except: BQ failure -> `sharpe_ratio=None`, rest of response intact.
+- `frontend/src/lib/types.ts::PaperPortfolio` -- adds `sharpe_ratio?: number | null` with JSDoc.
+- `frontend/src/app/page.tsx` -- new `apiSharpe` state; portfolio fetch handler captures `portfolio.value.portfolio?.sharpe_ratio ?? null`; line ~163 swap from `kpiSharpe(navSeries)` to `apiSharpe ?? kpiSharpe(navSeries)` (graceful fallback during rolling deploy / fail-open).
+- `frontend/src/lib/kpiMetrics.ts::sharpe` -- JSDoc `@deprecated` block explaining the formula gap and pointing new consumers at the API. Function retained for backwards-compat + fallback.
+
+**New verifier:** `tests/verify_phase_25_C12.py` (300+ LOC, 11 immutable claims) -- **11/11 PASS, EXIT=0**. Three **behavioral round-trips**: happy-path (60 noisy snapshots -> finite Sharpe), no-data (empty snapshots -> None/0.0 graceful), fail-open (snapshot fetch raises -> sharpe_ratio=None + rest of response intact + no crash).
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Anti-rubber-stamp: 7 plausible mutations mapped to catching claims. Scope honest: kpiMetrics.ts::sharpe retained for backwards-compat; field placement (inside `portfolio` dict, not top-level) honestly disclosed as architectural choice for single TS-interface extension point.
+
+**Phase-25.C12 status -> done.** Cross-tab Sharpe divergence eliminated by construction.
+
+**P1 sprint progress:** 14 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12).
+
+**Next cycle candidate:** 25.A12 (P1 Playwright visual regression CI baseline) OR 25.A10 (P1 Alpaca MCP tool-surface smoke test) OR 25.B (P2 cosmetic-patch removal).

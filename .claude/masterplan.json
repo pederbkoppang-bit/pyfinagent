@@ -8846,7 +8846,7 @@
         {
           "id": "25.C12",
           "name": "Cross-tab Sharpe KPI reconciliation (backend authoritative)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8863,7 +8863,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Backend authoritative; cross-link bucket 24.11."
+          "notes": "Backend authoritative; cross-link bucket 24.11. Cycle 78 PASS first-spawn. 11/11 verifier (incl. 3 behavioral). Root cause: formula divergence (frontend skipped RFR subtraction). Field nested in portfolio dict for single TS-interface extension point."
         },
         {
           "id": "25.A12",

@@ -89,6 +89,10 @@ export default function HomePage() {
   const [redLineWindow, setRedLineWindow] = useState<RedLineWindow>("30d");
   const [redLineSeries, setRedLineSeries] = useState<SovereignRedLinePoint[]>([]);
   const [redLineEvents, setRedLineEvents] = useState<SovereignRedLineEvent[]>([]);
+  // phase-25.C12: backend-authoritative Sharpe. Falls back to local
+  // kpiSharpe(navSeries) only when API value is missing (e.g. rolling
+  // deploy or fail-open). See contract: handoff/current/contract.md.
+  const [apiSharpe, setApiSharpe] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +106,10 @@ export default function HomePage() {
       if (cancelled) return;
       if (reps.status === "fulfilled") setReports(reps.value);
       if (status.status === "fulfilled") setPtStatus(status.value);
-      if (portfolio.status === "fulfilled") setPositions(portfolio.value.positions ?? []);
+      if (portfolio.status === "fulfilled") {
+        setPositions(portfolio.value.positions ?? []);
+        setApiSharpe(portfolio.value.portfolio?.sharpe_ratio ?? null);
+      }
       if (tradesResp.status === "fulfilled") {
         setTrades(tradesResp.value.trades ?? []);
       } else {
@@ -158,7 +165,10 @@ export default function HomePage() {
   // All return null on insufficient/flat data; the tile then renders "—".
   const navSeries = redLineSeries.map((p) => ({ date: p.date, nav: p.nav }));
   const today = dailyDelta(navSeries);
-  const sharpe90 = kpiSharpe(navSeries);
+  // phase-25.C12: prefer backend-authoritative Sharpe so home + paper-trading
+  // tabs render identical numbers. Falls back to local kpiSharpe only when
+  // the API value is missing (rolling deploy / fail-open).
+  const sharpe90 = apiSharpe ?? kpiSharpe(navSeries);
   const sortino90 = kpiSortino(navSeries);
   const dd30 = maxDrawdownPct(navSeries);
   const posBreakdown = categorizePositions(positions);

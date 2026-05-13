@@ -614,6 +614,13 @@ export interface PaperPortfolio {
   benchmark_return_pct: number | null;
   inception_date: string;
   updated_at: string | null;
+  /**
+   * phase-25.C12: backend-authoritative Sharpe ratio. Computed by
+   * `compute_sharpe_from_snapshots` and returned at the top level of
+   * `/api/paper-trading/portfolio` response. Optional for backwards
+   * compat during rolling deploy.
+   */
+  sharpe_ratio?: number | null;
 }
 
 export interface PaperPosition {
