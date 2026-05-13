@@ -9190,7 +9190,7 @@
         {
           "id": "25.P",
           "name": "Weekly autoresearch summary Slack notification",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "25.F3",
@@ -9206,7 +9206,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 101 PASS 4/4; QA single-spawn PASS; live-check at handoff/current/live_check_25.P.md; dep 25.F3 was planner typo for 25.F (done cycle 91)"
         },
         {
           "id": "25.S",

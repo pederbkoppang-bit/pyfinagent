@@ -149,6 +149,33 @@ def run_meta_evolution_cycle(
         len(results["errors"]),
         results["duration_seconds"],
     )
+
+    # phase-25.P: emit a P3 summary alert so operators get a once-a-week
+    # Slack ping confirming the autoresearch run completed (mirrors the
+    # 25.N daily cycle-summary pattern). Fail-open. Closes audit bucket
+    # 24.5 F-5(g). Distinct dedup key from the failure-path alerts.
+    try:
+        from backend.services.observability.alerting import raise_cron_alert_sync
+        raise_cron_alert_sync(
+            source="meta_evolution",
+            error_type="meta_evolution_weekly_summary",
+            severity="P3",
+            title="Weekly autoresearch cycle completed",
+            details={
+                "started_at": str(results.get("started_at", "?")),
+                "finished_at": str(results.get("finished_at", "?")),
+                "duration_seconds": results.get("duration_seconds", 0),
+                "error_count": len(results.get("errors", [])),
+                "cron_allocations": results.get("cron_allocations"),
+                "provider_allocations": results.get("provider_allocations"),
+                "archetype_count": results.get("archetype_count"),
+            },
+        )
+    except Exception as _alert_err:
+        logger.warning(
+            "meta_evolution weekly summary alert fail-open: %r", _alert_err
+        )
+
     return results
 
 

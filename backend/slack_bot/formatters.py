@@ -676,6 +676,84 @@ def format_trade_confirmation(trade: dict) -> list[dict]:
     return blocks
 
 
+def format_autoresearch_summary(results: dict) -> list[dict]:
+    """phase-25.P: format a completed weekly meta-evolution / autoresearch cycle
+    summary as Block Kit blocks.
+
+    Closes audit bucket 24.5 F-5(g). Mirrors `format_cycle_summary` (25.N) but
+    surfaces the fields that `run_meta_evolution_cycle` actually returns:
+    cron_allocations count, provider_allocations count, archetype_count,
+    duration, errors. Invoked by `backend/meta_evolution/cron.py` on Sunday
+    completion.
+
+    Returns Block Kit list[dict] (header + section + divider + context).
+    """
+    started_at = str(results.get("started_at") or "")
+    finished_at = str(results.get("finished_at") or "")
+    duration = results.get("duration_seconds")
+    errors = results.get("errors") or []
+    error_count = len(errors) if isinstance(errors, list) else 0
+    cron_alloc = results.get("cron_allocations")
+    prov_alloc = results.get("provider_allocations")
+    archetype_count = results.get("archetype_count")
+
+    def _int_or_na(v) -> str:
+        if v is None:
+            return "n/a"
+        if isinstance(v, (list, dict)):
+            return f"{len(v)}"
+        try:
+            return f"{int(v)}"
+        except (TypeError, ValueError):
+            return str(v)
+
+    def _fmt_sec(v) -> str:
+        if v is None:
+            return "n/a"
+        try:
+            s = float(v)
+            if s < 60:
+                return f"{s:.0f}s"
+            return f"{s / 60:.1f}m"
+        except (TypeError, ValueError):
+            return str(v)
+
+    blocks: list[dict] = [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": ":microscope: Weekly Autoresearch Cycle Complete",
+                "emoji": True,
+            },
+        },
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Started:* {started_at or '(unknown)'}"},
+                {"type": "mrkdwn", "text": f"*Finished:* {finished_at or '(unknown)'}"},
+                {"type": "mrkdwn", "text": f"*Duration:* {_fmt_sec(duration)}"},
+                {"type": "mrkdwn", "text": f"*Errors:* {error_count}"},
+                {"type": "mrkdwn", "text": f"*Cron allocations:* {_int_or_na(cron_alloc)}"},
+                {"type": "mrkdwn", "text": f"*Provider allocations:* {_int_or_na(prov_alloc)}"},
+                {"type": "mrkdwn", "text": f"*Archetypes:* {_int_or_na(archetype_count)}"},
+                {"type": "mrkdwn", "text": "*Cadence:* weekly (Sun)"},
+            ],
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": ":robot_face: phase-25.P autoresearch digest * Closes bucket 24.5 F-5(g)",
+                }
+            ],
+        },
+    ]
+    return blocks
+
+
 def format_cycle_summary(summary: dict) -> list[dict]:
     """phase-25.N: format a completed autonomous-cycle summary as Block Kit blocks.
 

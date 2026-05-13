@@ -18114,3 +18114,26 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 36 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.B10.1 (lesser-secret SecretStr), 25.A10.1 (.mcp.json env-var fix), follow-ups.
+
+---
+
+## Cycle 101 -- 2026-05-13 -- phase=25.P result=PASS
+
+**Step:** 25.P -- Weekly autoresearch summary Slack notification (P2; masterplan dep `25.F3` is a planner typo for 25.F which is done at cycle 91 -- dep treated as satisfied).
+**Action:** GENERATE. Closes audit bucket 24.5 F-5(g).
+
+**Code changes:**
+- `backend/slack_bot/formatters.py`: NEW `format_autoresearch_summary(results: dict) -> list[dict]` returning Block Kit blocks (header + 8-field section + divider + context). Surfaces the fields that `run_meta_evolution_cycle` actually returns (cron_allocations, provider_allocations, archetype_count, errors, duration).
+- `backend/meta_evolution/cron.py::run_meta_evolution_cycle`: at end of function, fires `raise_cron_alert_sync(source="meta_evolution", error_type="meta_evolution_weekly_summary", severity="P3", ...)` in try/except. Dedup key distinct from any failure-path alerts.
+
+**New verifier:** `tests/verify_phase_25_P.py` -- **4/4 PASS, EXIT=0**. AST function-signature claim + grep dedup-key + behavioral formatter Block Kit shape + behavioral mock.patch round-trip on `run_meta_evolution_cycle` confirming `severity='P3'` + `error_type='meta_evolution_weekly_summary'` dispatched.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance: behavioral claim 4 calls real `run_meta_evolution_cycle` with mocked alerting and asserts exact kwargs. Scope honesty: champion/challenger fields explicitly deferred to 25.P.1 (they live in friday_promotion, not Sunday meta-evolution).
+
+**Live-check artefact:** `handoff/current/live_check_25.P.md`.
+
+**Phase-25.P status -> done.** Bucket 24.5 F-5(g) RESOLVED.
+
+**Cumulative phase-25 progress:** 37 of ~40 phase-25 steps complete.
+
+**Next candidates:** Phase-25 main P2 items appear effectively complete. Remaining are follow-ups (25.B10.1, 25.A10.1, 25.P.1, 25.C9.1, 25.D9.1, 25.S.1).
