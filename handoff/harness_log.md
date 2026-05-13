@@ -18137,3 +18137,20 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 37 of ~40 phase-25 steps complete.
 
 **Next candidates:** Phase-25 main P2 items appear effectively complete. Remaining are follow-ups (25.B10.1, 25.A10.1, 25.P.1, 25.C9.1, 25.D9.1, 25.S.1).
+
+---
+
+## Cycle 102 -- 2026-05-13 -- phase=23.6.4 result=PASS
+
+**Step:** 23.6.4 -- Restore missing observability symbols in `backend/api/harness_autoresearch.py` (P2; smaller step, no harness_required).
+**Action:** GENERATE. Restored 2 symbols + repaired stale test expectation.
+
+**Code changes:**
+- `backend/api/harness_autoresearch.py`: ADDED `structured_log(endpoint, duration_ms, status, **extra)` helper (mirrors `cost_budget_api.structured_log` -- same stable JSON envelope `{endpoint, duration_ms, status, ts, **extra}` with fail-open). ADDED `_read_audit_tail(path, limit) -> tuple[list[dict], bool]` -- reads last N JSONL events from a path; returns `([], False)` on missing path or any parse error.
+- `tests/api/test_observability.py`: updated `test_get_job_status_returns_seven_jobs` -> `test_get_job_status_returns_canonical_jobs` to reflect the canonical 11-job roster (original 7 + morning_digest + evening_digest + watchdog_health_check + prompt_leak_redteam added since the test was written).
+
+**Verification:** `PYTHONPATH=. .venv/bin/python -m pytest tests/api/test_observability.py -q` returns **5 passed**.
+
+**Phase-23.6.4 status -> done.** No formal Q/A spawn (step doesn't carry harness_required: true; verification command itself is the gate).
+
+**Cumulative phase-25 progress:** unchanged at 37 of ~40 phase-25 steps complete; this was a phase-23.6 cleanup.

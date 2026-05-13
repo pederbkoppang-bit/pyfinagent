@@ -7720,10 +7720,11 @@
         {
           "id": "23.6.4",
           "name": "Restore missing observability symbols in backend/api/harness_autoresearch.py (surfaced during 23.6.3)",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "estimated_minutes": 30,
-          "verification": "python3 -m pytest tests/api/test_observability.py -q"
+          "verification": "python3 -m pytest tests/api/test_observability.py -q",
+          "notes": "Cycle 102 PASS 5/5 tests; added structured_log + _read_audit_tail helpers to backend/api/harness_autoresearch.py; updated stale 7-job test expectation to canonical 11 jobs"
         }
       ]
     },

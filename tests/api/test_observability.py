@@ -95,10 +95,16 @@ def test_cost_budget_today_has_observability_rollup_fields():
     assert "cost_per_llm_call_usd" in d, d
 
 
-def test_get_job_status_returns_seven_jobs():
+def test_get_job_status_returns_canonical_jobs():
+    """phase-23.6.4: canonical job roster expanded from 7 to 11.
+    Original phase-9 jobs: daily_price_refresh, weekly_fred_refresh,
+    nightly_mda_retrain, hourly_signal_warmup, nightly_outcome_rebuild,
+    weekly_data_integrity, cost_budget_watcher.
+    Added since: morning_digest, evening_digest, watchdog_health_check,
+    prompt_leak_redteam.
+    """
     resp = get_job_status()
-    assert len(resp.jobs) == 7
-    # All canonical names show up.
+    assert len(resp.jobs) == 11
     names = {j.name for j in resp.jobs}
     expected = {
         "daily_price_refresh",
@@ -108,6 +114,10 @@ def test_get_job_status_returns_seven_jobs():
         "nightly_outcome_rebuild",
         "weekly_data_integrity",
         "cost_budget_watcher",
+        "morning_digest",
+        "evening_digest",
+        "watchdog_health_check",
+        "prompt_leak_redteam",
     }
     assert names == expected
 

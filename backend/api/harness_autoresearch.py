@@ -12,7 +12,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from datetime import date
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 from fastapi import APIRouter
@@ -23,6 +25,71 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/harness", tags=["harness"])
 
 _BQ_TABLE = "pyfinagent_data.harness_learning_log"
+
+
+# phase-23.6.4: restore observability symbols that tests expect (surfaced
+# during 23.6.3 cleanup -- `structured_log` and `_read_audit_tail` were
+# referenced by tests/api/test_observability.py but missing from this module).
+# `structured_log` mirrors the sibling cost_budget_api.py helper so both
+# endpoints emit the same stable JSON envelope; `_read_audit_tail` reads
+# the last N JSONL events from a path with fail-open semantics.
+
+def structured_log(endpoint: str, duration_ms: float, status: str, **extra) -> None:
+    """phase-15.10/23.6.4: emit one structured JSON log line per endpoint call.
+
+    Stable envelope: `{endpoint, duration_ms, status, ts, **extra}`. Extras
+    flow through as-is so callers can attach context like `week_iso`,
+    `truncated`, etc. Fail-open -- a JSON-serialization failure logs a
+    WARNING and is swallowed.
+    """
+    try:
+        logger.info(
+            json.dumps(
+                {
+                    "endpoint": endpoint,
+                    "duration_ms": round(duration_ms, 1),
+                    "status": status,
+                    "ts": time.time(),
+                    **extra,
+                }
+            )
+        )
+    except Exception as exc:
+        logger.warning("structured_log fail-open: %r", exc)
+
+
+def _read_audit_tail(path: Any, limit: int) -> tuple[list[dict], bool]:
+    """phase-23.6.4: read the last `limit` JSONL events from `path`.
+
+    Returns `(events, truncated)` where:
+      - `events` is the list of parsed JSON objects (empty on any error).
+      - `truncated` is True iff the file had more rows than `limit`.
+
+    Fail-open: missing path / parse errors / encoding issues all return
+    `([], False)` so the caller can render an empty audit tail without
+    a 5xx.
+    """
+    try:
+        p = Path(path) if not isinstance(path, Path) else path
+        if not p.exists():
+            return ([], False)
+        with p.open("r", encoding="utf-8") as f:
+            lines = f.readlines()
+        truncated = len(lines) > limit
+        tail = lines[-limit:] if truncated else lines
+        events: list[dict] = []
+        for line in tail:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except Exception:
+                continue
+        return (events, truncated)
+    except Exception as exc:
+        logger.warning("_read_audit_tail fail-open (path=%r): %r", path, exc)
+        return ([], False)
 
 
 class HarnessSprintThu(BaseModel):
