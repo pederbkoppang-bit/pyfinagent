@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `d679d7a3` | phase-25.M: Cost-budget Slack alert wire repair (no silent fail-open) |
 | 2026-05-13 | `4c404fa1` | phase-25.C7: Unified /api/observability/data-freshness endpoint |
 | 2026-05-13 | `c6672b21` | phase-25.B: Remove cosmetic aliasing patch after 25.A decouples calls |
 | 2026-05-13 | `54f9fce0` | phase-25.C9: Adopt Batch API for non-interactive pipeline steps (50% savings) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `2a864210` | phase-25.A3: Write promoted strategies to pyfinagent_data.promoted_strategies BQ table |
 | 2026-05-12 | `9c5eb8ad` | phase-25.A: Decouple RiskJudge with independent LLM call in lite path |
 | 2026-05-12 | `48b7b29a` | phase-25.A11: Wire /paper-trading/learnings backend endpoint |
-| 2026-05-12 | `1c38721d` | phase-25.B12: Missing-states + tab-icon sweep across degraded pages |
 
 ---
 
+### v6.7.46 — phase-25.M: Cost-budget Slack alert wire repair (no silent fail-open) (2026-05-13)
+
+- **phase-25.M: Cost-budget Slack alert wire repair (no silent fail-open)**
 ### v6.7.45 — phase-25.C7: Unified /api/observability/data-freshness endpoint (2026-05-13)
 
 - **phase-25.C7: Unified /api/observability/data-freshness endpoint**
