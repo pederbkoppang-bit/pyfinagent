@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `1687a289` | phase-25.E9: Adopt native Citations; deprecate CitationAgent |
 | 2026-05-13 | `63f2c96b` | phase-25.D9: Adopt Files API for skill markdowns (~97% token reduction) |
 | 2026-05-13 | `92e29ef6` | phase-25.B9: Bump system prompt above 4096-token cache threshold |
 | 2026-05-13 | `73c9ba39` | phase-25.A12: Playwright visual regression CI baseline |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `a1791417` | phase-25.J: Trade confirmation Slack notifications |
 | 2026-05-12 | `ee14becf` | phase-25.6: No-stop-on-entry hard block in execute_buy() |
 | 2026-05-12 | `48b662ec` | phase-25.2: Backfill missing stops with same-cycle re-check |
-| 2026-05-12 | `275bbce6` | phase-25.A8: Cost-budget HARD-BLOCK in llm_client.py |
 
 ---
 
+### v6.7.41 — phase-25.E9: Adopt native Citations; deprecate CitationAgent (2026-05-13)
+
+- **phase-25.E9: Adopt native Citations; deprecate CitationAgent**
 ### v6.7.40 — phase-25.D9: Adopt Files API for skill markdowns (~97% token reduction) (2026-05-13)
 
 - **phase-25.D9: Adopt Files API for skill markdowns (~97% token reduction)**
