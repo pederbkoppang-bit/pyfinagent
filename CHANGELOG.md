@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `d254719c` | phase-25.A7: Per-table freshness endpoint covering all 5 data tables |
 | 2026-05-13 | `3c483820` | phase-25.A6: Explicit live-vs-backtest Sharpe reconciliation |
 | 2026-05-12 | `4efda71e` | phase-25.Q: Real-time profit_per_llm_dollar metric (closes red-line goal-d) |
 | 2026-05-12 | `e9751036` | phase-25.R: Strategy auto-switching policy (closes red-line goal-c) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `55241e3a` | phase-25.G: Fix Slack digest P&L data source (endpoint + field key) |
 | 2026-05-12 | `7a2e2728` | phase-25.A9: Fix cache-write cost premium 1.25x to 2.0x |
 | 2026-05-12 | `c90cf57a` | phase-25.1: Wire check_stop_losses() into daily loop with auto-sell |
-| 2026-05-12 | `bc0777b2` | phase-24: Application-Wide Audit & Profit-Maximization Alignment |
 
 ---
 
+### v6.7.35 — phase-25.A7: Per-table freshness endpoint covering all 5 data tables (2026-05-13)
+
+- **phase-25.A7: Per-table freshness endpoint covering all 5 data tables**
 ### v6.7.34 — phase-25.A6: Explicit live-vs-backtest Sharpe reconciliation (2026-05-13)
 
 - **phase-25.A6: Explicit live-vs-backtest Sharpe reconciliation**
