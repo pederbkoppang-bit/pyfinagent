@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `db928080` | phase-25.C12: Cross-tab Sharpe KPI reconciliation (backend authoritative) |
 | 2026-05-13 | `e8a2a2fc` | phase-25.D6: Planner plateau-detection lock-file enforcement |
 | 2026-05-13 | `d254719c` | phase-25.A7: Per-table freshness endpoint covering all 5 data tables |
 | 2026-05-13 | `3c483820` | phase-25.A6: Explicit live-vs-backtest Sharpe reconciliation |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `b184dc2c` | phase-25.K: Wire kill-switch state changes to Slack |
 | 2026-05-12 | `d9d23a36` | phase-25.H: Recent-analyses ticker dedup (5x SNDK fix) |
 | 2026-05-12 | `55241e3a` | phase-25.G: Fix Slack digest P&L data source (endpoint + field key) |
-| 2026-05-12 | `7a2e2728` | phase-25.A9: Fix cache-write cost premium 1.25x to 2.0x |
 
 ---
 
+### v6.7.37 — phase-25.C12: Cross-tab Sharpe KPI reconciliation (backend authoritat... (2026-05-13)
+
+- **phase-25.C12: Cross-tab Sharpe KPI reconciliation (backend authoritative)**
 ### v6.7.36 — phase-25.D6: Planner plateau-detection lock-file enforcement (2026-05-13)
 
 - **phase-25.D6: Planner plateau-detection lock-file enforcement**
