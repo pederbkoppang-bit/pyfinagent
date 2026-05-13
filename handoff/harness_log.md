@@ -17903,3 +17903,26 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 27 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing), 25.D (P2 backlog), 25.L.
+
+---
+
+## Cycle 92 -- 2026-05-13 -- phase=25.L result=PASS
+
+**Step:** 25.L -- Drawdown alarm with tiered thresholds (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.5 F-5(c) + 24.8.
+
+**Code changes:**
+- `backend/services/drawdown_alarm.py`: NEW 134-LOC module with `DRAWDOWN_TIERS=[(warn_3pct,-0.03,P2), (warn_5pct,-0.05,P1), (critical_10pct,-0.10,P1)]`; helpers `compute_drawdown_from_snapshots`, `check_drawdown_alarms`, `emit_drawdown_alarms` (fail-open). Each tier dispatches a `raise_cron_alert_sync` with distinct dedup key `drawdown_<tier_name>` so AlertDeduper suppresses repeated same-tier alerts.
+- `backend/services/autonomous_loop.py`: wired `emit_drawdown_alarms(snapshots=bq.get_paper_snapshots(limit=180), source="autonomous_loop")` in the cycle finally block right after the 25.N cycle_completed_summary alert. Try/except fail-open.
+
+**New verifier:** `tests/verify_phase_25_L.py` -- **6/6 PASS, EXIT=0**. Tier-constants regex + 3 algorithmic claims (healthy=empty, -3.5%=one tier, -12%=all three tiers) + behavioral mock round-trip at -6% confirming `drawdown_warn_3pct` (P2) + `drawdown_warn_5pct` (P1) dispatch with `critical_10pct` correctly NOT firing + wire-site grep.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (3 algorithmic boundaries + behavioral mock + wire-site).
+
+**Live-check artefact:** `handoff/current/live_check_25.L.md` documenting the synthetic-snapshots unit test + curl run-cycle trigger.
+
+**Phase-25.L status -> done.** Bucket 24.5 F-5(c) + 24.8 RESOLVED.
+
+**Cumulative phase-25 progress:** 28 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing), 25.D (P2 backlog), 25.E.

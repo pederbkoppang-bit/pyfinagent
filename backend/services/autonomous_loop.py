@@ -673,6 +673,19 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             except Exception as _summary_err:
                 logger.warning(f"cycle summary-alert dispatch failed: {_summary_err}")
 
+            # phase-25.L: tiered drawdown alarm. Fetches the latest snapshots
+            # and fires P1 Slack alerts at -3%/-5%/-10% drawdown tiers. Fully
+            # fail-open. Each tier has a distinct dedup key so AlertDeduper
+            # suppresses repeated same-tier alerts.
+            try:
+                from backend.services.drawdown_alarm import emit_drawdown_alarms
+                from backend.db.bigquery_client import BigQueryClient as _BQ
+                _bq = _BQ(settings or get_settings())
+                _snapshots = _bq.get_paper_snapshots(limit=180)
+                emit_drawdown_alarms(_snapshots or [], source="autonomous_loop")
+            except Exception as _dd_err:
+                logger.warning(f"drawdown_alarm dispatch failed: {_dd_err}")
+
 
 async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict]:
     """Run a single analysis and extract key fields for trade decisions.
