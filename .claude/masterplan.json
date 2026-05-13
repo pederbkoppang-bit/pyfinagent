@@ -8978,7 +8978,7 @@
         {
           "id": "25.A7",
           "name": "Per-table freshness endpoint covering all 5 data tables",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8995,7 +8995,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Aligns with Dataplex DQ framework."
+          "notes": "Aligns with Dataplex DQ framework. Cycle 76 PASS first-spawn. 11/11 verifier (incl. 5 behavioral). Adds 4 historical/log tables + paper_portfolio_snapshots rename + Slack P1 alarm on red band."
         },
         {
           "id": "25.B",

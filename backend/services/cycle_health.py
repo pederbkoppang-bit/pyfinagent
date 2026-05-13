@@ -40,6 +40,17 @@ _HEARTBEAT_PATH = _HANDOFF / ".cycle_heartbeat.json"
 WARN_RATIO = 1.5
 CRITICAL_RATIO = 2.0
 
+# phase-25.A7: per-table expected maximum age (seconds). Historical tables
+# have wildly different cadences than the per-cycle paper tables, so a
+# single shared cycle_interval is the wrong yardstick. signals_log and
+# paper_* still use the caller-provided cycle_interval_sec.
+_TABLE_MAX_AGE_SEC: dict[str, float] = {
+    "historical_prices":       93_600.0,     # 26h -- nightly ingest, T+1 US market
+    "historical_fundamentals": 8_208_000.0,  # 95 days -- quarterly + filing lag
+    "historical_macro":        3_024_000.0,  # 35 days -- monthly FRED + release lag
+    "paper_portfolio_snapshots": 93_600.0,    # 26h -- daily snapshot
+}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -63,6 +74,55 @@ def _band(age_sec: Optional[float], interval_sec: float) -> str:
     if ratio >= WARN_RATIO:
         return "amber"
     return "green"
+
+
+def _worst_band(bands: list[str]) -> str:
+    """phase-25.A7: aggregate a list of band strings to the worst one.
+
+    Priority: red > amber > green > unknown. Empty list returns "unknown".
+    """
+    order = {"red": 3, "amber": 2, "green": 1, "unknown": 0}
+    if not bands:
+        return "unknown"
+    return max(bands, key=lambda b: order.get(b, 0))
+
+
+def _fire_freshness_alarm(sources: dict) -> None:
+    """phase-25.A7: dispatch a P1 Slack alert for every table in red band.
+
+    Dedup is handled by `AlertDeduper` inside `raise_cron_alert_sync` so a
+    polling-loop caller doesn't spam Slack with the same alert. Per-call
+    try/except keeps the alarm fail-open -- a Slack failure must never
+    break the freshness query.
+    """
+    try:
+        from backend.services.observability.alerting import raise_cron_alert_sync
+    except Exception as exc:
+        logger.warning("freshness alarm: import fail-open: %r", exc)
+        return
+    for table_name, info in sources.items():
+        if info.get("band") != "red":
+            continue
+        try:
+            ratio = info.get("ratio")
+            ratio_str = f"{ratio:.2f}" if isinstance(ratio, (int, float)) else "N/A"
+            raise_cron_alert_sync(
+                source="cycle_health",
+                error_type=f"freshness_critical_{table_name}",
+                severity="P1",
+                title=f"Data freshness critical: {table_name}",
+                details={
+                    "table": table_name,
+                    "last_tick_age_sec": str(info.get("last_tick_age_sec")),
+                    "interval_sec": str(info.get("interval_sec")),
+                    "ratio": ratio_str,
+                    "band": info.get("band"),
+                },
+            )
+        except Exception as exc:
+            logger.warning(
+                "freshness alarm: dispatch fail-open for %s: %r", table_name, exc,
+            )
 
 
 class CycleHealthLog:
@@ -213,23 +273,72 @@ def compute_freshness(bq: Any, cycle_interval_sec: float) -> dict:
 
     trade_age = _bq_max_event_age(bq, "paper_trades", "created_at")
     snap_age = _bq_max_event_age(bq, "paper_portfolio_snapshots", "snapshot_date")
+    # phase-25.A7: extend coverage to 4 historical/log tables.
+    hist_prices_age = _bq_max_event_age(bq, "historical_prices", "ingested_at")
+    hist_fund_age = _bq_max_event_age(bq, "historical_fundamentals", "ingested_at")
+    hist_macro_age = _bq_max_event_age(bq, "historical_macro", "ingested_at")
+    signals_age = _bq_max_event_age(bq, "signals_log", "recorded_at")
     bq_ingest_lag = trade_age  # trades are the write-hottest table
+
+    # phase-25.A7: snapshot SLA -- distinct from per-cycle cadence (was using
+    # cycle_interval_sec; now uses 26h per research finding).
+    snap_interval = _TABLE_MAX_AGE_SEC["paper_portfolio_snapshots"]
+    hist_prices_interval = _TABLE_MAX_AGE_SEC["historical_prices"]
+    hist_fund_interval = _TABLE_MAX_AGE_SEC["historical_fundamentals"]
+    hist_macro_interval = _TABLE_MAX_AGE_SEC["historical_macro"]
 
     sources = {
         "paper_trades": {
             "last_tick_age_sec": trade_age,
+            "interval_sec": cycle_interval_sec,
             "ratio": (trade_age / cycle_interval_sec) if (trade_age and cycle_interval_sec) else None,
             "band": _band(trade_age, cycle_interval_sec),
         },
-        "paper_snapshots": {
+        # phase-25.A7: rename "paper_snapshots" -> "paper_portfolio_snapshots"
+        # so the key matches the BQ table name exactly (operators grepping
+        # for the table will find the freshness key).
+        "paper_portfolio_snapshots": {
             "last_tick_age_sec": snap_age,
-            "ratio": (snap_age / cycle_interval_sec) if (snap_age and cycle_interval_sec) else None,
-            "band": _band(snap_age, cycle_interval_sec),
+            "interval_sec": snap_interval,
+            "ratio": (snap_age / snap_interval) if (snap_age is not None and snap_interval > 0) else None,
+            "band": _band(snap_age, snap_interval),
+        },
+        "historical_prices": {
+            "last_tick_age_sec": hist_prices_age,
+            "interval_sec": hist_prices_interval,
+            "ratio": (hist_prices_age / hist_prices_interval) if (hist_prices_age is not None and hist_prices_interval > 0) else None,
+            "band": _band(hist_prices_age, hist_prices_interval),
+        },
+        "historical_fundamentals": {
+            "last_tick_age_sec": hist_fund_age,
+            "interval_sec": hist_fund_interval,
+            "ratio": (hist_fund_age / hist_fund_interval) if (hist_fund_age is not None and hist_fund_interval > 0) else None,
+            "band": _band(hist_fund_age, hist_fund_interval),
+        },
+        "historical_macro": {
+            "last_tick_age_sec": hist_macro_age,
+            "interval_sec": hist_macro_interval,
+            "ratio": (hist_macro_age / hist_macro_interval) if (hist_macro_age is not None and hist_macro_interval > 0) else None,
+            "band": _band(hist_macro_age, hist_macro_interval),
+        },
+        "signals_log": {
+            "last_tick_age_sec": signals_age,
+            "interval_sec": cycle_interval_sec,
+            "ratio": (signals_age / cycle_interval_sec) if (signals_age and cycle_interval_sec) else None,
+            "band": _band(signals_age, cycle_interval_sec),
         },
     }
 
+    # phase-25.A7: aggregate worst band across all monitored tables.
+    overall_band = _worst_band([v.get("band", "unknown") for v in sources.values()])
+
+    # Fire a P1 Slack alert per table in critical band (dedup via AlertDeduper).
+    if overall_band == "red":
+        _fire_freshness_alarm(sources)
+
     return {
         "sources": sources,
+        "overall_band": overall_band,
         "heartbeat": {
             "updated_at": heartbeat.get("updated_at"),
             "event": heartbeat.get("event"),

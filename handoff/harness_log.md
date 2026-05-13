@@ -17498,3 +17498,31 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 11 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6). RED-LINE GOAL-C and GOAL-D both closed; reality-gap measurement now explicit.
 
 **Next cycle candidate:** 25.A7 (P1 per-table freshness endpoint; no deps) OR 25.D6 (P1 planner plateau-detection lock-file; no deps) OR 25.B (P2 cosmetic-patch removal).
+
+---
+
+## Cycle 76 -- 2026-05-13 -- phase=25.A7 result=PASS
+
+**Step:** 25.A7 -- Per-table freshness endpoint covering all 5 data tables (P1)
+**Action:** GENERATE. Closes phase-24.7 F-1 (compute_freshness queried only 2 paper tables; 4 historical/log tables unmonitored).
+
+**Code changes (single file: `backend/services/cycle_health.py`):**
+- New module constant `_TABLE_MAX_AGE_SEC` -- per-table SLA intervals: `historical_prices`=93_600s (26h), `historical_fundamentals`=8_208_000s (95d), `historical_macro`=3_024_000s (35d), `paper_portfolio_snapshots`=93_600s (26h).
+- New `_worst_band(bands) -> str` helper with priority `red > amber > green > unknown`.
+- New `_fire_freshness_alarm(sources) -> None` helper -- iterates red-band entries, calls `raise_cron_alert_sync` with `severity="P1"` and per-table details. Per-call try/except (fail-open).
+- `compute_freshness` extended:
+  - 4 new `_bq_max_event_age` calls (historical_prices/historical_fundamentals/historical_macro on `ingested_at`, signals_log on `recorded_at`).
+  - Builds 6-key `sources` dict with `last_tick_age_sec / interval_sec / ratio / band` per entry.
+  - **Key rename:** `paper_snapshots -> paper_portfolio_snapshots` (matches BQ table name; grep confirms no consumer reads the old key).
+  - New top-level `overall_band` from `_worst_band([...])`.
+  - When `overall_band == "red"`, dispatches alarms via `_fire_freshness_alarm(sources)`.
+
+**New verifier:** `tests/verify_phase_25_A7.py` (300+ LOC, 11 immutable claims) -- **11/11 PASS, EXIT=0**. Five **behavioral round-trips**: worst-band priority (6 cases), 6-table source-key coverage, happy-green (no alert dispatched), red-band (P1 alert with table in details), fail-open on Slack failure (no propagation).
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Anti-rubber-stamp: 6+ named mutations + 3 extra all caught (drop table key, skip overall_band, skip alarm, alarm crash, rename back, wrong band names). Scope honest: per-table SLAs research-backed; key rename validated via consumer grep. Minor doc-string nit (line 7 still references "paper_snapshots") flagged as non-blocking housekeeping.
+
+**Phase-25.A7 status -> done.** Operator visibility into ingestion lag now uniform across 6 monitored tables.
+
+**P1 sprint progress:** 12 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7).
+
+**Next cycle candidate:** 25.D6 (P1 planner plateau-detection lock-file; no deps) OR 25.A10 (P1 Alpaca MCP smoke test) OR 25.B (P2 cosmetic-patch removal).
