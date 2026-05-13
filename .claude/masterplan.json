@@ -8934,7 +8934,7 @@
         {
           "id": "25.D9",
           "name": "Adopt Files API for skill markdowns (~97% token reduction)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8951,7 +8951,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Files API beta header files-api-2025-04-14."
+          "notes": "Files API beta header files-api-2025-04-14. Cycle 81 PASS first-spawn. 12/12 verifier (incl. 4 behavioral). Mechanism shipped; caller-side adoption deferred to 25.D9.1 follow-up. Compounds with 25.B9 system-prompt cache."
         },
         {
           "id": "25.E9",

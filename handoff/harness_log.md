@@ -17622,3 +17622,26 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 16 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12 + 25.B9).
 
 **Next cycle candidate:** 25.C9 (P1 Batch API for non-interactive pipeline steps; 50% savings) OR 25.D9 (P1 Files API for skill markdowns; ~97% token reduction) OR 25.E9 (P1 native Citations).
+
+---
+
+## Cycle 81 -- 2026-05-13 -- phase=25.D9 result=PASS
+
+**Step:** 25.D9 -- Adopt Files API for skill markdowns (P1; compound with 25.B9 system-prompt cache)
+**Action:** GENERATE. Closes phase-24.9 F-5 (skill markdowns 500-3000 tokens each re-injected every call; file_id reference is ~8 tokens, ~98.5% reduction per skill body).
+
+**Code changes:**
+- `backend/agents/llm_client.py::ClaudeClient`: new `upload_file_to_anthropic_files_api(file_path, mime_type='text/plain') -> str` (mirrors `sec_insider.py:311-334`; returns `.id`, NOT `.file_id`). `generate_content` now injects a `document` content block + `betas=['files-api-2025-04-14']` when `config['skill_file_id']` is provided.
+- `backend/config/prompts.py`: new `SkillFileIdCache` class -- SHA256-keyed disk-persistent cache at `backend/agents/skills/.skill_file_ids.json` (hidden). Methods: `_hash`, `get_or_upload`, `invalidate`, `invalidate_stale`, `bulk_upload_all`. `reload_skills(anthropic_client_wrapper=None)` extended to optionally trigger `invalidate_stale`.
+- `backend/agents/orchestrator.py::AnalysisOrchestrator.__init__`: after `_load_memories_from_bq()`, isinstance-guards on `ClaudeClient` and calls `SkillFileIdCache.bulk_upload_all(self.general_client)`. Result stored on `self._skill_file_ids`. Wrapped in try/except so any upload failure leaves the existing inline-skill path intact (fail-open).
+- `backend/agents/skill_optimizer.py`: import extended with `SkillFileIdCache`; all 3 `reload_skills()` sites (rewrite success, revert-on-load-failure, revert_modification) now also call `SkillFileIdCache.invalidate(agent_name)` so the next `get_or_upload` re-uploads the modified/reverted file (hash mismatch).
+
+**New verifier:** `tests/verify_phase_25_D9.py` (370+ LOC, 12 immutable claims) -- **12/12 PASS, EXIT=0**. Four **behavioral round-trips**: upload helper returns `.id`, cache hit skips upload, cache miss triggers re-upload (hash invalidation), document-block injection in `generate_content`. Structural: signature greps, disk-cache path, MIME `text/plain`, betas string `files-api-2025-04-14`.
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. 8 spirit-breaking mutations covered (`.id`->`.file_id`, drop betas, no hash, no isinstance guard, no try/except, skip invalidation, wrong MIME, wrong disk path). Scope honest: live BQ token reduction explicitly deferred to caller-side adoption follow-up (Layer-1 agents passing `config["skill_file_id"]`); this cycle ships the mechanism.
+
+**Phase-25.D9 status -> done.** Mechanism in place for ~98.5% per-skill token reduction; live cost-reduction lands when downstream callers adopt the path (25.D9.1 follow-up).
+
+**P1 sprint progress:** 17 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12 + 25.B9 + 25.D9).
+
+**Next cycle candidate:** 25.C9 (P1 Batch API for non-interactive pipeline steps; 50% savings) OR 25.E9 (P1 native Citations; deprecate CitationAgent) OR 25.S (P1 daily P&L attribution per ticker).

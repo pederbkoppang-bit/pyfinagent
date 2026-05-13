@@ -9,9 +9,14 @@ This module provides:
   - All 29 original get_*_prompt() functions preserved as thin wrappers
 """
 
+import hashlib
 import json
+import logging
 import re
 from pathlib import Path
+from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # ── Skill Loader ────────────────────────────────────────────────
 
@@ -19,6 +24,153 @@ SKILLS_DIR = Path(__file__).parent.parent / "agents" / "skills"
 
 # In-memory cache: {agent_name: (mtime, template_str)}
 _skill_cache: dict[str, tuple[float, str]] = {}
+
+# phase-25.D9: SHA256-keyed disk-persistent cache of Anthropic Files API
+# file_ids for skill markdowns. Lets the orchestrator upload each skill
+# once at startup (instead of re-injecting 500-3000 tokens of skill body
+# on every messages.create call). Closes phase-24.9 F-5 (~98.5% token
+# reduction per skill body).
+_SKILL_FILE_ID_CACHE_PATH = SKILLS_DIR / ".skill_file_ids.json"
+
+
+class SkillFileIdCache:
+    """SHA256-keyed disk-persistent file_id cache for Anthropic Files API.
+
+    The cache maps `agent_name -> {hash: str, file_id: str}`. On every
+    access we recompute the file's SHA256 and compare against the cached
+    hash; on mismatch we re-upload via
+    `ClaudeClient.upload_file_to_anthropic_files_api`. Survives backend
+    restarts via a JSON file at `_SKILL_FILE_ID_CACHE_PATH`.
+
+    Cache invalidation: SkillOptimizer's `reload_skills()` calls
+    `invalidate_stale()` which re-hashes every tracked file and re-uploads
+    when the hash differs.
+
+    Reference upload pattern: `sec_insider.py:311-334`.
+    """
+
+    _store: dict[str, dict] = {}  # agent_name -> {"hash": ..., "file_id": ...}
+    _loaded: bool = False
+
+    @classmethod
+    def _hash(cls, path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    @classmethod
+    def _ensure_loaded(cls) -> None:
+        if cls._loaded:
+            return
+        if _SKILL_FILE_ID_CACHE_PATH.exists():
+            try:
+                cls._store = json.loads(
+                    _SKILL_FILE_ID_CACHE_PATH.read_text(encoding="utf-8")
+                )
+            except Exception as exc:
+                logger.warning(
+                    "SkillFileIdCache: disk cache parse failed (%s); starting fresh",
+                    exc,
+                )
+                cls._store = {}
+        cls._loaded = True
+
+    @classmethod
+    def _save_disk_cache(cls) -> None:
+        try:
+            _SKILL_FILE_ID_CACHE_PATH.write_text(
+                json.dumps(cls._store, indent=2), encoding="utf-8"
+            )
+        except Exception as exc:
+            logger.warning(
+                "SkillFileIdCache: disk cache write failed: %r", exc,
+            )
+
+    @classmethod
+    def get_or_upload(cls, agent_name: str, claude_client_wrapper) -> Optional[str]:
+        """Return file_id for `agent_name`; upload if missing or stale.
+
+        `claude_client_wrapper` is a `ClaudeClient` instance (the wrapper
+        with `upload_file_to_anthropic_files_api`, NOT the bare SDK
+        client). Pass the wrapper so we can call the helper directly.
+
+        Returns None on any failure (caller falls back to inline path).
+        """
+        cls._ensure_loaded()
+        skill_path = SKILLS_DIR / f"{agent_name}.md"
+        if not skill_path.exists():
+            return None
+        try:
+            file_hash = cls._hash(skill_path)
+        except Exception as exc:
+            logger.warning(
+                "SkillFileIdCache.get_or_upload(%s) hash failed: %r",
+                agent_name, exc,
+            )
+            return None
+        cached = cls._store.get(agent_name)
+        if cached and cached.get("hash") == file_hash:
+            return cached.get("file_id")
+        # Hash mismatch (or new) -> upload.
+        try:
+            file_id = claude_client_wrapper.upload_file_to_anthropic_files_api(
+                skill_path, mime_type="text/plain",
+            )
+            cls._store[agent_name] = {"hash": file_hash, "file_id": file_id}
+            cls._save_disk_cache()
+            return file_id
+        except Exception as exc:
+            logger.warning(
+                "SkillFileIdCache.get_or_upload(%s) upload failed: %r",
+                agent_name, exc,
+            )
+            return None
+
+    @classmethod
+    def invalidate(cls, agent_name: str, claude_client_wrapper=None) -> None:
+        """Drop the cache entry for `agent_name`. If a client is provided,
+        immediately re-upload; otherwise the next `get_or_upload` will."""
+        cls._ensure_loaded()
+        cls._store.pop(agent_name, None)
+        cls._save_disk_cache()
+        if claude_client_wrapper is not None:
+            cls.get_or_upload(agent_name, claude_client_wrapper)
+
+    @classmethod
+    def invalidate_stale(cls, claude_client_wrapper) -> None:
+        """Re-hash every tracked agent; re-upload those whose hash changed."""
+        cls._ensure_loaded()
+        # Snapshot keys since the loop mutates _store.
+        for agent_name in list(cls._store.keys()):
+            skill_path = SKILLS_DIR / f"{agent_name}.md"
+            if not skill_path.exists():
+                cls._store.pop(agent_name, None)
+                continue
+            try:
+                file_hash = cls._hash(skill_path)
+            except Exception:
+                continue
+            cached = cls._store.get(agent_name) or {}
+            if cached.get("hash") != file_hash:
+                cls.get_or_upload(agent_name, claude_client_wrapper)
+        cls._save_disk_cache()
+
+    @classmethod
+    def bulk_upload_all(cls, claude_client_wrapper) -> dict[str, str]:
+        """Upload every skill .md file in SKILLS_DIR (except the template).
+
+        Returns a dict {agent_name: file_id} of successfully-uploaded
+        files. Failures log warnings and are omitted from the result.
+        Idempotent: already-cached unchanged files are not re-uploaded.
+        """
+        cls._ensure_loaded()
+        result: dict[str, str] = {}
+        for skill_path in SKILLS_DIR.glob("*.md"):
+            if skill_path.name == "SKILL_TEMPLATE.md":
+                continue
+            agent_name = skill_path.stem
+            file_id = cls.get_or_upload(agent_name, claude_client_wrapper)
+            if file_id:
+                result[agent_name] = file_id
+        return result
 
 
 def load_skill(agent_name: str) -> str:
@@ -63,9 +215,25 @@ def format_skill(template: str, **kwargs: str) -> str:
     return result
 
 
-def reload_skills() -> None:
-    """Clear the skill cache. Called by skill_optimizer after modifying skills.md files."""
+def reload_skills(anthropic_client_wrapper=None) -> None:
+    """Clear the in-memory skill template cache.
+
+    phase-25.D9: when `anthropic_client_wrapper` is a `ClaudeClient`
+    instance, ALSO invalidate any stale entries in `SkillFileIdCache`
+    -- this re-hashes each tracked skill .md file and re-uploads via
+    the Files API when SkillOptimizer has rewritten the file.
+    The new file_id is used by subsequent ClaudeClient.generate_content
+    calls. Callers without a Claude wrapper (Gemini path, tests, etc.)
+    can omit the kwarg -- behavior is identical to the pre-25.D9 contract.
+    """
     _skill_cache.clear()
+    if anthropic_client_wrapper is not None:
+        try:
+            SkillFileIdCache.invalidate_stale(anthropic_client_wrapper)
+        except Exception as exc:
+            logger.warning(
+                "reload_skills: SkillFileIdCache.invalidate_stale fail-open: %r", exc,
+            )
 
 
 def _build_fact_ledger_section(fact_ledger: str) -> str:

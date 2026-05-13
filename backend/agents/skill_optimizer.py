@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from backend.config.prompts import SKILLS_DIR, load_skill, reload_skills
+from backend.config.prompts import SKILLS_DIR, SkillFileIdCache, load_skill, reload_skills
 from backend.config.settings import Settings
 from backend.db.bigquery_client import BigQueryClient
 from backend.services.outcome_tracker import OutcomeTracker
@@ -424,8 +424,12 @@ class SkillOptimizer:
         new_content = content.replace(old_text, new_text, 1)
         skill_path.write_text(new_content, encoding="utf-8")
 
-        # Clear skill cache so the new prompt is picked up
+        # Clear skill cache so the new prompt is picked up.
+        # phase-25.D9: also drop the Anthropic Files API file_id for
+        # this agent so the next ClaudeClient call re-uploads the
+        # rewritten skill (hash mismatch -> re-upload).
         reload_skills()
+        SkillFileIdCache.invalidate(agent_name)
 
         # Validate the modified skill can still be loaded
         try:
@@ -434,6 +438,7 @@ class SkillOptimizer:
             logger.error(f"Modified skill for {agent_name} failed to load: {e}. Reverting.")
             skill_path.write_text(content, encoding="utf-8")
             reload_skills()
+            SkillFileIdCache.invalidate(agent_name)
             return False
 
         # Git commit the change
@@ -452,6 +457,8 @@ class SkillOptimizer:
             _git("checkout", "HEAD~1", "--", str(skill_path))
             _git("commit", "-m", f"skill-opt: revert {agent_name}")
             reload_skills()
+            # phase-25.D9: drop the Files API file_id for the reverted skill.
+            SkillFileIdCache.invalidate(agent_name)
             return True
         except RuntimeError as e:
             logger.error(f"Git revert failed for {agent_name}: {e}")

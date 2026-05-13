@@ -436,6 +436,27 @@ class AnalysisOrchestrator:
         # Load persisted memories from BigQuery (if available)
         self._load_memories_from_bq()
 
+        # phase-25.D9: bulk-upload skill markdowns to Anthropic Files API
+        # so subsequent generate_content calls reference each skill by
+        # file_id (~8 tokens) instead of injecting 500-3000 tokens of
+        # body inline. Closes phase-24.9 F-5. Fail-open: if the upload
+        # fails (Files API unavailable, beta header rejected, etc.) the
+        # existing inline-skill path is unaffected.
+        self._skill_file_ids: dict[str, str] = {}
+        try:
+            from backend.agents.llm_client import ClaudeClient as _ClaudeClient
+            from backend.config.prompts import SkillFileIdCache as _SFC
+            if isinstance(getattr(self, "general_client", None), _ClaudeClient):
+                self._skill_file_ids = _SFC.bulk_upload_all(self.general_client)
+                logger.info(
+                    "phase-25.D9: uploaded %d skill files to Anthropic Files API",
+                    len(self._skill_file_ids),
+                )
+        except Exception as exc:
+            logger.warning(
+                "phase-25.D9: skill bulk upload fail-open (inline path preserved): %r", exc,
+            )
+
     # ── Helpers ──────────────────────────────────────────────────────
 
     def _load_memories_from_bq(self):

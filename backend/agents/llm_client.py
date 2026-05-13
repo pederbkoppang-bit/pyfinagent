@@ -1082,6 +1082,50 @@ class ClaudeClient(LLMClient):
             )
         return _anthropic_sdk.Anthropic(api_key=self._api_key, max_retries=3)
 
+    def upload_file_to_anthropic_files_api(
+        self,
+        file_path,
+        mime_type: str = "text/plain",
+    ) -> str:
+        """phase-25.D9: upload a file to Anthropic's Files API.
+
+        Returns the `file_id` for subsequent reference in
+        `messages.create` via a `{"type": "document", "source":
+        {"type": "file", "file_id": "..."}}` content block. Mirrors
+        `backend/tools/sec_insider.py:311-334`. The response attribute
+        is `.id` (NOT `.file_id`) per Anthropic API docs.
+
+        Beta header `anthropic-beta: files-api-2025-04-14` is injected
+        by the Anthropic SDK automatically for `client.beta.files.upload`
+        but NOT for `messages.create` -- callers reference the returned
+        file_id and must pass `betas=["files-api-2025-04-14"]`
+        explicitly on the messages call.
+
+        Closes phase-24.9 F-5 (skill markdowns 500-3000 tokens each
+        re-injected every call; file_id reference is ~8 tokens, a
+        ~98.5% reduction per skill body).
+
+        ZDR caveat: Files API is NOT zero-data-retention eligible
+        today (per ARCHITECTURE.md). Skill markdowns contain no
+        customer PII, so this caveat does not block adoption.
+
+        Args:
+            file_path: pathlib.Path or str.
+            mime_type: defaults to "text/plain" -- there is no
+                "text/markdown" in Anthropic's supported MIME table;
+                .md files MUST upload as "text/plain".
+
+        Returns:
+            The Anthropic Files API file_id (e.g., "file_01H...").
+        """
+        import pathlib as _pathlib
+        path = _pathlib.Path(file_path)
+        client = self._get_client()
+        uploaded = client.beta.files.upload(
+            file=(path.name, path.read_bytes(), mime_type),
+        )
+        return uploaded.id  # NOT .file_id
+
     @property
     def cache_hit_rate(self) -> float:
         """Return prompt cache hit rate (0.0 - 1.0)."""
@@ -1157,6 +1201,33 @@ class ClaudeClient(LLMClient):
             "system": system_arg,
             "messages": [{"role": "user", "content": prompt}],
         }
+
+        # phase-25.D9: Files API skill reference. When the caller supplies
+        # `config["skill_file_id"]`, swap the user message from plain text
+        # to a structured content array with a document block referencing
+        # the uploaded skill .md file_id (the ~1500-token skill body is
+        # NOT re-sent inline; only the ~8-token file_id reference is).
+        # Beta header MUST be passed explicitly on messages.create; the
+        # SDK only auto-injects it for the upload call.
+        # Closes phase-24.9 F-5 (~98.5% skill-body token reduction).
+        skill_file_id = config.get("skill_file_id")
+        if skill_file_id:
+            kwargs["messages"] = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "document",
+                            "source": {"type": "file", "file_id": skill_file_id},
+                        },
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ]
+            existing_betas = kwargs.get("betas") or []
+            if "files-api-2025-04-14" not in existing_betas:
+                existing_betas = list(existing_betas) + ["files-api-2025-04-14"]
+            kwargs["betas"] = existing_betas
 
         # Extended thinking - model-gated.
         # MF-29 (2026-04-18): Opus 4.7 REJECTS manual
