@@ -126,33 +126,19 @@ def extract_signals_from_analysis(analysis: dict) -> list[dict]:
         )
         pos_pct = risk.get("recommended_position_pct")
         if decision or reasoning:
+            # phase-25.B: post-25.A, RiskJudge runs as an independent LLM call;
+            # its `reasoning` is structurally distinct from the trader's and
+            # `recommended_position_pct` is always > 0 by construction. The
+            # lite-path duplicate-detection block that lived here was dead
+            # code after cycle 69 (25.A) -- removed.
             risk_rationale = _trim(reasoning) or f"Decision: {decision}"
             risk_weight = float(pos_pct) if isinstance(pos_pct, (int, float)) else 0.0
-            # phase-23.2.A-fix: Option B -- detect lite-path duplicate. In lite
-            # mode the analyzer produces a single `reason` sentence used for both
-            # Trader and RiskJudge, and `recommended_position_pct` is absent
-            # (only the full risk_debate.py 4-agent path populates it). When we
-            # detect this, mark the row so the operator knows the Risk Judge
-            # layer was NOT independently evaluated, instead of showing the
-            # confusing weight=0.0 + identical-narrative duplicate.
-            trader_rationale_trimmed = _trim(trader_note) or f"Recommendation: {rec}"
-            is_lite_dup = (
-                risk_weight == 0.0
-                and risk_rationale == trader_rationale_trimmed
-            )
-            entry = {
+            signals.append({
                 "agent": "RiskJudge",
                 "role": "gate",
                 "rationale": risk_rationale,
                 "weight": risk_weight,
-            }
-            if is_lite_dup:
-                entry["rationale"] = (
-                    "Lite-path: Risk Judge inherited Trader's reasoning; "
-                    "no independent risk debate ran for this analysis."
-                )
-                entry["lite_path"] = True
-            signals.append(entry)
+            })
 
     return signals
 

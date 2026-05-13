@@ -17738,3 +17738,24 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 - 25.D9.1 (Layer-1 agents pass `config["skill_file_id"]` to consume the uploaded skills).
 - 25.S.1 (per-call ticker tagging in `llm_call_log` for exact attribution).
 - 25.B (P2 cosmetic-patch removal at `signal_attribution.py:131-154`; depends on 25.A done).
+
+---
+
+## Cycle 85 -- 2026-05-13 -- phase=25.B result=PASS
+
+**Step:** 25.B -- Remove cosmetic aliasing patch (P2 cleanup; post-25.A follow-up)
+**Action:** GENERATE. Closes phase-24.4 F-2 (signal_attribution.py:131-154 is_lite_dup detection became dead code after 25.A's RiskJudge decouple at cycle 69).
+
+**Code changes:**
+- `backend/services/signal_attribution.py`: removed the `is_lite_dup = (risk_weight == 0.0 and risk_rationale == trader_rationale_trimmed)` boolean + the conditional override branch + the `entry["lite_path"] = True` mutation. Simplified to direct `signals.append({...})` of the RiskJudge entry.
+- `frontend/src/components/AgentRationaleDrawer.tsx`: removed `lite_path?: boolean` from Signal interface; removed the amber lite-path badge `<span>`; removed the conditional `text-amber-200/80` color class (rationale text now solid `text-slate-200` always).
+
+**New verifier:** `tests/verify_phase_25_B.py` (130+ LOC, 6 immutable claims) -- **6/6 PASS, EXIT=0**. 5 structural grep claims (token absence + literal absence + interface field + badge + amber conditional) + 1 behavioral round-trip confirming `extract_signals_from_analysis` returns clean RiskJudge entry shape post-cleanup.
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Tier=simple research-gate shortcut on the 5-source floor accepted for pure code-deletion cleanups with prior-cycle design rationale established. Brief discloses the shortcut honestly.
+
+**Phase-25.B status -> done.** Dead-code cleanup complete; codebase now reflects the post-25.A reality.
+
+**Cumulative phase-25 progress:** 19 P1 done + 25.S P2 + 25.B P2 = 21 of ~40 phase-25 steps complete.
+
+**Next P2 candidates (per masterplan):** 25.C (P2 surface Layer-1 28-skill outputs in drawer), 25.B7 (P2 yfinance fallback counter), 25.M (P2 cost-budget Slack alert wire), 25.C7 (P2 unified data-freshness endpoint).

@@ -9,10 +9,6 @@ interface Signal {
   role: string;
   rationale: string;
   weight: number;
-  // phase-23.2.A-fix: when true, this Risk Judge row is the lite-path
-  // duplicate (no independent risk debate ran; reasoning inherited from
-  // Trader). Drawer renders an amber "lite-path" badge.
-  lite_path?: boolean;
 }
 
 interface Rationale {
@@ -165,23 +161,13 @@ function Layer({
             <p className="text-xs text-slate-400">
               <span className="font-medium text-slate-300">{s.agent}</span>
               {s.role ? <span className="ml-1 text-slate-500">({s.role})</span> : null}
-              {s.lite_path ? (
-                <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-300">
-                  lite-path
-                </span>
-              ) : null}
               {typeof s.weight === "number" ? (
                 <span className="float-right font-mono text-[11px] text-slate-500">
                   weight {s.weight.toFixed(2)}
                 </span>
               ) : null}
             </p>
-            <p
-              className={
-                "mt-1 whitespace-pre-wrap text-sm " +
-                (s.lite_path ? "text-amber-200/80" : "text-slate-200")
-              }
-            >
+            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-200">
               {s.rationale}
             </p>
           </div>
