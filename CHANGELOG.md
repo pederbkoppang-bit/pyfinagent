@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `3badd856` | phase-25.C9.1: Orchestrator instance-level BatchClient routing (gate + dispatcher method) |
 | 2026-05-13 | `e644e791` | phase-23.6.4: Restore missing observability symbols in backend/api/harness_autoresearch.py (surfa... |
 | 2026-05-13 | `f8cd280e` | phase-25.P: Weekly autoresearch summary Slack notification |
 | 2026-05-13 | `3b62700d` | phase-25.A10: Alpaca MCP tool-surface smoke test + deny-list reconcile |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `4c404fa1` | phase-25.C7: Unified /api/observability/data-freshness endpoint |
 | 2026-05-13 | `c6672b21` | phase-25.B: Remove cosmetic aliasing patch after 25.A decouples calls |
 | 2026-05-13 | `54f9fce0` | phase-25.C9: Adopt Batch API for non-interactive pipeline steps (50% savings) |
-| 2026-05-13 | `55e81823` | phase-25.S: Daily P&L attribution report per ticker |
 
 ---
 
+### v6.7.62 — phase-25.C9.1: Orchestrator instance-level BatchClient routing (gate... (2026-05-13)
+
+- **phase-25.C9.1: Orchestrator instance-level BatchClient routing (gate + dispatcher method)**
 ### v6.7.61 — phase-23.6.4: Restore missing observability symbols in backend/api/ha... (2026-05-13)
 
 - **phase-23.6.4: Restore missing observability symbols in backend/api/harness_autoresearch.py (surfa...**
