@@ -597,6 +597,13 @@ class LLMResponse:
     thoughts: str = ""
     usage_metadata: UsageMeta = field(default_factory=UsageMeta)
     grounding_metadata: list[dict] = field(default_factory=list)
+    # phase-25.E9: native Anthropic Citations metadata. Populated only when
+    # `config["citations"]=True` is passed AND the request contains a
+    # document content block with `citations.enabled=true`. None when no
+    # citations are returned (default) -- distinct from `[]` so consumers
+    # can branch on the "feature was not active" vs "feature was active
+    # but no citations matched" cases.
+    citations: Optional[list[dict]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -1212,14 +1219,24 @@ class ClaudeClient(LLMClient):
         # Closes phase-24.9 F-5 (~98.5% skill-body token reduction).
         skill_file_id = config.get("skill_file_id")
         if skill_file_id:
+            # phase-25.E9: when `config["citations"]` is truthy, enable
+            # native Anthropic Citations on the document block. Server
+            # interleaves `citations` metadata into text blocks at zero
+            # extra cost (cited_text doesn't count toward output tokens).
+            # Closes phase-24.9 F-6 (replaces the separate Sonnet
+            # _add_citations post-processing call).
+            citations_enabled = bool(config.get("citations"))
+            document_block: dict = {
+                "type": "document",
+                "source": {"type": "file", "file_id": skill_file_id},
+            }
+            if citations_enabled:
+                document_block["citations"] = {"enabled": True}
             kwargs["messages"] = [
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "document",
-                            "source": {"type": "file", "file_id": skill_file_id},
-                        },
+                        document_block,
                         {"type": "text", "text": prompt},
                     ],
                 }
@@ -1463,12 +1480,31 @@ class ClaudeClient(LLMClient):
         # Parse content blocks
         text = ""
         thoughts = ""
+        # phase-25.E9: collect native Anthropic Citations metadata when
+        # the request set `citations.enabled=true` on a document block.
+        # Each text block may carry a `.citations` list; we serialize each
+        # citation into a plain dict so downstream consumers don't depend
+        # on the SDK's typed objects.
+        citations_collected: list[dict] = []
         for block in response.content:
             block_type = getattr(block, "type", "")
             if block_type == "thinking":
                 thoughts = str(getattr(block, "thinking", ""))[:2000]
             elif block_type == "text":
                 text += getattr(block, "text", "")
+                for c in (getattr(block, "citations", None) or []):
+                    citations_collected.append({
+                        "type": getattr(c, "type", ""),
+                        "cited_text": getattr(c, "cited_text", ""),
+                        "document_index": getattr(c, "document_index", 0),
+                        "document_title": getattr(c, "document_title", ""),
+                        "start_char_index": getattr(c, "start_char_index", None),
+                        "end_char_index": getattr(c, "end_char_index", None),
+                        "start_page_number": getattr(c, "start_page_number", None),
+                        "end_page_number": getattr(c, "end_page_number", None),
+                        "start_block_index": getattr(c, "start_block_index", None),
+                        "end_block_index": getattr(c, "end_block_index", None),
+                    })
 
         usage = response.usage
 
@@ -1520,7 +1556,15 @@ class ClaudeClient(LLMClient):
         except Exception as _exc:  # pragma: no cover -- fail-open
             logger.debug("[ClaudeClient] llm_call_log write skipped: %r", _exc)
 
-        return LLMResponse(text=text, thoughts=thoughts, usage_metadata=umeta)
+        # phase-25.E9: surface native Citations metadata when present.
+        # `None` (not empty list) when no citations -> consumers can
+        # distinguish "feature inactive" from "feature active, no matches".
+        return LLMResponse(
+            text=text,
+            thoughts=thoughts,
+            usage_metadata=umeta,
+            citations=citations_collected if citations_collected else None,
+        )
 
 
 # ---------------------------------------------------------------------------

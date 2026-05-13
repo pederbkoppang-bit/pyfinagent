@@ -8956,7 +8956,7 @@
         {
           "id": "25.E9",
           "name": "Adopt native Citations; deprecate CitationAgent",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8973,7 +8973,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Cross-link guard at llm_client.py:874-881 (citations vs response_schema)."
+          "notes": "Cross-link guard at llm_client.py:874-881 (citations vs response_schema). Cycle 82 PASS first-spawn. 11/11 verifier (incl. 4 behavioral). _add_citations now no-op stub w/ DeprecationWarning; LLMResponse.citations surfaces native metadata."
         },
         {
           "id": "25.A7",

@@ -17645,3 +17645,30 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 17 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12 + 25.B9 + 25.D9).
 
 **Next cycle candidate:** 25.C9 (P1 Batch API for non-interactive pipeline steps; 50% savings) OR 25.E9 (P1 native Citations; deprecate CitationAgent) OR 25.S (P1 daily P&L attribution per ticker).
+
+---
+
+## Cycle 82 -- 2026-05-13 -- phase=25.E9 result=PASS
+
+**Step:** 25.E9 -- Adopt native Citations; deprecate CitationAgent (P1; completes Anthropic adoption mini-sprint with 25.B9 + 25.D9)
+**Action:** GENERATE. Closes phase-24.9 F-6 (multi_agent_orchestrator._add_citations ran separate Sonnet call for footnotes; native Citations does this server-side at zero extra cost; `cited_text` doesn't count toward output tokens).
+
+**Code changes:**
+- `backend/agents/llm_client.py`: 4 edits.
+  - `LLMResponse` dataclass extended with `citations: Optional[list[dict]] = None` (semantic: None=feature inactive, list=feature active with matches).
+  - Document-block injection (line ~1220, extends 25.D9 Files API path): when `config.get("citations")` is truthy, adds `document_block["citations"] = {"enabled": True}` before placing it in the messages content array.
+  - Parse loop (line ~1483) extended: for each `text` block, iterates `getattr(block, "citations", None) or []` and serializes each citation to a 10-field dict (type, cited_text, document_index, document_title, start/end_char_index, start/end_page_number, start/end_block_index).
+  - Return at line ~1559 passes `citations=citations_collected if citations_collected else None`.
+- `backend/agents/multi_agent_orchestrator.py::_add_citations`: method body replaced with `warnings.warn(..., DeprecationWarning, stacklevel=2)` + transparent short-circuit `return response, {"input": 0, "output": 0}`. Docstring updated to reference phase-25.E9 + native Citations. Existing call site at line 438-451 unchanged (its `if cited_response:` guard handles the unchanged-response case naturally).
+
+**New verifier:** `tests/verify_phase_25_E9.py` (300+ LOC, 11 immutable claims) -- **11/11 PASS, EXIT=0**. Four **behavioral round-trips**: citation extraction into LLMResponse, no-citations -> None (not []), document-block injection with `citations.enabled=true`, `_add_citations` DeprecationWarning + transparent short-circuit (response unchanged, usage 0/0).
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. 6 spirit-breaking mutations covered (drop toggle, drop config read, drop DeprecationWarning, flip None/empty semantics, re-enable Sonnet body, drop structured-outputs guard). Scope honest: method retained as no-op stub (removal deferred to cleanup); structured-outputs guard at `llm_client.py:1307-1321` preserved unchanged.
+
+**Cost impact:** ~$0.01-0.02 saved per Q&A response (eliminated `_add_citations` Sonnet call). `cited_text` is FREE (server-reconstructs from source; not billed). Citation fidelity improved (real char/page offsets vs heuristic post-hoc markers).
+
+**Phase-25.E9 status -> done.** Anthropic adoption mini-sprint complete: 25.B9 + 25.D9 + 25.E9 = system prompt cached + skill bodies offloaded to Files API + Q&A citations free.
+
+**P1 sprint progress:** 18 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12 + 25.B9 + 25.D9 + 25.E9).
+
+**Next cycle candidate:** 25.C9 (P1 Batch API for non-interactive pipeline steps; 50% savings) OR 25.S (P1 daily P&L attribution per ticker).

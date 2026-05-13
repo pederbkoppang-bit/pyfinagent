@@ -1283,54 +1283,36 @@ class MultiAgentOrchestrator:
 
     async def _add_citations(self, response, classification):
         """
-        CitationAgent: process response to add structured source citations.
+        DEPRECATED (phase-25.E9): replaced by native Anthropic Citations API.
 
-        Only runs for Q&A and Research agent responses (operational
-        responses from Ford don't need citations).
+        Native citations are server-side: pass `config["citations"]=True`
+        and a document block on the underlying messages.create call, and
+        Anthropic interleaves citation metadata into the text blocks at
+        zero extra cost (`cited_text` does not count toward output
+        tokens). The old behavior here ran a separate Sonnet call to
+        post-process responses with footnote markers -- ~$0.01-0.02
+        per Q&A response, now eliminated.
 
-        Uses Sonnet for cost efficiency — citation processing is
-        mechanical, not creative.
+        Retained as a no-op stub so existing callers keep working
+        unchanged. Removal slated for a future cleanup pass once all
+        upstream Q&A flows are migrated to set `config["citations"]`.
+
+        See: phase-25.E9 contract / handoff/current/research_brief.md
+        + Anthropic Citations docs.
         """
-        # Skip citation for operational/trivial responses
-        if classification.agent_type not in (AgentType.QA, AgentType.RESEARCH):
-            return response, {"input": 0, "output": 0}
-
-        # Skip if response is too short to benefit from citations
-        if len(response) < 200:
-            return response, {"input": 0, "output": 0}
-
-        cite_prompt = (
-            f"RESPONSE TO PROCESS:\n{response}\n\n"
-            f"YOUR TASK: Add numbered source citations to this response.\n\n"
-            f"RULES:\n"
-            f"- Add [1], [2], etc. markers after claims that have identifiable sources\n"
-            f"- At the end, add a '---\\n📚 *Sources:*' section listing each numbered source\n"
-            f"- If the response mentions author/year (e.g. 'Bailey & López de Prado (2014)'),"
-            f" convert to numbered format: claim [1] → [1] Bailey & López de Prado (2014)\n"
-            f"- If a claim references harness data (Sharpe values, evaluator scores), cite as"
-            f" '[N] pyfinAgent harness — evaluator_critique.md' or similar\n"
-            f"- If a claim has NO identifiable source, leave it uncited — do NOT invent sources\n"
-            f"- Preserve ALL original content — only add citation markers and the sources list\n"
-            f"- Keep the same formatting (bullets, headers, etc.)\n"
+        import warnings
+        warnings.warn(
+            "_add_citations is deprecated (phase-25.E9): "
+            "use native Anthropic Citations API by setting "
+            "config['citations']=True on document content blocks "
+            "instead of post-processing with a separate Sonnet call.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-
-        citation_config = AgentConfig(
-            agent_type=AgentType.COMMUNICATION,
-            name="CitationAgent",
-            model="claude-sonnet-4-6",
-            system_prompt="You are a citation processor. Add numbered source citations to research responses. Be precise — only cite real sources mentioned in the text.",
-            max_tokens=2000,
-        )
-
-        loop = asyncio.get_event_loop()
-        cited_response, usage = await loop.run_in_executor(
-            None, self._call_agent, citation_config, cite_prompt,
-        )
-
-        logger.info(
-            f"[Citation] CitationAgent processed ({usage.get('input',0)}+{usage.get('output',0)} tok)"
-        )
-        return cited_response, usage
+        # Transparent short-circuit: return the response unchanged so
+        # the call site's `if cited_response:` guard treats it as
+        # "no change" and skips the MASEvent emit.
+        return response, {"input": 0, "output": 0}
 
     # ═══════════════════════════════════════════════════════════════
     # PROMPT BUILDING (with harness context + 4-component delegation)
