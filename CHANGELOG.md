@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `ce7c4760` | phase-25.D9.1: Caller-side Files API adoption (skill_file_id wiring in run_*_agent calls) |
 | 2026-05-13 | `3badd856` | phase-25.C9.1: Orchestrator instance-level BatchClient routing (gate + dispatcher method) |
 | 2026-05-13 | `e644e791` | phase-23.6.4: Restore missing observability symbols in backend/api/harness_autoresearch.py (surfa... |
 | 2026-05-13 | `f8cd280e` | phase-25.P: Weekly autoresearch summary Slack notification |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `d679d7a3` | phase-25.M: Cost-budget Slack alert wire repair (no silent fail-open) |
 | 2026-05-13 | `4c404fa1` | phase-25.C7: Unified /api/observability/data-freshness endpoint |
 | 2026-05-13 | `c6672b21` | phase-25.B: Remove cosmetic aliasing patch after 25.A decouples calls |
-| 2026-05-13 | `54f9fce0` | phase-25.C9: Adopt Batch API for non-interactive pipeline steps (50% savings) |
 
 ---
 
+### v6.7.63 — phase-25.D9.1: Caller-side Files API adoption (skill_file_id wiring i... (2026-05-13)
+
+- **phase-25.D9.1: Caller-side Files API adoption (skill_file_id wiring in run_*_agent calls)**
 ### v6.7.62 — phase-25.C9.1: Orchestrator instance-level BatchClient routing (gate... (2026-05-13)
 
 - **phase-25.C9.1: Orchestrator instance-level BatchClient routing (gate + dispatcher method)**
