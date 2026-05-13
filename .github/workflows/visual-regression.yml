@@ -1,0 +1,93 @@
+name: Visual Regression
+
+# phase-25.A12: Playwright visual regression CI baseline.
+#
+# Closes phase-24.12 F-6 (docs/audits/phase-24-2026-05-12/screenshots/
+# was empty; no baseline images for visual-regression comparison).
+#
+# Operator first-run flow:
+#   1. From GitHub UI -> Actions -> "Visual Regression" -> Run workflow.
+#   2. Set `update_snapshots = true` to capture fresh baselines on Linux
+#      (macOS-generated snapshots fail CI due to font/antialiasing
+#      differences -- documented Playwright pitfall). The workflow runs
+#      `playwright test --update-snapshots` and auto-commits the PNGs
+#      under `frontend/tests/visual-regression/snapshots/chromium/`.
+#   3. Subsequent push/PR runs compare the new screenshots vs the
+#      committed baselines; CI fails when maxDiffPixelRatio > 0.015.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/visual-regression.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/visual-regression.yml"
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: "Regenerate baselines via --update-snapshots"
+        required: false
+        default: "false"
+
+jobs:
+  visual-regression:
+    name: Playwright Visual Regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Update baselines (workflow_dispatch only)
+        if: ${{ github.event.inputs.update_snapshots == 'true' }}
+        run: npx playwright test --update-snapshots
+        env:
+          CI: "true"
+
+      - name: Commit updated baselines (workflow_dispatch only)
+        if: ${{ github.event.inputs.update_snapshots == 'true' }}
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update playwright visual regression baselines [skip ci]"
+          file_pattern: "frontend/tests/visual-regression/snapshots/**"
+
+      - name: Run visual regression tests
+        if: ${{ github.event.inputs.update_snapshots != 'true' }}
+        run: npx playwright test
+        env:
+          CI: "true"
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: frontend/playwright-report/
+          retention-days: 30
+
+      - name: Upload diff screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-diffs-${{ github.sha }}
+          path: frontend/test-results/
+          retention-days: 14

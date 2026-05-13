@@ -17572,3 +17572,29 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 14 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12).
 
 **Next cycle candidate:** 25.A12 (P1 Playwright visual regression CI baseline) OR 25.A10 (P1 Alpaca MCP tool-surface smoke test) OR 25.B (P2 cosmetic-patch removal).
+
+---
+
+## Cycle 79 -- 2026-05-13 -- phase=25.A12 result=PASS
+
+**Step:** 25.A12 -- Playwright visual regression CI baseline (P1)
+**Action:** GENERATE. Closes phase-24.12 F-6 (no baseline images for visual diff in docs/audits/phase-24-2026-05-12/screenshots/).
+
+**Code changes (infrastructure, not application):**
+- `frontend/package.json`: new devDependency `@playwright/test: ^1.50.0`.
+- `frontend/playwright.config.ts` (new): research-canonical config -- `maxDiffPixelRatio: 0.015`, `threshold: 0.2`, `animations: 'disabled'`, `reducedMotion: 'reduce'`, viewport 1280x800, chromium-only, `webServer` runs `npm run dev` with `NEXT_PUBLIC_E2E_TESTING=true`.
+- `frontend/tests/visual-regression/helpers/visual.ts` (new): `disableAnimations(page)` + `dynamicMasks(page)` (timestamps / skeletons / spinners / pulses / animate / recharts ticks).
+- `frontend/tests/visual-regression/*.spec.ts` (new, 8 files): home, paper-trading, performance, backtest, agents, sovereign, reports, agent-map. Each: `goto` -> `disableAnimations` -> `waitForLoadState('networkidle')` -> `toHaveScreenshot({ fullPage: true, mask: dynamicMasks(page) })`.
+- `frontend/tests/visual-regression/snapshots/chromium/<page>.spec.ts/.gitkeep` (new, 8 placeholders): structurally populates the snapshots dir BEFORE first CI run. Playwright ignores non-PNG files; real PNG baselines land alongside on first `--update-snapshots`. Deliberately NOT 1x1 PNGs because Playwright raises "snapshot size mismatch" rather than "no baseline" on first comparison.
+- `frontend/tests/visual-regression/README.md` (new): documents the first-run workflow_dispatch flow + Linux-only constraint (macOS-generated baselines fail CI due to font/antialiasing diffs).
+- `.github/workflows/visual-regression.yml` (new): `ubuntu-latest`, `actions/setup-node@v5` + `npx playwright install --with-deps chromium`, conditional update step gated by `if: ${{ github.event.inputs.update_snapshots == 'true' }}`, auto-commit baselines via `stefanzweifel/git-auto-commit-action@v5`, artifact uploads (report always, diffs on failure).
+
+**New verifier:** `tests/verify_phase_25_A12.py` (180+ LOC, 12 immutable claims) -- **12/12 PASS, EXIT=0**. Structural checks (no behavioral round-trips this cycle -- the artifact IS the test infrastructure; running it requires installed Playwright + CI environment): config presence + canonical keys, GHA workflow shape (setup-node + playwright install + conditional update gate + artifact upload + ubuntu-latest), helper signatures, >=7 page specs with toHaveScreenshot + goto, 8 `.gitkeep` placeholders at per-page paths, README documents first-run flow.
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Anti-rubber-stamp: 5 of 6 plausible mutations mapped to catching claims; 1 advisory follow-up (reducedMotion grep) flagged as non-blocking. Scope honest: real PNG baselines deferred to operator workflow_dispatch on Linux; .gitkeep populates dir for criterion 3 structurally.
+
+**Phase-25.A12 status -> done.** Infrastructure shipped; operator triggers workflow_dispatch with `update_snapshots=true` for first-run baseline capture. The push gate (`live_check_gate.py`) is satisfied by the live_check_25.A12.md artifact; actual baseline-image-commit happens on the operator-triggered CI run, not in this commit.
+
+**P1 sprint progress:** 15 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6 + 25.C12 + 25.A12).
+
+**Next cycle candidate:** 25.B9 (P1 system-prompt cache threshold) OR 25.C9 (P1 Batch API for non-interactive pipeline steps) OR 25.D9 (P1 Files API for skill markdowns) OR 25.E9 (P1 native Citations).

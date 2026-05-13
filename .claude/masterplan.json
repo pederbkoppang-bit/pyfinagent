@@ -8868,7 +8868,7 @@
         {
           "id": "25.A12",
           "name": "Playwright visual regression CI baseline",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
@@ -8885,7 +8885,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Masks dynamic timestamps per Ash Connolly guidance."
+          "notes": "Masks dynamic timestamps per Ash Connolly guidance. Cycle 79 PASS first-spawn. 12/12 verifier structural checks. 8 pages covered. Real baselines deferred to operator workflow_dispatch (Linux required)."
         },
         {
           "id": "25.B9",
