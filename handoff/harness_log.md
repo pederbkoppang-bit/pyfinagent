@@ -18090,3 +18090,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 35 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.F3, 25.B10.1, follow-ups (25.C9.1, 25.D9.1, 25.S.1).
+
+---
+
+## Cycle 100 -- 2026-05-13 -- phase=25.A10 result=PASS
+
+**Step:** 25.A10 -- Alpaca MCP tool-surface smoke test + deny-list reconcile (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.10 F-2.
+
+**Code changes:**
+- `scripts/mcp_servers/smoke_test_alpaca_mcp.py`: NEW 135-line MCP handshake smoke test. Spawns `alpaca-mcp-server==2.0.1` via uvx; accepts BOTH canonical env var forms (ALPACA_API_KEY/SECRET + legacy _ID/_KEY); translates to server-expected names. SKIPs gracefully (exit=0) when credentials are absent so CI doesn't break on key-less runners. Live-verified locally: 61 tools enumerated, all 6 sampled canonical read+write tools confirmed.
+- `scripts/mcp_servers/reconcile_alpaca_deny_list.py`: NEW 75-line static set-compare. Reads `.claude/settings.json::permissions.deny[]`; asserts all 11 canonical V2 write-class Alpaca tools (place_stock_order, place_crypto_order, place_option_order, cancel_order_by_id, cancel_all_orders, replace_order_by_id, close_position, close_all_positions, exercise_options_position, do_not_exercise_options_position, update_account_config) are present.
+- `.claude/settings.json`: deny list updated from V1 names (5 alpaca entries: place_order, cancel_order, replace_order, close_position, close_all_positions) to V2 names (11 alpaca entries). Aligns with pinned `alpaca-mcp-server==2.0.1`.
+
+**New verifier:** `tests/verify_phase_25_A10.py` -- **5/5 PASS, EXIT=0**. Smoke-test structural grep + skip-on-no-creds regex (`"SKIP\s+--"`) + reconcile-script structural + reconcile subprocess invocation (exit=0) + 11-tool deny-list set check.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (real subprocess invocation of reconcile + static set-compare catches future drift). Scope honesty: the `.mcp.json` env var mismatch (ALPACA_API_KEY_ID vs server's ALPACA_API_KEY) is explicitly flagged + deferred to 25.A10.1.
+
+**Live-check artefact:** `handoff/current/live_check_25.A10.md` documenting the live smoke run output + future-drift caveat.
+
+**Phase-25.A10 status -> done.** Bucket 24.10 F-2 RESOLVED.
+
+**Cumulative phase-25 progress:** 36 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.B10.1 (lesser-secret SecretStr), 25.A10.1 (.mcp.json env-var fix), follow-ups.

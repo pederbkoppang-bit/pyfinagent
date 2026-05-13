@@ -9318,7 +9318,7 @@
         {
           "id": "25.A10",
           "name": "Alpaca MCP tool-surface smoke test + deny-list reconcile",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
@@ -9334,7 +9334,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 100 PASS 5/5; QA single-spawn PASS; live-check at handoff/current/live_check_25.A10.md; live smoke verified 61 tools"
         },
         {
           "id": "25.B10",
