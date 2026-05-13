@@ -125,7 +125,7 @@ class StuckTaskReaper:
                 from slack_sdk import WebClient
                 from backend.config.settings import get_settings
                 settings = get_settings()
-                client = WebClient(token=settings.slack_bot_token)
+                client = WebClient(token=settings.slack_bot_token.get_secret_value())
                 client.chat_postMessage(
                     channel=sender_id,
                     text=message

@@ -5,7 +5,7 @@ Uses pydantic-settings for validation and .env file support.
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, SecretStr
 from functools import lru_cache
 
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
@@ -61,8 +61,9 @@ class Settings(BaseSettings):
     # --- News streaming adapters (phase-6.3) ---
     finnhub_api_key: str = Field("", description="Finnhub API token for market + company news (empty => adapter returns [])")
     benzinga_api_key: str = Field("", description="Benzinga API token for /api/v2/news (empty => adapter returns [])")
-    alpaca_api_key_id: str = Field("", description="Alpaca API Key ID for data.alpaca.markets/v1beta1/news (empty => adapter returns [])")
-    alpaca_api_secret_key: str = Field("", description="Alpaca API Secret Key for news endpoint (empty => adapter returns [])")
+    # phase-25.B10: SecretStr-typed so repr() masks the value in logs / stack traces.
+    alpaca_api_key_id: SecretStr = Field(SecretStr(""), description="Alpaca API Key ID for data.alpaca.markets/v1beta1/news (empty => adapter returns [])")
+    alpaca_api_secret_key: SecretStr = Field(SecretStr(""), description="Alpaca API Secret Key for news endpoint (empty => adapter returns [])")
 
     # --- Sentiment scorer ladder (phase-6.5) ---
     sentiment_min_confidence: float = Field(0.7, description="Escalation threshold in [0,1]. VADER+FinBERT results below this floor escalate to the next rung (WASSA 2024 cascade operating point).")
@@ -84,9 +85,10 @@ class Settings(BaseSettings):
     regime_detection_enabled: bool = Field(False, description="Opt-in: use VIXRollingQuantileRegimeDetector in spot_checks_harness instead of the static pre/post-COVID fallback.")
 
     # --- Multi-Provider LLM Keys (v3.4) ---
-    anthropic_api_key: str = Field("", description="Anthropic API key for direct Claude access (sk-ant-...)")
-    openai_api_key: str = Field("", description="OpenAI API key for direct GPT/o-series access (sk-...)")
-    github_token: str = Field("", description="GitHub PAT for GitHub Models (Copilot Pro). Routes GITHUB_MODELS_CATALOG models via models.inference.ai.azure.com")
+    # phase-25.B10: SecretStr-typed so repr() masks values in logs / stack traces.
+    anthropic_api_key: SecretStr = Field(SecretStr(""), description="Anthropic API key for direct Claude access (sk-ant-...)")
+    openai_api_key: SecretStr = Field(SecretStr(""), description="OpenAI API key for direct GPT/o-series access (sk-...)")
+    github_token: SecretStr = Field(SecretStr(""), description="GitHub PAT for GitHub Models (Copilot Pro). Routes GITHUB_MODELS_CATALOG models via models.inference.ai.azure.com")
 
     # --- GCS ---
     gcs_bucket_name: str = Field("10k-filling-data", description="GCS bucket for filings and transcripts")
@@ -193,12 +195,14 @@ class Settings(BaseSettings):
     )
 
     # --- Authentication ---
-    auth_secret: str = Field("", description="NextAuth.js AUTH_SECRET for JWE decryption. Empty = auth disabled (dev mode).")
+    # phase-25.B10: SecretStr-typed so repr() masks the secret in logs / stack traces.
+    auth_secret: SecretStr = Field(SecretStr(""), description="NextAuth.js AUTH_SECRET for JWE decryption. Empty = auth disabled (dev mode).")
     allowed_emails: str = Field("", description="Comma-separated email whitelist. Empty = allow all authenticated users.")
 
     # --- Slack Bot ---
-    slack_bot_token: str = Field("", description="Slack Bot User OAuth Token (xoxb-...)")
-    slack_app_token: str = Field("", description="Slack App-Level Token for Socket Mode (xapp-...)")
+    # phase-25.B10: SecretStr-typed so repr() masks tokens in logs / stack traces.
+    slack_bot_token: SecretStr = Field(SecretStr(""), description="Slack Bot User OAuth Token (xoxb-...)")
+    slack_app_token: SecretStr = Field(SecretStr(""), description="Slack App-Level Token for Socket Mode (xapp-...)")
     slack_channel_id: str = Field("", description="Slack channel ID for proactive alerts and digests")
     morning_digest_hour: int = Field(8, description="Hour (0-23) for daily morning digest in local timezone")
     evening_digest_hour: int = Field(17, description="Hour (0-23) for daily evening digest in local timezone")

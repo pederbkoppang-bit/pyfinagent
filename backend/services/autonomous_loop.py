@@ -837,7 +837,7 @@ async def _run_claude_analysis(ticker: str, settings: Settings) -> dict:
             f"AnalysisOrchestrator fallback in _run_single_analysis."
         )
 
-    api_key = settings.anthropic_api_key or os.getenv("ANTHROPIC_API_KEY", "")
+    api_key = settings.anthropic_api_key.get_secret_value() or os.getenv("ANTHROPIC_API_KEY", "")
     if not api_key:
         raise ValueError("No ANTHROPIC_API_KEY available")
 

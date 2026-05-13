@@ -158,7 +158,7 @@ async def get_current_user(request: Request) -> Optional[dict]:
     # follow-up). Now the only way to skip auth is an explicit opt-in
     # env var DEV_DISABLE_AUTH=1. Without it, a missing AUTH_SECRET is a
     # hard failure so operators notice at the first unauthenticated call.
-    if not settings.auth_secret:
+    if not settings.auth_secret.get_secret_value():
         if os.getenv("DEV_DISABLE_AUTH") == "1":
             return None
         raise HTTPException(
@@ -195,7 +195,7 @@ async def get_current_user(request: Request) -> Optional[dict]:
     last_error: Optional[Exception] = None
     for salt, tok in candidates:
         try:
-            payload = decrypt_jwe(tok, settings.auth_secret, salt=salt)
+            payload = decrypt_jwe(tok, settings.auth_secret.get_secret_value(), salt=salt)
             break
         except Exception as e:
             last_error = e

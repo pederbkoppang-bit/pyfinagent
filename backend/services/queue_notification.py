@@ -76,7 +76,7 @@ class QueueNotificationService:
                 from slack_sdk import WebClient
                 from backend.config.settings import get_settings
                 settings = get_settings()
-                self.slack_client = WebClient(token=settings.slack_bot_token)
+                self.slack_client = WebClient(token=settings.slack_bot_token.get_secret_value())
                 self._slack_client_initialized = True
                 logger.debug("Slack client initialized")
             except Exception as e:

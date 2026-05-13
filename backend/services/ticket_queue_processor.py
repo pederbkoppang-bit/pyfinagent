@@ -173,7 +173,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             # Create Anthropic client
             # Check for API key from environment or settings
             import os
-            api_key = settings.anthropic_api_key or os.getenv('ANTHROPIC_API_KEY')
+            api_key = settings.anthropic_api_key.get_secret_value() or os.getenv('ANTHROPIC_API_KEY')
             if not api_key:
                 raise ValueError("ANTHROPIC_API_KEY not found in settings or environment. Please configure ANTHROPIC_API_KEY.")
 

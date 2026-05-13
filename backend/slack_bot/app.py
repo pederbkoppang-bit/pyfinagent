@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def create_app() -> AsyncApp:
     settings = get_settings()
-    app = AsyncApp(token=settings.slack_bot_token)
+    app = AsyncApp(token=settings.slack_bot_token.get_secret_value())
 
     # Register event handlers
     register_commands(app)
@@ -46,7 +46,7 @@ async def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     settings = get_settings()
 
-    if not settings.slack_bot_token or not settings.slack_app_token:
+    if not settings.slack_bot_token.get_secret_value() or not settings.slack_app_token.get_secret_value():
         logger.error("SLACK_BOT_TOKEN and SLACK_APP_TOKEN are required. Set them in .env")
         return
 
@@ -68,7 +68,7 @@ async def main():
     asyncio.create_task(start_stuck_task_reaper(check_interval=60))
     logger.info("🔪 Stuck-Task Reaper started as background task")
 
-    handler = AsyncSocketModeHandler(app, settings.slack_app_token)
+    handler = AsyncSocketModeHandler(app, settings.slack_app_token.get_secret_value())
     logger.info("Slack bot starting in Socket Mode...")
     await handler.start_async()
 

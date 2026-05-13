@@ -175,7 +175,7 @@ class MultiAgentOrchestrator:
                 import anthropic
                 from backend.config.settings import get_settings
                 settings = get_settings()
-                api_key = settings.anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
+                api_key = settings.anthropic_api_key.get_secret_value() or os.getenv("ANTHROPIC_API_KEY")
                 if not api_key:
                     raise ValueError("ANTHROPIC_API_KEY not configured.")
                 self._client = anthropic.Anthropic(api_key=api_key)

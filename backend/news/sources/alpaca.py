@@ -50,8 +50,8 @@ class AlpacaSource:
 
     def fetch(self) -> Iterable[RawArticle]:
         settings = get_settings()
-        key_id = settings.alpaca_api_key_id or ""
-        secret = settings.alpaca_api_secret_key or ""
+        key_id = settings.alpaca_api_key_id.get_secret_value() or ""
+        secret = settings.alpaca_api_secret_key.get_secret_value() or ""
         if not key_id or not secret:
             logger.debug(
                 "alpaca: ALPACA_API_KEY_ID or ALPACA_API_SECRET_KEY missing, returning []"

@@ -128,7 +128,7 @@ def _call_llm_for_review(prompt: str) -> Optional[dict[str, Any]]:
         from backend.config.settings import get_settings
 
         settings = get_settings()
-        api_key = settings.anthropic_api_key or os.getenv("ANTHROPIC_API_KEY", "")
+        api_key = settings.anthropic_api_key.get_secret_value() or os.getenv("ANTHROPIC_API_KEY", "")
         if api_key and api_key.startswith("sk-ant-api"):
             try:
                 import anthropic

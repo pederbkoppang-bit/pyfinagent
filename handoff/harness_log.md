@@ -17998,3 +17998,26 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 31 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.F3, 25.B6, 25.B10, follow-ups (25.C9.1, 25.D9.1, 25.S.1).
+
+---
+
+## Cycle 96 -- 2026-05-13 -- phase=25.B10 result=PASS
+
+**Step:** 25.B10 -- SecretStr migration for API keys/tokens (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.10 F-4.
+
+**Code changes:**
+- `backend/config/settings.py`: imported `SecretStr` from pydantic; type-flipped 8 fields (anthropic_api_key, openai_api_key, github_token, alpaca_api_key_id, alpaca_api_secret_key, auth_secret, slack_bot_token, slack_app_token) each with `SecretStr = Field(SecretStr(""), ...)` shape.
+- 11 downstream consumer files updated (16 total call sites): multi_agent_orchestrator (1), autonomous_loop (1), ticket_queue_processor (1), directive_review (1), directive_rewriter (1), news/sources/alpaca (2), api/auth (2), slack_bot/app (3), stuck_task_reaper (1), response_delivery (2), queue_notification (1). Each site now reads `settings.<key>.get_secret_value()`.
+
+**New verifier:** `tests/verify_phase_25_B10.py` -- **5/5 PASS, EXIT=0**. SecretStr import + anthropic-typed + 6-field bulk-typed + 16-consumer count + LIVE repr-masking test (injects fake secrets via env, instantiates Settings, asserts both `**********` in repr AND no plaintext leak).
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (live repr test is a true behavioral check, not just static typing). Scope honesty: lesser secrets (alphavantage_api_key, fred_api_key, patentsview_api_key, finnhub_api_key, benzinga_api_key) explicitly deferred to 25.B10.1.
+
+**Live-check artefact:** `handoff/current/live_check_25.B10.md` documenting the python-c repr smoke test + auth-endpoint smoke.
+
+**Phase-25.B10 status -> done.** Bucket 24.10 F-4 RESOLVED.
+
+**Cumulative phase-25 progress:** 32 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.B6 (seed-stability), 25.F3, 25.B10.1 (lesser-secret cleanup).

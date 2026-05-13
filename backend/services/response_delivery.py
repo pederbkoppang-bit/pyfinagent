@@ -89,7 +89,7 @@ class ResponseDeliveryService:
             from backend.config.settings import get_settings
 
             settings = get_settings()
-            if not settings.slack_bot_token:
+            if not settings.slack_bot_token.get_secret_value():
                 logger.error("SLACK_BOT_TOKEN not configured, cannot send Slack response")
                 return False
 
@@ -97,7 +97,7 @@ class ResponseDeliveryService:
             if ticket_number:
                 message += f"\n\n_Ticket #{ticket_number}_"
 
-            client = AsyncWebClient(token=settings.slack_bot_token)
+            client = AsyncWebClient(token=settings.slack_bot_token.get_secret_value())
 
             kwargs = {
                 "channel": channel_id,
