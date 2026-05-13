@@ -1,0 +1,42 @@
+name: Seed-Stability Gate
+
+# phase-25.B6: enforce reproducibility gate. The drill at
+# `scripts/go_live_drills/seed_stability_test.py` reads
+# `handoff/seed_stability_results.json` and asserts that the
+# Sharpe stddev across 5 random seeds is below 0.1 (Lopez de
+# Prado canonical reproducibility threshold). A failing drill
+# blocks the PR.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  seed-stability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Run seed-stability drill
+        # The drill is stdlib-only: it reads the committed baseline JSON
+        # and computes mean / std across the 5 fixed seeds. Hard gate:
+        # std < 0.1 (defined as STD_THRESHOLD in the script).
+        run: |
+          python scripts/go_live_drills/seed_stability_test.py
+
+      - name: Upload baseline (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seed-stability-baseline
+          path: handoff/seed_stability_results.json
+          if-no-files-found: warn

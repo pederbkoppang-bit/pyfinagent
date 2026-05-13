@@ -9232,7 +9232,7 @@
         {
           "id": "25.B6",
           "name": "Seed-stability test run + baseline commit + CI gate",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
@@ -9249,7 +9249,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 97 PASS 6/6; QA single-spawn PASS; live-check at handoff/current/live_check_25.B6.md"
         },
         {
           "id": "25.D7",

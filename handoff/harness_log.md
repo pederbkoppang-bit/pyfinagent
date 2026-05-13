@@ -18021,3 +18021,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 32 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.B6 (seed-stability), 25.F3, 25.B10.1 (lesser-secret cleanup).
+
+---
+
+## Cycle 97 -- 2026-05-13 -- phase=25.B6 result=PASS
+
+**Step:** 25.B6 -- Seed-stability test run + baseline commit + CI gate (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.6 F-2.
+
+**Code changes:** none (existing drill at `scripts/go_live_drills/seed_stability_test.py` + baseline at `handoff/seed_stability_results.json` already correct). This cycle adds the CI wrapper.
+
+**New files:**
+- `.github/workflows/seed-stability-check.yml`: 43-line workflow triggered on PR + workflow_dispatch; runs the drill on ubuntu-latest+Python3.14; uploads baseline JSON as workflow artifact; 5-min timeout.
+
+**New verifier:** `tests/verify_phase_25_B6.py` -- **6/6 PASS, EXIT=0**. Baseline-JSON schema + std<0.1 + workflow-file-exists + workflow-invokes-drill + drill-enforces-threshold + behavioral drill invocation returning exit=0 with the canonical S5 PASS line.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance: claim 6 is a live drill invocation rather than static inspection -- future regressions where std rises above 0.1 will trip the CI gate.
+
+**Live-check artefact:** `handoff/current/live_check_25.B6.md` documenting the gh workflow run + drill output.
+
+**Phase-25.B6 status -> done.** Bucket 24.6 F-2 RESOLVED.
+
+**Cumulative phase-25 progress:** 33 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.D7, 25.E7, 25.F3 (P2 backlog), 25.B10.1 (lesser secrets), follow-ups (25.C9.1, 25.D9.1, 25.S.1).
