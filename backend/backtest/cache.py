@@ -18,6 +18,13 @@ logger = logging.getLogger(__name__)
 # Default market — used when no market parameter is passed
 _DEFAULT_MARKET = "US"
 
+# phase-25.D7: max acceptable age for the most-recent macro row.
+# 35 days covers FRED-monthly series (publication lag ~10-15 days
+# after month end) with grace. Older than this and `preload_macro`
+# refuses to cache + emits a WARNING -- prevents silently powering
+# backtests with stale macro factors. Closes audit bucket 24.7 F-5.
+MACRO_MAX_AGE_DAYS = 35
+
 # ── Preloaded full-range data (keyed by ticker only, sliced on read) ─
 _prices_full: dict[str, pd.DataFrame] = {}
 _fundamentals_full: dict[str, list[dict]] = {}
@@ -205,6 +212,31 @@ def preload_macro() -> int:
     if not rows:
         logger.warning("preload_macro: 0 rows returned")
         return 0
+
+    # phase-25.D7: refuse to cache stale macro -- prevents silent backtest
+    # corruption when FRED ingestion stalls. Compare the most recent row
+    # date across all series with today - MACRO_MAX_AGE_DAYS.
+    from datetime import date as _date, datetime as _dt
+    today = _date.today()
+    max_date: Optional[_date] = None
+    for r in rows:
+        rd = r.get("date") if hasattr(r, "get") else r["date"]
+        if isinstance(rd, _dt):
+            rd = rd.date()
+        if isinstance(rd, _date):
+            if max_date is None or rd > max_date:
+                max_date = rd
+    if max_date is not None:
+        age_days = (today - max_date).days
+        if age_days > MACRO_MAX_AGE_DAYS:
+            logger.warning(
+                "preload_macro: stale data, refusing to cache "
+                "(max_date=%s age=%d days threshold=%d days)",
+                max_date.isoformat(),
+                age_days,
+                MACRO_MAX_AGE_DAYS,
+            )
+            return 0
 
     total_rows = len(rows)
     current_series: str | None = None

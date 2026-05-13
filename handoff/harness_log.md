@@ -18068,3 +18068,25 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 34 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.D7 (preload_macro max-age), 25.F3, follow-ups.
+
+---
+
+## Cycle 99 -- 2026-05-13 -- phase=25.D7 result=PASS
+
+**Step:** 25.D7 -- preload_macro() max-age guard, 35-day FRED-monthly default (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.7 F-5.
+
+**Code changes:**
+- `backend/backtest/cache.py`: NEW module-level constant `MACRO_MAX_AGE_DAYS = 35` (default FRED-monthly tolerance: publication lag ~10-15 days + grace). In `preload_macro()`, after the BQ query returns rows: compute the most-recent `date` across all series via a normalization that accepts both `datetime` and `date` types; if `(today - max_date).days > 35`, emit a single WARNING log + return 0 + DO NOT populate `_macro_full`. Fresh-data path unchanged.
+
+**New verifier:** `tests/verify_phase_25_D7.py` -- **4/4 PASS, EXIT=0**. Constant grep + comparison-logic grep + behavioral stale-rows (40-45 days old) refuse-and-warn + behavioral fresh-rows (5-10 days) cache normally.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (live BQ mocking + log-record capture across both stale + fresh paths).
+
+**Live-check artefact:** `handoff/current/live_check_25.D7.md` documenting the Python-c stale-data injection + expected WARNING output.
+
+**Phase-25.D7 status -> done.** Bucket 24.7 F-5 RESOLVED.
+
+**Cumulative phase-25 progress:** 35 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.F3, 25.B10.1, follow-ups (25.C9.1, 25.D9.1, 25.S.1).
