@@ -212,8 +212,16 @@ def log_llm_call(
     cache_read_tok: int = 0,
     request_id: str | None = None,
     ok: bool = True,
+    ticker: str | None = None,
 ) -> None:
-    """Buffer a llm_call_log row. Never raises."""
+    """Buffer a llm_call_log row. Never raises.
+
+    phase-25.S.1: `ticker` kwarg enables exact per-ticker cost
+    attribution. Requires the `ticker STRING` column added by
+    `scripts/migrations/add_ticker_to_llm_call_log.py` -- writes
+    succeed even pre-migration (BQ insert errors are caught at
+    flush_llm and logged at WARNING; never raise).
+    """
     try:
         row = {
             "ts": _now_iso(),
@@ -228,6 +236,7 @@ def log_llm_call(
             "cache_read_tok": int(cache_read_tok),
             "request_id": request_id,
             "ok": bool(ok),
+            "ticker": ticker,
         }
         with _llm_lock:
             _llm_buffer.append(row)

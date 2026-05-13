@@ -18208,3 +18208,33 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 39 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.D9.2 (cache_control on doc block), 25.C9.2 (run_full_analysis batch refactor), 25.S.1 (per-call ticker tagging).
+
+---
+
+## Cycle 105 -- 2026-05-13 -- phase=25.S.1 result=PASS
+
+**Step:** 25.S.1 -- Per-call ticker tagging in llm_call_log + cost_tracker for exact per-ticker attribution (P2; depends on 25.S done cycle 88). NEW masterplan entry inserted between 25.S and 25.B6.
+**Action:** GENERATE. Closes the per-call ticker tagging follow-up from 25.S.
+
+**North-star alignment:** Closes the cost-denominator side of the auto-switch goal-c at the ticker granularity. With per-call ticker tagging the meta-evolution layer can compute `profit_per_llm_dollar` per ticker and auto-prune unprofitable tickers -- a direct ticker-level rendering of "shift strategy to whichever is making the most money". Compounds with 25.C9.1 (batch) + 25.D9.1 (Files API) cost-reductions for tight attribution.
+
+**Code changes:**
+- NEW `scripts/migrations/add_ticker_to_llm_call_log.py`: idempotent `ALTER TABLE ADD COLUMN IF NOT EXISTS ticker STRING`. Dry-run default, `--apply` flag. Modeled on 25.B7 / 25.Q pattern.
+- `backend/services/observability/api_call_log.py`: `log_llm_call(..., ticker=None)` kwarg + `"ticker": ticker` in row dict (so flush_llm INSERTs include the column).
+- `backend/agents/cost_tracker.py`: NEW `AgentCostEntry.ticker: Optional[str] = None` field; `CostTracker.record(..., ticker=None)` kwarg; threaded into entry construction.
+- `backend/agents/orchestrator.py::_generate_with_retry`: plucks `call_ticker = generation_config.get("_ticker")` (read-only, no dict mutation) and passes `ticker=call_ticker` to `ct.record()`. Uses the same `_<key>` orchestrator-private side-channel pattern established by 25.D9.1's `skill_file_id`.
+- `backend/agents/llm_client.py::ClaudeClient.generate_content`: passes `ticker=config.get("_ticker")` to `log_llm_call()`.
+
+**Research-gate:** tier=moderate, 5 sources fetched in full (Anthropic Messages API docs + Traceloop + LiteLLM + AWS Bedrock attribution + Braintrust 2026). 12 URLs collected. Recency scan: Anthropic has not added custom billing tags through May 2026; application-layer tagging is the canonical industry pattern. gate_passed=true.
+
+**New verifier:** `tests/verify_phase_25_S_1.py` -- **7/7 PASS, EXIT=0**. 5 structural (migration ALTER TABLE + log_llm_call signature + AgentCostEntry field + record kwarg + orchestrator pluck + ClaudeClient pluck) + 2 LIVE behavioral round-trips (CostTracker.record(ticker="AAPL") -> entry.ticker; log_llm_call(ticker="MSFT") -> buffered row.ticker).
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (2 LIVE behavioral round-trips that exercise both rails end-to-end + 5 structural cross-checks). Scope honesty: caller-adoption (run_*_agent passing `{"_ticker": ticker}`) deferred to 25.S.1.1; GeminiClient instrumentation deferred to 25.S.2.
+
+**Live-check artefact:** `handoff/current/live_check_25.S.1.md` documenting migration `--apply` + python-c smoke + BQ INFORMATION_SCHEMA verify.
+
+**Phase-25.S.1 status -> done.** Per-call ticker tagging RESOLVED.
+
+**Cumulative phase-25 progress:** 40 of ~40 phase-25 steps complete (rounding includes 3 newly-added follow-ups: 25.C9.1, 25.D9.1, 25.S.1).
+
+**Next P2 candidates:** 25.S.1.1 (caller-adoption -- thread `_ticker` in run_*_agent), 25.C9.2 (batch hot-path refactor), 25.D9.2 (cache_control on doc block).

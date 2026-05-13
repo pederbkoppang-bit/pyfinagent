@@ -9276,6 +9276,29 @@
           "notes": "Cycle 83 PASS first-spawn. 10/10 verifier (incl. 4 behavioral: proportional split, zero-cost None, empty trades, exact ratio). Proportional cost split is first-pass; per-ticker tagging in llm_call_log deferred to 25.S.1."
         },
         {
+          "id": "25.S.1",
+          "name": "Per-call ticker tagging in llm_call_log + cost_tracker for exact per-ticker attribution",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "25.S",
+          "audit_basis": "25.S shipped /attribution with proportional-split-by-trade-count first-pass; llm_call_log table has no ticker column so exact per-call attribution is unavailable. Closes the cost-denominator side of the auto-switch goal at the ticker granularity (red-line goal-c rendered per-ticker, not just per-strategy).",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_S_1.py",
+            "success_criteria": [
+              "migration_script_adds_ticker_column_to_llm_call_log",
+              "cost_tracker_record_accepts_ticker_kwarg",
+              "generate_with_retry_propagates_ticker_from_generation_config",
+              "log_llm_call_persists_ticker_in_row_dict"
+            ],
+            "live_check": "After running migration --apply and a Claude-mode analysis, BQ llm_call_log table has non-NULL ticker for new rows and can be GROUP BY ticker"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Cycle 105 PASS 7/7; researcher 5 sources in full; QA single-spawn PASS; live-check at handoff/current/live_check_25.S.1.md; caller adoption + Gemini instrumentation deferred to 25.S.1.1 / 25.S.2"
+        },
+        {
           "id": "25.B6",
           "name": "Seed-stability test run + baseline commit + CI gate",
           "status": "done",

@@ -98,6 +98,12 @@ class AgentCostEntry:
     # non-interactive request through `BatchClient` (n>3 tickers in
     # backtest mode). Closes phase-24.9 F-4.
     is_batch: bool = False
+    # phase-25.S.1: optional per-call ticker tag enabling exact per-ticker
+    # cost attribution. None when the call isn't ticker-scoped (e.g., a
+    # MetaCoordinator decision call). When set, flows into llm_call_log
+    # for downstream `profit_per_llm_dollar` aggregation at the ticker
+    # granularity (north-star goal-c rendered per-ticker).
+    ticker: Optional[str] = None
 
 
 @dataclass
@@ -117,6 +123,7 @@ class CostTracker:
         is_deep_think: bool = False,
         is_grounded: bool = False,
         is_batch: bool = False,
+        ticker: Optional[str] = None,
     ) -> Optional[AgentCostEntry]:
         """
         Extract token counts from a Vertex AI response and record the entry.
@@ -177,6 +184,7 @@ class CostTracker:
             cache_creation_input_tokens=cache_creation,
             cache_read_input_tokens=cache_read,
             is_batch=is_batch,
+            ticker=ticker,
         )
 
         with self._lock:

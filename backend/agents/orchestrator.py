@@ -514,6 +514,17 @@ class AnalysisOrchestrator:
         model_name = model.model_name
         ct = getattr(self, "_cost_tracker", None)
 
+        # phase-25.S.1: pluck the orchestrator-side `_ticker` from
+        # generation_config so the cost-tracker entry is tagged with the
+        # ticker. Don't mutate the caller's dict; reference-read only.
+        # `_ticker` is also visible to `model.generate_content` (e.g.
+        # ClaudeClient) which forwards it to `log_llm_call(ticker=...)`.
+        # The underscore prefix marks it as an orchestrator-private key
+        # so the API request body builder can pop/ignore it.
+        call_ticker = None
+        if isinstance(generation_config, dict):
+            call_ticker = generation_config.get("_ticker")
+
         # phase-4.14.12 (MF-37): thinking config for judge agents now
         # flows to any client whose `supports_thinking=True` -- both
         # Gemini and Claude judges benefit. Each client's
@@ -541,7 +552,7 @@ class AnalysisOrchestrator:
                     future = executor.submit(model.generate_content, prompt, **gen_kwargs)
                     response = future.result(timeout=timeout)
                 if ct:
-                    ct.record(agent_name, model_name, response, is_deep_think=is_deep_think, is_grounded=is_grounded)
+                    ct.record(agent_name, model_name, response, is_deep_think=is_deep_think, is_grounded=is_grounded, ticker=call_ticker)
                 return response
             except concurrent.futures.TimeoutError:
                 logger.error(f"{agent_name} timed out after {timeout}s (attempt {attempt+1}/{max_retries})")

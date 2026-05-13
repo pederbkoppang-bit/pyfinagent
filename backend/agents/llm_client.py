@@ -1540,6 +1540,11 @@ class ClaudeClient(LLMClient):
         try:
             from backend.services.observability import log_llm_call as _log_llm_call
 
+            # phase-25.S.1: pluck `_ticker` from generation_config (set by
+            # _generate_with_retry via the orchestrator-private side-channel)
+            # so the llm_call_log row carries the ticker tag. Enables
+            # `SELECT ticker, SUM(input_tok * pricing) FROM llm_call_log`
+            # for exact per-ticker LLM-cost attribution.
             _log_llm_call(
                 provider="anthropic",
                 model=self.model_name,
@@ -1552,6 +1557,7 @@ class ClaudeClient(LLMClient):
                 cache_read_tok=cache_read,
                 request_id=getattr(response, "_request_id", None),
                 ok=True,
+                ticker=config.get("_ticker") if isinstance(config, dict) else None,
             )
         except Exception as _exc:  # pragma: no cover -- fail-open
             logger.debug("[ClaudeClient] llm_call_log write skipped: %r", _exc)
