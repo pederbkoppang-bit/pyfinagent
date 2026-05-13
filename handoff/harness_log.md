@@ -17526,3 +17526,24 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **P1 sprint progress:** 12 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7).
 
 **Next cycle candidate:** 25.D6 (P1 planner plateau-detection lock-file; no deps) OR 25.A10 (P1 Alpaca MCP smoke test) OR 25.B (P2 cosmetic-patch removal).
+
+---
+
+## Cycle 77 -- 2026-05-13 -- phase=25.D6 result=PASS
+
+**Step:** 25.D6 -- Planner plateau-detection lock-file enforcement (P1)
+**Action:** GENERATE. Closes phase-24.6 F-5 (62-experiment plateau bypassed planner Rule 1 strategy-switch).
+
+**Code changes:**
+- `backend/backtest/quant_optimizer.py`: new `PLATEAU_THRESHOLD: int = 10` constant (Keras default + Optax 5-15 range), new `_PLATEAU_LOCK_PATH` (`handoff/locks/optimizer_plateau.lock`), new module-level `write_plateau_lock(run_id, consecutive_discards) -> None` helper emitting `{created_at, trigger, consecutive_discards, run_id, cleared_at: null}` JSON + WARNING log. Two plateau checks wired in `run_loop`: one after the bottom-of-loop log (covers discard + dsr_reject paths), one inside the crash branch before `continue` (crash branch cannot bypass the fence). On threshold hit: write lock, set status to `plateau_locked`, `break`.
+- `backend/api/backtest.py`: new helpers `_plateau_lock_path() -> Path` and `_read_plateau_lock() -> dict | None` (fail-open: missing file, corrupt JSON, or `cleared_at != null` -> None). `start_optimizer` guarded after existing 400/409 checks -- if lock present, raises `HTTPException(409, detail={"error": "PlateauLockPresent", "message": ..., "lock": payload})`. New `DELETE /api/backtest/optimize/lock` route -- 404 if absent; otherwise reads payload, sets `cleared_at`, appends to `handoff/audit/optimizer_plateau_audit.jsonl`, removes the file, returns `{status: "cleared", lock: payload}`.
+
+**New verifier:** `tests/verify_phase_25_D6.py` (340+ LOC, 11 immutable claims) -- **11/11 PASS, EXIT=0**. Six **behavioral round-trips**: lock-write JSON shape, 409 with PlateauLockPresent error key + lock payload, clear-lock removes file + writes audit JSONL with cleared_at, cleared-sentinel handling, corrupt-JSON fail-open (no crash), 404 when absent.
+
+**Q/A verdict:** **PASS (first spawn)**. 5/5 harness-compliance CONFIRM. Anti-bypass grep confirmed: `consecutive_discards >= PLATEAU_THRESHOLD` appears at TWO distinct sites in the loop (crash branch + main path) so the crash branch cannot bypass the fence. Scope honest: threshold rationale (Keras 10, Optax 5-15, matches live-check) documented; audit JSONL pattern mirrors `kill_switch_audit.jsonl`; fail-open consistent.
+
+**Phase-25.D6 status -> done.** 62-experiment plateau cannot recur: file-based lock survives backend restarts; operators must explicitly DELETE to acknowledge and resume.
+
+**P1 sprint progress:** 13 of 19 P1 candidates done (25.A9 + 25.A2 + 25.B12 + 25.A11 + 25.A + 25.A3 + 25.B3 + 25.C3 + 25.R + 25.Q + 25.A6 + 25.A7 + 25.D6).
+
+**Next cycle candidate:** 25.A10 (P1 Alpaca MCP tool-surface smoke test) OR 25.A12 (P1 Playwright visual regression CI baseline) OR 25.B (P2 cosmetic-patch removal).

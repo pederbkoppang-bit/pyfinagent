@@ -228,6 +228,33 @@ async def get_ingestion_status():
 
 # ── Optimizer Endpoints ──────────────────────────────────────────
 
+
+# phase-25.D6: plateau-detection lock helpers. The lock file is written by
+# `backend/backtest/quant_optimizer.py::write_plateau_lock` after N
+# consecutive discards. While the lock is present, `start_optimizer`
+# returns 409 -- operators must `DELETE /api/backtest/optimize/lock` to
+# acknowledge the plateau and resume. Reader is fail-open (corrupt file
+# treated as absent, never raises out).
+def _plateau_lock_path() -> Path:
+    return Path(__file__).resolve().parents[2] / "handoff" / "locks" / "optimizer_plateau.lock"
+
+
+def _read_plateau_lock() -> dict | None:
+    p = _plateau_lock_path()
+    if not p.exists():
+        return None
+    try:
+        payload = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        logger.warning("plateau lock file at %s is corrupt; treating as absent", p)
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("cleared_at") is not None:
+        return None
+    return payload
+
+
 @router.post("/optimize")
 async def start_optimizer(req: OptimizerStartRequest = OptimizerStartRequest(max_iterations=0, use_llm=False)):
     """Start quant strategy optimization loop (background)."""
@@ -237,6 +264,23 @@ async def start_optimizer(req: OptimizerStartRequest = OptimizerStartRequest(max
         raise HTTPException(400, "Optimizer already running")
     if _backtest_state["status"] == "running":
         raise HTTPException(409, "Backtest is running - optimizer unavailable")
+
+    # phase-25.D6: plateau lock-file gate. Closes phase-24.6 F-5.
+    plateau_lock = _read_plateau_lock()
+    if plateau_lock is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "PlateauLockPresent",
+                "message": (
+                    f"Optimizer halted after "
+                    f"{plateau_lock.get('consecutive_discards')} consecutive discards "
+                    f"(run_id={plateau_lock.get('run_id')}). Strategy switch required. "
+                    "Call DELETE /api/backtest/optimize/lock to acknowledge and resume."
+                ),
+                "lock": plateau_lock,
+            },
+        )
 
     _optimizer_state = {
         "status": "running",
@@ -267,6 +311,41 @@ async def stop_optimizer():
 
     _optimizer_state["status"] = "stopped"
     return {"status": "stopping"}
+
+
+@router.delete("/optimize/lock")
+def clear_plateau_lock():
+    """phase-25.D6: clear the optimizer plateau lock.
+
+    The lock is written by the optimizer after N consecutive discards
+    (closes phase-24.6 F-5). This endpoint is the operator's
+    acknowledgment action -- it appends an audit record to
+    `handoff/audit/optimizer_plateau_audit.jsonl` and removes the lock
+    file. Subsequent `POST /api/backtest/optimize` calls succeed again.
+    """
+    from datetime import datetime, timezone
+    p = _plateau_lock_path()
+    if not p.exists():
+        raise HTTPException(404, "No plateau lock file found")
+    try:
+        payload = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        payload = {}
+    payload["cleared_at"] = datetime.now(timezone.utc).isoformat()
+    audit_path = p.parent.parent / "audit" / "optimizer_plateau_audit.jsonl"
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(audit_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload) + "\n")
+            f.flush()
+    except Exception as exc:
+        logger.warning("plateau lock audit append failed: %r", exc)
+    p.unlink()
+    logger.info(
+        "Plateau lock cleared by operator (run_id=%s, was at %d discards)",
+        payload.get("run_id"), payload.get("consecutive_discards"),
+    )
+    return {"status": "cleared", "lock": payload}
 
 
 @router.get("/optimize/status")

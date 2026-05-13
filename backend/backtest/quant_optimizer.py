@@ -32,6 +32,38 @@ _TSV_PATH = _EXPERIMENTS_DIR / "quant_results.tsv"
 _BEST_PARAMS_PATH = _EXPERIMENTS_DIR / "optimizer_best.json"
 _TSV_HEADER = "timestamp\trun_id\tparam_changed\tmetric_before\tmetric_after\tdelta\tstatus\tdsr\ttop5_mda\tparams_json\tparent_run_id\n"
 
+# phase-25.D6: plateau-detection lock-file enforcement. Prevents the
+# 62-experiment plateau bug (bucket 24.6 F-5) where the optimizer kept
+# iterating despite no productive results. N=10 matches the Keras
+# ReduceLROnPlateau default and Optax 5-15 range; second tier above the
+# existing `think_harder >= 5` softer signal at this file's line ~205.
+PLATEAU_THRESHOLD: int = 10
+_PLATEAU_LOCK_PATH = (
+    Path(__file__).parent.parent.parent / "handoff" / "locks" / "optimizer_plateau.lock"
+)
+
+
+def write_plateau_lock(run_id: str, consecutive_discards: int) -> None:
+    """phase-25.D6: write the plateau lock-file. Subsequent
+    `POST /api/backtest/optimize` calls will return 409 until an operator
+    calls `DELETE /api/backtest/optimize/lock`. The lock is file-based so
+    it survives backend restarts (in-memory counters reset on crash).
+    """
+    _PLATEAU_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "trigger": f"plateau_{consecutive_discards}_discards",
+        "consecutive_discards": int(consecutive_discards),
+        "run_id": str(run_id),
+        "cleared_at": None,
+    }
+    _PLATEAU_LOCK_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    logger.warning(
+        "QuantOptimizer: plateau lock written after %d consecutive discards (run_id=%s). "
+        "Operator must DELETE /api/backtest/optimize/lock to acknowledge and resume.",
+        consecutive_discards, run_id,
+    )
+
 # All available strategies (categorical param)
 AVAILABLE_STRATEGIES = ["triple_barrier", "quality_momentum", "mean_reversion", "factor_model", "meta_label", "blend"]
 
@@ -244,6 +276,18 @@ class QuantStrategyOptimizer:
                 self._current_detail = f"experiment {i} CRASHED: {change_desc} -- {e}"
                 self._report_status()
                 consecutive_discards += 1
+                # phase-25.D6: a streak of crashes is itself a plateau signal.
+                # Check the same threshold here so the crash branch can't
+                # bypass the lock-file fence.
+                if consecutive_discards >= PLATEAU_THRESHOLD:
+                    write_plateau_lock(self._run_id, consecutive_discards)
+                    self._current_step = "plateau_locked"
+                    self._current_detail = (
+                        f"plateau detected after {consecutive_discards} consecutive "
+                        f"discards (last was a crash); lock written"
+                    )
+                    self._report_status()
+                    break
                 continue
 
             delta = trial_sharpe - self.best_sharpe
@@ -312,6 +356,21 @@ class QuantStrategyOptimizer:
             self._current_step = "evaluated"
             self._current_detail = f"{status}: {change_desc} (Sharpe {trial_sharpe:.4f})"
             self._report_status()
+
+            # phase-25.D6: plateau-detection lock. After PLATEAU_THRESHOLD
+            # consecutive discards/dsr_rejects/crashes, halt the loop and
+            # write a lock-file. Operators must DELETE /api/backtest/
+            # optimize/lock to acknowledge the plateau and resume. Closes
+            # phase-24.6 F-5 (62-experiment plateau bypassed planner Rule 1).
+            if consecutive_discards >= PLATEAU_THRESHOLD:
+                write_plateau_lock(self._run_id, consecutive_discards)
+                self._current_step = "plateau_locked"
+                self._current_detail = (
+                    f"plateau detected after {consecutive_discards} consecutive discards; "
+                    f"lock written, operator action required"
+                )
+                self._report_status()
+                break
 
         # Clean up caches after all iterations
         self.engine.clear_feature_cache()
