@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `55e81823` | phase-25.S: Daily P&L attribution report per ticker |
 | 2026-05-13 | `1687a289` | phase-25.E9: Adopt native Citations; deprecate CitationAgent |
 | 2026-05-13 | `63f2c96b` | phase-25.D9: Adopt Files API for skill markdowns (~97% token reduction) |
 | 2026-05-13 | `92e29ef6` | phase-25.B9: Bump system prompt above 4096-token cache threshold |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-12 | `436f2e10` | phase-25.A2: Wire bq.save_report() into full pipeline persistence |
 | 2026-05-12 | `a1791417` | phase-25.J: Trade confirmation Slack notifications |
 | 2026-05-12 | `ee14becf` | phase-25.6: No-stop-on-entry hard block in execute_buy() |
-| 2026-05-12 | `48b662ec` | phase-25.2: Backfill missing stops with same-cycle re-check |
 
 ---
 
+### v6.7.42 — phase-25.S: Daily P&L attribution report per ticker (2026-05-13)
+
+- **phase-25.S: Daily P&L attribution report per ticker**
 ### v6.7.41 — phase-25.E9: Adopt native Citations; deprecate CitationAgent (2026-05-13)
 
 - **phase-25.E9: Adopt native Citations; deprecate CitationAgent**
