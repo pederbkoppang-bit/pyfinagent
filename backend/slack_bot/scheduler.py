@@ -667,7 +667,12 @@ def register_phase9_jobs(
                 },
             }
         except Exception as exc:
-            logger.warning("register_phase9_jobs: production-fn wiring fail-open: %r", exc)
+            # phase-25.M: was logger.warning, swallowed silently in
+            # default views. Promote to ERROR + exc_info so a factory
+            # wiring failure surfaces visibly (audit bucket 24.5 F-5(d)).
+            logger.error(
+                "register_phase9_jobs: production-fn wiring failed: %r", exc, exc_info=True
+            )
             prod_fns_per_job = {}
     # phase-23.3.3: include APScheduler safety params per researcher's brief.
     # `misfire_grace_time` prevents stale-tick fires on restart;

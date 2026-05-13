@@ -17785,3 +17785,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 22 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7).
 
 **Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing in drawer), 25.B7 (yfinance fallback counter), 25.M (cost-budget Slack alert wire), 25.D (P2 backlog).
+
+---
+
+## Cycle 87 -- 2026-05-13 -- phase=25.M result=PASS
+
+**Step:** 25.M -- Cost-budget Slack alert wire repair, no silent fail-open (P2; depends on 25.A9).
+**Action:** GENERATE. Closes audit bucket 24.5 F-5(d).
+
+**Code changes:**
+- `backend/slack_bot/jobs/_production_fns.py::make_alert_fn_for_budget`: added input validation -- raises `ValueError` if `app is None`, `loop is None`, or `channel == ""`. Previously a misconfig silently produced a closure that posted to "" channel.
+- `backend/slack_bot/jobs/_production_fns.py::_post_slack_sync`: promoted exception log from `logger.warning("alert_fn: Slack post fail-open: %r", exc)` to `logger.error("alert_fn: Slack post failed: %r", exc, exc_info=True)`.
+- `backend/slack_bot/scheduler.py::register_phase9_jobs`: promoted production-fn wiring exception log from `logger.warning("... wiring fail-open ...")` to `logger.error("... wiring failed ...", exc_info=True)`.
+
+**New verifier:** `tests/verify_phase_25_M.py` -- **5/5 PASS, EXIT=0**. 4 structural claims (factory raises on `channel=""`, factory raises on `loop=None`, scheduler uses `logger.error+exc_info`, `_post_slack_sync` uses `logger.error+exc_info`) + 1 behavioral round-trip (spawns stub event loop on background thread, builds real alert_fn with MagicMock app whose `chat_postMessage` raises, confirms `_CapturingHandler` captures an ERROR record).
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Caller safety verified: the new `ValueError` from an unconfigured `slack_channel_id` is caught by the existing outer try/except at `scheduler.py:670` and now logged at ERROR -- making the misconfig operator-visible rather than silently dropping every cost-budget alert.
+
+**Live-check artefact:** `handoff/current/live_check_25.M.md` documenting the inject-misconfig command + expected output.
+
+**Phase-25.M status -> done.** Bucket 24.5 F-5(d) RESOLVED.
+
+**Cumulative phase-25 progress:** 23 of ~40 phase-25 steps complete (19 P1 + 25.S + 25.B + 25.C7 + 25.M).
+
+**Next P2 candidates:** 25.C (Layer-1 28-skill output surfacing in drawer), 25.B7 (yfinance fallback counter), 25.D (P2 backlog).

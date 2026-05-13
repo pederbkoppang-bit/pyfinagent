@@ -9127,7 +9127,7 @@
         {
           "id": "25.M",
           "name": "Cost-budget Slack alert wire repair (no silent fail-open)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "25.A9",
@@ -9143,7 +9143,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 87 PASS 5/5 verifier; QA single-spawn PASS; live-check at handoff/current/live_check_25.M.md"
         },
         {
           "id": "25.N",

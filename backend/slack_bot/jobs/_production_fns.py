@@ -276,7 +276,10 @@ def _post_slack_sync(
         future = asyncio.run_coroutine_threadsafe(coro, loop)
         future.result(timeout=10)
     except Exception as exc:
-        logger.warning("alert_fn: Slack post fail-open: %r", exc)
+        # phase-25.M: promote to ERROR + exc_info=True so the failure
+        # surfaces in the alert pipeline rather than being swallowed at
+        # the default WARNING level (audit bucket 24.5 F-5(d)).
+        logger.error("alert_fn: Slack post failed: %r", exc, exc_info=True)
 
 
 def make_alert_fn_for_budget(
@@ -287,7 +290,25 @@ def make_alert_fn_for_budget(
     """Return a sync alert_fn for cost_budget_watcher.
 
     Signature matches `alert_fn(reason: str, state: dict) -> None`.
+
+    phase-25.M: factory now fails LOUD at wiring time. Previously a
+    misconfig (channel="" or app/loop None) produced a closure that
+    silently posted to Slack's "" channel, triggering an API 400 that
+    only surfaced at WARNING -- invisible in default log views. Audit
+    bucket 24.5 F-5(d).
     """
+    if app is None:
+        raise ValueError(
+            "make_alert_fn_for_budget: app is required (got None); cost-budget alerts would silently drop"
+        )
+    if loop is None:
+        raise ValueError(
+            "make_alert_fn_for_budget: loop is required (got None); cost-budget alerts would silently drop"
+        )
+    if not channel:
+        raise ValueError(
+            f"make_alert_fn_for_budget: channel must be non-empty (got {channel!r}); cost-budget alerts would post to empty channel"
+        )
 
     def _alert(reason: str, state: dict) -> None:
         text = f":rotating_light: *Cost-budget breach* — {reason}"
