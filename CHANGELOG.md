@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `3b62700d` | phase-25.A10: Alpaca MCP tool-surface smoke test + deny-list reconcile |
 | 2026-05-13 | `45fce6f5` | phase-25.D7: preload_macro() max-age guard (35-day FRED-monthly default) |
 | 2026-05-13 | `9b4f2572` | phase-25.E7: yfinance_tool.get_price_history() try/except + counter |
 | 2026-05-13 | `e0dfcab0` | phase-25.B6: Seed-stability test run + baseline commit + CI gate |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `55e81823` | phase-25.S: Daily P&L attribution report per ticker |
 | 2026-05-13 | `1687a289` | phase-25.E9: Adopt native Citations; deprecate CitationAgent |
 | 2026-05-13 | `63f2c96b` | phase-25.D9: Adopt Files API for skill markdowns (~97% token reduction) |
-| 2026-05-13 | `92e29ef6` | phase-25.B9: Bump system prompt above 4096-token cache threshold |
 
 ---
 
+### v6.7.59 — phase-25.A10: Alpaca MCP tool-surface smoke test + deny-list reconcile (2026-05-13)
+
+- **phase-25.A10: Alpaca MCP tool-surface smoke test + deny-list reconcile**
 ### v6.7.58 — phase-25.D7: preload_macro() max-age guard (35-day FRED-monthly default) (2026-05-13)
 
 - **phase-25.D7: preload_macro() max-age guard (35-day FRED-monthly default)**
