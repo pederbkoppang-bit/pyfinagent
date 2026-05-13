@@ -82,7 +82,59 @@ def get_comprehensive_financials(ticker: str) -> dict:
 
 
 def get_price_history(ticker: str, period: str = "1y") -> list[dict]:
-    """Fetches historical OHLCV data for charts / ML training."""
-    stock = yf.Ticker(ticker)
-    df = stock.history(period=period)
-    return df.reset_index().to_dict(orient="records")
+    """Fetches historical OHLCV data for charts / ML training.
+
+    phase-25.E7: wraps the yfinance call in try/except + emits a
+    `data_source_events` row on failure so operators can compute
+    rate-limit / quota / no-data dominance over any window. Closes
+    audit bucket 24.7 F-4 (previously unguarded).
+
+    Returns a single-element error list on failure / empty-DataFrame:
+        [{"error": "<reason>", "ticker": ticker}]
+    so callers iterating get exactly one structured error row.
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        df = stock.history(period=period)
+        if df is None or df.empty:
+            logger.warning(
+                "get_price_history empty result for %s (period=%s)", ticker, period
+            )
+            _persist_yfinance_event(ticker, "empty_dataframe")
+            return [{"error": "no_data", "ticker": ticker}]
+        return df.reset_index().to_dict(orient="records")
+    except Exception as exc:
+        logger.warning(
+            "get_price_history failed for %s (period=%s): %r",
+            ticker,
+            period,
+            exc,
+            exc_info=True,
+        )
+        _persist_yfinance_event(ticker, type(exc).__name__)
+        return [{"error": str(exc), "ticker": ticker}]
+
+
+def _persist_yfinance_event(ticker: str, notes: str) -> None:
+    """phase-25.E7: best-effort write to `data_source_events` so the
+    `pct_yfinance_fallback_dominance` aggregation can include
+    price-history failures. Fail-open: any BQ failure is swallowed
+    so the caller still gets the structured error response.
+    """
+    try:
+        from backend.config.settings import get_settings
+        from backend.db.bigquery_client import BigQueryClient
+        bq = BigQueryClient(get_settings())
+        bq.save_data_source_event(
+            ticker=ticker,
+            source="yfinance_price_history",
+            kind="fallback",
+            article_count=None,
+            notes=str(notes)[:200],
+        )
+    except Exception as bq_exc:
+        logger.warning(
+            "yfinance_price_history: save_data_source_event fail-open for %s: %r",
+            ticker,
+            bq_exc,
+        )

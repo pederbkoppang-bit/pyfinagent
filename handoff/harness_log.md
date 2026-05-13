@@ -18045,3 +18045,26 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 33 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.D7, 25.E7, 25.F3 (P2 backlog), 25.B10.1 (lesser secrets), follow-ups (25.C9.1, 25.D9.1, 25.S.1).
+
+---
+
+## Cycle 98 -- 2026-05-13 -- phase=25.E7 result=PASS
+
+**Step:** 25.E7 -- yfinance_tool.get_price_history() try/except + counter (P2; no dep).
+**Action:** GENERATE. Closes audit bucket 24.7 F-4.
+
+**Code changes:**
+- `backend/tools/yfinance_tool.py::get_price_history`: NEW try/except wrapper around `yf.Ticker(ticker).history(period=period)` + empty-DataFrame branch. On exception: log WARNING (exc_info=True) + persist `data_source_events` row + return `[{"error": str(exc), "ticker": ticker}]`. On empty DataFrame: same shape with `error="no_data"` + `notes="empty_dataframe"`.
+- NEW `_persist_yfinance_event(ticker, notes)` helper: thin BQ wrapper with its own try/except (fail-open).
+
+**New verifier:** `tests/verify_phase_25_E7.py` -- **5/5 PASS, EXIT=0**. AST try/except claim + structural BQ-call grep claim + 3 behavioral round-trips (exception path, persist-count=1, empty-DataFrame path).
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (3 independent behavioral round-trips with mock.patch on both yf and the persist helper).
+
+**Live-check artefact:** `handoff/current/live_check_25.E7.md` documenting the rate-limit simulation + BQ query proof.
+
+**Phase-25.E7 status -> done.** Bucket 24.7 F-4 RESOLVED.
+
+**Cumulative phase-25 progress:** 34 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.D7 (preload_macro max-age), 25.F3, follow-ups.

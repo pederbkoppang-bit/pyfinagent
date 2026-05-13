@@ -9275,7 +9275,7 @@
         {
           "id": "25.E7",
           "name": "yfinance_tool.get_price_history() try/except + counter",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
@@ -9291,7 +9291,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 98 PASS 5/5; QA single-spawn PASS; live-check at handoff/current/live_check_25.E7.md; reuses 25.B7 counter table"
         },
         {
           "id": "25.B7",
