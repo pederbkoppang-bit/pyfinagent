@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     sentiment_min_confidence: float = Field(0.7, description="Escalation threshold in [0,1]. VADER+FinBERT results below this floor escalate to the next rung (WASSA 2024 cascade operating point).")
     sentiment_use_gemini_flash: bool = Field(False, description="Enable opt-in tier-4 Gemini 2.5 Flash cross-check (default OFF; see phase-6.9 calibration plan).")
     sentiment_haiku_batch_mode: bool = Field(False, description="Route tier-3 Haiku 4.5 calls through Anthropic Batch API (50%% discount) when OK to wait; default OFF for real-time cron.")
+    # phase-25.C9.1: backtest hot-path window-batching toggle. When True AND the orchestrator
+    # is instantiated with backtest_mode=True AND n_tickers > 3, enrichment agents flow through
+    # BatchClient (50%% flat discount + 1h-cache compounds to ~95%% effective). Default OFF so
+    # the live single-ticker API path is never accidentally async.
+    backtest_batch_mode: bool = Field(False, description="Route backtest-mode enrichment agents through Anthropic Batch API (50%% discount) when n_tickers > 3; default OFF.")
 
     # --- Observability / rate limits / alerting (phase-6.7) ---
     finnhub_rate_limit_rps: int = Field(25, description="Client-side RPS cap for Finnhub (server limit 30; keep 5 headroom).")

@@ -18154,3 +18154,31 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Phase-23.6.4 status -> done.** No formal Q/A spawn (step doesn't carry harness_required: true; verification command itself is the gate).
 
 **Cumulative phase-25 progress:** unchanged at 37 of ~40 phase-25 steps complete; this was a phase-23.6 cleanup.
+
+---
+
+## Cycle 103 -- 2026-05-13 -- phase=25.C9.1 result=PASS
+
+**Step:** 25.C9.1 -- Orchestrator instance-level BatchClient routing, gate + dispatcher method (P2; depends on 25.C9 done cycle 84). NEW masterplan entry inserted between 25.C9 and 25.D9.
+**Action:** GENERATE. Closes the instance-level gap from 25.C9 (BatchClient mechanism existed but orchestrator had no constructor opt-in / settings toggle / dispatcher).
+
+**North-star alignment:** Directly cuts the cost denominator in Net System Alpha. Batch + 1h-prompt-cache compounds to ~95% effective discount (Finout 2026); 10-ticker x 28-agent backtest = 280 calls so the savings materially propagate into the operator's `profit_per_llm_dollar` snapshot (25.Q).
+
+**Code changes:**
+- `backend/config/settings.py`: NEW `backtest_batch_mode: bool` field after the `sentiment_haiku_batch_mode` precedent.
+- `backend/agents/orchestrator.py::AnalysisOrchestrator.__init__`: accepts `backtest_mode=False, n_tickers=1` kwargs; sets `self._batch_mode_active = backtest_mode AND settings.backtest_batch_mode AND n_tickers > 3`. Existing single-arg callers unaffected (kwargs default-safe).
+- `backend/agents/orchestrator.py`: NEW `_run_enrichment_batch(requests, *, batch_client=None, cost_tracker=None) -> dict` method (~80 LOC). Single submit/poll/fetch via BatchClient. custom_ids in `{ticker}__{agent_name}` shape (dotzlaw.com 2026 silent-data-corruption safety pattern). Records `is_batch=True` on succeeded rows so cost_tracker applies the 0.5x multiplier shipped in 25.C9. Errored rows surface via the existing `LLMResponse.thoughts.startswith("errored:")` contract.
+
+**Research-gate:** tier=moderate, 6 sources fetched in full (Anthropic docs + 5 practitioner blogs incl. dotzlaw.com 2026 on custom_id corruption + jangwook.net 2025 on 100-request crossover + Finout 2026 on 95% effective discount). gate_passed=true.
+
+**New verifier:** `tests/verify_phase_25_C9_1.py` -- **7/7 PASS, EXIT=0**. 3 structural (Settings flag + constructor args + method exists) + 3 algebraic gate boundary cases (positive at (True, 5, True); negative at n=3 / n=1; negative at flag=False) + 1 behavioral round-trip with `MagicMock` BatchClient confirming submit/poll/fetch each invoked + custom_ids correctly assembled.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Mutation-resistance is strong (3 boundary cases + behavioral mock test). Scope honesty: `run_full_analysis()` refactor explicitly deferred to 25.C9.2 -- same shipping pattern as 25.C9 itself (mechanism shipped, caller adoption deferred to a follow-up).
+
+**Live-check artefact:** `handoff/current/live_check_25.C9.1.md` documenting the env-flag flip + gate-verification snippet + north-star calculus.
+
+**Phase-25.C9.1 status -> done.** Instance-level gate + dispatcher RESOLVED.
+
+**Cumulative phase-25 progress:** 38 of ~40 phase-25 steps complete (+ 25.C9.1).
+
+**Next P2 candidates:** 25.C9.2 (run_full_analysis hot-path adoption), 25.D9.1 (caller-side Files API), 25.S.1 (per-call ticker tagging).

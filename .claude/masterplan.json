@@ -8933,6 +8933,29 @@
           "notes": "Estimated $15-30/month savings. Cycle 84 PASS first-spawn. 12/12 verifier (incl. 4 behavioral: submit, poll, exact 0.5 halving, fetch w/ errored rows). Mechanism shipped; orchestrator hot-path adoption deferred to 25.C9.1 (mirrors 25.D9 pattern)."
         },
         {
+          "id": "25.C9.1",
+          "name": "Orchestrator instance-level BatchClient routing (gate + dispatcher method)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "25.C9",
+          "audit_basis": "25.C9 shipped BatchClient mechanism; orchestrator instance lacks the constructor gate + dispatcher method that enables window-batching for backtest mode runs (50% cost reduction)",
+          "verification": {
+            "command": "source .venv/bin/activate && python3 tests/verify_phase_25_C9_1.py",
+            "success_criteria": [
+              "settings_carries_backtest_batch_mode_flag",
+              "orchestrator_constructor_accepts_backtest_mode_and_n_tickers",
+              "orchestrator_run_enrichment_batch_dispatches_via_batchclient",
+              "gate_evaluates_true_when_backtest_and_n_tickers_above_three"
+            ],
+            "live_check": "Instantiate AnalysisOrchestrator(settings, backtest_mode=True, n_tickers=5); _batch_mode_active is True and _run_enrichment_batch dispatches via mocked BatchClient"
+          },
+          "contract": "handoff/current/contract.md",
+          "retry_count": 0,
+          "max_retries": 3,
+          "notes": "Cycle 103 PASS 7/7; researcher 6 sources in full; QA single-spawn PASS; live-check at handoff/current/live_check_25.C9.1.md; run_full_analysis() refactor deferred to 25.C9.2"
+        },
+        {
           "id": "25.D9",
           "name": "Adopt Files API for skill markdowns (~97% token reduction)",
           "status": "done",

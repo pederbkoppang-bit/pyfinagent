@@ -314,8 +314,30 @@ class AnalysisOrchestrator:
         """Return a valid Gemini model name; falls back when non-Gemini is selected."""
         return model_name if model_name.startswith("gemini-") else AnalysisOrchestrator._GEMINI_FALLBACK
 
-    def __init__(self, settings: Settings):
+    def __init__(
+        self,
+        settings: Settings,
+        backtest_mode: bool = False,
+        n_tickers: int = 1,
+    ):
         self.settings = settings
+
+        # phase-25.C9.1: gate the Batch-API hot path. Active only when ALL three
+        # conditions hold:
+        #   1. caller explicitly opted in (`backtest_mode=True`),
+        #   2. settings.backtest_batch_mode is True,
+        #   3. n_tickers > 3 (polling overhead crossover per jangwook.net 2025).
+        # Default-False on the live single-ticker API path; never accidentally
+        # async. Routes through `_run_enrichment_batch()` for window-batching
+        # the 18 `general_client` enrichment agents (50% flat discount,
+        # ~95% effective with the 1h prompt cache).
+        self._backtest_mode = bool(backtest_mode)
+        self._n_tickers = int(n_tickers)
+        self._batch_mode_active = (
+            self._backtest_mode
+            and bool(getattr(settings, "backtest_batch_mode", False))
+            and self._n_tickers > 3
+        )
 
         # phase-11.3: credentials parsed for the genai.Client factory (via shim).
         # Legacy `vertexai.init(...)` is no longer called; `get_genai_client()`
@@ -543,6 +565,90 @@ class AnalysisOrchestrator:
                     delay *= 2
                 else:
                     raise
+
+    def _run_enrichment_batch(
+        self,
+        requests: list[dict],
+        *,
+        batch_client: Any | None = None,
+        cost_tracker: Any | None = None,
+    ) -> dict:
+        """phase-25.C9.1: window-batch dispatcher for enrichment agents.
+
+        Submits ALL `requests` in a single Anthropic Message Batch
+        (50% flat discount), polls until "ended", and fetches the per-
+        custom_id response map. Custom IDs follow the safety-critical
+        pattern `{ticker}__{agent_name}` (dotzlaw.com 2026 lesson:
+        per-batch index-reset bugs cause silent data corruption when
+        custom_ids are positional).
+
+        Each `request` dict must carry:
+          - ticker: str (caller-set; flows into custom_id)
+          - agent_name: str (caller-set; flows into custom_id)
+          - model: str (Anthropic model id)
+          - messages: list[dict] (Anthropic Messages API shape)
+          - max_tokens: int (per-request budget)
+
+        Returns: dict[custom_id, LLMResponse]. Errored / expired rows
+        surface as `LLMResponse(text="", thoughts="errored: <msg>")`
+        per the BatchClient.fetch contract -- callers should check
+        `.thoughts.startswith("errored:")`.
+
+        `batch_client` and `cost_tracker` are kwargs primarily for
+        testing (mocking). Production: pass `None` to use the
+        orchestrator-bound BatchClient + the existing `_cost_tracker`.
+        """
+        if not requests:
+            return {}
+        bc = batch_client
+        if bc is None:
+            from backend.agents.llm_client import BatchClient
+            bc = BatchClient()
+        ct = cost_tracker if cost_tracker is not None else getattr(self, "_cost_tracker", None)
+
+        normalized: list[dict] = []
+        for req in requests:
+            ticker = str(req.get("ticker") or "UNKNOWN")
+            agent_name = str(req.get("agent_name") or "Unknown")
+            custom_id = f"{ticker}__{agent_name}"
+            normalized.append({
+                "custom_id": custom_id,
+                "model": req.get("model"),
+                "messages": req.get("messages") or [],
+                "max_tokens": int(req.get("max_tokens") or 1024),
+            })
+
+        batch_id = bc.submit(normalized)
+        status = bc.poll(batch_id)
+        if status != "ended":
+            logger.warning(
+                "_run_enrichment_batch: batch %s ended with status=%s; partial results may be missing",
+                batch_id,
+                status,
+            )
+        results = bc.fetch(batch_id)
+
+        # phase-25.C9.1 + 25.C9: cost-tracker rows for succeeded rows
+        # apply the 0.5x batch multiplier. Errored rows are skipped
+        # (no successful call -> no cost row).
+        if ct is not None:
+            for custom_id, response in results.items():
+                try:
+                    if not response or (
+                        isinstance(response.thoughts, str)
+                        and response.thoughts.startswith("errored:")
+                    ):
+                        continue
+                    agent_name = custom_id.split("__", 1)[1] if "__" in custom_id else "Unknown"
+                    model_name = getattr(response, "model_name", None) or "claude"
+                    ct.record(agent_name, model_name, response, is_batch=True)
+                except Exception as _ct_err:
+                    logger.warning(
+                        "_run_enrichment_batch: cost-tracker record fail-open for %s: %r",
+                        custom_id,
+                        _ct_err,
+                    )
+        return results
 
     # ── Pipeline Steps ───────────────────────────────────────────────
 
