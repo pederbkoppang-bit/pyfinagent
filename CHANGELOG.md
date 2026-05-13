@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-13 | `f3a305c9` | phase-25.D: Normalize per-agent contribution weights to 0-1 range |
 | 2026-05-13 | `c7f44844` | phase-25.L: Drawdown alarm with tiered thresholds |
 | 2026-05-13 | `502ad148` | phase-25.F: Byte-identical regression test for aliasing detection |
 | 2026-05-13 | `bbc5c8a3` | phase-25.O: Error escalation Slack routing (logger.exception promotion) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `d254719c` | phase-25.A7: Per-table freshness endpoint covering all 5 data tables |
 | 2026-05-13 | `3c483820` | phase-25.A6: Explicit live-vs-backtest Sharpe reconciliation |
 | 2026-05-12 | `4efda71e` | phase-25.Q: Real-time profit_per_llm_dollar metric (closes red-line goal-d) |
-| 2026-05-12 | `e9751036` | phase-25.R: Strategy auto-switching policy (closes red-line goal-c) |
 
 ---
 
+### v6.7.52 — phase-25.D: Normalize per-agent contribution weights to 0-1 range (2026-05-13)
+
+- **phase-25.D: Normalize per-agent contribution weights to 0-1 range**
 ### v6.7.51 — phase-25.L: Drawdown alarm with tiered thresholds (2026-05-13)
 
 - **phase-25.L: Drawdown alarm with tiered thresholds**
