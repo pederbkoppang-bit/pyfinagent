@@ -17974,3 +17974,27 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 30 of ~40 phase-25 steps complete.
 
 **Next P2 candidates:** 25.E (now unblocked), 25.F3, 25.B6, 25.B10.
+
+---
+
+## Cycle 95 -- 2026-05-13 -- phase=25.E result=PASS
+
+**Step:** 25.E -- Drawer summary vs full toggle, ?full=1 query param (P2; depends on 25.C done at cycle 94).
+**Action:** GENERATE. Closes audit bucket 24.4 F-3.
+
+**Code changes:**
+- `backend/api/paper_trading.py::get_trade_rationale`: added `full: bool = Query(True)` query param + compact-filter branch (when `not full`, keeps first Analyst + Trader + RiskJudge; prunes Layer-1 / Quant / SignalStack / Bull / Bear). Default `True` preserves API-level backwards-compat. Response now echoes `"full": <bool>`.
+- `frontend/src/lib/api.ts::getPaperTradeRationale`: extended to `(tradeId, full = true)` and appends `?full=1`/`?full=0`.
+- `frontend/src/components/AgentRationaleDrawer.tsx`: `useState<boolean>(false)` (default compact); useEffect depends on `full` so toggle re-fetches; toggle button at drawer top-right labeled "Show full view"/"Show compact view".
+
+**New verifier:** `tests/verify_phase_25_E.py` -- **5/5 PASS, EXIT=0**. AST route-signature + backend filter-branch + full-mode pass-through + frontend api `?full=` wire + drawer state+button.
+
+**Q/A verdict:** **PASS (first spawn)**. Harness-compliance audit clean. Scope honesty: experiment_results explicitly notes that the frontend now defaults to compact (?full=0), so the drawer's perceived shape changes for the existing UI -- this is intentional, gates the 20+ row layer-1 expansion behind an operator toggle. Backend default `full=True` preserves API-level backwards-compat for any non-frontend callers.
+
+**Live-check artefact:** `handoff/current/live_check_25.E.md` documenting the curl proofs + UI workflow.
+
+**Phase-25.E status -> done.** Bucket 24.4 F-3 RESOLVED.
+
+**Cumulative phase-25 progress:** 31 of ~40 phase-25 steps complete.
+
+**Next P2 candidates:** 25.F3, 25.B6, 25.B10, follow-ups (25.C9.1, 25.D9.1, 25.S.1).

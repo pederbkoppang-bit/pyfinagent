@@ -390,8 +390,9 @@ export function getPaperCyclesHistory(limit = 10): Promise<{ cycles: unknown[]; 
   return apiFetch(`/api/paper-trading/cycles/history?limit=${limit}`);
 }
 
-export function getPaperTradeRationale(tradeId: string): Promise<unknown> {
-  return apiFetch(`/api/paper-trading/trades/${encodeURIComponent(tradeId)}/rationale`);
+export function getPaperTradeRationale(tradeId: string, full = true): Promise<unknown> {
+  const q = full ? "?full=1" : "?full=0";
+  return apiFetch(`/api/paper-trading/trades/${encodeURIComponent(tradeId)}/rationale${q}`);
 }
 
 export function getPaperMfeMaeScatter(): Promise<unknown> {

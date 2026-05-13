@@ -573,11 +573,15 @@ async def get_live_prices(tickers: str = Query(..., description="Comma-separated
 
 
 @router.get("/trades/{trade_id}/rationale")
-async def get_trade_rationale(trade_id: str):
+async def get_trade_rationale(trade_id: str, full: bool = Query(True)):
     """
     Per-trade agent attribution tree for the rationale drawer (4.5.5).
     Parses the JSON `signals` column on the stored trade row and returns the
     progressive-disclosure hierarchy (analyst -> bull/bear -> trader -> risk).
+
+    phase-25.E: `?full=1` (default) returns the full attribution tree. `?full=0`
+    returns a compact subset: first Analyst row + Trader + RiskJudge. Other
+    layers pruned to []. Closes audit bucket 24.4 F-3.
     """
     # Sanitize trade_id to avoid accidental injection into the parameterized
     # query downstream (also guarded by BQ bind parameters).
@@ -614,6 +618,21 @@ async def get_trade_rationale(trade_id: str):
         if "rationale" in s:
             s["rationale"] = redact_pii(s["rationale"])
 
+    # phase-25.E: compact view returns only Analyst (first) + Trader + RiskJudge.
+    # Other layers are pruned to []. Preserves the data shape so frontend doesn't
+    # need a separate code path.
+    if not full:
+        kept_signals: list[dict] = []
+        analyst_seen = False
+        for s in signals:
+            agent = s.get("agent", "")
+            if agent == "Analyst" and not analyst_seen:
+                kept_signals.append(s)
+                analyst_seen = True
+            elif agent in ("Trader", "RiskJudge"):
+                kept_signals.append(s)
+        signals = kept_signals
+
     tree = group_signals_for_drawer(signals)
     return {
         "trade_id": trade_id,
@@ -623,6 +642,7 @@ async def get_trade_rationale(trade_id: str):
         "reason": trade.get("reason"),
         "signals": signals,
         "tree": tree,
+        "full": full,
     }
 
 

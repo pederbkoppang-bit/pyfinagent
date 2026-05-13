@@ -9064,7 +9064,7 @@
         {
           "id": "25.E",
           "name": "Drawer summary vs full toggle (?full=1 query param)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "25.C",
@@ -9080,7 +9080,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": ""
+          "notes": "Cycle 95 PASS 5/5; QA single-spawn PASS; live-check at handoff/current/live_check_25.E.md"
         },
         {
           "id": "25.F",

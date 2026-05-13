@@ -43,19 +43,21 @@ export function AgentRationaleDrawer({ tradeId, onClose }: Props) {
   const [data, setData] = useState<Rationale | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // phase-25.E: default to compact view; toggle expands to full attribution tree.
+  const [full, setFull] = useState<boolean>(false);
 
   useEffect(() => {
     if (!tradeId) return;
     setLoading(true);
     setError(null);
     setData(null);
-    getPaperTradeRationale(tradeId)
+    getPaperTradeRationale(tradeId, full)
       .then((r) => setData(r as Rationale))
       .catch((e: unknown) =>
         setError(e instanceof Error ? e.message : "failed to load rationale"),
       )
       .finally(() => setLoading(false));
-  }, [tradeId]);
+  }, [tradeId, full]);
 
   if (!tradeId) return null;
 
@@ -121,6 +123,16 @@ export function AgentRationaleDrawer({ tradeId, onClose }: Props) {
 
         {data && data.signals.length > 0 && (
           <div className="space-y-3">
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setFull((v) => !v)}
+                className="rounded-md border border-navy-700 bg-navy-800/60 px-3 py-1 text-xs text-slate-300 hover:bg-navy-700"
+                aria-pressed={full}
+              >
+                {full ? "Show compact view" : "Show full view"}
+              </button>
+            </div>
             <TotalWeightSummary signals={data.signals} />
             <Layer title="Layer-1 Skills" items={data.tree.layer1_skills ?? []} />
             <Layer title="Analyst" items={data.tree.analyst} />
