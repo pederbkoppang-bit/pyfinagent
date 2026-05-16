@@ -511,24 +511,40 @@ def get_bull_agent_prompt(
     past_memory: str = "",
     fact_ledger: str = "",
 ) -> str:
-    """Bull Agent: build the strongest investment case, responding to Bear's arguments in later rounds."""
+    """Bull Agent: build the strongest investment case, responding to Bear's arguments in later rounds.
+
+    phase-26.4: now uses consolidated `debate_stance` skill with stance-specific args.
+    Downstream consumers (Moderator) still receive a `bull_case` shaped {thesis,
+    confidence, key_catalysts, evidence} -- unchanged."""
     past_memory_section = _build_memory_section(past_memory)
 
+    stance_intro = (
+        f"You are the Bull Agent -- an aggressive investment advocate for {ticker}. "
+        f"This is debate round {round_number} of {max_rounds}."
+    )
+
+    context_sections = (
+        "--- ENRICHMENT SIGNALS ---\n"
+        f"{signals_json}\n"
+        "--- AGENT DECISION TRACES ---\n"
+        f"{trace_json}\n"
+        "----------------------------"
+    )
     if opponent_argument and round_number > 1:
-        rebuttal_section = (
-            "--- BEAR AGENT'S PREVIOUS ARGUMENT ---\n"
+        context_sections += (
+            "\n\n--- BEAR AGENT'S PREVIOUS ARGUMENT ---\n"
             f"{opponent_argument[:3000]}\n"
-            "--------------------------------------\n\n"
-            "**YOUR TASK (REBUTTAL ROUND):**\n"
+            "--------------------------------------"
+        )
+        task_description = (
             "1. Directly ADDRESS and COUNTER the Bear Agent's key threats listed above.\n"
             "2. Identify weaknesses, exaggerations, or missing context in the bear case.\n"
             "3. STRENGTHEN your bullish thesis by incorporating new evidence the bear case overlooked.\n"
-            "4. Update your confidence score (0.0-1.0) — did the bear arguments change your conviction?\n"
+            "4. Update your confidence score (0.0-1.0) -- did the bear arguments change your conviction?\n"
             "5. List your top 5 catalysts with specific data source citations.\n"
         )
     else:
-        rebuttal_section = (
-            "**YOUR TASK:**\n"
+        task_description = (
             "1. Identify EVERY bullish signal across all data sources.\n"
             "2. Build a coherent investment thesis explaining why this stock should be bought.\n"
             "3. Assign a confidence score (0.0-1.0) to your overall bull case.\n"
@@ -536,17 +552,20 @@ def get_bull_agent_prompt(
             "5. For each catalyst, cite the specific data source and evidence.\n"
         )
 
-    template = load_skill("bull_agent")
+    output_schema = (
+        '{"thesis": "...", "confidence": 0.XX, "key_catalysts": ["...", "..."], '
+        '"evidence": [{"source": "...", "data_point": "...", "interpretation": "..."}]}'
+    )
+
+    template = load_skill("debate_stance")
     return format_skill(
         template,
-        ticker=ticker,
-        round_number=str(round_number),
-        max_rounds=str(max_rounds),
-        signals_json=signals_json,
-        trace_json=trace_json,
-        past_memory_section=past_memory_section,
-        rebuttal_section=rebuttal_section,
         fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+        stance_intro=stance_intro,
+        context_sections=context_sections,
+        past_memory_section=past_memory_section,
+        task_description=task_description,
+        output_schema=output_schema,
     )
 
 
@@ -560,24 +579,40 @@ def get_bear_agent_prompt(
     past_memory: str = "",
     fact_ledger: str = "",
 ) -> str:
-    """Bear Agent: build the strongest risk case, responding to Bull's arguments in later rounds."""
+    """Bear Agent: build the strongest risk case, responding to Bull's arguments in later rounds.
+
+    phase-26.4: now uses consolidated `debate_stance` skill. Downstream
+    consumers (Moderator) still receive a `bear_case` shaped {thesis,
+    confidence, key_threats, evidence} -- unchanged."""
     past_memory_section = _build_memory_section(past_memory)
 
+    stance_intro = (
+        f"You are the Bear Agent -- a skeptical risk analyst for {ticker}. "
+        f"This is debate round {round_number} of {max_rounds}."
+    )
+
+    context_sections = (
+        "--- ENRICHMENT SIGNALS ---\n"
+        f"{signals_json}\n"
+        "--- AGENT DECISION TRACES ---\n"
+        f"{trace_json}\n"
+        "----------------------------"
+    )
     if opponent_argument:
-        rebuttal_section = (
-            "--- BULL AGENT'S ARGUMENT ---\n"
+        context_sections += (
+            "\n\n--- BULL AGENT'S ARGUMENT ---\n"
             f"{opponent_argument[:3000]}\n"
-            "-----------------------------\n\n"
-            "**YOUR TASK (REBUTTAL ROUND):**\n"
+            "-----------------------------"
+        )
+        task_description = (
             "1. Directly ADDRESS and COUNTER the Bull Agent's key catalysts listed above.\n"
             "2. Identify overoptimism, cherry-picked data, or ignored risks in the bull case.\n"
             "3. STRENGTHEN your bearish thesis with evidence the bull case minimized or omitted.\n"
-            "4. Update your confidence score (0.0-1.0) — did the bull arguments change your conviction?\n"
+            "4. Update your confidence score (0.0-1.0) -- did the bull arguments change your conviction?\n"
             "5. List your top 5 threats with specific data source citations.\n"
         )
     else:
-        rebuttal_section = (
-            "**YOUR TASK:**\n"
+        task_description = (
             "1. Identify EVERY bearish signal, risk factor, and red flag across all data sources.\n"
             "2. Build a coherent risk thesis explaining why this stock should be avoided or sold.\n"
             "3. Assign a confidence score (0.0-1.0) to your overall bear case.\n"
@@ -585,17 +620,20 @@ def get_bear_agent_prompt(
             "5. For each threat, cite the specific data source and evidence.\n"
         )
 
-    template = load_skill("bear_agent")
+    output_schema = (
+        '{"thesis": "...", "confidence": 0.XX, "key_threats": ["...", "..."], '
+        '"evidence": [{"source": "...", "data_point": "...", "interpretation": "..."}]}'
+    )
+
+    template = load_skill("debate_stance")
     return format_skill(
         template,
-        ticker=ticker,
-        round_number=str(round_number),
-        max_rounds=str(max_rounds),
-        signals_json=signals_json,
-        trace_json=trace_json,
-        past_memory_section=past_memory_section,
-        rebuttal_section=rebuttal_section,
         fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+        stance_intro=stance_intro,
+        context_sections=context_sections,
+        past_memory_section=past_memory_section,
+        task_description=task_description,
+        output_schema=output_schema,
     )
 
 
@@ -648,15 +686,59 @@ def get_moderator_prompt(
 def get_devils_advocate_prompt(
     ticker: str, bull_case: str, bear_case: str, signals_json: str, fact_ledger: str = ""
 ) -> str:
-    """Devil's Advocate: stress-test both sides before moderator synthesis."""
-    template = load_skill("devils_advocate_agent")
+    """Devil's Advocate: stress-test both sides before moderator synthesis.
+
+    phase-26.4: now uses consolidated `debate_stance` skill. Downstream
+    consumer (Moderator) still receives `devils_advocate` output shaped
+    {challenges, hidden_risks, bull_weakness, bear_weakness,
+    groupthink_flag, confidence_adjustment, summary} -- unchanged."""
+    stance_intro = (
+        f"You are the Devil's Advocate for the {ticker} investment debate. "
+        "You have seen both the Bull and Bear final arguments. "
+        "Your role is to be a CONTRARIAN STRESS-TESTER -- "
+        "find the weakest points in BOTH cases."
+    )
+
+    context_sections = (
+        "--- BULL CASE ---\n"
+        f"{bull_case[:3000]}\n"
+        "--- BEAR CASE ---\n"
+        f"{bear_case[:3000]}\n"
+        "--- RAW SIGNALS ---\n"
+        f"{signals_json}\n"
+        "-------------------"
+    )
+
+    task_description = (
+        "1. Identify 3-5 HIDDEN RISKS that neither the Bull nor Bear adequately addressed.\n"
+        "2. Challenge the Bull's strongest catalyst -- what could go wrong?\n"
+        "3. Challenge the Bear's strongest threat -- is it overstated?\n"
+        "4. Look for GROUPTHINK: are both agents ignoring the same blind spot?\n"
+        "5. Suggest a confidence adjustment: should the final consensus confidence "
+        "be HIGHER or LOWER than what the debate suggests? By how much?\n"
+    )
+
+    output_schema = (
+        '{\n'
+        '  "challenges": ["Challenge to consensus point 1", "Challenge 2", ...],\n'
+        '  "hidden_risks": ["Risk neither side addressed 1", ...],\n'
+        '  "bull_weakness": "The weakest part of the bull case is...",\n'
+        '  "bear_weakness": "The weakest part of the bear case is...",\n'
+        '  "groupthink_flag": "Both agents overlooked...",\n'
+        '  "confidence_adjustment": -0.05,\n'
+        '  "summary": "Overall stress-test assessment..."\n'
+        '}'
+    )
+
+    template = load_skill("debate_stance")
     return format_skill(
         template,
-        ticker=ticker,
-        bull_case=bull_case[:3000],
-        bear_case=bear_case[:3000],
-        signals_json=signals_json,
         fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+        stance_intro=stance_intro,
+        context_sections=context_sections,
+        past_memory_section="",  # DA does not use past_memory
+        task_description=task_description,
+        output_schema=output_schema,
     )
 
 
@@ -669,46 +751,68 @@ def get_aggressive_analyst_prompt(
     debate_context: str = "", past_memory: str = "",
     fact_ledger: str = "",
 ) -> str:
-    """Aggressive Risk Analyst: maximize upside potential."""
+    """Aggressive Risk Analyst: maximize upside potential.
+
+    phase-26.4: now uses consolidated `risk_stance` skill. Downstream
+    consumer (Risk Judge) still receives `aggressive_arg` shaped
+    {position, max_position_pct, upside_catalysts, risk_mitigation,
+    entry_strategy} -- unchanged."""
+    stance_intro = (
+        f"You are the Aggressive Risk Analyst for {ticker}. "
+        "You advocate for MAXIMUM position sizing and upside capture. "
+        "Your philosophy: missed opportunities are worse than small losses."
+    )
+
     debate_context_section = ""
     if debate_context:
         debate_context_section = (
             "--- DEBATE RESULT ---\n"
             f"{debate_context[:3000]}\n"
         )
-    conservative_arg_section = ""
+    peer_arg_sections = ""
     if conservative_arg:
-        conservative_arg_section = (
+        peer_arg_sections += (
             "--- CONSERVATIVE ANALYST'S ARGUMENT ---\n"
             f"{conservative_arg[:2000]}\n"
         )
-    neutral_arg_section = ""
     if neutral_arg:
-        neutral_arg_section = (
+        peer_arg_sections += (
             "--- NEUTRAL ANALYST'S ARGUMENT ---\n"
             f"{neutral_arg[:2000]}\n"
         )
     past_memory_section = _build_memory_section(past_memory)
 
+    task_description = (
+        "1. Argue for the LARGEST reasonable position size.\n"
+        "2. Identify asymmetric upside opportunities that justify higher risk.\n"
+        "3. Explain why the downside is manageable or limited.\n"
+        "4. Propose specific entry strategy and position sizing."
+    )
     rebuttal_task = ""
     if conservative_arg or neutral_arg:
         rebuttal_task = (
-            "5. Directly ADDRESS and COUNTER the other analysts' key concerns.\n"
-            "6. Explain why their caution may miss critical opportunities.\n"
+            "\n5. Directly ADDRESS and COUNTER the other analysts' key concerns.\n"
+            "6. Explain why their caution may miss critical opportunities."
         )
 
-    template = load_skill("aggressive_analyst")
+    output_schema = (
+        '{"position": "...", "confidence": 0.XX, "max_position_pct": X, '
+        '"upside_catalysts": ["..."], "risk_mitigation": "...", "entry_strategy": "..."}'
+    )
+
+    template = load_skill("risk_stance")
     return format_skill(
         template,
-        ticker=ticker,
+        fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+        stance_intro=stance_intro,
         synthesis_json=synthesis_json[:4000],
         signals_json=signals_json[:3000],
         debate_context_section=debate_context_section,
-        conservative_arg_section=conservative_arg_section,
-        neutral_arg_section=neutral_arg_section,
+        peer_arg_sections=peer_arg_sections,
         past_memory_section=past_memory_section,
+        task_description=task_description,
         rebuttal_task=rebuttal_task,
-        fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+        output_schema=output_schema,
     )
 
 
@@ -718,46 +822,68 @@ def get_conservative_analyst_prompt(
     debate_context: str = "", past_memory: str = "",
     fact_ledger: str = "",
 ) -> str:
-    """Conservative Risk Analyst: capital preservation focus."""
+    """Conservative Risk Analyst: capital preservation focus.
+
+    phase-26.4: now uses consolidated `risk_stance` skill. Downstream
+    consumer (Risk Judge) still receives `conservative_arg` shaped
+    {position, max_position_pct, tail_risks, max_drawdown_pct,
+    stop_loss_strategy} -- unchanged."""
+    stance_intro = (
+        f"You are the Conservative Risk Analyst for {ticker}. "
+        "You prioritize CAPITAL PRESERVATION above all else. "
+        "Your philosophy: avoiding losses matters more than capturing gains."
+    )
+
     debate_context_section = ""
     if debate_context:
         debate_context_section = (
             "--- DEBATE RESULT ---\n"
             f"{debate_context[:3000]}\n"
         )
-    aggressive_arg_section = ""
+    peer_arg_sections = ""
     if aggressive_arg:
-        aggressive_arg_section = (
+        peer_arg_sections += (
             "--- AGGRESSIVE ANALYST'S ARGUMENT ---\n"
             f"{aggressive_arg[:2000]}\n"
         )
-    neutral_arg_section = ""
     if neutral_arg:
-        neutral_arg_section = (
+        peer_arg_sections += (
             "--- NEUTRAL ANALYST'S ARGUMENT ---\n"
             f"{neutral_arg[:2000]}\n"
         )
     past_memory_section = _build_memory_section(past_memory)
 
+    task_description = (
+        "1. Argue for the SMALLEST reasonable position size (or no position).\n"
+        "2. Identify tail risks and worst-case scenarios that justify caution.\n"
+        "3. Quantify the maximum expected drawdown.\n"
+        "4. Propose specific risk limits and stop-loss strategy."
+    )
     rebuttal_task = ""
     if aggressive_arg or neutral_arg:
         rebuttal_task = (
-            "5. Directly ADDRESS and COUNTER the other analysts' optimism.\n"
-            "6. Highlight where their assumptions may overlook potential threats.\n"
+            "\n5. Directly ADDRESS and COUNTER the other analysts' optimism.\n"
+            "6. Highlight where their assumptions may overlook potential threats."
         )
 
-    template = load_skill("conservative_analyst")
+    output_schema = (
+        '{"position": "...", "confidence": 0.XX, "max_position_pct": X, '
+        '"tail_risks": ["..."], "max_drawdown_pct": X, "stop_loss_strategy": "..."}'
+    )
+
+    template = load_skill("risk_stance")
     return format_skill(
         template,
-        ticker=ticker,
+        fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+        stance_intro=stance_intro,
         synthesis_json=synthesis_json[:4000],
         signals_json=signals_json[:3000],
         debate_context_section=debate_context_section,
-        aggressive_arg_section=aggressive_arg_section,
-        neutral_arg_section=neutral_arg_section,
+        peer_arg_sections=peer_arg_sections,
         past_memory_section=past_memory_section,
+        task_description=task_description,
         rebuttal_task=rebuttal_task,
-        fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+        output_schema=output_schema,
     )
 
 
@@ -771,26 +897,59 @@ def get_neutral_analyst_prompt(
     past_memory: str = "",
     fact_ledger: str = "",
 ) -> str:
-    """Neutral Risk Analyst: balanced perspective after hearing both sides."""
+    """Neutral Risk Analyst: balanced perspective after hearing both sides.
+
+    phase-26.4: now uses consolidated `risk_stance` skill. Downstream
+    consumer (Risk Judge) still receives `neutral_arg` shaped
+    {position, max_position_pct, aggressive_valid_points,
+    conservative_valid_points, optimal_strategy, hedging} -- unchanged."""
+    stance_intro = (
+        f"You are the Neutral Risk Analyst for {ticker}. "
+        "You seek the OPTIMAL risk-reward balance, "
+        "evaluating both the aggressive and conservative positions."
+    )
+
     debate_context_section = ""
     if debate_context:
         debate_context_section = (
             "--- DEBATE RESULT ---\n"
             f"{debate_context[:3000]}\n"
         )
+    peer_arg_sections = (
+        "--- AGGRESSIVE ANALYST ---\n"
+        f"{aggressive_arg[:2000]}\n"
+        "--- CONSERVATIVE ANALYST ---\n"
+        f"{conservative_arg[:2000]}\n"
+    )
     past_memory_section = _build_memory_section(past_memory)
 
-    template = load_skill("neutral_analyst")
+    task_description = (
+        "1. Evaluate both the aggressive and conservative positions.\n"
+        "2. Identify where each side is RIGHT and where each is WRONG.\n"
+        "3. Propose a balanced position that optimizes risk-adjusted returns.\n"
+        "4. Suggest hedging strategies if applicable.\n"
+        "5. Challenge both sides: address specific weaknesses in their arguments."
+    )
+
+    output_schema = (
+        '{"position": "...", "confidence": 0.XX, "max_position_pct": X, '
+        '"aggressive_valid_points": ["..."], "conservative_valid_points": ["..."], '
+        '"optimal_strategy": "...", "hedging": "..."}'
+    )
+
+    template = load_skill("risk_stance")
     return format_skill(
         template,
-        ticker=ticker,
+        fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+        stance_intro=stance_intro,
         synthesis_json=synthesis_json[:4000],
-        aggressive_arg=aggressive_arg[:2000],
-        conservative_arg=conservative_arg[:2000],
         signals_json=signals_json[:3000],
         debate_context_section=debate_context_section,
+        peer_arg_sections=peer_arg_sections,
         past_memory_section=past_memory_section,
-        fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+        task_description=task_description,
+        rebuttal_task="",  # Neutral has no rebuttal-task differentiator
+        output_schema=output_schema,
     )
 
 

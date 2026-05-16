@@ -18713,3 +18713,55 @@ code.review = 9 hits | owasp = 4 | secret = 4 | risk.guard = 2 | stop.loss = 5 |
 **Next action:** Main flips masterplan.json step 26.3 status pending -> done. Auto-commit-and-push hook fires; live_check_26.3.md present -> gate clear -> commit + changelog + push.
 
 **Cumulative phase-26 progress:** 4 of 8 steps closed (26.0, 26.1, 26.2, 26.3 -- 3 P0s + 1 P1). Next candidates: 26.4 (consolidate 6 opinion skills, P1), 26.5 (alpha-decay detector, P1), 26.6 (multimodal RAG, P2), 26.7 (combined Gemini tools, P2).
+
+---
+
+## Cycle 5 -- 2026-05-16 -- phase=26.4 result=PASS
+
+**Step:** 26.4 Consolidate 6 opinion skills into parameterized stance prompt. P1 cost-control via template consolidation; matches Anthropic harness-design "remove agents whose assumptions the model now meets" doctrine.
+
+**Cycle:** fifth sub-step of phase-26 (frontier-sync), second P1 step. Full harness MAS loop with **MAX research gate**.
+
+**Researcher (a4405652914a96c9a, tier=complex, MAX gate):** gate_passed=true. First spawn (a8c76cf54e3614c53) returned partial without writing the brief (40 tool uses, 95s); retry (with explicit "WRITE FIRST in the FIRST tool call" directive) succeeded in 302s with 6 unique URLs read in full (Tier-1: arXiv 2602.23330 expert investment teams + Anthropic harness-design; Tier-2: Redis token-optimization 2026, LearnPrompting role-prompting, Medium multi-persona, OpenReview multi-agent debate). 8 snippet-only; 14 URLs total. 3+-variant search. Recency scan 2024-04 -> 2026-05 reported. Internal grep covered 6 skill files + debate.py + risk_debate.py + prompts.py wrappers + 2 downstream consumers. Retry was a re-execution of an incomplete task, NOT verdict-shopping.
+
+**Critical research finding:** the 6 skills split into 2 functionally distinct groups -- Group A (debate: bull/bear/DA) consumed by Moderator; Group B (risk_debate: aggressive/conservative/neutral) consumed by Risk Judge. Each group has different I/O schemas. **Option B (2 files)** recommended over Option A (1 file conflates I/O schemas) and Option C (1 call destroys adversarial-independence contract per TradingAgents + OpenReview debate literature). Realistic token reduction: **15-25% of template payload, NOT 33%** as the masterplan audit_basis claimed -- the bulk of per-call tokens are injected data (signals_json, fact_ledger), not template boilerplate. Honest finding documented in research_brief.md:198-201.
+
+**Contract (pre-Generate):** handoff/current/contract.md. Immutable success_criteria copied verbatim. Plan: 2 new skill files; 6 wrapper updates in prompts.py; move 6 old files to `_legacy_phase_26_4/`; update _inventory.json; verification + smoke.
+
+**Generate:** all plan steps executed.
+- `backend/agents/skills/debate_stance.md` -- consolidated template for bull/bear/DA with `{{stance_intro}}`, `{{context_sections}}`, `{{task_description}}`, `{{output_schema}}` placeholders.
+- `backend/agents/skills/risk_stance.md` -- consolidated template for aggressive/conservative/neutral with similar placeholders + `{{synthesis_json}}`, `{{peer_arg_sections}}`, `{{rebuttal_task}}`.
+- All 6 wrappers in `backend/config/prompts.py` rewritten -- each builds stance-specific strings and calls `load_skill("debate_stance")` or `load_skill("risk_stance")`. The downstream consumer named outputs (`bull_case`, `bear_case`, `devils_advocate`, `aggressive_arg`, `conservative_arg`, `neutral_arg`) preserved.
+- 6 old files moved via `git mv` to `backend/agents/skills/_legacy_phase_26_4/` (preserves rollback).
+- `_inventory.json` -- 6 logical-agent entries kept (graph visualization unchanged) with `file` field updated to point at the consolidated files.
+- Immutable verification: `ls backend/agents/skills/ | grep -cE '^(bull|bear|aggressive|conservative|neutral|devils_advocate)_' = 0` (target <=2).
+- Companion: `ls backend/agents/skills/ | grep -cE '^(debate_stance|risk_stance)\.md$' = 2` (the 2 new files).
+- Wrapper renders: all 6 wrappers produce role-specific prompts with NO unfilled `{{}}` placeholders; identity strings ("Bull Agent", "Bear Agent", "Devil's Advocate", "Aggressive Risk Analyst", "Conservative Risk Analyst", "Neutral Risk Analyst") present.
+- Live Gemini smoke (Bull only, N=1): output JSON has exact pre-consolidation keys `{thesis, confidence, key_catalysts, evidence}`. Missing=0, Extra=0. Bull-schema MATCH: True. Latency 4.54s, in=393, out=368 tokens.
+
+**Q/A (a3d6cb624aebb7a6b):** verdict = **PASS**, ok=true, violated_criteria=[], certified_fallback=false, checks_run=13. Phase-1 5-item harness audit 5/5 PASS. Phase-2 deterministic 6/6 PASS + 1 SKIPPED-ACCEPT (D5 Q/A accepted Main's Evidence C). Phase-3 LLM judgments 6/6 acceptable. Q/A independently re-ran the 6/6 wrapper-render smoke (0 unfilled placeholders, identities OK), confirmed legacy preservation (6 files in _legacy_phase_26_4/), and confirmed _inventory.json retains all 6 logical agents.
+
+**Q/A NOTES (PASS-with-NOTE):**
+1. **Token-reduction adjustment:** 33% -> 15-25% acceptable disclosure; success_criteria contain NO token threshold so no criterion violated. Documented in 3 artifacts.
+2. **N=1 live smoke (Bull only):** sufficient per contract Plan-step 8's literal bar; behavioral regression on other stances is observable in the next autonomous_loop with rollback via _legacy_phase_26_4/.
+3. **Rebuttal-section folding:** theoretical regression risk on Bear/DA/Aggressive/Conservative/Neutral disclosed by Main. Downstream consumers (Moderator, Risk Judge) parse by JSON key, NOT prompt structure -- narrows the failure surface. PASS not blocked.
+
+**Files written this cycle:**
+- handoff/current/research_brief.md (researcher retry, canonical, MAX gate)
+- handoff/current/contract.md (Main, pre-Generate)
+- handoff/current/experiment_results.md (Main)
+- handoff/current/live_check_26.4.md (verbatim verification + render smoke + Bull-schema MATCH evidence)
+- handoff/current/evaluator_critique.md (Q/A)
+
+**Source code touched:**
+- backend/agents/skills/debate_stance.md (new)
+- backend/agents/skills/risk_stance.md (new)
+- backend/agents/skills/_legacy_phase_26_4/{bull,bear,devils_advocate,aggressive,conservative,neutral}_agent.md (moved from skills/)
+- backend/config/prompts.py (6 wrapper functions rewritten)
+- backend/agents/_inventory.json (6 entry file paths updated)
+
+**LLM spend for 26.4 verification:** ~$0.0002 (1 live Bull smoke + 6 wrapper renders + 1 prompt-shape inspection). Negligible.
+
+**Next action:** Main flips masterplan.json step 26.4 status pending -> done.
+
+**Cumulative phase-26 progress:** 5 of 8 steps closed (26.0, 26.1, 26.2, 26.3, 26.4 -- 3 P0s + 2 P1s). Next candidates: 26.5 (alpha-decay detector, P1), 26.6 (multimodal RAG, P2), 26.7 (combined Gemini tools, P2).
