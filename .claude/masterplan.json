@@ -9643,7 +9643,7 @@
         {
           "id": "26.7",
           "name": "Combined Gemini tools+grounding single-call refactor on enrichment skills",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,

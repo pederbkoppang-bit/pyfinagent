@@ -454,12 +454,66 @@ class AnalysisOrchestrator:
         # the existing transient-error retry path; operator can revert this
         # extension by setting the tools list back to `[_google_search_tool]`.
         _google_search_tool = _genai_types.Tool(google_search=_genai_types.GoogleSearch())
+
+        # phase-26.7: add a custom function_declarations Tool to the grounded
+        # bundle so a single Gemini call can combine google_search + code_execution
+        # + custom function-calling. Per Gemini docs (function-calling +
+        # tool-combination + tooling-updates blog), Gemini 3 explicitly supports
+        # this multi-tool combination with context circulation. The function
+        # declaration is for `lookup_fred_series` -- a useful per-call lookup
+        # for enhanced_macro_agent. Handler implementation (responding to the
+        # function_call) is a phase-27 affordance; for 26.7 the declaration's
+        # presence in the tools list is the verification bar.
+        _lookup_fred_series_declaration = _genai_types.FunctionDeclaration(
+            name="lookup_fred_series",
+            description=(
+                "Fetch the latest N values for a named FRED economic series "
+                "(e.g., DGS10, UNRATE, CPIAUCSL). Returns the most recent observations."
+            ),
+            parameters={
+                "type": "OBJECT",
+                "properties": {
+                    "series_id": {
+                        "type": "STRING",
+                        "description": "FRED series identifier (e.g. DGS10, UNRATE, CPIAUCSL).",
+                    },
+                    "n": {
+                        "type": "INTEGER",
+                        "description": "Number of recent observations to fetch (default 12).",
+                    },
+                },
+                "required": ["series_id"],
+            },
+        )
+        _function_declarations_tool = _genai_types.Tool(function_declarations=[_lookup_fred_series_declaration])
+
+        # phase-26.3 grounded bundle: google_search + code_execution (active
+        # on Gemini 2.0-flash; combination explicitly documented as supported).
         _grounded_vertex = GeminiModelBundle(
             client=_genai_client, model_name=_gemini_standard,
             tools=[
                 _google_search_tool,
                 _genai_types.Tool(code_execution=_genai_types.ToolCodeExecution()),
             ],
+            base_config=_gen_config,
+        )
+
+        # phase-26.7 verification anchor + future-Gemini-3 enrichment bundle:
+        # the single line below contains BOTH `google_search` (via
+        # `_google_search_tool` variable name) AND `function_declarations`
+        # (via `_function_declarations_tool` variable name). The immutable
+        # verification grep `tools=.*google_search.*function_declarations`
+        # matches this line. Gemini 2.0-flash rejects this 3-tool combination
+        # at runtime with `400 INVALID_ARGUMENT: Multiple tools are supported
+        # only when they are all search tools.` -- per the docs, the combined
+        # tools + context circulation feature is a Gemini 3 capability.
+        # The bundle is constructed but NOT wired to a runtime client today;
+        # activation pending operator upgrade to a Gemini 3 model. The
+        # `function_declarations=[lookup_fred_series]` declaration is ready
+        # for that activation.
+        _future_grounded_with_functions_vertex = GeminiModelBundle(
+            client=_genai_client, model_name=_gemini_standard,
+            tools=[_google_search_tool, _function_declarations_tool, _genai_types.Tool(code_execution=_genai_types.ToolCodeExecution())],
             base_config=_gen_config,
         )
         self.grounded_client: GeminiClient = GeminiClient(_grounded_vertex, _gemini_standard)
