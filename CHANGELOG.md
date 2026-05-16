@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-16 | `ae3004ff` | phase-26.7: Combined Gemini tools+grounding single-call refactor on enrichment skills |
 | 2026-05-16 | `c13b1c79` | phase-26.6: Multimodal File Search RAG on financial_reports dataset |
 | 2026-05-16 | `d217d7a9` | phase-26.5: Alpha-decay / regime-shift detector skill (Gemini Flash) |
 | 2026-05-16 | `f7e24d0a` | phase-26.4: Consolidate 6 opinion skills into parameterized stance prompt |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `e644e791` | phase-23.6.4: Restore missing observability symbols in backend/api/harness_autoresearch.py (surfa... |
 | 2026-05-13 | `f8cd280e` | phase-25.P: Weekly autoresearch summary Slack notification |
 | 2026-05-13 | `3b62700d` | phase-25.A10: Alpaca MCP tool-surface smoke test + deny-list reconcile |
-| 2026-05-13 | `45fce6f5` | phase-25.D7: preload_macro() max-age guard (35-day FRED-monthly default) |
 
 ---
 
+### v6.8.7 — phase-26.7: Combined Gemini tools+grounding single-call refactor on e... (2026-05-16)
+
+- **phase-26.7: Combined Gemini tools+grounding single-call refactor on enrichment skills**
 ### v6.8.6 — phase-26.6: Multimodal File Search RAG on financial_reports dataset (2026-05-16)
 
 - **phase-26.6: Multimodal File Search RAG on financial_reports dataset**
