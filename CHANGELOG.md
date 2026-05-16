@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-16 | `ba18ffab` | phase-16.59: Uplift Q/A with code-reviewer capabilities (max research gate, full harness MAS) |
 | 2026-05-16 | `e3f9a3bd` | docs: phase-26 frontier-sync proposal (8-step DRAFT awaiting approval) |
 | 2026-05-16 | `952c211b` | chore(masterplan): condense /masterplan skill to dashboard + filter mode |
 | 2026-05-14 | `71e415e7` | phase-25.S.1: Per-call ticker tagging in llm_call_log + cost_tracker for exact per-ticker attribu... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `502ad148` | phase-25.F: Byte-identical regression test for aliasing detection |
 | 2026-05-13 | `bbc5c8a3` | phase-25.O: Error escalation Slack routing (logger.exception promotion) |
 | 2026-05-13 | `f2b53402` | phase-25.N: Cycle-completion summary Slack notification |
-| 2026-05-13 | `09b6de70` | phase-25.B7: yfinance fallback counter persisted to BQ + WARNING log promotion |
 
 ---
 
+### v6.7.65 — phase-16.59: Uplift Q/A with code-reviewer capabilities (max research... (2026-05-16)
+
+- **phase-16.59: Uplift Q/A with code-reviewer capabilities (max research gate, full harness MAS)**
 ### v6.7.64 — phase-25.S.1: Per-call ticker tagging in llm_call_log + cost_tracker... (2026-05-14)
 
 - **phase-25.S.1: Per-call ticker tagging in llm_call_log + cost_tracker for exact per-ticker attribu...**
