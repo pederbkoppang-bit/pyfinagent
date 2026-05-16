@@ -182,9 +182,29 @@ EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
     "claude-sonnet-4-5",
 )
 
+# EFFORT_DEFAULTS per role. Per-model-family fallback in MODEL_EFFORT_FALLBACK.
+#
+# Source of truth for per-model recommendations:
+# https://platform.claude.com/docs/en/build-with-claude/effort
+#
+# Anthropic guidance (verbatim, 2026-05-16 fetch):
+# - Claude Opus 4.7: "Start with `xhigh` for coding and agentic use cases, and
+#   use `high` as the minimum for most intelligence-sensitive workloads."
+# - Claude Sonnet 4.6: "Medium effort (recommended default): best balance of
+#   speed, cost, and performance. High: complex reasoning. Low: high-volume."
+#
+# Applied below:
+# - mas_communication (Sonnet 4.6, low-volume notification routing): low.
+# - mas_main (Opus 4.7, primary orchestrator agentic role): xhigh per doc.
+#   Was "high" pre-2026-05-16; raised per the doc's "xhigh is the recommended
+#   STARTING point for Opus 4.7 coding and agentic work."
+# - mas_qa (Sonnet 4.6, quality-critical eval): high per doc's "high for
+#   complex reasoning where quality matters more than speed".
+# - mas_research (Sonnet 4.6, balanced lit search): medium (recommended default).
+# - autoresearch_*: vary by sub-role; smart=medium, strategic=high, fast=None.
 EFFORT_DEFAULTS: dict[str, Effort | None] = {
     "mas_communication":       "low",
-    "mas_main":                "high",
+    "mas_main":                "xhigh",
     "mas_qa":                  "high",
     "mas_research":            "medium",
     "autoresearch_fast":       None,
