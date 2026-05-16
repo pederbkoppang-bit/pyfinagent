@@ -20,7 +20,11 @@ if [ -f "${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/archive-handoff.disabled" ]; then
     exit 0
 fi
 
-set -euo pipefail
+# Fail-open: 2026-05-16 fix. trap exit 0 ensures the hook never
+# returns non-zero to the harness even when `set -e` would otherwise
+# kill the script silently mid-flow.
+trap 'exit 0' EXIT
+set -uo pipefail
 
 REPO="${CLAUDE_PROJECT_DIR:-}"
 if [ -z "$REPO" ]; then

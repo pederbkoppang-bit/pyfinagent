@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
 # masterplan-memory-sync.sh — Syncs masterplan state to memory layers
-# Triggered by PostToolUse on Write(.claude/masterplan.json)
+# Triggered by PostToolUse on Write/Edit(.claude/masterplan.json)
 # Does NOT commit (avoids infinite loop)
+#
+# Fail-open: never block the masterplan Write that triggered us.
+# 2026-05-16 fix: trap exit 0 to honor the never-block discipline even
+# when `set -e` would otherwise kill the script silently (no stderr,
+# only "PostToolUse:Edit hook error -- non-blocking status code"
+# visible to the harness). Plus: derive memory dir from
+# CLAUDE_PROJECT_DIR instead of hardcoding a stale project slug.
 
-set -euo pipefail
+trap 'exit 0' EXIT
+set -uo pipefail
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-}"
 if [ -z "$PROJECT_ROOT" ]; then
@@ -13,7 +21,19 @@ if [ -z "$PROJECT_ROOT" ]; then
   PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 fi
 MASTERPLAN="$PROJECT_ROOT/.claude/masterplan.json"
-MEMORY_DIR="$HOME/.claude/projects/-Users-ford/memory"
+# Derive Claude Code project slug from project path.
+# Rule observed empirically: replace `/` with `-` AND `.` with `-`.
+# E.g. /Users/ford/.openclaw/workspace/pyfinagent
+#   -> -Users-ford--openclaw-workspace-pyfinagent
+slug=$(echo "$PROJECT_ROOT" | sed -e 's|/|-|g' -e 's|\.|-|g')
+MEMORY_DIR="$HOME/.claude/projects/${slug}/memory"
+# Fall back to legacy path if the derived slug dir doesn't exist
+# (covers a project whose Claude Code session uses an older slug).
+if [ ! -d "$MEMORY_DIR" ]; then
+  MEMORY_DIR="$HOME/.claude/projects/-Users-ford/memory"
+fi
+# If neither dir exists, skip the memory sync entirely (don't error).
+[ -d "$MEMORY_DIR" ] || exit 0
 EPISODIC_DIR="$HOME/.openclaw/workspace/memory"
 
 if [ ! -f "$MASTERPLAN" ]; then exit 0; fi

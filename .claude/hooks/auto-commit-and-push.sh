@@ -14,8 +14,20 @@
 # Loop prevention: the changelog hook's own "chore: auto-changelog ..."
 # auto-commit is NOT a Write to masterplan.json, so this hook does not
 # re-fire on its own commits.
+#
+# Fail-open: 2026-05-16 fix. trap exit 0 honors the design comment
+# ("never blocking the masterplan Write that triggered it") even when
+# `set -e` would otherwise kill the script silently mid-flow. Observed
+# symptom before the fix: hook logs `INVOKED ... pid=N` (+ optional
+# `INFO: live_check artifact present`) but produces no commit/push log
+# lines, and the harness surfaces "PostToolUse:Edit hook error --
+# Failed with non-blocking status code: No stderr output". The
+# underlying root cause (where exactly set -e fires) is still being
+# diagnosed; trap + set -uo pipefail makes the harness-visible
+# behavior consistent with the design intent of fail-open.
 
-set -euo pipefail
+trap 'exit 0' EXIT
+set -uo pipefail
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-}"
 if [ -z "$PROJECT_ROOT" ]; then

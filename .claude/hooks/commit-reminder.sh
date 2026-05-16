@@ -8,8 +8,13 @@
 # at the end of a long session.
 #
 # Triggered by PostToolUse on Write(.claude/masterplan.json).
+#
+# Fail-open: 2026-05-16 fix. trap exit 0 honors the comment above
+# ("always exits 0") even when `set -e` would otherwise kill the
+# script silently.
 
-set -euo pipefail
+trap 'exit 0' EXIT
+set -uo pipefail
 
 # Resolve project root with the same 3-step fallback used by the other hooks.
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-}"
