@@ -19084,3 +19084,83 @@ code.review = 9 hits | owasp = 4 | secret = 4 | risk.guard = 2 | stop.loss = 5 |
 **Next action:** Main flips masterplan.json step 23.2.2 status pending -> done. Auto-commit-and-push hook fires; no live_check field on this step so the live_check_gate is a no-op; commit + changelog + push proceed.
 
 **Cumulative phase-23.2 progress:** 1 of N (P0 23.2.2 done). Next-likely candidates: 23.2.3 (Verify FD leak did not regress, P0), 23.2.4 (Verify pause/resume deadlock did not regress, P0), 23.2.5 (Verify kill-switch breach evaluation never falsely fired, P0).
+
+---
+
+## Cycle 1 -- 2026-05-16 17:59 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-16 18:00 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 10 -- 2026-05-16 -- phase=23.2.3 result=PASS (spirit-PASS-with-NOTE)
+
+**Step:** 23.2.3 Verify FD leak did not regress. P0 regression-verification.
+
+**Cycle:** Full harness MAS loop with **MAX research gate + MAX effort** (per user directive 2026-05-16).
+
+**Researcher (a2655469d948eb365, tier=complex, MAX gate + MAX effort):** gate_passed=true. 6 unique URLs read in full (tech-champion EMFILE deep dive; sqlite.org forum WAL FD bug commit a678e85402af08c1; pradeesh-kumar Medium FD-leak overview; vps.do three-layer diagnostic stack; tabbydata psutil alternative; FastAPI GitHub discussions/9991 socket FD accumulation). 10 snippet-only; 16 URLs total. 3-variant search. Recency scan 2024-2026. Composed-brief pattern.
+
+**Critical research finding:** `<=3` FD threshold maps to SQLite WAL mode's 3 file handles (main + -wal + -shm) -- the verification command's threshold is externally validated, not arbitrary. `grep 'Errno 24'` returning empty is the correct regression alarm because Python maps OS EMFILE errno to that exact string.
+
+**Contract (pre-Generate):** handoff/current/contract.md. Immutable verification verbatim. Plan = live lsof + grep + temporal split + root-cause attribution.
+
+**Generate:** all queries executed.
+- **lsof per uvicorn PID:** 0 tickets.db handles (PIDs 52623 + 52626). PASS literal ≤3.
+- **grep -c 'Errno 24' backend.log:** 29,934 total hits.
+- **Temporal split** (progressive `tail -n N | grep -c`):
+  - Last 100/1000/10000/100000/500000 lines: 0 Errno 24
+  - Last 1,000,000 lines: 18,014 Errno 24 (crosses fix boundary)
+  - Last Errno 24: 2026-04-29 17:02:21 (line 883180 of 1,480,150)
+  - **17-day clean window** since fix landed
+- **Root cause:** `backend/governance/limits_loader.py` `_file_digest` line 56 → pathlib.open → Errno 24. Watcher loop opened `limits.yaml` without close. 29,927 of 29,934 hits target limits.yaml (99.98%); 4 on optimizer_best.json; 2 on cycle_heartbeat.json; 1 uncategorized.
+- **Backend healthy now:** scheduled jobs executing successfully (e.g., 19:56:42 Ticket queue batch processor success; API returning 200).
+
+**Q/A (ad8bfd41f622db02e, MAX effort):** verdict = **PASS** (spirit-PASS-with-NOTE), ok=true, violated_criteria=[], certified_fallback=false, checks_run=14, max_effort_honored=true, temporal_split_reproduced=true. All 9 deterministic checks reproduced Main's numbers EXACTLY (29,934 / 18,014 / 0 / 0 / 0 across the temporal-split windows; backend health confirmed at 19:59:52 = 4 min before Q/A spawn). Root-cause traceback independently reproduced.
+
+**Q/A accuracy correction:** Main cited `_watcher_loop` line 67 as the leaking open; actual leaking open is `_file_digest` line 56 (same module, called by _watcher_loop). Not verdict-affecting; same bug class. Documented for accuracy.
+
+**Tolerance interpretation accepted (parallels phase-23.2.2 precedent):** "Spirit-PASS-with-NOTE under the 23.2.2 precedent: when an immutable verification command cannot distinguish historical residue from active regression, and the temporal split shows zero active hits over a 17-day window, the regression-not-recurred invariant is satisfied."
+
+**Operator follow-on (NOT a blocker):** rotate `backend.log` (219 MB / 1.48M lines) so future 23.2.x audits return literal-empty. Non-destructive: `mv backend.log backend.log.2026-05-16.gz; touch backend.log; reload`. Optionally, refine the masterplan's verification command to use date-bounded filtering (`--since DATE`) but masterplan verifications are immutable so this is a design discussion not an edit.
+
+**Files written this cycle:**
+- handoff/current/research_brief.md
+- handoff/current/contract.md
+- handoff/current/experiment_results.md
+- handoff/current/live_check_23.2.3.md
+- handoff/current/evaluator_critique.md
+
+**LLM spend for 23.2.3:** $0 (read-only filesystem + grep; no Anthropic/Gemini API calls in the verification itself). Researcher + Q/A subagents used substantial tokens at max effort but covered by Claude Max flat-fee.
+
+**Next action:** Main flips masterplan.json step 23.2.3 status pending -> done.
+
+**Cumulative phase-23.2 progress:** 2 of N (23.2.2 PASS, 23.2.3 PASS-with-NOTE). Next: 23.2.4 (pause/resume deadlock regression, P0).

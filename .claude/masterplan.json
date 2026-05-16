@@ -7236,7 +7236,7 @@
         {
           "id": "23.2.3",
           "name": "Verify FD leak did not regress",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "estimated_minutes": 10,
           "verification": "lsof -p $(pgrep -f uvicorn) | grep -c tickets.db should be <=3; grep 'Errno 24' backend.log should be empty"
