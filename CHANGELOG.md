@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-16 | `c13b1c79` | phase-26.6: Multimodal File Search RAG on financial_reports dataset |
 | 2026-05-16 | `d217d7a9` | phase-26.5: Alpha-decay / regime-shift detector skill (Gemini Flash) |
 | 2026-05-16 | `f7e24d0a` | phase-26.4: Consolidate 6 opinion skills into parameterized stance prompt |
 | 2026-05-16 | `827aed8c` | phase-26.3: Wire Gemini code_execution on 4 quant skills |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `f8cd280e` | phase-25.P: Weekly autoresearch summary Slack notification |
 | 2026-05-13 | `3b62700d` | phase-25.A10: Alpaca MCP tool-surface smoke test + deny-list reconcile |
 | 2026-05-13 | `45fce6f5` | phase-25.D7: preload_macro() max-age guard (35-day FRED-monthly default) |
-| 2026-05-13 | `9b4f2572` | phase-25.E7: yfinance_tool.get_price_history() try/except + counter |
 
 ---
 
+### v6.8.6 — phase-26.6: Multimodal File Search RAG on financial_reports dataset (2026-05-16)
+
+- **phase-26.6: Multimodal File Search RAG on financial_reports dataset**
 ### v6.8.5 — phase-26.5: Alpha-decay / regime-shift detector skill (Gemini Flash) (2026-05-16)
 
 - **phase-26.5: Alpha-decay / regime-shift detector skill (Gemini Flash)**
