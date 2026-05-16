@@ -18591,3 +18591,55 @@ code.review = 9 hits | owasp = 4 | secret = 4 | risk.guard = 2 | stop.loss = 5 |
 **Next action:** Main flips masterplan.json step 26.1 status pending -> done. Auto-commit-and-push hook fires, runs live_check gate (handoff/current/live_check_26.1.md present -> PASS), commits with subject `phase-26.1: Per-session Task Budget on autonomous_loop ...`, invokes post-commit-changelog hook, pushes to origin/main. archive-handoff hook snapshots handoff/current/* into handoff/archive/phase-26.1/ -- THIS TIME the research_brief.md will be correctly archived (canonical name lesson applied from 26.0).
 
 **Cumulative phase-26 progress:** 2 of 8 steps closed (26.0 PASS, 26.1 PASS). 26.2 (Adopt Advisor Tool) is the next P0 step -- depends on 26.0 (unblocked since 2026-05-16).
+
+---
+
+## Cycle 3 -- 2026-05-16 -- phase=26.2 result=PASS
+
+**Step:** 26.2 Adopt Advisor Tool (Sonnet executor + Opus advisor) on synthesis chain. P0 highest-leverage cost-reduction candidate per phase-26 proposal.
+
+**Cycle:** third sub-step of phase-26 (frontier-sync). Full harness MAS loop with **MAX research gate** per user instruction 2026-05-16.
+
+**Researcher (aabf565c172de860f, tier=complex, MAX gate):** gate_passed=true. 7 unique external URLs read in full via WebFetch (3 Tier-1: Anthropic Advisor Tool doc, Anthropic release notes April-9 entry, ICML 2025 OpenReview AAl89VNNy1 cascade-routing paper; 4 Tier-2: arXiv 2405.15842 model-cascading-for-code, builder.io advisor-pattern post, MindStudio advisor-strategy post, testingcatalog launch coverage). 4 snippet-only; 11 URLs total. 3-variant search applied. Recency scan (2024-04 -> 2026-05) reported. 6 internal files inspected at file:line.
+
+**Critical research finding:** Advisor Tool is `client.beta.messages.create` ONLY (NOT regular `client.messages.create`) -- the `betas=["advisor-tool-2026-03-01"]` kwarg works only on the beta path. Tools dict shape: `{"type":"advisor_20260301","name":"advisor","model":advisor_model}`. Response `usage.iterations[]` separates executor (Sonnet rates $3/$15) from advisor (Opus rates $5/$25) -- top-level `usage` reflects executor only. Pairing constraints: executor in {haiku-4-5, sonnet-4-6, opus-4-6, opus-4-7}, advisor MUST be opus-4-7 (only valid advisor model). NOT available on Bedrock or Vertex AI.
+
+**Contract (pre-Generate):** `handoff/current/contract.md`. Immutable success_criteria copied verbatim. Plan = (1) advisor_call helper in llm_client.py with betas + tools, parses iterations[], writes 1-2 log_llm_call rows; (2) settings.enable_advisor_tool=False default; (3) AgentCostEntry advisor fields + CostTracker.record_advisor_call with blended cost; (4) orchestrator.run_synthesis_pipeline flag-gated branch (try/except fallback); (5) verification + live smoke + A/B comparison. Out-of-scope: revision-loop wiring, multi_agent_orchestrator, planner_agent, full multi-cycle A/B.
+
+**Generate:** all 5 plan steps executed.
+- llm_client.py: added module-level `advisor_call(prompt, system_prompt, executor_model, advisor_model, max_uses, role, max_tokens, api_key)` (~150 lines). Wraps `client.beta.messages.create(betas=["advisor-tool-2026-03-01"], tools=[{"type":"advisor_20260301", ...}], ...)`. Parses iterations[] for executor/advisor token split. Writes 1-2 log_llm_call rows (executor + optional advisor, `agent='<role>_advisor_tool'` encoding).
+- settings.py: added `enable_advisor_tool: bool = Field(False, ...)`.
+- cost_tracker.py: added `is_advisor`, `advisor_model`, `advisor_input_tokens`, `advisor_output_tokens` fields to AgentCostEntry; added `CostTracker.record_advisor_call()` with blended cost = executor at exec_pricing + advisor at adv_pricing. Math verified via numeric example: (412,442) Sonnet + (823,1612) Opus = $0.052281.
+- orchestrator.py: added flag-gated branch in run_synthesis_pipeline initial-draft area (line 1048+). When `settings.enable_advisor_tool=True` AND `synthesis_client.model_name.startswith("claude-opus-4")`, routes through advisor_call + record_advisor_call. try/except fallback to existing `_generate_with_retry` path on any exception. Default flag=False -> zero behavior change for production.
+- Smoke + A/B: ran live advisor_call against real Anthropic API with synthesis-style prompt (mid-cap tech company analysis, structured JSON output). Advisor invoked, iterations count=3. Executor tokens (in=2871, out=256), advisor tokens (in=2891, out=1831). Two BQ rows written for request_id msg_01NfNK5aMRuLB95tj9JbnRCF: `agent='Synthesis'` (Sonnet) + `agent='Synthesis_advisor_tool'` (Opus). Then ran B side: same prompt via Opus-solo direct call, in=281, out=229, request_id msg_01VbCCq6XPQHqmhs3VH6kECC.
+
+**HONEST FINDING (operator-actionable):** A/B cost comparison shows advisor path is **9.2x MORE EXPENSIVE** than Opus-solo on this synthesis prompt:
+- A (advisor): $0.072683, latency 39.51s, advisor produced 1831 output tokens at Opus rates
+- B (Opus-solo): $0.007130, latency 4.91s
+- Cost delta: +919.4%, latency delta +34.6s
+- Signal quality: recommendation MATCH (both HOLD); conviction 6 vs 7 (diff 1, within threshold)
+
+**Root cause:** Advisor pattern's cost economics rely on EXECUTOR producing most output. On a single-call synthesis prompt the advisor's "thinking" output (1831 tokens) dominates Opus-rate billing. Anthropic-touted 11.9% savings (SWE-bench multilingual) and 49% savings (model-cascading benchmarks) apply to long-horizon agentic workloads, NOT one-shot synthesis. The brief's hypothesis (25-45% cost reduction on synthesis chain) is REFUTED on N=1.
+
+**Operator recommendation (per Q/A verdict):** DO NOT flip `enable_advisor_tool=True` for synthesis -- defer to phase-27 affordance for planner/debate workloads where the executor produces large mechanical output volumes.
+
+**Q/A (initial spawn a33fe706f0bb37253):** returned interim status mid-evaluation, did NOT write verdict to evaluator_critique.md (left phase-26.1 verdict in the file). **Q/A retry (ac1b1f7200f53c77a):** completed full evaluation, wrote 106-line verdict to evaluator_critique.md, returned **PASS**. 10 checks_run. 5-item harness audit 5/5 PASS. 5 deterministic checks 5/5 PASS (verification command output `backend.agents.llm_client`; 4-file syntax OK; cost_tracker fields verified; BQ row queried -- 2 rows match; orchestrator flag-gate at line 1061 + try/except 1064/1092 + record_advisor_call at 1077). 4 LLM judgments 4/4 PASS (contract alignment honest; cost finding documented prominently at live_check_26.2 Evidence D + experiment_results lines 102/109/130; operator protected by flag-default-False + clear "DO NOT flip for synthesis" recommendation; N=1 acceptable within pre-committed 1-3 range -- cost finding so dramatic that recommendation is robust regardless of N). Anti-rigging note: Q/A explicitly considered CONDITIONAL or FAIL outcomes and chose PASS on the literal-reading-of-success-criteria + honest-disclosure-of-finding combination. NOT verdict-shopping: the initial Q/A spawn did NOT produce a verdict (interim only), so the retry was completing the evaluation, not overturning a prior call.
+
+**Files written this cycle:**
+- handoff/current/research_brief.md (researcher, MAX gate, canonical name)
+- handoff/current/contract.md (Main, pre-Generate)
+- handoff/current/experiment_results.md (Main, Generate self-summary with honest cost finding)
+- handoff/current/live_check_26.2.md (BQ row + verbatim A/B comparison output)
+- handoff/current/evaluator_critique.md (Q/A retry)
+
+**Source code touched:**
+- backend/agents/llm_client.py (advisor_call module-level function, ~150 lines)
+- backend/config/settings.py (enable_advisor_tool flag)
+- backend/agents/cost_tracker.py (AgentCostEntry advisor fields + record_advisor_call method)
+- backend/agents/orchestrator.py (flag-gated synthesis branch with try/except fallback)
+
+**LLM spend for 26.2 verification:** ~$0.08 (1 advisor call $0.073 + 1 Opus-solo $0.007). Pre-authorized via the masterplan success_criteria mandating real A/B comparison.
+
+**Next action:** Main flips masterplan.json step 26.2 status pending -> done. Auto-commit-and-push hook fires, runs live_check gate, commits with subject `phase-26.2: Adopt Advisor Tool (Sonnet executor + Opus advisor) on synthesis chain`, pushes to origin/main. archive-handoff hook snapshots handoff/current/* into handoff/archive/phase-26.2/.
+
+**Cumulative phase-26 progress:** 3 of 8 steps closed (26.0 PASS, 26.1 PASS, 26.2 PASS). P0s complete. Next candidates: 26.3 (Gemini code_execution on 4 quant skills, P1), 26.4 (consolidate 6 opinion skills, P1), 26.5 (alpha-decay detector, P1), 26.6 (multimodal RAG, P2), 26.7 (combined Gemini tools, P2).

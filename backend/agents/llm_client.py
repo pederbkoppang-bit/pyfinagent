@@ -1755,3 +1755,158 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
     # 4. Default: Gemini via Vertex AI
     logger.debug(f"[LLMClient] Routing {model_name} -> Gemini (Vertex AI)")
     return GeminiClient(model=vertex_model, model_name=model_name)
+
+
+# phase-26.2: Anthropic Advisor Tool helper.
+# Wraps client.beta.messages.create with the advisor-tool-2026-03-01 beta header,
+# parses usage.iterations[] for executor/advisor cost split, and writes two
+# log_llm_call rows: one for the executor pass (sonnet rates), one for the
+# advisor pass (opus rates, only if invoked). The agent='<role>_advisor_tool'
+# encoding satisfies live_check without a BQ schema migration.
+#
+# Pairing constraints (per Anthropic docs 2026-05-16):
+#   executor: claude-haiku-4-5-* | claude-sonnet-4-6 | claude-opus-4-6 | claude-opus-4-7
+#   advisor:  claude-opus-4-7  (the only valid advisor model in the current table)
+#   Invalid pair -> HTTP 400 invalid_request_error.
+#
+# NOT supported on Bedrock or Vertex AI. pyfinagent uses Anthropic direct API.
+def advisor_call(
+    prompt: str,
+    system_prompt: str = "",
+    executor_model: str = "claude-sonnet-4-6",
+    advisor_model: str = "claude-opus-4-7",
+    max_uses: int = 2,
+    role: Optional[str] = None,
+    max_tokens: int = 4096,
+    api_key: Optional[str] = None,
+) -> dict:
+    """phase-26.2: invoke the Anthropic Advisor Tool.
+
+    Returns:
+        {
+          "text": str,                      # final executor text (concatenated text blocks)
+          "executor_tokens": (in, out),     # int, int from iterations[type=="message"]
+          "advisor_tokens": (in, out),      # int, int from iterations[type=="advisor_message"]; (0,0) if advisor not invoked
+          "advisor_invoked": bool,
+          "request_id": str | None,
+          "latency_ms": float,
+          "iterations": list,               # raw iterations list (may be empty if advisor not invoked)
+        }
+
+    Side effect: writes 1-2 log_llm_call rows -- executor + optional advisor.
+    The advisor row's agent field ends in '_advisor_tool' to satisfy live_check.
+    """
+    import anthropic as _anthropic
+    import os as _os
+    import time as _time
+
+    key = api_key or _os.getenv("ANTHROPIC_API_KEY")
+    if not key:
+        raise ValueError(
+            "advisor_call requires ANTHROPIC_API_KEY env var or api_key arg"
+        )
+    client = _anthropic.Anthropic(api_key=key)
+
+    tool_def = {
+        "type": "advisor_20260301",
+        "name": "advisor",
+        "model": advisor_model,
+    }
+    if max_uses is not None:
+        tool_def["max_uses"] = int(max_uses)
+
+    kwargs = {
+        "model": executor_model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+        "betas": ["advisor-tool-2026-03-01"],
+        "tools": [tool_def],
+    }
+    if system_prompt:
+        kwargs["system"] = system_prompt
+
+    _t0 = _time.perf_counter()
+    response = client.beta.messages.create(**kwargs)
+    _latency_ms = (_time.perf_counter() - _t0) * 1000.0
+
+    # Concatenate text blocks (skip server_tool_use + advisor_tool_result blocks).
+    text_parts = []
+    for block in response.content:
+        btype = getattr(block, "type", None)
+        if btype == "text":
+            text_parts.append(getattr(block, "text", "") or "")
+    full_text = "\n".join(text_parts)
+
+    # Parse iterations[] for executor/advisor cost split.
+    usage = getattr(response, "usage", None)
+    raw_iterations = getattr(usage, "iterations", None) if usage else None
+    iterations = list(raw_iterations) if raw_iterations else []
+
+    executor_input = 0
+    executor_output = 0
+    advisor_input = 0
+    advisor_output = 0
+    advisor_invoked = False
+
+    for it in iterations:
+        if isinstance(it, dict):
+            it_type = it.get("type")
+            in_tok = it.get("input_tokens", 0) or 0
+            out_tok = it.get("output_tokens", 0) or 0
+        else:
+            it_type = getattr(it, "type", None)
+            in_tok = getattr(it, "input_tokens", 0) or 0
+            out_tok = getattr(it, "output_tokens", 0) or 0
+        if it_type == "advisor_message":
+            advisor_input += int(in_tok)
+            advisor_output += int(out_tok)
+            advisor_invoked = True
+        elif it_type == "message":
+            executor_input += int(in_tok)
+            executor_output += int(out_tok)
+
+    # Fallback: if iterations[] not present, use top-level usage as executor totals.
+    if not iterations and usage is not None:
+        executor_input = int(getattr(usage, "input_tokens", 0) or 0)
+        executor_output = int(getattr(usage, "output_tokens", 0) or 0)
+
+    request_id = getattr(response, "id", None) or getattr(response, "_request_id", None)
+
+    # Write executor + (optional) advisor rows to llm_call_log.
+    try:
+        from backend.services.observability import log_llm_call as _log_llm_call
+        _log_llm_call(
+            provider="anthropic",
+            model=executor_model,
+            agent=(role or "advisor_call_executor"),
+            latency_ms=_latency_ms,
+            ttft_ms=_latency_ms,
+            input_tok=executor_input,
+            output_tok=executor_output,
+            request_id=request_id,
+            ok=True,
+        )
+        if advisor_invoked:
+            _log_llm_call(
+                provider="anthropic",
+                model=advisor_model,
+                agent=(role or "advisor_call") + "_advisor_tool",
+                latency_ms=0.0,
+                ttft_ms=0.0,
+                input_tok=advisor_input,
+                output_tok=advisor_output,
+                request_id=request_id,
+                ok=True,
+            )
+    except Exception as _exc:  # pragma: no cover -- fail-open
+        logger.debug("[advisor_call] llm_call_log write skipped: %r", _exc)
+
+    return {
+        "text": full_text,
+        "executor_tokens": (executor_input, executor_output),
+        "advisor_tokens": (advisor_input, advisor_output),
+        "advisor_invoked": advisor_invoked,
+        "request_id": request_id,
+        "latency_ms": _latency_ms,
+        "iterations": iterations,
+    }

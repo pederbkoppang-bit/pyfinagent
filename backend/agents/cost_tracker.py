@@ -104,6 +104,18 @@ class AgentCostEntry:
     # for downstream `profit_per_llm_dollar` aggregation at the ticker
     # granularity (north-star goal-c rendered per-ticker).
     ticker: Optional[str] = None
+    # phase-26.2: Advisor Tool tier (Sonnet executor + Opus advisor).
+    # When True, this entry's cost_usd reflects a BLENDED cost across the
+    # executor model (charged at its rates) and the advisor model (charged
+    # at advisor rates). advisor_input_tokens + advisor_output_tokens are
+    # the OPUS-priced portion; input_tokens + output_tokens are the
+    # executor-priced portion. Total = (input * exec_rate_in + output *
+    # exec_rate_out + advisor_input * opus_rate_in + advisor_output *
+    # opus_rate_out) / 1e6. See record_advisor_call().
+    is_advisor: bool = False
+    advisor_model: Optional[str] = None
+    advisor_input_tokens: int = 0
+    advisor_output_tokens: int = 0
 
 
 @dataclass
@@ -185,6 +197,64 @@ class CostTracker:
             cache_read_input_tokens=cache_read,
             is_batch=is_batch,
             ticker=ticker,
+        )
+
+        with self._lock:
+            self.entries.append(entry)
+
+        return entry
+
+    def record_advisor_call(
+        self,
+        agent_name: str,
+        executor_model: str,
+        advisor_model: str,
+        executor_input_tokens: int,
+        executor_output_tokens: int,
+        advisor_input_tokens: int,
+        advisor_output_tokens: int,
+        ticker: Optional[str] = None,
+    ) -> AgentCostEntry:
+        """phase-26.2: record an Anthropic Advisor Tool call. The blended
+        cost is executor_tokens at executor_model rates + advisor_tokens at
+        advisor_model rates. Both sides are tracked separately on the entry
+        so downstream attribution can split them out.
+
+        When advisor was NOT invoked, pass advisor_input_tokens=0 and
+        advisor_output_tokens=0 -- the entry is recorded with is_advisor=True
+        but the advisor portion contributes $0.
+        """
+        exec_pricing = MODEL_PRICING.get(executor_model, _DEFAULT_PRICING)
+        adv_pricing = MODEL_PRICING.get(advisor_model, _DEFAULT_PRICING)
+
+        executor_cost = (
+            executor_input_tokens * exec_pricing[0]
+            + executor_output_tokens * exec_pricing[1]
+        ) / 1_000_000
+        advisor_cost = (
+            advisor_input_tokens * adv_pricing[0]
+            + advisor_output_tokens * adv_pricing[1]
+        ) / 1_000_000
+        total_cost = round(executor_cost + advisor_cost, 6)
+
+        entry = AgentCostEntry(
+            agent_name=agent_name,
+            model=executor_model,  # executor is the "primary" model for the entry
+            input_tokens=executor_input_tokens,
+            output_tokens=executor_output_tokens,
+            total_tokens=(executor_input_tokens + executor_output_tokens
+                          + advisor_input_tokens + advisor_output_tokens),
+            cost_usd=total_cost,
+            is_deep_think=True,  # advisor sub-inference is Opus 4.7 -> deep-think tier
+            is_grounded=False,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+            is_batch=False,
+            ticker=ticker,
+            is_advisor=True,
+            advisor_model=advisor_model,
+            advisor_input_tokens=advisor_input_tokens,
+            advisor_output_tokens=advisor_output_tokens,
         )
 
         with self._lock:

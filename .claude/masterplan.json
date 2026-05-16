@@ -9541,7 +9541,7 @@
         {
           "id": "26.2",
           "name": "Adopt Advisor Tool (Sonnet executor + Opus advisor) on synthesis chain",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "26.0",

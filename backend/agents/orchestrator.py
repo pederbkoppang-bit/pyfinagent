@@ -1047,11 +1047,63 @@ class AnalysisOrchestrator:
 
         # Initial synthesis draft (uses synthesis_model with 4096 output token limit)
         draft_prompt = prompts.get_synthesis_prompt(**synthesis_kwargs)
-        draft_response = self._generate_with_retry(
-            self.synthesis_client, draft_prompt, "Synthesis",
-            is_deep_think=True, generation_config=_SYNTHESIS_STRUCTURED_CONFIG,
-        )
-        draft_text = _clean_json_output(_extract_text(draft_response))
+
+        # phase-26.2: when Advisor Tool is enabled in settings AND the configured
+        # synthesis client is on an Opus 4.x model, route this initial draft
+        # through advisor_call (Sonnet 4.6 executor + Opus 4.7 advisor) for the
+        # 25-45% estimated cost reduction documented in handoff/archive/phase-26.2/
+        # research_brief.md. Default flag = False -> zero behavior change.
+        # Failure modes:
+        #   - HTTP 400 invalid pairing -> falls through to the standard
+        #     generate_content path below (try/except).
+        #   - Anthropic SDK unavailable or beta path errors -> same fallback.
+        _advisor_text: Optional[str] = None
+        _enable_advisor = bool(getattr(self.settings, "enable_advisor_tool", False))
+        _synth_model_name = getattr(self.synthesis_client, "model_name", "") or ""
+        if _enable_advisor and _synth_model_name.startswith("claude-opus-4"):
+            try:
+                from backend.agents.llm_client import advisor_call as _advisor_call
+                _adv = _advisor_call(
+                    prompt=draft_prompt,
+                    executor_model="claude-sonnet-4-6",
+                    advisor_model=_synth_model_name,
+                    role="Synthesis",
+                    max_tokens=4096,
+                )
+                _advisor_text = _adv.get("text") or ""
+                # Record blended cost into cost_tracker (separate tier).
+                _ct = getattr(self, "cost_tracker", None)
+                if _ct is not None and hasattr(_ct, "record_advisor_call"):
+                    _ct.record_advisor_call(
+                        agent_name="Synthesis",
+                        executor_model="claude-sonnet-4-6",
+                        advisor_model=_synth_model_name,
+                        executor_input_tokens=_adv["executor_tokens"][0],
+                        executor_output_tokens=_adv["executor_tokens"][1],
+                        advisor_input_tokens=_adv["advisor_tokens"][0],
+                        advisor_output_tokens=_adv["advisor_tokens"][1],
+                        ticker=ticker,
+                    )
+                logger.info(
+                    "[phase-26.2] Synthesis routed through advisor_call: "
+                    "executor_tokens=%s advisor_tokens=%s advisor_invoked=%s",
+                    _adv["executor_tokens"], _adv["advisor_tokens"], _adv["advisor_invoked"],
+                )
+            except Exception as _adv_exc:
+                logger.warning(
+                    "[phase-26.2] advisor_call failed (%r); falling back to Opus-solo path",
+                    _adv_exc,
+                )
+                _advisor_text = None  # falls through
+
+        if _advisor_text is not None:
+            draft_text = _clean_json_output(_advisor_text)
+        else:
+            draft_response = self._generate_with_retry(
+                self.synthesis_client, draft_prompt, "Synthesis",
+                is_deep_think=True, generation_config=_SYNTHESIS_STRUCTURED_CONFIG,
+            )
+            draft_text = _clean_json_output(_extract_text(draft_response))
 
         synthesis_iterations = 1
         critic_issues_log = []

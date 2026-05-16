@@ -163,6 +163,12 @@ class Settings(BaseSettings):
     paper_reeval_frequency_days: int = Field(3, description="Re-evaluate existing holdings every N days")
     paper_transaction_cost_pct: float = Field(0.1, description="Simulated transaction cost per trade (%)")
     paper_max_daily_cost_usd: float = Field(2.0, description="Maximum LLM cost per daily trading cycle (USD)")
+    # phase-26.2: opt-in flag for the Anthropic Advisor Tool (Sonnet executor + Opus advisor)
+    # on the synthesis chain. Default False (this step adds capability; flip to True
+    # via operator-driven rollout after A/B regression check). When True AND the
+    # configured synthesis model is claude-opus-4-*, run_synthesis_pipeline routes
+    # through advisor_call() instead of generate_content(). See research_brief.md.
+    enable_advisor_tool: bool = Field(False, description="Enable Anthropic Advisor Tool (Sonnet 4.6 executor + Opus 4.7 advisor) on Opus-based synthesis chain")
     # phase-23.1.1: macro regime filter (LLM-as-judge over FRED snapshot)
     macro_regime_filter_enabled: bool = Field(False, description="Apply daily macro regime as a conviction multiplier in screener rank_candidates")
     macro_regime_model: str = Field("claude-haiku-4-5", description="LLM used for daily macro regime classification")
