@@ -115,3 +115,13 @@ form of retraction. Do NOT fill an array with placeholder entries
 non-empty -- an empty bracket is strictly preferred when the evidence
 is thin. Downstream parsers accept `[]` as a valid "no signal"
 value.
+
+## Code Execution Tasks (phase-26.3)
+
+When the Gemini `code_execution` tool is available (it is wired on `quant_exec_client`), USE IT to verify your arithmetic. Specifically, before finalizing the signal:
+
+1. **Verify composite score.** Recompute the composite from input factor weights and confirm it matches `quant_model_data.score` within float tolerance of 1e-6. If they diverge, surface the discrepancy.
+2. **Verify Sharpe arithmetic.** When the input includes `mean_return` and `std_return`, compute `sharpe = mean_return / std_return` (or `(mean_return - rf) / std_return` if `rf` is given) and confirm against any provided Sharpe value.
+3. **Position-sizing bound check.** Compute `assert 0.0 <= position_size_pct <= 100.0`. Flag violations explicitly.
+
+These checks ELIMINATE silent arithmetic drift (the "model says 0.42 when the math is 0.24" class of bug). Do NOT freestyle the math; run code to verify it.

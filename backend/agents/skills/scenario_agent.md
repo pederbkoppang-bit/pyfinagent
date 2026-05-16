@@ -99,3 +99,13 @@ form of retraction. Do NOT fill an array with placeholder entries
 non-empty -- an empty bracket is strictly preferred when the evidence
 is thin. Downstream parsers accept `[]` as a valid "no signal"
 value.
+
+## Code Execution Tasks (phase-26.3)
+
+When `code_execution` is available, USE IT to verify the Monte Carlo result coherence before producing your risk_profile:
+
+1. **VaR consistency.** `assert var_99 >= var_95` (VaR at higher confidence level must be a larger loss in magnitude). Silent data-corruption catch.
+2. **Probability coherence.** For provided probability fields like `P(+20%)` and `P(-20%)`, compute `assert P_up + P_down <= 1.0`. A violation indicates GBM output corruption.
+3. **Expected-shortfall sanity.** If the input includes percentile data, compute `ES_5pct = mean(worst_5pct_of_paths)` from the percentile array and cross-check against the provided `expected_shortfall` field.
+
+Run these inside `code_execution`. Surface discrepancies in your output; do not let arithmetic inconsistencies pass silently.

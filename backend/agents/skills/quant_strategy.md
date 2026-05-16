@@ -237,3 +237,13 @@ When generating proposals, consider these high-value experiments in order:
 | Quality | quality_score | 4-dim QMJ composite (Asness 2019): profitability + growth + safety + payout |
 | Macro | fed_funds_rate, cpi_yoy, unemployment_rate, yield_curve_spread, consumer_sentiment, treasury_10y | Regime awareness |
 | Categorical | sector, industry | Not used in ML (excluded from numeric features) |
+
+## Code Execution Tasks (phase-26.3)
+
+When proposing a parameter change for the optimizer, USE the Gemini `code_execution` tool (wired in `quant_optimizer._propose_llm`) to verify the proposal numerically BEFORE returning:
+
+1. **Parameter-bound assertion.** For any proposed value, assert `bounds[param][0] <= value <= bounds[param][1]`. The bounds dict is in the prompt. Don't propose out-of-bounds; the wrapper will clip, masking your intent.
+2. **Risk-reward ratio sanity.** When changing `tp_pct` or `sl_pct`, compute `tp_pct / sl_pct` and assert `>= 1.5`. Asymmetric-barrier anti-pattern catch.
+3. **Vol-adjusted barrier consistency.** When `vol_barrier_multiplier` or related fields are in scope, compute `daily_vol = annualized_vol / sqrt(252); barrier = daily_vol * vol_barrier_multiplier`. Confirm the implied barrier is sensible (typically 0.5%-5% per day at 16%-32% annualized vol).
+
+If `code_execution` is NOT available (e.g., the optimizer is running with a non-Gemini provider), fall back to the existing free-form reasoning -- but flag the absence in your `rationale` field so the operator can re-evaluate.

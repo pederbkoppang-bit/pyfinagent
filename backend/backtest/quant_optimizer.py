@@ -443,10 +443,39 @@ class QuantStrategyOptimizer:
         """
         try:
             from backend.config.settings import get_settings
-            from backend.agents.llm_client import make_client
+            from backend.agents.llm_client import GeminiClient, GeminiModelBundle, make_client
 
             settings = get_settings()
-            client = make_client(settings.gemini_model, None, settings)
+
+            # phase-26.3: pair the optimizer's LLM proposal with `code_execution`
+            # so the model can verify proposed parameter bounds (`2.0 <= tp_pct
+            # <= 30.0`), risk-reward ratios (`tp_pct / sl_pct >= 1.5`), and
+            # vol-adjusted barrier arithmetic INSIDE the call rather than
+            # producing numerically inconsistent proposals. The verification
+            # is enacted via the `## Code Execution Tasks` section in
+            # `backend/agents/skills/quant_strategy.md`. Bundle is constructed
+            # inline (the optimizer is the only caller; no need to spin a
+            # module-level shared bundle).
+            _bundle = None
+            try:
+                from google.genai import types as _genai_types
+                from google import genai as _genai_module
+                _client_obj = _genai_module.Client(
+                    vertexai=True,
+                    project=settings.gcp_project_id,
+                    location=getattr(settings, "vertex_location", "us-central1"),
+                )
+                _bundle = GeminiModelBundle(
+                    client=_client_obj,
+                    model_name=settings.gemini_model,
+                    tools=[_genai_types.Tool(code_execution=_genai_types.ToolCodeExecution())],
+                    base_config={},
+                )
+            except Exception as _b_exc:
+                logger.debug(f"QuantOptimizer code_execution bundle init skipped: {_b_exc}")
+                _bundle = None
+
+            client = make_client(settings.gemini_model, _bundle, settings)
 
             # Load recent experiment history
             history = self._load_recent_experiments(20)

@@ -418,20 +418,49 @@ class AnalysisOrchestrator:
             tools=[], base_config=_synthesis_config,
         )
 
+        # phase-26.3: dedicated bundle for the 4 quant skills with Gemini
+        # `code_execution` tool. Lets the model run Python mid-generation to
+        # verify Sharpe / position-sizing / VaR / regime arithmetic. 30s
+        # runtime cap, Python only, numpy/pandas/matplotlib available.
+        # Intermediate code tokens bill as INPUT; final summary as OUTPUT.
+        # Kept distinct from `_general_vertex` so the other 12 enrichment
+        # agents don't pay code-exec overhead they don't need.
+        _quant_exec_vertex = GeminiModelBundle(
+            client=_genai_client, model_name=_gemini_standard,
+            tools=[_genai_types.Tool(code_execution=_genai_types.ToolCodeExecution())],
+            base_config=_enrichment_config,
+        )
+
         # Route each model through provider factory (may use Claude/OpenAI/GitHub Models)
         self.general_client: LLMClient = make_client(settings.gemini_model, _general_vertex, settings)
         self.deep_think_client: LLMClient = make_client(deep_model_name, _dt_vertex, settings)
         self.synthesis_client: LLMClient = make_client(deep_model_name, _synth_vertex, settings)
+        # phase-26.3: quant_exec_client is Gemini-only (code_execution is
+        # Gemini-specific). When settings.gemini_model points to a non-Gemini
+        # model, this still routes to Gemini via the bundle. The 4 quant
+        # skills explicitly opt in via run_*_agent -> self.quant_exec_client.
+        self.quant_exec_client: LLMClient = make_client(settings.gemini_model, _quant_exec_vertex, settings)
 
         # RAG model always uses Gemini (Vertex AI Search constraint)
         self.rag_client: GeminiClient = GeminiClient(self.rag_model, _gemini_standard)
 
         # Google Search Grounding model — always Gemini (grounding is a Google-specific feature).
         # phase-11.3: new SDK shape is types.Tool(google_search=types.GoogleSearch()).
+        # phase-26.3: enhanced_macro_agent (the grounded user) also needs
+        # `code_execution` for yield-curve / CPI / unemployment arithmetic.
+        # Per Gemini 2.0 engineering blog (research_brief.md source #4),
+        # combined google_search + code_execution is explicitly supported.
+        # If the API rejects this combo at runtime, the call falls through
+        # the existing transient-error retry path; operator can revert this
+        # extension by setting the tools list back to `[_google_search_tool]`.
         _google_search_tool = _genai_types.Tool(google_search=_genai_types.GoogleSearch())
         _grounded_vertex = GeminiModelBundle(
             client=_genai_client, model_name=_gemini_standard,
-            tools=[_google_search_tool], base_config=_gen_config,
+            tools=[
+                _google_search_tool,
+                _genai_types.Tool(code_execution=_genai_types.ToolCodeExecution()),
+            ],
+            base_config=_gen_config,
         )
         self.grounded_client: GeminiClient = GeminiClient(_grounded_vertex, _gemini_standard)
 
@@ -553,6 +582,41 @@ class AnalysisOrchestrator:
                     response = future.result(timeout=timeout)
                 if ct:
                     ct.record(agent_name, model_name, response, is_deep_think=is_deep_think, is_grounded=is_grounded, ticker=call_ticker)
+                # phase-26.3: write llm_call_log row for Gemini code_execution calls.
+                # ClaudeClient already writes its own llm_call_log row at
+                # llm_client.py:1548; GeminiClient does NOT. To satisfy the
+                # live_check requirement (BQ row with code_execution evidence
+                # from a quant_model_agent call), emit one here when the
+                # bundle's tools include a ToolCodeExecution instance. Uses
+                # agent=f"{agent_name}_code_exec" encoding (matches phase-26.2's
+                # _advisor_tool encoding; no schema migration needed). Scoped
+                # to code_execution callers only -- universal Gemini observability
+                # is a phase-27 affordance.
+                try:
+                    _bundle = getattr(model, "_model", None)
+                    _has_ce = False
+                    if _bundle is not None and hasattr(_bundle, "tools"):
+                        for _t in (_bundle.tools or []):
+                            if getattr(_t, "code_execution", None) is not None:
+                                _has_ce = True
+                                break
+                    if _has_ce:
+                        from backend.services.observability import log_llm_call as _log_llm_call
+                        _u = getattr(response, "usage_metadata", None)
+                        _log_llm_call(
+                            provider="gemini",
+                            model=model_name,
+                            agent=f"{agent_name}_code_exec",
+                            latency_ms=0.0,
+                            ttft_ms=0.0,
+                            input_tok=int(getattr(_u, "prompt_token_count", 0) or 0) if _u else 0,
+                            output_tok=int(getattr(_u, "candidates_token_count", 0) or 0) if _u else 0,
+                            request_id=None,
+                            ok=True,
+                            ticker=call_ticker,
+                        )
+                except Exception as _llm_log_exc:  # pragma: no cover -- fail-open
+                    logger.debug("[_generate_with_retry] code_exec llm_call_log write skipped: %r", _llm_log_exc)
                 return response
             except concurrent.futures.TimeoutError:
                 logger.error(f"{agent_name} timed out after {timeout}s (attempt {attempt+1}/{max_retries})")
@@ -943,17 +1007,29 @@ class AnalysisOrchestrator:
         return {"text": _extract_text(response), "data": anomaly_data}
 
     def run_scenario_agent(self, ticker: str, mc_data: dict) -> dict:
-        """Analyze Monte Carlo scenario results."""
+        """Analyze Monte Carlo scenario results.
+
+        phase-26.3: routed through `quant_exec_client` (Gemini + code_execution
+        tool) so the model verifies VaR consistency (`var_99 >= var_95`),
+        probability coherence (`P(up) + P(down) <= 1.0`), and expected-shortfall
+        arithmetic INSIDE the call rather than freestyling the numbers.
+        """
         logger.info(f"Scenario Agent: analyzing risk for {ticker}")
         prompt = prompts.get_scenario_analysis_prompt(ticker, mc_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Scenario", generation_config=self._skill_gen_config("scenario_agent"))
+        response = self._generate_with_retry(self.quant_exec_client, prompt, "Scenario", generation_config=self._skill_gen_config("scenario_agent"))
         return {"text": _extract_text(response), "data": mc_data}
 
     def run_quant_model_agent(self, ticker: str, qm_data: dict) -> dict:
-        """Analyze quant model MDA-weighted factor signal."""
+        """Analyze quant model MDA-weighted factor signal.
+
+        phase-26.3: routed through `quant_exec_client` (Gemini + code_execution
+        tool) so the model verifies Sharpe arithmetic, position-sizing bounds,
+        and composite-score reproducibility INSIDE the call. Eliminates the
+        silent arithmetic drift class (model says 0.42 when the math is 0.24).
+        """
         logger.info(f"Quant Model Agent: analyzing factor signal for {ticker}")
         prompt = prompts.get_quant_model_prompt(ticker, qm_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Quant Model", generation_config=self._skill_gen_config("quant_model_agent"))
+        response = self._generate_with_retry(self.quant_exec_client, prompt, "Quant Model", generation_config=self._skill_gen_config("quant_model_agent"))
         return {"text": _extract_text(response), "data": qm_data}
 
     # ── Synthesis ────────────────────────────────────────────────────

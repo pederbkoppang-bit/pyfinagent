@@ -898,6 +898,33 @@ class GeminiClient(LLMClient):
             except Exception:
                 text = ""
 
+        # phase-26.3: surface code_execution outputs that response.text omits.
+        # When the bundle has ToolCodeExecution, the model emits executable_code
+        # blocks (the Python it ran) and code_execution_result blocks (stdout +
+        # outcome enum). response.text drops these silently -- but they ARE the
+        # verified arithmetic the skill is supposed to use. Append as a clearly-
+        # delimited appendix so downstream parsers can find both the model's
+        # narrative and the verified numbers.
+        try:
+            _ce_parts = response.candidates[0].content.parts
+            _ce_appendix = []
+            for _p in _ce_parts:
+                _ec = getattr(_p, "executable_code", None)
+                _cr = getattr(_p, "code_execution_result", None)
+                if _ec is not None and getattr(_ec, "code", None):
+                    _ce_appendix.append(f"---CODE_EXECUTION_CODE---\n{_ec.code}")
+                if _cr is not None:
+                    _out = getattr(_cr, "output", None)
+                    _outcome = str(getattr(_cr, "outcome", "")).split(".")[-1]  # enum repr -> name
+                    if _out:
+                        _ce_appendix.append(
+                            f"---CODE_EXECUTION_RESULT outcome={_outcome}---\n{_out}"
+                        )
+            if _ce_appendix:
+                text = (text or "") + "\n" + "\n".join(_ce_appendix)
+        except Exception:
+            pass  # fail-open: code_execution surfacing is best-effort
+
         # 6. Extract thoughts (phase-11.3: new SDK uses `part.thought` bool + `part.text`).
         thoughts = ""
         try:

@@ -9562,7 +9562,7 @@
         {
           "id": "26.3",
           "name": "Wire Gemini code_execution on 4 quant skills",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

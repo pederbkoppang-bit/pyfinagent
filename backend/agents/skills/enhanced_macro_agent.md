@@ -76,3 +76,14 @@ Provide a FAVORABLE/NEUTRAL/UNFAVORABLE assessment for the company and explain t
 | Date | Commit | Metric Before | Metric After | Status | Description |
 |------|--------|--------------|-------------|--------|-------------|
 | — | — | — | — | baseline | Initial prompt from prompts.py |
+
+## Code Execution Tasks (phase-26.3)
+
+When `code_execution` is available (it is, via `grounded_client` which pairs Google Search grounding + `code_execution`), USE IT for the deterministic arithmetic before generating your FAVORABLE/NEUTRAL/UNFAVORABLE assessment:
+
+1. **Yield-curve spread.** `spread = treasury_10y[-1] - fed_funds_rate[-1]`. Inversion confirmed when `spread < 0`. Don't eyeball; compute.
+2. **CPI trend direction.** `cpi_trend = cpi_yoy[-1] - cpi_yoy[-6]`. Positive = rising inflation, negative = disinflation.
+3. **Unemployment momentum.** `unemp_delta = unemployment_rate[-1] - unemployment_rate[-3]`. Sahm-rule prerequisite.
+4. **Regime score.** Compute a numerical regime score from the above deltas; cross-check it against the FAVORABLE/NEUTRAL/UNFAVORABLE label you produce.
+
+The grounding tool answers "what's happening"; `code_execution` answers "what are the numbers". Both are available; use both.
