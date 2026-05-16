@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-16 | `c66f912a` | phase-25: Phase-24 remediation: 45 ranked code-change candidates from buckets 24.0-24.13 |
 | 2026-05-16 | `db5771d0` | fix(hooks): make PostToolUse Edit/Write hooks fail-open via trap exit 0 |
 | 2026-05-16 | `706d9cf2` | phase-16.15: Go/No-Go verdict (Q/A spawn required -- NO self-evaluation) |
 | 2026-05-16 | `ba18ffab` | phase-16.59: Uplift Q/A with code-reviewer capabilities (max research gate, full harness MAS) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `ddd518aa` | phase-25.C: Surface Layer-1 28-skill outputs in drawer when full pipeline runs |
 | 2026-05-13 | `f3a305c9` | phase-25.D: Normalize per-agent contribution weights to 0-1 range |
 | 2026-05-13 | `c7f44844` | phase-25.L: Drawdown alarm with tiered thresholds |
-| 2026-05-13 | `502ad148` | phase-25.F: Byte-identical regression test for aliasing detection |
 
 ---
 
+### v6.7.68 — phase-25: Phase-24 remediation: 45 ranked code-change candidates from... (2026-05-16)
+
+- **phase-25: Phase-24 remediation: 45 ranked code-change candidates from buckets 24.0-24.13**
 ### v6.7.67 — fix(hooks): make PostToolUse Edit/Write hooks fail-open via trap exit 0 (2026-05-16)
 
 - **fix(hooks): make PostToolUse Edit/Write hooks fail-open via trap exit 0**
