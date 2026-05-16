@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-16 | `35aecc2b` | chore(docs): clarify paper-trading tables live in financial_reports |
 | 2026-05-16 | `613c345f` | phase-23.2.2: Verify zero phantom trades / cash-leak regressions (trade<->position reconciliation) |
 | 2026-05-16 | `85bfce5d` | chore: align Claude effort levels with Anthropic recommendations |
 | 2026-05-16 | `ae3004ff` | phase-26.7: Combined Gemini tools+grounding single-call refactor on enrichment skills |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-14 | `71e415e7` | phase-25.S.1: Per-call ticker tagging in llm_call_log + cost_tracker for exact per-ticker attribu... |
 | 2026-05-13 | `ce7c4760` | phase-25.D9.1: Caller-side Files API adoption (skill_file_id wiring in run_*_agent calls) |
 | 2026-05-13 | `3badd856` | phase-25.C9.1: Orchestrator instance-level BatchClient routing (gate + dispatcher method) |
-| 2026-05-13 | `e644e791` | phase-23.6.4: Restore missing observability symbols in backend/api/harness_autoresearch.py (surfa... |
 
 ---
 
