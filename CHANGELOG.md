@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-16 | `85bfce5d` | chore: align Claude effort levels with Anthropic recommendations |
 | 2026-05-16 | `ae3004ff` | phase-26.7: Combined Gemini tools+grounding single-call refactor on enrichment skills |
 | 2026-05-16 | `c13b1c79` | phase-26.6: Multimodal File Search RAG on financial_reports dataset |
 | 2026-05-16 | `d217d7a9` | phase-26.5: Alpha-decay / regime-shift detector skill (Gemini Flash) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `3badd856` | phase-25.C9.1: Orchestrator instance-level BatchClient routing (gate + dispatcher method) |
 | 2026-05-13 | `e644e791` | phase-23.6.4: Restore missing observability symbols in backend/api/harness_autoresearch.py (surfa... |
 | 2026-05-13 | `f8cd280e` | phase-25.P: Weekly autoresearch summary Slack notification |
-| 2026-05-13 | `3b62700d` | phase-25.A10: Alpaca MCP tool-surface smoke test + deny-list reconcile |
 
 ---
 
