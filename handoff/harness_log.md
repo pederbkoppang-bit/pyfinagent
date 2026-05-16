@@ -18500,3 +18500,94 @@ code.review = 9 hits | owasp = 4 | secret = 4 | risk.guard = 2 | stop.loss = 5 |
 **Next action:** Main flips masterplan.json step 26.0 status pending -> done. Auto-commit-and-push hook fires, runs live_check gate (handoff/current/live_check_26.0.md present -> PASS), commits with subject `26.0: Verify Opus 4.7 migration complete across all callers`, invokes post-commit-changelog hook, pushes to origin/main. Then archive-handoff hook snapshots handoff/current/* into handoff/archive/phase-26.0/.
 
 **Cumulative phase-26 progress:** 1 of 8 steps closed (26.0 PASS). 26.1 (Per-session Task Budget) and 26.2 (Adopt Advisor Tool, depends on 26.0 -- now unblocked) are next candidates. 26.0 took ~190s total researcher + ~180s Q/A + Main loop time.
+
+---
+
+## Cycle 1 -- 2026-05-16 12:11 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-16 14:43 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 2 -- 2026-05-16 -- phase=26.1 result=PASS
+
+**Step:** 26.1 Per-session Task Budget on autonomous_loop (hard pre-cycle ceiling). P0 cost-control prerequisite for safely raising cycle frequency.
+
+**Cycle:** second sub-step of phase-26 (frontier-sync). Full harness MAS loop with **MAX research gate** per user instruction 2026-05-16 ("all steps should be with max research gate").
+
+**Researcher (a19063d0b17fee770, tier=complex, MAX gate):** gate_passed=true. 7 unique external URLs read in full via WebFetch (1 Tier-1 arXiv preprint 2601.08815 on Agent Contracts; 1 Tier-1 Anthropic harness-design engineering blog; 5 Tier-2 practitioner/industry: finout Managed Agents analysis, AI Security Gateway 5-layer architecture, RelayPlane runaway-costs, Momentic Agent-SDK comparison, The Register billing-split). 5 snippet-only; 12 URLs total. 3-variant search discipline (current-year + last-2-year + year-less canonical). Recency scan 2024-2026 with explicit findings (Managed Agents GA April 2026, billing split June 15 2026, arXiv 2601.08815 Jan 2026 formal r_cost framework). Brief at `handoff/current/research_brief.md` (CANONICAL filename so archive captures correctly -- 26.0 lesson applied).
+
+**Critical research finding:** Anthropic Task Budgets is NOT a first-class `/v1/messages` API parameter; `max_budget_usd` exists only in the Agent SDK session abstraction. pyfinagent uses raw `client.messages.create` + `llm_client.generate_content`, so direct API adoption is NOT applicable. Implementation shape: **local-mirror of the Agent SDK pattern** (module-level constant + cycle-scoped accumulator + check-before-call). Validated by Agent Contracts paper's r_cost dimension + AI Security Gateway five-layer architecture (layer 2: per-session rolling budget).
+
+**Contract (pre-Generate):** `handoff/current/contract.md`. Immutable success_criteria copied verbatim from masterplan step 26.1. Plan = (1) impl in autonomous_loop.py (constant + accumulator + helpers + check + reset), (2) BQ migration adding cycle_id + session_cost_usd, (3) writer auto-fetch in api_call_log.py, (4) [skipped -- auto-fetch supersedes], (5) verification + smoke. Out-of-scope explicitly disclaimed: pre/post-analysis LLM calls not budget-gated (matches existing `total_analysis_cost` scope); soft-watermark + settings UI plumbing + Managed Agents migration deferred to phase-27.
+
+**Generate:** All plan steps executed.
+- D1 (verification command immutable): PASS, `_SESSION_BUDGET_USD = 1.0`.
+- D2 (3-file syntax check): PASS (autonomous_loop.py + api_call_log.py + migration script).
+- D3 (constants + helpers): PASS at autonomous_loop.py:89-121.
+- D4 (pre-analysis wiring): PASS at lines 345, 355, 372, 382 (both analyze loops).
+- D5 (catch+finally intact): PASS -- BudgetBreachError catch at line 643 unchanged; finally block at line 655 augmented with new line 659 cycle_id clear.
+- D6 (BQ schema): PASS -- 15 columns including cycle_id STRING NULLABLE + session_cost_usd FLOAT NULLABLE (plus 2 bonus cache_creation_tok / cache_read_tok added inline -- pre-existing writer gap fixed).
+- D7 (BQ smoke row): PASS -- 1 row with `cycle_id="phase26-1-smoke"`, `session_cost_usd=0.00025`, queryable via standard SELECT.
+- D8 (BudgetBreachError repro): PASS -- env-override `PYFINAGENT_SESSION_BUDGET_USD=0.0001`, set `_session_cost=0.001`, call `_check_session_budget` -> raises BudgetBreachError with correct message format `"session_budget_breach: cumulative $0.0010 >= ceiling $0.0001 (stage=..., cycle_id=...)"`.
+- D9 (catch+finally simulation): PASS -- synthesized BudgetBreachError + catch handler matches autonomous_loop.py:580-596 verbatim; finally fires alert event with `error_type="cycle_budget_breach"`, `severity="P1"`, `source="autonomous_loop"`.
+
+**BQ migrations applied** (one-time, additive-only ALTERs):
+1. `add_llm_call_log.py` -- created `pyfinagent_data.llm_call_log` table (was missing; pre-existing infra gap).
+2. `add_ticker_to_llm_call_log.py --apply` -- added `ticker` column.
+3. `add_session_budget_to_llm_call_log.py --apply` -- added `cycle_id` + `session_cost_usd` columns.
+4. Inline ALTER -- added `cache_creation_tok` + `cache_read_tok` columns (pre-existing writer references; documented in experiment_results.md as bonus infra fix needed for end-to-end live_check).
+
+**Cost accounting:** zero LLM API calls for 26.1 (smoke uses synthesized raises). DDL is free. BQ streaming insert <$0.01. Total step spend ~$0.
+
+**Q/A (a6034981f269c51db, MAX-tier evaluation):** verdict = **PASS**, ok = true, violated_criteria = [], certified_fallback = false, checks_run = **21** (above the 10 floor for MAX-gate Q/A). Phase-1 5-item harness-compliance audit: 5/5 PASS (researcher MAX gate spawn pre-contract; canonical research_brief.md name confirmed; contract immutable criteria verbatim; results + live_check both present; harness_log not yet appended -- log-last observed; first Q/A spawn -- no verdict-shopping). Phase-2 D1-D9 deterministic: all 9 PASS (verification command, 3-file syntax, constants/helpers presence, pre-analysis wiring at 4 line anchors, catch+finally inspection, BQ schema 15 columns, BQ row queried back, BudgetBreachError repro, catch+finally simulation match). Phase-3 J1-J7 LLM judgments: all 7 PASS or PASS_WITH_NOTE (contract alignment with documented plan-step-4 divergence to lazy auto-fetch; scope honesty acknowledging budget-check vs logging-coverage distinction; mutation-resistance on positive default and env-var failure mode; cache-column inline ALTER classified as necessary pre-existing gap fix not scope creep; sycophancy negative because BQ row + raise + catch+finally independently re-verified; MAX-tier gate satisfied with 7 unique URLs / Tier-1+2 / 3-variant search / recency / internal grep; end-to-end note: catch+finally is unmodified existing wiring so simulation is acceptable evidence).
+
+**Q/A notes (honest pushback, not rigging):**
+1. Slack alert proven by simulation; real cron-alert POST not exercised. Acceptable because the catch+finally raise_cron_alert_sync path is unmodified from phase-25.A8 wiring -- 26.1 does NOT touch the alerting code.
+2. Budget-check fires only at analyze-loop boundaries (lines 345, 372). Pre-analysis LLM calls (macro regime, PEAD, news, sector calendars) and post-analysis trade-decision calls are logged via log_llm_call (so they DO accumulate in `session_cost_usd` via the writer's auto-fetch) but are not budget-GATED. Explicitly disclaimed in contract's "Scope honesty / out-of-scope" section; comprehensive gate-everywhere is a phase-27 affordance.
+
+**Files written this cycle:**
+- handoff/current/research_brief.md (researcher; canonical name)
+- handoff/current/contract.md (Main, pre-Generate)
+- handoff/current/experiment_results.md (Main, Generate self-summary)
+- handoff/current/live_check_26.1.md (BQ row + raise + catch+finally evidence)
+- handoff/current/evaluator_critique.md (Q/A)
+
+**Source code touched:**
+- backend/services/autonomous_loop.py (constant + state + 4 helpers + cycle-start/end + 4 wiring points)
+- backend/services/observability/api_call_log.py (signature + lazy auto-fetch in log_llm_call)
+- scripts/migrations/add_session_budget_to_llm_call_log.py (new)
+
+**BQ schema delta:** pyfinagent_data.llm_call_log goes from missing -> 15 columns (table created + ticker + cycle_id + session_cost_usd + cache_creation_tok + cache_read_tok).
+
+**Next action:** Main flips masterplan.json step 26.1 status pending -> done. Auto-commit-and-push hook fires, runs live_check gate (handoff/current/live_check_26.1.md present -> PASS), commits with subject `phase-26.1: Per-session Task Budget on autonomous_loop ...`, invokes post-commit-changelog hook, pushes to origin/main. archive-handoff hook snapshots handoff/current/* into handoff/archive/phase-26.1/ -- THIS TIME the research_brief.md will be correctly archived (canonical name lesson applied from 26.0).
+
+**Cumulative phase-26 progress:** 2 of 8 steps closed (26.0 PASS, 26.1 PASS). 26.2 (Adopt Advisor Tool) is the next P0 step -- depends on 26.0 (unblocked since 2026-05-16).

@@ -213,6 +213,8 @@ def log_llm_call(
     request_id: str | None = None,
     ok: bool = True,
     ticker: str | None = None,
+    cycle_id: str | None = None,
+    session_cost_usd: float | None = None,
 ) -> None:
     """Buffer a llm_call_log row. Never raises.
 
@@ -221,8 +223,30 @@ def log_llm_call(
     `scripts/migrations/add_ticker_to_llm_call_log.py` -- writes
     succeed even pre-migration (BQ insert errors are caught at
     flush_llm and logged at WARNING; never raise).
+
+    phase-26.1: `cycle_id` and `session_cost_usd` kwargs are
+    auto-populated from autonomous_loop module state if the caller
+    does not supply them (lazy import avoids module-load circularity).
+    Enables operator-auditable BQ evidence of cycle-scoped session
+    budget trips per masterplan step 26.1 live_check. Requires the
+    columns added by `add_session_budget_to_llm_call_log.py`; values
+    are None outside an active autonomous cycle.
     """
     try:
+        # phase-26.1: lazy-fetch cycle context if caller did not pass.
+        if cycle_id is None or session_cost_usd is None:
+            try:
+                from backend.services.autonomous_loop import (
+                    get_current_cycle_id,
+                    get_session_cost_usd,
+                )
+                if cycle_id is None:
+                    cycle_id = get_current_cycle_id()
+                if session_cost_usd is None:
+                    session_cost_usd = get_session_cost_usd()
+            except ImportError:
+                pass  # autonomous_loop unavailable (e.g. test contexts)
+
         row = {
             "ts": _now_iso(),
             "provider": provider,
@@ -237,6 +261,8 @@ def log_llm_call(
             "request_id": request_id,
             "ok": bool(ok),
             "ticker": ticker,
+            "cycle_id": cycle_id,
+            "session_cost_usd": float(session_cost_usd) if session_cost_usd is not None else None,
         }
         with _llm_lock:
             _llm_buffer.append(row)

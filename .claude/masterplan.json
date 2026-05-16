@@ -9521,7 +9521,7 @@
         {
           "id": "26.1",
           "name": "Per-session Task Budget on autonomous_loop (hard pre-cycle ceiling)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,

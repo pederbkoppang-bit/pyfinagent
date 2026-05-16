@@ -80,6 +80,46 @@ _last_run: Optional[str] = None
 _last_result: Optional[dict] = None
 _coordinator = MetaCoordinator()
 
+# phase-26.1: per-session LLM cost ceiling (local mirror of Agent SDK's
+# max_budget_usd pattern). autonomous_loop drives client.messages.create()
+# and llm_client.generate_content() directly, not via Managed Agents or
+# Agent SDK sessions, so Anthropic's Task Budgets API is not wirable --
+# enforcement must be application-level. Reset to 0 at start of every
+# cycle; raises BudgetBreachError when cumulative cost crosses ceiling.
+# Env-var override: PYFINAGENT_SESSION_BUDGET_USD=<float>.
+_SESSION_BUDGET_USD: float = float(os.getenv("PYFINAGENT_SESSION_BUDGET_USD", "1.0"))
+_session_cost: float = 0.0
+_current_cycle_id: Optional[str] = None
+
+
+def _check_session_budget(stage: str = "pre_call") -> None:
+    """phase-26.1: raise BudgetBreachError if cumulative session LLM cost
+    has reached the per-cycle ceiling. Called before LLM-heavy steps.
+    Lazy-imports BudgetBreachError to avoid module-load coupling."""
+    if _session_cost >= _SESSION_BUDGET_USD:
+        from backend.agents.llm_client import BudgetBreachError
+        raise BudgetBreachError(
+            f"session_budget_breach: cumulative ${_session_cost:.4f} "
+            f">= ceiling ${_SESSION_BUDGET_USD:.4f} (stage={stage}, "
+            f"cycle_id={_current_cycle_id})"
+        )
+
+
+def _add_session_cost(usd: float) -> None:
+    """phase-26.1: mutate the module-level session cost accumulator."""
+    global _session_cost
+    _session_cost += float(usd)
+
+
+def get_current_cycle_id() -> Optional[str]:
+    """phase-26.1: exported helper for log_llm_call to stamp BQ rows."""
+    return _current_cycle_id
+
+
+def get_session_cost_usd() -> float:
+    """phase-26.1: exported helper for log_llm_call to stamp BQ rows."""
+    return _session_cost
+
 
 async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = False) -> dict:
     """
@@ -99,7 +139,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
     ok without running any LLM / BQ / trade work. Used by the phase-4.6
     smoketest; not for production use.
     """
-    global _running, _last_run, _last_result
+    global _running, _last_run, _last_result, _session_cost, _current_cycle_id
 
     if _running:
         logger.warning("Paper trading cycle already running, skipping")
@@ -119,6 +159,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
     trades_executed = 0
     summary = {"status": "running", "steps": []}
 
+    # phase-26.1: reset per-session cost accumulator at cycle start.
+    _session_cost = 0.0
+
     # 4.5.8 cycle health: start-of-cycle heartbeat + history row.
     from backend.services.cycle_health import get_log as _cycle_log
     import uuid as _uuid
@@ -126,6 +169,12 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
     _cycle_started_at = _cycle_log().record_cycle_start(_cycle_id)
     summary["cycle_id"] = _cycle_id
     summary["started_at"] = _cycle_started_at
+
+    # phase-26.1: propagate cycle_id to module state so log_llm_call can
+    # stamp BQ rows with cycle_id + session_cost_usd. Reset to None in
+    # the finally block at end of cycle.
+    _current_cycle_id = _cycle_id
+    summary["session_budget_usd"] = _SESSION_BUDGET_USD
 
     # phase-25.B3: prefer the latest BQ-promoted strategy params; falls back
     # to optimizer_best.json if BQ has nothing active or is unavailable.
@@ -290,6 +339,10 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
 
             candidate_analyses = []
             for ticker in analyze_tickers:
+                # phase-26.1: check session budget BEFORE each LLM-heavy analysis.
+                # Raises BudgetBreachError -- caught at the cycle-level catch
+                # below, which sets status=budget_breach and triggers Slack alert.
+                _check_session_budget("pre_analysis_new")
                 if total_analysis_cost >= settings.paper_max_daily_cost_usd:
                     logger.warning(f"Daily cost cap (${settings.paper_max_daily_cost_usd}) reached, stopping analysis")
                     break
@@ -299,6 +352,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                         candidate_analyses.append(analysis)
                         cost = analysis.get("total_cost_usd", 0.1)
                         total_analysis_cost += cost
+                        _add_session_cost(cost)
                         # phase-23.1.11 + 23.1.12 + phase-25.A2: persist analysis to
                         # analysis_results so the Reports History tab surfaces it.
                         # phase-25.A2 (closes phase-24.2 F-2): full-path also persists now
@@ -314,6 +368,8 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             # ── Step 4: Re-evaluate holdings ─────────────────────────
             holding_analyses = []
             for ticker in reeval_tickers:
+                # phase-26.1: session budget check before each re-eval.
+                _check_session_budget("pre_analysis_reeval")
                 if total_analysis_cost >= settings.paper_max_daily_cost_usd:
                     logger.warning(f"Daily cost cap reached, stopping re-evaluation")
                     break
@@ -323,6 +379,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                         holding_analyses.append(analysis)
                         cost = analysis.get("total_cost_usd", 0.1)
                         total_analysis_cost += cost
+                        _add_session_cost(cost)
                         # phase-23.1.11 + 23.1.12 + phase-25.A2: persist both lite and full paths
                         if analysis.get("_path") in ("lite", "full"):
                             await _persist_analysis(analysis, bq)
@@ -597,6 +654,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         return summary
     finally:
         _running = False
+        # phase-26.1: clear cycle_id so log_llm_call rows OUTSIDE a cycle
+        # don't accidentally tag with a stale id from a prior cycle.
+        _current_cycle_id = None
         # 4.5.8 cycle health: end-of-cycle row (always, regardless of branch).
         try:
             _cycle_log().record_cycle_end(
