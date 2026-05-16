@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-16 | `09488019` | phase-26.2: Adopt Advisor Tool (Sonnet executor + Opus advisor) on synthesis chain |
 | 2026-05-16 | `4f63bb51` | phase-26.1: Per-session Task Budget on autonomous_loop (hard pre-cycle ceiling) |
 | 2026-05-16 | `ee92e1a5` | phase-26.0: Verify Opus 4.7 migration complete across all callers |
 | 2026-05-16 | `c66f912a` | phase-25: Phase-24 remediation: 45 ranked code-change candidates from buckets 24.0-24.13 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `e0dfcab0` | phase-25.B6: Seed-stability test run + baseline commit + CI gate |
 | 2026-05-13 | `d3f34caf` | phase-25.B10: SecretStr migration for API keys/tokens |
 | 2026-05-13 | `12a0990d` | phase-25.E: Drawer summary vs full toggle (?full=1 query param) |
-| 2026-05-13 | `ddd518aa` | phase-25.C: Surface Layer-1 28-skill outputs in drawer when full pipeline runs |
 
 ---
 
+### v6.8.2 — phase-26.2: Adopt Advisor Tool (Sonnet executor + Opus advisor) on sy... (2026-05-16)
+
+- **phase-26.2: Adopt Advisor Tool (Sonnet executor + Opus advisor) on synthesis chain**
 ### v6.8.1 — phase-26.1: Per-session Task Budget on autonomous_loop (hard pre-cycl... (2026-05-16)
 
 - **phase-26.1: Per-session Task Budget on autonomous_loop (hard pre-cycle ceiling)**
