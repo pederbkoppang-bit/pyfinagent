@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-16 | `e3f9a3bd` | docs: phase-26 frontier-sync proposal (8-step DRAFT awaiting approval) |
 | 2026-05-16 | `952c211b` | chore(masterplan): condense /masterplan skill to dashboard + filter mode |
 | 2026-05-14 | `71e415e7` | phase-25.S.1: Per-call ticker tagging in llm_call_log + cost_tracker for exact per-ticker attribu... |
 | 2026-05-13 | `ce7c4760` | phase-25.D9.1: Caller-side Files API adoption (skill_file_id wiring in run_*_agent calls) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-13 | `bbc5c8a3` | phase-25.O: Error escalation Slack routing (logger.exception promotion) |
 | 2026-05-13 | `f2b53402` | phase-25.N: Cycle-completion summary Slack notification |
 | 2026-05-13 | `09b6de70` | phase-25.B7: yfinance fallback counter persisted to BQ + WARNING log promotion |
-| 2026-05-13 | `d679d7a3` | phase-25.M: Cost-budget Slack alert wire repair (no silent fail-open) |
 
 ---
 
