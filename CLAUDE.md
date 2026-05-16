@@ -105,11 +105,11 @@ validation, and analytics — they leave no local state.
 **Datasets:**
 | Dataset | Location | Purpose |
 |---|---|---|
-| `pyfinagent_data` | US | Primary prod data (signals, prices, fundamentals, macro) |
+| `pyfinagent_data` | US | Primary prod data (signals, prices, fundamentals, macro, llm_call_log, strategy_decisions) |
 | `pyfinagent_staging` | US | Staging / pre-prod |
 | `pyfinagent_hdw` | US | Historical data warehouse |
-| `pyfinagent_pms` | US | Portfolio management / paper trading |
-| `financial_reports` | us-central1 | Financial filings |
+| `pyfinagent_pms` | US | Active holdings view + alpha velocity samples + directive versions + portfolio_status_snapshot + portfolio_transactions + strategy deployments (legacy portfolio-management tables; NOT the paper-trading tables) |
+| `financial_reports` | us-central1 | Financial filings AND **paper trading tables** (`paper_trades`, `paper_positions`, `paper_portfolio`). The paper-trading tables live HERE, not in `pyfinagent_pms`, per `backend/db/bigquery_client.py:486` (`_pt_table()` uses `settings.bq_dataset_reports = "financial_reports"`). Discovered during phase-23.2.2 reconciliation; doc clarified 2026-05-16. |
 | `all_billing_data` | EU | GCP billing export |
 
 **Available MCP tools** (names are `mcp__bigquery__<tool>`; discover via `ToolSearch` with query `bigquery`):
