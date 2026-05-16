@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-16
 **Author:** Main (synthesis of research_brief_external.md + research_brief_internal.md)
-**Status:** DRAFT — awaiting user approval before writing to .claude/masterplan.json
+**Status:** APPROVED 2026-05-16 — phase-26 already appended to .claude/masterplan.json in commit ba18ffab (predates this DRAFT commit e3f9a3bd; label was stale, not a pending approval). User approval recorded 2026-05-16 via AskUserQuestion. Open questions resolved: (1) approved as drafted, all 8 steps kept; (2) priorities unchanged (P0/P0/P0/P1/P1/P1/P2/P2); (3) research-gate slip resolved via retroactive 5th-source fetch on Opus 4.7 migration guide — see updated research_brief_external.md envelope.
 
 ## Why now
 

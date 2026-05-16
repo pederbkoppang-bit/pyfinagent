@@ -8436,7 +8436,7 @@
     {
       "id": "phase-25",
       "name": "Phase-24 remediation: 45 ranked code-change candidates from buckets 24.0-24.13",
-      "status": "pending",
+      "status": "done",
       "harness_required": true,
       "summary": "Auto-generated from docs/audits/phase-24-2026-05-12/24.14-final-synthesis-findings.md (cycle 56, 2026-05-12). 8 P0 + 19 P1 + 18 P2 = 45 distinct candidates after deduplication. P0 closes every operator-reported bug from 2026-05-12 (stop-loss orphan, +$0.00 digests, 5x SNDK, missing notifications, cost-budget honor-system). P1 closes red-line goal-c (strategy switching) and goal-d (profit_per_llm_dollar observability). P2 polish (LLM cost optimization, frontend states, MCP infrastructure).",
       "description": "Source: docs/audits/phase-24-2026-05-12/. Each step's audit_basis field back-references the originating bucket. Dependency-ordering: 25.A9 precedes 25.A8; 25.A3->25.B3->25.C3->25.R registry-alias chain; 25.A precedes 25.B; 25.1 precedes 25.2 + 25.6; 25.F3 precedes 25.A3. Sequencing per 24.14 findings doc: Week 1-2 P0 stops + Slack clusters; Week 3-4 P0 cleanup + P1 start; Week 5-8 strategy switching; Week 9-12 observability; Week 13-16 LLM optimization; Week 17+ P2 polish.",

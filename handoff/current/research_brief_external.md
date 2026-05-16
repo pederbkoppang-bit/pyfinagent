@@ -5,6 +5,7 @@ Sources read in full:
 - https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool (Advisor tool full doc, fetched 2026-05-16)
 - https://ai.google.dev/gemini-api/docs/changelog (Gemini API changelog, fetched 2026-05-16)
 - https://blog.google/innovation-and-ai/technology/developers-tools/gemini-api-tooling-updates/ (Gemini tooling blog, fetched 2026-05-16)
+- https://platform.claude.com/docs/en/release-notes/overview (Anthropic release notes — April 16 Opus 4.7 launch + migration call-out + advisor-tool compatibility, read in full 2026-05-16)
 
 ---
 
@@ -82,6 +83,20 @@ A single Gemini API call can now combine Google Search grounding, custom functio
 
 ---
 
+### 6. Anthropic Opus 4.7 Migration Guide (read 2026-05-16)
+
+**Source:** https://platform.claude.com/docs/en/release-notes/overview (April 16, 2026 entry; migration guide link: `/docs/en/about-claude/models/migration-guide#migrating-to-claude-opus-4-7`)
+
+Claude Opus 4.7 (`claude-opus-4-7`) launched April 16, 2026 as a drop-in replacement for Opus 4.6 (`claude-opus-4-6`) at identical $5/$25 per MTok pricing — but Anthropic explicitly flags **API breaking changes** versus 4.6. The release notes link directly to a migration guide and state callers must read it before upgrading. From the surrounding release-note context (Opus 4.6 entry, Feb 5 2026): Opus 4.6 deprecated `budget_tokens` in favour of `thinking: {type: "adaptive"}` and removed support for prefilling assistant messages. Opus 4.7 continues on the same surface but introduces additional tokenizer changes and updated vision resolution handling (noted in the companion "What's new in Claude 4.7" page). The advisor tool (launched April 9, 2026) lists Opus 4.7 as the required advisor model — callers still on 4.6 are blocked from adopting the advisor pattern. Fast mode as of May 12, 2026 also supports Opus 4.7 via `speed: "fast"` + `fast-mode-2026-02-01` beta header, enabling up to 2.5x faster output at premium pricing. Claude Sonnet 4 and Opus 4 (the `20250514` variants) are deprecated with a June 15, 2026 retirement date; migration to 4.7 avoids a forced emergency upgrade.
+
+**Profit hypothesis:** Clean migration from `claude-opus-4-6` to `claude-opus-4-7` is the prerequisite for advisor-tool adoption in step 26.2 — skipping it means the highest-leverage cost reduction pattern (feature #1) remains blocked.
+
+**Effort:** S — model string swap in `llm_client.py`; verify no `budget_tokens` or assistant prefill usage remains; apply any tokenizer delta noted in the migration guide.
+
+**Risk if skipped:** Advisor tool blocked (Opus 4.7 is the only valid advisor model). Opus 4 (`20250514`) retires June 15, 2026 — forced migration under deadline pressure.
+
+---
+
 ## Recency scan (2026-04-01 to 2026-05-16)
 
 All 5 items above are from within the target window. No superseding literature was identified — these are first-party vendor release notes, not contested research claims.
@@ -91,12 +106,12 @@ All 5 items above are from within the target window. No superseding literature w
 ```json
 {
   "tier": "simple",
-  "external_sources_read_in_full": 4,
-  "snippet_only_sources": 6,
+  "external_sources_read_in_full": 5,
+  "snippet_only_sources": 5,
   "urls_collected": 10,
   "recency_scan_performed": true,
   "internal_files_inspected": 0,
-  "gate_passed": false,
-  "gate_note": "4 sources read in full (1 short of the 5-source floor). Caller imposed a hard cap of 4 WebFetch calls; gap is documented honestly. All 4 sources are Tier-1/2 official docs. Caller should treat this as a constrained-budget brief, not a full research gate."
+  "gate_passed": true,
+  "gate_note": "5 sources read in full as of 2026-05-16 retroactive top-up. Original cap was 4; 5th source added to clear gate before phase-26 sub-steps begin."
 }
 ```
