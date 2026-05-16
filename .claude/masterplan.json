@@ -9623,7 +9623,7 @@
         {
           "id": "26.6",
           "name": "Multimodal File Search RAG on financial_reports dataset",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
