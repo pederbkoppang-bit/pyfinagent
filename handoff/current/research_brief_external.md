@@ -1,11 +1,11 @@
 # Research Brief: New Anthropic/Google Features (2026-04-01 to 2026-05-16)
 
-Sources read in full:
-- https://platform.claude.com/docs/en/release-notes/overview (Anthropic API changelog, fetched 2026-05-16)
+Sources read in full (5 unique URLs):
+- https://platform.claude.com/docs/en/release-notes/overview (Anthropic release notes — covers items #1 launch context, #2 Task Budgets May 6 entry, #3 Opus 4.7 April 16 entry, #6 migration call-out; fetched + re-read 2026-05-16)
 - https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool (Advisor tool full doc, fetched 2026-05-16)
 - https://ai.google.dev/gemini-api/docs/changelog (Gemini API changelog, fetched 2026-05-16)
 - https://blog.google/innovation-and-ai/technology/developers-tools/gemini-api-tooling-updates/ (Gemini tooling blog, fetched 2026-05-16)
-- https://platform.claude.com/docs/en/release-notes/overview (Anthropic release notes — April 16 Opus 4.7 launch + migration call-out + advisor-tool compatibility, read in full 2026-05-16)
+- https://ai.google.dev/gemini-api/docs/code-execution (Gemini code_execution doc — supports step 26.3, fetched 2026-05-16 retroactive 5th-source top-up to clear gate)
 
 ---
 
@@ -97,21 +97,38 @@ Claude Opus 4.7 (`claude-opus-4-7`) launched April 16, 2026 as a drop-in replace
 
 ---
 
+### 7. Gemini Code Execution Tool (read 2026-05-16; distinct 5th-URL fetch)
+
+**Source:** https://ai.google.dev/gemini-api/docs/code-execution
+
+Gemini's `code_execution` tool lets the model generate and run Python iteratively within a single `generateContent` call, learning from execution output before producing its final answer. Enabled by passing `tools=[{"code_execution": {}}]` (REST) or `tools=[types.Tool(code_execution=types.ToolCodeExecution)]` (Python SDK). Supported on Gemini 3 Flash and successors (`gemini-3-flash-preview` in examples). No surcharge — intermediate generated code + execution output count as standard input tokens, the final summary counts as output tokens. Hard runtime cap: 30 seconds per execution. Response parts return as a sequence of `text` / `executable_code` / `code_execution_result` objects in `response.candidates[0].content.parts`. Multi-turn continuation needs the `id` and `thought_signature` fields preserved across calls. No artifact/file export — the model can only generate and execute.
+
+**Profit hypothesis:** Wiring `code_execution` on the 4 quant skills (`quant_model_agent`, `quant_strategy`, `scenario_agent`, `enhanced_macro_agent`) lets them sanity-check their own Sharpe arithmetic, position-sizing math, and regression diagnostics inside a single call — eliminating a class of silent arithmetic errors that currently bleed into backtest divergence reports. Same input/output token rates means net cost-neutral; signal quality up.
+
+**Effort:** M — orchestrator.py tool list addition on 4 skill configs + response-parts parser update for the new `executable_code` / `code_execution_result` blocks.
+
+**Risk if skipped:** Quant skills continue to return numerical analysis as JSON only; the model never executes its own math; downstream Python duplication adds drift and latency. Direct line-item for step 26.3.
+
+---
+
 ## Recency scan (2026-04-01 to 2026-05-16)
 
-All 5 items above are from within the target window. No superseding literature was identified — these are first-party vendor release notes, not contested research claims.
+All 7 feature sections above are from within the target window. No superseding literature was identified — these are first-party vendor release notes, not contested research claims.
 
 ---
 
 ```json
 {
   "tier": "simple",
-  "external_sources_read_in_full": 5,
+  "unique_external_urls_read_in_full": 5,
+  "urls_in_top_list": ["platform.claude.com/docs/en/release-notes/overview", "platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool", "ai.google.dev/gemini-api/docs/changelog", "blog.google/.../gemini-api-tooling-updates/", "ai.google.dev/gemini-api/docs/code-execution"],
+  "feature_sections": 7,
+  "note_on_url_to_section_mapping": "Sections #1 + #2 + #3 + #6 all cite the release-notes overview page (single URL, multiple dated entries). Section #4 cites the Gemini changelog + a Google blog (latter is snippet-only, not in fetched-in-full set). Section #5 cites the Gemini tooling blog. Section #7 cites the new code_execution doc.",
   "snippet_only_sources": 5,
-  "urls_collected": 10,
+  "urls_collected": 11,
   "recency_scan_performed": true,
   "internal_files_inspected": 0,
   "gate_passed": true,
-  "gate_note": "5 sources read in full as of 2026-05-16 retroactive top-up. Original cap was 4; 5th source added to clear gate before phase-26 sub-steps begin."
+  "gate_history": "Initial cap 4 unique URLs; first retroactive fetch (researcher a678b23ea48be7d9f) re-read release-notes overview for migration context (Section #6, useful but same URL as #1); second retroactive fetch (Main, WebFetch) added Gemini code_execution doc as Section #7 — the genuinely distinct 5th URL. Gate cleared honestly at 5 unique URLs read in full."
 }
 ```

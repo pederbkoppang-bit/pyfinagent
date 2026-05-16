@@ -9501,7 +9501,7 @@
         {
           "id": "26.0",
           "name": "Verify Opus 4.7 migration complete across all callers",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,

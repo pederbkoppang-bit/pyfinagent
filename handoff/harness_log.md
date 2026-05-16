@@ -18433,3 +18433,70 @@ code.review = 9 hits | owasp = 4 | secret = 4 | risk.guard = 2 | stop.loss = 5 |
 **Next action (operator):** Read this entry + handoff/current/evaluator_critique.md + handoff/current/experiment_results.md. If verdict accepted: ACK in-session and Main will flip 16.15 status to done (which triggers auto-commit-and-push). If verdict rejected: surface rejection rationale; do NOT spawn another Q/A on unchanged evidence (Dimension 5 forbids; cycle-2 requires actual code change first).
 
 ---
+
+---
+
+## Cycle 1 -- 2026-05-16 11:55 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-16 11:58 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-16 -- phase=26.0 result=PASS
+
+**Step:** 26.0 Verify Opus 4.7 migration complete across all callers (P0 gate for 26.2 Advisor Tool adoption).
+
+**Cycle:** post-phase-25-close, first sub-step of phase-26 (frontier-sync). Full harness MAS loop (research -> contract -> generate -> Q/A -> log -> flip).
+
+**Researcher (a9261ec55c07a241b):** tier=simple, gate_passed=true, 5 unique Tier-1/2 Anthropic URLs read in full via WebFetch (models/overview, model-deprecations, migration-guide, whats-new-claude-4-7, anthropic.com/news/claude-opus-4-7). 3-variant search discipline applied (current-year + last-2-year + year-less canonical). Recency scan (2026-04-01 -> 2026-05-16) reported. 10 snippet-only URLs collected; 15 URLs total. Brief at handoff/current/research_brief_step_26_0.md. Key findings: Opus 4.7 has 3 breaking API changes (budget_tokens removal, sampling-param strip, thinking-display omission); production Opus callers already migrated.
+
+**Contract (pre-Generate):** handoff/current/contract.md. Immutable success_criteria copied verbatim from masterplan.json step 26.0. Hypothesis: migration functionally complete (production callers pinned, breaking-change guards present, registry tables have both 4.6 and 4.7 entries). Plan = (1) run verification command, (2) inventory inspection, (3) llm_client guards quote, (4) live smoke call, (5) write experiment_results.md. Out-of-scope explicitly disclaimed: legacy 4.6 removal, Advisor Tool adoption (26.2), UI default-flip (phase-27).
+
+**Generate:** All plan steps executed in declared order.
+- D1 (verification command): 12 hits returned; classified as 1 docstring + 11 legacy-registry/pricing/context-limit/tier-routing/passthrough-alias/model-family-check/UI-dropdown entries. Zero "active-caller-defaulting-to-4.6". `claude-opus-4-7` rows verified PRESENT in every config table alongside the legacy 4.6 row.
+- D2 (_inventory.json): 44 agents with str model; 2 Opus-role agents (MultiAgentOrchestrator, PlannerAgent), both pinned to `claude-opus-4-7`. Zero offenders.
+- D3 (llm_client.py guards): lines 1258-1278 confirmed -- adaptive-thinking routing covers Opus 4.7; sampling-param strip (`temperature`/`top_p`/`top_k`) for any `model_id.startswith("claude-opus-4-7")`. Comment cites phase-4.14.7 (the original adoption commit).
+- D4 (live smoke call): single Opus 4.7 API call, response.model = 'claude-opus-4-7', content = 'PONG', stop_reason = end_turn. Cost ~$0.0003 (22 input + 7 output tokens). Latency 1.49s. Evidence verbatim in handoff/current/live_check_26.0.md.
+
+**Q/A (a2be22e69704baae7):** verdict = **PASS**, ok = true, violated_criteria = [], certified_fallback = false, checks_run = 11. Phase-1 5-item harness-compliance audit: 5/5 PASS (researcher spawn, contract pre-commit, results recorded, log-last discipline, no verdict-shopping). Phase-2 deterministic D1-D4: all PASS; D5 (reproduce smoke) SKIPPED -- Q/A accepted live_check_26.0.md evidence within its 30s reproduction budget. Phase-3 J1-J6 LLM judgments: all PASS (contract alignment, scope honesty, mutation-resistance, anti-rubber-stamp, sycophancy negative, research-gate compliance). Q/A explicitly flagged the no_active_callers_reference_opus_4_6_or_3 interpretation as pre-committed in the contract (not ad-hoc post-hoc reading) and backed by the audit_basis ("Inventory currently shows mixed claude-opus-4-7 and claude-sonnet-4-6" => the audit was about INVENTORY pins, not registry-table grep hits). Full critique at handoff/current/evaluator_critique.md.
+
+**Verdict-by-Main:** the experiment_results.md self-summary line was correctly marked `verdict_by_main: PASS  # Q/A is the authoritative verdict; this is a self-summary` -- no self-evaluation pretense. Sycophancy check (qa.md Dimension-5) NEGATIVE: code changed substantively under the step? No -- this was a verification-only step where migration was already complete; the work was documentation + smoke-test, not refactor. Q/A still PASSed because the verification produced auditable evidence of a true state, not a hand-wave.
+
+**Files written this cycle:**
+- handoff/current/research_brief_step_26_0.md (researcher)
+- handoff/current/contract.md (Main, pre-Generate)
+- handoff/current/experiment_results.md (Main, Generate)
+- handoff/current/live_check_26.0.md (Main, smoke-call evidence for auto-commit hook gate)
+- handoff/current/evaluator_critique.md (Q/A)
+
+**Next action:** Main flips masterplan.json step 26.0 status pending -> done. Auto-commit-and-push hook fires, runs live_check gate (handoff/current/live_check_26.0.md present -> PASS), commits with subject `26.0: Verify Opus 4.7 migration complete across all callers`, invokes post-commit-changelog hook, pushes to origin/main. Then archive-handoff hook snapshots handoff/current/* into handoff/archive/phase-26.0/.
+
+**Cumulative phase-26 progress:** 1 of 8 steps closed (26.0 PASS). 26.1 (Per-session Task Budget) and 26.2 (Adopt Advisor Tool, depends on 26.0 -- now unblocked) are next candidates. 26.0 took ~190s total researcher + ~180s Q/A + Main loop time.
