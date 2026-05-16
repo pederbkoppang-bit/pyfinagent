@@ -4,7 +4,10 @@ description: MUST BE USED before every PLAN phase. Combined external-literature 
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage
 model: sonnet
 maxTurns: 20
-effort: medium
+# phase-23.2.2 (2026-05-16): per user directive "mas agents all running max
+# effort", Researcher temporarily raised to max. Pre-23.2.2 was medium
+# (Anthropic-recommended Sonnet 4.6 default). Revert after step closes.
+effort: max
 memory: project
 color: cyan
 permissionMode: plan

@@ -19016,3 +19016,71 @@ code.review = 9 hits | owasp = 4 | secret = 4 | risk.guard = 2 | stop.loss = 5 |
 - Honest disclosures across all 8: cost-hypothesis adjustments (26.2 Advisor 25-45% -> +919% on synthesis; 26.4 33% -> 15-25%), API gaps (26.6 SDK + Vertex; 26.7 Vertex), deferrals (26.5 backtest A/B; 26.7 round-trip/latency A/B). Q/A pushed back rigorously on 26.6 Cycle-1 (CONDITIONAL); the rest PASSed with honest NOTEs.
 - LLM spend across phase-26: ~$0.20 total (most steps were code wiring + verification grep + 1-2 live smoke calls).
 - Cross-LLM directive ("ensure both LLM models work") satisfied at the multimodal-RAG layer (26.6 has Claude + Gemini paths with auto-dispatch).
+
+---
+
+## Cycle 1 -- 2026-05-16 17:45 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 9 -- 2026-05-16 -- phase=23.2.2 result=PASS
+
+**Step:** 23.2.2 Verify zero phantom trades / cash-leak regressions (trade<->position reconciliation). P0 regression-verification step from the phase-23.1 series (post-phase-26 cleanup cycle).
+
+**Cycle:** first post-phase-26 step. Full harness MAS loop with **MAX research gate + MAX effort** per user directive 2026-05-16 ("mas agents all running max effort"). EFFORT_DEFAULTS in `backend/config/model_tiers.py` temporarily raised: all mas_* to max. `.claude/agents/qa.md` + `.claude/agents/researcher.md` frontmatter: effort=max. Main session: /effort max active.
+
+**Researcher (aeec30a118f1fe213, tier=complex, MAX gate, MAX effort):** gate_passed=true. 7 unique external URLs read in full (limina cash-position recon guide, highradius trade-reconciliation workflow, investor.gov SEC T+1 official, prodktr cash/position break causes, osfin brokerage 7-step reconciliation, mentormecareers reconciliation types, luxalgo backtesting traps + cash-leak patterns). 11 snippet-only; 18 URLs total. 6-variant search (3 + 3 supplemental). Recency scan 2024-2026: SEC T+1 effective May 2024; DTCC post-T+1 challenges 2025. Composed-brief pattern reused from phase-26.
+
+**Critical research finding:** canonical reconciliation = FULL OUTER JOIN paper_trades vs paper_positions on ticker, WHERE either side IS NULL identifies discrepancies. Cash invariant: `current_cash + SUM(open_position_market_value) + SUM(realized_P&L) == starting_capital` within float-rounding tolerance. Best-practice ordering (Limina): position-before-cash.
+
+**Contract (pre-Generate):** handoff/current/contract.md. Verification command verbatim. Plan = 3 BQ queries (FULL OUTER JOIN + cash invariant + per-action sanity cross-check).
+
+**Generate:** all 3 queries executed.
+- **Query 1 (FULL OUTER JOIN):** 14 ticker rows, all classified as MATCHED (13) or CLOSED_OK (1 = TER round-trip). **0 ORPHAN_BUY / 0 PHANTOM_POSITION / 0 QTY_BREAK.**
+- **Query 2 (cash invariant):** starting_capital $20,000.00; current_cash $7,587.44; total_open_value $15,314.36; total_nav stored $22,901.81; nav_recomputed $22,901.80; **nav_break = -$0.01** (sub-cent float-rounding; well within $1.00 portfolio-level tolerance).
+- **Query 3 (per-action):** 14 BUYs across 14 tickers; 1 SELL on TER; cash trail balances.
+- Portfolio status: $20k → $22,901.81 NAV (+14.51% P&L); 13 open positions; 1 closed round-trip (TER).
+
+**Q/A (a96df80f95ae7fa5d, MAX effort):** verdict = **PASS**, ok=true, violated_criteria=[], certified_fallback=false, checks_run=7, max_effort_honored=true, ter_round_trip_verified=true. **Independent BigQuery reproduction byte-identical to Main:** `{MATCHED: 13, CLOSED_OK: 1}`, all 13 open tickers `abs(trade_net_qty - position_qty) = 0.000000` (literally zero to 6dp, not just under $0.01). TER round-trip verified verbatim: BUY 2.271049 on 2026-04-26 ($949.48) + SELL 2.271049 on 2026-05-14 ($812.16) = $137.32 realized loss, no position row → correct CLOSED_OK classification. NAV break -$0.01 on $22,901.81 = 4.4×10⁻⁷ relative error (signal-floor; phase-23.1.15 precedent established this tolerance band).
+
+**Tolerance interpretation accepted as PASS:** Q/A reasoned that "leak_dollars=0" cannot be interpreted as bit-exact zero on IEEE-754 float share-count arithmetic; a real phantom trade would produce ≥$10 breaks. -$0.01 is signal-floor.
+
+**Side-finding (NOT in 23.2.2 scope; surface for operator follow-on):** `backend/db/bigquery_client.py:486` confirms paper-trading tables live in `financial_reports` dataset (us-central1), NOT `pyfinagent_pms` as CLAUDE.md's BigQuery section claims. CLAUDE.md doc-fix is a separate operator task.
+
+**Files written this cycle:**
+- handoff/current/research_brief.md (Main internal + researcher external; composed-brief pattern)
+- handoff/current/contract.md
+- handoff/current/experiment_results.md
+- handoff/current/live_check_23.2.2.md (verbatim BQ query stdout for 3 reconciliation queries)
+- handoff/current/evaluator_critique.md (Q/A verdict with independent reproduction)
+
+**Source code touched:**
+- backend/config/model_tiers.py (EFFORT_DEFAULTS raised to max for all mas_* roles -- step-scoped)
+- .claude/agents/qa.md frontmatter (effort: max)
+- .claude/agents/researcher.md frontmatter (effort: max)
+- (Plus 4 commits earlier this session for the phase-26.x retrofit + effort-policy.)
+
+**LLM spend for 23.2.2:** $0 (3 BQ queries on 29 rows = negligible; researcher + Q/A at MAX effort used substantial Anthropic tokens but no out-of-pocket because Claude Max flat-fee).
+
+**Operator follow-ons surfaced by this cycle (NOT blockers):**
+1. CLAUDE.md BigQuery section: clarify that paper_* tables are in `financial_reports`, not `pyfinagent_pms`. The pyfinagent_pms dataset contains active_holdings_view + alpha_velocity_samples + directive_versions + portfolio_status_snapshot + portfolio_transactions + strategy_deployments + strategy_deployments_log -- different tables, different purpose.
+2. Consider raising the float-precision floor in `paper_trader.py` by using `Decimal` for cash arithmetic if zero-rounding-drift is ever required (current $0.01 drift is acceptable per phase-23.1.15 precedent).
+3. Revert EFFORT_DEFAULTS to pre-23.2.2 values (mas_main=xhigh, mas_qa=high, mas_research=medium, mas_communication=low) after this step closes, OR keep at max if user prefers permanent.
+4. Revert .claude/agents/qa.md + researcher.md effort: max back to xhigh / medium per phase-26.x established defaults, OR keep at max.
+
+**Next action:** Main flips masterplan.json step 23.2.2 status pending -> done. Auto-commit-and-push hook fires; no live_check field on this step so the live_check_gate is a no-op; commit + changelog + push proceed.
+
+**Cumulative phase-23.2 progress:** 1 of N (P0 23.2.2 done). Next-likely candidates: 23.2.3 (Verify FD leak did not regress, P0), 23.2.4 (Verify pause/resume deadlock did not regress, P0), 23.2.5 (Verify kill-switch breach evaluation never falsely fired, P0).

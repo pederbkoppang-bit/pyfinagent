@@ -202,11 +202,17 @@ EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
 #   complex reasoning where quality matters more than speed".
 # - mas_research (Sonnet 4.6, balanced lit search): medium (recommended default).
 # - autoresearch_*: vary by sub-role; smart=medium, strategic=high, fast=None.
+# phase-23.2.2 (2026-05-16): per user directive "mas agents all running max
+# effort" for the next step, ALL mas_* roles temporarily raised to max.
+# Pre-23.2.2 values (for revert): communication=low, main=xhigh, qa=high,
+# research=medium. The Anthropic doc warns "Reserve max for genuinely frontier
+# problems. On most workloads max adds significant cost for relatively small
+# quality gains" -- this is a STEP-SCOPED override; revert after closure.
 EFFORT_DEFAULTS: dict[str, Effort | None] = {
-    "mas_communication":       "low",
-    "mas_main":                "xhigh",
-    "mas_qa":                  "high",
-    "mas_research":            "medium",
+    "mas_communication":       "max",
+    "mas_main":                "max",
+    "mas_qa":                  "max",
+    "mas_research":            "max",
     "autoresearch_fast":       None,
     "autoresearch_smart":      "medium",
     "autoresearch_strategic":  "high",

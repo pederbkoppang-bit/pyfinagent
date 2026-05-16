@@ -4,13 +4,10 @@ description: MUST BE USED in every EVALUATE phase. Combined QA + harness-verifie
 tools: Read, Bash, Glob, Grep, SendMessage
 model: opus
 maxTurns: 12
-# phase-26.x follow-up (2026-05-16): per Anthropic Opus 4.7 effort doc
-# (https://platform.claude.com/docs/en/build-with-claude/effort#recommended-effort-levels-for-claude-opus-4-7),
-# xhigh is "the recommended starting point for coding and agentic work, and
-# for exploratory tasks such as repeated tool calling, detailed web search,
-# and knowledge-base search." Q/A spawns Bash for deterministic checks,
-# reads/greps the repo, and reproduces live commands -- a textbook fit.
-effort: xhigh
+# phase-23.2.2 (2026-05-16): per user directive "mas agents all running max
+# effort" for the next step, Q/A temporarily raised to max. Pre-23.2.2 was
+# xhigh (Anthropic-recommended for Opus 4.7 agentic). Revert after step closes.
+effort: max
 memory: project
 color: green
 permissionMode: plan

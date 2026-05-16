@@ -7228,7 +7228,7 @@
         {
           "id": "23.2.2",
           "name": "Verify zero phantom trades / cash-leak regressions (trade<->position reconciliation)",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "estimated_minutes": 15,
           "verification": "Trade-vs-position FULL OUTER JOIN check used in phase-23.1.15; assert leak_dollars=0 and orphan_trades=0 across all tickers"
