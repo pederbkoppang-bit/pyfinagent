@@ -18765,3 +18765,128 @@ code.review = 9 hits | owasp = 4 | secret = 4 | risk.guard = 2 | stop.loss = 5 |
 **Next action:** Main flips masterplan.json step 26.4 status pending -> done.
 
 **Cumulative phase-26 progress:** 5 of 8 steps closed (26.0, 26.1, 26.2, 26.3, 26.4 -- 3 P0s + 2 P1s). Next candidates: 26.5 (alpha-decay detector, P1), 26.6 (multimodal RAG, P2), 26.7 (combined Gemini tools, P2).
+
+---
+
+## Cycle 1 -- 2026-05-16 15:53 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-16 15:53 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-16 15:58 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-16 15:59 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 6 -- 2026-05-16 -- phase=26.5 result=PASS
+
+**Step:** 26.5 Alpha-decay / regime-shift detector skill (Gemini Flash). P1 signal-quality lift / upstream early-warning for phase-25.R reactive policy. Closes lag between decay onset and capital reallocation.
+
+**Cycle:** sixth sub-step of phase-26 (frontier-sync), third P1 step. Full harness MAS loop with **MAX research gate**, COMPOSED methodology (Main pre-wrote internal sections + researcher_a3feac18b902a0252 added external via Edit; Q/A accepted as variant of researcher-spawn discipline, honest disclosure in research_brief.md).
+
+**Researcher attempts:**
+- ae967a5a2057c2b20: tier=complex, returned interim after 110s without finishing (harness autoresearch overwrote research_brief.md mid-execution; same pattern observed twice 26.4+26.5).
+- a3feac18b902a0252: tier=complex, EXTERNAL-only narrow scope after Main pre-populated internal context. Completed in 230s with 6 unique external URLs read in full (3 Tier-1 arXiv: AlphaAgent 2502.16789 LLM+AST IR=1.49 / Statistical Jump Model 2402.05272 drawdown halved + 44% turnover / Alpha-R1 2512.23515 RL factor screening; 1 Tier-2 Wikipedia CUSUM canonical; 1 Tier-3 RiskLab SADF/CUSUM β-framework; 1 Tier-4 Resonanz Capital 2025 unwind post-mortem). 3+-variant search. Recency scan 2024-2026.
+
+**Contract (pre-Generate):** handoff/current/contract.md. Immutable success_criteria verbatim. Plan: skill .md + prompt wrapper + orchestrator method + BQ schema migration + live smoke + BQ row evidence. Out-of-scope: real multi-month backtest A/B; full promoter.py policy edit (operator follow-on).
+
+**Generate:** all plan steps executed.
+- `backend/agents/skills/alpha_decay_agent.md` -- new skill with `## Prompt Template` emitting `{decay_signal, decay_attribution, recommended_action, rationale}` JSON. Standard structure (Goal / Identity / What You CAN/CANNOT Modify / Skills & Techniques / Anti-Patterns / Research Foundations / Output Format / Prompt Template / Experiment Log). Skills & Techniques include explicit threshold/weight rules.
+- `backend/config/prompts.py:get_alpha_decay_prompt()` -- new wrapper loading the skill with stance-style param injection (`rolling_sharpe_trend`, `hit_rate_trend`, `macro_regime`, `recent_drawdown_pct`, `prior_strategy`).
+- `backend/agents/orchestrator.py:run_alpha_decay_agent()` -- new method (line 1035), mirrors `run_scenario_agent` pattern. Uses `general_client` Gemini Flash. Returns `{text, prior_strategy, macro_regime}`.
+- `scripts/migrations/add_strategy_decisions_table.py` -- new BQ migration. Idempotent CREATE TABLE IF NOT EXISTS. 8 columns (ts, cycle_id, decided_strategy, prior_strategy, trigger, decay_signal, decay_attribution, rationale). Partitioned by DATE(ts), clustered by (trigger, decided_strategy).
+- BQ migration APPLIED -- `pyfinagent_data.strategy_decisions` now exists (8 tables in dataset, was 7 before 26.5).
+- Immutable verification: `test -f backend/agents/skills/alpha_decay_agent.md && grep -rn 'alpha_decay' backend/agents/ --include='*.py'` -> file exists + 3 grep hits (>=1 floor).
+- Live Gemini Flash smoke: input synthetic decay-trigger (10d/30d Sharpe ratio 0.59, hit-rate falling, macro UNFAVORABLE, drawdown 7.5%) -> output `decay_signal=0.65, decay_attribution="Sharpe", recommended_action="reduce", rationale="The rolling Sharpe ratio trend shows a decreasing Sharpe ratio over the short-term, suggesting potential alpha decay."` Shape MATCH (all 4 keys, 0 missing, 0 extra). Latency 1.92s, 60 output tokens.
+- BQ row inserted to strategy_decisions: `{cycle_id: "phase26-5-smoke", decay_signal: 0.65, decay_attribution: "Sharpe", decided_strategy: "reduce_position", prior_strategy: "triple_barrier", trigger: "decay_signal"}`. Queried back successfully.
+
+**Q/A (af4593e4f013d2154):** verdict = **PASS**, ok=true, violated_criteria=[], certified_fallback=false. Phase-1 5-item harness audit 5/5 PASS (composed-brief methodology accepted as variant). Phase-2 deterministic 5/5 PASS (verification command, syntax, skill structure, output schema 4/4 fields, BQ schema 8/8 columns + live row cross-confirmed via direct Python BigQuery client query NOT fabricated). Phase-3 LLM judgment 7/7 PASS with 2 NOTEs.
+
+**Q/A acceptance rationale (J2/J3/J4):**
+- **J2 composed brief: ACCEPTABLE** -- gate discipline is about CONTENT (5+ in-full sources, tier mix, recency scan), not paragraph authorship; brief is shape-identical and honestly disclosed.
+- **J3 deferred backtest: ACCEPTABLE** -- contract explicitly out-of-scopes the multi-month A/B; punishing the deferral would penalize scope honesty.
+- **J4 router integration: PASS-with-NOTE** -- orchestrator method exists, signal queryable, pathway identified; the promoter.py policy edit is operator follow-on (track as 26.5.1 or fold into 26.6).
+
+**Q/A follow-on action items (NOT blockers, surface to operator):**
+1. Land `promoter.py::write_to_registry` edit reading `strategy_decisions.decay_signal` into routing.
+2. Diagnose the autoresearch file-conflict pattern (twice-observed on 26.4 + 26.5; root cause unknown).
+3. Historical-replay demo of the backtest hypothesis once sufficient post-26.5 trade history exists.
+
+**Files written this cycle:**
+- handoff/current/research_brief.md (Main internal + researcher external; canonical)
+- handoff/current/contract.md
+- handoff/current/experiment_results.md
+- handoff/current/live_check_26.5.md
+- handoff/current/evaluator_critique.md
+
+**Source code touched:**
+- backend/agents/skills/alpha_decay_agent.md (new)
+- backend/config/prompts.py (new get_alpha_decay_prompt)
+- backend/agents/orchestrator.py (new run_alpha_decay_agent)
+- scripts/migrations/add_strategy_decisions_table.py (new)
+
+**BQ delta:** pyfinagent_data 7 tables -> 8 (new: strategy_decisions).
+
+**LLM spend for 26.5:** ~$0.00005 (1 Gemini Flash live smoke: in=289 / out=60 tokens at $0.10/$0.40 per MTok). BQ writes $0.
+
+**Next action:** Main flips masterplan.json step 26.5 status pending -> done.
+
+**Cumulative phase-26 progress:** 6 of 8 steps closed (26.0, 26.1, 26.2, 26.3, 26.4, 26.5 -- 3 P0s + 3 P1s). Next: 26.6 (multimodal RAG, P2), 26.7 (combined Gemini tools, P2).

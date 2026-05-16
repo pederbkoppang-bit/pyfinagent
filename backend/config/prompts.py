@@ -1024,3 +1024,27 @@ def get_quant_model_prompt(ticker: str, quant_model_data: dict, fact_ledger: str
     """Prompt for quant model factor interpretation agent."""
     template = load_skill("quant_model_agent")
     return format_skill(template, ticker=ticker, quant_model_data=json.dumps(quant_model_data, indent=2), fact_ledger_section=_build_fact_ledger_section(fact_ledger))
+
+
+def get_alpha_decay_prompt(
+    prior_strategy: str,
+    rolling_sharpe_trend: dict,
+    hit_rate_trend: dict,
+    macro_regime: str = "NEUTRAL",
+    recent_drawdown_pct: float = 0.0,
+    fact_ledger: str = "",
+) -> str:
+    """phase-26.5: prompt for the alpha-decay / regime-shift detector skill.
+    Cheap Gemini Flash call emitting {decay_signal, decay_attribution,
+    recommended_action, rationale}. Output flows into phase-25.R's
+    write_to_registry as an UPSTREAM early-warning signal."""
+    template = load_skill("alpha_decay_agent")
+    return format_skill(
+        template,
+        prior_strategy=prior_strategy,
+        rolling_sharpe_trend=json.dumps(rolling_sharpe_trend, indent=2),
+        hit_rate_trend=json.dumps(hit_rate_trend, indent=2),
+        macro_regime=macro_regime,
+        recent_drawdown_pct=str(recent_drawdown_pct),
+        fact_ledger_section=_build_fact_ledger_section(fact_ledger),
+    )

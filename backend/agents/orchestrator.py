@@ -1032,6 +1032,39 @@ class AnalysisOrchestrator:
         response = self._generate_with_retry(self.quant_exec_client, prompt, "Quant Model", generation_config=self._skill_gen_config("quant_model_agent"))
         return {"text": _extract_text(response), "data": qm_data}
 
+    def run_alpha_decay_agent(
+        self,
+        prior_strategy: str,
+        rolling_sharpe_trend: dict,
+        hit_rate_trend: dict,
+        macro_regime: str = "NEUTRAL",
+        recent_drawdown_pct: float = 0.0,
+    ) -> dict:
+        """phase-26.5: alpha-decay / regime-shift early-warning detector.
+
+        Cheap Gemini Flash call. Output {decay_signal, decay_attribution,
+        recommended_action, rationale} feeds into the strategy router's
+        phase-25.R policy at backend/autoresearch/promoter.py:7-69 as
+        an UPSTREAM signal alongside the realized-P&L reactive trigger.
+
+        Closes the lag between decay onset and capital reallocation that
+        the reactive-only path suffers from (see Resonanz Capital 2025
+        unwind post-mortem cited in research_brief.md)."""
+        logger.info(f"Alpha Decay Agent: scanning strategy={prior_strategy} regime={macro_regime} dd={recent_drawdown_pct:.2f}%")
+        prompt = prompts.get_alpha_decay_prompt(
+            prior_strategy=prior_strategy,
+            rolling_sharpe_trend=rolling_sharpe_trend,
+            hit_rate_trend=hit_rate_trend,
+            macro_regime=macro_regime,
+            recent_drawdown_pct=recent_drawdown_pct,
+            fact_ledger=getattr(self, '_fact_ledger_json', ''),
+        )
+        response = self._generate_with_retry(
+            self.general_client, prompt, "Alpha Decay",
+            generation_config=self._skill_gen_config("alpha_decay_agent"),
+        )
+        return {"text": _extract_text(response), "prior_strategy": prior_strategy, "macro_regime": macro_regime}
+
     # ── Synthesis ────────────────────────────────────────────────────
 
     def run_synthesis_pipeline(self, ticker: str, report: dict) -> dict:

@@ -9603,7 +9603,7 @@
         {
           "id": "26.5",
           "name": "Alpha-decay / regime-shift detector skill (Gemini Flash)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
