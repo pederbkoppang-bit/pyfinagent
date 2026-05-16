@@ -18238,3 +18238,156 @@ This is observable evidence (NOT a hypothesis) that the `if` predicate is unreli
 **Cumulative phase-25 progress:** 40 of ~40 phase-25 steps complete (rounding includes 3 newly-added follow-ups: 25.C9.1, 25.D9.1, 25.S.1).
 
 **Next P2 candidates:** 25.S.1.1 (caller-adoption -- thread `_ticker` in run_*_agent), 25.C9.2 (batch hot-path refactor), 25.D9.2 (cache_control on doc block).
+
+---
+
+## Cycle 1 -- 2026-05-16 09:17 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=2.24% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Planning event -- 2026-05-16 -- phase-26 CREATED (status=pending)
+
+**Action:** Appended phase-26 "Frontier-sync: adopt 2026-04→05 Anthropic/Google releases + topology gaps" to `.claude/masterplan.json`. 8 steps, all status=pending.
+
+**Source briefs:**
+- `handoff/current/research_brief_external.md` -- 5 frontier features (Anthropic Advisor Tool 2026-04-09, Task Budgets 2026-05-06, Opus 4.7 2026-04-16, Gemini Multimodal File Search 2026-04-22, Gemini combined tools+grounding).
+- `handoff/current/research_brief_internal.md` -- 5 topology gaps (Gemini code_execution zero adoption, no per-session task budget, 6 overlapping opinion skills, no alpha-decay detector, multimodal RAG gap on financial_reports).
+- `handoff/current/phase-26-proposal.md` -- synthesis + dedup decisions.
+
+**Step list (priority/effort):**
+- 26.0 (P0/S) Verify Opus 4.7 migration complete
+- 26.1 (P0/S) Per-session Task Budget on autonomous_loop
+- 26.2 (P0/M) Advisor Tool (Sonnet+Opus pairing) -- depends on 26.0
+- 26.3 (P1/M) Gemini code_execution on 4 quant skills
+- 26.4 (P1/M) Consolidate 6 opinion skills into parameterized stance
+- 26.5 (P1/M) Alpha-decay / regime-shift detector skill
+- 26.6 (P2/L) Multimodal File Search RAG on financial_reports
+- 26.7 (P2/M) Combined Gemini tools+grounding single-call refactor
+
+**North-star alignment:** Compute-burn reduction targets (26.2 / 26.4 / 26.7, est. 30-50% on synthesis chain) + signal-quality lifts (26.3 / 26.5 / 26.6) + tail-risk cap (26.1).
+
+**Research-gate slip (documented):** external brief returned `gate_passed: false` against the 5-source floor because Main capped WebFetch at 4 in the retry prompt to avoid timeout. The 4 fetched sources are all Tier-1 official Anthropic/Google docs (release notes, advisor tool docs, Gemini changelog, Gemini tooling blog). **Slip is bounded to the phase-ADD only.** Each phase-26 step MUST spawn its own researcher with a full 5-source gate before its GENERATE phase. Captured in phase-26.summary.
+
+**No code changes. No status flips.** Auto-commit-and-push hook does not fire on phase additions. Manual commit when ready.
+
+**Next action:** Start phase-26.0 when ready -- run `/masterplan` to see current state.
+
+---
+
+---
+
+## Planning event -- 2026-05-16 -- step 16.59 INSERTED + 16.15 dependency wired
+
+**Action:** Inserted step 16.59 "Uplift Q/A with code-reviewer capabilities (max research gate, full harness MAS)" at the end of phase-16.steps. Wired `16.15.depends_on_step = "16.59"` so the Go/No-Go verdict cannot close until the Q/A upgrade lands.
+
+**User intent:** "i would like to add a new step where Q/A also code reviewer skills. use full harness with our mas agents to make Q/A better. research gate at max"
+
+**Step scope (user-confirmed pillars + researcher-discoverable extensions):**
+- Security audit (OWASP LLM Top-10, secret leakage, injection vectors)
+- Trading-domain correctness (stop-loss preservation, position sizing, risk-guard invariants, immutable_core respect, kill-switch wiring)
+- Code quality (idiomatic Python, type hints, test coverage delta >= 0, no broad except)
+- Anti-rubber-stamp on financial logic (require behavioral tests with realistic data before PASS)
+- **PLUS** anything else the research gate surfaces as defensible best practice
+
+**Research gate (set to max):** tier=complex, >=5 sources read in full, three-variant search required (current-year frontier + last-2-year + year-less canonical), recency scan required. Scope includes: Anthropic code-reviewer skill, Cursor review patterns, GitHub Copilot Code Review, semgrep/CodeQL heuristics, OWASP LLM Top-10, plus trading-domain correctness review patterns.
+
+**Separation of duties (per CLAUDE.md):** the SAME Main session must NOT both author .claude/agents/qa.md edits AND self-evaluate the 16.15 verdict using the new Q/A. Workflow:
+1. This session OR a follow-up session: research + GENERATE (edit qa.md)
+2. **HARD STOP for Peder review** of the qa.md diff
+3. **Session restart** to load new Q/A roster
+4. **Verify** via `scripts/qa/verify_qa_roster_live.sh`
+5. Next session: 16.15 Go/No-Go verdict using upgraded Q/A
+
+**Next action:** Begin 16.59 with researcher spawn (research gate at max). Standard harness loop applies.
+
+---
+
+---
+
+## SEPARATION OF DUTIES NOTE -- 2026-05-16 -- phase-16.59 qa.md edit (HARD STOP for Peder review)
+
+**Per CLAUDE.md "Separation of duties on agent edits":**
+> "The same Claude Code session should not both author an agent .md change AND self-evaluate work that depends on it. For substantive edits to .claude/agents/, leave a note in handoff/harness_log.md requesting Peder review before the next step depends on the change."
+
+**This session both:**
+1. Authored the qa.md upgrade (added 224 lines of code-review heuristics, lines 201-426)
+2. Will spawn Q/A to evaluate THIS step (16.59) — that's allowed (same step that authored)
+
+**HARD STOP required BEFORE 16.15 starts using the upgraded Q/A:**
+
+1. **Peder review of the qa.md diff.** Read `.claude/agents/qa.md` lines 201-426 and the source brief `handoff/current/research_brief_16_59.md`. Check that:
+   - The 5 dimensions are scoped correctly for pyfinagent
+   - The negation lists ("What NOT to flag") don't overshoot — false positives drown out true findings (Cloudflare's #1 lesson from production)
+   - The severity dispatch (BLOCK / WARN / NOTE) maps to the right verdict tier in your judgment
+   - The trading-domain heuristics (Dimension 2) accurately reflect the kill_switch / stop-loss / perf_metrics invariants you actually want enforced
+   - No heuristic creates a backdoor that lets sycophancy through
+
+2. **Session restart** (full Claude Code app restart, not just `/clear`). Agent definition changes are snapshotted at session start — current sessions still use the OLD qa.md. Per CLAUDE.md "Agent definition changes require session restart."
+
+3. **Live-check via `scripts/qa/verify_qa_roster_live.sh`.** Runs on-disk + git-status checks plus prints the embedded behavioral self-disclosure operator prompt. After session restart, spawn a fresh Q/A subagent with that prompt to confirm the new section is in its snapshot.
+
+4. **Only after steps 1-3 PASS:** proceed with 16.15 (Go/No-Go verdict) using the upgraded Q/A.
+
+**Why this matters:** If we skip the review and 16.15 uses the upgraded Q/A immediately, any defect in the heuristics taints the Go/No-Go verdict — which is THE pre-go-live verdict for the entire system. The dependency wiring (`16.15.depends_on_step = "16.59"`) prevents auto-progression but does not block manual progression — operator discipline is the load-bearing safeguard here.
+
+---
+
+---
+
+## Cycle 16.59 -- 2026-05-16 -- phase=16.59 result=PASS
+
+**Step:** 16.59 -- Uplift Q/A with code-reviewer capabilities (max research gate, full harness MAS). NEW step inserted at end of phase-16.steps; 16.15.depends_on_step = "16.59".
+
+**Action:** GENERATE. Added 224-line "Code review heuristics (phase-16.59)" section to .claude/agents/qa.md (lines 201-426). Purely additive; lines 1-200 unchanged.
+
+**North-star alignment:** Sharper Q/A -> fewer rubber-stamp PASSes on financial-logic regressions -> fewer profit-leak bugs reaching production -> higher Net System Alpha. Targets the sycophancy + verdict-shopping failure modes flagged in dev-MAS audit 2026-05-11 + auto-memory feedback_harness_rigor.md.
+
+**Code changes:**
+- `.claude/agents/qa.md`: appended new section (lines 201-426). 5 dimensions (Security/OWASP, Trading-domain, Code-quality, Anti-rubber-stamp, LLM-evaluator anti-patterns) with severity-tiered heuristic tables, per-dimension "What NOT to flag" negation lists (Cloudflare pattern), simultaneous-presentation rule for cycle-2 spawns (arXiv 2509.16533 EMNLP 2025 mitigation), severity dispatch (BLOCK -> auto-FAIL, WARN -> CONDITIONAL, NOTE -> PASS-with-flag), and a recursive 3rd-CONDITIONAL escalation check.
+
+**Research-gate:** tier=complex, **7 sources fetched in full** (Anthropic Code Review docs, arXiv 2509.16533 EMNLP 2025, arXiv 2404.18496, SurePrompts LLM-as-Judge, OWASP LLM Top-10 2025 via Invicti, Cloudflare AI code review, OWASP LLM v1.1). 18 URLs collected (7 in-full + 11 snippet-only). Recency scan present with 6 findings 2024-2026. Internal code inventory: 7 files cited (kill_switch.py, risk_engine.py, paper_trader.py, security.md, backend-services.md, risk_debate.py, limits_schema.py). gate_passed=true.
+
+**Verification command output:**
+```
+$ bash scripts/qa/verify_qa_roster_live.sh && grep -nE 'code.review|owasp|secret|risk.guard|stop.loss|anti.rubber.stamp' .claude/agents/qa.md
+
+[1/3] On-disk state of qa.md: OK (current rubric present)
+[2/3] Git status of phase-23.2.24 commit: OK (on origin/main)
+[3/3] Behavioral verification: operator-deferred (requires session restart)
+On-disk + git checks PASSED.
+
+# grep matches:
+code.review = 9 hits | owasp = 4 | secret = 4 | risk.guard = 2 | stop.loss = 5 | anti.rubber.stamp = 1
+```
+
+**Q/A verdict:** **PASS (first spawn).** Protocol audit clean (5/5: researcher pre-contract, contract pre-generate, results doc present, log-last observed, no verdict-shopping). All 6 keyword groups matched. 8 success criteria addressed (7 PASS + criterion 7 correctly deferred as operator-driven live-check, not a violation). Spot-checked Dimensions 1/2/4/5 in qa.md:204-389 — file:line citations to kill_switch.py / risk_engine.py / paper_trader.py are REAL (not fabricated). Criterion 6 (additional findings beyond user's 4 pillars) substantively satisfied by Dimension 5 + per-dimension negation lists, backed by SycEval citation. Q/A self-applied Dimension 5 heuristics to its own verdict (sycophancy/second-opinion/missing-CoT/position-bias/verbosity-bias all NEGATIVE) — recursive self-check legal and clean.
+
+**Separation-of-duties HARD STOP for Peder (already documented in earlier log entry):**
+1. Peder review of qa.md diff (lines 201-426) + research_brief_16_59.md
+2. Full Claude Code app restart (session-start agent snapshot)
+3. Behavioral leg of scripts/qa/verify_qa_roster_live.sh (paste embedded operator prompt to fresh Q/A subagent; expect YES + verbatim 3-line quote)
+4. Only after 1-3: write `handoff/current/live_check_16.59.md` + manual `git push origin main` (auto-push is held by live_check gate)
+5. ONLY THEN: proceed to 16.15
+
+**Live-check status:** PENDING (operator-driven). The auto-commit-and-push hook WILL fire on the 16.59 status flip below, but the push to origin/main is GATED by `handoff/current/live_check_16.59.md` existing. That file does NOT exist yet (correct — the behavioral leg is operator-driven). Expected log line: `handoff/logs/auto-push.log` WARN "live_check_16.59.md absent — push held".
+
+**Cumulative phase-16 progress:** 58 of 59 phase-16 steps complete (16.15 remains, now explicitly blocked on 16.59 close).
+
+**Phase-16.59 status -> done.** Q/A code-reviewer uplift LANDED.
+
+**Next action (operator):** Read CLAUDE.md "Separation of duties" section + the SoD note above; review qa.md diff; restart Claude Code; run verify_qa_roster_live.sh behavioral leg; only then proceed to 16.15.
+
+---

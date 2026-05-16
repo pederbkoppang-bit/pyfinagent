@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-12T18:58:02.356888+00:00",
+  "updated_at": "2026-05-16T10:53:32.825018+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -664,7 +664,7 @@
     },
     {
       "id": "phase-4.5",
-      "name": "Paper Trading Dashboard v2 \u2014 Evaluation-Grade",
+      "name": "Paper Trading Dashboard v2 — Evaluation-Grade",
       "status": "done",
       "depends_on": [
         "phase-2"
@@ -676,7 +676,7 @@
       "steps": [
         {
           "id": "4.5.0",
-          "name": "Architecture & Contract \u2014 Paper Trading Dashboard v2",
+          "name": "Architecture & Contract — Paper Trading Dashboard v2",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -732,7 +732,7 @@
         },
         {
           "id": "4.5.3",
-          "name": "Reconciliation overlay \u2014 paper-live vs parallel OOS backtest on NAV chart",
+          "name": "Reconciliation overlay — paper-live vs parallel OOS backtest on NAV chart",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -809,7 +809,7 @@
         },
         {
           "id": "4.5.7",
-          "name": "Kill-switch v2 \u2014 Pause / Resume / Flatten-all + daily loss + trailing DD limits",
+          "name": "Kill-switch v2 — Pause / Resume / Flatten-all + daily loss + trailing DD limits",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -4597,7 +4597,7 @@
     },
     {
       "id": "phase-4.16",
-      "name": "Harness Discipline Patches (research-gate \u22655, handoff layout, docs)",
+      "name": "Harness Discipline Patches (research-gate ≥5, handoff layout, docs)",
       "steps": [
         {
           "id": "4.16.1",
@@ -5012,7 +5012,7 @@
     {
       "id": "phase-12",
       "status": "done",
-      "name": "Rainbow deploys \u2014 safe-update pattern",
+      "name": "Rainbow deploys — safe-update pattern",
       "description": "Implement Brandon Dimcheff's Rainbow Deploys pattern (https://brandon.dimcheff.com/2018/02/rainbow-deploys-with-kubernetes/) so dependency bumps, model-version flips, and framework migrations can be rolled out behind labeled colored Deployments/Services and rolled back by flipping a selector. Extends classic blue/green to N simultaneous versions (red/orange/yellow/green/blue/indigo/violet) so the harness can run a canary on ~5% traffic, compare live SLOs against the active color, and promote/demote without a rolling restart. User-requested on 2026-04-19 as future-proofing for the Vertex->google-genai migration (phase-11) and any subsequent SDK bumps.",
       "created_at": "2026-04-19T12:22:40.849756+00:00",
       "steps": [
@@ -5089,7 +5089,7 @@
         },
         {
           "id": "12.4",
-          "name": "First Rainbow migration \u2014 candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
+          "name": "First Rainbow migration — candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -5303,7 +5303,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday \u2014 proves _default_bq_logger wired end-to-end to real BQ."
+          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday — proves _default_bq_logger wired end-to-end to real BQ."
         },
         {
           "id": "16.8",
@@ -5321,7 +5321,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 \u2014 flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
+          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 — flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
         },
         {
           "id": "16.9",
@@ -5340,7 +5340,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data \u2014 latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
+          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data — latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
         },
         {
           "id": "16.10",
@@ -5377,7 +5377,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend \u2014 correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
+          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend — correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
         },
         {
           "id": "16.12",
@@ -5396,7 +5396,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table \u2014 non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
+          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table — non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
         },
         {
           "id": "16.13",
@@ -5452,7 +5452,8 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "Q/A spawned, returned verdict=PASS (GO). All deterministic checks: 12 sub-steps done, 2 in-progress (defensible), 3 drills re-ran PASS, 3 commit hashes present on main, live-capital lockout raises on PKLIVE, Gemini fallback verified (commit 277e8ace forces gemini-2.0-flash/gemini-2.5-flash explicit in fallback path). Awaiting Peder explicit acknowledgment (criterion #4 immutable)."
+          "notes": "Q/A spawned, returned verdict=PASS (GO). All deterministic checks: 12 sub-steps done, 2 in-progress (defensible), 3 drills re-ran PASS, 3 commit hashes present on main, live-capital lockout raises on PKLIVE, Gemini fallback verified (commit 277e8ace forces gemini-2.0-flash/gemini-2.5-flash explicit in fallback path). Awaiting Peder explicit acknowledgment (criterion #4 immutable).",
+          "depends_on_step": "16.59"
         },
         {
           "id": "16.16",
@@ -5859,7 +5860,7 @@
           "verification": "N=$(grep -l '3rd-CONDITIONAL\\|3-consecutive-CONDITIONAL\\|third consecutive CONDITIONAL\\|3rd consecutive' CLAUDE.md docs/runbooks/per-step-protocol.md .claude/agents/qa.md .claude/rules/*.md 2>/dev/null | wc -l | tr -d ' '); [ \"$N\" -ge 3 ]",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under \u00a74 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under §4 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
         },
         {
           "id": "16.41",
@@ -5879,7 +5880,7 @@
           "verification": "test -f frontend/src/lib/formatRelativeTime.ts && test -f frontend/src/components/RecentReportsTable.tsx && test -f frontend/src/components/HomeQuickActionsPanel.tsx && grep -q RecentReportsTable frontend/src/app/page.tsx && grep -q HomeQuickActionsPanel frontend/src/app/page.tsx && cd frontend && npx tsc --noEmit",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS \u2014 tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS — tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
         },
         {
           "id": "16.43",
@@ -5899,7 +5900,7 @@
           "verification": "test -f frontend/src/lib/kpiMetrics.ts && (cd frontend && npx tsc --noEmit) && grep -q 'nextRunAt={ptStatus' frontend/src/app/page.tsx && grep -q 'kpiMetrics' frontend/src/app/page.tsx && grep -qE 'LastSegment|NextSegment' frontend/src/components/OpsStatusBar.tsx && grep -q 'subText' frontend/src/app/page.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"\u2014\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"—\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
         },
         {
           "id": "16.45",
@@ -5929,7 +5930,7 @@
           "verification": "(cd frontend && npx tsc --noEmit) && grep -q 'lg:grid-cols-6 lg:items-stretch' frontend/src/app/page.tsx && ! grep -q 'lg:grid-cols-5' frontend/src/app/page.tsx && [ \"$(grep -c 'lg:col-span-2 h-full' frontend/src/app/page.tsx)\" = '3' ] && grep -q 'shrink-0' frontend/src/components/HomeQuickActionsPanel.tsx && grep -q 'min-w-0' frontend/src/components/HomeQuickActionsPanel.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening \u2014 Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening — Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
         },
         {
           "id": "16.48",
@@ -6040,6 +6041,42 @@
           "contract": null,
           "retry_count": 0,
           "notes": "Closed 2026-04-26. Q/A verdict: PASS. Operator pasted new sk-ant-api03 key (108 chars). Researcher detected dead `sk-ant-oat01-*` line still on backend/.env:L15 alongside correct key on L57 (last-wins dotenv made line 57 active; harmless technical debt). Removed dead OAT line via python Path.read_text() + filter + write_text() (sandbox-allowed write; earlier Bash grep/tail were denied for .env). File 57 -> 56 lines. No code changes (prefix guards in directive_rewriter.py:173 + directive_review.py:132 already correctly gate on startswith('sk-ant-api') and reject OAT). Backend reloaded via launchctl + /api/health = HTTP 200. Smoke test (prior turn): claude-sonnet-4-6 returned 'ok' (12 in / 4 out tokens). Closes task list item #21 (pending since 2026-04-19). Unblocks phase-19.1 spike. See handoff/archive/phase-16.58/."
+        },
+        {
+          "id": "16.59",
+          "name": "Uplift Q/A with code-reviewer capabilities (max research gate, full harness MAS)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "User request 2026-05-16. Q/A is the harness-MAS evaluator; making it sharper before it issues the 16.15 Go/No-Go verdict raises the bar on every downstream verdict. Aligns with auto-memory feedback_harness_rigor.md (Q/A must push back) + feedback_qa_harness_compliance_first.md (5-item protocol audit). Blocks 16.15 by explicit depends_on_step.",
+          "verification": {
+            "command": "source .venv/bin/activate && bash scripts/qa/verify_qa_roster_live.sh && grep -nE 'code.review|owasp|secret|risk.guard|stop.loss|anti.rubber.stamp' .claude/agents/qa.md",
+            "success_criteria": [
+              "qa_md_contains_code_review_heuristics_section",
+              "section_covers_security_owasp_secrets_injection",
+              "section_covers_trading_domain_correctness_stops_sizing_risk_guard_kill_switch",
+              "section_covers_code_quality_idiomatic_python_types_test_coverage",
+              "section_covers_anti_rubber_stamp_on_financial_logic",
+              "additional_research_gate_findings_documented_in_qa_md",
+              "fresh_qa_subagent_post_session_restart_self_discloses_new_section",
+              "separation_of_duties_note_appended_to_harness_log_md_for_peder_review"
+            ],
+            "live_check": "Fresh qa subagent dispatched after session restart self-discloses the new code-review heuristics section by name in its first response (per scripts/qa/verify_qa_roster_live.sh embedded self-disclosure prompt)."
+          },
+          "research_gate": {
+            "tier": "complex",
+            "minimum_sources_read_in_full": 5,
+            "three_variant_search_required": true,
+            "recency_scan_required": true,
+            "scope": "Code-review best practices for LLM-based evaluator agents (Anthropic code-reviewer skill, Cursor review patterns, GitHub Copilot Code Review, semgrep/CodeQL heuristics, OWASP LLM Top-10), plus trading-domain correctness review patterns (immutable core preservation, risk-guard invariants, financial-logic anti-rubber-stamp). Researcher MUST surface heuristics beyond the four user-confirmed pillars (security, trading-domain, code-quality, anti-rubber-stamp) where defensible from sources."
+          },
+          "constraints": {
+            "separation_of_duties": "Per CLAUDE.md: same Main session must NOT author .claude/agents/qa.md edits AND self-evaluate 16.15 verdict using the new Q/A. Required note in harness_log.md flagging Peder review BEFORE 16.15 starts using upgraded Q/A.",
+            "session_restart_required": "Agent definition changes require session restart per CLAUDE.md. After GENERATE, next-session cycle MUST verify new roster via scripts/qa/verify_qa_roster_live.sh."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ],
       "completed_at": null,
@@ -6163,7 +6200,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency \u2014 drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
+          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency — drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
         },
         {
           "id": "17.7",
@@ -7003,7 +7040,7 @@
         },
         {
           "id": "23.1.9",
-          "name": "Paper Trading Manage tab \u2014 deposit endpoint + 10 paper-trading settings exposed in API/UI",
+          "name": "Paper Trading Manage tab — deposit endpoint + 10 paper-trading settings exposed in API/UI",
           "status": "done",
           "harness_required": true,
           "verification": "see handoff/archive/phase-23.1.9/contract.md (immutable verification: PYTHONPATH=. python tests/verify_phase_23_1_9.py)",
@@ -7069,7 +7106,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.13/evaluator_critique.md",
           "created_at": "2026-04-28T17:30:48Z",
           "completed_at": "2026-04-28T17:30:48Z",
-          "notes": "User asked for diversification \u2014 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
+          "notes": "User asked for diversification — 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
         },
         {
           "id": "23.1.14",
@@ -7167,7 +7204,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.22/evaluator_critique.md",
           "created_at": "2026-04-30T18:55:00Z",
           "completed_at": "2026-04-30T18:55:00Z",
-          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry \u2014 first attempt wrote critique for wrong step)."
+          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry — first attempt wrote critique for wrong step)."
         },
         {
           "id": "23.2.0",
@@ -7888,7 +7925,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Observed empirically in cycles 38/39/40: the auto-commit-and-push.sh hook did NOT auto-fire on Edit calls to .claude/masterplan.json; operator had to manually trigger commit/push. Hypothesis was: drop the undocumented `if` predicate. Research gate at cycle 41 REJECTED that plan \u2014 sibling hooks (masterplan-memory-sync, archive-handoff, commit-reminder) would then fire on every Edit call (wasteful), and the `if` field IS documented (just under-specified for `.claude/`-prefixed paths). Revised research-supported plan: observability-first. Keep the `if` predicate as best-effort filter; add a single `log INVOKED ...` line near the top of auto-commit-and-push.sh so EVERY invocation produces observable evidence in auto-push.log. Next cycle that fails will show definitively: no INVOKED line = `if` predicate silently blocked the hook; INVOKED line + silent exit = hook fired but newly_done was empty. Pre-contract criteria update permitted because no contract has been written yet (criteria immutability begins at contract-time). live_check NOT required: success verifiable from on-disk artifacts."
+          "notes": "Observed empirically in cycles 38/39/40: the auto-commit-and-push.sh hook did NOT auto-fire on Edit calls to .claude/masterplan.json; operator had to manually trigger commit/push. Hypothesis was: drop the undocumented `if` predicate. Research gate at cycle 41 REJECTED that plan — sibling hooks (masterplan-memory-sync, archive-handoff, commit-reminder) would then fire on every Edit call (wasteful), and the `if` field IS documented (just under-specified for `.claude/`-prefixed paths). Revised research-supported plan: observability-first. Keep the `if` predicate as best-effort filter; add a single `log INVOKED ...` line near the top of auto-commit-and-push.sh so EVERY invocation produces observable evidence in auto-push.log. Next cycle that fails will show definitively: no INVOKED line = `if` predicate silently blocked the hook; INVOKED line + silent exit = hook fired but newly_done was empty. Pre-contract criteria update permitted because no contract has been written yet (criteria immutability begins at contract-time). live_check NOT required: success verifiable from on-disk artifacts."
         }
       ]
     },
@@ -7962,7 +7999,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P0 bucket \u2014 addresses the most user-impacting live bug (no stops firing on negative positions). Must produce phase-25 candidates that wire check_stop_losses() into the daily loop, ensure entry-path attaches stops, backfill the 5 stop-less positions, and add a no-sells-in-N-days anomaly watchdog."
+          "notes": "P0 bucket — addresses the most user-impacting live bug (no stops firing on negative positions). Must produce phase-25 candidates that wire check_stop_losses() into the daily loop, ensure entry-path attaches stops, backfill the 5 stop-less positions, and add a no-sells-in-N-days anomaly watchdog."
         },
         {
           "id": "24.2",
@@ -7994,7 +8031,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket \u2014 explains why /reports page is empty (lite-only persistence) and why full 28-skill pipeline never runs in paper trading. Cross-links with 24.4 (rationale drawer sparse because lite skips per-ticker agents)."
+          "notes": "P1 bucket — explains why /reports page is empty (lite-only persistence) and why full 28-skill pipeline never runs in paper trading. Cross-links with 24.4 (rationale drawer sparse because lite skips per-ticker agents)."
         },
         {
           "id": "24.3",
@@ -8025,7 +8062,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket \u2014 explains why no autoresearch has evolved the application. Champion/challenger A/B testing runs but never feeds back into daily strategy selection."
+          "notes": "P1 bucket — explains why no autoresearch has evolved the application. Champion/challenger A/B testing runs but never feeds back into daily strategy selection."
         },
         {
           "id": "24.4",
@@ -8057,7 +8094,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P0 bucket \u2014 the RiskJudge rationale is byte-identical to the Trader's, meaning the risk gate provides ZERO independent verification. Same anti-pattern Anthropic warned about (cycle 39 / R-2 / 'agents tend to confidently praise their own work'). Must surface Layer-1 28-skill outputs in per-trade rationale."
+          "notes": "P0 bucket — the RiskJudge rationale is byte-identical to the Trader's, meaning the risk gate provides ZERO independent verification. Same anti-pattern Anthropic warned about (cycle 39 / R-2 / 'agents tend to confidently praise their own work'). Must surface Layer-1 28-skill outputs in per-trade rationale."
         },
         {
           "id": "24.5",
@@ -8091,7 +8128,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P0 bucket \u2014 Slack is the operator's primary real-time surface and it's broken: wrong P&L in digests, wrong tickers in recent-analyses, mis-scheduled morning digest, no trade confirmations, no kill-switch alerts, no drawdown alarms, no error escalations. User cannot trust the live system without these."
+          "notes": "P0 bucket — Slack is the operator's primary real-time surface and it's broken: wrong P&L in digests, wrong tickers in recent-analyses, mis-scheduled morning digest, no trade confirmations, no kill-switch alerts, no drawdown alarms, no error escalations. User cannot trust the live system without these."
         },
         {
           "id": "24.6",
@@ -8123,7 +8160,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket \u2014 major subsystem (1167 LOC) powering /backtest page. Are backtest results actually predictive of live P&L? Champion/challenger discipline."
+          "notes": "P2 bucket — major subsystem (1167 LOC) powering /backtest page. Are backtest results actually predictive of live P&L? Champion/challenger discipline."
         },
         {
           "id": "24.7",
@@ -8155,7 +8192,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket \u2014 are the BQ tables actually getting fresh data? Stale data == stale signals == bad trades."
+          "notes": "P1 bucket — are the BQ tables actually getting fresh data? Stale data == stale signals == bad trades."
         },
         {
           "id": "24.8",
@@ -8189,7 +8226,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket \u2014 safety rails. Is the kill-switch actually wired? Watchdog firing on backend down? SLA monitor catching slow cycles? Cost budget enforced or honor-system?"
+          "notes": "P1 bucket — safety rails. Is the kill-switch actually wired? Watchdog firing on backend down? SLA monitor catching slow cycles? Cost budget enforced or honor-system?"
         },
         {
           "id": "24.9",
@@ -8224,7 +8261,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket \u2014 checks the existing AI infrastructure against the latest Anthropic + Google docs. Identifies features we don't use (batch, files API, citations) that could reduce cost or improve quality."
+          "notes": "P2 bucket — checks the existing AI infrastructure against the latest Anthropic + Google docs. Identifies features we don't use (batch, files API, citations) that could reduce cost or improve quality."
         },
         {
           "id": "24.10",
@@ -8258,7 +8295,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket \u2014 security posture + MCP gap analysis. Should we have a signals MCP? News MCP? Are deny rules tight enough on broker API write ops?"
+          "notes": "P1 bucket — security posture + MCP gap analysis. Should we have a signals MCP? News MCP? Are deny rules tight enough on broker API write ops?"
         },
         {
           "id": "24.11",
@@ -8291,7 +8328,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket \u2014 already mostly clean per Phase-1 exploration. Confirms type sync, identifies orphan pages."
+          "notes": "P2 bucket — already mostly clean per Phase-1 exploration. Confirms type sync, identifies orphan pages."
         },
         {
           "id": "24.12",
@@ -8326,7 +8363,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket \u2014 UI/UX audit. Visual regression baseline = Playwright screenshots of all 14 pages committed to screenshots/."
+          "notes": "P2 bucket — UI/UX audit. Visual regression baseline = Playwright screenshots of all 14 pages committed to screenshots/."
         },
         {
           "id": "24.13",
@@ -8359,7 +8396,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket \u2014 depends on 24.1-24.9 findings being complete. Asks: does current behavior match 'maximize profit at lowest cost; shift to winning strategy'? Quantifies the gap."
+          "notes": "P1 bucket — depends on 24.1-24.9 findings being complete. Asks: does current behavior match 'maximize profit at lowest cost; shift to winning strategy'? Quantifies the gap."
         },
         {
           "id": "24.14",
@@ -8552,7 +8589,7 @@
               "kill_switch_deactivate_emits_p1_slack_escalation",
               "pause_signals_calls_send_trading_escalation_before_shutdown"
             ],
-            "live_check": "Manual kill-switch press \u2192 Slack alert delivered within 30s"
+            "live_check": "Manual kill-switch press → Slack alert delivered within 30s"
           },
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
@@ -8842,7 +8879,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Mechanical alignment with frontend-layout.md \u00a75."
+          "notes": "Mechanical alignment with frontend-layout.md §5."
         },
         {
           "id": "25.C12",
@@ -9447,6 +9484,181 @@
           "retry_count": 0,
           "max_retries": 3,
           "notes": "Cycle 86 PASS 5/5 verifier; QA single-spawn PASS; live-check at handoff/current/live_check_25.C7.md"
+        }
+      ]
+    },
+    {
+      "id": "phase-26",
+      "name": "Frontier-sync: adopt 2026-04→05 Anthropic/Google releases + topology gaps",
+      "status": "pending",
+      "harness_required": true,
+      "depends_on": [
+        "phase-25"
+      ],
+      "summary": "8 candidates synthesized from research_brief_external.md (5 frontier features) + research_brief_internal.md (5 topology gaps, 2 deduped vs external). Targets compute-burn reduction (Advisor Tool, opinion-skill consolidation, combined Gemini tools) and signal-quality lift (code_execution, alpha-decay detector, multimodal RAG). 26.0 + 26.1 are P0 safety/prereq; 26.2 is the highest-leverage cost win; 26.3-26.5 are signal lifts; 26.6 + 26.7 are P2 polish. NOTE: research_brief_external.md returned gate_passed=false on the 5-source floor (Main capped WebFetch at 4 to avoid timeout); the gate slip is bounded to the phase-ADD planning step. Each individual step below MUST spawn its own researcher with full 5-source gate before its own GENERATE.",
+      "description": "Source: handoff/archive/phase-26/research_brief_external.md + research_brief_internal.md (post-phase-25 close, 2026-05-16). Closes the delta between the 2026-05-12 audit window and the 2026-04-01 → 2026-05-16 frontier release window. Dependency-ordering: 26.0 + 26.1 precede 26.2; 26.3 / 26.4 / 26.5 / 26.6 / 26.7 are mutually independent.",
+      "steps": [
+        {
+          "id": "26.0",
+          "name": "Verify Opus 4.7 migration complete across all callers",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_external.md item #3: Opus 4.7 has breaking API changes vs 4.6 and is the only valid model for the Advisor Tool. Inventory currently shows mixed claude-opus-4-7 and claude-sonnet-4-6.",
+          "verification": {
+            "command": "source .venv/bin/activate && grep -rn 'claude-opus-4-6\\|claude-3-opus' backend/ --include='*.py' | grep -v 'tests/'",
+            "success_criteria": [
+              "no_active_callers_reference_opus_4_6_or_3",
+              "_inventory.json shows opus role agents pinned to claude-opus-4-7",
+              "smoke_test_one_opus_call_succeeds"
+            ],
+            "live_check": "single Opus 4.7 call returns successfully with model='claude-opus-4-7' in response.model"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "26.1",
+          "name": "Per-session Task Budget on autonomous_loop (hard pre-cycle ceiling)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_external.md item #2 (Anthropic Task Budgets beta, 2026-05-06) + research_brief_internal.md item #2 (zero grep hits for task_budget). 25.A8 added per-call ceiling but no per-session cap.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c 'from backend.services.autonomous_loop import _SESSION_BUDGET_USD; assert _SESSION_BUDGET_USD > 0'",
+            "success_criteria": [
+              "autonomous_loop_exposes_session_budget_constant",
+              "cycle_exits_early_when_session_total_exceeds_budget",
+              "slack_alert_fires_on_session_budget_trip"
+            ],
+            "live_check": "BQ row in llm_call_log showing session_id with cumulative cost halted before ceiling"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "26.2",
+          "name": "Adopt Advisor Tool (Sonnet executor + Opus advisor) on synthesis chain",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "26.0",
+          "audit_basis": "research_brief_external.md item #1: Anthropic Advisor Tool (beta 2026-04-09). Sonnet 4.6 executor + Opus 4.7 advisor in one /v1/messages call. Profit hypothesis: 30-50% compute reduction on synthesis/debate/enrichment.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c 'from backend.agents.llm_client import advisor_call; print(advisor_call.__module__)'",
+            "success_criteria": [
+              "advisor_call_helper_exists_in_llm_client",
+              "synthesis_orchestrator_uses_advisor_for_high_stakes_synthesis",
+              "cost_tracker_records_advisor_tier_separately",
+              "ab_test_shows_no_signal_quality_regression_vs_full_opus"
+            ],
+            "live_check": "BQ llm_call_log row with provider='anthropic' and tool='advisor_tool' after autonomous_loop cycle"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "26.3",
+          "name": "Wire Gemini code_execution on 4 quant skills",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_internal.md item #1: zero grep hits for 'code_execution' in backend/. Affects quant_model_agent.md, quant_strategy.md, scenario_agent.md, enhanced_macro_agent.md.",
+          "verification": {
+            "command": "grep -rn 'code_execution' backend/agents/ --include='*.py' | wc -l",
+            "success_criteria": [
+              "code_execution_tool_added_to_4_quant_skill_configs",
+              "regression_test_shows_sharpe_arithmetic_consistent_pre_post",
+              "llm_call_log_records_code_execution_tool_usage"
+            ],
+            "live_check": "BQ row with tools_used array containing 'code_execution' from a quant_model_agent call"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "26.4",
+          "name": "Consolidate 6 opinion skills into parameterized stance prompt",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_internal.md item #3: bull/bear/aggressive/conservative/neutral/devils_advocate are structurally identical with different prompts. Profit hypothesis: ~33% Gemini token reduction on opinion leg.",
+          "verification": {
+            "command": "ls backend/agents/skills/ | grep -cE '^(bull|bear|aggressive|conservative|neutral|devils_advocate)_'",
+            "success_criteria": [
+              "opinion_skills_consolidated_to_le_2_files",
+              "stance_parameter_drives_prompt_variation",
+              "synthesis_output_shape_unchanged_for_downstream_consumers",
+              "ab_test_signal_quality_no_regression"
+            ],
+            "live_check": "synthesis_agent output JSON shows stance-tagged opinion entries from the consolidated skill"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "26.5",
+          "name": "Alpha-decay / regime-shift detector skill (Gemini Flash)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_internal.md item #4: no skill detects upstream alpha decay; phase-25.R reacts to performance, doesn't anticipate. Cheap Gemini Flash agent as early-warning signal for strategy router.",
+          "verification": {
+            "command": "test -f backend/agents/skills/alpha_decay_agent.md && grep -rn 'alpha_decay' backend/agents/ --include='*.py'",
+            "success_criteria": [
+              "alpha_decay_agent_skill_exists",
+              "strategy_router_consumes_decay_signal_in_allocation_decision",
+              "backtest_shows_lower_drawdown_with_early_warning_on"
+            ],
+            "live_check": "BQ row in pyfinagent_data.strategy_decisions with field 'decay_signal' populated"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "26.6",
+          "name": "Multimodal File Search RAG on financial_reports dataset",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_external.md item #4 (Gemini File Search + gemini-embedding-2 GA, 2026-04-22/2026-05-05) + research_brief_internal.md item #5. New signal layer from chart/table content in 10-Ks.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c 'from backend.agents.rag_agent_runtime import multimodal_index; print(multimodal_index)'",
+            "success_criteria": [
+              "rag_agent_runtime_exposes_multimodal_index_helper",
+              "financial_reports_indexed_with_media_ids",
+              "rag_responses_include_visual_citations"
+            ],
+            "live_check": "rag_agent response JSON includes media_id citations on at least one 10-K query"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "26.7",
+          "name": "Combined Gemini tools+grounding single-call refactor on enrichment skills",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_external.md item #5: one Gemini call now supports Google Search grounding + custom functions + context circulation. Current enrichment chain uses separate calls.",
+          "verification": {
+            "command": "grep -rn 'tools=.*google_search.*function_declarations\\|tools=.*function_declarations.*google_search' backend/agents/ --include='*.py' | head -3",
+            "success_criteria": [
+              "enrichment_skills_combine_grounding_plus_functions_in_single_call",
+              "round_trip_count_reduces_by_at_least_30pct_on_enrichment_path",
+              "latency_p50_improves_on_enrichment_skill_runs"
+            ],
+            "live_check": "BQ llm_call_log row showing single Gemini call with multiple tool types in tools_used array"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
