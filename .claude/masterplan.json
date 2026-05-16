@@ -5437,7 +5437,7 @@
         {
           "id": "16.15",
           "name": "Go/No-Go verdict (Q/A spawn required -- NO self-evaluation)",
-          "status": "in-progress",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "echo 'This step MUST be flipped to done only via: (1) Main spawns qa subagent with bundle of 16.1-16.14 evidence; (2) qa returns verdict=PASS; (3) Main appends harness_log.md with the verdict; (4) Peder reviews + confirms.'",
@@ -5452,7 +5452,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "Q/A spawned, returned verdict=PASS (GO). All deterministic checks: 12 sub-steps done, 2 in-progress (defensible), 3 drills re-ran PASS, 3 commit hashes present on main, live-capital lockout raises on PKLIVE, Gemini fallback verified (commit 277e8ace forces gemini-2.0-flash/gemini-2.5-flash explicit in fallback path). Awaiting Peder explicit acknowledgment (criterion #4 immutable).",
+          "notes": "Closed 2026-05-16. Q/A verdict: PASS (post-restart, post-16.59-upgrade cycle). Upgraded Q/A (Dimensions 1-5; qa.md:201-426) re-evaluated bundle at max research gate. 8/8 live probes PASS: backend health 200, OWASP 5/5+permissions-policy bonus, paper-trading EDT next_run preserved, kill-switch breach.any=false, pytest 226/227 (+49 net new tests, zero regression vs 16.23 baseline 177/178), 3 drills PASS (alpaca_shadow / kill_switch_test / zero_orders). 16.23 four-condition status: ALL RESOLVED (condition #1 Anthropic key sk-ant-api03-f matches 16.58 closure verbatim; 3 WARN conditions resolved). Block-6 classification: 5/5 HARD-BLOCK rows done (16.1/4/6/11/13); 2 ADVISORY in-progress (16.2/16.3) explicitly off-critical-path per masterplan.json:5546+5651 (daily cycle uses Layer 1 not Layer 2; in-progress items are forward MAS scaffolding, not go-live blockers). Dimension-5 self-check 8/8 NEGATIVE (no anti-evaluator-pattern triggered; sycophancy NEG because code changed materially: key swap + qa.md +224 + 7 cron sites + alpha_velocity table + run_orchestrated_round + pytest +49). Block-4 spot-check on 16.18/19/20/23/59 archives: no rubber-stamping detected; prior CONDITIONALs (16.20, 16.23) correctly refused PASS under ship-pressure. Researcher gate_passed=true (6 sources read in full: Cornell/CFR 15c3-5, PMC Raahauge 2022 HRO, Deloitte/FCA, ASIC CP386, Visual Paradigm, Knight Capital; 19 URLs; 9-query 3-variant; 5 new 2024-2026 findings; agentId a777c4e3d9d6ab322 retry after ae1148e0fdb0daaee timed out). Q/A agentId a086be610a1943f80. Peder ACK'd PASS in-session 2026-05-16 (criterion #4 satisfied). See handoff/archive/phase-16.15/ + handoff/harness_log.md cycle 16.15 entry.",
           "depends_on_step": "16.59"
         },
         {

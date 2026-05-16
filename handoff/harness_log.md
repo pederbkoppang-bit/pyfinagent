@@ -18391,3 +18391,45 @@ code.review = 9 hits | owasp = 4 | secret = 4 | risk.guard = 2 | stop.loss = 5 |
 **Next action (operator):** Read CLAUDE.md "Separation of duties" section + the SoD note above; review qa.md diff; restart Claude Code; run verify_qa_roster_live.sh behavioral leg; only then proceed to 16.15.
 
 ---
+
+---
+
+## Cycle 16.15 -- 2026-05-16 -- phase=16.15 result=PASS (PENDING PEDER ACK)
+
+**Step:** 16.15 -- Go/No-Go verdict (Q/A spawn required -- NO self-evaluation). Aggregate pre-go-live verdict on the 14-step phase-16 UAT bundle. Post-restart, post-16.59-Q/A-upgrade cycle.
+
+**Action:** EVALUATE via full harness MAS loop at max research gate (user instruction 2026-05-16). Sequence: researcher (max gate, complex tier) -> contract -> fresh upgraded Q/A spawn -> verdict captured. No code changes; this is a verdict cycle, not GENERATE.
+
+**North-star alignment:** This is THE pre-go-live verdict for the entire system. A defensible PASS gates next-phase work (paper-to-live cutover, phase-26 frontier-sync, etc.). A rubber-stamp PASS would compromise every subsequent gate. The upgraded Q/A's Dimension 5 heuristics + the brief's BLOCK-vs-ADVISORY framework are the load-bearing safeguards.
+
+**Research-gate:** tier=complex, **6 external sources read in full** (Cornell/CFR 15c3-5 SEC, PMC Raahauge 2022 HRO, Deloitte/FCA governance, ASIC CP386 2025, Visual Paradigm Go/No-Go scoring, Knight Capital case study; ESMA Feb 2026 PDF partial). 19 URLs collected (6 full + 12 snippet-only + 1 partial). 9-query 3-variant search (current-year 2026 + last-2-year 2024-2025 + year-less canonical). Recency scan with 5 new 2024-2026 findings; all uniformly tighten kill-switch + pre-trade controls. gate_passed=true. Researcher agentId a777c4e3d9d6ab322 (retry after ae1148e0fdb0daaee timed out at 132K tokens with broad scope).
+
+**Verification command output (live probe, 8/8 PASS):**
+```
+1. /api/health -> HTTP 200, status:ok, 3 MCP ok, version 6.7.65
+2. OWASP headers -> 5 of 5 (x-content-type, x-frame, referrer-policy, cache-control, strict-transport) + permissions-policy bonus
+3. /api/paper-trading/status -> HTTP 200, scheduler_active=true, next_run=2026-05-18T14:00:00-04:00 (EDT preserved), nav=$22,901.81 (+14.51% pnl)
+4. /api/paper-trading/kill-switch -> HTTP 200, paused=false, breach.any=false, sod_nav=$22,899.37
+5. pytest backend/tests/ -q -> 226 passed, 1 skipped (was 177/178; +49 net new tests, zero regression)
+6. alpaca_shadow_drill -> PASS (5/5 orders submitted, source=alpaca_paper)
+7. kill_switch_test -> PASS (4/4 scenarios, -15% drawdown CB)
+8. zero_orders_drill -> PASS (step1 BUY emitted, step2 paper_trades row written)
+```
+
+**16.23 four-condition resolution:** ALL RESOLVED. Condition #1 (Anthropic key swap from sk-ant-oat01 to sk-ant-api03) was the sole BLOCK-severity item from the 2026-04-25 CONDITIONAL. The Settings probe returns prefix=sk-ant-api03-f, length=108, format_ok=True, matching 16.58 closure (masterplan.json:6043) verbatim. Conditions #2-4 (cron TZ, autoresearch diag, MAS-Layer-2 audit) were WARN-severity and resolved in 16.18/16.24. Removes the structural blocker on Go/No-Go.
+
+**Q/A verdict:** **PASS (first spawn this cycle).** Q/A agentId a086be610a1943f80. Protocol audit clean (5/5: researcher pre-contract, contract pre-generate, results doc present, log-last observed, no verdict-shopping — qa.md +224 lines documented cycle-2). Block-1 regulatory floor clear (kill-switch reachable + audited, stop-loss always set, max-position guard intact, capital/drawdown thresholds with FINRA citations). Block-4 spot-check on 5 archives (16.18, 16.19, 16.20, 16.23, 16.59): NO rubber-stamping detected — prior CONDITIONALs (16.20, 16.23) correctly refused PASS under ship-pressure. Block-5 Dimension-5 self-check: 8/8 NEGATIVE (no anti-pattern triggered; sycophancy-under-rebuttal NEG because code changed materially: key swap + qa.md +224 + 7 cron sites + alpha_velocity table + run_orchestrated_round + pytest +49 tests).
+
+**Block-6 HARD-BLOCK vs ADVISORY classification:** 5 HARD-BLOCK rows (16.1, 16.4, 16.6, 16.11, 16.13) ALL done. 7 ADVISORY rows done. 2 ADVISORY rows in-progress (16.2 Layer-1 wrappers, 16.3 MAS orchestrator) — both explicitly off the daily-cycle critical path per masterplan.json:5546 + :5651 (daily cycle uses Layer 1 not Layer 2; in-progress items are scaffolding for forward MAS work, not preconditions for go-live). Aggregate rule satisfied: NO HARD-BLOCK row in-progress.
+
+**Verdict prose excerpt (full text at handoff/current/evaluator_critique.md):** "Verdict: PASS. Immutable criteria #1 (fresh Q/A spawn), #2 (verdict=PASS), #5 (no self-evaluation), #6 (no_regressions: pytest +49 tests, drills 3/3, OWASP 5/5) are all satisfied by this output. Criteria #3 (harness_log append) and #4 (Peder explicit acknowledgment) remain Main's responsibility AFTER this verdict. The 16.15 status must NOT flip to `done` until Peder explicitly acknowledges in-session."
+
+**Status hold:** 16.15 stays `in-progress` per immutable success criterion #4. The verdict is captured; the status flip is gated on Peder's explicit in-session acknowledgment. Main MUST NOT auto-flip. When ACK arrives, the auto-commit-and-push hook will fire on the status flip and commit + push to origin/main.
+
+**Cumulative phase-16 progress:** 58 of 59 phase-16 sub-steps closed; 16.15 verdict = PASS captured but status remains pending Peder ACK. Once 16.15 closes, 16.2 and 16.3 carry over to phase-17 / phase-26 as forward MAS scaffolding (not go-live blockers).
+
+**Phase-16.15 status -> PENDING ACK (Q/A verdict=PASS captured).**
+
+**Next action (operator):** Read this entry + handoff/current/evaluator_critique.md + handoff/current/experiment_results.md. If verdict accepted: ACK in-session and Main will flip 16.15 status to done (which triggers auto-commit-and-push). If verdict rejected: surface rejection rationale; do NOT spawn another Q/A on unchanged evidence (Dimension 5 forbids; cycle-2 requires actual code change first).
+
+---
