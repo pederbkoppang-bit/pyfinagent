@@ -184,7 +184,7 @@ class Settings(BaseSettings):
     # phase-23.1.2: earnings PEAD overlay (free SEC EDGAR + Claude sentiment-surprise)
     pead_signal_enabled: bool = Field(False, description="Fetch SEC 8-K + Claude PEAD signals for tickers that reported in the last 7 days; apply boost/filter in screener")
     pead_signal_model: str = Field("claude-haiku-4-5", description="LLM used for PEAD sentiment scoring on press-release text")
-    pead_signal_lookback_quarters: int = Field(8, description="Trailing quarters of PEAD sentiment used to compute surprise")
+    pead_signal_lookback_quarters: int = Field(12, description="phase-28.2: Trailing quarters of PEAD sentiment used to compute surprise (bumped 8->12 per ScienceDirect 2025 SUE-stacking paper, +85% Sharpe lift; equal-weighted mean)")
     # phase-23.1.3: worldwide news idea generator (no-API-key RSS + Claude batch event extractor)
     news_screen_enabled: bool = Field(False, description="Pull worldwide RSS news + Claude classifier; surface positive-polarity tickers as parallel candidates in screener")
     news_screen_model: str = Field("claude-haiku-4-5", description="LLM used for batch news event extraction")

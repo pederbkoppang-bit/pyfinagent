@@ -35,7 +35,15 @@ _CACHE_DIR.mkdir(parents=True, exist_ok=True)
 _VALID_HOLDING_WINDOWS = {14, 28, 42, 60}
 _DEFAULT_HOLDING_WINDOW = 28
 _VALID_TAGS = ("positive_surprise", "negative_surprise", "neutral", "insufficient_history")
-_LOOKBACK_QUARTERS = 8
+# phase-28.2 (2026-05-17): bumped 8 -> 12 per ScienceDirect 2025 ML paper
+# ("Beyond the last surprise: Reviving PEAD with ML and historical earnings") which
+# documents Sharpe lift from 0.34 (latest-only) to 0.63 (+85%) when stacking 12
+# quarters of SUE history. Equal-weight (arithmetic mean) preserved — the mechanism
+# is that older lags GAIN importance as markets price news faster, so EWMA would
+# de-weight exactly the valuable observations. Cache filenames don't encode
+# lookback depth (`pead_<TICKER>_<YYYY-MM-DD>.json`) -> back-compat with existing
+# cache files is fully preserved.
+_LOOKBACK_QUARTERS = 12
 
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 _FILING_INDEX_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/index.json"
@@ -51,7 +59,7 @@ class PeadSignalOutput(BaseModel):
         description="Sentiment of THIS press release on 0.0-1.0 scale (1.0 = maximally positive).",
     )
     surprise_score: float = Field(
-        description="sentiment_score - rolling-8Q mean. Positive = above-trend tone; negative = below-trend.",
+        description="sentiment_score - rolling-12Q mean (phase-28.2; was 8Q). Positive = above-trend tone; negative = below-trend.",
     )
     sentiment_tag: Literal["positive_surprise", "negative_surprise", "neutral", "insufficient_history"]
     holding_window_days: int = Field(

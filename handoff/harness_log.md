@@ -19756,3 +19756,30 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~30 min (research gate ~5 min, contract + 4 file edits ~7 min, initial smoke + bug-fix + re-smoke ~10 min, Q/A ~3 min, log + flip + reporting ~5 min).
 
+
+---
+
+## Cycle 17 -- 2026-05-17 19:40 UTC -- phase=28.2 result=PASS
+
+**Step:** phase-28.2 — Bump pead_signal._LOOKBACK_QUARTERS 8 → 12 (ScienceDirect 2025 SUE-stacking; +85% Sharpe lift).
+
+**Planner hypothesis:** XS one-constant bump + sync the parallel `settings.pead_signal_lookback_quarters` default + update one docstring + add multi-line phase-28.2 rationale comment. Equal-weight preserved per Researcher recommendation (EWMA would de-weight precisely the older lags that ScienceDirect 2025 shows are gaining importance). Cache back-compat fully preserved (filenames don't encode lookback depth).
+
+**Generator:** 2 files —
+- `backend/services/pead_signal.py` (constant 8→12 at line 38 with 8-line phase-28.2 comment + line 54 description update)
+- `backend/config/settings.py` (parallel field default 8→12 at line 187 with phase-28.2 citation)
+
+**Researcher gate:** `gate_passed: true` (5 sources read in full: ScienceDirect 2025 "Beyond the last surprise", Quantpedia PEAD effect + NLP-PEAD, QuantConnect SUE notebook, Wikipedia PEAD; 14 URLs; recency scan 2024-2026; three-variant queries).
+
+**Q/A subagent verdict:** PASS (no violations). Q/A even ran its own independent synthetic-cache smoke that reproduced the exact mean (0.5475 over 12 quarters) reported in experiment_results.md.
+- 5-item audit: all PASS.
+- 7 deterministic checks: immutable verification, module constant, settings default, description grep, phase marker grep, synthetic cache smoke + matches equal-weight.
+- LLM judgment: contract aligned; cache back-compat verified; honest disclosure that default behavior changes (PEAD signal itself still gated by `pead_signal_enabled=False`).
+- `violated_criteria: []`
+
+**Live check:** `handoff/current/live_check_28.2.md` — synthetic 12-quarter cache for TESTQ; 8Q mean 0.6025 vs 12Q mean 0.5475 (delta −0.055); hypothetical current 0.75 yields surprise +0.20 (12Q) vs +0.15 (8Q); holding_window 42d (12Q) vs 28d (8Q). The 12Q view correctly identifies a stronger and longer-held positive surprise.
+
+**Decision:** flip phase-28.2 to `done`. Next per proposal sequencing: **28.3 — GPR-triggered energy-sector tilt in macro_regime.py** (S effort, P0; consume Caldara-Iacoviello GPR index from matteoiacoviello.com; threshold triggers XLE-overweight; directly addresses oil-majors reference case).
+
+**Total cycle time:** ~15 min.
+
