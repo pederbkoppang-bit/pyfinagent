@@ -257,11 +257,15 @@ def _build_fact_ledger(quant_data: dict) -> dict:
     Research: VeNRA achieves 1.2% hallucination rate with typed fact ledger.
     All agents receive this as ground truth — no invented numbers allowed.
     """
-    yf = quant_data.get("yf_data", {})
-    val = yf.get("valuation", {})
-    eff = yf.get("efficiency", {})
-    health = yf.get("health", {})
-    inst = yf.get("institutional", {})
+    # phase-27.6.2: tolerate `yf_data: None` and `<section>: None` returns from
+    # the cloud-function quant agent (observed on Claude path for STX/COHR/
+    # INTC/DELL/SNDK/WDC in cycle d73f5129). `or {}` is total over both
+    # missing-key and None-value cases.
+    yf = quant_data.get("yf_data") or {}
+    val = yf.get("valuation") or {}
+    eff = yf.get("efficiency") or {}
+    health = yf.get("health") or {}
+    inst = yf.get("institutional") or {}
     return {
         # Identity
         "ticker": quant_data.get("ticker", ""),
@@ -308,6 +312,15 @@ class AnalysisOrchestrator:
     # Default Gemini model used for Google-only features (RAG, Search Grounding)
     # when the user selects a non-Gemini provider as standard/deep-think model.
     _GEMINI_FALLBACK = "gemini-2.0-flash"
+
+    # phase-27.6.1: per-host throttle for the Ingestion Agent Cloud Function
+    # (which fetches https://www.sec.gov/files/company_tickers.json). Cap at
+    # 2 concurrent to stay well under SEC EDGAR fair-access policy. Class-
+    # level so the cap is process-wide, not per-orchestrator-instance — every
+    # ticker analysis shares the same window. SEC's published guidance is
+    # ≤10 req/sec with a User-Agent; bulk endpoint may be stricter and was
+    # observed returning 429 under 8 concurrent calls (cycle d73f5129).
+    _INGESTION_SEMAPHORE = asyncio.Semaphore(2)
 
     @staticmethod
     def _resolve_gemini(model_name: str) -> str:
@@ -487,14 +500,19 @@ class AnalysisOrchestrator:
         )
         _function_declarations_tool = _genai_types.Tool(function_declarations=[_lookup_fred_series_declaration])
 
-        # phase-26.3 grounded bundle: google_search + code_execution (active
-        # on Gemini 2.0-flash; combination explicitly documented as supported).
+        # phase-26.3 grounded bundle: originally google_search + code_execution
+        # (worked on Gemini 2.0-flash). Gemini 2.5+ tightened the constraint:
+        # "Multiple tools are supported only when they are all search tools"
+        # — code_execution cannot co-exist with google_search. Audit
+        # docs/audits/smoke_test_preprod_2026-05-16.md captures the live failure
+        # on 15/15 tickers in cycle 756a19c7 / next-cycle re-runs. The 4
+        # grounded callers (market/competitor/deep_dive/one enrichment) use
+        # the search grounding for citations, not arithmetic, so dropping
+        # code_execution preserves their intent. If compute is needed, route
+        # through general_client which is unconstrained.
         _grounded_vertex = GeminiModelBundle(
             client=_genai_client, model_name=_gemini_standard,
-            tools=[
-                _google_search_tool,
-                _genai_types.Tool(code_execution=_genai_types.ToolCodeExecution()),
-            ],
+            tools=[_google_search_tool],
             base_config=_gen_config,
         )
 
@@ -817,18 +835,29 @@ class AnalysisOrchestrator:
         return yfinance_tool.get_comprehensive_financials(ticker)
 
     async def run_ingestion_agent(self, ticker: str) -> bool:
-        """Step 1: Call the Ingestion Agent Cloud Function."""
-        logger.info(f"Ingestion Agent: checking filings for {ticker}")
-        async with httpx.AsyncClient(timeout=900) as client:
-            async with client.stream("POST", self.settings.ingestion_agent_url, json={"ticker": ticker}) as r:
-                r.raise_for_status()
-                async for line in r.aiter_lines():
-                    if line == "STREAM_COMPLETE":
-                        break
-                    elif line.startswith("ERROR:"):
-                        raise RuntimeError(f"Ingestion Agent Error: {line}")
-                    else:
-                        logger.info(f"Ingestion: {line}")
+        """Step 1: Call the Ingestion Agent Cloud Function.
+
+        phase-27.6.1: throttled at most 2 concurrent calls to sec.gov via
+        the class-level _INGESTION_SEMAPHORE. Cycle d73f5129 (concurrency=8)
+        produced 8 of 14 `Ingestion Agent Error: ERROR:429 Too Many Requests
+        for url: https://www.sec.gov/files/company_tickers.json` failures.
+        SEC EDGAR fair-access policy is ≤10 req/sec WITH a User-Agent; the
+        bulk endpoint can be stricter. Capping at 2 concurrent leaves the
+        LLM-layer concurrency cap (8) untouched but serializes the SEC
+        ingestion calls behind a smaller window.
+        """
+        async with self._INGESTION_SEMAPHORE:
+            logger.info(f"Ingestion Agent: checking filings for {ticker}")
+            async with httpx.AsyncClient(timeout=900) as client:
+                async with client.stream("POST", self.settings.ingestion_agent_url, json={"ticker": ticker}) as r:
+                    r.raise_for_status()
+                    async for line in r.aiter_lines():
+                        if line == "STREAM_COMPLETE":
+                            break
+                        elif line.startswith("ERROR:"):
+                            raise RuntimeError(f"Ingestion Agent Error: {line}")
+                        else:
+                            logger.info(f"Ingestion: {line}")
         return True
 
     async def run_quant_agent(self, ticker: str) -> dict:
@@ -1411,9 +1440,27 @@ class AnalysisOrchestrator:
             step("market_intel", "completed", f"Got {n_articles} articles from {av_source}")
 
         # Step 1: Ingestion agent
+        # phase-27.6.6: best-effort ingestion. Cloud Function re-fetches SEC's
+        # CIK map per call and hits 429 (cycle d73f5129, cycle #10) — that's a
+        # CF-side issue requiring redeploy (phase-27.6.4, deferred). In the
+        # meantime, treat ingestion as best-effort: if the CF errors (any
+        # reason), log a warning and continue. Downstream steps still have
+        # GCS-cached filings from prior cycles; only NEWLY-added filings since
+        # the last successful ingestion would be missing for THIS cycle.
         step("ingestion", "started", "Checking for new filings...")
-        await self.run_ingestion_agent(ticker)
-        step("ingestion", "completed", "Filings up to date")
+        try:
+            await self.run_ingestion_agent(ticker)
+            step("ingestion", "completed", "Filings up to date")
+        except Exception as _ingestion_exc:
+            logger.warning(
+                "Ingestion best-effort failure for %s (continuing with cached filings): %s",
+                ticker, _ingestion_exc,
+            )
+            step(
+                "ingestion",
+                "completed",
+                f"Best-effort skip — using cached filings ({type(_ingestion_exc).__name__})",
+            )
 
         # Step 2: Quant agent
         step("quant", "started", "Fetching financial data...")
@@ -1424,7 +1471,11 @@ class AnalysisOrchestrator:
         # Session memory: capture key quant findings
         quant = report["quant"]
         if isinstance(quant, dict):
-            pe = quant.get("pe_ratio") or quant.get("valuation", {}).get("P/E Ratio")
+            # phase-27.6.2: guard against `valuation: None`. Dict.get(k, {})
+            # only returns the default when k is ABSENT; if k=None, it returns
+            # None and the next .get raises AttributeError. The `or {}` makes
+            # it total over both missing-key and None-value cases.
+            pe = quant.get("pe_ratio") or (quant.get("valuation") or {}).get("P/E Ratio")
             if pe:
                 ctx.add_finding(f"P/E ratio: {pe}")
             sector_name = quant.get("sector", "")

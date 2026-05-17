@@ -62,7 +62,6 @@ def get_sp500_tickers(as_of: datetime | None = None) -> list[str]:
 
 def screen_universe(
     tickers: Optional[list[str]] = None,
-    min_market_cap: float = 1e9,
     min_avg_volume: int = 100_000,
     min_price: float = 5.0,
     period: str = "6mo",
@@ -80,6 +79,13 @@ def screen_universe(
     typically builds this via `_fetch_ticker_meta` (BQ-first / yfinance
     fallback). Backward compatible: when None, results lack the sector field
     and any sector-aware logic falls back to None / "Unknown" handling.
+
+    phase-28.0 (2026-05-17): removed unused `min_market_cap` parameter. The
+    parameter was accepted but never applied in the function body (only
+    price + volume filters fire). Zero callers passed it. Re-add via a
+    separate explicit step if market-cap filtering is needed beyond the
+    inherent S&P 500 inclusion floor (currently ~$22.7B per S&P DJI 2024
+    methodology update).
     """
     if tickers is None:
         tickers = get_sp500_tickers()

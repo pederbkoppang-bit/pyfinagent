@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-16T10:53:32.825018+00:00",
+  "updated_at": "2026-05-17T18:51:07.126448+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -9656,6 +9656,784 @@
               "latency_p50_improves_on_enrichment_skill_runs"
             ],
             "live_check": "BQ llm_call_log row showing single Gemini call with multiple tool types in tools_used array"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-27",
+      "name": "Multi-Provider Full-Path Pipeline (Gemini + Claude)",
+      "status": "pending",
+      "harness_required": true,
+      "depends_on": [
+        "phase-26"
+      ],
+      "summary": "Make the full 28-skill orchestrator pipeline succeed end-to-end on BOTH Gemini (direct AI Studio API key) AND Claude (direct Anthropic API key). Born from the 2026-05-16 smoke audit which surfaced 3 bugs hidden behind the GitHub-Models-routing failure: C1 Gemini null-response NoneType.strip(); C2 lite fallback hardcoded to Claude only; C3 Anthropic structured-output schema requires additionalProperties:false on every object type. Plus B-2 BQ schema drift (5 columns the lite analyzer emits but the table is missing). North-star: dynamic provider selection per cost+latency, so the live cycle can route to whichever provider currently offers the best $ / quality ratio.",
+      "description": "Source bug report: docs/audits/smoke_test_preprod_2026-05-16.md. Each step has its own immutable verification command. Both providers must complete a full cycle and persist >= 14 of 15 analyses without lite-fallback for the step to PASS.",
+      "steps": [
+        {
+          "id": "27.0",
+          "name": "Research gate: provider parity — Anthropic structured output + Gemini response shape + dual-provider fallback patterns",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "Smoke audit 2026-05-16 §A B-1..B-7 + this-session findings C1/C2/C3. Each downstream fix needs canonical provider docs as ground truth — not LLM-recalled API shapes.",
+          "verification": {
+            "command": "test -f handoff/current/research_brief.md && grep -q 'gate_passed.*true' handoff/current/research_brief.md && grep -cE 'https?://' handoff/current/research_brief.md | awk '$1>=10{exit 0} {exit 1}'",
+            "success_criteria": [
+              "research_brief.md present in handoff/current/",
+              "json_envelope_shows_gate_passed_true",
+              "min_5_sources_fetched_in_full",
+              "min_10_urls_collected",
+              "recency_scan_section_present_for_2025_2026",
+              "covers_both_anthropic_strict_schema_and_gemini_null_response_behavior",
+              "covers_provider_fallback_patterns_canonical"
+            ],
+            "live_check": "research_brief.md cites Anthropic structured-output docs URL, Gemini generateContent response shape docs URL, and at least one third-party multi-provider fallback pattern"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.1",
+          "name": "Fix C3 — Anthropic structured-output schema additionalProperties:false",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.0",
+          "audit_basis": "Live observation 2026-05-16 cycle 756a19c7: every claude-direct structured-output call rejected with 'output_config.format.schema: For object type, additionalProperties must be explicitly set to false'. Anthropic's strict-mode validator requires this on every nested object node.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.agents.llm_client import _ensure_additional_properties_false; s={'type':'object','properties':{'x':{'type':'object','properties':{'y':{'type':'string'}}}, 'arr':{'type':'array','items':{'type':'object','properties':{'z':{'type':'string'}}}}}}; r=_ensure_additional_properties_false(s); assert r['additionalProperties'] is False, 'top'; assert r['properties']['x']['additionalProperties'] is False, 'nested'; assert r['properties']['arr']['items']['additionalProperties'] is False, 'array items'; print('PASS')\"",
+            "success_criteria": [
+              "_ensure_additional_properties_false_helper_exists",
+              "recursive_application_on_nested_objects",
+              "recursive_application_on_array_items_of_object_type",
+              "applied_in_ClaudeClient_generate_content_before_send",
+              "unit_test_added_for_helper",
+              "live_claude_sonnet_call_with_structured_output_returns_200"
+            ],
+            "live_check": "after fix, one claude-sonnet-4-6 generate call with a nested-object response_format schema returns HTTP 200 (captured via curl -i or logged Anthropic request_id)"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.2",
+          "name": "Fix C1 — Gemini null-response safety (.text never None downstream)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.0",
+          "audit_basis": "Live observation 2026-05-16 cycle 7c... at 22:40:48: POST gemini-2.5-pro:generateContent returned HTTP 200, but the downstream orchestrator parser crashed with 'NoneType' object has no attribute 'strip'. Gemini returns null .text on safety-filter blocks, MAX_TOKENS truncation, or empty candidates.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.agents.llm_client import LLMResponse; r=LLMResponse(text=None, input_tokens=0, output_tokens=0); assert r.text == '' or r.text is None, 'text should be empty or None'; from backend.agents.llm_client import safe_text; assert safe_text(None) == '', 'safe_text(None)'; assert safe_text('  hi  ').strip() == 'hi', 'safe_text str'; print('PASS')\" && ! grep -qE \"\\.text\\.strip\\(\\)\" backend/agents/orchestrator.py",
+            "success_criteria": [
+              "safe_text_helper_exists_in_llm_client",
+              "LLMResponse_text_coerced_to_str_at_construction_or_safe_text_used_everywhere",
+              "no_raw_response_text_strip_in_orchestrator_without_guard",
+              "no_raw_response_text_lower_in_orchestrator_without_guard",
+              "unit_test_added_for_None_response_path",
+              "live_gemini_call_with_null_text_doesnt_crash_pipeline"
+            ],
+            "live_check": "after fix, simulating a None .text response (or running real cycle that previously crashed) does not raise AttributeError; cycle proceeds to next ticker"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.3",
+          "name": "Fix C2 — Provider-aware lite fallback (Gemini lite + Claude lite)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.0",
+          "audit_basis": "Live observation 2026-05-16: when standard model set to gemini-2.5-flash, the lite fallback refuses: 'standard model gemini-2.5-flash is not a Claude model; _run_claude_analysis is Claude-only'. This leaves the system with no safety net — if full path fails, nothing runs. Lite path must adapt to the selected provider.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.services.autonomous_loop import _select_lite_analyzer; g=_select_lite_analyzer('gemini-2.5-flash'); c=_select_lite_analyzer('claude-sonnet-4-6'); assert callable(g) and callable(c), 'both return callables'; assert g is not c, 'distinct implementations'; print('PASS')\"",
+            "success_criteria": [
+              "_select_lite_analyzer_helper_exists",
+              "gemini_branch_uses_genai_Client_direct",
+              "claude_branch_preserves_existing_run_claude_analysis",
+              "either_branch_returns_dict_with_required_keys_recommendation_risk_assessment_total_cost_usd",
+              "no_double_LLM_round_trip_in_either_lite_path",
+              "live_cycle_with_gemini_standard_completes_without_Both_full_and_lite_paths_failed_errors"
+            ],
+            "live_check": "run-now with standard=gemini-2.5-flash completes a cycle without any 'Both full and lite paths failed' log lines"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.4",
+          "name": "Fix B-2 — BQ schema migration: add 5 missing analysis_results columns",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.0",
+          "audit_basis": "Live observation 2026-05-16: 14 of 15 lite-path persists failed with rotating 'no such field' errors for consumer_sentiment, revenue_growth_yoy, quality_score, momentum_6m, rsi_14. Python writer (BigQueryClient.save_report) emits these (Phase-11 Autoresearch FEATURE_TO_AGENT bridge); BQ table financial_reports.analysis_results is missing them. Partial Phase-11 migration.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from google.cloud import bigquery; c=bigquery.Client(project='sunny-might-477607-p8'); t=c.get_table('sunny-might-477607-p8.financial_reports.analysis_results'); names={f.name for f in t.schema}; missing={'consumer_sentiment','revenue_growth_yoy','quality_score','momentum_6m','rsi_14'} - names; assert not missing, f'still missing: {missing}'; print('PASS, all 5 columns present')\"",
+            "success_criteria": [
+              "idempotent_migration_script_in_scripts_migrations",
+              "all_5_columns_added_as_FLOAT64_NULLABLE",
+              "re-running_migration_is_noop",
+              "downstream_save_report_call_no_longer_raises_no_such_field"
+            ],
+            "live_check": "run-now after migration produces >= 1 row in financial_reports.analysis_results with non-null values for at least one of the 5 newly-added columns"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.5",
+          "name": "End-to-end smoke verify: full path on Gemini",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.4",
+          "audit_basis": "Goal: confirm 27.1+27.2+27.3+27.4 together unblock the full 28-skill pipeline when standard=gemini-2.5-flash.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_27.5.md && grep -q 'cycle_id' handoff/current/live_check_27.5.md && grep -q 'lite_mode.*[Ff]alse' handoff/current/live_check_27.5.md && grep -qE 'analyses_persisted.*1[4-9]|analyses_persisted.*2[0-9]' handoff/current/live_check_27.5.md",
+            "success_criteria": [
+              "model_set_to_gemini-2.5-flash_via_settings_api",
+              "full_cycle_completed_status_completed",
+              "lite_mode_false_observed_in_step_3_log",
+              "zero_Full_orchestrator_failed_lines_for_the_cycle",
+              "min_14_of_15_analyses_persisted_to_BQ_analysis_results",
+              "OutcomeTracker_step_9_attempted_at_minimum_logged"
+            ],
+            "live_check": "handoff/current/live_check_27.5.md captures verbatim cycle_id + step list + per-ticker analysis status + BQ row count delta on analysis_results"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.5.1",
+          "name": "Parallelize per-ticker analysis (asyncio.gather, concurrency=4) so the full Gemini path fits the 1800s cycle budget",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.4",
+          "audit_basis": "phase-27.5 Q/A 2026-05-17 returned CONDITIONAL (agent a7bcaa71fac947e64): full Gemini pipeline runs end-to-end (3 tickers persisted: STX, AMD, FIX) but cycle TIMED OUT at 1800s budget after only 3/15 tickers. Q/A required follow-up before flipping 27.5 done. Parallelism (Q/A option #2) chosen over budget raise (#1) because it aligns with north-star (faster cycles = more market opportunity per day) AND keeps API cost identical. Concurrency capped at 4 (Gemini AI Studio default RPM allows ~60-300 depending on tier; 4 concurrent is conservative and per-ticker yfinance fetches don't trip rate limits).",
+          "verification": {
+            "command": "source .venv/bin/activate && grep -qE 'asyncio\\.gather|asyncio\\.TaskGroup|asyncio\\.Semaphore' backend/services/autonomous_loop.py && python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read()); print('syntax OK')\"",
+            "success_criteria": [
+              "asyncio_gather_or_TaskGroup_or_Semaphore_introduced_in_step_3_analysis_loop",
+              "concurrency_capped_at_documented_value_via_Semaphore",
+              "both_lite_AND_full_paths_compatible_with_concurrent_execution",
+              "syntax_passes_for_autonomous_loop_py",
+              "fresh_cycle_runs_all_15_tickers_under_1800s_budget"
+            ],
+            "live_check": "fresh run-now cycle with standard=gemini-2.5-flash completes status=completed within the 1800s budget AND persists >=14 of 15 analyses to BQ analysis_results; captured in handoff/current/live_check_27.5.md (rewritten or appended)"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.5.2",
+          "name": "Raise daily cost-budget cap (cost_budget_daily_usd) so 15-ticker full Gemini cycle doesn't trip mid-batch",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.5.1",
+          "audit_basis": "phase-27.5.1 cycle #7 (3e90d15e) 2026-05-17 completed all 8 steps end-to-end (first cycle in session to do so, including Step 9 Learning + 1 executed trade) but persisted only 10/15 tickers because cost_budget_daily_usd defaulted to $5 and was tripped at $5.15 by the concurrent-8 batch. The 5 missed tickers (GLW, SNDK, WDC, LITE, CIEN) all failed with 'cost_budget tripped (cached): reason=daily $5.15 >= cap $5.00'. Raising cap to $25 (5x) — still conservative for an autonomous Gemini Flash trading system.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from backend.config.settings import Settings; s=Settings(); assert s.cost_budget_daily_usd >= 20.0, f'cap too low: {s.cost_budget_daily_usd}'; assert hasattr(s, 'cost_budget_monthly_usd'), 'monthly cap missing'; print(f'PASS daily=${s.cost_budget_daily_usd} monthly=${s.cost_budget_monthly_usd}')\"",
+            "success_criteria": [
+              "cost_budget_daily_usd_added_to_Settings_as_proper_field",
+              "cost_budget_monthly_usd_also_added_for_completeness",
+              "default_daily_cap_at_least_20_usd",
+              "field_pickup_via_env_var_override_works",
+              "fresh_cycle_does_not_trip_cost_budget_mid_batch"
+            ],
+            "live_check": "fresh run-now cycle with standard=gemini-2.5-flash + concurrency=8 completes status=completed AND persists >=14 of 15 analyses to BQ without any 'cost_budget tripped' log lines"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.6",
+          "name": "End-to-end smoke verify: full path on Claude",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.5",
+          "audit_basis": "Goal: confirm same fixes also work when standard=claude-sonnet-4-6. Closes the dual-provider requirement from the goal.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_27.6.md && grep -q 'cycle_id' handoff/current/live_check_27.6.md && grep -q 'lite_mode.*[Ff]alse' handoff/current/live_check_27.6.md && grep -qE 'analyses_persisted.*1[4-9]|analyses_persisted.*2[0-9]' handoff/current/live_check_27.6.md",
+            "success_criteria": [
+              "model_set_to_claude-sonnet-4-6_via_settings_api",
+              "full_cycle_completed_status_completed",
+              "lite_mode_false_observed_in_step_3_log",
+              "zero_Full_orchestrator_failed_lines_for_the_cycle",
+              "min_14_of_15_analyses_persisted_to_BQ_analysis_results",
+              "OutcomeTracker_step_9_attempted_at_minimum_logged"
+            ],
+            "live_check": "handoff/current/live_check_27.6.md captures verbatim cycle_id + step list + per-ticker analysis status + BQ row count delta on analysis_results"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.6.1",
+          "name": "SEC EDGAR rate-limit guard: cache company_tickers.json + per-host throttle + User-Agent header",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.6",
+          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 8 of 14 Claude full-path failures were 'Ingestion Agent Error: ERROR:429 Client Error: Too Many Requests for url: https://www.sec.gov/files/company_tickers.json'. Concurrency=8 (per 27.5.1) fires 8 simultaneous bulk downloads without throttling. SEC EDGAR fair-access requires User-Agent header + ≤10 req/sec; bulk endpoint may be stricter. Fix: cache company_tickers.json for 24h (it changes daily) + per-host concurrency limit of 2 + courtesy User-Agent.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && grep -qE \"_INGESTION_SEMAPHORE\" backend/agents/orchestrator.py && grep -A2 \"async def run_ingestion_agent\" backend/agents/orchestrator.py | grep -q \"_INGESTION_SEMAPHORE\"",
+            "success_criteria": [
+              "company_tickers_json_cached_in_memory_or_on_disk_for_24h",
+              "per_host_throttle_added_for_sec_gov",
+              "User-Agent_header_added_per_SEC_fair_access_policy",
+              "next_Claude_cycle_zero_SEC_429_errors"
+            ],
+            "live_check": "fresh Claude cycle has zero `Ingestion Agent Error: ERROR:429` log lines"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.6.2",
+          "name": "QuantAgent NoneType safety: defensive `.get()` / `or {}` on upstream dep that returns None on Claude path",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.6",
+          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 6 of 14 Claude full-path failures were 'ERROR: QuantAgent failed for X: NoneType object has no attribute get'. Affected: STX, COHR, INTC, DELL, SNDK, WDC. Cycle #8 (Gemini) had ZERO of these — so this is Claude-pathway-specific (either different upstream branch or different defensive coercion). Fix: defensive `.get()` / `or {}` on the upstream dependency before the `.get()` call.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && grep -qE \"yf\\.get\\(.valuation.\\) or \\{\\}\" backend/agents/orchestrator.py && grep -qE \"quant\\.get\\(.valuation.\\) or \\{\\}\" backend/agents/orchestrator.py",
+            "success_criteria": [
+              "QuantAgent_get_path_has_or_empty_dict_guard",
+              "regression_test_added_or_existing_test_passes",
+              "next_Claude_cycle_zero_QuantAgent_NoneType_errors"
+            ],
+            "live_check": "fresh Claude cycle has zero `QuantAgent failed.*NoneType` log lines"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.6.3",
+          "name": "Re-run Claude full-path smoke after 27.6.1 + 27.6.2 — zero full-orchestrator failures required",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.6.2",
+          "audit_basis": "phase-27.6 Q/A required a clean re-smoke after the two upstream fixes. Same gate as 27.6 but with success_criterion zero_Full_orchestrator_failed_lines holding cleanly this time.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_27.6.3.md && grep -q 'cycle_id' handoff/current/live_check_27.6.3.md && grep -q 'lite_mode.*[Ff]alse' handoff/current/live_check_27.6.3.md && grep -qE 'analyses_persisted.*1[4-9]|analyses_persisted.*2[0-9]' handoff/current/live_check_27.6.3.md && grep -qE 'full_orchestrator_failures.*: 0|zero full|0 full' handoff/current/live_check_27.6.3.md",
+            "success_criteria": [
+              "model_set_to_claude-sonnet-4-6",
+              "full_cycle_completed_status_completed",
+              "min_14_analyses_persisted",
+              "zero_Full_orchestrator_failed_lines",
+              "live_check_27.6.3.md_captures_full_path_persistence_via_Claude_pipeline"
+            ],
+            "live_check": "live_check_27.6.3.md captures cycle_id, status=completed, persist count, AND full-path-success per ticker"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.6.4",
+          "name": "(DEFERRED, Cloud Function redeploy) Cache CIK map inside the Ingestion Agent CF so it doesn't re-fetch SEC per ticker",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "27.6",
+          "audit_basis": "Cycle #10 (2026-05-17 02:47-02:58) showed every uncached ticker still gets `Ingestion: Failed to fetch CIK map from SEC: 429`. Our 27.6.1 Semaphore(2) limits concurrent calls from our process to the Cloud Function, but the CF still fetches SEC fresh per ticker — SEC rate-limits the CF's IP regardless of our throttle. Fix requires CF code change (cache `company_tickers.json` in-memory in the CF for the lifetime of the CF instance; refresh daily) + CF redeploy. Out of scope for this session because: (1) CF deploys are Peder-approved infra changes, (2) the CF source repo may be separate. Tickers already cached in GCS (file path `<TICKER>/<form>_<date>_<doc>.json`) succeed regardless.",
+          "verification": {
+            "command": "echo 'manual gate — CF redeploy required'; echo 'verification: after CF redeploy, cycle log shows zero \"Failed to fetch CIK map from SEC: 429\" lines'",
+            "success_criteria": [
+              "CIK_map_cached_in_CF_instance_memory",
+              "cycle_log_has_zero_failed_to_fetch_CIK_map_lines",
+              "CF_redeploy_approved_by_Peder"
+            ],
+            "live_check": "fresh Claude cycle post-CF-redeploy has zero SEC 429s for any ticker"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.6.5",
+          "name": "Per-provider concurrency cap: Claude tighter than Gemini due to lower RPM ceiling",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.6",
+          "audit_basis": "Cycle #10 2026-05-17 02:58:39 hit `HTTP/1.1 429 Too Many Requests` from api.anthropic.com/v1/messages. Concurrency=8 (per 27.5.1, sized for Gemini's higher RPM) is too aggressive for Anthropic tier-1 (~50 RPM input, ~10 RPM output). Fix: split the cycle-wide _analysis_semaphore into a per-provider lookup — Gemini=8 (current), Claude=2-4 (conservative for default tier; raisable per Anthropic plan).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read()); print('syntax OK')\" && grep -qE \"claude.*[Ss]emaphore|provider.*concurrency|_semaphore_for_model\" backend/services/autonomous_loop.py",
+            "success_criteria": [
+              "per_provider_concurrency_helper_in_autonomous_loop",
+              "claude_cap_at_or_below_4",
+              "gemini_cap_preserved_at_8",
+              "fresh_Claude_cycle_zero_Anthropic_429s"
+            ],
+            "live_check": "fresh Claude cycle has zero `HTTP/1.1 429 Too Many Requests` from api.anthropic.com"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.6.6",
+          "name": "Best-effort ingestion: swallow exceptions in run_full_analysis, continue with GCS-cached filings",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.6.5",
+          "audit_basis": "/goal hook 2026-05-17 blocks session close until Claude full path proven. Cycle #10 (post 27.6.1+.2+.5) still hit SEC 429s because the Cloud Function re-fetches CIK map per ticker — that's a CF-side issue (phase-27.6.4, deferred). Workaround: make `run_ingestion_agent` failures non-fatal in `run_full_analysis`. Downstream steps already use GCS-cached filings; only NEWLY-added filings since last successful ingestion would be missed for this cycle — acceptable for a best-effort enrichment that's gated by infra anyway.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && grep -A4 'Step 1: Ingestion agent' backend/agents/orchestrator.py | grep -qE 'try:|except|best-effort'",
+            "success_criteria": [
+              "run_full_analysis_wraps_run_ingestion_agent_in_try_except",
+              "exception_logged_with_warning_level",
+              "step_callback_marks_ingestion_completed_with_skip_note",
+              "downstream_steps_unaffected_by_ingestion_failure",
+              "fresh_Claude_cycle_zero_Full_orchestrator_failed_from_ingestion"
+            ],
+            "live_check": "fresh Claude cycle has zero `Full orchestrator failed` lines attributed to `Ingestion Agent Error`"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.6.7",
+          "name": "Fix unawaited coroutine: AnalysisOrchestrator.fetch_insider_data must be awaited at every call site",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.6.6",
+          "audit_basis": "Cycle #11 2026-05-17 03:39:21 surfaced: `RuntimeWarning: coroutine AnalysisOrchestrator.fetch_insider_data was never awaited`. The async function is invoked somewhere (likely an enrichment-agent dispatch path) without await, so its return value is a coroutine object — downstream `.get(...)` raises `'coroutine' object has no attribute 'get'`. Caused full orchestrator failure on STX in cycle #11. Fix requires grepping ALL call sites of fetch_insider_data + verifying each is awaited or wrapped in asyncio.run / asyncio.create_task.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/info_gap.py').read()); print('syntax OK')\" && grep -A8 \"iscoroutinefunction(func)\" backend/agents/info_gap.py | grep -qE \"iscoroutine\\(result\\)\"",
+            "success_criteria": [
+              "every_fetch_insider_data_call_is_awaited_or_wrapped",
+              "no_RuntimeWarning_coroutine_never_awaited_for_fetch_insider_data",
+              "fresh_Claude_cycle_zero_coroutine_attribute_errors"
+            ],
+            "live_check": "fresh Claude cycle log has zero 'coroutine object has no attribute' errors"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "27.6.8",
+          "name": "Fix Anthropic SDK 'betas' kwarg incompatibility in enrichment agents (Anomaly/Social/Patent)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "27.6.6",
+          "audit_basis": "Cycle #11 2026-05-17 03:39:41 surfaced repeated: `Enrichment agent X failed: Messages.create() got an unexpected keyword argument 'betas'`. Affected: Anomaly Detection, Social Sentiment, Patent Innovation (and likely others). The installed anthropic SDK does not accept `betas=` in `messages.create(**kwargs)`. Either wrong kwarg name (correct may be `extra_headers={'anthropic-beta': ...}` or the beta API moved to `client.beta.messages.create`), or `betas` was added in an SDK version we haven't installed. Fix requires checking the anthropic SDK reference + the kwarg's call-site in our orchestrator.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && ! grep -E 'betas\\s*=' backend/agents/orchestrator.py | head -1",
+            "success_criteria": [
+              "no_betas_kwarg_passed_to_anthropic_Messages_create",
+              "if_beta_feature_needed_use_client.beta.messages_or_extra_headers",
+              "fresh_Claude_cycle_zero_betas_kwarg_errors"
+            ],
+            "live_check": "fresh Claude cycle log has zero `unexpected keyword argument 'betas'` errors"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-28",
+      "name": "Candidate Picker Expansion",
+      "status": "pending",
+      "depends_on": [
+        "phase-27"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "28.0",
+          "name": "Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe()",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "Internal code audit during phase-28 planning 2026-05-17: backend/tools/screener.py:screen_universe accepts min_market_cap (default 1e9) at line 65 but never uses it inside the function body; only price (line 121) and volume filters apply. Either wire the filter or remove the dead parameter so the picker doc and code agree.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast,inspect; from backend.tools.screener import screen_universe; src=inspect.getsource(screen_universe); assert ('min_market_cap' in src and 'market_cap' in src.lower().split('def ')[-1]) or 'min_market_cap' not in src, 'param still dead'; print('PASS: min_market_cap is either used or removed')\"",
+            "success_criteria": [
+              "min_market_cap_parameter_either_applied_or_removed",
+              "syntax_OK",
+              "no_regression_in_existing_screener_callsites"
+            ],
+            "live_check": "live_check_28.0.md: one cycle log line showing the screener filter chain with market-cap status (applied / removed)"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.1",
+          "name": "Analyst EPS revision-breadth plug-in (feature-flagged)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "28.0",
+          "audit_basis": "primary brief Phase 4 item #1; Mill Street Research 19yr backtest: revision-breadth top vs bottom decile spread 7.6% annualized, t=2.93, p=0.003; combined with price momentum Sharpe ~1.60. Directly addresses Sandisk/memory and oil-majors reference cases (analysts revise within 1-2 weeks of regime shift, before price momentum is visible).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/analyst_revisions.py').read()); from backend.services.analyst_revisions import fetch_revision_signals; print('module importable')\" && grep -q 'analyst_revisions_enabled' backend/config/settings.py && grep -q 'analyst_revisions' backend/services/autonomous_loop.py",
+            "success_criteria": [
+              "analyst_revisions_module_created_and_syntax_OK",
+              "feature_flag_analyst_revisions_enabled_default_false",
+              "wired_into_rank_candidates_or_meta_scorer",
+              "smoke_run_with_flag_on_produces_non_empty_signal_for_recent_reporters",
+              "cycle_cost_delta_under_0_05_USD"
+            ],
+            "live_check": "live_check_28.1.md: cycle log + screener output diff showing N revisions-scored tickers, top-3 conviction shifts vs baseline"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.2",
+          "name": "12-quarter SUE stacking in pead_signal.py",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "28.0",
+          "audit_basis": "primary brief Phase 4 item #2; ScienceDirect 2025 ML stacking 12Q SUE history raised Sharpe from 0.34 (latest only) to 0.63 (+85% lift). Existing pead_signal.py at backend/services/pead_signal.py:91 already reads trailing cache via _trailing_mean_from_cache; extend to consume 12 quarters explicitly (currently bounded by _LOOKBACK_QUARTERS=8 — bump to 12 and reweight).",
+          "verification": {
+            "command": "source .venv/bin/activate && grep -qE '_LOOKBACK_QUARTERS\\s*=\\s*12' backend/services/pead_signal.py && python -c \"import ast; ast.parse(open('backend/services/pead_signal.py').read()); print('PASS')\"",
+            "success_criteria": [
+              "lookback_quarters_increased_to_12",
+              "weighting_scheme_added_or_documented",
+              "back-compat_with_existing_cache_files",
+              "syntax_OK_and_pead_signal_still_importable"
+            ],
+            "live_check": "live_check_28.2.md: one ticker's PEAD before/after with 8Q vs 12Q stack, surprise_score diff and resulting holding_window_days"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.3",
+          "name": "GPR-triggered energy-sector tilt in macro_regime.py",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "28.0",
+          "audit_basis": "primary brief Phase 4 item #3 — oil-majors reference case. Caldara-Iacoviello AER 2022 + IMF GFSR 2025 document US-as-net-exporter asymmetry: Middle-East GPR-Acts spikes positively reprice XOM/CVX/COP/OXY. Index public at matteoiacoviello.com monthly. macro_regime.py already has sector_hints.overweight; add a 'gpr_acts > threshold' branch that injects XLE-overweight regardless of base FRED reading.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/macro_regime.py').read()); print('syntax OK')\" && grep -qE 'gpr|geopolitical' backend/services/macro_regime.py",
+            "success_criteria": [
+              "gpr_index_fetcher_implemented_with_caching",
+              "sector_tilt_branch_added_to_macro_regime",
+              "threshold_documented_in_audit_basis",
+              "live_check_shows_XLE_overweight_when_gpr_above_threshold"
+            ],
+            "live_check": "live_check_28.3.md: one cycle log showing GPR-Acts value + threshold + resulting sector_hints.overweight contents"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.4",
+          "name": "Sector-neutral momentum scoring in rank_candidates",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "28.0",
+          "audit_basis": "primary brief Phase 4 item #4; CFA Institute Dec 2025 documented sector-neutral momentum produces superior Sharpe with less regime sensitivity vs absolute momentum. backend/tools/screener.py:rank_candidates currently uses absolute composite; convert to within-sector percentile rank with minimum-per-sector guard.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/tools/screener.py').read()); from backend.tools.screener import rank_candidates; print('importable')\" && grep -qE 'sector.{0,40}rank|percentile' backend/tools/screener.py",
+            "success_criteria": [
+              "sector_neutral_branch_added_under_a_feature_flag",
+              "minimum_per_sector_threshold_documented",
+              "absolute_momentum_remains_default_until_validated",
+              "live_check_compares_top10_under_both_modes_for_one_cycle"
+            ],
+            "live_check": "live_check_28.4.md: cycle log + top-10 under absolute vs sector-neutral side-by-side"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.5",
+          "name": "Short-interest exclusion filter in screen_universe",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "28.0",
+          "audit_basis": "primary brief Phase 4 item #5; Boehmer-Jones-Zhang: high-short-interest stocks underperform by 1.16%/month on average. yfinance .info['shortRatio'] or FINRA monthly available. Add to screen_universe hard filters as exclusion when shortRatio > top-decile threshold (initial threshold = 10.0).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/tools/screener.py').read()); print('syntax OK')\" && grep -qE 'short.{0,30}(ratio|interest|exclusion)' backend/tools/screener.py",
+            "success_criteria": [
+              "short_interest_field_collected_in_screen_universe",
+              "exclusion_filter_added_with_documented_threshold",
+              "feature_flag_short_exclusion_enabled_default_false",
+              "live_check_lists_excluded_tickers_for_one_cycle"
+            ],
+            "live_check": "live_check_28.5.md: cycle log showing N excluded tickers + their shortRatio values"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.6",
+          "name": "Crude-oil (CL=F) cross-asset trend signal in macro_regime",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "28.3",
+          "audit_basis": "primary brief Phase 4 item #6; complements 28.3 for the oil-majors reference case. yfinance CL=F gives Brent/WTI futures price; 1-month momentum threshold becomes a secondary trigger for XLE-overweight even absent GPR-Acts spike.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/macro_regime.py').read()); print('syntax OK')\" && grep -qE 'CL=F|crude|brent|oil_trend' backend/services/macro_regime.py",
+            "success_criteria": [
+              "crude_oil_trend_signal_added_to_macro_regime",
+              "threshold_documented",
+              "fallback_when_yfinance_unavailable_does_not_break_cycle",
+              "live_check_shows_oil_trend_value_and_resulting_sector_action"
+            ],
+            "live_check": "live_check_28.6.md: cycle log showing CL=F 1m momentum + threshold check + sector_hints diff"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.7",
+          "name": "Multidimensional momentum composite (price + SUE + 52-wk hi distance + factor momentum)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "28.4",
+          "audit_basis": "primary brief Phase 4 item #11; CFA Institute Dec 2025 documented multidimensional composite outperforms naive price momentum with materially lower crash risk. Extends 28.4's sector-neutral foundation by combining price momentum + SUE momentum + 52-week high distance + factor momentum into a weighted composite.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/tools/screener.py').read()); print('syntax OK')\" && grep -qE '52.{0,5}week|fifty.two|composite_momentum' backend/tools/screener.py",
+            "success_criteria": [
+              "composite_momentum_function_added",
+              "weighting_scheme_documented_with_source_citation",
+              "feature_flag_composite_momentum_enabled_default_false",
+              "live_check_compares_naive_vs_composite_top10_for_one_cycle"
+            ],
+            "live_check": "live_check_28.7.md: cycle log + scoring diff table (price-only vs composite) for top-10"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.8",
+          "name": "Russell-1000 universe expansion with screener cost guard",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "28.5",
+          "audit_basis": "primary brief Phase 4 item #10; addresses the universe miss that caused the SNDK/Sandisk early-rally gap. Russell 1000 ~3x candidates; needs explicit cost guard (top-N filter tightening or two-pass screen) so cycle cost stays under cap.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/tools/screener.py').read()); from backend.tools.screener import get_sp500_tickers; print('importable')\" && grep -qE 'russell|RUSSELL|iShares|IWB|get_russell' backend/tools/screener.py",
+            "success_criteria": [
+              "get_russell1000_tickers_function_added",
+              "feature_flag_russell1000_enabled_default_false",
+              "cost_guard_documented_top_N_or_two_pass_screen",
+              "live_check_runs_one_cycle_at_russell1000_size_with_cost_under_cap"
+            ],
+            "live_check": "live_check_28.8.md: cycle log showing universe size + screening cost + post-screen candidate count"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.9",
+          "name": "Options-flow OI-surge filter (new plug-in)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "28.0",
+          "audit_basis": "primary brief Phase 4 item #8; Wayne State / Journal of Portfolio Management documents near-expiry OTM large call buys are predictive of positive abnormal returns. Generic large options trades NOT predictive — filter is specifically near-expiry, OTM, elevated volume vs 30-day average. Existing backend/tools/options_flow.py has data layer; new screener-tier wrapper required.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/options_flow_screen.py').read()); from backend.services.options_flow_screen import fetch_oi_surge_signals; print('importable')\" && grep -q 'options_flow_screen_enabled' backend/config/settings.py",
+            "success_criteria": [
+              "options_flow_screen_module_created",
+              "OTM_near_expiry_volume_threshold_documented",
+              "feature_flag_options_flow_screen_enabled_default_false",
+              "wired_into_rank_candidates_or_meta_scorer",
+              "live_check_lists_OI_surge_candidates_for_one_cycle"
+            ],
+            "live_check": "live_check_28.9.md: cycle log showing N tickers flagged with OTM call OI surge + the surge multipliers"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.10",
+          "name": "Opportunistic insider-buying signal lifted from Layer-1 into screener tier",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "28.8",
+          "audit_basis": "primary brief Phase 4 item #9; Cohen-Malloy-Pomorski: opportunistic insider trades earn 82bps/month abnormal return; routine trades ~0. backend/tools/sec_insider.py already pulls Form 4; classification logic + screener-tier wrapper required. Most useful once 28.8 expands universe beyond S&P 500 (large-caps heavily scrutinized; effect smaller).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/insider_signal_screen.py').read()); from backend.services.insider_signal_screen import fetch_insider_signals; print('importable')\" && grep -q 'insider_signal_screen_enabled' backend/config/settings.py",
+            "success_criteria": [
+              "insider_signal_screen_module_created",
+              "opportunistic_vs_routine_classifier_documented",
+              "feature_flag_insider_signal_screen_enabled_default_false",
+              "live_check_lists_opportunistic_signals_for_one_cycle"
+            ],
+            "live_check": "live_check_28.10.md: cycle log showing N tickers with opportunistic insider buys + insider IDs (anonymized) + aggregate $"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.11",
+          "name": "LLM analyst-report narrative signal (highest expected lift)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "28.1",
+          "audit_basis": "primary brief Phase 4 item #7; arXiv 2502.20489v1 documents LLM-extracted Strategic Outlook text from analyst reports generates 68bps/month alpha, IR 0.73-1.41 — strongest signal in the literature, substantially exceeds traditional rec-change/EPS-revision signals. L effort: requires paid analyst-report feed OR EDGAR scraping path + LLM inference cost.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/analyst_narrative_scorer.py').read()); print('syntax OK')\" && grep -q 'analyst_narrative_enabled' backend/config/settings.py",
+            "success_criteria": [
+              "analyst_narrative_scorer_module_created",
+              "data_source_decision_documented_paid_vs_EDGAR_vs_free",
+              "feature_flag_analyst_narrative_enabled_default_false",
+              "cost_budget_per_cycle_documented",
+              "live_check_includes_narrative_score_for_at_least_5_tickers"
+            ],
+            "live_check": "live_check_28.11.md: cycle log + narrative scores for sample tickers + per-cycle LLM cost"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.12",
+          "name": "Sector-ETF momentum overlay (Quantpedia top-3 rotation)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "28.4",
+          "audit_basis": "primary brief Phase 4 item #13; Quantpedia documents top-3 sector ETFs by 12-month momentum (monthly rebalance) → 13.94% annual, Sharpe 0.54. Complements 28.4 (sector-neutral momentum) by adding a sector-LEADER preference: stocks in top-3-momentum sectors get a small score boost.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/sector_momentum.py').read()); print('syntax OK')\" && grep -q 'sector_momentum_enabled' backend/config/settings.py",
+            "success_criteria": [
+              "sector_momentum_module_created",
+              "top_3_sector_logic_documented",
+              "feature_flag_sector_momentum_enabled_default_false",
+              "live_check_lists_winning_sectors_and_boost_recipients"
+            ],
+            "live_check": "live_check_28.12.md: cycle log showing 11 sector ETF 12-month momentum ranks + which 3 won + N tickers boosted"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.13",
+          "name": "Earnings-call NLP for firm-level GPR exposure",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "28.11",
+          "audit_basis": "primary brief Phase 4 item #12; Fed Aug 2025 documented firm-level GPR exposure via earnings-call NLP on 240K+ transcripts. Note from primary brief: no forward return predictability shown in Fed study (R²=0.23 contemporaneous only). Add as complementary signal to 28.3 (GPR-energy tilt) and 28.11 (analyst narrative), NOT as standalone alpha generator. Re-evaluate priority after 28.11 lands.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/call_transcript_gpr.py').read()); print('syntax OK')\" && grep -q 'call_transcript_gpr_enabled' backend/config/settings.py",
+            "success_criteria": [
+              "call_transcript_gpr_module_created",
+              "transcript_data_source_decision_documented",
+              "feature_flag_call_transcript_gpr_enabled_default_false",
+              "live_check_includes_gpr_exposure_classifications_for_5_tickers"
+            ],
+            "live_check": "live_check_28.13.md: cycle log + per-ticker GPR exposure tier (high/medium/low/none) for the cycle's candidate set"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.14",
+          "name": "Defense/war-stocks reference-case implementation (GPR-defense branch + ITA/XAR flow + budget-pledge headline)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "28.3",
+          "audit_basis": "supplement Gap 1; Emerald SEF 2023 (+1.00% (−1,−1) anticipatory window; +11.65% CAAR (0,3) for European defense); PMC11700249 (81.4% defense firms reacted to Ukraine invasion); PMC11844836 (UK firms most sensitive). 28.3 adds GPR→energy; 28.14 adds GPR→defense branch + ITA/XAR ETF 5-day net-flow delta + NATO/EU budget-pledge headline scrape (Reuters/news_screen.py extension).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/defense_signal.py').read()); print('syntax OK')\" && grep -q 'defense_signal_enabled' backend/config/settings.py && grep -qE 'ITA|XAR' backend/services/defense_signal.py",
+            "success_criteria": [
+              "defense_signal_module_created_using_GPR_fetcher_from_28.3",
+              "ITA_XAR_flow_delta_implemented",
+              "budget_pledge_headline_keyword_set_documented",
+              "feature_flag_defense_signal_enabled_default_false",
+              "live_check_shows_defense_candidates_when_GPR_above_threshold_AND_flow_positive"
+            ],
+            "live_check": "live_check_28.14.md: cycle log showing GPR-Acts value + ITA/XAR 5-day flow + any pledge headlines + resulting LMT/NOC/RTX/BAE/RHM score boosts"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.15",
+          "name": "Social media velocity in screener (lift social_sentiment.py into picker pre-filter)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "28.0",
+          "audit_basis": "supplement Gap 2; existing backend/tools/social_sentiment.py already computes velocity (line 95: 'velocity = recent_avg - older_avg') but is wired to Layer-1 enrichment only. Lift to screener pre-filter so tickers with social-velocity spikes surface BEFORE momentum filter. Conditions: StockTwits 5x hourly mention spike OR ApeWisdom WSB rank-change into top-20 OR Alpha Vantage cross-source convergence (3+ source types, sentiment + volume > 2x baseline). 2025 DNUT case: 500% StockTwits spike preceded 90% pre-market move.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/social_velocity_screen.py').read()); print('syntax OK')\" && grep -q 'social_velocity_enabled' backend/config/settings.py",
+            "success_criteria": [
+              "social_velocity_screen_module_created_lifting_existing_alpha_vantage_path",
+              "stocktwits_or_apewisdom_data_path_documented",
+              "feature_flag_social_velocity_enabled_default_false",
+              "rate_limit_handling_documented_per_supplement_pitfalls",
+              "live_check_lists_social_velocity_surfaced_tickers_for_one_cycle"
+            ],
+            "live_check": "live_check_28.15.md: cycle log showing N tickers surfaced by social velocity + the velocity multipliers + final ranking impact"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.16",
+          "name": "M&A pre-announcement detection (OTM-call spike + Form 4 cluster + 13D/G surveillance)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "28.9",
+          "audit_basis": "supplement Gap 3; Augustin-Brenner-Subrahmanyam document short-dated OTM call volume spike + IV term-structure inversion 5-10 days pre-M&A; Duong-Pi-Sapp 2025: insider buying before 13D filings earns 7.72% CAR (14.49% for no-prior-discussion insiders). Three-leg signal: (a) OTM-call surge via 28.9, (b) Form 4 cluster via existing sec_insider.py, (c) NEW 13D/G EDGAR polling. Picker uses ONLY public market/EDGAR data — see supplement 'legality boundary' pitfall.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/ma_preannounce_screen.py').read()); print('syntax OK')\" && grep -q 'ma_preannounce_enabled' backend/config/settings.py && grep -qE '13[dg]|SCHEDULE.13' backend/services/ma_preannounce_screen.py",
+            "success_criteria": [
+              "ma_preannounce_screen_module_created",
+              "three_legs_present_OTM_options_and_Form_4_cluster_and_13D_polling",
+              "uses_only_public_data_per_legality_boundary_note",
+              "feature_flag_ma_preannounce_enabled_default_false",
+              "live_check_lists_M_A_signal_tickers_for_one_cycle"
+            ],
+            "live_check": "live_check_28.16.md: cycle log showing N tickers with M&A signal + which legs triggered + signal aggregation"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "28.17",
+          "name": "Peer-correlation laggard catch-up signal (intra-GICS sub-industry lead-lag)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "28.7",
+          "audit_basis": "supplement Gap 4; Hou 2007 (intra-industry, low-coverage stocks lag; effect strongest when analyst coverage < 5); DeltaLag arXiv 2511.00390 (~10 bpts/day excess in 2022-23); shared-analyst-coverage variant 1.68%/mo. Screen conditions: peer-momentum > +10% trailing 22d AND own-return < +2% AND analyst coverage < 5 AND market cap > $2B. Adds GICS sub-industry grouping to screener.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/peer_leadlag_screen.py').read()); print('syntax OK')\" && grep -q 'peer_leadlag_enabled' backend/config/settings.py && grep -qE 'sub_industry|GICS|industry_group' backend/services/peer_leadlag_screen.py",
+            "success_criteria": [
+              "peer_leadlag_screen_module_created",
+              "GICS_sub_industry_grouping_implemented",
+              "screen_conditions_match_audit_basis",
+              "feature_flag_peer_leadlag_enabled_default_false",
+              "live_check_lists_laggard_candidates_with_their_peer_groups_for_one_cycle"
+            ],
+            "live_check": "live_check_28.17.md: cycle log showing N laggard candidates with peer-group leaders + the divergence size + analyst counts"
           },
           "retry_count": 0,
           "max_retries": 3

@@ -310,6 +310,47 @@ def _normalize_model_name(model_name: str) -> str:
     return model_name.split("/", 1)[1]
 
 
+def safe_text(text) -> str:
+    """Coerce a possibly-None text accessor to a safe string.
+
+    phase-27.2 (C1): Gemini's `response.text` returns None on `MAX_TOKENS`
+    truncation with structured output AND on safety-filter blocks (known
+    upstream bug python-genai#1039, unfixed as of 2026-05). Downstream code
+    that calls `.strip()` / `.lower()` blows up with AttributeError. This
+    helper is the canonical guard. Callers may use it directly; the
+    `LLMResponse.__post_init__` also routes through it so the dataclass
+    contract `text: str` is honest at construction.
+    """
+    return "" if text is None else text
+
+
+def _ensure_additional_properties_false(schema):
+    """Recursively set `additionalProperties: False` on every object-type node.
+
+    Anthropic's structured-output validator (`output_config.format.type=json_schema`)
+    rejects any object schema where `additionalProperties` is not explicitly
+    `false` — and the requirement applies to EVERY nested object node, not
+    just the root. Pydantic-derived schemas omit the field by default. OpenAI's
+    strict mode requires the same field, so the helper is provider-agnostic.
+
+    Mutates in place AND returns the same dict for chaining. Safe on already-
+    normalized schemas (idempotent). Recurses into `properties.*`, `items`,
+    `$defs.*`, `definitions.*`, `anyOf`, `oneOf`, `allOf` to catch every
+    nested object Pydantic might emit.
+
+    Docs: https://platform.claude.com/docs/en/docs/build-with-claude/structured-outputs
+    """
+    if isinstance(schema, dict):
+        if schema.get("type") == "object":
+            schema["additionalProperties"] = False
+        for value in schema.values():
+            _ensure_additional_properties_false(value)
+    elif isinstance(schema, list):
+        for item in schema:
+            _ensure_additional_properties_false(item)
+    return schema
+
+
 # phase-25.A8: cost-budget HARD-BLOCK. Closes phase-24.8 F-4 (cost_budget
 # tracked the `tripped` flag but llm_client never consulted it; honor-system
 # only). Now every generate_content call raises BudgetBreachError BEFORE
@@ -604,6 +645,19 @@ class LLMResponse:
     # can branch on the "feature was not active" vs "feature was active
     # but no citations matched" cases.
     citations: Optional[list[dict]] = None
+    # phase-27.2 (C1): convenience aliases for token counts. UsageMeta remains
+    # the canonical surface; these are kwarg-compatible shortcuts for callers
+    # (and for the masterplan 27.2 verification probe that constructs an
+    # LLMResponse directly). Defaults to 0 so existing callers are unaffected.
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+    def __post_init__(self):
+        # phase-27.2 (C1): enforce `text: str` contract. Gemini's response.text
+        # returns None on MAX_TOKENS+structured-output truncation or safety-
+        # filter blocks (python-genai#1039, unfixed upstream). Coercing here
+        # makes every downstream `.strip()` / `.lower()` safe by construction.
+        self.text = safe_text(self.text)
 
 
 # ---------------------------------------------------------------------------
@@ -889,6 +943,14 @@ class GeminiClient(LLMClient):
             response = future.result(timeout=120)
 
         # 5. Extract text.
+        # phase-27.2 (C1): `response.text` has THREE failure modes:
+        #   (a) raises ValueError (no valid parts, documented)
+        #   (b) raises AttributeError (malformed candidate, observed)
+        #   (c) returns None silently on MAX_TOKENS with structured output
+        #       OR safety-filter blocks (python-genai#1039, unfixed upstream)
+        # The try/except handles (a) and (b); the explicit None check after
+        # handles (c). Defense-in-depth: LLMResponse.__post_init__ also
+        # coerces None -> "" at construction.
         try:
             text = response.text
         except (ValueError, AttributeError):
@@ -897,6 +959,8 @@ class GeminiClient(LLMClient):
                 text = "\n".join(p.text for p in parts if hasattr(p, "text") and p.text)
             except Exception:
                 text = ""
+        if text is None:
+            text = ""
 
         # phase-26.3: surface code_execution outputs that response.text omits.
         # When the bundle has ToolCodeExecution, the model emits executable_code
@@ -1385,6 +1449,13 @@ class ClaudeClient(LLMClient):
                 else:
                     schema_dict = None
                 if schema_dict is not None:
+                    # phase-27.1 (C3): Anthropic strict-mode validator rejects
+                    # any object-type node missing `additionalProperties: false`.
+                    # Pydantic-derived schemas omit the field by default. The
+                    # helper recurses and injects it on every object node so
+                    # nested response_formats clear the validator. Docs:
+                    # https://platform.claude.com/docs/en/docs/build-with-claude/structured-outputs
+                    schema_dict = _ensure_additional_properties_false(schema_dict)
                     kwargs.setdefault("output_config", {})["format"] = {
                         "type": "json_schema",
                         "schema": schema_dict,
@@ -1411,7 +1482,15 @@ class ClaudeClient(LLMClient):
         # the final exception. Both RateLimitError and APIStatusError
         # are named explicitly so the verification grep finds them.
         try:
-            response = client.messages.create(**kwargs)
+            # phase-27.6.8: route through client.beta.messages.create when the
+            # `betas` kwarg is set (Files API enrichment path adds
+            # `files-api-2025-04-14` at line ~1338). The standard messages.create
+            # endpoint rejects `betas=` with "got an unexpected keyword argument"
+            # — observed on cycle #11 for Anomaly/Social/Patent enrichment agents.
+            if kwargs.get("betas"):
+                response = client.beta.messages.create(**kwargs)
+            else:
+                response = client.messages.create(**kwargs)
         except _anthropic_sdk.RateLimitError as e:
             _rid = getattr(e, "_request_id", "") or e.response.headers.get("request-id", "") if getattr(e, "response", None) else ""
             logger.warning(
@@ -1720,68 +1799,98 @@ class BatchClient:
 def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClient:
     """Create the appropriate LLMClient for a model name.
 
-    Priority:
-      1. GitHub Models (model in catalog + GITHUB_TOKEN set)
-      2. Direct Claude (model starts with "claude-" + ANTHROPIC_API_KEY set)
-      3. Direct OpenAI (model starts with "gpt-"/"o1"/"o3" + OPENAI_API_KEY set)
-      4. Gemini (default — always available, uses the pre-built GenerativeModel)
+    Priority (direct provider always wins when its key is set; GitHub Models
+    is a fallback for catalog-listed models when no direct key is available):
+
+      1. Direct Gemini  — model startswith "gemini-" + GEMINI_API_KEY set
+      2. Direct Anthropic — model startswith "claude-" + ANTHROPIC_API_KEY set
+      3. Direct OpenAI  — model startswith "gpt-"/"o1"/"o3"/"o4" + OPENAI_API_KEY set
+      4. GitHub Models  — model in catalog + GITHUB_TOKEN set (fallback aggregator)
+      5. Vertex AI      — default for gemini-* when no direct key (uses pre-built bundle)
 
     Args:
         model_name: The model identifier string
-        vertex_model: A pre-built vertexai.GenerativeModel (used for Gemini fallback)
+        vertex_model: A pre-built GeminiModelBundle (Vertex AI fallback)
         settings: App settings (for API keys)
 
     Returns:
         An LLMClient instance ready for generate_content() calls
 
     Raises:
-        ValueError: If a non-Gemini model is selected but the required key is missing
+        ValueError: If a non-Gemini model is selected but no compatible key is set
     """
-    github_token = getattr(settings, "github_token", "")
-    anthropic_key = getattr(settings, "anthropic_api_key", "")
-    openai_key = getattr(settings, "openai_api_key", "")
+    # Pydantic SecretStr → raw str. Anthropic/OpenAI/genai SDKs all pass the
+    # key straight into HTTP headers; SecretStr there raises
+    # "Header value must be str or bytes". Unwrap once at the boundary.
+    def _unwrap(v):
+        if v is None or v == "":
+            return ""
+        return v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
 
-    # 1. GitHub Models — check catalog first (preferred for testing)
-    if model_name in GITHUB_MODELS_CATALOG:
-        if github_token:
-            api_model_id = _GITHUB_MODELS_ID_MAP.get(model_name, model_name)
-            logger.info(f"[LLMClient] Routing {model_name} -> GitHub Models as '{api_model_id}'")
-            return OpenAIClient(
-                model_name=api_model_id,
-                api_key=github_token,
-                base_url="https://models.github.ai/inference",
+    anthropic_key = _unwrap(getattr(settings, "anthropic_api_key", ""))
+    openai_key = _unwrap(getattr(settings, "openai_api_key", ""))
+    gemini_key = _unwrap(getattr(settings, "gemini_api_key", ""))
+    github_token = _unwrap(getattr(settings, "github_token", ""))
+
+    # 1. Direct Gemini API (Google AI Studio) — gemini-* + GEMINI_API_KEY.
+    # Bypasses Vertex AI / ADC. Per Google docs: genai.Client(api_key=...).
+    if model_name.startswith("gemini-") and gemini_key:
+        try:
+            from google import genai  # type: ignore[attr-defined]
+            direct_client = genai.Client(api_key=gemini_key)
+            bundle = GeminiModelBundle(
+                client=direct_client,
+                model_name=model_name,
+                tools=[],
+                base_config={"temperature": 0.0, "top_k": 1},
             )
-        else:
-            raise ValueError(
-                f"Model '{model_name}' requires a GitHub Token (GITHUB_TOKEN) but none is set. "
-                "Add GITHUB_TOKEN=ghp_... to backend/.env"
+            logger.info(f"[LLMClient] Routing {model_name} -> Gemini direct (AI Studio API key)")
+            return GeminiClient(model=bundle, model_name=model_name)
+        except Exception as exc:
+            logger.warning(
+                "[LLMClient] Gemini-direct init failed (%r); falling through", exc,
             )
 
-    # 2. Direct Anthropic
+    # 2. Direct Anthropic — wins over GitHub catalog so claude-* never needs GITHUB_TOKEN.
+    if model_name.startswith("claude-") and anthropic_key:
+        logger.info(f"[LLMClient] Routing {model_name} -> Anthropic direct")
+        return ClaudeClient(model_name=model_name, api_key=anthropic_key)
+
+    # 3. Direct OpenAI — wins over GitHub catalog for the same reason.
+    if model_name.startswith(("gpt-", "o1", "o3", "o4")) and openai_key:
+        logger.info(f"[LLMClient] Routing {model_name} -> OpenAI direct")
+        return OpenAIClient(model_name=model_name, api_key=openai_key)
+
+    # 4. GitHub Models — fallback aggregator (Anthropic, OpenAI, Meta, Microsoft via PAT).
+    # Only reached when the direct-key branch above didn't match.
+    if model_name in GITHUB_MODELS_CATALOG and github_token:
+        api_model_id = _GITHUB_MODELS_ID_MAP.get(model_name, model_name)
+        logger.info(f"[LLMClient] Routing {model_name} -> GitHub Models as '{api_model_id}'")
+        return OpenAIClient(
+            model_name=api_model_id,
+            api_key=github_token,
+            base_url="https://models.github.ai/inference",
+        )
+
+    # 5. Vertex AI default for gemini-* when no direct gemini key.
+    if model_name.startswith("gemini-"):
+        logger.debug(f"[LLMClient] Routing {model_name} -> Gemini (Vertex AI fallback)")
+        return GeminiClient(model=vertex_model, model_name=model_name)
+
+    # No provider matched: raise with the most actionable hint.
     if model_name.startswith("claude-"):
-        if anthropic_key:
-            logger.info(f"[LLMClient] Routing {model_name} -> Anthropic direct")
-            return ClaudeClient(model_name=model_name, api_key=anthropic_key)
-        else:
-            raise ValueError(
-                f"Model '{model_name}' requires ANTHROPIC_API_KEY but none is set. "
-                "Add ANTHROPIC_API_KEY=sk-ant-... to backend/.env"
-            )
-
-    # 3. Direct OpenAI
+        raise ValueError(
+            f"Model '{model_name}' has no compatible key. Set ANTHROPIC_API_KEY=sk-ant-... "
+            "in backend/.env (direct Anthropic), or GITHUB_TOKEN=ghp_... (GitHub Models fallback)."
+        )
     if model_name.startswith(("gpt-", "o1", "o3", "o4")):
-        if openai_key:
-            logger.info(f"[LLMClient] Routing {model_name} -> OpenAI direct")
-            return OpenAIClient(model_name=model_name, api_key=openai_key)
-        else:
-            raise ValueError(
-                f"Model '{model_name}' requires OPENAI_API_KEY but none is set. "
-                "Add OPENAI_API_KEY=sk-... to backend/.env"
-            )
-
-    # 4. Default: Gemini via Vertex AI
-    logger.debug(f"[LLMClient] Routing {model_name} -> Gemini (Vertex AI)")
-    return GeminiClient(model=vertex_model, model_name=model_name)
+        raise ValueError(
+            f"Model '{model_name}' has no compatible key. Set OPENAI_API_KEY=sk-... "
+            "in backend/.env (direct OpenAI), or GITHUB_TOKEN=ghp_... (GitHub Models fallback)."
+        )
+    raise ValueError(
+        f"Model '{model_name}' is not routable: no matching provider prefix and not in GitHub catalog."
+    )
 
 
 # phase-26.2: Anthropic Advisor Tool helper.

@@ -337,54 +337,78 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             )
             summary["steps"].append("analyzing")
 
-            candidate_analyses = []
-            for ticker in analyze_tickers:
-                # phase-26.1: check session budget BEFORE each LLM-heavy analysis.
-                # Raises BudgetBreachError -- caught at the cycle-level catch
-                # below, which sets status=budget_breach and triggers Slack alert.
-                _check_session_budget("pre_analysis_new")
-                if total_analysis_cost >= settings.paper_max_daily_cost_usd:
-                    logger.warning(f"Daily cost cap (${settings.paper_max_daily_cost_usd}) reached, stopping analysis")
-                    break
-                try:
-                    analysis = await _run_single_analysis(ticker, settings)
-                    if analysis:
-                        candidate_analyses.append(analysis)
-                        cost = analysis.get("total_cost_usd", 0.1)
-                        total_analysis_cost += cost
-                        _add_session_cost(cost)
-                        # phase-23.1.11 + 23.1.12 + phase-25.A2: persist analysis to
-                        # analysis_results so the Reports History tab surfaces it.
-                        # phase-25.A2 (closes phase-24.2 F-2): full-path also persists now
-                        # via the same helper. Stale doc-comment from before phase-25.A2
-                        # claimed run_full_analysis did its own save_report — it did NOT
-                        # (orchestrator.py had zero save_report calls); persistence is
-                        # now uniformly done here for both lite and full paths.
-                        if analysis.get("_path") in ("lite", "full"):
+            # phase-27.5.1 + 27.6.5: parallelize per-ticker analysis with
+            # PER-PROVIDER bounded concurrency. Gemini AI Studio paid-tier
+            # RPM tolerates 8 concurrent (Gemini cycle #8 confirmed). Claude
+            # tier-1 RPM is tighter (~50 input, ~10 output per minute) and
+            # cycle #10 hit `HTTP/1.1 429 Too Many Requests` from
+            # api.anthropic.com on concurrency=8 — so we cap Claude at 3.
+            # Detection: prefix-match the configured standard model.
+            _std_model = (settings.gemini_model or "").strip().lower()
+            if _std_model.startswith("claude-"):
+                _concurrency = 3
+            else:
+                _concurrency = 8
+            logger.info(
+                "Paper trading: per-provider concurrency cap = %d (standard=%s)",
+                _concurrency, _std_model or "<unset>",
+            )
+            _analysis_semaphore = asyncio.Semaphore(_concurrency)
+
+            async def _run_and_persist_one(ticker: str, kind: str):
+                """Run + persist one ticker under the concurrency cap.
+
+                Budget check runs INSIDE the lock so we don't dispatch new
+                LLM calls past the cap. Exceptions are caught and logged so
+                one bad ticker doesn't kill the whole gather.
+                Returns the analysis dict (or None on failure) for the caller
+                to fold into candidate_analyses / holding_analyses.
+                """
+                nonlocal total_analysis_cost
+                async with _analysis_semaphore:
+                    try:
+                        _check_session_budget(f"pre_analysis_{kind}")
+                    except Exception as exc:
+                        # BudgetBreachError -- propagate to the cycle-level catch.
+                        raise
+                    if total_analysis_cost >= settings.paper_max_daily_cost_usd:
+                        logger.warning(
+                            f"Daily cost cap (${settings.paper_max_daily_cost_usd}) "
+                            f"reached during {kind} for {ticker}; skipping"
+                        )
+                        return None
+                    try:
+                        analysis = await _run_single_analysis(ticker, settings)
+                    except Exception as exc:
+                        logger.error(f"Failed to analyze {kind} {ticker}: {exc}")
+                        return None
+                    if not analysis:
+                        return None
+                    cost = analysis.get("total_cost_usd", 0.1)
+                    total_analysis_cost += cost
+                    _add_session_cost(cost)
+                    if analysis.get("_path") in ("lite", "full"):
+                        try:
                             await _persist_analysis(analysis, bq)
-                except Exception as e:
-                    logger.error(f"Failed to analyze candidate {ticker}: {e}")
+                        except Exception as exc:
+                            logger.warning(
+                                f"Persist failed for {kind} {ticker} (non-fatal): {exc}"
+                            )
+                    return analysis
+
+            # Dispatch new candidates concurrently.
+            candidate_results = await asyncio.gather(
+                *[_run_and_persist_one(t, "new") for t in analyze_tickers],
+                return_exceptions=True,
+            )
+            candidate_analyses = [r for r in candidate_results if isinstance(r, dict)]
 
             # ── Step 4: Re-evaluate holdings ─────────────────────────
-            holding_analyses = []
-            for ticker in reeval_tickers:
-                # phase-26.1: session budget check before each re-eval.
-                _check_session_budget("pre_analysis_reeval")
-                if total_analysis_cost >= settings.paper_max_daily_cost_usd:
-                    logger.warning(f"Daily cost cap reached, stopping re-evaluation")
-                    break
-                try:
-                    analysis = await _run_single_analysis(ticker, settings)
-                    if analysis:
-                        holding_analyses.append(analysis)
-                        cost = analysis.get("total_cost_usd", 0.1)
-                        total_analysis_cost += cost
-                        _add_session_cost(cost)
-                        # phase-23.1.11 + 23.1.12 + phase-25.A2: persist both lite and full paths
-                        if analysis.get("_path") in ("lite", "full"):
-                            await _persist_analysis(analysis, bq)
-                except Exception as e:
-                    logger.error(f"Failed to re-evaluate {ticker}: {e}")
+            holding_results = await asyncio.gather(
+                *[_run_and_persist_one(t, "reeval") for t in reeval_tickers],
+                return_exceptions=True,
+            )
+            holding_analyses = [r for r in holding_results if isinstance(r, dict)]
 
             # phase-23.1.12: no longer mutate settings.lite_mode here — operator's
             # value is preserved across the cycle.
@@ -763,7 +787,10 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
     """
     if settings.lite_mode:
         try:
-            return await _run_claude_analysis(ticker, settings)
+            # phase-27.3 (C2): dispatch by configured standard model. Was hardcoded
+            # to _run_claude_analysis which refused non-Claude models, leaving
+            # gemini-* selections with no lite fallback.
+            return await _select_lite_analyzer(settings.gemini_model)(ticker, settings)
         except Exception as e:
             logger.warning("Lite analysis failed for %s (lite_mode=True): %s", ticker, e)
             return None
@@ -801,9 +828,10 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
             ticker, e,
         )
 
-    # Last-resort fallback: try lite path so the cycle still produces a decision
+    # Last-resort fallback: try lite path so the cycle still produces a decision.
+    # phase-27.3 (C2): provider-aware via _select_lite_analyzer.
     try:
-        return await _run_claude_analysis(ticker, settings)
+        return await _select_lite_analyzer(settings.gemini_model)(ticker, settings)
     except Exception as e:
         logger.error("Both full and lite paths failed for %s: %s", ticker, e)
         return None
@@ -849,6 +877,25 @@ _LITE_RISK_DEFAULT = {
     "reasoning": "risk-judge parse failed; falling back to conservative default sizing",
     "risk_limits": {"stop_loss_pct": 10.0, "max_drawdown_pct": 15.0},
 }
+
+
+def _select_lite_analyzer(model_name):
+    """Factory: pick the lite-analyzer coroutine for the configured standard model.
+
+    phase-27.3 (C2): the lite fallback was hardcoded to Claude only, so
+    selecting `gemini-2.5-flash` as the standard model bricked the safety
+    net ("standard model … is not a Claude model" raise). The factory
+    dispatches by model-name prefix:
+      - `gemini-*` -> `_run_gemini_analysis` (direct AI Studio API key)
+      - anything else (default `claude-*`) -> `_run_claude_analysis`
+
+    Returns the coroutine FUNCTION (uncalled). Callers do
+    `await _select_lite_analyzer(name)(ticker, settings)`.
+    """
+    name = (model_name or "").strip().lower()
+    if name.startswith("gemini-"):
+        return _run_gemini_analysis
+    return _run_claude_analysis
 
 
 async def _run_claude_analysis(ticker: str, settings: Settings) -> dict:
@@ -1019,6 +1066,178 @@ Respond in this exact JSON format:
         # phase-23.1.11: full_report.source reflects the actual model_name (was hardcoded
         # "claude-sonnet-4" — wrong since gemini_model can be a Claude variant or Gemini).
         # market_data carries name + industry so the Reports History tab can render company name.
+        "full_report": {
+            "source": model_name,
+            "analysis": analysis,
+            "market_data": {
+                "name": name,
+                "price": current_price,
+                "market_cap": market_cap,
+                "pe_ratio": pe_ratio,
+                "sector": sector,
+                "industry": industry,
+                "momentum_20d": momentum_20d,
+                "momentum_60d": momentum_60d,
+            },
+        },
+    }
+
+
+async def _run_gemini_analysis(ticker: str, settings: Settings) -> dict:
+    """Lightweight Gemini-based analysis for paper trading decisions.
+
+    phase-27.3 (C2): mirror of `_run_claude_analysis` for non-Claude standard
+    models. Output dict shape IDENTICAL — same keys, `_path: "lite"` marker,
+    so `_persist_analysis` and downstream readers don't branch by provider.
+    Routes through `make_client` (post-27.1 priority order) which dispatches
+    `gemini-*` to a direct AI Studio API key (no Vertex / GCP creds).
+
+    Two-LLM-call pattern preserved: trader prompt + independent risk-judge.
+    """
+    import re as _re
+    import yfinance as yf
+    from backend.agents.llm_client import make_client, safe_text
+
+    logger.info(f"Gemini analysis: analyzing {ticker}")
+
+    # 1. Market data via yfinance (parity with Claude path).
+    stock = yf.Ticker(ticker)
+    info = stock.info
+    hist = stock.history(period="3mo")
+
+    current_price = info.get("currentPrice") or info.get("regularMarketPrice", 0)
+    market_cap = info.get("marketCap", 0)
+    pe_ratio = info.get("trailingPE", 0)
+    sector = info.get("sector", "Unknown")
+    industry = info.get("industry", "Unknown")
+    name = info.get("shortName", ticker)
+
+    if len(hist) >= 20:
+        price_20d_ago = hist["Close"].iloc[-20]
+        momentum_20d = ((current_price - price_20d_ago) / price_20d_ago * 100) if price_20d_ago else 0
+    else:
+        momentum_20d = 0
+    if len(hist) >= 60:
+        price_60d_ago = hist["Close"].iloc[-60]
+        momentum_60d = ((current_price - price_60d_ago) / price_60d_ago * 100) if price_60d_ago else 0
+    else:
+        momentum_60d = 0
+
+    model_name = (settings.gemini_model or "gemini-2.5-flash").strip()
+    if not model_name.startswith("gemini-"):
+        raise ValueError(
+            f"standard model '{model_name}' is not a Gemini model; "
+            "_run_gemini_analysis is Gemini-only. _select_lite_analyzer should "
+            "have routed claude-* to _run_claude_analysis instead."
+        )
+
+    # Build a single Gemini client and reuse for trader + risk-judge calls.
+    client = make_client(model_name, vertex_model=None, settings=settings)
+
+    trader_prompt = f"""Analyze {ticker} ({name}) for a paper trading portfolio. Be concise.
+
+Stock: {ticker} ({name})
+Sector: {sector} | Industry: {industry}
+Price: ${current_price:.2f} | Market Cap: ${market_cap/1e9:.1f}B | P/E: {pe_ratio:.1f}
+20-day momentum: {momentum_20d:+.1f}% | 60-day momentum: {momentum_60d:+.1f}%
+
+Decision rules (apply in order):
+- A portfolio needs positions to generate return; HOLD on ambiguous data, but lean BUY on clear momentum.
+- If momentum_20d > 3.0 AND momentum_60d > 5.0 AND market_cap > 5e9, lean BUY unless there is a clear negative signal.
+- If momentum_20d < -5.0 AND position is held, lean SELL.
+- Otherwise HOLD.
+
+Respond ONLY with valid JSON, no prose. Schema:
+{{"action": "BUY"|"SELL"|"HOLD", "confidence": <int 0-100>, "score": <int 1-10>, "reason": "<one sentence>"}}"""
+
+    # Trader call. asyncio.to_thread because GeminiClient.generate_content
+    # blocks (it runs concurrent.futures.Future internally; safe to wrap).
+    trader_response = await asyncio.to_thread(
+        client.generate_content,
+        trader_prompt,
+        {"max_output_tokens": 200, "temperature": 0.0, "response_mime_type": "application/json"},
+    )
+    text = safe_text(trader_response.text).strip()
+    json_match = _re.search(r"\{[^}]+\}", text, _re.DOTALL)
+    if json_match:
+        try:
+            analysis = json_io.loads(json_match.group())
+        except Exception:
+            analysis = {"action": "HOLD", "confidence": 0, "score": 5, "reason": "Could not parse trader JSON"}
+    else:
+        analysis = {"action": "HOLD", "confidence": 0, "score": 5, "reason": "No JSON in trader response"}
+
+    logger.info(
+        f"Gemini analysis for {ticker}: {analysis['action']} "
+        f"(confidence={analysis['confidence']}, score={analysis['score']})"
+    )
+
+    # Risk Judge — independent second call. Same system prompt as Claude path.
+    risk_prompt = (
+        _LITE_RISK_JUDGE_SYSTEM
+        + "\n\n"
+        + _LITE_RISK_JUDGE_TEMPLATE.format(
+            ticker=ticker,
+            name=name,
+            sector=sector,
+            pe_ratio=pe_ratio or 0.0,
+            market_cap_b=(market_cap or 0) / 1e9,
+            momentum_20d=momentum_20d,
+            momentum_60d=momentum_60d,
+            trader_action=analysis["action"],
+            trader_confidence=analysis["confidence"],
+        )
+    )
+    try:
+        risk_response = await asyncio.to_thread(
+            client.generate_content,
+            risk_prompt,
+            {"max_output_tokens": 300, "temperature": 0.0, "response_mime_type": "application/json"},
+        )
+        risk_text = safe_text(risk_response.text).strip()
+        risk_json_match = _re.search(r"\{.*\}", risk_text, _re.DOTALL)
+        if risk_json_match:
+            risk_dict = json_io.loads(risk_json_match.group())
+        else:
+            risk_dict = dict(_LITE_RISK_DEFAULT)
+            logger.warning(
+                "Gemini lite risk judge for %s: no JSON in response -- using default sizing", ticker,
+            )
+    except Exception as exc:
+        risk_dict = dict(_LITE_RISK_DEFAULT)
+        logger.warning(
+            "Gemini lite risk judge for %s failed (%s) -- using default sizing", ticker, exc,
+        )
+
+    risk_reasoning = str(risk_dict.get("reasoning") or _LITE_RISK_DEFAULT["reasoning"])
+    risk_assessment = {
+        "decision": str(risk_dict.get("decision") or _LITE_RISK_DEFAULT["decision"]),
+        "reasoning": risk_reasoning,
+        "reason": risk_reasoning,  # backward-compat alias for bq.save_report
+        "recommended_position_pct": float(
+            risk_dict.get("recommended_position_pct")
+            or _LITE_RISK_DEFAULT["recommended_position_pct"]
+        ),
+        "risk_level": str(risk_dict.get("risk_level") or _LITE_RISK_DEFAULT["risk_level"]),
+        "risk_limits": dict(risk_dict.get("risk_limits") or _LITE_RISK_DEFAULT["risk_limits"]),
+    }
+    logger.info(
+        "Gemini lite risk judge for %s: decision=%s position_pct=%.1f risk_level=%s",
+        ticker,
+        risk_assessment["decision"],
+        risk_assessment["recommended_position_pct"],
+        risk_assessment["risk_level"],
+    )
+
+    return {
+        "ticker": ticker,
+        "_path": "lite",
+        "recommendation": analysis["action"],
+        "final_score": analysis["score"],
+        "risk_assessment": risk_assessment,
+        "price_at_analysis": current_price,
+        "analysis_date": datetime.now(timezone.utc).isoformat(),
+        "total_cost_usd": 0.005,  # Gemini Flash is ~half Claude Sonnet at this prompt size
         "full_report": {
             "source": model_name,
             "analysis": analysis,

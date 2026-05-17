@@ -2,5 +2,117 @@
   "beta_agent": {
     "hash": "8218150163456913805928eafb425551da6dd9be74df2fc00eae0618c6698f4d",
     "file_id": "file_new_99"
+  },
+  "supply_chain_agent": {
+    "hash": "9e80938e4e5fa4b9d7733c0a83e0291e03211c3546eb7b4efbf4360a33495247",
+    "file_id": "file_011Cb6mJQuHgv2PLLRJFHbzq"
+  },
+  "rag_agent": {
+    "hash": "9f6da60a7a4909404560b3e5f52a3adabd096dfbf30b9929967370aa6ba85087",
+    "file_id": "file_011Cb6mJTBxDDCosbkwNmY4Z"
+  },
+  "options_agent": {
+    "hash": "9a63cb7c6833ee0a4b4f92de9a6e21b4f6bb1b6656ec721f004f8171617a60ed",
+    "file_id": "file_011Cb6mJWEG4b7HCr8o25Uou"
+  },
+  "alpha_decay_agent": {
+    "hash": "09e19c5a553d4dc754a53cc049f9a1873218abba9b0e5c0c57ba59d2af70087e",
+    "file_id": "file_011Cb6mJYf7KCNCEfn1KARnv"
+  },
+  "critic_agent": {
+    "hash": "dddc8f8a7410337a4ed1355ba1a5bc4eb95a5df17264d78867f57b87ffbfb23e",
+    "file_id": "file_011Cb6mJayGmoRHgP753AymA"
+  },
+  "deep_dive_agent": {
+    "hash": "c0246e2106e9cf9b761892187fb4aa913e06ba1aa118b833b2c3fab4a7d8a88b",
+    "file_id": "file_011Cb6mJdBjBQt8aWCtbui4e"
+  },
+  "quant_model_agent": {
+    "hash": "589c8db4b8355bfdb97a53712a9111d6e5c0e9f8370bebd484e8dff7554c4d95",
+    "file_id": "file_011Cb6mJfLCT5PvPtX9ZpqHP"
+  },
+  "risk_stance": {
+    "hash": "48b7da9e4092278c6e77f1855f4eb223f8e3fa890b5df18536113292e120df23",
+    "file_id": "file_011Cb6mJhgLem79ymeZb6mtk"
+  },
+  "alt_data_agent": {
+    "hash": "64c65eb90de9a062b86ec7575d620814d9c2f15cc16f47cd90d780270525be8a",
+    "file_id": "file_011Cb6mJk4i8qrosNFPN8hXk"
+  },
+  "competitor_agent": {
+    "hash": "8f6b8e196967d421b3cb5b587c0fc26ec49ac53a1460d9ea82b60a6e4734a5af",
+    "file_id": "file_011Cb6mJnS6HTv3m2Je5qRYG"
+  },
+  "synthesis_agent": {
+    "hash": "81e0b9690cdde9d57af2f7f9ff9148c167a967b3495ac75af4ffda17daf1b098",
+    "file_id": "file_011Cb6mJptReGHQ2EQUq4g5C"
+  },
+  "scenario_agent": {
+    "hash": "87d83a77ff676b511521ff7efa69c600fbcc3df7bda6b9f8f7647d86f6737a60",
+    "file_id": "file_011Cb6mJs9c556LfdcUgzYEF"
+  },
+  "insider_agent": {
+    "hash": "eec75946577b5fc538219b390a762e1a33e8f505715a0456dc808cdba6cb0bed",
+    "file_id": "file_011Cb6mJudBzDfNqxeV4w3Bm"
+  },
+  "risk_judge": {
+    "hash": "667a85120f60cea64861113aa072791c687911a7111c806bd1f8f9974ca0773c",
+    "file_id": "file_011Cb6mJx6maE2apacKQvgvz"
+  },
+  "info_gap_agent": {
+    "hash": "a59bd17d86b082a4d729b109f5ebb21a2540060b727efa8f1d1b7b7060fec170",
+    "file_id": "file_011Cb6mJzFFH3FsK33bcLqwF"
+  },
+  "bias_detector": {
+    "hash": "ce7cb8994643a95390706b598246280aa815c09491ad65c539945f12a91cad2f",
+    "file_id": "file_011Cb6mK2erKgNNhBvrpxbEY"
+  },
+  "nlp_sentiment_agent": {
+    "hash": "a7f20e5659f739e4c7227b783a82f57d8dfcd8110066dd2d176a51b9cf3f8cc3",
+    "file_id": "file_011Cb6mK4xWwSQpuvGjuBGw2"
+  },
+  "anomaly_agent": {
+    "hash": "7f0e2d25c68dafb02f0c24de137165db60d424360b38ec7ad2481ae1acd8765d",
+    "file_id": "file_011Cb6mK75WKKhVqfVJQ1vXN"
+  },
+  "moderator_agent": {
+    "hash": "eb51aa4385fece4a0e397c2c2ce70f88c866d5fb2ebac8587a5570dd7eef2f3c",
+    "file_id": "file_011Cb6mK9TdBMaESt5ZF6ozu"
+  },
+  "enhanced_macro_agent": {
+    "hash": "17cab47d2778f4ad512bd8cdb58345ba15e50e78b328085c2219ca11e417ccb2",
+    "file_id": "file_011Cb6mKCAc4naSYqCkSbaaA"
+  },
+  "quant_strategy": {
+    "hash": "b46bafce6748b2db6fcc3a5ecd9f2ef9e7333325b095c47ea9356df94dfc8996",
+    "file_id": "file_011Cb6mKEncQxCTzQMr96iYL"
+  },
+  "sector_catalyst_agent": {
+    "hash": "9ed3af7fa0bcc0e8221494417dcfab78a9df4ba46989fc9418951252af53796f",
+    "file_id": "file_011Cb6mKHDD9pjZYVw58oVkm"
+  },
+  "market_agent": {
+    "hash": "f6b4de9a8dc1c123536aca5e7dfb2f3498c90f7e6cb222d03477ae7df02ccf6b",
+    "file_id": "file_011Cb6mKKWcy4NZyo3hdPPHd"
+  },
+  "earnings_tone_agent": {
+    "hash": "656b40d11c45b20900cd0a18329e5466afdd15350a364d15c2d4be3324072dd1",
+    "file_id": "file_011Cb6mKMfMXEkx51gMosHGy"
+  },
+  "debate_stance": {
+    "hash": "c790b0346c8ffcec19c071e5ca493a118471aaf5de05c5b4a110c0cbf805201a",
+    "file_id": "file_011Cb6mKQDPm14p4p16Gf1fb"
+  },
+  "sector_analysis_agent": {
+    "hash": "77bc37958822eed4876c8f32406361f85183ec0fa0c03baa65b5690d7c2de1ad",
+    "file_id": "file_011Cb6mKTZoEzS8iWGURmGyb"
+  },
+  "social_sentiment_agent": {
+    "hash": "3d4ea547483a882b65c2003cc24f64eff413ebe22bb5728a04cf05c4242b5aaa",
+    "file_id": "file_011Cb6mKWpGfNY9qcyugCbEi"
+  },
+  "patent_agent": {
+    "hash": "0450d6ec4f848c1b121888ed171b116579f02df06a1dbca95a23c9069eda0598",
+    "file_id": "file_011Cb6mKZFcXsHHxFMcCxJsJ"
   }
 }

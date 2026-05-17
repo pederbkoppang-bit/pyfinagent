@@ -148,10 +148,25 @@ async def retry_critical_gaps(
             _progress(f"Retrying {key} (attempt {attempt}/{max_retries})...")
             logger.info(f"Info-Gap: retrying {key}, attempt {attempt}")
             try:
+                # phase-27.6.7: detect lambda-wrapped-coroutine. The call
+                # sites in orchestrator.py:1660+ use `lambda: self.X(t)`
+                # which is itself sync, but X may be async — calling the
+                # lambda returns a coroutine. Check both the function and
+                # the result to cover all three shapes:
+                #   (a) async def func (direct)
+                #   (b) lambda wrapping async call (returns coroutine)
+                #   (c) sync def func (returns the value directly)
                 if asyncio.iscoroutinefunction(func):
                     result = await func()
                 else:
-                    result = await asyncio.to_thread(func)
+                    result = func() if callable(func) else func
+                    if asyncio.iscoroutine(result):
+                        result = await result
+                    elif not asyncio.iscoroutinefunction(func) and result is None:
+                        # Truly sync function returned None or already-computed value;
+                        # honor original semantics by re-invoking via to_thread for
+                        # blocking-call parity. Should not be reached in practice.
+                        result = await asyncio.to_thread(func)
 
                 status = _assess_source_status(key, result)
                 if status == "SUFFICIENT":

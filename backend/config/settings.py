@@ -94,6 +94,7 @@ class Settings(BaseSettings):
     anthropic_api_key: SecretStr = Field(SecretStr(""), description="Anthropic API key for direct Claude access (sk-ant-...)")
     openai_api_key: SecretStr = Field(SecretStr(""), description="OpenAI API key for direct GPT/o-series access (sk-...)")
     github_token: SecretStr = Field(SecretStr(""), description="GitHub PAT for GitHub Models (Copilot Pro). Routes GITHUB_MODELS_CATALOG models via models.inference.ai.azure.com")
+    gemini_api_key: SecretStr = Field(SecretStr(""), description="Google AI Studio API key for direct Gemini access (genai.Client(api_key=...)). When set, gemini-* models route through the direct API instead of Vertex AI ADC. Leave empty to keep using Vertex AI / GCP service-account credentials.")
 
     # --- GCS ---
     gcs_bucket_name: str = Field("10k-filling-data", description="GCS bucket for filings and transcripts")
@@ -163,6 +164,14 @@ class Settings(BaseSettings):
     paper_reeval_frequency_days: int = Field(3, description="Re-evaluate existing holdings every N days")
     paper_transaction_cost_pct: float = Field(0.1, description="Simulated transaction cost per trade (%)")
     paper_max_daily_cost_usd: float = Field(2.0, description="Maximum LLM cost per daily trading cycle (USD)")
+    # phase-27.5.2: daily/monthly cost-budget hard-block caps consumed by
+    # backend.agents.llm_client._check_cost_budget. Default $5/day was hit on
+    # 2026-05-16 cycle 3e90d15e at the 7-ticker mark of a 15-ticker concurrent-8
+    # batch ($5.15 actual). Raised to $25 / $300 — still conservative for an
+    # autonomous LLM trading system (Gemini Flash + AI Studio direct keys keep
+    # full-cycle costs in the $1-3 range). Env overrides honored.
+    cost_budget_daily_usd: float = Field(25.0, description="Daily LLM-spend cap across all cycles (USD). When tripped, _check_cost_budget raises BudgetBreachError on every new generate_content call until midnight UTC rolls the bucket.")
+    cost_budget_monthly_usd: float = Field(300.0, description="Monthly LLM-spend cap across all cycles (USD).")
     # phase-26.2: opt-in flag for the Anthropic Advisor Tool (Sonnet executor + Opus advisor)
     # on the synthesis chain. Default False (this step adds capability; flip to True
     # via operator-driven rollout after A/B regression check). When True AND the
