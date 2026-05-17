@@ -167,6 +167,14 @@ def screen_universe(
             sma_50 = float(close.tail(50).mean()) if len(close) >= 50 else current_price
             sma_distance = (current_price - sma_50) / sma_50 * 100
 
+            # phase-28.7: 52-week-high proximity (George-Hwang 2004 anchoring effect).
+            # current_price / trailing-252d max -> values in (0, 1]; 1.0 means at 52w high.
+            try:
+                high_52w = float(close.rolling(252, min_periods=20).max().iloc[-1])
+                pct_to_52w_high = round(current_price / high_52w, 4) if high_52w > 0 else None
+            except Exception:
+                pct_to_52w_high = None
+
             row = {
                 "ticker": ticker,
                 "current_price": round(current_price, 2),
@@ -177,6 +185,7 @@ def screen_universe(
                 "rsi_14": round(rsi, 1) if rsi else None,
                 "volatility_ann": round(volatility, 4) if volatility else None,
                 "sma_50_distance_pct": round(sma_distance, 2),
+                "pct_to_52w_high": pct_to_52w_high,  # phase-28.7
             }
             # phase-23.1.13: attach sector when caller provided the lookup.
             # The lookup is built via _fetch_ticker_meta (BQ-first/yfinance fallback)
@@ -209,6 +218,9 @@ def rank_candidates(
     sector_neutral: bool = False,
     sector_neutral_min_group_size: int = 3,
     sector_momentum_ranks=None,
+    multidim_momentum: bool = False,
+    multidim_weights: Optional[dict[str, float]] = None,
+    pead_signals_lookup=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -311,6 +323,20 @@ def rank_candidates(
                 "news_rationale": sig.rationale,
             })
 
+    # phase-28.7: optional multidimensional momentum composite. Replaces composite_score
+    # with a z-blended composite of 4 components: existing price-momentum composite,
+    # 52w-high proximity, SUE (pead surprise_score), sector momentum boost. Preserves
+    # original on composite_score_raw. Stocks missing a component get 0 (mean) for it.
+    # Per CFA Institute Dec 2025 + George-Hwang 2004 + Novy-Marx 2014: superior
+    # Sharpe + lower crash risk vs price-only momentum.
+    if multidim_momentum and scored:
+        _apply_multidim_momentum(
+            scored,
+            weights=multidim_weights or {"price": 0.35, "52w_high": 0.25, "sue": 0.20, "sector": 0.20},
+            pead_signals=pead_signals if pead_signals else (pead_signals_lookup or None),
+            sector_momentum_ranks=sector_momentum_ranks,
+        )
+
     # phase-28.4: optional sector-neutral re-scoring (within-sector percentile rank).
     # Default OFF. When ON, replaces composite_score with within-sector percentile in
     # [0.0, 1.0]; original composite preserved on composite_score_raw. Groups with
@@ -345,6 +371,81 @@ def rank_candidates(
 
     scored.sort(key=lambda x: x["composite_score"], reverse=True)
     return scored[:top_n]
+
+
+def _zscore(values: list[float]) -> list[float]:
+    """Cross-sectional z-score. Missing values (None/NaN) get 0 (mean). Std=0 -> all zeros."""
+    cleaned = [(v if isinstance(v, (int, float)) and v == v else 0.0) for v in values]
+    if not cleaned:
+        return []
+    mean = sum(cleaned) / len(cleaned)
+    var = sum((v - mean) ** 2 for v in cleaned) / len(cleaned)
+    std = var ** 0.5
+    if std < 1e-9:
+        return [0.0] * len(cleaned)
+    return [(v - mean) / std for v in cleaned]
+
+
+def _apply_multidim_momentum(
+    scored: list[dict],
+    weights: dict[str, float],
+    pead_signals: Optional[dict] = None,
+    sector_momentum_ranks: Optional[dict] = None,
+) -> None:
+    """phase-28.7: Replace composite_score with z-blended 4-component multidim momentum.
+
+    Components per stock:
+        price:     existing composite_score (already includes mom_1m/3m/6m + RSI/vol penalties)
+        52w_high:  pct_to_52w_high field (1.0 = at high)
+        sue:       pead_signals[ticker].surprise_score if available, else 0
+        sector:    sector_momentum_ranks[sector].boost_multiplier - 1.0 if available, else 0
+
+    Each component is z-scored across the universe; final composite_score is the
+    weighted sum. Original composite preserved on composite_score_raw. Mutates `scored`
+    in place.
+    """
+    if not scored:
+        return
+    price_vals: list[float] = []
+    high_vals: list[float] = []
+    sue_vals: list[float] = []
+    sector_vals: list[float] = []
+    for s in scored:
+        price_vals.append(s.get("composite_score") or 0.0)
+        high_vals.append(s.get("pct_to_52w_high") or 0.0)
+        if pead_signals:
+            sig = pead_signals.get(s.get("ticker"))
+            try:
+                sue_vals.append(float(getattr(sig, "surprise_score", 0.0)))
+            except Exception:
+                sue_vals.append(0.0)
+        else:
+            sue_vals.append(0.0)
+        if sector_momentum_ranks:
+            sector_entry = sector_momentum_ranks.get(s.get("sector") or "")
+            try:
+                sector_vals.append(float(getattr(sector_entry, "boost_multiplier", 1.0)) - 1.0)
+            except Exception:
+                sector_vals.append(0.0)
+        else:
+            sector_vals.append(0.0)
+    z_price = _zscore(price_vals)
+    z_high = _zscore(high_vals)
+    z_sue = _zscore(sue_vals)
+    z_sector = _zscore(sector_vals)
+    w_price = float(weights.get("price", 0.35))
+    w_high = float(weights.get("52w_high", 0.25))
+    w_sue = float(weights.get("sue", 0.20))
+    w_sector = float(weights.get("sector", 0.20))
+    for i, s in enumerate(scored):
+        s["composite_score_raw"] = s.get("composite_score")
+        s["composite_score"] = round(
+            w_price * z_price[i]
+            + w_high * z_high[i]
+            + w_sue * z_sue[i]
+            + w_sector * z_sector[i],
+            4,
+        )
 
 
 def _pct_change(series: pd.Series, periods: int) -> Optional[float]:

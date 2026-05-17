@@ -318,6 +318,13 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 sector_neutral=getattr(settings, "sector_neutral_momentum_enabled", False),
                 sector_neutral_min_group_size=getattr(settings, "sector_neutral_min_group_size", 3),
                 sector_momentum_ranks=sector_momentum_ranks or None,
+                multidim_momentum=getattr(settings, "multidim_momentum_enabled", False),
+                multidim_weights={
+                    "price":    getattr(settings, "multidim_momentum_weight_price", 0.35),
+                    "52w_high": getattr(settings, "multidim_momentum_weight_52w_high", 0.25),
+                    "sue":      getattr(settings, "multidim_momentum_weight_sue", 0.20),
+                    "sector":   getattr(settings, "multidim_momentum_weight_sector", 0.20),
+                },
             )
 
             # phase-23.1.13: enrich top-N candidates with GICS sector via the

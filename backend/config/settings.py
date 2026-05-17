@@ -228,6 +228,12 @@ class Settings(BaseSettings):
     sector_momentum_boost_top: float = Field(1.10, description="phase-28.12: Multiplier for candidates in top-N sectors (default: +10%).")
     sector_momentum_boost_leader: float = Field(1.15, description="phase-28.12: Multiplier for candidates in the #1 momentum sector (default: +15%).")
     sector_momentum_cache_hours: int = Field(24, description="phase-28.12: Hours to cache the yfinance sector-ETF batch fetch.")
+    # phase-28.7: multidimensional momentum composite (price + 52w-high + SUE + sector blend)
+    multidim_momentum_enabled: bool = Field(False, description="phase-28.7: Replace screener composite_score with a z-blended multidim momentum (CFA Institute Dec 2025: superior Sharpe + lower crash risk vs price-only). Default OFF.")
+    multidim_momentum_weight_price: float = Field(0.35, description="phase-28.7: Z-blend weight for the existing price momentum composite (mom_1m/3m/6m + RSI/vol penalties).")
+    multidim_momentum_weight_52w_high: float = Field(0.25, description="phase-28.7: Z-blend weight for 52-week-high proximity (George-Hwang 2004 anchoring effect).")
+    multidim_momentum_weight_sue: float = Field(0.20, description="phase-28.7: Z-blend weight for SUE momentum (pead_signal.surprise_score; 0 if missing).")
+    multidim_momentum_weight_sector: float = Field(0.20, description="phase-28.7: Z-blend weight for sector/factor momentum (sector_momentum_ranks boost_multiplier - 1.0; 0 if missing).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

@@ -19895,3 +19895,32 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~25 min.
 
+
+---
+
+## Cycle 22 -- 2026-05-17 20:45 UTC -- phase=28.7 result=PASS
+
+**Step:** phase-28.7 — Multidimensional momentum composite (price + 52w-high + SUE + sector blend with z-score normalization).
+
+**Planner hypothesis:** Per CFA Dec 2025 + George-Hwang 2004 + Novy-Marx 2014, blending 4 components (default weights 0.35/0.25/0.20/0.20) via cross-sectional z-scoring produces superior Sharpe + lower crash risk vs naive price-only momentum. Default OFF.
+
+**Generator:** 3 files + new helpers —
+- `backend/tools/screener.py`: added `pct_to_52w_high` field to screen_universe (close.rolling(252).max() ratio); new `_zscore()` + `_apply_multidim_momentum()` helpers; rank_candidates kwargs (`multidim_momentum`, `multidim_weights`, `pead_signals_lookup`); branch fires before sector-neutral pass so they compose.
+- `backend/services/autonomous_loop.py` (+pass-through with weights dict).
+- `backend/config/settings.py` (+5 fields).
+
+**Researcher gate:** `gate_passed: true` (5 sources read in full: CFA Dec 2025, Stockopedia momentum rank, Review of Finance 2025, George-Hwang 2004 SSRN, Novy-Marx fundamental momentum; 17 URLs; recency scan).
+
+**Q/A subagent verdict:** PASS (no violations).
+- 5-item audit: all PASS.
+- 9 deterministic checks: immutable verification, 3-file syntax, settings defaults, helper imports, pct_to_52w_high in screen_universe source, rank_candidates kwargs, _zscore unit test, _apply_multidim_momentum 5-candidate unit test, mutation test (price-only weights = pure z-score at 4dp).
+- Mutation-test 1.36e-05 diff = rounding artifact (round(...,4)), not a bug. Q/A passed at 1e-3 tolerance.
+
+**Note on Q/A continuation:** initial spawn debugged the mutation-test rounding (correctly identified as artifact, not bug) but stopped before writing the verdict. SendMessage continuation completed in 107s.
+
+**Live check:** `handoff/current/live_check_28.7.md` — synthetic 10-candidate / 5-sector demo with real phase-28.12 sector_momentum + synthetic PEAD. Rank shifts: LLY #2 → #5 (no sector boost, moderate 52w-high), COP #5 → #3 (positive SUE + Energy sector), AAPL #3 → #2 (Tech sector leader boost). NVDA stays #1 (dominates all 4 components). Component-contribution breakdown shows all 4 weights positively contribute for NVDA.
+
+**Decision:** flip phase-28.7 to `done`. Post-launch tier: 2/7 done. Next per proposal sequencing: **28.8 — Russell-1000 universe expansion** (M effort; high-impact: addresses Sandisk-class spinoff misses).
+
+**Total cycle time:** ~30 min.
+
