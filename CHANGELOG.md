@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `856538e4` | phase-28.8: Russell-1000 universe expansion with screener cost guard |
 | 2026-05-17 | `e75390fe` | phase-28.7: Multidimensional momentum composite (price + SUE + 52-wk hi distance + factor momentum) |
 | 2026-05-17 | `722e253a` | phase-28.12: Sector-ETF momentum overlay (Quantpedia top-3 rotation) |
 | 2026-05-17 | `16a8a0ff` | phase-28.4: Sector-neutral momentum scoring in rank_candidates |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `d217d7a9` | phase-26.5: Alpha-decay / regime-shift detector skill (Gemini Flash) |
 | 2026-05-16 | `f7e24d0a` | phase-26.4: Consolidate 6 opinion skills into parameterized stance prompt |
 | 2026-05-16 | `827aed8c` | phase-26.3: Wire Gemini code_execution on 4 quant skills |
-| 2026-05-16 | `09488019` | phase-26.2: Adopt Advisor Tool (Sonnet executor + Opus advisor) on synthesis chain |
 
 ---
 
+### v6.9.9 — phase-28.8: Russell-1000 universe expansion with screener cost guard (2026-05-17)
+
+- **phase-28.8: Russell-1000 universe expansion with screener cost guard**
 ### v6.9.8 — phase-28.7: Multidimensional momentum composite (price + SUE + 52-wk... (2026-05-17)
 
 - **phase-28.7: Multidimensional momentum composite (price + SUE + 52-wk hi distance + factor momentum)**
