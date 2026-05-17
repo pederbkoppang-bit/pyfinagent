@@ -196,6 +196,10 @@ class Settings(BaseSettings):
     meta_scorer_enabled: bool = Field(False, description="After multiplicative overlays, call Claude once over top-30 candidates with all sub-signals; conviction_score replaces composite_score for ranking")
     meta_scorer_model: str = Field("claude-haiku-4-5", description="LLM used for the meta-scorer batch call")
     meta_scorer_max_batch: int = Field(30, description="Max candidates sent to the meta-scorer in one batch (cap to bound LLM cost + cross-contamination)")
+    # phase-28.5: short-interest exclusion filter (FINRA bimonthly CSV primary, yfinance per-ticker fallback)
+    short_interest_filter_enabled: bool = Field(False, description="phase-28.5: Exclude tickers with shortPercentOfFloat > short_interest_threshold from screener. Boehmer-Jones-Zhang 2008: high-short stocks underperform 1.16%/mo. Default OFF.")
+    short_interest_threshold: float = Field(0.10, description="phase-28.5: shortPercentOfFloat cutoff above which a ticker is excluded (default 10% = approximate top-decile for S&P 500 large-caps).")
+    short_interest_cache_days: int = Field(14, description="phase-28.5: Days to cache the FINRA bimonthly CSV before re-downloading (FINRA publishes bimonthly, so 14 days matches their cadence).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

@@ -244,7 +244,25 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 except Exception as e:
                     logger.warning("Sector calendars failed (non-fatal): %s", e)
 
-            screen_data = screen_universe(period="6mo")
+            # phase-28.5: short-interest exclusion lookup (FINRA bimonthly CSV preferred, yfinance fallback)
+            short_interest_lookup: dict[str, float] = {}
+            if getattr(settings, "short_interest_filter_enabled", False):
+                try:
+                    from backend.services.short_interest import fetch_short_interest_lookup
+                    short_interest_lookup = await fetch_short_interest_lookup()
+                    logger.info(
+                        "Short-interest lookup loaded: %d tickers (threshold=%.3f)",
+                        len(short_interest_lookup), settings.short_interest_threshold,
+                    )
+                    summary["short_interest_tickers_loaded"] = len(short_interest_lookup)
+                except Exception as e:
+                    logger.warning("Short-interest lookup failed (non-fatal): %s", e)
+
+            screen_data = screen_universe(
+                period="6mo",
+                short_interest_lookup=short_interest_lookup or None,
+                short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
+            )
             candidates = rank_candidates(
                 screen_data,
                 top_n=settings.paper_screen_top_n,

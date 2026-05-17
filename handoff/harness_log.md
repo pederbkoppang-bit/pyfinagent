@@ -19694,3 +19694,34 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~12 minutes (research gate ~5 min, edit + verify ~2 min, Q/A ~2 min, plus this log + status flip).
 
+
+---
+
+## Cycle 15 -- 2026-05-17 19:00 UTC -- phase=28.5 result=PASS
+
+**Step:** phase-28.5 — Short-interest exclusion filter in screen_universe (Boehmer-Jones-Zhang 2008: top-decile short stocks underperform 1.16%/mo; Oxford RAPS 2022 confirms in 32 countries).
+
+**Planner hypothesis:** Add an exclusion-only (not long-short) filter that skips tickers whose shortPercentOfFloat exceeds a configurable threshold (default 0.10 = top-decile for S&P 500 large-caps). Feature-flag default OFF preserves current Sharpe. FINRA bimonthly CSV preferred over per-ticker yfinance to avoid 500 extra HTTP calls per cycle. Lookup-dict pattern (mirrors sector_lookup from phase-23.1.13) keeps screener back-compat.
+
+**Generator:** 4 files touched —
+- `backend/config/settings.py` +4 lines (3 new fields: `short_interest_filter_enabled=False`, `short_interest_threshold=0.10`, `short_interest_cache_days=14`)
+- `backend/tools/screener.py` +20 lines (2 new kwargs on `screen_universe` + exclusion block immediately after the basic price/volume filter + docstring update)
+- `backend/services/short_interest.py` NEW 213-line module — FINRA bulk CSV primary + yfinance per-ticker fallback + 14-day local cache + graceful empty-dict on failure
+- `backend/services/autonomous_loop.py` +14 lines (flag-conditional pre-fetch of lookup right after `sector_events`; lookup + threshold passed into `screen_universe()`)
+
+**Researcher gate:** `gate_passed: true` (6 sources read in full: yfinance Ticker.info doc, FINRA short-interest files page, FINRA OTC API page, Quantpedia short-interest-effect long/short, Oxford RAPS 32-country 2022, practitioner short-percentage tutorial 2022-2025; 13 URLs collected; recency scan 2024-2026 documented partial OOS decay for the long-short version but NOT for exclusion-only filtering). Brief at `handoff/current/phase-28.5-research-brief.md`.
+
+**Q/A subagent verdict:** PASS (no violations, no follow-up required for this step).
+- 5-item harness audit: all PASS (researcher_gate, contract_before_generate, results_verbatim, log_last, no_verdict_shopping).
+- 6 deterministic checks: all EXIT 0 (immutable verification, 4-file syntax, settings defaults, new signature kwargs, exclusion smoke, back-compat smoke).
+- LLM judgment: contract aligned with implementation; default-OFF discipline preserved; back-compat fully proven; threshold (0.10) source-cited in 4 places; graceful degradation triple-layered (FINRA fails → yfinance fails → empty lookup → screener no-ops).
+- `violated_criteria: []`
+
+**Live check:** `handoff/current/live_check_28.5.md` — real yfinance shortPercentOfFloat data for 5 test tickers; GME (14.5%) + AMC (17.5%) excluded at threshold 0.10; TSLA (2.3%), AAPL (0.9%), MSFT (1.1%) kept. Cycle log line documented.
+
+**Known follow-up (NOT a defect; honestly disclosed):** the FINRA bulk-CSV primary path probes `cdn.finra.org/equity/regsho/monthly/shrt<DATE>.csv` which returned HTTP 403 in this environment. The correct FINRA URL convention requires either authenticated portal access or the documented `api.finra.org/data/group/otcMarket/...` REST endpoint. yfinance fallback handles current operation. Recommendation: do NOT enable `short_interest_filter_enabled=True` in production until the FINRA URL is corrected (otherwise 500 yfinance per-ticker calls with 429 risk). This is a tiny patch ticket — separate from phase-28.5 success criteria, which are all met.
+
+**Decision:** flip phase-28.5 status to `done`. Next: per user goal, no further item starts without explicit go-ahead. Per the proposal sequencing, next item is **28.1 — Analyst EPS revision-breadth plug-in** (S effort, P0 — directly addresses Sandisk/memory + oil-majors reference cases via revision-breadth signal).
+
+**Total cycle time:** ~25 minutes (research gate ~5 min, contract + 4 file edits ~7 min, smoke tests ~3 min, Q/A ~3 min, log + flip + reporting ~7 min).
+

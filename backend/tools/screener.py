@@ -66,6 +66,8 @@ def screen_universe(
     min_price: float = 5.0,
     period: str = "6mo",
     sector_lookup: Optional[dict] = None,
+    short_interest_lookup: Optional[dict[str, float]] = None,
+    short_interest_threshold: float = 0.10,
 ) -> list[dict]:
     """
     Screen a universe of tickers using quant factors.
@@ -86,6 +88,16 @@ def screen_universe(
     separate explicit step if market-cap filtering is needed beyond the
     inherent S&P 500 inclusion floor (currently ~$22.7B per S&P DJI 2024
     methodology update).
+
+    phase-28.5 (2026-05-17): optional short-interest exclusion. When
+    `short_interest_lookup={ticker: shortPercentOfFloat}` is provided, any
+    ticker whose float-short ratio exceeds `short_interest_threshold`
+    (default 0.10 = top-decile for S&P 500) is skipped. Source: Boehmer-
+    Jones-Zhang 2008 documents 1.16%/mo underperformance for high-short
+    stocks; Oxford RAPS 2022 confirms in 32 countries. Caller (typically
+    autonomous_loop) builds the lookup via FINRA bimonthly CSV (preferred)
+    or yfinance per-ticker fallback. When None or empty dict, no exclusion
+    fires (back-compat).
     """
     if tickers is None:
         tickers = get_sp500_tickers()
@@ -126,6 +138,18 @@ def screen_universe(
             # Basic filters
             if current_price < min_price or avg_vol < min_avg_volume:
                 continue
+
+            # phase-28.5: short-interest exclusion (high-short underperforms ~1.16%/mo per Boehmer-Jones-Zhang 2008).
+            # Lookup is opt-in; built by caller via FINRA bimonthly CSV (preferred) or yfinance per-ticker fallback.
+            # No exclusion fires when lookup is None or empty dict, preserving back-compat.
+            if short_interest_lookup:
+                short_pct = short_interest_lookup.get(ticker)
+                if short_pct is not None and short_pct > short_interest_threshold:
+                    logger.debug(
+                        "Excluding %s: shortPercentOfFloat=%.3f > %.3f (phase-28.5)",
+                        ticker, short_pct, short_interest_threshold,
+                    )
+                    continue
 
             # Momentum factors
             momentum_1m = _pct_change(close, 21)
