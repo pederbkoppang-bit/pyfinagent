@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `b5d76f2` | chore: harness audit-log appends from prompt-iteration session |
 | 2026-05-17 | `377d339` | chore: harness audit-log appends from prompt-drafting session |
 | 2026-05-17 | `e75390fe` | phase-28.7: Multidimensional momentum composite (price + SUE + 52-wk hi distance + factor momentum) |
 | 2026-05-17 | `722e253a` | phase-28.12: Sector-ETF momentum overlay (Quantpedia top-3 rotation) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `c13b1c79` | phase-26.6: Multimodal File Search RAG on financial_reports dataset |
 | 2026-05-16 | `d217d7a9` | phase-26.5: Alpha-decay / regime-shift detector skill (Gemini Flash) |
 | 2026-05-16 | `f7e24d0a` | phase-26.4: Consolidate 6 opinion skills into parameterized stance prompt |
-| 2026-05-16 | `827aed8c` | phase-26.3: Wire Gemini code_execution on 4 quant skills |
 
 ---
 
