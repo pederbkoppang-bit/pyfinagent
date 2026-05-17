@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `ef0836ca` | phase-28.6: Crude-oil (CL=F) cross-asset trend signal in macro_regime |
 | 2026-05-17 | `86f711f2` | phase-28.3: GPR-triggered energy-sector tilt in macro_regime.py |
 | 2026-05-17 | `6e1b0468` | phase-28.2: 12-quarter SUE stacking in pead_signal.py |
 | 2026-05-17 | `b570402d` | phase-28.1: Analyst EPS revision-breadth plug-in (feature-flagged) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `4f63bb51` | phase-26.1: Per-session Task Budget on autonomous_loop (hard pre-cycle ceiling) |
 | 2026-05-16 | `ee92e1a5` | phase-26.0: Verify Opus 4.7 migration complete across all callers |
 | 2026-05-16 | `c66f912a` | phase-25: Phase-24 remediation: 45 ranked code-change candidates from buckets 24.0-24.13 |
-| 2026-05-16 | `db5771d0` | fix(hooks): make PostToolUse Edit/Write hooks fail-open via trap exit 0 |
 
 ---
 
+### v6.9.5 — phase-28.6: Crude-oil (CL=F) cross-asset trend signal in macro_regime (2026-05-17)
+
+- **phase-28.6: Crude-oil (CL=F) cross-asset trend signal in macro_regime**
 ### v6.9.4 — phase-28.3: GPR-triggered energy-sector tilt in macro_regime.py (2026-05-17)
 
 - **phase-28.3: GPR-triggered energy-sector tilt in macro_regime.py**
