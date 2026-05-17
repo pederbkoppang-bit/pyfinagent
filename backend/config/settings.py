@@ -237,6 +237,16 @@ class Settings(BaseSettings):
     # phase-28.8: Russell-1000 universe expansion (addresses Sandisk/SNDK reference-case spinoff miss)
     russell1000_universe_enabled: bool = Field(False, description="phase-28.8: Use Russell-1000 (~1000 tickers) instead of S&P 500 (~503) for screen_universe. Default OFF. Existing two-pass design (cheap screen_universe -> top-N cap) keeps downstream cost bounded.")
     russell1000_cache_days: int = Field(180, description="phase-28.8: Days to cache the IWB ticker list (FTSE Russell semi-annual reconstitution -> 180 day TTL).")
+    # phase-28.9: options-flow OI-surge filter (near-expiry OTM call volume spike)
+    options_flow_screen_enabled: bool = Field(False, description="phase-28.9: Boost candidates with near-expiry OTM call OI/volume surge. Wayne State / J. Portfolio Mgmt: surge predictive of forward returns. Default OFF.")
+    options_otm_threshold: float = Field(1.01, description="phase-28.9: Minimum strike/spot ratio to count as OTM (1.01 = strike at least 1% above spot).")
+    options_dte_min: int = Field(2, description="phase-28.9: Minimum days-to-expiration for the signal window.")
+    options_dte_max: int = Field(45, description="phase-28.9: Maximum days-to-expiration; the signal is specific to near-expiry options.")
+    options_vol_avg_multiplier: float = Field(5.0, description="phase-28.9: A surge requires today's volume to exceed this multiple of the chain's average per-strike volume.")
+    options_vol_oi_multiplier: float = Field(3.0, description="phase-28.9: AND the surge requires volume to exceed this multiple of open interest (cross-check vs informed-flow definition).")
+    options_strong_boost: float = Field(0.06, description="phase-28.9: Score multiplier added (e.g. 0.06 = +6%) when 2+ surge strikes detected.")
+    options_moderate_boost: float = Field(0.03, description="phase-28.9: Score multiplier added when exactly 1 surge strike detected.")
+    options_cache_hours: int = Field(4, description="phase-28.9: Hours to cache per-ticker options-surge signals (chain updates intraday).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

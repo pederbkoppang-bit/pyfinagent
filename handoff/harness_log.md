@@ -19973,3 +19973,43 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~25 min.
 
+
+---
+
+## Cycle 1 -- 2026-05-17 20:51 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.40% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 24 -- 2026-05-17 21:25 UTC -- phase=28.9 result=PASS
+
+**Step:** phase-28.9 — Options-flow OI-surge filter (near-expiry OTM call surge per Wayne State / J. Portfolio Mgmt).
+
+**Generator:** 4 files —
+- `backend/services/options_flow_screen.py` NEW 165-line module (OptionsSurgeSignal model + async fetch with Semaphore(4) + apply helper).
+- `backend/tools/screener.py` (+`options_surge_signals` kwarg + apply block).
+- `backend/services/autonomous_loop.py` (+pre-fetch for top 2*paper_screen_top_n + pass-through).
+- `backend/config/settings.py` (+9 fields).
+
+**Researcher gate:** `gate_passed: true` (5 sources: CXO Advisory, LuxAlgo, Market Rebellion Najarian, Management Science 2026, OptionsTradingOrg).
+
+**Q/A verdict:** PASS — 5-item audit + 9 deterministic checks all PASS. Wayne State predicate honored (OTM > spot*1.01, DTE 2-45, vol > max(5x avg, 3x OI)).
+
+**Live check:** 5/5 mega-caps flagged today. NVDA +3% (1 surge), TSLA/AAPL/MSFT/META +6% (multiple surges incl. META with vol/OI ratio 1M on strike 642.5). Honest calibration note: thresholds may be loose for mega-caps; operator can tighten before flipping flag.
+
+**Decision:** flip phase-28.9 to `done`. Post-launch tier: 4/7. Next: **28.10 — Opportunistic insider buying signal**.
+
+**Total cycle time:** ~25 min.
+

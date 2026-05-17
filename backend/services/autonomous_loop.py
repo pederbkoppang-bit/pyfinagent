@@ -298,6 +298,35 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
 
+            # phase-28.9: options-flow OI-surge overlay. Fetched AFTER first-pass screen
+            # so per-ticker yfinance.option_chain cost is bounded by candidate-set size
+            # (top 2*paper_screen_top_n ~= 20 tickers), not full S&P 500. Default OFF.
+            options_surge_signals = {}
+            if getattr(settings, "options_flow_screen_enabled", False) and screen_data:
+                try:
+                    from backend.services.options_flow_screen import fetch_oi_surge_signals
+                    candidate_tickers_for_options = [
+                        s["ticker"] for s in screen_data[: 2 * settings.paper_screen_top_n]
+                        if s.get("ticker")
+                    ]
+                    options_surge_signals = await fetch_oi_surge_signals(
+                        candidate_tickers_for_options,
+                        otm_threshold=getattr(settings, "options_otm_threshold", 1.01),
+                        dte_min=getattr(settings, "options_dte_min", 2),
+                        dte_max=getattr(settings, "options_dte_max", 45),
+                        vol_avg_mult=getattr(settings, "options_vol_avg_multiplier", 5.0),
+                        vol_oi_mult=getattr(settings, "options_vol_oi_multiplier", 3.0),
+                        strong_boost=getattr(settings, "options_strong_boost", 0.06),
+                        moderate_boost=getattr(settings, "options_moderate_boost", 0.03),
+                    )
+                    logger.info(
+                        "options_flow_screen signals: %d/%d candidates flagged",
+                        len(options_surge_signals), len(candidate_tickers_for_options),
+                    )
+                    summary["options_surge_flagged"] = len(options_surge_signals)
+                except Exception as e:
+                    logger.warning("options_flow_screen fetch failed (non-fatal): %s", e)
+
             # phase-28.1: analyst EPS revision-breadth overlay. Fetched AFTER first-pass
             # screen so per-ticker cost is bounded by candidate-set size (typically <=30),
             # not full S&P 500. Default-OFF; non-fatal failure preserves cycle.
@@ -340,6 +369,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     "sue":      getattr(settings, "multidim_momentum_weight_sue", 0.20),
                     "sector":   getattr(settings, "multidim_momentum_weight_sector", 0.20),
                 },
+                options_surge_signals=options_surge_signals or None,
             )
 
             # phase-23.1.13: enrich top-N candidates with GICS sector via the

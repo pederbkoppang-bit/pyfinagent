@@ -222,6 +222,7 @@ def rank_candidates(
     multidim_momentum: bool = False,
     multidim_weights: Optional[dict[str, float]] = None,
     pead_signals_lookup=None,
+    options_surge_signals=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -304,6 +305,12 @@ def rank_candidates(
         if sector_momentum_ranks:
             from backend.services.sector_momentum import apply_sector_momentum_to_score
             score = apply_sector_momentum_to_score(score, stock.get("sector"), sector_momentum_ranks)
+
+        # phase-28.9: options-flow OI-surge overlay (Wayne State / J. Portfolio Mgmt).
+        # Boost when near-expiry OTM call volume surge detected. Identity otherwise.
+        if options_surge_signals:
+            from backend.services.options_flow_screen import apply_options_surge_to_score
+            score = apply_options_surge_to_score(score, stock.get("ticker"), options_surge_signals)
 
         scored.append({**stock, "composite_score": round(score, 3)})
 
