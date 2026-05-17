@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-17T20:25:24.026440+00:00",
+  "updated_at": "2026-05-17T20:15:34.153069+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10311,7 +10311,7 @@
         {
           "id": "28.12",
           "name": "Sector-ETF momentum overlay (Quantpedia top-3 rotation)",
-          "status": "done",
+          "status": "pending",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "28.4",

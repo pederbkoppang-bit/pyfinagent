@@ -244,6 +244,25 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 except Exception as e:
                     logger.warning("Sector calendars failed (non-fatal): %s", e)
 
+            # phase-28.12: sector-ETF momentum overlay (top-3 rotation boost)
+            sector_momentum_ranks = {}
+            if getattr(settings, "sector_momentum_enabled", False):
+                try:
+                    from backend.services.sector_momentum import fetch_sector_momentum_ranks
+                    sector_momentum_ranks = await fetch_sector_momentum_ranks(
+                        cache_hours=getattr(settings, "sector_momentum_cache_hours", 24),
+                        lookback_months=getattr(settings, "sector_momentum_lookback_months", 12),
+                        top_n=getattr(settings, "sector_momentum_top_n", 3),
+                        boost_top=getattr(settings, "sector_momentum_boost_top", 1.10),
+                        boost_leader=getattr(settings, "sector_momentum_boost_leader", 1.15),
+                    )
+                    logger.info("sector_momentum ranks loaded: %d sectors", len(sector_momentum_ranks))
+                    summary["sector_momentum_top"] = [
+                        r.sector for r in sector_momentum_ranks.values() if r.rank <= 3
+                    ]
+                except Exception as e:
+                    logger.warning("sector_momentum fetch failed (non-fatal): %s", e)
+
             # phase-28.5: short-interest exclusion lookup (FINRA bimonthly CSV preferred, yfinance fallback)
             short_interest_lookup: dict[str, float] = {}
             if getattr(settings, "short_interest_filter_enabled", False):
@@ -298,6 +317,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 revision_signals=revision_signals or None,
                 sector_neutral=getattr(settings, "sector_neutral_momentum_enabled", False),
                 sector_neutral_min_group_size=getattr(settings, "sector_neutral_min_group_size", 3),
+                sector_momentum_ranks=sector_momentum_ranks or None,
             )
 
             # phase-23.1.13: enrich top-N candidates with GICS sector via the

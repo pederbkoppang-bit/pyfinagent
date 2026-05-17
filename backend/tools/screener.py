@@ -208,6 +208,7 @@ def rank_candidates(
     revision_signals=None,
     sector_neutral: bool = False,
     sector_neutral_min_group_size: int = 3,
+    sector_momentum_ranks=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -283,6 +284,13 @@ def rank_candidates(
         if revision_signals:
             from backend.services.analyst_revisions import apply_revisions_to_score
             score = apply_revisions_to_score(score, stock.get("ticker"), revision_signals)
+
+        # phase-28.12: sector-ETF momentum overlay (Quantpedia top-3 rotation).
+        # Boost candidates in top-N momentum sectors. Identity when ranks dict is None
+        # or sector missing/non-top.
+        if sector_momentum_ranks:
+            from backend.services.sector_momentum import apply_sector_momentum_to_score
+            score = apply_sector_momentum_to_score(score, stock.get("sector"), sector_momentum_ranks)
 
         scored.append({**stock, "composite_score": round(score, 3)})
 

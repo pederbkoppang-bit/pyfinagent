@@ -221,6 +221,13 @@ class Settings(BaseSettings):
     # phase-28.4: sector-neutral momentum scoring (within-sector percentile rank)
     sector_neutral_momentum_enabled: bool = Field(False, description="phase-28.4: When True, rank_candidates replaces composite_score with within-sector percentile rank (pandas Series.rank pct). Improves Sharpe + reduces regime sensitivity per CFA Institute Dec 2025. Default OFF.")
     sector_neutral_min_group_size: int = Field(3, description="phase-28.4: Minimum candidates per sector to apply within-sector percentile rank. Smaller groups + missing-sector stocks fall back to a global cross-sector percentile pool.")
+    # phase-28.12: sector-ETF momentum overlay (Quantpedia top-3 rotation)
+    sector_momentum_enabled: bool = Field(False, description="phase-28.12: When True, boost composite_score for candidates in top-N momentum sectors (12m return on 11 SPDR ETFs). Quantpedia: top-3 monthly rotation 13.94%/yr Sharpe 0.54 +4%/yr vs passive. Default OFF.")
+    sector_momentum_lookback_months: int = Field(12, description="phase-28.12: Trailing months used to compute sector ETF total return for ranking. Canonical: 12 months.")
+    sector_momentum_top_n: int = Field(3, description="phase-28.12: Number of top sectors that receive the boost. Canonical: 3 (top-quartile of 11 GICS sectors).")
+    sector_momentum_boost_top: float = Field(1.10, description="phase-28.12: Multiplier for candidates in top-N sectors (default: +10%).")
+    sector_momentum_boost_leader: float = Field(1.15, description="phase-28.12: Multiplier for candidates in the #1 momentum sector (default: +15%).")
+    sector_momentum_cache_hours: int = Field(24, description="phase-28.12: Hours to cache the yfinance sector-ETF batch fetch.")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

@@ -19866,3 +19866,32 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~30 min (research gate ~5 min, contract + edits ~10 min, smoke ~3 min, Q/A initial ~3 min, Q/A continuation ~2 min, log + flip ~7 min).
 
+
+---
+
+## Cycle 21 -- 2026-05-17 20:30 UTC -- phase=28.12 result=PASS
+
+**Step:** phase-28.12 — Sector-ETF momentum overlay (Quantpedia top-3 rotation). First post-launch tier item.
+
+**Planner hypothesis:** Rank 11 SPDR sector ETFs by trailing 12m total return; boost candidates in top-3 sectors (1.10×) with extra emphasis on #1 (1.15×). Quantpedia: 13.94% annualized / Sharpe 0.54 / +4%/yr vs passive. Default OFF.
+
+**Generator:** 4 files —
+- `backend/services/sector_momentum.py` NEW 175-line module (RankedSector model + async fetch with single yfinance batch for 11 ETFs + apply_sector_momentum_to_score + JSON cache 24h).
+- `backend/tools/screener.py` (+kwarg + overlay block in per-stock loop after analyst_revisions).
+- `backend/services/autonomous_loop.py` (+flag-conditional pre-fetch + pass-through).
+- `backend/config/settings.py` (+6 fields: enabled (False), lookback_months (12), top_n (3), boost_top (1.10), boost_leader (1.15), cache_hours (24)).
+
+**Researcher gate:** `gate_passed: true` (5 sources read in full: Quantpedia sector momentum rotational system, Quantpedia how-to-improve-etf-sector-momentum, Faber ChartSchool, Alvarez Quant Trading, LuxAlgo; 13 URLs; recency scan).
+
+**Q/A subagent verdict:** PASS (no violations; 2 non-blocking notes on doc style).
+- 5-item audit: all PASS.
+- 12 deterministic checks: immutable verification, 4-file syntax, settings defaults, module imports, signature kwarg, autonomous_loop fetch+pass-through, live fetch reproducing 11 sectors verbatim, 9 apply unit tests, mutation test, sector_analysis.py NOT touched (zero git diff), graceful degradation 3-layer inspection, screener integration block placement.
+
+**Note on Q/A continuation:** initial Q/A spawn returned mid-step-4 (same pattern as 28.4 / 28.6). SendMessage continuation completed in 15s. Critique file properly overwritten with phase-28.12 verdict.
+
+**Live check:** `handoff/current/live_check_28.12.md` — REAL DATA from yfinance batch fetch of 11 SPDR ETFs (single call). Top-3: **Technology +51.43% (boost 1.15)**, **Energy +43.93% (boost 1.10)**, **Industrials +23.55% (boost 1.10)**. Laggard: Financials at +1.86%. Approximate ~167 of ~500 S&P 500 tickers would receive a boost (one-third of universe).
+
+**Decision:** flip phase-28.12 to `done`. Post-launch tier 1/7 done. Next per proposal sequencing: **28.7 — Multidimensional momentum composite** (M effort; Researcher already in flight).
+
+**Total cycle time:** ~25 min.
+
