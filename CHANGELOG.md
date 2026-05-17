@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `1a088125` | phase-28.15: Social media velocity in screener (lift social_sentiment.py into picker pre-filter) |
 | 2026-05-17 | `6e88f91a` | phase-28.13: Earnings-call NLP for firm-level GPR exposure |
 | 2026-05-17 | `ac5a5b3c` | phase-28.11: LLM analyst-report narrative signal (highest expected lift) |
 | 2026-05-17 | `f61ffeb0` | phase-28.10: Opportunistic insider-buying signal lifted from Layer-1 into screener tier |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `35aecc2b` | chore(docs): clarify paper-trading tables live in financial_reports |
 | 2026-05-16 | `613c345f` | phase-23.2.2: Verify zero phantom trades / cash-leak regressions (trade<->position reconciliation) |
 | 2026-05-16 | `85bfce5d` | chore: align Claude effort levels with Anthropic recommendations |
-| 2026-05-16 | `ae3004ff` | phase-26.7: Combined Gemini tools+grounding single-call refactor on enrichment skills |
 
 ---
 
+### v6.9.14 — phase-28.15: Social media velocity in screener (lift social_sentiment... (2026-05-17)
+
+- **phase-28.15: Social media velocity in screener (lift social_sentiment.py into picker pre-filter)**
 ### v6.9.13 — phase-28.13: Earnings-call NLP for firm-level GPR exposure (2026-05-17)
 
 - **phase-28.13: Earnings-call NLP for firm-level GPR exposure**
