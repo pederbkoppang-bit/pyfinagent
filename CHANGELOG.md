@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `53e5f8b5` | docs(audits): add phase-28.5 smoke-test audit log |
 | 2026-05-17 | `664871a4` | phase-28.5: Short-interest exclusion filter in screen_universe |
 | 2026-05-17 | `2ed3b6db` | phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe() |
 | 2026-05-16 | `5b3dad4d` | phase-23.2.3: Verify FD leak did not regress |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `706d9cf2` | phase-16.15: Go/No-Go verdict (Q/A spawn required -- NO self-evaluation) |
 | 2026-05-16 | `ba18ffab` | phase-16.59: Uplift Q/A with code-reviewer capabilities (max research gate, full harness MAS) |
 | 2026-05-16 | `e3f9a3bd` | docs: phase-26 frontier-sync proposal (8-step DRAFT awaiting approval) |
-| 2026-05-16 | `952c211b` | chore(masterplan): condense /masterplan skill to dashboard + filter mode |
 
 ---
 
