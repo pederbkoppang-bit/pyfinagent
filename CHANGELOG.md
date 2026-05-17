@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `b570402d` | phase-28.1: Analyst EPS revision-breadth plug-in (feature-flagged) |
 | 2026-05-17 | `53e5f8b5` | docs(audits): add phase-28.5 smoke-test audit log |
 | 2026-05-17 | `664871a4` | phase-28.5: Short-interest exclusion filter in screen_universe |
 | 2026-05-17 | `2ed3b6db` | phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe() |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `db5771d0` | fix(hooks): make PostToolUse Edit/Write hooks fail-open via trap exit 0 |
 | 2026-05-16 | `706d9cf2` | phase-16.15: Go/No-Go verdict (Q/A spawn required -- NO self-evaluation) |
 | 2026-05-16 | `ba18ffab` | phase-16.59: Uplift Q/A with code-reviewer capabilities (max research gate, full harness MAS) |
-| 2026-05-16 | `e3f9a3bd` | docs: phase-26 frontier-sync proposal (8-step DRAFT awaiting approval) |
 
 ---
 
+### v6.9.2 — phase-28.1: Analyst EPS revision-breadth plug-in (feature-flagged) (2026-05-17)
+
+- **phase-28.1: Analyst EPS revision-breadth plug-in (feature-flagged)**
 ### v6.9.1 — phase-28.5: Short-interest exclusion filter in screen_universe (2026-05-17)
 
 - **phase-28.5: Short-interest exclusion filter in screen_universe**
