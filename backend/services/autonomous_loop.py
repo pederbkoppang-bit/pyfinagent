@@ -263,6 +263,31 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_lookup=short_interest_lookup or None,
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
+
+            # phase-28.1: analyst EPS revision-breadth overlay. Fetched AFTER first-pass
+            # screen so per-ticker cost is bounded by candidate-set size (typically <=30),
+            # not full S&P 500. Default-OFF; non-fatal failure preserves cycle.
+            revision_signals = {}
+            if getattr(settings, "analyst_revisions_enabled", False) and screen_data:
+                try:
+                    from backend.services.analyst_revisions import fetch_revision_signals
+                    candidate_tickers = [
+                        s["ticker"] for s in screen_data[: 2 * settings.paper_screen_top_n]
+                        if s.get("ticker")
+                    ]
+                    revision_signals = await fetch_revision_signals(
+                        candidate_tickers,
+                        lookback_days=getattr(settings, "analyst_revisions_lookback_days", 100),
+                        min_analysts=getattr(settings, "analyst_revisions_min_analysts", 3),
+                    )
+                    logger.info(
+                        "analyst_revisions signals: %d/%d candidates scored",
+                        len(revision_signals), len(candidate_tickers),
+                    )
+                    summary["analyst_revisions_scored"] = len(revision_signals)
+                except Exception as e:
+                    logger.warning("analyst_revisions fetch failed (non-fatal): %s", e)
+
             candidates = rank_candidates(
                 screen_data,
                 top_n=settings.paper_screen_top_n,
@@ -270,6 +295,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 pead_signals=pead_signals or None,
                 news_signals=news_signals or None,
                 sector_events=sector_events or None,
+                revision_signals=revision_signals or None,
             )
 
             # phase-23.1.13: enrich top-N candidates with GICS sector via the

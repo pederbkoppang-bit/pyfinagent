@@ -200,6 +200,12 @@ class Settings(BaseSettings):
     short_interest_filter_enabled: bool = Field(False, description="phase-28.5: Exclude tickers with shortPercentOfFloat > short_interest_threshold from screener. Boehmer-Jones-Zhang 2008: high-short stocks underperform 1.16%/mo. Default OFF.")
     short_interest_threshold: float = Field(0.10, description="phase-28.5: shortPercentOfFloat cutoff above which a ticker is excluded (default 10% = approximate top-decile for S&P 500 large-caps).")
     short_interest_cache_days: int = Field(14, description="phase-28.5: Days to cache the FINRA bimonthly CSV before re-downloading (FINRA publishes bimonthly, so 14 days matches their cadence).")
+    # phase-28.1: analyst EPS revision-breadth overlay (yfinance Ticker.upgrades_downgrades)
+    analyst_revisions_enabled: bool = Field(False, description="phase-28.1: Apply analyst revision-breadth multiplier in screener rank_candidates. Mill Street Research 19yr: t=2.93, Sharpe~1.60 combined with momentum. Default OFF.")
+    analyst_revisions_lookback_days: int = Field(100, description="phase-28.1: Lookback window (days) for revision-breadth count. Mill Street canonical: 100. Shorter (30-60) is faster but lower IC.")
+    analyst_revisions_min_analysts: int = Field(3, description="phase-28.1: Minimum up+down grade actions in the lookback window for the signal to fire (statistical-noise guard).")
+    analyst_revisions_threshold: float = Field(0.10, description="phase-28.1: |breadth| above which the multiplier fires (deadband when |breadth| <= threshold). breadth = (n_up - n_down) / (n_up + n_down).")
+    analyst_revisions_weight: float = Field(0.15, description="phase-28.1: Multiplier intensity. score *= (1 + breadth * weight). 0.15 means a full +1.0 breadth yields a +15% score boost.")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

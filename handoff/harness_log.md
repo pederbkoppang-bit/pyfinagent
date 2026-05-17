@@ -19725,3 +19725,34 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~25 minutes (research gate ~5 min, contract + 4 file edits ~7 min, smoke tests ~3 min, Q/A ~3 min, log + flip + reporting ~7 min).
 
+
+---
+
+## Cycle 16 -- 2026-05-17 19:30 UTC -- phase=28.1 result=PASS
+
+**Step:** phase-28.1 — Analyst EPS revision-breadth plug-in (Mill Street Research 19yr: t=2.93, p=0.003; Sharpe~1.60 combined with momentum).
+
+**Planner hypothesis:** Add a small-magnitude multiplier overlay on the screener's composite score based on yfinance `Ticker.upgrades_downgrades` revision breadth `(n_up - n_down) / (n_up + n_down)` over a 100-day window. Boost when |breadth| > 0.10 deadband with weight 0.15. Default OFF.
+
+**Generator:** 4 files —
+- `backend/services/analyst_revisions.py` NEW 165-line module (Pydantic RevisionSignal + async fetch with Semaphore(4) + apply_revisions_to_score with deadband)
+- `backend/tools/screener.py` (+ revision_signals kwarg to rank_candidates + overlay block after sector_events)
+- `backend/services/autonomous_loop.py` (+ flag-conditional fetch for top-N tickers, passed to rank_candidates)
+- `backend/config/settings.py` (+ 5 fields: enabled (False), lookback_days (100), min_analysts (3), threshold (0.10), weight (0.15))
+
+**Mid-cycle bug-fix:** initial smoke returned 0/5 signals due to tz-comparison TypeError silently swallowed in `_compute_breadth` (yfinance index is tz-naive datetime64[s]; cutoff was tz-aware). Fixed by switching cutoff to tz-naive + explicit fallback for tz-aware indexes. Documented in experiment_results.md "Mid-cycle bug-fix" section. Post-fix smoke: 4/9 signals (AAPL +1.00, TSLA +1.00, GOOGL +0.00, AMD +0.143).
+
+**Researcher gate:** `gate_passed: true` (5 sources read in full: yfinance API ref, Mill Street methodology, arXiv 2502.20489, arXiv 2410.20597, MDPI 2025 momentum-based normalization; 15 URLs; recency scan 2024-2026; three-variant queries).
+
+**Q/A subagent verdict:** PASS (no violations).
+- 5-item audit: all PASS.
+- 8 deterministic checks: all PASS (immutable verification, 4-file syntax, settings defaults, rank_candidates signature, smoke fetch, back-compat single + multi, grep counts in screener + autonomous_loop).
+- LLM judgment: contract aligned; back-compat fully verified; default-OFF preserved; mid-cycle bug-fix candidly disclosed. Minor follow-up note from Q/A: the outer broad-except in `_compute_breadth`/`_fetch_one` could be tightened to specific exception classes — but this matches the existing pead/news/sector graceful-degradation pattern, so it's a future cycle's polish item, not a defect.
+- `violated_criteria: []`
+
+**Live check:** `handoff/current/live_check_28.1.md` — 4 real revision signals + rank_candidates baseline vs overlay diff. Top-3 conviction shifts: AAPL +1.155 (7.700 → 8.855), TSLA +0.915 (6.100 → 7.015), AMD +0.148 (6.900 → 7.048). Ranking change: AAPL #2 → #1; TSLA #7-tied → #5.
+
+**Decision:** flip phase-28.1 to `done`. Next per proposal sequencing: **28.2 — 12-quarter SUE stacking in pead_signal.py** (S effort, P1; extends existing pead_signal cache from _LOOKBACK_QUARTERS=8 to 12 + reweighting; ScienceDirect 2025 documents +85% Sharpe lift).
+
+**Total cycle time:** ~30 min (research gate ~5 min, contract + 4 file edits ~7 min, initial smoke + bug-fix + re-smoke ~10 min, Q/A ~3 min, log + flip + reporting ~5 min).
+

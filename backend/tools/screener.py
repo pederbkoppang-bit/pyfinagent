@@ -205,6 +205,7 @@ def rank_candidates(
     pead_signals=None,
     news_signals=None,
     sector_events=None,
+    revision_signals=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -273,6 +274,13 @@ def rank_candidates(
             if new_score is None:
                 continue
             score = new_score
+
+        # phase-28.1: analyst EPS revision-breadth overlay
+        # Mill Street Research 19yr backtest: Sharpe~1.60 combined with momentum.
+        # score *= (1 + breadth * weight) when |breadth| > threshold; no-op otherwise.
+        if revision_signals:
+            from backend.services.analyst_revisions import apply_revisions_to_score
+            score = apply_revisions_to_score(score, stock.get("ticker"), revision_signals)
 
         scored.append({**stock, "composite_score": round(score, 3)})
 
