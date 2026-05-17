@@ -298,6 +298,33 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
 
+            # phase-28.10: opportunistic insider-buying overlay. Fetched AFTER first-pass
+            # screen so SEC EDGAR cost is bounded by candidate-set size. Default OFF.
+            insider_signals = {}
+            if getattr(settings, "insider_signal_screen_enabled", False) and screen_data:
+                try:
+                    from backend.services.insider_signal_screen import fetch_insider_signals
+                    candidate_tickers_for_insider = [
+                        s["ticker"] for s in screen_data[: 2 * settings.paper_screen_top_n]
+                        if s.get("ticker")
+                    ]
+                    insider_signals = await fetch_insider_signals(
+                        candidate_tickers_for_insider,
+                        lookback_months=getattr(settings, "insider_lookback_history_months", 48),
+                        window_days=getattr(settings, "insider_signal_window_days", 30),
+                        min_usd=getattr(settings, "insider_signal_min_aggregate_usd", 500_000.0),
+                        strong_usd=getattr(settings, "insider_signal_strong_aggregate_usd", 2_000_000.0),
+                        strong_boost=getattr(settings, "insider_strong_boost", 0.07),
+                        moderate_boost=getattr(settings, "insider_moderate_boost", 0.04),
+                    )
+                    logger.info(
+                        "insider_signal_screen: %d/%d candidates flagged",
+                        len(insider_signals), len(candidate_tickers_for_insider),
+                    )
+                    summary["insider_signals_flagged"] = len(insider_signals)
+                except Exception as e:
+                    logger.warning("insider_signal_screen fetch failed (non-fatal): %s", e)
+
             # phase-28.9: options-flow OI-surge overlay. Fetched AFTER first-pass screen
             # so per-ticker yfinance.option_chain cost is bounded by candidate-set size
             # (top 2*paper_screen_top_n ~= 20 tickers), not full S&P 500. Default OFF.
@@ -370,6 +397,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     "sector":   getattr(settings, "multidim_momentum_weight_sector", 0.20),
                 },
                 options_surge_signals=options_surge_signals or None,
+                insider_signals=insider_signals or None,
             )
 
             # phase-23.1.13: enrich top-N candidates with GICS sector via the

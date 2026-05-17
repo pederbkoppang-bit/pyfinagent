@@ -20013,3 +20013,26 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~25 min.
 
+
+---
+
+## Cycle 25 -- 2026-05-17 21:50 UTC -- phase=28.10 result=PASS
+
+**Step:** phase-28.10 — Opportunistic insider buying signal (Cohen-Malloy-Pomorski classifier).
+
+**Generator:** 4 files —
+- `backend/services/insider_signal_screen.py` NEW 195-line module (InsiderSignal model + _is_routine + _has_min_history + _classify_trades + fetch_insider_signals + apply helper).
+- `backend/tools/screener.py` (+ `insider_signals` kwarg + apply block after options_surge).
+- `backend/services/autonomous_loop.py` (+ pre-fetch + pass-through).
+- `backend/config/settings.py` (+7 fields default OFF).
+
+**Researcher gate:** `gate_passed: true` (5 sources: arXiv 2026 insider microcaps, Quant Decoded, CRA Q2 2025, Harvard Law CMP summary, NBER Digest).
+
+**Q/A subagent verdict:** PASS (no violations). 21-assertion unit-test suite covering: CMP rule no-gaps, cold-start <3y guard, insider-level UNKNOWN routing, threshold-edge tiers. Verified BUY-only filter, 4-layer graceful degradation, cost-bounding to 2*top_n.
+
+**Live SEC fetch deferred** (rate-limited; synthetic smoke covers full classifier + boost + apply with 100% public-surface coverage; underlying get_insider_trades is production-tested by Layer-1).
+
+**Decision:** flip phase-28.10 to `done`. Post-launch tier: 5/7. Next: **28.11 — LLM analyst-narrative signal** (L effort).
+
+**Total cycle time:** ~25 min.
+

@@ -247,6 +247,14 @@ class Settings(BaseSettings):
     options_strong_boost: float = Field(0.06, description="phase-28.9: Score multiplier added (e.g. 0.06 = +6%) when 2+ surge strikes detected.")
     options_moderate_boost: float = Field(0.03, description="phase-28.9: Score multiplier added when exactly 1 surge strike detected.")
     options_cache_hours: int = Field(4, description="phase-28.9: Hours to cache per-ticker options-surge signals (chain updates intraday).")
+    # phase-28.10: opportunistic insider-buying signal (Cohen-Malloy-Pomorski classifier)
+    insider_signal_screen_enabled: bool = Field(False, description="phase-28.10: Boost candidates with material opportunistic insider buying. CMP classifier: routine = same-month-of-year for 3 prior years; opportunistic = all others. CMP earns 82bps/mo abnormal. Default OFF.")
+    insider_lookback_history_months: int = Field(48, description="phase-28.10: Months of insider history fetched for CMP classification (need >=36 to identify 3-year repeats).")
+    insider_signal_window_days: int = Field(30, description="phase-28.10: Aggregation window for opportunistic-buy dollar value.")
+    insider_signal_min_aggregate_usd: float = Field(500_000.0, description="phase-28.10: Minimum aggregate opportunistic-buy $ in window to fire moderate boost.")
+    insider_signal_strong_aggregate_usd: float = Field(2_000_000.0, description="phase-28.10: Threshold $ for strong boost (typically 4x moderate).")
+    insider_strong_boost: float = Field(0.07, description="phase-28.10: Multiplier (additive) for strong opportunistic buying (default +7%).")
+    insider_moderate_boost: float = Field(0.04, description="phase-28.10: Multiplier (additive) for moderate opportunistic buying (default +4%).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

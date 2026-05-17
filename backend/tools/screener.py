@@ -223,6 +223,7 @@ def rank_candidates(
     multidim_weights: Optional[dict[str, float]] = None,
     pead_signals_lookup=None,
     options_surge_signals=None,
+    insider_signals=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -311,6 +312,12 @@ def rank_candidates(
         if options_surge_signals:
             from backend.services.options_flow_screen import apply_options_surge_to_score
             score = apply_options_surge_to_score(score, stock.get("ticker"), options_surge_signals)
+
+        # phase-28.10: opportunistic insider-buying overlay (Cohen-Malloy-Pomorski).
+        # Boost when material opportunistic-buy aggregate detected; identity otherwise.
+        if insider_signals:
+            from backend.services.insider_signal_screen import apply_insider_signal_to_score
+            score = apply_insider_signal_to_score(score, stock.get("ticker"), insider_signals)
 
         scored.append({**stock, "composite_score": round(score, 3)})
 
