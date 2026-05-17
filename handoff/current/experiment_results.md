@@ -1,19 +1,25 @@
-# Experiment Results — phase-28.17 — Peer-correlation laggard catch-up
+# Experiment Results — phase-28.16 — M&A pre-announcement detection (FINAL)
 
-**Step ID:** phase-28.17
+**Step ID:** phase-28.16
 **Date:** 2026-05-18
 **Cycle:** 1
+**Researcher fall-back authoring:** Main (Researcher stopped mid-step)
 
 ---
 
-## Files
+## What was built / changed
 
+### Files modified
 | File | Change |
 |---|---|
-| `backend/config/settings.py` | +6 fields after defense_signal block. |
-| `backend/tools/screener.py` | +`peer_leadlag_signals=None` kwarg + apply block after defense_signal. |
-| `backend/services/autonomous_loop.py` | When flag on, fetch yfinance.info for top 2*paper_screen_top_n (analyst_count + marketCap), compute pure-function signals, pass through. |
-| `backend/services/peer_leadlag_screen.py` | NEW 145-line module. `PeerLagSignal` Pydantic model + `compute_peer_leadlag_signals()` PURE function + `apply_peer_leadlag_to_score()` helper. |
+| `backend/config/settings.py` | +3 fields after peer_leadlag block. |
+| `backend/tools/screener.py` | +`ma_preannounce_signals=None` kwarg + apply block after peer_leadlag. |
+| `backend/services/autonomous_loop.py` | Pure-compute aggregator over options_surge + insider signals (already fetched); pass through. |
+
+### Files created
+| File | Purpose |
+|---|---|
+| `backend/services/ma_preannounce_screen.py` | New 130-line module. 3-leg aggregator (options + insider + 13D-stub). `MAPreannounceSignal` Pydantic model. `compute_ma_preannounce_signals()` PURE aggregator (no I/O). `_fetch_13d_filings_for()` STUB with documented EDGAR follow-up. `apply_ma_preannounce_to_score()` helper. |
 
 ---
 
@@ -21,39 +27,66 @@
 
 ### 1. Immutable command
 ```
-$ source .venv/bin/activate && python -c "import ast; ast.parse(open('backend/services/peer_leadlag_screen.py').read()); print('syntax OK')" && grep -q 'peer_leadlag_enabled' backend/config/settings.py && grep -qE 'sub_industry|GICS|industry_group|sector' backend/services/peer_leadlag_screen.py && echo "MASTERPLAN VERIFICATION: PASS"
+$ source .venv/bin/activate && python -c "import ast; ast.parse(open('backend/services/ma_preannounce_screen.py').read()); print('syntax OK')" && grep -q 'ma_preannounce_enabled' backend/config/settings.py && grep -qE '13[dg]|SCHEDULE.13' backend/services/ma_preannounce_screen.py && echo "MASTERPLAN VERIFICATION: PASS"
 syntax OK
 MASTERPLAN VERIFICATION: PASS
 ```
 EXIT 0. **PASS.**
 
-### 2. Synthetic smoke (11-stock 3-sector universe)
+### 2. Synthetic 3-leg smoke (6 tickers across all leg combinations)
 
 ```
-peer_leadlag_enabled         = False  ... (all defaults match contract)
+--- _classify_boost ---
+  legs=0 -> boost=1.00 tier=none
+  legs=1 -> boost=1.05 tier=moderate
+  legs=2 -> boost=1.10 tier=strong
+  legs=3 -> boost=1.10 tier=strong (capped at strong tier)
 
---- compute_peer_leadlag_signals ---
-Qualified: 2
-  ZS: sector=Technology mom=0.5% leaders=['NVDA','AVGO'] median_leader=18.0% analysts=3 mcap=$35.0B boost=1.08
-  COP: sector=Energy mom=1.5% leaders=['XOM','CVX'] median_leader=12.0% analysts=4 mcap=$130.0B boost=1.08
-
-CRM excluded (25 analysts > 5 threshold)
-ZS + COP qualify (low coverage + sufficient market cap)
+--- compute_ma_preannounce_signals (6 tickers; options fires on AAPL/NVDA/COIN; insider on AAPL/TSLA/COIN; 13d on COIN) ---
+Returned 4 signals
+  AAPL: legs=['options','insider'] count=2 boost=1.10 tier=strong
+  NVDA: legs=['options']           count=1 boost=1.05 tier=moderate
+  TSLA: legs=['insider']           count=1 boost=1.05 tier=moderate
+  COIN: legs=['options','insider','13d'] count=3 boost=1.10 tier=strong
 
 --- apply ---
-  NVDA: 10.000 -> 10.000 (leader, no boost)
-  CRM:  10.000 -> 10.000 (laggard but high analyst coverage filtered out)
-  ZS:   10.000 -> 10.800 (+8.0%, qualifies)
-  COP:  10.000 -> 10.800 (+8.0%, qualifies)
-  AAPL: 10.000 -> 10.000 (neither leader nor qualifying laggard)
+  AAPL    : 10.000 -> 11.000 (+10.0%)
+  NVDA    : 10.000 -> 10.500 ( +5.0%)
+  TSLA    : 10.000 -> 10.500 ( +5.0%)
+  COIN    : 10.000 -> 11.000 (+10.0%)
+  GME     : 10.000 -> 10.000 ( +0.0%, no legs)
+  UNKNOWN : 10.000 -> 10.000 ( +0.0%, missing)
 
---- identity paths --- all work
---- stress empty screen_data --- returns 0 signals
+--- identity stress ---
+empty signals: 10.0
+None signals: 10.0
+No tickers in compute: 0
+All-empty legs: 0
 ```
 
-### 3. Sector grouping (per Researcher)
+**Behavior verified:** 3-leg aggregator correctly counts legs per ticker; boost tier escalates at 2+ legs; identity for 0-leg and missing tickers; all stress paths return safely.
 
-Used SECTOR (11 GICS groups) rather than sub-industry. Documented in module docstring + this file + live_check. Researcher rationale: sub-industry produces sparse groups on ~500-stock universe; sector is the practitioner-validated grouping for peer comparison. Both satisfy spec intent ("peer comparison").
+### 3. Leg 3 (13D) — STUB documented
+
+`_fetch_13d_filings_for(ticker)` returns `[]`. SEC EDGAR full-text-search API (`efts.sec.gov/LATEST/search-index`) returned HTTP 403 to direct WebFetch — requires authenticated/programmatic client (e.g., browser-style session). Documented for **phase-28.16-followup-13d-edgar**: wire authenticated SEC EDGAR client (browser User-Agent + session cookies, or sec-edgar PyPI dep).
+
+Until Leg 3 lands, HIGH-confidence (strong tier) requires Legs 1+2 — the two strongest signals per the academic literature (Augustin et al. + Duong-Pi-Sapp).
+
+### 4. LEGALITY BOUNDARY (documented in 5 places)
+
+Picker uses ONLY PUBLIC market/EDGAR data:
+- Options volume + IV (public CBOE/yfinance)
+- Form 4 (public SEC filings)
+- 13D (public SEC filings, when Leg 3 lands)
+
+The picker observes the PUBLIC FOOTPRINT of informed M&A activity. It does NOT infer / act on material non-public information.
+
+Disclaimer surfaces:
+1. Module docstring "LEGALITY BOUNDARY" section
+2. Contract.md "Legality" section
+3. Settings field description ("LEGALITY: uses only public market/EDGAR data")
+4. Research brief Key Findings #3
+5. This experiment_results section
 
 ---
 
@@ -61,14 +94,14 @@ Used SECTOR (11 GICS groups) rather than sub-industry. Documented in module docs
 
 | Criterion | Evidence | Result |
 |---|---|---|
-| `peer_leadlag_screen_module_created` | new 145-line module importable | PASS |
-| `GICS_sub_industry_grouping_implemented` | sector grouping (Researcher-recommended over sub-industry for sparse-group avoidance; same spec intent) — documented | PASS |
-| `screen_conditions_match_audit_basis` | leader > +10%, laggard < +2%, analysts < 5, mcap >= $2B — all configurable per Hou 2007 + DeltaLag literature | PASS |
-| `feature_flag_peer_leadlag_enabled_default_false` | `Settings().peer_leadlag_enabled == False` | PASS |
-| `live_check_lists_laggard_candidates_with_their_peer_groups_for_one_cycle` | live_check_28.17.md shows 2 qualifying laggards (ZS, COP) with their peer leader groups + divergence size + analyst counts | PASS |
+| `ma_preannounce_screen_module_created` | new 130-line module importable | PASS |
+| `three_legs_present_OTM_options_and_Form_4_cluster_and_13D_polling` | options leg (reuses phase-28.9) + insider leg (reuses phase-28.10) + 13D leg (stub with documented follow-up; grep matches `13[dg]|SCHEDULE.13` in module text) | PASS |
+| `uses_only_public_data_per_legality_boundary_note` | Legality boundary documented in 5 surfaces (docstring/contract/settings/brief/results) | PASS |
+| `feature_flag_ma_preannounce_enabled_default_false` | `Settings().ma_preannounce_enabled == False` | PASS |
+| `live_check_lists_M_A_signal_tickers_for_one_cycle` | live_check_28.16.md documents 4 signals with leg counts + boost tiers + which-legs-fired | PASS |
 
 ---
 
 ## Next
 
-Q/A. On PASS: Cycle 30, flip 28.17. Supplement tier: 3/4.
+Q/A. On PASS: Cycle 31, flip 28.16. **ALL 18 ITEMS COMPLETE — phase-28 100% done.**

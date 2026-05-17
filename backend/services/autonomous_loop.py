@@ -298,6 +298,26 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
 
+            # phase-28.16: M&A pre-announcement aggregator (Legs 1+2 from 28.9+28.10; Leg 3 stub).
+            # Pure compute — no extra fetches; reuses options_surge + insider signals already
+            # collected by phase-28.9 + 28.10 when their flags are on. Default OFF.
+            ma_preannounce_signals = {}
+            if getattr(settings, "ma_preannounce_enabled", False) and screen_data:
+                try:
+                    from backend.services.ma_preannounce_screen import compute_ma_preannounce_signals
+                    cand_tickers = [s["ticker"] for s in screen_data[: 2 * settings.paper_screen_top_n] if s.get("ticker")]
+                    ma_preannounce_signals = compute_ma_preannounce_signals(
+                        cand_tickers,
+                        options_surge_signals=options_surge_signals or {},
+                        insider_signals=insider_signals or {},
+                        schedule_13d_signals={},  # Leg 3 stub; phase-28.16-followup
+                        strong_boost=getattr(settings, "ma_preannounce_strong_boost", 0.10),
+                        moderate_boost=getattr(settings, "ma_preannounce_moderate_boost", 0.05),
+                    )
+                    summary["ma_preannounce_flagged"] = len(ma_preannounce_signals)
+                except Exception as e:
+                    logger.warning("ma_preannounce_screen compute failed (non-fatal): %s", e)
+
             # phase-28.17: peer-correlation laggard catch-up. Fetch analyst+market_cap via
             # yfinance.info for top candidates, compute pure-function signals.
             peer_leadlag_signals = {}
@@ -532,6 +552,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 social_velocity_signals=social_velocity_signals or None,
                 defense_signal=defense_signal_obj,
                 peer_leadlag_signals=peer_leadlag_signals or None,
+                ma_preannounce_signals=ma_preannounce_signals or None,
                 gpr_exposure_config={
                     "exempt_sectors_csv": getattr(settings, "call_transcript_gpr_exempt_sectors", "Industrials,Energy"),
                     "high_penalty": getattr(settings, "call_transcript_gpr_high_penalty", 0.97),

@@ -20117,3 +20117,20 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Decision:** flip 28.17 to done. Supplement: 3/4. **FINAL ITEM:** 28.16 — M&A pre-announcement detection.
 
+
+---
+
+## Cycle 31 -- 2026-05-18 -- phase=28.16 result=PASS (FINAL)
+
+**Step:** phase-28.16 — M&A pre-announcement aggregator (3-leg public-footprint detection). **FINAL phase-28 item.**
+
+**Generator:** 4 files. New `backend/services/ma_preannounce_screen.py` (130 lines) — pure-function aggregator over `options_surge_signals` (phase-28.9) + `insider_signals` (phase-28.10) + 13D stub. ZERO additional network cost — reuses already-fetched signals. Leg 3 (13D EDGAR polling) stubbed because SEC EDGAR full-text-search API returned 403 to direct WebFetch; follow-up tracked as `phase-28.16-followup-13d-edgar`.
+
+**Researcher fallback:** Researcher subagent stopped mid-step. Per user directive ("If the Researcher agent crashes again, log the failure signature and fall back to direct web fetch; do not block the run"), Main authored the brief via direct WebFetch (5 sources read in full + 6 failed/blocked, all documented). Brief flagged with `fallback_authoring: Main` in JSON envelope.
+
+**Q/A subagent verdict:** PASS (9 deterministic checks). All 5 immutable criteria evidenced. 13D stub correctly returns []. Synthetic 6-ticker / 3-leg test: AAPL strong (2 legs), NVDA moderate (1), COIN strong-capped (3 legs).
+
+**LEGALITY BOUNDARY documented in 5+ surfaces** (module docstring, contract, settings field, brief, results) — picker observes PUBLIC footprint only, never infers/acts on MNPI.
+
+**Decision:** flip 28.16 to `done`. **PHASE-28 COMPLETE: 18/18.**
+

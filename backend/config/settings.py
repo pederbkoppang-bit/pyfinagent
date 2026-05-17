@@ -296,6 +296,10 @@ class Settings(BaseSettings):
     peer_leadlag_min_analyst_filter: int = Field(5, description="phase-28.17: Maximum analyst_count to qualify as laggard (Hou 2007: lag is strongest where coverage is low).")
     peer_leadlag_min_market_cap_usd: float = Field(2_000_000_000.0, description="phase-28.17: Minimum market cap for laggard qualification (DeltaLag $2B liquidity gate).")
     peer_leadlag_boost: float = Field(0.08, description="phase-28.17: Multiplier (additive) for qualifying laggards (default +8%, conservative vs DeltaLag gross).")
+    # phase-28.16: M&A pre-announcement aggregator (Legs 1+2 from 28.9+28.10; Leg 3 stubbed)
+    ma_preannounce_enabled: bool = Field(False, description="phase-28.16: Aggregate options-surge (28.9) + insider-buying (28.10) + 13D-stub legs into a single M&A pre-announcement signal. Augustin-Brenner-Subrahmanyam + Duong-Pi-Sapp 2025. LEGALITY: uses only public market/EDGAR data. Default OFF.")
+    ma_preannounce_strong_boost: float = Field(0.10, description="phase-28.16: Multiplier when 2+ legs fire (default +10%; high-confidence convergence).")
+    ma_preannounce_moderate_boost: float = Field(0.05, description="phase-28.16: Multiplier when exactly 1 leg fires (default +5%).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

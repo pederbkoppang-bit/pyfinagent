@@ -230,6 +230,7 @@ def rank_candidates(
     social_velocity_signals=None,
     defense_signal=None,
     peer_leadlag_signals=None,
+    ma_preannounce_signals=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -359,6 +360,12 @@ def rank_candidates(
         if peer_leadlag_signals:
             from backend.services.peer_leadlag_screen import apply_peer_leadlag_to_score
             score = apply_peer_leadlag_to_score(score, stock.get("ticker"), peer_leadlag_signals)
+
+        # phase-28.16: M&A pre-announcement aggregator (options + insider + 13D-stub).
+        # Boost when multiple legs of the public footprint converge.
+        if ma_preannounce_signals:
+            from backend.services.ma_preannounce_screen import apply_ma_preannounce_to_score
+            score = apply_ma_preannounce_to_score(score, stock.get("ticker"), ma_preannounce_signals)
 
         scored.append({**stock, "composite_score": round(score, 3)})
 
