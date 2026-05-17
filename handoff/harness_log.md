@@ -19783,3 +19783,29 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~15 min.
 
+
+---
+
+## Cycle 18 -- 2026-05-17 19:55 UTC -- phase=28.3 result=PASS
+
+**Step:** phase-28.3 — GPR-Acts (Caldara-Iacoviello) post-LLM tilt that injects energy ETFs into `macro_regime.sector_hints.overweight` when GPRA exceeds a quantile threshold. Directly addresses oil-majors reference case.
+
+**Planner hypothesis:** Add a thin GPR-Acts fetcher (matteoiacoviello.com .xls, 90th-pct quantile of trailing 60 months) + post-LLM `_apply_gpr_tilt` helper that injects XLE (configurable) into sector_hints.overweight when current > threshold. Feature-flag default OFF. Mechanism: US-as-net-exporter asymmetry (per Caldara-Iacoviello AER 2022 + IMF GFSR 2025).
+
+**Generator:** 3 files —
+- `backend/services/macro_regime.py`: new constants (_GPR_URL_PRIMARY/FALLBACK, _GPR_CACHE_DIR, _GPR_ROLLING_MONTHS=60); new `_fetch_gpr_acts()` async helper (downloads/caches xls, parses GPRA column, computes rolling quantile threshold); new `_apply_gpr_tilt()` helper (idempotent overweight injection); post-LLM hook inside `compute_macro_regime()`.
+- `backend/config/settings.py` (+4 fields: enabled (False), quantile (0.90), cache_hours (24), sector_etfs ("XLE")).
+- `backend/requirements.txt` (+xlrd>=2.0.1 with phase-28.3 comment).
+
+**Mid-cycle dependency add:** initial live fetch failed with `Import xlrd failed`. Fix: `pip install xlrd>=2.0.1` (now in venv) + persisted in requirements.txt. Honestly disclosed in experiment_results.md and live_check_28.3.md.
+
+**Researcher gate:** `gate_passed: true` (7 sources read in full: policyuncertainty.com GPR page, Caldara author page, ERL ×2 on GPR-oil shocks, PMC GPR contagion, KPMG 2025 energy risks, ECB Economic Bulletin GPR-oil; 17 URLs; recency scan 2024-2026).
+
+**Q/A subagent verdict:** PASS (no violations). Q/A ran 5 independent `_apply_gpr_tilt` unit tests (above-threshold inject, below-threshold identity, multi-ETF, dedup, empty-CSV identity) — all PASS, all non-tautological. Q/A also ran the live fetch and reproduced current=285.35, threshold=184.93, above_threshold=True.
+
+**Live check:** `handoff/current/live_check_28.3.md` — REAL DATA from matteoiacoviello.com: GPR-Acts = 285.35 (April 2026) vs 90th-pct threshold = 184.93 (rolling 60 months) → above_threshold = True. Simulated apply: overweight `['XLK']` → `['XLK', 'XLE']`. Real-world: this current value would inject XLE into sector_hints during any cycle right now if the flag were on.
+
+**Decision:** flip phase-28.3 to `done`. Next per proposal sequencing: **28.6 — Crude-oil (CL=F) cross-asset trend signal** (S effort, P1; complements 28.3 with a secondary energy-sector trigger from oil futures momentum).
+
+**Total cycle time:** ~25 min (research gate ~5 min, contract + edits ~10 min, mid-cycle xlrd install + re-smoke ~3 min, Q/A ~5 min, log + flip ~2 min).
+

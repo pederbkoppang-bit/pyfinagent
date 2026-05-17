@@ -43,6 +43,23 @@ _REGIME_SERIES = (
     "FEDFUNDS", "CPIAUCSL", "UNRATE", "INDPRO",
 )
 
+# phase-28.3: Caldara-Iacoviello GPR-Acts (geopolitical events) energy sector tilt
+# Source: matteoiacoviello.com — monthly Excel, CC-BY 4.0. The GPRA column counts
+# REALIZED geopolitical events (vs GPRT = threats). Since the US became a net oil
+# exporter (late 2010s), GPRA spikes ASYMMETRICALLY benefit US energy majors (per
+# Caldara-Iacoviello AER 2022 + IMF GFSR 2025). When triggered, we post-process the
+# LLM's MacroRegimeOutput.sector_hints.overweight to inject the configured energy
+# ETFs (default: XLE), deduped, preserving order. Threshold is a QUANTILE of the
+# rolling 5-year history (default 0.90 = 90th pct) — a calibrated practitioner
+# heuristic (no peer-reviewed paper validates the exact cutoff; the underlying
+# directional mechanism is well-documented).
+_GPR_URL_PRIMARY = "https://www.matteoiacoviello.com/gpr_files/data_gpr_export.xls"
+_GPR_URL_FALLBACK = "https://www.matteoiacoviello.com/gpr_files/data_gpr.xls"
+_GPR_CACHE_DIR = _CACHE_DIR / "gpr"
+_GPR_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+_GPR_CACHE_PATH = _GPR_CACHE_DIR / "data_gpr_export.xls"
+_GPR_ROLLING_MONTHS = 60
+
 
 class SectorWeights(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -78,6 +95,109 @@ class MacroRegimeOutput(BaseModel):
         description="FRED series IDs that were available (e.g. ['T10Y2Y','VIXCLS','BAMLH0A0HYM2']).",
     )
     computed_at: str = Field(description="ISO-8601 UTC timestamp when this regime was computed.")
+
+
+async def _fetch_gpr_acts(cache_hours: int = 24, quantile: float = 0.90) -> Optional[dict]:
+    """phase-28.3: Fetch latest GPR-Acts value from matteoiacoviello.com.
+
+    Returns a dict with keys:
+        current: float -- latest GPRA value
+        threshold: float -- quantile-th value over the trailing _GPR_ROLLING_MONTHS
+        last_date: str -- ISO date of the latest observation
+        above_threshold: bool -- current > threshold
+
+    Returns None on any unrecoverable error (network, parse, missing column).
+    Uses a local file cache that auto-refreshes after `cache_hours`.
+    """
+    cache_fresh = False
+    if _GPR_CACHE_PATH.exists():
+        try:
+            age = datetime.now(timezone.utc) - datetime.fromtimestamp(
+                _GPR_CACHE_PATH.stat().st_mtime, tz=timezone.utc
+            )
+            cache_fresh = age < timedelta(hours=cache_hours)
+        except Exception:
+            cache_fresh = False
+
+    if not cache_fresh:
+        import httpx
+        ok = False
+        for url in (_GPR_URL_PRIMARY, _GPR_URL_FALLBACK):
+            try:
+                async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+                    resp = await client.get(url, headers={"User-Agent": "PyFinAgent/2.0 (phase-28.3)"})
+                if resp.status_code == 200 and len(resp.content) > 1024:
+                    _GPR_CACHE_PATH.write_bytes(resp.content)
+                    ok = True
+                    logger.info("GPR Excel downloaded (%d bytes) from %s", len(resp.content), url)
+                    break
+            except Exception as e:
+                logger.debug("GPR fetch failed from %s: %s", url, e)
+                continue
+        if not ok:
+            logger.warning("GPR fetch: all sources failed; falling back to cached file if present")
+            if not _GPR_CACHE_PATH.exists():
+                return None
+
+    try:
+        import pandas as pd
+        df = pd.read_excel(_GPR_CACHE_PATH)
+    except Exception as e:
+        logger.warning("GPR Excel parse failed: %s", e)
+        return None
+
+    if "GPRA" not in df.columns:
+        # Some versions of the file expose GPR_ACTS or different casing -- fallback search
+        alt = next((c for c in df.columns if "act" in str(c).lower() or "gpra" in str(c).lower()), None)
+        if alt is None:
+            logger.warning("GPR Excel missing GPRA column; cols=%s", list(df.columns)[:10])
+            return None
+        df = df.rename(columns={alt: "GPRA"})
+
+    df = df.dropna(subset=["GPRA"])
+    if df.empty:
+        return None
+    series = df["GPRA"].astype(float)
+    current = float(series.iloc[-1])
+    trailing = series.tail(_GPR_ROLLING_MONTHS)
+    threshold = float(trailing.quantile(quantile)) if len(trailing) >= 12 else float(series.quantile(quantile))
+
+    last_date = ""
+    for date_col in ("month", "Month", "date", "Date"):
+        if date_col in df.columns:
+            try:
+                last_date = str(df[date_col].iloc[-1])
+                break
+            except Exception:
+                pass
+
+    return {
+        "current": current,
+        "threshold": threshold,
+        "last_date": last_date,
+        "above_threshold": current > threshold,
+        "rolling_n": int(len(trailing)),
+        "quantile": quantile,
+    }
+
+
+def _apply_gpr_tilt(parsed: "MacroRegimeOutput", gpr_info: dict, sector_etfs_csv: str) -> "MacroRegimeOutput":
+    """phase-28.3: When GPR-Acts is above the quantile threshold, inject configured
+    energy ETFs into sector_hints.overweight (deduped, preserving order).
+
+    Identity if `gpr_info["above_threshold"]` is False.
+    """
+    if not gpr_info.get("above_threshold"):
+        return parsed
+    etfs = [e.strip().upper() for e in sector_etfs_csv.split(",") if e.strip()]
+    if not etfs:
+        return parsed
+    existing = list(parsed.sector_hints.overweight)
+    for e in etfs:
+        if e not in existing:
+            existing.append(e)
+    new_hints = SectorWeights(overweight=existing, underweight=parsed.sector_hints.underweight)
+    return parsed.model_copy(update={"sector_hints": new_hints})
 
 
 def _load_cache() -> Optional[MacroRegimeOutput]:
@@ -241,6 +361,26 @@ async def compute_macro_regime(use_cache: bool = True) -> MacroRegimeOutput:
 
     if not parsed.series_used:
         parsed = parsed.model_copy(update={"series_used": available})
+
+    # phase-28.3: Optional GPR-Acts post-process. When enabled AND latest GPRA exceeds
+    # the configured quantile threshold, inject XLE (or configured ETFs) into
+    # sector_hints.overweight. Identity when disabled or fetch fails.
+    if getattr(settings, "gpr_signal_enabled", False):
+        try:
+            gpr_info = await _fetch_gpr_acts(
+                cache_hours=getattr(settings, "gpr_signal_cache_hours", 24),
+                quantile=getattr(settings, "gpr_signal_quantile", 0.90),
+            )
+            if gpr_info:
+                pre_overweight = list(parsed.sector_hints.overweight)
+                parsed = _apply_gpr_tilt(parsed, gpr_info, getattr(settings, "gpr_signal_sector_etfs", "XLE"))
+                logger.info(
+                    "GPR tilt: current=%.2f threshold=%.2f above=%s; overweight %s -> %s",
+                    gpr_info["current"], gpr_info["threshold"], gpr_info["above_threshold"],
+                    pre_overweight, list(parsed.sector_hints.overweight),
+                )
+        except Exception as e:
+            logger.warning("GPR tilt application failed (non-fatal): %s", e)
 
     _save_cache(parsed)
     logger.info(

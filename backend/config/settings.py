@@ -206,6 +206,11 @@ class Settings(BaseSettings):
     analyst_revisions_min_analysts: int = Field(3, description="phase-28.1: Minimum up+down grade actions in the lookback window for the signal to fire (statistical-noise guard).")
     analyst_revisions_threshold: float = Field(0.10, description="phase-28.1: |breadth| above which the multiplier fires (deadband when |breadth| <= threshold). breadth = (n_up - n_down) / (n_up + n_down).")
     analyst_revisions_weight: float = Field(0.15, description="phase-28.1: Multiplier intensity. score *= (1 + breadth * weight). 0.15 means a full +1.0 breadth yields a +15% score boost.")
+    # phase-28.3: GPR (Geopolitical Risk Acts) sector-tilt trigger (Caldara-Iacoviello)
+    gpr_signal_enabled: bool = Field(False, description="phase-28.3: When latest GPR-Acts > quantile threshold, inject configured energy ETFs into macro_regime.sector_hints.overweight. Caldara-Iacoviello AER 2022 + IMF GFSR 2025: US-as-net-exporter asymmetry favors XOM/CVX/COP/OXY on Middle-East GPR spikes. Default OFF.")
+    gpr_signal_quantile: float = Field(0.90, description="phase-28.3: Quantile of rolling 5-year GPRA history above which the tilt triggers (0.90 = 90th percentile = ~120-145 absolute in historical baseline).")
+    gpr_signal_cache_hours: int = Field(24, description="phase-28.3: Hours to cache the downloaded GPR Excel before refetching. Matches matteoiacoviello.com ~monthly publication cadence (24h is generous).")
+    gpr_signal_sector_etfs: str = Field("XLE", description="phase-28.3: Comma-separated list of sector ETF tickers to add to sector_hints.overweight when GPR-Acts crosses threshold. Default XLE (energy SPDR).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the
