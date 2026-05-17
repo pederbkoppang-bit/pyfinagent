@@ -275,6 +275,13 @@ class Settings(BaseSettings):
     call_transcript_gpr_high_penalty: float = Field(0.97, description="phase-28.13: Multiplier for HIGH-exposure firms not in exempt sectors (default 0.97 = -3% defensive haircut).")
     call_transcript_gpr_exempt_sectors: str = Field("Industrials,Energy", description="phase-28.13: Comma-separated sectors that BENEFIT from elevated GPR — no penalty applied for these (defense contractors live in Industrials, oil majors in Energy).")
     call_transcript_gpr_cost_cap_usd: float = Field(0.10, description="phase-28.13: Per-cycle soft cap. Operator monitoring; ~$0.001 per LLM call.")
+    # phase-28.15: social media velocity in screener (lifts existing social_sentiment.py)
+    social_velocity_enabled: bool = Field(False, description="phase-28.15: Boost candidates with social-sentiment velocity spikes via Alpha Vantage NEWS_SENTIMENT (bundles Reddit/Twitter/StockTwits/blogs). DNUT July 2025: 500% StockTwits spike preceded 90% pre-market. Default OFF.")
+    social_velocity_min_threshold: float = Field(0.10, description="phase-28.15: Minimum velocity (recent_avg - older_avg) to fire moderate boost.")
+    social_velocity_min_mentions: int = Field(3, description="phase-28.15: Minimum ticker mention_count to qualify (noise guard).")
+    social_velocity_strong_threshold: float = Field(0.20, description="phase-28.15: Velocity above which strong boost fires (2x moderate threshold).")
+    social_velocity_strong_boost: float = Field(0.06, description="phase-28.15: Multiplier for strong velocity spike (default +6%).")
+    social_velocity_moderate_boost: float = Field(0.03, description="phase-28.15: Multiplier for moderate velocity (default +3%).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

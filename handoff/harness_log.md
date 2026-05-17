@@ -20070,3 +20070,20 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Decision:** flip phase-28.13 to `done`. **POST-LAUNCH TIER COMPLETE 7/7.** Phase-28: 14/18. Supplement tier (28.14-28.17) remaining.
 
+
+---
+
+## Cycle 28 -- 2026-05-17 23:10 UTC -- phase=28.15 result=PASS
+
+**Step:** phase-28.15 — Social media velocity in screener (lifts existing social_sentiment.py via Alpha Vantage NEWS_SENTIMENT).
+
+**Generator:** 4 files. New `backend/services/social_velocity_screen.py` (165 lines) wraps `get_social_sentiment` (no duplicate AV client). Per Researcher: StockTwits=403, ApeWisdom Reddit-only — AV bundles all sources. Threshold: velocity>=0.10 + mentions>=3 (noise guard). Boost 0.06/0.03 strong/moderate.
+
+**Mid-cycle bug-fix:** initial fetcher read `velocity` but social_sentiment.py:122 returns `sentiment_velocity`. Fixed with primary + fallback. Post-fix smoke clean.
+
+**Researcher gate:** `gate_passed: true` (5 sources).
+
+**Q/A subagent verdict:** PASS (24 checks). All 8 classifier paths + all 6 apply paths verified. 4-surface honest documentation of StockTwits/ApeWisdom pivots. Rate-limit 3 layers (Semaphore(2) + 0.5s throttle + 2*top_n cap).
+
+**Decision:** flip phase-28.15 to `done`. Supplement tier: 1/4. Next: **28.14 — Defense/war-stocks reference-case implementation**.
+

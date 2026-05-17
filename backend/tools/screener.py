@@ -227,6 +227,7 @@ def rank_candidates(
     narrative_signals=None,
     gpr_exposure_signals=None,
     gpr_exposure_config: Optional[dict] = None,
+    social_velocity_signals=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -338,6 +339,12 @@ def rank_candidates(
                 exempt_sectors_csv=cfg.get("exempt_sectors_csv", "Industrials,Energy"),
                 high_penalty=cfg.get("high_penalty", 0.97),
             )
+
+        # phase-28.15: social media velocity overlay (Alpha Vantage cross-source).
+        # Boost when velocity >= threshold + sufficient mentions; identity otherwise.
+        if social_velocity_signals:
+            from backend.services.social_velocity_screen import apply_social_velocity_to_score
+            score = apply_social_velocity_to_score(score, stock.get("ticker"), social_velocity_signals)
 
         scored.append({**stock, "composite_score": round(score, 3)})
 

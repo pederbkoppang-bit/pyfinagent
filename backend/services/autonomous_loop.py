@@ -298,6 +298,33 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
 
+            # phase-28.15: social media velocity overlay (Alpha Vantage NEWS_SENTIMENT
+            # cross-source — Reddit/Twitter/StockTwits/blogs). Pre-rally signal per
+            # supplement Gap 2 + DNUT July 2025 case. Default OFF.
+            social_velocity_signals = {}
+            if getattr(settings, "social_velocity_enabled", False) and screen_data:
+                try:
+                    from backend.services.social_velocity_screen import fetch_social_velocity_signals
+                    candidate_tickers_for_social = [
+                        s["ticker"] for s in screen_data[: 2 * settings.paper_screen_top_n]
+                        if s.get("ticker")
+                    ]
+                    social_velocity_signals = await fetch_social_velocity_signals(
+                        candidate_tickers_for_social,
+                        min_threshold=getattr(settings, "social_velocity_min_threshold", 0.10),
+                        min_mentions=getattr(settings, "social_velocity_min_mentions", 3),
+                        strong_threshold=getattr(settings, "social_velocity_strong_threshold", 0.20),
+                        strong_boost=getattr(settings, "social_velocity_strong_boost", 0.06),
+                        moderate_boost=getattr(settings, "social_velocity_moderate_boost", 0.03),
+                    )
+                    logger.info(
+                        "social_velocity_screen: %d/%d candidates flagged",
+                        len(social_velocity_signals), len(candidate_tickers_for_social),
+                    )
+                    summary["social_velocity_flagged"] = len(social_velocity_signals)
+                except Exception as e:
+                    logger.warning("social_velocity_screen fetch failed (non-fatal): %s", e)
+
             # phase-28.13: firm-level GPR exposure DEFENSIVE filter (Fed 2025 R²=0.23
             # contemporaneous only; NOT forward alpha). LLM-classify per-firm 4-tier
             # from earnings-call transcripts. Default OFF.
@@ -451,6 +478,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 insider_signals=insider_signals or None,
                 narrative_signals=narrative_signals or None,
                 gpr_exposure_signals=gpr_exposure_signals or None,
+                social_velocity_signals=social_velocity_signals or None,
                 gpr_exposure_config={
                     "exempt_sectors_csv": getattr(settings, "call_transcript_gpr_exempt_sectors", "Industrials,Energy"),
                     "high_penalty": getattr(settings, "call_transcript_gpr_high_penalty", 0.97),
