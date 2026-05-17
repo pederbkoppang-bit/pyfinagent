@@ -60,6 +60,17 @@ _GPR_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 _GPR_CACHE_PATH = _GPR_CACHE_DIR / "data_gpr_export.xls"
 _GPR_ROLLING_MONTHS = 60
 
+# phase-28.6: WTI crude (CL=F) 1-month momentum secondary trigger. Orthogonal to
+# phase-28.3 GPR-Acts: high-GPR/flat-oil and rising-oil/low-GPR both occur, so
+# this is a genuinely additive (not duplicate) trigger. Computed as z-score of
+# the trailing 21d cumulative percent change over the rolling 252d distribution.
+# When the z-score exceeds threshold (default 1.0), the configured energy ETFs
+# are injected into sector_hints.overweight via the SAME _apply_gpr_tilt helper
+# (it's generic over `above_threshold`). yfinance >=0.2.40 is already a dep.
+_CRUDE_CACHE_DIR = _CACHE_DIR / "crude"
+_CRUDE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+_CRUDE_CACHE_PATH = _CRUDE_CACHE_DIR / "crude_momentum.json"
+
 
 class SectorWeights(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -181,11 +192,108 @@ async def _fetch_gpr_acts(cache_hours: int = 24, quantile: float = 0.90) -> Opti
     }
 
 
-def _apply_gpr_tilt(parsed: "MacroRegimeOutput", gpr_info: dict, sector_etfs_csv: str) -> "MacroRegimeOutput":
-    """phase-28.3: When GPR-Acts is above the quantile threshold, inject configured
-    energy ETFs into sector_hints.overweight (deduped, preserving order).
+async def _fetch_crude_momentum(
+    cache_hours: int = 24,
+    window_days: int = 21,
+    lookback_days: int = 252,
+    zscore_threshold: float = 1.0,
+) -> Optional[dict]:
+    """phase-28.6: Fetch WTI crude (CL=F) 1-month momentum z-score.
 
-    Identity if `gpr_info["above_threshold"]` is False.
+    Returns a dict with keys:
+        current_momentum: float -- trailing `window_days` percent change of CL=F close
+        zscore: float -- z-score of current momentum vs rolling `lookback_days` distribution
+        threshold: float -- the configured zscore threshold
+        last_date: str -- date of the latest close used
+        above_threshold: bool -- zscore > threshold
+
+    Returns None on any unrecoverable error (network, parse).
+    """
+    # Cache fresh? -> return parsed cached dict
+    if _CRUDE_CACHE_PATH.exists():
+        try:
+            age = datetime.now(timezone.utc) - datetime.fromtimestamp(
+                _CRUDE_CACHE_PATH.stat().st_mtime, tz=timezone.utc
+            )
+            if age < timedelta(hours=cache_hours):
+                cached = json.loads(_CRUDE_CACHE_PATH.read_text(encoding="utf-8"))
+                logger.info("Crude momentum cache hit: zscore=%.2f above=%s",
+                            cached.get("zscore", float("nan")), cached.get("above_threshold"))
+                return cached
+        except Exception as e:
+            logger.debug("Crude cache unreadable: %s", e)
+
+    try:
+        import yfinance as yf
+    except ImportError:
+        logger.warning("yfinance not installed; crude_momentum unavailable")
+        return None
+
+    try:
+        period_days = max(lookback_days + window_days + 30, 365)
+        period = f"{period_days}d" if period_days <= 365 else "2y"
+        df = await asyncio.to_thread(
+            lambda: yf.download("CL=F", period=period, interval="1d",
+                                auto_adjust=True, progress=False)
+        )
+    except Exception as e:
+        logger.warning("yfinance CL=F download failed: %s", e)
+        return None
+
+    if df is None or len(df) == 0:
+        logger.warning("yfinance CL=F returned empty")
+        return None
+
+    try:
+        close = df["Close"].dropna()
+        if hasattr(close, "squeeze"):
+            close = close.squeeze()
+        if len(close) < (window_days + 10):
+            logger.warning("CL=F insufficient history: %d closes", len(close))
+            return None
+
+        rolling_mom = close.pct_change(periods=window_days).dropna()
+        current = float(rolling_mom.iloc[-1])
+
+        recent = rolling_mom.tail(lookback_days)
+        mean = float(recent.mean())
+        std = float(recent.std())
+        zscore = (current - mean) / std if std and std > 1e-9 else 0.0
+
+        result = {
+            "current_momentum": round(current, 6),
+            "zscore": round(zscore, 4),
+            "mean": round(mean, 6),
+            "std": round(std, 6),
+            "threshold": float(zscore_threshold),
+            "last_date": str(close.index[-1]),
+            "above_threshold": zscore > zscore_threshold,
+            "n_observations": int(len(recent)),
+            "window_days": window_days,
+            "lookback_days": lookback_days,
+        }
+    except Exception as e:
+        logger.warning("Crude momentum compute failed: %s", e)
+        return None
+
+    try:
+        _CRUDE_CACHE_PATH.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning("Crude cache write failed: %s", e)
+    logger.info(
+        "Crude momentum: current=%.3f%% zscore=%+.2f above=%s",
+        result["current_momentum"] * 100, result["zscore"], result["above_threshold"],
+    )
+    return result
+
+
+def _apply_gpr_tilt(parsed: "MacroRegimeOutput", gpr_info: dict, sector_etfs_csv: str) -> "MacroRegimeOutput":
+    """phase-28.3 (reused by phase-28.6): When `gpr_info["above_threshold"]` is True,
+    inject configured energy ETFs into sector_hints.overweight (deduped, preserving order).
+    Function is generic over the trigger info dict — only `above_threshold` is read,
+    so it works for GPR-Acts AND for crude momentum z-score.
+
+    Identity if `above_threshold` is False.
     """
     if not gpr_info.get("above_threshold"):
         return parsed
@@ -381,6 +489,29 @@ async def compute_macro_regime(use_cache: bool = True) -> MacroRegimeOutput:
                 )
         except Exception as e:
             logger.warning("GPR tilt application failed (non-fatal): %s", e)
+
+    # phase-28.6: Optional WTI crude (CL=F) 1m-momentum post-process. Orthogonal to GPR.
+    # When enabled AND z-score exceeds threshold, inject configured energy ETFs into
+    # sector_hints.overweight via _apply_gpr_tilt (generic over above_threshold).
+    if getattr(settings, "crude_momentum_enabled", False):
+        try:
+            crude_info = await _fetch_crude_momentum(
+                cache_hours=getattr(settings, "crude_momentum_cache_hours", 24),
+                window_days=getattr(settings, "crude_momentum_window_days", 21),
+                lookback_days=getattr(settings, "crude_momentum_lookback_days", 252),
+                zscore_threshold=getattr(settings, "crude_momentum_zscore_threshold", 1.0),
+            )
+            if crude_info:
+                pre_overweight = list(parsed.sector_hints.overweight)
+                parsed = _apply_gpr_tilt(parsed, crude_info,
+                                         getattr(settings, "crude_momentum_sector_etfs", "XLE"))
+                logger.info(
+                    "Crude momentum tilt: zscore=%+.2f threshold=%.2f above=%s; overweight %s -> %s",
+                    crude_info["zscore"], crude_info["threshold"], crude_info["above_threshold"],
+                    pre_overweight, list(parsed.sector_hints.overweight),
+                )
+        except Exception as e:
+            logger.warning("Crude momentum tilt application failed (non-fatal): %s", e)
 
     _save_cache(parsed)
     logger.info(

@@ -19809,3 +19809,31 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~25 min (research gate ~5 min, contract + edits ~10 min, mid-cycle xlrd install + re-smoke ~3 min, Q/A ~5 min, log + flip ~2 min).
 
+
+---
+
+## Cycle 19 -- 2026-05-17 20:05 UTC -- phase=28.6 result=PASS
+
+**Step:** phase-28.6 — Crude-oil (CL=F) 1m-momentum z-score post-LLM trigger; orthogonal to phase-28.3 GPR.
+
+**Planner hypothesis:** Add a SECOND post-LLM hook in `compute_macro_regime()` that fires when WTI crude (CL=F) 1-month momentum z-score exceeds 1.0 (rolling 252d distribution). Reuse `_apply_gpr_tilt` since it's generic over `above_threshold`. Default OFF. Orthogonal to GPR (additive trigger).
+
+**Generator:** 2 files —
+- `backend/services/macro_regime.py`: new `_CRUDE_CACHE_DIR/PATH` constants with phase-28.6 rationale comment; new `_fetch_crude_momentum()` async helper (yfinance CL=F → 1m pct_change → z-score over rolling 252d → JSON cache); SECOND post-LLM hook after the GPR hook (line ~496); `_apply_gpr_tilt` docstring updated to reflect dual-purpose use.
+- `backend/config/settings.py` (+6 fields: enabled (False), window_days (21), lookback_days (252), zscore_threshold (1.0), cache_hours (24), sector_etfs ("XLE")).
+
+**Researcher gate:** `gate_passed: true` (6 sources: yfinance docs for CL=F + BZ=F, RePEc 2024 crude momentum, EIA STEO May 2026, XLE composition page, ScienceDirect crude predictability; 13 URLs; recency scan 2024-2026).
+
+**Q/A subagent verdict:** PASS (no violations). Q/A ran 9 deterministic checks including its own `_apply_gpr_tilt` reuse unit test (above=True → inject XLE; above=False → identity) and the live `_fetch_crude_momentum()` reproducing current=+0.0669 zscore=+0.137 verbatim.
+- 5-item audit: all PASS.
+- Post-LLM hook ordering verified: line 476 (GPR) → 496 (crude) → 516 (`_save_cache`); both wrapped in try/except for non-fatal graceful degradation.
+- `violated_criteria: []`
+
+**Note on Q/A continuation:** initial Q/A spawn returned mid-execution after confirming hook ordering. Sent a follow-up message via SendMessage to the same instance with explicit instructions to complete settings check + live fetch + unit test + critique-file overwrite + JSON verdict return. The follow-up completed successfully. This is NOT verdict-shopping (no prior verdict existed) — it's continuation of an incomplete run.
+
+**Live check:** `handoff/current/live_check_28.6.md` — REAL DATA from yfinance CL=F: 1m momentum +6.69% over trailing 21d; rolling 252d mean +4.77% std 13.94% → z-score +0.137. Threshold 1.0. **above_threshold: False** (so the trigger does NOT fire today). Picker would not inject XLE via the crude trigger. Good contrast with 28.3 which DID fire (GPR-Acts = 285.35 well above its threshold).
+
+**Decision:** flip phase-28.6 to `done`. Next per proposal sequencing: **28.4 — Sector-neutral momentum scoring** (S effort, P1; LAST pre-go-live item — within-sector percentile rank in screener.rank_candidates; Researcher already in flight).
+
+**Total cycle time:** ~25 min (research gate ~5 min, contract + edits ~7 min, smoke ~3 min, Q/A initial ~5 min, Q/A continuation ~2 min, log + flip ~3 min).
+

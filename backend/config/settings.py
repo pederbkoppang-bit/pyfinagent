@@ -211,6 +211,13 @@ class Settings(BaseSettings):
     gpr_signal_quantile: float = Field(0.90, description="phase-28.3: Quantile of rolling 5-year GPRA history above which the tilt triggers (0.90 = 90th percentile = ~120-145 absolute in historical baseline).")
     gpr_signal_cache_hours: int = Field(24, description="phase-28.3: Hours to cache the downloaded GPR Excel before refetching. Matches matteoiacoviello.com ~monthly publication cadence (24h is generous).")
     gpr_signal_sector_etfs: str = Field("XLE", description="phase-28.3: Comma-separated list of sector ETF tickers to add to sector_hints.overweight when GPR-Acts crosses threshold. Default XLE (energy SPDR).")
+    # phase-28.6: WTI crude (CL=F) momentum secondary trigger (orthogonal to GPR-Acts)
+    crude_momentum_enabled: bool = Field(False, description="phase-28.6: When WTI crude (CL=F) 1m momentum z-score exceeds threshold, inject configured energy ETFs into macro_regime.sector_hints.overweight. Orthogonal to phase-28.3 GPR trigger (high-GPR/flat-oil and rising-oil/low-GPR both occur). Default OFF.")
+    crude_momentum_window_days: int = Field(21, description="phase-28.6: Trading-day window for 1-month momentum (21 = approximately 1 calendar month).")
+    crude_momentum_lookback_days: int = Field(252, description="phase-28.6: Trading-day lookback for z-score normalization of the 1m momentum (252 = 1 trading year).")
+    crude_momentum_zscore_threshold: float = Field(1.0, description="phase-28.6: Z-score threshold above which the trigger fires. 1.0 = ~84th percentile under a normal assumption (calibrated for ~78% crude implied vol).")
+    crude_momentum_cache_hours: int = Field(24, description="phase-28.6: Hours to cache the yfinance CL=F fetch before re-downloading.")
+    crude_momentum_sector_etfs: str = Field("XLE", description="phase-28.6: Comma-separated list of sector ETF tickers to add to sector_hints.overweight when crude momentum crosses threshold. Default XLE (XOM+CVX = 39% of XLE).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the
