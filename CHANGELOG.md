@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `664871a4` | phase-28.5: Short-interest exclusion filter in screen_universe |
 | 2026-05-17 | `2ed3b6db` | phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe() |
 | 2026-05-16 | `5b3dad4d` | phase-23.2.3: Verify FD leak did not regress |
 | 2026-05-16 | `35aecc2b` | chore(docs): clarify paper-trading tables live in financial_reports |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `ba18ffab` | phase-16.59: Uplift Q/A with code-reviewer capabilities (max research gate, full harness MAS) |
 | 2026-05-16 | `e3f9a3bd` | docs: phase-26 frontier-sync proposal (8-step DRAFT awaiting approval) |
 | 2026-05-16 | `952c211b` | chore(masterplan): condense /masterplan skill to dashboard + filter mode |
-| 2026-05-14 | `71e415e7` | phase-25.S.1: Per-call ticker tagging in llm_call_log + cost_tracker for exact per-ticker attribu... |
 
 ---
 
+### v6.9.1 — phase-28.5: Short-interest exclusion filter in screen_universe (2026-05-17)
+
+- **phase-28.5: Short-interest exclusion filter in screen_universe**
 ### v6.9.0 — phase-28.0: Drift fix: apply (or remove) unused min_market_cap parame... (2026-05-17)
 
 - **phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe()**
