@@ -289,6 +289,13 @@ class Settings(BaseSettings):
     defense_tickers: str = Field("LMT,NOC,RTX,GD,LHX,BA,LDOS,HII,KTOS,BAE.L,RHM.DE,SAAB-B.ST", description="phase-28.14: Comma-separated tickers boosted when defense_signal triggers. US primes + EU primes (Researcher: BAE/RHM most GPR-sensitive).")
     defense_boost: float = Field(0.05, description="phase-28.14: Multiplier for defense tickers when signal triggers (default +5%).")
     defense_budget_pledge_keywords: str = Field("NATO budget,defense spending,Zeitenwende,defense pledge,military spending,5% GDP", description="phase-28.14: Keywords scanned in news_screen headlines as additional signal confirmation (optional).")
+    # phase-28.17: peer-correlation laggard catch-up (intra-sector lead-lag)
+    peer_leadlag_enabled: bool = Field(False, description="phase-28.17: Boost laggards in sectors with strong-momentum leaders. Hou 2007 + DeltaLag 2025: ~10 bpts/day gross alpha; analyst-coverage-driven information diffusion lag. Default OFF.")
+    peer_leadlag_leader_threshold: float = Field(10.0, description="phase-28.17: momentum_1m percent above which a stock counts as a sector leader.")
+    peer_leadlag_laggard_threshold: float = Field(2.0, description="phase-28.17: momentum_1m percent below which a stock counts as a laggard candidate.")
+    peer_leadlag_min_analyst_filter: int = Field(5, description="phase-28.17: Maximum analyst_count to qualify as laggard (Hou 2007: lag is strongest where coverage is low).")
+    peer_leadlag_min_market_cap_usd: float = Field(2_000_000_000.0, description="phase-28.17: Minimum market cap for laggard qualification (DeltaLag $2B liquidity gate).")
+    peer_leadlag_boost: float = Field(0.08, description="phase-28.17: Multiplier (additive) for qualifying laggards (default +8%, conservative vs DeltaLag gross).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

@@ -229,6 +229,7 @@ def rank_candidates(
     gpr_exposure_config: Optional[dict] = None,
     social_velocity_signals=None,
     defense_signal=None,
+    peer_leadlag_signals=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -352,6 +353,12 @@ def rank_candidates(
         if defense_signal:
             from backend.services.defense_signal import apply_defense_boost_to_score
             score = apply_defense_boost_to_score(score, stock.get("ticker"), defense_signal)
+
+        # phase-28.17: peer-correlation laggard catch-up (intra-sector lead-lag).
+        # Boost laggards in sectors with strong-momentum leaders + low analyst coverage.
+        if peer_leadlag_signals:
+            from backend.services.peer_leadlag_screen import apply_peer_leadlag_to_score
+            score = apply_peer_leadlag_to_score(score, stock.get("ticker"), peer_leadlag_signals)
 
         scored.append({**stock, "composite_score": round(score, 3)})
 

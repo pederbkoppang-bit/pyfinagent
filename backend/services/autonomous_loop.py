@@ -298,6 +298,37 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
 
+            # phase-28.17: peer-correlation laggard catch-up. Fetch analyst+market_cap via
+            # yfinance.info for top candidates, compute pure-function signals.
+            peer_leadlag_signals = {}
+            if getattr(settings, "peer_leadlag_enabled", False) and screen_data:
+                try:
+                    import yfinance as yf
+                    from backend.services.peer_leadlag_screen import compute_peer_leadlag_signals
+                    target_tickers = [s["ticker"] for s in screen_data[: 2 * settings.paper_screen_top_n] if s.get("ticker")]
+                    lookup: dict[str, dict] = {}
+                    for t in target_tickers:
+                        try:
+                            info = await asyncio.to_thread(lambda x=t: yf.Ticker(x).info or {})
+                            lookup[t.upper()] = {
+                                "analyst_count": int(info.get("numberOfAnalystOpinions") or 0),
+                                "market_cap": float(info.get("marketCap") or 0),
+                            }
+                        except Exception:
+                            continue
+                    peer_leadlag_signals = compute_peer_leadlag_signals(
+                        screen_data,
+                        lookup,
+                        leader_threshold=getattr(settings, "peer_leadlag_leader_threshold", 10.0),
+                        laggard_threshold=getattr(settings, "peer_leadlag_laggard_threshold", 2.0),
+                        max_analyst_count=getattr(settings, "peer_leadlag_min_analyst_filter", 5),
+                        min_market_cap_usd=getattr(settings, "peer_leadlag_min_market_cap_usd", 2_000_000_000.0),
+                        boost=getattr(settings, "peer_leadlag_boost", 0.08),
+                    )
+                    summary["peer_leadlag_qualifying"] = len(peer_leadlag_signals)
+                except Exception as e:
+                    logger.warning("peer_leadlag fetch/compute failed (non-fatal): %s", e)
+
             # phase-28.14: defense/war-stocks reference case (GPR + XAR AND-gate, cycle-level).
             # Boost defense-list tickers when both gates fire. Default OFF.
             defense_signal_obj = None
@@ -500,6 +531,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 gpr_exposure_signals=gpr_exposure_signals or None,
                 social_velocity_signals=social_velocity_signals or None,
                 defense_signal=defense_signal_obj,
+                peer_leadlag_signals=peer_leadlag_signals or None,
                 gpr_exposure_config={
                     "exempt_sectors_csv": getattr(settings, "call_transcript_gpr_exempt_sectors", "Industrials,Energy"),
                     "high_penalty": getattr(settings, "call_transcript_gpr_high_penalty", 0.97),

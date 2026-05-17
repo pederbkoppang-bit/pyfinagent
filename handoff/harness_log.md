@@ -20102,3 +20102,18 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Decision:** flip 28.14 to done. Supplement: 2/4. Next: **28.17 — Peer lead-lag**.
 
+
+---
+
+## Cycle 30 -- 2026-05-18 -- phase=28.17 result=PASS
+
+**Step:** phase-28.17 — Peer-correlation laggard catch-up (intra-sector lead-lag).
+
+**Generator:** 4 files. New `backend/services/peer_leadlag_screen.py` (145 lines) with PURE function `compute_peer_leadlag_signals(screen_data, lookup)` separating compute from I/O. autonomous_loop fetches yfinance.info per-ticker for analyst_count + market_cap, then calls pure function.
+
+**Researcher gate:** PASS (5 sources). Sector grouping (not sub-industry) per Researcher rationale: sparse-group avoidance on ~500-stock universe.
+
+**Q/A verdict:** PASS (8/8 behavioral assertions). Synthetic 11-stock test: ZS + COP qualify (low-coverage laggards in sectors with strong leaders); CRM correctly filtered (25 analysts > 5 threshold); no false positives on missing data.
+
+**Decision:** flip 28.17 to done. Supplement: 3/4. **FINAL ITEM:** 28.16 — M&A pre-announcement detection.
+
