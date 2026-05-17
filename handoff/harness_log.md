@@ -20087,3 +20087,18 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Decision:** flip phase-28.15 to `done`. Supplement tier: 1/4. Next: **28.14 — Defense/war-stocks reference-case implementation**.
 
+
+---
+
+## Cycle 29 -- 2026-05-17 23:35 UTC -- phase=28.14 result=PASS
+
+**Step:** phase-28.14 — Defense/war-stocks reference case (GPR + XAR AND-gate).
+
+**Generator:** 4 files. New `backend/services/defense_signal.py` (180 lines) reuses phase-28.3 `_fetch_gpr_acts` (cached). XAR preferred over ITA (Researcher: ITA 19% commercial-aviation noise). AND-gate: GPR above AND XAR > 0. US+EU 12-ticker list (incl BAE.L, RHM.DE per Researcher's most-sensitive call).
+
+**Live outcome:** GPR=285.35 above ✓; XAR -1.76% NOT above 0 ✗ → triggered=False (conservative non-firing per design).
+
+**Q/A verdict:** PASS (7/7 unit tests; 9/9 deterministic). GPR reuse confirmed (no duplicate code).
+
+**Decision:** flip 28.14 to done. Supplement: 2/4. Next: **28.17 — Peer lead-lag**.
+

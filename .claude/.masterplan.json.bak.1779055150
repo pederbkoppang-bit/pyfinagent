@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-17T21:59:10.232839+00:00",
+  "updated_at": "2026-05-17T21:47:05.240649+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10353,7 +10353,7 @@
         {
           "id": "28.14",
           "name": "Defense/war-stocks reference-case implementation (GPR-defense branch + ITA/XAR flow + budget-pledge headline)",
-          "status": "done",
+          "status": "pending",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "28.3",

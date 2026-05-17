@@ -298,6 +298,26 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
 
+            # phase-28.14: defense/war-stocks reference case (GPR + XAR AND-gate, cycle-level).
+            # Boost defense-list tickers when both gates fire. Default OFF.
+            defense_signal_obj = None
+            if getattr(settings, "defense_signal_enabled", False):
+                try:
+                    from backend.services.defense_signal import fetch_defense_trigger
+                    defense_signal_obj = await fetch_defense_trigger(
+                        defense_tickers_csv=getattr(settings, "defense_tickers", ""),
+                        xar_window_days=getattr(settings, "defense_xar_window_days", 5),
+                        xar_min_momentum=getattr(settings, "defense_xar_min_momentum", 0.0),
+                        boost=getattr(settings, "defense_boost", 0.05),
+                        gpr_quantile=getattr(settings, "gpr_signal_quantile", 0.90),
+                        gpr_cache_hours=getattr(settings, "gpr_signal_cache_hours", 24),
+                        pledge_keywords_csv=getattr(settings, "defense_budget_pledge_keywords", ""),
+                    )
+                    summary["defense_signal_triggered"] = bool(defense_signal_obj.triggered)
+                    summary["defense_signal_xar_5d"] = defense_signal_obj.xar_5d_momentum
+                except Exception as e:
+                    logger.warning("defense_signal fetch failed (non-fatal): %s", e)
+
             # phase-28.15: social media velocity overlay (Alpha Vantage NEWS_SENTIMENT
             # cross-source — Reddit/Twitter/StockTwits/blogs). Pre-rally signal per
             # supplement Gap 2 + DNUT July 2025 case. Default OFF.
@@ -479,6 +499,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 narrative_signals=narrative_signals or None,
                 gpr_exposure_signals=gpr_exposure_signals or None,
                 social_velocity_signals=social_velocity_signals or None,
+                defense_signal=defense_signal_obj,
                 gpr_exposure_config={
                     "exempt_sectors_csv": getattr(settings, "call_transcript_gpr_exempt_sectors", "Industrials,Energy"),
                     "high_penalty": getattr(settings, "call_transcript_gpr_high_penalty", 0.97),

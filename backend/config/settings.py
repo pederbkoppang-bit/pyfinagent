@@ -282,6 +282,13 @@ class Settings(BaseSettings):
     social_velocity_strong_threshold: float = Field(0.20, description="phase-28.15: Velocity above which strong boost fires (2x moderate threshold).")
     social_velocity_strong_boost: float = Field(0.06, description="phase-28.15: Multiplier for strong velocity spike (default +6%).")
     social_velocity_moderate_boost: float = Field(0.03, description="phase-28.15: Multiplier for moderate velocity (default +3%).")
+    # phase-28.14: defense/war-stocks reference case (GPR + XAR momentum AND-gate; cycle-level)
+    defense_signal_enabled: bool = Field(False, description="phase-28.14: Boost defense-sector tickers when GPR-Acts above threshold AND XAR 5d momentum > 0. Supplement Gap 1: Emerald SEF 2023 +1.00% (-1,-1) + 11.65% CAAR (0,3). Default OFF.")
+    defense_xar_window_days: int = Field(5, description="phase-28.14: Trading-day window for XAR (S&P Aerospace & Defense ETF) momentum check.")
+    defense_xar_min_momentum: float = Field(0.0, description="phase-28.14: Minimum XAR cumulative return over window to confirm institutional flow into defense.")
+    defense_tickers: str = Field("LMT,NOC,RTX,GD,LHX,BA,LDOS,HII,KTOS,BAE.L,RHM.DE,SAAB-B.ST", description="phase-28.14: Comma-separated tickers boosted when defense_signal triggers. US primes + EU primes (Researcher: BAE/RHM most GPR-sensitive).")
+    defense_boost: float = Field(0.05, description="phase-28.14: Multiplier for defense tickers when signal triggers (default +5%).")
+    defense_budget_pledge_keywords: str = Field("NATO budget,defense spending,Zeitenwende,defense pledge,military spending,5% GDP", description="phase-28.14: Keywords scanned in news_screen headlines as additional signal confirmation (optional).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

@@ -228,6 +228,7 @@ def rank_candidates(
     gpr_exposure_signals=None,
     gpr_exposure_config: Optional[dict] = None,
     social_velocity_signals=None,
+    defense_signal=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -345,6 +346,12 @@ def rank_candidates(
         if social_velocity_signals:
             from backend.services.social_velocity_screen import apply_social_velocity_to_score
             score = apply_social_velocity_to_score(score, stock.get("ticker"), social_velocity_signals)
+
+        # phase-28.14: defense/war-stocks reference-case (GPR + XAR AND-gate).
+        # Cycle-level signal; boosts defense-list tickers when triggered.
+        if defense_signal:
+            from backend.services.defense_signal import apply_defense_boost_to_score
+            score = apply_defense_boost_to_score(score, stock.get("ticker"), defense_signal)
 
         scored.append({**stock, "composite_score": round(score, 3)})
 
