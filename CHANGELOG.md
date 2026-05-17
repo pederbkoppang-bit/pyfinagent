@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `ac5a5b3c` | phase-28.11: LLM analyst-report narrative signal (highest expected lift) |
 | 2026-05-17 | `f61ffeb0` | phase-28.10: Opportunistic insider-buying signal lifted from Layer-1 into screener tier |
 | 2026-05-17 | `9ba6c754` | phase-28.9: Options-flow OI-surge filter (new plug-in) |
 | 2026-05-17 | `856538e4` | phase-28.8: Russell-1000 universe expansion with screener cost guard |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `85bfce5d` | chore: align Claude effort levels with Anthropic recommendations |
 | 2026-05-16 | `ae3004ff` | phase-26.7: Combined Gemini tools+grounding single-call refactor on enrichment skills |
 | 2026-05-16 | `c13b1c79` | phase-26.6: Multimodal File Search RAG on financial_reports dataset |
-| 2026-05-16 | `d217d7a9` | phase-26.5: Alpha-decay / regime-shift detector skill (Gemini Flash) |
 
 ---
 
+### v6.9.12 — phase-28.11: LLM analyst-report narrative signal (highest expected lift) (2026-05-17)
+
+- **phase-28.11: LLM analyst-report narrative signal (highest expected lift)**
 ### v6.9.11 — phase-28.10: Opportunistic insider-buying signal lifted from Layer-1... (2026-05-17)
 
 - **phase-28.10: Opportunistic insider-buying signal lifted from Layer-1 into screener tier**
