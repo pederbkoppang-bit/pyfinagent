@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `2736a5e` | chore: harness audit-log append from prompt-trim session |
 | 2026-05-17 | `b5d76f2` | chore: harness audit-log appends from prompt-iteration session |
 | 2026-05-17 | `377d339` | chore: harness audit-log appends from prompt-drafting session |
 | 2026-05-17 | `e75390fe` | phase-28.7: Multidimensional momentum composite (price + SUE + 52-wk hi distance + factor momentum) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `ae3004ff` | phase-26.7: Combined Gemini tools+grounding single-call refactor on enrichment skills |
 | 2026-05-16 | `c13b1c79` | phase-26.6: Multimodal File Search RAG on financial_reports dataset |
 | 2026-05-16 | `d217d7a9` | phase-26.5: Alpha-decay / regime-shift detector skill (Gemini Flash) |
-| 2026-05-16 | `f7e24d0a` | phase-26.4: Consolidate 6 opinion skills into parameterized stance prompt |
 
 ---
 
