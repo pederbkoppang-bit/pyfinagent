@@ -296,6 +296,8 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 news_signals=news_signals or None,
                 sector_events=sector_events or None,
                 revision_signals=revision_signals or None,
+                sector_neutral=getattr(settings, "sector_neutral_momentum_enabled", False),
+                sector_neutral_min_group_size=getattr(settings, "sector_neutral_min_group_size", 3),
             )
 
             # phase-23.1.13: enrich top-N candidates with GICS sector via the

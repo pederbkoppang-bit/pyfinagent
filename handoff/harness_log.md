@@ -19837,3 +19837,32 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~25 min (research gate ~5 min, contract + edits ~7 min, smoke ~3 min, Q/A initial ~5 min, Q/A continuation ~2 min, log + flip ~3 min).
 
+
+---
+
+## Cycle 20 -- 2026-05-17 20:15 UTC -- phase=28.4 result=PASS
+
+**Step:** phase-28.4 — Sector-neutral momentum scoring in screener.rank_candidates (within-sector percentile rank). LAST item in pre-go-live tier — completes 7/7.
+
+**Planner hypothesis:** Add a two-pass branch to rank_candidates: pass 1 is the existing per-stock scoring + overlays; pass 2 (when enabled) groups by sector and replaces composite_score with within-sector percentile rank via pandas.Series.rank(method='average', pct=True). Groups smaller than min_group_size + missing-sector route to a global pool. Mitigates sector concentration; surfaces sector leaders. Feature-flag default OFF.
+
+**Generator:** 3 files —
+- `backend/tools/screener.py`: 2 new kwargs (sector_neutral=False, sector_neutral_min_group_size=3) + two-pass logic AFTER news-only injection, BEFORE final sort. Preserves original composite as `composite_score_raw` on each candidate for transparency.
+- `backend/services/autonomous_loop.py`: pass settings through to rank_candidates.
+- `backend/config/settings.py` (+2 fields: sector_neutral_momentum_enabled (False), sector_neutral_min_group_size (3)).
+
+**Researcher gate:** `gate_passed: true` (5 sources read in full: CFA Institute Dec 2025, Quantpedia 3-methods-to-fix-momentum-crashes, Quantpedia sector momentum, RegimeFolio arXiv 2510.14986, Mamais 2025 Wiley; 15 URLs; recency scan).
+
+**Q/A subagent verdict:** PASS (no violations; one WARN-not-BLOCK on tests-in-handoff-vs-tests-dir, accepted for this cycle, recommended formalization as `backend/tests/test_screener_sector_neutral.py` in a future cycle).
+- 5-item audit: all PASS.
+- 9 deterministic checks: all PASS (immutable verification, 3-file syntax, settings defaults, signature has new kwargs, back-compat, 12-candidate 3-sector smoke, edge case small-groups + missing-sector, news_only interaction, mutation test confirms behavior change).
+- `violated_criteria: []`
+
+**Note on Q/A continuation:** initial Q/A spawn returned mid-step-4 with full analysis but missing JSON verdict block. SendMessage continuation completed in 117s. Same pattern as 28.6.
+
+**Live check:** `handoff/current/live_check_28.4.md` — synthetic 15-candidate 4-sector demo (5 Tech, 4 Energy, 3 Financials, 3 Healthcare). Absolute mode top-10: 5 Tech / 1 Health / 3 Energy / 1 Financials (concentration). Sector-neutral mode top-10: 3 Tech / 3 Energy / 2 Financials / 2 Healthcare (diversified). Each sector's leader (NVDA / COP / GS / LLY) gets pct_rank=1.0. Mid-tier Tech names CRM + MSFT drop out; JPM + JNJ surface.
+
+**Decision:** flip phase-28.4 to `done`. PRE-GO-LIVE TIER COMPLETE (7/7: 28.0, 28.5, 28.1, 28.2, 28.3, 28.6, 28.4). Next per proposal sequencing: **post-launch tier**, starting with **28.12 — Sector-ETF momentum overlay** (S effort; Researcher already in flight).
+
+**Total cycle time:** ~30 min (research gate ~5 min, contract + edits ~10 min, smoke ~3 min, Q/A initial ~3 min, Q/A continuation ~2 min, log + flip ~7 min).
+

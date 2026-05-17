@@ -206,6 +206,8 @@ def rank_candidates(
     news_signals=None,
     sector_events=None,
     revision_signals=None,
+    sector_neutral: bool = False,
+    sector_neutral_min_group_size: int = 3,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -300,6 +302,38 @@ def rank_candidates(
                 "news_event_type": sig.event_type,
                 "news_rationale": sig.rationale,
             })
+
+    # phase-28.4: optional sector-neutral re-scoring (within-sector percentile rank).
+    # Default OFF. When ON, replaces composite_score with within-sector percentile in
+    # [0.0, 1.0]; original composite preserved on composite_score_raw. Groups with
+    # fewer than sector_neutral_min_group_size members + missing-sector stocks fall
+    # back to a global cross-sector percentile pool. Improves Sharpe + reduces sector
+    # concentration per CFA Institute Dec 2025 framework.
+    if sector_neutral and scored:
+        from collections import defaultdict
+        groups: dict[str, list[dict]] = defaultdict(list)
+        for s in scored:
+            key = (s.get("sector") or "").strip() or "_UNKNOWN_"
+            groups[key].append(s)
+
+        # Decide which groups get within-sector percentile vs global pool
+        global_pool: list[dict] = []
+        for key, members in list(groups.items()):
+            if key == "_UNKNOWN_" or len(members) < sector_neutral_min_group_size:
+                global_pool.extend(members)
+                del groups[key]
+
+        def _apply_pct_rank(members: list[dict]) -> None:
+            raws = pd.Series([m.get("composite_score") or 0 for m in members])
+            pcts = raws.rank(method="average", pct=True).tolist()
+            for m, p in zip(members, pcts):
+                m["composite_score_raw"] = m.get("composite_score")
+                m["composite_score"] = round(float(p), 4)
+
+        for members in groups.values():
+            _apply_pct_rank(members)
+        if global_pool:
+            _apply_pct_rank(global_pool)
 
     scored.sort(key=lambda x: x["composite_score"], reverse=True)
     return scored[:top_n]

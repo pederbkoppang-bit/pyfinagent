@@ -218,6 +218,9 @@ class Settings(BaseSettings):
     crude_momentum_zscore_threshold: float = Field(1.0, description="phase-28.6: Z-score threshold above which the trigger fires. 1.0 = ~84th percentile under a normal assumption (calibrated for ~78% crude implied vol).")
     crude_momentum_cache_hours: int = Field(24, description="phase-28.6: Hours to cache the yfinance CL=F fetch before re-downloading.")
     crude_momentum_sector_etfs: str = Field("XLE", description="phase-28.6: Comma-separated list of sector ETF tickers to add to sector_hints.overweight when crude momentum crosses threshold. Default XLE (XOM+CVX = 39% of XLE).")
+    # phase-28.4: sector-neutral momentum scoring (within-sector percentile rank)
+    sector_neutral_momentum_enabled: bool = Field(False, description="phase-28.4: When True, rank_candidates replaces composite_score with within-sector percentile rank (pandas Series.rank pct). Improves Sharpe + reduces regime sensitivity per CFA Institute Dec 2025. Default OFF.")
+    sector_neutral_min_group_size: int = Field(3, description="phase-28.4: Minimum candidates per sector to apply within-sector percentile rank. Smaller groups + missing-sector stocks fall back to a global cross-sector percentile pool.")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the
