@@ -20036,3 +20036,20 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~25 min.
 
+
+---
+
+## Cycle 26 -- 2026-05-17 22:15 UTC -- phase=28.11 result=PASS
+
+**Step:** phase-28.11 — LLM analyst-narrative signal (MVP proxy via management 8-K outlook tone, NOT canonical Investext analyst reports).
+
+**HONESTY:** Canonical 68bps/mo signal (arXiv 2502.20489v1) needs paid Investext ($10K-100K/yr); not viable for local-only deployment. MVP uses 8-K Exhibit 99 management forward language as a free proxy. Conservatively half PEAD boost magnitudes pending live A/B.
+
+**Generator:** 4 files. New `backend/services/analyst_narrative_scorer.py` (243 lines) reuses pead_signal._fetch_recent_8k + _fetch_exhibit_99_text. AnalystNarrativeSignal Pydantic model has built-in `source_note` default = "management_8k_proxy: NOT canonical analyst_strategic_outlook" — honesty travels with signal. Prompt also embeds "PROXY" disclosure.
+
+**Researcher gate:** `gate_passed: true` (5 sources read in full).
+
+**Q/A subagent verdict:** PASS (22 checks; no violations). Verified honesty visible in 13+ places, EDGAR reuse (zero duplication), 5-layer graceful degradation.
+
+**Decision:** flip phase-28.11 to `done`. Post-launch tier: 6/7. Next: **28.13 — Earnings-call NLP for firm-level GPR exposure**.
+

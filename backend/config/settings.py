@@ -255,6 +255,17 @@ class Settings(BaseSettings):
     insider_signal_strong_aggregate_usd: float = Field(2_000_000.0, description="phase-28.10: Threshold $ for strong boost (typically 4x moderate).")
     insider_strong_boost: float = Field(0.07, description="phase-28.10: Multiplier (additive) for strong opportunistic buying (default +7%).")
     insider_moderate_boost: float = Field(0.04, description="phase-28.10: Multiplier (additive) for moderate opportunistic buying (default +4%).")
+    # phase-28.11: LLM analyst-narrative signal (MVP: management-outlook proxy from 8-K Exhibit 99)
+    # HONEST DISCLOSURE: the canonical 68bps/mo signal (arXiv 2502.20489v1) needs paid Investext
+    # ($10K-100K/yr) — not viable for local-only deployment. This MVP uses management forward-looking
+    # tone from 8-K press releases as a free proxy. Different lens from PEAD (sentiment-vs-trend).
+    analyst_narrative_enabled: bool = Field(False, description="phase-28.11: LLM-scored management outlook tone from 8-K Exhibit 99 (MVP proxy for canonical analyst Strategic Outlook signal). Default OFF.")
+    analyst_narrative_model: str = Field("claude-haiku-4-5", description="phase-28.11: LLM used to score management outlook tone (~$0.001 per call).")
+    analyst_narrative_cost_cap_usd: float = Field(0.10, description="phase-28.11: Soft cap on per-cycle cost for this signal. Operator monitoring; not enforced as hard kill.")
+    analyst_narrative_strong_threshold: float = Field(0.70, description="phase-28.11: outlook_score above this triggers strong boost (default 0.70 = strongly bullish forward language).")
+    analyst_narrative_weak_threshold: float = Field(0.30, description="phase-28.11: outlook_score below this triggers strong penalty (strongly bearish).")
+    analyst_narrative_strong_boost: float = Field(0.05, description="phase-28.11: Multiplier (additive) for strong bullish outlook (default +5%; conservatively half PEAD scale pending A/B).")
+    analyst_narrative_moderate_boost: float = Field(0.025, description="phase-28.11: Multiplier (additive) for moderate outlook (default +2.5%).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

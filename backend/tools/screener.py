@@ -224,6 +224,7 @@ def rank_candidates(
     pead_signals_lookup=None,
     options_surge_signals=None,
     insider_signals=None,
+    narrative_signals=None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -318,6 +319,12 @@ def rank_candidates(
         if insider_signals:
             from backend.services.insider_signal_screen import apply_insider_signal_to_score
             score = apply_insider_signal_to_score(score, stock.get("ticker"), insider_signals)
+
+        # phase-28.11: management-outlook narrative overlay (MVP proxy for canonical
+        # analyst Strategic Outlook signal which needs paid data). Identity otherwise.
+        if narrative_signals:
+            from backend.services.analyst_narrative_scorer import apply_narrative_signal_to_score
+            score = apply_narrative_signal_to_score(score, stock.get("ticker"), narrative_signals)
 
         scored.append({**stock, "composite_score": round(score, 3)})
 

@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-17T21:27:02.109286+00:00",
+  "updated_at": "2026-05-17T21:12:52.602292+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10289,7 +10289,7 @@
         {
           "id": "28.11",
           "name": "LLM analyst-report narrative signal (highest expected lift)",
-          "status": "done",
+          "status": "pending",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "28.1",

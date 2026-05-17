@@ -298,6 +298,33 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
 
+            # phase-28.11: management-outlook narrative overlay (MVP proxy for canonical
+            # analyst Strategic Outlook signal — which needs paid data). 8-K Exhibit 99 +
+            # Claude Haiku. Default OFF. Per-cycle LLM cost <$0.10 for ~10 recent reporters.
+            narrative_signals = {}
+            if getattr(settings, "analyst_narrative_enabled", False) and screen_data:
+                try:
+                    from backend.services.analyst_narrative_scorer import fetch_narrative_signals
+                    candidate_tickers_for_narrative = [
+                        s["ticker"] for s in screen_data[: 2 * settings.paper_screen_top_n]
+                        if s.get("ticker")
+                    ]
+                    narrative_signals = await fetch_narrative_signals(
+                        candidate_tickers_for_narrative,
+                        model=getattr(settings, "analyst_narrative_model", "claude-haiku-4-5"),
+                        strong_threshold=getattr(settings, "analyst_narrative_strong_threshold", 0.70),
+                        weak_threshold=getattr(settings, "analyst_narrative_weak_threshold", 0.30),
+                        strong_boost=getattr(settings, "analyst_narrative_strong_boost", 0.05),
+                        moderate_boost=getattr(settings, "analyst_narrative_moderate_boost", 0.025),
+                    )
+                    logger.info(
+                        "analyst_narrative_scorer: %d/%d candidates scored",
+                        len(narrative_signals), len(candidate_tickers_for_narrative),
+                    )
+                    summary["analyst_narrative_scored"] = len(narrative_signals)
+                except Exception as e:
+                    logger.warning("analyst_narrative_scorer fetch failed (non-fatal): %s", e)
+
             # phase-28.10: opportunistic insider-buying overlay. Fetched AFTER first-pass
             # screen so SEC EDGAR cost is bounded by candidate-set size. Default OFF.
             insider_signals = {}
@@ -398,6 +425,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 },
                 options_surge_signals=options_surge_signals or None,
                 insider_signals=insider_signals or None,
+                narrative_signals=narrative_signals or None,
             )
 
             # phase-23.1.13: enrich top-N candidates with GICS sector via the
