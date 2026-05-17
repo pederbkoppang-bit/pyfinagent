@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-17 | `2ed3b6db` | phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe() |
 | 2026-05-16 | `5b3dad4d` | phase-23.2.3: Verify FD leak did not regress |
 | 2026-05-16 | `35aecc2b` | chore(docs): clarify paper-trading tables live in financial_reports |
 | 2026-05-16 | `613c345f` | phase-23.2.2: Verify zero phantom trades / cash-leak regressions (trade<->position reconciliation) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-16 | `e3f9a3bd` | docs: phase-26 frontier-sync proposal (8-step DRAFT awaiting approval) |
 | 2026-05-16 | `952c211b` | chore(masterplan): condense /masterplan skill to dashboard + filter mode |
 | 2026-05-14 | `71e415e7` | phase-25.S.1: Per-call ticker tagging in llm_call_log + cost_tracker for exact per-ticker attribu... |
-| 2026-05-13 | `ce7c4760` | phase-25.D9.1: Caller-side Files API adoption (skill_file_id wiring in run_*_agent calls) |
 
 ---
 
+### v6.9.0 — phase-28.0: Drift fix: apply (or remove) unused min_market_cap parame... (2026-05-17)
+
+- **phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe()**
 ### v6.8.9 — phase-23.2.3: Verify FD leak did not regress (2026-05-16)
 
 - **phase-23.2.3: Verify FD leak did not regress**
