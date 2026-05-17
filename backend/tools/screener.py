@@ -225,6 +225,8 @@ def rank_candidates(
     options_surge_signals=None,
     insider_signals=None,
     narrative_signals=None,
+    gpr_exposure_signals=None,
+    gpr_exposure_config: Optional[dict] = None,
 ) -> list[dict]:
     """
     Rank screened candidates by composite alpha score.
@@ -325,6 +327,17 @@ def rank_candidates(
         if narrative_signals:
             from backend.services.analyst_narrative_scorer import apply_narrative_signal_to_score
             score = apply_narrative_signal_to_score(score, stock.get("ticker"), narrative_signals)
+
+        # phase-28.13: firm-level GPR exposure DEFENSIVE FILTER (Fed 2025; no forward alpha).
+        # Penalize HIGH-exposure firms unless their sector benefits from GPR.
+        if gpr_exposure_signals:
+            from backend.services.call_transcript_gpr import apply_gpr_exposure_to_score
+            cfg = gpr_exposure_config or {}
+            score = apply_gpr_exposure_to_score(
+                score, stock.get("ticker"), stock.get("sector"), gpr_exposure_signals,
+                exempt_sectors_csv=cfg.get("exempt_sectors_csv", "Industrials,Energy"),
+                high_penalty=cfg.get("high_penalty", 0.97),
+            )
 
         scored.append({**stock, "composite_score": round(score, 3)})
 

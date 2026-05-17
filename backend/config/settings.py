@@ -266,6 +266,15 @@ class Settings(BaseSettings):
     analyst_narrative_weak_threshold: float = Field(0.30, description="phase-28.11: outlook_score below this triggers strong penalty (strongly bearish).")
     analyst_narrative_strong_boost: float = Field(0.05, description="phase-28.11: Multiplier (additive) for strong bullish outlook (default +5%; conservatively half PEAD scale pending A/B).")
     analyst_narrative_moderate_boost: float = Field(0.025, description="phase-28.11: Multiplier (additive) for moderate outlook (default +2.5%).")
+    # phase-28.13: earnings-call NLP for firm-level GPR exposure (Fed 2025 methodology)
+    # HONESTY: Fed showed R²=0.23 CONTEMPORANEOUS only — NO forward predictability. Use as
+    # defensive risk filter on candidates, NOT alpha source. Complements phase-28.3
+    # sector-tilt by adding firm-level dimension.
+    call_transcript_gpr_enabled: bool = Field(False, description="phase-28.13: LLM-classify per-firm GPR exposure tier from earnings call transcripts. DEFENSIVE FILTER (Fed 2025: contemporaneous only, no forward alpha). Default OFF.")
+    call_transcript_gpr_model: str = Field("claude-haiku-4-5", description="phase-28.13: LLM used to classify GPR exposure (~$0.001/call).")
+    call_transcript_gpr_high_penalty: float = Field(0.97, description="phase-28.13: Multiplier for HIGH-exposure firms not in exempt sectors (default 0.97 = -3% defensive haircut).")
+    call_transcript_gpr_exempt_sectors: str = Field("Industrials,Energy", description="phase-28.13: Comma-separated sectors that BENEFIT from elevated GPR — no penalty applied for these (defense contractors live in Industrials, oil majors in Energy).")
+    call_transcript_gpr_cost_cap_usd: float = Field(0.10, description="phase-28.13: Per-cycle soft cap. Operator monitoring; ~$0.001 per LLM call.")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

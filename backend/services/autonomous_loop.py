@@ -298,6 +298,30 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
 
+            # phase-28.13: firm-level GPR exposure DEFENSIVE filter (Fed 2025 R²=0.23
+            # contemporaneous only; NOT forward alpha). LLM-classify per-firm 4-tier
+            # from earnings-call transcripts. Default OFF.
+            gpr_exposure_signals = {}
+            if getattr(settings, "call_transcript_gpr_enabled", False) and screen_data:
+                try:
+                    from backend.services.call_transcript_gpr import fetch_gpr_exposure_signals
+                    candidate_tickers_for_gpr = [
+                        s["ticker"] for s in screen_data[: 2 * settings.paper_screen_top_n]
+                        if s.get("ticker")
+                    ]
+                    gpr_exposure_signals = await fetch_gpr_exposure_signals(
+                        candidate_tickers_for_gpr,
+                        model=getattr(settings, "call_transcript_gpr_model", "claude-haiku-4-5"),
+                        bucket_name=getattr(settings, "gcs_bucket_name", ""),
+                    )
+                    logger.info(
+                        "call_transcript_gpr: %d/%d candidates classified",
+                        len(gpr_exposure_signals), len(candidate_tickers_for_gpr),
+                    )
+                    summary["call_transcript_gpr_classified"] = len(gpr_exposure_signals)
+                except Exception as e:
+                    logger.warning("call_transcript_gpr fetch failed (non-fatal): %s", e)
+
             # phase-28.11: management-outlook narrative overlay (MVP proxy for canonical
             # analyst Strategic Outlook signal — which needs paid data). 8-K Exhibit 99 +
             # Claude Haiku. Default OFF. Per-cycle LLM cost <$0.10 for ~10 recent reporters.
@@ -426,6 +450,11 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 options_surge_signals=options_surge_signals or None,
                 insider_signals=insider_signals or None,
                 narrative_signals=narrative_signals or None,
+                gpr_exposure_signals=gpr_exposure_signals or None,
+                gpr_exposure_config={
+                    "exempt_sectors_csv": getattr(settings, "call_transcript_gpr_exempt_sectors", "Industrials,Energy"),
+                    "high_penalty": getattr(settings, "call_transcript_gpr_high_penalty", 0.97),
+                },
             )
 
             # phase-23.1.13: enrich top-N candidates with GICS sector via the

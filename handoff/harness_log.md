@@ -20053,3 +20053,20 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Decision:** flip phase-28.11 to `done`. Post-launch tier: 6/7. Next: **28.13 — Earnings-call NLP for firm-level GPR exposure**.
 
+
+---
+
+## Cycle 27 -- 2026-05-17 22:45 UTC -- phase=28.13 result=PASS
+
+**Step:** phase-28.13 — Earnings-call NLP for firm-level GPR exposure (DEFENSIVE FILTER per Fed 2025 R²=0.23 contemporaneous; NOT alpha).
+
+**HONESTY:** Fed showed contemporaneous only — no forward predictability. Used as defensive risk filter; HIGH-exposure firms get -3% UNLESS sector exempt (Industrials/Energy benefit from GPR per phase-28.3 asymmetry).
+
+**Generator:** 4 files. New `backend/services/call_transcript_gpr.py` (220 lines) reuses `earnings_tone.get_earnings_tone` for transcripts. GprExposureSignal Pydantic default `source_note` carries "no_forward_alpha" disclaimer. Prompt embeds "DEFENSIVE FILTER" + "no forward predictability". Honesty marker in 9 surfaces.
+
+**Researcher gate:** `gate_passed: true` (5 sources).
+
+**Q/A subagent verdict:** PASS (23 checks). 1 NOTE on U+2014 em-dash in logger format string — fixed in post-edit (replaced with `--`).
+
+**Decision:** flip phase-28.13 to `done`. **POST-LAUNCH TIER COMPLETE 7/7.** Phase-28: 14/18. Supplement tier (28.14-28.17) remaining.
+
