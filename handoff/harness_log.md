@@ -19924,3 +19924,52 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~30 min.
 
+
+---
+
+## Cycle 1 -- 2026-05-17 20:49 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.40% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 23 -- 2026-05-17 21:00 UTC -- phase=28.8 result=PASS
+
+**Step:** phase-28.8 — Russell-1000 universe expansion (addresses Sandisk/SNDK reference-case spinoff miss).
+
+**Planner hypothesis:** Add `get_russell1000_tickers()` with IWB-CSV-then-fallback chain; flag-conditional universe selection in autonomous_loop. Existing two-pass design (cheap screen_universe + paper_screen_top_n=10 cap) handles 2x universe naturally. Default OFF.
+
+**Generator:** 3 files —
+- `backend/tools/screener.py`: +Path import; +IWB_HOLDINGS_URL constant; +60-ticker `_RUSSELL_1000_EXTRA_FALLBACK` (mid-caps + reference-case names SNDK/WDC/MU + popular cloud/fintech); +`_read_russell_cache` + `_write_russell_cache`; +`get_russell1000_tickers()` with 3-tier fallback chain.
+- `backend/services/autonomous_loop.py` (+import + flag-conditional universe selection before screen_universe call + summary fields).
+- `backend/config/settings.py` (+2 fields: enabled (False), cache_days (180)).
+
+**Researcher gate:** `gate_passed: true` (7 sources: iShares IWB page, LSEG Russell pages, etf-scraper PyPI, stockanalysis.com IWB, GitHub talsan/ishares, Wikipedia Russell 1000, FTSE Russell 2026 reconstitution schedule; 16 URLs; recency scan).
+
+**Q/A subagent verdict:** PASS (no violations).
+- 5-item audit: all PASS.
+- 7 deterministic checks: immutable verification, 3-file syntax, settings defaults, symbol imports, live fetch (count=515, SNDK/WDC/MU=True), autonomous_loop flag check, back-compat (default SP500 preserved).
+
+**Note on Q/A continuation:** Q/A stopped at "All data assembled. Now write the verdict and overwrite the critique." — same pattern as 28.6/28.7. SendMessage continuation completed in 18s.
+
+**Honest disclosure:** iShares IWB direct CSV URL returns 10MB of HTML (browser-protected page), NOT CSV. Fallback chain activates and includes all 3 reference-case tickers (SNDK, WDC, MU) plus 12 popular mid-caps (LYFT, MDB, MRVL, NET, OKTA, PINS, PXD, ROKU, SNOW, SPOT, TEAM, ZS). Default-OFF means production unaffected.
+
+**Follow-up (not blocking):** phase-28.8-followup-iwb-csv-parser — options: install etf-scraper PyPI, use stockanalysis.com, or FTSE Russell paid feed.
+
+**Live check:** `handoff/current/live_check_28.8.md` — REAL fetch returning 515 tickers with SNDK/WDC/MU all present. Screening cost: ~30-60s yfinance-only (no LLM). Two-pass design (top_n=10 cap → paper_analyze_top_n=5 LLM) keeps downstream cost identical to SP500 mode.
+
+**Decision:** flip phase-28.8 to `done`. Post-launch tier: 3/7 done. Next per proposal sequencing: **28.9 — Options-flow OI-surge filter** (M effort).
+
+**Total cycle time:** ~25 min.
+

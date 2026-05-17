@@ -5,6 +5,7 @@ Uses yfinance batch download. Zero LLM cost.
 
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import yfinance as yf
@@ -481,3 +482,104 @@ _FALLBACK_TICKERS = [
     "PM", "UNP", "RTX", "LOW", "HON", "ORCL", "BMY", "QCOM", "UPS",
     "INTC", "AMD", "SBUX", "BA",
 ]
+
+# phase-28.8: Russell-1000 universe expansion (addresses Sandisk/SNDK reference-case
+# miss where the picker's SP500-only universe excluded the spinoff during the early
+# rally phase). Russell-1000 ~doubles the universe and includes recent spinoffs +
+# mid-caps below SP500's $22.7B inclusion floor.
+#
+# Data source: iShares IWB ETF CSV holdings. Cached locally for 180 days (FTSE
+# Russell does semi-annual reconstitution). Fallback to hardcoded extension list
+# (SP500 fallback + 50 well-known mid-caps + reference-case adds like SNDK, WDC, MU).
+IWB_HOLDINGS_URL = (
+    "https://www.ishares.com/us/products/239707/"
+    "ishares-russell-1000-etf/1467271812596.ajax"
+    "?fileType=csv&fileName=IWB_holdings&dataType=fund"
+)
+_RUSSELL_1000_CACHE = Path(__file__).parent.parent / "services" / "_cache" / "russell1000"
+
+# Reference-case + popular mid-caps not in the SP500 fallback above. Used when
+# IWB download fails AND Wikipedia scrape fails. Hand-curated for coverage of
+# common spinoff / mid-cap names.
+_RUSSELL_1000_EXTRA_FALLBACK = [
+    "SNDK", "WDC", "MU", "STX", "LITE", "CIEN", "COHR", "AMAT", "LRCX", "KLAC",
+    "FIX", "DELL", "GLW", "ON", "MCHP", "MPWR", "NXPI", "ADI", "MRVL", "TER",
+    "ZS", "OKTA", "DDOG", "MDB", "NET", "TEAM", "PLTR", "SNOW", "WDAY", "NOW",
+    "PANW", "FTNT", "CRWD", "DASH", "ABNB", "UBER", "LYFT", "PINS", "ROKU", "SPOT",
+    "OXY", "EOG", "PSX", "MPC", "VLO", "DVN", "PXD", "BKR", "SLB", "HAL",
+    "C", "WFC", "USB", "PNC", "TFC", "COF", "SCHW", "BLK", "MS", "GS",
+]
+
+
+def _read_russell_cache() -> Optional[list[str]]:
+    """Return cached Russell-1000 ticker list if fresh; else None."""
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    p = _RUSSELL_1000_CACHE / "tickers.txt"
+    if not p.exists():
+        return None
+    try:
+        age = _dt.now(_tz.utc) - _dt.fromtimestamp(p.stat().st_mtime, tz=_tz.utc)
+        if age > _td(days=180):
+            return None
+        tickers = [line.strip() for line in p.read_text(encoding="utf-8").splitlines() if line.strip()]
+        return tickers if len(tickers) >= 500 else None
+    except Exception:
+        return None
+
+
+def _write_russell_cache(tickers: list[str]) -> None:
+    try:
+        _RUSSELL_1000_CACHE.mkdir(parents=True, exist_ok=True)
+        (_RUSSELL_1000_CACHE / "tickers.txt").write_text("\n".join(tickers), encoding="utf-8")
+    except Exception as e:
+        logger.warning("Russell-1000 cache write failed: %s", e)
+
+
+def get_russell1000_tickers() -> list[str]:
+    """Fetch Russell-1000 ticker list via iShares IWB CSV (preferred) with cache.
+
+    Cache TTL: 180 days (matches FTSE Russell semi-annual reconstitution).
+
+    Fallback chain:
+        1. Local 180-day cache
+        2. iShares IWB CSV download (browser User-Agent)
+        3. SP500 list + _RUSSELL_1000_EXTRA_FALLBACK (de-duplicated)
+    """
+    cached = _read_russell_cache()
+    if cached:
+        logger.info("Russell-1000 cache hit: %d tickers", len(cached))
+        return cached
+
+    import io as _io
+    import urllib.request as _urlreq
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "Accept": "text/csv,application/octet-stream;q=0.9,*/*;q=0.5",
+    }
+    try:
+        req = _urlreq.Request(IWB_HOLDINGS_URL, headers=headers)
+        with _urlreq.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+        text = "\n".join(line for line in raw.splitlines() if "," in line)
+        df = pd.read_csv(_io.StringIO(text), skiprows=9, engine="python", on_bad_lines="skip")
+        if "Ticker" in df.columns and "Asset Class" in df.columns:
+            df = df[df["Asset Class"].astype(str).str.strip() == "Equity"]
+            tickers = (
+                df["Ticker"].astype(str).str.strip().str.upper()
+                  .str.replace(".", "-", regex=False).dropna().unique().tolist()
+            )
+            tickers = [t for t in tickers if t and t.replace("-", "").isalnum()]
+            if len(tickers) >= 500:
+                _write_russell_cache(tickers)
+                logger.info("Russell-1000 IWB download succeeded: %d tickers", len(tickers))
+                return tickers
+        logger.warning("IWB CSV parse: unexpected schema; falling back")
+    except Exception as e:
+        logger.warning("IWB CSV download failed (%s); falling back to combined SP500+extras", e)
+
+    sp500 = get_sp500_tickers()
+    combined = list(dict.fromkeys(sp500 + _RUSSELL_1000_EXTRA_FALLBACK))
+    logger.info("Russell-1000 fallback list: %d tickers (SP500 %d + extras %d, deduped)",
+                len(combined), len(sp500), len(_RUSSELL_1000_EXTRA_FALLBACK))
+    return combined

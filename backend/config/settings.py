@@ -234,6 +234,9 @@ class Settings(BaseSettings):
     multidim_momentum_weight_52w_high: float = Field(0.25, description="phase-28.7: Z-blend weight for 52-week-high proximity (George-Hwang 2004 anchoring effect).")
     multidim_momentum_weight_sue: float = Field(0.20, description="phase-28.7: Z-blend weight for SUE momentum (pead_signal.surprise_score; 0 if missing).")
     multidim_momentum_weight_sector: float = Field(0.20, description="phase-28.7: Z-blend weight for sector/factor momentum (sector_momentum_ranks boost_multiplier - 1.0; 0 if missing).")
+    # phase-28.8: Russell-1000 universe expansion (addresses Sandisk/SNDK reference-case spinoff miss)
+    russell1000_universe_enabled: bool = Field(False, description="phase-28.8: Use Russell-1000 (~1000 tickers) instead of S&P 500 (~503) for screen_universe. Default OFF. Existing two-pass design (cheap screen_universe -> top-N cap) keeps downstream cost bounded.")
+    russell1000_cache_days: int = Field(180, description="phase-28.8: Days to cache the IWB ticker list (FTSE Russell semi-annual reconstitution -> 180 day TTL).")
     # 4.5.7 Kill-switch v2. Defaults from prop-trading practitioner consensus
     # (see RESEARCH.md Phase 4.5 step 4.5.7): 4% daily loss modal across FTMO /
     # FXIFY / Alpha Capital / FundedNext; 10% EOD trailing drawdown is the

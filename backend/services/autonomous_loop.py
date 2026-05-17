@@ -22,7 +22,7 @@ from backend.config.settings import Settings, get_settings
 from backend.db.bigquery_client import BigQueryClient
 from backend.services.paper_trader import PaperTrader
 from backend.services.portfolio_manager import decide_trades
-from backend.tools.screener import screen_universe, rank_candidates
+from backend.tools.screener import screen_universe, rank_candidates, get_sp500_tickers, get_russell1000_tickers
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +277,22 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 except Exception as e:
                     logger.warning("Short-interest lookup failed (non-fatal): %s", e)
 
+            # phase-28.8: optionally use Russell-1000 universe instead of S&P 500
+            # (addresses Sandisk/SNDK spinoff miss). Default OFF.
+            if getattr(settings, "russell1000_universe_enabled", False):
+                try:
+                    universe = get_russell1000_tickers()
+                    summary["universe_source"] = "russell1000"
+                    summary["universe_size"] = len(universe)
+                    logger.info("phase-28.8: using Russell-1000 universe (%d tickers)", len(universe))
+                except Exception as e:
+                    logger.warning("Russell-1000 fetch failed (%s); falling back to SP500", e)
+                    universe = None
+            else:
+                universe = None
+
             screen_data = screen_universe(
+                tickers=universe,
                 period="6mo",
                 short_interest_lookup=short_interest_lookup or None,
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
