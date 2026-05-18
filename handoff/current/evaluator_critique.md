@@ -1,195 +1,110 @@
-# Evaluator Critique -- phase-28.16 -- M&A pre-announcement aggregator (FINAL phase-28 item)
+# Evaluator Critique -- phase-29.0 -- Layer-3 Harness MAS + MCP + Data-Wiring Audit
 
-**Step ID:** phase-28.16
+**Step ID:** phase-29.0
 **Date:** 2026-05-18
-**Cycle:** 1
-**Verdict:** **PASS** (with NOTE: research-brief artifact size flag — see Audit Item 1)
+**Cycle:** 1 (first Q/A pass for this step-id)
+**Verdict:** **PASS**
 
 ---
 
-## STEP 1 — 5-item harness-compliance audit
+## STEP 1 -- 5-item harness-compliance audit (per memory feedback_qa_harness_compliance_first.md)
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Researcher gate | **NOTE / PASS-with-flag** | `handoff/current/phase-28.16-research-brief.md` exists (5 lines, supplement-Gap-3 reference; cites Augustin-Brenner-Subrahmanyam + Duong-Pi-Sapp 2025). **NOTE:** The brief lacks the standard JSON envelope (`fallback_authoring: Main`, `external_sources_read_in_full`, `gate_passed`). Per user directive cited in prompt: "If Researcher crashes again, log failure signature and fall back to direct WebFetch; do not block the run." Main's fallback authoring is documented in `contract.md:5` and `contract.md:10` (5 read in full + 6 failed). Cited research is in `experiment_results.md:71` and 5 legality surfaces. Treating as PASS-with-NOTE per user directive; recommend backfilling the JSON envelope to the brief file for harness-log auditability. |
-| 2 | Contract pre-commit | PASS | `contract.md` written before generate; immutable verification command verbatim at line 25; success criteria copied (5 items). |
-| 3 | Results present | PASS | `experiment_results.md` (113 lines) with verbatim verification output, synthetic 6-ticker test results, 13D stub honesty section, 5-place legality coverage table. |
-| 4 | Log-last discipline | PASS | `harness_log.md` shows cycle 30 (phase-28.17) as last entry. No phase-28.16 log entry yet — correct: log appends AFTER Q/A PASS and BEFORE status flip. |
-| 5 | No verdict-shopping | PASS | First Q/A pass for phase-28.16 (no prior critique). Zero prior CONDITIONAL/FAIL for this step-id in `harness_log.md`. Counter clean. |
+| 1 | Researcher gate | **PASS** | `handoff/current/research_brief.md` exists (452 lines), JSON envelope at line 433 with `"gate_passed": true` and per-sub-topic flags `{"1":true,"2":true,"3":true,"4":true,"5":true}`. Tier `complex`, 11 sources read in full, 25+ URLs, recency_scan_performed=true, frontier_sync_performed=true. All 5 sub-topics individually gate_passed (research_brief.md:423-427). |
+| 2 | Contract pre-commit | **PASS** | mtime ordering verified via `ls -lT`: research_brief.md 06:45:48 -> contract.md 06:48:46 (+178s) -> experiment_results.md 06:53:09 (+263s). Strict brief -> contract -> results ordering. |
+| 3 | Results present | **PASS** | `experiment_results.md` (505 lines) contains: (a) WIRING_DRIFT table (4 occurrences, sec 3b lines 125-137), MCP_PROMOTION_MISSED table (4 occurrences, sec 3c lines 147-156), FRONTIER_DELTA table (2 occurrences, sec 6 lines 191-203); (b) phase-29 JSON block parses cleanly with 10 sub-steps (29.0-29.9); (c) tiered P1 (7 items) / P2 (10 items) / P3 (10 items) lists at sec 7 (lines 208-242); (d) file:line evidence per gap (e.g. `.claude/agents/researcher.md:10`, `qa.md:271-296`, `backend/agents/mcp_servers/risk_server.py`). |
+| 4 | Log-last discipline | **PASS** | `grep -c 'phase=29' handoff/harness_log.md` = 0. No phase-29.0 cycle entry present. Log will be appended AFTER this PASS verdict and BEFORE the masterplan flip, per `feedback_log_last.md` memory. |
+| 5 | No verdict-shopping | **PASS** | `ls handoff/archive/` shows ZERO prior phase-29* archives. The existing `handoff/current/evaluator_critique.md` at session start was the stale phase-28.16 critique (different step-id), not a prior phase-29.0 attempt. This is the first Q/A spawn for phase-29.0. |
+
+**All 5 audit items PASS.** No protocol breaches.
 
 ---
 
-## STEP 2 — Deterministic checks (verbatim)
+## STEP 2 -- Deterministic checks (verbatim)
 
-### Immutable verification command
-```
-$ source .venv/bin/activate && python -c "import ast; ast.parse(open('backend/services/ma_preannounce_screen.py').read()); print('syntax OK')" && grep -q 'ma_preannounce_enabled' backend/config/settings.py && grep -qE '13[dg]|SCHEDULE.13' backend/services/ma_preannounce_screen.py
-syntax OK
-EXIT 0
-```
-**PASS.**
+| Check | Command | Expected | Actual | Result |
+|---|---|---|---|---|
+| Files exist | `test -f` brief/contract/results | all 3 present | all 3 present | **PASS** |
+| Brief line count | `wc -l research_brief.md` | >=400 | 452 | **PASS** |
+| Brief sub-topics | `grep -c '^## SUB-TOPIC'` | ==5 | 5 | **PASS** |
+| Brief gate_passed | `grep -c '"gate_passed": true'` | >=1 | 1 (in JSON envelope, plus per-subtopic checklist at 423-427) | **PASS** |
+| Results WIRING_DRIFT | `grep -c 'WIRING_DRIFT'` | >=2 | 4 | **PASS** |
+| Results MCP_PROMOTION_MISSED | `grep -c 'MCP_PROMOTION_MISSED'` | >=2 | 4 | **PASS** |
+| Results FRONTIER_DELTA | `grep -c 'FRONTIER_DELTA'` | >=2 | 2 | **PASS** |
+| Results Gap headers | `grep -c '^### Gap [0-9]+\.[0-9]+'` | >=5 | 11 (gaps 1.1-1.6 + 2.1-2.5) | **PASS** |
+| phase-29 JSON parses | python3 json.loads on extracted block | valid, status=pending, >=8 steps, all sub-steps have verification.command + success_criteria + live_check | valid, status=pending, 10 sub-steps (29.0-29.9), ALL fields present per sub-step | **PASS** |
+| Diff scope | `git diff --stat` | only handoff/ + admin churn | only handoff/, audit logs, archive-baseline, mda_cache.json, feature_ablation_results.tsv (auto-generated background-process churn, NOT code edits to backend/frontend/.claude/agents/.claude/rules) | **PASS** |
+| 3rd-CONDITIONAL count | `grep -c 'phase=29.*CONDITIONAL' harness_log.md` | 0 | 0 | **PASS** (first cycle for this step) |
 
-### 4-file syntax
-- `backend/services/ma_preannounce_screen.py`: syntax OK
-- `backend/config/settings.py`: syntax OK
-- `backend/tools/screener.py`: syntax OK
-- `backend/services/autonomous_loop.py`: syntax OK
-
-### Settings defaults (runtime via `Settings()`)
-```
-enabled=False strong=0.1 moderate=0.05
-SETTINGS DEFAULTS: OK
-```
-Confirms default-OFF, +10% strong, +5% moderate per contract spec.
-
-### Public API importable
-```
-from backend.services.ma_preannounce_screen import (
-    compute_ma_preannounce_signals, apply_ma_preannounce_to_score,
-    _classify_boost, _fetch_13d_filings_for, MAPreannounceSignal
-)
-Public API: importable
-```
-
-### `_classify_boost` boundary table
-```
-legs=0 -> (1.00, 'none')
-legs=1 -> (1.05, 'moderate')
-legs=2 -> (1.10, 'strong')
-legs=3 -> (1.10, 'strong')   # capped at strong (no triple boost)
-```
-
-### `rank_candidates(ma_preannounce_signals=None)` kwarg
-```
-KWARG PRESENT (default=None)
-```
-
-### Synthetic 6-ticker / 3-leg unit test (per contract)
-Inputs: tickers=[AAPL,NVDA,TSLA,COIN,GME,UNUSED]; options_signals={AAPL,NVDA,COIN}; insider_signals={AAPL,TSLA,COIN}; schedule_13d={COIN}.
-
-```
-Returned signals: 4
-  AAPL: legs=['options','insider']         count=2 boost=1.10 tier=strong
-  NVDA: legs=['options']                   count=1 boost=1.05 tier=moderate
-  TSLA: legs=['insider']                   count=1 boost=1.05 tier=moderate
-  COIN: legs=['options','insider','13d']   count=3 boost=1.10 tier=strong (capped)
-```
-- Exactly 4 signals returned (GME/UNUSED correctly excluded with 0 legs).
-- AAPL strong (2 legs) — PASS.
-- NVDA moderate (1 leg) — PASS.
-- COIN strong with 3 legs CAPPED at 1.10 (no triple-boost) — PASS.
-- TSLA moderate (1 leg) — PASS bonus.
-
-### Apply identity paths
-```
-  AAPL: 10.000 -> 11.000 (+10%)
-  NVDA: 10.000 -> 10.500 (+5%)
-  GME:  10.000 -> 10.000 (identity, 0 legs)
-  None signals: 10.0 -> 10.0 (identity)
-  No ticker:    10.0 -> 10.0 (identity)
-```
-All 5 identity / boost paths behave as designed.
-
-### 13D stub honesty
-```
-asyncio.run(_fetch_13d_filings_for('COIN'))  ->  []   # expected []
-```
-Stub returns empty list. Docstring at lines 56-72 honestly documents the HTTP 403 from `efts.sec.gov` and lists two future implementation paths (`httpx.AsyncClient` with browser UA, or `sec-edgar` PyPI). TODO marker present at line 73: `# TODO phase-28.16-followup-13d-edgar`. Module docstring (lines 14-19) flags Leg 3 as STUBBED. **HONEST.**
+All 11 deterministic checks PASS.
 
 ---
 
-## STEP 3 — LLM judgment & code-review heuristics
+## STEP 3 -- LLM judgment (contract alignment + anti-rubber-stamp)
 
-### Contract alignment
-All 5 immutable success criteria evidenced:
+**Contract alignment (7 immutable success criteria from `contract.md:50-64`):**
 
-| Criterion | Evidence | Result |
-|---|---|---|
-| `ma_preannounce_screen_module_created` | `backend/services/ma_preannounce_screen.py` (151 lines on disk; contract said 130, slightly longer due to docstrings) — importable | PASS |
-| `three_legs_present_OTM_options_and_Form_4_cluster_and_13D_polling` | Module docstring lines 4-19 names all 3 legs; `compute_ma_preannounce_signals` lines 116-121 evaluates all 3; grep matches `13[dg]|SCHEDULE.13` (immutable verification clause) | PASS |
-| `uses_only_public_data_per_legality_boundary_note` | LEGALITY visible in: (a) module docstring lines 26-29, (b) `settings.py:300` field description, (c) `contract.md:44-49`, (d) `experiment_results.md:75-90` (5-place table), (e) `live_check_28.16.md:10-12` and `:54` — **5 surfaces confirmed** | PASS |
-| `feature_flag_ma_preannounce_enabled_default_false` | `Settings().ma_preannounce_enabled == False` at runtime | PASS |
-| `live_check_lists_M_A_signal_tickers_for_one_cycle` | `live_check_28.16.md` documents 4 signals across 6 tickers with per-ticker leg checklist, aggregation rule, score impact, leg-by-leg provenance | PASS |
+- **Criterion 1** (research_brief >=400 lines, JSON envelope, all 5 sub-topics gate_passed): SATISFIED. 452 lines, envelope at line 433, all 5 gated.
+- **Criterion 2** (contract.md exists, names step-id, research-gate summary, immutable criteria, references): SATISFIED. Self-satisfying; all sections present.
+- **Criterion 3** (experiment_results.md contains 5 sub-topic gap analyses + WIRING_DRIFT + MCP_PROMOTION_MISSED + FRONTIER_DELTA + tiered remediation + JSON-ready phase-29 entry): SATISFIED. All 7 required content blocks present and well-structured. The phase-29 JSON block is dense (10 sub-steps, all with verification.command/success_criteria/live_check matching phase-28's schema).
+- **Criterion 4** (Q/A verdict obtained by a SPAWNED qa subagent, JSON block with ok/verdict/violated_criteria/violation_details/checks_run): IN-FLIGHT (this critique IS the satisfying artifact).
+- **Criterion 5** (harness_log.md cycle appended): DEFERRED to post-verdict per log-last discipline. Will be done by Main before masterplan flip.
+- **Criterion 6** (no code edits -- only the 5 handoff files + masterplan.json phase-29 entry): SATISFIED. `git diff --stat` shows ONLY handoff/, audit logs, and background-job churn (mda_cache.json + feature_ablation_results.tsv are auto-regenerated by long-running processes, NOT phase-29 code edits). Zero edits to backend/, frontend/, .claude/agents/, .claude/rules/, .claude/settings.json, .mcp.json -- matches contract.md:63 verbatim.
+- **Criterion 7** (commit prefix `phase-29.0:`): DEFERRED to post-verdict per log-last discipline.
 
-### Default-OFF discipline
-- `ma_preannounce_enabled: bool = Field(False, ...)` — `settings.py:300`
-- `autonomous_loop.py:305` guarded by `getattr(settings, "ma_preannounce_enabled", False)`
-- `screener.py:366` guarded by truthy `ma_preannounce_signals` (None default at line 233)
-- Three layers of OFF-by-default protection. Production unchanged when flag stays False. **PASS.**
+5 of 7 fully satisfied. Criteria 4-5-7 satisfy on the post-verdict tail (this critique = criterion 4 itself; criteria 5 and 7 await Main's log-append + commit).
 
-### Pure-function design (no I/O in compute)
-`compute_ma_preannounce_signals` (lines 85-136): no `await`, no network, no file I/O. Reads dicts, returns dict. Single `logger.info` summary line at end. **PASS.** The only async I/O is `_fetch_13d_filings_for` which is currently a stub returning `[]`.
+**Anti-rubber-stamp checks:**
 
-### Reuses phase-28.9 + 28.10 signals (no duplicate fetch)
-`autonomous_loop.py:311-312` passes already-fetched `options_surge_signals` (28.9) and `insider_signals` (28.10) into the aggregator. **Zero additional network cost** — verified by reading lines 301-319 inline comment. `schedule_13d_signals={}` is passed empty (line 313). **PASS.**
+- Section 9 "Honest disclosures" is substantive (6 disclosures, NOT boilerplate): explicitly acknowledges (a) researcher-mid-flight-stop pattern, (b) cross-validation source-pool sharing, (c) `model_tiers.py`/`orchestrator.py` row is hypothesis-not-grep'd, (d) MCP smoke-test status unknown, (e) no live-system reproduction this cycle (paperwork audit by design), (f) skills extraction is reversible. The hypothesis-not-grep'd admission directly addresses scope-honesty.
+- Mutation-resistance: not applicable (audit-only cycle, no code mutation surface). The phase-29.4 sub-step's `live_check` field explicitly schedules a future mutation test ("plant a violation matching one heuristic in a throwaway file, confirm Q/A flags it, restore").
+- Research-gate compliance: contract.md cites researcher findings with anchor lines (contract.md:25 -> "Brief: handoff/current/research_brief.md (452 lines). JSON envelope at line 433."; contract.md:108-119 lists 11 internal file:line anchors and 11 external URLs). Strong compliance.
+- Scope honesty: contract.md:123-129 has a dedicated "Out-of-scope (do NOT widen)" section listing 5 explicit non-targets (Layer-2 refactors, Layer-1 refactors, any actual `.mcp.json` edit, any actual researcher.md effort revert, Slack/paper-trader/BQ schema). Matches "audit-only" framing throughout.
 
-### 13D stub honesty
-The stub does NOT pretend to work:
-- Module docstring lines 14-19: "STUBBED for Phase-2... returns [] until the EDGAR client is wired."
-- Function docstring lines 56-72: explains HTTP 403, lists endpoint + 2 future paths.
-- `live_check_28.16.md:54-65`: "currently returns []" + follow-up section "phase-28.16-followup-13d-edgar".
-- `experiment_results.md:69-73`: "STUB documented" with explicit HTTP 403 attribution.
-- Aggregator behavior: COIN with `schedule_13d={'COIN':{}}` correctly produces a 3-leg signal in the synthetic test, demonstrating the wiring would work once `_fetch_13d_filings_for` returns real data. **PASS.**
-
-### Researcher fallback handled per user directive
-- Brief authored by Main after Researcher stopped mid-step (explicitly cited in `contract.md:5,10` and `experiment_results.md:6`).
-- 5 sources read in full + 6 failed documented in contract (lines 10-13).
-- **NOTE (downgraded from WARN):** Brief file itself is only 5 lines — JSON envelope (`fallback_authoring: Main`, `external_sources_read_in_full`, `gate_passed`) per `.claude/rules/research-gate.md` is absent from the file even though the substantive evidence is captured in the contract. Per user's standing directive "do not block the run", this is recorded as PASS-with-flag, not a blocker. Recommend backfilling the envelope to the brief file post-cycle for audit parity.
-
-### Code-review heuristics — clean across 5 dimensions
-
-| Dimension | Result | Note |
-|---|---|---|
-| 1. Security | PASS | No secrets, no `subprocess`/`eval`/`exec`, no `yaml.load`, no `pickle.load`. New module is pure-aggregator with one optional `httpx`-future stub. |
-| 2. Trading-domain | PASS | No `kill_switch`/`stop_loss`/`perf_metrics` touched. No risk-engine math changed. Default-OFF guards in place. |
-| 3. Code quality | PASS | No `except Exception: pass`, no `print()`, no global mutable state, no `eval`. Type hints on all public functions. Pydantic model with `extra="forbid"`. Em-dashes (U+2014) appear in docstrings only — NOT in logger format strings (line 132 logger call uses ASCII-only `%d` / `%g` format). |
-| 4. Anti-rubber-stamp | PASS | Behavioral 6-ticker / 3-leg test validates 4 PASS assertions + cap behavior + identity paths. 13D stub honesty verified by returning `[]` exactly as documented. Aggregator logic tested at boundaries (legs=0,1,2,3). |
-| 5. LLM-evaluator | PASS | First cycle — no rebuttal context. Verdict reflects evidence directly, with file:line citations throughout. |
-
-### Scope honesty
-`experiment_results.md` does NOT overclaim Leg 3. The 13D leg is explicitly STUBBED, with the HTTP 403 root cause cited and two recovery paths named. The aggregator's behavior with a non-empty `schedule_13d_signals` dict is verified by synthetic test (COIN 3-leg case) — showing Leg 3 wiring is correct, only the fetch is deferred. **PASS.**
+**Code-review heuristics (per qa.md Dimension 4):** N/A -- `financial-logic-without-behavioral-test` does NOT apply because git diff --stat confirms zero financial-logic code changes. The audit's deliverable is a JSON proposal, not executable code.
 
 ---
 
-## STEP 4 — Final verdict
-
-**PASS.**
-
-All 5 immutable success criteria met with file:line evidence. Deterministic verification command exits 0. Synthetic 3-leg test produces exactly 4 signals with correct tier assignments (AAPL strong 2-leg, NVDA moderate, TSLA moderate, COIN strong capped at 3 legs). 13D stub honestly documented in 5+ surfaces. Legality boundary visible in 5 places. Zero broad-except, zero print, zero perf_metrics bypass. Researcher fallback explicitly handled per user directive (NOTE on brief-file envelope shape, downgraded from WARN per directive "do not block").
-
-**Recommendation:** flip phase-28.16 to `done`. Append cycle 31 to `harness_log.md` BEFORE the status flip per log-last discipline. **Phase-28 = 18/18 complete.**
-
-**Follow-up tracked:** `phase-28.16-followup-13d-edgar` (wire authenticated SEC EDGAR client — `httpx.AsyncClient` with browser UA or `sec-edgar` PyPI dep; endpoint `https://efts.sec.gov/LATEST/search-index`).
-
----
-
-## JSON verdict
+## STEP 4 -- Verdict
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "audit_items": {
-    "researcher_gate": "PASS-with-NOTE (brief file lacks JSON envelope; fallback authoring documented in contract+results per user directive 'do not block')",
-    "contract_pre_commit": "PASS",
-    "results_present": "PASS",
-    "log_last": "PASS (no phase-28.16 entry yet; correct order log-after-Q/A)",
-    "no_verdict_shopping": "PASS (first cycle, zero prior CONDITIONAL/FAIL)"
-  },
-  "deterministic_checks": [
-    "immutable_verification_command_exit_0",
-    "4_file_syntax_ok",
-    "settings_defaults_runtime_off_strong_0.10_moderate_0.05",
-    "public_api_importable",
-    "classify_boost_boundary_table_0_1_2_3_legs",
-    "rank_candidates_kwarg_ma_preannounce_signals_None_default",
-    "synthetic_6_ticker_3_leg_unit_test_4_signals_AAPL_strong_NVDA_moderate_TSLA_moderate_COIN_3leg_capped",
-    "apply_identity_paths_5_cases",
-    "13d_stub_returns_empty_list_honest_docstring"
-  ],
+  "reason": "All 7 immutable success criteria from contract.md:50-64 satisfied or in-flight on the post-verdict tail. 5/5 harness-compliance audit items PASS. 11/11 deterministic checks PASS. phase-29 JSON block parses cleanly with 10 sub-steps (29.0-29.9), each with verification.command + success_criteria + live_check fields per the phase-28 schema. Section 9 honest disclosures are substantive (6 disclosures including explicit scope-honesty on hypothesis-not-grep'd WIRING_DRIFT rows). Diff scope confirmed audit-only -- zero edits to backend/, frontend/, .claude/agents/, .claude/rules/, .claude/settings.json, .mcp.json. Research-gate compliance strong (11 external sources read in full, 11 internal file:line anchors cited). No 3rd-CONDITIONAL escalation needed (first cycle for this step-id).",
   "violated_criteria": [],
-  "violation_details": "",
+  "violation_details": [],
   "certified_fallback": false,
-  "checks_run": 9
+  "checks_run": [
+    "5_item_harness_compliance_audit",
+    "file_existence",
+    "research_brief_structural_completeness",
+    "experiment_results_structural_completeness",
+    "phase29_json_block_round_trip",
+    "file_mtime_ordering",
+    "diff_scope_audit_only",
+    "log_last_discipline",
+    "no_verdict_shopping",
+    "3rd_conditional_count",
+    "contract_alignment_7_criteria",
+    "anti_rubber_stamp_disclosures",
+    "research_gate_compliance",
+    "scope_honesty"
+  ]
 }
 ```
+
+---
+
+## STEP 5 -- Post-verdict guidance for Main
+
+1. **Append cycle entry to `handoff/harness_log.md`** using the standard format (`## Cycle N -- 2026-05-18 -- phase=29.0 result=PASS`) with Generator/Researcher/Q/A summaries. Do this BEFORE the masterplan flip per `feedback_log_last.md` memory.
+2. **Insert phase-29 entry into `.claude/masterplan.json`** by lifting the JSON block from experiment_results.md:251-474 into the `phases` array, preserving `status: pending` (the 10 sub-steps are separate cycles).
+3. **Flip phase-29.0's status to `done`** (only 29.0 itself, NOT the parent phase-29 nor any sub-step).
+4. **Commit with prefix `phase-29.0:`** so the changelog classifier picks the right semver bump.
+5. **Live-check artifact**: per contract.md:76, write `handoff/current/live_check_29.0.md` with file:line evidence of WIRING_DRIFT rows + paper-search-mcp install command + revert-researcher-effort path BEFORE the auto-push hook runs, otherwise the auto-push gate will hold (per CLAUDE.md `verification.live_check` rule).
+
+**Cycle-2 guidance:** N/A -- first cycle, PASS verdict, no fix loop needed. If a sub-step (29.1-29.9) later fails Q/A, the canonical cycle-2 flow applies (Main updates handoff files -> spawns fresh Q/A -> new verdict reflects the fix, NOT second-opinion shopping on unchanged evidence per CLAUDE.md and the `feedback_harness_rigor.md` memory).
+
+**Stress-test note:** phase-29.9 (P3 bundle) includes a stress-test cycle per CLAUDE.md's stress-test doctrine ("On each new Claude model release, re-run a representative step WITHOUT the harness... If the model now does X on its own, remove the scaffolding"). Opus 4.7 was released 2026-04-16, currently no stress-test on record. Phase-29.9 satisfies the doctrine.

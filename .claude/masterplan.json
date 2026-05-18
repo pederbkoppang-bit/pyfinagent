@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-17T22:21:34.395099+00:00",
+  "updated_at": "2026-05-18T04:59:06.240257+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -664,7 +664,7 @@
     },
     {
       "id": "phase-4.5",
-      "name": "Paper Trading Dashboard v2 — Evaluation-Grade",
+      "name": "Paper Trading Dashboard v2 \u2014 Evaluation-Grade",
       "status": "done",
       "depends_on": [
         "phase-2"
@@ -676,7 +676,7 @@
       "steps": [
         {
           "id": "4.5.0",
-          "name": "Architecture & Contract — Paper Trading Dashboard v2",
+          "name": "Architecture & Contract \u2014 Paper Trading Dashboard v2",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -732,7 +732,7 @@
         },
         {
           "id": "4.5.3",
-          "name": "Reconciliation overlay — paper-live vs parallel OOS backtest on NAV chart",
+          "name": "Reconciliation overlay \u2014 paper-live vs parallel OOS backtest on NAV chart",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -809,7 +809,7 @@
         },
         {
           "id": "4.5.7",
-          "name": "Kill-switch v2 — Pause / Resume / Flatten-all + daily loss + trailing DD limits",
+          "name": "Kill-switch v2 \u2014 Pause / Resume / Flatten-all + daily loss + trailing DD limits",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -4597,7 +4597,7 @@
     },
     {
       "id": "phase-4.16",
-      "name": "Harness Discipline Patches (research-gate ≥5, handoff layout, docs)",
+      "name": "Harness Discipline Patches (research-gate \u22655, handoff layout, docs)",
       "steps": [
         {
           "id": "4.16.1",
@@ -5012,7 +5012,7 @@
     {
       "id": "phase-12",
       "status": "done",
-      "name": "Rainbow deploys — safe-update pattern",
+      "name": "Rainbow deploys \u2014 safe-update pattern",
       "description": "Implement Brandon Dimcheff's Rainbow Deploys pattern (https://brandon.dimcheff.com/2018/02/rainbow-deploys-with-kubernetes/) so dependency bumps, model-version flips, and framework migrations can be rolled out behind labeled colored Deployments/Services and rolled back by flipping a selector. Extends classic blue/green to N simultaneous versions (red/orange/yellow/green/blue/indigo/violet) so the harness can run a canary on ~5% traffic, compare live SLOs against the active color, and promote/demote without a rolling restart. User-requested on 2026-04-19 as future-proofing for the Vertex->google-genai migration (phase-11) and any subsequent SDK bumps.",
       "created_at": "2026-04-19T12:22:40.849756+00:00",
       "steps": [
@@ -5089,7 +5089,7 @@
         },
         {
           "id": "12.4",
-          "name": "First Rainbow migration — candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
+          "name": "First Rainbow migration \u2014 candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -5303,7 +5303,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday — proves _default_bq_logger wired end-to-end to real BQ."
+          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday \u2014 proves _default_bq_logger wired end-to-end to real BQ."
         },
         {
           "id": "16.8",
@@ -5321,7 +5321,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 — flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
+          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 \u2014 flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
         },
         {
           "id": "16.9",
@@ -5340,7 +5340,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data — latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
+          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data \u2014 latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
         },
         {
           "id": "16.10",
@@ -5377,7 +5377,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend — correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
+          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend \u2014 correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
         },
         {
           "id": "16.12",
@@ -5396,7 +5396,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table — non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
+          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table \u2014 non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
         },
         {
           "id": "16.13",
@@ -5860,7 +5860,7 @@
           "verification": "N=$(grep -l '3rd-CONDITIONAL\\|3-consecutive-CONDITIONAL\\|third consecutive CONDITIONAL\\|3rd consecutive' CLAUDE.md docs/runbooks/per-step-protocol.md .claude/agents/qa.md .claude/rules/*.md 2>/dev/null | wc -l | tr -d ' '); [ \"$N\" -ge 3 ]",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under §4 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under \u00a74 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
         },
         {
           "id": "16.41",
@@ -5880,7 +5880,7 @@
           "verification": "test -f frontend/src/lib/formatRelativeTime.ts && test -f frontend/src/components/RecentReportsTable.tsx && test -f frontend/src/components/HomeQuickActionsPanel.tsx && grep -q RecentReportsTable frontend/src/app/page.tsx && grep -q HomeQuickActionsPanel frontend/src/app/page.tsx && cd frontend && npx tsc --noEmit",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS — tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS \u2014 tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
         },
         {
           "id": "16.43",
@@ -5900,7 +5900,7 @@
           "verification": "test -f frontend/src/lib/kpiMetrics.ts && (cd frontend && npx tsc --noEmit) && grep -q 'nextRunAt={ptStatus' frontend/src/app/page.tsx && grep -q 'kpiMetrics' frontend/src/app/page.tsx && grep -qE 'LastSegment|NextSegment' frontend/src/components/OpsStatusBar.tsx && grep -q 'subText' frontend/src/app/page.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"—\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"\u2014\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
         },
         {
           "id": "16.45",
@@ -5930,7 +5930,7 @@
           "verification": "(cd frontend && npx tsc --noEmit) && grep -q 'lg:grid-cols-6 lg:items-stretch' frontend/src/app/page.tsx && ! grep -q 'lg:grid-cols-5' frontend/src/app/page.tsx && [ \"$(grep -c 'lg:col-span-2 h-full' frontend/src/app/page.tsx)\" = '3' ] && grep -q 'shrink-0' frontend/src/components/HomeQuickActionsPanel.tsx && grep -q 'min-w-0' frontend/src/components/HomeQuickActionsPanel.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening — Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening \u2014 Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
         },
         {
           "id": "16.48",
@@ -6200,7 +6200,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency — drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
+          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency \u2014 drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
         },
         {
           "id": "17.7",
@@ -7040,7 +7040,7 @@
         },
         {
           "id": "23.1.9",
-          "name": "Paper Trading Manage tab — deposit endpoint + 10 paper-trading settings exposed in API/UI",
+          "name": "Paper Trading Manage tab \u2014 deposit endpoint + 10 paper-trading settings exposed in API/UI",
           "status": "done",
           "harness_required": true,
           "verification": "see handoff/archive/phase-23.1.9/contract.md (immutable verification: PYTHONPATH=. python tests/verify_phase_23_1_9.py)",
@@ -7106,7 +7106,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.13/evaluator_critique.md",
           "created_at": "2026-04-28T17:30:48Z",
           "completed_at": "2026-04-28T17:30:48Z",
-          "notes": "User asked for diversification — 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
+          "notes": "User asked for diversification \u2014 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
         },
         {
           "id": "23.1.14",
@@ -7204,7 +7204,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.22/evaluator_critique.md",
           "created_at": "2026-04-30T18:55:00Z",
           "completed_at": "2026-04-30T18:55:00Z",
-          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry — first attempt wrote critique for wrong step)."
+          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry \u2014 first attempt wrote critique for wrong step)."
         },
         {
           "id": "23.2.0",
@@ -7925,7 +7925,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Observed empirically in cycles 38/39/40: the auto-commit-and-push.sh hook did NOT auto-fire on Edit calls to .claude/masterplan.json; operator had to manually trigger commit/push. Hypothesis was: drop the undocumented `if` predicate. Research gate at cycle 41 REJECTED that plan — sibling hooks (masterplan-memory-sync, archive-handoff, commit-reminder) would then fire on every Edit call (wasteful), and the `if` field IS documented (just under-specified for `.claude/`-prefixed paths). Revised research-supported plan: observability-first. Keep the `if` predicate as best-effort filter; add a single `log INVOKED ...` line near the top of auto-commit-and-push.sh so EVERY invocation produces observable evidence in auto-push.log. Next cycle that fails will show definitively: no INVOKED line = `if` predicate silently blocked the hook; INVOKED line + silent exit = hook fired but newly_done was empty. Pre-contract criteria update permitted because no contract has been written yet (criteria immutability begins at contract-time). live_check NOT required: success verifiable from on-disk artifacts."
+          "notes": "Observed empirically in cycles 38/39/40: the auto-commit-and-push.sh hook did NOT auto-fire on Edit calls to .claude/masterplan.json; operator had to manually trigger commit/push. Hypothesis was: drop the undocumented `if` predicate. Research gate at cycle 41 REJECTED that plan \u2014 sibling hooks (masterplan-memory-sync, archive-handoff, commit-reminder) would then fire on every Edit call (wasteful), and the `if` field IS documented (just under-specified for `.claude/`-prefixed paths). Revised research-supported plan: observability-first. Keep the `if` predicate as best-effort filter; add a single `log INVOKED ...` line near the top of auto-commit-and-push.sh so EVERY invocation produces observable evidence in auto-push.log. Next cycle that fails will show definitively: no INVOKED line = `if` predicate silently blocked the hook; INVOKED line + silent exit = hook fired but newly_done was empty. Pre-contract criteria update permitted because no contract has been written yet (criteria immutability begins at contract-time). live_check NOT required: success verifiable from on-disk artifacts."
         }
       ]
     },
@@ -7999,7 +7999,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P0 bucket — addresses the most user-impacting live bug (no stops firing on negative positions). Must produce phase-25 candidates that wire check_stop_losses() into the daily loop, ensure entry-path attaches stops, backfill the 5 stop-less positions, and add a no-sells-in-N-days anomaly watchdog."
+          "notes": "P0 bucket \u2014 addresses the most user-impacting live bug (no stops firing on negative positions). Must produce phase-25 candidates that wire check_stop_losses() into the daily loop, ensure entry-path attaches stops, backfill the 5 stop-less positions, and add a no-sells-in-N-days anomaly watchdog."
         },
         {
           "id": "24.2",
@@ -8031,7 +8031,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — explains why /reports page is empty (lite-only persistence) and why full 28-skill pipeline never runs in paper trading. Cross-links with 24.4 (rationale drawer sparse because lite skips per-ticker agents)."
+          "notes": "P1 bucket \u2014 explains why /reports page is empty (lite-only persistence) and why full 28-skill pipeline never runs in paper trading. Cross-links with 24.4 (rationale drawer sparse because lite skips per-ticker agents)."
         },
         {
           "id": "24.3",
@@ -8062,7 +8062,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — explains why no autoresearch has evolved the application. Champion/challenger A/B testing runs but never feeds back into daily strategy selection."
+          "notes": "P1 bucket \u2014 explains why no autoresearch has evolved the application. Champion/challenger A/B testing runs but never feeds back into daily strategy selection."
         },
         {
           "id": "24.4",
@@ -8094,7 +8094,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P0 bucket — the RiskJudge rationale is byte-identical to the Trader's, meaning the risk gate provides ZERO independent verification. Same anti-pattern Anthropic warned about (cycle 39 / R-2 / 'agents tend to confidently praise their own work'). Must surface Layer-1 28-skill outputs in per-trade rationale."
+          "notes": "P0 bucket \u2014 the RiskJudge rationale is byte-identical to the Trader's, meaning the risk gate provides ZERO independent verification. Same anti-pattern Anthropic warned about (cycle 39 / R-2 / 'agents tend to confidently praise their own work'). Must surface Layer-1 28-skill outputs in per-trade rationale."
         },
         {
           "id": "24.5",
@@ -8128,7 +8128,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P0 bucket — Slack is the operator's primary real-time surface and it's broken: wrong P&L in digests, wrong tickers in recent-analyses, mis-scheduled morning digest, no trade confirmations, no kill-switch alerts, no drawdown alarms, no error escalations. User cannot trust the live system without these."
+          "notes": "P0 bucket \u2014 Slack is the operator's primary real-time surface and it's broken: wrong P&L in digests, wrong tickers in recent-analyses, mis-scheduled morning digest, no trade confirmations, no kill-switch alerts, no drawdown alarms, no error escalations. User cannot trust the live system without these."
         },
         {
           "id": "24.6",
@@ -8160,7 +8160,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket — major subsystem (1167 LOC) powering /backtest page. Are backtest results actually predictive of live P&L? Champion/challenger discipline."
+          "notes": "P2 bucket \u2014 major subsystem (1167 LOC) powering /backtest page. Are backtest results actually predictive of live P&L? Champion/challenger discipline."
         },
         {
           "id": "24.7",
@@ -8192,7 +8192,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — are the BQ tables actually getting fresh data? Stale data == stale signals == bad trades."
+          "notes": "P1 bucket \u2014 are the BQ tables actually getting fresh data? Stale data == stale signals == bad trades."
         },
         {
           "id": "24.8",
@@ -8226,7 +8226,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — safety rails. Is the kill-switch actually wired? Watchdog firing on backend down? SLA monitor catching slow cycles? Cost budget enforced or honor-system?"
+          "notes": "P1 bucket \u2014 safety rails. Is the kill-switch actually wired? Watchdog firing on backend down? SLA monitor catching slow cycles? Cost budget enforced or honor-system?"
         },
         {
           "id": "24.9",
@@ -8261,7 +8261,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket — checks the existing AI infrastructure against the latest Anthropic + Google docs. Identifies features we don't use (batch, files API, citations) that could reduce cost or improve quality."
+          "notes": "P2 bucket \u2014 checks the existing AI infrastructure against the latest Anthropic + Google docs. Identifies features we don't use (batch, files API, citations) that could reduce cost or improve quality."
         },
         {
           "id": "24.10",
@@ -8295,7 +8295,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — security posture + MCP gap analysis. Should we have a signals MCP? News MCP? Are deny rules tight enough on broker API write ops?"
+          "notes": "P1 bucket \u2014 security posture + MCP gap analysis. Should we have a signals MCP? News MCP? Are deny rules tight enough on broker API write ops?"
         },
         {
           "id": "24.11",
@@ -8328,7 +8328,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket — already mostly clean per Phase-1 exploration. Confirms type sync, identifies orphan pages."
+          "notes": "P2 bucket \u2014 already mostly clean per Phase-1 exploration. Confirms type sync, identifies orphan pages."
         },
         {
           "id": "24.12",
@@ -8363,7 +8363,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket — UI/UX audit. Visual regression baseline = Playwright screenshots of all 14 pages committed to screenshots/."
+          "notes": "P2 bucket \u2014 UI/UX audit. Visual regression baseline = Playwright screenshots of all 14 pages committed to screenshots/."
         },
         {
           "id": "24.13",
@@ -8396,7 +8396,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — depends on 24.1-24.9 findings being complete. Asks: does current behavior match 'maximize profit at lowest cost; shift to winning strategy'? Quantifies the gap."
+          "notes": "P1 bucket \u2014 depends on 24.1-24.9 findings being complete. Asks: does current behavior match 'maximize profit at lowest cost; shift to winning strategy'? Quantifies the gap."
         },
         {
           "id": "24.14",
@@ -8589,7 +8589,7 @@
               "kill_switch_deactivate_emits_p1_slack_escalation",
               "pause_signals_calls_send_trading_escalation_before_shutdown"
             ],
-            "live_check": "Manual kill-switch press → Slack alert delivered within 30s"
+            "live_check": "Manual kill-switch press \u2192 Slack alert delivered within 30s"
           },
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
@@ -8879,7 +8879,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Mechanical alignment with frontend-layout.md §5."
+          "notes": "Mechanical alignment with frontend-layout.md \u00a75."
         },
         {
           "id": "25.C12",
@@ -9489,14 +9489,14 @@
     },
     {
       "id": "phase-26",
-      "name": "Frontier-sync: adopt 2026-04→05 Anthropic/Google releases + topology gaps",
+      "name": "Frontier-sync: adopt 2026-04\u219205 Anthropic/Google releases + topology gaps",
       "status": "pending",
       "harness_required": true,
       "depends_on": [
         "phase-25"
       ],
       "summary": "8 candidates synthesized from research_brief_external.md (5 frontier features) + research_brief_internal.md (5 topology gaps, 2 deduped vs external). Targets compute-burn reduction (Advisor Tool, opinion-skill consolidation, combined Gemini tools) and signal-quality lift (code_execution, alpha-decay detector, multimodal RAG). 26.0 + 26.1 are P0 safety/prereq; 26.2 is the highest-leverage cost win; 26.3-26.5 are signal lifts; 26.6 + 26.7 are P2 polish. NOTE: research_brief_external.md returned gate_passed=false on the 5-source floor (Main capped WebFetch at 4 to avoid timeout); the gate slip is bounded to the phase-ADD planning step. Each individual step below MUST spawn its own researcher with full 5-source gate before its own GENERATE.",
-      "description": "Source: handoff/archive/phase-26/research_brief_external.md + research_brief_internal.md (post-phase-25 close, 2026-05-16). Closes the delta between the 2026-05-12 audit window and the 2026-04-01 → 2026-05-16 frontier release window. Dependency-ordering: 26.0 + 26.1 precede 26.2; 26.3 / 26.4 / 26.5 / 26.6 / 26.7 are mutually independent.",
+      "description": "Source: handoff/archive/phase-26/research_brief_external.md + research_brief_internal.md (post-phase-25 close, 2026-05-16). Closes the delta between the 2026-05-12 audit window and the 2026-04-01 \u2192 2026-05-16 frontier release window. Dependency-ordering: 26.0 + 26.1 precede 26.2; 26.3 / 26.4 / 26.5 / 26.6 / 26.7 are mutually independent.",
       "steps": [
         {
           "id": "26.0",
@@ -9675,12 +9675,12 @@
       "steps": [
         {
           "id": "27.0",
-          "name": "Research gate: provider parity — Anthropic structured output + Gemini response shape + dual-provider fallback patterns",
+          "name": "Research gate: provider parity \u2014 Anthropic structured output + Gemini response shape + dual-provider fallback patterns",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,
-          "audit_basis": "Smoke audit 2026-05-16 §A B-1..B-7 + this-session findings C1/C2/C3. Each downstream fix needs canonical provider docs as ground truth — not LLM-recalled API shapes.",
+          "audit_basis": "Smoke audit 2026-05-16 \u00a7A B-1..B-7 + this-session findings C1/C2/C3. Each downstream fix needs canonical provider docs as ground truth \u2014 not LLM-recalled API shapes.",
           "verification": {
             "command": "test -f handoff/current/research_brief.md && grep -q 'gate_passed.*true' handoff/current/research_brief.md && grep -cE 'https?://' handoff/current/research_brief.md | awk '$1>=10{exit 0} {exit 1}'",
             "success_criteria": [
@@ -9699,7 +9699,7 @@
         },
         {
           "id": "27.1",
-          "name": "Fix C3 — Anthropic structured-output schema additionalProperties:false",
+          "name": "Fix C3 \u2014 Anthropic structured-output schema additionalProperties:false",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
@@ -9722,7 +9722,7 @@
         },
         {
           "id": "27.2",
-          "name": "Fix C1 — Gemini null-response safety (.text never None downstream)",
+          "name": "Fix C1 \u2014 Gemini null-response safety (.text never None downstream)",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
@@ -9745,12 +9745,12 @@
         },
         {
           "id": "27.3",
-          "name": "Fix C2 — Provider-aware lite fallback (Gemini lite + Claude lite)",
+          "name": "Fix C2 \u2014 Provider-aware lite fallback (Gemini lite + Claude lite)",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.0",
-          "audit_basis": "Live observation 2026-05-16: when standard model set to gemini-2.5-flash, the lite fallback refuses: 'standard model gemini-2.5-flash is not a Claude model; _run_claude_analysis is Claude-only'. This leaves the system with no safety net — if full path fails, nothing runs. Lite path must adapt to the selected provider.",
+          "audit_basis": "Live observation 2026-05-16: when standard model set to gemini-2.5-flash, the lite fallback refuses: 'standard model gemini-2.5-flash is not a Claude model; _run_claude_analysis is Claude-only'. This leaves the system with no safety net \u2014 if full path fails, nothing runs. Lite path must adapt to the selected provider.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"from backend.services.autonomous_loop import _select_lite_analyzer; g=_select_lite_analyzer('gemini-2.5-flash'); c=_select_lite_analyzer('claude-sonnet-4-6'); assert callable(g) and callable(c), 'both return callables'; assert g is not c, 'distinct implementations'; print('PASS')\"",
             "success_criteria": [
@@ -9768,7 +9768,7 @@
         },
         {
           "id": "27.4",
-          "name": "Fix B-2 — BQ schema migration: add 5 missing analysis_results columns",
+          "name": "Fix B-2 \u2014 BQ schema migration: add 5 missing analysis_results columns",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
@@ -9839,7 +9839,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.5.1",
-          "audit_basis": "phase-27.5.1 cycle #7 (3e90d15e) 2026-05-17 completed all 8 steps end-to-end (first cycle in session to do so, including Step 9 Learning + 1 executed trade) but persisted only 10/15 tickers because cost_budget_daily_usd defaulted to $5 and was tripped at $5.15 by the concurrent-8 batch. The 5 missed tickers (GLW, SNDK, WDC, LITE, CIEN) all failed with 'cost_budget tripped (cached): reason=daily $5.15 >= cap $5.00'. Raising cap to $25 (5x) — still conservative for an autonomous Gemini Flash trading system.",
+          "audit_basis": "phase-27.5.1 cycle #7 (3e90d15e) 2026-05-17 completed all 8 steps end-to-end (first cycle in session to do so, including Step 9 Learning + 1 executed trade) but persisted only 10/15 tickers because cost_budget_daily_usd defaulted to $5 and was tripped at $5.15 by the concurrent-8 batch. The 5 missed tickers (GLW, SNDK, WDC, LITE, CIEN) all failed with 'cost_budget tripped (cached): reason=daily $5.15 >= cap $5.00'. Raising cap to $25 (5x) \u2014 still conservative for an autonomous Gemini Flash trading system.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"from backend.config.settings import Settings; s=Settings(); assert s.cost_budget_daily_usd >= 20.0, f'cap too low: {s.cost_budget_daily_usd}'; assert hasattr(s, 'cost_budget_monthly_usd'), 'monthly cap missing'; print(f'PASS daily=${s.cost_budget_daily_usd} monthly=${s.cost_budget_monthly_usd}')\"",
             "success_criteria": [
@@ -9884,7 +9884,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6",
-          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 8 of 14 Claude full-path failures were 'Ingestion Agent Error: ERROR:429 Client Error: Too Many Requests for url: https://www.sec.gov/files/company_tickers.json'. Concurrency=8 (per 27.5.1) fires 8 simultaneous bulk downloads without throttling. SEC EDGAR fair-access requires User-Agent header + ≤10 req/sec; bulk endpoint may be stricter. Fix: cache company_tickers.json for 24h (it changes daily) + per-host concurrency limit of 2 + courtesy User-Agent.",
+          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 8 of 14 Claude full-path failures were 'Ingestion Agent Error: ERROR:429 Client Error: Too Many Requests for url: https://www.sec.gov/files/company_tickers.json'. Concurrency=8 (per 27.5.1) fires 8 simultaneous bulk downloads without throttling. SEC EDGAR fair-access requires User-Agent header + \u226410 req/sec; bulk endpoint may be stricter. Fix: cache company_tickers.json for 24h (it changes daily) + per-host concurrency limit of 2 + courtesy User-Agent.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && grep -qE \"_INGESTION_SEMAPHORE\" backend/agents/orchestrator.py && grep -A2 \"async def run_ingestion_agent\" backend/agents/orchestrator.py | grep -q \"_INGESTION_SEMAPHORE\"",
             "success_criteria": [
@@ -9905,7 +9905,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6",
-          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 6 of 14 Claude full-path failures were 'ERROR: QuantAgent failed for X: NoneType object has no attribute get'. Affected: STX, COHR, INTC, DELL, SNDK, WDC. Cycle #8 (Gemini) had ZERO of these — so this is Claude-pathway-specific (either different upstream branch or different defensive coercion). Fix: defensive `.get()` / `or {}` on the upstream dependency before the `.get()` call.",
+          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 6 of 14 Claude full-path failures were 'ERROR: QuantAgent failed for X: NoneType object has no attribute get'. Affected: STX, COHR, INTC, DELL, SNDK, WDC. Cycle #8 (Gemini) had ZERO of these \u2014 so this is Claude-pathway-specific (either different upstream branch or different defensive coercion). Fix: defensive `.get()` / `or {}` on the upstream dependency before the `.get()` call.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && grep -qE \"yf\\.get\\(.valuation.\\) or \\{\\}\" backend/agents/orchestrator.py && grep -qE \"quant\\.get\\(.valuation.\\) or \\{\\}\" backend/agents/orchestrator.py",
             "success_criteria": [
@@ -9920,7 +9920,7 @@
         },
         {
           "id": "27.6.3",
-          "name": "Re-run Claude full-path smoke after 27.6.1 + 27.6.2 — zero full-orchestrator failures required",
+          "name": "Re-run Claude full-path smoke after 27.6.1 + 27.6.2 \u2014 zero full-orchestrator failures required",
           "status": "pending",
           "harness_required": true,
           "priority": "P0",
@@ -9947,9 +9947,9 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "27.6",
-          "audit_basis": "Cycle #10 (2026-05-17 02:47-02:58) showed every uncached ticker still gets `Ingestion: Failed to fetch CIK map from SEC: 429`. Our 27.6.1 Semaphore(2) limits concurrent calls from our process to the Cloud Function, but the CF still fetches SEC fresh per ticker — SEC rate-limits the CF's IP regardless of our throttle. Fix requires CF code change (cache `company_tickers.json` in-memory in the CF for the lifetime of the CF instance; refresh daily) + CF redeploy. Out of scope for this session because: (1) CF deploys are Peder-approved infra changes, (2) the CF source repo may be separate. Tickers already cached in GCS (file path `<TICKER>/<form>_<date>_<doc>.json`) succeed regardless.",
+          "audit_basis": "Cycle #10 (2026-05-17 02:47-02:58) showed every uncached ticker still gets `Ingestion: Failed to fetch CIK map from SEC: 429`. Our 27.6.1 Semaphore(2) limits concurrent calls from our process to the Cloud Function, but the CF still fetches SEC fresh per ticker \u2014 SEC rate-limits the CF's IP regardless of our throttle. Fix requires CF code change (cache `company_tickers.json` in-memory in the CF for the lifetime of the CF instance; refresh daily) + CF redeploy. Out of scope for this session because: (1) CF deploys are Peder-approved infra changes, (2) the CF source repo may be separate. Tickers already cached in GCS (file path `<TICKER>/<form>_<date>_<doc>.json`) succeed regardless.",
           "verification": {
-            "command": "echo 'manual gate — CF redeploy required'; echo 'verification: after CF redeploy, cycle log shows zero \"Failed to fetch CIK map from SEC: 429\" lines'",
+            "command": "echo 'manual gate \u2014 CF redeploy required'; echo 'verification: after CF redeploy, cycle log shows zero \"Failed to fetch CIK map from SEC: 429\" lines'",
             "success_criteria": [
               "CIK_map_cached_in_CF_instance_memory",
               "cycle_log_has_zero_failed_to_fetch_CIK_map_lines",
@@ -9967,7 +9967,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6",
-          "audit_basis": "Cycle #10 2026-05-17 02:58:39 hit `HTTP/1.1 429 Too Many Requests` from api.anthropic.com/v1/messages. Concurrency=8 (per 27.5.1, sized for Gemini's higher RPM) is too aggressive for Anthropic tier-1 (~50 RPM input, ~10 RPM output). Fix: split the cycle-wide _analysis_semaphore into a per-provider lookup — Gemini=8 (current), Claude=2-4 (conservative for default tier; raisable per Anthropic plan).",
+          "audit_basis": "Cycle #10 2026-05-17 02:58:39 hit `HTTP/1.1 429 Too Many Requests` from api.anthropic.com/v1/messages. Concurrency=8 (per 27.5.1, sized for Gemini's higher RPM) is too aggressive for Anthropic tier-1 (~50 RPM input, ~10 RPM output). Fix: split the cycle-wide _analysis_semaphore into a per-provider lookup \u2014 Gemini=8 (current), Claude=2-4 (conservative for default tier; raisable per Anthropic plan).",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read()); print('syntax OK')\" && grep -qE \"claude.*[Ss]emaphore|provider.*concurrency|_semaphore_for_model\" backend/services/autonomous_loop.py",
             "success_criteria": [
@@ -9988,7 +9988,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6.5",
-          "audit_basis": "/goal hook 2026-05-17 blocks session close until Claude full path proven. Cycle #10 (post 27.6.1+.2+.5) still hit SEC 429s because the Cloud Function re-fetches CIK map per ticker — that's a CF-side issue (phase-27.6.4, deferred). Workaround: make `run_ingestion_agent` failures non-fatal in `run_full_analysis`. Downstream steps already use GCS-cached filings; only NEWLY-added filings since last successful ingestion would be missed for this cycle — acceptable for a best-effort enrichment that's gated by infra anyway.",
+          "audit_basis": "/goal hook 2026-05-17 blocks session close until Claude full path proven. Cycle #10 (post 27.6.1+.2+.5) still hit SEC 429s because the Cloud Function re-fetches CIK map per ticker \u2014 that's a CF-side issue (phase-27.6.4, deferred). Workaround: make `run_ingestion_agent` failures non-fatal in `run_full_analysis`. Downstream steps already use GCS-cached filings; only NEWLY-added filings since last successful ingestion would be missed for this cycle \u2014 acceptable for a best-effort enrichment that's gated by infra anyway.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && grep -A4 'Step 1: Ingestion agent' backend/agents/orchestrator.py | grep -qE 'try:|except|best-effort'",
             "success_criteria": [
@@ -10010,7 +10010,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6.6",
-          "audit_basis": "Cycle #11 2026-05-17 03:39:21 surfaced: `RuntimeWarning: coroutine AnalysisOrchestrator.fetch_insider_data was never awaited`. The async function is invoked somewhere (likely an enrichment-agent dispatch path) without await, so its return value is a coroutine object — downstream `.get(...)` raises `'coroutine' object has no attribute 'get'`. Caused full orchestrator failure on STX in cycle #11. Fix requires grepping ALL call sites of fetch_insider_data + verifying each is awaited or wrapped in asyncio.run / asyncio.create_task.",
+          "audit_basis": "Cycle #11 2026-05-17 03:39:21 surfaced: `RuntimeWarning: coroutine AnalysisOrchestrator.fetch_insider_data was never awaited`. The async function is invoked somewhere (likely an enrichment-agent dispatch path) without await, so its return value is a coroutine object \u2014 downstream `.get(...)` raises `'coroutine' object has no attribute 'get'`. Caused full orchestrator failure on STX in cycle #11. Fix requires grepping ALL call sites of fetch_insider_data + verifying each is awaited or wrapped in asyncio.run / asyncio.create_task.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/info_gap.py').read()); print('syntax OK')\" && grep -A8 \"iscoroutinefunction(func)\" backend/agents/info_gap.py | grep -qE \"iscoroutine\\(result\\)\"",
             "success_criteria": [
@@ -10103,7 +10103,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "28.0",
-          "audit_basis": "primary brief Phase 4 item #2; ScienceDirect 2025 ML stacking 12Q SUE history raised Sharpe from 0.34 (latest only) to 0.63 (+85% lift). Existing pead_signal.py at backend/services/pead_signal.py:91 already reads trailing cache via _trailing_mean_from_cache; extend to consume 12 quarters explicitly (currently bounded by _LOOKBACK_QUARTERS=8 — bump to 12 and reweight).",
+          "audit_basis": "primary brief Phase 4 item #2; ScienceDirect 2025 ML stacking 12Q SUE history raised Sharpe from 0.34 (latest only) to 0.63 (+85% lift). Existing pead_signal.py at backend/services/pead_signal.py:91 already reads trailing cache via _trailing_mean_from_cache; extend to consume 12 quarters explicitly (currently bounded by _LOOKBACK_QUARTERS=8 \u2014 bump to 12 and reweight).",
           "verification": {
             "command": "source .venv/bin/activate && grep -qE '_LOOKBACK_QUARTERS\\s*=\\s*12' backend/services/pead_signal.py && python -c \"import ast; ast.parse(open('backend/services/pead_signal.py').read()); print('PASS')\"",
             "success_criteria": [
@@ -10124,7 +10124,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "28.0",
-          "audit_basis": "primary brief Phase 4 item #3 — oil-majors reference case. Caldara-Iacoviello AER 2022 + IMF GFSR 2025 document US-as-net-exporter asymmetry: Middle-East GPR-Acts spikes positively reprice XOM/CVX/COP/OXY. Index public at matteoiacoviello.com monthly. macro_regime.py already has sector_hints.overweight; add a 'gpr_acts > threshold' branch that injects XLE-overweight regardless of base FRED reading.",
+          "audit_basis": "primary brief Phase 4 item #3 \u2014 oil-majors reference case. Caldara-Iacoviello AER 2022 + IMF GFSR 2025 document US-as-net-exporter asymmetry: Middle-East GPR-Acts spikes positively reprice XOM/CVX/COP/OXY. Index public at matteoiacoviello.com monthly. macro_regime.py already has sector_hints.overweight; add a 'gpr_acts > threshold' branch that injects XLE-overweight regardless of base FRED reading.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/macro_regime.py').read()); print('syntax OK')\" && grep -qE 'gpr|geopolitical' backend/services/macro_regime.py",
             "success_criteria": [
@@ -10250,7 +10250,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "28.0",
-          "audit_basis": "primary brief Phase 4 item #8; Wayne State / Journal of Portfolio Management documents near-expiry OTM large call buys are predictive of positive abnormal returns. Generic large options trades NOT predictive — filter is specifically near-expiry, OTM, elevated volume vs 30-day average. Existing backend/tools/options_flow.py has data layer; new screener-tier wrapper required.",
+          "audit_basis": "primary brief Phase 4 item #8; Wayne State / Journal of Portfolio Management documents near-expiry OTM large call buys are predictive of positive abnormal returns. Generic large options trades NOT predictive \u2014 filter is specifically near-expiry, OTM, elevated volume vs 30-day average. Existing backend/tools/options_flow.py has data layer; new screener-tier wrapper required.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/options_flow_screen.py').read()); from backend.services.options_flow_screen import fetch_oi_surge_signals; print('importable')\" && grep -q 'options_flow_screen_enabled' backend/config/settings.py",
             "success_criteria": [
@@ -10293,7 +10293,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "28.1",
-          "audit_basis": "primary brief Phase 4 item #7; arXiv 2502.20489v1 documents LLM-extracted Strategic Outlook text from analyst reports generates 68bps/month alpha, IR 0.73-1.41 — strongest signal in the literature, substantially exceeds traditional rec-change/EPS-revision signals. L effort: requires paid analyst-report feed OR EDGAR scraping path + LLM inference cost.",
+          "audit_basis": "primary brief Phase 4 item #7; arXiv 2502.20489v1 documents LLM-extracted Strategic Outlook text from analyst reports generates 68bps/month alpha, IR 0.73-1.41 \u2014 strongest signal in the literature, substantially exceeds traditional rec-change/EPS-revision signals. L effort: requires paid analyst-report feed OR EDGAR scraping path + LLM inference cost.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/analyst_narrative_scorer.py').read()); print('syntax OK')\" && grep -q 'analyst_narrative_enabled' backend/config/settings.py",
             "success_criteria": [
@@ -10315,7 +10315,7 @@
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "28.4",
-          "audit_basis": "primary brief Phase 4 item #13; Quantpedia documents top-3 sector ETFs by 12-month momentum (monthly rebalance) → 13.94% annual, Sharpe 0.54. Complements 28.4 (sector-neutral momentum) by adding a sector-LEADER preference: stocks in top-3-momentum sectors get a small score boost.",
+          "audit_basis": "primary brief Phase 4 item #13; Quantpedia documents top-3 sector ETFs by 12-month momentum (monthly rebalance) \u2192 13.94% annual, Sharpe 0.54. Complements 28.4 (sector-neutral momentum) by adding a sector-LEADER preference: stocks in top-3-momentum sectors get a small score boost.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/sector_momentum.py').read()); print('syntax OK')\" && grep -q 'sector_momentum_enabled' backend/config/settings.py",
             "success_criteria": [
@@ -10336,7 +10336,7 @@
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "28.11",
-          "audit_basis": "primary brief Phase 4 item #12; Fed Aug 2025 documented firm-level GPR exposure via earnings-call NLP on 240K+ transcripts. Note from primary brief: no forward return predictability shown in Fed study (R²=0.23 contemporaneous only). Add as complementary signal to 28.3 (GPR-energy tilt) and 28.11 (analyst narrative), NOT as standalone alpha generator. Re-evaluate priority after 28.11 lands.",
+          "audit_basis": "primary brief Phase 4 item #12; Fed Aug 2025 documented firm-level GPR exposure via earnings-call NLP on 240K+ transcripts. Note from primary brief: no forward return predictability shown in Fed study (R\u00b2=0.23 contemporaneous only). Add as complementary signal to 28.3 (GPR-energy tilt) and 28.11 (analyst narrative), NOT as standalone alpha generator. Re-evaluate priority after 28.11 lands.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/call_transcript_gpr.py').read()); print('syntax OK')\" && grep -q 'call_transcript_gpr_enabled' backend/config/settings.py",
             "success_criteria": [
@@ -10357,7 +10357,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "28.3",
-          "audit_basis": "supplement Gap 1; Emerald SEF 2023 (+1.00% (−1,−1) anticipatory window; +11.65% CAAR (0,3) for European defense); PMC11700249 (81.4% defense firms reacted to Ukraine invasion); PMC11844836 (UK firms most sensitive). 28.3 adds GPR→energy; 28.14 adds GPR→defense branch + ITA/XAR ETF 5-day net-flow delta + NATO/EU budget-pledge headline scrape (Reuters/news_screen.py extension).",
+          "audit_basis": "supplement Gap 1; Emerald SEF 2023 (+1.00% (\u22121,\u22121) anticipatory window; +11.65% CAAR (0,3) for European defense); PMC11700249 (81.4% defense firms reacted to Ukraine invasion); PMC11844836 (UK firms most sensitive). 28.3 adds GPR\u2192energy; 28.14 adds GPR\u2192defense branch + ITA/XAR ETF 5-day net-flow delta + NATO/EU budget-pledge headline scrape (Reuters/news_screen.py extension).",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/defense_signal.py').read()); print('syntax OK')\" && grep -q 'defense_signal_enabled' backend/config/settings.py && grep -qE 'ITA|XAR' backend/services/defense_signal.py",
             "success_criteria": [
@@ -10401,7 +10401,7 @@
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "28.9",
-          "audit_basis": "supplement Gap 3; Augustin-Brenner-Subrahmanyam document short-dated OTM call volume spike + IV term-structure inversion 5-10 days pre-M&A; Duong-Pi-Sapp 2025: insider buying before 13D filings earns 7.72% CAR (14.49% for no-prior-discussion insiders). Three-leg signal: (a) OTM-call surge via 28.9, (b) Form 4 cluster via existing sec_insider.py, (c) NEW 13D/G EDGAR polling. Picker uses ONLY public market/EDGAR data — see supplement 'legality boundary' pitfall.",
+          "audit_basis": "supplement Gap 3; Augustin-Brenner-Subrahmanyam document short-dated OTM call volume spike + IV term-structure inversion 5-10 days pre-M&A; Duong-Pi-Sapp 2025: insider buying before 13D filings earns 7.72% CAR (14.49% for no-prior-discussion insiders). Three-leg signal: (a) OTM-call surge via 28.9, (b) Form 4 cluster via existing sec_insider.py, (c) NEW 13D/G EDGAR polling. Picker uses ONLY public market/EDGAR data \u2014 see supplement 'legality boundary' pitfall.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/ma_preannounce_screen.py').read()); print('syntax OK')\" && grep -q 'ma_preannounce_enabled' backend/config/settings.py && grep -qE '13[dg]|SCHEDULE.13' backend/services/ma_preannounce_screen.py",
             "success_criteria": [
@@ -10434,6 +10434,232 @@
               "live_check_lists_laggard_candidates_with_their_peer_groups_for_one_cycle"
             ],
             "live_check": "live_check_28.17.md: cycle log showing N laggard candidates with peer-group leaders + the divergence size + analyst counts"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-29",
+      "name": "Harness MAS + MCP + Academic-Fetch + Frontier-Sync (phase-29.0 audit remediation)",
+      "status": "pending",
+      "depends_on": [
+        "phase-28"
+      ],
+      "gate": "Audit produces phase-29.0 with Q/A PASS; sub-steps each go through their own research+contract+Q/A cycle.",
+      "steps": [
+        {
+          "id": "29.0",
+          "name": "AUDIT: Layer-3 Harness MAS + MCP + Data-Wiring (this phase's entry; PRODUCES the sub-steps below)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "User /goal 2026-05-18: audit Main + Researcher + Q/A + dev-MAS MCP wiring; 5 questions covering deep-research tier, academic-fetch wall, Main code-gen drift, Q/A 3 sub-audits (code-review/wiring/MCP-promotion), MCP expansion, skills extraction.",
+          "verification": {
+            "command": "test -f handoff/current/research_brief.md && test -f handoff/current/contract.md && test -f handoff/current/experiment_results.md && test -f handoff/current/evaluator_critique.md && grep -q 'phase=29.0' handoff/harness_log.md && python3 -c \"import json; m=json.load(open('.claude/masterplan.json')); ids=[p['id'] for p in m['phases']]; assert 'phase-29' in ids\"",
+            "success_criteria": [
+              "research_brief_gate_passed_all_5_subtopics",
+              "contract_immutable_criteria_present",
+              "experiment_results_contains_WIRING_DRIFT_MCP_PROMOTION_MISSED_FRONTIER_DELTA",
+              "qa_verdict_PASS_with_evidence",
+              "harness_log_cycle_appended",
+              "phase-29_entry_in_masterplan_json"
+            ],
+            "live_check": "live_check_29.0.md: file:line evidence from experiment_results.md showing WIRING_DRIFT entries with verifiable doc URLs + paper-search-mcp PyPI install command + revert-researcher-effort path"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "29.1",
+          "name": "P1: Add paper-search-mcp to .mcp.json (academic-fetch wall fix)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "29.0",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a71.2 + \u00a74: paper-search-mcp (PyPI/npm, 25+ academic sources, free, MCP-native) solves the Cloudflare-Turnstile wall surfaced in phase-28.7 (George&Hwang 2004, Novy-Marx, SSRN preprints unfetchable). Verified via WebFetch of https://github.com/openags/paper-search-mcp on 2026-05-18.",
+          "verification": {
+            "command": "jq -e '.mcpServers.\"paper-search\" | .command and .args' .mcp.json && grep -q 'paper-search' .mcp.json",
+            "success_criteria": [
+              "paper-search_entry_present_in_mcp_json",
+              "OPENALEX_API_KEY_documented_in_env_example",
+              "smoke_test_passes",
+              "fetch_one_SSRN_paper_in_full_text"
+            ],
+            "live_check": "live_check_29.1.md: actual WebFetch / paper-search call returning text content (not 'binary PDF, no text extracted') for an SSRN paper that previously failed in phase-28.7"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "29.2",
+          "name": "P1: Revert researcher.md effort from max \u2192 medium (Anthropic Sonnet 4.6 default)",
+          "status": "pending",
+          "harness_required": false,
+          "priority": "P1",
+          "depends_on_step": "29.0",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a72.1: .claude/agents/researcher.md:10 has effort: max since phase-23.2.2 (2026-05-16), 30+ cycles ago; per https://platform.claude.com/docs/en/build-with-claude/effort, Sonnet 4.6 recommended starting effort is medium. The 'revert after step closes' comment has been unactioned. v2.1.142 background-session-preserves-effort makes the drift permanent across idle wakes.",
+          "verification": {
+            "command": "grep -E '^effort:\\s*medium' .claude/agents/researcher.md && grep -v -E '^effort:\\s*max' .claude/agents/researcher.md > /dev/null",
+            "success_criteria": [
+              "researcher_effort_is_medium",
+              "qa_effort_unchanged_at_xhigh",
+              "session_restart_documented_in_handoff"
+            ],
+            "live_check": "live_check_29.2.md: post-restart verify_qa_roster_live.sh-style check that researcher dispatch reflects new effort"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "29.3",
+          "name": "P1: Register 4 in-app MCP servers (backtest/data/risk/signals) in .mcp.json",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "29.0",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a73c + MCP_PROMOTION_MISSED table: all 4 FastMCP servers (backend/agents/mcp_servers/{backtest,data,risk,signals}_server.py) are written but NOT in .mcp.json \u2192 Layer-2 in-app agents cannot call them as tools. risk_server.evaluate_candidate (kill_switch \u2192 pbo \u2192 projected_dd gate chain) is highest-value: lets Layer-2 agents consult risk gate BEFORE recommending a trade.",
+          "verification": {
+            "command": "jq -e '.mcpServers | (.\"pyfinagent-backtest\" and .\"pyfinagent-data\" and .\"pyfinagent-risk\" and .\"pyfinagent-signals\")' .mcp.json && for s in backtest data risk signals; do python -c \"from backend.agents.mcp_servers import ${s}_server\"; done",
+            "success_criteria": [
+              "all_4_servers_registered_in_mcp_json",
+              "each_server_smoke_test_passes",
+              "alwaysLoad_decision_documented_per_server",
+              "Layer2_agent_call_demo"
+            ],
+            "live_check": "live_check_29.3.md: actual MCP tool call from a Layer-2 agent showing pyfinagent-risk.evaluate_candidate returning a structured verdict (kill_switch OK, pbo OK, projected_dd OK)"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "29.4",
+          "name": "P1: Add 3 OWASP LLM Top-10 v2.0 (2025) heuristics to qa.md (LLM07/08/10)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "29.0",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a73a: OWASP LLM Top-10 v2.0 (2025) added LLM07 (System Prompt Leakage), LLM08 (Vector/Embedding Weaknesses), LLM10 (Unbounded Consumption); current qa.md:271-296 covers only LLM01-06 from v1.1 (2023). 3 proposed heuristics: system-prompt-serialization (WARN), rag-input-sanitization (WARN), unbounded-agent-loop (WARN). Source: https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2025/ + https://repello.ai/blog/owasp-llm-top-10-2026.",
+          "verification": {
+            "command": "grep -q 'system-prompt-serialization' .claude/agents/qa.md && grep -q 'rag-input-sanitization' .claude/agents/qa.md && grep -q 'unbounded-agent-loop' .claude/agents/qa.md",
+            "success_criteria": [
+              "three_heuristics_added_with_severity_and_detection_cue",
+              "OWASP_2025_v2_source_cited",
+              "negation_list_added_per_heuristic"
+            ],
+            "live_check": "live_check_29.4.md: mutation-test \u2014 plant a violation matching one heuristic in a throwaway file, confirm Q/A flags it, restore"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "29.5",
+          "name": "P1: Add 4th 'deep' research tier to researcher.md (20-50 sources, multi-pass, adversarial)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "29.0",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a71.1: Anthropic multi-agent research blog ('complex research might use more than 10 subagents') + Google Deep Research Max (April 21 2026, two-tier interactive vs exhaustive) both validate a fourth `deep` tier. Current researcher.md:140-145 caps at 'complex' with 8-15 reads. `deep` should add 20-50 reads + multi-pass scan/gaps/second-pass + adversarial sourcing (\u22651 disagreeing paper) + cross-domain triangulation + multi-subagent fork option.",
+          "verification": {
+            "command": "grep -E '^\\|.*deep.*\\|' .claude/agents/researcher.md && grep -q 'adversarial' .claude/agents/researcher.md",
+            "success_criteria": [
+              "deep_tier_row_in_effort_tiers_table",
+              "adversarial_sourcing_rule_documented",
+              "cross_domain_triangulation_rule_documented",
+              "multi_subagent_fork_pattern_documented"
+            ],
+            "live_check": "live_check_29.5.md: one trial deep-tier research gate output with \u226520 sources read in full + adversarial-source presence confirmed"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "29.6",
+          "name": "P1: Extract qa.md:207-429 code-review heuristics to .claude/skills/code-review-heuristics/SKILL.md",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "29.0",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a75: qa.md:207-429 (220 lines, phase-16.59 code-review heuristics) is pure reference content (5 dimensions + Top-15 ranked + 4 negation lists). Loaded into every Q/A session whether code review is needed or not. Extracting to a skill preloaded via `skills: [\"code-review-heuristics\"]` in qa.md frontmatter cuts Q/A spawn context by ~5KB without behavior change. Source: https://code.claude.com/docs/en/skills (subagent skills field preload pattern).",
+          "verification": {
+            "command": "test -f .claude/skills/code-review-heuristics/SKILL.md && grep -q 'skills:' .claude/agents/qa.md && [ $(wc -l < .claude/agents/qa.md) -lt 250 ]",
+            "success_criteria": [
+              "SKILL_md_created_with_correct_frontmatter",
+              "qa_md_references_skill_in_frontmatter",
+              "qa_md_line_count_reduced_by_at_least_150",
+              "Q/A_behavior_unchanged_in_smoke_test"
+            ],
+            "live_check": "live_check_29.6.md: spawn Q/A on a synthetic diff containing a planted secret-in-diff violation; confirm it's flagged using only the skill-preloaded heuristic"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "29.7",
+          "name": "P1: Add arXiv-HTML precedence + pdfplumber rules to .claude/rules/research-gate.md",
+          "status": "pending",
+          "harness_required": false,
+          "priority": "P1",
+          "depends_on_step": "29.0",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a71.3-1.4: arxiv.org/html/<id> returns rendered LaTeX (bypasses binary-PDF wall) for any paper with TeX source; pdfplumber CPU-only extraction handles the long tail. Currently researcher reflexively WebFetches /pdf/<id> and skips on 'no text extracted'. Source: https://info.arxiv.org/about/accessible_HTML.html + https://pypi.org/project/pdfplumber/.",
+          "verification": {
+            "command": "grep -q 'arxiv.org/html' .claude/rules/research-gate.md && grep -q 'pdfplumber' .claude/rules/research-gate.md && pip show pdfplumber > /dev/null",
+            "success_criteria": [
+              "arxiv_html_precedence_documented",
+              "pdfplumber_dep_added_to_pyproject_or_requirements",
+              "fallback_helper_script_documented"
+            ],
+            "live_check": "live_check_29.7.md: one WebFetch demo of arxiv.org/html/<id> showing rendered TeX text + one pdfplumber extraction of a previously-skipped finance paper"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "29.8",
+          "name": "P2 bundle: budget_tokens audit + alwaysLoad/continueOnBlock + OPENALEX_API_KEY + Gemini-3.x audit + frontier-sync rule + cross-validation rule + effort-level hook check + v2.1.140-143 feature docs + MCP smoke-test scripts + mid-flight-subagent-stop documentation",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "29.7",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a77 P2 list (10 items). Each item is small but coherent only as a bundle; splitting into 10 sub-steps is overkill.",
+          "verification": {
+            "command": "grep -L 'budget_tokens' backend/config/model_tiers.py && jq -e '.mcpServers.alpaca.alwaysLoad == true' .mcp.json && grep -q 'continueOnBlock' .claude/settings.json && grep -q 'OPENALEX_API_KEY' backend/.env.example",
+            "success_criteria": [
+              "budget_tokens_replaced_with_output_config_effort",
+              "alwaysLoad_added_to_alpaca_bigquery_and_4_inapp_servers",
+              "continueOnBlock_added_to_relevant_hooks",
+              "OPENALEX_API_KEY_in_env_example",
+              "Gemini_3x_decision_documented",
+              "cross_validation_and_7day_frontier_rules_in_research_gate_md",
+              "v2.1.140-143_features_documented_in_CLAUDE_md",
+              "subagent_stop_failure_mode_documented",
+              "MCP_smoke_test_scripts_present_in_scripts_mcp_servers"
+            ],
+            "live_check": "live_check_29.8.md: each bundle item independently verifiable via grep/jq/test commands"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "29.9",
+          "name": "P3 bundle: stress-test cycle (no-harness baseline on a representative step) + Claude Mythos Preview tracker + Gemini 3.1 + GPT-5.5 docs + custom anthropic-docs MCP placeholder + Browserbase placeholder + futurelab fallback + deep-tier multi-subagent fork doc + scaffolding-pruning audit + cycle-2-flow surfacing in qa.md",
+          "status": "pending",
+          "harness_required": false,
+          "priority": "P3",
+          "depends_on_step": "29.8",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a77 P3 list (10 future-proofing items). Stress-test cycle is the most-load-bearing \u2014 without it, harness scaffolding is presumed-necessary forever.",
+          "verification": {
+            "command": "grep -q 'stress-test' handoff/harness_log.md && grep -q 'Claude Mythos' backend/config/model_tiers.py",
+            "success_criteria": [
+              "stress_test_cycle_appended_to_harness_log",
+              "mythos_preview_documented",
+              "gemini_3x_gpt55_documented",
+              "deep_tier_multi_fork_doc_added",
+              "scaffolding_pruning_candidates_listed"
+            ],
+            "live_check": "live_check_29.9.md: stress-test result with quality-delta number vs baseline harness run"
           },
           "retry_count": 0,
           "max_retries": 3

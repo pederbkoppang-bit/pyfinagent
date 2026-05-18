@@ -20134,3 +20134,49 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Decision:** flip 28.16 to `done`. **PHASE-28 COMPLETE: 18/18.**
 
+
+---
+
+## Cycle 1 -- 2026-05-17 22:30 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.40% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+
+## Cycle 32 -- 2026-05-18 -- phase=29.0 result=PASS
+
+**Step:** phase-29.0 — Audit Layer-3 Harness MAS (Main + Researcher + Q/A) + dev-MAS MCP wiring + data-stack drift. Audit-only cycle producing JSON-ready `phase-29` masterplan entry (10 sub-steps: P1×7, P2×1 bundle of 10, P3×1 bundle of 10).
+
+**Generator:** 4 handoff files (no code edits this cycle) —
+- `handoff/current/research_brief.md` NEW 452 lines (complex tier, 5 sub-topics, JSON envelope at line 433, gate_passed=true × 5)
+- `handoff/current/contract.md` rewritten (was phase-28-leftover) — 7 immutable success criteria + research-gate summary + plan + cross-refs
+- `handoff/current/experiment_results.md` rewritten — gap-analysis × 5 sub-topics + WIRING_DRIFT (8 rows) + MCP_PROMOTION_MISSED (4 rows) + FRONTIER_DELTA (8 rows) + P1/P2/P3 (7+10+10 items) + JSON-ready phase-29 schema (10 sub-steps)
+- `handoff/current/evaluator_critique.md` rewritten — Q/A verdict + 5-item harness audit + 11 deterministic checks + LLM judgment
+
+**Researcher gate:** `gate_passed: true` (11 sources fetched in full across 5 sub-topics; 25+ URLs; 3-query-variant discipline applied; ≥2-independent-sources cross-validation applied; 7-day frontier-sync 2026-05-11→2026-05-18 with 6 harness-impact items). Headline finds: paper-search-mcp solves Cloudflare-Turnstile academic-fetch wall (phase-28.7 reproduction); researcher.md effort: max stuck since phase-23.2.2; OWASP LLM Top-10 v2.0 missing 3 heuristics in qa.md; 4 in-app MCP servers not registered in .mcp.json.
+
+**Q/A subagent verdict:** PASS — single spawn (no second-opinion-shopping). 5/5 harness-compliance audit items PASS. 11/11 deterministic checks PASS (file existence, structural completeness, JSON round-trip, mtime ordering, diff-scope audit-only, log-last, no-verdict-shopping, 3rd-CONDITIONAL count, contract alignment, anti-rubber-stamp disclosures, research-gate compliance, scope honesty).
+
+**Honest disclosures:**
+- Researcher subagent stopped at wrap-up message but brief itself complete (same pattern as cycles 28.6/28.7/28.8/28.16). No SendMessage continuation needed; brief verified structurally complete.
+- Sub-topics 4 and 5 share their ≥5-in-full source pool with sub-topics 1 and 3 (documented by researcher as "sharing pool" in §4-5). Per-sub-step research gates will need discrete ≥5 sets.
+- WIRING_DRIFT rows on `model_tiers.py`/`orchestrator.py` are hypothesis-based on doc-deprecation (NOT confirmed by grep this cycle) — phase-29.8 sub-step will grep + fix.
+- In-app MCP smoke-test status unknown — phase-29.3 verification includes smoke test before `alwaysLoad: true`.
+- Zero code edits this cycle (audit-only). All remediation lands in separate phase-29 sub-step cycles, each with own research+contract+Q/A.
+
+**Decision:** flip phase-29.0 to `done`; add new phase-29 entry (status: pending; 10 sub-steps inheriting from this audit). Live check at `handoff/current/live_check_29.0.md`.
+
+**Total cycle time:** ~30 min (researcher ~9 min, contract+results ~5 min, Q/A ~4 min, log/masterplan/commit ~12 min).
+
