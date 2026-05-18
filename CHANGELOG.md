@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-18 | `05707772` | phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create phase-29 |
 | 2026-05-18 | `b5d2048f` | phase-28.16: M&A pre-announcement aggregator (FINAL phase-28 item) |
 | 2026-05-18 | `6ceeb10f` | phase-28.17: Peer-correlation laggard catch-up signal (intra-GICS sub-industry lead-lag) |
 | 2026-05-17 | `47e35473` | phase-28.14: Defense/war-stocks reference-case implementation (GPR-defense branch + ITA/XAR flow ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `53e5f8b5` | docs(audits): add phase-28.5 smoke-test audit log |
 | 2026-05-17 | `664871a4` | phase-28.5: Short-interest exclusion filter in screen_universe |
 | 2026-05-17 | `2ed3b6db` | phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe() |
-| 2026-05-16 | `5b3dad4d` | phase-23.2.3: Verify FD leak did not regress |
 
 ---
 
+### v6.10.0 — phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create pha... (2026-05-18)
+
+- **phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create phase-29**
 ### v6.9.17 — phase-28.16: M&A pre-announcement aggregator (FINAL phase-28 item) (2026-05-18)
 
 - **phase-28.16: M&A pre-announcement aggregator (FINAL phase-28 item)**
