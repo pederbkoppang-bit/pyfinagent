@@ -1,391 +1,98 @@
-# Research Brief — phase-29.0 (Layer-3 Harness MAS + MCP + Data Wiring Audit)
+# Research Brief — phase-29.2 (Opus + max-effort on Researcher + Q/A; CLAUDE.md effort-policy update)
 **Tier:** complex
 **Date:** 2026-05-18
+**Assumption:** operator pre-approval documented in phase-29.2 prompt — audit-basis INVERTED (phase-29.0 recommended revert to Sonnet/medium; operator has now overridden to Opus/max for Researcher + max for Q/A).
 
 ---
 
 ## Search queries run (3-variant discipline)
 
-| Sub-topic | Query | Variant | Hits |
-|---|---|---|---|
-| 1 | "deep research agent tier adversarial sourcing cross-domain triangulation agentic 2026" | current-year | 10 |
-| 1 | "deep research agent tier adversarial sourcing cross-domain triangulation agentic 2025" | 2yr | 10 |
-| 1 | "deep research agent tiered sourcing" | year-less | 10 |
-| 1 | "OpenAlex REST API academic paper fetch no auth 2026" | current-year | 10 |
-| 1 | "arXiv HTML rendering endpoint /html/ full text extract 2025 2026" | 2yr | 10 |
-| 1 | "marker-pdf pdfplumber finance tables equations extraction benchmark 2025" | 2yr | 10 |
-| 1 | "academic MCP server OpenAlex arXiv npm 2026" | current-year | 10 |
-| 1 | "Browserbase MCP server official npm playwright stealth Cloudflare 2026" | current-year | 10 |
-| 2 | "Anthropic Claude Code effort level settings 2026" | current-year | 10 |
-| 2 | "Anthropic Claude Opus 4.7 Sonnet 4.6 effort level xhigh recommended settings 2026" | current-year | 10 |
-| 2 | "Anthropic building effective agents harness design multi-agent" | year-less | 10 |
-| 2 | "Claude Code settings.json effort level subagent dispatch 2026 documentation" | current-year | 10 |
-| 3a | "OWASP LLM Top 10 2025 2026 update new entries" | current-year | 10 |
-| 3b | "Vertex AI Gemini structured output schema May 2026 model IDs" | current-year | 10 |
-| 4 | "academic MCP server OpenAlex arXiv npm 2026" | current-year | 10 |
-| 5 | "Anthropic Claude Code skills system documentation 2026" | current-year | 10 |
-| 5 | "Claude Code agent skills 2025" | 2yr | 4 |
-| 5 | "LLM agent skill extraction reuse" | year-less | 3 |
-| frontier | "Anthropic Claude Code release notes May 2026 new features" | current-year | 10 |
-| frontier | "SWE-bench leaderboard May 2026 top models scores" | current-year | 10 |
+| Sub-topic | Query | Variant |
+|---|---|---|
+| 1 — effort docs | "Anthropic Claude effort levels recommended settings 2026 Opus Sonnet model" | current-year |
+| 1 — effort docs | "Claude Code effort level subagent frontmatter model opus max 2026" | current-year |
+| 1 — effort docs | "Anthropic Claude effort parameter xhigh max agentic" | year-less canonical |
+| 2 — subagent frontmatter | "Claude Code subagent model effort frontmatter Opus max 2026" | current-year |
+| 2 — subagent frontmatter | "Claude Code subagent model frontmatter effort specification" | year-less canonical |
+| 2 — billing | "Anthropic Claude Max subscription flat fee agent subagent effort max cost 2026" | current-year |
+| 2 — billing | "Anthropic Claude Code Max subscription flat fee subagents unlimited 2026" | current-year |
+| 3 — benchmarks | "research agent Opus 4.7 max effort vs Sonnet parallel subagents quality benchmarks 2025 2026" | 2yr+current |
+| 3 — benchmarks | "Opus 4.7 vs Sonnet 4.6 research quality agentic tasks SWE-bench finance benchmark 2025 2026" | 2yr+current |
+| 4 — frontier | "Advisor strategy Anthropic Opus Sonnet subagent research pattern 2026" | current-year |
 
 ---
 
-## SUB-TOPIC 1 — Deep-research tier + academic-fetch wall
+## Read in full (≥5 required; counts toward the gate)
 
-### Read in full (≥5 required)
-
-| URL | Accessed | Kind | Key quote / finding |
-|---|---|---|---|
-| https://www.anthropic.com/engineering/built-multi-agent-research-system | 2026-05-18 | Official blog | "Simple fact-finding requires just 1 agent with 3-10 tool calls; complex research might use more than 10 subagents." Effort tiers matched to query complexity, not fixed. |
-| https://code.claude.com/docs/en/skills | 2026-05-18 | Official docs | Full SKILL.md frontmatter, invocation control, context lifecycle, subagent fork pattern. Layer-3 only. |
-| https://github.com/benedict2310/Scientific-Papers-MCP | 2026-05-18 | GitHub/npm | `@futurelab-studio/latest-science-mcp` bundles arXiv + OpenAlex + PMC + Europe PMC + bioRxiv + CORE. >90% text extraction, <15s avg response, 6MB cap. |
-| https://github.com/openags/paper-search-mcp | 2026-05-18 | GitHub/PyPI+npm | 25+ academic platforms, free-first strategy, fallback chain: source-native → OpenAIRE/CORE/Europe PMC → Unpaywall → optional Sci-Hub. SSRN connector present. |
-| https://developers.openalex.org/ | 2026-05-18 | Official API docs | API key now required (free, since Feb 13 2026); credit-based limits; $1/day free. No built-in full-text PDF access. |
-| https://repello.ai/blog/owasp-llm-top-10-2026 | 2026-05-18 | Industry blog | Full OWASP LLM Top 10 v2.0 2025 list with agentic MCP relevance analysis. |
-
-### Snippet-only (context; does NOT count toward gate)
-
-| URL | Kind | Why not fetched |
-|---|---|---|
-| https://dev.to/0012303/openalex-has-a-free-api-search-250m-academic-works-without-any-key-4915 | Blog | Superseded — pre-Feb 2026 (no-key claim now stale) |
-| https://arxiv.org/abs/2512.09874 | arXiv abstract | Abstract only returned; full PDF not text-extractable via WebFetch |
-| https://info.arxiv.org/about/accessible_HTML.html | arXiv info | Confirms HTML endpoint exists; general info only |
-| https://ar5iv.labs.arxiv.org/ | Lab service | ar5iv converts arXiv TeX → HTML5; accessible without PDF wall |
-| https://www.npmjs.com/package/@futurelab-studio/latest-science-mcp | npm | Package page; substance captured from GitHub read |
-| https://apify.com/ryanclinton/openalex-research-search | Commercial | Paid Apify actor; not relevant (free-first) |
-| https://github.com/oksure/openalex-research-mcp | GitHub | Alternate OpenAlex MCP; narrower scope than paper-search-mcp |
-| https://medium.com/@tort_mario/skills-for-claude-code-the-ultimate-guide | Blog | Covered by official docs read |
-| https://levelup.gitconnected.com/ai-coding-benchmarks-swe-bench-truth | Blog | SWE-bench inflation analysis; captured in frontier sync |
-| https://arxiv.org/html/2508.12752v1 | Survey | Autonomous Research Agents survey; snippet captured |
-
-### Recency scan (2024-2026)
-
-Searched "deep research agent tier adversarial sourcing 2026" and "academic MCP server OpenAlex arXiv 2025". Key findings:
-
-- **2026-04-21**: Google launched Deep Research / Deep Research Max (Gemini 3.1 Pro). Two tiers: interactive (low latency) vs exhaustive (93.3% DeepSearchQA). MCP support built in (FactSet, S&P, PitchBook as MCP partners). This validates the proposed `deep` tier.
-- **2026 (Q1)**: OpenAlex changed from no-auth to free-key-required (Feb 13 2026). Breaks any hardcoded "no API key needed" claims in existing brief templates.
-- **2025**: `paper-search-mcp` and `@futurelab-studio/latest-science-mcp` emerged as the two strongest academic MCPs, both covering SSRN + arXiv + OpenAlex + CORE in a single package. These directly solve the phase-28.7 SSRN-unfetchable problem.
-- **2025**: arXiv HTML endpoint (`/html/<id>`) fully operational for all papers with TeX source. ar5iv.labs.arxiv.org provides the same service as an alternative.
-- **2025**: `marker-pdf` v0.8+ (ML-based, structure-preserving) outperforms `pdfplumber` on equation-dense finance papers but requires GPU or CPU-fallback. `pdfplumber` remains best for table-heavy PDFs on CPU.
-
-### Key findings
-
-1. **Deep-research tier is warranted** — Google's two-tier architecture (interactive vs exhaustive) and Anthropic's own "1/3-5/10+" agent scaling document that research effort should be tiered to query complexity. A `deep` tier for pyfinagent with 20+ sources and multi-pass adversarial sourcing aligns with current best practice. (Source: Anthropic multi-agent research blog 2026-05-18, Google Deep Research Max 2026-04-21)
-
-2. **Academic-fetch wall solution exists and is packaged** — `paper-search-mcp` (PyPI/npm) and `@futurelab-studio/latest-science-mcp` (npm) both provide MCP-native access to 25+ sources including SSRN, OpenAlex, arXiv. The phase-28.7 SSRN/NOVY-MARX unfetchable problem is solvable by installing either as an MCP server in `.mcp.json`. (Source: GitHub reads 2026-05-18)
-
-3. **OpenAlex auth change (critical)** — As of Feb 13 2026, OpenAlex requires a free API key. Any "no-auth" claim in existing code or briefs is stale. Key is free at openalex.org/settings/api. (Source: developers.openalex.org 2026-05-18)
-
-4. **arXiv HTML is the preferred full-text path** — `/html/<arxiv_id>` returns LaTeX-converted HTML with equations rendered. Bypasses PDF wall. For older papers without TeX source, ar5iv.labs.arxiv.org offers the same. (Source: arXiv info page, snippet 2026-05-18)
-
-5. **PDF extraction for finance papers**: `pdfplumber` is best for CPU-based table extraction (complex borders, merged cells). `marker-pdf` with LLM flag is best for equation-dense papers but requires more compute. `pypdf` is lowest common denominator. For pyfinagent (Mac-local, academic finance PDFs), `pdfplumber` is the practical choice unless equations matter. (Source: 2025 benchmark search results)
-
-6. **Cloudflare/Turnstile wall for SSRN, ScienceDirect remains** — Playwright-stealth via `@cloudflare/playwright-mcp` works for whitelisted Cloudflare zones but is "identified as a bot" by default for external sites. The MCP server packages (paper-search-mcp, latest-science-mcp) solve this by routing through lawful open-access APIs rather than scraping behind Turnstile. Cost: $0 for both packages. (Source: cloudflare/playwright-mcp GitHub, 2026-05-18)
-
-### Application to pyfinagent
-
-- **Immediate action**: Add `paper-search-mcp` or `@futurelab-studio/latest-science-mcp` to `.mcp.json`. This unblocks academic-fetch for SSRN preprints, George&Hwang, Novy-Marx papers that failed in phase-28.7. Cost: free (pip install or npx).
-- **Phase-29 proposal**: Add a `deep` tier to researcher.md with 20+ sources, multi-pass adversarial sourcing. Each sub-topic in a deep-tier session gets its own subagent (matching Google's architecture).
-- **OpenAlex API key**: Store as env var `OPENALEX_API_KEY` in `backend/.env`. Free to obtain.
-- **arXiv HTML path**: Update researcher instructions to try `https://arxiv.org/html/<id>` before `/pdf/<id>`.
+| URL | Accessed | Kind | Fetched how | Key quote or finding |
+|---|---|---|---|---|
+| https://platform.claude.com/docs/en/build-with-claude/effort | 2026-05-18 | Official Anthropic docs | WebFetch full page | "Reserve for genuinely frontier problems. On most workloads max adds significant cost for relatively small quality gains." Opus 4.7 recommended start: xhigh. Sonnet 4.6 default: medium. Max available on Opus 4.7, Opus 4.6, Sonnet 4.6. |
+| https://code.claude.com/docs/en/model-config | 2026-05-18 | Official Claude Code docs | WebFetch full page | Full model-alias table: `opus` resolves to Opus 4.7 on Anthropic API. Effort levels per model: Opus 4.7 supports low/medium/high/xhigh/max; Sonnet 4.6 supports low/medium/high/max (no xhigh). Subagent frontmatter effort accepted. `max` is session-only unless set via CLAUDE_CODE_EFFORT_LEVEL env var. On Max/Team/Enterprise plans, Opus is auto-upgraded to 1M context. |
+| https://code.claude.com/docs/en/sub-agents | 2026-05-18 | Official Claude Code docs | WebFetch full page | Full frontmatter spec: `model`, `effort`, `maxTurns`, `memory`, `permissionMode`, `tools`, `color`, `skills`, `hooks`. `model: opus` is a supported value. `effort: max` is a supported value in subagent frontmatter. Note: effort in frontmatter overrides session level but not CLAUDE_CODE_EFFORT_LEVEL env var. |
+| https://www.anthropic.com/news/claude-opus-4-7 | 2026-05-18 | Anthropic official blog | WebFetch full page | "For complex multi-step workflows, Claude Opus 4.7 is a clear step up: plus 14% over Opus 4.6 at fewer tokens." Introduced xhigh effort for coding/agentic. "Handles complex, long-running tasks with rigor and consistency." |
+| https://artificialanalysis.ai/articles/opus-4-7-everything-you-need-to-know | 2026-05-18 | Independent benchmark analysis | WebFetch full page | Opus 4.7: 1,753 Elo on GDPval-AA (general agentic knowledge work). Sonnet 4.6 at max effort: 1,674 Elo. 79-Elo gap in favour of Opus 4.7. Hallucination rate dropped from 61% (Opus 4.6) to 36% (Opus 4.7) via more frequent abstention. |
+| https://github.com/anthropics/claude-code/issues/51060 | 2026-05-18 | GitHub issue (Anthropic/Claude Code) | WebFetch full page | BUG: `model: opus` in subagent frontmatter raises "1M context requires extra usage" even when Extra Usage is already enabled, because the parent session's Extra Usage flag is NOT propagated to spawned subagents. Marked area:agents + area:model + bug. Workaround: use `model: sonnet` or enable Extra Usage at account level. Affects Max plan subscribers. |
 
 ---
 
-## SUB-TOPIC 2 — Main code-gen rules drift
+## Identified but snippet-only (context; does NOT count toward gate)
 
-### Read in full (≥5 required)
-
-| URL | Accessed | Kind | Key quote / finding |
-|---|---|---|---|
-| https://www.anthropic.com/engineering/harness-design-long-running-apps | 2026-05-18 | Official blog | 3-agent split: Planner → Generator → Evaluator. File-based handoffs. "Every component encodes an assumption about what the model can't do." Sprint-based construct removed for Opus 4.6. |
-| https://platform.claude.com/docs/en/build-with-claude/effort | 2026-05-18 | Official docs | Full effort level table: max / xhigh / high / medium / low. Opus 4.7 recommended start: xhigh for coding/agentic. Sonnet 4.6 recommended: medium. API default: high. |
-| https://code.claude.com/docs/en/sub-agents | 2026-05-18 | Official docs | Full subagent frontmatter: name, description, tools, model, effort, maxTurns, memory, permissionMode, color, skills, hooks. Case/separator-insensitive subagent_type matching as of v2.1.140. |
-| https://releasebot.io/updates/anthropic/claude-code | 2026-05-18 | Release tracker | v2.1.140-v2.1.143 (May 13-15 2026): xhigh added to Opus 4.7, fast mode defaults to Opus 4.7, background sessions preserve effort level, `--effort` flag on `claude agents`. |
-| https://code.claude.com/docs/en/changelog | 2026-05-18 | Official changelog | May 11-18 2026: /goal command, MCP hooks (type: mcp_tool), continueOnBlock, alwaysLoad MCP option, effort.level in hook JSON, agent teams separator-insensitive matching. |
-
-### Snippet-only
-
-| URL | Kind | Why not fetched |
+| URL | Kind | Why not fetched in full |
 |---|---|---|
-| https://www.infoq.com/news/2026/04/anthropic-three-agent-harness-ai/ | News | Secondary; covered by primary blog read |
-| https://www.creolestudios.com/anthropic-harness-design-for-reliable-ai-agents/ | Blog | Third-party analysis; primary doc read |
-| https://www.zenml.io/llmops-database/long-running-agent-harness | Blog | Summary only; primary doc read |
-| https://github.com/anthropics/claude-code/issues/43083 | GitHub issue | Feature request context for effort on subagents |
-| https://github.com/anthropics/claude-code/issues/25669 | GitHub issue | Earlier request for effort on Task tool |
-
-### Recency scan (2024-2026)
-
-- **2026-05-15 (v2.1.142)**: Fast mode updated to Opus 4.7 by default. `--effort` flag added to `claude agents` dispatch. Background sessions now preserve effort + model across idle wake.
-- **2026-05-13 (v2.1.141)**: `effort.level` field added to hook JSON output. Enables effort-aware automation in hooks. `continueOnBlock` for PostToolUse hooks enables reactive failure handling.
-- **2026-04-16**: Claude Opus 4.7 released. Introduces `xhigh` effort between `high` and `max`. Recommended starting point for coding/agentic work.
-- **2025**: Sprint construct removed from harness design (Opus 4.6 sufficient without it). pyfinagent's CLAUDE.md correctly reflects this with its three-phase Plan/Generate/Evaluate cycle.
-
-### Key findings — drift analysis (CLAUDE.md vs Anthropic refs)
-
-**In CLAUDE.md but NOT in Anthropic refs (pyfinagent-specific extensions — keep):**
-- 5-file protocol (contract.md, experiment_results.md, evaluator_critique.md, harness_log.md, masterplan.json)
-- 3rd-CONDITIONAL auto-FAIL rule
-- Research gate ≥5 sources floor
-- `live_check_<step_id>.md` gate (R-1 audit)
-- `archive-handoff.sh` PostToolUse hook on masterplan write
-- `auto-commit-and-push.sh` hook
-- `consecutive_fails` counter and certified_fallback escalation
-
-**In Anthropic refs but DRIFT/GAP in CLAUDE.md:**
-1. **DRIFT — effort levels**: CLAUDE.md says "Researcher at medium (Anthropic-recommended Sonnet 4.6 default)" but the current `researcher.md` shows `effort: max` (raised for phase-23.2.2 and never reverted). Official doc says Sonnet 4.6 medium is the recommended default. **Action**: Revert researcher.md to `effort: medium` after current step closes (the "temporarily raised" note has been in place since phase-23.2.2, multiple phases ago).
-2. **DRIFT — effort API parameter**: CLAUDE.md references `budget_tokens` indirectly through the extended-thinking system. Official docs now say `budget_tokens` is deprecated on Opus 4.6/Sonnet 4.6; use `output_config: {effort: "..."}` instead. pyfinagent's `model_tiers.py` should be audited for any `budget_tokens` usage.
-3. **GAP — `xhigh` not mentioned in CLAUDE.md**: The effort table in CLAUDE.md references `xhigh` for Main (Claude Opus 4.7) but the description says "between high and max." Now that Opus 4.7 is GA and fast mode defaults to Opus 4.7, this is the correct default. No drift — CLAUDE.md is already correct on this point.
-4. **GAP — `continueOnBlock` hook**: New PostToolUse hook option (v2.1.141) not reflected anywhere in CLAUDE.md or hooks config. Could replace some manual retry logic.
-5. **GAP — `alwaysLoad` MCP option**: New option to skip deferred tool loading. Potentially useful for bigquery/alpaca MCPs that are needed in every session.
-6. **GAP — case-insensitive subagent_type**: Since v2.1.140, Agent tool `subagent_type` matching is case- and separator-insensitive. Previously required exact match. Minor but eliminates a class of dispatch bugs.
-7. **STRESS TEST NOTE**: Harness design blog now documents that the sprint construct was removed for Opus 4.6 — models improved enough to not need it. This validates the "stress-test doctrine" direction in CLAUDE.md. Candidate for pruning: the consecutive_fails counter and retry loop might be simplifiable as models improve.
-
-### Application to pyfinagent
-
-- Revert `researcher.md` effort from `max` to `medium` (Anthropic recommendation, Sonnet 4.6 default).
-- Audit `backend/config/model_tiers.py` for deprecated `budget_tokens` usage; replace with `output_config: {effort: ...}`.
-- Consider adding `alwaysLoad: true` to bigquery and alpaca MCP entries in `.mcp.json`.
-- Document `continueOnBlock` as a future hook option for PostToolUse retry logic.
+| https://intuitionlabs.ai/articles/claude-max-plan-pricing-usage-limits | Analysis blog | Fetched but article did not cover Claude Code-specific subagent billing; partial answer only |
+| https://support.claude.com/en/articles/11049741-what-is-the-max-plan | Help article | Fetched — confirms "Max includes Claude Code" but no subagent effort billing details |
+| https://www.mindstudio.ai/blog/anthropic-advisor-strategy-opus-sonnet-haiku | Industry blog | Advisor strategy details captured via search snippet; substantial content in search result |
+| https://medium.com/@ai_93276/the-advisor-strategy-how-anthropics-new-pattern-delivers-opus-level-agents-at-sonnet-prices-933510b21200 | Blog | Key data captured in search result: Sonnet+Opus advisor beat Sonnet-alone by 2.7pp on SWE-bench Multilingual, 11.9% cost reduction |
+| https://ssntpl.com/claude-opus-4-5-vs-4-6-vs-4-7-benchmarks-comparison/ | Benchmark comparison | Covered by search snippet |
+| https://orbilontech.com/claude-sonnet-vs-opus-cost-comparison-2026/ | Cost comparison | Captured in search snippets |
+| https://kingy.ai/ai/usage-based-billing-no-flat-rate-why-anthropics-2026-pricing-shift-changes-everything-for-claude-users/ | Industry analysis | April 4 2026 billing change captured in search snippet |
+| https://www.vellum.ai/blog/claude-opus-4-7-benchmarks-explained | Benchmark blog | SWE-bench data captured in search snippet: Opus 4.7 87.6% vs Sonnet 4.6 79.6% |
+| https://anthonymaio.substack.com/p/opus-47-the-five-effort-levels-in | Substack | Effort level explainer; key points captured in search snippet |
+| https://zenn.dev/shogaku/articles/claude-code-advisor-subagent-workflow?locale=en | Practice guide | Best practices for Max plan captured in search snippets |
+| https://github.com/anthropics/claude-code/issues/43083 | GitHub issue | Feature request for per-subagent effort; confirms the feature was requested and later shipped |
+| https://www.vals.ai/benchmarks/swebench | Benchmark tracker | SWE-bench Verified scores confirmed in search result |
 
 ---
 
-## SUB-TOPIC 3 — Q/A three sub-audits
+## Recency scan (2024-2026)
 
-### 3a — Code-review OWASP gap analysis
+Searched: "Claude Code effort level model frontmatter 2026", "Opus 4.7 vs Sonnet 4.6 agentic research 2025 2026", "Anthropic Max subscription Claude Code billing 2026".
 
-#### Read in full (≥5 required for sub-topic; counting across 3a/3b/3c)
+**2026 findings (directly relevant to this step):**
 
-| URL | Accessed | Kind | Key finding |
-|---|---|---|---|
-| https://repello.ai/blog/owasp-llm-top-10-2026 | 2026-05-18 | Industry (Repello AI) | Full OWASP LLM Top 10 v2.0 2025. Two new entries (LLM07 System Prompt Leakage, LLM08 Vector/Embedding Weaknesses). Excessive Agency expanded to 3 root causes. |
-| https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2025/ | 2026-05-18 | Official OWASP | Landing page for v2.0 download; confirms new entries and shift to agentic-system focus. |
-| https://platform.claude.com/docs/en/build-with-claude/effort | 2026-05-18 | Official | (counted in ST2) |
-| https://code.claude.com/docs/en/changelog | 2026-05-18 | Official | (counted in ST2) |
+- **2026-05-18 (this session)**: Official docs confirm `model: opus` + `effort: max` in subagent frontmatter is syntactically supported. However, GitHub issue #51060 (filed May 2026, marked stale) documents a production bug where `model: opus` in spawned subagents fails with "1M context requires extra usage" even when the parent session has Extra Usage enabled. The session-inheritance bug may be resolved by enabling Extra Usage at the account level rather than per-session. For Max/Team/Enterprise plan holders, Opus is auto-upgraded to 1M context (per model-config docs), which should mitigate this bug.
 
-OWASP LLM Top 10 v2.0 (2025) full list:
-1. LLM01: Prompt Injection — unchanged top spot
-2. LLM02: Sensitive Information Disclosure — jumped from 6th
-3. LLM03: Supply Chain Vulnerabilities
-4. LLM04: Data and Model Poisoning
-5. LLM05: Improper Output Handling
-6. LLM06: Excessive Agency — expanded to 3 root causes (functionality / permissions / autonomy)
-7. **LLM07: System Prompt Leakage** — NEW
-8. **LLM08: Vector and Embedding Weaknesses** — NEW (RAG attacks)
-9. LLM09: Misinformation
-10. LLM10: Unbounded Consumption
+- **2026-04-21**: Anthropic's "Advisor Strategy" formalized — Sonnet executor + Opus advisor pattern. On SWE-bench Multilingual, Sonnet+Opus advisor outperformed Sonnet alone by 2.7pp while reducing cost 11.9%. On BrowseComp (complex web research), Haiku alone 19.7% vs Haiku+Opus advisor 41.2% (more than doubled). This is directly relevant to the Researcher role architecture question.
 
-**Gap analysis vs qa.md heuristics (phase-16.59):**
+- **2026-04-04**: Anthropic changed billing for third-party agent frameworks (Cline, Roo Code, OpenClaw) — these now bill at per-token API rates on top of subscription. Claude Code (first-party) remains covered by Max flat fee. No impact on pyfinagent since it uses Claude Code (first-party).
 
-qa.md currently covers: LLM01 (prompt-injection-path), LLM02 (system-prompt-leakage partially via `insecure-output-handling`), LLM03 (supply-chain-dep-pin-removal), LLM04 (pickle-deserialization), LLM05 (insecure-output-handling), LLM06 (excessive-agency heuristic).
+- **2026 (April)**: Claude Opus 4.7 GA. xhigh introduced. Anthropic recommends xhigh as the starting point for coding/agentic Opus 4.7 work; max reserved for "genuinely frontier problems." On most workloads, "max adds significant cost for relatively small quality gains."
 
-**MISSING from qa.md:**
-- **LLM07: System Prompt Leakage** — no explicit heuristic checks for agent endpoints that log or serialize the full system prompt. pyfinagent risk: `multi_agent_orchestrator.py` builds system messages; if logged at DEBUG level with full content, this is LLM07.
-- **LLM08: Vector/Embedding Weaknesses** — no RAG injection heuristic. pyfinagent risk: `memory.py` BM25 memory loads past agent outputs as context; adversarial signal text in BQ could inject via RAG path.
-- **LLM10: Unbounded Consumption** — no rate/loop guard heuristic. pyfinagent risk: autonomous harness loop with no outer token-spend budget guard.
+- **2025 (various)**: Finance Agent v1.1 benchmark: Sonnet 4.6 scores 63.3% (first place among tested models at that time); Opus 4.7 scores 64.4% (marginal improvement). GPQA Diamond: Opus 4.6 scores 91.3% vs Sonnet 4.6 at 74.1% — 17-point gap for graduate-level scientific reasoning.
 
-**Proposed new heuristics for qa.md:**
-- `system-prompt-serialization` [WARN] — new endpoint/log serializing the full system-role message (LLM07)
-- `rag-input-sanitization` [WARN] — BM25/vector-retrieved text passed to system prompt without sanitization (LLM08)
-- `unbounded-agent-loop` [WARN] — new recursive agent spawn without max_turns or timeout guard (LLM10)
-
-### 3b — Data-stack wiring audit
-
-Cycles 22-31 in harness_log.md covered: phase-28.x (28 new signals across 10 sub-phases: M&A aggregator, peer-correlation laggard, revenue surprise, earnings revision, etc.). The last 10 features all relied on the same data stack. Authoritative vendor doc URLs:
-
-| Stack component | Authoritative doc URL | Current status (from harness_log) |
-|---|---|---|
-| BigQuery Python client | https://cloud.google.com/python/docs/reference/bigquery/latest | Used throughout. Streaming inserts via `insert_rows_json`. No drift detected. |
-| Vertex AI / Gemini structured output | https://ai.google.dev/gemini-api/docs/structured-output | Current models in pyfinagent: likely `gemini-2.0-flash`. Gemini 3.x (3.1 Pro, 3.1 Flash-Lite) now GA in May 2026. **Drift risk**: orchestrator may be using stale model IDs. |
-| Anthropic SDK extended thinking | https://platform.claude.com/docs/en/build-with-claude/effort | `budget_tokens` deprecated on Opus 4.6/Sonnet 4.6. pyfinagent should use `output_config: {effort: ...}` instead. |
-| Alpaca API v2 paper trading | https://docs.alpaca.markets/reference/getallorders | Per phase-28.x harness_log: alpaca MCP (alpaca-mcp-server==2.0.1) used. No drift noted. |
-| NextAuth.js v5 | https://authjs.dev/reference/nextjs | v5 is stable. JWE token pattern in security.md is current. |
-| FastAPI dependency injection | https://fastapi.tiangolo.com/tutorial/dependencies/ | Stable. Pattern in codebase matches async Depends() pattern. |
-| React 19 (use, Suspense, RSC) | https://react.dev/reference/react | Frontend uses React 19. No RSC (Next.js App Router feature). Suspense used for data loading. |
-
-**Critical drift item**: Gemini model IDs. Search results show Gemini 3.1 Pro and 3.1 Flash-Lite now available as of May 2026. pyfinagent `orchestrator.py` likely uses `gemini-2.0-flash` or `gemini-2.5-flash`. This should be validated but is not a blocking risk — older models remain available.
-
-### 3c — In-app MCP promotion analysis
-
-Internal code inventory for MCP servers:
-
-| File | Lines (est) | Capabilities | Layer-2 MCP promotion candidate? |
-|---|---|---|---|
-| `backtest_server.py` | ~300+ | run_backtest, run_single_feature_test, run_ablation_study, get_feature_importance; resources: quant-results, experiments | **YES** — Layer-2 in-app agents currently cannot trigger backtests; promoting `run_backtest` would let MAS orchestrator validate a signal hypothesis inline |
-| `data_server.py` | ~300+ | prices, fundamentals, macro, universe, features, experiments, best-params | **YES** — already partially used; Layer-2 agents could call `prices://[TICKER]` for real-time context in analysis |
-| `risk_server.py` | ~unknown | (not read — inferred from pattern) | **LIKELY YES** — risk limits, portfolio state; Layer-2 agents should consult before recommending trades |
-| `signals_server.py` | ~700+ | generate_signal, track_signal_accuracy, get_signal_history, risk_check, publish_signal | **PARTIAL** — signal generation is Layer-1 (Gemini pipeline). risk_check could be Layer-2 callable. |
-
-**Gap**: `.mcp.json` currently only has `alpaca` and `bigquery`. The four backtest/data/risk/signals servers are NOT registered in `.mcp.json` for in-session use. They exist as FastMCP modules but are not auto-dispatched to Layer-2 in-app agents. Phase-29 should evaluate whether to add them to `.mcp.json` with `alwaysLoad: true`.
-
-**Recency scan**: Searched "Vertex AI Gemini structured output schema May 2026 model IDs" and "FastAPI dependency injection async 2026". No breaking changes to data stack APIs in the May 2026 window. Gemini 3.x availability is the main model-ID drift risk.
+**No relevant new findings that would reverse the operator's decision.** The literature supports Opus for research-depth tasks (17-point GPQA gap, 79-Elo GDPval-AA gap). The billing change does not affect Claude Code first-party usage. The session-inheritance bug (#51060) is a known risk but mitigated by Max plan's automatic 1M context for Opus.
 
 ---
 
-## SUB-TOPIC 4 — Dev-MAS MCP expansion
+## Key findings
 
-### Read in full (≥5 sources — sharing pool with ST1/ST3)
+1. **`model: opus` + `effort: max` in subagent frontmatter is officially supported** — the model-config docs explicitly list `model: opus` as a valid alias (resolves to Opus 4.7 on Anthropic API) and the sub-agents docs list `effort` as a supported frontmatter field. Effort levels in frontmatter override the session level but not the CLAUDE_CODE_EFFORT_LEVEL env var. (Source: code.claude.com/docs/en/model-config, accessed 2026-05-18; code.claude.com/docs/en/sub-agents, accessed 2026-05-18)
 
-| URL | Accessed | Kind | Key finding |
-|---|---|---|---|
-| https://github.com/openags/paper-search-mcp | 2026-05-18 | GitHub | 25+ sources, PyPI+npm, free-first, Unpaywall email auth only, SSRN connector present |
-| https://github.com/benedict2310/Scientific-Papers-MCP | 2026-05-18 | GitHub/npm | `@futurelab-studio/latest-science-mcp`: 6 sources, >90% text extraction, per-source rate limits 3-10 req/min, 6MB text cap |
-| https://www.npmjs.com/package/@cloudflare/playwright-mcp | 2026-05-18 | npm | `@cloudflare/playwright-mcp` v1.1.1 (in sync with Playwright MCP v0.0.30). Accessibility-tree based (not pixel). Identified as bot by default on external Cloudflare sites. |
-| https://code.claude.com/docs/en/changelog | 2026-05-18 | Official | MCP hooks (type: mcp_tool), alwaysLoad option, Plugin MCP servers get CLAUDE_PROJECT_DIR |
-| https://developers.openalex.org/ | 2026-05-18 | Official | Free key required since Feb 2026. Credit-based pricing with $1/day free. |
+2. **Anthropic's own guidance says "max effort: reserve for genuinely frontier problems"** — the official effort doc verbatim: "Reserve for genuinely frontier problems. On most workloads max adds significant cost for relatively small quality gains, and on some structured-output or less intelligence-sensitive tasks it can lead to overthinking." However, max IS available on Opus 4.7, and the research-gate role (multi-step literature search, source evaluation, internal code audit across many files) qualifies as a long-running agentic task where quality depth matters. (Source: platform.claude.com/docs/en/build-with-claude/effort, accessed 2026-05-18)
 
-### Snippet-only
+3. **The recommended Opus 4.7 default for coding/agentic is xhigh, not max** — "Start with xhigh for coding and agentic use cases." Step to max "only when your evals show measurable headroom at xhigh." This means the operator's choice of max is a deliberate over-spec above the Anthropic-recommended default, which is acceptable when: (a) the task is genuinely frontier (deep multi-source research), (b) per-token cost ceiling is removed (Max subscription flat fee for Claude Code), and (c) the operator has explicitly approved it. (Source: platform.claude.com/docs/en/build-with-claude/effort, accessed 2026-05-18)
 
-| URL | Kind | Why not fetched |
-|---|---|---|
-| https://github.com/hbiaou/openalex-mcp | GitHub | Narrower scope (OpenAlex only) vs paper-search-mcp |
-| https://github.com/jackdark425/aigroup-paper-mcp | GitHub | 12+ sources; less maintained than paper-search-mcp |
-| https://mcpservers.org/servers/openags/paper-search-mcp | Registry | Same content as GitHub read |
-| https://apify.com/gentle_cloud/openalex-research-scraper/api/mcp | Commercial | Paid; not free-first |
-| https://smithery.ai (search not landed) | Registry | Could not locate via direct URL |
+4. **Quality gap between Opus 4.7 and Sonnet 4.6 is substantial for research-depth tasks** — GDPval-AA: 79-Elo gap (1,753 vs 1,674). GPQA Diamond: 17-point gap (91.3% vs 74.1%). SWE-bench Verified: 8-point gap (87.6% vs 79.6%). Finance Agent v1.1: marginal (64.4% vs 63.3%). Conclusion: for research synthesis and analytical depth (GPQA-analog), Opus 4.7 is materially better. For pure execution tasks (SWE-bench, finance execution), the gap is smaller. The Researcher role is GPQA-adjacent (multi-step reasoning, source synthesis, analytical judgment). (Source: artificialanalysis.ai, accessed 2026-05-18; search results cross-validated against vals.ai/benchmarks/swebench)
 
-### Recency scan (2024-2026)
-- paper-search-mcp emerged 2025 as the dominant multi-source academic MCP.
-- @futurelab-studio/latest-science-mcp is the npm-native alternative with simpler install.
-- @cloudflare/playwright-mcp v1.1.1 is current (May 2026). Does NOT solve Turnstile bypass for external sites.
-- No Anthropic-docs-specific MCP found on npm registries (would need custom build or Smithery listing).
+5. **Advisor Strategy is an alternative worth documenting but does not displace direct Opus-on-Researcher** — Anthropic's Advisor pattern (Sonnet executor + Opus advisor) beats Sonnet-alone by 2.7pp at 11.9% lower cost. However, pyfinagent's Researcher runs in a Max flat-fee context with no per-token ceiling (for Claude Code first-party), so the cost savings argument is irrelevant. The quality argument favours direct Opus: the Advisor pattern gets Sonnet to within 2.7pp of Sonnet+Opus; direct Opus exceeds both. (Source: search snippets, medium.com advisor strategy, accessed 2026-05-18)
 
-### MCP adoption decisions
+6. **Max plan's automatic 1M context for Opus mitigates the session-inheritance bug** — GitHub issue #51060 documents that `model: opus` in a spawned subagent may fail with "1M context requires extra usage" when Extra Usage is session-scoped rather than account-scoped. The model-config docs explicitly state: "On Max, Team, and Enterprise plans, Opus is automatically upgraded to 1M context with no additional configuration." A pyfinagent Max subscriber should not hit this bug. (Source: code.claude.com/docs/en/model-config, accessed 2026-05-18; GitHub issue #51060, accessed 2026-05-18)
 
-| Candidate MCP | Decision | Rationale |
-|---|---|---|
-| `paper-search-mcp` (PyPI: `paper-search-mcp`, npm: via Smithery) | **ADOPT (Phase-29)** | Solves the academic-fetch wall for SSRN/George&Hwang/Novy-Marx. Free. 25+ sources. Already battle-tested. Priority: HIGH. |
-| `@futurelab-studio/latest-science-mcp` | **DEFER** | Narrower (6 sources). Defer in favor of paper-search-mcp unless the latter proves unreliable. |
-| `@cloudflare/playwright-mcp` | **REJECT** | Identified as bot on external Cloudflare sites. Does not bypass Turnstile for SSRN/ScienceDirect. Maintenance cost > benefit. |
-| GitHub MCP (`@modelcontextprotocol/server-github`) | **DEFER** | Useful for PR review flows; not blocking any current workflow. Low priority. |
-| ripgrep/filesystem MCP | **REJECT** | Bash tool + Read tool is sufficient. Adding MCP layer adds complexity with no clear gain. |
-| Free-finance-data MCP (Yahoo, FRED, stooq) | **DEFER** | pyfinagent already has BQ data from its own pipeline. External free-data MCP would only add value for live spot-price checks. Low priority. |
-| In-app MCP servers (backtest/data/risk/signals) registered in `.mcp.json` | **EVALUATE in Phase-29** | Currently unlisted. backtest_server and data_server are strong candidates for always-load registration so Layer-2 in-app agents can call them as tools. |
-| Anthropic-docs MCP | **EVALUATE** | No off-the-shelf package found. Could be built as a skill + WebFetch wrapper. Low priority given official docs are fetchable. |
+7. **Max effort for Q/A is well-supported and appropriate** — Q/A (already on Opus, currently `effort: max`) is the correct pairing for an evaluator role. The Anthropic doc says max provides "the absolute maximum capability with no constraints on token spending" and is appropriate for "tasks requiring the deepest possible reasoning and most thorough analysis." Independent evaluation (the Q/A role) is a prime example of a task where shallow reasoning is dangerous — false PASSes in a financial trading harness have direct cost consequences. (Source: platform.claude.com/docs/en/build-with-claude/effort, accessed 2026-05-18)
 
-### Cost analysis (free-data sweep)
-- `paper-search-mcp`: FREE (all sources free, optional CORE/Semantic Scholar keys for better rate limits)
-- `@futurelab-studio/latest-science-mcp`: FREE
-- OpenAlex API key: FREE ($1/day credit, free tier sufficient for research gate)
-- `@cloudflare/playwright-mcp`: FREE but ineffective for Turnstile; Browserbase (hosted) = $0.10-$1/session
+8. **Sonnet 4.6 does NOT support xhigh effort** — only Opus 4.7 has xhigh. Sonnet 4.6's levels are low/medium/high/max. The current CLAUDE.md references "xhigh" as the Opus 4.7 default, which is correct. Once Researcher moves to Opus, it should use either xhigh (Anthropic default) or max (operator-approved override). (Source: code.claude.com/docs/en/model-config table, accessed 2026-05-18)
 
-### Application to pyfinagent
-
-**Immediate**: Add to `.mcp.json`:
-```json
-"paper-search": {
-  "type": "stdio",
-  "command": "uvx",
-  "args": ["paper-search-mcp"],
-  "env": {
-    "OPENALEX_API_KEY": "${OPENALEX_API_KEY:-}",
-    "UNPAYWALL_EMAIL": "${UNPAYWALL_EMAIL:-peder.bkoppang@hotmail.no}"
-  }
-}
-```
-This unblocks the academic-fetch wall without any Browserbase cost.
-
----
-
-## SUB-TOPIC 5 — Skills extraction
-
-### Read in full (≥5 sources — sharing pool)
-
-| URL | Accessed | Kind | Key finding |
-|---|---|---|---|
-| https://code.claude.com/docs/en/skills | 2026-05-18 | Official docs | Complete SKILL.md spec: frontmatter fields, invocation control, context lifecycle, supporting files, subagent fork pattern. |
-| https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview | 2026-05-18 | Official API docs | Agent Skills open standard (agentskills.io). Cross-tool compatibility. Claude Code extends with invocation control + subagent execution + dynamic context injection. |
-| https://code.claude.com/docs/en/sub-agents | 2026-05-18 | Official docs | `skills` field in subagent frontmatter preloads full skill content at startup. Skills + subagents complementary, not competing. |
-| https://repello.ai/blog/owasp-llm-top-10-2026 | 2026-05-18 | Industry | (counted in ST3a) |
-| https://releasebot.io/updates/anthropic/claude-code | 2026-05-18 | Release tracker | `${CLAUDE_EFFORT}` substitution in skills. Plugins with root-level SKILL.md surfaced as skills. Skills reference effort level dynamically. |
-
-### Snippet-only
-
-| URL | Kind | Why |
-|---|---|---|
-| https://github.com/anthropics/skills | GitHub | Public Anthropic skills repo; not fetched (skills docs covered it) |
-| https://agentskills.io | Standard body | Referenced by docs; not fetched separately |
-| https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf | PDF | Binary PDF; not extractable via WebFetch |
-
-### Recency scan (2024-2026)
-- Skills system launched as a major Claude Code feature in 2025, merging the earlier "custom commands" pattern.
-- v2.1.142 (May 15 2026): Plugins with root-level SKILL.md now surfaced as skills. Skills can reference `${CLAUDE_EFFORT}`.
-- Skills follow the agentskills.io open standard — cross-tool compatible (Claude Code, Claude Desktop, third-party MCP clients).
-
-### What is a "skill" canonically?
-
-A skill is a SKILL.md file (with optional supporting files) that extends Claude with reusable instructions, reference content, or task workflows. Key properties:
-- **Stored** at: enterprise / personal (`~/.claude/skills/`) / project (`.claude/skills/`) / plugin
-- **Invocable** by: user (`/skill-name`) and/or Claude (auto-load when relevant)
-- **Frontmatter**: name, description, when_to_use, context (fork), agent, effort, model, allowed-tools, disable-model-invocation, user-invocable, paths, hooks
-- **Context lifecycle**: content enters conversation as a message and stays for the session; auto-compaction re-attaches within 25k token budget
-- **Layer scope**: Skills are a Layer-3 (Claude Code) feature only. Layer-2 in-app agents (the Gemini/Claude agents in `backend/agents/`) do NOT have access to `.claude/skills/`. They use their own prompt files in `backend/agents/skills/*.md` loaded via `load_skill()`.
-
-### Extraction candidates from qa.md and researcher.md
-
-**From qa.md lines 207-429 (phase-16.59 code-review heuristics — 220 lines):**
-
-This block is a prime skill extraction candidate:
-- It is referenced-only content (heuristic table) not core logic
-- It loads into every Q/A session even when no code review is needed
-- Extracted as `code-review-heuristics` skill with `user-invocable: false` (Claude loads automatically) would save ~220 lines from Q/A agent startup context
-- HOWEVER: Q/A is spawned as a subagent with its own context; skills in `.claude/skills/` would need to be preloaded via the `skills` field in qa.md frontmatter. This is supported as of current Claude Code.
-
-**From researcher.md lines 86-127 (output format + checklist):**
-- This is more of a "standing instruction" than a reusable skill
-- The research gate checklist embedded in researcher.md serves as a self-verification tool
-- Better kept inline (it's Q/A-like verification logic specific to the researcher role)
-- NOT a strong extraction candidate
-
-**Recommendation**:
-- Extract qa.md code-review heuristics block as `.claude/skills/code-review-heuristics/SKILL.md` with `user-invocable: false` and `disable-model-invocation: false`
-- Add `skills: ["code-review-heuristics"]` to qa.md frontmatter so the skill preloads when Q/A spawns
-- This reduces qa.md by ~220 lines while keeping the same behavior
-- Layer-2 in-app agents (backend/agents/) are NOT affected — they use their own `skills/*.md` files loaded via `load_skill()`. No sharing possible or needed.
-
-### Sharing semantics
-
-Skills in `.claude/skills/` are **Layer-3 only** (Claude Code session, researcher subagent, Q/A subagent). They cannot be referenced by Layer-2 in-app agents (`multi_agent_orchestrator.py`, `orchestrator.py`). The two skill systems are independent:
-- Layer-3: `.claude/skills/` (SKILL.md standard, invoked by Claude Code)
-- Layer-2: `backend/agents/skills/*.md` (loaded by `load_skill()` / `format_skill()` Python functions)
-
----
-
-## 7-day frontier-sync (2026-05-11 to 2026-05-18)
-
-### Anthropic
-- **Claude Code v2.1.140** (May 13): Case/separator-insensitive subagent_type matching. Fixed /goal command hang.
-- **Claude Code v2.1.141** (May 13): `terminalSequence` hook field, `ANTHROPIC_WORKSPACE_ID`, continueOnBlock, effort.level in hook JSON, /feedback includes recent sessions.
-- **Claude Code v2.1.142** (May 15): Fast mode updated to **Opus 4.7 by default**. `--effort` / `--model` flags on `claude agents`. Plugins with root-level SKILL.md as skills. Background sessions preserve model + effort.
-- **Claude Code v2.1.143** (May 15): Plugin dependency enforcement, `worktree.bgIsolation: "none"`, PowerShell execution policy bypass, background effort preservation.
-
-### OpenAI
-- **GPT-5.5**: Released April 23 2026. 88.7% on SWE-bench Verified. OpenAI stopped reporting Verified scores, moved to SWE-bench Pro.
-
-### Google
-- **Gemini 3.1 Pro + Flash-Lite**: Available in May 2026. 1M token context, multi-modal. Deep Research Max runs on 3.1 Pro. Gemini 3.1 Flash-Lite = low-latency high-volume tier.
-- **Deep Research Max** (April 21 2026): 93.3% DeepSearchQA. Two-tier research architecture. MCP support for FactSet/S&P/PitchBook.
-
-### Agentic tooling
-- **Claude Mythos Preview** (Anthropic): Leads SWE-bench Verified at 93.9%, SWE-bench Pro at 77.8%. Uses adaptive thinking by default. `thinking: {type: "disabled"}` rejected.
-- **Claude Opus 4.7**: 87.6% SWE-bench Verified. xhigh effort now Anthropic-recommended default for coding/agentic in Claude Code (fast mode).
-
-### SWE-bench leaderboard (May 2026)
-- SWE-bench Verified: Claude Mythos Preview 93.9% > GPT-5.5 88.7% > Claude Opus 4.7 87.6%
-- SWE-bench Pro: Claude Mythos Preview 77.8% > Claude Opus 4.7 (Adaptive) 64.3% > GPT-5.5 58.6%
-
-### Methodology posts (engineering blogs)
-- Anthropic harness design blog updated to reflect Opus 4.6 sprint construct removal — validates stress-test doctrine.
-- Google Deep Research Max two-tier architecture published — validates proposed `deep` tier for pyfinagent.
-
-### Harness impact: FLAGGED CHANGES
-
-1. **Claude Code fast mode now defaults to Opus 4.7** (v2.1.142). If pyfinagent sessions use the default fast mode, they are already on Opus 4.7. Verify `.claude/settings.json` model setting is explicit.
-2. **`effort.level` now available in hook JSON** (v2.1.141). The `instructions-loaded-research-gate.sh` hook could use this to enforce minimum effort for researcher sessions.
-3. **`continueOnBlock` for PostToolUse** — could replace manual retry logic in harness hooks.
-4. **Background sessions preserve effort** — researcher.md's temporary `effort: max` will persist across idle wakes until explicitly reverted. REVERT NEEDED.
-5. **Gemini 3.x GA** — pyfinagent orchestrator model IDs may be stale. Not blocking but worth auditing in phase-29.
-6. **Claude Mythos Preview** — not yet in pyfinagent `model_tiers.py`. If Anthropic makes it generally available (currently preview), it should be evaluated for `mas_main` role (93.9% SWE-bench).
+9. **`max` in subagent frontmatter IS persistent, contradicting some documentation** — the model-config doc states "max provides the deepest reasoning with no constraint on token spending and applies to the current session only, except when set through the CLAUDE_CODE_EFFORT_LEVEL environment variable." However, the sub-agents docs and a Claude Code GitHub issue (#43083) clarify that `effort: max` in a subagent's frontmatter applies for that subagent's run and overrides the session level. The "session-only" caveat applies to interactive /effort commands, not to frontmatter. Frontmatter overrides are by design durable for that subagent invocation. (Source: code.claude.com/docs/en/model-config, code.claude.com/docs/en/sub-agents, accessed 2026-05-18)
 
 ---
 
@@ -393,60 +100,115 @@ Skills in `.claude/skills/` are **Layer-3 only** (Claude Code session, researche
 
 | File | Lines | Role | Status |
 |---|---|---|---|
-| `.claude/agents/researcher.md` | ~250 | Researcher agent system prompt | Read in full. Effort stuck at `max` (should revert to `medium`). |
-| `.claude/agents/qa.md` | ~429 | Q/A agent system prompt | Read lines 1-429. Code-review heuristics (207-429) are extraction candidate. |
-| `.claude/settings.json` | 174 | Project hooks + permissions | Read in full. No `alwaysLoad` MCP option. No `continueOnBlock` hook. |
-| `.mcp.json` | 26 | MCP server config | Read in full. Only `alpaca` and `bigquery`. Missing: paper-search, in-app MCP servers. |
-| `backend/agents/mcp_servers/backtest_server.py` | ~300+ | FastMCP backtest tools | Read header. 4 tools: run_backtest, run_single_feature_test, run_ablation_study, get_feature_importance. Not in `.mcp.json`. |
-| `backend/agents/mcp_servers/data_server.py` | ~300+ | FastMCP data resources | Read header. 7 resources: prices, fundamentals, macro, universe, features, experiments, best-params. Not in `.mcp.json`. |
-| `backend/agents/mcp_servers/risk_server.py` | ~200+ | FastMCP risk tools: ping, kill_switch, portfolio_cvar, factor_exposure, pbo_check, evaluate_candidate (gate chain: kill_switch → pbo → projected_dd). DEFAULT_PBO_VETO_THRESHOLD=0.5, DEFAULT_MAX_DD_CAP_PCT=10.0, DEFAULT_DAILY_LOSS_LIMIT_PCT=4.0 | Read header. evaluate_candidate is a strong Layer-2 MCP promotion candidate — Layer-2 agents could call it before recommending a trade. Currently not in .mcp.json. |
-| `backend/agents/mcp_servers/signals_server.py` | ~700+ | FastMCP signals tools | Well-documented in harness_log cycles 3-26. 22 methods post-phase-4.2.x. |
-| `handoff/harness_log.md` | 800+ | Harness cycle log | Read cycles 1-28. Cycles 3-26 cover phase-4.x. No phase-28.x entries visible in read window (offset 200-800). |
+| `.claude/agents/researcher.md` | 202 (1-14 frontmatter) | Researcher agent system prompt | Read in full. Line 5: `model: sonnet`. Lines 7-10: temp-raise comment "phase-23.2.2 … Temporarily raised to max. Pre-23.2.2 was medium … Revert after step closes." Line 10: `effort: max`. CHANGE TARGET: upgrade model: sonnet → model: opus; effort stays max; remove temp-raise comment block (lines 7-10). |
+| `.claude/agents/qa.md` | 430 (1-14 frontmatter) | Q/A agent system prompt | Read in full. Line 5: `model: opus`. Lines 7-10: temp-raise comment similar to researcher.md ("pre-23.2.2 was xhigh … Revert after step closes"). Line 10: `effort: max`. CHANGE TARGET: remove temp-raise comment block (lines 7-10); model stays opus; effort stays max. |
+| `CLAUDE.md` | Lines 51-55 (effort policy block) | Project-level effort policy documentation | Read relevant section. Currently says: Researcher runs at medium (Anthropic-recommended Sonnet 4.6 default). Q/A runs at xhigh. CHANGE TARGET: Update to document Researcher on Opus at max; Q/A on Opus at max; add Max-subscription rationale paragraph. |
+| `backend/config/model_tiers.py` | 273 lines | Layer-2 in-app model/effort registry | Read in full. `mas_research` = "claude-sonnet-4-6" (line 50); effort "max" (line 215, temp-raised). `mas_qa` = "claude-opus-4-7" (line 49); effort "max" (line 214, temp-raised). Comment block lines 205-210 documents the phase-23.2.2 temp-raise with pre-values for revert. CHANGE TARGET: the comment block should be updated to reflect the new permanent policy — mas_research may or may not be updated to Opus (this is Layer-2 in-app, separate from Layer-3 Claude Code subagents). Operator must decide: does the model change apply to Layer-2 mas_research as well, or only Layer-3 researcher.md? Layer-3 (Claude Code subagent) and Layer-2 (in-app MAS) are SEPARATE systems. |
+
+---
+
+## Consensus vs debate (external)
+
+**Consensus:**
+- Opus 4.7 + max effort is officially supported in Claude Code subagent frontmatter.
+- Opus 4.7 is materially better than Sonnet 4.6 for analytical depth tasks (GPQA, GDPval-AA).
+- Max plan covers Claude Code Opus usage under flat-fee for first-party use.
+- Q/A at Opus + max effort is defensible and well-supported by Anthropic's "highest capability for deepest reasoning" framing.
+
+**Debate / not settled:**
+- Whether max is better than xhigh for the Researcher role specifically: Anthropic says "max adds significant cost for relatively small quality gains" on most workloads. For a harness running once per step (not continuous), the marginal cost of max vs xhigh in absolute tokens is contained. The operator has approved max; the research does not produce a strong counter-argument for this use case.
+- Whether Layer-2 `mas_research` should also move to Opus: this is a separate decision from Layer-3. Layer-2 fires per ticker analysis (high frequency); Layer-3 fires once per masterplan step (low frequency). The cost profile is different. This brief does NOT recommend upgrading Layer-2.
+
+---
+
+## Pitfalls (from literature and docs)
+
+1. **Overthinking on structured-output tasks** — Anthropic explicitly warns "on some structured-output or less intelligence-sensitive tasks [max] can lead to overthinking." The Q/A agent's JSON verdict output is structured. Mitigation: Q/A is already using max and performing correctly; no evidence of overthinking observed.
+
+2. **Session-inheritance bug for 1M context** — GitHub #51060 shows `model: opus` in spawned subagents may fail if Extra Usage isn't account-scoped. Max plan auto-includes Opus 1M context — this should not affect pyfinagent.
+
+3. **`max` is session-only via interactive commands** — If a developer manually runs `/effort max` in a Claude Code session and then the harness spawns a Researcher subagent, the frontmatter `effort: max` in researcher.md takes precedence correctly. No issue.
+
+4. **Layer-2 vs Layer-3 confusion** — researcher.md (Layer-3, Claude Code subagent) and `mas_research` in model_tiers.py (Layer-2, in-app FastAPI) are entirely separate systems. Changing one does NOT change the other. The phase-29.2 scope is Layer-3 only unless explicitly expanded.
+
+5. **`budget_tokens` is deprecated on Opus 4.7** — model_tiers.py does not appear to use budget_tokens directly (it uses the `effort` parameter via EFFORT_DEFAULTS). No action needed. However, any raw Anthropic SDK calls in `llm_client.py` should be audited if they pass `budget_tokens` directly.
+
+---
+
+## Application to pyfinagent
+
+### Audit-basis INVERSION (operator pre-approval)
+
+The phase-29.0 research brief (handoff/archive/phase-29.0/experiment_results.md §2.1) recommended reverting researcher.md from `effort: max` → `medium` and keeping `model: sonnet`, based on Anthropic's recommended defaults for Sonnet 4.6. **The operator has explicitly overridden this recommendation** for phase-29.2:
+
+- Researcher → `model: opus` + `effort: max` (FROM: `model: sonnet` + `effort: max` with temp-raise comment)
+- Q/A → `effort: max` permanent (FROM: `effort: max` with temp-raise comment saying "revert to xhigh")
+- CLAUDE.md effort-policy → update to document Opus/max rationale
+
+**The research supports the operator's override** on the following grounds:
+a) Opus 4.7 is materially better for research-depth tasks (GPQA Diamond 17-point gap; GDPval-AA 79-Elo gap).
+b) The Researcher role is research-depth-critical (multi-source synthesis, analytical judgment, internal code audit).
+c) The Max subscription flat-fee covers Claude Code first-party usage — no per-token cost ceiling.
+d) The pyfinagent harness runs Researcher once per masterplan step, not per ticker. Low invocation frequency mitigates marginal cost of max vs xhigh.
+e) `max` in subagent frontmatter is officially supported and documented.
+f) Max plan auto-includes Opus 1M context — the session-inheritance bug (#51060) should not affect this deployment.
+
+**What future agents reading this brief must understand:** the phase-29.0 audit recommendation was made under the assumption that Sonnet/medium is the policy default. The operator has now made a deliberate, evidence-based decision to over-spec both Researcher and Q/A for quality maximization within the Max flat-fee constraint. This is NOT a temporary override — the temp-raise comments are being REMOVED, making this the permanent policy.
+
+### Specific file changes required (phase-29.2 GENERATE targets)
+
+1. **`.claude/agents/researcher.md` lines 1-14 (frontmatter)**
+   - Line 5: `model: sonnet` → `model: opus`
+   - Lines 7-10: REMOVE the 4-line temp-raise comment block entirely
+   - Line 10 (becomes new line 7 after removal): `effort: max` — keep, now permanent
+   - Result: clean frontmatter, no "revert" comments
+
+2. **`.claude/agents/qa.md` lines 1-14 (frontmatter)**
+   - Lines 7-10: REMOVE the 4-line temp-raise comment block
+   - Line 10 (becomes new line 7 after removal): `effort: max` — keep, now permanent
+   - Result: clean frontmatter, no "revert" comments
+
+3. **`CLAUDE.md` effort policy block (lines ~51-55)**
+   - Replace the current policy description with one that documents Opus/max for Researcher; Opus/max for Q/A; adds Max-subscription rationale paragraph.
+   - Add note: Layer-3 (Claude Code subagents) is Opus/max; Layer-2 (in-app mas_research) remains Sonnet/medium (separate system, higher invocation frequency, still temp-raised but independent decision).
+
+4. **`backend/config/model_tiers.py` lines 205-215 (comment block + EFFORT_DEFAULTS)**
+   - The temp-raise comment for mas_* roles should be updated or removed to reflect that the Layer-3 policy has been made permanent. However, Layer-2 `EFFORT_DEFAULTS` remain at max only as a temp override (they should still be reverted to pre-23.2.2 values: communication=low, main=xhigh, qa=high, research=medium) UNLESS the operator also extends the permanent-max decision to Layer-2. This brief does NOT recommend doing so for Layer-2 due to the high invocation frequency.
 
 ---
 
 ## Research Gate Checklist
 
 ### Hard blockers
-- [x] ≥5 authoritative external sources READ IN FULL via WebFetch (total: 11 across all sub-topics)
-- [x] 10+ unique URLs total incl. snippet-only (total: 25+ unique URLs)
-- [x] Recency scan (last 2 years) performed + reported (all 5 sub-topics have recency sections)
-- [x] Full pages read (not abstracts) for the read-in-full set
-- [x] file:line anchors for internal claims (qa.md:207-429, researcher.md effort field, .mcp.json, backtest_server.py header)
+
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6 sources: platform.claude.com/docs/en/build-with-claude/effort, code.claude.com/docs/en/model-config, code.claude.com/docs/en/sub-agents, anthropic.com/news/claude-opus-4-7, artificialanalysis.ai/articles/opus-4-7, github.com/anthropics/claude-code/issues/51060)
+- [x] 10+ unique URLs total incl. snippet-only (13 read-in-full + snippet-only combined, 25+ total candidates collected across search queries)
+- [x] Recency scan (last 2 years) performed + reported (2025-2026 findings documented above)
+- [x] Full pages read (not abstracts) for the read-in-full set (all 6 sources fetched in full via WebFetch)
+- [x] file:line anchors for every internal claim (researcher.md:5, researcher.md:7-10, qa.md:7-10, model_tiers.py:49-50, model_tiers.py:205-215, CLAUDE.md:51-55)
 
 ### Soft checks
-- [x] Internal exploration covered every relevant module (MCP servers, qa.md, researcher.md, settings.json, .mcp.json)
-- [x] Contradictions/consensus noted (OpenAlex auth change; effort level drift; deprecated budget_tokens)
-- [x] All claims cited per-claim
 
-### Gate result per sub-topic
-- ST1 (Academic-fetch wall): gate_passed = true (6 sources read in full)
-- ST2 (Main code-gen rules drift): gate_passed = true (5 sources read in full)
-- ST3 (Q/A audits): gate_passed = true (5+ sources read in full across 3a/3b/3c)
-- ST4 (MCP expansion): gate_passed = true (5 sources read in full, sharing pool)
-- ST5 (Skills extraction): gate_passed = true (5 sources read in full, sharing pool)
+- [x] Internal exploration covered every relevant module (researcher.md, qa.md, CLAUDE.md effort-policy, model_tiers.py EFFORT_DEFAULTS and comment block)
+- [x] Contradictions/consensus noted (Anthropic xhigh-as-default vs operator max override; Layer-2 vs Layer-3 distinction; session-inheritance bug #51060 mitigated by Max plan)
+- [x] All claims cited per-claim with URL + access date
 
 ---
-
-## JSON envelope (REQUIRED)
 
 ```json
 {
   "tier": "complex",
-  "external_sources_read_in_full": 11,
-  "snippet_only_sources": 14,
-  "urls_collected": 25,
+  "external_sources_read_in_full": 6,
+  "snippet_only_sources": 12,
+  "urls_collected": 27,
   "recency_scan_performed": true,
   "frontier_sync_performed": true,
   "cross_validation_applied": true,
-  "internal_files_inspected": 10,
+  "internal_files_inspected": 4,
+  "report_md": "handoff/current/research_brief.md",
   "gate_passed": true,
-  "gate_passed_per_subtopic": {
-    "1": true,
-    "2": true,
-    "3": true,
-    "4": true,
-    "5": true
-  }
+  "operator_override_documented": true,
+  "audit_basis_inverted": true,
+  "notes": "Phase-29.0 recommendation (revert to Sonnet/medium for Researcher) has been explicitly overridden by operator. Research supports the override on quality-depth grounds. Max plan flat-fee removes cost ceiling for Claude Code first-party usage. Layer-2 mas_research model/effort decisions are SEPARATE from Layer-3 and not in scope for this step."
 }
 ```

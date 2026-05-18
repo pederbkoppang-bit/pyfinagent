@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-18T04:59:06.240257+00:00",
+  "updated_at": "2026-05-18T21:51:45.071599+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10495,20 +10495,24 @@
         },
         {
           "id": "29.2",
-          "name": "P1: Revert researcher.md effort from max \u2192 medium (Anthropic Sonnet 4.6 default)",
-          "status": "pending",
+          "name": "P1: Codify Opus + max effort on Researcher + Q/A (audit-inversion per overnight op directive 2026-05-18)",
+          "status": "done",
           "harness_required": false,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 experiment_results.md \u00a72.1: .claude/agents/researcher.md:10 has effort: max since phase-23.2.2 (2026-05-16), 30+ cycles ago; per https://platform.claude.com/docs/en/build-with-claude/effort, Sonnet 4.6 recommended starting effort is medium. The 'revert after step closes' comment has been unactioned. v2.1.142 background-session-preserves-effort makes the drift permanent across idle wakes.",
+          "audit_basis": "OPERATOR OVERRIDE of phase-29.0 audit recommendation. Phase-29.0 \u00a72.1 recommended reverting .claude/agents/researcher.md:10 from `effort: max` to `medium` per Anthropic's Sonnet 4.6 default. Overnight prompt 2026-05-18 (operator pre-approval, owner asleep, no per-cycle re-prompt) instructs: set `model: opus` + `effort: max` in researcher.md frontmatter; `effort: max` in qa.md (already there); remove the 'temporarily raised \u2026 revert' comment blocks; update CLAUDE.md effort-policy block to document Max-subscription + Researcher-on-Opus rationale. Research support (handoff/archive/phase-29.2/research_brief.md, 6 sources read in full, gate_passed=true): 17-pt GPQA Diamond gap (91.3% vs 74.1%) + 79-Elo GDPval-AA gap (1,753 vs 1,674) of Opus 4.7 over Sonnet 4.6 favours quality-depth on research-synthesis; subagent `model: opus` + `effort: max` officially supported (code.claude.com/docs/en/sub-agents + .../model-config); Max plan auto-includes Opus 1M context, mitigating GitHub issue #51060. Researcher fires once per masterplan step (not per ticker), so token cost is contained regardless of effort. Layer-2 mas_research/mas_qa are a SEPARATE system and out-of-scope for phase-29.2.",
           "verification": {
-            "command": "grep -E '^effort:\\s*medium' .claude/agents/researcher.md && grep -v -E '^effort:\\s*max' .claude/agents/researcher.md > /dev/null",
+            "command": "grep -E '^model:\\s*opus' .claude/agents/researcher.md && grep -E '^effort:\\s*max' .claude/agents/researcher.md && grep -E '^model:\\s*opus' .claude/agents/qa.md && grep -E '^effort:\\s*max' .claude/agents/qa.md && ! grep -q 'Revert after step closes' .claude/agents/researcher.md && ! grep -q 'Revert after step closes' .claude/agents/qa.md && grep -q 'operator override' CLAUDE.md && grep -q 'Max subscription' CLAUDE.md",
             "success_criteria": [
-              "researcher_effort_is_medium",
-              "qa_effort_unchanged_at_xhigh",
-              "session_restart_documented_in_handoff"
+              "researcher_model_is_opus",
+              "researcher_effort_is_max",
+              "qa_model_is_opus_unchanged",
+              "qa_effort_is_max",
+              "temp_raise_comments_removed_from_both_files",
+              "claude_md_effort_policy_documents_opus_on_researcher_with_max_subscription_rationale",
+              "session_restart_documented_in_live_check_29_2_md"
             ],
-            "live_check": "live_check_29.2.md: post-restart verify_qa_roster_live.sh-style check that researcher dispatch reflects new effort"
+            "live_check": "live_check_29.2.md: pre-restart on-disk grep evidence of new frontmatter values + post-restart operator recipe (verify_qa_roster_live.sh-style self-disclosure prompt) confirming a freshly-spawned Researcher subagent reports `model: claude-opus-4-7` or `opus` and `effort: max` in its self-introduction."
           },
           "retry_count": 0,
           "max_retries": 3

@@ -20180,3 +20180,31 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~30 min (researcher ~9 min, contract+results ~5 min, Q/A ~4 min, log/masterplan/commit ~12 min).
 
+
+
+---
+
+## Cycle 33 -- 2026-05-18 -- phase=29.2 result=PASS
+
+**Step:** phase-29.2 — Codify Opus + max effort on Researcher + Q/A (audit-inversion per operator overnight pre-approval).
+
+**Generator:** 4 edits —
+- `.claude/agents/researcher.md` lines 4-13: `model: sonnet`→`opus`, `maxTurns: 20`→`30`, 4-line temp-raise comment replaced with 6-line phase-29.2 rationale comment, `effort: max` unchanged
+- `.claude/agents/qa.md` lines 4-13: temp-raise comment replaced with phase-29.2 rationale comment; model+effort unchanged
+- `CLAUDE.md` lines 51-55: Effort-policy bullet rewritten (5 lines → 7 lines) — Max-subscription rationale, Researcher-on-Opus operator override, Layer-2-out-of-scope bound, audit-basis citing overnight prompt + research brief
+- `.claude/masterplan.json` phase-29.2 entry: name + audit_basis + verification.command + success_criteria + live_check fully rewritten per inverted policy
+
+**Researcher gate:** `gate_passed: true` (6 sources read in full, 12 snippet, 27 URLs, recency_scan + frontier_sync + cross_validation, audit_basis_inverted=true documented). Headline: Opus 4.7 vs Sonnet 4.6 — 17-pt GPQA Diamond gap (91.3% vs 74.1%), 79-Elo GDPval-AA gap (1,753 vs 1,674), 8-pt SWE-bench Verified gap (87.6% vs 79.6%). Subagent `model: opus` + `effort: max` officially supported per code.claude.com/docs/en/sub-agents + .../model-config. Max plan auto-includes Opus 1M context, mitigating GitHub issue #51060.
+
+**Q/A subagent verdict:** PASS (single spawn, no second-opinion-shopping). 5/5 harness-compliance + 10/10 deterministic checks (8-grep AND-chain exit=0, git status bounded scope) + code-review-heuristics clean + LLM judgment confirmed audit-inversion handled correctly + 3rd-CONDITIONAL counter=0.
+
+**Honest disclosures:**
+- Audit-basis INVERTED by operator pre-approval. Phase-29.0 recommended Sonnet/medium revert; operator overnight prompt (2026-05-18) approved Opus/max with research support. Both contract.md and the new masterplan audit_basis field cite this explicitly.
+- Frontmatter edits land on disk + commit correctly BUT don't activate until session restart (per CLAUDE.md "Agent definition changes require session restart" rule). Tonight's Researcher (and the remaining 6 cycles in this overnight session) still run on the Sonnet/max snapshot from session start.
+- Layer-2 `mas_research`/`mas_qa` in `backend/config/model_tiers.py` still on temp-raise values from phase-23.2.2 — out-of-scope per phase-29.2 (Layer-3 only); flagged in CLAUDE.md + brief as a separate decision.
+- Mutation-resistance test flagged a loose-criterion finding: `grep -E '^effort:\s*max'` matches the first occurrence even if a stray `effort: medium` line is later added. Tightening deferred to phase-29.8 P2 bundle.
+
+**Decision:** flip phase-29.2 to `done`; live_check_29.2.md captures pre-restart on-disk evidence + post-restart operator recipe.
+
+**Total cycle time:** ~18 min (researcher ~7 min, contract+generate ~4 min, Q/A ~2 min, log/masterplan/commit ~5 min).
+

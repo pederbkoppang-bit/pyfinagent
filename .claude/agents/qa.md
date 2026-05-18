@@ -4,9 +4,12 @@ description: MUST BE USED in every EVALUATE phase. Combined QA + harness-verifie
 tools: Read, Bash, Glob, Grep, SendMessage
 model: opus
 maxTurns: 12
-# phase-23.2.2 (2026-05-16): per user directive "mas agents all running max
-# effort" for the next step, Q/A temporarily raised to max. Pre-23.2.2 was
-# xhigh (Anthropic-recommended for Opus 4.7 agentic). Revert after step closes.
+# phase-29.2 (2026-05-18): codified Opus 4.7 + max effort per operator
+# directive (overnight pre-approval). Pre-29.2 was xhigh (Anthropic-
+# recommended for Opus 4.7 agentic). Operator's rationale: Q/A is the
+# evaluator gate on financial-trading code — shallow reasoning is the
+# expensive failure mode under Max flat-fee, not max effort.
+# See handoff/archive/phase-29.2/research_brief.md + CLAUDE.md effort-policy.
 effort: max
 memory: project
 color: green

@@ -1,129 +1,112 @@
-# Contract — phase-29.0 (Layer-3 Harness MAS + MCP + Data-Wiring Audit)
+# Contract — phase-29.2 (Codify Opus + max effort on Researcher + Q/A)
 
-**Step ID:** phase-29.0 (NEW phase — this step proposes its own masterplan entry)
-**Step name:** Audit Layer-3 Harness MAS (Main + Researcher + Q/A) + dev-MAS MCP wiring + data-stack drift; deliver JSON-ready `phase-29` masterplan entry covering Harness MAS + MCP + Academic-Fetch + Frontier-Sync remediation.
+**Step ID:** phase-29.2
 **Date:** 2026-05-18
-**Author:** Main (3-agent harness session)
+**Author:** Main (overnight execution session)
 **Tier:** complex
 
 ---
 
-## Research-gate summary
+## Audit-basis INVERSION (operator pre-approval, documented for permanence)
 
-| Metric | Value |
-|---|---|
-| Researcher tier | complex |
-| Sources read in full (total across 5 sub-topics) | 11 |
-| Snippet-only sources | 14 |
-| Unique URLs collected | 25+ |
-| Recency scan (last 2 years) | DONE — all 5 sub-topics |
-| Three-query-variant discipline | DONE — current-year / 2yr / year-less per sub-topic |
-| Cross-validation (≥2 independent for empirical claims; single-source-OK for vendor docs) | APPLIED |
-| 7-day frontier-sync (2026-05-11 → 2026-05-18) | DONE — 6 harness-impact items flagged |
-| `gate_passed` | **true** for all 5 sub-topics |
+The phase-29.0 audit recommended reverting `.claude/agents/researcher.md:10` from `effort: max` → `medium` per Anthropic's Sonnet 4.6 default. The OPERATOR has now overridden this in the overnight prompt 2026-05-18:
 
-**Brief:** `handoff/current/research_brief.md` (452 lines). JSON envelope at line 433.
+> "29.2 audit-inversion + Opus upgrade APPROVED. Set `model: opus` + `effort: max` in researcher.md frontmatter; `effort: max` in qa.md; remove the 'temporarily raised … revert' comments from both; update CLAUDE.md effort-policy block to document Max-subscription + Researcher-on-Opus rationale."
 
-**Headline research findings (anchors for the gap analyses):**
-1. `paper-search-mcp` (PyPI) and `@futurelab-studio/latest-science-mcp` (npm) — pre-built MCP servers covering OpenAlex / arXiv / SSRN / CORE / Unpaywall — solve the Cloudflare-Turnstile wall surfaced in phase-28.7 (George&Hwang 2004, Novy-Marx, SSRN preprints unfetchable).
-2. **Effort drift**: `.claude/agents/researcher.md:10` has `effort: max` from phase-23.2.2 (2026-05-16) — Anthropic-recommended default for Sonnet 4.6 is `medium`. The "revert after step closes" comment has been unactioned across multiple phases.
-3. **OWASP LLM Top-10 v2.0 (2025)** added LLM07 (System Prompt Leakage), LLM08 (Vector/Embedding Weaknesses), LLM10 (Unbounded Consumption) — `.claude/agents/qa.md:271-296` heuristics table has none of the three.
-4. **Claude Code v2.1.140-143** (May 13–15) shipped `continueOnBlock`, `alwaysLoad`, `effort.level` in hook JSON, `--effort`/`--model` on subagent dispatch, case-insensitive `subagent_type` matching — none reflected in `.claude/settings.json` or `CLAUDE.md`.
-5. **In-app MCP servers gap**: `.mcp.json` registers only `alpaca` and `bigquery`. `backend/agents/mcp_servers/{backtest,data,risk,signals}_server.py` (FastMCP, written but not surfaced) are NOT in `.mcp.json` → Layer-2 in-app agents cannot call them as tools.
-6. **Google Deep Research Max** (2026-04-21) ships a two-tier interactive-vs-exhaustive architecture — validates proposed 4th `deep` research tier (20–50 sources, multi-pass, adversarial sourcing).
-7. **`budget_tokens` deprecated** on Opus 4.6 / Sonnet 4.6 (Anthropic effort doc, 2026-05-18) — replace with `output_config: {effort: ...}` if pyfinagent's `backend/config/model_tiers.py` still references it.
+**Research support (handoff/current/research_brief.md):**
+- Opus 4.7 vs Sonnet 4.6 on research-depth tasks: **17-pt GPQA Diamond gap** (91.3% vs 74.1%), **79-Elo GDPval-AA gap** (1,753 vs 1,674) — research-synthesis is GPQA-analog territory.
+- `model: opus` + `effort: max` in subagent frontmatter is **officially supported** (code.claude.com/docs/en/sub-agents + code.claude.com/docs/en/model-config).
+- Anthropic recommends `xhigh` as the Opus 4.7 starting point; `max` is a deliberate over-spec ("Reserve for genuinely frontier problems"). Operator's choice is valid under Max flat-fee.
+- Max plan auto-includes Opus 1M context, **mitigating GitHub issue #51060** ("model: opus fails with 1M context extra usage" in spawned subagents).
+- Sonnet 4.6 does NOT support xhigh; Opus 4.7 does. Moving Researcher to Opus expands the capability range.
+- Researcher fires **once per masterplan step**, not per ticker — token cost is contained regardless of effort level.
 
 ---
 
-## Hypothesis
+## Verbatim immutable success criteria (from masterplan.json phase-29.2, UPDATED for inversion)
 
-The harness MAS layer (Main + Researcher + Q/A) and its dev-MAS MCP surface have **measurable, file-locatable drift** vs Anthropic's published 2026 Claude Code guidance, OWASP LLM Top-10 v2.0, and the in-house FastMCP backend. The drift is:
+The phase-29.0-original criteria were:
+- ❌ `researcher_effort_is_medium`
+- ❌ `qa_effort_unchanged_at_xhigh`
+- ✅ `session_restart_documented_in_handoff`
 
-- **Configurable** (rule/heuristic/MCP-config edits, not architectural rewrites)
-- **Measurable** (file:line evidence required for every claim — no "agent feels…" assertions)
-- **Tiered** (P1 = ship blockers / known incident reproductions, P2 = quality-of-life, P3 = future-proofing)
+These have been **superseded by operator directive**. The updated phase-29.2 criteria (to be written into masterplan.json `verification.success_criteria` in this cycle's GENERATE phase) are:
 
-If a single follow-on phase (`phase-29`) adopts the P1 items, future research-gate calls (a) no longer 403 on SSRN/Cloudflare-walled papers, (b) Q/A catches the three missing OWASP entries, and (c) Layer-2 in-app agents can call the in-house MCP servers as tools. Quantitative success target: zero "binary PDF, no text extracted" failures on the next academic-fetch-heavy research gate (compare against phase-28.7 brief which had 3 such failures).
+1. `researcher_model_is_opus` — `.claude/agents/researcher.md` frontmatter has `model: opus`
+2. `researcher_effort_is_max` — `.claude/agents/researcher.md` frontmatter has `effort: max`
+3. `qa_effort_is_max` — `.claude/agents/qa.md` frontmatter has `effort: max`
+4. `temp_raise_comments_removed` — neither file contains the "temporarily raised … revert after step closes" comment block
+5. `claude_md_effort_policy_documents_opus_on_researcher` — CLAUDE.md Effort-policy section reflects the new policy and cites the overnight prompt as audit-basis
+6. `session_restart_documented_in_handoff` — `live_check_29.2.md` notes that frontmatter changes activate post-restart
 
----
-
-## Immutable success criteria (DO NOT EDIT once written; copied to masterplan.json on phase-29 creation)
-
-1. **Researcher brief exists and is complete** — `handoff/current/research_brief.md` ≥ 400 lines, JSON envelope present, `gate_passed: true` on all 5 sub-topics. *Already satisfied (452 lines, envelope at line 433).*
-2. **Contract exists** — `handoff/current/contract.md` (this file) names the step-id, lists research-gate summary, immutable criteria, and references. *Self-satisfying.*
-3. **Experiment results exist** — `handoff/current/experiment_results.md` contains:
-   - Gap analysis per sub-topic (5 sections)
-   - `WIRING_DRIFT` table — file:line | observed | doc URL | correct
-   - `MCP_PROMOTION_MISSED` table — capability | current home | promotion target | rationale
-   - `FRONTIER_DELTA` table — 7-day movement | impact | action
-   - Tiered remediation list — P1 (≤7 items) / P2 (≤10) / P3 (≤10) with file paths and explicit "ADOPT/DEFER/REJECT" verdict per the 5 audit questions
-   - JSON-ready masterplan entry for `phase-29` (matching the phase-23.8 schema with `verification.live_check` field, immutable verification criteria, step-by-step breakdown)
-4. **Q/A verdict obtained** — `handoff/current/evaluator_critique.md` written by a SPAWNED `qa` subagent (not Main self-evaluation) with verdict ∈ {PASS, CONDITIONAL, FAIL} and a JSON block with `ok`, `verdict`, `violated_criteria`, `violation_details`, `checks_run`. On CONDITIONAL/FAIL: Main updates handoff files, then spawns a FRESH qa (file-based cycle-2 flow per Anthropic harness-design doc, NOT a SendMessage retry on unchanged evidence).
-5. **harness_log.md cycle appended** — using the standard `## Cycle N -- YYYY-MM-DD -- phase=29.0 result=PASS|CONDITIONAL|FAIL` header, with Generator/Researcher/Q/A summaries.
-6. **No code edits** — this is an audit. The only writes are: `research_brief.md`, `contract.md`, `experiment_results.md`, `evaluator_critique.md`, `harness_log.md` append, and a single phase-29 entry inserted into `.claude/masterplan.json` with `status: pending`. **Zero edits to `backend/`, `frontend/`, `.claude/agents/`, `.claude/rules/`, `.claude/settings.json`, `.mcp.json` in this cycle** (they all land in phase-29 sub-steps, gated by separate research+contract+Q/A).
-7. **Commit prefix** — final git commit subject starts with `phase-29.0:` so the changelog classifier picks the right semver bump.
-
-**Verification command (for masterplan.json `verification.command` field):**
+**Updated verification command** (for masterplan.json):
 ```bash
-test -f handoff/current/research_brief.md && \
-test -f handoff/current/contract.md && \
-test -f handoff/current/experiment_results.md && \
-test -f handoff/current/evaluator_critique.md && \
-grep -q "phase=29.0" handoff/harness_log.md && \
-python3 -c "import json; m=json.load(open('.claude/masterplan.json')); ids=[p['id'] for p in m['phases']]; assert 'phase-29' in ids, 'phase-29 entry missing'"
+grep -E '^model:\s*opus' .claude/agents/researcher.md && \
+grep -E '^effort:\s*max' .claude/agents/researcher.md && \
+grep -E '^effort:\s*max' .claude/agents/qa.md && \
+! grep -q 'Revert after step closes' .claude/agents/researcher.md && \
+! grep -q 'Revert after step closes' .claude/agents/qa.md && \
+grep -q 'Claude Opus 4.7.*Researcher.*Q/A.*max' CLAUDE.md
 ```
 
-**`verification.live_check`** (R-1 gate): `"Brief at handoff/current/research_brief.md shows gate_passed=true on all 5 sub-topics; experiment_results.md contains WIRING_DRIFT + MCP_PROMOTION_MISSED + JSON-ready phase-29 entry; qa subagent verdict block present in evaluator_critique.md (PASS or with documented cycle-2 fix)."`
+**`verification.live_check`** (R-1 gate):
+> "Post-restart `scripts/qa/verify_qa_roster_live.sh` (or equivalent self-disclosure prompt) confirms that a freshly-spawned Researcher subagent reports `model: opus`/`effort: max` (or `claude-opus-4-7`) in its self-introduction. live_check_29.2.md captures the pre-restart on-disk state and the operator's morning-restart verification recipe."
 
 ---
 
 ## Plan steps
 
-1. **DONE** — Spawn `researcher` complex tier across 5 sub-topics with 3-variant query discipline, ≥2-independent-sources cross-validation, 7-day frontier-sync.
-2. **DONE** — Write this contract.md (research-gate summary + immutable criteria + plan).
-3. **NEXT** — Write `experiment_results.md`: per-sub-topic gap analysis, WIRING_DRIFT/MCP_PROMOTION_MISSED/FRONTIER_DELTA tables, P1/P2/P3 remediation, JSON-ready phase-29 entry.
-4. Spawn `qa` ONCE (Opus, effort xhigh per qa.md frontmatter). Pass the explicit 5-item harness-compliance audit prompt (researcher-spawned? contract pre-commit? results present? log-last? no-verdict-shopping?) FIRST, then audit content.
-5. **On PASS** → append `handoff/harness_log.md` Cycle entry (BEFORE the masterplan edit per the log-last memory `feedback_log_last.md`).
-6. **On PASS** → insert a single `phase-29` entry into `.claude/masterplan.json` with `status: pending` (NOT `done` — phase-29.0 only delivers the proposal; the sub-steps that implement remediation are separate cycles).
-7. **On PASS** → `git add -A && git commit -m "phase-29.0: …" && git push origin main` (or document live-check gate if applicable).
-8. **On CONDITIONAL/FAIL** → read Q/A's `violated_criteria`, update `experiment_results.md` + `evaluator_critique.md` (appended Follow-up section), spawn a FRESH `qa` per Anthropic's cycle-2 file-based pattern. NEVER second-opinion-shop on unchanged evidence.
+1. **DONE** — Spawn `researcher` complex tier with audit-inversion context.
+2. **DONE** — Write this contract.md.
+3. **NEXT — GENERATE** — make 3 file edits + 1 masterplan-entry update:
+   - **EDIT 1:** `.claude/agents/researcher.md` lines 1-14
+     - `model: sonnet` → `model: opus`
+     - Remove the 4-line `# phase-23.2.2 (2026-05-16) … Revert after step closes` comment block
+     - `effort: max` stays
+     - Update the policy note in the body if any references Sonnet
+   - **EDIT 2:** `.claude/agents/qa.md` lines 1-14
+     - Remove the 4-line `# phase-23.2.2 (2026-05-16) … Revert after step closes` comment block
+     - `model: opus` stays
+     - `effort: max` stays
+   - **EDIT 3:** `CLAUDE.md` Effort-policy section
+     - Rewrite the Researcher bullet to Opus/max with Max-subscription rationale
+     - Update the Q/A bullet to Opus/max (was xhigh)
+     - Cite the overnight prompt 2026-05-18 as audit-basis
+     - Add explicit note: Layer-2 `mas_research` is a separate system; not in scope this step
+   - **EDIT 4:** `.claude/masterplan.json` `phase-29.2` entry
+     - Update `audit_basis` to cite the operator override + brief
+     - Update `verification.command` and `success_criteria` per the new criteria above
+     - Update `verification.live_check` per the new live-check shape
+4. Write `experiment_results.md` summarising the 4 edits with verbatim diffs and verification command output.
+5. Spawn `qa` ONCE. Provide the 5-item harness-compliance audit prompt; on CONDITIONAL/FAIL fix + update handoff + FRESH qa on UPDATED evidence. CIRCUIT BREAKER: max 2 fresh-qa attempts per step.
+6. Write `live_check_29.2.md`.
+7. Append cycle to `handoff/harness_log.md` BEFORE the masterplan flip.
+8. Flip masterplan 29.2 status to `done` via Edit tool (so the auto-commit + push hook fires).
+9. Move directly to cycle 29.1.
+
+---
+
+## Out of scope
+
+- Layer-2 `backend/config/model_tiers.py` `mas_research` / `mas_qa` defaults. Phase-29.2 scope is Layer-3 only. A separate cycle can revert the Layer-2 temp-raise.
+- Any other `.claude/agents/*` files.
+- `backend/`, `frontend/`, `scripts/` (apart from `live_check_29.2.md` evidence).
 
 ---
 
 ## References
 
-### External (from research brief)
-- **Anthropic harness design** — https://www.anthropic.com/engineering/harness-design-long-running-apps (Plan→Generate→Evaluate, file-based handoffs, sprint-construct-removed-in-Opus-4.6)
-- **Anthropic multi-agent research blog** — https://www.anthropic.com/engineering/built-multi-agent-research-system (tiered effort, 1/3–5/10+ agent scaling)
-- **Anthropic effort doc** — https://platform.claude.com/docs/en/build-with-claude/effort (Opus 4.7 xhigh recommended; budget_tokens deprecated)
-- **Claude Code subagents doc** — https://code.claude.com/docs/en/sub-agents (frontmatter spec; effort + maxTurns + skills field)
-- **Claude Code changelog** — https://code.claude.com/docs/en/changelog (v2.1.140-143: continueOnBlock, alwaysLoad, effort.level in hook JSON, case-insensitive subagent_type)
-- **Claude Code skills doc** — https://code.claude.com/docs/en/skills (SKILL.md spec; subagent preload pattern)
-- **OWASP LLM Top-10 v2.0 (2025)** — https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2025/ + https://repello.ai/blog/owasp-llm-top-10-2026 (LLM07 System Prompt Leakage, LLM08 Vector/Embedding Weaknesses, LLM10 Unbounded Consumption — all NEW)
-- **paper-search-mcp** — https://github.com/openags/paper-search-mcp (PyPI/npm, 25+ academic sources, free)
-- **@futurelab-studio/latest-science-mcp** — https://github.com/benedict2310/Scientific-Papers-MCP (npm, 6 sources, >90% text extraction)
-- **OpenAlex API** — https://developers.openalex.org/ (free key required Feb 13 2026)
-- **@cloudflare/playwright-mcp** — https://www.npmjs.com/package/@cloudflare/playwright-mcp (REJECTED — identified as bot on external Cloudflare sites)
+External (from research brief):
+- https://platform.claude.com/docs/en/build-with-claude/effort
+- https://code.claude.com/docs/en/model-config
+- https://code.claude.com/docs/en/sub-agents
+- https://www.anthropic.com/news/claude-opus-4-7
+- https://artificialanalysis.ai/articles/opus-4-7-everything-you-need-to-know
+- https://github.com/anthropics/claude-code/issues/51060
 
-### Internal (file:line anchors for gap analyses)
-- `.claude/agents/researcher.md:10` — `effort: max` drift from phase-23.2.2
-- `.claude/agents/qa.md:271-296` — code-review heuristics table (missing LLM07/08/10)
-- `.claude/agents/qa.md:207-429` — full code-review heuristics block (skills extraction candidate, 220 lines)
-- `.claude/settings.json` — full read, no `alwaysLoad` / `continueOnBlock` / `effort.level` usage
-- `.mcp.json` — only `alpaca` + `bigquery`; missing `paper-search` and the 4 in-house MCP servers
-- `backend/agents/mcp_servers/backtest_server.py` — 4 tools, NOT registered in `.mcp.json`
-- `backend/agents/mcp_servers/data_server.py` — 7 resources, NOT registered
-- `backend/agents/mcp_servers/risk_server.py` — `evaluate_candidate` gate chain (kill_switch → pbo → projected_dd), NOT registered
-- `backend/agents/mcp_servers/signals_server.py` — 22 methods, NOT registered
-- `handoff/harness_log.md` cycles 22-31 — phase-28.x feature stack reference for WIRING_DRIFT
-- `handoff/current/research_brief.md` — full 452-line audit (THIS phase's primary input)
-
----
-
-## Out-of-scope (do NOT widen)
-
-- Layer-2 (`backend/agents/`) refactors. Reference-only this cycle.
-- Layer-1 (28 Gemini agents in `orchestrator.py`) refactors.
-- Any actual MCP install (`.mcp.json` edit) — that lands in a phase-29 sub-step, separately gated.
-- Any actual `effort:` field revert in `.claude/agents/researcher.md` — also a phase-29 sub-step.
-- Slack bot, paper-trader, BQ schema changes.
+Internal:
+- `.claude/agents/researcher.md:5,7-10`
+- `.claude/agents/qa.md:5,7-10`
+- `CLAUDE.md` lines 51-55 (Effort policy)
+- `handoff/current/research_brief.md` (this cycle, 214 lines)
+- `handoff/archive/phase-29.0/experiment_results.md` §2.1 (audit recommendation — superseded)

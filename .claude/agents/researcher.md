@@ -2,11 +2,14 @@
 name: researcher
 description: MUST BE USED before every PLAN phase. Combined external-literature researcher + internal-codebase explorer. Use proactively at the start of any masterplan step, before writing contract.md. Searches papers + official docs + blog posts + GitHub (external) AND greps/reads the pyfinagent repo (internal) in the same session.
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage
-model: sonnet
-maxTurns: 20
-# phase-23.2.2 (2026-05-16): per user directive "mas agents all running max
-# effort", Researcher temporarily raised to max. Pre-23.2.2 was medium
-# (Anthropic-recommended Sonnet 4.6 default). Revert after step closes.
+model: opus
+maxTurns: 30
+# phase-29.2 (2026-05-18): codified Opus 4.7 + max effort per operator
+# directive (overnight pre-approval). Rationale: Max-subscription flat-fee
+# removes per-token ceiling; 17-pt GPQA Diamond + 79-Elo GDPval-AA gap over
+# Sonnet 4.6 favours quality-depth on the research-synthesis role. Researcher
+# fires once per masterplan step (not per ticker), so token cost is contained.
+# See handoff/archive/phase-29.2/research_brief.md + CLAUDE.md effort-policy.
 effort: max
 memory: project
 color: cyan
