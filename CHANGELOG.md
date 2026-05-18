@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-18 | `416d49dd` | phase-29.2: codify Opus 4.7 + max effort on Researcher + Q/A (audit-inversion per operator) |
 | 2026-05-18 | `05707772` | phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create phase-29 |
 | 2026-05-18 | `b5d2048f` | phase-28.16: M&A pre-announcement aggregator (FINAL phase-28 item) |
 | 2026-05-18 | `6ceeb10f` | phase-28.17: Peer-correlation laggard catch-up signal (intra-GICS sub-industry lead-lag) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `b570402d` | phase-28.1: Analyst EPS revision-breadth plug-in (feature-flagged) |
 | 2026-05-17 | `53e5f8b5` | docs(audits): add phase-28.5 smoke-test audit log |
 | 2026-05-17 | `664871a4` | phase-28.5: Short-interest exclusion filter in screen_universe |
-| 2026-05-17 | `2ed3b6db` | phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe() |
 
 ---
 
+### v6.10.1 — phase-29.2: codify Opus 4.7 + max effort on Researcher + Q/A (audit-i... (2026-05-18)
+
+- **phase-29.2: codify Opus 4.7 + max effort on Researcher + Q/A (audit-inversion per operator)**
 ### v6.10.0 — phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create pha... (2026-05-18)
 
 - **phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create phase-29**
