@@ -285,7 +285,9 @@ Per OWASP LLM Top-10 2025 + `security.md` + Semgrep python-security ruleset.
 | supply-chain-dep-pin-removal | Removed `==X.Y.Z` pin from dep manifest | WARN |
 | yaml-unsafe-load | `yaml.load()` without `Loader=yaml.SafeLoader` | WARN |
 | pickle-deserialization | `pickle.load`/`loads` on external/network input | WARN |
-| system-prompt-leakage | New endpoint/log serializing full `messages` list (incl. system role) | WARN |
+| system-prompt-leakage | New endpoint/log/response serializing `agent_config.system_prompt`, full `messages` list incl. system role, or skill `.md` content to external caller. Grep: `json\.dumps.*messages\|logging.*system_prompt\|return.*"system"\s*:` (OWASP LLM07:2025) | WARN |
+| rag-memory-poisoning | New `add_memory()` / `add_memories()` call where input originates from an external or unvalidated source (not seed data or authenticated BQ path); or new vector-store import (`chromadb`, `pinecone`, `weaviate`, `pgvector`) without access-control doc. Grep: `add_memori(es\|y)\|import chromadb\|import pinecone\|import weaviate\|import pgvector` (OWASP LLM08:2025 — pyfinagent uses BM25 so Vec2Text inversion N/A; poisoning is the real surface) | WARN |
+| unbounded-llm-loop | New `while True` or unbounded `for` loop wrapping an LLM API call; OR removal/reduction of `MAX_TOOL_TURNS`, `MAX_RESEARCH_ITERATIONS`, `MAX_CONSECUTIVE_FAIL`, `MAX_RESEARCH_ITER` bound constants. Grep: `while True` near `messages.create\|generate_content`; diff reducing the named constants (OWASP LLM10:2025 denial-of-wallet) | WARN |
 | excessive-agency | New write/delete/execute tool added to agent without least-privilege doc | WARN |
 | owasp-headers-bypass | New `APIRouter` registered outside the auth-middleware stack | WARN |
 
@@ -294,8 +296,11 @@ Per OWASP LLM Top-10 2025 + `security.md` + Semgrep python-security ruleset.
 - Broad `except` in vendored third-party code under `backend/vendor/` or imported libraries
 - `yaml.load` with `Loader=yaml.SafeLoader` already set or in a config-loading helper that wraps SafeLoader internally
 - `subprocess.run` with a list argument and shell=False (this is safe; only flag the string + shell=True form)
+- `system-prompt-leakage`: `system=agent_config.system_prompt` passed directly to `client.messages.create()` (e.g. `backend/agents/multi_agent_orchestrator.py:985`) is safe — only flag when the full `messages` list or raw `system_prompt` string is serialized to an external response, log line, or endpoint body
+- `rag-memory-poisoning`: `FinancialSituationMemory` seed entries at `backend/agents/memory.py:23-54` are safe (static, not external); `load_from_bq_rows()` in authenticated BQ context is acceptable; BM25 corpus is not subject to Vec2Text embedding-inversion attacks
+- `unbounded-llm-loop`: existing bounds (`for cycle in range(1, args.cycles + 1)` at `scripts/harness/run_harness.py:1111`; `for iteration in range(1, MAX_RESEARCH_ITERATIONS + 1)` at `backend/agents/multi_agent_orchestrator.py:523`; `for turn in range(max_turns)` at `:1048`) are correct — do NOT flag these; only flag NEW loops that bypass or remove the bound constants
 
-Source: [OWASP LLM Top-10 2025](https://www.invicti.com/blog/web-security/owasp-top-10-risks-llm-security-2025), [security.md](../rules/security.md).
+Source: [OWASP LLM Top-10 v2.0 (2025)](https://genai.owasp.org/llm-top-10/) (LLM07 System Prompt Leakage, LLM08 Vector and Embedding Weaknesses, LLM10 Unbounded Consumption added in v2.0; older v1.1 reference [Invicti](https://www.invicti.com/blog/web-security/owasp-top-10-risks-llm-security-2025) preserved for LLM01-LLM06), [security.md](../rules/security.md).
 
 ### Dimension 2 — Trading-domain correctness
 

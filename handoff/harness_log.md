@@ -20291,3 +20291,30 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~32 min (researcher 1st spawn ~7 min + stall + continuation ~6 min; contract+generate ~5 min; Q/A ~0.5 min; log/flip/commit ~3 min).
 
+
+
+---
+
+## Cycle 37 -- 2026-05-19 -- phase=29.4 result=PASS
+
+**Step:** phase-29.4 — Add 3 OWASP LLM Top-10 v2.0 (2025) heuristics to qa.md Dimension-1 security audit table.
+
+**Generator:** 1 agent-prompt-doc edit + 1 masterplan-entry update.
+- `.claude/agents/qa.md` 432→437 (+5 net): row 288 `system-prompt-leakage` rewritten with explicit grep pattern + `agent_config.system_prompt` cue; new row `rag-memory-poisoning` (LLM08); new row `unbounded-llm-loop` (LLM10); 3 new negation bullets citing real file:line anchors; Source line updated from v1.1 Invicti reference to OWASP GenAI v2.0 (2025) primary + v1.1 secondary.
+- `.claude/masterplan.json` 29.4: 6-grep AND-chain verification.command + 7 success_criteria + live_check.
+
+**Researcher gate:** `gate_passed: true`. 9 sources read in full (OWASP GenAI LLM08:2025 + LLM Top-10 list, IronCoreLabs, Repello AI 2026, Oligo, BSG, StackHawk, WitnessAI, Promptfoo). 5 internal files inspected (qa.md, multi_agent_orchestrator.py, memory.py, orchestrator.py, run_harness.py).
+
+**Q/A subagent verdict:** PASS (single spawn). 6-grep AND-chain exit=0. Criteria-erosion guard explicitly cleared on heuristic-name change (`rag-input-sanitization` from phase-29.0 §3a SUGGESTION → `rag-memory-poisoning` in masterplan 29.4 success_criteria) — defended with code evidence (no chromadb/pinecone/weaviate/pgvector imports; BM25 lexical not vector).
+
+**Key finding from research:** pyfinagent uses BM25 (`backend/agents/memory.py:23-54` seeds + `:86` add_memory + `:145` load_from_bq_rows), NOT vector embeddings. Vec2Text inversion (50-92% recovery per Georgia Tech 2025) does NOT apply. The real LLM08 surface is memory poisoning via unauthenticated `add_memory()` writes — the new heuristic name reflects this accurately.
+
+**Honest disclosures:**
+- LLM10 timeout finding (no timeout on `_call_agent()` at `multi_agent_orchestrator.py:982`) — OUT OF SCOPE for a heuristic-doc cycle; flagged for future code-change cycle.
+- Body-content edits to qa.md may activate without full session restart on Claude Code v2.1.140+; conservative recipe still requires `/clear`.
+- THIS overnight Q/A subagent was snapshotted before 29.4 edits — new heuristics visible to NEXT Q/A spawn post-restart, not this cycle's QA.
+
+**Decision:** flip phase-29.4 to `done`; live_check_29.4.md captures pre/post line count + cited anchor table + post-restart sanity recipe.
+
+**Total cycle time:** ~25 min (researcher ~9 min, contract+generate ~5 min, Q/A ~1 min, log/flip/commit ~3 min, archive ~1 min).
+

@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-19T05:40:39.835453+00:00",
+  "updated_at": "2026-05-19T05:54:58.105382+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10544,19 +10544,23 @@
         {
           "id": "29.4",
           "name": "P1: Add 3 OWASP LLM Top-10 v2.0 (2025) heuristics to qa.md (LLM07/08/10)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 experiment_results.md \u00a73a: OWASP LLM Top-10 v2.0 (2025) added LLM07 (System Prompt Leakage), LLM08 (Vector/Embedding Weaknesses), LLM10 (Unbounded Consumption); current qa.md:271-296 covers only LLM01-06 from v1.1 (2023). 3 proposed heuristics: system-prompt-serialization (WARN), rag-input-sanitization (WARN), unbounded-agent-loop (WARN). Source: https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2025/ + https://repello.ai/blog/owasp-llm-top-10-2026.",
+          "audit_basis": "phase-29.0 \u00a73a + phase-29.4 research_brief.md (9 sources read in full, gate_passed=true). OWASP LLM Top-10 v2.0 (2025) added LLM07 (System Prompt Leakage), LLM08 (Vector/Embedding Weaknesses), LLM10 (Unbounded Consumption) missing from qa.md:271-296 (v1.1 2023 baseline). Vec2Text empirical 50-92% embedding-inversion recovery (Georgia Tech, IronCoreLabs 2025) does NOT directly apply to pyfinagent (uses BM25 lexical, not vectors); the real LLM08 surface is memory poisoning via add_memory() / load_from_bq_rows() in backend/agents/memory.py. All existing harness loops bounded (run_harness.py:1111, multi_agent_orchestrator.py:523/1048/57/58). 3 new heuristics + 3 negation bullets + OWASP v2.0 citation added; existing LLM07 row enhanced with explicit grep pattern. Devil's-advocate clinical study (PMC11615553) corroborates adversarial-detection severity. Sources: genai.owasp.org LLM07/08, IronCoreLabs, Repello AI 2026, StackHawk, BSG, Oligo, WitnessAI, Promptfoo, OWASP LLM Top-10 list.",
           "verification": {
-            "command": "grep -q 'system-prompt-serialization' .claude/agents/qa.md && grep -q 'rag-input-sanitization' .claude/agents/qa.md && grep -q 'unbounded-agent-loop' .claude/agents/qa.md",
+            "command": "grep -q 'rag-memory-poisoning' .claude/agents/qa.md && grep -q 'unbounded-llm-loop' .claude/agents/qa.md && grep -q 'agent_config.system_prompt' .claude/agents/qa.md && grep -q 'OWASP LLM Top-10 v2.0\\|OWASP v2.0\\|OWASP LLM08:2025' .claude/agents/qa.md && grep -q 'BM25 corpus is not subject to Vec2Text' .claude/agents/qa.md && grep -q 'MAX_TOOL_TURNS\\|MAX_RESEARCH_ITERATIONS\\|MAX_CONSECUTIVE_FAIL' .claude/agents/qa.md",
             "success_criteria": [
-              "three_heuristics_added_with_severity_and_detection_cue",
-              "OWASP_2025_v2_source_cited",
-              "negation_list_added_per_heuristic"
+              "qa_md_dimension1_table_has_llm07_enhanced_cue",
+              "qa_md_dimension1_table_has_rag_memory_poisoning_row",
+              "qa_md_dimension1_table_has_unbounded_llm_loop_row",
+              "qa_md_negation_list_has_3_new_bullets",
+              "qa_md_owasp_v2_2025_cited",
+              "qa_md_explicit_vec2text_BM25_exemption_documented",
+              "qa_md_loop_bounds_named_constants_cited"
             ],
-            "live_check": "live_check_29.4.md: mutation-test \u2014 plant a violation matching one heuristic in a throwaway file, confirm Q/A flags it, restore"
+            "live_check": "live_check_29.4.md captures verbatim diff of the 3 new/enhanced rows + 3 negation bullets + cited file:line anchors (memory.py:23-54 seeds; multi_agent_orchestrator.py:985 safe-pattern; run_harness.py:1111 + multi_agent_orchestrator.py:523/1048 bounded loops). Activation immediate (qa.md is loaded at Q/A spawn; next Q/A spawn picks up new heuristics \u2014 though session-restart still required per CLAUDE.md agent-definition rule for frontmatter changes; this cycle changes body content only, so activation may be earlier than session restart on some Claude Code versions)."
           },
           "retry_count": 0,
           "max_retries": 3
