@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-19T22:10:00+00:00",
+  "updated_at": "2026-05-19T22:30:00+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10769,7 +10769,7 @@
         {
           "id": "30.3",
           "name": "P1: Connect stop-loss exits to learn loop (autonomous_loop:771)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "30.0",

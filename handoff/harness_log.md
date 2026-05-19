@@ -20595,3 +20595,18 @@ end-of-run summary), then `POST /api/paper-trading/resume` to unpause.
 **Live-check 3-of-4 deferred:** `after_one_cycle_paper_positions_stop_loss_price_is_null_count_drops_to_zero` requires one unpaused cycle. Operator verifies in morning via `SELECT COUNT(*) FROM financial_reports.paper_positions WHERE stop_loss_price IS NULL` -- expected drop from 7 to 0.
 **Harness incident:** during phase-30.1 -> 30.2 archive transition, the optimizer cron-equivalent overwrote `handoff/current/research_brief.md` with cycle-1 optimizer noise; the phase-30.2 brief ended up in `handoff/archive/phase-30.1/research_brief.md`. Restored via cp before Q/A retry. Future-cycle note: this can recur whenever a non-step write coincides with an archive-hook flip.
 **Closes:** phase-30.0 Stage 7 FAIL + P1-2.
+
+
+---
+
+## Cycle 1 -- 2026-05-19 -- phase=30.3 result=PASS
+
+**Step:** phase-30.3 -- P1: Connect stop-loss exits to learn loop.
+**Researcher:** complex/opus/max. 10 sources read in full (Kaminski-Lo MIT, Reflexion arXiv:2303.11366, FinMem arXiv:2311.13743, Du Memory Survey arXiv:2603.07670, TrustTrade arXiv:2603.22567, Risk-Aware RL Reward arXiv:2506.04358, Darmanin-Vella arXiv:2508.02366, LLM-Trading-Survey arXiv:2408.06361, Macri-Jaimungal-Lillo arXiv:2511.00190, Quant-Investing). 22 URLs. Recency scan present. gate_passed=true. **Critical line-number correction:** post phase-30.2, the append-target is `:795`, not `:771`.
+**Generator diff:** 2 files (291 raw lines, 257 net non-comment LOC):
+- `backend/services/autonomous_loop.py`: +16 / -2 (cycle-top hoist `closed_tickers: list[str] = []` at :169 + Step 5.6 append at :807 + dedup-removal at :886)
+- `backend/tests/test_autonomous_loop_step_5_6.py`: +273 / -25 (extended with 3 phase-30.3 tests + helper; fixed test #4 to use box-drawing header pattern after cycle-top hoist comment introduced a Step-5.6 cross-reference)
+**Tests:** 7/7 PASS in 1.86s (4 phase-30.2 unchanged + 3 phase-30.3 new). Regression `test_cycle_heartbeat_alarm + test_observability`: 19/19 PASS.
+**Q/A verdict:** PASS (single spawn). 5-item harness-compliance ALL PASS. Heuristics: 0 BLOCK, 0 WARN, 1 NOTE (test #7 verifies symbol co-presence not order — immaterial; the masterplan criterion is co-presence). Anti-rubber-stamp: results honestly disclose the model-injection out-of-scope gap.
+**Known separate-step issue:** `_learn_from_closed_trades` instantiates `OutcomeTracker(settings)` with no model -> production `bq.save_agent_memory` write still dormant. Wiring fix is complete; model-injection is a follow-up (queued for morning verification + potential phase-30.8).
+**Closes:** phase-30.0 Stage 12 FAIL + P1-3 (wiring portion; full production effect pending model-injection follow-up).

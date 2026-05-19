@@ -157,6 +157,17 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
     trader = PaperTrader(settings, bq)
     total_analysis_cost = 0.0
     trades_executed = 0
+    # phase-30.3: hoist closed_tickers to cycle-top so the stop-loss-
+    # enforcement step can append to it BEFORE the execute-trades step
+    # runs. Without this hoist the variable only exists inside the
+    # execute step (the old initialization site), so stop-loss-triggered
+    # closes never reach _learn_from_closed_trades.
+    # Closes phase-30.0 Stage 12 + P1-3 (empty agent_memories table).
+    # Researcher Option A: only timeout-safe init site (the cycle body is
+    # wrapped in `async with asyncio.timeout(...)` -- a timeout mid-cycle
+    # could otherwise leave closed_tickers undefined at summary-serialize
+    # time in the finally block).
+    closed_tickers: list[str] = []
     summary = {"status": "running", "steps": []}
 
     # phase-26.1: reset per-session cost accumulator at cycle start.
@@ -793,6 +804,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     )
                     if sl_trade:
                         summary["stop_loss_triggered"].append(sl_ticker)
+                        closed_tickers.append(sl_ticker)  # phase-30.3: route stop-out exits through the learn loop (audit Stage 12 + P1-3).
                         logger.warning(
                             "Paper trading: stop-loss triggered for %s -- sold at %s",
                             sl_ticker, sl_trade.get("price"),
@@ -859,7 +871,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             # ── Step 7: Execute trades ───────────────────────────────
             logger.info(f"Paper trading: Step 7 -- Executing {len(orders)} trades")
             summary["steps"].append("executing")
-            closed_tickers = []
+            # phase-30.3: closed_tickers now lives at cycle-top (line ~169)
+            # so Step 5.6 stop-outs can populate it. Re-init here would
+            # erase Step 5.6's appends.
 
             # Sells first
             # phase-23.1.23: execute_sell/execute_buy also do blocking BQ + yfinance
