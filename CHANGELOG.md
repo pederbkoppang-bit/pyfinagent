@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-19 | `c71ff092` | phase-30.0: E2E paper-trading pipeline audit (diagnostic-only) |
 | 2026-05-19 | `5ba0c5e5` | phase-29.6: extract qa.md code-review heuristics to skill (FINAL P1 + overnight summary) |
 | 2026-05-19 | `bc3af934` | phase-29.3: register 4 in-app FastMCP servers in .mcp.json (free-only, all ADOPT) |
 | 2026-05-19 | `5968c36b` | phase-29.4: add 3 OWASP LLM Top-10 v2.0 heuristics to qa.md (LLM07/08/10) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `856538e4` | phase-28.8: Russell-1000 universe expansion with screener cost guard |
 | 2026-05-17 | `e75390fe` | phase-28.7: Multidimensional momentum composite (price + SUE + 52-wk hi distance + factor momentum) |
 | 2026-05-17 | `722e253a` | phase-28.12: Sector-ETF momentum overlay (Quantpedia top-3 rotation) |
-| 2026-05-17 | `16a8a0ff` | phase-28.4: Sector-neutral momentum scoring in rank_candidates |
 
 ---
 
+### v6.11.0 — phase-30.0: E2E paper-trading pipeline audit (diagnostic-only) (2026-05-19)
+
+- **phase-30.0: E2E paper-trading pipeline audit (diagnostic-only)**
 ### v6.10.7 — phase-29.6: extract qa.md code-review heuristics to skill (FINAL P1 +... (2026-05-19)
 
 - **phase-29.6: extract qa.md code-review heuristics to skill (FINAL P1 + overnight summary)**
