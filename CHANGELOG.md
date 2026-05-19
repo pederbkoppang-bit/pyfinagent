@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-20 | `9190a352` | phase-31.0.2: Stage 2 lite-path analysis via Claude Code subagent (4 tickers) |
 | 2026-05-20 | `2ecbb2f5` | phase-31.0.1: e2e pipeline smoketest Stage 1 (screen + rank + sector enrichment) |
 | 2026-05-20 | `392b74da` | phase-30.4 RE-SPAWN: GIPS-correct return series (subtract external flows) |
 | 2026-05-19 | `0b8609bb` | phase-30.7: MAS strategy-router production wiring audit + per-cycle heartbeat |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-18 | `05707772` | phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create phase-29 |
 | 2026-05-18 | `b5d2048f` | phase-28.16: M&A pre-announcement aggregator (FINAL phase-28 item) |
 | 2026-05-18 | `6ceeb10f` | phase-28.17: Peer-correlation laggard catch-up signal (intra-GICS sub-industry lead-lag) |
-| 2026-05-17 | `47e35473` | phase-28.14: Defense/war-stocks reference-case implementation (GPR-defense branch + ITA/XAR flow ... |
 
 ---
 
+### v6.13.0 — phase-31.0.2: Stage 2 lite-path analysis via Claude Code subagent (4... (2026-05-20)
+
+- **phase-31.0.2: Stage 2 lite-path analysis via Claude Code subagent (4 tickers)**
 ### v6.12.0 — phase-31.0.1: e2e pipeline smoketest Stage 1 (screen + rank + sector... (2026-05-20)
 
 - **phase-31.0.1: e2e pipeline smoketest Stage 1 (screen + rank + sector enrichment)**
