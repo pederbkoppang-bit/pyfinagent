@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-19 | `bc3af934` | phase-29.3: register 4 in-app FastMCP servers in .mcp.json (free-only, all ADOPT) |
 | 2026-05-19 | `5968c36b` | phase-29.4: add 3 OWASP LLM Top-10 v2.0 heuristics to qa.md (LLM07/08/10) |
 | 2026-05-19 | `de0f33c8` | phase-29.5: add 4th `deep` research tier to researcher.md |
 | 2026-05-19 | `1e0937c7` | phase-29.7: add arXiv-HTML precedence + pdfplumber rules to research-gate.md |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `722e253a` | phase-28.12: Sector-ETF momentum overlay (Quantpedia top-3 rotation) |
 | 2026-05-17 | `16a8a0ff` | phase-28.4: Sector-neutral momentum scoring in rank_candidates |
 | 2026-05-17 | `ef0836ca` | phase-28.6: Crude-oil (CL=F) cross-asset trend signal in macro_regime |
-| 2026-05-17 | `86f711f2` | phase-28.3: GPR-triggered energy-sector tilt in macro_regime.py |
 
 ---
 
+### v6.10.6 — phase-29.3: register 4 in-app FastMCP servers in .mcp.json (free-only... (2026-05-19)
+
+- **phase-29.3: register 4 in-app FastMCP servers in .mcp.json (free-only, all ADOPT)**
 ### v6.10.5 — phase-29.4: add 3 OWASP LLM Top-10 v2.0 heuristics to qa.md (LLM07/08... (2026-05-19)
 
 - **phase-29.4: add 3 OWASP LLM Top-10 v2.0 heuristics to qa.md (LLM07/08/10)**
