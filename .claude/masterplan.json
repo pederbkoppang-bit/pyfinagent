@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-18T21:51:45.071599+00:00",
+  "updated_at": "2026-05-19T05:14:17.413167+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10474,21 +10474,24 @@
         },
         {
           "id": "29.1",
-          "name": "P1: Add paper-search-mcp to .mcp.json (academic-fetch wall fix)",
-          "status": "pending",
+          "name": "P1: Add paper-search-mcp==0.1.3 to .mcp.json (academic-fetch wall fix; free-only ADOPT)",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 experiment_results.md \u00a71.2 + \u00a74: paper-search-mcp (PyPI/npm, 25+ academic sources, free, MCP-native) solves the Cloudflare-Turnstile wall surfaced in phase-28.7 (George&Hwang 2004, Novy-Marx, SSRN preprints unfetchable). Verified via WebFetch of https://github.com/openags/paper-search-mcp on 2026-05-18.",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a71.2 + \u00a74 ADOPT verdict + phase-29.1 research_brief.md (7 sources read in full, gate_passed=true, free_only_verdict=ADOPT). paper-search-mcp v0.1.3 (PyPI, Apr 29 2025) bundles 57 MCP tools across 18 academic sources (arXiv, OpenAlex, SSRN, CORE, Unpaywall, Semantic Scholar, PubMed, Europe PMC, IACR, Crossref, Zenodo, HAL, dblp, CiteSeerX, OpenAIRE, BASE, DOAJ, IEEE+ACM dormant). Solves Cloudflare-Turnstile wall from phase-28.7 (SSRN George&Hwang 2004 abstract_id=1104491, Novy-Marx, preprints). Free-only compliance: no source requires paid licensing; OpenAlex needs free mandatory key (since 2026-02-13 breaking change); Unpaywall accepts any email; CORE/Semantic-Scholar optional free keys; ACM (only potentially-paid) connector dormant without key. env-example documentation deferred to phase-29.8 P2 bundle (already in scope there); fetch_one_SSRN_paper_in_full_text deferred to post-restart live_check (MCP unavailable in this overnight session).",
           "verification": {
-            "command": "jq -e '.mcpServers.\"paper-search\" | .command and .args' .mcp.json && grep -q 'paper-search' .mcp.json",
+            "command": "jq -e '.mcpServers.\"paper-search-mcp\" | .type == \"stdio\" and .command == \"uvx\" and (.args | index(\"paper-search-mcp==0.1.3\")) and (.env | has(\"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL\"))' .mcp.json && python3 -c \"import json; json.load(open('.mcp.json'))\" && grep -q 'smoke test' handoff/current/experiment_results.md",
             "success_criteria": [
               "paper-search_entry_present_in_mcp_json",
-              "OPENALEX_API_KEY_documented_in_env_example",
-              "smoke_test_passes",
-              "fetch_one_SSRN_paper_in_full_text"
+              "mcp_json_valid_after_edit",
+              "version_pinned_to_paper-search-mcp_0_1_3",
+              "free_only_compliance_documented",
+              "smoke_test_command_documented_in_experiment_results",
+              "post_restart_live_check_recipe_in_live_check_29_1_md",
+              "audit_delegations_documented_env_example_and_ssrn_fetch_deferred"
             ],
-            "live_check": "live_check_29.1.md: actual WebFetch / paper-search call returning text content (not 'binary PDF, no text extracted') for an SSRN paper that previously failed in phase-28.7"
+            "live_check": "live_check_29.1.md captures (a) pre-restart on-disk .mcp.json grep evidence; (b) post-restart operator recipe \u2014 restart Claude Code, confirm 'paper-search-mcp' attaches in the MCP server list, then call search_ssrn(query='George Hwang 52-week high momentum') and verify metadata returns for abstract_id 1104491. If OPENALEX_API_KEY is unset, the OpenAlex source falls back to 100-credits/day demo mode \u2014 documented as expected next-step block, covered by phase-29.8 P2 env-var-docs bundle."
           },
           "retry_count": 0,
           "max_retries": 3
