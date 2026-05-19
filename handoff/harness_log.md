@@ -20265,3 +20265,29 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~14 min (researcher ~6 min, contract+generate ~3 min, Q/A ~1.5 min, log/flip/commit ~4 min).
 
+
+
+---
+
+## Cycle 36 -- 2026-05-19 -- phase=29.5 result=PASS
+
+**Step:** phase-29.5 — Add 4th `deep` research tier to `.claude/agents/researcher.md`.
+
+**Generator:** 1 agent-definition edit + 1 masterplan-entry update.
+- `.claude/agents/researcher.md` +63 lines (202 → 265). New table row `| deep | <=3500 w | <=200 | 40+ | at least 20 (typically 20-50) |`. New `### \`deep\` tier — additional requirements (phase-29.5)` section: 4 mandatory practices (multi-pass scan/gap/adversarial, ≥1 [ADVERSARIAL] source required, cross-domain triangulation ≥2 adjacent-domain sources, multi-subagent fork option 2-3 parallel) + 5-condition gate check.
+- `.claude/masterplan.json` 29.5 entry: 7-grep AND-chain verification.command + 7 success_criteria + live_check rewritten.
+
+**Researcher gate:** `gate_passed: true`. 8 sources read in full: Anthropic multi-agent research blog, Google Deep Research Max blog (Apr 21 2026), Analytics Vidhya DR Max guide (~160 queries/~900K tokens/10-20 min), arXiv:2601.20975 DeepSearchQA (n=1→n=8: 67%→86%), arXiv:2601.22984 PIES bias taxonomy (Anchor Effect + Homogeneity Bias), arXiv:2602.13855 AAR standard, arXiv:2602.11685v1 DRACO (21.6-pt Finance gap), PMC11615553 devil's-advocate (0%→76% accuracy OR=3.49). Researcher initially stopped mid-flight; resumed via SendMessage continuation directing single-Write completion. Brief is researcher's work (not Main-authored fallback) per phase-28.16 precedent.
+
+**Q/A subagent verdict:** PASS (single spawn). 7-grep AND-chain exit=0. caller-states-tier rule preserved at researcher.md:142; deep-gate explicitly requires [ADVERSARIAL] source (no rubber-stamp of absence); multi-subagent fork is caller-driven optional; citations match brief.
+
+**Honest disclosures:**
+- Researcher mid-flight stop pattern recurring (cycles 28.6/28.7/28.8/28.16/29.5). Recommendation flagged in 29.8 P2 bundle.
+- Adversarial-sourcing requirement is a pyfinagent-tier innovation; no vendor documents it as a discrete procedural step (research §"Key findings" #7).
+- 20-source floor is conservative vs literature ("hundreds" for exhaustive surveys); chosen to fit Max 5-hour window cadence.
+- New tier doesn't activate until session restart (per CLAUDE.md agent-definition rule).
+
+**Decision:** flip phase-29.5 to `done`; live_check_29.5.md captures pre/post line count + post-restart sanity-check recipe.
+
+**Total cycle time:** ~32 min (researcher 1st spawn ~7 min + stall + continuation ~6 min; contract+generate ~5 min; Q/A ~0.5 min; log/flip/commit ~3 min).
+

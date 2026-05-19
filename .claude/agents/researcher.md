@@ -146,12 +146,73 @@ Caller states the tier in the prompt. Do not choose your own scope.
 | simple | <=300 w | <=10 | 10+ | at least 5 |
 | moderate | <=700 w | <=18 | 15+ | at least 5 (typically 5-8) |
 | complex | <=1500 w | <=30 | 25+ | at least 5 (typically 8-15) |
+| deep | <=3500 w | <=200 | 40+ | at least 20 (typically 20-50) |
+
+### `deep` tier — additional requirements (phase-29.5)
+
+The `deep` tier is for questions where `complex` would leave
+systematic gaps: literature surveys, signal-hypothesis audits
+requiring cross-domain validation, and any step where the caller
+explicitly requests exhaustive evidence. Numerical anchors come from
+Google Deep Research Max (Apr 21 2026, ~160 queries / ~900K input
+tokens / 10-20 min) and Anthropic's "more than 10 subagents" pattern
+for complex research. `deep` uses 3-5x more tool calls and sources
+than `complex` and adds four mandatory practices absent from lower
+tiers:
+
+1. **Multi-pass (scan -> gap -> adversarial).** Pass 1: broad scan --
+   read 20+ sources across the obvious entry points. Pass 2: gap
+   analysis -- identify sub-questions not answered by pass 1 and
+   generate targeted queries for each. Pass 3: adversarial pass --
+   explicitly search for sources that DISAGREE with the emerging
+   consensus. Do NOT stop after pass 1 regardless of apparent
+   coverage. (Source: arXiv:2601.20975 multi-sample n=1->n=8
+   improves accuracy 67%->86%.)
+
+2. **Adversarial sourcing (>=1 disagreeing source required).** Find
+   and read in full at least one paper / report / authoritative
+   source that contradicts or qualifies the dominant finding. Record
+   it in the read-in-full table with the tag `[ADVERSARIAL]`. If no
+   disagreeing source exists in the literature after a genuine
+   search, state this explicitly -- it is a finding, not a failure.
+   The Anchor Effect and Homogeneity Bias are the primary deep-
+   research failure modes (arXiv:2601.22984); the devil's-advocate
+   pattern lifts accuracy 0%->76% in clinical multi-agent settings
+   (PMC11615553). Adversarial sourcing is the structural
+   countermeasure for both biases.
+
+3. **Cross-domain triangulation.** For claims that are domain-
+   specific (e.g., quant finance), read >=2 sources from adjacent
+   domains (e.g., ML research, clinical decision-making, systematic-
+   review methodology) that address the same underlying mechanism.
+   Cross-domain corroboration raises claim confidence; cross-domain
+   contradiction is a high-value finding. (Source: DRACO benchmark
+   arXiv:2602.11685v1 shows 21.6-pt Finance gap; cross-domain
+   richer-context systems beat narrower ones by 11.5 pts overall.)
+
+4. **Multi-subagent fork option.** If the caller requests it, OR if
+   the topic has >=3 clearly separable sub-questions that each
+   warrant a `complex`-tier session on their own, Main may spawn 2-3
+   parallel deep-tier subagents covering different angles and merge
+   their read-in-full tables. Each subagent must meet the >=20-
+   source floor INDEPENDENTLY. The merged brief must deduplicate
+   URLs and label sources by subagent origin. Estimated cost: ~1
+   Claude Max 5-hour rolling window per subagent; confirm with
+   caller before forking. (Source: Anthropic multi-agent research
+   blog -- "complex research might use more than 10 subagents".)
+
+**`deep` gate check:** `gate_passed: true` only if (a) >=20 sources
+read in full, (b) >=1 `[ADVERSARIAL]` source present in the read-
+in-full table, (c) multi-pass structure documented (pass 1 / pass 2
+/ pass 3 explicitly labeled in the brief), (d) recency scan
+performed, (e) all hard-blocker checklist items satisfied.
 
 Tier controls the DEPTH of analysis and brief length, not the
-source-count floor. The >=5 read-in-full floor applies to every
-tier -- a 300-word `simple` brief still needs 5 sources fetched
-via WebFetch. Cannot meet 5? Return `gate_passed: false` with the
-gap documented.
+source-count floor. The >=5 read-in-full floor applies to simple /
+moderate / complex tiers; the `deep` tier raises it to 20. A 300-
+word `simple` brief still needs 5 sources fetched via WebFetch.
+Cannot meet the floor? Return `gate_passed: false` with the gap
+documented.
 
 If caller didn't specify, assume `moderate` and state the
 assumption in your first line.

@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-19T05:25:43.312898+00:00",
+  "updated_at": "2026-05-19T05:40:39.835453+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10564,20 +10564,23 @@
         {
           "id": "29.5",
           "name": "P1: Add 4th 'deep' research tier to researcher.md (20-50 sources, multi-pass, adversarial)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 experiment_results.md \u00a71.1: Anthropic multi-agent research blog ('complex research might use more than 10 subagents') + Google Deep Research Max (April 21 2026, two-tier interactive vs exhaustive) both validate a fourth `deep` tier. Current researcher.md:140-145 caps at 'complex' with 8-15 reads. `deep` should add 20-50 reads + multi-pass scan/gaps/second-pass + adversarial sourcing (\u22651 disagreeing paper) + cross-domain triangulation + multi-subagent fork option.",
+          "audit_basis": "phase-29.0 \u00a71.1 + \u00a7P1 #5 + phase-29.5 research_brief.md (8 sources read in full, gate_passed=true). Concrete numerical anchors from Google Deep Research Max (Apr 21 2026, ~160 queries / ~900K tokens / 10-20 min). Anthropic multi-agent research blog 1/3-5/10+ tool-call scaling rule + 'more than 10 subagents' for complex research. Multi-pass rationale validated by DeepSearchQA (arXiv:2601.20975) n=1->n=8 sampling lifting 67%->86% accuracy. Adversarial sourcing grounded in PIES bias taxonomy (arXiv:2601.22984 Anchor Effect + Homogeneity Bias) + devil's-advocate clinical study (PMC11615553, 0%->76% accuracy lift OR=3.49 p=.002). Cross-domain triangulation grounded in DRACO benchmark (arXiv:2602.11685v1, 21.6-pt Finance gap, +11.5 pts overall from richer context). Cost compatible with Claude Max flat-fee (~1 5-hour window per session, ~$300-500 API equivalent).",
           "verification": {
-            "command": "grep -E '^\\|.*deep.*\\|' .claude/agents/researcher.md && grep -q 'adversarial' .claude/agents/researcher.md",
+            "command": "grep -E '^\\|\\s*deep\\s*\\|' .claude/agents/researcher.md && grep -q 'at least 20 (typically 20-50)' .claude/agents/researcher.md && grep -q 'Pass 1: broad' .claude/agents/researcher.md && grep -q '\\[ADVERSARIAL\\]' .claude/agents/researcher.md && grep -q 'Cross-domain triangulation' .claude/agents/researcher.md && grep -q 'Multi-subagent fork option' .claude/agents/researcher.md && grep -q '`deep` gate check' .claude/agents/researcher.md",
             "success_criteria": [
               "deep_tier_row_in_effort_tiers_table",
-              "adversarial_sourcing_rule_documented",
+              "deep_tier_row_matches_research_brief_proposal",
+              "multi_pass_rule_documented_pass1_pass2_pass3",
+              "adversarial_sourcing_rule_documented_with_ADVERSARIAL_tag",
               "cross_domain_triangulation_rule_documented",
-              "multi_subagent_fork_pattern_documented"
+              "multi_subagent_fork_option_documented",
+              "deep_gate_check_block_present"
             ],
-            "live_check": "live_check_29.5.md: one trial deep-tier research gate output with \u226520 sources read in full + adversarial-source presence confirmed"
+            "live_check": "live_check_29.5.md captures pre/post researcher.md line count (202 -> 265) + verbatim deep-tier row + paragraph block diff + post-restart caveat (CLAUDE.md agent-definition-changes-require-session-restart rule means activation deferred)."
           },
           "retry_count": 0,
           "max_retries": 3
