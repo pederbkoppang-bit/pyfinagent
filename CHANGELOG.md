@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-19 | `06922866` | phase-30.3: connect stop-loss exits to learn loop |
 | 2026-05-19 | `7aea8a23` | phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6 |
 | 2026-05-19 | `212f3cc5` | phase-30.1: out-of-band autonomous-cycle heartbeat alarm + pause overnight loop |
 | 2026-05-19 | `c71ff092` | phase-30.0: E2E paper-trading pipeline audit (diagnostic-only) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `ac5a5b3c` | phase-28.11: LLM analyst-report narrative signal (highest expected lift) |
 | 2026-05-17 | `f61ffeb0` | phase-28.10: Opportunistic insider-buying signal lifted from Layer-1 into screener tier |
 | 2026-05-17 | `9ba6c754` | phase-28.9: Options-flow OI-surge filter (new plug-in) |
-| 2026-05-17 | `856538e4` | phase-28.8: Russell-1000 universe expansion with screener cost guard |
 
 ---
 
+### v6.11.3 — phase-30.3: connect stop-loss exits to learn loop (2026-05-19)
+
+- **phase-30.3: connect stop-loss exits to learn loop**
 ### v6.11.2 — phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6 (2026-05-19)
 
 - **phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6**
