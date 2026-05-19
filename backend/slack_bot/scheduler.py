@@ -100,6 +100,18 @@ _scheduler: AsyncIOScheduler | None = None
 # state is the post-restart baseline.
 _watchdog_last_was_healthy: bool | None = None
 
+# phase-30.1: sibling of _watchdog_last_was_healthy. Tracks the out-of-band
+# autonomous-cycle heartbeat staleness state. State transitions:
+#   None -> True   first probe found stale       -> P1 alert
+#   False -> True  fresh -> stale transition     -> P1 alert
+#   True -> False  stale -> fresh transition     -> P3 recovery
+#   None -> False  first probe found fresh       -> silent baseline
+#   True -> True   steady-stale                  -> silent (no spam)
+#   False -> False steady-fresh                  -> silent
+# Audit basis: handoff/archive/phase-30.0/experiment_results.md Anomaly C
+# (65h 34m gap 2026-05-17 -> 2026-05-19 with no operator alert path).
+_cycle_heartbeat_last_was_stale: bool | None = None
+
 
 def _aps_to_heartbeat(event) -> None:
     """phase-23.3.2: APScheduler event listener that POSTs each terminal
@@ -398,6 +410,49 @@ async def _watchdog_health_check(app: AsyncApp):
             )
         except Exception:
             logger.exception("Watchdog Slack post failed")
+
+    # phase-30.1: out-of-band autonomous-cycle heartbeat check. Runs on
+    # the same interval cron as the backend health probe so a missing
+    # daily cycle is detected even when the backend itself is healthy
+    # (the failure mode documented in phase-30.0 Anomaly C: 65h gap
+    # 2026-05-17 -> 2026-05-19, backend up, cron skipped). Fully
+    # fail-open: any exception is logged and swallowed so it cannot
+    # take down the watchdog cron.
+    global _cycle_heartbeat_last_was_stale
+    try:
+        from backend.services.cycle_health import (
+            cycle_heartbeat_alarm,
+            fire_cycle_heartbeat_alarm,
+        )
+        verdict = cycle_heartbeat_alarm()
+        is_stale_now = bool(verdict.get("should_alarm"))
+        prior_stale = _cycle_heartbeat_last_was_stale
+        _cycle_heartbeat_last_was_stale = is_stale_now
+
+        if is_stale_now and prior_stale is not True:
+            # None -> True or False -> True : fire one P1 alert.
+            fire_cycle_heartbeat_alarm(verdict)
+            logger.warning(
+                "cycle_heartbeat_alarm fired P1 -- age_sec=%s last_completed=%s",
+                verdict.get("age_sec"),
+                verdict.get("last_completed_at"),
+            )
+        elif (not is_stale_now) and prior_stale is True:
+            # True -> False : recovery. Log only (no P1; P3-grade signal).
+            logger.info(
+                "cycle_heartbeat recovery -- last_completed=%s",
+                verdict.get("last_completed_at"),
+            )
+        else:
+            # Steady-state or first-fresh: silent.
+            logger.debug(
+                "cycle_heartbeat steady -- stale=%s age_sec=%s weekday_et=%s",
+                is_stale_now,
+                verdict.get("age_sec"),
+                verdict.get("is_weekday_et"),
+            )
+    except Exception as exc:
+        logger.warning("cycle_heartbeat_alarm watchdog fail-open: %r", exc)
 
 
 def pause_signals(app: "AsyncApp | None" = None) -> bool:

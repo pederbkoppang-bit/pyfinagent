@@ -218,3 +218,5 @@
 {"ts": "2026-05-16T18:24:17.563136+00:00", "event": "sod_snapshot", "nav": 22748.62, "date": "2026-05-16"}
 {"ts": "2026-05-17T00:08:08.168145+00:00", "event": "sod_snapshot", "nav": 22747.21, "date": "2026-05-17"}
 {"ts": "2026-05-19T18:03:39.973646+00:00", "event": "sod_snapshot", "nav": 22290.79, "date": "2026-05-19"}
+{"ts": "2026-05-19T19:33:49.882225+00:00", "event": "pause", "trigger": "phase-30-overnight-remediation", "details": {"operator": "claude-code-overnight", "reason": "phase-30.x P1 remediations in progress; loop paused until operator unpauses post-morning-verification", "prior_state_last_sod": "2026-05-19"}}
+{"ts": "2026-05-19T19:34:17.651869+00:00", "event": "pause", "trigger": "manual", "details": {}}

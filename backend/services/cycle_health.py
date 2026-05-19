@@ -27,6 +27,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,15 @@ _TABLE_MAX_AGE_SEC: dict[str, float] = {
     "historical_macro":        3_024_000.0,  # 35 days -- monthly FRED + release lag
     "paper_portfolio_snapshots": 93_600.0,    # 26h -- daily snapshot
 }
+
+# phase-30.1: out-of-band autonomous-cycle heartbeat threshold. The paper
+# trading cron fires Mon-Fri once per day at settings.paper_trading_hour ET
+# (default 10 ET, 14-15 UTC depending on DST). Consecutive weekday cycles
+# are 24h apart; 26h gives a 2h buffer for cron jitter or backend restart.
+# Detected silent-failure incident: 65h 34m gap 2026-05-17 -> 2026-05-19
+# documented in handoff/archive/phase-30.0/experiment_results.md Anomaly C.
+_CYCLE_HEARTBEAT_STALE_SEC: float = 93_600.0  # 26h
+_NYSE_TZ = ZoneInfo("America/New_York")
 
 
 def _now_iso() -> str:
@@ -123,6 +133,121 @@ def _fire_freshness_alarm(sources: dict) -> None:
             logger.warning(
                 "freshness alarm: dispatch fail-open for %s: %r", table_name, exc,
             )
+
+
+def _now_utc() -> datetime:
+    """phase-30.1: monkeypatch seam for tests. Production returns the live
+    UTC clock; test code can override via monkeypatch on this symbol."""
+    return datetime.now(timezone.utc)
+
+
+def cycle_heartbeat_alarm(
+    threshold_sec: float = _CYCLE_HEARTBEAT_STALE_SEC,
+) -> dict:
+    """phase-30.1: out-of-band autonomous-cycle staleness check.
+
+    Reads the most recent `cycle_history.jsonl` row and returns
+    `{"stale": bool, "age_sec": float|None, "should_alarm": bool,
+      "is_weekday_et": bool, "last_completed_at": str|None}`.
+
+    The function is pure: it returns a verdict dict and does NOT post
+    to Slack. The caller (watchdog cron in `slack_bot/scheduler.py`)
+    does the state-transition gating so we don't spam the channel
+    during a multi-day silent-failure (the documented `_watchdog_last_was_healthy`
+    pattern at `slack_bot/scheduler.py:97-101`).
+
+    Decision logic:
+    - `stale` is True iff age_sec > threshold_sec.
+    - `should_alarm` is True iff `stale AND is_weekday_et`. Weekends
+      have no scheduled cron fire so a 26h stale on Sat/Sun is normal.
+    - When `cycle_history.jsonl` is missing or empty, returns
+      `stale=False, should_alarm=False` (no historical signal to flag
+      against; first-boot is not a silent-failure).
+
+    Fail-open: any exception is caught and returns a sentinel dict
+    rather than raising, so the watchdog cron can't be brought down
+    by an unexpected error here.
+
+    Audit basis: handoff/archive/phase-30.0/experiment_results.md
+    Anomaly C (65h 34m gap 2026-05-17 -> 2026-05-19 with no
+    out-of-band alert path).
+    """
+    sentinel = {
+        "stale": False,
+        "age_sec": None,
+        "should_alarm": False,
+        "is_weekday_et": False,
+        "last_completed_at": None,
+    }
+    try:
+        if not _HISTORY_PATH.exists():
+            return sentinel
+        with _HISTORY_PATH.open(encoding="utf-8") as f:
+            lines = f.readlines()
+        # Tail-read newest first; pick the first parseable row.
+        last_row: Optional[dict] = None
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                last_row = json_io.parse_json_line(line)
+                break
+            except Exception:
+                continue
+        if not last_row:
+            return sentinel
+        completed_at = last_row.get("completed_at")
+        completed_dt = _parse_iso(completed_at)
+        if completed_dt is None:
+            return sentinel
+        now = _now_utc()
+        age_sec = (now - completed_dt).total_seconds()
+        is_weekday_et = now.astimezone(_NYSE_TZ).weekday() < 5
+        stale = age_sec > threshold_sec
+        return {
+            "stale": stale,
+            "age_sec": age_sec,
+            "should_alarm": stale and is_weekday_et,
+            "is_weekday_et": is_weekday_et,
+            "last_completed_at": completed_at,
+        }
+    except Exception as exc:
+        logger.warning("cycle_heartbeat_alarm fail-open: %r", exc)
+        return sentinel
+
+
+def fire_cycle_heartbeat_alarm(verdict: dict) -> None:
+    """phase-30.1: dispatch the P1 Slack alert when the heartbeat alarm
+    has decided to fire. Called by the watchdog cron AFTER its own
+    state-transition gating so duplicates are not posted.
+
+    Identical fail-open pattern to `_fire_freshness_alarm:90-125`:
+    a Slack failure must NEVER break the calling cron.
+    """
+    try:
+        from backend.services.observability.alerting import raise_cron_alert_sync
+    except Exception as exc:
+        logger.warning("cycle_heartbeat_alarm: import fail-open: %r", exc)
+        return
+    try:
+        age_sec = verdict.get("age_sec")
+        age_h_str = f"{(age_sec/3600):.1f}h" if isinstance(age_sec, (int, float)) else "N/A"
+        raise_cron_alert_sync(
+            source="cycle_health",
+            error_type="cycle_heartbeat_stale_weekday",
+            severity="P1",
+            title="Autonomous cycle silent: heartbeat stale on weekday",
+            details={
+                "last_completed_at": str(verdict.get("last_completed_at")),
+                "age_sec": str(age_sec),
+                "age_hours_approx": age_h_str,
+                "threshold_sec": str(_CYCLE_HEARTBEAT_STALE_SEC),
+                "is_weekday_et": str(verdict.get("is_weekday_et")),
+            },
+        )
+    except Exception as exc:
+        logger.warning("cycle_heartbeat_alarm: dispatch fail-open: %r", exc)
 
 
 class CycleHealthLog:

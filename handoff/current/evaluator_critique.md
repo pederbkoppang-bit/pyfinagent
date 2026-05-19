@@ -1,197 +1,378 @@
-# Evaluator Critique -- phase-30.0
+# Evaluator Critique -- phase-30.1
 
-**Cycle:** phase-30.0 E2E paper-trading pipeline audit (diagnostic-only).
-**Q/A run:** 2026-05-19, single spawn, merged qa-evaluator + harness-verifier.
-**Mode:** Read-only; reviewed `experiment_results.md` (981 lines), `contract.md`,
-`research_brief.md`, `harness_log.md` tail, `git status`.
+**Cycle:** phase-30.1 -- P1: Out-of-band autonomous-cycle heartbeat alarm.
+**Q/A run:** 2026-05-19 OVERNIGHT, single spawn, merged qa-evaluator + harness-verifier.
+**Mode:** Read-only; reviewed `experiment_results.md` (187 lines), `contract.md`,
+`research_brief.md` (521 lines), `harness_log.md` tail, `git diff backend/`,
+new test file (200 lines).
 
 ---
 
 ## 1. Harness-compliance audit (5-item, MANDATORY-FIRST)
 
 1. **Researcher gate ran? -- PASS.**
-   `handoff/current/research_brief.md` exists. JSON envelope at the tail
-   reports `gate_passed: true`, `external_sources_read_in_full: 10`
-   (floor of 5 cleared 2x), `recency_scan_performed: true`,
-   `urls_collected: 20`, `internal_files_inspected: 12`. Three-variant
-   query composition (2026 / 2025 / year-less canonical) is visible at
-   the head of the brief (Section 1, table covering 7 sub-topics).
-   Recency scan section has 5 last-2-year findings (FIA 2024,
-   arXiv 2603.27539, arXiv 2512.02227, arXiv 2604.27150,
-   arXiv 2512.15732). Backup brief
-   (`research_brief_phase30_backup.md`) is supplementary; primary brief
-   is the gate-pass authority.
+   `handoff/current/research_brief.md` exists with JSON envelope at
+   tail (line 505-515): `gate_passed: true`,
+   `external_sources_read_in_full: 8` (floor of 5 cleared 1.6x),
+   `recency_scan_performed: true`, `urls_collected: 17`,
+   `internal_files_inspected: 9`. Three-variant query composition
+   (2026 / 2025 / year-less) visible at lines 36-42. Recency scan
+   has 2 last-2-year findings (OneUptime 2026, upti.my 2025) +
+   acknowledgment that older Memfault is canonical. Tier label
+   `complex` matches the brief's depth.
 
 2. **Contract written BEFORE generate? -- PASS.**
    `handoff/current/contract.md` exists with "Research-gate summary"
-   section quoting the JSON envelope verbatim (lines 11-26), and six
-   immutable success criteria SC-1..SC-6 (lines 58-167). SC-1 names the
-   12 stages with file:line anchors. SC-2..SC-6 each carry concrete,
-   audit-testable predicates. Contract is load-bearing rather than
-   wish-list shape.
+   section quoting the JSON envelope verbatim (lines 8-23), and
+   "Immutable success criteria (verbatim from masterplan phase-30.1)"
+   block (lines 31-41) reproducing the masterplan's
+   `verification.command` + 4 `success_criteria` rows. Plan section
+   (lines 43-73) precedes generate. Hard guardrails (lines 75-85)
+   bound diff scope to exactly 3 files. Contract is load-bearing.
 
 3. **Results file present? -- PASS.**
-   `handoff/current/experiment_results.md` exists at 981 lines, written
-   AFTER contract. Structure matches contract (Section 0 ground truth,
-   Section 1 per-stage trace, Section 2 anomalies A-E, Section 3
-   P1/P2/P3 themes, Section 4 phase-30 JSON, Section 5 guardrail
-   attestation, Section 6 sources).
+   `handoff/current/experiment_results.md` exists (187 lines). Has
+   Summary / Files touched / Implementation details / Verification /
+   Hard-guardrail attestation / Success criteria check sections.
+   Files-touched table (lines 22-27) lists exactly the 3 expected
+   files: `cycle_health.py` (+125), `scheduler.py` (+55),
+   `test_cycle_heartbeat_alarm.py` (+200 NEW). Total 380 lines (132+125
+   non-comment = 257 LOC under the 300-line overnight guardrail).
 
 4. **Log NOT yet written? -- PASS.**
-   Last entry in `handoff/harness_log.md` is `Cycle 1 -- 2026-05-19
-   06:27 UTC` (DRY_RUN composite 0/10). No phase-30 line yet -- main
-   correctly held the log append until after Q/A verdict, per the
-   `feedback_log_last.md` rule.
+   `grep -c "phase-30.1" handoff/harness_log.md` returns 0. The log
+   append is correctly held until AFTER this Q/A verdict per the
+   "Log is the LAST step" feedback rule.
 
 5. **No verdict-shopping? -- PASS.**
-   This is the first Q/A spawn for phase-30.0. The file at this path
-   previously held phase-29.6 content (stale), being overwritten now.
-   No prior phase-30 verdict exists in `evaluator_critique.md` or
-   `harness_log.md`, so the "fresh-respawn on unchanged evidence"
-   prohibition is not engaged.
+   No prior phase-30.1 entry in `harness_log.md`. No prior
+   `evaluator_critique.md` for phase-30.1 in
+   `handoff/archive/phase-30.1/`. This is the first Q/A spawn for
+   the step.
 
-**5-item audit result: ALL PASS.** Proceeding to content evaluation.
-
----
-
-## 2. Deterministic checks (Bash + Read; no code Edit/Write)
-
-| Check | Result |
-|-------|--------|
-| `test -f handoff/current/experiment_results.md` | PASS (981 lines) |
-| 12 stage verdicts emitted | PASS -- `grep -c "^### Stage" = 12`; `grep "^\*\*Verdict: " = 12 hits` covering Stages 1-12 |
-| Stage verdicts cover the contract's 12-stage list | PASS -- ordering matches SC-1 list (Universe..Learning loop) |
-| Stages cite file:line anchors | PASS -- spot-check Stage 1 cites `screener.py:64-208` + `:29-61` + `autonomous_loop.py:294-300`; Stage 7 cites `portfolio_manager.py::_extract_stop_loss:288-329` + `paper_trader.py::execute_buy:108-115` + `:465-532`; Stage 12 cites `autonomous_loop.py:901-907` + `:1611-1637` + `:1633` + `:1637` + `:856` + `:760-777` |
-| Stages cite BQ evidence OR "table empty" findings | PASS -- Stage 3 cites `strategy_decisions` 1-row dump; Stage 12 cites `outcome_tracking=0 rows`, `agent_memories=0 rows`; Stage 8 cites trade-row-shape inference from `paper_trades`; Stage 7 cites the explicit 7-NULL-stop tickers |
-| 5 live anomalies A-E present | PASS -- `grep "^### [A-E]\."` returns A (Sharpe -6.26), B (vs SPY), C (3-day stale), D (GATE 0/5), E (sector cap) |
-| Each anomaly carries BQ-or-file:line citation | PASS -- A cites `paper_metrics_v2.py::_nav_to_returns:36-48` + 5/13 snapshot deposit row; B cites `paper_trader.py:761-775`; C cites `handoff/cycle_history.jsonl` last 5 entries + `kill_switch_audit.jsonl` + `llm_call_log` last-call; D cites `paper_go_live_gate.py:60-142` and the 5 boolean line numbers `:103-110`; E cross-refs Stage 6 + sources |
-| P1/P2/P3 themes present (>=6 total) | PASS -- 4 P1 (P1-1..P1-4), 5 P2 (P2-1..P2-5), 3 P3 (P3-1..P3-3) = 12 themes in Section 3, lines 614-738 |
-| Each theme names a concrete file/table | PASS -- P1-1 names `cycle_health.py` + `alerting.py` + `main.py`; P1-2 names `autonomous_loop.py` Step 5.6 + the existing `backfill_missing_stops` helper; P1-3 names `autonomous_loop.py:771`; P1-4 names `paper_metrics_v2.py::_nav_to_returns` + `paper_portfolio_snapshots` schema change; P2-1..P2-5, P3-1..P3-3 likewise file-anchored |
-| Each theme cites a research source OR phase number | PASS -- P1-1 cites FIA WP Source 1 + cross-val 6.7; P1-2 cites Kaminski-Lo Source 7 + Source T4 + docstring at `paper_trader.py:465-485`; P1-3 cites cross-val 6.9 + Source 7 + Source T5; P1-4 cites Sources 11+12 + Source T5; all P2 themes similarly cite Sources 1/6/8/10/13 + backup T1-T4 |
-| SC-4 JSON block parses (structural inspection) | PASS -- block at lines 746-926 opens `{ "id": "phase-30", ... }` and closes balanced; spot-check shows quotes / commas well-formed; 8 child steps (30.0..30.7) each carry `id`, `name`, `status`, `harness_required`, `priority`, `depends_on_step`, `audit_basis`, `verification.{command,success_criteria,live_check}`, `retry_count: 0`, `max_retries: 3`. Step count >=6 (8 actual) |
-| SC-5: no code edits | PASS -- `git status --short` shows changes ONLY in `handoff/*`, `.claude/scheduled_tasks.lock`, `.claude/.archive-baseline.json`, `.mcp.json`, and two backtest-experiment cache artifacts (`backend/backtest/experiments/feature_ablation_results.tsv` and `mda_cache.json`) which are background-process cache writes, NOT intentional code edits this cycle. No `backend/*.py`, `frontend/*`, or `scripts/*` source files modified |
-| BQ claims internally consistent | PASS -- Section 0 ground-truth table and Stage 12 both report `outcome_tracking=0`, `agent_memories=0`; Stage 3 confirms `strategy_decisions=1 row` (smoke-test); Section 0 shows the 11 named positions with sectors and NULL-stops matching Stage 7 |
-
-Deterministic verdict: ALL 6 SCs met based on file inspection; no
-deterministic check failed.
-
-## 2b. Code-review heuristics (no code diff this cycle)
-
-Diff is `handoff/*` + harmless config + 2 cache artifacts; NO backend
-code or frontend code changed (SC-5 attestation matches). Heuristics
-ran in null-check mode -- no Dimensions 1-5 triggers fire because
-there is no code change to review. The phase-30 PLAN, however,
-flags an existing-code BLOCK condition the report correctly names:
-
-- **stop-loss-always-set (#3) -- existing FAIL** at code level for 7
-  of 11 positions with `stop_loss_price IS NULL`. The phase-25.6
-  HARD BLOCK at `paper_trader.py:108-115` is wired for new buys but
-  legacy April-26 bootstrap positions slipped through pre-25.6.
-  Report correctly classifies Stage 7 + Stage 10 (coverage) as FAIL
-  and routes the fix to P1-2 (wire `backfill_missing_stops`) and
-  P1-3 (route stop-out exits to learn loop). This is the
-  diagnostic deliverable, not a code change.
-- **broad-except-silences-risk-guard (#5) -- existing WARN**:
-  Stage 12 documents `logger.debug` silent failures at
-  `autonomous_loop.py:1637` masking the empty-learn-loop bug. Report
-  correctly captures this; the report itself does not introduce a
-  new broad-except (no code change).
-- **audit-trail-completeness (#10 equivalent)**: report flags 36+
-  days of production cycles produced zero `agent_memories` /
-  `outcome_tracking` rows and zero non-smoke `strategy_decisions`
-  rows. Diagnostic is supported by the cited BQ counts.
-
-`checks_run += ["code_review_heuristics"]` (null-finding pass --
-no diff to flag).
-
-## 2c. Additional deterministic spot-checks
-
-- Stage 1 cross-references the contract's named file
-  (`backend/tools/screener.py`); report notes the contract listed
-  `pyfinagent_data.signals` as audit-basis but the table does NOT
-  exist in BQ -- report flags this as an audit-basis correction
-  (lines 76-81). Scope-honest disclosure, not a contract amendment.
-- Anomaly A explicitly contradicts the dashboard's `+9.35%` /
-  `+11.46%` cumulative metric, calling them "themselves inaccurate"
-  -- the report does NOT take the dashboard claim at face value
-  (anti-rubber-stamp pass, lines 506-513).
-- Report cleanly separates "FAIL historical / PASS current code"
-  for Stage 6 sector cap -- avoids overclaiming a code bug where
-  the actual issue is pre-cap bootstrap state.
+**Audit verdict:** 5/5 PASS. Proceed to deterministic checks.
 
 ---
 
-## 3. LLM judgment
+## 2. Deterministic checks
 
-**Substantive content -- evaluator review**
+### 2.1 Verification command (immutable, from masterplan phase-30.1)
 
-The report is high-density, evidence-anchored, and scope-honest.
-Every Stage verdict carries either a file:line OR a BQ row count
-OR an explicit "table empty" finding (the contract's permitted
-alternative). The 5 live anomalies receive root-cause analysis,
-not surface explanations -- e.g., Anomaly A traces Sharpe -6.26
-to a $5K external deposit on 5/13 that pollutes
-`_nav_to_returns:36-48` via raw `np.diff(navs) / navs[:-1]`,
-producing a +32.12% outlier that explodes the Sharpe denominator.
-Anomaly C names the exact 65h 34m gap between
-`d73f5129` (5/17 00:26 UTC) and `dcf05853` (5/19 18:00 UTC), and
-confirms it three ways (cycle_history.jsonl, kill_switch_audit.jsonl,
-llm_call_log).
+```
+$ grep -q 'cycle_heartbeat_alarm' backend/services/cycle_health.py && \
+  grep -q 'cycle_heartbeat_alarm' backend/slack_bot/scheduler.py
+$ echo $?
+0
+```
 
-**Mutation-resistance test (would adversarial edits change my
-verdict?)**
+**Result: exit 0. PASS.**
 
-- If Stage 6 had said "FAIL" without the historical-vs-current-code
-  split, I would have flagged it as overclaiming -- the report's
-  nuance is load-bearing. The actual report does split correctly.
-- If P1-4 (GIPS-correct return series) had cited only the +32%
-  outlier without naming the `_nav_to_returns` formula, it would
-  be hand-wavy. Actual P1-4 names `paper_metrics_v2.py::_nav_to_returns`
-  AND `save_daily_snapshot`, plus the Modified-Dietz backfill
-  prescription.
-- The "Sharpe -6.26 stops being polluted" claim in P1-4 success
-  criteria is observable in the live_check (pre/post Sharpe
-  values), so the fix is auditable.
+### 2.2 Test suite (`test_cycle_heartbeat_alarm.py`)
 
-**Scope honesty**
+```
+$ source .venv/bin/activate && python -m pytest backend/tests/test_cycle_heartbeat_alarm.py -v
+============================= test session starts ==============================
+platform darwin -- Python 3.14.4, pytest-9.0.3, pluggy-1.6.0
+collected 7 items
 
-Report stays strictly diagnostic. Section 5 "Hard guardrail
-attestation" explicitly affirms no code changes, no mutating BQ,
-no mutating Alpaca, all SELECT-only with LIMIT + date filter, total
-BQ scan <1 MB. SC-5 holds. The phase-30 masterplan JSON in Section
-4 is a PLAN payload (status `pending` for 30.1..30.7); it is NOT
-a code change.
+test_fresh_cycle_on_weekday_no_alarm PASSED                              [ 14%]
+test_stale_26h_on_weekday_alarms PASSED                                  [ 28%]
+test_stale_26h_on_saturday_no_alarm PASSED                               [ 42%]
+test_stale_30h_on_sunday_no_alarm PASSED                                 [ 57%]
+test_missing_history_file_returns_sentinel PASSED                        [ 71%]
+test_empty_history_file_returns_sentinel PASSED                          [ 85%]
+test_malformed_last_row_falls_back_to_prev PASSED                        [100%]
 
-**Anti-rubber-stamp items**
+============================== 7 passed in 0.01s ===============================
+```
 
-The report willingly downgrades dashboard-claimed metrics ("the
-+9.35% / +11.46% values are themselves inaccurate"), willingly
-contradicts the project's own inline citation ("Source 13 / arXiv
-2604.27150 -- pyfinagent cites 8% but the paper's top-5 swarm configs
-converged on 10%; inline citation at `paper_trader.py:104,468`
-overstates literature support"), and willingly admits an audit-basis
-table-name error ("the audit-basis referenced `pyfinagent_data.signals`
-but it does not exist in BQ"). These are the markers of a report
-that critiques itself, not one that rubber-stamps.
+**Result: 7/7 passed. PASS.** Matches the contract's required 7
+cases exactly (fresh-weekday, stale-weekday-alarms, stale-Sat-quiet,
+stale-Sun-quiet, missing-file-sentinel, empty-file-sentinel,
+malformed-line-fallback).
 
-**Three minor reservations (none rise to verdict-blocker)**
+### 2.3 Regression check (`test_observability.py`)
 
-- (i) Anomaly C says "Likely root causes (any one of these matches)"
-  rather than confirming exactly one. Acceptable in a diagnostic-only
-  cycle -- root-cause confirmation is properly deferred to phase-30.1
-  / 30.3 implementation cycles.
-- (ii) The audit-basis-vs-actual table-name discrepancy
-  (`pyfinagent_data.signals` does not exist) was an audit-basis
-  source defect, not a contract criterion violation;
-  the report correctly absorbs it via the substitute citation of
-  `signals_log` / `_log_cycle_signals_to_bq:1640-1710`.
-- (iii) Some P3 themes (P3-2 ASCII logger, P3-3 restart-survivable
-  lock) are more hygiene than remediation, but contract SC-3 says
-  "at least 6 themes split across P1/P2/P3" and "name a concrete
-  file or table" -- both criteria are met. SC-3 does not require
-  every P3 to be load-bearing.
+```
+$ python -m pytest backend/tests/test_observability.py
+============================== 12 passed, 1 warning in 3.32s
+```
 
-None of (i)-(iii) blocks PASS.
+**Result: 12/12 passed. PASS.** Pre-existing genai DeprecationWarning
+is not caused by this cycle (Python 3.17 `_UnionGenericAlias`).
+
+### 2.4 Syntax checks
+
+```
+$ python -c "import ast; ast.parse(open('backend/services/cycle_health.py').read()); \
+  ast.parse(open('backend/slack_bot/scheduler.py').read()); \
+  ast.parse(open('backend/tests/test_cycle_heartbeat_alarm.py').read()); print('SYNTAX_OK')"
+SYNTAX_OK
+```
+
+**Result: PASS** for all 3 files.
+
+### 2.5 Diff scope check
+
+```
+$ git diff --stat backend/
+ backend/services/cycle_health.py | 125 +++++++++++++++++++++++++++++++++++++++
+ backend/slack_bot/scheduler.py   |  55 +++++++++++++++++
+ 2 files changed, 180 insertions(+)
+```
+
+Plus untracked: `backend/tests/test_cycle_heartbeat_alarm.py` (200 lines, NEW).
+
+**Result: PASS.** Exactly the 3 expected files. Zero lines outside
+contract's hard-guardrail bound. No frontend, `.claude/`, `.mcp.json`,
+BQ migrations, or Alpaca-touching code modified.
+
+### 2.6 Success criteria (verbatim from masterplan phase-30.1)
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| `cycle_heartbeat_alarm_function_defined_in_cycle_health` | **PASS** | `def cycle_heartbeat_alarm(...)` at `cycle_health.py:142`; pure verdict function; returns the required dict shape |
+| `watchdog_cron_invokes_cycle_heartbeat_alarm` | **PASS** | `cycle_heartbeat_alarm()` call inside `_watchdog_health_check` at `scheduler.py:421` (after the existing backend-health probe); imported lazily inside try/except for fail-open semantics |
+| `alarm_emits_p1_slack_when_no_cycle_in_last_26h_weekday` | **PASS** | `fire_cycle_heartbeat_alarm` calls `raise_cron_alert_sync(severity="P1", source="cycle_health", error_type="cycle_heartbeat_stale_weekday", ...)`. Gated on `should_alarm = stale AND is_weekday_et`. State-transition gate in scheduler.py:430-433 ensures only `None->True` and `False->True` post (no spam) |
+| `test_added_under_backend_tests` | **PASS** | `backend/tests/test_cycle_heartbeat_alarm.py` exists, 200 lines, 7 cases, all pass in 0.01s |
+
+**All 4 immutable criteria met.**
+
+---
+
+## 3. Code-review heuristics (5-dimension trading-domain skill)
+
+### Dimension 1 -- Security audit
+
+- `secret-in-diff` [BLOCK]: NO MATCH. Diff contains no API keys/
+  tokens/credentials.
+- `prompt-injection-path` [BLOCK]: NO MATCH. No LLM API surface
+  touched.
+- `command-injection` [BLOCK]: NO MATCH. No `subprocess`/`os.system`/
+  `eval`/`exec`.
+- `system-prompt-leakage` [WARN]: NO MATCH. No new endpoint/log
+  serializes system_prompt.
+- `rag-memory-poisoning` [WARN]: NO MATCH. No memory `add_*`,
+  no vector-store import.
+- `unbounded-llm-loop` [WARN]: NO MATCH. No LLM loop touched.
+- `unicode-in-logger` [NOTE]: NO MATCH. All new `logger.*` calls use
+  ASCII (`--`, `->`). Per `security.md` Windows cp1252 rule.
+
+### Dimension 2 -- Trading-domain correctness
+
+- `kill-switch-reachability` [BLOCK]: NO MATCH. No execution-path
+  change. Heartbeat alarm is observability/alerting, not order
+  routing.
+- `stop-loss-always-set` [BLOCK]: NO MATCH. No buy path touched.
+- `perf-metrics-bypass` [BLOCK]: NO MATCH. No Sharpe/drawdown/alpha
+  computation.
+- `paper-trader-broad-except` [BLOCK]: NO MATCH. The broad-except
+  blocks in this diff are NOT in `paper_trader.py` execution paths
+  -- they are in the observability/alerting layer where fail-open is
+  the documented correct semantics. See Dimension 3 below for the
+  detailed analysis.
+- `crypto-asset-class` [BLOCK]: NO MATCH.
+- `bq-schema-migration-safety` [WARN]: NO MATCH. No BQ schema change.
+
+### Dimension 3 -- Code quality
+
+- `broad-except` [WARN]: **NOTE-LEVEL, not WARN-blocking.** The diff
+  contains 5 `except Exception` blocks:
+  1. `cycle_health.py:194` inside the reversed-line scan -- catches
+     malformed JSON lines, continues to next line. NOT silenced:
+     loop continues to find a valid row, then the function returns a
+     sentinel if none found. Justified.
+  2. `cycle_health.py:212` outer try around the whole staleness
+     compute -- returns the sentinel dict and logs at WARNING level
+     (`logger.warning("cycle_heartbeat_alarm fail-open: %r", exc)`).
+     Required by design: the watchdog cron must NOT crash if a JSONL
+     row is malformed. WARNING log preserves the audit trail.
+  3. `cycle_health.py:228` (import fail-open in
+     `fire_cycle_heartbeat_alarm`) -- WARNING log; mirrors the
+     existing `_fire_freshness_alarm:90-125` pattern.
+  4. `cycle_health.py:248` (dispatch fail-open in
+     `fire_cycle_heartbeat_alarm`) -- WARNING log; mirrors the
+     existing freshness-alarm dispatch pattern.
+  5. `scheduler.py:454` (watchdog outer fail-open) -- WARNING log
+     with full exception repr.
+
+  All 5 are FAIL-OPEN BY DESIGN with WARNING-level logs (NOT silenced
+  with `pass`). The pattern is sibling-symmetric to the existing
+  `_fire_freshness_alarm:90-125` in the same module. This is the
+  documented correct semantics for observability code: a Slack
+  dispatch failure must never break the watchdog cron, and the
+  staleness check must never crash the cron either. Justified.
+
+- `no-type-hints` [NOTE]: NO MATCH. `cycle_heartbeat_alarm` and
+  `fire_cycle_heartbeat_alarm` both have full signatures
+  (`(threshold_sec: float = ...) -> dict` and `(verdict: dict) -> None`).
+- `print-statement` [WARN]: NO MATCH.
+- `test-coverage-delta` [WARN]: NO MATCH. 200 lines of new business
+  logic, 200 lines of new tests -- 1:1 ratio.
+- `magic-number` [NOTE]: NO MATCH. `_CYCLE_HEARTBEAT_STALE_SEC = 93_600.0`
+  is a named constant with a 7-line docstring explaining the
+  derivation (24h cycle + 2h grace, consistent with existing
+  `_TABLE_MAX_AGE_SEC["paper_portfolio_snapshots"]`).
+
+### Dimension 4 -- Anti-rubber-stamp on financial logic
+
+- `financial-logic-without-behavioral-test` [BLOCK]: NO MATCH. This
+  is observability code, NOT Sharpe/drawdown/position-sizing. Even
+  so, 7 behavioral tests ship with the diff.
+- `tautological-assertion` [BLOCK]: NO MATCH. Inspecting the 7 test
+  cases:
+  - Test 1 asserts `verdict["stale"] is False AND age_sec < threshold`
+    (two independent post-conditions).
+  - Test 2 asserts `verdict["stale"] is True AND age_sec > threshold`
+    (mirror of test 1 -- not tautological).
+  - Test 3 asserts `stale is True AND is_weekday_et is False AND
+    should_alarm is False` -- validates the weekday gate suppresses
+    Saturday alerts.
+  - Test 4 mirror for Sunday.
+  - Tests 5/6 validate sentinel behavior for missing/empty file.
+  - Test 7 validates the JSON-line fallback (writes 1 good row +
+    1 malformed line, asserts the function falls back to the good
+    row's completed_at).
+  Assertions are concrete and non-trivial.
+- `over-mocked-test` [BLOCK]: NO MATCH. Tests do NOT mock the unit
+  under test (`cycle_health.cycle_heartbeat_alarm`). They mock only
+  the wall-clock seam (`_now_utc`) and the path seam (`_HISTORY_PATH`).
+- `rename-as-refactor` [BLOCK]: NO MATCH. Pure additive change.
+- `pass-on-all-criteria-no-evidence` [BLOCK]: This evaluator critique
+  cites file:line for every claim. NOT a sycophantic stamp.
+
+**Mutation-resistance spot-check (weekday gate, per spawn prompt):**
+The weekday gate is `is_weekday_et = now.astimezone(_NYSE_TZ).weekday() < 5`.
+Tests 1-4 form a 2x2 truth table:
+- Test 1 (Tue weekday=1, fresh) -- should_alarm=False
+- Test 2 (Tue weekday=1, stale) -- should_alarm=True
+- Test 3 (Sat weekday=5, stale) -- should_alarm=False (gate suppression)
+- Test 4 (Sun weekday=6, stale) -- should_alarm=False (gate suppression)
+
+This catches the high-value mutations:
+- Inversion (`weekday() >= 5`): Tests 2 + 3/4 both flip; multiple failures.
+- Off-by-one (`weekday() <= 5`): Test 3 would still report
+  is_weekday_et=True when weekday=5 -- caught by `assert is_weekday_et is False`.
+- Removed gate (`should_alarm = stale`): Tests 3/4 catch (they'd assert
+  should_alarm=False but it'd be True).
+- Timezone-removed (`now.weekday()` without `astimezone(_NYSE_TZ)`):
+  partially caught -- Test 3 (Sat 21:00 UTC) is Sat in UTC anyway, so
+  weekend gate works; Test 1 (Tue 18:00 UTC) is Tue in UTC, ditto.
+  However, this is a known limitation: the tests don't cover the
+  UTC-Saturday-but-NYSE-Friday edge case (Friday 21:00 EST = Sat 02:00
+  UTC). Acceptable scope; an audit-tier follow-up could harden this.
+
+The mutation-resistance is load-bearing for the documented bug class
+(weekday-gate logic errors). The minor UTC/ET-edge gap is a noted
+limitation, not a verdict-degrading miss for P1 scope.
+
+### Dimension 5 -- LLM-evaluator anti-patterns (self-aware)
+
+- `sycophancy-under-rebuttal` [BLOCK]: NO MATCH. First Q/A spawn for
+  phase-30.1; no prior verdict to flip.
+- `second-opinion-shopping` [BLOCK]: NO MATCH. First Q/A spawn.
+- `missing-chain-of-thought` [BLOCK]: NO MATCH. This critique cites
+  file:line and verbatim command output for every claim.
+- `3rd-conditional-not-escalated` [BLOCK]: NO MATCH. No prior
+  CONDITIONALs in `harness_log.md` for phase-30.1.
+- `criteria-erosion` [WARN]: NO MATCH. All 4 immutable criteria from
+  the masterplan are checked verbatim (see §2.6 table).
+- `position-bias` [WARN]: NO MATCH. Evidence drives verdict, not
+  position.
+
+**Code-review heuristics summary:** 0 BLOCK fires, 0 WARN fires.
+PASS.
+
+---
+
+## 4. Scope-honesty audit (per spawn prompt)
+
+The audit's P1-1 in `handoff/archive/phase-30.0/experiment_results.md`
+named `cycle_health.py`, `alerting.py`, `main.py` as the touch list
+(line 618-620). The implementation touched `cycle_health.py` (matches),
+`slack_bot/scheduler.py` (substitute for `main.py`), and added
+`test_cycle_heartbeat_alarm.py` (within the test scope). `alerting.py`
+was NOT modified.
+
+**Substitution justification audit:**
+1. The phase-30.0 audit ITSELF at line 623-624 says:
+   > "Slack alert. The check runs from the watchdog cron
+   > (`backend/slack_bot/scheduler.py:211-218`) which is interval-"
+   So the audit recognized scheduler.py as the seam.
+2. The masterplan phase-30.1 entry's `verification.command` (line 788)
+   explicitly says
+   `grep -q 'cycle_heartbeat_alarm' backend/slack_bot/scheduler.py` --
+   the substitution is CODIFIED in the masterplan, not a deviation.
+3. The `research_brief.md` Section 6 (lines 327-329) anchors the
+   watchdog cron at `slack_bot/scheduler.py:211-218` and
+   `:334-400`; it explicitly recommends scheduler.py as the host
+   ("the watchdog process is already running on a separate cadence
+   from the autonomous loop -- Source 5: out-of-band detection plane
+   requirement").
+4. `alerting.py` not-modified justification: `raise_cron_alert_sync`
+   already has the right entry-point shape for severity=P1 cron
+   alerts with deduplication; the new code consumes it as-is. No
+   `alerting.py` change is necessary.
+
+The substitution is fully justified by the audit itself, the
+masterplan, and the research brief. NOT a scope-erosion or
+goalpost-shift.
+
+**Honesty signals:** experiment_results.md §"Scope adherence"
+(lines 33-40) discloses the substitution UP-FRONT and cites the
+research brief Q2 as basis. Auditor-readable.
+
+---
+
+## 5. LLM judgment (last leg)
+
+**Contract alignment:**
+- All 4 immutable success criteria met (§2.6 above).
+- Verification command exit 0 (§2.1).
+- Diff scope respected (§2.5).
+- Hard guardrails honored (no mutating BQ, no Alpaca, no frontend,
+  <300 LOC).
+
+**Audit-trail completeness (heuristic #10):** The P1 Slack alert
+payload includes 5 actionable fields: `last_completed_at`, `age_sec`,
+`age_hours_approx`, `threshold_sec`, `is_weekday_et`. Operator can
+reconstruct the exact failure state from the Slack message. PASS.
+
+**State-transition gate correctness:** The scheduler.py code at
+lines 430-447 implements the canonical pattern:
+- `None -> True` (first probe found stale) -- P1 alert fires.
+- `False -> True` (fresh -> stale) -- P1 alert fires.
+- `True -> False` (recovery) -- INFO log, no P1.
+- `None -> False`, `True -> True`, `False -> False` (steady) -- DEBUG.
+
+This matches the existing `_watchdog_last_was_healthy` pattern at
+`scheduler.py:344-388` and is the documented correct anti-spam
+discipline (research_brief Section 5, "the watchdog's transition-
+gating is the correct primary control"). PASS.
+
+**Anti-rubber-stamp on test design:** The 7 tests are the minimum
+the spawn prompt described, but they ARE load-bearing:
+- 4 cases exercise the weekday-gate truth table (1, 2, 3, 4).
+- 2 cases exercise the sentinel-fallback path (5, 6).
+- 1 case exercises the JSON-line fallback (7).
+None are trivial mock-and-call-count assertions. None mock the
+unit under test. NOT a rubber-stamp.
+
+**Research-gate compliance:** The contract cites the research
+brief by name and the brief's specific guidance (Q2 on
+scheduler.py seam, Q3 on weekday-only gating, Q4 on 26h derivation,
+Q5 on test design). All 7 implementation choices in the
+experiment_results map to specific research-brief sections.
+
+**Recovery-path test coverage:** Not explicitly tested via a
+mocked Slack call/recovery transition test. The recovery path
+in scheduler.py:438-442 is by-inspection-correct (logs INFO, no
+P1) and the dispatch is fail-open by design. This is a minor
+evidence gap rather than a verdict-degrading miss. For P1
+overnight scope it is acceptable; a follow-up integration test
+covering the True->False transition with a spy on
+`raise_cron_alert_sync` would harden coverage. **NOTE-level
+finding, not WARN/BLOCK.**
 
 ---
 
@@ -199,7 +380,28 @@ None of (i)-(iii) blocks PASS.
 
 verdict: PASS
 ok: true
-checks_run: ["harness_compliance_audit_5_item", "file_existence", "stage_verdict_count", "stage_file_line_anchors", "stage_bq_evidence", "five_anomalies_present", "anomaly_citations", "p1_p2_p3_theme_count", "theme_file_or_table_named", "theme_source_or_phase_cited", "sc4_json_structural_inspection", "sc5_no_code_edits_git_status", "code_review_heuristics", "scope_honesty_review", "anti_rubber_stamp_review", "mutation_resistance_review"]
+checks_run: [harness_compliance_audit, verification_command, pytest_new, pytest_regression, syntax_three_files, diff_scope, code_review_heuristics, scope_honesty, mutation_resistance_spotcheck, llm_judgment]
 violated_criteria: []
-violation_details: All six immutable success criteria (SC-1 through SC-6) met. SC-1: 12 stages each with verdict + file:line + BQ-or-empty-table evidence. SC-2: anomalies A-E each cross-validated with BQ row counts / file paths / cycle log refs. SC-3: 12 themes (4 P1 + 5 P2 + 3 P3) each file-anchored and source-cited. SC-4: phase-30 JSON block with 8 steps, all required keys present including verification.{command,success_criteria,live_check}, retry_count=0, max_retries=3. SC-5: git status shows zero source-code edits (only handoff/* + harmless config + 2 backtest cache artifacts that are background-process writes); no mutating BQ / Alpaca. SC-6: first Q/A spawn, no verdict-shopping. Three minor reservations noted in LLM judgment (Anomaly C ambiguous root-cause, audit-basis table-name correction, two hygiene-grade P3 themes) -- none rises to a verdict blocker because contract SC-1..SC-6 are framed as deliverable-shape requirements (verdict + anchor + evidence) which are uniformly met.
+violation_details: none
 certified_fallback: false
+
+PASS rationale:
+- All 5 harness-compliance audit items PASS (researcher gate, contract
+  pre-commit, results present, log-not-yet-written, no verdict-shopping).
+- Verification command exits 0 (immutable from masterplan).
+- 7/7 new tests pass; 12/12 regression tests pass; 3/3 files syntax-OK.
+- All 4 immutable success criteria met with cited file:line evidence.
+- Diff stays in the 3-file scope; `main.py` -> `scheduler.py`
+  substitution is codified in the masterplan and justified by the
+  research brief and audit itself.
+- Code-review heuristics: 0 BLOCK, 0 WARN; broad-except blocks are
+  fail-open-by-design in observability/alerting code (NOT in risk-guard
+  paths) and all log at WARNING level.
+- Mutation-resistance on the weekday gate is load-bearing (2x2 truth
+  table catches inversion, off-by-one, gate-removal mutations).
+- Audit-trail completeness verified (Slack payload carries 5 actionable
+  fields).
+- Single NOTE-level finding: recovery-path (True->False) not exercised
+  by a Slack-spy test. Recommended as a P3 hardening follow-up; does
+  not degrade the P1 verdict because the recovery path is fail-open by
+  construction and not load-bearing for the P1 silent-failure use case.

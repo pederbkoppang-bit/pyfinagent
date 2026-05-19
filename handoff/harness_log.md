@@ -20530,3 +20530,52 @@ This pattern was previously documented in phase-28.6/.7/.8/.16 (memory: `feedbac
 **Next-step plan (phase-30 masterplan entry):** 8 steps inserted into masterplan.json. 30.0 done by this cycle. 30.1..30.4 are P1 (must-do trading safety + observability). 30.5..30.6 are P2. 30.7 is P3.
 
 **Total cycle time:** ~75 min (research gate ~25 min including a stall + nudge; generate ~10 min; Q/A ~12 min including a mid-thought interruption + resume).
+
+
+---
+
+## Overnight pause -- 2026-05-19 19:33 UTC
+
+Autonomous loop PAUSED via:
+1. `handoff/kill_switch_audit.jsonl` append: `{"event": "pause", "trigger": "phase-30-overnight-remediation", ...}` at 19:33:49 UTC.
+2. `POST /api/paper-trading/pause` returned `{"status": "paused", "state": {"paused": true, "pause_reason": "manual", "sod_nav": 22290.79, "sod_date": "2026-05-19", "peak_nav": 23540.0}}`.
+
+Both audit-file replay AND in-memory backend state now report paused.
+Last successful cycle: `dcf05853` 2026-05-19 18:00 UTC.
+Next scheduled fire (skipped while paused): Wednesday 2026-05-20 ~18:00 UTC.
+
+**Operator action required at morning**: run morning-verification checklist (in
+end-of-run summary), then `POST /api/paper-trading/resume` to unpause.
+
+---
+
+## Cycle 1 -- 2026-05-19 19:47 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.96% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+
+## Cycle 1 -- 2026-05-19 -- phase=30.1 result=PASS
+
+**Step:** phase-30.1 -- P1: Out-of-band autonomous-cycle heartbeat alarm.
+**Researcher:** complex/opus/max. 8 sources read in full (Memfault, Healthchecks.io, OneUptime, Saif Rajhi, Upti.my, pandas_market_calendars x2), 17 URLs, recency scan complete, three-variant search composition visible. gate_passed=true.
+**Generator diff:** 3 files (380 raw lines, 257 non-comment LOC, under the 300-line guardrail):
+- `backend/services/cycle_health.py`: +125 lines (new pure-function `cycle_heartbeat_alarm` + `fire_cycle_heartbeat_alarm` dispatcher + `_now_utc` test seam + `_CYCLE_HEARTBEAT_STALE_SEC` constant + `_NYSE_TZ`)
+- `backend/slack_bot/scheduler.py`: +55 lines (`_cycle_heartbeat_last_was_stale` state-transition var + invocation block at end of `_watchdog_health_check`)
+- `backend/tests/test_cycle_heartbeat_alarm.py`: +200 lines (NEW, 7 test cases)
+**Tests:** 7/7 PASS in 0.02s. Regression `test_observability.py`: 12/12 PASS.
+**Q/A verdict:** PASS (single spawn). 5-item harness-compliance ALL PASS. All 4 immutable success criteria met. Top-15 code-review heuristics: 0 BLOCK, 0 WARN. Mutation-resistance: weekday gate 2x2 truth table is load-bearing. One NOTE: recovery-path Slack-spy test deferred as P3 hardening.
+**Scope substitution:** audit P1-1 named `main.py`; implementation used `slack_bot/scheduler.py` (the watchdog cron's home). Substitution codified in masterplan verification command and justified by research brief Q2.
+**Closes:** phase-30.0 Anomaly C (65h 34m silent-cycle gap 2026-05-17 -> 2026-05-19).
