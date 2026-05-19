@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-19 | `7aea8a23` | phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6 |
 | 2026-05-19 | `212f3cc5` | phase-30.1: out-of-band autonomous-cycle heartbeat alarm + pause overnight loop |
 | 2026-05-19 | `c71ff092` | phase-30.0: E2E paper-trading pipeline audit (diagnostic-only) |
 | 2026-05-19 | `5ba0c5e5` | phase-29.6: extract qa.md code-review heuristics to skill (FINAL P1 + overnight summary) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `f61ffeb0` | phase-28.10: Opportunistic insider-buying signal lifted from Layer-1 into screener tier |
 | 2026-05-17 | `9ba6c754` | phase-28.9: Options-flow OI-surge filter (new plug-in) |
 | 2026-05-17 | `856538e4` | phase-28.8: Russell-1000 universe expansion with screener cost guard |
-| 2026-05-17 | `e75390fe` | phase-28.7: Multidimensional momentum composite (price + SUE + 52-wk hi distance + factor momentum) |
 
 ---
 
+### v6.11.2 — phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6 (2026-05-19)
+
+- **phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6**
 ### v6.11.1 — phase-30.1: out-of-band autonomous-cycle heartbeat alarm + pause over... (2026-05-19)
 
 - **phase-30.1: out-of-band autonomous-cycle heartbeat alarm + pause overnight loop**
