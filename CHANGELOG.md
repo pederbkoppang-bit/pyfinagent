@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-19 | `4e94e4ba` | phase-30.6: price-tolerance pre-trade gate in execute_buy |
 | 2026-05-19 | `1a818932` | phase-30.5: sector cap NAV-percentage cap alongside count cap |
 | 2026-05-19 | `06922866` | phase-30.3: connect stop-loss exits to learn loop |
 | 2026-05-19 | `7aea8a23` | phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `1a088125` | phase-28.15: Social media velocity in screener (lift social_sentiment.py into picker pre-filter) |
 | 2026-05-17 | `6e88f91a` | phase-28.13: Earnings-call NLP for firm-level GPR exposure |
 | 2026-05-17 | `ac5a5b3c` | phase-28.11: LLM analyst-report narrative signal (highest expected lift) |
-| 2026-05-17 | `f61ffeb0` | phase-28.10: Opportunistic insider-buying signal lifted from Layer-1 into screener tier |
 
 ---
 
+### v6.11.5 — phase-30.6: price-tolerance pre-trade gate in execute_buy (2026-05-19)
+
+- **phase-30.6: price-tolerance pre-trade gate in execute_buy**
 ### v6.11.4 — phase-30.5: sector cap NAV-percentage cap alongside count cap (2026-05-19)
 
 - **phase-30.5: sector cap NAV-percentage cap alongside count cap**
