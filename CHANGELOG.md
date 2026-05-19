@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-19 | `37cc641` | chore: harness audit-log append from e2e-test-prompt session |
 | 2026-05-18 | `4f89858` | chore: harness audit-log append from overnight-prompt drafting session |
 | 2026-05-18 | `5db0ba6` | chore: harness audit-log append from phase-29 exec-prompt session |
 | 2026-05-17 | `f6e9b36` | chore: harness audit-log append from audit-prompt-revision session |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `2ed3b6db` | phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe() |
 | 2026-05-16 | `5b3dad4d` | phase-23.2.3: Verify FD leak did not regress |
 | 2026-05-16 | `35aecc2b` | chore(docs): clarify paper-trading tables live in financial_reports |
-| 2026-05-16 | `613c345f` | phase-23.2.2: Verify zero phantom trades / cash-leak regressions (trade<->position reconciliation) |
 
 ---
 
