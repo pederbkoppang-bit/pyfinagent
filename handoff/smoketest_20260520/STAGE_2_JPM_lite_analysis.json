@@ -1,0 +1,7 @@
+{
+  "ticker": "JPM",
+  "recommendation": "HOLD",
+  "final_score": 3.8,
+  "risk_assessment": "JPM has the lowest composite_score in the basket at -3.986 with negative 3-month momentum of -3.75%, signaling weak relative strength and an unfavorable entry for a momentum strategy. RSI_14 of 36.9 approaches but has not crossed the oversold threshold (<30), providing mild technical support for HOLD rather than outright SELL. Recommend HOLD pending either an oversold reversal signal or further deterioration confirming a SELL.",
+  "price_at_analysis": 295.70
+}

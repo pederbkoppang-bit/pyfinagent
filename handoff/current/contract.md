@@ -1,74 +1,60 @@
-# Sprint Contract -- phase-31.0.1 (Smoketest Stage 1)
+# Sprint Contract -- phase-31.0.2 (Smoketest Stage 2)
 
-**Step:** phase-31.0.1 -- Smoketest Stage 1: screen + rank + sector-enrich for 4-ticker basket.
+**Step:** Lite-path analysis via Claude Code subagent per ticker.
 **Date:** 2026-05-20.
-**Mode:** Smoketest. Loop STAYS PAUSED. NO production BQ writes.
+**Mode:** Loop PAUSED. Claude Code substitutes the in-app Anthropic API.
 
 ## Research-gate summary
 
-Researcher deep tier delivered to `handoff/current/research_brief.md`.
-Envelope: **18 sources read in full** (floor 20; honest gate_passed=false
-disclosure due to paywalled 403/404 responses on 4 sources). 26 URLs,
-[ADVERSARIAL] tag present (Wright Research 2025 momentum-decay
-contradicts naive long-momentum signal). Content-complete despite
-floor miss: code audit verified verbatim + Test Design #3 fully
-specified.
+Deep tier. 17 sources read in full (gate_passed=false, honest disclosure
+on 20-source floor miss). Substantive content complete: code audit +
+killer SDK finding.
 
-Code-audit verbatim (research_brief.md lines 23-82):
-- `screen_universe` returns dicts WITHOUT `sector` and WITHOUT
-  `composite_score` by default.
-- `composite_score` is added by `rank_candidates`
-  (`screener.py:370`).
-- `sector` is enriched POST-rank by `_fetch_ticker_meta`
-  (`autonomous_loop.py:579-596`).
-- Production caller (`autonomous_loop.py:305-310`) does NOT pass
-  `sector_lookup` to `screen_universe`.
-
-**Test design: #3 (full production chain).** screen -> rank -> sector
-enrichment. Mirrors production exactly per researcher recommendation.
+Killer findings:
+- **Source 14** (Anthropic Claude Code Agent SDK docs):
+  `output_format={"type":"json_schema","schema":...}` auto-validates +
+  retries.
+- **Source 11** (json_repair): canonical JSON-repair lib for L1/L2
+  failure modes.
+- **Source 15 [ADVERSARIAL]**: keep subagent context minimal to avoid
+  the known parse-failure bug.
 
 ## Hypothesis
 
-`screen_universe(["AAPL","MSFT","NVDA","JPM"], period="6mo")` ->
-`rank_candidates(..., top_n=4, strategy="momentum")` -> sector
-enrichment via yfinance.Ticker.info produces 4 candidate dicts with
-non-empty `sector` AND numeric `composite_score`.
+4 Claude Code subagents (one per ticker) produce 4 valid JSON
+syntheses matching the 5-field shape.
 
-## Immutable success criteria (per morning goal Stage 1)
+## Immutable success criteria
 
-```
-1. screen_universe(["AAPL","MSFT","NVDA","JPM"]) -> 4 dicts.
-2. Each dict has non-empty `sector` (post-enrichment).
-3. Each dict has a numeric `composite_score` (post-rank).
-4. Output persisted to handoff/smoketest_20260520/STAGE_1_screen_universe_output.json.
-5. NO production BQ writes; NO LLM calls; NO Alpaca calls.
-```
+1. Each of 4 spawns returns parseable JSON.
+2. Each JSON has 5 fields: ticker, recommendation, final_score,
+   risk_assessment, price_at_analysis.
+3. `recommendation` in {BUY, HOLD, SELL}.
+4. `final_score` numeric in [0, 10].
+5. `price_at_analysis` matches Stage 1 `current_price` within rounding.
+6. NO `anthropic.Anthropic().messages.create()` call.
+7. Per-ticker outputs persisted to
+   `handoff/smoketest_20260520/STAGE_2_<TICKER>_lite_analysis.json`.
+8. Compiled summary at `STAGE_2_summary.json`.
 
 ## Plan
 
-1. Run Test Design #3 inline as a Python script (NOT pytest -- this
-   uses live yfinance; treat as integration smoketest, not unit
-   test). Persist the post-enrichment list to
-   `handoff/smoketest_20260520/STAGE_1_screen_universe_output.json`.
-2. Write per-stage results to
-   `handoff/smoketest_20260520/STAGE_1_results.md` with PASS/PARTIAL/FAIL.
-3. Spawn `qa` ONCE for verdict; circuit-breaker max 2 fresh retries.
+1. Load Stage 1 output JSON.
+2. For each of [AAPL, MSFT, NVDA, JPM]: spawn
+   `Agent({subagent_type:"general-purpose"})` with minimal context
+   (Stage 1 row + ticker) and JSON-only prompt.
+3. Parse via `json_repair.loads()` if available, else bracket-extract
+   + `json.loads()`.
+4. Validate 5-field schema + value constraints.
+5. Persist per-ticker + summary.
 
 ## Hard guardrails
 
-- NO production BQ writes. NO LLM calls. NO Alpaca calls.
-- Live yfinance is permitted (read-only data fetch, no orders).
-- Output is local file only.
-- Stage 1 verifies shape, NOT strategy quality (per researcher
-  citation of Sealos ML smoke-test discipline).
-- Researcher gate is `false` on the 20-source floor; content
-  completeness compensates. Q/A may judge this as PASS-with-NOTE,
-  CONDITIONAL, or FAIL depending on strictness.
+- Minimal subagent context (avoid GitHub #30030 parse bug).
+- Researcher gate false on floor miss; content-complete.
+- NO BQ writes. NO Alpaca. NO in-app Anthropic calls.
 
 ## References
 
-- `handoff/current/research_brief.md` -- deep brief, 18 sources, gate honest=false.
-- `backend/tools/screener.py:64-72, 179-201, 370` -- function signatures.
-- `backend/services/autonomous_loop.py:305-310, 541-596` -- production
-  caller chain.
-- Morning goal Stage 1 spec.
+- `handoff/current/research_brief.md` (17 sources, Source 14+15 key).
+- `handoff/smoketest_20260520/STAGE_1_screen_universe_output.json` (input).

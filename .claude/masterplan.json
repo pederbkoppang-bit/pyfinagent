@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-20T00:18:00+00:00",
+  "updated_at": "2026-05-20T00:35:00+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10898,6 +10898,30 @@
               "no_production_bq_writes_or_alpaca_or_llm"
             ],
             "live_check": "Output file at handoff/smoketest_20260520/STAGE_1_screen_universe_output.json validated by Q/A re-run; 4 rows NVDA/AAPL/MSFT/JPM with sector + composite_score."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.2",
+          "name": "Stage 2: Lite-path analysis via Claude Code subagent (4 tickers)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.1",
+          "audit_basis": "morning goal 2026-05-20 Stage 2 spec + research_brief.md (17 sources read in full, gate_passed=false honest, killer SDK finding source 14, ADVERSARIAL source 15) + 4 per-ticker JSONs + STAGE_2_summary.json (1 BUY + 3 HOLD).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGE_2_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGE_2_summary.json')); assert d['verdict']=='PASS' and d['syntheses_count']==4 and all(r['recommendation'] in {'BUY','HOLD','SELL'} for r in d['syntheses'])\"",
+            "success_criteria": [
+              "four_subagent_jsons_persisted",
+              "all_schema_5_field_validated",
+              "recommendations_in_buy_hold_sell_set",
+              "final_scores_in_0_to_10_range",
+              "prices_match_stage_1_within_tolerance",
+              "no_anthropic_anthropic_call_in_diff",
+              "compiled_summary_persisted"
+            ],
+            "live_check": "STAGE_2_summary.json verdict=PASS, 4 per-ticker JSONs + summary in handoff/smoketest_20260520/"
           },
           "retry_count": 0,
           "max_retries": 3
