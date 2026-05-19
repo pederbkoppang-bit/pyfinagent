@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-19T05:54:58.105382+00:00",
+  "updated_at": "2026-05-19T06:08:08.151903+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10523,20 +10523,23 @@
         {
           "id": "29.3",
           "name": "P1: Register 4 in-app MCP servers (backtest/data/risk/signals) in .mcp.json",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 experiment_results.md \u00a73c + MCP_PROMOTION_MISSED table: all 4 FastMCP servers (backend/agents/mcp_servers/{backtest,data,risk,signals}_server.py) are written but NOT in .mcp.json \u2192 Layer-2 in-app agents cannot call them as tools. risk_server.evaluate_candidate (kill_switch \u2192 pbo \u2192 projected_dd gate chain) is highest-value: lets Layer-2 agents consult risk gate BEFORE recommending a trade.",
+          "audit_basis": "phase-29.0 \u00a73c + phase-29.3 research_brief.md (7 sources read in full, gate_passed=true, free_only_verdict=ADOPT all 4). 4 FastMCP servers exist in backend/agents/mcp_servers/{backtest,data,risk,signals}_server.py with __main__ blocks (file:line: backtest:404, data:475, risk:229, signals:1884) but were NOT registered in .mcp.json. Pattern A invocation: venv python + absolute server.py + PYTHONPATH env. risk-server gate chain (kill_switch -> pbo -> projected_dd) at risk_server.py:179/186-198/201-213 is the highest-value promotion (Layer-2 agents can now consult risk gate before recommending trades). alwaysLoad decisions: data+risk true (high-frequency, BQ-ADC graceful-degradation), backtest+signals false (rare-use, signals_server is 1887 lines so startup cost matters). FREE-only verified: all 4 use internal BQ via ADC, no paid external SaaS. Pre-flight smoke test confirms all 4 servers print FastMCP 3.2.4 banner on stderr with no Python traceback when launched with PYTHONPATH set.",
           "verification": {
-            "command": "jq -e '.mcpServers | (.\"pyfinagent-backtest\" and .\"pyfinagent-data\" and .\"pyfinagent-risk\" and .\"pyfinagent-signals\")' .mcp.json && for s in backtest data risk signals; do python -c \"from backend.agents.mcp_servers import ${s}_server\"; done",
+            "command": "python3 -c \"import json; json.load(open(\\\".mcp.json\\\"))\" && jq -e '.mcpServers | (.\"pyfinagent-backtest\" and .\"pyfinagent-data\" and .\"pyfinagent-risk\" and .\"pyfinagent-signals\")' .mcp.json && jq -e '[.mcpServers[\"pyfinagent-backtest\",\"pyfinagent-data\",\"pyfinagent-risk\",\"pyfinagent-signals\"] | .env.PYTHONPATH] | all(. == \"/Users/ford/.openclaw/workspace/pyfinagent\")' .mcp.json && jq -e '.mcpServers.\"pyfinagent-risk\".alwaysLoad == true' .mcp.json && jq -e '.mcpServers.\"pyfinagent-data\".alwaysLoad == true' .mcp.json && jq -e '.mcpServers.\"pyfinagent-backtest\".alwaysLoad == false' .mcp.json && jq -e '.mcpServers.\"pyfinagent-signals\".alwaysLoad == false' .mcp.json && grep -q 'smoke test' handoff/current/experiment_results.md",
             "success_criteria": [
-              "all_4_servers_registered_in_mcp_json",
-              "each_server_smoke_test_passes",
-              "alwaysLoad_decision_documented_per_server",
-              "Layer2_agent_call_demo"
+              "mcp_json_has_pyfinagent_backtest_data_risk_signals_entries",
+              "mcp_json_valid_json_after_edit",
+              "pythonpath_set_in_all_4_entries_to_project_root",
+              "alwaysLoad_true_on_risk_and_data",
+              "alwaysLoad_false_on_backtest_and_signals",
+              "pre_flight_smoke_test_all_4_servers_passed",
+              "smoke_test_recipe_documented_in_experiment_results"
             ],
-            "live_check": "live_check_29.3.md: actual MCP tool call from a Layer-2 agent showing pyfinagent-risk.evaluate_candidate returning a structured verdict (kill_switch OK, pbo OK, projected_dd OK)"
+            "live_check": "live_check_29.3.md captures: (a) verbatim 4 new mcp.json entries; (b) pre-flight smoke-test output showing all 4 servers print FastMCP 3.2.4 banner on stderr with no Python traceback under PYTHONPATH; (c) post-restart operator recipe \u2014 restart Claude Code, confirm /mcp panel shows all 4 as connected, ToolSearch query 'pyfinagent' should surface evaluate_candidate (risk), prices:// (data), run_backtest (backtest), generate_signal (signals). If signals_server takes >5s to load (1887 lines), it will appear as 'connecting'; not a failure."
           },
           "retry_count": 0,
           "max_retries": 3

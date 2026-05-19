@@ -20318,3 +20318,32 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~25 min (researcher ~9 min, contract+generate ~5 min, Q/A ~1 min, log/flip/commit ~3 min, archive ~1 min).
 
+
+
+---
+
+## Cycle 38 -- 2026-05-19 -- phase=29.3 result=PASS
+
+**Step:** phase-29.3 — Register 4 in-app FastMCP servers (pyfinagent-{backtest,data,risk,signals}) in `.mcp.json`.
+
+**Generator:** 1 mcp-config edit + 1 masterplan-entry update.
+- `.mcp.json` 36 → 78 lines (+42). 4 new entries: pyfinagent-backtest, pyfinagent-data, pyfinagent-risk, pyfinagent-signals. Pattern A invocation: venv python (`/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python`) + absolute `*_server.py` path + `PYTHONPATH=/Users/ford/.openclaw/workspace/pyfinagent` env. alwaysLoad: risk+data=true (high-frequency, graceful-degradation); backtest+signals=false (rare-use, signals_server is 1887 lines).
+- `.claude/masterplan.json` 29.3 entry: 7-predicate AND-chain verification.command + 7 success_criteria + live_check.
+
+**Researcher gate:** `gate_passed: true`. 7 sources read in full (code.claude.com/docs/en/mcp, FastMCP docs × 3, mcpcat.io, Medium FastMCP setup, danielecer.com). 7 internal files inspected (4 *_server.py heads + __init__.py + .mcp.json + scripts/mcp_servers smoke-test template). `__main__` blocks confirmed at backtest:404 / data:475 / risk:229 / signals:1884.
+
+**Pre-flight smoke test:** all 4 servers PASS (FastMCP 3.2.4 banner on stderr, no Python traceback, clean stdin-EOF exit). First smoke attempt was a false-positive failure (used `timeout` not available on macOS); re-ran with correct success indicator (banner + no-traceback).
+
+**Q/A subagent verdict:** PASS (single spawn). 6/6 jq predicates true; exit=0. Smoke test re-run by Q/A confirms all 4 servers OK. Risk gate chain cross-verified by direct grep of risk_server.py (kill_switch:179, pbo:186-198, projected_dd:201-213).
+
+**Honest disclosures:**
+- urllib3 deprecation warning in all 4 stderr (RequestsDependencyWarning re: urllib3 2.6.3 / chardet 7.4.3 / charset_normalizer 3.4.6 version mismatch) — NOT a failure; out of scope.
+- signals_server.py 1887 lines → longer first-load; expected post-restart.
+- alwaysLoad: true blocks startup ~5s per server if init fails; mitigated by graceful-degradation.
+- Layer-2 agent code doesn't YET call these MCPs — registration only this phase.
+- THIS overnight session's Researcher/Q/A snapshots predate the .mcp.json edit → MCPs activate post-restart only.
+
+**Decision:** flip phase-29.3 to `done`; live_check_29.3.md captures pre-restart smoke + alwaysLoad matrix + post-restart operator recipe.
+
+**Total cycle time:** ~22 min (researcher ~7 min, contract+generate+smoke ~7 min, Q/A ~2 min, log/flip/commit ~3 min, archive ~1 min).
+

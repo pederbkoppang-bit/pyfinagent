@@ -31,6 +31,50 @@
         "PAPER_SEARCH_MCP_CORE_API_KEY": "${PAPER_SEARCH_MCP_CORE_API_KEY:-}",
         "PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY": "${PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY:-}"
       }
+    },
+    "pyfinagent-backtest": {
+      "type": "stdio",
+      "command": "/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python",
+      "args": [
+        "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/mcp_servers/backtest_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/Users/ford/.openclaw/workspace/pyfinagent"
+      },
+      "alwaysLoad": false
+    },
+    "pyfinagent-data": {
+      "type": "stdio",
+      "command": "/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python",
+      "args": [
+        "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/mcp_servers/data_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/Users/ford/.openclaw/workspace/pyfinagent"
+      },
+      "alwaysLoad": true
+    },
+    "pyfinagent-risk": {
+      "type": "stdio",
+      "command": "/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python",
+      "args": [
+        "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/mcp_servers/risk_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/Users/ford/.openclaw/workspace/pyfinagent"
+      },
+      "alwaysLoad": true
+    },
+    "pyfinagent-signals": {
+      "type": "stdio",
+      "command": "/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python",
+      "args": [
+        "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/mcp_servers/signals_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/Users/ford/.openclaw/workspace/pyfinagent"
+      },
+      "alwaysLoad": false
     }
   }
 }
