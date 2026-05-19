@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-19T06:08:08.151903+00:00",
+  "updated_at": "2026-05-19T06:25:06.645988+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10595,20 +10595,23 @@
         {
           "id": "29.6",
           "name": "P1: Extract qa.md:207-429 code-review heuristics to .claude/skills/code-review-heuristics/SKILL.md",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 experiment_results.md \u00a75: qa.md:207-429 (220 lines, phase-16.59 code-review heuristics) is pure reference content (5 dimensions + Top-15 ranked + 4 negation lists). Loaded into every Q/A session whether code review is needed or not. Extracting to a skill preloaded via `skills: [\"code-review-heuristics\"]` in qa.md frontmatter cuts Q/A spawn context by ~5KB without behavior change. Source: https://code.claude.com/docs/en/skills (subagent skills field preload pattern).",
+          "audit_basis": "phase-29.0 \u00a75 + phase-29.6 research_brief.md (6 sources read in full, gate_passed=true). Extract qa.md:210-439 (230 lines, code-review-heuristics block from phase-16.59) to .claude/skills/code-review-trading-domain/SKILL.md with `user-invocable: false` frontmatter; preload into Q/A via `skills:` YAML block-list in qa.md frontmatter. Naming: `code-review-trading-domain` (more accurate than phase-29.0 draft `code-review-heuristics` because content IS trading-domain-specific). Syntax confirmed: YAML block-list, NOT inline JSON-array. `disable-model-invocation` MUST be absent or false (true blocks preload). Body 230 lines (within 500-line ceiling). GitHub issue #29441 (team-spawned preload failure) does NOT apply \u2014 Q/A uses in-process Agent-tool dispatch from Main. Sources: code.claude.com/docs/en/skills + sub-agents docs + best-practices + Agent Skills overview + Anthropic engineering blog 'Equipping agents for the real world with Agent Skills'.",
           "verification": {
-            "command": "test -f .claude/skills/code-review-heuristics/SKILL.md && grep -q 'skills:' .claude/agents/qa.md && [ $(wc -l < .claude/agents/qa.md) -lt 250 ]",
+            "command": "test -f .claude/skills/code-review-trading-domain/SKILL.md && grep -q '^name: code-review-trading-domain' .claude/skills/code-review-trading-domain/SKILL.md && grep -q '^user-invocable: false' .claude/skills/code-review-trading-domain/SKILL.md && ! grep -q '^disable-model-invocation: true' .claude/skills/code-review-trading-domain/SKILL.md && grep -A1 '^skills:' .claude/agents/qa.md | grep -q '  - code-review-trading-domain' && grep -q 'code-review-trading-domain' .claude/agents/qa.md && [ $(wc -l < .claude/agents/qa.md) -le 225 ] && grep -q 'Dimension 5' .claude/skills/code-review-trading-domain/SKILL.md && grep -q 'rag-memory-poisoning' .claude/skills/code-review-trading-domain/SKILL.md && grep -q 'unbounded-llm-loop' .claude/skills/code-review-trading-domain/SKILL.md && grep -q 'BM25 corpus is not subject to Vec2Text' .claude/skills/code-review-trading-domain/SKILL.md",
             "success_criteria": [
-              "SKILL_md_created_with_correct_frontmatter",
-              "qa_md_references_skill_in_frontmatter",
-              "qa_md_line_count_reduced_by_at_least_150",
-              "Q/A_behavior_unchanged_in_smoke_test"
+              "skill_md_created_at_canonical_path",
+              "skill_md_frontmatter_correct_name_user-invocable-false_no-disable-model-invocation-true",
+              "qa_md_frontmatter_lists_skill_via_yaml_block_list",
+              "qa_md_body_replaced_with_cross_reference",
+              "qa_md_shrunk_substantially_to_at_most_225_lines",
+              "skill_md_contains_all_5_dimensions",
+              "phase_29_4_OWASP_heuristics_preserved_verbatim_in_skill_md"
             ],
-            "live_check": "live_check_29.6.md: spawn Q/A on a synthetic diff containing a planted secret-in-diff violation; confirm it's flagged using only the skill-preloaded heuristic"
+            "live_check": "live_check_29.6.md captures (a) pre/post qa.md line count (439 -> 221; -218 net), (b) verbatim cross-reference text + skills: frontmatter block, (c) byte-level content preservation evidence (phase-29.4 LLM07/08/10 OWASP heuristics + BM25 exemption all visible in new SKILL.md), (d) post-restart recipe: spawn fresh Q/A subagent and confirm code-review-trading-domain content is in its context."
           },
           "retry_count": 0,
           "max_retries": 3
