@@ -1,0 +1,52 @@
+{
+  "stage": "phase-31.0.1",
+  "step": "Stage 1: screen + rank + sector enrichment",
+  "tickers_requested": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "JPM"
+  ],
+  "tickers_returned": [
+    "NVDA",
+    "AAPL",
+    "MSFT",
+    "JPM"
+  ],
+  "rows_post_enrichment": [
+    {
+      "ticker": "NVDA",
+      "current_price": 220.61,
+      "composite_score": 15.283,
+      "sector": "Technology",
+      "momentum_3m": 17.36,
+      "rsi_14": 58.5
+    },
+    {
+      "ticker": "AAPL",
+      "current_price": 298.97,
+      "composite_score": 8.107,
+      "sector": "Technology",
+      "momentum_3m": 13.2,
+      "rsi_14": 84.1
+    },
+    {
+      "ticker": "MSFT",
+      "current_price": 417.42,
+      "composite_score": -1.557,
+      "sector": "Technology",
+      "momentum_3m": 4.7,
+      "rsi_14": 45.4
+    },
+    {
+      "ticker": "JPM",
+      "current_price": 295.7,
+      "composite_score": -3.986,
+      "sector": "Financial Services",
+      "momentum_3m": -3.75,
+      "rsi_14": 36.9
+    }
+  ],
+  "verdict": "PASS",
+  "verdict_rationale": "4 of 4 tickers returned with non-empty sector and numeric composite_score; all schema invariants met."
+}

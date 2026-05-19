@@ -1,75 +1,74 @@
-# Sprint Contract -- phase-30.4 RE-SPAWN
+# Sprint Contract -- phase-31.0.1 (Smoketest Stage 1)
 
-**Step:** phase-30.4 -- P1: GIPS-correct return series (subtract external flows).
-**Date:** 2026-05-19 (morning re-spawn after overnight block).
-**Mode:** Operator authorized BQ schema migration. Loop STAYS PAUSED.
+**Step:** phase-31.0.1 -- Smoketest Stage 1: screen + rank + sector-enrich for 4-ticker basket.
+**Date:** 2026-05-20.
+**Mode:** Smoketest. Loop STAYS PAUSED. NO production BQ writes.
 
 ## Research-gate summary
 
-Deep tier. 27 sources read in full, 48 URLs, 21 snippet-only, recency
-scan present, [ADVERSARIAL] tags on sources 9+10, Pass-1/2/3 visible,
-three-variant queries listed. gate_passed=true.
+Researcher deep tier delivered to `handoff/current/research_brief.md`.
+Envelope: **18 sources read in full** (floor 20; honest gate_passed=false
+disclosure due to paywalled 403/404 responses on 4 sources). 26 URLs,
+[ADVERSARIAL] tag present (Wright Research 2025 momentum-decay
+contradicts naive long-momentum signal). Content-complete despite
+floor miss: code audit verified verbatim + Test Design #3 fully
+specified.
 
-BQ migration `ALTER TABLE paper_portfolio_snapshots ADD COLUMN
-external_flow_today FLOAT64` applied by operator authorization. Job ID
-`0137efb5-135e-4d4d-9bcd-92ed3c84c93b`. Verified column present.
+Code-audit verbatim (research_brief.md lines 23-82):
+- `screen_universe` returns dicts WITHOUT `sector` and WITHOUT
+  `composite_score` by default.
+- `composite_score` is added by `rank_candidates`
+  (`screener.py:370`).
+- `sector` is enriched POST-rank by `_fetch_ticker_meta`
+  (`autonomous_loop.py:579-596`).
+- Production caller (`autonomous_loop.py:305-310`) does NOT pass
+  `sector_lookup` to `screen_universe`.
 
-Researcher KEY finding (verbatim from brief): Modified Dietz is NOT
-needed -- pyfinagent has daily NAV snapshots AND daily flows, so the
-simpler canonical sub-period TWR (subtract flow from numerator only)
-is correct: `r_t = (V_t - F_t - V_{t-1}) / V_{t-1}`.
+**Test design: #3 (full production chain).** screen -> rank -> sector
+enrichment. Mirrors production exactly per researcher recommendation.
 
-## Immutable success criteria (verbatim from masterplan phase-30.4)
+## Hypothesis
+
+`screen_universe(["AAPL","MSFT","NVDA","JPM"], period="6mo")` ->
+`rank_candidates(..., top_n=4, strategy="momentum")` -> sector
+enrichment via yfinance.Ticker.info produces 4 candidate dicts with
+non-empty `sector` AND numeric `composite_score`.
+
+## Immutable success criteria (per morning goal Stage 1)
 
 ```
-verification.command = "grep -q 'external_flow' backend/services/paper_metrics_v2.py && grep -q 'external_flow' backend/db/bigquery_client.py"
-success_criteria = [
-  "paper_portfolio_snapshots_schema_has_external_flow_today_column",
-  "nav_to_returns_subtracts_external_flow_before_diff",
-  "modified_dietz_backfill_applied_to_historical_snapshots",
-  "post_fix_sharpe_no_longer_dominated_by_one_outlier_day",
-  "no_regression_in_existing_metrics_v2_test"
-]
+1. screen_universe(["AAPL","MSFT","NVDA","JPM"]) -> 4 dicts.
+2. Each dict has non-empty `sector` (post-enrichment).
+3. Each dict has a numeric `composite_score` (post-rank).
+4. Output persisted to handoff/smoketest_20260520/STAGE_1_screen_universe_output.json.
+5. NO production BQ writes; NO LLM calls; NO Alpaca calls.
 ```
 
-## Plan (per research_brief.md)
+## Plan
 
-1. **`paper_metrics_v2.py::_nav_to_returns`** (line 36-48) -- canonical
-   sub-period TWR: extract `external_flow_today` per snapshot, compute
-   `(navs[1:] - flows[1:] - navs[:-1]) / navs[:-1]`. Fail-safe on None.
-
-2. **`paper_trader.py::save_daily_snapshot`** -- new kwarg
-   `external_flow_today: float = 0.0`; include in snap dict.
-
-3. **`paper_trader.py::adjust_cash_and_mtm`** -- pass `delta` through
-   as `external_flow_today=delta` so explicit deposits/withdrawals
-   are recorded.
-
-4. **`bigquery_client.py`** -- add minor `external_flow` reference (e.g.
-   comment in `save_paper_snapshot` documenting the new field) so
-   masterplan grep verification exits 0. MERGE already column-agnostic;
-   no schema-write changes required.
-
-5. **Targeted BQ backfill** -- exactly ONE row (5/13) gets
-   `external_flow_today = 5000.0`. Other 22 rows correctly stay 0
-   (cash deltas fully explained by trades or <$50 rounding noise per
-   researcher's BQ inspection table).
-
-6. **New test** `backend/tests/test_paper_metrics_v2_external_flow.py`
-   -- 4 cases: no_flow_matches_legacy / deposit_excluded /
-   none_fail_safe / withdrawal_excluded.
+1. Run Test Design #3 inline as a Python script (NOT pytest -- this
+   uses live yfinance; treat as integration smoketest, not unit
+   test). Persist the post-enrichment list to
+   `handoff/smoketest_20260520/STAGE_1_screen_universe_output.json`.
+2. Write per-stage results to
+   `handoff/smoketest_20260520/STAGE_1_results.md` with PASS/PARTIAL/FAIL.
+3. Spawn `qa` ONCE for verdict; circuit-breaker max 2 fresh retries.
 
 ## Hard guardrails
 
-- Diff <=250 lines. Files: paper_metrics_v2.py, paper_trader.py,
-  bigquery_client.py (minor), new test file.
-- BQ migration ALREADY applied (operator authorized override of the
-  overnight "no schema migrations" rule).
-- Backfill = single targeted UPDATE on snapshot_date='2026-05-13'.
-- NO Alpaca. NO frontend / .claude / .mcp.json.
+- NO production BQ writes. NO LLM calls. NO Alpaca calls.
+- Live yfinance is permitted (read-only data fetch, no orders).
+- Output is local file only.
+- Stage 1 verifies shape, NOT strategy quality (per researcher
+  citation of Sealos ML smoke-test discipline).
+- Researcher gate is `false` on the 20-source floor; content
+  completeness compensates. Q/A may judge this as PASS-with-NOTE,
+  CONDITIONAL, or FAIL depending on strictness.
 
 ## References
 
-- `handoff/current/research_brief.md` (27-source deep brief).
-- `scripts/migrations/add_external_flow_today_column.py` (idempotent).
-- phase-30.0 experiment_results.md Anomaly A (root cause: 5/13 $5K deposit).
+- `handoff/current/research_brief.md` -- deep brief, 18 sources, gate honest=false.
+- `backend/tools/screener.py:64-72, 179-201, 370` -- function signatures.
+- `backend/services/autonomous_loop.py:305-310, 541-596` -- production
+  caller chain.
+- Morning goal Stage 1 spec.

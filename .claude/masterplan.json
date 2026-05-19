@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-20T00:05:00+00:00",
+  "updated_at": "2026-05-20T00:18:00+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10865,6 +10865,39 @@
               "if_intentionally_dormant_the_table_is_removed_or_repurposed"
             ],
             "live_check": "live_check_30.7.md captures the strategy_decisions row count BEFORE and AFTER the fix (or the explicit not-a-bug rationale)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-31",
+      "name": "E2E Pipeline Smoketest (Claude Code-substituted lite path)",
+      "status": "in_progress",
+      "depends_on": [
+        "phase-30"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "31.0.1",
+          "name": "Stage 1: screen + rank + sector enrichment",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": null,
+          "audit_basis": "morning goal 2026-05-20 Stage 1 spec + research_brief.md (18 sources, gate_passed=false honest disclosure) + STAGE_1_results.md (4 rows PASS).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGE_1_screen_universe_output.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGE_1_screen_universe_output.json')); assert d['verdict']=='PASS' and len(d['rows_post_enrichment'])==4\"",
+            "success_criteria": [
+              "screen_universe_returned_4_rows",
+              "each_row_has_nonempty_sector",
+              "each_row_has_numeric_composite_score",
+              "output_persisted_to_smoketest_dir",
+              "no_production_bq_writes_or_alpaca_or_llm"
+            ],
+            "live_check": "Output file at handoff/smoketest_20260520/STAGE_1_screen_universe_output.json validated by Q/A re-run; 4 rows NVDA/AAPL/MSFT/JPM with sector + composite_score."
           },
           "retry_count": 0,
           "max_retries": 3
