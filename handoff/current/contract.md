@@ -1,72 +1,72 @@
-# Sprint Contract -- Cycle 1
-Generated: 2026-05-19T19:47:14.647365+00:00
+# Sprint Contract -- phase-30.2
 
-## Hypothesis
-Continue parameter optimization with random perturbation
+**Step:** phase-30.2 -- P1: Wire `backfill_missing_stops` into autonomous_loop Step 5.6.
+**Date:** 2026-05-19.
+**Mode:** OVERNIGHT. Autonomous loop PAUSED.
+**Cycle owner:** Main + Researcher (complex) + Q/A.
 
-## Current Baseline
-- Sharpe: 1.1705
+## Research-gate summary
 
-## Success Criteria (from evaluator_criteria.md)
-- Statistical Validity: DSR >= 0.95, Sharpe > 0
-- Robustness: ALL sub-periods Sharpe > 0
-- Reality Gap: 2x costs Sharpe > 0.5
+Researcher complex tier delivered to `handoff/current/research_brief.md`.
+Envelope: 6 sources read in full, 16 URLs, recency scan complete,
+three-variant search composition visible. `gate_passed: true`.
 
-## Planner Suggestions
-- PLATEAU: Last 10 experiments all discarded. Consider strategy change.
-- SATURATED: trailing_distance_pct has 23 consecutive discards. Excluding.
-- SATURATED: rsi_weight has 23 consecutive discards. Excluding.
-- SATURATED: n_estimators has 24 consecutive discards. Excluding.
-- SATURATED: sl_pct has 16 consecutive discards. Excluding.
-- SATURATED: volatility_weight has 17 consecutive discards. Excluding.
-- SATURATED: qm_weight has 23 consecutive discards. Excluding.
-- SATURATED: mr_holding_days has 13 consecutive discards. Excluding.
-- SATURATED: frac_diff_d has 11 consecutive discards. Excluding.
-- SATURATED: top_n_candidates has 15 consecutive discards. Excluding.
-- SATURATED: vol_barrier_multiplier has 16 consecutive discards. Excluding.
-- SATURATED: min_samples_leaf has 15 consecutive discards. Excluding.
-- SATURATED: momentum_weight has 21 consecutive discards. Excluding.
-- SATURATED: mr_weight has 12 consecutive discards. Excluding.
-- SATURATED: target_vol has 24 consecutive discards. Excluding.
-- SATURATED: learning_rate has 22 consecutive discards. Excluding.
-- SATURATED: holding_days has 24 consecutive discards. Excluding.
-- SATURATED: fm_weight has 22 consecutive discards. Excluding.
-- SATURATED: max_positions has 19 consecutive discards. Excluding.
-- SATURATED: trailing_stop_enabled has 22 consecutive discards. Excluding.
-- SATURATED: tb_weight has 20 consecutive discards. Excluding.
-- SATURATED: target_annual_vol has 19 consecutive discards. Excluding.
-- SATURATED: trailing_trigger_pct has 14 consecutive discards. Excluding.
-- SATURATED: tp_pct has 20 consecutive discards. Excluding.
-- SATURATED: sma_weight has 16 consecutive discards. Excluding.
-- SATURATED: strategy has 15 consecutive discards. Excluding.
-- SATURATED: max_depth has 15 consecutive discards. Excluding.
-- COORDINATED: barrier_shape group (tp_pct, sl_pct) has 1 kept / 37 discarded. Try moving params together.
-- STRATEGY: Current=triple_barrier. Consider switching to mean_reversion if plateau continues.
+Canonical sources cited:
+- arXiv 2604.27150 (Apr 2026) -- swarm SOTA.
+- Kaminski-Lo MIT -- stop-loss adds value in momentum.
+- O'Neil CAN SLIM -- 7-8% canonical.
+- Quant-Investing 150-yr study -- 10% momentum stop +71.3% return.
+- Moments Log -- idempotent-backfill canonical.
+- LuxAlgo -- 2%-per-position risk rule.
 
-## Excluded Parameters
-- trailing_distance_pct
-- rsi_weight
-- n_estimators
-- sl_pct
-- volatility_weight
-- qm_weight
-- mr_holding_days
-- frac_diff_d
-- top_n_candidates
-- vol_barrier_multiplier
-- min_samples_leaf
-- momentum_weight
-- mr_weight
-- target_vol
-- learning_rate
-- holding_days
-- fm_weight
-- max_positions
-- trailing_stop_enabled
-- tb_weight
-- target_annual_vol
-- trailing_trigger_pct
-- tp_pct
-- sma_weight
-- strategy
-- max_depth
+Key design takeaway: backfill BEFORE check is correct ordering;
+immediate-sell of positions already below their synthesized stop IS
+the desired behavior.
+
+## Immutable success criteria (verbatim from masterplan phase-30.2)
+
+```
+verification.command = "grep -A 5 'Step 5.6' backend/services/autonomous_loop.py | grep -q 'backfill_missing_stops' && python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read())\""
+success_criteria = [
+  "autonomous_loop_step_5_6_calls_backfill_missing_stops_before_check_stop_losses",
+  "syntax_check_passes",
+  "after_one_cycle_paper_positions_stop_loss_price_is_null_count_drops_to_zero",
+  "no_regression_in_existing_stop_loss_enforcement_test"
+]
+```
+
+`after_one_cycle_..._null_count_drops_to_zero` is a LIVE post-cycle
+BQ check. The autonomous loop is PAUSED overnight, so this criterion
+is verified by the operator in the morning via
+`SELECT COUNT(*) FROM financial_reports.paper_positions WHERE stop_loss_price IS NULL`
+-- expected to drop from 7 to 0 after the first unpause cycle.
+
+## Plan
+
+1. **`backend/services/autonomous_loop.py`** -- modify Step 5.6:
+   - Insert `backfill_result = await asyncio.to_thread(trader.backfill_missing_stops)`
+     BEFORE the existing `check_stop_losses` call.
+   - Record `summary["stop_loss_backfilled"] = backfill_result.get("backfilled", [])`.
+   - Log INFO when count_backfilled > 0.
+
+2. **`backend/tests/test_autonomous_loop_step_5_6.py`** (new) --
+   focused unit test:
+   - Mock PaperTrader with `backfill_missing_stops`, `check_stop_losses`,
+     `execute_sell`.
+   - Assert call-order via Mock parent's `method_calls`.
+   - 3 cases: legacy-null-stops, idempotent re-run, fail-open on
+     backfill exception.
+
+## Hard guardrails
+
+- Diff limited to: `backend/services/autonomous_loop.py` +
+  new `backend/tests/test_autonomous_loop_step_5_6.py`.
+- NO mutating BQ. NO Alpaca. NO frontend / .claude / .mcp.json.
+- Total diff target: <150 lines.
+
+## References
+
+- `handoff/current/research_brief.md` (this cycle's brief).
+- `handoff/archive/phase-30.0/experiment_results.md` Stage 7 + P1-2.
+- `backend/services/paper_trader.py:465-532` -- the function being wired.
+- `backend/services/autonomous_loop.py:751-777` -- Step 5.6 current code.

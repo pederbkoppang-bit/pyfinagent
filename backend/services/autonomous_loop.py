@@ -753,9 +753,33 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             # finding F-1 (orphan check_stop_losses with zero callers; TER held
             # at -12.30%). execute_sell is naturally idempotent: get_position
             # returns None if already sold, so retries are safe.
+            #
+            # phase-30.2: ALSO call backfill_missing_stops() BEFORE
+            # check_stop_losses() so legacy positions with stop_loss_price=NULL
+            # get a default stop synthesized from settings.paper_default_stop_loss_pct.
+            # Closes phase-30.0 Stage 7 / P1-2 (7-of-11 open positions had NULL
+            # stop_loss_price because phase-25.2 backfill helper had zero
+            # production callers). Idempotent on subsequent cycles (returns
+            # 0 backfilled, N skipped). Fail-open: a backfill exception MUST
+            # NOT break check_stop_losses, which is the safety primitive.
             logger.info("Paper trading: Step 5.6 -- Stop-loss enforcement")
             summary["steps"].append("stop_loss_enforcement")
             summary["stop_loss_triggered"] = []
+            summary["stop_loss_backfilled"] = []
+            try:
+                backfill_result = await asyncio.to_thread(trader.backfill_missing_stops)
+                summary["stop_loss_backfilled"] = backfill_result.get("backfilled", [])
+                if backfill_result.get("count_backfilled", 0) > 0:
+                    logger.info(
+                        "phase-30.2: backfill_missing_stops synthesized %d stops (skipped %d)",
+                        backfill_result.get("count_backfilled", 0),
+                        backfill_result.get("count_skipped", 0),
+                    )
+            except Exception as bf_exc:
+                logger.exception(
+                    "phase-30.2: backfill_missing_stops failed (non-fatal; check_stop_losses still runs): %s",
+                    bf_exc,
+                )
             triggered_stops = await asyncio.to_thread(trader.check_stop_losses)
             for sl_ticker in triggered_stops:
                 try:
