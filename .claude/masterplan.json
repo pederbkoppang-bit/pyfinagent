@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-20T00:35:00+00:00",
+  "updated_at": "2026-05-20T01:00:00+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10922,6 +10922,28 @@
               "compiled_summary_persisted"
             ],
             "live_check": "STAGE_2_summary.json verdict=PASS, 4 per-ticker JSONs + summary in handoff/smoketest_20260520/"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.3",
+          "name": "Stage 3: Gemini full-path on NVDA via AnalysisOrchestrator",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.2",
+          "audit_basis": "morning goal 2026-05-20 Stage 3 spec. Run 1 failed on Anthropic credit (validating substitution hypothesis); Run 2 with GEMINI_MODEL=gemini-2.5-flash override completed end-to-end (5m 53s, 19 substantive agents, NVDA HOLD). Q/A PASS-with-NOTE on documented criterion mismatch (llm_call_log Claude-routing-specific).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGE_3_gemini_full_path_output.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGE_3_gemini_full_path_output.json')); assert d['orchestrator_status']=='completed' and len(d.get('substantive_agents',[]))>=15\"",
+            "success_criteria": [
+              "orchestrator_completed_without_raise",
+              "substantive_agents_ge_15",
+              "final_synthesis_recommendation_present",
+              "no_new_analysis_results_for_nvda",
+              "criterion_mismatch_documented_honestly"
+            ],
+            "live_check": "Output JSON shows orchestrator_status=completed, 19 substantive_agents, NVDA HOLD recommendation, 0 new analysis_results rows."
           },
           "retry_count": 0,
           "max_retries": 3

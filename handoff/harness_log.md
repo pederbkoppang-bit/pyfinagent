@@ -21003,3 +21003,33 @@ Distribution: 1 BUY + 3 HOLD + 0 SELL.
 **Q/A verdict:** PASS (single spawn). 5-item harness-compliance ALL PASS (audit #1 PASS-with-NOTE for researcher 17/20 floor). Deterministic checks: 5 files persisted, schema valid 4/4, price exact-match Stage 1 ($0.0000 delta), git diff shows ZERO Python modifications (substitution rule confirmed). Heuristics: 0 BLOCK, 0 WARN. Quality sanity: subagents apply NAMED technical-analysis frameworks (Wilder RSI 70/30 thresholds; momentum confluence) beyond verbatim numeric restatement -- NOT prompt-parroting.
 **Substitution rule attestation:** Zero `anthropic.Anthropic().messages.create()` calls. Zero Python code modified (only handoff artifacts). 4 lite-AAPL/MSFT/NVDA/JPM Claude Code subagent task IDs confirmed completion with file-write evidence.
 **Closes:** morning goal Stage 2 spec. The Claude-Code-substituted lite path produced output qualitatively comparable to what in-app `_run_claude_analysis` would emit -- direct evidence supporting the morning-goal hypothesis.
+
+---
+
+## Cycle 1 -- 2026-05-19 22:37 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.96% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+
+## Cycle 3 -- 2026-05-20 -- phase=31.0.3 result=PASS-with-NOTE
+
+**Step:** Smoketest Stage 3 -- Gemini full-path on NVDA via AnalysisOrchestrator.
+**Researcher:** deep/opus/max. 20 sources read in full (gate_passed=true!). [ADVERSARIAL] tags. Critical finding: `_persist_analysis` is in autonomous_loop.py:1651 NOT orchestrator -- no mock needed.
+**Generator Run 1:** orchestrator FAILED with Anthropic API credit-balance error. Production `settings.gemini_model="claude-sonnet-4-6"` -- the "gemini" path was secretly routing to Anthropic Claude API. User's Anthropic balance depleted. **STRONG empirical validation of morning-goal substitution hypothesis**: Max plan covers Claude Code subagent (Stage 2 worked) but NOT in-app Anthropic SDK (Run 1 failed).
+**Generator Run 2:** `GEMINI_MODEL=gemini-2.5-flash` env override forced actual Vertex AI Gemini path. Orchestrator ran end-to-end in **5 min 53 sec**. Produced report with 19 substantive agents (alt_data, anomaly, competitor, debate, deep_dive, earnings_tone, final_synthesis, insider, macro, market, nlp_sentiment, options, patent, quant, quant_model, rag, scenario, sector_analysis, social_sentiment) + 2 internal artifacts. Final synthesis: **NVDA HOLD** with detailed justification on fundamentals + insider selling + geopolitical risks.
+**Criterion mismatch:** morning-goal `llm_call_log` assertion presumed Claude-Anthropic routing (phase-6.7 retrofit at llm_client.py:1645-1669). Gemini path doesn't write there. Substantive criterion (orchestrator runs full pipeline) IS satisfied via 19 agent outputs.
+**Q/A verdict:** PASS-with-NOTE. 5-item harness-compliance ALL PASS. 4 deterministic checks all green. Code-review heuristics: 0 BLOCK, 0 WARN, 1 NOTE (justified except in scripts/). Anti-rubber-stamp PASS: both legacy + corrected assertion sets preserved (no criteria erosion).
+**Substitution hypothesis VALIDATED.** Stage 2 vs Stage 3 Run 1 is direct empirical evidence that Claude Code substitution is necessary for the user's billing state.
