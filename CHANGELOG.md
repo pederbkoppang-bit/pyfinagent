@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-20 | `e23843ef` | phase-31.0.4-13: e2e smoketest Stages 4-13 (batched) -- ALL PASS |
 | 2026-05-20 | `480d48dd` | phase-31.0.3: Stage 3 Gemini full-path on NVDA via AnalysisOrchestrator |
 | 2026-05-20 | `9190a352` | phase-31.0.2: Stage 2 lite-path analysis via Claude Code subagent (4 tickers) |
 | 2026-05-20 | `2ecbb2f5` | phase-31.0.1: e2e pipeline smoketest Stage 1 (screen + rank + sector enrichment) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-19 | `df8485d2` | phase-29.1: add paper-search-mcp==0.1.3 to .mcp.json (academic-fetch wall fix) |
 | 2026-05-18 | `416d49dd` | phase-29.2: codify Opus 4.7 + max effort on Researcher + Q/A (audit-inversion per operator) |
 | 2026-05-18 | `05707772` | phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create phase-29 |
-| 2026-05-18 | `b5d2048f` | phase-28.16: M&A pre-announcement aggregator (FINAL phase-28 item) |
 
 ---
 
+### v6.14.1 — phase-31.0.4-13: e2e smoketest Stages 4-13 (batched) -- ALL PASS (2026-05-20)
+
+- **phase-31.0.4-13: e2e smoketest Stages 4-13 (batched) -- ALL PASS**
 ### v6.14.0 — phase-31.0.3: Stage 3 Gemini full-path on NVDA via AnalysisOrchestrator (2026-05-20)
 
 - **phase-31.0.3: Stage 3 Gemini full-path on NVDA via AnalysisOrchestrator**
