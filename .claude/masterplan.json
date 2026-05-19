@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-19T22:30:00+00:00",
+  "updated_at": "2026-05-19T22:45:00+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10790,7 +10790,7 @@
         {
           "id": "30.4",
           "name": "P1: GIPS-correct return series (subtract external flows)",
-          "status": "pending",
+          "status": "blocked",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "30.0",
@@ -10807,12 +10807,14 @@
             "live_check": "live_check_30.4.md captures pre/post Sharpe values, the 5/13 day's pre/post daily_pnl_pct (~+32% -> ~+4%), and the new schema migration log line."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "blocker": "OVERNIGHT_BLOCKED_NEEDS_BQ_MIGRATION",
+          "blocker_detail": "First immutable success criterion requires ALTER TABLE on financial_reports.paper_portfolio_snapshots (add external_flow_today FLOAT64). Overnight pre-approval rule 3 prohibits BQ schema migrations. Re-run after morning operator applies the migration via scripts/migrations/."
         },
         {
           "id": "30.5",
           "name": "P2: Sector cap NAV-percentage representation alongside count cap",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "priority": "P2",
           "depends_on_step": "30.0",

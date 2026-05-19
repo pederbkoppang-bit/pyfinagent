@@ -191,14 +191,32 @@ def decide_trades(
     # BUY when its sector has already reached the cap; non-blocked sectors go
     # through normally. Increments after each accepted BUY so 3rd+ candidates
     # in the same sector skip cleanly.
+    #
+    # phase-30.5: ALSO build sector_market_values for the NAV-percentage cap
+    # (`settings.paper_max_per_sector_nav_pct`, 0 disables, default 30). The
+    # two caps fire independently: count handles "many small positions",
+    # NAV-pct handles "one fat position dominating the sector". Sound source:
+    # arXiv 2512.02227 Dec 2025 Orchestration Framework `sectorLimit: 0.30`.
+    # Edge cases per research_brief.md Section 4: missing market_value -> 0
+    # (conservative, no crash); cap=0 disables; candidate self-exceeds gets
+    # blocked because existing_sector_value + buy_amount is checked; already-
+    # over sector keeps existing semantics (no force-divest).
     max_per_sector = int(getattr(settings, "paper_max_per_sector", 0) or 0)
+    max_sector_nav_pct = float(
+        getattr(settings, "paper_max_per_sector_nav_pct", 0.0) or 0.0
+    )
     sector_counts: dict[str, int] = {}
-    if max_per_sector > 0:
+    sector_market_values: dict[str, float] = {}
+    if max_per_sector > 0 or max_sector_nav_pct > 0:
         for pos in current_positions:
             if pos["ticker"] in selling_tickers:
                 continue
             s = (pos.get("sector") or "").strip() or "Unknown"
             sector_counts[s] = sector_counts.get(s, 0) + 1
+            sector_market_values[s] = (
+                sector_market_values.get(s, 0.0)
+                + float(pos.get("market_value", 0) or 0)
+            )
 
     for cand in buy_candidates:
         if remaining_positions >= settings.paper_max_positions:
@@ -241,6 +259,25 @@ def decide_trades(
             )
             continue
 
+        # phase-30.5: per-sector NAV-percentage cap. Independent of the
+        # count cap above. Cap=0 disables. Check AFTER buy_amount is known
+        # so we know exactly how much this BUY would push the sector past.
+        if max_sector_nav_pct > 0 and nav > 0:
+            cand_sector_nav = cand.get("sector") or "Unknown"
+            existing_sector_value = sector_market_values.get(cand_sector_nav, 0.0)
+            projected_sector_pct = (
+                (existing_sector_value + buy_amount) / nav * 100.0
+            )
+            if projected_sector_pct > max_sector_nav_pct:
+                logger.info(
+                    "Skipping BUY %s: sector %s would hit NAV-pct cap "
+                    "(%.2f%% projected > %.2f%% cap; existing=$%.2f buy=$%.2f nav=$%.2f)",
+                    cand["ticker"], cand_sector_nav,
+                    projected_sector_pct, max_sector_nav_pct,
+                    existing_sector_value, buy_amount, nav,
+                )
+                continue
+
         orders.append(TradeOrder(
             ticker=cand["ticker"],
             action="BUY",
@@ -257,9 +294,12 @@ def decide_trades(
         available_cash -= buy_amount
         remaining_positions += 1
         # phase-23.1.13: increment sector count after a BUY clears the cap
-        if max_per_sector > 0:
+        # phase-30.5: ALSO increment sector_market_values so the next
+        # candidate in the same sector sees the updated NAV-pct.
+        if max_per_sector > 0 or max_sector_nav_pct > 0:
             cs = cand.get("sector") or "Unknown"
             sector_counts[cs] = sector_counts.get(cs, 0) + 1
+            sector_market_values[cs] = sector_market_values.get(cs, 0.0) + buy_amount
 
     logger.info(f"Trade decisions: {len([o for o in orders if o.action == 'SELL'])} sells, "
                 f"{len([o for o in orders if o.action == 'BUY'])} buys")

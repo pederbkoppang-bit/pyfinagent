@@ -1,133 +1,117 @@
-# Experiment Results -- phase-30.3
+# Experiment Results -- phase-30.5
 
-**Step:** P1: Connect stop-loss exits to learn loop.
+**Step:** P2: Sector cap NAV-percentage representation alongside count cap.
 **Date:** 2026-05-19.
 **Mode:** OVERNIGHT. Autonomous loop PAUSED.
 
 ## Summary
 
-Hoisted `closed_tickers: list[str] = []` from inside Step 7 to the
-cycle-top (line ~169, sibling of the `summary`/`trades_executed`/
-`total_analysis_cost` initializers). Added `closed_tickers.append(sl_ticker)`
-to Step 5.6 immediately after the existing
-`summary["stop_loss_triggered"].append(sl_ticker)`. Removed the now-
-redundant `closed_tickers = []` inside Step 7.
+Added `paper_max_per_sector_nav_pct: float = Field(30.0, ...)` setting
+and extended `portfolio_manager.py::decide_trades` to enforce a
+NAV-percentage cap alongside the existing count cap. The two caps fire
+independently. Default 30% per arXiv 2512.02227 (Dec 2025 Orchestration
+Framework explicit `sectorLimit: 0.30` for stocks), bracketed between
+SEC 1940 Act 25% "concentrated" threshold and UCITS 5/10/40 40% aggregate
+ceiling.
 
-Net effect: stop-loss-triggered closes flow through the learn loop
-(`_learn_from_closed_trades`), enabling the previously dormant
-`outcome_tracking` + `agent_memories` write paths to fire on the
-system's worst trades.
-
-Closes phase-30.0 Stage 12 (FAIL) + P1-3: agent_memories empty since
-table creation 2026-04-13.
+Closes phase-30.0 Stage 6 / P2-2: count cap default=2 enforces entries
+but does not address one-large-position-dominating-NAV.
 
 ## Files touched
 
-| Path | Lines added | Lines removed | Notes |
-|------|-------------|---------------|-------|
-| `backend/services/autonomous_loop.py` | 18 | 2 | hoist + append + dedup-removal |
-| `backend/tests/test_autonomous_loop_step_5_6.py` | 273 | 25 | extended phase-30.2 file with 3 new tests + module-level comment refresh; removed unused `patch` placeholder cleanup |
-| **Total** | **291** | **27** | **net +264** |
+| Path | Lines added | Lines removed |
+|------|-------------|---------------|
+| `backend/config/settings.py` | 13 | 0 |
+| `backend/services/portfolio_manager.py` | 44 | 3 |
+| `tests/services/test_sector_concentration.py` | 174 | 0 |
+| **Total** | **231** | **3** |
 
-Non-comment LOC: ~14 production (autonomous_loop deltas) + ~150 test
-(3 new cases + helper). Under the 150-line target for the code change.
+Non-comment LOC: ~14 (settings + portfolio_manager production code) +
+~120 (tests). Under the 200-line target.
 
-**Scope adherence:** the audit's P1-3 named only
-`backend/services/autonomous_loop.py:771`. Production diff stays
-within that file (a single function, `run_daily_cycle`). The test
-file is the same one phase-30.2 created and just extended -- no new
-test files.
+**Scope adherence:** the audit's P2-2 named
+`backend/config/settings.py` + `backend/services/portfolio_manager.py`.
+Plus extending an existing test file under `tests/services/`. No
+scope deviation.
 
 ## Implementation details
 
-### `backend/services/autonomous_loop.py`
+### `backend/config/settings.py`
 
-Three edits to `run_daily_cycle`:
+Added after `paper_max_per_sector` field (line ~159):
 
-1. **Hoist (line ~159 area)** -- inserted before the existing
-   `summary = {"status": "running", "steps": []}` initialization:
-   ```python
-   # phase-30.3: hoist closed_tickers to cycle-top so the stop-loss-
-   # enforcement step can append to it BEFORE the execute-trades step
-   # runs. Without this hoist the variable only exists inside the
-   # execute step (the old initialization site), so stop-loss-triggered
-   # closes never reach _learn_from_closed_trades.
-   # Closes phase-30.0 Stage 12 + P1-3 (empty agent_memories table).
-   # Researcher Option A: only timeout-safe init site (the cycle body
-   # is wrapped in `async with asyncio.timeout(...)` -- a timeout mid-
-   # cycle could otherwise leave closed_tickers undefined at summary-
-   # serialize time in the finally block).
-   closed_tickers: list[str] = []
-   ```
+```python
+paper_max_per_sector_nav_pct: float = Field(
+    30.0,
+    ge=0.0,
+    le=100.0,
+    description="Maximum NAV percentage per single GICS sector. 0 = no limit (legacy). Default 30 per arXiv 2512.02227 Dec 2025 + LSEG/CFA/SEC bracket. Fires alongside paper_max_per_sector count cap.",
+)
+```
 
-2. **Append in Step 5.6 (line ~795)** -- inserted as a sibling line to
-   the existing `summary["stop_loss_triggered"].append(sl_ticker)`:
-   ```python
-   if sl_trade:
-       summary["stop_loss_triggered"].append(sl_ticker)
-       closed_tickers.append(sl_ticker)  # phase-30.3: route stop-out exits through the learn loop (audit Stage 12 + P1-3).
-       logger.warning(...)
-   ```
-   The inline comment is intentional -- mid-line so the masterplan
-   verification command
-   `grep -B 2 -A 4 'stop_loss_triggered.*append' | grep -q 'closed_tickers.append'`
-   finds the symbol within the 7-line window.
+### `backend/services/portfolio_manager.py`
 
-3. **Remove duplicate init in Step 7 (line ~878)** -- replaced the
-   `closed_tickers = []` line with an explanatory comment so the prior
-   git-history audit-trail remains intact:
-   ```python
-   # phase-30.3: closed_tickers now lives at cycle-top (line ~169)
-   # so Step 5.6 stop-outs can populate it. Re-init here would
-   # erase Step 5.6's appends.
-   ```
+Three edits in `decide_trades`:
 
-### `backend/tests/test_autonomous_loop_step_5_6.py`
+1. **Bucket init at sector-cap setup** (line ~195) -- now builds
+   `sector_market_values: dict[str, float] = {}` alongside
+   `sector_counts: dict[str, int] = {}`. Iterates the same
+   `current_positions` filter so the two buckets stay in sync.
 
-Extended the phase-30.2 test file with phase-30.3 cases. Existing 4
-tests remain green. 3 new tests:
+2. **NAV-pct check AFTER buy_amount is computed** (line ~250) -- after
+   the existing $50-min-cash guard, checks
+   `(sector_market_values.get(cand_sector, 0) + buy_amount) / nav *
+   100 > max_sector_nav_pct` and `continue`s with an INFO log when
+   triggered. Distinct from the count-cap path so both gates can
+   fire independently.
 
-5. `test_step_5_6_stop_out_appends_to_closed_tickers` -- the core
-   wiring assertion. Mocks PaperTrader; runs the reproducer; verifies
-   triggered ticker lands in BOTH `summary["stop_loss_triggered"]`
-   (existing observable) AND the new `closed_tickers` list.
-6. `test_synthetic_stop_out_produces_agent_memories_row` -- strict-
-   literal of the masterplan criterion. Patches
-   `backend.services.outcome_tracker.OutcomeTracker` (the lazy-import
-   seam used inside `_learn_from_closed_trades`) with a factory whose
-   `evaluate_recommendation.side_effect` calls
-   `bq.save_agent_memory`. Asserts
-   `bq.save_agent_memory.call_count >= 1`. This honest-shape test
-   isolates the WIRING from the model-injection gap (researcher
-   identified the separate gap; out of scope for phase-30.3).
-7. `test_step_5_6_contains_closed_tickers_append_near_stop_loss_triggered`
-   -- mirrors the masterplan verification grep predicate against the
-   on-disk source file (non-comment-line filtered, 7-line window
-   centered on the trigger-append). Future refactor that removes the
-   wiring breaks pytest.
+3. **Increment after BUY clears both caps** (line ~272) -- the existing
+   post-BUY `sector_counts[cs] += 1` block also bumps
+   `sector_market_values[cs] += buy_amount` so the next candidate in
+   the same sector sees the updated NAV-pct.
 
-Also updated test #4 (`test_autonomous_loop_step_5_6_contains_backfill_symbol`)
-to find the Step 5.6 *section header* by the box-drawing pattern
-(`Step 5.6:` + `──`) rather than the bare string -- the phase-30.3
-hoist comment at cycle-top mentions Step 5.6 for cross-reference, and
-the looser match would otherwise grab the wrong header_idx.
+Edge cases (per research_brief.md Section 4):
+- `cap=0` disables (`max_sector_nav_pct > 0` guard).
+- Missing `market_value` -> `float(pos.get("market_value", 0) or 0)`
+  treats as zero (conservative; never crashes).
+- Candidate self-exceeds the cap -> blocked correctly because
+  `existing_sector_value + buy_amount` is checked against the cap.
+- Already-over sector -> matches count-cap semantics (no force-divest;
+  next BUY is blocked, existing positions stay).
+
+### `tests/services/test_sector_concentration.py`
+
+Updated the shared `_settings(...)` helper to accept
+`max_per_sector_nav_pct=0.0` (default 0 keeps existing 8 tests
+green). Appended 5 new tests:
+
+- `test_nav_pct_cap_blocks_buy_when_count_cap_allows` (Test A)
+  -- count cap = 10, NAV-pct = 30, existing Tech at 27.5% NAV; new BUY
+  would push to 31% > 30% -> blocked. **This is the strict-literal of
+  the masterplan criterion #3.**
+- `test_nav_pct_cap_allows_buy_when_both_caps_hold` (Test B)
+  -- count cap = 10, NAV-pct = 30, existing Tech at 10%; new BUY
+  pushes to 13.5% < 30% -> allowed.
+- `test_nav_pct_cap_zero_disables_check` (Test C)
+  -- NAV-pct = 0 -> any sector size accommodates (subject to existing
+  $50-min-cash guard; test verifies the NAV-pct gate itself doesn't
+  fire).
+- `test_nav_pct_and_count_caps_independent` (Test D)
+  -- count = 1 tight, NAV-pct = 30 loose, one existing Tech at 2.5%
+  NAV; AMD blocked by count cap regardless of NAV-pct headroom.
+- `test_nav_pct_cap_grep_symbol_present_in_portfolio_manager`
+  -- mirrors the masterplan verification command
+  (`grep -q 'sector_nav_pct' backend/services/portfolio_manager.py`)
+  as a regression guard against future refactor that removes the
+  wiring.
 
 ## Verification
 
-### Masterplan verification command (phase-30.3)
+### Masterplan verification command (phase-30.5)
 
 ```bash
-grep -B 2 -A 4 'stop_loss_triggered.*append' backend/services/autonomous_loop.py | \
-  grep -q 'closed_tickers.append'
-```
-
-Result: **exit 0**.
-
-### Adjacent verification still holds (phase-30.2)
-
-```bash
-grep -A 5 'Step 5.6' backend/services/autonomous_loop.py | \
-  grep -q 'backfill_missing_stops'
+grep -q 'paper_max_per_sector_nav_pct' backend/config/settings.py && \
+  grep -q 'sector_nav_pct' backend/services/portfolio_manager.py
 ```
 
 Result: **exit 0**.
@@ -135,65 +119,61 @@ Result: **exit 0**.
 ### Test run
 
 ```
-$ source .venv/bin/activate && python -m pytest backend/tests/test_autonomous_loop_step_5_6.py -v
-collected 7 items
+$ source .venv/bin/activate && python -m pytest tests/services/test_sector_concentration.py -v
+collected 13 items
 
-test_step_5_6_backfill_runs_before_check_stop_losses PASSED [ 14%]
-test_step_5_6_idempotent_backfill_no_op PASSED [ 28%]
-test_step_5_6_backfill_exception_does_not_block_check PASSED [ 42%]
-test_autonomous_loop_step_5_6_contains_backfill_symbol PASSED [ 57%]
-test_step_5_6_stop_out_appends_to_closed_tickers PASSED [ 71%]
-test_synthetic_stop_out_produces_agent_memories_row PASSED [ 85%]
-test_step_5_6_contains_closed_tickers_append_near_stop_loss_triggered PASSED [100%]
+test_third_tech_buy_skipped_when_cap_is_2 PASSED [  7%]
+test_disabled_cap_passes_all_through PASSED [ 15%]
+test_cap_counts_existing_positions PASSED [ 23%]
+test_unknown_sector_treated_as_own_bucket PASSED [ 30%]
+test_diverse_sectors_all_booked PASSED [ 38%]
+test_legacy_position_with_enriched_sector_blocks_same_sector_buy PASSED [ 46%]
+test_legacy_position_without_enrichment_falls_into_unknown PASSED [ 53%]
+test_sector_priority_via_candidates_by_ticker PASSED [ 61%]
+test_nav_pct_cap_blocks_buy_when_count_cap_allows PASSED [ 69%]
+test_nav_pct_cap_allows_buy_when_both_caps_hold PASSED [ 76%]
+test_nav_pct_cap_zero_disables_check PASSED [ 84%]
+test_nav_pct_and_count_caps_independent PASSED [ 92%]
+test_nav_pct_cap_grep_symbol_present_in_portfolio_manager PASSED [100%]
 
-7 passed, 1 warning in 1.86s
+13 passed in 0.03s
 ```
 
-All 4 phase-30.2 tests stay green (no regression); 3 new phase-30.3
-tests pass.
+All 8 existing tests stay green (no regression); 5 new phase-30.5 tests
+pass.
 
-### Regression check (broader)
+### Regression sweep
 
 ```
 $ python -m pytest backend/tests/test_cycle_heartbeat_alarm.py \
+                   backend/tests/test_autonomous_loop_step_5_6.py \
                    backend/tests/test_observability.py -q
-19 passed, 1 warning in 3.55s
+26 passed, 1 warning in 3.82s
 ```
 
-Phase-30.1 heartbeat (7) + observability (12) = 19/19 green.
+Phase-30.1 (7) + phase-30.2+30.3 (7) + observability (12) = 26/26
+green. No regression from phase-30.5.
 
 ### Syntax check
 
 `python -c "import ast; ast.parse(...)"` on
-`backend/services/autonomous_loop.py` and the test file: OK.
+`backend/config/settings.py`, `backend/services/portfolio_manager.py`,
+and the test file: OK.
 
 ## Hard guardrail attestation
 
-- No mutating BigQuery calls -- the wiring delegates to existing
-  helpers (`OutcomeTracker.evaluate_recommendation` is unchanged).
+- No mutating BigQuery calls -- the check is pure in-memory math on
+  the existing `paper_positions.market_value` field.
 - No Alpaca calls.
 - No frontend / `.claude/` / `.mcp.json` touched.
-- Diff stays within the audit's proposed-diff scope (one file,
-  `backend/services/autonomous_loop.py`).
-- Test ships and passes deterministically.
+- Diff stays within the audit's proposed-diff scope (one settings
+  field + one decide_trades extension + one test file extension).
+- Tests ship and pass deterministically.
 
 ## Success criteria check
 
 | Criterion | Status | Evidence |
 |-----------|--------|----------|
-| `stop_loss_triggered_tickers_appended_to_closed_tickers` | PASS | Verification grep + test #5 + test #7 |
-| `syntax_check_passes` | PASS | `python -c "import ast; ast.parse(...)"` returns 0 |
-| `synthetic_test_with_one_stop_out_produces_an_agent_memories_row` | PASS (strict-literal via patched OutcomeTracker) | Test #6 patches the lazy-import seam and asserts `bq.save_agent_memory.call_count >= 1` with a synthetic stop-out of WDC |
-| `no_regression_in_existing_learn_step_test` | PASS | No existing learn-step test in the repo to regress; the 4 phase-30.2 tests + 19 phase-30.1 + observability tests all remain green. New test #6 establishes the baseline for future regression detection. |
-
-## Known separate-step issue (out-of-scope for phase-30.3)
-
-`_learn_from_closed_trades` instantiates `OutcomeTracker(settings)`
-WITHOUT a model -> `self._model is None` -> the model-gated
-`_generate_and_persist_reflections` branch at
-`outcome_tracker.py:147` is skipped in production -> the actual
-`bq.save_agent_memory` write does NOT fire. This is a model-injection
-gap separate from the closed_tickers wiring fix. The test patches
-around this so the wiring assertion stands; production effect on
-`agent_memories` requires a follow-on cycle (queued in the morning-
-verification list).
+| `settings_field_paper_max_per_sector_nav_pct_added_default_30` | PASS | `grep -q 'paper_max_per_sector_nav_pct' backend/config/settings.py` exits 0; field has `default=30.0` per Pydantic `Field(30.0, ...)` |
+| `portfolio_manager_enforces_both_count_and_nav_pct_caps` | PASS | Test D (`test_nav_pct_and_count_caps_independent`) verifies both gates are independent and can each block when the other allows |
+| `test_covers_a_buy_blocked_by_nav_pct_cap_even_when_count_cap_passes` | PASS | Test A (`test_nav_pct_cap_blocks_buy_when_count_cap_allows`) is the strict-literal: count cap = 10 (won't block 3 Tech), NAV-pct = 30, existing Tech at 27.5% NAV; new BUY -> 31% -> blocked |

@@ -157,6 +157,19 @@ class Settings(BaseSettings):
     # Mirrors SEC 1940 Act "concentrated" threshold (25% NAV per sector) when paired with 10% per-position cap.
     # 0 disables the cap entirely (legacy behavior); the existing 11/11-Technology bug is the documented failure mode.
     paper_max_per_sector: int = Field(2, ge=0, le=20, description="Maximum BUY positions in any single GICS sector. 0 = no limit (legacy).")
+    # phase-30.5: NAV-percentage sector cap (P2-2 from phase-30.0 audit).
+    # Complements the COUNT cap above: count blocks "many small positions",
+    # NAV-pct blocks "one fat position dominating the sector". Default 30%
+    # per arXiv 2512.02227 Dec 2025 Orchestration Framework explicit
+    # `"sectorLimit": 0.30` for stocks; brackets between SEC 1940 Act
+    # 25% "concentrated" threshold and UCITS 5/10/40 40% aggregate ceiling.
+    # 0 = no limit (legacy / disabled). The two caps fire independently.
+    paper_max_per_sector_nav_pct: float = Field(
+        30.0,
+        ge=0.0,
+        le=100.0,
+        description="Maximum NAV percentage per single GICS sector. 0 = no limit (legacy). Default 30 per arXiv 2512.02227 Dec 2025 + LSEG/CFA/SEC bracket. Fires alongside paper_max_per_sector count cap.",
+    )
     paper_min_cash_reserve_pct: float = Field(5.0, description="Minimum cash reserve as % of NAV")
     paper_screen_top_n: int = Field(10, description="Number of candidates from quant screening")
     paper_analyze_top_n: int = Field(5, description="Number of candidates to deep-analyze per day")

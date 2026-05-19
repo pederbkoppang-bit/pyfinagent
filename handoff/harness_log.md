@@ -20610,3 +20610,75 @@ end-of-run summary), then `POST /api/paper-trading/resume` to unpause.
 **Q/A verdict:** PASS (single spawn). 5-item harness-compliance ALL PASS. Heuristics: 0 BLOCK, 0 WARN, 1 NOTE (test #7 verifies symbol co-presence not order — immaterial; the masterplan criterion is co-presence). Anti-rubber-stamp: results honestly disclose the model-injection out-of-scope gap.
 **Known separate-step issue:** `_learn_from_closed_trades` instantiates `OutcomeTracker(settings)` with no model -> production `bq.save_agent_memory` write still dormant. Wiring fix is complete; model-injection is a follow-up (queued for morning verification + potential phase-30.8).
 **Closes:** phase-30.0 Stage 12 FAIL + P1-3 (wiring portion; full production effect pending model-injection follow-up).
+
+
+---
+
+## Cycle 1 -- 2026-05-19 -- phase=30.4 result=OVERNIGHT_BLOCKED_NEEDS_BQ_MIGRATION
+
+**Step:** phase-30.4 -- P1: GIPS-correct return series (subtract external flows).
+**Block reason:** The first immutable success criterion is
+`paper_portfolio_snapshots_schema_has_external_flow_today_column`, which
+mandates adding a new column to the `financial_reports.paper_portfolio_snapshots`
+BigQuery table. The masterplan verification command also requires
+`external_flow` symbol presence in `backend/db/bigquery_client.py`
+(the schema-definition site).
+
+Per goal directive overnight pre-approval rule 3: "NO BQ schema migrations
+-- no DROP, no ALTER, no unqualified DELETE. If required, mark
+`OVERNIGHT_BLOCKED_NEEDS_BQ_MIGRATION` and move on."
+
+The required schema change is `ALTER TABLE paper_portfolio_snapshots
+ADD COLUMN external_flow_today FLOAT64` -- explicitly an ALTER, blocked
+overnight.
+
+**Workaround NOT attempted:** the schema change could in principle be
+sidestepped by reconstructing external_flow_today on read (cash-delta
+minus trade-cash-flow per day from `paper_trades`), but the first
+success criterion strictly requires the schema column. Modifying an
+immutable criterion mid-cycle is a protocol breach.
+
+**Morning operator action required:**
+1. Apply the schema migration via `scripts/migrations/` (the canonical
+   site for version-controlled BQ schema changes per CLAUDE.md
+   BigQuery Access §5).
+2. Re-spawn phase-30.4 cycle after the migration lands.
+
+**No code touched** for phase-30.4. masterplan.json phase-30.4 status =
+`blocked` with `blocker: OVERNIGHT_BLOCKED_NEEDS_BQ_MIGRATION`.
+
+**Note:** the 5/13 $5K-deposit Sharpe-pollution anomaly documented in
+phase-30.0 Anomaly A is NOT fixed by this cycle. The morning verification
+will still show the polluted Sharpe value until phase-30.4 lands.
+
+---
+
+## Cycle 1 -- 2026-05-19 20:40 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.96% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+
+## Cycle 1 -- 2026-05-19 -- phase=30.5 result=PASS
+
+**Step:** phase-30.5 -- P2: Sector cap NAV-percentage representation alongside count cap.
+**Researcher:** complex/opus/max. 6 sources read in full (arXiv 2512.02227 Dec 2025 Orchestration Framework, LSEG/FTSE Russell, CFA Institute, Motley Fool, FE.training, SEC Investor.gov). 18 URLs. Recency scan: arXiv 2512.02227 confirmed canonical for `sectorLimit: 0.30`. gate_passed=true.
+**Generator diff:** 3 files (231 raw lines, 134 non-comment LOC):
+- `backend/config/settings.py`: +13 lines (new `paper_max_per_sector_nav_pct: float = Field(30.0, ge=0.0, le=100.0, ...)` field with 5-line provenance comment)
+- `backend/services/portfolio_manager.py`: +44 / -3 (sector_market_values bucket init + NAV-pct gate after buy_amount + increment after BUY clears both caps)
+- `tests/services/test_sector_concentration.py`: +174 lines (5 new phase-30.5 tests + extended `_settings` helper kwarg; 8 existing tests unchanged)
+**Tests:** 13/13 PASS in 0.03s (8 existing + 5 phase-30.5 new). Regression `test_cycle_heartbeat_alarm + test_autonomous_loop_step_5_6 + test_observability`: 26/26 PASS.
+**Q/A verdict:** PASS (single spawn). 5-item harness-compliance ALL PASS. Default 30.0 cited with 5-line provenance comment (arXiv 2512.02227 + SEC 1940 + UCITS bracket). Guard placement correct: NAV-pct gate fires AFTER buy_amount is known + AFTER count-cap. `nav > 0` div-zero guard. `max_sector_nav_pct > 0` cap-disabled guard. Test A is strict-literal of masterplan criterion #3. Heuristics: 0 BLOCK, 0 WARN, 1 NOTE (multi-buy increment-drop scenario not exercised; non-blocking).
+**Closes:** phase-30.0 Stage 6 / P2-2 (count cap default=2 enforces entries but does not address one-large-position-dominating-NAV). Future cycles will block both "many small positions" via count cap AND "one fat position" via NAV-pct cap.
