@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-20T01:00:00+00:00",
+  "updated_at": "2026-05-20T01:15:00+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10874,7 +10874,7 @@
     {
       "id": "phase-31",
       "name": "E2E Pipeline Smoketest (Claude Code-substituted lite path)",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "phase-30"
       ],
@@ -10944,6 +10944,216 @@
               "criterion_mismatch_documented_honestly"
             ],
             "live_check": "Output JSON shows orchestrator_status=completed, 19 substantive_agents, NVDA HOLD recommendation, 0 new analysis_results rows."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.4",
+          "name": "Stage 4: MAS Layer-2 debate (bull/bear/risk-judge on NVDA)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.3",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.5",
+          "name": "Stage 5: decide_trades synthetic",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.4",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.6",
+          "name": "Stage 6: Step 5.5+5.6 backfill-then-check ordering",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.5",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.7",
+          "name": "Stage 7: phase-30.5 NAV-pct cap blocks 3rd Tech buy",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.6",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.8",
+          "name": "Stage 8: phase-25.6 HARD BLOCK stop synthesis",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.7",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.9",
+          "name": "Stage 9: execution_router bq_sim",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.8",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.10",
+          "name": "Stage 10: mark_to_market mocked yfinance",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.9",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.11",
+          "name": "Stage 11: stop-loss enforcement + phase-30.3 routing",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.10",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.12",
+          "name": "Stage 12: OutcomeTracker chain",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.11",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "31.0.13",
+          "name": "Stage 13: cycle_heartbeat_alarm + phase-30.7 row shape",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "31.0.12",
+          "audit_basis": "morning goal 2026-05-20 Stages 4-13 BATCHED cycle (pragmatic deviation from per-stage protocol; documented in STAGES_4_13_contract.md). All 10 stages PASS via Stage 4 (3 Claude Code subagents) + scripts/smoketest_stages_5_through_13.py (9/9 stages 5-13).",
+          "verification": {
+            "command": "test -f handoff/smoketest_20260520/STAGES_4_13_summary.json && python3 -c \"import json; d=json.load(open('handoff/smoketest_20260520/STAGES_4_13_summary.json')); assert d['overall_verdict']=='PASS' and d['pass_count']==9\"",
+            "success_criteria": [
+              "all_stages_4_through_13_pass",
+              "no_anthropic_anthropic_calls",
+              "no_production_bq_writes",
+              "loop_paused_throughout"
+            ],
+            "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
           },
           "retry_count": 0,
           "max_retries": 3

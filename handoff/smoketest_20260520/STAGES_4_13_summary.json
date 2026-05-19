@@ -1,0 +1,70 @@
+{
+  "stage_results": {
+    "Stage 5 -- decide_trades synthetic": {
+      "verdict": "PASS",
+      "buy_count": 1,
+      "buy_ticker": "NVDA",
+      "nvda_price_at_analysis": 220.61,
+      "expected_price_at_analysis": 220.61
+    },
+    "Stage 6 -- Step 5.6 backfill-then-check ordering": {
+      "verdict": "PASS",
+      "backfill_idx": 0,
+      "check_idx": 1,
+      "stop_loss_backfilled_count": 1
+    },
+    "Stage 7 -- phase-30.5 NAV-pct cap blocks 3rd Tech buy": {
+      "verdict": "PASS",
+      "buy_count": 0,
+      "existing_tech_value": 5500,
+      "nav": 20000,
+      "existing_tech_pct": 27.5,
+      "would_be_post_buy_pct_approx": 30.5,
+      "cap_pct": 30.0
+    },
+    "Stage 8 -- phase-25.6 HARD BLOCK synthesizes 8% stop": {
+      "verdict": "PASS",
+      "trade_exists": true,
+      "synthesized_stop_on_position": 92.0,
+      "expected_stop": 92.0,
+      "save_paper_position_calls": 1
+    },
+    "Stage 9 -- execution_router bq_sim FillResult": {
+      "verdict": "PASS",
+      "mode": "bq_sim",
+      "fill_source": "bq_sim",
+      "fill_price": 100.0,
+      "fill_status": "accepted"
+    },
+    "Stage 10 -- mark_to_market mocked yfinance": {
+      "verdict": "PASS",
+      "nav": 8550.0,
+      "positions_value": 550.0,
+      "position_count": 1
+    },
+    "Stage 11 -- stop-loss enforcement + phase-30.3 learn-loop routing": {
+      "verdict": "PASS",
+      "triggered": [
+        "WDC"
+      ],
+      "closed_tickers": [
+        "WDC"
+      ]
+    },
+    "Stage 12 -- OutcomeTracker chain -> save_agent_memory invoked": {
+      "verdict": "PASS",
+      "save_agent_memory_calls": 1
+    },
+    "Stage 13 -- heartbeat alarm + phase-30.7 row shape (mocked)": {
+      "verdict": "PASS",
+      "alarm_stale": true,
+      "alarm_should_fire": true,
+      "alarm_weekday_et": true,
+      "phase_30_7_row_shape_ok": true
+    }
+  },
+  "pass_count": 9,
+  "fail_count": 0,
+  "total": 9,
+  "overall_verdict": "PASS"
+}

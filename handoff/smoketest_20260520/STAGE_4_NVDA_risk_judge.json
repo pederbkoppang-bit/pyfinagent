@@ -1,0 +1,7 @@
+{
+  "role": "risk_judge",
+  "ticker": "NVDA",
+  "consensus": "BUY",
+  "position_pct": 3.5,
+  "reasoning": "Resolving the Stage-2 lite-path BUY (conviction 8.7) vs Stage-3 full-orchestrator HOLD split: the quantitative signal stack is unambiguously constructive -- composite_score 15.283 sits in the high-conviction band, momentum_3m 17.36% confirms trend persistence, and rsi_14 58.5 is bullish-but-not-overbought (room to run before the 70 threshold). The bear case (insider selling + geopolitical/export-control risk) is real but already partially priced and represents tail risk rather than thesis-breaking deterioration -- insider selling at NVDA has been a near-continuous feature through the entire 2023-2026 run without invalidating the trend, and geopolitical/China-export risk is a known recurring overhang, not new information. Verdict: BUY, but size DOWN from the 5.0 default to 3.5% to respect the Stage-3 HOLD as a legitimate risk-flag rather than overriding it. This haircut (-30% vs default) gives a moderate-conviction long exposure while preserving dry powder for a) adding on a pullback that resolves the insider-selling signal, or b) trimming fast if export-control news escalates. Position-sizing logic: 5.0 default * 0.7 (Stage-3 dissent haircut) = 3.5%."
+}
