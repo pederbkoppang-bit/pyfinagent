@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-19 | `1a818932` | phase-30.5: sector cap NAV-percentage cap alongside count cap |
 | 2026-05-19 | `06922866` | phase-30.3: connect stop-loss exits to learn loop |
 | 2026-05-19 | `7aea8a23` | phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6 |
 | 2026-05-19 | `212f3cc5` | phase-30.1: out-of-band autonomous-cycle heartbeat alarm + pause overnight loop |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `6e88f91a` | phase-28.13: Earnings-call NLP for firm-level GPR exposure |
 | 2026-05-17 | `ac5a5b3c` | phase-28.11: LLM analyst-report narrative signal (highest expected lift) |
 | 2026-05-17 | `f61ffeb0` | phase-28.10: Opportunistic insider-buying signal lifted from Layer-1 into screener tier |
-| 2026-05-17 | `9ba6c754` | phase-28.9: Options-flow OI-surge filter (new plug-in) |
 
 ---
 
+### v6.11.4 — phase-30.5: sector cap NAV-percentage cap alongside count cap (2026-05-19)
+
+- **phase-30.5: sector cap NAV-percentage cap alongside count cap**
 ### v6.11.3 — phase-30.3: connect stop-loss exits to learn loop (2026-05-19)
 
 - **phase-30.3: connect stop-loss exits to learn loop**
