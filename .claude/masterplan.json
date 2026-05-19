@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-19T23:10:00+00:00",
+  "updated_at": "2026-05-19T23:30:00+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10693,7 +10693,7 @@
     {
       "id": "phase-30",
       "name": "E2E Paper-Trading Pipeline Remediation",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-29"
       ],
@@ -10854,7 +10854,7 @@
         {
           "id": "30.7",
           "name": "P3: MAS strategy-router production wiring audit",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": "30.0",

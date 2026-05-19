@@ -1,407 +1,489 @@
-# Q/A Critique -- phase-30.6
+# Q/A Critique -- phase-30.7
 
-**Step:** P2: Price-tolerance pre-trade gate in execute_buy.
+**Step:** P3: MAS strategy-router production wiring audit.
 **Date:** 2026-05-19.
-**Cycle:** 1 (first Q/A spawn for phase-30.6; not verdict-shopping).
+**Cycle:** 1 (first Q/A spawn for phase-30.7; not verdict-shopping).
 **Effort:** max.
 
 ## 5-item harness-compliance audit (MANDATORY -- runs FIRST)
 
 1. **Researcher gate ran?** PASS. `handoff/current/research_brief.md`
-   JSON envelope shows `gate_passed: true`,
-   `external_sources_read_in_full: 8` (FIA WP July 2024, 17 CFR
-   240.15c3-5, SEC investor.gov LULD, ESMA Feb 2026 supervisory
-   briefing, FIN-FSA Dec 2024 thematic assessment, CME Globex Price
-   Banding, arXiv 2603.10092, arXiv 2512.02227), `urls_collected: 20`,
-   `snippet_only_sources: 12`, `recency_scan_performed: true`,
-   `internal_files_inspected: 5`, `tier: "complex"`. Three-variant
-   search composition documented (Section 1: current-year frontier
-   2026 + last-2-year 2024-2025 + year-less canonical CME/IBKR/Alpaca).
-   Floor of 5 cleared with margin of 3. Tier-1/2 dominance (regulator
-   + regulator-anchored + arXiv preprint), no community-tier-only
-   fills.
+   JSON envelope (lines 110-122) shows `gate_passed: true`,
+   `external_sources_read_in_full: 7` (arXiv 2502.04284 alpha-decay
+   thresholds + arXiv 2412.20138 TradingAgents per-decision audit +
+   arXiv 2510.15949 ATLAS prompt-evolution audit trail + OneUptime
+   Feb 2026 dead-man's-switch + AIMS Press 2025 Forest-of-Opinions
+   ensemble-HMM + QuantStart 252d rolling Sharpe + arXiv 2509.16707
+   Increase-Alpha immutable per-cycle persistence),
+   `urls_collected: 14`, `snippet_only_sources: 7`,
+   `recency_scan_performed: true`, `tier: "moderate"`.
+   **Important context (noted by orchestrator):** the primary
+   researcher stalled with an empty skeleton (gate_passed=false).
+   The backup researcher (this brief) is the gate-passing source.
+   This is interrupted-recovery, NOT verdict-shopping (the primary
+   never produced a verdict). Three-variant search composition
+   present (Section C: current-year frontier 2025 + last-2-year
+   2024-2026 + year-less canonical "Hamilton Markov regime
+   switching" + cross-domain "SR 11-7 SOX"). Five-source floor
+   cleared with margin of 2. Tier-1/2 dominance (arXiv preprints +
+   regulator-anchored OneUptime + practitioner-canonical QuantStart),
+   no community-tier-only fills.
 2. **Contract written before generate?** PASS. `handoff/current/contract.md`
-   exists with research-gate summary at top (lines 8-28),
+   exists with research-gate summary at top (lines 8-39),
    immutable success criteria copied verbatim from
-   `.claude/masterplan.json::phase-30.6` lines 10843-10848 (3
-   success_criteria + verification.command), and plan/hypothesis/
-   guardrails sections. Contract precedes results write per the
-   project per-step order (research -> contract -> generate -> qa).
+   `.claude/masterplan.json::phase-30.7` (3 success_criteria +
+   verification.command at lines 50-57). Plan / hypothesis /
+   guardrails sections present. The contract documents the
+   backup-researcher recovery + scope substitution
+   (`backend/services/autonomous_loop.py` + `backend/db/bigquery_client.py`
+   in lieu of the audit's named `backend/agents/multi_agent_orchestrator.py`)
+   at lines 70-89.
 3. **Results file present?** PASS. `handoff/current/experiment_results.md`
-   exists with Summary / Files touched (+319 -5) / Implementation
-   details / Verification (verbatim command output) / Hard guardrail
-   attestation / Success-criteria check table. The autonomous_loop
-   buy-loop semantic change ("ALWAYS fetch live for fill" vs prior
-   "prefer order.price") IS disclosed honestly at lines 71-79 -- not
-   buried.
-4. **Log NOT yet written?** PASS. `grep -c 'phase-30.6'
+   exists with Summary / Investigation findings (writeup
+   deliverable) / Files touched (+194 -0 across 3 files) /
+   Implementation details / Verification (verbatim grep + pytest +
+   regression) / Hard guardrail attestation / Success-criteria
+   table. The scope substitution is HONESTLY disclosed at lines
+   94-101 ("the audit's P3-1 named only
+   `backend/agents/multi_agent_orchestrator.py`. The implementation
+   instead targets ... This is a documented scope substitution
+   ...") and the out-of-scope deferral to phase-31 is explicit at
+   lines 23-25 + 211-220.
+4. **Log NOT yet written?** PASS. `grep -c 'phase-30.7'
    handoff/harness_log.md` returns 0. Log append correctly held
    until after Q/A verdict per the log-LAST discipline.
-5. **No verdict-shopping?** PASS. First Q/A spawn for phase-30.6.
-   Prior `evaluator_critique.md` content was phase-30.5 (PASS),
-   different step-id, no cycle-2 sycophancy risk. The stale phase-30.5
-   content is being overwritten by this spawn per the orchestrator's
-   instruction.
+5. **No verdict-shopping?** PASS. First Q/A spawn for phase-30.7.
+   Prior `evaluator_critique.md` content was phase-30.6 (PASS),
+   different step-id, no cycle-2 sycophancy risk. The stale
+   phase-30.6 content is being overwritten by this spawn per the
+   orchestrator's instruction. The backup-researcher recovery is
+   a separate doctrine (interrupted primary, not verdict-flip on
+   the same evidence).
 
 ## Deterministic checks
 
 | Check | Command | Result |
 |-------|---------|--------|
-| Masterplan verification command (full) | `grep -q 'paper_price_tolerance_pct' backend/config/settings.py && grep -q 'price_tolerance' backend/services/paper_trader.py` | exit 0 PASS |
-| Verification predicate 1 | `grep -n 'paper_price_tolerance_pct' backend/config/settings.py` | line 341 `Field(5.0, ge=0.0, le=50.0, ...)` |
-| Verification predicate 2 | `grep -n 'price_tolerance' backend/services/paper_trader.py` | 7 hits at lines 124, 129, 130, 133, 139, 143 -- all in the new gate block |
-| Syntax check (5 files) | `python -c "import ast; [ast.parse(open(p).read()) for p in [settings.py, portfolio_manager.py, autonomous_loop.py, paper_trader.py, test_price_tolerance_gate.py]]"` | AST OK on all 5 files |
-| Phase-30.6 test suite | `python -m pytest backend/tests/test_price_tolerance_gate.py -v` | 6/6 PASS in 0.79s |
-| Regression sweep (4 modules) | `python -m pytest backend/tests/test_cycle_heartbeat_alarm.py backend/tests/test_autonomous_loop_step_5_6.py backend/tests/test_observability.py tests/services/test_sector_concentration.py -q` | 39/39 PASS in 3.53s |
-| Diff scope | `git diff --stat backend/` | 4 production files modified: settings.py (+14 -0), autonomous_loop.py (+21 -5), paper_trader.py (+30 -0), portfolio_manager.py (+9 -0). Total +74 -5. NO scope leak. |
-| Test file (untracked) | `ls backend/tests/test_price_tolerance_gate.py` | 221 lines, 6 test functions |
-| Out-of-scope leak check | `git diff --stat frontend/ .claude/ .mcp.json` | Only `.claude/.archive-baseline.json` (auto-managed by archive-handoff hook, +4 -0); no .mcp.json change, no frontend, no agent file mutation |
-| Gate placement (non-bypassable) | `paper_trader.py:121-145` between stop-loss synth (ends :119) and portfolio fetch (:147), BEFORE ExecutionRouter at :203-207 | Matches contract; matches arXiv 2603.10092 §3.1 pattern |
-| New broad-except introduced? | `grep -nE 'except Exception\|except:' backend/services/paper_trader.py` | Existing 9 sites untouched (lines 26, 52, 193, 553, 728, 739, 767, 786, 803). NO new instances. New gate is plain math + logger.warning + return None |
-| `paper_trader.py` execute_buy gate code | Read lines 121-145 | Gate fires iff `tolerance > 0 AND price_at_analysis is not None AND price_at_analysis > 0 AND price > 0`. Symmetric `abs(price - price_at_analysis) / price_at_analysis * 100.0`. Reject = `logger.warning(...)` + `return None`. ASCII-only logger message (no Unicode arrows). |
-| Default value (criterion #1 strict-literal) | `settings.py:341-346` | `paper_price_tolerance_pct: float = Field(5.0, ge=0.0, le=50.0, ...)`. Default literally 5.0 with regulator-anchored description quoting SEC LULD Tier 1. |
+| Masterplan verification command | `grep -q 'strategy_decisions' backend/services/autonomous_loop.py` | exit 0 PASS |
+| Verification grep hits (verbatim) | `grep -n 'strategy_decisions' backend/services/autonomous_loop.py` | 5 hits at lines 986, 987, 1000, 1011, 1015 -- all inside the Step 10.5 heartbeat block |
+| Syntax check (3 files) | `python -c "import ast; [ast.parse(open(p).read()) for p in [bigquery_client.py, autonomous_loop.py, test_strategy_decisions_heartbeat.py]]"` | AST OK on all 3 files |
+| Phase-30.7 test suite | `python -m pytest backend/tests/test_strategy_decisions_heartbeat.py -v` | 4/4 PASS in 0.72s |
+| Regression sweep (5 modules, 45 cases) | `python -m pytest backend/tests/test_cycle_heartbeat_alarm.py backend/tests/test_autonomous_loop_step_5_6.py backend/tests/test_observability.py backend/tests/test_price_tolerance_gate.py tests/services/test_sector_concentration.py -q` | 45/45 PASS in 3.09s |
+| Diff scope (backend) | `git diff --stat backend/` | 2 production files modified: `backend/db/bigquery_client.py` (+26 -0), `backend/services/autonomous_loop.py` (+33 -0). Total +59 -0. New test file (untracked, +135 -0). |
+| Out-of-scope leak check | `git diff --stat frontend/ .claude/ .mcp.json scripts/` | Only `.claude/.archive-baseline.json` (+5, auto-managed by archive-handoff hook on prior cycle close); no `.mcp.json`, no frontend, no scripts/, no `.claude/agents/` mutation |
+| New test file presence | `ls -la backend/tests/test_strategy_decisions_heartbeat.py` | 5915 bytes, 4 test functions |
+| Writer in bigquery_client.py | `grep -n 'save_strategy_decision\|strategy_decisions' backend/db/bigquery_client.py` | Helper at line 403; table target literal at line 424 `f"{self.settings.gcp_project_id}.pyfinagent_data.strategy_decisions"` |
+| Heartbeat block in autonomous_loop.py | Read lines 986-1017 | Step 10.5 block: try/except wrap, row builder with all 8 schema fields, `asyncio.to_thread(bq.save_strategy_decision, ...)`, fail-open `except Exception: logger.warning(...)`, `summary["strategy_decision_logged"]` operator signal |
+| Async-safety rule compliance | `backend-api.md` "Never call sync I/O directly inside async def" | PASS -- `await asyncio.to_thread(bq.save_strategy_decision, ...)` at line 1011 wraps the sync BQ insert correctly. Matches the established pattern. |
 
 `checks_run = [harness_compliance_audit, verification_command,
-syntax_5files, pytest_phase_30_6, pytest_regression, diff_scope,
-diff_leak_check, source_inspection, broad_except_scan]`.
+syntax_3files, pytest_phase_30_7, pytest_regression_45,
+diff_scope, diff_leak_check, source_inspection,
+async_safety_check, code_review_heuristics]`.
 
 ## Code-review heuristics (phase-16.59 trading-domain framework)
 
-Severity dispatch: BLOCK / WARN / NOTE. **None of the 5 dimensions
-raised a finding above NOTE.**
+Severity dispatch: BLOCK / WARN / NOTE. **None of the 5
+dimensions raised a finding above NOTE.**
 
 **Dimension 1 (Security):**
 - **secret-in-diff [BLOCK]**: no secret literals in diff. PASS.
 - **prompt-injection-path [BLOCK]**: no LLM-input surface added or
   modified. PASS.
 - **command-injection [BLOCK]**: no subprocess/eval/exec. PASS.
-- **insecure-output-handling [BLOCK]**: gate inputs are typed floats
-  (`price`, `price_at_analysis`); reject path returns None, no flow
-  to query/exec/file path. PASS.
-- **supply-chain-dep-pin-removal [WARN]**: no requirements/manifest
-  change. PASS.
-- **system-prompt-leakage [WARN]**: no agent-config or system-prompt
-  surface touched. PASS.
+- **insecure-output-handling [BLOCK]**: row dict assembled from
+  typed in-cycle values (`datetime.now(timezone.utc).isoformat()`,
+  `_cycle_id`, `best_params.get("strategy", "unknown")`); inserted
+  via `insert_rows_json` (parameterized JSON, not SQL string
+  concat). PASS.
+- **system-prompt-leakage [WARN]**: no agent_config / system_prompt
+  surface touched. The rationale string `"per-cycle heartbeat; no
+  regime change detected. Full router activation deferred to
+  phase-31."` is a project-meta literal, not a system prompt. PASS.
 - **rag-memory-poisoning [WARN]**: no vector-store or `add_memory`
-  call added. PASS.
+  call added. BQ insert is into an authenticated project. PASS.
 - **unbounded-llm-loop [WARN]**: no `while True`; no
-  `MAX_TOOL_TURNS` / `MAX_RESEARCH_ITERATIONS` change. The
-  `for order in orders:` loop at `autonomous_loop.py:903` iterates
-  the already-bounded `orders` list from `portfolio_manager.decide_trades`.
+  `MAX_TOOL_TURNS` / `MAX_RESEARCH_ITERATIONS` change. The new
+  block is a single-shot try/except inside the existing
+  `run_daily_cycle` (already bounded by the cycle scheduler).
   PASS.
-- **excessive-agency [WARN]**: no new tool/write/delete capability.
-  PASS.
+- **supply-chain-dep-pin-removal [WARN]**: no
+  requirements/manifest change. PASS.
+- **excessive-agency [WARN]**: ONE new write capability is added
+  (`save_strategy_decision` -> BQ insert into
+  `pyfinagent_data.strategy_decisions`). It is LEAST-PRIVILEGE
+  documented: helper docstring at `bigquery_client.py:404-422`
+  explicitly cites phase-26.5 migration, names the table, lists
+  the two row kinds (`cycle_heartbeat` now + phase-31 future), and
+  scopes the BQ project from settings (`gcp_project_id`). No new
+  endpoint, no new auth surface, no new external surface. PASS.
 
 **Dimension 2 (Trading-domain correctness):**
-- **kill-switch-reachability [BLOCK]**: `kill_switch.is_paused()` is
-  checked upstream in `autonomous_loop` before `decide_trades` and
-  before Step 7 even runs. The new gate is a `return None` (skip a
-  single candidate); it does NOT bypass kill_switch. PASS.
-- **stop-loss-always-set [BLOCK]**: the phase-25.6 HARD BLOCK at
-  `paper_trader.py:112-119` runs BEFORE the new gate. If
-  `stop_loss_price is None` and the new gate then rejects, no
-  position is created -- so no entry without a stop. Sequential
-  ordering preserved. PASS.
-- **stop-loss-backfill-removal [BLOCK]**: `backfill_stop_losses` at
-  paper_trader.py:466-517 untouched (verified by `git diff`). PASS.
-- **perf-metrics-bypass [BLOCK]**: no Sharpe/drawdown/alpha math.
-  The new code is `abs(a - b) / b * 100` (a price-divergence ratio),
-  NOT a perf metric. Single-source-of-truth rule in `perf_metrics.py`
-  applies to P&L/Sharpe/drawdown/alpha; price-tolerance is a new
-  pre-trade-risk dimension. PASS.
-- **position-sizing-div-zero [WARN]**: explicit `price_at_analysis > 0`
-  guard at line 135 BEFORE division at line 138. The
-  `price_at_analysis is not None` guard at 134 short-circuits the
-  None case. Both protections in place. PASS.
-- **max-position-check-bypass [BLOCK]**: `paper_max_positions` guard
-  at `paper_trader.py:161-163` untouched and runs AFTER the new gate.
-  No bypass. PASS.
-- **paper-trader-broad-except [BLOCK]**: NO new `except Exception:`
-  introduced. Verified by `grep -nE 'except Exception|except:'
-  backend/services/paper_trader.py` -- 9 pre-existing sites unchanged;
-  zero new sites. The new gate uses explicit conditional checks
-  (`if tolerance > 0 and price_at_analysis is not None and
-  price_at_analysis > 0 and price > 0`) -- no try/except. PASS.
+- **kill-switch-reachability [BLOCK]**: `kill_switch.is_paused()`
+  is checked upstream at autonomous_loop entry; Step 10.5
+  heartbeat fires only inside a cycle that already passed the
+  kill-switch gate. The heartbeat is a pure observability write
+  (no order placement, no position mutation, no NAV mutation). It
+  does NOT bypass kill_switch by design. PASS.
+- **stop-loss-always-set [BLOCK]**: not touched. `paper_trader.py`
+  is not in the diff (`git diff --stat backend/` confirms).
+  PASS.
+- **stop-loss-backfill-removal [BLOCK]**: `backfill_stop_losses`
+  untouched. PASS.
+- **perf-metrics-bypass [BLOCK]**: no Sharpe / drawdown / alpha
+  math added. The new block is metadata persistence (row dict +
+  BQ insert). Single-source-of-truth rule in `perf_metrics.py`
+  honored -- no math added or duplicated. PASS.
+- **position-sizing-div-zero [WARN]**: no division. PASS.
+- **max-position-check-bypass [BLOCK]**: `paper_max_positions`
+  untouched. PASS.
+- **paper-trader-broad-except [BLOCK]**: The new try/except at
+  `autonomous_loop.py:997-1017` IS broad (`except Exception as
+  sd_exc:`). **However, this is the canonical observability-write
+  exception class** per `.claude/skills/code-review-trading-domain`
+  negation list: "broad except in fail-open observability writes
+  is acceptable when (a) the exception is logged, (b) no risk-
+  guard is bypassed, (c) the action is purely additive
+  observability." All three conditions satisfied:
+  (a) `logger.warning("phase-30.7: strategy_decisions heartbeat
+       write failed (non-fatal): %s", sd_exc)` -- ASCII-only,
+       cited phase, explicit non-fatal label.
+  (b) Heartbeat is observability-only; no order, no position
+      mutation, no NAV, no kill-switch state change. A swallowed
+      BQ error CANNOT propagate to the trade-execution path
+      (which is upstream of Step 10.5 -- trades happen at Steps
+      7-9 around `autonomous_loop.py:850-940`).
+  (c) Purely additive write to `pyfinagent_data.strategy_decisions`
+      with no read-back or downstream consumer in this cycle.
+  Test #2 (`test_save_strategy_decision_swallows_insert_errors`)
+  explicitly verifies the BQ-helper-level fail-open behavior. The
+  helper itself uses `logger.error("strategy_decisions insert
+  errors: %s", errors)` at line 427 -- it never raises on insert
+  errors (matching the established `save_signal` pattern at line
+  401). Two layers of swallow (helper + caller wrapper) is
+  appropriate defense-in-depth for a P3 observability write that
+  MUST NOT break the cycle. PASS.
 - **crypto-asset-class [BLOCK]**: not touched. PASS.
-- **sod-nav-anchor [WARN]**: `_sod_nav`/`_peak_nav` not touched. PASS.
-- **bq-schema-migration-safety [WARN]**: no BQ schema change. The
-  gate is pure pre-write math on in-memory values. PASS.
+- **sod-nav-anchor [WARN]**: `_sod_nav`/`_peak_nav` not touched.
+  PASS.
+- **bq-schema-migration-safety [WARN]**: NO schema migration. The
+  table schema was set at phase-26.5
+  (`scripts/migrations/add_strategy_decisions_table.py:38-54`);
+  phase-30.7 only WRITES into the existing table. PASS.
 
 **Dimension 3 (Code quality):**
-- **broad-except [WARN]**: no new instances. PASS.
-- **no-type-hints [NOTE]**: new `price_at_analysis: Optional[float]
-  = None` parameter is annotated; new `price_tolerance_pct: float`
-  and `divergence_pct: float` are inferred from `float(...)` /
-  arithmetic. PASS.
+- **broad-except [WARN]**: see above (fail-open observability;
+  acceptable with citation). NOTE-only.
+- **no-type-hints [NOTE]**: `save_strategy_decision(self, record:
+  dict) -> None` is annotated. The local `strategy_decisions_row`
+  dict at autonomous_loop:1000 is a literal. PASS.
 - **print-statement [WARN]**: none added. PASS.
-- **global-mutable-state [WARN]**: gate is function-local.
-  `TradeOrder.price_at_analysis` is a per-instance field on a
-  dataclass. PASS.
-- **test-coverage-delta [WARN]**: production diff is ~50 non-comment
-  LOC across 4 files; 6 new tests in the new test file cover every
-  branch (pass / reject-up / reject-down / disable / None / symbol).
-  Far exceeds the >50-lines-with-no-tests threshold. PASS.
-- **unicode-in-logger [NOTE]**: `logger.warning` at line 140-144
-  uses only ASCII (`$%.4f`, `$%.2f%%`, `--`, plain English). No
-  Unicode arrows, em-dashes, or non-ASCII. Honors `security.md` cp1252
-  rule. PASS.
-- **magic-number [NOTE]**: `100.0` is a unit conversion (ratio to
-  percentage), not a magic risk constant. `0.0` is the
-  disabled-sentinel matching `0 disables` convention used by
-  `paper_max_per_sector` etc. PASS.
+- **global-mutable-state [WARN]**: row dict is function-local.
+  PASS.
+- **test-coverage-delta [WARN]**: production diff is ~30
+  non-comment LOC across 2 files; 4 new tests cover all
+  primary branches (BQ target / fail-open / wiring presence /
+  schema shape). PASS.
+- **unicode-in-logger [NOTE]**: logger calls in the new code:
+  - `autonomous_loop.py:1015-1017`: `"phase-30.7: strategy_decisions
+    heartbeat write failed (non-fatal): %s"` -- ASCII-only.
+  - `bigquery_client.py:427`: `f"strategy_decisions insert
+    errors: {errors}"` -- ASCII-only. The `errors` value is a BQ
+    response that contains structured JSON; in worst case it
+    could carry non-ASCII upstream but that's outside the new
+    code's control and the f-string itself uses ASCII separators.
+  Both honor `.claude/rules/security.md` cp1252 rule. PASS.
+- **magic-number [NOTE]**: no numeric magic constants in the new
+  code. PASS.
 
 **Dimension 4 (Anti-rubber-stamp on financial logic):**
-- **financial-logic-without-behavioral-test [BLOCK]**: position-
-  sizing / pre-trade-risk gate logic added IS covered by 6
-  behavioral tests in `test_price_tolerance_gate.py`. Test A
-  (pass branch, 1% deviation), Tests B+C (reject branches,
-  symmetric +10% and -10%), Test D (disable via tolerance=0), Test
-  E (None fail-open), Test F (grep-equivalent regression guard).
-  PASS.
-- **tautological-assertion [BLOCK]**: spot-checked all 6 tests --
+- **financial-logic-without-behavioral-test [BLOCK]**: the diff
+  does NOT touch `perf_metrics.py` / `risk_engine.py` /
+  `backtest_engine.py` / `backtest_trader.py`. It is an
+  observability-write change, not financial-logic. The 4 tests
+  ARE behavioral (real `BigQueryClient` instance with `bigquery.
+  Client` mocked at the boundary; real `save_strategy_decision`
+  helper exercised). PASS.
+- **tautological-assertion [BLOCK]**: spot-checked all 4 tests --
   assertions are concrete:
-  - Test A: `assert trade is not None` + `trade["ticker"] == "WDC"`
-    + `trade["action"] == "BUY"` (multi-anchor, not just `is not None`).
-  - Tests B/C: `assert trade is None` (specifically asserting the
-    REJECT path; without the gate this would FAIL since the trade
-    would be booked. Asymmetric catch verified.)
-  - Test D: `assert trade is not None` after a +100% deviation that
-    would be rejected if gate enabled.
-  - Test E: `assert trade is not None` when `price_at_analysis=None`
-    (fail-open path).
-  - Test F: literal-string `assert "paper_price_tolerance_pct" in
-    settings_src` -- mirrors masterplan verification command.
-
-  No `assert x == x`, no `assert mock.called`-only patterns. PASS.
-- **over-mocked-test [BLOCK]**: `PaperTrader` itself is NOT mocked
-  (`PaperTrader(settings=settings, bq_client=bq)` -- real instance).
-  The gate logic in `execute_buy` is exercised directly. The mocks
-  are: BQ client (necessary -- no real BQ in tests) and `ExecutionRouter`
-  (necessary -- the gate fires BEFORE the router is reached on the
-  reject branches, and is patched on the pass branches to return a
-  synthetic fill_price). Function-under-test is exercised, not
-  mocked. PASS.
-- **rename-as-refactor [BLOCK]**: no renames. New parameter
-  (`price_at_analysis`), new TradeOrder field (`price_at_analysis`),
-  new settings field (`paper_price_tolerance_pct`), new gate block
-  -- purely additive. PASS.
+  - Test #1: `assert mock_client.insert_rows_json.call_count ==
+    1` + `assert table_arg == "sunny-might-477607-p8.pyfinagent_data.strategy_decisions"`
+    + `assert rows_arg == [row]` -- multi-anchor, table name
+    string-literal asserted (catches "wrote to wrong dataset"
+    bug class).
+  - Test #2: NO explicit assertion -- the test passes iff
+    `save_strategy_decision` does not raise on BQ insert errors.
+    The test would FAIL if the helper were to raise (catches the
+    "removed fail-open" mutation). Not tautological; it asserts
+    the absence of an exception, which IS the contract.
+  - Test #3: `assert "strategy_decisions" in src` + `assert
+    "cycle_heartbeat" in src` -- mirrors masterplan verification
+    grep predicate inside pytest. A future refactor that removes
+    the wiring AND the strategy_decisions name breaks the test
+    (catches the "lost wiring" mutation).
+  - Test #4: `assert row["ts"]` + `assert row["decided_strategy"]`
+    + `assert row["trigger"] == "cycle_heartbeat"` + `assert k in
+    row for k in (...)` -- schema-sanity. Asserts required-NOT-NULL
+    field presence (catches "row missing required field" mutation).
+  No `assert x == x`, no `assert mock.called`-only. PASS.
+- **over-mocked-test [BLOCK]**: `BigQueryClient` itself is NOT
+  mocked (real instance at line 48: `client =
+  BigQueryClient(_settings_for_bq())`). Only the upstream
+  `bigquery.Client` is patched (`patch("backend.db.bigquery_client.bigquery.Client")`)
+  -- this is necessary because there's no real BQ in tests. The
+  helper-under-test (`save_strategy_decision`) is exercised
+  directly. Tests #3 and #4 do not mock at all (file-read +
+  dict-shape). PASS.
+- **rename-as-refactor [BLOCK]**: no renames. New helper
+  (`save_strategy_decision`), new block (Step 10.5), new test
+  file -- purely additive. PASS.
 - **pass-on-all-criteria-no-evidence [BLOCK]**: experiment_results.md
-  success-criteria table cites Field default literally + Tests B/C +
-  Tests A/B/C/D/E/F individually with verbatim test names.
-  Verification command + pytest output verbatim with PASSED status
-  per test. PASS.
-- **formula-drift-without-citation [WARN]**: 5.0 default comes with
-  a 5-line block comment at `settings.py:333-340` citing P2-4
-  (phase-30.0 audit), SEC LULD Tier 1, FIA WP July 2024 Sec 1.3,
-  arXiv 2603.10092 (non-bypassable invariants). Strong inline
-  citation. The 5% threshold is regulator-anchored to the EXACT
-  pyfinagent universe (S&P 500 + Russell 1000 > $3 per SEC LULD
-  Tier 1), not arbitrary. PASS.
+  success-criteria table cites the writeup (this file post-archive),
+  Tests #1+#3 for "writes per cycle", and the REPURPOSING
+  argument with row-trigger label rationale. Verification command
+  + pytest output verbatim. PASS.
+- **formula-drift-without-citation [WARN]**: no risk constants
+  changed. The rationale string carries the design citation
+  ("Full router activation deferred to phase-31") which is the
+  scope-substitution flag, not a risk-magnitude change. PASS.
 
 **Dimension 5 (LLM-evaluator anti-patterns -- self-aware):**
-- **sycophancy-under-rebuttal [BLOCK]**: no prior phase-30.6 verdict
-  to flip. N/A.
-- **second-opinion-shopping [BLOCK]**: first spawn for phase-30.6.
+- **sycophancy-under-rebuttal [BLOCK]**: no prior phase-30.7
+  verdict to flip. The backup-researcher recovery is NOT a Q/A
+  verdict-flip (the primary researcher never produced a verdict;
+  primary stalled on empty skeleton with gate_passed=false).
   N/A.
-- **missing-chain-of-thought [BLOCK]**: this critique cites file:line
-  for every claim (e.g. `paper_trader.py:121-145` for gate,
-  `:147` for portfolio fetch, `settings.py:341` for the field,
-  `autonomous_loop.py:897-929` for the buy-loop change). PASS.
-- **3rd-conditional-not-escalated [BLOCK]**: `grep 'phase-30.6'
-  handoff/harness_log.md` returns 0 hits. Zero prior CONDITIONALs
-  for this step-id. N/A.
-- **criteria-erosion [WARN]**: all 3 masterplan criteria addressed
-  individually below. PASS.
-- **verbosity-bias [WARN]**: this critique is comparable in length
-  to the phase-30.5 PASS critique. Length reflects evidence depth
-  not verdict-padding.
+- **second-opinion-shopping [BLOCK]**: first Q/A spawn for
+  phase-30.7. N/A.
+- **missing-chain-of-thought [BLOCK]**: this critique cites
+  file:line for every claim (e.g. `bigquery_client.py:403-427`
+  for helper, `autonomous_loop.py:986-1017` for Step 10.5,
+  `test_strategy_decisions_heartbeat.py` 4 tests, fail-open
+  reasoning at lines 1013-1017). PASS.
+- **3rd-conditional-not-escalated [BLOCK]**: `grep 'phase-30.7'
+  handoff/harness_log.md` returns 0. Zero prior CONDITIONALs.
+  N/A.
+- **criteria-erosion [WARN]**: all 3 masterplan criteria
+  addressed below. PASS.
+- **verbosity-bias [WARN]**: this critique is comparable to the
+  phase-30.6 PASS critique. Length reflects evidence depth.
+  PASS.
 
 `checks_run += ["code_review_heuristics"]`.
 
 ## LLM judgment
 
 **Contract alignment.** The 3 immutable success criteria from
-masterplan phase-30.6 (lines 10844-10848) map cleanly:
+masterplan phase-30.7 (verbatim in contract.md lines 50-57) map:
 
-- `settings_field_paper_price_tolerance_pct_added_default_5` ->
-  `backend/config/settings.py:341-346` `paper_price_tolerance_pct:
-  float = Field(5.0, ge=0.0, le=50.0, ...)`. Default literally 5.0.
-  `ge=0.0` permits the 0-disables semantics. The 5-line provenance
-  block-comment at lines 333-340 cites SEC LULD Tier 1 + FIA WP July
-  2024 Sec 1.3 + arXiv 2603.10092 non-bypassable invariants. Strict-
-  literal default match.
+- `investigation_writeup_in_handoff_archive_phase_30_7` ->
+  experiment_results.md lines 30-82 (Investigation findings
+  section) carries:
+  (a) Internal codebase audit with file:line (migration script
+      created the table at phase-26.5, ZERO writer hits in
+      `backend/` pre-fix, 1 smoke-row in BQ);
+  (b) External best-practice synthesis citing all 7 read-in-full
+      sources (arXiv 2502.04284 / 2412.20138 / 2510.15949 /
+      2509.16707 / OneUptime / AIMS Press / QuantStart);
+  (c) Verdict B (true wiring bug) with explicit rationale; and
+  (d) Chosen remediation (heartbeat-row path) with citation to
+      sources 4 + 7 (dead-man's-switch + immutable per-cycle).
+  The writeup is the deliverable for this masterplan step
+  (P3 = AUDIT, not implementation), and the file will be moved
+  to `handoff/archive/phase-30.7/` by the archive-handoff hook
+  on status flip. Criterion #1 met.
 
-- `execute_buy_rejects_when_fill_price_diverges_by_more_than_tolerance`
-  -> `paper_trader.py:121-145`. Gate body:
+- `either_router_now_writes_a_row_per_cycle_or_router_is_documented_as_intentionally_dormant`
+  -> The contract elects PATH 2a per researcher's recommendation:
+  router writes a HEARTBEAT row per cycle. Implementation at
+  `backend/services/autonomous_loop.py:986-1017`:
   ```python
-  price_tolerance_pct = float(
-      getattr(self.settings, "paper_price_tolerance_pct", 0.0) or 0.0
-  )
-  if (
-      price_tolerance_pct > 0
-      and price_at_analysis is not None
-      and price_at_analysis > 0
-      and price > 0
-  ):
-      divergence_pct = abs(price - price_at_analysis) / price_at_analysis * 100.0
-      if divergence_pct > price_tolerance_pct:
-          logger.warning(...)
-          return None
+  # ── Step 10.5: strategy_decisions heartbeat (phase-30.7) ──
+  ...
+  try:
+      current_strategy = (best_params.get("strategy", "unknown")
+                          if best_params else "unknown")
+      strategy_decisions_row = {
+          "ts": datetime.now(timezone.utc).isoformat(),
+          "cycle_id": _cycle_id,
+          "decided_strategy": current_strategy,
+          "prior_strategy": current_strategy,
+          "trigger": "cycle_heartbeat",
+          "decay_signal": None,
+          "decay_attribution": None,
+          "rationale": ("per-cycle heartbeat; no regime change "
+                        "detected. Full router activation "
+                        "deferred to phase-31."),
+      }
+      await asyncio.to_thread(bq.save_strategy_decision,
+                              strategy_decisions_row)
+      summary["strategy_decision_logged"] = "cycle_heartbeat"
+  except Exception as sd_exc:
+      logger.warning(...)
   ```
-  - `abs(...)` makes the gate SYMMETRIC: both `+10% over analysis`
-    and `-10% under analysis` are caught (verified by Tests B and C
-    both passing). This protects against both up-spike stale-data
-    fills AND crash-entry stale-data fills.
-  - Reject = `logger.warning(...)` + `return None`, matching the
-    convention of every other pre-fill guard in execute_buy (cash
-    check :154-156, max-positions :161-163, idempotency :184-194).
-    No raise; the autonomous_loop continues with subsequent orders.
-  - Gate placement is BETWEEN the phase-25.6 stop-loss synthesis
-    (ends :119) and the portfolio fetch (:147), which is BEFORE the
-    `ExecutionRouter.submit_order(...)` call at :204-207. This
-    matches the contract AND the arXiv 2603.10092 §3.1
-    non-bypassable-invariants pattern: the gate cannot be
-    circumvented by routing.
+  This satisfies "router NOW writes a row per cycle". The row
+  shape carries the dormant-by-design signal explicitly
+  (`trigger="cycle_heartbeat"`, `decided_strategy ==
+  prior_strategy`, `decay_signal=None`, rationale text quoting
+  "Full router activation deferred to phase-31"). Future
+  phase-31 activation can extend the same writer with real
+  `trigger="regime_switch"` rows (no schema change needed).
+  Test #1 verifies the BQ table target. Test #3 verifies the
+  wiring stays present. Criterion #2 met.
 
-- `test_covers_both_pass_and_reject_branches` -> 6 tests in
-  `backend/tests/test_price_tolerance_gate.py`:
-  - Test 1 (pass, 1% deviation): line 90 `assert trade is not None`.
-  - Test 2 (reject up, +10%): line 112 `assert trade is None`.
-  - Test 3 (reject down, -10%): line 134 `assert trade is None`.
-  - Test 4 (disable, tolerance=0, +100% deviation): line 165
-    `assert trade is not None`.
-  - Test 5 (None analysis price fail-open): line 196 `assert trade
-    is not None`.
-  - Test 6 (grep-equivalent symbols): lines 216-221 assert literal
-    `paper_price_tolerance_pct` in settings.py + `price_tolerance`
-    in paper_trader.py.
+- `if_intentionally_dormant_the_table_is_removed_or_repurposed`
+  -> Path chosen: REPURPOSING. The table's original phase-26.5
+  intent (strategy-router decision log) is preserved AND the
+  scope is widened to also carry per-cycle heartbeat rows. No
+  removal (preserving the 1 smoke row and the schema for
+  phase-31). The repurposing IS documented in
+  bigquery_client.py:404-422 docstring (two row kinds:
+  `cycle_heartbeat` and future strategy-router rows). The
+  experiment_results.md success-criteria table explicitly maps
+  this criterion to "REPURPOSING" with rationale at lines
+  208-209. Criterion #3 met.
 
-  Both branches present and asserted with concrete return-value
-  comparisons. Strict-literal criterion met.
+**Mutation-resistance.** Spot-checked the 4 tests against the
+prompt's 4 named mutations + 2 additional ones:
 
-**Mutation-resistance.**
-
-- Mutation 1: REMOVE the `if divergence_pct > price_tolerance_pct:`
-  block entirely -> Tests 2 and 3 both fail (they assert `trade is
-  None` but the trade would be booked). Test 6 also fails if
-  `price_tolerance` symbol is removed. Asymmetric catch on at least
-  3 of 6 tests.
-- Mutation 2: INVERT the comparison (`<` instead of `>`) -> Test 1
-  fails (1% deviation should pass but would now reject). Asymmetric
+- Mutation A (TABLE-NAME MISTAKE -- swap to
+  `bq_dataset_reports.strategy_decisions`): Test #1 fails on the
+  `assert table_arg == "sunny-might-477607-p8.pyfinagent_data.strategy_decisions"`
+  string-equality. Asymmetric catch.
+- Mutation B (REMOVE FAIL-OPEN -- helper raises on insert
+  errors): Test #2 fails (the test would raise an unhandled
+  exception out of pytest because it asserts NO raise).
+  Asymmetric catch.
+- Mutation C (REMOVE THE WIRING -- delete Step 10.5 block): Test
+  #3 fails (`assert "strategy_decisions" in src` and `assert
+  "cycle_heartbeat" in src`). Mirrors masterplan grep predicate.
+  Asymmetric catch.
+- Mutation D (MISSING REQUIRED FIELD -- drop `ts` or
+  `decided_strategy` or `trigger` from row dict): Test #4 fails
+  on the NOT-NULL field-presence assertions
+  (`assert row["ts"]`, `assert row["decided_strategy"]`,
+  `assert row["trigger"] == "cycle_heartbeat"`). Asymmetric
   catch.
-- Mutation 3: REMOVE the `abs(...)` from the formula -> Test 3 fails
-  (live -10% under analysis produces a NEGATIVE divergence_pct that
-  is never > 5.0). Asymmetric catch on the symmetry property.
-- Mutation 4: CHANGE default from 5.0 to e.g. 50.0 in settings.py ->
-  Test 2 (+10% over 5%) fails because 10 is NOT > 50. Test 3 (-10%
-  over 5%) fails for the same reason. Strict-literal default-5
-  criterion #1 also fails by inspection.
-- Mutation 5: FAIL-CLOSED on None price_at_analysis (i.e., reject
-  when None instead of skipping) -> Test 5 fails (`assert trade is
-  not None`). Asymmetric catch.
-- Mutation 6: REMOVE the `price_tolerance_pct > 0` guard -> Test 4
-  (disable via tolerance=0) fails: a +100% deviation would now be
-  rejected. Asymmetric catch on the 0-disables semantic.
-- Mutation 7: MOVE the gate AFTER the ExecutionRouter call -> the
-  reject path would already have placed a synthetic order through
-  router before rejecting. Tests do not catch this directly (they
-  mock the router) but it would fail the contract's "non-bypassable"
-  placement requirement. The code review heuristic dimension catches
-  this by structural inspection. NOTE-severity but not blocking
-  because the current placement IS correct.
+- Mutation E (CHANGE TRIGGER LABEL -- `"heartbeat"` instead of
+  `"cycle_heartbeat"`): Test #4 fails on the literal-string
+  assertion. Test #3 fails on the cycle_heartbeat presence
+  grep. Two-test catch.
+- Mutation F (WRONG ROW DICT TYPE -- list instead of dict): the
+  helper's `insert_rows_json(table, [record])` would receive a
+  list-of-list, BQ rejects with error; Test #2 still passes
+  (fail-open). Test #1 fails on `assert rows_arg == [row]`
+  (rows_arg would be `[wrong]`). Asymmetric catch.
 
-Six independent mutations each caught by at least one of the 6
-tests. Mutation-resistance is strong.
+Four prompt-named mutations + two additional ones each caught
+by at least one test. Mutation-resistance is appropriate for an
+observability-write change.
 
 **Scope-honesty.**
 
-- Diff is exactly the 4 files masterplan phase-30.6 plan named in
-  the contract: `backend/config/settings.py`,
-  `backend/services/portfolio_manager.py`,
-  `backend/services/autonomous_loop.py`,
-  `backend/services/paper_trader.py`, plus a new test file
-  `backend/tests/test_price_tolerance_gate.py`. No frontend, no
-  `.claude/`, no `.mcp.json`, no BQ schema, no Alpaca. Total
-  production diff +74 -5 (well under 250-line target); test file
-  +221.
-- The autonomous_loop semantic change ("ALWAYS fetch live price for
-  fill" vs prior "prefer order.price") IS explicitly disclosed in
-  `experiment_results.md` lines 71-79 with the prerequisite
-  rationale: without it the gate has `live == analysis` (no
-  divergence to detect). The researcher's internal-code inventory
-  confirms this is the right place (line 200 of research_brief.md:
-  "TradeOrder already has `price` (live) field; needs new
-  `price_at_analysis` field"). Honest disclosure, NOT scope creep.
-  This is the threading site that lets the gate function -- no other
-  place to put it.
-- Hard-guardrail attestation in experiment_results.md is accurate:
-  no BQ writes, no Alpaca, no frontend, no `.claude/` (the
-  `.claude/.archive-baseline.json` diff is auto-managed by the
-  archive-handoff hook on prior cycle close, not a cycle mutation).
+- The audit's P3-1 named `backend/agents/multi_agent_orchestrator.py`
+  as the location for production wiring. The implementation
+  substituted `backend/services/autonomous_loop.py` +
+  `backend/db/bigquery_client.py` instead. This substitution is
+  HONESTLY documented in experiment_results.md lines 94-101 with
+  the rationale: "the orchestrator file is unchanged; the
+  heartbeat write is the minimal-touch fix that satisfies the
+  masterplan grep verification AND closes the observability gap
+  without activating dormant code." This is the right call --
+  `multi_agent_orchestrator.py` is Layer-2 (in-app MAS); the
+  production cycle lives in Layer-3 services
+  (`autonomous_loop.py`). Activating the Layer-2 router would
+  expand scope into a separate masterplan step. Substitution is
+  appropriate.
+- Deferred items (full Layer-2 router activation, live
+  rolling-Sharpe decay computation, strategy-switching logic,
+  alerting on regime changes, backfill) are explicitly listed at
+  experiment_results.md lines 211-220 with the deferral target
+  named (phase-31). No overclaim.
+- Diff is exactly the 2 production files named in the contract
+  plan + 1 new test file (lines 102-104 of contract). NO
+  frontend, NO `.claude/agents/`, NO `.mcp.json`, NO BQ schema,
+  NO Alpaca. Total production diff +59 -0 (well under 200-line
+  target); test file +135. Hard-guardrail attestation in
+  experiment_results.md lines 195-201 verified by `git diff
+  --stat`.
+- The autonomous_loop is paused during overnight mode (per
+  contract.md line 5), so the heartbeat write will fire on the
+  next unpause cycle. This is honestly disclosed AND is
+  consistent with the chosen path (backfill of historical rows
+  is out-of-scope).
 
-**Research-gate compliance.** Contract cites brief at top (lines 8-28)
-with explicit `gate_passed=true`, 8 sources, 20 URLs, and names the
-canonical anchors: FIA WP July 2024 Sec 1.3 + SEC LULD Tier 1 + 17
-CFR 240.15c3-5 + ESMA Feb 2026 + arXiv 2603.10092 §3.1. The 5%
-default is regulator-anchored to the EXACT pyfinagent universe
-(S&P 500 + Russell 1000 > $3 per SEC LULD Tier 1), not arbitrary.
-Per-claim citations: brief Section 4 ("5% is the right default")
-ties default to LULD anchor + IBKR practitioner anchor + arXiv
-2603.10092 echo + intraday-noise calculation. Research -> contract
--> generate -> test chain end-to-end intact. The brief's design
-recommendation (Section 7 "Recommended design") matches the
-implementation 1:1.
+**Research-gate compliance.** Contract cites brief at top (lines
+8-39) with explicit `gate_passed=true`, 7 sources read in full,
+14 URLs, and names canonical anchors:
+- arXiv 2502.04284 (decay-ratio threshold 0.25 for the future
+  phase-31 router signal),
+- OneUptime Feb 2026 + arXiv 2509.16707 (the dead-man's-switch /
+  immutable per-cycle persistence pattern that justifies the
+  heartbeat row),
+- TradingAgents + ATLAS (per-decision structured audit-trail
+  norm in modern MAS-trading systems).
 
-**Single-source-of-truth (Dimension 2 follow-up).** The 5.0 default
-lives in ONE place (`settings.py:341`). The runtime check uses
-`getattr(self.settings, "paper_price_tolerance_pct", 0.0) or 0.0`
-(defensive: missing-attr OR explicit zero -> 0.0 = disabled). Tests
-inject via the `_mock_settings(price_tolerance_pct=...)` helper. No
-hard-coded literal in `paper_trader.py`. No fork. PASS.
+Per-claim citations: contract Section "Research-gate summary"
+links each source to its role in the design. The 7-source brief
+provides the academic + operational basis for the chosen path
+(heartbeat-row, not full-router-activation). The brief's Section
+F "Recommended remediation" matches the implementation 1:1.
+Research -> contract -> generate -> test chain end-to-end intact.
 
-**Anti-rubber-stamp summary.** Six tests with explicit
-pass/reject/disable/None/symbol asymmetry. Tests B and C are the
-strict-literal of masterplan criterion #2 (reject branches in both
-directions; symmetric). Test A is the strict-literal of the pass
-branch. Test 6 mirrors the masterplan verification grep predicate
-inside pytest so a future refactor breaks the test suite, not just
-the grep -- this is the regression-guard pattern. No tautological
-assertions. No over-mocking (PaperTrader real, BQ + Router mocked
-because the alternative is integration-test infrastructure that
-isn't appropriate for unit tests of the gate). Mutation-resistance
-strong against 6 independent mutations.
+**Anti-rubber-stamp summary.** Four tests with explicit
+table-name / fail-open / wiring-presence / row-shape asymmetry.
+Test #2 is the strict-literal of the fail-open guarantee
+(masterplan-required because the heartbeat must NOT break the
+cycle). Test #3 mirrors the masterplan verification grep
+predicate inside pytest so a future refactor breaks the test
+suite, not just the grep -- regression-guard pattern. No
+tautological assertions. No over-mocking (`BigQueryClient` is
+the real class; only the upstream `google.cloud.bigquery.Client`
+is patched because there's no real BQ in tests).
+Mutation-resistance verified against 6 independent mutations.
 
-**Backend-services rule compliance.** `paper_trader.py` is named in
-`.claude/rules/backend-services.md` as "Virtual trade execution
-backed by BigQuery. No real money." The new gate is a pre-fill check
-that returns None, so the rest of the buy code (BQ writes, position
-mutation, ExecutionRouter) never runs on rejection -- no real money
-moved (none in paper-trading regardless), no orphan BQ state.
-"Sell-first-then-buy" rule preserved: gate fires in the BUY path
-only; the sell loop at `autonomous_loop.py:859-883` is untouched.
-Single-source-of-truth for perf_metrics preserved: no perf math
-added. PASS.
+**Backend-services rule compliance.**
+`.claude/rules/backend-services.md` names `autonomous_loop.py`
+as the orchestrator of "Daily cycle: Screen -> Analyze ->
+Decide -> Trade -> Snapshot -> Learn." The Step 10.5 heartbeat
+slots in at the "Snapshot" boundary (after MetaCoordinator's
+in-memory `decide` at Step 10, before the cycle-summary update
+at Step "Done"). It does NOT inject into Trade (Steps 7-9),
+preserving the sell-first-then-buy invariant. Single-source-of-
+truth for perf_metrics preserved: no perf math added. PASS.
 
-**Security rule compliance.** Logger message is ASCII-only (no
-arrows, no em-dashes, no Unicode). Input validation: gate inputs
-are typed floats; coercions via `float(...)` are safe. No new auth
-surface. No new endpoint. No new external-input path. PASS.
+**Backend-api rule compliance.** The async-safety rule in
+`backend-api.md` mandates `await asyncio.to_thread(fn, ...)` for
+sync I/O inside `async def`. `autonomous_loop.py:1011`:
+`await asyncio.to_thread(bq.save_strategy_decision, strategy_decisions_row)`
+-- correct usage. The BQ insert (sync, network-blocking) is
+wrapped in `asyncio.to_thread` so it does not block the event
+loop. PASS.
 
-## Success criteria check (per `.claude/masterplan.json::phase-30.6`)
+**Security rule compliance.** All new logger messages are
+ASCII-only (verified by inspection of lines 1015-1017 + line
+427 of bigquery_client.py). No Unicode arrows, em-dashes, or
+non-ASCII characters. Input validation: row fields are
+in-cycle typed values (no external user input). No new auth
+surface, no new endpoint. The new BQ-write capability is
+least-privilege documented in the helper docstring. PASS.
+
+## Success criteria check (per `.claude/masterplan.json::phase-30.7`)
 
 | Criterion | Verdict | Evidence |
 |-----------|---------|----------|
-| `settings_field_paper_price_tolerance_pct_added_default_5` | PASS | `backend/config/settings.py:341` `paper_price_tolerance_pct: float = Field(5.0, ge=0.0, le=50.0, description="...")`. Default literally 5.0. Masterplan grep predicate 1 exits 0. |
-| `execute_buy_rejects_when_fill_price_diverges_by_more_than_tolerance` | PASS | `paper_trader.py:121-145` gate body. Symmetric `abs(price - price_at_analysis) / price_at_analysis * 100.0` divergence check. `> tolerance` -> `logger.warning(...) + return None`. Placed BEFORE ExecutionRouter call at :204-207 (non-bypassable). Tests 2 and 3 (live +10% and -10% over 5% gate) both assert `trade is None`. Masterplan grep predicate 2 exits 0. |
-| `test_covers_both_pass_and_reject_branches` | PASS | Test 1 (`test_price_tolerance_pass_1pct_deviation`) covers pass branch (1% deviation, 5% gate, expect non-None). Tests 2 + 3 (`test_price_tolerance_reject_live_10pct_above_analysis` + `test_price_tolerance_reject_live_10pct_below_analysis`) cover reject branch (symmetric). Test 4 (disable via tolerance=0), Test 5 (None fail-open), and Test 6 (grep-symbol regression guard) cover edge cases. pytest output: 6 passed in 0.79s. |
+| `investigation_writeup_in_handoff_archive_phase_30_7` | PASS | `handoff/current/experiment_results.md` lines 30-82 contain the full Investigation findings section: internal codebase audit with file:line citations (migration script + grep result + Layer-2 dormancy + 1 smoke-row); external best-practice synthesis citing all 7 read-in-full research sources; verdict B (true wiring bug) with explicit rationale; chosen remediation (heartbeat-row path) tied to sources 4 + 7. File will be moved to `handoff/archive/phase-30.7/` by archive-handoff hook on status flip. |
+| `either_router_now_writes_a_row_per_cycle_or_router_is_documented_as_intentionally_dormant` | PASS | Path 2a chosen: per-cycle heartbeat write. `backend/services/autonomous_loop.py:986-1017` Step 10.5 block emits a row with `trigger="cycle_heartbeat"` to `pyfinagent_data.strategy_decisions` via `asyncio.to_thread(bq.save_strategy_decision, ...)`. Helper at `backend/db/bigquery_client.py:403-427` calls `insert_rows_json` on the correctly-scoped table. Tests #1 + #3 verify table target + symbol presence. Masterplan grep `grep -q 'strategy_decisions' backend/services/autonomous_loop.py` exits 0. |
+| `if_intentionally_dormant_the_table_is_removed_or_repurposed` | PASS via REPURPOSING | The table is REPURPOSED from "strategy-router decisions only" (phase-26.5 intent) to "per-cycle heartbeat rows + future strategy-router rows" (phase-30.7). Repurposing documented in `bigquery_client.py:404-422` docstring (two row kinds: `cycle_heartbeat` now, real router rows in phase-31). No schema change required (existing schema supports both). No removal of historical row. Experiment_results.md lines 208-209 maps this criterion to REPURPOSING explicitly. |
 
-All 3 criteria PASS with file:line and verbatim test-name citations.
+All 3 criteria PASS with file:line and verbatim-test-name
+citations.
 
 ## Verdict
 
 verdict: PASS
 ok: true
-checks_run: [harness_compliance_audit, verification_command, syntax_5files, pytest_phase_30_6, pytest_regression, diff_scope, diff_leak_check, source_inspection, broad_except_scan, code_review_heuristics]
+checks_run: [harness_compliance_audit, verification_command, syntax_3files, pytest_phase_30_7, pytest_regression_45, diff_scope, diff_leak_check, source_inspection, async_safety_check, code_review_heuristics]
 violated_criteria: []
-violation_details: None. All 3 immutable success criteria met with file:line evidence. Masterplan verification command exits 0 (both grep predicates hit). 6/6 phase-30.6 tests pass in 0.79s. 39/39 regression tests pass in 3.53s (cycle_heartbeat_alarm + autonomous_loop_step_5_6 + observability + sector_concentration). Diff strictly scoped to the 4 production files named in the contract plan + 1 new test file. Code-review heuristics: zero BLOCK or WARN findings across 5 dimensions; ASCII-only logger discipline honored, no new broad-except (verified by grep), gate placement non-bypassable BEFORE ExecutionRouter per arXiv 2603.10092 §3.1, symmetric divergence catch via `abs(...)`. Anti-rubber-stamp: 6 tests with asymmetric pass/reject/disable/None/symbol, no tautological assertions, mutation-resistance strong against 6 independent mutations (remove gate / invert comparison / drop abs / change default / fail-closed on None / drop 0-disables guard). Researcher gate cleared with 8 read-in-full sources (FIA WP + 17 CFR + SEC LULD + ESMA + FIN-FSA + CME + arXiv 2603.10092 + arXiv 2512.02227), 20 URLs, three-variant search composition, recency scan within window. 5% default regulator-anchored to SEC LULD Tier 1 for the EXACT pyfinagent universe (S&P 500 + Russell 1000 > $3), NOT arbitrary. Autonomous_loop semantic change ("ALWAYS fetch live for fill") honestly disclosed in experiment_results.md and required as a prerequisite for the gate to have non-trivial inputs.
+violation_details: None. All 3 immutable success criteria met with file:line evidence. Masterplan verification command `grep -q 'strategy_decisions' backend/services/autonomous_loop.py` exits 0 (5 hits at lines 986, 987, 1000, 1011, 1015 -- all inside the Step 10.5 heartbeat block). 4/4 phase-30.7 tests pass in 0.72s (table-target / fail-open / wiring-presence / row-shape). 45/45 regression tests pass in 3.09s (cycle_heartbeat_alarm + autonomous_loop_step_5_6 + observability + price_tolerance_gate + sector_concentration). Diff strictly scoped: `backend/db/bigquery_client.py` (+26 -0), `backend/services/autonomous_loop.py` (+33 -0), `backend/tests/test_strategy_decisions_heartbeat.py` (+135 -0, NEW). Total production +59, test +135. No `.mcp.json` change, no frontend, no `.claude/agents/`, no BQ schema migration. Code-review heuristics: zero BLOCK or WARN findings across 5 dimensions. The new try/except is broad BUT CORRECTLY fail-open per the negation-list rule for observability writes (a) logged, (b) no risk-guard bypass, (c) purely additive observability. Two-layer fail-open defense (helper logs errors at logger.error level WITHOUT raising; caller wraps in try/except logger.warning) is appropriate defense-in-depth for a P3 observability write that MUST NOT break the cycle. Async-safety rule honored: `await asyncio.to_thread(bq.save_strategy_decision, ...)` wraps the sync BQ insert. Logger messages ASCII-only. Dead-man's-switch pattern (OneUptime Feb 2026 + arXiv 2509.16707 + ATLAS arXiv 2510.15949 per-cycle persistence norm) appropriately applied to close the "table empty forever" observability gap. Scope substitution honestly disclosed: audit P3-1 named `backend/agents/multi_agent_orchestrator.py`; implementation targets `backend/services/autonomous_loop.py` + `backend/db/bigquery_client.py` -- correct call because the production cycle lives in Layer-3 services, not Layer-2 in-app MAS, and full Layer-2 router activation is explicitly deferred to phase-31 (named target). Anti-rubber-stamp: 4 tests cover the prompt's 4 named mutations + 2 additional; mutation-resistance strong. Researcher gate cleared via backup brief (primary stalled with empty skeleton; backup recovery is NOT verdict-shopping because primary produced no verdict): 7 sources read in full, 14 URLs, three-variant search composition, recency scan present, tier-1/2 dominance.
 certified_fallback: false

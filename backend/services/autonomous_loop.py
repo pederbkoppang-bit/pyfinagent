@@ -983,6 +983,39 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             except Exception as e:
                 logger.warning(f"MetaCoordinator step failed (non-fatal): {e}")
 
+            # ── Step 10.5: strategy_decisions heartbeat (phase-30.7) ──
+            # Emit a per-cycle heartbeat row to `pyfinagent_data.strategy_decisions`
+            # so the table is operator-visible-NOT-empty. The phase-26.5
+            # migration created the table but no writer was ever wired into
+            # the production cycle (audit Stage 3: only 1 row across 36+
+            # days of production, a smoke-test). This heartbeat closes the
+            # observability gap WITHOUT activating the full Layer-2
+            # strategy router (deferred to phase-31). Dead-man's-switch
+            # pattern per OneUptime Feb 2026 + arXiv 2509.16707 immutable
+            # per-cycle persistence. Fail-open: any BQ exception MUST NOT
+            # break the cycle.
+            try:
+                current_strategy = (best_params.get("strategy", "unknown")
+                                    if best_params else "unknown")
+                strategy_decisions_row = {
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "cycle_id": _cycle_id,
+                    "decided_strategy": current_strategy,
+                    "prior_strategy": current_strategy,
+                    "trigger": "cycle_heartbeat",
+                    "decay_signal": None,
+                    "decay_attribution": None,
+                    "rationale": ("per-cycle heartbeat; no regime change detected. "
+                                  "Full router activation deferred to phase-31."),
+                }
+                await asyncio.to_thread(bq.save_strategy_decision, strategy_decisions_row)
+                summary["strategy_decision_logged"] = "cycle_heartbeat"
+            except Exception as sd_exc:
+                logger.warning(
+                    "phase-30.7: strategy_decisions heartbeat write failed (non-fatal): %s",
+                    sd_exc,
+                )
+
             # ── Done ─────────────────────────────────────────────────
             summary.update({
                 "status": "completed",

@@ -400,6 +400,32 @@ class BigQueryClient:
         if errors:
             logger.error(f"BigQuery insert errors: {errors}")
 
+    def save_strategy_decision(self, record: dict) -> None:
+        """phase-30.7: append a strategy-router decision row to
+        `pyfinagent_data.strategy_decisions`. The table was created in
+        phase-26.5 but the writer was never wired into the production cycle
+        (zero rows across 36+ days of production aside from one smoke-test).
+        This helper closes the wiring gap.
+
+        Used for two row kinds:
+        - `trigger="cycle_heartbeat"`: emitted every production cycle from
+          autonomous_loop Step 10. `decided_strategy == prior_strategy`,
+          `decay_signal=None`. Documents the dormant-by-design state with
+          operator-visible BQ rows (dead-man's-switch pattern).
+        - Future: real strategy-router decisions with non-NULL decay_signal
+          + distinct decided_strategy / prior_strategy (phase-31 hook).
+
+        Audit basis: phase-30.0 experiment_results.md Stage 3 (FAIL) +
+        phase-30.7 research_brief.md (G).
+
+        Table is in `pyfinagent_data`, NOT `bq_dataset_reports`. Schema per
+        scripts/migrations/add_strategy_decisions_table.py:38-54.
+        """
+        table = f"{self.settings.gcp_project_id}.pyfinagent_data.strategy_decisions"
+        errors = self.client.insert_rows_json(table, [record])
+        if errors:
+            logger.error(f"strategy_decisions insert errors: {errors}")
+
     def query_latest_signal_state(self, signal_id: str) -> Optional[dict]:
         """Project the latest observed state for one signal_id from signals_log.
 
