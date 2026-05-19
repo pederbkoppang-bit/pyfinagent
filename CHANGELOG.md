@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-20 | `392b74da` | phase-30.4 RE-SPAWN: GIPS-correct return series (subtract external flows) |
 | 2026-05-19 | `0b8609bb` | phase-30.7: MAS strategy-router production wiring audit + per-cycle heartbeat |
 | 2026-05-19 | `4e94e4ba` | phase-30.6: price-tolerance pre-trade gate in execute_buy |
 | 2026-05-19 | `1a818932` | phase-30.5: sector cap NAV-percentage cap alongside count cap |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-18 | `6ceeb10f` | phase-28.17: Peer-correlation laggard catch-up signal (intra-GICS sub-industry lead-lag) |
 | 2026-05-17 | `47e35473` | phase-28.14: Defense/war-stocks reference-case implementation (GPR-defense branch + ITA/XAR flow ... |
 | 2026-05-17 | `1a088125` | phase-28.15: Social media velocity in screener (lift social_sentiment.py into picker pre-filter) |
-| 2026-05-17 | `6e88f91a` | phase-28.13: Earnings-call NLP for firm-level GPR exposure |
 
 ---
 
+### v6.11.7 — phase-30.4 RE-SPAWN: GIPS-correct return series (subtract external fl... (2026-05-20)
+
+- **phase-30.4 RE-SPAWN: GIPS-correct return series (subtract external flows)**
 ### v6.11.6 — phase-30.7: MAS strategy-router production wiring audit + per-cycle h... (2026-05-19)
 
 - **phase-30.7: MAS strategy-router production wiring audit + per-cycle heartbeat**
