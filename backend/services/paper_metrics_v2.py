@@ -34,7 +34,30 @@ MIN_OBS_FOR_PSR = 30  # PSR/DSR unstable below this; Bailey & Lopez de Prado 201
 
 
 def _nav_to_returns(snapshots: list[dict], nav_key: str = "total_nav") -> np.ndarray:
-    """Convert NAV snapshots (oldest -> newest) to daily simple returns."""
+    """Convert NAV snapshots (oldest -> newest) to daily simple returns.
+
+    phase-30.4 GIPS-correct: subtracts the day-t external cash flow
+    (deposits/withdrawals) from V_t BEFORE differencing so a pure deposit
+    doesn't masquerade as a market return. Canonical sub-period TWR
+    formula (Wikipedia TWR + CFA L1 worked example):
+        r_t = (V_t - F_t - V_{t-1}) / V_{t-1}
+    where F_t is the net external flow recorded on date t (deposits
+    positive, withdrawals negative). Snapshots without
+    `external_flow_today` (legacy rows pre-phase-30.4 OR cycles with no
+    operator deposit) fall back to F_t = 0.0, preserving legacy behavior
+    bit-for-bit on the pre-fix history except for the 2026-05-13 row
+    backfilled as part of phase-30.4.
+
+    Audit basis: handoff/archive/phase-30.0/experiment_results.md
+    Anomaly A (5/13 $5K deposit produced +32.12% phantom daily return
+    that polluted the Sharpe denominator -> Sharpe -6.26 anomaly).
+    Post-fix the same row resolves to ~+4.06%, the true market move.
+
+    Modified Dietz is NOT needed -- pyfinagent has daily NAV snapshots
+    AND daily flows, so the simpler canonical sub-period TWR applies
+    directly. Modified Dietz exists for portfolios valued less
+    frequently than flows occur (per CAIA Dec-2024 + GIPS 2020).
+    """
     if not snapshots:
         return np.array([], dtype=float)
     # Accept either order; normalize by snapshot_date when present.
@@ -42,10 +65,20 @@ def _nav_to_returns(snapshots: list[dict], nav_key: str = "total_nav") -> np.nda
     if ordered and "snapshot_date" in ordered[0]:
         ordered = sorted(ordered, key=lambda s: str(s.get("snapshot_date")))
     navs = np.array([float(s.get(nav_key) or 0.0) for s in ordered], dtype=float)
-    navs = navs[navs > 0.0]
+    # phase-30.4: paired external_flow_today per snapshot. None or
+    # missing -> 0.0 fail-safe.
+    flows = np.array(
+        [float(s.get("external_flow_today") or 0.0) for s in ordered],
+        dtype=float,
+    )
+    mask = navs > 0.0
+    navs = navs[mask]
+    flows = flows[mask]
     if len(navs) < 2:
         return np.array([], dtype=float)
-    return np.diff(navs) / navs[:-1]
+    # GIPS canonical sub-period TWR (Wikipedia TWR + CFA L1):
+    # r_t = (V_t - F_t - V_{t-1}) / V_{t-1}
+    return (navs[1:] - flows[1:] - navs[:-1]) / navs[:-1]
 
 
 def _trial_sharpes_from_trades(trades: list[dict]) -> list[float]:

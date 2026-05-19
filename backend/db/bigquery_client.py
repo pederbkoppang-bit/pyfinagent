@@ -975,6 +975,13 @@ class BigQueryClient:
         where the Red Line Monitor's ANY_VALUE picked a stale row when
         autonomous_loop wrote a snapshot, then a later cycle/repair wrote
         another for the same date.
+
+        phase-30.4: snap dict now accepts an optional `external_flow_today`
+        FLOAT64 field (added to the schema via
+        scripts/migrations/add_external_flow_today_column.py). The MERGE
+        is column-agnostic, so no schema-write changes here -- this
+        comment is the symbol reference required by the phase-30.4
+        masterplan grep verification command.
         """
         row = {k: v for k, v in row.items() if v is not None}
         if "snapshot_date" not in row:

@@ -20900,3 +20900,40 @@ Run these IN ORDER. Each check must pass before proceeding to the next.
 ### STOP
 
 Operator unpauses the loop, not the agent. End of overnight run.
+
+---
+
+## Cycle 1 -- 2026-05-19 21:36 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.96% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+
+## Cycle 2 -- 2026-05-20 -- phase=30.4 result=PASS (RE-SPAWN)
+
+**Step:** phase-30.4 -- P1: GIPS-correct return series. RE-SPAWN after overnight OVERNIGHT_BLOCKED_NEEDS_BQ_MIGRATION.
+**Operator action:** authorized BQ schema migration. ALTER TABLE applied (job 0137efb5-135e-4d4d-9bcd-92ed3c84c93b). external_flow_today FLOAT64 column added to financial_reports.paper_portfolio_snapshots.
+**Researcher:** deep/opus/max. 27 sources read in full (Wikipedia TWR, CFA L1, GIPS 2010/2020, Modified Dietz canonical, Sharpe sensitivity, 22 more). 48 URLs. [ADVERSARIAL] tags on sources 9+10 (MWR vs TWR debate -- verdict: TWR correct here). Pass-1/2/3 structure. gate_passed=true.
+**Generator diff:** 5 files (295 raw lines, ~120 non-comment LOC):
+- `scripts/migrations/add_external_flow_today_column.py` (NEW, 88 lines, idempotent migration mirroring strategy_decisions pattern)
+- `backend/services/paper_metrics_v2.py`: +41 / -5 (canonical sub-period TWR: `(navs[1:] - flows[1:] - navs[:-1]) / navs[:-1]`)
+- `backend/services/paper_trader.py`: +28 / -4 (save_daily_snapshot accepts external_flow_today kwarg; adjust_cash_and_mtm threads delta through)
+- `backend/db/bigquery_client.py`: +8 lines (symbol reference + docstring; MERGE already column-agnostic)
+- `backend/tests/test_paper_metrics_v2_external_flow.py` (NEW, 130 lines, 5 test cases)
+**BQ backfill:** single UPDATE on snapshot_date='2026-05-13' SET external_flow_today=5000.0. 1 row affected. Idempotent (filter `WHERE NULL OR 0.0`).
+**Tests:** 5/5 PASS in 1.62s (no_flow_legacy, deposit_excluded, none_fail_safe, withdrawal_excluded, minimal_regression). Regression `test_cycle_heartbeat_alarm + test_autonomous_loop_step_5_6 + test_observability + test_price_tolerance_gate + test_strategy_decisions_heartbeat + test_sector_concentration`: 49/49 PASS. Cumulative 54/54.
+**Q/A verdict:** PASS (single spawn). 5-item harness-compliance ALL PASS. 5 deterministic checks all green incl. live BQ query showing external_flow_today=5000.0 on 2026-05-13 AND live Python rerun showing 5/13 daily return now 4.06% (was 32.12%). Heuristics: 0 BLOCK, 0 WARN. Criterion #4 PARTIAL honestly disclosed (first-day +52% outlier on 2026-04-27 is initial-deployment artifact, deferred to phase-32).
+**Post-fix verification:** 5/13 daily return collapsed from 32.12% to 4.06%. External deposit ($5K) cleanly excluded from the GIPS-canonical TWR return series.
+**Closes:** phase-30.0 Anomaly A. phase-30.4 status flips from `blocked` to `done`.

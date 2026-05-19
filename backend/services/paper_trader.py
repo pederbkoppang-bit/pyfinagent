@@ -563,8 +563,22 @@ class PaperTrader:
 
     # ── Snapshot ─────────────────────────────────────────────────
 
-    def save_daily_snapshot(self, trades_today: int = 0, analysis_cost_today: float = 0.0) -> dict:
-        """Save daily NAV snapshot. Call after mark_to_market."""
+    def save_daily_snapshot(
+        self,
+        trades_today: int = 0,
+        analysis_cost_today: float = 0.0,
+        external_flow_today: float = 0.0,
+    ) -> dict:
+        """Save daily NAV snapshot. Call after mark_to_market.
+
+        phase-30.4: `external_flow_today` records net external cash flow
+        (deposits positive, withdrawals negative) on the snapshot_date.
+        Default 0.0 covers normal cycles. Operator-driven mutations via
+        `adjust_cash_and_mtm` pass `delta` through here so the snapshot
+        carries the explicit flow. `paper_metrics_v2._nav_to_returns`
+        subtracts this from V_t before differencing -> GIPS-canonical TWR.
+        Without this field, a +$5K deposit would appear as a phantom +32%
+        daily return (phase-30.0 Anomaly A; 2026-05-13 incident)."""
         portfolio = self.get_or_create_portfolio()
         positions = self.get_positions()
         positions_value = sum(p.get("market_value", 0) for p in positions)
@@ -590,6 +604,11 @@ class PaperTrader:
             "position_count": len(positions),
             "trades_today": trades_today,
             "analysis_cost_today": round(analysis_cost_today, 4),
+            # phase-30.4: external_flow_today persisted so
+            # paper_metrics_v2._nav_to_returns can subtract it before
+            # differencing (GIPS-canonical TWR). 0.0 covers normal cycles;
+            # adjust_cash_and_mtm threads operator deposits through here.
+            "external_flow_today": round(external_flow_today, 2),
         }
         self.bq.save_paper_snapshot(snap)
         return snap
@@ -660,7 +679,16 @@ class PaperTrader:
         # Recompute total_nav from live positions + new cash.
         mtm = self.mark_to_market()
         # Persist a snapshot so the Red Line + dashboard reflect this state.
-        self.save_daily_snapshot(trades_today=0, analysis_cost_today=0.0)
+        # phase-30.4: thread the cash delta through as external_flow_today so
+        # the snapshot records the explicit operator-driven flow.
+        # paper_metrics_v2._nav_to_returns subtracts this before computing
+        # daily returns -> GIPS-canonical TWR. Without this, a +$5K deposit
+        # appears as a +32% phantom daily return (phase-30.0 Anomaly A).
+        self.save_daily_snapshot(
+            trades_today=0,
+            analysis_cost_today=0.0,
+            external_flow_today=float(delta),
+        )
         return {
             "old_cash": old_cash,
             "new_cash": new_cash,
