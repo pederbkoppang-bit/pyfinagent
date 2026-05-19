@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-19 | `1e0937c7` | phase-29.7: add arXiv-HTML precedence + pdfplumber rules to research-gate.md |
 | 2026-05-19 | `df8485d2` | phase-29.1: add paper-search-mcp==0.1.3 to .mcp.json (academic-fetch wall fix) |
 | 2026-05-18 | `416d49dd` | phase-29.2: codify Opus 4.7 + max effort on Researcher + Q/A (audit-inversion per operator) |
 | 2026-05-18 | `05707772` | phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create phase-29 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `86f711f2` | phase-28.3: GPR-triggered energy-sector tilt in macro_regime.py |
 | 2026-05-17 | `6e1b0468` | phase-28.2: 12-quarter SUE stacking in pead_signal.py |
 | 2026-05-17 | `b570402d` | phase-28.1: Analyst EPS revision-breadth plug-in (feature-flagged) |
-| 2026-05-17 | `53e5f8b5` | docs(audits): add phase-28.5 smoke-test audit log |
 
 ---
 
+### v6.10.3 — phase-29.7: add arXiv-HTML precedence + pdfplumber rules to research-... (2026-05-19)
+
+- **phase-29.7: add arXiv-HTML precedence + pdfplumber rules to research-gate.md**
 ### v6.10.2 — phase-29.1: add paper-search-mcp==0.1.3 to .mcp.json (academic-fetch... (2026-05-19)
 
 - **phase-29.1: add paper-search-mcp==0.1.3 to .mcp.json (academic-fetch wall fix)**
