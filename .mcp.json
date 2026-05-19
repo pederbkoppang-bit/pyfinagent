@@ -23,8 +23,8 @@
     },
     "paper-search-mcp": {
       "type": "stdio",
-      "command": "uvx",
-      "args": ["--from", "paper-search-mcp==0.1.3", "paper-search-mcp"],
+      "command": "uv",
+      "args": ["run", "--with", "paper-search-mcp==0.1.3", "python", "-m", "paper_search_mcp.server"],
       "env": {
         "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL": "${UNPAYWALL_EMAIL:-peder.bkoppang@hotmail.no}",
         "PAPER_SEARCH_MCP_OPENALEX_API_KEY": "${OPENALEX_API_KEY:-}",

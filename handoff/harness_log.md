@@ -20487,3 +20487,46 @@ This pattern was previously documented in phase-28.6/.7/.8/.16 (memory: `feedbac
 
 **End of overnight run. Goal condition satisfied; harness can stop.**
 
+
+---
+
+## Cycle 1 -- 2026-05-19 06:27 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.40% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+
+## Cycle 1 -- 2026-05-19 (overnight) -- phase=30.0 result=PASS
+
+**Step:** phase-30.0 -- E2E Paper-Trading Pipeline Audit (diagnostic-only).
+**Mode:** OVERNIGHT. NO code edits, NO mutating BQ/Alpaca calls.
+**Researcher:** complex tier, Opus/max. 11 sources read in full (floor of 5 cleared 2x); 10 snippet-only; 20 URLs collected; recency scan present (2024-2026, 5 findings); three-variant query composition visible. `gate_passed: true`.
+**Backup researcher:** moderate tier, Opus/max. 6 supplementary sources read in full (T1-T6) including MSCI Capped Concentration Methodology + Quant-Investing 85-year stop-loss study + Ryan O'Connell TWR-vs-MWR primer + Red Queen's Trap (arXiv 2512.15732).
+**Generator (gap report):** `handoff/current/experiment_results.md` 981 lines. 12 stage verdicts (PASS/PARTIAL/FAIL per stage with file:line + BQ evidence). 5 live anomalies A-E cross-validated. 12 P1/P2/P3 remediation themes file-anchored + source-cited. Phase-30 masterplan JSON block with 8 child steps (30.0..30.7).
+**Q/A verdict:** PASS (single Q/A spawn). 5-item harness-compliance audit ALL PASS. Deterministic checks: all 6 SCs met. LLM judgment: scope-honest, evidence-anchored, mutation-resistant. Three minor reservations noted (none rise to verdict-blocker). `violated_criteria: []`. Critique at `handoff/current/evaluator_critique.md`.
+
+**Highest-impact findings:**
+1. **Cycle silent-failure**: 65h 34m gap 2026-05-17 00:26 UTC -> 2026-05-19 18:00 UTC; Monday 5/18 cron never fired. Confirmed via `cycle_history.jsonl`, `kill_switch_audit.jsonl`, and `pyfinagent_data.llm_call_log`. No out-of-band heartbeat -> P1-1.
+2. **Stop-loss coverage**: 7 of 11 open positions have `stop_loss_price IS NULL` (worse than dashboard's "6"). All 7 entered 2026-04-26 bootstrap day, pre-phase-25.6 hard-block. `paper_trader.py::backfill_missing_stops` (phase-25.2) exists but has ZERO production callers -> P1-2.
+3. **Learn loop dormant**: `agent_memories` = 0 rows. `outcome_tracking` = 0 rows. 3 closed round trips (CIEN +6.46%, FIX +6.75%, TER -14.46%) produced ZERO learning artifacts. Stop-loss-triggered closes also never reach the learn loop -- `closed_tickers.append` is in Step 7 only, not Step 5.6 -> P1-3.
+4. **Sharpe -6.26 vs P&L +9.35%**: explained by GIPS-noncompliant return computation. `paper_metrics_v2.py::_nav_to_returns` does raw `np.diff(navs)/navs[:-1]` without subtracting external flows. The $5K cash deposit on 5/13 produced a +32.12% daily "return" that pollutes the Sharpe denominator -> P1-4.
+5. **GATE 0/5 NOT ELIGIBLE is CORRECT behavior**: gate scope is PROMOTE-TO-LIVE-CAPITAL, not a trading block. Paper trading explicitly runs while gate is red. 3 round trips << 100 threshold; 22 returns << MIN_OBS_FOR_PSR=30. Documented for operator clarity.
+6. **Sector cap 10/11 Tech**: historical artifact (April-26 bootstrap pre-phase-23.1.13 when cap was undefined/0/disabled and legacy positions had empty sector). Current code DOES enforce cap on new entries; recommendation to add NAV-pct cap alongside count cap -> P2-2.
+
+**No code touched.** `git status` shows only `handoff/*` + 2 unrelated background-cache artifacts. SC-5 attestation holds.
+
+**Next-step plan (phase-30 masterplan entry):** 8 steps inserted into masterplan.json. 30.0 done by this cycle. 30.1..30.4 are P1 (must-do trading safety + observability). 30.5..30.6 are P2. 30.7 is P3.
+
+**Total cycle time:** ~75 min (research gate ~25 min including a stall + nudge; generate ~10 min; Q/A ~12 min including a mid-thought interruption + resume).
