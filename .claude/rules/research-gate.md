@@ -70,6 +70,90 @@ belong in the snippet-only table.
 Enforce this hierarchy in the fetched-in-full set. A brief with 5
 community-tier URLs read in full does NOT clear the gate.
 
+## PDF and arXiv paper fetching strategy (phase-29.7)
+
+When a research source is an arXiv paper, do NOT call `WebFetch` on
+the `/pdf/<id>` URL -- it returns binary data with no extractable
+text and triggers the "Binary PDF, no text extracted" skip pattern.
+Follow this priority chain:
+
+### Step 1: arXiv native HTML (primary)
+
+Try `https://arxiv.org/html/<arxiv_id>` first. This works for papers
+submitted in TeX/LaTeX on or after December 1, 2023. Approximately
+74% convert fully and 97% are at least partially readable per arXiv's
+own statistics (source: `arxiv.org/html/2402.08954v1`). Partial
+renders (TikZ errors, red markup) are still readable; proceed with
+what renders rather than auto-falling back.
+
+URL form: `https://arxiv.org/html/<arxiv_id>v<N>` (e.g.,
+`https://arxiv.org/html/2402.08954v1`). If the version is unknown,
+omit the version suffix and check the abstract page for the HTML
+link below the PDF link.
+
+### Step 2: ar5iv fallback (pre-Dec 2023 papers)
+
+If the paper predates December 2023 and `/html/` returns 404 or a
+red unsupported-package error, use
+`https://ar5iv.labs.arxiv.org/html/<arxiv_id>`. ar5iv is an arXivLabs
+project providing LaTeXML-rendered HTML for the full pre-snapshot
+arXiv corpus. Confirmed working live via `arxiv:2312.01700` test
+fetch on 2026-05-19 (renders equations, sections, references).
+
+Note: ar5iv is a **snapshot** through end of April 2026, NOT a live
+service. Papers submitted after April 2026 are not in ar5iv -- use
+only native `arxiv.org/html/` for those.
+
+### Step 3: pdfplumber (last resort for binary PDFs)
+
+If both `/html/` and `ar5iv` fail, download the PDF and extract text
+with `pdfplumber`:
+
+1. Install in the researcher environment (NOT in
+   `backend/requirements.txt` -- pdfplumber is a research-time
+   convenience, not a project dependency):
+   `pip install pdfplumber`  -- v0.11.9 as of Jan 5 2026; CPU-only;
+   MIT license; deps `pdfminer.six` + `pillow` + `pypdfium2`.
+2. Download: `curl -sL https://arxiv.org/pdf/<id> -o paper.pdf`.
+3. Extract:
+   ```python
+   import pdfplumber
+   with pdfplumber.open("paper.pdf") as pdf:
+       text = "\n".join(p.extract_text() or "" for p in pdf.pages)
+   ```
+
+**Limitations:**
+- Cannot handle scanned (image-only) PDFs -- older working papers
+  pre-digital return empty text.
+- Finance text F1 = 0.9568 (strong; benchmark
+  `arXiv:2410.09871`).
+- Scientific text F1 = 0.7644 (weaker; equations render
+  symbolically, not semantically).
+- Table extraction is weak (low recall) -- prefer HTML for
+  table-heavy papers.
+
+### Alternatives to pdfplumber (CPU-only / free only)
+
+- **`pypdf`** -- pure-Python, no C deps, already an indirect dep via
+  `paper-search-mcp`. Simpler than pdfplumber; adequate for plain
+  finance papers; may produce spacing artifacts.
+- **`PyMuPDF`** (`fitz`) -- faster, better scientific layout, but
+  requires a C extension. Not in project deps.
+- **`Nougat` / `marker-pdf`** -- best for equation-dense papers but
+  GPU-required. Violates the CPU-only / free constraint; do not use.
+
+### Never do
+
+- Call `WebFetch` on `https://arxiv.org/pdf/<id>` as the primary
+  attempt and then skip the paper because "Binary PDF, no text
+  extracted." That is a protocol breach; the `/html/` chain above
+  must be attempted first.
+- Count a paper as "read in full" if only the abstract page was
+  fetched and no HTML or PDF text was extracted.
+- Add `pdfplumber` (or any PDF-extraction library) to
+  `backend/requirements.txt` without owner sign-off -- the research
+  use case does not justify shipping the dep in production builds.
+
 ## URL collection
 
 Collect 10+ unique candidate URLs before pruning to the 5 sources

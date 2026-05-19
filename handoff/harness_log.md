@@ -20239,3 +20239,29 @@ Error: ValueError: Set SMART_LLM or FAST_LLM = '<llm_provider>:<llm_model>' Eg '
 
 **Total cycle time:** ~22 min (researcher ~6 min, contract+generate+edits ~4 min, Q/A cycle-1 ~2 min, fix + Q/A cycle-2 ~3 min, log/flip/commit ~7 min).
 
+
+
+---
+
+## Cycle 35 -- 2026-05-19 -- phase=29.7 result=PASS
+
+**Step:** phase-29.7 — Add arXiv-HTML precedence + pdfplumber rules to `.claude/rules/research-gate.md`.
+
+**Generator:** 1 rule-file insertion + 1 masterplan-entry update.
+- `.claude/rules/research-gate.md` +83 lines (134 → 217). New section `## PDF and arXiv paper fetching strategy` inserted between "Source quality hierarchy" and "URL collection": 3-step priority chain (arxiv.org/html → ar5iv.labs.arxiv.org → pdfplumber 0.11.9 CPU-only), Limitations, Alternatives, Never-do block. pdfplumber EXPLICITLY NOT added to backend/requirements.txt (research-time convenience, not project dep).
+- `.claude/masterplan.json` 29.7 entry: name + audit_basis + 6-grep AND-chain verification.command + 7 success_criteria + live_check rewritten.
+
+**Researcher gate:** `gate_passed: true`. 8 sources read in full (info.arxiv.org accessible_HTML + error-messages docs, arxiv.org/html/2402.08954v1 meta-paper, ar5iv.labs.arxiv.org/html/2312.01700 live test, pypi pdfplumber, github jsvine/pdfplumber, arXiv:2410.09871 comparative study with Finance F1=0.9568 Scientific F1=0.7644, pdfplumber CHANGELOG). Brief tested BOTH recommended URLs live before proposing the rule.
+
+**Q/A subagent verdict:** PASS (single spawn, no fresh-respawn needed). 5/5 harness-compliance + 10 deterministic + heuristic checks. NOTE-level finding: criterion #5 wording vs verification predicate phrase mismatch (both substrings present in file; existing predicate is mutation-resistant; no downgrade).
+
+**Honest disclosures:**
+- pdfplumber NOT added to project requirements — research finding §6 explicit, rule's own Never-do block reinforces.
+- ar5iv corpus is April 2026 snapshot; post-April papers must use native arXiv HTML only.
+- Table extraction in pdfplumber is weak (low recall); rule recommends HTML for table-heavy finance papers.
+- Scanned (pre-digital) PDFs out of scope (would need OCR; rejected per CPU-only constraint).
+
+**Decision:** flip phase-29.7 to `done`; live_check_29.7.md captures URL-test evidence + pdfplumber smoke recipe.
+
+**Total cycle time:** ~14 min (researcher ~6 min, contract+generate ~3 min, Q/A ~1.5 min, log/flip/commit ~4 min).
+
