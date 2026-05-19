@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-20 | `480d48dd` | phase-31.0.3: Stage 3 Gemini full-path on NVDA via AnalysisOrchestrator |
 | 2026-05-20 | `9190a352` | phase-31.0.2: Stage 2 lite-path analysis via Claude Code subagent (4 tickers) |
 | 2026-05-20 | `2ecbb2f5` | phase-31.0.1: e2e pipeline smoketest Stage 1 (screen + rank + sector enrichment) |
 | 2026-05-20 | `392b74da` | phase-30.4 RE-SPAWN: GIPS-correct return series (subtract external flows) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-18 | `416d49dd` | phase-29.2: codify Opus 4.7 + max effort on Researcher + Q/A (audit-inversion per operator) |
 | 2026-05-18 | `05707772` | phase-29.0: audit Layer-3 Harness MAS + MCP + data-wiring; create phase-29 |
 | 2026-05-18 | `b5d2048f` | phase-28.16: M&A pre-announcement aggregator (FINAL phase-28 item) |
-| 2026-05-18 | `6ceeb10f` | phase-28.17: Peer-correlation laggard catch-up signal (intra-GICS sub-industry lead-lag) |
 
 ---
 
+### v6.14.0 — phase-31.0.3: Stage 3 Gemini full-path on NVDA via AnalysisOrchestrator (2026-05-20)
+
+- **phase-31.0.3: Stage 3 Gemini full-path on NVDA via AnalysisOrchestrator**
 ### v6.13.0 — phase-31.0.2: Stage 2 lite-path analysis via Claude Code subagent (4... (2026-05-20)
 
 - **phase-31.0.2: Stage 2 lite-path analysis via Claude Code subagent (4 tickers)**
