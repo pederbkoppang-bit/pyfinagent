@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-19 | `faa5a87` | chore: harness audit-log appends from phase-30 overnight-prompt session |
 | 2026-05-19 | `9da0bd9` | chore: harness audit-log appends (instructions_loaded + pre_tool_use) |
 | 2026-05-19 | `37cc641` | chore: harness audit-log append from e2e-test-prompt session |
 | 2026-05-18 | `4f89858` | chore: harness audit-log append from overnight-prompt drafting session |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `53e5f8b5` | docs(audits): add phase-28.5 smoke-test audit log |
 | 2026-05-17 | `664871a4` | phase-28.5: Short-interest exclusion filter in screen_universe |
 | 2026-05-17 | `2ed3b6db` | phase-28.0: Drift fix: apply (or remove) unused min_market_cap parameter in screen_universe() |
-| 2026-05-16 | `5b3dad4d` | phase-23.2.3: Verify FD leak did not regress |
 
 ---
 
