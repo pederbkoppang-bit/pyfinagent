@@ -330,6 +330,20 @@ class Settings(BaseSettings):
         le=50.0,
         description="Default stop-loss as %% below entry price when analysis does not provide one (lite-path BUY). O'Neil canonical: 7-8%.",
     )
+    # phase-30.6: pre-trade price-tolerance gate (P2-4 from phase-30.0 audit).
+    # Reject BUY when live fill price diverges from analysis-time price by
+    # more than this percent. Default 5 per SEC LULD Tier 1 5% band -- the
+    # canonical regulator-anchored threshold for the pyfinagent universe
+    # (S&P 500 + Russell 1000 > $3). 0 = no limit (legacy / disabled).
+    # FIA WP July 2024 Sec 1.3 is the canonical pre-trade-gate reference;
+    # this implementation places the check BEFORE ExecutionRouter so the
+    # non-bypassable-invariants pattern from arXiv 2603.10092 holds.
+    paper_price_tolerance_pct: float = Field(
+        5.0,
+        ge=0.0,
+        le=50.0,
+        description="Reject BUY when live fill price diverges from analysis-time price by more than this percent. 0 = no limit (legacy). Default 5 per SEC LULD Tier 1 band for S&P 500 + Russell 1000 > $3.",
+    )
 
     # --- Authentication ---
     # phase-25.B10: SecretStr-typed so repr() masks the secret in logs / stack traces.

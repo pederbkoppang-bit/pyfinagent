@@ -28,6 +28,11 @@ class TradeOrder:
     price: Optional[float] = None
     signals: list[dict] = field(default_factory=list)  # 4.5.5 agent attribution
     sector: str = ""  # phase-23.2.6-fix: persisted to paper_positions.sector at execute_buy
+    # phase-30.6: analysis-time price reference for the price-tolerance gate.
+    # Distinct from `price` which historically held the same value but will be
+    # overwritten with the LIVE fetch in autonomous_loop Step 7 -- separating
+    # the two so execute_buy can reject when live diverges from analysis.
+    price_at_analysis: Optional[float] = None
 
 
 # Recommendations that imply selling
@@ -288,6 +293,10 @@ def decide_trades(
             stop_loss_price=cand["stop_loss_price"],
             risk_judge_position_pct=cand["position_pct"],
             price=cand.get("price"),
+            # phase-30.6: thread the analysis-time price separately so
+            # execute_buy can compare it against the LIVE fetch and
+            # reject when divergence > paper_price_tolerance_pct.
+            price_at_analysis=cand.get("price"),
             signals=cand.get("signals", []),
             sector=cand.get("sector", ""),  # phase-23.2.6-fix
         ))

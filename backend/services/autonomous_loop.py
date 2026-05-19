@@ -894,15 +894,23 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     closed_tickers.append(order.ticker)
 
             # Then buys
+            # phase-30.6: ALWAYS fetch the live price for fill (was: prefer
+            # order.price -- the analysis-time price -- which left the price-
+            # tolerance gate with nothing to compare against). The live price
+            # becomes the fill reference; order.price_at_analysis (now a
+            # distinct TradeOrder field) is passed separately so execute_buy's
+            # gate can reject when divergence > paper_price_tolerance_pct.
             for order in orders:
                 if order.action != "BUY":
                     continue
-                price = order.price
-                if price is None:
-                    from backend.services.paper_trader import _get_live_price
-                    price = _get_live_price(order.ticker) or 0
+                from backend.services.paper_trader import _get_live_price
+                live_price = _get_live_price(order.ticker) or 0
+                # Fallback: if live fetch failed (network outage), use the
+                # analysis-time price so the cycle still progresses. Gate is
+                # automatically a no-op in this branch because live == analysis.
+                price = live_price if live_price > 0 else (order.price_at_analysis or order.price or 0)
                 if price <= 0:
-                    logger.warning(f"Dropping BUY for {order.ticker}: price={price} (yfinance returned empty or zero)")
+                    logger.warning(f"Dropping BUY for {order.ticker}: price={price} (yfinance + analysis fallback both empty)")
                     continue
                 trade = await asyncio.to_thread(
                     trader.execute_buy,
@@ -916,6 +924,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     risk_judge_position_pct=order.risk_judge_position_pct,
                     signals=order.signals,
                     sector=order.sector or None,  # phase-23.2.6-fix
+                    # phase-30.6: analysis-time reference for the
+                    # price-tolerance gate inside execute_buy.
+                    price_at_analysis=order.price_at_analysis,
                 )
                 if trade:
                     trades_executed += 1

@@ -94,6 +94,10 @@ class PaperTrader:
         risk_judge_position_pct: Optional[float] = None,
         signals: Optional[list[dict]] = None,
         sector: Optional[str] = None,  # phase-23.2.6-fix: persist GICS sector
+        # phase-30.6: analysis-time price reference for the pre-trade
+        # price-tolerance gate. None disables the gate (fail-open) so the
+        # lite-Claude path (which can lack a written price) still trades.
+        price_at_analysis: Optional[float] = None,
     ) -> Optional[dict]:
         """Buy shares of a ticker. Returns the trade record or None if can't execute."""
         # phase-25.6: no-stop-on-entry HARD BLOCK. If stop_loss_price is None
@@ -113,6 +117,32 @@ class PaperTrader:
                     "phase-25.6: no stop_loss_price provided for %s; defaulting to %.4f (%.1f%% below entry %.4f)",
                     ticker, stop_loss_price, default_pct, price,
                 )
+
+        # phase-30.6: price-tolerance pre-trade gate (FIA WP July 2024 Sec 1.3
+        # canonical pre-trade control). Reject when the live fill price
+        # diverges from the analysis-time price by more than
+        # `paper_price_tolerance_pct` (default 5 per SEC LULD Tier 1 band).
+        # Fail-open when price_at_analysis is None (lite-Claude path can lack
+        # it). Placed BEFORE the ExecutionRouter call so the non-bypassable-
+        # invariants pattern from arXiv 2603.10092 holds (gate cannot be
+        # circumvented by routing). Closes phase-30.0 cross-val 6.1 / P2-4.
+        price_tolerance_pct = float(
+            getattr(self.settings, "paper_price_tolerance_pct", 0.0) or 0.0
+        )
+        if (
+            price_tolerance_pct > 0
+            and price_at_analysis is not None
+            and price_at_analysis > 0
+            and price > 0
+        ):
+            divergence_pct = abs(price - price_at_analysis) / price_at_analysis * 100.0
+            if divergence_pct > price_tolerance_pct:
+                logger.warning(
+                    "phase-30.6: rejecting BUY %s -- live fill price $%.4f diverges %.2f%% from "
+                    "analysis-time price $%.4f (tolerance %.2f%%). Likely stale analysis or news-driven move.",
+                    ticker, price, divergence_pct, price_at_analysis, price_tolerance_pct,
+                )
+                return None
 
         portfolio = self.get_or_create_portfolio()
         cash = portfolio["current_cash"]

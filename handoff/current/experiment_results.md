@@ -1,117 +1,142 @@
-# Experiment Results -- phase-30.5
+# Experiment Results -- phase-30.6
 
-**Step:** P2: Sector cap NAV-percentage representation alongside count cap.
+**Step:** P2: Price-tolerance pre-trade gate in execute_buy.
 **Date:** 2026-05-19.
 **Mode:** OVERNIGHT. Autonomous loop PAUSED.
 
 ## Summary
 
-Added `paper_max_per_sector_nav_pct: float = Field(30.0, ...)` setting
-and extended `portfolio_manager.py::decide_trades` to enforce a
-NAV-percentage cap alongside the existing count cap. The two caps fire
-independently. Default 30% per arXiv 2512.02227 (Dec 2025 Orchestration
-Framework explicit `sectorLimit: 0.30` for stocks), bracketed between
-SEC 1940 Act 25% "concentrated" threshold and UCITS 5/10/40 40% aggregate
-ceiling.
+Added `paper_price_tolerance_pct: float = Field(5.0, ...)` setting and
+extended `paper_trader.execute_buy` with a price-tolerance gate that
+rejects BUYs when the live fill price diverges from the analysis-time
+price by more than the configured tolerance. Default 5% per SEC LULD
+Tier 1 band for S&P 500 + Russell 1000 > $3 (the pyfinagent universe).
 
-Closes phase-30.0 Stage 6 / P2-2: count cap default=2 enforces entries
-but does not address one-large-position-dominating-NAV.
+Also extended `TradeOrder` with `price_at_analysis` field and updated
+`autonomous_loop` Step 7 buy-loop to ALWAYS fetch live price for fill
++ pass `price_at_analysis=order.price_at_analysis` separately. This
+makes the gate's two inputs (live price + analysis-time price) cleanly
+separable.
+
+Closes phase-30.0 cross-val 6.1 / P2-4: FIA WP July 2024 Sec 1.3
+canonical pre-trade gate.
 
 ## Files touched
 
 | Path | Lines added | Lines removed |
 |------|-------------|---------------|
-| `backend/config/settings.py` | 13 | 0 |
-| `backend/services/portfolio_manager.py` | 44 | 3 |
-| `tests/services/test_sector_concentration.py` | 174 | 0 |
-| **Total** | **231** | **3** |
+| `backend/config/settings.py` | 14 | 0 |
+| `backend/services/portfolio_manager.py` | 9 | 0 |
+| `backend/services/autonomous_loop.py` | 21 | 5 |
+| `backend/services/paper_trader.py` | 30 | 0 |
+| `backend/tests/test_price_tolerance_gate.py` (NEW) | 245 | 0 |
+| **Total** | **319** | **5** |
 
-Non-comment LOC: ~14 (settings + portfolio_manager production code) +
-~120 (tests). Under the 200-line target.
+Non-comment LOC: ~50 (production code) + ~140 (test). Well under the
+250-line code-change target.
 
-**Scope adherence:** the audit's P2-2 named
-`backend/config/settings.py` + `backend/services/portfolio_manager.py`.
-Plus extending an existing test file under `tests/services/`. No
-scope deviation.
+**Scope adherence:** the audit's P2-4 named
+`backend/services/paper_trader.py::execute_buy`. Implementation also
+touched `settings.py` (canonical place for the new setting), and
+threaded the new field through `portfolio_manager.py::TradeOrder` +
+`autonomous_loop.py` Step 7. All within the audit's documented chain
+(execute_buy is the destination; the others are the threading sites).
 
 ## Implementation details
 
 ### `backend/config/settings.py`
 
-Added after `paper_max_per_sector` field (line ~159):
+Added after `paper_default_stop_loss_pct`:
 
 ```python
-paper_max_per_sector_nav_pct: float = Field(
-    30.0,
-    ge=0.0,
-    le=100.0,
-    description="Maximum NAV percentage per single GICS sector. 0 = no limit (legacy). Default 30 per arXiv 2512.02227 Dec 2025 + LSEG/CFA/SEC bracket. Fires alongside paper_max_per_sector count cap.",
+paper_price_tolerance_pct: float = Field(
+    5.0, ge=0.0, le=50.0,
+    description="Reject BUY when live fill price diverges from analysis-time price by more than this percent. 0 = no limit (legacy). Default 5 per SEC LULD Tier 1 band for S&P 500 + Russell 1000 > $3.",
 )
 ```
 
+8-line provenance comment cites FIA WP Sec 1.3 + SEC LULD + arXiv
+2603.10092 (non-bypassable invariants).
+
 ### `backend/services/portfolio_manager.py`
 
-Three edits in `decide_trades`:
+- TradeOrder dataclass: new `price_at_analysis: Optional[float] = None`
+  field.
+- Buy-side build (line ~258): populates `price_at_analysis=cand.get("price")`
+  alongside the existing `price=cand.get("price")` -- two distinct
+  fields with the same value at order-creation time. The autonomous
+  loop will then overwrite `price` with the LIVE fetch while
+  preserving `price_at_analysis` as the historical reference.
 
-1. **Bucket init at sector-cap setup** (line ~195) -- now builds
-   `sector_market_values: dict[str, float] = {}` alongside
-   `sector_counts: dict[str, int] = {}`. Iterates the same
-   `current_positions` filter so the two buckets stay in sync.
+### `backend/services/autonomous_loop.py`
 
-2. **NAV-pct check AFTER buy_amount is computed** (line ~250) -- after
-   the existing $50-min-cash guard, checks
-   `(sector_market_values.get(cand_sector, 0) + buy_amount) / nav *
-   100 > max_sector_nav_pct` and `continue`s with an INFO log when
-   triggered. Distinct from the count-cap path so both gates can
-   fire independently.
+Step 7 buy-loop (line ~897-919): changed from "prefer order.price,
+fall back to live" to "always fetch live for fill, fall back to
+analysis if live fails (network outage)". Passes
+`price_at_analysis=order.price_at_analysis` to execute_buy.
 
-3. **Increment after BUY clears both caps** (line ~272) -- the existing
-   post-BUY `sector_counts[cs] += 1` block also bumps
-   `sector_market_values[cs] += buy_amount` so the next candidate in
-   the same sector sees the updated NAV-pct.
+This change is the prerequisite for the gate to function: without it,
+the gate has nothing to compare against (live == analysis).
 
-Edge cases (per research_brief.md Section 4):
-- `cap=0` disables (`max_sector_nav_pct > 0` guard).
-- Missing `market_value` -> `float(pos.get("market_value", 0) or 0)`
-  treats as zero (conservative; never crashes).
-- Candidate self-exceeds the cap -> blocked correctly because
-  `existing_sector_value + buy_amount` is checked against the cap.
-- Already-over sector -> matches count-cap semantics (no force-divest;
-  next BUY is blocked, existing positions stay).
+### `backend/services/paper_trader.py::execute_buy`
 
-### `tests/services/test_sector_concentration.py`
+Gate placed BETWEEN the phase-25.6 stop-loss-synthesis block (line
+~115) and the portfolio fetch (line ~117). Per arXiv 2603.10092 §3.1
+"non-bypassable invariants" pattern, the gate fires BEFORE the
+ExecutionRouter call so it cannot be circumvented by routing.
 
-Updated the shared `_settings(...)` helper to accept
-`max_per_sector_nav_pct=0.0` (default 0 keeps existing 8 tests
-green). Appended 5 new tests:
+```python
+price_tolerance_pct = float(
+    getattr(self.settings, "paper_price_tolerance_pct", 0.0) or 0.0
+)
+if (
+    price_tolerance_pct > 0
+    and price_at_analysis is not None
+    and price_at_analysis > 0
+    and price > 0
+):
+    divergence_pct = abs(price - price_at_analysis) / price_at_analysis * 100.0
+    if divergence_pct > price_tolerance_pct:
+        logger.warning(...)
+        return None
+```
 
-- `test_nav_pct_cap_blocks_buy_when_count_cap_allows` (Test A)
-  -- count cap = 10, NAV-pct = 30, existing Tech at 27.5% NAV; new BUY
-  would push to 31% > 30% -> blocked. **This is the strict-literal of
-  the masterplan criterion #3.**
-- `test_nav_pct_cap_allows_buy_when_both_caps_hold` (Test B)
-  -- count cap = 10, NAV-pct = 30, existing Tech at 10%; new BUY
-  pushes to 13.5% < 30% -> allowed.
-- `test_nav_pct_cap_zero_disables_check` (Test C)
-  -- NAV-pct = 0 -> any sector size accommodates (subject to existing
-  $50-min-cash guard; test verifies the NAV-pct gate itself doesn't
-  fire).
-- `test_nav_pct_and_count_caps_independent` (Test D)
-  -- count = 1 tight, NAV-pct = 30 loose, one existing Tech at 2.5%
-  NAV; AMD blocked by count cap regardless of NAV-pct headroom.
-- `test_nav_pct_cap_grep_symbol_present_in_portfolio_manager`
-  -- mirrors the masterplan verification command
-  (`grep -q 'sector_nav_pct' backend/services/portfolio_manager.py`)
-  as a regression guard against future refactor that removes the
-  wiring.
+Reject pattern matches every other guard in `execute_buy` (cash, max-
+positions, idempotency): `logger.warning(...)` + `return None`.
+
+Fail-open on `price_at_analysis is None` -- the lite-Claude path
+sometimes lacks a written analysis price; failing closed would crash
+trading.
+
+### `backend/tests/test_price_tolerance_gate.py` (NEW)
+
+6 test cases covering pass/reject/disable/None/grep:
+
+1. `test_price_tolerance_pass_1pct_deviation` -- 1% deviation passes
+   the 5% gate.
+2. `test_price_tolerance_reject_live_10pct_above_analysis` -- live
+   +10% over analysis -> reject.
+3. `test_price_tolerance_reject_live_10pct_below_analysis` -- live
+   -10% under analysis -> reject (symmetric).
+4. `test_price_tolerance_zero_disables_gate` -- tolerance=0 makes the
+   gate a no-op even on +100% deviation.
+5. `test_price_tolerance_skipped_when_analysis_price_missing` --
+   None price_at_analysis -> fail-open (gate skipped).
+6. `test_price_tolerance_symbols_present_in_source` -- mirrors the
+   masterplan verification grep predicate so a future refactor that
+   removes the wiring breaks pytest.
+
+Mocking: `PaperTrader(settings=..., bq_client=MagicMock())`;
+`ExecutionRouter` patched via `unittest.mock.patch` to return a
+synthetic fill.
 
 ## Verification
 
-### Masterplan verification command (phase-30.5)
+### Masterplan verification command (phase-30.6)
 
 ```bash
-grep -q 'paper_max_per_sector_nav_pct' backend/config/settings.py && \
-  grep -q 'sector_nav_pct' backend/services/portfolio_manager.py
+grep -q 'paper_price_tolerance_pct' backend/config/settings.py && \
+  grep -q 'price_tolerance' backend/services/paper_trader.py
 ```
 
 Result: **exit 0**.
@@ -119,61 +144,50 @@ Result: **exit 0**.
 ### Test run
 
 ```
-$ source .venv/bin/activate && python -m pytest tests/services/test_sector_concentration.py -v
-collected 13 items
+$ python -m pytest backend/tests/test_price_tolerance_gate.py -v
+collected 6 items
 
-test_third_tech_buy_skipped_when_cap_is_2 PASSED [  7%]
-test_disabled_cap_passes_all_through PASSED [ 15%]
-test_cap_counts_existing_positions PASSED [ 23%]
-test_unknown_sector_treated_as_own_bucket PASSED [ 30%]
-test_diverse_sectors_all_booked PASSED [ 38%]
-test_legacy_position_with_enriched_sector_blocks_same_sector_buy PASSED [ 46%]
-test_legacy_position_without_enrichment_falls_into_unknown PASSED [ 53%]
-test_sector_priority_via_candidates_by_ticker PASSED [ 61%]
-test_nav_pct_cap_blocks_buy_when_count_cap_allows PASSED [ 69%]
-test_nav_pct_cap_allows_buy_when_both_caps_hold PASSED [ 76%]
-test_nav_pct_cap_zero_disables_check PASSED [ 84%]
-test_nav_pct_and_count_caps_independent PASSED [ 92%]
-test_nav_pct_cap_grep_symbol_present_in_portfolio_manager PASSED [100%]
+test_price_tolerance_pass_1pct_deviation PASSED
+test_price_tolerance_reject_live_10pct_above_analysis PASSED
+test_price_tolerance_reject_live_10pct_below_analysis PASSED
+test_price_tolerance_zero_disables_gate PASSED
+test_price_tolerance_skipped_when_analysis_price_missing PASSED
+test_price_tolerance_symbols_present_in_source PASSED
 
-13 passed in 0.03s
+6 passed in 0.78s
 ```
-
-All 8 existing tests stay green (no regression); 5 new phase-30.5 tests
-pass.
 
 ### Regression sweep
 
 ```
 $ python -m pytest backend/tests/test_cycle_heartbeat_alarm.py \
                    backend/tests/test_autonomous_loop_step_5_6.py \
-                   backend/tests/test_observability.py -q
-26 passed, 1 warning in 3.82s
+                   backend/tests/test_observability.py \
+                   tests/services/test_sector_concentration.py -q
+39 passed, 1 warning in 4.08s
 ```
 
-Phase-30.1 (7) + phase-30.2+30.3 (7) + observability (12) = 26/26
-green. No regression from phase-30.5.
+Phase-30.1 (7) + phase-30.2+30.3 (7) + observability (12) + sector
+concentration (13) = 39/39 still green. No regression.
 
 ### Syntax check
 
-`python -c "import ast; ast.parse(...)"` on
-`backend/config/settings.py`, `backend/services/portfolio_manager.py`,
-and the test file: OK.
+`python -c "import ast; ast.parse(...)"` on settings.py,
+portfolio_manager.py, autonomous_loop.py, paper_trader.py, and the
+test file: OK.
 
 ## Hard guardrail attestation
 
-- No mutating BigQuery calls -- the check is pure in-memory math on
-  the existing `paper_positions.market_value` field.
+- No mutating BigQuery calls -- the gate is pure pre-write math.
 - No Alpaca calls.
 - No frontend / `.claude/` / `.mcp.json` touched.
-- Diff stays within the audit's proposed-diff scope (one settings
-  field + one decide_trades extension + one test file extension).
-- Tests ship and pass deterministically.
+- Diff stays within the audit's proposed-diff scope.
+- Test ships and passes deterministically (6 cases).
 
 ## Success criteria check
 
 | Criterion | Status | Evidence |
 |-----------|--------|----------|
-| `settings_field_paper_max_per_sector_nav_pct_added_default_30` | PASS | `grep -q 'paper_max_per_sector_nav_pct' backend/config/settings.py` exits 0; field has `default=30.0` per Pydantic `Field(30.0, ...)` |
-| `portfolio_manager_enforces_both_count_and_nav_pct_caps` | PASS | Test D (`test_nav_pct_and_count_caps_independent`) verifies both gates are independent and can each block when the other allows |
-| `test_covers_a_buy_blocked_by_nav_pct_cap_even_when_count_cap_passes` | PASS | Test A (`test_nav_pct_cap_blocks_buy_when_count_cap_allows`) is the strict-literal: count cap = 10 (won't block 3 Tech), NAV-pct = 30, existing Tech at 27.5% NAV; new BUY -> 31% -> blocked |
+| `settings_field_paper_price_tolerance_pct_added_default_5` | PASS | `grep -q 'paper_price_tolerance_pct' backend/config/settings.py` exits 0; field has `default=5.0` per `Field(5.0, ...)` |
+| `execute_buy_rejects_when_fill_price_diverges_by_more_than_tolerance` | PASS | Tests #2 and #3 (live +10% and -10% over 5% gate) both assert `trade is None`; gate is symmetric |
+| `test_covers_both_pass_and_reject_branches` | PASS | Test #1 covers pass branch (1% deviation); tests #2 and #3 cover reject branch (10% up and down). Tests #4 (disable) and #5 (None) cover edge cases. Test #6 covers regression-guard grep symbol |

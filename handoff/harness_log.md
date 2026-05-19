@@ -20682,3 +20682,38 @@ will still show the polluted Sharpe value until phase-30.4 lands.
 **Tests:** 13/13 PASS in 0.03s (8 existing + 5 phase-30.5 new). Regression `test_cycle_heartbeat_alarm + test_autonomous_loop_step_5_6 + test_observability`: 26/26 PASS.
 **Q/A verdict:** PASS (single spawn). 5-item harness-compliance ALL PASS. Default 30.0 cited with 5-line provenance comment (arXiv 2512.02227 + SEC 1940 + UCITS bracket). Guard placement correct: NAV-pct gate fires AFTER buy_amount is known + AFTER count-cap. `nav > 0` div-zero guard. `max_sector_nav_pct > 0` cap-disabled guard. Test A is strict-literal of masterplan criterion #3. Heuristics: 0 BLOCK, 0 WARN, 1 NOTE (multi-buy increment-drop scenario not exercised; non-blocking).
 **Closes:** phase-30.0 Stage 6 / P2-2 (count cap default=2 enforces entries but does not address one-large-position-dominating-NAV). Future cycles will block both "many small positions" via count cap AND "one fat position" via NAV-pct cap.
+
+---
+
+## Cycle 1 -- 2026-05-19 21:02 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.96% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+
+## Cycle 1 -- 2026-05-19 -- phase=30.6 result=PASS
+
+**Step:** phase-30.6 -- P2: Price-tolerance pre-trade gate in execute_buy.
+**Researcher:** complex/opus/max. 8 sources read in full (FIA Best Practices July 2024, 17 CFR 240.15c3-5, SEC LULD investor.gov, ESMA Supervisory Briefing Feb 2026, FIN-FSA Thematic Assessment Dec 2024, CME Group Price Banding, arXiv 2603.10092 "Execution Is the New Attack Surface", arXiv 2512.02227 Orchestration Framework). 20 URLs. gate_passed=true.
+**Generator diff:** 5 files (319 raw lines, ~190 non-comment LOC):
+- `backend/config/settings.py`: +14 lines (new `paper_price_tolerance_pct: float = Field(5.0, ge=0.0, le=50.0, ...)` field; 5% default regulator-anchored to SEC LULD Tier 1)
+- `backend/services/portfolio_manager.py`: +9 lines (`price_at_analysis` field added to `TradeOrder` + populated at BUY-build)
+- `backend/services/autonomous_loop.py`: +21 / -5 (Step 7 buy-loop ALWAYS fetches live price; passes `price_at_analysis=order.price_at_analysis` separately)
+- `backend/services/paper_trader.py`: +30 lines (gate between phase-25.6 stop-loss synthesis and portfolio fetch; arXiv 2603.10092 §3.1 non-bypassable-invariants placement)
+- `backend/tests/test_price_tolerance_gate.py`: +245 lines (NEW, 6 test cases)
+**Tests:** 6/6 PASS in 0.78s. Regression `test_cycle_heartbeat_alarm + test_autonomous_loop_step_5_6 + test_observability + test_sector_concentration`: 39/39 PASS.
+**Q/A verdict:** PASS (single spawn). 5-item harness-compliance ALL PASS. Heuristics: 0 BLOCK, 0 WARN. Gate placement BEFORE ExecutionRouter per arXiv 2603.10092 §3.1. Symmetric `abs()` divergence catches both up-spike and crash-entry stale-data fills. Stop-loss synthesis (phase-25.6) runs BEFORE the new gate so "every entry has a stop" invariant preserved. 6 tests cover 6 independent mutations.
+**Behavior change disclosed:** autonomous_loop Step 7 now ALWAYS fetches live price for fill (was: prefer order.price). Prerequisite for the gate to function. Live-fetch failure (network outage) falls back to `order.price_at_analysis` so cycles still progress.
+**Closes:** phase-30.0 cross-val 6.1 / P2-4 (no analyzed-price-vs-fill-price gate -> now FIA WP Sec 1.3 + SEC LULD compliant).

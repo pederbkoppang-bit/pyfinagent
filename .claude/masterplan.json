@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-19T22:45:00+00:00",
+  "updated_at": "2026-05-19T23:10:00+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -10834,7 +10834,7 @@
         {
           "id": "30.6",
           "name": "P2: Price-tolerance pre-trade gate in execute_buy",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "priority": "P2",
           "depends_on_step": "30.0",
