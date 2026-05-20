@@ -21187,3 +21187,101 @@ Distribution: 1 BUY + 3 HOLD + 0 SELL.
 - NO backend/ files touched (scope honesty enforced).
 
 **Total cycle time:** ~70 minutes (researcher 11m + BQ probe 1m + code reads 3m + contract+results write 6m + qa 3m + masterplan 1m + log 1m; rest = main-loop overhead).
+
+---
+
+## Cycle 1 -- 2026-05-20 21:59 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=5.52% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-20 22:00 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=5.52% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-20 22:01 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=5.52% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-20 22:01 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=5.52% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 1 -- 2026-05-21 (overnight) -- phase=32.1 result=PASS
+
+**Step name:** Breakeven-stop ratchet at +1R (P1.1).
+**Type:** Implementation cycle. Code edits + BQ migration + tests + live MTM.
+
+**Researcher gate (moderate tier):** PASS. 8 external sources read in full, recency scan performed (no findings 2026-05-20 to 2026-05-21 contradict audit's P1.1), 3-query-variant discipline visible (current-year 2026, last-2-year 2025/2024, year-less canonical). Internal duplicate audit confirmed NO existing _advance_stop / breakeven helper for positions (only kill-switch peak-NAV ratchet + math-metric break_even_win_rate, both unrelated). Migration template extracted from scripts/migrations/add_external_flow_today_column.py (phase-30.4 canonical pattern). MFE unit reconciliation confirmed via direct read of paper_trader.py:435-446: mfe_pct is percent-of-cost-basis float (8.0 means 8%), shares units with settings.paper_default_stop_loss_pct.
+
+**Implementation:**
+- backend/services/paper_trader.py: NEW _advance_stop helper at line 749-777 (idempotent + monotonic + threshold-gated + entry-pinned). Wired into mark_to_market at line 448 between MFE compute and pos.update so both writes flow through one _safe_save_position call (no race). _POSITION_RT_FIELDS extended at line 751 with "stop_advanced_at_R" for schema-tolerant retry.
+- scripts/migrations/phase_32_1_add_stop_advanced_at_R.py: NEW, matches phase-30.4 canonical pattern. Idempotent ALTER TABLE ... ADD COLUMN IF NOT EXISTS. Verified by two distinct job IDs (3d50be31..., 64fc1510...) both returning Verification OK.
+- backend/tests/test_phase_32_1_breakeven_ratchet.py: NEW, 7 test cases (5 pure unit tests + 2 mark_to_market integration tests with mocked BQ). All pass in 1.02s.
+
+**Tests:** 7/7 PASS on new file. Full sweep 266 passed, 1 skipped, 0 failures. Zero regression.
+
+**Live MTM result (deploy verification):** Invoked PaperTrader.mark_to_market() from Python REPL against real BQ + yfinance. NAV=$22,454.30, positions_value=$12,449.52, 11 positions. Post-MTM BQ query of paper_positions: 10 of 11 positions ratcheted to breakeven (stop_loss_price == avg_entry_price, stop_advanced_at_R populated). The 11th (GEV, MFE +3.15%, Industrials) correctly NOT ratcheted because below 8% threshold.
+
+**Specific ratchet outcomes vs phase-31.0 baseline:**
+- All 7 NO_STOP positions (SNDK, INTC, WDC, LITE, ON, DELL, GLW) gained breakeven floor at entry_price.
+- All 3 STATIC_8PCT_ENTRY positions on high-MFE (MU, COHR, KEYS) advanced from entry*0.92 up to entry.
+- GEV correctly stayed at entry*0.92 = 992.22 (MFE 3.15% below 8% threshold).
+- Headline: SNDK (MFE +57.64% peak, no stop previously) now has floor at $989.90. MU (peak +57.62%, was -8% stop at $466.12 = -35% below current) now has floor at $506.65.
+
+**Q/A verdict (single agent, first spawn):** PASS. 19 of 19 checks PASS. Zero code-review heuristic findings across all 5 dimensions (security, trading-domain, code quality, anti-rubber-stamp, evaluator anti-patterns). Independent re-runs of pytest + AST parse + BQ schema + BQ live row queries all confirmed.
+
+**Scope honesty:** git diff --stat shows no edits to portfolio_manager.py, autonomous_loop.py, risk_judge.md, risk_stance.md, synthesis_agent.md, agent_definitions.py, or any agent skill. Only the 3 files listed above + this cycle's handoff artifacts + the masterplan flip touched.
+
+**Next step in this overnight run:** phase-32.2 (HWM-trailing stop + Kaminski-Lo adversarial guard).
+
+**Total cycle time:** ~55 minutes (researcher 7m + contract 1m + implementation 5m + tests 3m + migration 1m + live MTM 1m + experiment_results 2m + qa 3m + log + flip 1m; rest = orchestration overhead).

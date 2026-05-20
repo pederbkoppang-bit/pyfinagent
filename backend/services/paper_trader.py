@@ -445,15 +445,21 @@ class PaperTrader:
             new_mfe = max(prev_mfe, pnl_pct)
             new_mae = min(prev_mae, pnl_pct)
 
+            new_stop, advance_iso = self._advance_stop(pos, new_mfe)
+
             self.bq.delete_paper_position(ticker)
-            pos.update({
+            updates: dict = {
                 "current_price": live_price,
                 "market_value": round(market_value, 2),
                 "unrealized_pnl": round(pnl, 2),
                 "unrealized_pnl_pct": round(pnl_pct, 2),
                 "mfe_pct": round(new_mfe, 4),
                 "mae_pct": round(new_mae, 4),
-            })
+            }
+            if new_stop is not None:
+                updates["stop_loss_price"] = new_stop
+                updates["stop_advanced_at_R"] = advance_iso
+            pos.update(updates)
             self._safe_save_position(pos)
             total_positions_value += market_value
 
@@ -740,6 +746,36 @@ class PaperTrader:
         portfolio["updated_at"] = datetime.now(timezone.utc).isoformat()
         self.bq.upsert_paper_portfolio(portfolio)
 
+    def _advance_stop(
+        self, pos: dict, new_mfe: float
+    ) -> tuple[Optional[float], Optional[str]]:
+        # phase-32.1: breakeven-stop ratchet at +1R. When unrealized gain >= 1R
+        # (settings.paper_default_stop_loss_pct, default 8%), move the stop up
+        # to the entry price (lock in zero-loss). Idempotent via the
+        # stop_advanced_at_R audit field; monotonic (never lowers the stop).
+        # Kaminski-Lo Proposition 2 does not apply: that result governs
+        # cumulative-loss TRAILING thresholds, not one-shot breakeven moves.
+        if pos.get("stop_advanced_at_R"):
+            return (None, None)
+        entry_price = float(pos.get("avg_entry_price") or 0.0)
+        if entry_price <= 0:
+            return (None, None)
+        threshold = float(getattr(self.settings, "paper_default_stop_loss_pct", 8.0))
+        if new_mfe < threshold:
+            return (None, None)
+        current_stop = pos.get("stop_loss_price")
+        if current_stop is not None and float(current_stop) >= entry_price:
+            return (None, None)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        ticker = pos.get("ticker", "?")
+        old_stop_str = f"{float(current_stop):.4f}" if current_stop is not None else "None"
+        logger.info(
+            "phase-32.1: ratchet fired for %s -- advanced stop from %s to %.4f "
+            "at mfe_pct=%.4f (threshold %.4f)",
+            ticker, old_stop_str, entry_price, new_mfe, threshold,
+        )
+        return (entry_price, now_iso)
+
     # 4.5.2: Writes tolerate pre-migration schemas by retrying without the new
     # round-trip columns if BigQuery complains. Run scripts/migrations/
     # add_round_trip_schema.py once per environment to land them.
@@ -748,7 +784,7 @@ class PaperTrader:
         "round_trip_id", "holding_days", "realized_pnl_pct",
         "mfe_pct", "mae_pct", "capture_ratio", "signals",
     }
-    _POSITION_RT_FIELDS = {"mfe_pct", "mae_pct"}
+    _POSITION_RT_FIELDS = {"mfe_pct", "mae_pct", "stop_advanced_at_R"}
 
     def _safe_save_trade(self, row: dict) -> None:
         try:

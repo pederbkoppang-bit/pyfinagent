@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-20T05:08:19.929207+00:00",
+  "updated_at": "2026-05-20T22:23:25.767032+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -11197,7 +11197,7 @@
         {
           "id": "32.1",
           "name": "Breakeven-stop ratchet at +1R (P1.1)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "32.0",
@@ -11216,7 +11216,63 @@
             "live_check": "BQ row from financial_reports.paper_positions showing stop_advanced_at_R populated and stop_loss_price = avg_entry_price (NOT entry * 0.92) for at least one current high-MFE position. Run query immediately after deploy."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "implementation_plan": {
+            "summary": "When position.mfe_pct >= settings.paper_default_stop_loss_pct (1R = 8% default), advance stop_loss_price from entry-anchored (entry * 0.92) up to entry_price. Idempotent (one-shot per position). Strictly monotonic (never moves down). Pareto improvement over current state. 8 of 11 current positions (SNDK/MU/INTC/COHR/WDC/LITE/ON/DELL) crossed +1R per phase-31.0 baseline and will gain a breakeven floor on first MTM after deploy.",
+            "research_topics": [
+              "Recency-scan delta: anything published 2026-05-20 to now that bears on breakeven-stop ratchet logic. Search: 'breakeven stop systematic trading 2026', 'profit-locking ratchet quant 2026', plus year-less canonical 'breakeven stop trailing'.",
+              "Adversarial recheck: any new Carver-style argument against breakeven specifically (Kaminski-Lo Proposition 2 is about TRAILING, not breakeven; confirm no new paper unifies them).",
+              "Internal duplicate audit: grep 'rg -n' on backend/ for the symbols breakeven, advance_stop, move_to_breakeven, stop_advance, ratchet. Audit-of-record at signals_server.py:1052-1243 is trailing-stop dead code; confirm NO SEPARATE breakeven helper exists.",
+              "Schema migration pattern: read the most recent scripts/migrations/*.py to extract the ADD COLUMN IF NOT EXISTS + idempotent-retry pattern. Confirm bq.save_paper_position's _safe_save_position retry pattern at paper_trader.py:764-773 covers the new field.",
+              "MFE unit reconciliation: confirm paper_trader.py:443-446 mfe_pct (max of pnl_pct = (mv - cost_basis)/cost_basis * 100) shares units with settings.paper_default_stop_loss_pct (percent of entry). The audit asserted this; researcher re-verifies."
+            ],
+            "code_steps": [
+              "STEP 1: Add helper `_advance_stop(self, pos: dict, new_mfe: float) -> tuple[Optional[float], Optional[str]]` to PaperTrader class in backend/services/paper_trader.py. Place it near other private helpers (e.g., after _update_portfolio_cash at line ~737). Reads pos['avg_entry_price'], pos.get('stop_loss_price'), pos.get('stop_advanced_at_R'). Threshold = settings.paper_default_stop_loss_pct.",
+              "STEP 2: Trigger logic: returns (entry_price, now_iso) iff (a) new_mfe >= threshold AND (b) pos.get('stop_advanced_at_R') is None AND (c) stop_loss_price is None OR stop_loss_price < entry_price. Else returns (None, None). Idempotent + monotonic by design.",
+              "STEP 3: Wire helper into mark_to_market at backend/services/paper_trader.py:440-456. Place the _advance_stop call AFTER `new_mfe = max(prev_mfe, pnl_pct)` is computed (line 445) and BEFORE `pos.update({...})` (line 449). When (new_stop, advance_iso) is returned non-None, add them to the pos.update dict so they persist in the SAME _safe_save_position call (no race).",
+              "STEP 4: Log INFO line on each ratchet fire: 'phase-32.1: ratchet fired for {ticker} -- advanced stop from ${old_stop} to ${entry} at mfe_pct={new_mfe} (threshold ${threshold})'. Use ASCII only per backend-services.md.",
+              "STEP 5: Update _POSITION_RT_FIELDS at paper_trader.py:751 to include 'stop_advanced_at_R' so the schema-tolerant retry pattern keeps working on pre-migration BQ tables (defense-in-depth alongside the migration)."
+            ],
+            "migration_steps": [
+              "STEP 1: Create scripts/migrations/phase_32_1_add_stop_advanced_at_R.py. Idempotent: ALTER TABLE `sunny-might-477607-p8.financial_reports.paper_positions` ADD COLUMN IF NOT EXISTS stop_advanced_at_R STRING.",
+              "STEP 2: Match the pattern of the most recent existing migration script (use the same imports, settings load, logger setup).",
+              "STEP 3: Run the migration once: `python scripts/migrations/phase_32_1_add_stop_advanced_at_R.py`.",
+              "STEP 4: Verify the column landed via mcp__claude_ai_Google_Cloud_BigQuery__get_table_info on financial_reports.paper_positions. Confirm 'stop_advanced_at_R' appears in fields with type STRING.",
+              "STEP 5: Re-run the migration to confirm idempotency (zero error, zero schema change)."
+            ],
+            "test_specs": [
+              "test_no_advance_below_1R: helper with MFE=+5% returns (None, None).",
+              "test_advance_exactly_at_1R: MFE = settings.paper_default_stop_loss_pct returns (entry_price, ISO_now_string).",
+              "test_advance_above_1R: MFE=+20% returns (entry_price, ISO_now). Stop does NOT advance past entry_price (that's 32.2's job).",
+              "test_idempotent: position with stop_advanced_at_R already populated returns (None, None) even at MFE=+50%.",
+              "test_monotonic_never_moves_down: position with stop_loss_price > entry_price already (e.g. from a future trail) returns (None, None) regardless of MFE.",
+              "test_mark_to_market_persists: integration via PaperTrader.mark_to_market with a mocked BQ client. Feed a position with mfe=10% on entry $100, current $110. Assert _safe_save_position is called with stop_loss_price = 100.0 AND stop_advanced_at_R populated. Use existing BQ mocks from backend/tests/test_paper_trader.py.",
+              "test_no_regression_full_sweep: `python -m pytest backend/tests/ -v`. Must report all previously-passing tests still pass (0 new failures, 0 new errors)."
+            ],
+            "preflight_checks": [
+              "git checkout main && git pull origin main",
+              "git status --short should be clean apart from baseline drift in .claude/.archive-baseline.json / backend/backtest/experiments/*.tsv / handoff/audit/*.jsonl",
+              "Confirm paper_positions schema does NOT yet have stop_advanced_at_R (mcp__claude_ai_Google_Cloud_BigQuery__get_table_info)",
+              "Re-read handoff/archive/phase-31.0/experiment_results.md section 4 (P1.1) -- authoritative spec",
+              "Archive the prior cycle's handoff/current files into handoff/archive/phase-31.0/ if not already there (research_brief, contract, experiment_results, evaluator_critique)"
+            ],
+            "hard_guardrails": [
+              "NO trailing-stop logic (HWM, Chandelier, ATR-trail) -- that is phase-32.2",
+              "NO take-profit / scale-out logic -- that is later phase",
+              "NO change to check_stop_losses at paper_trader.py:484-493",
+              "NO change to decide_trades at portfolio_manager.py",
+              "NO change to risk_judge.md or any agent skill .md file",
+              "NO mutating Alpaca calls (read-only inspection via mcp__alpaca__* permitted)",
+              "Migration MUST be idempotent (ADD COLUMN IF NOT EXISTS + schema-error retry)",
+              "MFE/MAE write and the ratchet update MUST go through the SAME _safe_save_position call (no race condition)",
+              "Adversarial guard NOT NEEDED for breakeven specifically (Kaminski-Lo Proposition 2 is about TRAILING; breakeven is a one-shot mutation). Audit confirmed."
+            ],
+            "out_of_scope_followups": [
+              "phase-32.2 -- HWM-trailing + Kaminski-Lo guard (ready as soon as 32.1 has 1 cycle of live data)",
+              "phase-32.3 -- sector exposure to Risk Judge (independent of 32.1, parallelizable)",
+              "Backfill order-of-operations: confirm autonomous_loop.py:781 runs backfill_missing_stops BEFORE check_stop_losses AND before the new ratchet (positions need a baseline stop + known entry before MFE crosses 1R)"
+            ]
+          }
         },
         {
           "id": "32.2",
@@ -11240,7 +11296,54 @@
             "live_check": "BQ row from financial_reports.paper_positions showing stop_loss_price > avg_entry_price * 0.95 for at least one position whose mfe_pct > 20% (trail moved stop above entry-anchored). AND a mean-reversion-flagged entry whose stop_loss_price is unchanged from entry-anchored (guard active)."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "implementation_plan": {
+            "summary": "After P1.1 (32.1) ships and has at least 1 live cycle, port the trailing-stop logic from signals_server.py:1052-1154 into paper_trader. After breakeven fires, mutate stop_loss_price = max(stop_loss_price, peak_price * (1 - trail_pct/100)) where peak_price = entry_price * (1 + mfe_pct/100). Kaminski-Lo Proposition 2 adversarial guard: SKIP the trailing branch when entry_strategy in {'mean_reversion','pairs'}. MVP: default-on for momentum/triple-barrier; conservative-skip otherwise.",
+            "research_topics": [
+              "Confirm signals_server.py:1052-1154 algorithm is still the correct port target (no newer in-tree alternative)",
+              "Identify entry_strategy resolution path: paper_positions does NOT currently have entry_strategy; lookup via analysis_id -> strategy_decisions table, OR add via schema migration",
+              "Recency-scan delta: any new 2026-mid paper on trailing-stop vs static-stop empirical performance",
+              "Re-fetch Kaminski-Lo Proposition 2 quote into the contract for the test docstring"
+            ],
+            "code_steps": [
+              "STEP 1: Extend _advance_stop helper from 32.1 to ALSO compute the trailing branch when stop_advanced_at_R is already set (i.e., breakeven already fired) -- this is the 'after breakeven' condition.",
+              "STEP 2: Compute peak_price = pos['avg_entry_price'] * (1 + new_mfe/100). new_trail = peak_price * (1 - settings.paper_trailing_stop_pct/100).",
+              "STEP 3: Monotonic max: new_stop = max(current_stop, new_trail). NEVER decrease.",
+              "STEP 4: Adversarial guard: load entry_strategy for the position. If in {'mean_reversion','pairs'}, return (None, None) -- DO NOT trail. Else proceed.",
+              "STEP 5: New setting paper_trailing_stop_pct (default 8.0). Add to backend/config/settings.py.",
+              "STEP 6: Wire into mark_to_market alongside the 32.1 ratchet call."
+            ],
+            "migration_steps": [
+              "STEP 1: Add nullable entry_strategy STRING column to paper_positions if lookup path is direct (preferred over join).",
+              "STEP 2: Backfill entry_strategy for existing positions from analysis_id -> strategy_decisions (or default to 'momentum' for fail-CLOSED-conservative -- the trail IS applied unless explicitly mean_reversion).",
+              "STEP 3: Idempotent ALTER TABLE ADD COLUMN IF NOT EXISTS."
+            ],
+            "test_specs": [
+              "test_trail_advances_on_new_peak: momentum entry, mfe rises 20% to 30% -- stop trails up to peak*(1-8%) = entry*1.30*0.92.",
+              "test_trail_monotonic_never_moves_down: peak drops after a new high -- stop stays at the higher level.",
+              "test_kaminski_lo_guard_mean_reversion: entry_strategy='mean_reversion', mfe=30% -- stop does NOT trail (stays at breakeven level from 32.1).",
+              "test_kaminski_lo_guard_pairs: entry_strategy='pairs', mfe=30% -- stop does NOT trail.",
+              "test_default_momentum_trails: entry_strategy='momentum' or None (fail-CLOSED default), mfe=30% -- stop trails.",
+              "test_no_regression_full_sweep"
+            ],
+            "preflight_checks": [
+              "phase-32.1 status=done AND has at least 1 live cycle of stop_advanced_at_R rows in paper_positions",
+              "Confirm setting paper_trailing_stop_pct does NOT yet exist",
+              "git checkout main && git pull"
+            ],
+            "hard_guardrails": [
+              "Trail ONLY fires AFTER breakeven (32.1) has already moved the stop -- chain of operations is breakeven -> trail",
+              "Adversarial guard is LOAD-BEARING -- mean_reversion + pairs entries MUST be skipped",
+              "Fail-CLOSED-conservative default: when entry_strategy is None/unknown, treat as momentum (trail IS applied). Document in code comment.",
+              "stop_loss_price monotonic max ALWAYS",
+              "NO take-profit / scale-out logic in this step",
+              "Migration idempotent"
+            ],
+            "out_of_scope_followups": [
+              "ATR-scaled trail distance (replace fixed 8% with 2 x ATR(14)) -- phase-32.x candidate",
+              "Per-strategy trail percent (mean-reversion=0%, momentum=8%, trend=12%) -- phase-32.x"
+            ]
+          }
         },
         {
           "id": "32.3",
@@ -11263,7 +11366,114 @@
             "live_check": "Sample Risk Judge prompt log from handoff/logs/ showing the PORTFOLIO CONTEXT section with sector exposure injected, and the LLM reasoning paragraph citing it on a Tech BUY proposal."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "implementation_plan": {
+            "summary": "Inject current portfolio sector exposure into risk_judge.md FACT_LEDGER section. Add prompt instruction: 'If sector exposure for the candidate sector exceeds 60% of NAV, require compelling sector-specific upside or reduce position size.' Live signal: current 89.3% Tech concentration would surface a max(SE_j) = 0.89 warning on every new Tech BUY. QuantAgents arXiv 2510.04643 R_score architecture.",
+            "research_topics": [
+              "Confirm risk_judge.md FACT_LEDGER injection path -- which orchestrator step builds the FACT_LEDGER?",
+              "Re-verify QuantAgents R_score weights w1..w4 from arXiv 2510.04643 (already cited in phase-31.0 brief; reconfirm for the contract)",
+              "Recency-scan: 2026 papers on multi-agent risk-control with explicit sector caps"
+            ],
+            "code_steps": [
+              "STEP 1: Add portfolio_sector_exposure builder helper to backend/agents/orchestrator.py. Reads from paper_positions, computes {sector: market_value_pct}. Returns dict.",
+              "STEP 2: Wire the helper into the FACT_LEDGER section building (find the existing FACT_LEDGER assembly in orchestrator.py).",
+              "STEP 3: Update backend/agents/skills/risk_judge.md to consume the new field. Add new section 'PORTFOLIO CONTEXT' after Data Inputs (lines 22-29). Add prompt instruction in YOUR TASK section.",
+              "STEP 4: Update backend/agents/skills/synthesis_agent.md output schema to include optional portfolio_concentration_warning string field that the Risk Judge sees pre-debate.",
+              "STEP 5: No BQ schema change needed -- portfolio_sector_exposure is computed at orchestrator time from paper_positions."
+            ],
+            "migration_steps": [
+              "No migration needed."
+            ],
+            "test_specs": [
+              "test_high_tech_concentration_warns: portfolio with 89% Tech, candidate ticker is Tech -- portfolio_concentration_warning fires.",
+              "test_low_concentration_silent: portfolio with 30% Tech -- no warning.",
+              "test_other_sector_silent: portfolio 89% Tech, candidate ticker is Healthcare -- no warning (the cap is per-sector, not portfolio-wide).",
+              "test_empty_portfolio_silent: no positions -- no warning.",
+              "test_fact_ledger_carries_field: FACT_LEDGER builder output contains portfolio_sector_exposure dict.",
+              "test_no_regression_full_sweep"
+            ],
+            "preflight_checks": [
+              "phase-32.0 status=done (audit complete)",
+              "Confirm orchestrator.py FACT_LEDGER assembly site exists and is the canonical injection point",
+              "git checkout main && git pull"
+            ],
+            "hard_guardrails": [
+              "Prompt-only + read-only computation -- NO change to portfolio_manager.py pre-trade sector caps (those exist separately and are correct)",
+              "NO change to decide_trades flow",
+              "Skill-file edits to risk_judge.md and synthesis_agent.md trigger an InstructionsLoaded reload but DO NOT require Claude Code session restart (these are Layer-2 in-app skills, not Layer-3 agent .md files)",
+              "Per CLAUDE.md: separation of duties on agent edits applies to .claude/agents/ ONLY, not backend/agents/skills/ -- no Peder-review-required hold"
+            ],
+            "out_of_scope_followups": [
+              "Per-strategy correlation cap (factor exposure, not just GICS sector) -- phase-32.x",
+              "Risk Judge exit-policy block (P3.1) -- phase-32.x"
+            ]
+          }
+        },
+        {
+          "id": "32.4",
+          "name": "Backfill company names on legacy paper_positions",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "32.0",
+          "audit_basis": "Operator dashboard observation 2026-05-20: 9 of 11 current paper_positions rows have company_name == ticker (MU, KEYS, GEV, COHR, ON, DELL, GLW, LITE, WDC). Only INTC ('Intel Corporation') and SNDK ('Sandisk Corporation') carry a real longName. Same legacy pattern as phase-25.2 stop_loss_price backfill: _fetch_ticker_meta was added partway through phase-23.x; positions opened before that retain ticker-as-company fallback. Cosmetic, not safety-critical, but distorts the dashboard.",
+          "verification": {
+            "command": "python -m pytest backend/tests/test_phase_32_4_backfill_company_names.py -v && grep -n 'backfill_missing_company_names' backend/services/paper_trader.py backend/services/autonomous_loop.py",
+            "success_criteria": [
+              "backfill_missing_company_names_helper_added_to_paper_trader",
+              "called_from_autonomous_loop_alongside_backfill_missing_stops",
+              "uses_same_yfinance_longName_path_as_fetch_ticker_meta",
+              "idempotent_returns_zero_on_repeat_run",
+              "skips_when_company_name_is_already_a_real_name_not_just_ticker",
+              "fail_open_logs_warning_on_yfinance_error",
+              "unit_test_4_cases_pass"
+            ],
+            "live_check": "BQ row from financial_reports.paper_positions showing at least 8 of the 9 affected tickers (MU, KEYS, GEV, COHR, ON, DELL, GLW, LITE, WDC) now have a company_name field different from the ticker (e.g. 'Micron Technology, Inc.' for MU). Quote the row verbatim in handoff/current/live_check_32.4.md."
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "implementation_plan": {
+            "summary": "Add backfill_missing_company_names() helper to PaperTrader, modelled after backfill_missing_stops() at paper_trader.py:495-562. Iterates open positions, calls yfinance (or whatever _fetch_ticker_meta uses) to resolve longName, persists when current company_name == ticker (the fallback sentinel) or is empty. Idempotent. Wire into autonomous_loop.py:781 alongside backfill_missing_stops.",
+            "research_topics": [
+              "Locate _fetch_ticker_meta canonical source (likely backend/api/paper_trading.py) and document the exact longName resolution chain (yfinance Ticker.info['longName'] vs ['shortName'] fallback)",
+              "Check whether paper_positions has a company_name column (or whether the field lives elsewhere like analysis_results); the dashboard surface implies it is on paper_positions",
+              "Confirm idempotency pattern via the backfill_missing_stops template at paper_trader.py:495-562"
+            ],
+            "code_steps": [
+              "STEP 1: Inspect paper_positions schema for company_name field. If absent, add via migration. If present, proceed.",
+              "STEP 2: Add backfill_missing_company_names(self, force: bool=False) -> dict to PaperTrader. Iterates self.get_positions(). For each pos where company_name == ticker OR company_name is empty, call yfinance ticker.info.get('longName') or ('shortName') as fallback. Persist via _safe_save_position. Returns {backfilled: [...], skipped: [...], counts}.",
+              "STEP 3: Add try/except around yfinance call -- fail-open with WARNING log (do NOT break the cycle).",
+              "STEP 4: Wire into autonomous_loop.py Step 5.6 region (after backfill_missing_stops call at line ~781). Same asyncio.to_thread pattern. Same fail-open behavior.",
+              "STEP 5: Update _POSITION_RT_FIELDS schema-tolerant retry set if company_name is among the optional fields."
+            ],
+            "migration_steps": [
+              "If paper_positions does NOT already have company_name column: ALTER TABLE financial_reports.paper_positions ADD COLUMN IF NOT EXISTS company_name STRING. Idempotent."
+            ],
+            "test_specs": [
+              "test_backfill_skips_real_name: position with company_name='Intel Corporation' is NOT mutated.",
+              "test_backfill_fires_when_name_equals_ticker: position with company_name='MU' is updated to yfinance longName.",
+              "test_backfill_fires_when_name_empty: position with company_name='' or None is updated.",
+              "test_backfill_idempotent: run twice -- second run returns zero backfilled.",
+              "test_fail_open_on_yfinance_error: mock yfinance raise -> position untouched, WARNING logged, no exception propagated.",
+              "test_no_regression_full_sweep"
+            ],
+            "preflight_checks": [
+              "phase-32.1 status=done (this backfill runs in same Step 5.6 block, ordering matters)",
+              "git checkout main && git pull",
+              "Confirm yfinance is already in backend/requirements.txt (it is per _fetch_ticker_meta)"
+            ],
+            "hard_guardrails": [
+              "Cosmetic-only change -- MUST NOT affect any trading decision",
+              "NO change to risk_judge.md or any agent skill",
+              "NO change to decide_trades, check_stop_losses, mark_to_market exit logic",
+              "Fail-open ALWAYS: yfinance fetch failure must NOT block the cycle",
+              "Idempotent: re-running must be a no-op when all names are real"
+            ],
+            "out_of_scope_followups": [
+              "Backfilling additional metadata (industry, market_cap) -- different cycle",
+              "Periodic refresh of stale company_name (e.g. post-merger rename) -- not addressed here"
+            ]
+          }
         }
       ]
     }
