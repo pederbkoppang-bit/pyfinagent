@@ -1,68 +1,56 @@
-# Sprint Contract — phase-32.3 Surface Sector Exposure to Risk Judge
+# Sprint Contract — phase-32.4 Backfill Company Names on Legacy paper_positions
 
-**Step ID:** `phase-32.3`
+**Step ID:** `phase-32.4`
 **Date:** 2026-05-21
-**Cycle type:** Implementation. Prompt-only + orchestrator helper. NO BQ migration.
+**Cycle type:** Implementation. Migration + backfill helper + autonomous-loop wiring. P2 priority (cosmetic/dashboard fix, not safety-critical).
 
 ---
 
 ## Research-Gate Summary
 
-- **Tier:** moderate. **gate_passed:** true (per researcher subagent).
+- **Tier:** simple. **gate_passed:** true (per researcher).
 - **Brief:** `handoff/current/research_brief.md`.
-- **FACT_LEDGER assembly site confirmed at `backend/agents/orchestrator.py:1485-1490`:**
-  ```python
-  fact_ledger = _build_fact_ledger(report["quant"])
-  fact_ledger_json = json.dumps(fact_ledger, indent=2, default=str)
-  report["_fact_ledger"] = fact_ledger
-  self._fact_ledger_json = fact_ledger_json  # available to all agent methods
-  ```
-  All ~15 agent prompts (RAG, Market, Competitor, Insider, Options, etc.) receive `fact_ledger=self._fact_ledger_json` as a kwarg. The Risk Judge consumes the FACT_LEDGER via the `{{fact_ledger_section}}` placeholder in `risk_judge.md:76`.
-- **QuantAgents R_score formula re-verified:** `R_score = w1·β_p + w2·(1/LR) + w3·max(SE_j) + w4·σ_p`. Sector-exposure term is the MAX over sectors (`max_j SE_j`), not HHI. Risk Alert Meeting trigger threshold = 0.75. The masterplan's 0.60 threshold is MORE conservative (fires earlier), aligning with AQR Q1 2025's concentration paradigm guidance for current Mag-7 era equity portfolios.
+- **Key findings:**
+  - `_fetch_ticker_meta` lives at `backend/api/paper_trading.py:971`. Helper `_yfinance_ticker_info` at line 958-968 — uses `info.get("shortName") or info.get("longName") or ticker` (the masterplan's spec was inverted; the actual canonical chain in the codebase is `shortName` THEN `longName`). Phase-32.4 mirrors this exact chain for consistency.
+  - `paper_positions` schema (verified via `mcp__claude_ai_Google_Cloud_BigQuery__get_table_info` after 32.1+32.2+32.3): 21 fields. No `company_name`. Migration required.
+  - `backfill_missing_stops` template at `paper_trader.py:495-562` is the canonical idempotency pattern (filter NULL/empty, mutate via `_safe_save_position`, return `{backfilled, skipped, count_backfilled, count_skipped}`).
+- **Dashboard wiring gap (out-of-band finding):** the `/api/paper-trading/portfolio` endpoint already pulls `company_name` from `analysis_results` via `_fetch_ticker_meta`, NOT from `paper_positions`. The frontend at `paper-trading/page.tsx:845` consumes `tickerMeta[pos.ticker]?.company_name`. Per the masterplan's strict scope, phase-32.4 backfills `paper_positions.company_name` only; the API endpoint wiring to make the dashboard READ from there is OUT OF SCOPE and recorded as a phase-32.5 followup. The audit's user-facing observation (9 of 11 positions showing ticker-as-company) will be ADDRESSED at the data layer but not yet at the display layer.
 
 ---
 
 ## Hypothesis
 
-The Risk Judge cannot reason about portfolio concentration risk because the FACT_LEDGER it consumes is PER-TICKER. Add a `portfolio_sector_exposure` block to the FACT_LEDGER carrying:
-- `by_sector`: `{sector_name: pct_of_total_value}` dict
-- `max_sector`: name of the most-concentrated sector
-- `max_sector_exposure_pct`: float (0-100)
-- `concentration_warning`: bool (true when max ≥ 60)
-- `threshold_pct`: 60.0 (the trigger)
-- `total_positions`: int (count of positions)
-
-When the Risk Judge sees `max_sector_exposure_pct = 89.3` and `concentration_warning = true`, it can argue against new Tech BUYs without code-side blocking. The `synthesis_agent.md` output schema gains an optional `portfolio_concentration_warning: string` narrative field so the Risk Judge sees BOTH raw exposure data AND the synth's narrative warning pre-debate.
-
-Live signal: current portfolio is 89.3% Tech (10/11 positions). Once this lands, every new Tech BUY proposal hits the Risk Judge with an explicit concentration warning at prompt time.
+Add `backfill_missing_company_names()` helper to PaperTrader, modelled on `backfill_missing_stops()`. Wire into autonomous_loop.py Step 5.6 alongside `backfill_missing_stops()`. Result: `paper_positions.company_name` will be populated for all 11 current positions with real yfinance names. The dashboard will still show ticker-as-company until phase-32.5 fixes the API wiring — but the data foundation is in place.
 
 ---
 
-## Success Criteria (IMMUTABLE — from `.claude/masterplan.json::phase-32.3.verification.success_criteria`)
+## Success Criteria (IMMUTABLE — from `.claude/masterplan.json::phase-32.4.verification.success_criteria`)
 
-1. `fact_ledger_carries_portfolio_sector_exposure`
-2. `risk_judge_prompt_has_portfolio_context_section`
-3. `synthesis_agent_emits_portfolio_concentration_warning`
-4. `max_se_geq_0_60_triggers_warning`
-5. `max_se_lt_0_60_no_warning`
-6. `unit_test_3_cases_pass` (we will ship ≥5)
+1. `backfill_missing_company_names_helper_added_to_paper_trader`
+2. `called_from_autonomous_loop_alongside_backfill_missing_stops`
+3. `uses_same_yfinance_longName_path_as_fetch_ticker_meta`
+4. `idempotent_returns_zero_on_repeat_run`
+5. `skips_when_company_name_is_already_a_real_name_not_just_ticker`
+6. `fail_open_logs_warning_on_yfinance_error`
+7. `unit_test_4_cases_pass` (we will ship ≥5)
 
 Verification command (must pass):
 ```bash
-python -m pytest backend/tests/test_phase_32_3_sector_exposure.py -v && \
-grep -n 'portfolio_sector_exposure' backend/agents/skills/risk_judge.md backend/agents/orchestrator.py
+python -m pytest backend/tests/test_phase_32_4_backfill_company_names.py -v && \
+grep -n 'backfill_missing_company_names' backend/services/paper_trader.py backend/services/autonomous_loop.py
 ```
 
-Live check requirement: `handoff/current/live_check_32.3.md` shows (a) the `portfolio_sector_exposure` dict computed against the current 11-position portfolio (Technology 89.3%, Industrials 10.7%, max=Tech, concentration_warning=True), AND (b) a verbatim FACT_LEDGER snippet (rendered as JSON from the orchestrator) showing the new field carried through, AND (c) the Risk Judge prompt template rendered with the new PORTFOLIO CONTEXT section visible.
+Live check requirement: `handoff/current/live_check_32.4.md` shows a BQ row from `paper_positions` confirming at least 8 of 9 affected tickers (MU, KEYS, GEV, COHR, ON, DELL, GLW, LITE, WDC) now have `company_name != ticker`.
 
 ---
 
 ## Immutable Hard Guardrails (verbatim from `implementation_plan.hard_guardrails`)
 
-1. Prompt-only + read-only computation — NO change to `portfolio_manager.py` pre-trade sector caps (those exist separately and are correct).
-2. NO change to `decide_trades` flow.
-3. Skill-file edits to `risk_judge.md` and `synthesis_agent.md` trigger an InstructionsLoaded reload but DO NOT require Claude Code session restart (Layer-2 skills, not Layer-3 agents).
-4. Per CLAUDE.md: separation-of-duties on agent edits applies to `.claude/agents/` ONLY, not `backend/agents/skills/` — no Peder-review-required hold.
+1. Cosmetic-only change — MUST NOT affect any trading decision.
+2. NO change to `risk_judge.md` or any agent skill.
+3. NO change to `decide_trades`, `check_stop_losses`, `mark_to_market` exit logic.
+4. Fail-open ALWAYS: yfinance fetch failure must NOT block the cycle.
+5. Idempotent: re-running must be a no-op when all names are real.
 
 Plus global overnight goal guardrails (NO `AskUserQuestion`, NO mutating Alpaca, scope honesty).
 
@@ -72,78 +60,21 @@ Plus global overnight goal guardrails (NO `AskUserQuestion`, NO mutating Alpaca,
 
 1. **RESEARCH** ✅ done.
 2. **PLAN** ✅ this file.
-3. **GENERATE** — add `_compute_portfolio_sector_exposure(positions: list[dict], threshold_pct: float = 60.0) -> dict` PURE FUNCTION near `_build_fact_ledger` in `orchestrator.py`. Wire it in at the FACT_LEDGER assembly site (line 1487): fetch positions on demand via a one-shot `BigQueryClient(self.settings)` (matching the existing pattern at line 588), call the helper, merge result into the `fact_ledger` dict under key `portfolio_sector_exposure`. Fail-open (log warning + set to None on any exception so analysis never breaks).
-4. **SKILLS** — update `risk_judge.md` with a new "PORTFOLIO CONTEXT (phase-32.3)" section consuming `fact_ledger.portfolio_sector_exposure`. Update `synthesis_agent.md` output schema with optional `portfolio_concentration_warning: string` field.
-5. **TESTS** — `backend/tests/test_phase_32_3_sector_exposure.py`. 5 cases per `test_specs`. Pure-function tests + 1 integration test that the helper output reaches the FACT_LEDGER dict.
-6. **VERBATIM RESULTS** — write `handoff/current/experiment_results.md`.
-7. **EVALUATE** — spawn `qa` ONCE.
-8. **LIVE CHECK** — invoke the helper against the LIVE `paper_positions` (11 rows, 89.3% Tech) and quote the resulting dict. Render a simulated Risk Judge prompt section using the new template. Write to `handoff/current/live_check_32.3.md`.
-9. **LOG** — append cycle block to `handoff/harness_log.md`.
-10. **FLIP** — `phase-32.3.status: pending → done`. Manual commit `phase-32.3:`.
-
----
-
-## Implementation crib
-
-**Helper signature (pure function, easy to test):**
-```python
-def _compute_portfolio_sector_exposure(
-    positions: list[dict],
-    threshold_pct: float = 60.0,
-) -> dict:
-    """Compute sector concentration from paper_positions rows.
-
-    Returns:
-        {
-            "by_sector": {sector: pct_of_total_market_value, ...},
-            "max_sector": <sector with highest exposure>,
-            "max_sector_exposure_pct": <float 0-100>,
-            "concentration_warning": <bool, True iff max >= threshold_pct>,
-            "threshold_pct": <threshold_pct>,
-            "total_positions": <int>,
-        }
-    """
-```
-
-**Caller wiring at `orchestrator.py:1485-1490`:**
-```python
-fact_ledger = _build_fact_ledger(report["quant"])
-# phase-32.3: portfolio-level sector exposure into the per-ticker fact ledger
-try:
-    from backend.db.bigquery_client import BigQueryClient
-    _bq = BigQueryClient(self.settings)
-    _positions = _bq.get_paper_positions()
-    fact_ledger["portfolio_sector_exposure"] = _compute_portfolio_sector_exposure(
-        _positions, threshold_pct=60.0,
-    )
-except Exception as _pse_exc:
-    logger.warning(
-        "phase-32.3: portfolio_sector_exposure compute failed (non-fatal): %s",
-        _pse_exc,
-    )
-    fact_ledger["portfolio_sector_exposure"] = None
-fact_ledger_json = json.dumps(fact_ledger, indent=2, default=str)
-```
-
-**risk_judge.md addition** (after `## Data Inputs` block at lines 22-29):
-```
-## Portfolio Context (phase-32.3)
-- `portfolio_sector_exposure` (read from FACT_LEDGER) — dict with by_sector / max_sector / max_sector_exposure_pct / concentration_warning / threshold_pct.
-- When `concentration_warning == true` AND the candidate ticker's sector matches `max_sector`, require compelling sector-specific upside (cite a specific catalyst in the FACT_LEDGER) or reduce `recommended_position_pct` proportionally. Cite the figure in your `reasoning`.
-- When `concentration_warning == true` but the candidate's sector differs from `max_sector`, prefer the new sector to improve diversification.
-```
-
-**synthesis_agent.md output schema addition** — add to the output JSON:
-```json
-"portfolio_concentration_warning": "<optional 1-2 sentence narrative if portfolio_sector_exposure.concentration_warning is true; null/omit otherwise>"
-```
+3. **MIGRATION** — `scripts/migrations/phase_32_4_add_company_name.py`. Idempotent ALTER TABLE ADD COLUMN IF NOT EXISTS company_name STRING. Backfill is handled by the helper, not the migration.
+4. **GENERATE** — `backfill_missing_company_names(self, force: bool = False) -> dict` on PaperTrader near `backfill_missing_stops` at `paper_trader.py:495-562`. Iterates `self.get_positions()`. For each pos where `company_name in (None, "", ticker)` (the sentinel set), fetch yfinance `shortName` or `longName` (mirroring `_yfinance_ticker_info` at `paper_trading.py:958-968`). Persist via `_safe_save_position`. Returns `{backfilled, skipped, count_backfilled, count_skipped}`. Try/except around yfinance — fail-open. Wire into `autonomous_loop.py` Step 5.6 region AFTER `backfill_missing_stops`. Update `_POSITION_RT_FIELDS` to include `company_name`.
+5. **TESTS** — `backend/tests/test_phase_32_4_backfill_company_names.py`. 5+ cases per `test_specs`.
+6. **VERBATIM RESULTS** — `handoff/current/experiment_results.md`.
+7. **EVALUATE** — `qa` ONCE.
+8. **LIVE CHECK** — run the migration, run the helper against production paper_positions, quote BQ rows.
+9. **LOG** — append cycle block.
+10. **FLIP** — `phase-32.4.status: pending → done`. Commit `phase-32.4:`. **END of overnight run** — phase-32.4 is the last pending step.
 
 ---
 
 ## References
 
-- Researcher brief at `handoff/current/research_brief.md` (this cycle).
-- Phase-32.1 + 32.2 commits `24d03224`, `2d973b13` (the helper this cycle complements).
-- FACT_LEDGER assembly at `backend/agents/orchestrator.py:254` (`_build_fact_ledger`) + line 1487 (assignment to `self._fact_ledger_json`).
-- QuantAgents arXiv 2510.04643 R_score (re-verified this cycle).
-- AQR Q1 2025 paradigm + MSCI 2025 wobble (phase-31.0 audit references).
+- Researcher brief at `handoff/current/research_brief.md`.
+- Phase-32.1/2/3 commits.
+- `_yfinance_ticker_info` at `backend/api/paper_trading.py:958-968` (canonical chain).
+- `backfill_missing_stops` at `backend/services/paper_trader.py:495-562` (template).
+- Phase-32.5 candidate documented in experiment_results.md "Followups" section: API wiring change so dashboard reads `paper_positions.company_name` directly.

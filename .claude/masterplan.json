@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-20T23:09:47.325314+00:00",
+  "updated_at": "2026-05-20T23:27:32.395870+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -11163,7 +11163,7 @@
     {
       "id": "phase-32",
       "name": "Profit-Protection + Risk-Agent Hardening",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "phase-31"
       ],
@@ -11412,7 +11412,7 @@
         {
           "id": "32.4",
           "name": "Backfill company names on legacy paper_positions",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "32.0",

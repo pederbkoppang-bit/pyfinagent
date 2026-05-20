@@ -812,6 +812,27 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 except Exception as sl_exc:
                     logger.exception("Stop-loss execute_sell failed for %s: %s", sl_ticker, sl_exc)
 
+            # phase-32.4: backfill missing company_name on paper_positions
+            # (legacy rows opened pre-_fetch_ticker_meta default to ticker).
+            # Cosmetic; runs AFTER check_stop_losses so it never blocks the
+            # safety-critical stop-loss path. Fail-open: a yfinance hiccup
+            # never breaks the cycle.
+            summary["company_name_backfilled"] = []
+            try:
+                cn_result = await asyncio.to_thread(trader.backfill_missing_company_names)
+                summary["company_name_backfilled"] = cn_result.get("backfilled", [])
+                if cn_result.get("count_backfilled", 0) > 0:
+                    logger.info(
+                        "phase-32.4: backfill_missing_company_names updated %d rows (skipped %d)",
+                        cn_result.get("count_backfilled", 0),
+                        cn_result.get("count_skipped", 0),
+                    )
+            except Exception as cn_exc:
+                logger.exception(
+                    "phase-32.4: backfill_missing_company_names failed (non-fatal; cosmetic only): %s",
+                    cn_exc,
+                )
+
             # ── Step 6: Decide trades ────────────────────────────────
             logger.info("Paper trading: Step 6 -- Deciding trades")
             summary["steps"].append("deciding")

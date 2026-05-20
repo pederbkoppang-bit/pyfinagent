@@ -572,6 +572,95 @@ class PaperTrader:
             "count_skipped": len(skipped),
         }
 
+    def backfill_missing_company_names(self, force: bool = False) -> dict:
+        """phase-32.4: backfill company_name for positions where it is missing.
+
+        For each open position whose `company_name` is None, empty, or
+        equal to the ticker (the legacy fallback sentinel), resolve via
+        yfinance (`shortName` then `longName` per the canonical chain at
+        `backend/api/paper_trading.py:958-968`) and persist via
+        `_safe_save_position`. Fail-open on any yfinance error -- log a
+        warning and continue.
+
+        Audit basis: dashboard observation 2026-05-20 -- 9 of 11 current
+        paper_positions rows showed ticker-as-company (MU, KEYS, GEV, COHR,
+        ON, DELL, GLW, LITE, WDC). Same legacy pattern as phase-25.2
+        stop_loss_price backfill. Cosmetic gap, not safety-critical.
+
+        Args:
+            force: when True, refresh ALL positions even when company_name
+                already differs from the ticker. Default False keeps the
+                helper idempotent on repeat runs.
+
+        Returns:
+            {
+              "backfilled": [list of {ticker, old, new}],
+              "skipped":    [list of tickers that already had real names],
+              "count_backfilled": N,
+              "count_skipped": M,
+            }
+        """
+        positions = self.get_positions()
+        backfilled: list[dict] = []
+        skipped: list[str] = []
+
+        for pos in positions:
+            ticker = pos.get("ticker")
+            if not ticker:
+                continue
+            current_name = (pos.get("company_name") or "").strip()
+            needs_backfill = (
+                force
+                or not current_name
+                or current_name == ticker
+            )
+            if not needs_backfill:
+                skipped.append(ticker)
+                continue
+            # yfinance lookup -- fail-open so a network / rate-limit error
+            # never blocks the autonomous cycle.
+            try:
+                import yfinance as yf
+                info = yf.Ticker(ticker).info or {}
+                resolved = info.get("shortName") or info.get("longName") or ticker
+            except Exception as e:
+                logger.warning(
+                    "phase-32.4: yfinance lookup failed for %s (fail-open): %s",
+                    ticker, e,
+                )
+                skipped.append(ticker)
+                continue
+            if not resolved or resolved == ticker:
+                # No real name available (yfinance returned the ticker or
+                # nothing). Skip rather than persist the sentinel.
+                skipped.append(ticker)
+                continue
+            updated = {**pos, "company_name": resolved}
+            try:
+                self.bq.save_paper_position(updated)
+                backfilled.append({
+                    "ticker": ticker,
+                    "old": current_name or None,
+                    "new": resolved,
+                })
+                logger.info(
+                    "phase-32.4: backfilled company_name for %s: %r -> %r",
+                    ticker, current_name or None, resolved,
+                )
+            except Exception as e:
+                logger.exception(
+                    "phase-32.4: save_paper_position failed for %s: %s",
+                    ticker, e,
+                )
+                skipped.append(ticker)
+
+        return {
+            "backfilled": backfilled,
+            "skipped": skipped,
+            "count_backfilled": len(backfilled),
+            "count_skipped": len(skipped),
+        }
+
     # ── Snapshot ─────────────────────────────────────────────────
 
     def save_daily_snapshot(
@@ -827,7 +916,7 @@ class PaperTrader:
         "round_trip_id", "holding_days", "realized_pnl_pct",
         "mfe_pct", "mae_pct", "capture_ratio", "signals",
     }
-    _POSITION_RT_FIELDS = {"mfe_pct", "mae_pct", "stop_advanced_at_R", "entry_strategy"}
+    _POSITION_RT_FIELDS = {"mfe_pct", "mae_pct", "stop_advanced_at_R", "entry_strategy", "company_name"}
 
     def _safe_save_trade(self, row: dict) -> None:
         try:

@@ -21369,3 +21369,64 @@ Cross-check: matches phase-31.0 audit baseline (89.3% Tech) modulo 0.04pp yfinan
 **Carry-over (out-of-band):** wire paper_trader.execute_buy to read strategy_decisions.decided_strategy at BUY time and persist entry_strategy.
 
 **Total cycle time:** ~75 minutes (2x researcher spawn 12m + contract 3m + implementation 4m + skill updates 3m + tests 4m + bug-fix surfacing + regression test 5m + live invocation + experiment_results 5m + qa 4m + log+flip 1m; rest = orchestration overhead).
+
+## Cycle 4 -- 2026-05-21 (overnight) -- phase=32.4 result=PASS (FINAL OVERNIGHT STEP)
+
+**Step name:** Backfill company names on legacy paper_positions.
+**Type:** Implementation cycle. Migration + helper + autonomous_loop wiring + tests. P2 priority (cosmetic).
+
+**Researcher gate (simple tier):** PASS. 6 external sources read in full + 8 snippet (14 URLs collected); recency_scan_performed=true; ≥3 query-variant discipline visible. Sources: yfinance/base.py + scrapers/quote.py + issue #2557 (thread-safety) + Trading Dude blog (rate-limiting), pytest-mocking guide. Confirmed: yfinance canonical chain is `shortName THEN longName` (NOT longName-then-shortName as the masterplan summary stated -- bug in spec; mirrored the actual codebase chain). Confirmed: paper_positions had no company_name column pre-32.4. Dashboard wiring gap surfaced and documented as phase-32.5 followup.
+
+**Implementation:**
+- backend/services/paper_trader.py: new helper backfill_missing_company_names(self, force=False) -> dict at line 582. Mirrors backfill_missing_stops template exactly: filter NULL/empty/ticker-sentinel, fail-open yfinance lookup with shortName-then-longName chain, persist via _safe_save_position, return {backfilled, skipped, count_backfilled, count_skipped}. Sentinel-skip if yfinance returns ticker-as-name. _POSITION_RT_FIELDS extended with "company_name".
+- backend/services/autonomous_loop.py: wired call into Step 5.6 region AFTER check_stop_losses (cosmetic uncoupled from safety-critical path; preserves the pre-existing test_autonomous_loop_step_5_6_contains_backfill_symbol 50-line scan window).
+- scripts/migrations/phase_32_4_add_company_name.py: NEW idempotent ALTER TABLE ADD COLUMN IF NOT EXISTS company_name STRING. Two distinct job IDs both Verification OK.
+- backend/tests/test_phase_32_4_backfill_company_names.py: NEW 6 cases (skips_real_name, fires_when_ticker, fires_when_empty, idempotent, fail_open_yfinance_error, sentinel_yfinance_returns_ticker).
+
+**Tests:** 6/6 PASS new file. Full sweep 285 passed, 1 skipped, 0 failures (+6 over phase-32.3 baseline 279). Zero regression.
+
+**Live deploy outcome:** invoked PaperTrader.backfill_missing_company_names() from Python REPL against real BQ + yfinance. Result: 11 of 11 positions backfilled with REAL company names:
+- MU -> 'Micron Technology, Inc.', KEYS -> 'Keysight Technologies Inc.', GEV -> 'GE Vernova Inc.', COHR -> 'Coherent Corp.', ON -> 'ON Semiconductor Corporation', INTC -> 'Intel Corporation', DELL -> 'Dell Technologies Inc.', GLW -> 'Corning Incorporated', LITE -> 'Lumentum Holdings Inc.', SNDK -> 'Sandisk Corporation', WDC -> 'Western Digital Corporation'.
+Exceeds masterplan floor of "at least 8 of 9 affected tickers."
+
+**Idempotency:** second invocation returns {count_backfilled: 0, count_skipped: 11}. Helper correctly short-circuits when all names are real.
+
+**Q/A verdict (single agent, first spawn):** PASS. 20/20 checks PASS. Zero code-review heuristic findings.
+
+**Scope honesty:** git diff --stat shows no edits to portfolio_manager.py, decide_trades, risk_judge.md, risk_stance.md, synthesis_agent.md, quant_strategy.md, agent_definitions.py, or any agent skill.
+
+**Dashboard wiring gap (deferred to phase-32.5):** the dashboard COMPANY column at paper-trading/page.tsx:845 reads tickerMeta[pos.ticker]?.company_name, sourced from _fetch_ticker_meta which queries analysis_results.company_name (not paper_positions.company_name). Phase-32.4 ships per-spec; phase-32.5 is a small (~10 LOC) followup to modify _fetch_ticker_meta to consult paper_positions.company_name with priority. Captured in experiment_results.md "Dashboard Wiring Gap" section.
+
+**Total cycle time:** ~55 minutes (researcher 6m + contract 2m + migration 1m + implementation 5m + initial-test-regression-fix 2m + live backfill 1m + experiment_results + live_check 3m + qa 3m + log+flip 1m; rest = orchestration overhead).
+
+---
+
+## Overnight run summary -- 2026-05-21
+
+All 4 pending phase-32 steps completed successfully:
+
+| Step | Title | Status | Commit |
+|---|---|---|---|
+| 32.0 | Audit gap report (prior cycle 2026-05-20) | done | db5350c9 |
+| 32.1 | Breakeven-stop ratchet at +1R | done | 24d03224 |
+| 32.2 | HWM-trailing + Kaminski-Lo guard | done | 2d973b13 |
+| 32.3 | Sector exposure to Risk Judge + prompt bug fix | done | aebf1eee |
+| 32.4 | Company-name backfill | done | (this commit) |
+
+**Cumulative impact on production paper_positions (11 rows):**
+- All 11 positions now carry a stop_loss_price (zero NO_STOP rows; was 7 of 11 NO_STOP before 32.1).
+- 10 of 11 positions ratcheted to breakeven on first 32.1 MTM; trailed up to peak*0.92 on 32.2 MTM. Headline: SNDK $989.90 entry, peak +57.64% MFE, stop NOW $1435.60 (locks in 45% above entry; was no stop at all before this run).
+- All 11 positions carry entry_strategy='momentum' (backfill default, fail-CLOSED).
+- All 11 positions carry real company_name (Micron Technology, Inc., etc.).
+- Risk Judge prompt now actually receives the FACT_LEDGER (pre-existing bug uncovered + fixed in 32.3) and carries portfolio_sector_exposure showing 89.34% Tech concentration_warning=true.
+
+**Cumulative test suite growth:** 266 (pre-32.1) -> 272 (post-32.1) -> 272 (post-32.2 incl. semantic update) -> 279 (post-32.3) -> 285 (post-32.4). +19 new tests across the 4 cycles. Zero regressions.
+
+**Carry-over candidates for future cycles:**
+1. phase-32.5: dashboard wiring -- modify _fetch_ticker_meta to read paper_positions.company_name with priority. Small (~10 LOC).
+2. Wire paper_trader.execute_buy to read strategy_decisions.decided_strategy and persist entry_strategy at BUY time (today's backfill defaulted all to 'momentum'; new BUYs rely on fail-CLOSED default).
+3. ATR-scaled trail distance (replace fixed 8% with 2 x ATR(14)) -- phase-32.x.
+4. Per-strategy trail percent (mean-reversion=0%, momentum=8%, trend=12%) -- phase-32.x.
+5. Risk Judge exit-policy block (P3.1 from phase-31.0 audit) -- phase-32.x.
+
+**Overnight run ENDS.** Operator wakes up to: 4/4 phase-32 steps done, harness_log carries 4 new cycle blocks, paper_positions fully populated (stops + trailed-up levels + entry_strategy + real company names), Risk Judge prompt now sees the FACT_LEDGER, sector-concentration warning is wired and live-tested. The one operator-visible loose end is the dashboard COMPANY column (still shows ticker for the 9 affected positions until phase-32.5 ships).
