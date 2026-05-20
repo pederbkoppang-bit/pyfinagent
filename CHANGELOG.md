@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-20 | `db5350c9` | phase-31.0: audit profit-protection + risk-agent gaps (inserted as phase-32) |
 | 2026-05-20 | `3f020337` | phase-31.1: fix gemini_model misnomer visibility + OutcomeTracker model injection |
 | 2026-05-20 | `e23843ef` | phase-31.0.4-13: e2e smoketest Stages 4-13 (batched) -- ALL PASS |
 | 2026-05-20 | `480d48dd` | phase-31.0.3: Stage 3 Gemini full-path on NVDA via AnalysisOrchestrator |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-19 | `de0f33c8` | phase-29.5: add 4th `deep` research tier to researcher.md |
 | 2026-05-19 | `1e0937c7` | phase-29.7: add arXiv-HTML precedence + pdfplumber rules to research-gate.md |
 | 2026-05-19 | `df8485d2` | phase-29.1: add paper-search-mcp==0.1.3 to .mcp.json (academic-fetch wall fix) |
-| 2026-05-18 | `416d49dd` | phase-29.2: codify Opus 4.7 + max effort on Researcher + Q/A (audit-inversion per operator) |
 
 ---
 
+### v6.15.0 — phase-31.0: audit profit-protection + risk-agent gaps (inserted as ph... (2026-05-20)
+
+- **phase-31.0: audit profit-protection + risk-agent gaps (inserted as phase-32)**
 ### v6.14.2 — phase-31.1: fix gemini_model misnomer visibility + OutcomeTracker mod... (2026-05-20)
 
 - **phase-31.1: fix gemini_model misnomer visibility + OutcomeTracker model injection**
