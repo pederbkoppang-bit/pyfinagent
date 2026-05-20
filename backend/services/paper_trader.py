@@ -458,7 +458,12 @@ class PaperTrader:
             }
             if new_stop is not None:
                 updates["stop_loss_price"] = new_stop
-                updates["stop_advanced_at_R"] = advance_iso
+                # phase-32.2: only set stop_advanced_at_R when the breakeven
+                # branch (one-shot) fired -- advance_iso is None for
+                # trailing updates so we do not overwrite the original
+                # breakeven timestamp.
+                if advance_iso is not None:
+                    updates["stop_advanced_at_R"] = advance_iso
             pos.update(updates)
             self._safe_save_position(pos)
             total_positions_value += market_value
@@ -749,26 +754,64 @@ class PaperTrader:
     def _advance_stop(
         self, pos: dict, new_mfe: float
     ) -> tuple[Optional[float], Optional[str]]:
-        # phase-32.1: breakeven-stop ratchet at +1R. When unrealized gain >= 1R
-        # (settings.paper_default_stop_loss_pct, default 8%), move the stop up
-        # to the entry price (lock in zero-loss). Idempotent via the
-        # stop_advanced_at_R audit field; monotonic (never lowers the stop).
-        # Kaminski-Lo Proposition 2 does not apply: that result governs
-        # cumulative-loss TRAILING thresholds, not one-shot breakeven moves.
-        if pos.get("stop_advanced_at_R"):
-            return (None, None)
+        # phase-32.1: breakeven ratchet at +1R (one-shot, idempotent).
+        # phase-32.2: after breakeven, switch to HWM-trailing branch with a
+        # Kaminski-Lo Proposition 2 adversarial guard on mean-reversion/pairs
+        # entries.
+        #
+        # Returns (new_stop_loss_price, advance_iso_or_None):
+        #   * (None, None)          -- no change this cycle
+        #   * (entry, ISO_now)      -- breakeven fired first time (32.1)
+        #   * (new_trail_stop, None) -- trailing fired post-breakeven (32.2);
+        #                              advance_iso stays None so we do NOT
+        #                              overwrite the existing
+        #                              stop_advanced_at_R timestamp.
         entry_price = float(pos.get("avg_entry_price") or 0.0)
         if entry_price <= 0:
             return (None, None)
+        ticker = pos.get("ticker", "?")
+        current_stop = pos.get("stop_loss_price")
+        current_stop_f = float(current_stop) if current_stop is not None else None
+
+        # ── Phase-32.2 trailing branch (fires post-breakeven) ──────────────
+        # Active only after the breakeven ratchet has already advanced
+        # stop_advanced_at_R. Kaminski-Lo Proposition 2: mean-reverting
+        # strategies (and cointegrated pairs) lose expected return when
+        # trailing-stop cumulative-loss thresholds fire; SKIP for those.
+        # Fail-CLOSED-conservative: when entry_strategy is None/unknown,
+        # treat as momentum (trail IS applied) -- forgetting to flag a
+        # mean-reversion entry should err toward "more protection", not
+        # "no protection".
+        if pos.get("stop_advanced_at_R"):
+            entry_strategy = (pos.get("entry_strategy") or "").lower().strip()
+            if entry_strategy in {"mean_reversion", "pairs"}:
+                return (None, None)
+            trail_pct = float(getattr(self.settings, "paper_trailing_stop_pct", 8.0))
+            peak_price = entry_price * (1.0 + max(new_mfe, 0.0) / 100.0)
+            if peak_price <= entry_price:
+                # MFE went non-positive (shouldn't happen post-breakeven but
+                # defensive); nothing to trail.
+                return (None, None)
+            new_trail = peak_price * (1.0 - trail_pct / 100.0)
+            if current_stop_f is None or new_trail <= current_stop_f:
+                # Monotonic: never lower the stop.
+                return (None, None)
+            logger.info(
+                "phase-32.2: trail fired for %s -- advanced stop from %.4f to %.4f "
+                "(peak=%.4f, trail_pct=%.4f, mfe_pct=%.4f, entry_strategy=%s)",
+                ticker, current_stop_f, new_trail, peak_price, trail_pct, new_mfe,
+                entry_strategy or "unknown",
+            )
+            return (new_trail, None)
+
+        # ── Phase-32.1 breakeven branch (one-shot) ─────────────────────────
         threshold = float(getattr(self.settings, "paper_default_stop_loss_pct", 8.0))
         if new_mfe < threshold:
             return (None, None)
-        current_stop = pos.get("stop_loss_price")
-        if current_stop is not None and float(current_stop) >= entry_price:
+        if current_stop_f is not None and current_stop_f >= entry_price:
             return (None, None)
         now_iso = datetime.now(timezone.utc).isoformat()
-        ticker = pos.get("ticker", "?")
-        old_stop_str = f"{float(current_stop):.4f}" if current_stop is not None else "None"
+        old_stop_str = f"{current_stop_f:.4f}" if current_stop_f is not None else "None"
         logger.info(
             "phase-32.1: ratchet fired for %s -- advanced stop from %s to %.4f "
             "at mfe_pct=%.4f (threshold %.4f)",
@@ -784,7 +827,7 @@ class PaperTrader:
         "round_trip_id", "holding_days", "realized_pnl_pct",
         "mfe_pct", "mae_pct", "capture_ratio", "signals",
     }
-    _POSITION_RT_FIELDS = {"mfe_pct", "mae_pct", "stop_advanced_at_R"}
+    _POSITION_RT_FIELDS = {"mfe_pct", "mae_pct", "stop_advanced_at_R", "entry_strategy"}
 
     def _safe_save_trade(self, row: dict) -> None:
         try:

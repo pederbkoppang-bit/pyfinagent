@@ -330,6 +330,17 @@ class Settings(BaseSettings):
         le=50.0,
         description="Default stop-loss as %% below entry price when analysis does not provide one (lite-path BUY). O'Neil canonical: 7-8%.",
     )
+    # phase-32.2: HWM-trailing stop distance after the +1R breakeven ratchet
+    # (phase-32.1) has fired. Used in paper_trader._advance_stop's trailing
+    # branch. Default 8 matches the breakeven 1R = 8%. Skipped on
+    # entry_strategy in {'mean_reversion','pairs'} per Kaminski-Lo
+    # Proposition 2 adversarial guard.
+    paper_trailing_stop_pct: float = Field(
+        8.0,
+        ge=0.5,
+        le=50.0,
+        description="HWM-trailing stop distance (%% below running peak) used after +1R breakeven ratchet fires. Default 8 -- matches phase-32.1's breakeven threshold.",
+    )
     # phase-30.6: pre-trade price-tolerance gate (P2-4 from phase-30.0 audit).
     # Reject BUY when live fill price diverges from analysis-time price by
     # more than this percent. Default 5 per SEC LULD Tier 1 5% band -- the

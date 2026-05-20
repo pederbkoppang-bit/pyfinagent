@@ -120,14 +120,18 @@ def test_advance_above_1R():
 
 
 def test_idempotent_when_stop_advanced_at_R_already_populated():
-    """Once stop_advanced_at_R is set, the helper short-circuits regardless
-    of MFE -- this is the idempotency guarantee."""
+    """Once stop_advanced_at_R is set, the BREAKEVEN branch does not re-fire.
+    Under phase-32.2 the trailing branch becomes active when stop_advanced_at_R
+    is set; this test pins entry_strategy='mean_reversion' so the Kaminski-Lo
+    guard ALSO skips the trailing branch, preserving the original "no change
+    on subsequent calls" semantic of the test."""
     trader = _trader_with_mocks(_mock_settings(default_stop_loss_pct=8.0))
     pos = {
         "ticker": "MU",
         "avg_entry_price": 500.0,
         "stop_loss_price": 500.0,
         "stop_advanced_at_R": "2026-05-20T12:00:00+00:00",
+        "entry_strategy": "mean_reversion",  # phase-32.2 guard active
     }
     new_stop, advance_iso = trader._advance_stop(pos, new_mfe=50.0)
     assert new_stop is None

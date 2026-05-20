@@ -21285,3 +21285,52 @@ Distribution: 1 BUY + 3 HOLD + 0 SELL.
 **Next step in this overnight run:** phase-32.2 (HWM-trailing stop + Kaminski-Lo adversarial guard).
 
 **Total cycle time:** ~55 minutes (researcher 7m + contract 1m + implementation 5m + tests 3m + migration 1m + live MTM 1m + experiment_results 2m + qa 3m + log + flip 1m; rest = orchestration overhead).
+
+---
+
+## Cycle 1 -- 2026-05-20 22:46 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=5.52% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 2 -- 2026-05-21 (overnight) -- phase=32.2 result=PASS
+
+**Step name:** HWM-trailing stop (Chandelier-lite) in live loop + Kaminski-Lo adversarial guard (P1.2).
+**Type:** Implementation cycle. Code edits + new setting + BQ migration + tests + live MTM.
+
+**Researcher gate (moderate tier):** PASS. 7 external sources read in full (StockCharts Chandelier doc, CFI, CXO Advisory, NetPicks, StratBase ATR, Medium Apr 2026 mean-reversion+trend combo paper, Lizard Indicators Chandelier Stop) + Kaminski-Lo MIT PDF re-fetched via curl + pdfplumber to extract Proposition 2 verbatim. Recency scan: no 2026-mid finding contradicts the P1.2 trailing recommendation. Internal port-source confirmed at signals_server.py:1052-1154 (Chandelier-lite trail logic). entry_strategy resolution: Option A chosen (add column + backfill 'momentum' default; phase-32.x followup wires execute_buy to read strategy_decisions at BUY time).
+
+**Implementation:**
+- backend/services/paper_trader.py: extended _advance_stop helper (now ~70 lines) with TWO branches -- breakeven (phase-32.1, one-shot) and trailing (phase-32.2, fires post-breakeven). New trail formula: peak_price = entry * (1 + mfe/100); new_trail = peak * (1 - paper_trailing_stop_pct/100); new_stop = max(current_stop, new_trail). Kaminski-Lo guard at line ~787 skips trail when entry_strategy in {'mean_reversion', 'pairs'}. Fail-CLOSED-conservative default normalizes None/empty entry_strategy via (.get() or "").lower().strip() so unknown entries trail. _POSITION_RT_FIELDS extended with "entry_strategy". mark_to_market caller conditionally sets stop_advanced_at_R ONLY when advance_iso is not None so trailing updates do NOT overwrite the breakeven timestamp.
+- backend/config/settings.py: new Field paper_trailing_stop_pct (default 8.0, ge=0.5, le=50.0).
+- scripts/migrations/phase_32_2_add_entry_strategy.py: NEW idempotent migration matching add_sector_to_paper_positions.py pattern. ALTER TABLE ADD COLUMN IF NOT EXISTS entry_strategy STRING + UPDATE backfill with 'momentum'. Verified by --apply x2 (first: 11 rows updated, second: 0 rows). Backfill summary post-run: [('momentum', 11)].
+- backend/tests/test_phase_32_2_hwm_trailing.py: NEW 6 cases covering trail_advances_on_new_peak, monotonic_never_moves_down, kaminski_lo_guard_mean_reversion, kaminski_lo_guard_pairs, default_momentum_trails (fail-CLOSED), breakeven_branch_unchanged (regression).
+- backend/tests/test_phase_32_1_breakeven_ratchet.py: 1-line semantic-update to test_idempotent_when_stop_advanced_at_R_already_populated -- added entry_strategy='mean_reversion' to pos fixture so the test's "no change on subsequent call" intent survives the new trailing branch (now relies on Kaminski-Lo guard rather than unconditional short-circuit).
+
+**Tests:** 6/6 PASS new file. Full sweep 272 passed, 1 skipped, 0 failures. Zero regression (+6 over the 266 phase-32.1 baseline).
+
+**Live MTM (deploy verification):** NAV=$22,454.30, 11 positions. Trail branch fired on ALL 10 momentum positions with breakeven already advanced (SNDK +57.64% MFE -> stop now $1435.60 = +45.02% above entry; MU +57.62% -> stop $734.68 = +45.01%; ...; KEYS +11.47% -> stop $338.61 = +2.55%). GEV (MFE +3.15%, below breakeven 8% threshold) correctly NOT trailed -- its breakeven branch hasn't fired yet so the trailing branch is gated off.
+
+**Kaminski-Lo guard live verification (production helper, REPL):** No live mean_reversion or pairs entries exist in production today (backfill defaulted all 11 to 'momentum'). Verified the production code path via three synthetic positions fed through trader._advance_stop after the migration + live MTM: (mean_reversion, mfe=30%) -> (None, None) [SKIP], (pairs, mfe=30%) -> (None, None) [SKIP], (momentum, mfe=30%) -> (119.60, None) [TRAIL FIRED]. Deterministic test coverage at test_kaminski_lo_guard_mean_reversion + test_kaminski_lo_guard_pairs + test_default_momentum_trails_when_entry_strategy_is_none also confirms.
+
+**Stop-level deltas (entry-relative %, before/after this cycle):** 10 momentum positions converted from "stop = entry (breakeven, 0% above)" to "stop = peak * 0.92 (varies by MFE)". Headline gains: SNDK +45.02pp, MU +45.01pp, INTC +41.54pp, COHR +18.09pp, WDC +17.53pp locked-in floors above entry. The combined effect of 32.1 (breakeven) + 32.2 (trail) on the 10 momentum positions has converted "give-back exposure" into "locked-in profit" totaling roughly 22% of positions value above the original entry-anchored stops.
+
+**Q/A verdict (single agent, first spawn):** PASS. 19/19 checks PASS. Zero code-review heuristic findings across all 5 dimensions; 1 NOTE on minor line-number drift in experiment_results.md (cites lines 780/339, actual 787/338) -- substantive logic at the right place. Independent deterministic re-runs of pytest + AST + BQ schema + BQ live row + git diff scope all confirmed.
+
+**Scope honesty:** git diff --stat shows no edits to portfolio_manager.py, autonomous_loop.py, risk_judge.md, risk_stance.md, synthesis_agent.md, agent_definitions.py. Only the 5 expected files + handoff artifacts + masterplan flip + the 1-line semantic-update to test_phase_32_1_breakeven_ratchet.py (required by the new branch's semantics, documented in experiment_results.md).
+
+**Next step in this overnight run:** phase-32.3 (surface sector exposure to Risk Judge prompt).
+
+**Carry-over (out-of-band):** wire paper_trader.execute_buy to read strategy_decisions.decided_strategy at BUY time and persist entry_strategy on the paper_positions row. Today's backfill defaults all 11 rows to 'momentum'; new BUYs land with entry_strategy=NULL and the fail-CLOSED default catches them, but a true entry_strategy would let mean-reversion entries claim the Kaminski-Lo guard rather than defaulting to trail. Candidate for phase-32.x.
+
+**Total cycle time:** ~65 minutes (researcher 8m + contract 2m + implementation 6m + regression-test fix 1m + migration 1m + live MTM 2m + experiment_results + live_check 4m + qa 4m + log+flip 1m; rest = orchestration overhead).
