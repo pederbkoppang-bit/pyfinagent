@@ -312,7 +312,9 @@ def test_synthetic_stop_out_produces_agent_memories_row():
     # Patch OutcomeTracker so evaluate_recommendation has the side effect
     # of calling bq.save_agent_memory -- exercises the wiring without
     # depending on the dormant model-routing branch.
-    def fake_tracker_factory(settings_arg):
+    # phase-31.1: _learn_from_closed_trades now passes model=<client> to
+    # OutcomeTracker. Accept the new kwarg in the factory signature.
+    def fake_tracker_factory(settings_arg, model=None):
         tracker = MagicMock()
 
         def fake_eval(ticker, *args, **kwargs):

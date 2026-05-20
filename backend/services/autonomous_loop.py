@@ -1691,10 +1691,53 @@ async def _persist_analysis(analysis: dict, bq: BigQueryClient) -> None:
 
 
 async def _learn_from_closed_trades(tickers: list[str], bq: BigQueryClient, settings: Settings):
-    """Feed closed trades into outcome tracking for reflection generation."""
+    """Feed closed trades into outcome tracking for reflection generation.
+
+    phase-31.1 fix: previously instantiated `OutcomeTracker(settings)` with
+    NO model parameter; `OutcomeTracker._generate_and_persist_reflections`
+    is gated on `if self._model:` (outcome_tracker.py:147) so
+    `bq.save_agent_memory` never fired in production -> `agent_memories`
+    table stayed empty across 36+ days of cycles. Closes phase-30.0 Stage
+    12 FAIL (the known separate-step issue disclosed in phase-30.3
+    experiment_results.md).
+
+    Resolution: construct a Gemini client via `make_client` and pass it
+    to OutcomeTracker. `make_client` routes by model-name prefix:
+    `gemini-*` -> Vertex/AI Studio; `claude-*` -> Anthropic; etc. Per
+    backend/agents/memory.py::generate_reflection, the model is invoked
+    via `model.generate_content(prompt, ...)`. The reflection-write to
+    `agent_memories` has a fallback string when the LLM call errors
+    (memory.py:248-254), so even Anthropic credit-balance failures still
+    result in a non-empty lesson being persisted.
+
+    Fail-open: if `make_client` raises (e.g., misconfigured keys), log
+    at WARNING and proceed with `model=None` -- preserves the legacy
+    behavior of NOT writing agent_memories rather than crashing the cycle.
+    """
     from backend.services.outcome_tracker import OutcomeTracker
 
-    tracker = OutcomeTracker(settings)
+    # phase-31.1: try to construct a reflection-model client. Reads
+    # `settings.gemini_model` (the misnamed standard-tier model field;
+    # routes to Anthropic when set to "claude-*", to Gemini direct or
+    # Vertex when set to "gemini-*"). Audit log: see phase-30.7 cycle +
+    # phase-31.0.3 critical finding documenting the field misnomer.
+    model_client = None
+    try:
+        from backend.agents.llm_client import make_client
+        model_client = make_client(settings.gemini_model, None, settings)
+        logger.info(
+            "phase-31.1: OutcomeTracker reflection-model constructed "
+            "(model=%s, provider routed by make_client)",
+            settings.gemini_model,
+        )
+    except Exception as exc:
+        logger.warning(
+            "phase-31.1: OutcomeTracker model construction failed "
+            "(agent_memories writes will be skipped this cycle): %r",
+            exc,
+        )
+
+    tracker = OutcomeTracker(settings, model=model_client)
 
     # Get recent sell trades to find analysis_date, recommendation, and entry price
     recent_trades = bq.get_paper_trades(limit=50)

@@ -21087,3 +21087,51 @@ Distribution: 1 BUY + 3 HOLD + 0 SELL.
 **Confirmation autonomous-loop STILL PAUSED:** YES. Pause event 2026-05-19 19:33:49 UTC in kill_switch_audit.jsonl; no resume event written by the agent. Backend in-memory kill_switch.paused=True.
 
 **STOP -- operator reviews report + unpauses.** The agent will NOT unpause. Operator decides when production trading resumes.
+
+---
+
+## Cycle 1 -- 2026-05-19 23:08 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.96% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+---
+
+## Cycle 5 -- 2026-05-20 -- phase=31.1 result=PASS (post-smoketest hotfixes)
+
+**Steps:** Two fixes surfaced by the morning E2E smoketest, applied directly per user request.
+
+**Fix 1 -- settings.gemini_model misnomer observability:** the field is intentionally named `gemini_model` for backward compat but routes via `make_client` to whatever provider matches the model-name prefix. Production value `"claude-sonnet-4-6"` routes to Anthropic. The Stage 3 Run 1 credit-balance failure exposed the misnomer. Resolution: `backend/main.py` lifespan now emits an INFO line "phase-31.1 model routing: settings.gemini_model='<X>' -> standard-tier provider=<Y>" AND a WARNING when the field is set to a non-Gemini model with explicit guidance to fund the API key OR switch to a `gemini-*` model.
+
+**Fix 2 -- OutcomeTracker model injection (agent_memories writes):** `_learn_from_closed_trades` previously instantiated `OutcomeTracker(settings)` with NO model parameter. `OutcomeTracker._generate_and_persist_reflections` is gated on `if self._model:` (outcome_tracker.py:147) so `bq.save_agent_memory` never fired in production -> `agent_memories` BQ table stayed empty across 36+ days of cycles. Resolution: `_learn_from_closed_trades` now constructs a model client via `make_client(settings.gemini_model, None, settings)` and passes it to `OutcomeTracker(settings, model=model_client)`. Fail-open: if `make_client` raises (missing keys), log WARNING and proceed with model=None (preserves legacy behavior of NOT writing agent_memories rather than crashing).
+
+**Files touched:**
+- `backend/main.py` (+38 lines, lifespan startup log + warning)
+- `backend/services/autonomous_loop.py` (+~30 lines, _learn_from_closed_trades wiring)
+- `backend/tests/test_phase_31_1_fixes.py` (NEW, 4 test cases)
+- `backend/tests/test_autonomous_loop_step_5_6.py` (1-line factory signature update for `model=None` kwarg)
+
+**Tests:** 4/4 PASS for phase-31.1; 1 regression touch-up in test_autonomous_loop_step_5_6.py (factory signature accommodated new kwarg). Full sweep: 58/58 PASS (57 prior + the touch-up + 4 new).
+
+**Closes:** Stage 3 Run 1 environmental finding (visibility); phase-30.0 Stage 12 FAIL (`agent_memories` table dormant -- now wired with explicit model client).
+
+**Loop STAYS PAUSED.** Operator unpauses after morning verification.
+
+**Phase-32 carry-over candidates (still open):**
+1. ~~Wire `_learn_from_closed_trades` to pass model to OutcomeTracker~~ ✅ DONE this cycle.
+2. Decide whether to fund Anthropic API balance OR switch `settings.gemini_model` to a Gemini model permanently (observability log makes the choice visible at startup; operator-level decision).
+3. (Carry-over) First-day-of-trading +52% outlier in NAV history.
+4. (Carry-over) Phase-30.7 full Layer-2 router activation (heartbeat in place).
+5. (Carry-over) Gemini-side `log_llm_call` writer (close observability gap).
+6. (NEW Phase-32 candidate) Wire `autonomous_loop._run_claude_analysis` to Claude Code subagent spawn instead of in-app Anthropic SDK -- the substitution rule from the morning smoketest, applied to production code.

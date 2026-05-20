@@ -116,6 +116,41 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logging.info(f"PyFinAgent backend starting (project={settings.gcp_project_id})")
 
+    # phase-31.1: misnamed `settings.gemini_model` field can silently route
+    # to Anthropic when set to "claude-*" -> the orchestrator hits the in-app
+    # Anthropic SDK (NOT covered by Max plan) and fails on credit-balance
+    # exhaustion (phase-31.0.3 Stage 3 Run 1 observation). Emit a clear
+    # startup line documenting which provider the standard-tier resolves to
+    # AND a WARNING when the field name disagrees with the routed provider.
+    # Field rename to `standard_model` is deferred (would require Settings UI
+    # + .env migration); this log is the minimum-disruption observability.
+    _std_model = (settings.gemini_model or "").strip()
+    if _std_model.startswith("gemini-"):
+        _std_provider = "Gemini (Vertex AI or direct AI Studio)"
+        _std_warning = False
+    elif _std_model.startswith("claude-"):
+        _std_provider = "Anthropic Claude API (requires ANTHROPIC_API_KEY + funded balance)"
+        _std_warning = True
+    elif _std_model.startswith(("gpt-", "o1", "o3", "o4")):
+        _std_provider = "OpenAI (requires OPENAI_API_KEY + funded balance)"
+        _std_warning = True
+    else:
+        _std_provider = f"unknown (model='{_std_model}')"
+        _std_warning = True
+    logging.info(
+        "phase-31.1 model routing: settings.gemini_model='%s' -> standard-tier provider=%s",
+        _std_model, _std_provider,
+    )
+    if _std_warning:
+        logging.warning(
+            "phase-31.1: settings.gemini_model is set to a non-Gemini model ('%s'). "
+            "The field name is preserved for backward compat but routes via "
+            "backend/agents/llm_client.py::make_client. Ensure the API key for "
+            "%s is funded; OR switch to a 'gemini-*' model to use Vertex AI / AI "
+            "Studio (no credit balance dependency).",
+            _std_model, _std_provider,
+        )
+
     # phase-23.1.21: register faulthandler on SIGUSR1 so a hung process can
     # be diagnosed without a kill. Operators (or the watchdog) send
     # `kill -USR1 <pid>` to dump all thread stacks to stderr (which is
