@@ -1,286 +1,109 @@
-# Q/A Critique -- phase-31.0.3 (Smoketest Stage 3: Gemini full-path on NVDA)
+# Evaluator Critique — phase-31.0 Profit-Protection + Risk-Agent Hardening Audit
 
-**Step:** phase-31.0.3 -- Smoketest Stage 3.
-**Date:** 2026-05-20.
-**Cycle:** 1 (first Q/A spawn for Stage 3; prior critique was phase-31.0.2,
-OVERWRITTEN per evaluator prompt instructions).
-**Effort:** max.
-
----
-
-## Verdict (TOP for visibility)
-
-**verdict: PASS-with-NOTE**
-**ok: true**
-
-The orchestrator ran the full Gemini-Vertex pipeline end-to-end with 19
-substantive agents, produced a final synthesis (NVDA HOLD with reasoned
-justification), did NOT write to production `analysis_results`, and the
-diff was strictly handoff/scripts -- no backend code modified. Two
-morning-goal criteria (`new_llm_call_log_rows_ge_10`,
-`new_distinct_agents_ge_3`) were unsatisfiable by construction because
-they presumed Claude-Anthropic routing while Run 2 deliberately forced
-Vertex AI Gemini routing per the original Stage 3 design. The criterion
-mismatch is documented openly in experiment_results, the legacy and
-corrected assertions are both emitted in the JSON, and the environmental
-finding from Run 1 (Anthropic credit exhaustion) is **STRONG empirical
-validation of the morning-goal substitution hypothesis**, not a flaw.
-PASS-with-NOTE is the rigorous-but-honest verdict; full PASS would
-under-represent the criterion mismatch, PARTIAL would erase the
-substitution-validation signal, FAIL would punish honest scope
-disclosure.
+**Date:** 2026-05-20
+**Verdict:** **PASS**
+**Q/A model:** Opus 4.7, effort=max
+**Cycle:** 1 (first Q/A spawn for this step)
 
 ---
 
-## 5-item harness-compliance audit (MANDATORY -- FIRST)
+## Section 1 — 5-Item Harness-Compliance Audit
 
-| # | Item | Verdict | Evidence |
-|---|------|---------|----------|
-| 1 | Researcher gate ran? | **PASS** | `handoff/current/research_brief_stage3_smoketest.md` JSON envelope `gate_passed=true`, `external_sources_read_in_full=20`, `urls_collected=32`, `recency_scan_performed=true`, `internal_files_inspected=17`. Three-variant query discipline visible. `[ADVERSARIAL]` tags on Sources 13 + 15 (pyfinagent 28-agent count adversarial). **Critical finding from Source 8 audit:** `_persist_analysis` lives in `backend/services/autonomous_loop.py:1651`, NOT in `orchestrator.py`, so the mock is unnecessary for direct `run_full_analysis()` invocation -- preserved in the experiment design. Redirected path correctly documented in the envelope (optimizer cron overwrote the canonical `research_brief.md`). |
-| 2 | Contract written before generate? | **PASS** | `handoff/smoketest_20260520/STAGE_3_contract.md` exists, 54 lines, dated 2026-05-20 00:46. Contains step id (line 6), hypothesis (10-17), immutable success criteria (23-29 -- 4 criteria), plan (31-39), hard guardrails (41-47), references (49-53). **Deliberately written to the smoketest dir** to defend against the optimizer-cron clobbering `handoff/current/contract.md` (which the diff now confirms WAS clobbered with a generic "Cycle 1" / parameter-optimization template -- vindicating the workaround). Contract mtime (00:46) precedes the experiment output JSON (00:55). |
-| 3 | Results file(s) present? | **PASS** | Four layers: (a) `handoff/current/experiment_results.md` (95 lines, top-level rolling). (b) `handoff/smoketest_20260520/STAGE_3_results.md` (118 lines, smoketest-side human-readable). (c) Machine-readable: `STAGE_3_gemini_full_path_output.json` (93 lines, includes legacy strict + corrected substantive assertion sets + verbatim mismatch note). (d) Implementation: `scripts/smoketest_stage_3_orchestrator.py` (100+ lines). |
-| 4 | Log NOT yet written? | **PASS** | `grep -c "phase-31.0.3" handoff/harness_log.md` returns 0 -- no entry for this step. Log-LAST discipline preserved per auto-memory `feedback_log_last.md`. |
-| 5 | No verdict-shopping? | **PASS** | First Q/A spawn for phase-31.0.3. Run 1 (Anthropic credit failure) vs Run 2 (Gemini env override) is **NOT verdict-shopping** -- Run 1 produced different evidence (credit-exhausted Anthropic API trace) under different environment (production `settings.gemini_model = "claude-sonnet-4-6"`). Run 2 ran the morning-goal-spec environment by forcing `GEMINI_MODEL=gemini-2.5-flash`. Two distinct experiments, not two opinions on the same evidence. `grep -c "phase-31.0.3.*result=CONDITIONAL" handoff/harness_log.md` = 0; 3rd-CONDITIONAL auto-FAIL rule N/A. |
+| # | Check | Status | Evidence |
+|---|---|---|---|
+| 1 | Researcher gate (`gate_passed=true`, ≥5 sources in full, recency scan present) | **PASS** | `research_brief.md` JSON envelope: `external_sources_read_in_full: 22`, `recency_scan_performed: true`, `gate_passed: true`. §5 "Last-2-Year Recency Scan (2024-2026)" present with 8 entries. 3 ADVERSARIAL sources (Kaminski-Lo, Carver, arXiv 1507.01610). |
+| 2 | Contract written BEFORE GENERATE (mtime check) | **PASS** | `stat -f %m`: contract.md=1779253039 < experiment_results.md=1779253335. Contract cites the brief (§ Research-Gate Summary lines 11-19) and lists immutable success criteria (lines 33-49). |
+| 3 | Results contains 5 required sections | **PASS** | (1) Per-practice audit table with 14 rows + severity column (line 30-49); (2) Q1-Q6 specific-question answers (lines 57-73); (3) verbatim BQ probe with aggregate + per-trade + position coverage + sector tables (lines 79-150); (4) Ranked P1/P2/P3 proposals (lines 154-224); (5) Parseable JSON masterplan block (lines 234-323). |
+| 4 | Log-last discipline (no `phase=31.0` entry yet for THIS cycle) | **PASS** | `grep "^## Cycle.*phase=31\.0" handoff/harness_log.md` returns only `phase=31.0.1/.2/.3/.4-13` (smoketest substeps from prior cycle yesterday) and `phase=31.1` (post-smoketest hotfixes). No `phase=31.0` (root, no sub-number) entry yet — correct for log-last. |
+| 5 | No verdict-shopping (first Q/A spawn) | **PASS** | `handoff/current/evaluator_critique.md` did not exist prior to this spawn (was rm'd or never created for this cycle's audit). No prior CONDITIONAL/FAIL critique to overturn. |
 
----
-
-## Deterministic checks (MUST RUN)
-
-| # | Check | Command | Result |
-|---|-------|---------|--------|
-| D1 | orchestrator_status=completed AND substantive_agents>=15 | `cat ... \| python3 -c "import json,sys;d=json.load(sys.stdin);assert d['orchestrator_status']=='completed' and len(d['substantive_agents'])>=15;print(...)"` | `CHECK1_PASS substantive_agents=19 status=completed` -- exit 0 -- **PASS** |
-| D2 | `final_synthesis.recommendation` present | `python3 -c "...;r=d['report_recommendation'];assert r and 'action' in r;..."` | `CHECK2_PASS recommendation=Hold has_justification=True` -- exit 0 -- **PASS** |
-| D3 | `git diff --stat` scope check | `git diff --stat HEAD` | 7 modified + 5 untracked. Modified: `.claude/.archive-baseline.json` (hook), `handoff/audit/{instructions,pre_tool}.jsonl` (hook), `handoff/current/{contract,experiment_results,research_brief}.md`, `handoff/harness_log.md`. Untracked: `handoff/archive/phase-31.0.2/`, `handoff/current/research_brief_stage3_smoketest.md`, `handoff/smoketest_20260520/STAGE_3_*.{md,json}`, `scripts/smoketest_stage_3_orchestrator.py`. **ZERO `backend/*.py` modifications. ZERO `frontend/**` modifications. ZERO `.mcp.json` / `.claude/agents/*.md` modifications.** -- **PASS** |
-| D4 | BQ live verify: no NVDA `analysis_results` write today | `SELECT COUNT(*) FROM financial_reports.analysis_results WHERE ticker='NVDA' AND DATE(analysis_date)=CURRENT_DATE('UTC')` via Python BQ client | `n=0` (UTC). Pre/post delta in the JSON also confirms 0. Production guardrail intact. -- **PASS** |
-
-`checks_run = [harness_compliance_audit, json_assertion_check, final_synthesis_presence, diff_scope_check, bq_live_no_production_write, code_review_heuristics, evaluator_critique_overwrite]`
+**All 5 compliance checks: PASS.**
 
 ---
 
-## Code-review heuristics (5-dimension dispatch)
+## Section 2 — Deterministic Checks
 
-Diff touches: 4 markdown files (handoff/current/{contract, experiment_results,
-research_brief}.md + harness_log.md), 2 audit JSONLs (hook-appended), 1 archive
-baseline JSON (hook), 5 new files (1 smoketest contract, 1 smoketest results,
-1 smoketest JSON output, 1 stage-3 research brief, 1 Python smoketest script).
-The 1 new Python file is `scripts/smoketest_stage_3_orchestrator.py` -- a
-standalone integration smoketest, NOT a backend module, NOT imported by
-production code, NOT a tool/skill added to any agent.
-
-**Dim 1 -- Security:** NO-FIRE.
-- `secret-in-diff`: scanned `scripts/smoketest_stage_3_orchestrator.py` and the
-  three new smoketest markdown/JSON files for `api_key`/`secret`/`password`/
-  `token` literal patterns -- none present. The script reads `settings` (which
-  loads from `.env`, never inlined). The JSON output contains no credentials.
-- `prompt-injection-path`: no new user-supplied string flows into LLM
-  system prompts; the script passes the literal `"NVDA"` ticker to
-  `run_full_analysis`, fully controlled.
-- `command-injection` / `insecure-output-handling`: no `subprocess`, `os.system`,
-  `eval`, `exec` in the script. Output flows to a JSON file via `json.dump`, no
-  exec sinks.
-- `supply-chain-dep-pin-removal`: no changes to `requirements.txt` /
-  `pyproject.toml` / `package.json`.
-- `system-prompt-leakage`: the output JSON serializes `report.keys()` (list of
-  agent names) + `final_synthesis.recommendation`. It does NOT serialize raw
-  system prompts, full `messages` lists with system role, or skill `.md`
-  content.
-- `rag-memory-poisoning`: no new `add_memory()` / `add_memories()` calls; no
-  new vector-store import.
-- `unbounded-llm-loop`: no new `while True` wrapping LLM calls; no removal of
-  `MAX_TOOL_TURNS` / `MAX_RESEARCH_ITERATIONS` / `MAX_CONSECUTIVE_FAIL` /
-  `MAX_RESEARCH_ITER` bounds. The script makes ONE call to `run_full_analysis`
-  per invocation.
-- `excessive-agency`: no new tool/BQ-write/file-write capability added to any
-  agent. The script writes ONE JSON file under `handoff/smoketest_20260520/`,
-  which is the expected smoketest artifact path.
-
-**Dim 2 -- Trading-domain correctness:** NO-FIRE.
-- The smoketest script does NOT touch `paper_trader.py`, `kill_switch.py`,
-  `risk_engine.py`, `perf_metrics.py`, `backtest_engine.py`, or any execution-
-  path file. It only invokes `AnalysisOrchestrator.run_full_analysis(ticker)`,
-  which is a read-only research/analysis call that produces a recommendation
-  dict but does NOT place orders, does NOT touch `paper_positions` / `paper_trades`,
-  and does NOT alter the kill-switch state. NO production `analysis_results`
-  write (BQ-verified n=0).
-- `crypto-asset-class`: `"NVDA"` is the ONLY ticker passed; no crypto.
-- `bq-schema-migration-safety`: no migration scripts modified.
-
-**Dim 3 -- Code quality:** NO-FIRE (one NOTE).
-- `broad-except`: line 86 of the script has `except Exception as exc:` --
-  this is the explicit "catch all errors so we can write a traceback to the
-  JSON output for forensic analysis" pattern, not a silent risk-guard
-  swallow. The except block stores `error` + `traceback` in the result dict
-  and continues to the post-measurement step. This is **the documented
-  pattern** for smoketest harnesses and matches the negation-list intent
-  (broad except is acceptable when it explicitly records the exception for
-  later forensic review). NOTE only.
-- `print-statement`: the script uses `print(..., flush=True)` extensively
-  (lines 43, 49, 70, 85, 91, etc.). This is in `scripts/` (the negation-list
-  explicitly exempts `scripts/` from print() flagging). NO-FIRE.
-- `no-type-hints`: function `main()` annotated `-> int`; intermediate `result`
-  dict typed via `result: dict`. Adequate for a smoketest.
-
-**Dim 4 -- Anti-rubber-stamp on financial logic:** NO-FIRE.
-- `financial-logic-without-behavioral-test`: NO production financial-logic
-  file modified. The script tests an orchestrator entry point end-to-end with
-  a real Vertex AI Gemini call -- this IS the behavioral test, not a mocked
-  unit-test rubber-stamp.
-- `tautological-assertion`: assertions in the JSON output are evidence-bound
-  (`substantive_agents_ge_15` checks `len(report_keys) >= 15` -- a real shape
-  assertion against the real return value; `no_new_analysis_results_for_nvda`
-  is a real pre/post BQ count delta).
-- `over-mocked-test`: the only "mock" was the `_persist_analysis` callback,
-  which the researcher correctly identified as unnecessary because the
-  function lives in `autonomous_loop.py:1651`, NOT in `orchestrator.py`, and
-  `run_full_analysis` does not call it. The smoketest reflects this finding
-  honestly in the script comments (lines 52-59).
-- `pass-on-all-criteria-no-evidence`: this verdict is PASS-with-NOTE (not
-  blanket PASS) and cites file:line evidence for every check.
-- `formula-drift-without-citation`: NO risk constants changed.
-
-**Dim 5 -- LLM-evaluator anti-patterns:** NO-FIRE.
-- `sycophancy-under-rebuttal`: first Q/A spawn on phase-31.0.3; no prior
-  verdict to flip.
-- `second-opinion-shopping`: first Q/A spawn; `experiment_results.md`
-  mtime (00:55) is the FIRST time it has been written for this step.
-- `missing-chain-of-thought`: this critique cites file:line / command-output
-  for every dimension (e.g. `STAGE_3_gemini_full_path_output.json`,
-  `script.py:86`, the BQ Python output).
-- `3rd-conditional-not-escalated`: zero prior CONDITIONALs for this step-id
-  in `harness_log.md`.
-- `criteria-erosion`: the legacy strict assertion set is PRESERVED in the
-  JSON output (`assertions_legacy_strict`), NOT silently dropped. The
-  corrected substantive assertion set is added alongside, with the mismatch
-  note giving the rationale. This is the OPPOSITE of erosion -- it is honest
-  scope disclosure with both sets retained for audit.
-- `self-reference-confidence`: this critique does NOT cite "the generator
-  confirms X is correct" as the basis for PASS; every check has independent
-  evidence.
-
-`code_review_heuristics` overall verdict: **NO BLOCK / NO WARN.** One
-single NOTE on the broad-except in the smoketest script, justified by the
-forensic-recording pattern.
+| Check | Status | Evidence |
+|---|---|---|
+| JSON block parseable + contains required IDs | **PASS** | `python3 -c "..."` returned `OK ['phase-31', 'phase-31.0', 'phase-31.1', 'phase-31.2', 'phase-31.3']`. All 5 required IDs present. |
+| File existence (research_brief.md + contract.md + experiment_results.md) | **PASS** | All three exist in `handoff/current/`. |
+| No code edits this cycle | **PASS** | `git status --porcelain backend/` shows only `feature_ablation_results.tsv` + `mda_cache.json` (mtime 1779240046, BEFORE contract mtime 1779253039 — predates this cycle, baseline drift). `git diff --stat backend/services/ backend/agents/skills/ backend/agents/agent_definitions.py` returns empty. No edits to scoped files (portfolio_manager.py, paper_trader.py, autonomous_loop.py, risk_judge.md, risk_stance.md, synthesis_agent.md, quant_strategy.md, agent_definitions.py). |
+| BQ giveback ratio quoted verbatim (0.387) | **PASS** | Line 88: `\| **avg_giveback_ratio_pos_mfe** \| **0.387** \|`. Also embedded in JSON acceptance_criteria line 243: "BQ probe re-runs show avg_giveback_ratio_pos_mfe < 0.20 (was 0.387 in phase-31.0 baseline)". |
 
 ---
 
-## LLM judgment
+## Section 3 — Content / LLM-Judgment Checks
 
-### Criterion-mismatch handling -- is PASS-with-NOTE justified?
-
-**Argument for PASS-with-NOTE (chosen):**
-
-1. **Substantive criteria are MET.** The morning-goal Stage 3 spec exists to
-   verify "the orchestrator runs the full pipeline end-to-end on a single
-   ticker." That objective is achieved: 19 substantive Gemini agent outputs,
-   final synthesis with NVDA HOLD + reasoned justification, 5m 53s wall-clock,
-   exit 0. The morning-goal author's INTENT (full-pipeline shape test) is
-   honored.
-
-2. **The criterion mismatch is BY-DESIGN of the production code path, not a
-   regression introduced by this step.** `llm_call_log` writes happen ONLY in
-   the Anthropic path via the phase-6.7 retrofit at
-   `backend/utils/llm_client.py:1645-1669`. The Vertex AI Gemini path does
-   not -- and never has -- written to `llm_call_log`. The phase-30.0 audit
-   Stage 2 FAIL documented this exact gap. The morning-goal author wrote the
-   `verify 28 agents in llm_call_log` criterion under the now-disproven
-   assumption that the Gemini routing also logged there. This is a
-   **discovery from this experiment**, not a failure of this experiment.
-
-3. **The substitution rule, which the user instructed, FORCED Gemini-only
-   routing to validate the keep-Gemini complement.** Run 1 attempted the
-   production routing (Claude through Anthropic in-app SDK) and IMMEDIATELY
-   failed on credit exhaustion. Run 2 had to use the Vertex Gemini override
-   to actually exercise the orchestrator. The criterion that presumed
-   Claude routing was unsatisfiable in the only environment that COULD
-   complete -- a structural impossibility, not a soft miss.
-
-4. **Both assertion sets are emitted in the JSON output, with the mismatch
-   note explicitly preserving the legacy criteria.** This is the OPPOSITE
-   of criteria-erosion (which would be silently dropping the failing
-   criteria). The legacy `assertions_legacy_strict` shows FAIL on the two
-   logging criteria -- the experiment does NOT hide them. PARTIAL/FAIL
-   would punish the honest disclosure.
-
-5. **The morning-goal Stage 3 phase is exploratory by design.** Per the
-   smoketest sequence (Stages 1-13), Stage 3 is the "does the full
-   orchestrator run on a single ticker" probe. Discovering that the original
-   criterion was Claude-routing-specific is itself a valuable finding for
-   later stages.
-
-**Counter-argument considered (rejected): "PARTIAL because two morning-goal
-criteria failed."** The morning-goal author wrote those criteria before
-knowing the orchestrator currently routes the Claude-named "gemini" path
-to Anthropic. The criteria measure something that the Vertex-Gemini path
-CANNOT produce by construction. A strictly literal reading would force
-PARTIAL, but it would mis-attribute a routing-architecture finding to
-a step-execution failure. The honest read is: the morning-goal criteria
-were drafted under a false premise; the substantive test ran cleanly.
-
-**Conclusion: PASS-with-NOTE is the rigorous verdict.** Full PASS would
-under-represent the criterion mismatch (the reader deserves to know two of
-four legacy criteria were unsatisfiable). PARTIAL/FAIL would distort the
-substantive PASS signal and discourage honest scope disclosure in future
-cycles.
-
-### Substitution-rule validation -- is the Run 1 failure a production-readiness signal?
-
-YES, and the experiment_results.md correctly frames it as such:
-
-- **Run 1 evidence:** Production `settings.gemini_model = "claude-sonnet-4-6"`
-  and `settings.deep_think_model = "claude-opus-4-7"` -- the orchestrator's
-  "gemini" path actually routes to the in-app Anthropic SDK. The user's
-  Anthropic API balance is exhausted, so Run 1 immediately errored on credit
-  balance.
-- **Stage 2 evidence (already validated):** Claude Code subagent substitution
-  produced 4/4 valid per-ticker JSONs because Max plan covers Claude Code
-  first-party usage at flat fee.
-- **Synthesis:** the morning-goal substitution hypothesis is that "swap
-  in-app Anthropic SDK for Claude Code subagent for lite-path work." Stage 2
-  proved Claude Code works. Stage 3 Run 1 proved the in-app SDK fails on
-  credits. Together they form a **direct empirical case** for the
-  substitution being NECESSARY, not optional. The auto-memory entry
-  `project_local_only_deployment.md` (Claude Max flat-fee, user ADC covers
-  BQ) is reinforced.
-
-This is exactly the production-readiness signal the morning-goal author was
-hunting for. The experiment captured it cleanly.
-
-### Scope-honesty assessment -- anti-rubber-stamp
-
-The experiment_results.md openly:
-
-1. Discloses Run 1 failure with the credit-exhaustion root cause (lines 17-26).
-2. Notes the criterion mismatch and explains WHY the original criterion was
-   unsatisfiable (lines 52-63).
-3. Invites Q/A judgment on PASS-with-NOTE vs PARTIAL vs FAIL (lines 82-91).
-4. Recommends A (PASS-with-NOTE) with justification rather than just claiming
-   PASS.
-
-This is the anti-rubber-stamp pattern explicitly. The generator did NOT hide
-the failing legacy criteria, did NOT claim the substantive criteria
-"replace" the legacy ones unilaterally, and did NOT push for full PASS. The
-JSON output preserves BOTH assertion sets. Q/A's role here is to make the
-final call, which is PASS-with-NOTE.
+| Check | Status | Evidence |
+|---|---|---|
+| Audit table covers all 8 research topics | **PASS** | Rows: (1) Triple-barrier, (2a/2b) Trailing stops HWM+ATR, (3) Take-profit ladders, (4) Profit-locking ratchets, (5) Vol-adjusted exits, (6) Meta-labeling, (7a-d) Risk-agent best practices (drawdown ladder + sector cap + correlation cap + kill-switch hysteresis), (8a-c) PM agent best practices (exit ownership + decide_trades split + MFE consultation). 14 rows total — exceeds floor of 12. |
+| ≥1 P1 cites ADVERSARIAL source (Kaminski-Lo or Carver) | **PASS** | P1.1 cites Carver §4.2 ("nothing special about your entry level") + Kaminski-Lo Proposition 2 distinction (line 165). P1.2 cites Kaminski-Lo 2014 empirical headline (line 173) + Carver HWM-trailing quote (line 171). |
+| P1.2 includes Kaminski-Lo mean-reversion guard | **PASS** | Line 177: "Adversarial guard (Kaminski-Lo Proposition 2): the implementation MUST check the entry strategy and SKIP the trailing logic for mean-reversion entries." Implementation site discussed (schema migration vs analysis_id lookup); MVP fail-CLOSED-conservative default specified ("enable trailing only on entries flagged `momentum` or `triple_barrier`"). Also encoded in JSON phase-31.2 acceptance_criteria line 296 ("Adversarial guard: position.entry_strategy in ('mean_reversion', 'pairs') → trailing branch is SKIPPED"). |
+| All 6 specific questions answered | **PASS** | Q1 trailing-stop logic (line 57-58), Q2 take-profit threshold (60-61), Q3 risk_judge sees PnL (63-64), Q4 decide_trades exit/entry split (66-67), Q5 drawdown-based de-risking (69-70), Q6 scale-out logic (72-73). All six have explicit Y/N/partial verdict + file:line citations. |
+| phase-31 acceptance_criteria includes give-back threshold | **PASS** | Line 243: `"BQ probe re-runs show avg_giveback_ratio_pos_mfe < 0.20 (was 0.387 in phase-31.0 baseline)"`. Live BQ baseline 0.387 → target < 0.20 codified. |
+| Mutation-resistance: BLOCK severities load-bearing | **PASS** | 9 BLOCK markers concentrated on the architectural-gap rows (2a trailing-stop, 3 scale-out, 4 breakeven, 7b sector cap, 8c MFE-as-exit-input). Without them, the urgency would be flattened to indistinguishable WARN/NOTE. Severity column is doing real semantic work — removing it would degrade the report from "production risk" to "neutral observation". |
+| Scope honesty: NO CODE EDITS as promised | **PASS** | `git diff --stat backend/services/ backend/agents/skills/ backend/agents/agent_definitions.py` returns empty (no diff). Baseline drift files (`feature_ablation_results.tsv`, `mda_cache.json`) mtime 1779240046 predate contract mtime 1779253039, so are NOT this cycle's edits. Scoped-file invariant holds. |
 
 ---
 
-## Violated criteria
+## Section 4 — Anti-Rubber-Stamp Triggers (none fired)
 
-None at BLOCK or WARN severity. The legacy criteria
-`new_llm_call_log_rows_ge_10` and `new_distinct_agents_ge_3` are recorded
-as FAIL in the JSON's `assertions_legacy_strict` set -- they are NOT
-violated criteria in the sense of "this experiment broke something." They
-are unsatisfiable-by-construction in the Gemini-only environment that the
-substitution rule forced this step to use. The NOTE handling in
-PASS-with-NOTE captures this exactly.
+| Trigger | Status |
+|---|---|
+| Audit table <12 rows | NO — 14 rows |
+| No P1 cites arXiv/peer-reviewed | NO — P1.1 cites López de Prado AFML (peer-reviewed book); P1.2 cites arXiv 2602.11708, Kaminski-Lo 2014 J. Financial Markets, Han-Zhou-Zhu 2014 SSRN; P1.3 cites arXiv 2510.04643 |
+| Give-back ratio as single rounded number with no detail | NO — verbatim per-trade detail table at lines 103-107 (CIEN 48.5%, FIX 28.9%, TER n/a-MFE=0); current-position coverage breakdown at lines 113-125 |
+| JSON not parseable | NO — `python3 -c "..."` returned OK with all 5 IDs |
+| Contract NOT before results.md | NO — contract mtime 1779253039 < results mtime 1779253335 |
+| Harness log already has phase-31.0 entry for THIS cycle | NO — only smoketest substeps (`31.0.1/.2/.3/.4-13`) and `phase-31.1` hotfix block; no `phase=31.0` root entry for the profit-protection audit |
 
 ---
 
-## Verdict
+## Section 5 — Code-Review Heuristics (5-dimension framework)
 
-verdict: PASS-with-NOTE
-ok: true
-checks_run: [harness_compliance_audit, json_assertion_check, final_synthesis_presence, diff_scope_check, bq_live_no_production_write, code_review_heuristics, evaluator_critique_overwrite]
-violated_criteria: []
-violation_details: NONE at BLOCK or WARN severity. Two morning-goal Stage 3 legacy criteria (`new_llm_call_log_rows_ge_10`, `new_distinct_agents_ge_3`) recorded as FAIL in `STAGE_3_gemini_full_path_output.json::assertions_legacy_strict` -- unsatisfiable-by-construction in the Gemini-only routing environment forced by the substitution-rule investigation. The criterion mismatch is documented openly in `experiment_results.md` lines 52-63 and in the JSON's `criterion_mismatch_note` field. The substantive Gemini-aware criteria set (`assertions_corrected_substantive`) shows 4/4 PASS. The corrected criteria measure the morning-goal author's true objective (full orchestrator pipeline runs end-to-end on a single ticker). Both assertion sets are preserved in the JSON output, demonstrating honest scope disclosure rather than criteria-erosion. The Run 1 Anthropic credit failure is STRONG empirical validation of the morning-goal substitution hypothesis, not a flaw -- it confirms the in-app Anthropic SDK is not viable under the Max-plan local-only deployment model.
-certified_fallback: false
+This cycle is DIAGNOSTIC (NO CODE EDITS). The 5-dimensional code-review framework applies in principle but no diff exists to review against. All severity dispatches default to N/A. Documented for audit trail:
+
+- **Security:** N/A (no diff).
+- **Trading-domain correctness:** N/A (no diff). However, the contract correctly defers the high-risk wiring changes (kill_switch, stop-loss path) to FUTURE phase-31.x cycles; this cycle only catalogs the gaps. Mutation-resistance test would not apply here because no code path was changed.
+- **Code quality:** N/A.
+- **Anti-rubber-stamp on financial logic:** N/A (no diff). The diagnostic report itself includes adversarial sourcing (Kaminski-Lo) which is the meta-version of "behavioral test required" for the FUTURE remediation cycles.
+- **LLM-evaluator anti-patterns:** N/A (first Q/A spawn, no prior verdict to compare).
+
+`code_review_heuristics` recorded as evaluated (zero findings; appropriate given the no-code-edit scope).
+
+---
+
+## Verdict Justification
+
+The contract promised a deep-tier diagnostic audit with five sections; the GENERATE delivered all five with measurable rigor: a 14-row audit table covering all 8 research topics with severity dispatched, six explicit Y/N/partial answers to the goal's specific questions with file:line citations, a verbatim BQ probe with aggregate + per-trade + per-position + sector tables (the 0.387 give-back ratio and 7-of-11-NO_STOP findings are quoted directly from the live data), a P1/P2/P3 ranking where every P1 cites adversarial (Kaminski-Lo, Carver) and peer-reviewed sources (arXiv 2602.11708 with +0.73 Sharpe ablation), and a parseable JSON masterplan block with phase-31 (parent) + phase-31.0/.1/.2/.3 (children) carrying acceptance_criteria that anchor on the live baseline (0.387 → <0.20, 7 NO_STOP → 0, sector cap warning when max(SE_j) >= 0.60). The Kaminski-Lo Proposition 2 adversarial guard is load-bearing in P1.2 — explicitly required (mean-reversion entries skip the trail) and codified in the JSON acceptance_criteria. Scope honesty holds: `git diff --stat` on scoped files returns empty, and the two baseline-drift files (feature_ablation_results.tsv, mda_cache.json) pre-date the contract by 13 minutes (mtime 1779240046 vs 1779253039). All 5 harness-compliance checks pass; all deterministic checks pass; no anti-rubber-stamp triggers fire; verdict = **PASS**.
+
+---
+
+## JSON Output
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 5 harness-compliance checks pass; deterministic JSON parse OK (5/5 required IDs present); contract written before results.md (mtime ordering verified); audit table covers 8/8 research topics with 14 rows; P1.2 includes the Kaminski-Lo Proposition 2 adversarial guard; all 6 specific questions answered with file:line citations; give-back ratio 0.387 quoted verbatim from BQ probe; no source-file edits this cycle (scope-honest); harness log not yet appended (log-last correct). The cycle delivered exactly what the contract promised.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": null,
+  "checks_run": {
+    "harness_compliance_audit_5_items": "PASS",
+    "researcher_gate": "PASS",
+    "contract_before_generate_mtime": "PASS",
+    "results_5_sections": "PASS",
+    "log_last_not_yet_appended": "PASS",
+    "no_verdict_shopping_first_qa": "PASS",
+    "json_parseable": "PASS",
+    "no_code_edits": "PASS",
+    "bq_giveback_quoted": "PASS",
+    "audit_table_8_topics_covered": "PASS",
+    "kaminski_lo_adversarial_guard_in_P1_2": "PASS",
+    "all_6_specific_questions_answered": "PASS",
+    "scope_honesty_no_backend_diff": "PASS",
+    "code_review_heuristics": "N/A (diagnostic-only, no diff)"
+  }
+}
+```

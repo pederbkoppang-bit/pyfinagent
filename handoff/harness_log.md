@@ -21135,3 +21135,55 @@ Distribution: 1 BUY + 3 HOLD + 0 SELL.
 4. (Carry-over) Phase-30.7 full Layer-2 router activation (heartbeat in place).
 5. (Carry-over) Gemini-side `log_llm_call` writer (close observability gap).
 6. (NEW Phase-32 candidate) Wire `autonomous_loop._run_claude_analysis` to Claude Code subagent spawn instead of in-app Anthropic SDK -- the substitution rule from the morning smoketest, applied to production code.
+
+---
+
+## Cycle 1 -- 2026-05-20 04:36 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.96% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 1 -- 2026-05-20 (overnight) -- phase=31.0 / masterplan-id=phase-32.0 result=PASS
+
+**Step name (goal-given):** phase-31.0 Audit -- Profit-Protection + Risk-Agent Hardening.
+**Masterplan insertion ID:** phase-32 (umbrella) + 32.0 (this cycle) due to ID collision with existing phase-31 (E2E Smoketest, done). See experiment_results.md addendum for the renumber rationale.
+**Type:** diagnostic-only audit cycle. NO CODE EDITS. NO MUTATING BQ/ALPACA CALLS.
+
+**Researcher gate:** PASS. Tier=deep. 22 external sources read in full, 11 snippet-only, 33 URLs collected, recency scan performed (8 entries from 2024-26 window), 9 internal files inspected, 3 adversarial sources (Kaminski-Lo 2014 pdfplumber-extracted, Carver qoppac.blogspot.com, arXiv 1507.01610 OU). Brief at handoff/current/research_brief.md.
+
+**Live BQ probe (financial_reports.paper_trades, last 60d):** 3 closed sells. avg_realized=-0.42%; avg_mfe=+7.35%; avg_capture_ratio=0.408; avg_giveback_ratio_pos_mfe=0.387. Exit reasons: 3 sell_signal, 0 stop_loss, 0 kill. Per-trade detail: CIEN gave back 48.5% of MFE (+12.56% peak -> +6.46% realized); FIX gave back 28.9% (+9.49% -> +6.75%); TER MAE=-26.51% exited at -14.46% (likely None-stop pre-25.2 backfill). Current 11 positions: **7 of 11 NO_STOP** (SNDK, INTC, WDC, LITE, ON, DELL, GLW -- audit said 6, found 7 incl. WDC), 4 STATIC_8PCT_ENTRY, 0 trailing. Sector concentration **89.3% Tech** (10/11 positions).
+
+**Audit table:** 14 rows across 8 research topics. 9 BLOCK-severity findings concentrated on the MFE-never-consulted root cause (trailing absent, take-profit absent, ratchet absent, scale-out unused, sector exposure invisible to Risk Judge, MFE/MAE tracked but ignored, signals_server.py:1052-1243 dead code).
+
+**Ranked remediation (P1/P2/P3):**
+- **P1.1 -> masterplan 32.1**: Breakeven-stop ratchet at +1R. Strict Pareto improvement; zero schema break.
+- **P1.2 -> masterplan 32.2**: HWM-trailing (Chandelier-lite) port from signals_server.py + Kaminski-Lo adversarial guard skipping mean-reversion/pairs entries.
+- **P1.3 -> masterplan 32.3**: Surface sector exposure to Risk Judge FACT_LEDGER.
+- P2.1/P2.2/P2.3: scale-out ladder, ATR-scaled stops, tiered-DD ladder. Deferred.
+- P3.1/P3.2/P3.3: Risk-Judge exit-policy block, meta-labeling exit classifier, full strategy-conditional exits. Deferred.
+
+**Q/A verdict (single agent, fresh spawn):** PASS. All 13 checks PASS: harness_compliance_audit_5_items, researcher_gate, contract_before_generate_mtime, results_5_sections, log_last_not_yet_appended, no_verdict_shopping_first_qa, json_parseable, no_code_edits, bq_giveback_quoted, audit_table_8_topics_covered, kaminski_lo_adversarial_guard_in_P1_2, all_6_specific_questions_answered, scope_honesty_no_backend_diff. No CONDITIONAL retry needed; no certified-fallback used.
+
+**Masterplan flip:** phase-32 inserted with 4 nested steps. phase-32.0 (this cycle) status=done. 32.1/32.2/32.3 status=pending. Total phases: 59.
+
+**Files touched:**
+- handoff/current/research_brief.md (created by researcher subagent, 378 lines)
+- handoff/current/contract.md (created, 121 lines)
+- handoff/current/experiment_results.md (created, 353 lines incl. addendum)
+- handoff/current/evaluator_critique.md (created by qa subagent)
+- handoff/harness_log.md (this append)
+- .claude/masterplan.json (phase-32 inserted)
+- handoff/archive/phase-31.1/ (prior in-flight files archived at cycle start)
+- NO backend/ files touched (scope honesty enforced).
+
+**Total cycle time:** ~70 minutes (researcher 11m + BQ probe 1m + code reads 3m + contract+results write 6m + qa 3m + masterplan 1m + log 1m; rest = main-loop overhead).

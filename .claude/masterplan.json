@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-20T01:15:00+00:00",
+  "updated_at": "2026-05-20T05:08:19.929207+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -11154,6 +11154,113 @@
               "loop_paused_throughout"
             ],
             "live_check": "STAGES_4_13_summary.json overall_verdict=PASS, 9/9 stages 5-13 PASS; Stage 4 3 JSONs persisted."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-32",
+      "name": "Profit-Protection + Risk-Agent Hardening",
+      "status": "in_progress",
+      "depends_on": [
+        "phase-31"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "32.0",
+          "name": "Audit: profit-protection + risk-agent hardening gap report (overnight cycle 2026-05-20)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "User goal directive 2026-05-20 (overnight, NO CODE EDITS). Deep researcher brief at handoff/archive/phase-31.0/research_brief.md (22 sources read in full, 3 adversarial incl. Kaminski-Lo + Carver, recency scan 8 entries). BQ probe: 3 closed sells 60d, avg_giveback_ratio=0.387, avg_capture_ratio=0.408, 0 stop-loss exits. 7 of 11 current positions have NO stop (SNDK, INTC, WDC, LITE, ON, DELL, GLW). Sector concentration 89.3% Tech. Trailing-stop + 5/10/15 tiered-drawdown reference code at signals_server.py:1052-1243 confirmed dead (zero callers from live loop).",
+          "verification": {
+            "command": "test -f handoff/archive/phase-31.0/research_brief.md && test -f handoff/archive/phase-31.0/contract.md && test -f handoff/archive/phase-31.0/experiment_results.md && test -f handoff/archive/phase-31.0/evaluator_critique.md && grep -q '38.7' handoff/archive/phase-31.0/experiment_results.md && grep -q 'P1.1' handoff/archive/phase-31.0/experiment_results.md && grep -q 'Kaminski' handoff/archive/phase-31.0/experiment_results.md",
+            "success_criteria": [
+              "research_brief_present_gate_passed",
+              "contract_present_with_immutable_criteria",
+              "experiment_results_5_sections_complete",
+              "evaluator_critique_pass_verdict",
+              "bq_giveback_ratio_documented_verbatim",
+              "p1_p2_p3_remediation_ranked",
+              "kaminski_lo_adversarial_guard_in_p1_2",
+              "no_code_edits_no_mutating_bq_or_alpaca"
+            ],
+            "live_check": "Q/A verdict block in handoff/archive/phase-31.0/evaluator_critique.md reports verdict=PASS with all 13 checks_run PASS, plus harness_log entry for phase-31.0 cycle. JSON masterplan-proposal block in experiment_results.md is parseable."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "32.1",
+          "name": "Breakeven-stop ratchet at +1R (P1.1)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "32.0",
+          "audit_basis": "phase-31.0 audit P1.1 (handoff/archive/phase-31.0/experiment_results.md). When position.mfe_pct >= settings.paper_default_stop_loss_pct (1R), mutate stop_loss_price = entry_price. Strict Pareto improvement; zero schema break. Research: Lopez de Prado AFML ch.3; Van Tharp R-multiples; Tradewink ratchet. Carver's anti-breakeven argument acknowledged but breakeven still strictly better than current entry-anchored static stop. Live signal: SNDK/MU/INTC/COHR/WDC/LITE/ON/DELL all crossed +1R and would gain a breakeven floor.",
+          "verification": {
+            "command": "python -m pytest backend/tests/test_phase_32_1_breakeven_ratchet.py -v && grep -n '_advance_stop' backend/services/paper_trader.py && python -c \"import ast; ast.parse(open('backend/services/paper_trader.py').read())\"",
+            "success_criteria": [
+              "_advance_stop_helper_in_paper_trader",
+              "called_from_mark_to_market_before_mfe_write",
+              "mfe_geq_1R_mutates_stop_to_entry",
+              "stop_advanced_at_R_audit_field_added_nullable",
+              "backfill_high_mfe_positions_on_first_run",
+              "unit_test_4_cases_pass",
+              "no_regression_check_stop_losses"
+            ],
+            "live_check": "BQ row from financial_reports.paper_positions showing stop_advanced_at_R populated and stop_loss_price = avg_entry_price (NOT entry * 0.92) for at least one current high-MFE position. Run query immediately after deploy."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "32.2",
+          "name": "HWM-trailing stop (Chandelier-lite) in live loop + Kaminski-Lo adversarial guard (P1.2)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "32.1",
+          "audit_basis": "phase-31.0 audit P1.2. Port signals_server.py:1052-1154 trailing branch into paper_trader. After P1.1, mutate stop_loss_price = max(stop_loss_price, peak_price * (1 - trail_pct/100)). Adversarial guard (Kaminski-Lo Proposition 2): skip trailing when entry_strategy in ('mean_reversion','pairs'). Research: arXiv 2602.11708 (+0.73 Sharpe / 9.7pp DD reduction), Han-Zhou-Zhu 2014 (-49.79% to -11.36% MaxDD), Carver qoppac. Adversarial: Kaminski-Lo 2014 J. Financial Markets Proposition 1+2.",
+          "verification": {
+            "command": "python -m pytest backend/tests/test_phase_32_2_hwm_trailing.py -v && grep -n 'mean_reversion' backend/services/paper_trader.py && grep -n 'trailing_stop_pct' backend/config/settings.py",
+            "success_criteria": [
+              "trailing_logic_ports_from_signals_server",
+              "paper_trailing_stop_pct_setting_default_8",
+              "stop_loss_price_monotonic_max_never_down",
+              "adversarial_guard_skips_mean_reversion_and_pairs_entries",
+              "fail_closed_conservative_default_is_apply_trail",
+              "entry_strategy_field_or_lookup_implemented",
+              "unit_test_3_cases_pass"
+            ],
+            "live_check": "BQ row from financial_reports.paper_positions showing stop_loss_price > avg_entry_price * 0.95 for at least one position whose mfe_pct > 20% (trail moved stop above entry-anchored). AND a mean-reversion-flagged entry whose stop_loss_price is unchanged from entry-anchored (guard active)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "32.3",
+          "name": "Surface sector exposure to Risk Judge prompt (P1.3)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "32.0",
+          "audit_basis": "phase-31.0 audit P1.3. Inject current portfolio sector exposure into risk_judge.md FACT_LEDGER. Add prompt instruction: 'If sector exposure for the candidate's sector exceeds 60% of NAV, require compelling sector-specific upside or reduce position size.' Live signal: 89.3% Tech concentration would saturate QuantAgents max(SE_j) trigger 0.75. Research: arXiv 2510.04643 (QuantAgents Dave's R_score); AQR Q1 2025 paradigm; MSCI summer-2025 quant-wobble.",
+          "verification": {
+            "command": "python -m pytest backend/tests/test_phase_32_3_sector_exposure.py -v && grep -n 'portfolio_sector_exposure' backend/agents/skills/risk_judge.md backend/agents/orchestrator.py",
+            "success_criteria": [
+              "fact_ledger_carries_portfolio_sector_exposure",
+              "risk_judge_prompt_has_portfolio_context_section",
+              "synthesis_agent_emits_portfolio_concentration_warning",
+              "max_se_geq_0_60_triggers_warning",
+              "max_se_lt_0_60_no_warning",
+              "unit_test_3_cases_pass"
+            ],
+            "live_check": "Sample Risk Judge prompt log from handoff/logs/ showing the PORTFOLIO CONTEXT section with sector exposure injected, and the LLM reasoning paragraph citing it on a Tech BUY proposal."
           },
           "retry_count": 0,
           "max_retries": 3
