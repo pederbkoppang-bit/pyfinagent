@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-21 | `2d973b13` | phase-32.2: HWM-trailing stop + Kaminski-Lo adversarial guard |
 | 2026-05-21 | `6f6b7482` | phase-32.1: breakeven-stop ratchet at +1R |
 | 2026-05-20 | `db5350c9` | phase-31.0: audit profit-protection + risk-agent gaps (inserted as phase-32) |
 | 2026-05-20 | `3f020337` | phase-31.1: fix gemini_model misnomer visibility + OutcomeTracker model injection |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-19 | `bc3af934` | phase-29.3: register 4 in-app FastMCP servers in .mcp.json (free-only, all ADOPT) |
 | 2026-05-19 | `5968c36b` | phase-29.4: add 3 OWASP LLM Top-10 v2.0 heuristics to qa.md (LLM07/08/10) |
 | 2026-05-19 | `de0f33c8` | phase-29.5: add 4th `deep` research tier to researcher.md |
-| 2026-05-19 | `1e0937c7` | phase-29.7: add arXiv-HTML precedence + pdfplumber rules to research-gate.md |
 
 ---
 
+### v6.15.2 — phase-32.2: HWM-trailing stop + Kaminski-Lo adversarial guard (2026-05-21)
+
+- **phase-32.2: HWM-trailing stop + Kaminski-Lo adversarial guard**
 ### v6.15.1 — phase-32.1: breakeven-stop ratchet at +1R (2026-05-21)
 
 - **phase-32.1: breakeven-stop ratchet at +1R**
