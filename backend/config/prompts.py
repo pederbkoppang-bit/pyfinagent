@@ -973,6 +973,13 @@ def get_risk_judge_prompt(
     past_memory_section = _build_memory_section(past_memory)
 
     template = load_skill("risk_judge")
+    # phase-32.3: bug fix uncovered during P1.3 implementation. The Risk
+    # Judge prompt template carries a `{{fact_ledger_section}}` placeholder
+    # at risk_judge.md:76 but this builder previously did NOT pass that
+    # kwarg, so format_skill rendered the literal token in the prompt and
+    # the LLM never received the FACT_LEDGER (including the new
+    # portfolio_sector_exposure block this phase introduces). Closes the
+    # pre-existing regression alongside the in-scope phase-32.3 work.
     return format_skill(
         template,
         ticker=ticker,
@@ -982,6 +989,7 @@ def get_risk_judge_prompt(
         neutral_arg=neutral_arg[:2000],
         debate_history_section=debate_history_section,
         past_memory_section=past_memory_section,
+        fact_ledger_section=_build_fact_ledger_section(fact_ledger),
     )
 
 

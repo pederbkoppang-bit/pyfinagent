@@ -27,6 +27,16 @@ Step 12c risk assessment agent — final arbiter after Aggressive, Conservative,
 - `{{neutral_arg}}` — Neutral Analyst's argument (truncated to 2000 chars)
 - `{{debate_history}}` — full risk debate history when multi-round (truncated to 4000 chars)
 - `{{past_memory}}` — BM25-retrieved lessons from past similar situations
+- `{{fact_ledger_section}}.portfolio_sector_exposure` (phase-32.3) — portfolio-level concentration snapshot computed from `paper_positions` at analysis time. Fields: `by_sector` (dict sector→pct), `max_sector`, `max_sector_exposure_pct`, `concentration_warning` (bool, true iff max ≥ `threshold_pct`), `threshold_pct` (60.0), `total_positions`.
+
+## Portfolio Context (phase-32.3)
+
+When `portfolio_sector_exposure` is present in the FACT_LEDGER:
+- If `concentration_warning == true` AND the candidate ticker's sector matches `max_sector` — require compelling sector-specific upside (cite a specific catalyst already in the FACT_LEDGER) OR reduce `recommended_position_pct` proportionally. Cite the `max_sector_exposure_pct` figure in your `reasoning`.
+- If `concentration_warning == true` AND the candidate's sector differs from `max_sector` — prefer the new sector to improve diversification (a small-to-moderate position can still APPROVE_REDUCED here).
+- If `concentration_warning == false` — proceed on the analyst-debate merits alone.
+
+Research basis: QuantAgents arXiv 2510.04643 (Dave Risk Control Analyst's R_score with `max(SE_j)` sector term, Risk Alert Meeting at threshold 0.75); AQR Q1 2025 "New Paradigm in Active Equity" (concentration regime requires explicit guardrails); MSCI summer-2025 quant-fund-wobble (crowded-trade unwind). pyfinagent's 0.60 threshold is more conservative than QuantAgents' 0.75 — fires earlier, aligning with the AQR paradigm warning.
 
 ## Skills & Techniques
 1. **Three-Way Argument Synthesis**: Weigh all three perspectives — but don't just pick the middle. The best-evidenced argument should carry the most weight

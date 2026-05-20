@@ -21334,3 +21334,38 @@ Distribution: 1 BUY + 3 HOLD + 0 SELL.
 **Carry-over (out-of-band):** wire paper_trader.execute_buy to read strategy_decisions.decided_strategy at BUY time and persist entry_strategy on the paper_positions row. Today's backfill defaults all 11 rows to 'momentum'; new BUYs land with entry_strategy=NULL and the fail-CLOSED default catches them, but a true entry_strategy would let mean-reversion entries claim the Kaminski-Lo guard rather than defaulting to trail. Candidate for phase-32.x.
 
 **Total cycle time:** ~65 minutes (researcher 8m + contract 2m + implementation 6m + regression-test fix 1m + migration 1m + live MTM 2m + experiment_results + live_check 4m + qa 4m + log+flip 1m; rest = orchestration overhead).
+
+## Cycle 3 -- 2026-05-21 (overnight) -- phase=32.3 result=PASS
+
+**Step name:** Surface sector exposure to Risk Judge prompt (P1.3) + in-scope bug fix to get_risk_judge_prompt.
+**Type:** Implementation cycle. Helper + orchestrator wiring + skill-prompt updates + 1-line prompt-builder bug fix. NO BQ migration.
+
+**Researcher gate (moderate tier):** PASS. 5 sources read in full + 3 snippet (10 URLs collected); recency_scan_performed=true. Net-new sources: QuantAgents arXiv 2510.04643 (native HTML + ar5iv mirror -- triple-confirmed R_score formula), TradingAgents v3 arXiv 2412.20138, AlphaAgents 2508.11152, TradeTrap 2512.02261 (adversarial), MarketSenseAI 2604.17327 (adversarial). Phase-31.0 brief transitively inherited for AQR Q1 2025 + MSCI 2025 + earlier QuantAgents citations. Brief at handoff/current/research_brief.md. Two researcher attempts occurred: first left skeleton with gate_passed=false; fresh respawn finalized with the load-bearing bug-finding.
+
+**Pre-existing bug uncovered + fixed in-scope:** get_risk_judge_prompt() at backend/config/prompts.py:976-985 accepted fact_ledger as a kwarg but NEVER passed fact_ledger_section=_build_fact_ledger_section(fact_ledger) to format_skill(). Every other prompt builder DOES pass it. Result: rendered Risk Judge prompt has carried the literal token "{{fact_ledger_section}}" for months -- the Risk Judge has NEVER received the FACT_LEDGER. This blocks phase-32.3 from reaching the LLM (the new portfolio_sector_exposure field rides through the FACT_LEDGER dict). One-line fix added: fact_ledger_section=_build_fact_ledger_section(fact_ledger) appended to the format_skill kwargs. Regression test test_risk_judge_prompt_renders_fact_ledger_block_not_literal_placeholder pins the fix.
+
+**Implementation:**
+- backend/agents/orchestrator.py: new pure helper _compute_portfolio_sector_exposure(positions, threshold_pct=60.0) -> dict at line 254. Returns {by_sector, max_sector, max_sector_exposure_pct, concentration_warning, threshold_pct, total_positions}. Wired into the FACT_LEDGER assembly site at line ~1487 with fail-open try/except: on any BQ failure, logs WARNING and sets fact_ledger["portfolio_sector_exposure"] = None.
+- backend/config/prompts.py: 1-line bug fix in get_risk_judge_prompt at line ~985.
+- backend/agents/skills/risk_judge.md: added FACT_LEDGER documentation entry for portfolio_sector_exposure + new "## Portfolio Context (phase-32.3)" section describing three behavioral branches (concentration_warning + sector match -> require compelling upside or reduce position pct; concentration_warning + diff sector -> prefer diversification; no warning -> proceed on debate merits).
+- backend/agents/skills/synthesis_agent.md: added optional portfolio_concentration_warning: string field to output JSON schema.
+- backend/tests/test_phase_32_3_sector_exposure.py: NEW 7 cases (6 pure-function helper tests + 1 bug-fix regression test).
+
+**Tests:** 7/7 PASS new file. Full sweep 279 passed, 1 skipped, 0 failures. Zero regression (+7 over 32.2's 272).
+
+**Live helper output (production paper_positions, 11 rows):**
+{by_sector: {Technology: 89.34, Industrials: 10.66}, max_sector: 'Technology', max_sector_exposure_pct: 89.34, concentration_warning: true, threshold_pct: 60.0, total_positions: 11}
+
+Cross-check: matches phase-31.0 audit baseline (89.3% Tech) modulo 0.04pp yfinance-price drift.
+
+**Threshold 0.60 justification:** more conservative than QuantAgents R_score Risk Alert Meeting threshold 0.75 (composite trigger; max(SE_j) is one of four terms). Above the 25-30% industry practitioner cluster (Guardfolio + CFA Institute + LSEG + Britannica) to avoid habituation. Calibrated to fire on the actual live 89.34% Tech signal. Adversarial cross-check passes: MarketSenseAI 2604.17327 and Kacperczyk-Sialm-Zheng "concentration is alpha" reconciled because the warning is a narrative signal (LLM can still APPROVE with explicit justification), not a hard block.
+
+**Q/A verdict (single agent, first spawn):** PASS. 20/20 checks PASS. Zero code-review heuristic findings.
+
+**Scope honesty:** git diff --stat confirms no edits to portfolio_manager.py (pre-trade sector caps untouched and remain authoritative), decide_trades, paper_trader.py, autonomous_loop.py, agent_definitions.py, risk_stance.md, quant_strategy.md. The 1-line bug fix in prompts.py is in scope under the contract's "bug-fix uncovered during P1.3 implementation" treatment.
+
+**Next step in this overnight run:** phase-32.4 (backfill company names on legacy paper_positions).
+
+**Carry-over (out-of-band):** wire paper_trader.execute_buy to read strategy_decisions.decided_strategy at BUY time and persist entry_strategy.
+
+**Total cycle time:** ~75 minutes (2x researcher spawn 12m + contract 3m + implementation 4m + skill updates 3m + tests 4m + bug-fix surfacing + regression test 5m + live invocation + experiment_results 5m + qa 4m + log+flip 1m; rest = orchestration overhead).

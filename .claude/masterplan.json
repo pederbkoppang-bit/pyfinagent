@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-20T22:48:16.116257+00:00",
+  "updated_at": "2026-05-20T23:09:47.325314+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -11348,7 +11348,7 @@
         {
           "id": "32.3",
           "name": "Surface sector exposure to Risk Judge prompt (P1.3)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "32.0",

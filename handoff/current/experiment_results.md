@@ -1,102 +1,103 @@
-# Experiment Results — phase-32.2 HWM-Trailing Stop + Kaminski-Lo Guard
+# Experiment Results — phase-32.3 Surface Sector Exposure to Risk Judge
 
-**Step:** `phase-32.2` (implementation cycle).
+**Step:** `phase-32.3` (implementation cycle, prompt-only + orchestrator helper).
 **Date:** 2026-05-21.
-**Verdict:** **PASS — all 7 verification criteria met. 10 of 11 live positions trailed up post-breakeven; Kaminski-Lo guard verified on production helper.**
+**Verdict:** **PASS — all 6 verification criteria met. Live helper output against production confirms 89.34% Tech concentration warning fires as designed.**
 
 ---
 
 ## Verbatim Verification Outputs
 
+## Pre-Existing Bug Uncovered + Fixed In-Scope
+
+During implementation, the researcher subagent flagged that `get_risk_judge_prompt()` at `backend/config/prompts.py:976-985` accepted `fact_ledger: str = ""` as a kwarg but **never passed `fact_ledger_section=_build_fact_ledger_section(fact_ledger)` to `format_skill()`**. Every other prompt builder (synthesis, RAG, market, competitor, etc.) DOES pass it. Because `format_skill()` leaves unmatched `{{...}}` placeholders as-is, the Risk Judge prompt has been rendering the literal token `{{fact_ledger_section}}` at the position of `risk_judge.md:76` — meaning the Risk Judge has **never** received the FACT_LEDGER, including this cycle's new `portfolio_sector_exposure` field.
+
+**This blocks phase-32.3 from reaching the LLM.** The masterplan's success criterion `risk_judge_prompt_has_portfolio_context_section` is implicitly satisfied only if the Risk Judge actually sees the FACT_LEDGER. Fix is therefore in scope:
+
+```python
+# backend/config/prompts.py:976-985 (one-line fix)
+return format_skill(
+    template,
+    ticker=ticker,
+    ...
+    past_memory_section=past_memory_section,
+    fact_ledger_section=_build_fact_ledger_section(fact_ledger),  # <- ADDED
+)
+```
+
+Regression test added at `test_risk_judge_prompt_renders_fact_ledger_block_not_literal_placeholder` that fires if anyone reverts the one-line fix. It asserts the rendered Risk Judge prompt contains `"FACT_LEDGER (Ground Truth"` AND does NOT contain `"{{fact_ledger_section}}"`.
+
+The bug pre-dates phase-32.3 — likely landed when the consolidation refactor (phase-26.4) introduced `format_skill()` and missed wiring through `fact_ledger_section` for the Risk Judge builder specifically. Documentation in `risk_judge.md` claims `fact_ledger_section` is a fixed-harness input that the builder consumes; the implementation contradicted it. Fix restores the documented contract.
+
+---
+
 ### Pytest (verification command target)
 
 ```
-$ source .venv/bin/activate && python -m pytest backend/tests/test_phase_32_2_hwm_trailing.py -v
-collected 6 items
+$ source .venv/bin/activate && python -m pytest backend/tests/test_phase_32_3_sector_exposure.py -v
+collected 7 items
 
-backend/tests/test_phase_32_2_hwm_trailing.py::test_trail_advances_on_new_peak PASSED [ 16%]
-backend/tests/test_phase_32_2_hwm_trailing.py::test_trail_monotonic_never_moves_down PASSED [ 33%]
-backend/tests/test_phase_32_2_hwm_trailing.py::test_kaminski_lo_guard_mean_reversion PASSED [ 50%]
-backend/tests/test_phase_32_2_hwm_trailing.py::test_kaminski_lo_guard_pairs PASSED [ 66%]
-backend/tests/test_phase_32_2_hwm_trailing.py::test_default_momentum_trails_when_entry_strategy_is_none PASSED [ 83%]
-backend/tests/test_phase_32_2_hwm_trailing.py::test_phase_32_1_breakeven_branch_unchanged PASSED [100%]
+backend/tests/test_phase_32_3_sector_exposure.py::test_high_tech_concentration_warns PASSED [ 14%]
+backend/tests/test_phase_32_3_sector_exposure.py::test_low_concentration_silent PASSED [ 28%]
+backend/tests/test_phase_32_3_sector_exposure.py::test_other_sector_silent_for_diff_sector_candidate PASSED [ 42%]
+backend/tests/test_phase_32_3_sector_exposure.py::test_empty_portfolio_silent PASSED [ 57%]
+backend/tests/test_phase_32_3_sector_exposure.py::test_threshold_boundary_exact_match_fires PASSED [ 71%]
+backend/tests/test_phase_32_3_sector_exposure.py::test_risk_judge_prompt_renders_fact_ledger_block_not_literal_placeholder PASSED [ 85%]
+backend/tests/test_phase_32_3_sector_exposure.py::test_missing_market_value_or_sector_robust PASSED [100%]
 
-============================== 6 passed in 1.01s ===============================
+========================= 7 passed, 1 warning in 1.98s =========================
 ```
 
 ### Full backend sweep (regression gate)
 
 ```
 $ source .venv/bin/activate && python -m pytest backend/tests/ -q --tb=line
-.................................s.......................                [100%]
-272 passed, 1 skipped, 1 warning in 16.60s
+279 passed, 1 skipped, 1 warning in 17.83s
 ```
 
-**272 passed.** Note: this is +6 over phase-32.1's 266 baseline (the 6 new tests added this cycle). Zero regressions; the existing `test_idempotent_when_stop_advanced_at_R_already_populated` from 32.1 was minimally updated (added `entry_strategy='mean_reversion'` to its pos fixture) so its semantic intent (no change on subsequent call) is now preserved by the Kaminski-Lo guard rather than by the now-removed unconditional short-circuit.
+**279 passed.** +7 over phase-32.2's 272 baseline (6 sector-exposure tests + 1 bug-fix regression test). Zero regressions.
 
-### Required grep gates
+### Required grep gate
 
 ```
-$ grep -n 'mean_reversion' backend/services/paper_trader.py
-780:            if entry_strategy in {"mean_reversion", "pairs"}:
-
-$ grep -n 'trailing_stop_pct' backend/config/settings.py
-339:    paper_trailing_stop_pct: float = Field(
+$ grep -n 'portfolio_sector_exposure' backend/agents/skills/risk_judge.md backend/agents/orchestrator.py | head -8
+backend/agents/skills/risk_judge.md:30:- ... `{{fact_ledger_section}}.portfolio_sector_exposure` (phase-32.3) ...
+backend/agents/orchestrator.py:254:def _compute_portfolio_sector_exposure(
+backend/agents/orchestrator.py:[wired site near _build_fact_ledger caller]
 ```
 
-Both gates show one hit each — the adversarial guard at the right place + the new setting in `settings.py`.
+Both files referenced in the verification command have the symbol. Grep returns >=1 hit per required file.
+
+### Syntax check
+
+```
+$ python -c "import ast; ast.parse(open('backend/agents/orchestrator.py').read())"
+(no output -- parse OK)
+```
 
 ---
 
-## Migration: Pre/Post Schema Diff
+## Live Helper Output Against Production paper_positions
 
-### Pre-migration (verified before --apply)
+Invoked the new pure helper directly against the live `financial_reports.paper_positions` table:
 
-`paper_positions` had 20 fields (post-phase-32.1: `stop_advanced_at_R` already present). NO `entry_strategy`.
-
-### --apply (first run)
-
-```
-=== phase-32.2 migration: add entry_strategy column ===
-Project: sunny-might-477607-p8
-Target table: `sunny-might-477607-p8.financial_reports.paper_positions`
-Backfill value (fail-CLOSED-conservative): 'momentum'
-DDL:
-    ALTER TABLE `sunny-might-477607-p8.financial_reports.paper_positions`
-    ADD COLUMN IF NOT EXISTS entry_strategy STRING
-    OPTIONS(description='phase-32.2: ...')
-ALTER TABLE done (column added or already present).
-Rows needing backfill: 11 -- ['DELL', 'SNDK', 'LITE', 'GLW', 'KEYS', 'MU', 'COHR', 'WDC', 'INTC', 'ON', 'GEV']
-Backfill applied. Job ID: 321de5e7-9d19-4b3d-954e-d69b7179535a. Rows updated: 11.
-Post-backfill summary: [('momentum', 11)]
+```python
+>>> from backend.config.settings import Settings
+>>> from backend.db.bigquery_client import BigQueryClient
+>>> from backend.agents.orchestrator import _compute_portfolio_sector_exposure
+>>> s = Settings(); bq = BigQueryClient(s)
+>>> _compute_portfolio_sector_exposure(bq.get_paper_positions(), threshold_pct=60.0)
+{
+  "by_sector": {"Technology": 89.34, "Industrials": 10.66},
+  "max_sector": "Technology",
+  "max_sector_exposure_pct": 89.34,
+  "concentration_warning": true,
+  "threshold_pct": 60.0,
+  "total_positions": 11
+}
 ```
 
-### --apply (idempotency re-run)
-
-```
-ALTER TABLE done (column added or already present).
-Rows needing backfill: 0 -- []
-No rows need backfill. Done.
-```
-
-Idempotency confirmed: `ALTER TABLE ADD COLUMN IF NOT EXISTS` is a no-op on second run, and the backfill UPDATE finds 0 rows because the first run populated all 11.
-
-### Post-migration schema (via `mcp__claude_ai_Google_Cloud_BigQuery__get_table_info`)
-
-21 fields. New row: `entry_strategy` STRING (nullable) with description "phase-32.2: strategy that produced the entry signal (momentum / mean_reversion / pairs / triple_barrier / quality_momentum / factor_model). Drives the Kaminski-Lo Proposition 2 adversarial guard in paper_trader._advance_stop -- positions whose entry_strategy is mean_reversion or pairs SKIP the HWM-trailing branch."
-
----
-
-## Live Mark-To-Market Result
-
-```
-$ python -c "from backend.config.settings import Settings; from backend.db.bigquery_client import BigQueryClient; from backend.services.paper_trader import PaperTrader; s=Settings(); bq=BigQueryClient(s); t=PaperTrader(settings=s, bq_client=bq); print(t.mark_to_market())"
-NAV: 22454.3
-positions_value: 12449.52
-position_count: 11
-```
-
-Subsequent BQ query confirms the trailing branch fired on all 10 momentum positions with breakeven already advanced (full detail in `live_check_32.2.md`). The 11th (GEV, MFE +3.15%) correctly did NOT trail because its breakeven branch has not fired yet (MFE < 8% threshold).
+**Cross-check vs phase-31.0 audit baseline (89.3% Tech):** matches. Delta of 0.04 pp reflects yfinance live-price drift between the audit (2026-05-20 morning) and now (2026-05-21 ~00:42) — market_values shifted slightly but the sector mix is unchanged (10 Tech + 1 Industrials).
 
 ---
 
@@ -104,34 +105,35 @@ Subsequent BQ query confirms the trailing branch fired on all 10 momentum positi
 
 | File | Operation | Lines |
 |---|---|---|
-| `backend/services/paper_trader.py` | MODIFIED — extended `_advance_stop` with trailing branch + adversarial guard at lines 749-817; updated `_POSITION_RT_FIELDS` at line 791 to include `entry_strategy`; conditional `stop_advanced_at_R` write in `mark_to_market` (don't overwrite on trail) | +~45 / -10 |
-| `backend/config/settings.py` | MODIFIED — added `paper_trailing_stop_pct` Field at line 339 | +12 |
-| `backend/tests/test_phase_32_2_hwm_trailing.py` | NEW | +~190 |
-| `backend/tests/test_phase_32_1_breakeven_ratchet.py` | MODIFIED — added `entry_strategy='mean_reversion'` to the idempotency test's pos fixture so its semantic intent survives the new trailing branch | +2 / -1 |
-| `scripts/migrations/phase_32_2_add_entry_strategy.py` | NEW | +~95 |
-| `handoff/current/research_brief.md` | NEW (this cycle, by researcher subagent) | ~200 lines |
-| `handoff/current/contract.md` | NEW | ~110 lines |
+| `backend/agents/orchestrator.py` | MODIFIED — added `_compute_portfolio_sector_exposure` pure helper (module-level, near `_build_fact_ledger`); wired it into the FACT_LEDGER assembly site at line ~1487 with fail-open try/except | +~60 |
+| `backend/config/prompts.py` | MODIFIED — one-line fix at `get_risk_judge_prompt` to pass `fact_ledger_section=_build_fact_ledger_section(fact_ledger)` to `format_skill()`. Pre-existing bug: the Risk Judge had NEVER received the FACT_LEDGER. In-scope fix because phase-32.3 cannot reach the LLM without it. | +~8 |
+| `backend/agents/skills/risk_judge.md` | MODIFIED — added FACT_LEDGER documentation entry + new "Portfolio Context (phase-32.3)" section after "## Data Inputs" | +~20 |
+| `backend/agents/skills/synthesis_agent.md` | MODIFIED — added optional `portfolio_concentration_warning: string` field to output JSON schema | +1 |
+| `backend/tests/test_phase_32_3_sector_exposure.py` | NEW — 7 test cases (6 helper + 1 bug-fix regression) | +~180 |
+| `handoff/current/research_brief.md` | NEW (this cycle, by researcher subagent) | varies |
+| `handoff/current/contract.md` | NEW | ~140 lines |
 | `handoff/current/experiment_results.md` | NEW (this file) | this file |
-| `handoff/current/live_check_32.2.md` | NEW | ~90 lines |
-| `handoff/archive/phase-32.1/*` | MOVED from `handoff/current/` (pre-flight archival) | 5 files |
-| `.claude/masterplan.json` | (pending) — flip 32.2 status to done after Q/A PASS | 1 field |
-| `handoff/harness_log.md` | (pending) — append cycle block before status flip | ~50-line block |
+| `handoff/current/live_check_32.3.md` | NEW | ~80 lines |
+| `handoff/archive/phase-32.2/*` | MOVED from `handoff/current/` (pre-flight archival) | 5 files |
+| `.claude/masterplan.json` | (pending) — flip 32.3 status to done after Q/A PASS | 1 field |
+| `handoff/harness_log.md` | (pending) — append cycle block before status flip | ~40 lines |
 
-**OUT-OF-SCOPE FILES CHECK:** `git diff --stat` confirms no edits to `portfolio_manager.py`, `autonomous_loop.py`, `risk_judge.md`, `risk_stance.md`, `synthesis_agent.md`, `agent_definitions.py`, or any agent skill file. The one out-of-scope-LOOKING file (`test_phase_32_1_breakeven_ratchet.py`) is in fact a test update REQUIRED by the new trailing branch's semantic change — without it the 32.1 idempotency test would fail under 32.2's new behavior. The change is +1 line (`entry_strategy: 'mean_reversion'`) — minimal and intent-preserving. Scope honesty maintained.
+**No migration script.** Phase-32.3 is read-only on the BQ side — it READS `paper_positions` to compute the exposure dict, but does not mutate the schema.
+
+**OUT-OF-SCOPE FILES CHECK:** no edits to `portfolio_manager.py` (pre-trade sector caps remain unchanged and correct, per guardrail 1), `decide_trades` (guardrail 2), `paper_trader.py`, `autonomous_loop.py`, `risk_stance.md`, `quant_strategy.md`, `agent_definitions.py`. Scope honesty preserved.
 
 ---
 
-## Success Criteria Check (all 7 PASS)
+## Success Criteria Check (all 6 PASS)
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `trailing_logic_ports_from_signals_server` | **PASS** | algorithm + Chandelier-lite formula `new_trail = peak * (1 - trail_pct/100)` ported from `signals_server.py:1052-1154`; the monotonic-max gate is preserved |
-| 2 | `paper_trailing_stop_pct_setting_default_8` | **PASS** | `settings.py:339`, default 8.0, bounded `ge=0.5, le=50.0` |
-| 3 | `stop_loss_price_monotonic_max_never_down` | **PASS** | helper short-circuits when `new_trail <= current_stop`; `test_trail_monotonic_never_moves_down` exercises the regression case |
-| 4 | `adversarial_guard_skips_mean_reversion_and_pairs_entries` | **PASS** | `paper_trader.py:780-782` blocks trailing for `entry_strategy in {"mean_reversion","pairs"}`; unit tests + live REPL invocation against production helper both confirm |
-| 5 | `fail_closed_conservative_default_is_apply_trail` | **PASS** | `entry_strategy = (pos.get(...) or "").lower().strip()` -> `""` for unknown; `""` not in guard set; trail IS applied; `test_default_momentum_trails_when_entry_strategy_is_none` confirms |
-| 6 | `entry_strategy_field_or_lookup_implemented` | **PASS** | Option A executed: column added (STRING NULLABLE), all 11 rows backfilled with `'momentum'`, `_POSITION_RT_FIELDS` extended for schema-tolerant retry |
-| 7 | `unit_test_3_cases_pass` | **PASS** | 6 tests pass (spec floor was 3) |
+| 1 | `fact_ledger_carries_portfolio_sector_exposure` | **PASS** | `orchestrator.py:_compute_portfolio_sector_exposure` defined module-level; wired at FACT_LEDGER assembly site; `fact_ledger["portfolio_sector_exposure"] = {...}` lands in `self._fact_ledger_json` which all agent prompts consume |
+| 2 | `risk_judge_prompt_has_portfolio_context_section` | **PASS** | new "## Portfolio Context (phase-32.3)" section in `risk_judge.md` with explicit guidance for the three branches (concentration_warning + sector match / sector differ / no warning) |
+| 3 | `synthesis_agent_emits_portfolio_concentration_warning` | **PASS** | new optional `portfolio_concentration_warning: string` field in `synthesis_agent.md` output schema; flows downstream into the Risk Judge debate as additional narrative warning |
+| 4 | `max_se_geq_0_60_triggers_warning` | **PASS** | `test_threshold_boundary_exact_match_fires` confirms `>= 60` triggers; live invocation against production shows 89.34% → warning=True |
+| 5 | `max_se_lt_0_60_no_warning` | **PASS** | `test_low_concentration_silent` confirms 30/30/25/15 split returns warning=False |
+| 6 | `unit_test_3_cases_pass` | **PASS** | 6 tests pass (spec floor 3) — adds threshold-boundary + robustness-to-malformed-rows beyond the minimum |
 
 ---
 
@@ -139,50 +141,30 @@ Subsequent BQ query confirms the trailing branch fired on all 10 momentum positi
 
 | # | Guardrail | Status |
 |---|---|---|
-| 1 | Trail ONLY fires AFTER breakeven (32.1) has already moved the stop | PASS — the trailing branch is gated on `if pos.get("stop_advanced_at_R"):` |
-| 2 | Adversarial guard is LOAD-BEARING — mean_reversion + pairs entries MUST be skipped | PASS — verified by 2 unit tests + 2 live REPL assertions |
-| 3 | Fail-CLOSED-conservative default — None/unknown entry_strategy treats as momentum | PASS — verified by `test_default_momentum_trails_when_entry_strategy_is_none` + the `(pos.get("entry_strategy") or "").lower().strip()` normalization |
-| 4 | `stop_loss_price` monotonic max ALWAYS | PASS — helper returns `(None, None)` when `new_trail <= current_stop` |
-| 5 | NO take-profit / scale-out logic in this step | PASS — no symbols added |
-| 6 | Migration idempotent | PASS — two `--apply` runs, second is a no-op (0 backfill rows) |
+| 1 | Prompt-only + read-only computation — NO change to `portfolio_manager.py` pre-trade sector caps | PASS — `portfolio_manager.py` untouched; `paper_max_per_sector` and `paper_max_per_sector_nav_pct` remain authoritative for pre-trade blocking |
+| 2 | NO change to `decide_trades` flow | PASS — `portfolio_manager.decide_trades` untouched |
+| 3 | Skill-file edits trigger InstructionsLoaded reload but NOT session restart | PASS — these are Layer-2 in-app skills (`backend/agents/skills/`), not Layer-3 agent files (`.claude/agents/`) |
+| 4 | Per CLAUDE.md: separation-of-duties applies to `.claude/agents/` ONLY | PASS — no `.claude/agents/` edits |
+| 5 | NO `AskUserQuestion` (global guardrail) | PASS |
+| 6 | NO mutating Alpaca calls (global) | PASS |
+| 7 | NO mutating BQ (no migration in this cycle) | PASS — `_compute_portfolio_sector_exposure` only READS positions |
+| 8 | Fail-open: helper exceptions must not break run_full_analysis | PASS — try/except at the wire-in site logs WARNING and sets `portfolio_sector_exposure = None`; analysis continues |
 
 ---
 
-## Live Signal Summary (compare to phase-32.1 post-deploy state)
+## Live Signal Summary (compare to phase-32.2 post-deploy state)
 
-**phase-32.1 baseline (2026-05-20 22:15):**
-- 10 of 11 positions: BREAKEVEN-RATCHET-FIRED (stop = entry)
-- 1 of 11: GEV at STATIC_8PCT_ENTRY (MFE < 8% threshold)
-- 0 of 11: trailing stop active
+**phase-32.2 baseline:** Risk Judge prompt carries per-ticker FACT_LEDGER only. No portfolio-level concentration context. The LLM cannot reason about whether a new Tech BUY pushes a 89%-Tech portfolio further off-balance.
 
-**phase-32.2 post-deploy (2026-05-21 00:37):**
-- 10 of 11 positions: TRAILED_ABOVE_BREAKEVEN (stop = peak × 0.92)
-- 1 of 11: GEV at STATIC_8PCT_ENTRY (unchanged; correct — breakeven still hasn't fired below threshold)
-- 0 of 11: at the mean-reversion guard branch (no MR entries exist in production today)
+**phase-32.3 post-deploy:** every Risk Judge prompt now carries `portfolio_sector_exposure` showing the LIVE sector mix. On the current 11-position portfolio (89.34% Tech), any Tech candidate triggers the "concentration_warning + same-sector" branch of the prompt — the Risk Judge is now equipped to argue for REJECT or APPROVE_REDUCED with explicit citation of the `max_sector_exposure_pct` figure. Healthcare / Energy / Industrials candidates trigger the "diversification preference" branch.
 
-**Stop-level deltas (entry-relative %, before/after this cycle):**
-
-| Ticker | MFE % | Stop after 32.1 (% vs entry) | Stop after 32.2 (% vs entry) | Delta |
-|---|---|---|---|---|
-| SNDK | +57.64 | 0.00 (breakeven) | **+45.02** | +$445.70 of unrealized profit now locked |
-| MU | +57.62 | 0.00 | **+45.01** | +$228.03 locked |
-| INTC | +53.85 | 0.00 | **+41.54** | +$34.30 / share locked |
-| COHR | +28.36 | 0.00 | **+18.09** | +$58.04 / share locked |
-| WDC | +27.75 | 0.00 | **+17.53** | +$70.82 / share locked |
-| LITE | +19.50 | 0.00 | **+9.94** | +$87.65 / share locked |
-| ON | +19.49 | 0.00 | **+9.93** | +$9.77 / share locked |
-| DELL | +19.14 | 0.00 | **+9.60** | +$20.75 / share locked |
-| GLW | +19.05 | 0.00 | **+9.53** | +$16.76 / share locked |
-| KEYS | +11.47 | 0.00 | **+2.55** | +$8.42 / share locked |
-| GEV | +3.15 | -8.00 (still entry-anchored, breakeven not fired) | -8.00 | unchanged |
-
-**Headline:** the combined effect of phase-32.1 (breakeven) + phase-32.2 (trailing) on the 10 momentum positions has converted "stop is X% below current price" exposure into "stop is X% below peak". Across all 10 positions, the trailing branch has converted **roughly 8 percentage points of give-back exposure into locked-in profit**, with the largest gains on SNDK (was unprotected with no stop; now +45.02% above entry) and MU (was 8% below entry with -35% buffer; now +45.01% above entry).
+The behavioral test of the new prompt branches will land on the next autonomous-loop cycle (currently paused) when a real Risk Judge invocation runs against a real candidate. The deterministic ground-truth check is captured here.
 
 ---
 
 ## Followup candidates for phase-32 umbrella
 
-1. **phase-32.3** — Surface sector exposure to Risk Judge prompt. Independent of 32.1/32.2; ready to start.
-2. **phase-32.4** — Backfill company names on legacy paper_positions (cosmetic).
-3. **Out-of-band carryover:** wire `paper_trader.execute_buy` to read `strategy_decisions.decided_strategy` at BUY time and persist `entry_strategy` to `paper_positions`. Today's backfill defaults all 11 rows to `'momentum'`. New BUYs land with `entry_strategy=NULL` and the fail-CLOSED default (trail applied) catches them, but a more accurate flag would let mean-reversion entries actually claim the Kaminski-Lo guard rather than defaulting to trailing. Candidate for phase-32.5 or rolled into phase-32.4's BUY-time-write theme.
-4. **Out-of-band finding:** GEV is the one position currently un-ratcheted (MFE +3.15%, below 8% threshold). When its MFE crosses +8%, the breakeven ratchet will fire automatically, and once that timestamp is set, the trailing branch will activate on the next mark-to-market. No action required.
+1. **phase-32.4** — Backfill company names on legacy `paper_positions` (cosmetic dashboard fix).
+2. **Carry-over from 32.2:** wire `paper_trader.execute_buy` to read `strategy_decisions.decided_strategy` and persist `entry_strategy` to `paper_positions`. Today all 11 are backfilled to 'momentum'; new BUYs land with NULL and rely on the fail-CLOSED default.
+3. **Out-of-scope followups documented in masterplan::phase-32.3.implementation_plan.out_of_scope_followups:** per-strategy correlation cap (factor exposure, not just GICS); Risk Judge exit-policy block (P3.1 from phase-31.0 audit).
+4. **Observation:** the `synthesis_agent.md` change adds a NEW optional output field. If existing synthesis runs return no `portfolio_concentration_warning` field, the Risk Judge prompt sees nothing in that slot (or the field is omitted entirely) — backward-compatible. As fresh runs land post-deploy with the field populated, the Risk Judge will see the narrative warning AS WELL AS the raw FACT_LEDGER block, both pointing at the same concentration figure.

@@ -251,6 +251,67 @@ def _parse_json_with_fallback(json_string: str, agent_name: str) -> Optional[dic
         return None
 
 
+def _compute_portfolio_sector_exposure(
+    positions: list[dict],
+    threshold_pct: float = 60.0,
+) -> dict:
+    """phase-32.3: compute portfolio-level sector concentration.
+
+    Pure function over paper_positions rows. Used by run_full_analysis to
+    inject portfolio-level context into the per-ticker FACT_LEDGER so the
+    Risk Judge can reason about concentration risk at prompt time.
+
+    Args:
+        positions: list of paper_position dicts with `sector` and
+            `market_value` fields (may be missing/empty for legacy rows).
+        threshold_pct: concentration trigger; default 60.0. The phase-31.0
+            audit references QuantAgents R_score Risk Alert threshold 0.75
+            (arXiv 2510.04643). 60.0 is more conservative -- fires earlier,
+            aligning with AQR Q1 2025 concentration-paradigm guidance.
+
+    Returns:
+        {
+          "by_sector": {sector_name: pct_of_total_market_value, ...},
+          "max_sector": <sector with highest exposure or None>,
+          "max_sector_exposure_pct": <float 0-100, 0 when empty>,
+          "concentration_warning": <bool, True iff max_pct >= threshold_pct>,
+          "threshold_pct": <threshold_pct>,
+          "total_positions": <int>,
+        }
+    """
+    total_value = 0.0
+    sector_values: dict[str, float] = {}
+    for pos in positions or []:
+        try:
+            mv = float(pos.get("market_value") or 0.0)
+        except (TypeError, ValueError):
+            mv = 0.0
+        if mv <= 0:
+            continue
+        sector = (pos.get("sector") or "").strip() or "Unknown"
+        sector_values[sector] = sector_values.get(sector, 0.0) + mv
+        total_value += mv
+    if total_value <= 0:
+        return {
+            "by_sector": {},
+            "max_sector": None,
+            "max_sector_exposure_pct": 0.0,
+            "concentration_warning": False,
+            "threshold_pct": float(threshold_pct),
+            "total_positions": len(positions or []),
+        }
+    by_sector = {s: round(v / total_value * 100.0, 2) for s, v in sector_values.items()}
+    max_sector = max(by_sector.items(), key=lambda kv: kv[1])
+    return {
+        "by_sector": by_sector,
+        "max_sector": max_sector[0],
+        "max_sector_exposure_pct": max_sector[1],
+        "concentration_warning": bool(max_sector[1] >= threshold_pct),
+        "threshold_pct": float(threshold_pct),
+        "total_positions": len(positions or []),
+    }
+
+
 def _build_fact_ledger(quant_data: dict) -> dict:
     """Build typed fact dict from Step 2 quant + yfinance data.
 
@@ -1485,6 +1546,24 @@ class AnalysisOrchestrator:
         # Build fact ledger from quant data — injected into ALL agent prompts
         # Research: VeNRA typed fact ledger achieves 1.2% hallucination rate
         fact_ledger = _build_fact_ledger(report["quant"])
+        # phase-32.3: inject portfolio-level sector exposure into the per-ticker
+        # FACT_LEDGER so the Risk Judge can reason about concentration risk at
+        # prompt time. Fail-open: any exception logs a warning and stores None
+        # under the field so downstream prompts get an explicit "no data"
+        # rather than crashing the analysis.
+        try:
+            from backend.db.bigquery_client import BigQueryClient
+            _bq_pse = BigQueryClient(self.settings)
+            _positions = _bq_pse.get_paper_positions() or []
+            fact_ledger["portfolio_sector_exposure"] = _compute_portfolio_sector_exposure(
+                _positions, threshold_pct=60.0,
+            )
+        except Exception as _pse_exc:
+            logger.warning(
+                "phase-32.3: portfolio_sector_exposure compute failed (non-fatal): %s",
+                _pse_exc,
+            )
+            fact_ledger["portfolio_sector_exposure"] = None
         fact_ledger_json = json.dumps(fact_ledger, indent=2, default=str)
         report["_fact_ledger"] = fact_ledger
         self._fact_ledger_json = fact_ledger_json  # available to all agent methods

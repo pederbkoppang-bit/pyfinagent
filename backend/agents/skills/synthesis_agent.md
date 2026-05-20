@@ -84,6 +84,7 @@ Step 11 in the 15-step pipeline. Receives data from ALL upstream agents: quant, 
   },
   "final_summary": "<3-5 paragraph narrative thesis>",
   "key_risks": ["<risk 1>", "<risk 2>", "<risk 3>"],
+  "portfolio_concentration_warning": "<phase-32.3: optional 1-2 sentence narrative when FACT_LEDGER.portfolio_sector_exposure.concentration_warning is true. Cite max_sector and max_sector_exposure_pct verbatim. Omit or set to empty string '' when concentration_warning is false or portfolio_sector_exposure is absent.>",
   "citations": [
     { "claim": "<specific metric claim>", "source": "<YFIN|SEC|FRED|AV>", "value": "<exact value from FACT_LEDGER>" }
   ]
