@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-21 | `950b9e7a` | phase-33.1: post-cron observation -- verdict FAILED (cycle halted at Step 5.5) |
 | 2026-05-21 | `2aa062f1` | phase-33.0: pre-flight readiness check -- verdict NOT_READY |
 | 2026-05-21 | `188e28bb` | phase-32.5: dashboard wiring -- prefer paper_positions in _fetch_ticker_meta |
 | 2026-05-21 | `ee991246` | phase-32.4: backfill company names on legacy paper_positions |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-19 | `06922866` | phase-30.3: connect stop-loss exits to learn loop |
 | 2026-05-19 | `7aea8a23` | phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6 |
 | 2026-05-19 | `212f3cc5` | phase-30.1: out-of-band autonomous-cycle heartbeat alarm + pause overnight loop |
-| 2026-05-19 | `c71ff092` | phase-30.0: E2E paper-trading pipeline audit (diagnostic-only) |
 
 ---
 
+### v6.16.1 — phase-33.1: post-cron observation -- verdict FAILED (cycle halted at... (2026-05-21)
+
+- **phase-33.1: post-cron observation -- verdict FAILED (cycle halted at Step 5.5)**
 ### v6.16.0 — phase-33.0: pre-flight readiness check -- verdict NOT_READY (2026-05-21)
 
 - **phase-33.0: pre-flight readiness check -- verdict NOT_READY**
