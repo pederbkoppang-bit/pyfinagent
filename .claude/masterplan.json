@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-20T23:27:32.395870+00:00",
+  "updated_at": "2026-05-21T04:45:30.287350+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -11472,6 +11472,42 @@
             "out_of_scope_followups": [
               "Backfilling additional metadata (industry, market_cap) -- different cycle",
               "Periodic refresh of stale company_name (e.g. post-merger rename) -- not addressed here"
+            ]
+          }
+        },
+        {
+          "id": "32.5",
+          "name": "Dashboard wiring: prefer paper_positions.company_name in _fetch_ticker_meta",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "32.4",
+          "audit_basis": "phase-32.4 closed the data-layer gap (paper_positions.company_name populated for all 11 positions). Dashboard COMPANY column still showed ticker for 9 of 11 because _fetch_ticker_meta at backend/api/paper_trading.py:971 queried analysis_results.company_name only. Operator hotfix request 2026-05-21 after phase-32.4 summary surfaced the wiring gap as a deferred followup. Small (~50 LOC) change to use a UNION-ranked single BQ query that prefers paper_positions over analysis_results.",
+          "verification": {
+            "command": "python -m pytest backend/tests/ -q --tb=line && grep -n 'paper_positions' backend/api/paper_trading.py | head -5",
+            "success_criteria": [
+              "fetch_ticker_meta_paper_positions_primary_source",
+              "analysis_results_fallback_preserved",
+              "yfinance_fallback_preserved",
+              "ticker_as_name_sentinel_filtered_at_sql",
+              "no_regression_full_sweep_285"
+            ],
+            "live_check": "Invoke _fetch_ticker_meta against production with the 11 current tickers; all 11 must return source='paper_positions' with real company_name values (Micron Technology, Inc. for MU, etc.)."
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "implementation_plan": {
+            "summary": "Replace _fetch_ticker_meta Step 1 single-table query with a UNION-ranked query that prefers paper_positions over analysis_results. Filter ticker-as-name sentinels at the SQL layer so a stale analysis_results.company_name=='MU' cannot outrank a real paper_positions value. Surface the winning source in the result dict for operator audit.",
+            "code_steps": [
+              "Modify _fetch_ticker_meta in backend/api/paper_trading.py:971: replace the Step 1 single-table query with a CTE that UNIONs paper_positions (priority 1) and analysis_results (priority 2), filters NULL/empty/ticker-sentinel at the WHERE clause, ranks via ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY priority, sector IS NULL).",
+              "Surface the winning source as 'paper_positions' or 'analysis_results' in the returned dict.",
+              "Preserve Step 2 (yfinance fallback) unchanged."
+            ],
+            "hard_guardrails": [
+              "NO change to /portfolio endpoint shape -- only the underlying _fetch_ticker_meta source-resolution logic",
+              "NO change to paper_trader.py, autonomous_loop.py, or risk_judge.md",
+              "NO mutating BQ writes -- read-only query",
+              "Preserve graceful fallback (try/except already in place)"
             ]
           }
         }

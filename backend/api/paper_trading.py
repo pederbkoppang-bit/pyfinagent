@@ -971,25 +971,68 @@ def _yfinance_ticker_info(ticker: str) -> dict:
 def _fetch_ticker_meta(tickers: list[str], settings, bq) -> dict:
     """Resolve {ticker -> {company_name, sector, source}}.
 
-    Strategy:
-      1. Single BQ query against analysis_results for most-recent
-         (company_name, sector) per ticker. company_name is well-populated;
-         sector often NULL on this table.
-      2. For tickers missing EITHER field, fall through to yfinance (slow but
-         caches for 24h via the route's get_api_cache).
+    Strategy (phase-32.5 update):
+      1. Single BQ query that UNIONs paper_positions (priority 1) and
+         analysis_results (priority 2), ranks per ticker, returns the
+         highest-priority non-null name. paper_positions wins because
+         phase-32.4's backfill_missing_company_names keeps it canonical
+         and the autonomous loop refreshes it every cycle; analysis_results
+         may be stale or absent for some tickers.
+      2. For tickers missing OR missing sector, fall through to yfinance
+         (slow but caches for 24h via the route's get_api_cache).
     """
     out: dict[str, dict] = {}
     if not tickers:
         return {"meta": out, "ttl_sec": 86400, "count": 0}
 
-    # Step 1: BQ batch query
+    # Step 1: combined BQ query (paper_positions priority over analysis_results).
+    # Skipping NULL or ticker-as-name sentinels at the SQL layer prevents the
+    # 'legacy fallback' values from outranking a real name from the secondary
+    # source. ROW_NUMBER() picks the lowest priority number per ticker.
     try:
-        query = (
-            "SELECT ticker, ANY_VALUE(company_name) AS company_name, "
-            "ANY_VALUE(sector) AS sector "
-            f"FROM `{settings.gcp_project_id}.{settings.bq_dataset_reports}.analysis_results` "
-            "WHERE ticker IN UNNEST(@tickers) GROUP BY ticker"
-        )
+        dataset = f"{settings.gcp_project_id}.{settings.bq_dataset_reports}"
+        query = f"""
+            WITH combined AS (
+              SELECT
+                ticker,
+                company_name,
+                sector,
+                1 AS priority
+              FROM `{dataset}.paper_positions`
+              WHERE ticker IN UNNEST(@tickers)
+                AND company_name IS NOT NULL
+                AND company_name != ''
+                AND company_name != ticker
+              UNION ALL
+              SELECT
+                ticker,
+                company_name,
+                sector,
+                2 AS priority
+              FROM `{dataset}.analysis_results`
+              WHERE ticker IN UNNEST(@tickers)
+                AND company_name IS NOT NULL
+                AND company_name != ''
+                AND company_name != ticker
+            ),
+            ranked AS (
+              SELECT
+                ticker,
+                company_name,
+                sector,
+                priority,
+                ROW_NUMBER() OVER (
+                  PARTITION BY ticker
+                  ORDER BY priority, sector IS NULL
+                ) AS rn
+              FROM combined
+            )
+            SELECT ticker, ANY_VALUE(company_name) AS company_name,
+                   ANY_VALUE(sector) AS sector, ANY_VALUE(priority) AS priority
+            FROM ranked
+            WHERE rn = 1
+            GROUP BY ticker
+        """
         from google.cloud import bigquery as _bq
         job_config = _bq.QueryJobConfig(query_parameters=[
             _bq.ArrayQueryParameter("tickers", "STRING", tickers),
@@ -999,11 +1042,14 @@ def _fetch_ticker_meta(tickers: list[str], settings, bq) -> dict:
             t = r["ticker"]
             name = r["company_name"]
             sect = r["sector"]
+            priority = r["priority"]
             if t and name:
                 out[t] = {
                     "company_name": name,
                     "sector": sect or "",
-                    "source": "bq",
+                    # phase-32.5: surface which BQ source won so operators
+                    # can audit cache hits / source attribution.
+                    "source": "paper_positions" if priority == 1 else "analysis_results",
                 }
     except Exception as e:
         logger.warning("ticker-meta BQ lookup failed (graceful fallback): %s", e)

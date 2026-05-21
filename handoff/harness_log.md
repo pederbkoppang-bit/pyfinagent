@@ -21430,3 +21430,59 @@ All 4 pending phase-32 steps completed successfully:
 5. Risk Judge exit-policy block (P3.1 from phase-31.0 audit) -- phase-32.x.
 
 **Overnight run ENDS.** Operator wakes up to: 4/4 phase-32 steps done, harness_log carries 4 new cycle blocks, paper_positions fully populated (stops + trailed-up levels + entry_strategy + real company names), Risk Judge prompt now sees the FACT_LEDGER, sector-concentration warning is wired and live-tested. The one operator-visible loose end is the dashboard COMPANY column (still shows ticker for the 9 affected positions until phase-32.5 ships).
+
+## Cycle 5 -- 2026-05-21 (post-overnight hot-fix) -- phase=32.5 result=PASS
+
+**Step name:** Dashboard wiring: prefer paper_positions.company_name in _fetch_ticker_meta.
+**Type:** Operator hot-fix follow-up to phase-32.4. ~50 LOC SQL change in one function.
+
+**Trigger:** operator request after phase-32.4 summary surfaced that the dashboard COMPANY column still showed ticker-as-name for 9 of 11 positions because _fetch_ticker_meta queried analysis_results only (not the newly-populated paper_positions.company_name).
+
+**Research:** inherited from phase-32.4 brief (gate_passed=true, 14 URLs, recency_scan_performed=true). The 32.4 brief explicitly recommended this fix as the "Option A, ~10 LOC" followup. No new external research needed for a SQL rewrite in one function.
+
+**Implementation:**
+- backend/api/paper_trading.py: _fetch_ticker_meta Step 1 query rewritten. CTE UNIONs paper_positions (priority 1) + analysis_results (priority 2). WHERE clause filters NULL/empty/ticker-sentinel on BOTH branches so a stale analysis_results.company_name='MU' cannot outrank a real paper_positions value. ROW_NUMBER() picks lowest-priority-number per ticker. New `source` field reports 'paper_positions' / 'analysis_results' for operator audit. Step 2 yfinance fallback unchanged.
+
+**Tests:** Full sweep 285 passed, 1 skipped, 0 failures. Zero regression (same baseline as phase-32.4 close). No new test file added -- the change is a SQL-only path that existing FakeBQ tests don't exercise; live invocation against production is the definitive verification.
+
+**Live invocation (production BQ):** all 11 current paper_positions tickers resolve via `source='paper_positions'` with real company names:
+- MU -> 'Micron Technology, Inc.'
+- KEYS -> 'Keysight Technologies Inc.'
+- GEV -> 'GE Vernova Inc.' (Industrials)
+- COHR -> 'Coherent Corp.'
+- ON -> 'ON Semiconductor Corporation'
+- INTC -> 'Intel Corporation'
+- DELL -> 'Dell Technologies Inc.'
+- GLW -> 'Corning Incorporated'
+- LITE -> 'Lumentum Holdings Inc.'
+- SNDK -> 'Sandisk Corporation'
+- WDC -> 'Western Digital Corporation'
+
+All 9 originally-broken tickers (MU, KEYS, GEV, COHR, ON, DELL, GLW, LITE, WDC) now return real names. INTC and SNDK previously showed real names via the analysis_results path; they now route through paper_positions (same correct value, more canonical source).
+
+**Dashboard impact:** the `/api/paper-trading/ticker-meta` endpoint caches for 24h. The dashboard COMPANY column will surface real names AT MOST 24h from this commit, or immediately on operator cache-bust (any write through paper-trading mutating endpoints triggers `get_api_cache().invalidate("paper:*")` at line 96).
+
+**Q/A verdict (single agent, first spawn):** PASS. 17/17 checks PASS including the load-bearing live-invoke assertions (all 11 tickers source=paper_positions, MU=Micron Technology Inc.). Zero code-review heuristic findings.
+
+**Scope honesty:** git diff --stat shows ONLY `backend/api/paper_trading.py` + masterplan + handoff artifacts. No edits to paper_trader, autonomous_loop, portfolio_manager, decide_trades, risk_judge, or any agent skill.
+
+**Total cycle time:** ~25 minutes (read + design 4m + edit 3m + live verification 2m + contract+results+live_check 8m + qa 3m + log+flip+commit 5m).
+
+---
+
+## Phase-32 umbrella -- FINAL CLOSE
+
+5 of 5 child steps now done:
+
+| Step | Title | Status | Commit |
+|---|---|---|---|
+| 32.0 | Audit gap report | done | db5350c9 |
+| 32.1 | Breakeven-stop ratchet at +1R | done | 24d03224 |
+| 32.2 | HWM-trailing + Kaminski-Lo guard | done | 2d973b13 |
+| 32.3 | Sector exposure to Risk Judge + prompt bug fix | done | aebf1eee |
+| 32.4 | Company-name backfill (data layer) | done | ee991246 |
+| 32.5 | Dashboard wiring fix (display layer) | done | (this commit) |
+
+The operator-visible loose end from phase-32.4 is now closed. Cumulative phase-32 impact (across all 5 cycles): no NO_STOP positions in production, all momentum positions trailed above entry (SNDK locks in +45%, MU +45%), entry_strategy column populated with fail-CLOSED defaults, Risk Judge prompt now actually receives the FACT_LEDGER (pre-existing bug fixed in 32.3) and carries portfolio_sector_exposure with the 89.34% Tech warning, dashboard COMPANY column now shows real company names from paper_positions canonical source.
+
+Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressions across all 5 cycles.

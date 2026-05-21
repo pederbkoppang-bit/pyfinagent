@@ -1,85 +1,118 @@
-# Evaluator Critique -- phase-32.4 Backfill Company Names on Legacy paper_positions
+# Q/A Evaluator Critique — phase-32.5 Dashboard Wiring Fix
 
-**Date:** 2026-05-21
-**Q/A spawn:** first (no prior CONDITIONAL/FAIL for this step-id)
-**Verdict:** **PASS**
-
----
-
-## 5-Item Harness-Compliance Audit (ALL PASS)
-
-| # | Item | Status | Evidence |
-|---|---|---|---|
-| 1 | Researcher gate | PASS | `handoff/current/research_brief.md` exists; JSON envelope `gate_passed: true`, `external_sources_read_in_full: 6`, `recency_scan_performed: true`, `urls_collected: 14`, `internal_files_inspected: 13`. |
-| 2 | Contract before GENERATE | PASS | mtime(contract.md) 1779319044 < mtime(experiment_results.md) 1779319400 (about 6 minutes apart). Contract cites the brief, hypothesis, immutable success criteria, the dashboard-wiring-gap deferral to phase-32.5. |
-| 3 | Results artifact complete | PASS | Contains: (a) verbatim pytest 6/6 PASS + 285 full sweep + 1 skipped, 0 failures, (b) migration pre/post (two job IDs both Verification OK), (c) live backfill result 11/11 real names, (d) idempotency re-run 0/11 skipped, (e) success-criteria 7-row PASS table, (f) hard-guardrail 5-row PASS table, (g) "Dashboard Wiring Gap" section deferring to phase-32.5. |
-| 4 | Log-last discipline | PASS | `grep -c "phase-32.4" handoff/harness_log.md` returns 1 (only the "Next step" mention from the 32.3 block at line 21367). NO `## Cycle ... phase=32.4` header exists. |
-| 5 | No verdict-shopping | PASS | `evaluator_critique.md` did not exist before this spawn (cf. `git status: D handoff/current/evaluator_critique.md` -- it was an archived 32.3 file that got removed in pre-flight; this is the FIRST 32.4 Q/A spawn). |
+**Step:** `phase-32.5` (hot-fix follow-up to phase-32.4).
+**Date:** 2026-05-21.
+**Q/A spawn:** first spawn (no prior verdict; no second-opinion-shopping possible).
+**Verdict:** **PASS — all 5 immutable success criteria met, all 4 hard guardrails honored, 16/16 explicit checks PASS, zero code-review-heuristic findings (all 5 dimensions clean).**
 
 ---
 
-## Deterministic Re-Verification (ALL PASS)
+## Pre-flight harness-compliance audit (5 items)
 
-| Check | Command + Output |
-|---|---|
-| Pytest new file | `python -m pytest backend/tests/test_phase_32_4_backfill_company_names.py -v` -> 6 passed in 0.78s |
-| Full sweep regression | `python -m pytest backend/tests/ -q --tb=line` -> 285 passed, 1 skipped, 0 failures, 0 regressions |
-| AST parse paper_trader.py | exit 0 |
-| AST parse autonomous_loop.py | exit 0 |
-| AST parse migration | exit 0 |
-| AST parse test file | exit 0 |
-| Grep both files | `paper_trader.py:575` + `autonomous_loop.py:822,826,832` -- helper visible in both |
-| BQ schema check | Table now has 22 fields; `company_name STRING NULLABLE` with phase-32.4 description present |
-| BQ live rows | 11/11 production open positions show real `company_name != ticker AND IS NOT NULL`. Quoted row: `MU: 'Micron Technology, Inc.'`. Other 10 also real (KEYS, GEV, COHR, ON, INTC, DELL, GLW, LITE, SNDK, WDC). |
-| Git diff scope | Modified: `backend/services/{paper_trader,autonomous_loop}.py`, `handoff/current/{contract,experiment_results,research_brief}.md`, `.claude/masterplan.json` and baseline artifacts. New: `backend/tests/test_phase_32_4_backfill_company_names.py`, `scripts/migrations/phase_32_4_add_company_name.py`, `handoff/current/live_check_32.4.md`. NO out-of-scope edits to `portfolio_manager.py`, `decide_trades`, `risk_judge.md`, agent skills, or `synthesis_agent.md`. Baseline-drift OK. |
-
----
-
-## Content Checks (ALL PASS)
-
-| Heuristic | Status | Evidence |
+| Item | Result | Evidence |
 |---|---|---|
-| Helper matches `backfill_missing_stops` template | PASS | `paper_trader.py:575-662` follows the exact pattern at `:506-573`: iterate positions, filter needs-backfill, fail-open lookup, persist via `bq.save_paper_position`, return `{backfilled, skipped, count_backfilled, count_skipped}`. |
-| yfinance chain `shortName` then `longName` | PASS | `paper_trader.py:625` reads `info.get("shortName") or info.get("longName") or ticker` -- matches `paper_trading.py:963` canonical chain exactly. |
-| Sentinel-skip when yfinance returns ticker | PASS | `paper_trader.py:633-637`: `if not resolved or resolved == ticker: skipped.append(ticker); continue`. Prevents persisting ticker-as-name and creating a new sentinel row. |
-| `_POSITION_RT_FIELDS` extended | PASS | `paper_trader.py:919`: `_POSITION_RT_FIELDS = {"mfe_pct", "mae_pct", "stop_advanced_at_R", "entry_strategy", "company_name"}` -- schema-tolerant retry path covers the new column. |
-| Wiring AFTER `check_stop_losses` | PASS | `autonomous_loop.py:812` ends the stop-loss try/except; new helper wired at `:815-834` (Step 5.6 region). Cosmetic uncoupled from safety-critical. Fail-open try/except logs via `logger.exception` (WARNING-level via `.exception` is acceptable; results.md says "WARNING log" -- minor cosmetic discrepancy in description, the actual code uses `.exception` which logs at ERROR level on the failure path; non-blocking for verdict because the requirement is "fail-open + log on yfinance error" and that behavior is satisfied). |
-| Dashboard gap honestly deferred to phase-32.5 | PASS | `experiment_results.md:185-194` and `contract.md:17` BOTH document the wiring gap: dashboard reads `tickerMeta[pos.ticker]?.company_name` from `_fetch_ticker_meta` (BQ `analysis_results` + yfinance fallback), NOT `paper_positions.company_name`. Phase-32.5 candidate spec listed. Not papered over. |
+| 1. Researcher gate present (inherited from phase-32.4 per contract) | PASS | `handoff/archive/phase-32.4/research_brief.md` exists (30,232 bytes, mtime 21 mai 01:21). Contract explicitly notes inheritance and the gap mechanics + recommendation are documented there. Lightweight hot-fix; no new external research required per contract. |
+| 2. Contract written BEFORE experiment_results | PASS | `contract.md` mtime 1779338394 < `experiment_results.md` mtime 1779338446 (52s ordering gap, correct direction). |
+| 3. Results artifact complete (5 subsections) | PASS | (a) Full sweep verbatim output, (b) live invocation 11-row table with source attribution, (c) 5/5 success-criteria check, (d) 4/4 hard-guardrail check, (e) what-changed summary all present. |
+| 4. Log-last not yet appended | PASS | `handoff/harness_log.md` tail is phase-32.4 PASS cycle block; phase-32.5 cycle entry absent (correct — log is appended AFTER Q/A PASS). |
+| 5. First Q/A spawn (no verdict-shopping) | PASS | `handoff/current/evaluator_critique.md` did not exist before this write; prior file was the phase-32.4 critique that was archived to `handoff/archive/phase-32.4/evaluator_critique.md`. No cycle-2 rebuttal context — sycophancy-under-rebuttal risk N/A. |
 
 ---
 
-## Code-Review Heuristics (Phase-16.59 framework)
+## Deterministic checks (all PASS)
 
-| Dimension | Heuristics evaluated | Findings |
+| Check | Result | Evidence |
 |---|---|---|
-| Security | secret-in-diff, prompt-injection-path, command-injection, insecure-output-handling, supply-chain-dep-pin-removal, yaml-unsafe-load, pickle-deserialization, system-prompt-leakage, rag-memory-poisoning, unbounded-llm-loop, excessive-agency, owasp-headers-bypass | NONE fire. No new secrets, no LLM call added, no subprocess, no new dep pin removed. Helper uses `yf.Ticker(ticker).info` only (no eval/exec/network-from-user-input). |
-| Trading domain | kill-switch-reachability, stop-loss-always-set, perf-metrics-bypass, position-sizing-div-zero, max-position-check-bypass, bq-schema-migration-safety, stop-loss-backfill-removal, crypto-asset-class, sod-nav-anchor, paper-trader-broad-except | NONE fire. The new helper does NOT affect any execution path (no `decide_trades` / `check_stop_losses` / `execute_buy` / `execute_sell` changes). BQ migration adds NULLABLE column with `ADD COLUMN IF NOT EXISTS` -- safe (no NOT NULL constraint, no DROP). |
-| Code quality | broad-except, no-type-hints, print-statement, global-mutable-state, test-coverage-delta, unicode-in-logger, magic-number, composition-over-inheritance | NONE fire. The two `try/except Exception` blocks at `paper_trader.py:626,650` are in a cosmetic helper, surfaced with `logger.warning` / `logger.exception` (not silent), and explicitly required by the "fail-open" hard guardrail #4. Acceptable per the negation list ("broad `except` in vendored or required-fail-open paths"). +95 lines business logic AND +180 lines of new tests -> coverage delta does NOT fire. |
-| Anti-rubber-stamp | financial-logic-without-behavioral-test, tautological-assertion, over-mocked-test, rename-as-refactor, pass-on-all-criteria-no-evidence, formula-drift-without-citation | NONE fire. The helper is NOT financial logic (cosmetic-only -- explicit guardrail #1). Tests use real `PaperTrader` instance with `bq` mocked at the boundary (not the SUT). No risk constants changed. Evaluator includes file:line citations on every criterion. |
-| LLM-evaluator anti-patterns | sycophancy-under-rebuttal, second-opinion-shopping, missing-chain-of-thought, 3rd-conditional-not-escalated, position-bias, verbosity-bias, criteria-erosion, self-reference-confidence | NONE fire. First Q/A spawn (no prior verdicts). All criteria carry file:line citations + verbatim outputs. |
-
-**Final heuristics tally: 0 BLOCK, 0 WARN, 0 NOTE.**
+| AST parse `backend/api/paper_trading.py` | PASS | `python -c "import ast; ast.parse(...)"` exit 0, prints "AST OK" |
+| `grep -n 'paper_positions' backend/api/paper_trading.py | head -5` | PASS | 5 hits (lines 975, 977, 988, 1001, 1052) — exceeds the contract floor of "≥3 hits" |
+| Full pytest sweep (regression gate, criterion #5) | PASS | `285 passed, 1 skipped, 1 warning in 17.56s`. Zero regression vs phase-32.4 baseline of 285. |
+| Live invocation against production BQ | PASS | All 11 tickers returned `source='paper_positions'` with real company names. MU='Micron Technology, Inc.', KEYS='Keysight Technologies Inc.', GEV='GE Vernova Inc.' (Industrials), COHR='Coherent Corp.', ON='ON Semiconductor Corporation', INTC='Intel Corporation', DELL='Dell Technologies Inc.', GLW='Corning Incorporated', LITE='Lumentum Holdings Inc.', SNDK='Sandisk Corporation', WDC='Western Digital Corporation'. count=11 assertion held. |
+| Scope honesty (git diff --stat) | PASS | Only `backend/api/paper_trading.py` (+60/-14) in code path; remaining diff is masterplan + handoff artifacts + autogenerated audit log + ablation TSV / MDA cache (background harness artifacts — unrelated). NO touches to `paper_trader.py`, `autonomous_loop.py`, `portfolio_manager.py`, `decide_trades`, `risk_judge.md`, `risk_stance.md`, `synthesis_agent.md`, `quant_strategy.md`, `agent_definitions.py`. |
 
 ---
 
-## Anti-Rubber-Stamp Trigger Sweep
+## Content checks (all PASS, code inspected at file:line)
 
-| Trigger | Fired? | Status |
+| Check | Result | Evidence (file:line) |
 |---|---|---|
-| Tests don't pass | NO | 6/6 + 285/285, exit 0 |
-| Migration column missing | NO | `company_name STRING NULLABLE` present in schema (verified live) |
-| Live backfill < 9 of 11 | NO | 11/11 real names (delivered 11 vs masterplan floor of 8) |
-| Helper sentinel-skip missing | NO | Lines 633-637 skip when `resolved == ticker` |
-| Wiring puts helper BEFORE `check_stop_losses` | NO | Wired AFTER (lines 815-834, post the stop-loss try/except at :812) |
-| Log appended before Q/A | NO | No `## Cycle ... phase=32.4` header in `handoff/harness_log.md` |
+| UNION ALL CTE with priority 1 (paper_positions) + priority 2 (analysis_results) | PASS | `backend/api/paper_trading.py:995-1016`. `combined` CTE with `1 AS priority` and `2 AS priority` literals. |
+| ROW_NUMBER() rank correct (priority asc, then sector-non-null preferred) | PASS | `:1024-1027` `ORDER BY priority, sector IS NULL` — `sector IS NULL` evaluates 1/0, so non-null sectors sort first within same priority. |
+| Ticker-as-name sentinel filter on BOTH branches | PASS | paper_positions branch: `:1003-1005` `IS NOT NULL` + `!= ''` + `!= ticker`. analysis_results branch: `:1014-1016` identical three predicates. A stale `analysis_results.company_name='MU'` row cannot survive the WHERE clause and so cannot outrank `paper_positions`. |
+| Source field attribution correct | PASS | `:1052` ternary: `"paper_positions" if priority == 1 else "analysis_results"`. Verified live: all 11 returned `paper_positions`. |
+| yfinance Step 2 fallback preserved | PASS | `:1057-1086` `tickers_needing_yf` logic unchanged, ThreadPoolExecutor max_workers=5 preserved, fallthrough triggers when `out.get(t) is None OR not out.get(t, {}).get('sector')`. |
+| Existing try/except graceful fallback wraps entire BQ query | PASS | `:992-1055` `try:` opens before `dataset =` and the `except Exception as e:` at `:1054` logs a warning and falls through to yfinance. Matches the documented graceful-fallback pattern for the dashboard-metadata path. |
+| No edits to `/portfolio` endpoint shape | PASS | `get_portfolio` endpoint logic untouched; only the `_fetch_ticker_meta` helper was modified. |
+
+---
+
+## Code-review heuristics (5 dimensions, zero findings)
+
+### Dimension 1 — Security audit (LLM Top-10 2025): PASS, no findings
+
+- **secret-in-diff:** no API keys/tokens/credentials in diff. PASS.
+- **prompt-injection-path:** N/A — no LLM call in `_fetch_ticker_meta`.
+- **command-injection / eval / exec:** none in diff. PASS.
+- **insecure-output-handling:** N/A — no LLM output flows.
+- **supply-chain-dep-pin-removal:** no `requirements.txt`/`pyproject.toml` changes.
+- **yaml-unsafe-load / pickle-deserialization:** none.
+- **system-prompt-leakage:** N/A.
+- **rag-memory-poisoning:** N/A.
+- **unbounded-llm-loop:** N/A.
+- **excessive-agency:** new helper has read-only BQ scope (SELECT-only CTE). PASS.
+- **owasp-headers-bypass:** no new router registration; existing `/ticker-meta` endpoint already in auth-middleware stack. PASS.
+- **SQL injection:** parameterized via `_bq.ArrayQueryParameter("tickers", "STRING", tickers)` at `:1037-1039`. Dataset string is server-side config (`settings.gcp_project_id`, `settings.bq_dataset_reports`), not user input. PASS.
+
+### Dimension 2 — Trading-domain correctness: PASS, no findings
+
+- **kill-switch-reachability:** N/A — this is a dashboard-metadata BQ read, not an execution path.
+- **stop-loss-always-set:** N/A — no buy/sell logic touched.
+- **perf-metrics-bypass:** N/A — no Sharpe/drawdown/alpha computation.
+- **position-sizing-div-zero:** N/A — no vol calculations.
+- **max-position-check-bypass:** N/A — no execution-path changes.
+- **bq-schema-migration-safety:** N/A — read-only query; no DDL.
+- **stop-loss-backfill-removal:** N/A.
+- **crypto-asset-class:** no asset-class config touched.
+- **sod-nav-anchor:** N/A.
+- **paper-trader-broad-except:** the existing `try/except Exception as e:` at `:1054` wraps the BQ query block, logs the failure as a warning, and lets execution fall through to yfinance — this is the documented graceful-fallback pattern for the dashboard-metadata path, NOT the execution path. Negation-list applies. PASS.
+
+### Dimension 3 — Code quality: PASS, no findings
+
+- **broad-except:** the only `except Exception:` in diff is the pre-existing graceful-fallback at `:1054` (logs + falls through, no `pass`). NOTE only, not WARN.
+- **no-type-hints:** signature `_fetch_ticker_meta(tickers: list[str], settings, bq) -> dict` had `settings`/`bq` untyped pre-existing; not regressed.
+- **print-statement:** none introduced.
+- **global-mutable-state:** none.
+- **test-coverage-delta:** ~60 LOC change with no new tests — contract honestly justifies this ("SQL change deeply mocked-out at the test layer; the live invocation against production is the definitive verification"). Live invocation against production BQ with 11/11 rows verified IS behavioral verification. Acceptable for a dashboard-wiring SQL change. NOTE only, not WARN — see Dimension 4 below.
+- **unicode-in-logger:** logger call at `:1055` uses ASCII-only format string. PASS.
+- **magic-number:** `1`/`2` priority literals are documented in the surrounding comment block at `:988-991`. PASS.
+- **composition-over-inheritance:** N/A.
+
+### Dimension 4 — Anti-rubber-stamp on financial logic: PASS, no findings
+
+- **financial-logic-without-behavioral-test [BLOCK]:** does NOT fire. The change is in `backend/api/paper_trading.py` (dashboard endpoint helper), NOT in `perf_metrics.py`/`risk_engine.py`/`backtest_engine.py`/`backtest_trader.py`. The BLOCK rule is gated on those files specifically. Dashboard wiring is not financial logic in the rubric's sense.
+- **tautological-assertion:** N/A — no new asserts.
+- **over-mocked-test:** N/A — no new tests.
+- **rename-as-refactor:** the diff is a clean SQL rewrite + new helper logic; not a rename masquerading as a behavior change. PASS.
+- **pass-on-all-criteria-no-evidence:** this critique cites verbatim live output, file:line numbers, exact pytest counts, and the actual diff at `:995-1016`/`:1052`. PASS.
+- **formula-drift-without-citation:** no risk constants changed. PASS.
+
+### Dimension 5 — LLM-evaluator anti-patterns: PASS, no findings
+
+- **sycophancy-under-rebuttal:** N/A — this is the first Q/A spawn for phase-32.5 (no prior verdict to flip).
+- **second-opinion-shopping:** N/A — first spawn; no prior critique to overturn on unchanged evidence.
+- **missing-chain-of-thought:** this critique cites `backend/api/paper_trading.py:995-1016`, `:1003-1005`, `:1014-1016`, `:1024-1027`, `:1052`, `:1054`, `:1057-1086`, live invocation output table with all 11 rows, pytest count `285 passed, 1 skipped`. PASS.
+- **3rd-conditional-not-escalated:** N/A — `handoff/harness_log.md` shows phase-32.5 is fresh (no prior CONDITIONALs).
+- **position-bias / verbosity-bias / criteria-erosion:** none. All 5 contract success criteria explicitly addressed in the order they appear in the contract.
+- **self-reference-confidence:** PASS does not rely on "the generator confirms X" — every PASS row cites an external artifact (live BQ output, pytest output, file:line).
 
 ---
 
 ## Justification
 
-This is a textbook cosmetic-backfill cycle: scope narrow, template followed (mirrors `backfill_missing_stops` exactly), idempotency proven both in unit tests (`test_backfill_idempotent_on_real_names`) and in live re-invocation (second run returns `{count_backfilled: 0, count_skipped: 11}`), and the dashboard-wiring gap is HONESTLY surfaced as out-of-band/deferred to phase-32.5 rather than papered over. The yfinance chain follows the canonical `shortName -> longName -> ticker` order at `backend/api/paper_trading.py:963` (the researcher correctly caught and flagged that the masterplan implementation_plan had the order inverted). All 7 immutable success criteria PASS with file:line citations. All 5 hard guardrails PASS. Zero regressions (+6 tests, 285 full sweep clean). 11 of 11 production positions now carry real company names in `paper_positions.company_name` (delivered 11 vs masterplan floor of 8 of 9). 5-item harness-compliance audit PASS. 0 code-review heuristic findings across all 5 dimensions. First Q/A spawn -- no verdict-shopping risk.
+Phase-32.5 is a tightly-scoped 60-LOC SQL rewrite to `_fetch_ticker_meta` Step 1, replacing a single-table `analysis_results` query with a UNION-ALL CTE that ranks `paper_positions` ahead of `analysis_results` per ticker, filters NULL/empty/ticker-sentinel rows at the SQL layer on BOTH source branches, and surfaces the winning source via the `source` field for operator audit. The live invocation against production BQ returns all 11 current paper-trading positions with their real company names (Micron Technology, Inc., Keysight Technologies Inc., GE Vernova Inc., etc.) and `source='paper_positions'` — exactly the contract's load-bearing live-verification requirement. The full pytest sweep is green at 285 passed / 0 failures, matching the phase-32.4 baseline and confirming zero regression. The diff is restricted to `backend/api/paper_trading.py` plus the expected handoff/masterplan/audit-log artifacts; no out-of-scope touches to risk-engine, paper-trader, autonomous-loop, portfolio-manager, decide-trades, or any agent skill. The ticker-as-name sentinel filter at `:1003-1005` and `:1014-1016` is the critical correctness invariant that prevents a stale `analysis_results.company_name='MU'` row from outranking the real `paper_positions` value — and it is in place on both source branches. All 5 code-review dimensions are clean. Verdict: **PASS**.
 
 ---
+
+## JSON envelope
 
 ```json
 {
@@ -89,31 +122,23 @@ This is a textbook cosmetic-backfill cycle: scope narrow, template followed (mir
   "violation_details": [],
   "certified_fallback": null,
   "checks_run": {
-    "harness_compliance_audit_5_items": "PASS",
-    "researcher_gate": "PASS",
+    "harness_compliance_5_items": "PASS",
+    "research_inherited_from_32_4": "PASS",
     "contract_before_generate_mtime": "PASS",
-    "results_artifact_7_subsections": "PASS",
+    "results_artifact_5_subsections": "PASS",
     "log_last_not_yet_appended": "PASS",
     "no_verdict_shopping_first_qa": "PASS",
-    "pytest_new_file_6_pass": "PASS",
-    "pytest_full_sweep_285_no_regression": "PASS",
-    "ast_parse_paper_trader": "PASS",
-    "ast_parse_autonomous_loop": "PASS",
-    "grep_helper_visible_both_files": "PASS",
-    "bq_schema_has_company_name": "PASS",
-    "bq_live_rows_all_11_real_names": "PASS",
+    "pytest_full_sweep_no_regression": "PASS",
+    "ast_parse_paper_trading": "PASS",
+    "grep_paper_positions_visible": "PASS",
+    "live_invoke_all_11_paper_positions_source": "PASS",
+    "live_invoke_mu_real_name": "PASS",
     "scope_honesty_diff_check": "PASS",
-    "helper_matches_template": "PASS",
-    "yfinance_chain_shortName_then_longName": "PASS",
-    "sentinel_skip_on_ticker_response": "PASS",
-    "position_rt_fields_extended": "PASS",
-    "wiring_after_check_stop_losses": "PASS",
-    "dashboard_gap_honestly_deferred_to_32_5": "PASS",
-    "code_review_heuristics_security": "PASS",
-    "code_review_heuristics_trading_domain": "PASS",
-    "code_review_heuristics_code_quality": "PASS",
-    "code_review_heuristics_anti_rubber_stamp": "PASS",
-    "code_review_heuristics_evaluator_anti_patterns": "PASS"
+    "union_query_with_priority_correct": "PASS",
+    "ticker_sentinel_filter_present": "PASS",
+    "yfinance_fallback_preserved": "PASS",
+    "source_field_attribution_correct": "PASS",
+    "code_review_heuristics": "PASS (5 dimensions, zero findings)"
   }
 }
 ```
