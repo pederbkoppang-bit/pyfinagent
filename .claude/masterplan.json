@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-21T05:19:22.225185+00:00",
+  "updated_at": "2026-05-21T18:23:53.529842+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -11539,6 +11539,27 @@
               "live_check_quotes_top_3_blocker_risks"
             ],
             "live_check": "Operator reviews handoff/current/live_check_33.0.md for the verdict + 9-row category table BEFORE the next autonomous cron fires."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "33.1",
+          "name": "Post-cron observation -- first post-phase-32 autonomous cycle",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "33.0",
+          "audit_basis": "Phase-33.0 produced NOT_READY verdict (kill switch paused + Anthropic credit). At 18:00 UTC 2026-05-21 the cron fired and completed in 321s (cycle_id=8df751b3, n_trades=0). Operator must have cleared the blockers. This cycle verifies that the phase-32.1-32.5 architectural changes actually fired correctly in the live cycle.",
+          "verification": {
+            "command": "test -f handoff/current/experiment_results.md && test -f handoff/current/live_check_33.1.md && grep -qE 'HEALTHY|DEGRADED|FAILED' handoff/current/live_check_33.1.md",
+            "success_criteria": [
+              "9_probes_each_with_PASS_WARN_FAIL",
+              "single_top_level_verdict_HEALTHY_DEGRADED_or_FAILED",
+              "no_code_edits_no_mutating_bq_or_alpaca_or_llm",
+              "live_check_quotes_top_3_followups"
+            ],
+            "live_check": "live_check_33.1.md carries verdict + 9-row table + top-3 followups for tomorrow's cycle."
           },
           "retry_count": 0,
           "max_retries": 3

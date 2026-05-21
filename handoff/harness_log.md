@@ -21538,3 +21538,43 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 **Total cycle time:** ~35 minutes (researcher 5m + contract 2m + 9 probes 8m + experiment_results+live_check 8m + qa 5m + log+flip+commit 7m).
 
 **Operator action window:** ~3.5 hours from this commit (now ~01:35 UTC) to the next cron at 18:00 UTC. Two 30-second fixes flip the verdict from NOT_READY to READY.
+
+## Cycle 7 -- 2026-05-21 (post-cron observation) -- phase=33.1 result=Q/A_PASS / observation=FAILED
+
+**Step name:** Post-cron observation of the first post-phase-32 autonomous paper-trading cycle.
+**Type:** Diagnostic-only. NO code edits, NO mutating BQ/Alpaca/LLM calls. 9-row traffic-light verdict.
+
+**Cycle observed:** cycle_id `8df751b3`, started 2026-05-21T18:00:00.415Z, completed 18:05:21.983Z, duration 321 sec, n_trades=0.
+
+**Observation verdict:** FAILED (2 FAIL + 4 WARN + 2 PASS + 1 N/A per the corrected per-category audit; verbatim mapping in experiment_results.md).
+
+**Critical finding:** BOTH phase-33.0 blockers remain UNRESOLVED. The cycle halted at Step 5.5 (backend.log:1691328, 20:04:12 CEST: "kill-switch active -- skipping decide/execute"). Live API at observation time confirms `paused: true, pause_reason: "manual"`, set 2026-05-19 19:34 UTC, never resumed. The 28 Anthropic credit-balance errors during Step 3 are a secondary independent blocker; even if the kill switch were resumed, every synthesis call would fail.
+
+**What ran (today's cycle):** Step 1 Screen -> Step 3 Analyze (28 LLM calls failed with HTTP 400 credit-exhaustion across MU/KEYS/COHR/ON/INTC/DELL/GLW/LITE/SNDK/WDC/GEV + candidates) -> Step 5 Mark-to-market (yfinance refresh, breakeven idempotent-skip, trail no-new-peak no-op -- all correct) -> Step 5.5 kill-switch check -> HALTED.
+
+**What did NOT run:** Step 5.6 stop-loss enforcement + 2 backfill helpers; Step 6 decide_trades; Step 7 execute; Step 8 final snapshot (the cleanup MTM in the halt branch ran instead).
+
+**Initial-analysis correction:** my first pass grep matched Day-1 (2026-05-19, cycle dcf05853) step traces and incorrectly concluded "operator resumed kill switch." Corrected after researcher landed and line-numbered the today-window inspection. experiment_results.md + live_check_33.1.md were rewritten with the corrected halt narrative.
+
+**Phase-32 deterministic features confirmed STILL WORKING:**
+- mark_to_market with breakeven ratchet idempotency (correct skip when stop_advanced_at_R already set on all 10 trailed positions)
+- mark_to_market with HWM-trail no-new-peak no-op (no false fire when MFE didn't advance)
+- paper_positions state intact: 11 positions, 10 trailed above entry (SNDK +45%, MU +45% from yesterday's first MTM), all with real company_name, all with entry_strategy='momentum'
+
+**Phase-32 LLM-dependent features could NOT be verified in production:**
+- Risk Judge consuming portfolio_sector_exposure (phase-32.3) -- never reached
+- Synthesis emitting portfolio_concentration_warning (phase-32.3) -- analysis_results empty for today
+- _fetch_ticker_meta paper_positions priority (phase-32.5) -- not exercised by paused cron
+
+**Q/A verdict (single agent, first spawn):** Meta-verdict PASS on all 16 checks. 3 documentation accuracy notes (credit error count 22 vs deterministic 28; baseline-drift cache files in git status; probe-count summary one-off) -- all minor polish, not protocol breaches. Observation outcome FAILED is the correct under-contract result.
+
+**Scope honesty:** git diff --stat backend/ scripts/ = empty (no cycle-authored code edits).
+
+**Two consecutive halted crons:** 2026-05-20 + 2026-05-21 both halted at Step 5.5. Next scheduled: Friday 2026-05-22 18:00 UTC. Will be the THIRD halted cron unless operator resumes the kill switch before then.
+
+**Top-3 operator actions (UNCHANGED from phase-33.0; need to actually be done this time):**
+1. Resume kill switch (dashboard button or POST /api/paper-trading/kill-switch/resume) -- SAFE (breach.any_breached=false).
+2. Fund Anthropic OR swap to Gemini (edit backend/.env GEMINI_MODEL=gemini-2.5-pro + launchctl kickstart -k).
+3. Stop-loss geometry sanity check (verify positions like SNDK $1435 stop vs $1392 current actually stop-out on next non-halted cycle).
+
+**Total cycle time:** ~30 min (researcher 7m + contract 2m + initial-pass results 4m + grep correction 3m + rewritten results+live_check 6m + qa 4m + log+flip+commit 4m).
