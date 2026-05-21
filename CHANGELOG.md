@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-21 | `188e28bb` | phase-32.5: dashboard wiring -- prefer paper_positions in _fetch_ticker_meta |
 | 2026-05-21 | `ee991246` | phase-32.4: backfill company names on legacy paper_positions |
 | 2026-05-21 | `aebf1eee` | phase-32.3: surface sector exposure to Risk Judge + fix prompt bug |
 | 2026-05-21 | `2d973b13` | phase-32.2: HWM-trailing stop + Kaminski-Lo adversarial guard |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-19 | `212f3cc5` | phase-30.1: out-of-band autonomous-cycle heartbeat alarm + pause overnight loop |
 | 2026-05-19 | `c71ff092` | phase-30.0: E2E paper-trading pipeline audit (diagnostic-only) |
 | 2026-05-19 | `5ba0c5e5` | phase-29.6: extract qa.md code-review heuristics to skill (FINAL P1 + overnight summary) |
-| 2026-05-19 | `bc3af934` | phase-29.3: register 4 in-app FastMCP servers in .mcp.json (free-only, all ADOPT) |
 
 ---
 
+### v6.15.5 — phase-32.5: dashboard wiring -- prefer paper_positions in _fetch_tick... (2026-05-21)
+
+- **phase-32.5: dashboard wiring -- prefer paper_positions in _fetch_ticker_meta**
 ### v6.15.4 — phase-32.4: backfill company names on legacy paper_positions (2026-05-21)
 
 - **phase-32.4: backfill company names on legacy paper_positions**
