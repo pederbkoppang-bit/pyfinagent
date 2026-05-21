@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-21 | `2aa062f1` | phase-33.0: pre-flight readiness check -- verdict NOT_READY |
 | 2026-05-21 | `188e28bb` | phase-32.5: dashboard wiring -- prefer paper_positions in _fetch_ticker_meta |
 | 2026-05-21 | `ee991246` | phase-32.4: backfill company names on legacy paper_positions |
 | 2026-05-21 | `aebf1eee` | phase-32.3: surface sector exposure to Risk Judge + fix prompt bug |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-19 | `7aea8a23` | phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6 |
 | 2026-05-19 | `212f3cc5` | phase-30.1: out-of-band autonomous-cycle heartbeat alarm + pause overnight loop |
 | 2026-05-19 | `c71ff092` | phase-30.0: E2E paper-trading pipeline audit (diagnostic-only) |
-| 2026-05-19 | `5ba0c5e5` | phase-29.6: extract qa.md code-review heuristics to skill (FINAL P1 + overnight summary) |
 
 ---
 
+### v6.16.0 — phase-33.0: pre-flight readiness check -- verdict NOT_READY (2026-05-21)
+
+- **phase-33.0: pre-flight readiness check -- verdict NOT_READY**
 ### v6.15.5 — phase-32.5: dashboard wiring -- prefer paper_positions in _fetch_tick... (2026-05-21)
 
 - **phase-32.5: dashboard wiring -- prefer paper_positions in _fetch_ticker_meta**
