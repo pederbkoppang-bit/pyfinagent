@@ -21486,3 +21486,55 @@ All 9 originally-broken tickers (MU, KEYS, GEV, COHR, ON, DELL, GLW, LITE, WDC) 
 The operator-visible loose end from phase-32.4 is now closed. Cumulative phase-32 impact (across all 5 cycles): no NO_STOP positions in production, all momentum positions trailed above entry (SNDK locks in +45%, MU +45%), entry_strategy column populated with fail-CLOSED defaults, Risk Judge prompt now actually receives the FACT_LEDGER (pre-existing bug fixed in 32.3) and carries portfolio_sector_exposure with the 89.34% Tech warning, dashboard COMPANY column now shows real company names from paper_positions canonical source.
 
 Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressions across all 5 cycles.
+
+---
+
+## Cycle 1 -- 2026-05-21 05:17 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=5.52% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 6 -- 2026-05-21 (post-32.x hot-fix) -- phase=33.0 result=PASS / readiness=NOT_READY
+
+**Step name:** Pre-flight readiness check for next paper-trading cycle (Mon-Fri 14:00 ET = 18:00 UTC = 20:00 Oslo).
+**Type:** Diagnostic-only. NO code edits, NO mutating BQ/Alpaca/LLM calls. Produces a single traffic-light readiness verdict + 9-row category table.
+
+**Researcher gate (simple/internal tier):** PASS. 10 internal files inspected; recency_scan_performed=true (transitively inherited from phase-31.0 brief; external-floor waived for the simple/internal tier per the contract). Brief at handoff/current/research_brief.md.
+
+**9 probes (per the contract):**
+| # | Category | Verdict |
+|---|---|---|
+| A | Infra health (backend /api/health 200, frontend :3000 302, 3 MCP servers ok) | PASS |
+| B | BQ schema (paper_positions has stop_advanced_at_R + entry_strategy + company_name + sector; paper_trades has round-trip cols) | PASS |
+| C | Code paths (6 import smokes + pytest 285 passed) | PASS |
+| D | Data integrity (no_stop=0, null_entry_strategy=0, company_name_sentinel=0) | PASS |
+| E | Trailed stops (10 of 11 trailed above entry) | PASS |
+| F | Risk Judge prompt wiring (FACT_LEDGER block renders, no literal placeholder leak, portfolio_sector_exposure visible) | PASS |
+| G | Kill switch state (paused=true, manual, since 2026-05-19 19:34 UTC; breach.any_breached=false so resume is safe) | **FAIL** |
+| H | Caps headroom (positions 11/20 OK, cash $10K OK; Tech sector 49.54% NAV exceeds 30% pre-trade cap -- grandfathered, blocks new Tech buys only) | WARN |
+| I | Scheduler + LLM (cron armed for 18:00 UTC; settings.gemini_model='claude-sonnet-4-6' routes to Anthropic; balance last-known empty per phase-31.1 Stage 3, no funding/swap since) | **FAIL** |
+
+**Top-level readiness verdict:** **NOT_READY** (2 FAIL → blocker; the WARN is advisory).
+
+**Top-3 operator blockers (from live_check_33.0.md):**
+1. Resume the kill switch via the dashboard OR POST /api/paper-trading/kill-switch/resume. Safe -- breach.any_breached=false.
+2. Decide LLM route: (A) fund Anthropic at console.anthropic.com/settings/billing OR (B) edit backend/.env to GEMINI_MODEL=gemini-2.5-pro and `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`.
+3. Advisory: Tech is 49.54% NAV vs 30% cap; new Tech BUYs will be blocked. Optional manual Tech-sell to make room.
+
+**Q/A verdict (single agent, first spawn):** Meta-verdict PASS on all 17 checks (the diagnostic cycle MET its contract); top-level readiness verdict NOT_READY (the production system is NOT ready for the next cron). Both correct -- orthogonal axes.
+
+**Scope honesty:** git diff --stat backend/ scripts/ is empty for this cycle. The only backend/ drift (feature_ablation_results.tsv + mda_cache.json) was written 4 hours pre-cycle by the launchd com.pyfinagent.ablation job at 03:20 UTC -- not phase-33.0's doing.
+
+**Total cycle time:** ~35 minutes (researcher 5m + contract 2m + 9 probes 8m + experiment_results+live_check 8m + qa 5m + log+flip+commit 7m).
+
+**Operator action window:** ~3.5 hours from this commit (now ~01:35 UTC) to the next cron at 18:00 UTC. Two 30-second fixes flip the verdict from NOT_READY to READY.

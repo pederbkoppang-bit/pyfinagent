@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-21T04:45:30.287350+00:00",
+  "updated_at": "2026-05-21T05:19:22.225185+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -11510,6 +11510,38 @@
               "Preserve graceful fallback (try/except already in place)"
             ]
           }
+        }
+      ]
+    },
+    {
+      "id": "phase-33",
+      "name": "Pre-Flight Readiness Checks",
+      "status": "done",
+      "depends_on": [
+        "phase-32"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "33.0",
+          "name": "Pre-flight readiness check for next paper-trading cycle",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "Phase-32.5 closed the dashboard-wiring loose end; before the next autonomous cron fires, operator wants a single-page traffic-light verdict (READY/CONDITIONAL/NOT_READY) confirming infra/schema/code/data/risk/scheduler are all healthy post-phase-32 deploy.",
+          "verification": {
+            "command": "test -f handoff/current/experiment_results.md && test -f handoff/current/live_check_33.0.md && grep -qE 'READY|CONDITIONAL|NOT_READY' handoff/current/live_check_33.0.md",
+            "success_criteria": [
+              "9_categories_each_with_PASS_WARN_FAIL_verdict",
+              "single_top_level_verdict_READY_CONDITIONAL_or_NOT_READY",
+              "no_code_edits_no_mutating_bq_or_alpaca",
+              "live_check_quotes_top_3_blocker_risks"
+            ],
+            "live_check": "Operator reviews handoff/current/live_check_33.0.md for the verdict + 9-row category table BEFORE the next autonomous cron fires."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
