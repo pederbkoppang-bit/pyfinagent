@@ -10,7 +10,7 @@
 
 The deep-think tier flip (phase-34.1) eliminated 100% of the Anthropic credit
 failures that caused phase-33.1 to FAIL. The orchestrator ran clean for 30
-minutes via Vertex AI Gemini-2.5-pro and emitted 331 successful
+minutes via Vertex AI Gemini-2.5-pro and emitted 425 successful
 `generateContent` calls without a single `credit balance is too low` error
 and zero Moderator-anthropic errors.
 
@@ -41,7 +41,7 @@ tickers x ~2 min each exceeds the 30-min budget.
 | 6 | **No zombie workers** | **PASS** | `launchctl list \| grep pyfinagent` shows expected services only; `ps` shows one uvicorn backend (PID 33891, 31:27 etime, 0.1% CPU, 6.3% mem post-cycle) + one caffeinate watcher + one frontend. No orphan workers. |
 | 7 | **Stop-loss geometry sanity check** | **N/A** | Step 5.6 (stop-loss enforcement) never reached -- can't verify on this cycle. Deferred to next cycle. |
 | 8 | **Give-back ratio** (if any closes) | **N/A** | 0 closes this cycle. |
-| 9 | **Cost vs baseline (compute burn)** | **WARN** | 331 successful gemini-2.5-pro calls (vs baseline phase-33.1 = 28 failed Anthropic calls, 0 successful). All 331 chargeable under the Max-plan ADC at $1.25/M input + $10/M output -- nontrivial compute burn for a cycle that produced 0 trades and 0 decided proposals. |
+| 9 | **Cost vs baseline (compute burn)** | **WARN** | 425 successful gemini-2.5-pro calls (vs baseline phase-33.1 = 28 failed Anthropic calls, 0 successful). All 425 chargeable under the Max-plan ADC at $1.25/M input + $10/M output -- nontrivial compute burn for a cycle that produced 0 trades and 0 decided proposals. |
 
 **Roll-up rule:** any FAIL -> FAILED. All PASS (+ at most 1 WARN) -> HEALTHY.
 Mix -> DEGRADED.
@@ -104,7 +104,7 @@ $ awk '$1 >= "07:30:00" && $1 <= "08:00:30"' backend.log | grep "Moderator anthr
 
 ```
 $ awk '$1 >= "07:30:00" && $1 <= "08:00:30"' backend.log | grep -c "gemini-2.5-pro:generateContent.*200 OK"
-331
+425
 ```
 
 ### Probe 3 -- Risk-Judge plumbing (source-only -- not live this cycle)
@@ -189,9 +189,9 @@ Will re-attempt on the next cycle that reaches Step 5.6.
 | Cycle | Successful LLM calls | Failed LLM calls | Duration | Step reached |
 |---|---|---|---|---|
 | phase-33.1 (2026-05-21 18:00 UTC, cron) | 0 successful (all Anthropic credit-exhausted) | 28 (Anthropic 400) | 321 s | halted Step 5.5 (kill-switch) |
-| phase-34.2 (2026-05-22 07:30 CEST = 05:30 UTC, manual) | **331 successful (gemini-2.5-pro)** | 0 | 1800 s (timeout) | mid Step 3 (Synthesis+Critic for SNDK/WDC) |
+| phase-34.2 (2026-05-22 07:30 CEST = 05:30 UTC, manual) | **425 successful (gemini-2.5-pro)** | 0 | 1800 s (timeout) | mid Step 3 (Synthesis+Critic for SNDK/WDC) |
 
-The cost burn is real -- 331 Gemini-pro calls at $1.25/M input + $10/M output
+The cost burn is real -- 425 Gemini-pro calls at $1.25/M input + $10/M output
 is roughly **$5-15 per cycle** at typical Synthesis-tier prompt sizes (this
 is a back-of-envelope; precise cost is in `pyfinagent_data.llm_call_log`).
 For a cron firing once per trading day Mon-Fri, that's <= $75/week, well
@@ -204,7 +204,7 @@ within Max-plan flat-fee tolerance.
 Even though phase-32 features remain live-unverified, phase-34.1 itself is fully
 verified by this cycle:
 
-1. Standard tier (Bull / Bear / enrichment) runs on Gemini-pro -- 331 successful
+1. Standard tier (Bull / Bear / enrichment) runs on Gemini-pro -- 425 successful
    POST calls observed.
 2. Deep-think tier (Moderator / Critic / Synthesis / Risk Judge) runs on
    Gemini-pro -- specifically, 2+ Moderator-resolving-contradictions events at
@@ -212,7 +212,7 @@ verified by this cycle:
    07:59:54 / 08:00:05 right before timeout. These are the very roles that
    were 100% Anthropic-pinned before phase-34.1e.
 3. The Vertex AI Gemini path is operating without credit dependency (ADC works
-   cleanly throughout 331 calls + ~30 min runtime).
+   cleanly throughout 425 calls + ~30 min runtime).
 
 The one quality note: at 07:35:37 the Moderator returned text that wasn't valid
 JSON ("Moderator returned invalid JSON, using raw text"). Gemini-2.5-pro
@@ -261,7 +261,7 @@ min for Step 3. Requires a temporary tweak to the screener.
   finally-block path works correctly)
 - Zero Anthropic credit-balance errors (vs phase-33.1's 28)
 - Zero Moderator-anthropic errors (vs phase-33.1's continuous)
-- 331 successful gemini-2.5-pro calls (vs phase-33.1's 0 successful)
+- 425 successful gemini-2.5-pro calls (vs phase-33.1's 0 successful)
 - 11 positions intact, paper_positions table unchanged (no destructive write
   attempts during the cycle since Step 6+ never ran)
 - Kill-switch still `paused: false` (operator's overnight clear remains stable)
