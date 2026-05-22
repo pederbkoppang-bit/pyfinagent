@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `b956e164` | phase-34.2 corrective: cycle 3 HEALTHY -- phase-32 features live-verified |
 | 2026-05-22 | `ac9c1484` | phase-34: corrective harness_log.md append (Q/A CONDITIONAL post-flip) |
 | 2026-05-22 | `29ab0ff6` | phase-34.2: Post-cron observation -- first clean cycle with phase-32 features in the hot path |
 | 2026-05-21 | `950b9e7a` | phase-33.1: post-cron observation -- verdict FAILED (cycle halted at Step 5.5) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-19 | `0b8609bb` | phase-30.7: MAS strategy-router production wiring audit + per-cycle heartbeat |
 | 2026-05-19 | `4e94e4ba` | phase-30.6: price-tolerance pre-trade gate in execute_buy |
 | 2026-05-19 | `1a818932` | phase-30.5: sector cap NAV-percentage cap alongside count cap |
-| 2026-05-19 | `06922866` | phase-30.3: connect stop-loss exits to learn loop |
 
 ---
 
+### v6.16.4 — phase-34.2 corrective: cycle 3 HEALTHY -- phase-32 features live-veri... (2026-05-22)
+
+- **phase-34.2 corrective: cycle 3 HEALTHY -- phase-32 features live-verified**
 ### v6.16.3 — phase-34: corrective harness_log.md append (Q/A CONDITIONAL post-flip) (2026-05-22)
 
 - **phase-34: corrective harness_log.md append (Q/A CONDITIONAL post-flip)**
