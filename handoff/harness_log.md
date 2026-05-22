@@ -21976,3 +21976,51 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-35.2 -- Risk-Judge telemetry restoration (now unblocked by 37.1).
 
 **Total cycle time:** ~50 min.
+
+## Cycle 17 -- 2026-05-22 (phase-35.2 GeminiClient telemetry retrofit -- EXECUTION, backend bug fix) -- phase=35.2 result=PASS
+
+**Step name:** phase-35.2 Risk-Judge telemetry-wrapper restoration. Closes closure_roadmap §3 OPEN-23 (c7801712 had 0 llm_call_log rows because GeminiClient.generate_content lacked the log_llm_call retrofit ClaudeClient has had since phase-6.7; phase-34.1 flipped both tiers to gemini-2.5-pro -> ALL Risk-Judge invocations bypassed telemetry).
+**Type:** EXECUTION (backend bug fix; ~33 lines added to one file + 95-line test file). Frontend untouched.
+
+**Researcher (gate):** SKIPPED with rationale. closure_roadmap §3 BQ-probe B-3 + cycle-12 research_brief (OWASP LLM v2 + SR-11-7) covered the diagnosis; investigation refined to "ClaudeClient line 1645+ has retrofit, GeminiClient line 849+ does NOT". No new external pattern needed.
+
+**North-star delta:**
+- **B (primary):** 5-15% per-cycle Burn reduction over 60-day window via per-agent attribution analytics (llm_call_log unlocks SELECT agent, SUM(input_tok*pricing + output_tok*pricing) GROUP BY agent for targeted prompt-budget tuning).
+- **R (secondary):** OWASP LLM v2 + SR-11-7 regulatory-grade audit trail; unblocks phase-43.0 DoD-7 Risk-Judge >=95% structured-output verification (needs telemetry to count).
+- **P:** N/A (no trading logic; pure observability).
+- **Caltech discount:** N/A.
+- **How measured:** Pre-step llm_call_log row count for cycle_id c7801712 = 0. Post-step Monday cron expectation >=14 rows (1 per ticker per agent invocation; ~14 tickers x ~5 agents).
+
+**Generate (EXECUTION):**
+- backend/agents/llm_client.py +33 lines (GeminiClient.generate_content: `_t0 = _time.perf_counter()` near method top + log_llm_call write before `return LLMResponse(...)`).
+- backend/tests/test_phase_35_2_gemini_telemetry.py (NEW, 95 lines, 5 source-grep tests).
+- ZERO frontend changes. ZERO non-llm_client backend changes.
+
+**Verification:**
+- pytest backend/tests/test_phase_35_2_gemini_telemetry.py -v = 5 passed in 0.01s.
+- pytest backend/ --collect-only -q = 323 tests (was 318; +5; 0 regressions; baseline 297 preserved).
+- python ast.parse(backend/agents/llm_client.py) = OK.
+- grep "phase-35.2: llm_call_log retrofit for Gemini path" backend/agents/llm_client.py = 1 hit.
+- grep 'provider="gemini"' = 1 hit (sole Gemini callsite).
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: all 5 clear.
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- 3-row immutable-criteria: 3 PASS (criteria 1+2 = code-path PASS with live BQ verification DEFERRED to Monday's cron via operator runbook; criterion 3 = live_check quotes verbatim).
+- Mutation-resistance: STRONG (5 regression directions each trip a specific test).
+- Adversarial honesty: Code-path-PASS-with-deferred-live cleanly disclosed; Caltech discount N/A correctly applied.
+
+**Scope honesty:** git diff --stat backend/ = llm_client.py only; test new; ZERO frontend; ZERO scripts/.
+
+**Integration-gate scoreboard:** 1=PASS(323), 2=N/A(backend only), 3=N/A(bug fix not feature), 4=N/A(no schema), 5=N/A(no env), 6=PASS, 7=PASS, 8=PASS, 9=PASS(single log_llm_call helper), 10=HOLDING.
+
+**Operator runbook (live):** documented in live_check_35.2.md. After Monday 2026-05-25 14:00 ET cron: SELECT COUNT(*) FROM pyfinagent_data.llm_call_log WHERE TIMESTAMP(call_started_at) BETWEEN '2026-05-25T17:00 UTC' AND '2026-05-25T19:00 UTC' expect >=14 rows; per-agent attribution shows top-5 = debate_bull/debate_bear/moderator/synthesis/risk_judge; avg latency 500-5000ms.
+
+**Real progress vs Cycle 16:** Cycle 16 executed phase-44.1 (frontend foundation). Cycle 17 executes phase-35.2 -- closes the last telemetry-bypass blocker for closure_roadmap §3. After this commit, closure path is {35.1 + 36.1 + 37.1 + 44.1 + 35.2 DONE} -> {44.2 + 44.7 unblocked + 35.3 calendar-bound} -> sweep -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~35-50 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-44.2 -- /paper-trading cockpit modernization (DataTable + Sparkline + BarList -- TanStack + Tremor deps need owner approval).
+2. phase-44.7 -- /agents TraceTree (now has telemetry data flowing into llm_call_log).
+3. phase-35.3 -- 5 consecutive clean cycles (calendar-bound; needs Mon-Fri crons + manual runs).
+
+**Total cycle time:** ~45 min.

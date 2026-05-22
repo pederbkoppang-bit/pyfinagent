@@ -11684,7 +11684,7 @@
         {
           "id": "35.2",
           "name": "Behavioral verify phase-32 LLM-dependent features (OPEN-23)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

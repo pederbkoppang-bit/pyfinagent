@@ -861,6 +861,13 @@ class GeminiClient(LLMClient):
         from google.genai import types as _genai_types  # local: avoid import cost if Claude-only session
         import concurrent.futures
 
+        # phase-35.2: start timer for llm_call_log telemetry. Mirror of the
+        # ClaudeClient._t0 pattern at line ~1500. Closes closure_roadmap §3
+        # OPEN-23: Risk-Judge calls bypassed telemetry because phase-34.1
+        # flipped to gemini-2.5-pro but GeminiClient.generate_content lacked
+        # the log_llm_call retrofit that ClaudeClient has at line 1645+.
+        _t0 = _time.perf_counter()
+
         # Fail-open: if the bundle has no client (e.g., SDK absent), return
         # an empty LLMResponse. Matches the shim contract.
         bundle = self._model
@@ -1028,6 +1035,32 @@ class GeminiClient(LLMClient):
             candidates_token_count=getattr(usage, "candidates_token_count", 0) or 0,
             total_token_count=getattr(usage, "total_token_count", 0) or 0,
         ) if usage else UsageMeta()
+
+        # phase-35.2: llm_call_log retrofit for Gemini path (closes OPEN-23 +
+        # closure_roadmap §3 BQ-probe B-3 finding: c7801712 had 0 llm_call_log
+        # rows because GeminiClient.generate_content lacked the same telemetry
+        # write that ClaudeClient.generate_content has at line 1645+). Mirror
+        # the ClaudeClient pattern: pluck _role and _ticker from the
+        # generation_config side-channel; fail-open on any error.
+        _latency_ms = (_time.perf_counter() - _t0) * 1000.0
+        try:
+            from backend.services.observability import log_llm_call as _log_llm_call
+            _log_llm_call(
+                provider="gemini",
+                model=self.model_name,
+                agent=generation_config.get("_role") if isinstance(generation_config, dict) else None,
+                latency_ms=_latency_ms,
+                ttft_ms=_latency_ms,
+                input_tok=umeta.prompt_token_count,
+                output_tok=umeta.candidates_token_count,
+                cache_creation_tok=0,
+                cache_read_tok=0,
+                request_id=None,
+                ok=True,
+                ticker=generation_config.get("_ticker") if isinstance(generation_config, dict) else None,
+            )
+        except Exception as _exc:  # pragma: no cover -- fail-open
+            logger.debug("[GeminiClient] llm_call_log write skipped: %r", _exc)
 
         return LLMResponse(
             text=text,
