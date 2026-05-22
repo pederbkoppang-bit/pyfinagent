@@ -58,8 +58,12 @@ _BUILD_TIER: dict[str, str] = {
     # settings.py:28 -- TRULY Gemini-locked (Vertex AI Search / Search Grounding /
     # Vertex structured-output schemas). DO NOT swap to Claude.
     "gemini_enrichment": "gemini-2.0-flash",
-    # settings.py:29
-    "gemini_deep_think": "gemini-2.5-flash",
+    # settings.py:30 (deep_think_model). phase-37.2: aligned to production (was
+    # gemini-2.5-flash; production env override has been gemini-2.5-pro since
+    # phase-34.1e). Currently dead code (no callsite resolves
+    # "gemini_deep_think" through resolve_model) but kept aligned so any
+    # future caller doesn't silently regress.
+    "gemini_deep_think": "gemini-2.5-pro",
     # phase-22.1 -- Layer-1 swappable skills. Default to gemini-2.0-flash but
     # CAN run on Claude when apply_model_to_all_agents=True. The role is NOT
     # in _GEMINI_LOCKED_ROLES so the override propagates.

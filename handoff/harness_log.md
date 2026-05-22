@@ -22024,3 +22024,52 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-35.3 -- 5 consecutive clean cycles (calendar-bound; needs Mon-Fri crons + manual runs).
 
 **Total cycle time:** ~45 min.
+
+## Cycle 18 -- 2026-05-22 (phase-37.2 source-default alignment OPEN-17 -- EXECUTION, backend config) -- phase=37.2 result=PASS
+
+**Step:** phase-37.2 -- gemini deep-think source default = production
+**Closes:** closure_roadmap.md §3 OPEN-17 (at source layer; operator-side .env cleanup deferred via runbook)
+**Type:** EXECUTION (backend config alignment; 2 single-value defaults + 3 structural tests; zero runtime-behavior change today because env override is already live)
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher` operator override 2026-05-22. `handoff/current/research_brief_phase_37_2.md` -- 5 external sources read in full (Pydantic-settings docs / Muneebdev 2026 Gemini guide / 12-Factor §III / OneUptime 2026-01-30 / Caltech arXiv:2502.15800), 9 internal files inspected, gate_passed=true, 3-variant queries logged, recency scan performed.
+
+**Files touched:**
+- `backend/config/settings.py:30` -- Field default `claude-opus-4-7` -> `gemini-2.5-pro` (+ description rewrite citing phase-37.2 + production-parity rationale)
+- `backend/config/model_tiers.py:66` -- `_BUILD_TIER["gemini_deep_think"]` `gemini-2.5-flash` -> `gemini-2.5-pro` (+ 5-line comment header citing phase-37.2 + dead-code disclosure)
+- `backend/tests/test_phase_37_2_default_alignment.py` (NEW, 3 tests, ~70 lines)
+
+**North-star delta:**
+- **B (defensive):** prevents 1-2 days of degraded cycles per fresh-checkout regression event (silent fall-back to claude-opus-4-7 + Anthropic credit-exhaustion identical to phase-33.1's 2026-05-21 halt).
+- **R (defensive):** OWASP LLM v2 + 12-Factor §III + OneUptime 2026-01-30 production-parity discipline.
+- **P:** zero today (env override is already live; fix is preventative).
+- **Caltech arxiv:2502.15800 discount:** N/A (no decision-quality change; config-hygiene only).
+- **How measured:** `Settings.model_fields["deep_think_model"].default == "gemini-2.5-pro"` (structural); `Settings.model_construct().deep_think_model` resolves to same.
+
+**Verification:**
+- pytest backend/tests/test_phase_37_2_default_alignment.py -v = 3 passed in 0.02s.
+- pytest backend/ --collect-only -q = 326 (was 323 after 35.2; +3 new; 0 regressions).
+- ast.parse(settings.py + model_tiers.py + test) green.
+- git diff --stat frontend/src/ = empty.
+- Mutation-resistance: 3 mutation directions each trip a specific test.
+
+**Q/A verdict (single agent, single spawn):** PASS (first Q/A; no prior CONDITIONALs).
+- 5-item harness-compliance audit: 5/5 clear (researcher SPAWNED per new memory; contract pre-commit; live_check + critique present; log-last HOLDING; not second-opinion-shopping).
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 1 NOTE (pre-existing `_BUILD_TIER` module-level dict pattern; not flagged).
+- 3-row immutable-criteria: 3 PASS (criterion #3 is structural via model_construct; integration caveat for operator's stale .env line documented honestly).
+- Mutation-resistance: STRONG (3 mutation directions tripped).
+- Adversarial honesty: operator-side .env cleanup not glossed; integration-vs-structural distinction openly disclosed.
+
+**Scope honesty:** git diff --stat backend/agents/ + backend/services/ + backend/api/ = empty. Only backend/config/settings.py + backend/config/model_tiers.py modified; test new. ZERO frontend; ZERO scripts/.
+
+**Integration-gate scoreboard (all 10 /goal gates):** 1=PASS(326), 2=PASS, 3=N/A(bug fix), 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS(single source -- settings.py canonical), 10=HOLDING.
+
+**Operator runbook (live cleanup):** documented in live_check_37.2.md. Operator must remove `DEEP_THINK_MODEL=...` line from `backend/.env` + restart backend so Field default takes effect at runtime. 4-step `sed` + launchctl recipe in the live_check. Not blocking 37.2 closure (Main cannot edit .env per permission-block).
+
+**Real progress vs Cycle 17:** Cycle 17 executed phase-35.2 (Gemini telemetry retrofit). Cycle 18 executes phase-37.2 -- closes closure_roadmap §3 OPEN-17 at source layer. After this commit, closure path is {35.1 + 36.1 + 37.1 + 44.1 + 35.2 + 37.2 DONE} -> {44.2 + 44.7 unblocked + 37.4 + 38.*, 39.1, 40.*, 41.0-1 sweep} -> 35.3 (calendar-bound) -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~34-49 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-37.4 -- Moderator response_schema (companion to 37.1; same shape applied to debate.py).
+2. phase-38.3 -- startup banner deep-think log line (~10 LOC; closes the phase-34.1 observability gap).
+3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval like cmdk).
+
+**Total cycle time:** ~45 min (researcher 12m + contract 5m + generate 8m + test iteration 5m + live_check 5m + Q/A 6m + log + flip + push 4m).

@@ -11893,7 +11893,7 @@
         {
           "id": "37.2",
           "name": "gemini deep-think source default = production (OPEN-17)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
