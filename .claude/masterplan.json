@@ -11933,7 +11933,7 @@
         {
           "id": "37.4",
           "name": "Moderator response_schema (companion to 37.1)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "37.1",

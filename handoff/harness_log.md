@@ -22073,3 +22073,47 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval like cmdk).
 
 **Total cycle time:** ~45 min (researcher 12m + contract 5m + generate 8m + test iteration 5m + live_check 5m + Q/A 6m + log + flip + push 4m).
+
+## Cycle 19 -- 2026-05-22 (phase-37.4 Moderator response_schema regression-lock -- EXECUTION, test-only) -- phase=37.4 result=PASS
+
+**Step:** phase-37.4 -- Moderator response_schema regression-lock (pre-closed in source by phase-37.1; this cycle = test-only).
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_37_4.md` -- 6 external sources read in full (Gemini structured-output docs, python-genai issues #782 + #637, TradingAgents arxiv:2412.20138 + CHANGELOG, AI-trading multi-agent debate); gate_passed=true; 3-variant queries logged; recency scan performed.
+
+**Hypothesis (confirmed TRUE by researcher):** phase-37.1's broader include_thoughts guard at `debate.py:65-72` already closed the Moderator invalid-JSON root cause; `_MODERATOR_STRUCTURED_CONFIG` at debate.py:47-51 already had response_schema=ModeratorConsensus since phase-3. Phase-37.4 ships as 5 explicit Moderator-named regression tests + live_check runbook -- no new source edits.
+
+**North-star delta:**
+- **B (defensive):** Locks in the Moderator fallback-elimination realized by phase-37.1.
+- **R (audit trail):** Structured Moderator output unblocks future TraceTree analytics (phase-44.7).
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** 5 new pytest tests asserting (a) `_MODERATOR_STRUCTURED_CONFIG.response_mime_type == "application/json"`, (b) `response_schema is ModeratorConsensus`, (c) `ModeratorConsensus is pydantic.BaseModel`, (d) `_generate_with_retry` omits `include_thoughts` when `response_schema` in config, (e) structural anchor at debate.py:47-51.
+
+**Verification:**
+- pytest backend/tests/test_phase_37_4_moderator_schema.py -v = 5 passed.
+- pytest backend/ --collect-only -q = 331 (was 326 after 37.2; +5 new; 0 regressions).
+- ast.parse(test) green.
+- git diff --stat backend/agents/ + backend/services/ + backend/api/ + backend/config/ = empty.
+- git diff --stat frontend/src/ = empty.
+- Mutation-resistance: 5 of 5 directions trip.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clear (researcher SPAWNED per new memory; contract pre-commit; live_check + critique present; log-last HOLDING; first Q/A so no second-opinion-shopping).
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 1 NOTE (pytest test-function-no-type-hints; allowed by negation list).
+- 2-row immutable-criteria: criterion #1 PASS (source-side schema present since phase-3); criterion #2 PASS code-path + DEFERRED-LIVE (Monday cron grep).
+- Mutation-resistance: STRONG.
+- Adversarial honesty: "ZERO source-code changes" verifiable; "37.1 already shipped the source fix" disclosed openly.
+
+**Scope honesty:** Backend source diff EMPTY across agents/services/api/config. Frontend diff EMPTY. Only new file: test_phase_37_4_moderator_schema.py (119 lines, 5 tests). Plus handoff artifacts.
+
+**Integration-gate scoreboard:** 1=PASS(331), 2=N/A(no FE/source), 3=N/A(test-only), 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Operator runbook (live):** documented in live_check_37.4.md. Monday cron grep `grep -c "Moderator returned invalid JSON" backend.log` expected 0; `grep -c "Moderator resolving contradictions" backend.log` expected >= 14; BQ probe llm_call_log for agent LIKE '%moderator%'.
+
+**Real progress vs Cycle 18:** Cycle 18 closed phase-37.2 (Gemini deep-think source default). Cycle 19 closes phase-37.4 -- last of the OPEN-16 family. After this commit, closure path = {35.1 + 36.1 + 37.1 + 44.1 + 35.2 + 37.2 + 37.4 DONE} -> {38.3 + 39.1 + 40.* + 41.0-1 sweep + 44.2 + 44.7} -> 35.3 (calendar-bound) -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~33-48 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-38.3 -- startup banner deep-think log line (~10 LOC; closes phase-34.1 observability gap).
+2. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval like cmdk).
+3. phase-44.7 -- decision-trace TraceTree (now unblocked by 37.1+37.4 structured Moderator output).
+
+**Total cycle time:** ~35 min.
