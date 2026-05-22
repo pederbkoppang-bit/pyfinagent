@@ -1,0 +1,54 @@
+name: ascii-logger-lint
+
+# phase-38.5: CI lane that runs scripts/qa/ascii_logger_check.py over backend/
+# + scripts/. Today there are 151 existing violations being cleaned up in
+# phase-38.5.1; this lane currently uses `continue-on-error: true` so it
+# surfaces the count on every PR/push without breaking the tree. Once 38.5.1
+# completes the cleanup, phase-38.5.2 flips `continue-on-error` to false and
+# the lane becomes a hard gate.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**/*.py'
+      - 'scripts/**/*.py'
+      - 'scripts/qa/ascii_logger_check.py'
+      - '.github/workflows/ascii-logger-lint.yml'
+  pull_request:
+    paths:
+      - 'backend/**/*.py'
+      - 'scripts/**/*.py'
+      - 'scripts/qa/ascii_logger_check.py'
+      - '.github/workflows/ascii-logger-lint.yml'
+
+jobs:
+  ascii-logger-audit:
+    name: Audit logger.*() strings for non-ASCII chars
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # phase-38.5.2 will flip this to false after phase-38.5.1 sweep completes.
+    # See handoff/current/live_check_38.5.md for the cleanup runbook.
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Run ASCII-only logger check
+        run: |
+          python3 scripts/qa/ascii_logger_check.py --roots backend scripts
+        # exit 0 = clean; exit 1 = violations found; exit 2 = internal error.
+        # `continue-on-error: true` lets the workflow surface the count but
+        # not break the tree until phase-38.5.1 ships the 151-violation cleanup.
+
+      - name: Run script self-tests
+        run: |
+          pip install pytest
+          pytest backend/tests/test_phase_38_5_ascii_logger_check.py -v

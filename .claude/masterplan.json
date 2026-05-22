@@ -12044,7 +12044,7 @@
         {
           "id": "38.5",
           "name": "ASCII-only logger audit (OPEN-14)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
