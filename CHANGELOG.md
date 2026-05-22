@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `7087fe7b` | phase-4: Production Readiness |
 | 2026-05-22 | `aa421893` | phase-44.0: Super-planning: deep research + per-page expanded master design |
 | 2026-05-22 | `32ba02e6` | phase-33.2: Master roadmap to production (super-planning) |
 | 2026-05-22 | `b956e164` | phase-34.2 corrective: cycle 3 HEALTHY -- phase-32 features live-verified |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-20 | `9190a352` | phase-31.0.2: Stage 2 lite-path analysis via Claude Code subagent (4 tickers) |
 | 2026-05-20 | `2ecbb2f5` | phase-31.0.1: e2e pipeline smoketest Stage 1 (screen + rank + sector enrichment) |
 | 2026-05-20 | `392b74da` | phase-30.4 RE-SPAWN: GIPS-correct return series (subtract external flows) |
-| 2026-05-19 | `0b8609bb` | phase-30.7: MAS strategy-router production wiring audit + per-cycle heartbeat |
 
 ---
 
+### v6.17.1 — phase-4: Production Readiness (2026-05-22)
+
+- **phase-4: Production Readiness**
 ### v6.17.0 — phase-44.0: Super-planning: deep research + per-page expanded master... (2026-05-22)
 
 - **phase-44.0: Super-planning: deep research + per-page expanded master design**
