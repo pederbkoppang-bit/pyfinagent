@@ -3293,7 +3293,8 @@
     {
       "id": "phase-4",
       "name": "Production Readiness",
-      "status": "in-progress",
+      "status": "done",
+      "notes": "DROP per phase-45.0 closure_roadmap (2026-05-22): folded into phase-43.0 DoD audit (14-criterion gate is a strict superset of phase-4.9 pre-go-live aggregate smoketest).",
       "depends_on": [
         "phase-2",
         "phase-3",
