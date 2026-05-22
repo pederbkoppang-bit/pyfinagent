@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `b80e8462` | phase-40.2: Claude Code v2.1.140-143 features (OPEN-25) |
 | 2026-05-23 | `719065aa` | phase-40.6: .env pre-commit / CI syntax guard (OPEN-31) |
 | 2026-05-23 | `6a71f9ae` | phase-40.5: Cosmetic _LAUNCHD_JOBS description (OPEN-30) |
 | 2026-05-22 | `320b7dbb` | phase-38.7: SPY benchmark anchor at first-funded snapshot (OPEN-9) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `e9fff90b` | phase-23.7: Harness plumbing: auto-commit-and-push + semver changelog |
 | 2026-05-22 | `05fe9fef` | phase-16: Full-application end-to-end UAT (pre-go-live) |
 | 2026-05-22 | `7087fe7b` | phase-4: Production Readiness |
-| 2026-05-22 | `aa421893` | phase-44.0: Super-planning: deep research + per-page expanded master design |
 
 ---
 
+### v6.17.20 — phase-40.2: Claude Code v2.1.140-143 features (OPEN-25) (2026-05-23)
+
+- **phase-40.2: Claude Code v2.1.140-143 features (OPEN-25)**
 ### v6.17.19 — phase-40.6: .env pre-commit / CI syntax guard (OPEN-31) (2026-05-23)
 
 - **phase-40.6: .env pre-commit / CI syntax guard (OPEN-31)**
