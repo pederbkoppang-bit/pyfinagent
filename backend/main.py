@@ -151,6 +151,42 @@ async def lifespan(app: FastAPI):
             _std_model, _std_provider,
         )
 
+    # phase-38.3: parallel banner for the deep-think tier (Moderator / Critic /
+    # Synthesis / RiskJudge). Closes the observability gap documented in
+    # phase-34.1 + closure_roadmap.md §3 OPEN-12: silent regression to
+    # claude-opus-4-7 + Anthropic credit-exhaustion was hard to spot because
+    # only the standard-tier banner existed. Same provider-detect + warning
+    # logic as the standard tier; greppable via `phase-3[18] model routing`.
+    _dt_model = (settings.deep_think_model or "").strip()
+    if _dt_model.startswith("gemini-"):
+        _dt_provider = "Gemini (Vertex AI or direct AI Studio)"
+        _dt_warning = False
+    elif _dt_model.startswith("claude-"):
+        _dt_provider = "Anthropic Claude API (requires ANTHROPIC_API_KEY + funded balance)"
+        _dt_warning = True
+    elif _dt_model.startswith(("gpt-", "o1", "o3", "o4")):
+        _dt_provider = "OpenAI (requires OPENAI_API_KEY + funded balance)"
+        _dt_warning = True
+    else:
+        _dt_provider = f"unknown (model='{_dt_model}')"
+        _dt_warning = True
+    logging.info(
+        "phase-38.3 model routing: settings.deep_think_model='%s' -> deep-think-tier provider=%s",
+        _dt_model, _dt_provider,
+    )
+    if _dt_warning:
+        logging.warning(
+            "phase-38.3: settings.deep_think_model is set to a non-Gemini model ('%s'). "
+            "The deep-think tier (Moderator/Critic/Synthesis/RiskJudge) routes via "
+            "backend/agents/llm_client.py::make_client. Ensure the API key for "
+            "%s is funded; OR switch to a 'gemini-*' model to use Vertex AI / AI "
+            "Studio (no credit balance dependency). phase-34.1e history: the "
+            "previous claude-opus-4-7 default caused silent regression to Anthropic "
+            "credit-exhaustion on fresh checkout / restart without DEEP_THINK_MODEL "
+            "env override.",
+            _dt_model, _dt_provider,
+        )
+
     # phase-23.1.21: register faulthandler on SIGUSR1 so a hung process can
     # be diagnosed without a kill. Operators (or the watchdog) send
     # `kill -USR1 <pid>` to dump all thread stacks to stderr (which is

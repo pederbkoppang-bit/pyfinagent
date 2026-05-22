@@ -22117,3 +22117,50 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-44.7 -- decision-trace TraceTree (now unblocked by 37.1+37.4 structured Moderator output).
 
 **Total cycle time:** ~35 min.
+
+## Cycle 20 -- 2026-05-22 (phase-38.3 deep-think startup banner -- EXECUTION, ~25 LOC observability addition) -- phase=38.3 result=PASS
+
+**Step:** phase-38.3 -- Startup banner logs deep_think_model (closes closure_roadmap §3 OPEN-12 + phase-34.1's documented observability gap).
+**Mode:** EXECUTION (small observability addition; ~25 LOC mirror of existing standard-tier banner + 5 tests).
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_38_3.md` -- 7 external sources read in full (12-Factor §III + §XI, OWASP LLM 2026, SR-11-7 ModelOp, Portkey 2026 LLM-observability, Honeycomb modern-OTel, Medium AI audit-trail); 6 of 7 are 2026-current; gate_passed=true; 5 internal files inspected; 3-variant queries + recency scan performed. Researcher delivered exact log-line shape; applied verbatim.
+
+**North-star delta:**
+- **B (defensive):** future model-default regressions surface at boot in a single greppable log line + WARNING. Catches the next analogous claude-opus-4-7 silent-regression before it costs cycles.
+- **R (audit-trail):** 12-Factor §XI Logs + Portkey 2026 LLM-observability + SR-11-7 model-routing observability all satisfied.
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** `grep -c "phase-38.3 model routing" backend.log` after next restart = 1; WARNING fires on non-Gemini default.
+
+**Generate (EXECUTION):**
+- backend/main.py +25 lines (after line 152; mirrors standard-tier provider-detect block).
+- backend/tests/test_phase_38_3_deep_think_banner.py (NEW, ~70 lines, 5 source-grep tests).
+- ZERO frontend changes. ZERO other backend file changes. ASCII-only loggers (`->` and `--`).
+
+**Verification:**
+- pytest backend/tests/test_phase_38_3_deep_think_banner.py -v = 5 passed.
+- pytest backend/ --collect-only -q = 336 (was 331 after 37.4; +5; 0 regressions; baseline 297 preserved).
+- ast.parse(main.py) green.
+- grep -c "model routing" backend/main.py shows both phase-31.1 + phase-38.3 banners present.
+- Emoji sweep: 0 in 2 changed files.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clear (researcher SPAWNED + gate passed; contract pre-commit; live_check + critique present; log-last HOLDING; first Q/A so no second-opinion-shopping).
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- 2-row immutable-criteria: criterion #1 PASS (both banners grep-anchored); criterion #2 PASS code-path + DEFERRED-LIVE (next restart).
+- Mutation-resistance: STRONG (5 distinct mutation directions each trip a specific test).
+- Adversarial honesty: deferred-live disclosed; phase-34.1e history reference in WARNING string is honest.
+
+**Scope honesty:** git diff --stat backend/agents/ + backend/services/ + backend/api/ + backend/config/ = empty. Only backend/main.py modified; test new. ZERO frontend; ZERO scripts/.
+
+**Integration-gate scoreboard:** 1=PASS(336), 2=N/A(no FE/source files changed except main.py which is parsed clean), 3=N/A(observability addition, no new behavior gated), 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=PASS, 9=PASS, 10=HOLDING.
+
+**Operator runbook (live):** documented in live_check_38.3.md. After next `launchctl kickstart -k` restart, `grep "model routing" backend.log | tail -4` shows both phase-31.1 + phase-38.3 banners. If operator's stale DEEP_THINK_MODEL=claude-opus-4-7 line in backend/.env still present (see phase-37.2 cleanup), the new WARNING surfaces it at boot.
+
+**Real progress vs Cycle 19:** Cycle 19 closed phase-37.4 (Moderator schema regression-lock). Cycle 20 closes phase-38.3 -- closes the last of the cycle-12-era observability gaps. After this commit, closure path = {35.1 + 36.1 + 37.1 + 44.1 + 35.2 + 37.2 + 37.4 + 38.3 DONE} -> {39.1 owner + 40.* batch + 41.0-1 bundle close + 44.2 + 44.7} -> 35.3 (calendar-bound) -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~32-47 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-40.1 -- OpenAlex key + .env.example (NOTE-tier, simple, no deps).
+2. phase-38.5 -- ASCII-only logger audit + scripts/qa/ascii_logger_check.py (NOTE-tier).
+3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
+
+**Total cycle time:** ~30 min (researcher 12m + contract 3m + generate 5m + test 3m + Q/A 5m + log + flip + push 2m).

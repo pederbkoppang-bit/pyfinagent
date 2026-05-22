@@ -12003,7 +12003,7 @@
         {
           "id": "38.3",
           "name": "Startup banner logs deep_think_model (OPEN-12)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
