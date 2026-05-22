@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `484ec437` | phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23) |
 | 2026-05-22 | `db1e6208` | phase-44.1: Foundation: design tokens + states lib + hooks + Cmd-K + WCAG baseline + Sidebar refresh |
 | 2026-05-22 | `8db36dc3` | phase-37.1: RiskJudge response_schema (OPEN-16) |
 | 2026-05-22 | `25cff9fe` | phase-36.1: Scale-out wiring at +2R / +3R (OPEN-2 -- the last BLOCK) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-21 | `950b9e7a` | phase-33.1: post-cron observation -- verdict FAILED (cycle halted at Step 5.5) |
 | 2026-05-21 | `2aa062f1` | phase-33.0: pre-flight readiness check -- verdict NOT_READY |
 | 2026-05-21 | `188e28bb` | phase-32.5: dashboard wiring -- prefer paper_positions in _fetch_ticker_meta |
-| 2026-05-21 | `ee991246` | phase-32.4: backfill company names on legacy paper_positions |
 
 ---
 
+### v6.17.12 — phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23) (2026-05-22)
+
+- **phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23)**
 ### v6.17.11 — phase-44.1: Foundation: design tokens + states lib + hooks + Cmd-K +... (2026-05-22)
 
 - **phase-44.1: Foundation: design tokens + states lib + hooks + Cmd-K + WCAG baseline + Sidebar refresh**
