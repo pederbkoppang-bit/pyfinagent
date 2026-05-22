@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `3be94e90` | phase-38.3: Startup banner logs deep_think_model (OPEN-12) |
 | 2026-05-22 | `0f6abeff` | phase-37.4: Moderator response_schema (companion to 37.1) |
 | 2026-05-22 | `d887e296` | phase-37.2: gemini deep-think source default = production (OPEN-17) |
 | 2026-05-22 | `484ec437` | phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `b956e164` | phase-34.2 corrective: cycle 3 HEALTHY -- phase-32 features live-verified |
 | 2026-05-22 | `ac9c1484` | phase-34: corrective harness_log.md append (Q/A CONDITIONAL post-flip) |
 | 2026-05-22 | `29ab0ff6` | phase-34.2: Post-cron observation -- first clean cycle with phase-32 features in the hot path |
-| 2026-05-21 | `950b9e7a` | phase-33.1: post-cron observation -- verdict FAILED (cycle halted at Step 5.5) |
 
 ---
 
+### v6.17.15 — phase-38.3: Startup banner logs deep_think_model (OPEN-12) (2026-05-22)
+
+- **phase-38.3: Startup banner logs deep_think_model (OPEN-12)**
 ### v6.17.14 — phase-37.4: Moderator response_schema (companion to 37.1) (2026-05-22)
 
 - **phase-37.4: Moderator response_schema (companion to 37.1)**
