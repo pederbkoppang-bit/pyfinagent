@@ -220,3 +220,6 @@
 {"ts": "2026-05-19T18:03:39.973646+00:00", "event": "sod_snapshot", "nav": 22290.79, "date": "2026-05-19"}
 {"ts": "2026-05-19T19:33:49.882225+00:00", "event": "pause", "trigger": "phase-30-overnight-remediation", "details": {"operator": "claude-code-overnight", "reason": "phase-30.x P1 remediations in progress; loop paused until operator unpauses post-morning-verification", "prior_state_last_sod": "2026-05-19"}}
 {"ts": "2026-05-19T19:34:17.651869+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-05-20T18:03:29.107946+00:00", "event": "sod_snapshot", "nav": 22433.98, "date": "2026-05-20"}
+{"ts": "2026-05-21T18:04:12.976150+00:00", "event": "sod_snapshot", "nav": 22944.87, "date": "2026-05-21"}
+{"ts": "2026-05-22T05:07:21.273041+00:00", "event": "resume", "trigger": "manual", "details": {}}

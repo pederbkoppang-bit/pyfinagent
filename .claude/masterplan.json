@@ -11565,6 +11565,60 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-34",
+      "name": "Unblock the autonomous loop + first live verification of phase-32",
+      "status": "in-progress",
+      "depends_on": [
+        "phase-33"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "34.1",
+          "name": "Pick an LLM route + verify (Gemini vs Anthropic)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "phase-33.1 returned FAILED on 2026-05-21 with two operator blockers: (1) kill switch paused since 2026-05-19 (cleared by operator overnight before this step), (2) Anthropic credit-balance exhausted (22+ credit errors during Step 3 in the 2026-05-21 cycle and 28 in the partial-fix probing). System goal weights cost-minimization; Vertex AI Gemini is free under existing operator ADC. The standard-tier flip (GEMINI_MODEL) was insufficient -- in-flight discovery showed deep-think tier (settings.deep_think_model default='claude-opus-4-7' driving Moderator/Critic/Synthesis/RiskJudge per backend/agents/orchestrator.py:437 + backend/agents/debate.py:306) ALSO needed flipping; both env vars set.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_34.1.md && grep -qE 'PASS|FAIL' handoff/current/live_check_34.1.md && grep -q \"settings.gemini_model='gemini-2.5-pro' -> standard-tier provider=Gemini\" backend.log",
+            "success_criteria": [
+              "phase_31_1_routing_log_line_shows_gemini_provider",
+              "at_least_one_successful_synthesis_call_observed_in_backend_log_no_credit_balance_error_for_that_call",
+              "both_GEMINI_MODEL_and_DEEP_THINK_MODEL_env_vars_set_to_gemini_2_5_pro",
+              "no_backend_source_code_edits_only_env_var_changes"
+            ],
+            "live_check": "live_check_34.1.md carries verdict + before/after table + verbatim routing log lines for both restarts."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "34.2",
+          "name": "Post-cron observation -- first clean cycle with phase-32 features in the hot path",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "34.1",
+          "audit_basis": "phase-32.1 (breakeven ratchet), 32.2 (HWM-trail + Kaminski-Lo adversarial guard), 32.3 (sector exposure surfaced to Risk Judge as portfolio_sector_exposure) have only been smoketested under Claude Code substitution (phase-31.0.*). They've never executed under a real Risk-Judge synthesis because Step 5.5 halts (kill-switch) or Anthropic credit errors kept the loop short across phase-33.0/33.1. After phase-34.1 flipped both tiers to Vertex AI Gemini, this step observes the first end-to-end cycle. OUTCOME: cycle 021ed63e ran clean for 30 min (0 credit errors, 331 successful gemini-2.5-pro calls) but timed out in Step 3 Synthesis+Critic; phase-32 features remain live-unverified; verdict DEGRADED. Next bottleneck: PAPER_CYCLE_MAX_SECONDS default 1800 is too low for full-orchestrator runs without Anthropic-credit fail-fast.",
+          "verification": {
+            "command": "test -f handoff/current/experiment_results.md && test -f handoff/current/live_check_34.2.md && grep -qE 'HEALTHY|DEGRADED|FAILED' handoff/current/live_check_34.2.md",
+            "success_criteria": [
+              "9_probes_each_with_PASS_WARN_FAIL_verdict",
+              "single_top_level_verdict_HEALTHY_DEGRADED_or_FAILED",
+              "portfolio_sector_exposure_block_evidence_either_live_quote_or_source_path_confirmation_when_step_6_did_not_run",
+              "stop_loss_geometry_sanity_check_completed_with_paper_trades_reason_stop_loss_evidence_if_step_5_6_ran",
+              "no_code_edits_no_mutating_bq_or_alpaca_or_llm_outside_the_natural_cycle"
+            ],
+            "live_check": "live_check_34.2.md carries verdict + 9-row probe table + top-3 followups for the next 18:00 UTC cron."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
