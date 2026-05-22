@@ -736,6 +736,31 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             summary["steps"].append("mark_to_market")
             portfolio_state = await asyncio.to_thread(trader.mark_to_market)
 
+            # ── Step 5.4: Scale-out take-profit ladder (phase-36.1) ──
+            # Fires partial-close SELLs at MFE >= 2*R (50% close) and
+            # MFE >= 3*R (remainder close), where R = paper_default_stop_loss_pct.
+            # Gated by settings.paper_scale_out_enabled (default OFF per /goal
+            # gate 3). Idempotent via scale_out_levels_hit JSON column on
+            # paper_positions. Closes phase-31.0 audit P1.3 (only OPEN code
+            # BLOCK on profit-protection per closure_roadmap §2 OPEN-2).
+            # MUST run AFTER mark_to_market (fresh MFE) and BEFORE Step 5.6
+            # stop-loss enforcement (a 3R close at +24% MFE should fire BEFORE
+            # the trail-stop catches up at +trail_pct below the peak).
+            try:
+                scale_out_fires = await asyncio.to_thread(trader.check_scale_out_fires)
+                if scale_out_fires:
+                    summary["steps"].append("scale_out")
+                    summary["scale_out_fires"] = scale_out_fires
+                    logger.info(
+                        "phase-36.1: scale-out fired for %d ticker(s) -- %s",
+                        len(scale_out_fires),
+                        [f"{f['ticker']}/{f['level']}" for f in scale_out_fires],
+                    )
+            except Exception as so_exc:
+                # Fail-open: scale-out is an enhancement, not safety-critical.
+                # Stop-loss enforcement at Step 5.6 still provides the floor.
+                logger.warning("phase-36.1: scale-out check failed (non-fatal): %r", so_exc)
+
             # ── Step 5.5: Kill-switch evaluation (4.5.7) ─────────────
             # If a daily-loss or trailing-DD limit is breached, auto-flatten and
             # pause before any new-order decisions. Also short-circuits if the

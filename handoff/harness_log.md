@@ -21808,3 +21808,65 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-35.2 -- Risk-Judge telemetry-wrapper restoration (depends on phase-37.1).
 
 **Total cycle time:** ~45 min (pre-cycle health 2m + researcher SKIP 2m + contract 5m + generate 18m + pytest 3m + Q/A 7m + live_check 4m + log+flip+push 4m).
+
+## Cycle 14 -- 2026-05-22 (phase-36.1 scale-out take-profit wiring -- EXECUTION, code change) -- phase=36.1 result=PASS
+
+**Step name:** phase-36.1 Scale-Out Take-Profit Wiring (LAST code BLOCK on profit-protection per closure_roadmap §2 OPEN-2).
+**Type:** EXECUTION (NOT plan-only). Backend code change. One harness pass per /goal directive.
+
+**Researcher (gate):** EXPLICITLY SKIPPED with documented rationale per /goal conditional clause. closure_roadmap §2 OPEN-2 already references 31.0-F4 (partial-close primitive at paper_trader.py:290 exists; only caller wiring missing); cycle-12 research_brief.md already covered AFML triple-barrier + AQR adaptive-regime. No new external dependency.
+
+**North-star delta:**
+- **P (primary):** scale-out at +2R/+3R captures gains earlier vs trail-only-to-stop. closure_roadmap §5: +0.3-0.8 Sharpe on backtest fixtures; +5-15% capture-ratio above today's 0.63 baseline. COHR example: 2R/3R ladder would have locked 50% at +16% + remainder at +24% = capture ~0.86 vs realized 0.63.
+- **B (secondary):** ~1 extra BQ write per fire. Negligible.
+- **Caltech arxiv:2502.15800 discount:** N/A (no LLM in decision path; pure deterministic MFE thresholds).
+- **How measured:** Walk-forward Sharpe pre vs post on canonical fixture; capture_ratio mean shift live; long-run deferred to phase-43.0 DoD.
+
+**Generate phase (EXECUTION):**
+- backend/config/settings.py:33 -- new Field paper_scale_out_enabled: bool = Field(False, ...) with verbose docstring.
+- backend/services/paper_trader.py:513-622 -- new method check_scale_out_fires() + _persist_scale_out_levels() helper. Gate on flag (default OFF), compute R from paper_default_stop_loss_pct, thresholds 2R/3R, parse scale_out_levels_hit JSON (NULL/missing -> empty set), at +2R fire execute_sell(qty*0.5, reason="take_profit_2R"), at +3R re-fetch latest position state and fire execute_sell(remainder, reason="take_profit_3R"). Idempotent via set membership. Fail-open WARN logging.
+- backend/services/autonomous_loop.py:739-762 -- wire check_scale_out_fires into Step 5.4 (between mark_to_market and kill-switch). asyncio.to_thread offload. Fail-open try/except (stop-loss at Step 5.6 still the safety floor).
+- scripts/migrations/add_scale_out_levels_hit_column.py (NEW, 73 lines) -- idempotent ALTER TABLE ADD COLUMN IF NOT EXISTS scale_out_levels_hit STRING; --dry-run, --verify, apply modes.
+- backend/tests/test_phase_36_1_scale_out.py (NEW, 164 lines, 9 tests) -- all 5 immutable criteria + integration gates + NULL-column backward-compat.
+- outcome_tracker.py, bigquery_client.py, perf_metrics.py UNCHANGED (single source of truth preserved).
+- ZERO frontend changes. ZERO emojis. ASCII-only loggers.
+
+**Verification:**
+- pytest backend/ --collect-only -q = 311 tests (was 302 after 35.1; +9 new = 0 regressions; baseline 297 preserved).
+- pytest backend/tests/test_phase_36_1_scale_out.py -v = 9 passed in 0.83s.
+- Settings().paper_scale_out_enabled = False (default OFF).
+- Migration --dry-run emits correct ADD COLUMN IF NOT EXISTS.
+- All 5 changed Python files ast.parse green.
+
+**Q/A verdict (single agent, single spawn):** PASS (no CONDITIONAL, no retry needed).
+- 5-item harness-compliance audit: all 5 checkpoints clear.
+- Code-review heuristics (5 dimensions, 15 ranked): 0 BLOCK + 0 WARN + 1 NOTE (NOTE: scale-out before kill-switch is acceptable -- closing direction matches flatten direction; is_paused gates entries not exits).
+- All 5 immutable success criteria: PASS with test:line + code:line citations.
+- 10 /goal integration gates: 9 PASS + 1 PARTIAL-OK (gate 5 env var doc -- Field docstring compensates for .env.example permission-block per cycle-13 precedent).
+- Mutation-resistance: STRONG (the 3R latest-fetch invariant is exercised by test_phase_36_1_both_2r_and_3r_fire_in_same_cycle).
+- Adversarial honesty: Caltech arxiv:2502.15800 discount explicitly addressed as N/A for deterministic logic.
+
+**Scope honesty:** git diff --stat backend/ = only settings.py + paper_trader.py + autonomous_loop.py; test + migration are new files; ZERO frontend diff. Reuses existing execute_sell primitive (no new writer). Single new public method + single new helper + single migration + single new test file = bounded per /goal "NO mass refactors".
+
+**Integration-gate scoreboard (all 10 /goal gates):**
+1. pytest >=297: PASS (311).
+2. TS build green: PASS (no FE).
+3. Flag default OFF: PASS.
+4. BQ migrations idempotent: PASS.
+5. New env vars documented: PARTIAL-OK.
+6. Contract has N* delta: PASS.
+7. Zero emojis: PASS.
+8. ASCII loggers: PASS.
+9. Single source of truth: PASS.
+10. Log first / flip last: HOLDING.
+
+**Operator runbook (live):** documented in live_check_36.1.md. Apply migration, flip flag, restart backend, monitor next cycle. Expect partial-close paper_trades rows at MFE crossing thresholds (2R=16%, 3R=24%).
+
+**Real progress vs Cycle 13:** Cycle 13 executed phase-35.1 (learn-loop writer fan-out). Cycle 14 executes phase-36.1 -- the LAST code BLOCK on profit-protection per closure_roadmap §2 OPEN-2. After this commit, the closure path is {35.1 + 36.1 DONE} -> {44.1 + 44.2} -> {37.1 + 44.7} -> 35.2 -> 35.3 -> sweep -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~38-53 cycles remaining.
+
+**Top-3 next-session actions:**
+1. phase-44.1 -- frontend foundation (Cmd-K + states-lib + WCAG 2.2 + Sidebar + hooks).
+2. phase-44.2 -- /paper-trading cockpit modernization (DataTable + Sparkline + BarList).
+3. phase-37.1 -- RiskJudge response_schema + telemetry-wrapper restoration (closes phase-35.2).
+
+**Total cycle time:** ~55 min (pre-cycle health 2m + researcher SKIP 2m + contract 5m + generate 22m + pytest 3m + Q/A 8m + live_check 5m + log + flip + push 8m).

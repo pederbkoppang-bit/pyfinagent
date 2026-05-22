@@ -11733,7 +11733,7 @@
         {
           "id": "36.1",
           "name": "Scale-out wiring at +2R / +3R (OPEN-2 -- the last BLOCK)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

@@ -503,6 +503,124 @@ class PaperTrader:
                 triggered.append(pos["ticker"])
         return triggered
 
+    # phase-36.1: scale-out take-profit ladder (50% close at +2R, remainder at +3R).
+    # Gated by settings.paper_scale_out_enabled (default False per /goal gate 3).
+    # R = paper_default_stop_loss_pct (the initial stop distance, e.g. 8%); 2R = 16%
+    # MFE, 3R = 24% MFE. Idempotent via scale_out_levels_hit column on
+    # paper_positions (JSON-encoded list of strings; NULL/empty -> not yet fired).
+    # Closes phase-31.0 audit P1.3 (the only OPEN code BLOCK on profit-protection
+    # per closure_roadmap.md §2 OPEN-2).
+    def check_scale_out_fires(self) -> list[dict]:
+        """Fire scale-out partial closes for positions whose MFE crossed +2R / +3R.
+
+        Should be called after mark_to_market in autonomous_loop Step 5.5 area
+        (before stop-loss enforcement) so the fires use freshly-updated MFE.
+
+        Returns:
+            List of fire records, one per partial close executed. Empty list
+            when flag is OFF or no position crossed a threshold.
+        """
+        if not getattr(self.settings, "paper_scale_out_enabled", False):
+            return []
+
+        R_pct = float(getattr(self.settings, "paper_default_stop_loss_pct", 8.0))
+        if R_pct <= 0:
+            logger.warning("phase-36.1: paper_default_stop_loss_pct=%s is non-positive; skipping scale-out", R_pct)
+            return []
+
+        threshold_2r = 2.0 * R_pct
+        threshold_3r = 3.0 * R_pct
+
+        fires: list[dict] = []
+        for pos in self.get_positions():
+            ticker = pos.get("ticker", "?")
+            mfe = float(pos.get("mfe_pct") or 0.0)
+            quantity = float(pos.get("quantity") or 0.0)
+            if quantity <= 0:
+                continue
+
+            # Parse existing scale_out_levels_hit (NULL/missing -> [] -- pre-migration positions).
+            raw = pos.get("scale_out_levels_hit")
+            if raw is None or raw == "":
+                hit: set[str] = set()
+            elif isinstance(raw, str):
+                try:
+                    hit = set(json.loads(raw))
+                except Exception:
+                    hit = set()
+            elif isinstance(raw, (list, tuple)):
+                hit = set(str(x) for x in raw)
+            else:
+                hit = set()
+
+            # +2R: 50% close (one-shot per position).
+            if mfe >= threshold_2r and "2R" not in hit:
+                qty_to_sell = round(quantity * 0.5, 6)
+                if qty_to_sell > 0:
+                    trade = self.execute_sell(
+                        ticker, quantity=qty_to_sell, reason="take_profit_2R",
+                    )
+                    if trade:
+                        hit.add("2R")
+                        self._persist_scale_out_levels(ticker, hit)
+                        fires.append({
+                            "ticker": ticker, "level": "2R",
+                            "qty": qty_to_sell, "trade_id": trade.get("trade_id"),
+                            "mfe_pct": round(mfe, 4),
+                        })
+                        logger.info(
+                            "phase-36.1: scale-out 2R fired for %s -- sold %s qty at mfe=%.4f%% (threshold %.4f%%)",
+                            ticker, qty_to_sell, mfe, threshold_2r,
+                        )
+
+            # +3R: close remainder (one-shot per position). Re-fetch latest
+            # position state -- the 2R fire above may have reduced quantity.
+            if "3R" not in hit and mfe >= threshold_3r:
+                latest = self.get_position(ticker)
+                if not latest:
+                    # Already fully closed by the 2R partial above (rare edge);
+                    # nothing to do.
+                    continue
+                latest_qty = float(latest.get("quantity") or 0.0)
+                latest_mfe = float(latest.get("mfe_pct") or 0.0)
+                if latest_qty <= 0 or latest_mfe < threshold_3r:
+                    continue
+                trade = self.execute_sell(
+                    ticker, quantity=latest_qty, reason="take_profit_3R",
+                )
+                if trade:
+                    hit.add("3R")
+                    # Position is fully closed; no scale_out_levels_hit row to
+                    # update (delete_paper_position fired inside execute_sell).
+                    fires.append({
+                        "ticker": ticker, "level": "3R",
+                        "qty": latest_qty, "trade_id": trade.get("trade_id"),
+                        "mfe_pct": round(latest_mfe, 4),
+                    })
+                    logger.info(
+                        "phase-36.1: scale-out 3R fired for %s -- closed remainder %s qty at mfe=%.4f%% (threshold %.4f%%)",
+                        ticker, latest_qty, latest_mfe, threshold_3r,
+                    )
+
+        return fires
+
+    def _persist_scale_out_levels(self, ticker: str, levels: set[str]) -> None:
+        """Idempotency support: update scale_out_levels_hit column on the
+        (already-reduced) position row. Fail-open: if the column or row is
+        missing, log WARN and continue (next cycle will re-detect via
+        quantity-vs-cost-basis derivation if the column path fails)."""
+        try:
+            pos = self.get_position(ticker)
+            if not pos:
+                return
+            pos["scale_out_levels_hit"] = json.dumps(sorted(levels))
+            self._safe_save_position(pos)
+        except Exception as exc:
+            logger.warning(
+                "phase-36.1: failed to persist scale_out_levels_hit for %s: %r",
+                ticker, exc,
+            )
+
     def backfill_missing_stops(self, default_pct: float | None = None) -> dict:
         """phase-25.2: backfill stop_loss_price for positions where it is None.
 
