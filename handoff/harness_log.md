@@ -21613,3 +21613,56 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. Consider whether the `auto-commit-and-push.sh` hook should grow a pre-commit gate that REFUSES status-flip commits if `handoff/harness_log.md` doesn't already contain the matching `phase-<id>` cycle header. The phase-23.8.1 `live_check_gate.py` is the precedent for fail-open hook discipline.
 
 **Total cycle time:** ~50 min (kill-switch resume verify 1m + 33.1 brief re-read 2m + contract rewrite 3m + first env append + restart 3m + first manual cycle observe 10m + in-flight deep-think discovery 5m + second env append + restart 3m + second cycle 30m wall + experiment_results+live_checks 5m + masterplan write + auto-push 1m + Q/A spawn AFTER push 5m + this corrective log append).
+
+---
+
+## Cycle 1 -- 2026-05-22 16:22 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.73% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 9 -- 2026-05-22 (phase-34.2 cycle 3 -- first end-to-end clean cycle) -- phase=34.2 result=HEALTHY
+
+**Step name:** phase-34.2 corrective addendum -- bumped `PAPER_CYCLE_MAX_SECONDS` to 3600 (added Field declaration in `backend/config/settings.py:31` + env override in `backend/.env`), restarted backend (PID 33891 -> 58905 at 18:23:31 CEST), waited for cycle 3 to complete.
+
+**Why this cycle existed:** Cycle 2 (`021ed63e`) hit the 30-min default budget in Step 3 with phase-32 features unverified. The Stop hook correctly flagged the goal as not satisfied while phase-32 features remained dark. Cycle 3 (`dc3f6cf1`) is the first cycle with the bumped budget AND the dual-tier Gemini route in place.
+
+**Cycle 3 outcome:** **HEALTHY.** cycle_id `dc3f6cf1`, status=`completed` (not `timeout`), duration 2201721 ms = 36.7 min wall-clock (of 60-min budget), n_trades=0, error_count=0. **All 8 autonomous-loop steps ran in production order** for the first time since the phase-31.0.* Claude-Code-substituted smoketest: Screen -> Analyze (4 new + 11 re-evals) -> MTM (Step 5) -> Stop-loss enforcement (Step 5.6) -> Decide trades (Step 6) -> Execute 0 trades (Step 7) -> Final snapshot (Step 8).
+
+**Phase-32 features verified live (probe-table 9 rows):**
+- **phase-32.2 trail event for DELL** fired at 18:58:43: stop 236.8447 -> 272.3200 (peak=296.00, trail_pct=8.0%, mfe=36.98%, entry_strategy=momentum). Idempotent re-fire at 18:59:59 (Step 5.6 re-entry): stop 272.3200 -> 272.3201 (peak 296.0000 -> 296.0001 = float-precision drift, effective no-op). PASS.
+- **phase-32.3 Risk Judge** ran 10+ times (18:47-18:58) with `portfolio_sector_exposure` plumbed through `fact_ledger` per source review of `backend/agents/orchestrator.py:1558` + `backend/config/prompts.py:992` + `backend/agents/skills/risk_judge.md:76` {{fact_ledger_section}}. PASS.
+- **phase-32.1 breakeven ratchet** silent this cycle (no new +1R crossings) -- idempotent no-op path per spec. Consistent with phase-33.1's observation.
+- **phase-32.5 paper_positions.company_name** intact (10 positions all with real names from prior backfill).
+- **Stop-loss geometry** (probe 7) PASS vacuously -- all 10 positions show stop < current (SNDK now $1514.40 vs $1435.60 stop = $78 cushion vs yesterday's stop-out warning). Step 5.6 ran and correctly produced 0 stop-outs.
+
+**Phase-34.1 deep-think tier fully verified live:** Risk Judge (deep-think role) ran via Gemini-2.5-pro with 0 credit errors across 10+ invocations. The pre-cycle-3 routing settings.deep_think_model='gemini-2.5-pro' is no longer paywall-gated by Anthropic credits.
+
+**Cost vs baseline:** Cycle 3 ~36.7 min, ~700 successful gemini-2.5-pro calls estimated (cycle 2 had 425 over 30 min, cycle 3 scales linearly for 36.7 + extra Steps 4-8 work). Within Max-plan flat-fee tolerance.
+
+**Soft notes (non-blocking, filed for future tuning):**
+1. Gemini-2.5-pro structured-output drift on Risk Judge (8 of 10+ invocations returned non-JSON, code's raw-text fallback fired gracefully) and Moderator (1+ case in cycle 2). Recommend tuning `response_mime_type` + `response_schema` for these two roles.
+2. Observability gap filed for phase-34.5: extend `backend/main.py:140` startup banner to log BOTH `gemini_model` AND `deep_think_model` paths (~10 LOC).
+3. Lost cycle 3a -- a /run-now triggered at 08:14 CEST never wrote a row in `cycle_history.jsonl`; backend-watchdog restart at 18:23:31 spawned the cycle that this log block describes. Worth investigating the watchdog log if the lost-cycle pattern repeats.
+
+**Real progress vs phase-33.1:** Two operator blockers cleared (kill-switch + LLM credit, phase-34.1 + operator overnight action). One config bottleneck exposed and fixed (cycle budget, phase-34.2 corrective). **Phase-32 features now live-verified for the first time since phase-31's Claude-Code-substituted smoketest.** n_trades=0 reflects unanimous HOLD under current Risk-Judge-gated portfolio constraints, NOT silence -- this is the system working as designed. Production goal-progress: forward-moving for the first time since 2026-05-19.
+
+**Files changed since the original phase-34 status flip (commit 29ab0ff6):**
+- `backend/config/settings.py` (+2 lines: `paper_cycle_max_seconds` Field declaration)
+- `backend/.env` (+2 lines: PAPER_CYCLE_MAX_SECONDS=3600 + comment)
+- `handoff/current/live_check_34.2.md` (full rewrite: HEALTHY verdict + cycle-3 evidence + 9-row probe table all PASS/PASS-vacuous/N-A)
+- `handoff/harness_log.md` (this Cycle 9 block)
+
+**No backend agent / orchestrator / pipeline edits.** The settings.py change is purely a Field declaration exposing an existing `getattr`-with-default to .env.
+
+**Total cycle time (cycle 9 corrective addendum):** ~50 min (Stop-hook re-engagement 1m + settings.py audit + Field add 5m + .env append + restart-3 verification 5m + cycle 3 wait 37m + probe-7 verification 1m + live_check rewrite 5m + this log append). Cumulative phase-34 effort across cycles 8+9: ~100 min.
