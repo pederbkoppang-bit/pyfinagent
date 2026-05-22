@@ -12160,7 +12160,7 @@
         {
           "id": "40.2",
           "name": "Claude Code v2.1.140-143 features (OPEN-25)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": null,

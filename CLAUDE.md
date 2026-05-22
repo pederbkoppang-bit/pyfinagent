@@ -55,6 +55,15 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
   - **Layer-2 in-app MAS** (`backend/config/model_tiers.py::EFFORT_DEFAULTS`) is a **separate system** from Layer-3. `mas_main` runs at `xhigh` Opus; `mas_qa` historically `high` (cost-balanced because `mas_qa` fires per ticker analysis, NOT per dev cycle). `mas_research`/`mas_qa` Layer-2 model choices are out of scope for phase-29.2 — they require their own audit + owner sign-off because the per-ticker firing frequency makes Opus/max expensive even under flat-fee (rate limits + parallel-spawn ceiling).
   - Per-model fallback table at `backend/config/model_tiers.py::MODEL_EFFORT_FALLBACK` (Opus 4.7 → xhigh; Sonnet 4.6 → medium). Roles in `EFFORT_DEFAULTS` override the model fallback.
   - When adding a new Claude agent, default to the Anthropic-recommended pairing for that model family unless this project's Max-subscription + rare-event rationale applies. Cite this CLAUDE.md section in the PR if you deviate.
+- **MCP `alwaysLoad` discipline (phase-29.0-F8 / phase-40.2, Claude Code v2.1.121+)** -- `.mcp.json` per-server `alwaysLoad: true|false` controls whether that server's tools skip tool-search deferral at session start. The real adoption lives in `.mcp.json:44,55,66,77`:
+  - `pyfinagent-data` -- `alwaysLoad: true` (constant BQ inspection)
+  - `pyfinagent-risk` -- `alwaysLoad: true` (kill-switch + PBO gates)
+  - `pyfinagent-backtest` -- `alwaysLoad: false` (rare invocation; tool-search deferral OK)
+  - `pyfinagent-signals` -- `alwaysLoad: false` (1887 lines; startup cost matters)
+  - External MCP servers (alpaca, bigquery, paper-search-mcp) omit the key (default false).
+  The phase-40.2 statusMessage cross-reference in `.claude/settings.json` config-change-audit hook is a discoverability pointer so future readers can find the `.mcp.json` adoption from the settings file (Claude Code's strict schema validation forbids `_doc_*` top-level keys; `statusMessage` accepts any string).
+- **Hook `continueOnBlock` (phase-40.2, Claude Code v2.1.139+)** -- a per-hook-entry child key valid only on `prompt`-type hook entries inside `PostToolUse`. When set, it feeds the hook's rejection reason back to Claude and continues the turn instead of halting. pyfinagent currently uses only `command`-type hooks (schema does not accept `continueOnBlock` on command type), so the phase-40.2 adoption is a discoverability cross-reference in the config-change-audit statusMessage. When a future `prompt`-type hook is added (e.g. for `feedback_auto_commit_hook_stalls.md` mitigation), set `continueOnBlock: true` on it.
+- **Hook-level `effort.level` visibility (phase-40.2, Claude Code v2.1.141+)** -- hooks receive the active effort tier via the `effort.level` JSON input field AND the `$CLAUDE_EFFORT` env var. This reflects the ACTUAL level after any model-downgrade fallback. Distinct from the top-level `effortLevel` settings.json key (xhigh on this project) which is the persistent-session default. Hooks that need to gate on effort (e.g. skip expensive checks at `low`) should read `$CLAUDE_EFFORT`.
 
 ## Architecture (see ARCHITECTURE.md for full details)
 

@@ -18,7 +18,7 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/config-change-audit.sh\"",
-            "statusMessage": "Auditing config change..."
+            "statusMessage": "Auditing config change... [phase-40.2: alwaysLoad per-server config lives in .mcp.json; continueOnBlock applies to prompt-type hooks per Claude Code v2.1.139 schema -- see CLAUDE.md MCP discipline + Hook continueOnBlock sections]"
           }
         ]
       }
