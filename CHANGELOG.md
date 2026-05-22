@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `7fc57a9` | chore: harness audit-log appends from phase-32 stack-audit prompt session |
 | 2026-05-20 | `29e7e0a` | chore: harness audit-log appends from phase-31 audit-prompt session |
 | 2026-05-19 | `faa5a87` | chore: harness audit-log appends from phase-30 overnight-prompt session |
 | 2026-05-19 | `9da0bd9` | chore: harness audit-log appends (instructions_loaded + pre_tool_use) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-17 | `6e1b0468` | phase-28.2: 12-quarter SUE stacking in pead_signal.py |
 | 2026-05-17 | `b570402d` | phase-28.1: Analyst EPS revision-breadth plug-in (feature-flagged) |
 | 2026-05-17 | `53e5f8b5` | docs(audits): add phase-28.5 smoke-test audit log |
-| 2026-05-17 | `664871a4` | phase-28.5: Short-interest exclusion filter in screen_universe |
 
 ---
 
