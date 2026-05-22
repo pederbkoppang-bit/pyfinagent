@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `cc8177ae` | phase-23.2.4: Verify pause/resume deadlock did not regress |
 | 2026-05-23 | `8499bb7d` | phase-41.1: Phase-29.9 P3 bundle close (OPEN-33) |
 | 2026-05-23 | `9e2e5dbb` | phase-41.0: Phase-29.8 P2 bundle close (OPEN-32) |
 | 2026-05-23 | `b80e8462` | phase-40.2: Claude Code v2.1.140-143 features (OPEN-25) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `5ad48c08` | phase-29: Harness MAS + MCP + Academic-Fetch + Frontier-Sync (phase-29.0 audit remediation) |
 | 2026-05-22 | `dae19909` | phase-27: Multi-Provider Full-Path Pipeline (Gemini + Claude) |
 | 2026-05-22 | `fb5da800` | phase-26: Frontier-sync: adopt 2026-04→05 Anthropic/Google releases + topology gaps |
-| 2026-05-22 | `e9fff90b` | phase-23.7: Harness plumbing: auto-commit-and-push + semver changelog |
 
 ---
 
+### v6.18.2 — phase-23.2.4: Verify pause/resume deadlock did not regress (2026-05-23)
+
+- **phase-23.2.4: Verify pause/resume deadlock did not regress**
 ### v6.18.1 — phase-41.1: Phase-29.9 P3 bundle close (OPEN-33) (2026-05-23)
 
 - **phase-41.1: Phase-29.9 P3 bundle close (OPEN-33)**
