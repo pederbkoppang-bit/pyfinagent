@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `f47871fd` | phase-35.1: Live-verify learn loop (OPEN-22) |
 | 2026-05-22 | `bb7d3c55` | phase-45: CLOSURE re-audit + walk-the-graph sequencing |
 | 2026-05-22 | `5ad48c08` | phase-29: Harness MAS + MCP + Academic-Fetch + Frontier-Sync (phase-29.0 audit remediation) |
 | 2026-05-22 | `dae19909` | phase-27: Multi-Provider Full-Path Pipeline (Gemini + Claude) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-21 | `aebf1eee` | phase-32.3: surface sector exposure to Risk Judge + fix prompt bug |
 | 2026-05-21 | `2d973b13` | phase-32.2: HWM-trailing stop + Kaminski-Lo adversarial guard |
 | 2026-05-21 | `6f6b7482` | phase-32.1: breakeven-stop ratchet at +1R |
-| 2026-05-20 | `db5350c9` | phase-31.0: audit profit-protection + risk-agent gaps (inserted as phase-32) |
 
 ---
 
+### v6.17.8 — phase-35.1: Live-verify learn loop (OPEN-22) (2026-05-22)
+
+- **phase-35.1: Live-verify learn loop (OPEN-22)**
 ### v6.17.7 — phase-45: CLOSURE re-audit + walk-the-graph sequencing (2026-05-22)
 
 - **phase-45: CLOSURE re-audit + walk-the-graph sequencing**
