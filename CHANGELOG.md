@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `25cff9fe` | phase-36.1: Scale-out wiring at +2R / +3R (OPEN-2 -- the last BLOCK) |
 | 2026-05-22 | `f47871fd` | phase-35.1: Live-verify learn loop (OPEN-22) |
 | 2026-05-22 | `bb7d3c55` | phase-45: CLOSURE re-audit + walk-the-graph sequencing |
 | 2026-05-22 | `5ad48c08` | phase-29: Harness MAS + MCP + Academic-Fetch + Frontier-Sync (phase-29.0 audit remediation) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-21 | `ee991246` | phase-32.4: backfill company names on legacy paper_positions |
 | 2026-05-21 | `aebf1eee` | phase-32.3: surface sector exposure to Risk Judge + fix prompt bug |
 | 2026-05-21 | `2d973b13` | phase-32.2: HWM-trailing stop + Kaminski-Lo adversarial guard |
-| 2026-05-21 | `6f6b7482` | phase-32.1: breakeven-stop ratchet at +1R |
 
 ---
 
+### v6.17.9 — phase-36.1: Scale-out wiring at +2R / +3R (OPEN-2 -- the last BLOCK) (2026-05-22)
+
+- **phase-36.1: Scale-out wiring at +2R / +3R (OPEN-2 -- the last BLOCK)**
 ### v6.17.8 — phase-35.1: Live-verify learn loop (OPEN-22) (2026-05-22)
 
 - **phase-35.1: Live-verify learn loop (OPEN-22)**
