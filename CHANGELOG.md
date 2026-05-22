@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `d887e296` | phase-37.2: gemini deep-think source default = production (OPEN-17) |
 | 2026-05-22 | `484ec437` | phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23) |
 | 2026-05-22 | `db1e6208` | phase-44.1: Foundation: design tokens + states lib + hooks + Cmd-K + WCAG baseline + Sidebar refresh |
 | 2026-05-22 | `8db36dc3` | phase-37.1: RiskJudge response_schema (OPEN-16) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `29ab0ff6` | phase-34.2: Post-cron observation -- first clean cycle with phase-32 features in the hot path |
 | 2026-05-21 | `950b9e7a` | phase-33.1: post-cron observation -- verdict FAILED (cycle halted at Step 5.5) |
 | 2026-05-21 | `2aa062f1` | phase-33.0: pre-flight readiness check -- verdict NOT_READY |
-| 2026-05-21 | `188e28bb` | phase-32.5: dashboard wiring -- prefer paper_positions in _fetch_ticker_meta |
 
 ---
 
+### v6.17.13 — phase-37.2: gemini deep-think source default = production (OPEN-17) (2026-05-22)
+
+- **phase-37.2: gemini deep-think source default = production (OPEN-17)**
 ### v6.17.12 — phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23) (2026-05-22)
 
 - **phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23)**
