@@ -22261,3 +22261,53 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval like cmdk).
 
 **Total cycle time:** ~40 min (researcher 13m + contract 5m + generate 8m + test 5m + Q/A 6m + log + flip + push 3m).
+
+## Cycle 23 -- 2026-05-23 (phase-40.5 cosmetic _LAUNCHD_JOBS description regression-lock -- EXECUTION, test-only) -- phase=40.5 result=PASS
+
+**Step:** phase-40.5 -- Cosmetic _LAUNCHD_JOBS description (closes closure_roadmap §3 OPEN-30; source pre-closed by commit 2301b977 phase-23.6.2 2026-05-11; this cycle ships canonical pytest regression coverage).
+**Mode:** EXECUTION (test-only regression lock; ZERO source code changes).
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_40_5.md` -- 9 external sources read in full (launchd.plist(5), launchd.info, Lucas Pinheiro launchd Medium, Conventional Commits v1, TLDP bash exit codes, Snyk Python assert dangers, mobeets launchd debug, arxiv:2510.04952 zkCA cross-market trade execution audit, Atlan 2026 context drift detection); 12 internal files inspected; 21 URLs collected; 3-variant queries + recency scan performed; gate_passed=true. Verdict TRUE on "pre-closed" hypothesis with file:line + git SHA precision: commit 2301b977 (phase-23.6.2, 2026-05-11) updated backend/api/cron_dashboard_api.py:120 from stale exit-127 string to current "exit 1 -- partial .env fix applied" + phase-23.5.19 reference; existing ad-hoc verifier tests/verify_phase_23_6_2.py:118-130 (Check 4) has been guarding the invariant since.
+
+**North-star delta:**
+- **R (audit-trail integrity, primary):** locks in the cleanup of a stale operator-facing string. Without the test, a future commit could re-introduce stale text and operators lose 1-2 hours of diagnostic time on a misleading status line (real incident in phase-23.5.19). Forrester 2025 "agent drift" + Atlan 2026 "context drift detection": stale metadata is documented top-3 silent killer of AI-accelerated systems.
+- **B:** N/A. **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** `pytest backend/tests/test_phase_40_5_launchd_descriptions.py` exit 0 (4 tests); masterplan verification command `test $(grep -rn 'FAILING exit 127' backend/ scripts/ | wc -l) -eq 0` exits 0.
+
+**Generate (EXECUTION):**
+- backend/tests/test_phase_40_5_launchd_descriptions.py (NEW, 129 lines, 4 tests).
+- ZERO source code changes (researcher confirmed pre-closed at commit 2301b977 -- live grep returns empty).
+- ZERO frontend changes. ZERO other backend file changes. ZERO scripts/ changes. ZERO masterplan structural changes.
+
+**Verification:**
+- pytest backend/tests/test_phase_40_5_launchd_descriptions.py -v = 4 passed in 0.35s.
+- pytest backend/ --collect-only -q = 357 (was 353 after 38.7; +4 new; 0 regressions; baseline 297 preserved).
+- ast.parse(test) green.
+- masterplan cmd exit 0 PASS.
+- git diff --stat backend/api/ + backend/services/ + backend/config/ + backend/main.py + backend/agents/ = empty.
+- git diff --stat frontend/src/ = empty.
+- `git show --stat 2301b977` exists (researcher SHA citation verifiable).
+- Self-reference safety: 0 literal occurrences of stale pattern in new test file's bytes (verified via concatenation-built grep).
+- Mutation-resistance: 4 directions verified -- M1 (insert in backend/) trips masterplan-cmd + test 1; M2 (revert source) trips tests 1+2+4; M3 (break dict syntax) trips test 3; M4 (stale pattern with exit N=7 in different desc) trips test 4 generalization. Source restored verbatim after each.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clear.
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- 1-row immutable-criterion: `zero_stale_FAILING_exit_127_strings_in_source` = PASS (verbatim verification command exits 0).
+- Mutation-resistance: STRONG (4 distinct directions each trip specific predicted tests).
+- Adversarial honesty: "pre-closed at source layer" framing disclosed openly in contract Hypothesis + research brief Section C verdict TRUE; concatenation self-reference safety disclosed.
+
+**Scope honesty:** git diff --stat backend/api/ + backend/services/ + backend/config/ + backend/main.py + backend/agents/ = empty. Only new file: backend/tests/test_phase_40_5_launchd_descriptions.py.
+
+**Integration-gate scoreboard:** 1=PASS(357), 2=N/A(no FE), 3=N/A(regression-lock), 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=PASS, 9=PASS, 10=HOLDING.
+
+**Operator runbook (live):** documented in live_check_40.5.md. Masterplan verification command satisfied today (live grep empty since commit 2301b977 / 2026-05-11). No operator action required.
+
+**Real progress vs Cycle 22:** Cycle 22 closed phase-38.7 (SPY benchmark anchor). Cycle 23 closes phase-40.5 -- begins the phase-40.* dev-MAS housekeeping batch. After this commit, closure path = {35.1 + 36.1 + 37.1 + 44.1 + 35.2 + 37.2 + 37.4 + 38.3 + 38.5 + 38.7 + 40.5 DONE} -> {38.5.1 + 38.5.2 follow-ups + 39.1 owner + 40.1 + 40.* remaining + 41.0-1 + 44.2 + 44.7} -> 35.3 (calendar-bound) -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~29-44 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-40.1 -- OpenAlex key + .env.example (NOTE-tier; may hit .env permission constraint).
+2. phase-40.* batch remaining -- dev-MAS housekeeping (low risk; multiple small steps).
+3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
+
+**Total cycle time:** ~30 min.

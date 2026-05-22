@@ -12216,7 +12216,7 @@
         {
           "id": "40.5",
           "name": "Cosmetic _LAUNCHD_JOBS description (OPEN-30)",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": null,
