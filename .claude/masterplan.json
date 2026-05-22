@@ -9493,7 +9493,8 @@
     {
       "id": "phase-26",
       "name": "Frontier-sync: adopt 2026-04\u219205 Anthropic/Google releases + topology gaps",
-      "status": "pending",
+      "status": "done",
+      "notes": "DROP per phase-45.0 closure_roadmap (2026-05-22): 26.0-26.2 already done; remaining substeps folded into phase-40.2 (Claude Code v2.1.140-143) + phase-40.3 (stress-test doctrine) + phase-41.0/41.1 (Gemini 3.x audit via P2/P3 bundles).",
       "harness_required": true,
       "depends_on": [
         "phase-25"
