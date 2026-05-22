@@ -22434,3 +22434,52 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
 
 **Total cycle time:** ~40 min.
+
+## Cycle 26 -- 2026-05-23 (phase-41.0 Phase-29.8 P2 bundle close OPEN-32 -- EXECUTION, trace-link ADR + 5 regression tests; ZERO source code changes) -- phase=41.0 result=PASS
+
+**Step:** phase-41.0 (OPEN-32 -- Phase-29.8 P2 bundle close, trace-link semantics).
+**Mode:** EXECUTION (Nygard ADR at docs/decisions/phase-41-0-bundle-close.md + 5 regression tests; ZERO source code changes; phase-29.8 already absent from masterplan since phase-45.0 cycle 12 re-audit).
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_41_0.md` -- 6 external sources read in full (Conventional Commits v1, Anthropic Harness Design for Long-Running Apps, How We Built Our Multi-Agent Research System, arxiv:2502.15800 Caltech, SemVer 2.0.0, Michael Nygard ADR original spec); 11 URLs collected; 9 internal files inspected; gate_passed=true. Researcher delivered critical caveat: 41.0 PASS is mechanical trace-link closure, NOT engineered closure of all 9 sub-items. Regression test #3 enforces 37.3 + 40.1 residual visibility.
+
+**North-star delta:**
+- **R (audit-trail / trace-link integrity):** future auditors reading "phase-41.0 DONE" find the ADR + sub-item -> fold-destination mapping + residual-visibility regression test in one place.
+- **B:** N/A. **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** masterplan immutable command exits 0; ADR has 4 Nygard sections + explicit residual enumeration; 5 regression tests pass.
+
+**Generate (EXECUTION):**
+- docs/decisions/phase-41-0-bundle-close.md (NEW, 73 lines, Nygard ADR with Sub-item -> Fold-destination mapping table).
+- backend/tests/test_phase_41_0_bundle_close.py (NEW, ~120 lines, 5 tests).
+- ZERO backend source code changes. ZERO frontend changes. ZERO masterplan structural changes beyond eventual status flip.
+
+**Verification:**
+- python -c "...phase-29.8 absent OR status=done" = exit 0 (immutable masterplan command).
+- pytest backend/tests/test_phase_41_0_bundle_close.py -v = 5 passed.
+- pytest backend/ --collect-only -q = 382 (was 377 after 40.2; +5 new; 0 regressions; baseline 297 preserved).
+- Residuals visible: {'37.3': True, '40.1': True} (substantive caveat enforced).
+- Mutation-resistance: 5 directions each trip predicted test.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clear.
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- 2-row immutable-criteria: 2 PASS verbatim with file:line evidence.
+- Mutation-resistance: STRONG on load-bearing residual-visibility direction.
+- Adversarial honesty: trace-link substitution EXPLICITLY disclosed in 5 artifacts (contract Honest scope; live_check Bottom line; ADR Status + Consequences; research brief; regression test #3).
+
+**Scope honesty:** ZERO backend source. ZERO frontend. New: 1 ADR + 1 test file + handoff artifacts.
+
+**Integration-gate scoreboard:** 1=PASS(382), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Honest scope deferrals (not silent drops):**
+- phase-37.3 -- remains INDEPENDENTLY tracked (OPEN-18).
+- phase-40.1 -- remains INDEPENDENTLY tracked (OPEN-24; permission-blocked).
+- Sub-items #7-9 -- absorbed into closure_roadmap §3 OPEN-N tracking.
+
+**Real progress vs Cycle 25:** Cycle 25 closed phase-40.2. Cycle 26 closes phase-41.0 -- third trace-link / housekeeping closure pattern this session. After this commit, closure path = {35.1 + 36.1 + 37.1 + 44.1 + 35.2 + 37.2 + 37.4 + 38.3 + 38.5 + 38.7 + 40.5 + 40.6 + 40.2 + 41.0 DONE} -> {38.5.1 + 38.5.2 + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 41.1 + 44.2 + 44.7} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~26-41 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-41.1 -- mirror trace-link closure for 29.9 P3 bundle.
+2. phase-40.4 -- stop-loss 8% vs 10% A/B (backend; needs heavy compute).
+3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
+
+**Total cycle time:** ~35 min.

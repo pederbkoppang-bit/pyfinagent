@@ -12302,7 +12302,7 @@
         {
           "id": "41.0",
           "name": "Phase-29.8 P2 bundle close (OPEN-32)",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": null,
