@@ -12403,7 +12403,7 @@
         {
           "id": "44.1",
           "name": "Foundation: design tokens + states lib + hooks + Cmd-K + WCAG baseline + Sidebar refresh",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "44.0",

@@ -116,21 +116,27 @@ function SectionGroup({
       )}
       {(!collapsed || !section.collapsible) && (
         <div className="space-y-0.5">
-          {section.items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={clsx(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                pathname === item.href
-                  ? "bg-sky-500/10 font-medium text-sky-400"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-              )}
-            >
-              <item.icon size={18} weight={pathname === item.href ? "fill" : "regular"} />
-              {item.label}
-            </Link>
-          ))}
+          {section.items.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive ? "page" : undefined}
+                className={clsx(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-800",
+                  "min-h-[24px]",
+                  isActive
+                    ? "bg-sky-500/10 font-medium text-sky-400"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                )}
+              >
+                <item.icon size={18} weight={isActive ? "fill" : "regular"} />
+                {item.label}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
@@ -245,11 +251,42 @@ export function Sidebar() {
   const [backendUp, setBackendUp] = useState<boolean | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
 
-  // Track collapsed state per section — all expanded by default
+  // phase-44.1: persist collapsed state across reloads per closure_roadmap §3.1.
+  // localStorage key is namespaced to avoid clashing with other apps on
+  // localhost. SSR-safe: initial state is {}; effect hydrates from localStorage
+  // after mount.
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem("pyfinagent.sidebar.collapsedSections");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          setCollapsedSections(parsed as Record<string, boolean>);
+        }
+      }
+    } catch {
+      // ignore corrupt localStorage; default to {}.
+    }
+  }, []);
+
   const toggleSection = (label: string) => {
-    setCollapsedSections((prev) => ({ ...prev, [label]: !prev[label] }));
+    setCollapsedSections((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(
+            "pyfinagent.sidebar.collapsedSections",
+            JSON.stringify(next),
+          );
+        } catch {
+          // localStorage full / blocked -- non-fatal, state still works in-memory.
+        }
+      }
+      return next;
+    });
   };
 
   // Poll backend health every 30s
@@ -289,7 +326,11 @@ export function Sidebar() {
         </div>
 
         {/* ── Scrollable nav ───────────────────────────────── */}
-        <nav className="flex-1 space-y-5 overflow-y-auto px-4 scrollbar-thin">
+        <nav
+          role="navigation"
+          aria-label="Primary"
+          className="flex-1 space-y-5 overflow-y-auto px-4 scrollbar-thin"
+        >
           {NAV_SECTIONS.map((section) => (
             <SectionGroup
               key={section.label}

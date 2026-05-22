@@ -237,7 +237,7 @@ function KillSegment({
           onClick={() => onAction("RESUME")}
           disabled={busy !== null || kill.breach.any_breached}
           aria-label="Resume paper trading"
-          className="rounded-md border border-emerald-500/30 px-2 py-0.5 text-[10px] font-medium text-emerald-300 hover:bg-emerald-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md border border-emerald-500/30 px-2 py-1 text-[10px] font-medium text-emerald-300 hover:bg-emerald-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-40 min-h-[24px] min-w-[24px]"
         >
           Resume
         </button>
@@ -247,7 +247,7 @@ function KillSegment({
           onClick={() => onAction("PAUSE")}
           disabled={busy !== null}
           aria-label="Pause paper trading"
-          className="rounded-md border border-amber-500/30 px-2 py-0.5 text-[10px] font-medium text-amber-300 hover:bg-amber-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-40"
+          className="rounded-md border border-amber-500/30 px-2 py-1 text-[10px] font-medium text-amber-300 hover:bg-amber-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-40 min-h-[24px] min-w-[24px]"
         >
           Pause
         </button>
@@ -257,7 +257,7 @@ function KillSegment({
         onClick={() => onAction("FLATTEN_ALL")}
         disabled={busy !== null}
         aria-label="Flatten all paper positions and pause trading"
-        className="rounded-md border border-rose-500/30 px-2 py-0.5 text-[10px] font-medium text-rose-300 hover:bg-rose-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-40"
+        className="rounded-md border border-rose-500/30 px-2 py-1 text-[10px] font-medium text-rose-300 hover:bg-rose-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-40 min-h-[24px] min-w-[24px]"
       >
         Flatten
       </button>
