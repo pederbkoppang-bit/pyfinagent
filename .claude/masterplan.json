@@ -7257,7 +7257,7 @@
         {
           "id": "23.2.5",
           "name": "Verify kill-switch breach evaluation never falsely fired",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "estimated_minutes": 10,
           "verification": "tail handoff/kill_switch_audit.jsonl; expect manual pauses only (no auto-pause from breach unless real)"

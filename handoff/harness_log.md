@@ -22603,3 +22603,53 @@ Audit log: 226 -> 229 (delta 3 cycle rows) -> 230 (cleanup resume). Pre/post sta
 3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
 
 **Total cycle time:** ~35 min (researcher 10m + contract 5m + live curl + pytest 5m + test file 8m + Q/A 5m + log + flip + push 2m).
+
+## Cycle 29 -- 2026-05-23 (phase-23.2.5 P0 Verify kill-switch breach evaluation never falsely fired -- VERIFICATION, 9 new pytest regression tests; ZERO source code changes) -- phase=23.2.5 result=PASS
+
+**Step:** phase-23.2.5 (P0) -- Verify kill-switch breach evaluation never falsely fired. Audit-log scan (18-day post-fix window) + source-grep regression-lock + 9 new pytest tests.
+**Mode:** EXECUTION (regression-lock + structural verification; ZERO source code changes; the phase-23.1.x fix removing `drawdown_breach` auto-pause emission is preserved).
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_23_2_5.md` -- 5 external sources read in full (Anthropic Harness Design, NYIF kill-switch article, OWASP LLM06 Excessive Agency, Databricks Model Risk Management 2026, Hypothesis property-test docs); 13 URLs collected; 4 internal files inspected; gate_passed=true. Researcher delivered 9 historical false-fires on 2026-05-05 + 0 post-fix + evaluate_breach() math review.
+
+**North-star delta:**
+- **R (risk-engine audit integrity, primary):** the phase-23.1.x fix that removed the `drawdown_breach` trigger emission is structurally locked.
+- **B (defensive false-fire prevention):** each pre-fix false-fire auto-paused trading and required ~1-2h operator response; saves real operator time.
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** verbatim masterplan criterion exercised structurally via JSON-strict scan; 0 bad post-fix pause rows across 78 entries / 18 days.
+
+**Generate (EXECUTION):**
+- backend/tests/test_phase_23_2_5_kill_switch_no_false_fires.py (NEW, ~265 lines, 9 tests).
+- ZERO source code changes. ZERO frontend changes.
+
+**Audit-log evidence:**
+| Window | Rows | `drawdown_breach` count | Bad post-fix pause rows |
+|---|---|---|---|
+| Full history | 242 | 9 (all 2026-05-05) | 0 |
+| Pre-fix (<= 2026-05-05) | 164 | 9 | n/a |
+| Post-fix (>= 2026-05-06) | 78 | 0 | 0 |
+
+**Verification:**
+- pytest backend/tests/test_phase_23_2_5_kill_switch_no_false_fires.py -v = 9 passed in 0.72s.
+- pytest backend/ --collect-only -q = 400 (was 391 after 23.2.4; +9 new; 0 regressions; baseline 297 preserved).
+- grep -rn "drawdown_breach" backend/ (excl this test file) = 0 hits.
+- git diff --stat backend/{services,agents,api,config}/ backend/main.py = empty.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clear.
+- Code-review (5 dim, 15 ranked + secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- Verbatim masterplan criterion met.
+- Mutation-resistance: 4 directions verified.
+- Adversarial honesty: state-isolation pattern (try/finally `_orig` snapshot/restore) disclosed in docstrings + live_check; 9 historical false-fires preserved as smoking-gun evidence (not scrubbed).
+
+**Scope honesty:** ZERO backend source. ZERO frontend. Only new file: backend/tests/test_phase_23_2_5_kill_switch_no_false_fires.py.
+
+**Integration-gate scoreboard:** 1=PASS(400), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Real progress vs Cycle 28:** Cycle 28 closed phase-23.2.4 (P0 pause/resume deadlock verification, 4 new tests). Cycle 29 closes phase-23.2.5 (P0 false-fire verification, 9 new tests). Second consecutive P0 verification closure; verification-cycle pattern established. After this commit, closure path = {17 closed + 23.2.5 DONE} -> {38.5.1 + 38.5.2 + 23.2.6-16 P0/P1 verifications + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 44.2 + 44.7} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~23-38 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-23.2.6 -- Verify sector cap actually blocked same-sector buys (P1).
+2. phase-23.2.7+ -- next P1 verifications in the 23.2.x cluster.
+3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
+
+**Total cycle time:** ~35 min.
