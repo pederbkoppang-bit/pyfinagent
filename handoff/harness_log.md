@@ -22483,3 +22483,72 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
 
 **Total cycle time:** ~35 min.
+
+---
+
+## Cycle 1 -- 2026-05-22 23:04 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=5.24% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 27 -- 2026-05-23 (phase-41.1 Phase-29.9 P3 bundle close OPEN-33 -- EXECUTION, trace-link ADR + 5 regression tests mirror of phase-41.0) -- phase=41.1 result=PASS
+
+**Step:** phase-41.1 -- Phase-29.9 P3 bundle close (OPEN-33) -- trace-link mirror of phase-41.0.
+**Mode:** EXECUTION (Nygard ADR at docs/decisions/phase-41-1-bundle-close.md + 5 regression tests; ZERO source code changes; phase-29.9 already absent from masterplan since phase-45.0 cycle 12).
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_41_1.md` -- 6 external sources read in full (Anthropic Opus 4.7 release, Anthropic harness-design blog 2026-03, Gemini 3.1 Pro release, GPT-5.5 release coverage, Nygard ADR original spec, Joel Parker Henderson Nygard template); 14 URLs collected; 8 internal files inspected; gate_passed=true. Researcher delivered 10-item P3 sub-item taxonomy in 4 buckets.
+
+**HONESTY:** Trace-link closure semantics. phase-29.9 ABSENT from masterplan. 4-bucket allocation per ADR: 2 engineered-done (researcher.md + qa.md prompts); 2 vendor-released (Gemini 3.1 + GPT-5.5, owner-only adoption); 1 absorbed (sub-item 6 into 40.3); 1 INDEPENDENTLY pending (phase-40.3); 4 sandbox-blocked / future. NOT a substitute for phase-40.3; NOT a vendor-adoption decision.
+
+**North-star delta:**
+- **R (audit-trail / trace-link integrity):** mirror of cycle 26. Future auditors find ADR + 4-bucket sub-item allocation + residual-visibility regression test in one place.
+- **B:** N/A. **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** masterplan immutable command exits 0; ADR documents 4-bucket allocation; test #2 locks phase-40.3 residual visibility.
+
+**Generate (EXECUTION):**
+- docs/decisions/phase-41-1-bundle-close.md (NEW, 71 lines, Nygard ADR mirroring 41.0 with P3-specific 4-bucket table).
+- backend/tests/test_phase_41_1_bundle_close.py (NEW, ~130 lines, 5 tests).
+- ZERO backend source code changes. ZERO frontend changes. ZERO masterplan structural changes beyond eventual status flip.
+
+**Verification:**
+- python -c "...phase-29.9 absent OR status=done" = exit 0 (immutable masterplan command).
+- pytest backend/tests/test_phase_41_1_bundle_close.py -v = 5 passed in 0.01s.
+- pytest backend/ --collect-only -q = 387 (was 382 after 41.0; +5 new; 0 regressions; baseline 297 preserved).
+- Bucket math validated: 2+2+1+1+4=10 (matches the 10 P3 sub-items per research brief).
+- Mutation-resistance: 5 directions each trip predicted test.
+- Engineered-done sub-items persisted: researcher.md + qa.md prompts contain required content.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clear.
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- 2-row immutable-criteria: 2 PASS verbatim.
+- Mutation-resistance: STRONG.
+- Adversarial honesty: vendor adoption explicitly preserved as owner-only; phase-40.3 residual locked by test #2; mirror-of-41.0 framing disclosed openly (substantive distinct P3 content despite same shape).
+
+**Scope honesty:** ZERO backend source. ZERO frontend. New: 1 ADR + 1 test file + handoff artifacts.
+
+**Integration-gate scoreboard:** 1=PASS(387), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Honest scope deferrals (not silent drops):**
+- phase-40.3 (stress-test doctrine) -- remains INDEPENDENTLY tracked (OPEN-26).
+- Gemini 3.1 / GPT-5.5 adoption -- owner-only decision.
+- 4 sandbox-blocked items (Mythos / anthropic-docs MCP / Browserbase / futurelab) -- future tracking.
+
+**Real progress vs Cycle 26:** Cycle 26 closed phase-41.0 (P2 bundle trace-link). Cycle 27 closes phase-41.1 (P3 bundle trace-link mirror). After this commit, closure path = {35.1 + 36.1 + 37.1 + 44.1 + 35.2 + 37.2 + 37.4 + 38.3 + 38.5 + 38.7 + 40.5 + 40.6 + 40.2 + 41.0 + 41.1 DONE} -> {38.5.1 + 38.5.2 + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 44.2 + 44.7} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~25-40 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-40.4 -- stop-loss 8% vs 10% A/B (backend; needs heavy compute, may operator-block).
+2. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval like cmdk).
+3. phase-44.7 -- TraceTree (now unblocked by 37.1/37.4 + 35.2 telemetry; may need new deps).
+
+**Total cycle time:** ~30 min.

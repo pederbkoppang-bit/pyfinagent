@@ -12321,7 +12321,7 @@
         {
           "id": "41.1",
           "name": "Phase-29.9 P3 bundle close (OPEN-33)",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": null,
