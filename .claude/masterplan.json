@@ -12086,7 +12086,7 @@
         {
           "id": "38.7",
           "name": "SPY benchmark anchor at first-funded snapshot (OPEN-9)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": null,

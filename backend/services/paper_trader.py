@@ -471,7 +471,15 @@ class PaperTrader:
         nav = portfolio["current_cash"] + total_positions_value
         starting = portfolio["starting_capital"]
         pnl_pct = ((nav - starting) / starting) * 100 if starting > 0 else 0.0
-        benchmark_ret = _get_benchmark_return(portfolio.get("inception_date", ""))
+        # phase-38.7: anchor SPY to first-funded snapshot (where positions_value
+        # transitioned from 0 to >0), NOT to inception_date (set at row-creation
+        # time before any capital injection). Fall back to inception_date when
+        # no funded snapshot exists yet (cold-start grace).
+        first_funded = self.bq.get_first_funded_snapshot_date()
+        benchmark_ret = _get_benchmark_return(
+            portfolio.get("inception_date", ""),
+            first_funded_date=first_funded,
+        )
 
         self.bq.upsert_paper_portfolio({
             **portfolio,
@@ -1102,13 +1110,29 @@ def _get_live_price(ticker: str) -> Optional[float]:
     return None
 
 
-def _get_benchmark_return(inception_date: str) -> Optional[float]:
-    """SPY return since portfolio inception."""
-    if not inception_date:
+def _get_benchmark_return(
+    inception_date: str,
+    first_funded_date: Optional[str] = None,
+) -> Optional[float]:
+    """SPY return since portfolio's first-funded snapshot.
+
+    phase-38.7 (closes closure_roadmap.md section 3 OPEN-9):
+    Previously anchored to inception_date, but that's set at row-creation
+    time before any capital injection -- per industry taxonomy
+    (PerformanceMeasurementSolutions / GIPS), it's the "Initialization Date"
+    and is a documented anti-pattern for performance reporting because the
+    strategy had no money to invest yet.
+
+    Correct anchor: first_funded_date (earliest snapshot where
+    positions_value > 0). Falls back to inception_date when no funded
+    snapshot exists (cold-start grace), preserving original behavior.
+    """
+    anchor = first_funded_date or inception_date
+    if not anchor:
         return None
     try:
         spy = yf.Ticker("SPY")
-        start = inception_date[:10]
+        start = anchor[:10]
         hist = spy.history(start=start)
         if len(hist) >= 2:
             first = float(hist["Close"].iloc[0])

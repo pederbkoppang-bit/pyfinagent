@@ -22210,3 +22210,54 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval like cmdk).
 
 **Total cycle time:** ~55 min (cycle-1 ~35m + cycle-2 fix + fresh Q/A ~15m + log + flip + push ~5m).
+
+## Cycle 22 -- 2026-05-22 (phase-38.7 SPY benchmark anchor at first-funded snapshot -- EXECUTION, backend fix) -- phase=38.7 result=PASS
+
+**Step:** phase-38.7 -- SPY benchmark anchor at first-funded snapshot (closes closure_roadmap §3 OPEN-9; documented anti-pattern per PerformanceMeasurementSolutions / GIPS / SEC IM Marketing Compliance FAQs / Lopez de Prado AFML).
+**Mode:** EXECUTION (backend bug fix; 2-file change + 8 tests).
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_38_7.md` -- 5 external sources read in full (PerformanceMeasurementSolutions six-date taxonomy, BridgeFT TWR, Portfolio Performance TWR + GIPS, StockBench arxiv:2510.02209, Lopez de Prado AFML SSRN 2308682); 17 URLs collected; 7 internal files inspected; gate_passed=true. Researcher delivered exact function signatures + SQL pattern + fixture-test approach -- applied verbatim with minor refinement (CAST to STRING + Exception fail-open guard).
+
+**North-star delta:**
+- **R (audit-trail integrity, primary):** anti-pattern eliminated. Dashboard alpha number now anchored to first-funded date (industry-standard "Initial Trading Date" / "Funding Date"), not the pre-funding "Initialization Date".
+- **P (reported, not actual):** alpha numbers can now be off by anywhere from -5% to +5% post-fix WHEN there's a meaningful gap between inception and first funded (today: no gap, so no immediate dashboard delta).
+- **B:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** `_get_benchmark_return(inception="2025-01-01", first_funded="2025-03-15")` queries SPY from 2025-03-15 (verified by test 2).
+
+**Generate (EXECUTION):**
+- backend/db/bigquery_client.py +31 lines (new `get_first_funded_snapshot_date()` helper with MIN(snapshot_date) WHERE positions_value > 0 + fail-open Exception guard).
+- backend/services/paper_trader.py +29 / -5 (modified `_get_benchmark_return` signature to accept first_funded_date kwarg + body to use it + call-site update at line 478).
+- backend/tests/test_phase_38_7_benchmark_anchor.py (NEW, 169 lines, 8 tests).
+- ZERO frontend changes. ZERO other backend service changes. ZERO schema changes.
+
+**Verification:**
+- pytest backend/tests/test_phase_38_7_benchmark_anchor.py -v = 8 passed in 0.78s.
+- pytest backend/ --collect-only -q = 353 (was 345 after 38.5; +8 new; 0 regressions).
+- ast.parse(bigquery_client.py + paper_trader.py + test) green.
+- BQ helper structurally correct: MIN(snapshot_date), positions_value > 0, paper_portfolio_snapshots.
+- Mutation-resistance: 5 directions verified (or->and; missing call site; MIN->MAX; no >0 filter; hard-coded inception) each trip distinct tests.
+- Emoji sweep: 0 in 3 changed files.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clear (researcher SPAWNED per new memory; contract pre-commit; live_check + critique present; log-last HOLDING; first Q/A so no second-opinion-shopping).
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 2 NOTE.
+  - NOTE-1: criterion #1 name references `paper_metrics_v2_spy_anchor_*` but actual SPY anchor lives in `paper_trader.py::_get_benchmark_return`; paper_metrics_v2.py has zero SPY logic. Contract DISCLOSED the pivot (interpretation (B)+(C) -- "metric source = paper_trader; metrics orchestrator = paper_metrics_v2" per backend-services.md "Single metric source" rule; substantive intent met verbatim). Honest framing, not silent erosion. Planning-side rename recommended for future masterplan touch.
+  - NOTE-2: experiment_results.md is still stale phase-34 content; live_check_38.7.md covers the surface (recurring backlog).
+- 3-row immutable-criteria: 3 PASS (criterion #1 PASS per interpretation B+C with NOTE disclosed; criteria #2+#3 PASS verbatim).
+- Mutation-resistance: STRONG (5 distinct directions).
+- Adversarial honesty: planning-time-naming vs implementation-file pivot openly disclosed in contract row #1, not silently rerouted.
+
+**Scope honesty:** git diff --stat backend/agents/ + backend/api/ + backend/config/ = empty. Only backend/db/bigquery_client.py + backend/services/paper_trader.py modified; test new. ZERO frontend; ZERO scripts/.
+
+**Integration-gate scoreboard:** 1=PASS(353), 2=N/A(backend only), 3=N/A(bug fix not feature), 4=N/A(no schema), 5=N/A, 6=PASS, 7=PASS, 8=PASS, 9=PASS(single source -- paper_trader is canonical metric source), 10=HOLDING.
+
+**Operator runbook (live):** documented in live_check_38.7.md. After next mark-to-market cycle, `/api/paper-trading/portfolio` benchmark_return_pct surfaces the corrected value (single source of truth; no dashboard code change needed).
+
+**Real progress vs Cycle 21:** Cycle 21 closed phase-38.5 (ASCII logger CI guard, cycle-2 corrected). Cycle 22 closes phase-38.7 -- the third backend-correctness improvement in a row (after 35.2 telemetry + 37.2 source defaults). After this commit, closure path = {35.1 + 36.1 + 37.1 + 44.1 + 35.2 + 37.2 + 37.4 + 38.3 + 38.5 + 38.7 DONE} -> {38.5.1 + 38.5.2 follow-ups + 39.1 owner + 40.* batch + 41.0-1 + 44.2 + 44.7} -> 35.3 (calendar-bound) -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~30-45 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-40.1 -- OpenAlex key + .env.example (NOTE-tier; may hit .env permission constraint).
+2. phase-40.* batch -- dev-MAS housekeeping (low risk; multiple small steps).
+3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval like cmdk).
+
+**Total cycle time:** ~40 min (researcher 13m + contract 5m + generate 8m + test 5m + Q/A 6m + log + flip + push 3m).

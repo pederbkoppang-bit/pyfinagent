@@ -1025,3 +1025,34 @@ class BigQueryClient:
             bigquery.ScalarQueryParameter("limit", "INT64", limit),
         ])
         return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
+
+    def get_first_funded_snapshot_date(self) -> Optional[str]:
+        """phase-38.7: earliest snapshot_date where positions_value > 0.
+
+        Closes closure_roadmap.md section 3 OPEN-9: SPY benchmark anchor in
+        paper_trader._get_benchmark_return was using portfolio.inception_date
+        (set at row-creation time, before any actual capital injection).
+        Per industry taxonomy (PerformanceMeasurementSolutions; GIPS), the
+        correct anchor is the "Initial Trading Date" / "Funding Date" --
+        the first snapshot where positions_value transitioned from 0 to >0.
+
+        Returns YYYY-MM-DD string, or None if no funded snapshot exists yet
+        (caller falls back to inception_date for cold-start grace).
+        """
+        try:
+            query = f"""
+                SELECT CAST(MIN(snapshot_date) AS STRING) AS first_funded_date
+                FROM `{self._pt_table("paper_portfolio_snapshots")}`
+                WHERE positions_value > 0
+            """
+            rows = list(self.client.query(query).result())
+            if not rows:
+                return None
+            val = rows[0].get("first_funded_date")
+            return val if val else None
+        except Exception as exc:  # pragma: no cover -- fail-open
+            logger.debug(
+                "[phase-38.7] get_first_funded_snapshot_date failed: %r; falling back",
+                exc,
+            )
+            return None
