@@ -11584,7 +11584,7 @@
               "execute_prompt_skeleton_provided",
               "no_silent_drops_against_4_audits"
             ],
-            "live_check": "live_check_33.2.md carries Q/A pass + coverage-grep evidence."
+            "live_check": "live_check_33.2.md carries Q/A pass + coverage-grep evidence + 8-row immutable-criteria verdict table."
           },
           "retry_count": 0,
           "max_retries": 3
@@ -12354,6 +12354,316 @@
               "operator_approval_recorded_for_PRODUCTION_READY_declaration"
             ],
             "live_check": "production_ready_audit_<date>.md is the deliverable; live verification = read it."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-44",
+      "name": "Production-Grade Frontend UX/AI overhaul (top-notch, complete view, all 15 pages)",
+      "status": "in-progress",
+      "depends_on": [],
+      "gate": null,
+      "steps": [
+        {
+          "id": "44.0",
+          "name": "Super-planning: deep research + per-page expanded master design",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "User /goal 2026-05-22: deep research codebase + top production-ready UX/AI 2026 patterns, expand each frontend design step with findings, no frontend code changes. Researcher subagent a63a24f40308f8093 (deep/max) produced research_brief.md 775 lines, 10 external sources read in full, 84 internal files inspected, gate_passed=true. 33+ open findings + 14 missing components across 15 pages + Sidebar + 8 lib files + 58 components. Four 2026-frontier gaps dominate: no Cmd-K, WCAG 2.2 EU AAA gap, /agents flat-log vs trace-tree, /settings duplicates /paper-trading Manage.",
+          "verification": {
+            "command": "test -f handoff/current/frontend_ux_master_design.md && test -f handoff/current/research_brief.md && test -f handoff/current/contract.md && test -f handoff/current/live_check_44.0.md && grep -qE 'PASS|FAIL' handoff/current/live_check_44.0.md",
+            "success_criteria": [
+              "frontend_ux_master_design_md_exists_with_per_page_plan_for_15_pages_plus_sidebar_plus_lib_plus_components",
+              "every_page_has_at_least_3_success_criteria_citing_research_brief_section_B",
+              "12_DoD_criteria_in_section_6",
+              "JSON_inserts_valid_for_phase_44_with_status_in_progress_NOT_done",
+              "no_frontend_code_changes_git_diff_stat_frontend_src_empty",
+              "researcher_gate_passed_true_with_at_least_8_external_sources",
+              "every_one_of_15_pages_appears_in_master_design_section_3"
+            ],
+            "live_check": "live_check_44.0.md carries Q/A PASS verdict + coverage-grep evidence + 12-row UX-DoD baseline + git diff frontend/src/ empty proof."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.1",
+          "name": "Foundation: design tokens + states lib + hooks + Cmd-K + WCAG baseline + Sidebar refresh",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "44.0",
+          "audit_basis": "Per master_design Section 2: foundations cross-cut every later step. Per research_brief Section H.1: Cmd-K is single most impactful change. Per Section B.7: WCAG 2.2 EU AAA mandate 2026. Per Section A.1: Sidebar has 0 aria-attributes + non-persisted collapse + no mobile + no Cmd-K trigger.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_44.1.md && grep -q 'CommandPalette' frontend/src/app/layout.tsx && test -d frontend/src/components/states && test -d frontend/src/lib/hooks",
+            "success_criteria": [
+              "frontend_src_components_states_directory_exists_with_LoadingState_EmptyState_ErrorState_OfflineState_StaleDataState",
+              "frontend_src_lib_hooks_directory_exists_with_useEventSource_useURLState_useDebounced_useKeyboardShortcut",
+              "CommandPalette_mounted_in_root_layout_cmd_k_opens_it_real_browser_test",
+              "WCAG_2_2_baseline_skip_link_in_root_layout_and_24x24_target_size_audit_passes",
+              "Sidebar_collapse_state_persists_in_localStorage_reload_preserves",
+              "Sidebar_mobile_hamburger_works_at_375px",
+              "Sidebar_has_role_navigation_and_aria_current_page_on_active_link",
+              "Lighthouse_a11y_at_least_95_on_three_sampled_pages_home_paper_trading_settings"
+            ],
+            "live_check": "live_check_44.1.md captures Lighthouse + axe-core results + Playwright Cmd-K trace + localStorage persistence proof."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.2",
+          "name": "Cockpit (/paper-trading + route-split + Manage->Drawer + TanStack tables + Sparklines + BarList)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "44.1",
+          "audit_basis": "Per master_design Section 3.7: /paper-trading is 1284 LoC cockpit (primary surface); Manage tab duplicates /settings DRY violation across 3 audit cycles; positions+trades use raw <table>; tab bar has no role=tablist a11y gap; 6 tabs cross 4 domains. Owner-approval required for Manage tab removal (operator habit change).",
+          "verification": {
+            "command": "test -f handoff/current/live_check_44.2.md && test -f handoff/current/operator_approval_44.2.md",
+            "success_criteria": [
+              "paper_trading_Manage_tab_removed_opens_as_Drawer_instead",
+              "tabs_migrated_to_sub_routes_positions_trades_nav_reality_gap_exit_quality",
+              "tab_bar_has_role_tablist_and_per_tab_role_tab_aria_selected_aria_controls",
+              "positions_table_uses_DataTable_TanStack_v8_with_sort_filter_virtualize",
+              "trades_table_uses_DataTable_TanStack_v8",
+              "AgentRationaleDrawer_opens_from_both_positions_and_trades_rows",
+              "LiveBadge_on_each_position_row_shows_live_or_stale",
+              "Tremor_BarList_for_sector_concentration_right_column",
+              "five_north_star_questions_answerable_in_5_seconds_real_browser_playwright_timed",
+              "LCP_under_2_seconds_cold_load_lighthouse",
+              "no_horizontal_scroll_at_375px",
+              "Lighthouse_a11y_at_least_95",
+              "operator_approval_recorded_in_audit_trail_before_Manage_tab_removal"
+            ],
+            "live_check": "live_check_44.2.md captures Playwright trace of 5-question answerability + Lighthouse + screenshots at 4 breakpoints + the operator-approval row."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.3",
+          "name": "Decision Trail Drawer consolidation (4-into-1 DecisionTraceView+DebateView+GlassBoxCards+AgentRationaleDrawer)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "44.1",
+          "audit_basis": "Per master_design Section 3.18: 4 components for 'show me the AI reasoning' use-case can consolidate into one DecisionTrailDrawer (LangSmith-trace-tree shape per research_brief B.2). Owner-approval needed before deletion of 4 existing components.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_44.3.md && test -f handoff/current/operator_approval_44.3.md && test -f frontend/src/components/DecisionTrailDrawer.tsx",
+            "success_criteria": [
+              "DecisionTrailDrawer_component_exists_in_frontend_src_components",
+              "drawer_renders_enrichment_debate_synthesis_critic_risk_judge_trade_stages_in_order",
+              "risk_judge_stage_quotes_portfolio_sector_exposure_verbatim_from_llm_call_log",
+              "drawer_opens_in_under_200ms_from_positions_table_click_playwright_timed",
+              "4_deprecated_components_DecisionTraceView_DebateView_GlassBoxCards_AgentRationaleDrawer_deleted_after_owner_approval"
+            ],
+            "live_check": "live_check_44.3.md captures the drawer open-timing + verbatim portfolio_sector_exposure quote + Playwright trace + the 4-deletions proof."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.4",
+          "name": "Reports section refresh (/reports + /performance: URL deep-linking + DataTable + Tremor AreaChart)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "44.1",
+          "audit_basis": "Per master_design Section 3.5: /reports has 604 LoC with broken URL deep-linking (?ticker= only seeds filter, tab change loses URL), weak compare-flow UX. Section 3.6: /performance has no time-series visualization (3 metric cards, no trend; cost-history is a 50-row <table>).",
+          "verification": {
+            "command": "test -f handoff/current/live_check_44.4.md",
+            "success_criteria": [
+              "reports_useURLState_syncs_tab_ticker_selected_to_url_params_shareable_links_work",
+              "reports_compare_wizard_uses_Drawer_overlay",
+              "reports_history_uses_DataTable_TanStack_v8_with_sparkline_column_30d_score_history",
+              "reports_empty_state_uses_EmptyState_component_not_inline_paragraph",
+              "performance_AreaChart_Tremor_above_cost_history_table_cumulative_cost",
+              "performance_sparkline_next_to_win_rate_number_30d_trend",
+              "performance_per_pillar_performance_bars_from_SynthesisReport_data",
+              "performance_TimeRangeSelector_7d_30d_90d_all",
+              "Lighthouse_a11y_at_least_95_on_both_pages",
+              "tab_bar_has_role_tablist_aria_selected"
+            ],
+            "live_check": "live_check_44.4.md captures URL deep-link Playwright trace + screenshots + DataTable sort/filter proof."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.5",
+          "name": "Trading non-paper refresh (/backtest route-split + /sovereign + /sovereign/strategy + /paper-trading/learnings)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "44.1",
+          "audit_basis": "Per master_design Section 3.9: /backtest is 1594 LoC with 7 tabs across 4 domains; Budget + Harness don't belong; RunSelector is ~140 LoC mountain-of-state. Section 3.10: RedLine duplicates on / and /sovereign. Section 3.11: strategy detail back-link inconsistent. Section 3.8: /paper-trading/learnings has no header. Owner-approval required for /backtest URL split (bookmark migration).",
+          "verification": {
+            "command": "test -f handoff/current/live_check_44.5.md && test -f handoff/current/operator_approval_44.5.md",
+            "success_criteria": [
+              "backtest_route_split_into_backtest_harness_budget_three_routes",
+              "sidebar_updated_with_harness_and_budget_entries",
+              "backtest_RunSelector_replaced_with_cmdk_palette_switch_run_compare_runs_load_latest",
+              "backtest_trade_list_uses_DataTable_TanStack_v8",
+              "sovereign_RedLine_removed_from_home_kept_only_on_sovereign",
+              "home_replacement_card_points_to_sovereign",
+              "sovereign_RedLine_event_annotations_timeline_pills_below_chart",
+              "strategy_detail_uses_Breadcrumb_component",
+              "strategy_detail_uses_LoadingState_not_plain_p_loading",
+              "paper_trading_learnings_has_proper_header_and_TimeRangeSelector",
+              "Lighthouse_a11y_at_least_95_on_all_four_pages",
+              "operator_approval_recorded_for_backtest_route_split"
+            ],
+            "live_check": "live_check_44.5.md captures the route-split + Playwright bookmark migration + screenshots + operator-approval row."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.6",
+          "name": "Analyze section refresh (/ Home self-violating h-full fix + Sparklines + LiveBadge; /signals hook extraction)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "44.1",
+          "audit_basis": "Per master_design Section 3.3: home 3-box row has self-violating h-full anti-pattern (frontend.md:23 warns); KPI tiles missing sparklines + aria-labels. Section 3.4: /signals has 50 LoC of type-coercion at signals/page.tsx:34-85 that belongs in a useEnrichmentSignals hook; <input> has no aria-label.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_44.6.md",
+            "success_criteria": [
+              "home_3box_row_h_full_anti_pattern_removed_per_frontend_md_line_23",
+              "home_6_KPI_tiles_have_Sparkline_LiveBadge_aria_label_role_group",
+              "home_LCP_under_2_seconds",
+              "signals_useEnrichmentSignals_hook_extracted_to_frontend_src_lib_hooks",
+              "signals_50_LoC_of_inline_type_coercion_removed_from_signals_page_tsx",
+              "signals_input_gains_aria_label_ticker_symbol_and_label_pairing",
+              "signals_recent_tickers_chips_below_input_last_5_clickable",
+              "signals_progressive_disclosure_consensus_pill_then_12_cards_then_collapsible_details",
+              "Lighthouse_a11y_at_least_95_on_both_pages"
+            ],
+            "live_check": "live_check_44.6.md captures the home + signals refactor + screenshots + hook unit test."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.7",
+          "name": "System section refresh (/agents TraceTree + compare + annotation; /agent-map merge; /cron facet search; /observability sparkline)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "44.1",
+          "audit_basis": "Per master_design Section 3.12: /agents Live Stream is unbounded flat log (should be LangSmith trace tree per research_brief B.2); Agent Map tab is hand-coded SVG duplicating /agent-map React Flow. Section 3.13: /agent-map merge target. Section 3.14: /cron logs viewer is plain <pre> with no search. Section 3.15: /observability has no timeline view.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_44.7.md",
+            "success_criteria": [
+              "agents_Live_Stream_uses_TraceTree_grouped_by_run_id_tool_call_nested",
+              "agents_severity_filter_pills_error_warning_info",
+              "agents_side_by_side_compare_via_Drawer_with_diff_highlighting",
+              "agents_annotation_queue_persists_to_BQ_via_new_endpoint_api_mas_annotations",
+              "agents_Agent_Map_tab_removed_users_redirected_to_agent_map_route",
+              "agent_map_page_gains_header_last_updated_per_agent_drawer_with_recent_calls",
+              "cron_logs_facet_search_with_level_pills_error_warn_info",
+              "cron_logs_sparkline_above_log_event_rate_per_minute_tremor",
+              "cron_logs_follow_pause_toggle_default_follow_newest",
+              "cron_logs_permalink_to_line_via_url_fragment_L1234",
+              "cron_logs_compact_density_toggle_32_line_vs_16_line",
+              "observability_per_source_7d_sparkline_column",
+              "observability_TimeRangeSelector_7d_30d",
+              "observability_zero_unknown_bands_closes_DoD_5",
+              "observability_cross_link_to_cron_logs_filtered_to_source",
+              "useEventSource_shared_hook_replaces_inline_EventSource",
+              "Lighthouse_a11y_at_least_95_on_all_four_pages"
+            ],
+            "live_check": "live_check_44.7.md captures TraceTree + cron facet-search + observability sparkline screenshots + Playwright traces."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.8",
+          "name": "Settings + Login (DRY merge + new tabs Risk LLMRoute Cycle AuditLog FeatureFlags; Login form wrap)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "44.2",
+          "audit_basis": "Per master_design Section 3.16: /settings (1410 LoC) duplicates /paper-trading Manage tab ~50% (DRY violation across 3 audit cycles). Section 3.17: /login has no <form>, Enter does nothing, no passkey explainer. Owner-approval required for destructive-action wiring.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_44.8.md && test -f handoff/current/operator_approval_44.8.md",
+            "success_criteria": [
+              "paper_trading_Manage_tab_removed_settings_live_solely_in_settings_page",
+              "settings_has_7_tabs_models_cost_risk_llmroute_cycle_auditlog_featureflags",
+              "settings_search_box_at_top_filters_all_rows_scroll_to_match",
+              "settings_ModelPicker_has_role_listbox_arrow_key_nav_aria_activedescendant",
+              "settings_destructive_actions_flatten_all_force_divest_require_typed_confirmation",
+              "settings_audit_log_row_appended_for_every_operator_action_via_new_endpoint",
+              "settings_LLM_route_test_call_button_returns_banner_string_under_5s",
+              "settings_cmdk_inline_edit_set_paper_max_positions_to_15_works",
+              "login_buttons_wrapped_in_form_enter_triggers_google_signin",
+              "login_passkey_helper_text_and_tooltip_explainer",
+              "login_clear_error_state_if_email_not_in_ALLOWED_EMAILS",
+              "Lighthouse_a11y_at_least_95_on_both_pages",
+              "operator_approval_recorded_for_destructive_action_wiring"
+            ],
+            "live_check": "live_check_44.8.md captures the DRY merge + audit-log row + login Playwright trace + operator-approval row."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.9",
+          "name": "Mobile + a11y + states-library global polish pass",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "44.2",
+          "audit_basis": "Per master_design Section 6 UX-2 + UX-3 + UX-8: WCAG 2.2 AA across all 15 routes; 375px responsive; states library replaces all inline spinners/empties/errors.",
+          "verification": {
+            "command": "python scripts/qa/responsive_check.py 375 768 1280 1920 && python scripts/qa/axe_core_runner.py && test -f handoff/current/live_check_44.9.md",
+            "success_criteria": [
+              "lighthouse_a11y_at_least_95_on_every_one_of_15_routes",
+              "axe_core_zero_violations_on_every_one_of_15_routes",
+              "responsive_check_passes_at_375_768_1280_1920_on_every_route_no_horizontal_scroll",
+              "no_inline_animate_pulse_or_loading_text_grep_in_frontend_src_returns_empty",
+              "no_inline_rose_banner_grep_returns_empty_all_use_ErrorBanner_from_states_lib",
+              "keyboard_shortcuts_overlay_question_mark_lists_all_shortcuts",
+              "all_KPI_tiles_have_aria_label",
+              "all_buttons_have_aria_label_or_text_content",
+              "all_tab_bars_have_role_tablist_role_tab_aria_selected_aria_controls",
+              "scripts_qa_responsive_check_py_and_axe_core_runner_py_exist_executable"
+            ],
+            "live_check": "live_check_44.9.md captures Lighthouse + axe-core + responsive results across all 15 routes."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "44.10",
+          "name": "SSE live-updates everywhere (cockpit + /sovereign + /observability + /cron + /backtest optimizer)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "44.2",
+          "audit_basis": "Per master_design Section 5 Backend Coupling + research_brief Section B.4: SSE is dominant transport 2026 for LLM streaming; replacing 30s polling needs backend stream endpoints. Owner-approval + backend phase coupling required.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_44.10.md && test -f handoff/current/operator_approval_44.10.md && curl -sS -m 5 http://localhost:8000/api/paper-trading/stream | head -3",
+            "success_criteria": [
+              "backend_api_paper_trading_stream_endpoint_exists_and_emits_one_event_per_second",
+              "backend_api_backtest_stream_endpoint_exists_for_optimizer_progress",
+              "backend_api_observability_stream_endpoint_exists_for_freshness",
+              "frontend_useEventSource_hook_replaces_polling_on_cockpit_paper_trading",
+              "NAV_ticker_updates_within_1s_of_backend_write_real_browser_playwright_test",
+              "cycle_status_pill_flips_green_yellow_red_without_page_refresh",
+              "network_panel_shows_one_EventSource_connection_not_N_polling_intervals",
+              "graceful_degrade_to_5s_polling_when_EventSource_fails_3x",
+              "observability_freshness_bands_update_without_F5",
+              "operator_approval_recorded_for_backend_stream_endpoint_additions"
+            ],
+            "live_check": "live_check_44.10.md captures the SSE Playwright trace + network panel screenshot showing single EventSource + operator-approval row."
           },
           "retry_count": 0,
           "max_retries": 3
