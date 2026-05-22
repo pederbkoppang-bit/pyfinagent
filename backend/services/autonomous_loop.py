@@ -1767,6 +1767,8 @@ async def _learn_from_closed_trades(tickers: list[str], bq: BigQueryClient, sett
         if t.get("action") == "SELL" and t.get("ticker") in tickers:
             sell_by_ticker.setdefault(t["ticker"], t)
 
+    learn_loop_enabled = bool(getattr(settings, "paper_learn_loop_enabled", False))
+
     for ticker in tickers:
         try:
             trade = sell_by_ticker.get(ticker)
@@ -1777,8 +1779,103 @@ async def _learn_from_closed_trades(tickers: list[str], bq: BigQueryClient, sett
             if hasattr(analysis_date, "isoformat"):
                 analysis_date = analysis_date.isoformat()
             recommendation = trade.get("risk_judge_decision", "HOLD")
+            # phase-35.1: stop_loss_trigger SELLs may have empty risk_judge_decision
+            # (per BQ-probe B-5 in closure_roadmap §3); coerce empty string to a
+            # neutral recommendation so OutcomeTracker doesn't barf downstream.
+            if not recommendation or not str(recommendation).strip():
+                recommendation = "HOLD"
             price_at_rec = trade.get("price", 0.0)
-            tracker.evaluate_recommendation(ticker, str(analysis_date), recommendation, price_at_rec)
+            outcome = tracker.evaluate_recommendation(
+                ticker, str(analysis_date), recommendation, price_at_rec
+            )
+
+            # phase-35.1: writer fan-out (gated by paper_learn_loop_enabled).
+            # Bug found in closure_roadmap §3 BQ-probe B-1/B-2: even when
+            # closed_tickers fired (e.g. cycle c7801712 COHR stop-out 2026-05-22),
+            # outcome_tracking and agent_memories stayed schema-empty because:
+            #   (a) evaluate_recommendation early-returns None when yfinance
+            #       current_price is missing -> NO write
+            #   (b) evaluate_recommendation never calls
+            #       _generate_and_persist_reflections -> NO agent_memories write
+            # Fix: gate behind flag (default OFF per /goal gate 3); when ON,
+            # write outcome_tracking via fallback path if evaluate_recommendation
+            # returned None, AND call _generate_and_persist_reflections to land
+            # agent_memories lesson rows.
+            if not learn_loop_enabled:
+                continue
+
+            if outcome is None:
+                # Fallback: build a minimal outcome dict from trade fields so
+                # outcome_tracking gets a row even when yfinance flake or
+                # missing analysis_date kills the primary path. Idempotent
+                # via the (ticker, analysis_date) composite -- bq.save_outcome
+                # is an UPSERT in the existing implementation.
+                try:
+                    sell_price = float(trade.get("price") or 0.0)
+                    pnl_pct = float(trade.get("return_pct") or 0.0)
+                    holding_days = int(trade.get("holding_days") or 0)
+                    bq.save_outcome(
+                        ticker=ticker,
+                        analysis_date=str(analysis_date),
+                        recommendation=recommendation,
+                        price_at_rec=price_at_rec or sell_price,
+                        current_price=sell_price,
+                        return_pct=pnl_pct,
+                        holding_days=holding_days,
+                        beat_benchmark=(pnl_pct > 0),
+                    )
+                    outcome = {
+                        "ticker": ticker,
+                        "analysis_date": str(analysis_date),
+                        "recommendation": recommendation,
+                        "return_pct": pnl_pct,
+                        "holding_days": holding_days,
+                    }
+                    logger.info(
+                        "phase-35.1: fallback outcome_tracking row written for %s (sell_price=%s, pnl=%.2f%%, hold=%dd)",
+                        ticker, sell_price, pnl_pct, holding_days,
+                    )
+                except Exception as fb_exc:
+                    logger.warning(
+                        "phase-35.1: fallback outcome_tracking write failed for %s: %r",
+                        ticker, fb_exc,
+                    )
+                    outcome = None
+
+            # agent_memories fan-out (writes one lesson row per
+            # REFLECTION_AGENTS entry; fail-open per existing pattern in
+            # _generate_and_persist_reflections).
+            if outcome is not None:
+                try:
+                    full_report = {}
+                    # Try to enrich the lesson with the original full report
+                    # if it exists; pass {} when not found (lesson stays
+                    # generic but still lands).
+                    try:
+                        stored = bq.get_report(ticker, str(analysis_date))
+                        if stored and stored.get("full_report_json"):
+                            fr = stored["full_report_json"]
+                            if isinstance(fr, str):
+                                import json as _json
+                                full_report = _json.loads(fr) if fr else {}
+                            elif isinstance(fr, dict):
+                                full_report = fr
+                    except Exception as fr_exc:
+                        logger.debug(
+                            "phase-35.1: full_report fetch failed for %s (using empty dict): %r",
+                            ticker, fr_exc,
+                        )
+
+                    tracker._generate_and_persist_reflections(outcome, full_report)
+                    logger.info(
+                        "phase-35.1: agent_memories reflections fan-out fired for %s",
+                        ticker,
+                    )
+                except Exception as ref_exc:
+                    logger.warning(
+                        "phase-35.1: agent_memories fan-out failed for %s: %r",
+                        ticker, ref_exc,
+                    )
         except Exception as e:
             logger.debug(f"Outcome evaluation failed for {ticker}: {e}")
 

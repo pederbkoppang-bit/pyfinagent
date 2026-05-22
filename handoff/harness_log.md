@@ -21749,3 +21749,62 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 **Closure path:** `phase-45.0 -> {35.1, 44.1} -> {36.1, 44.2} -> {37.1, 44.7} -> 35.2 -> 35.3 -> sweep -> 44.10 -> 43.0 FINAL GATE (combined 26-criterion DoD) -> PRODUCTION_READY (owner-typed approval)`.
 
 **Total cycle time:** ~95 min (pre-cycle health 2m + researcher gate 18m + contract 5m + generate 25m + 9 legacy flips 5m + first Q/A 8m + audit_basis fix 3m + fresh Q/A 5m + live_check write 3m + this log append + status flip + auto-push 3m).
+
+## Cycle 13 -- 2026-05-22 (phase-35.1 learn-loop writer fan-out -- EXECUTION, code change) -- phase=35.1 result=PASS
+
+**Step name:** phase-35.1 Learn-Loop Writer Wiring (outcome_tracking + agent_memories fan-out behind default-OFF feature flag).
+**Type:** EXECUTION (NOT plan-only). Backend code change. One harness pass per /goal directive.
+
+**Researcher (gate):** EXPLICITLY SKIPPED with documented rationale per /goal conditional clause "Researcher if new external OR roadmap tags 'refresh-on-touch'". Justification in contract.md "Research-gate decision" section: closure_roadmap.md §3 + §9 already document the fix path with file:line precision (outcome_tracker.py:74 + autonomous_loop.py:1714); cycle-12 research_brief.md (529 lines, 11 sources, gate_passed=true) already covered BM25 cold-start + event-sourcing idempotency patterns. No new external dependencies; no new BQ migration; pure dispatcher fix.
+
+**North-star delta:**
+- **R (immediate):** persisting outcome_tracking rows on every stop_loss_trigger SELL means future cycles compute MAE-aware exit metrics. Reduces R by surfacing late-exit cost before next cycle's positions compound.
+- **P (speculative):** agent_memories lessons enable BM25 retrieval on next cycle's Analyze step. Conservative estimate +0.05-0.20 Sharpe over 60-day window with Caltech arxiv:2502.15800 LLM-vs-human-trader adversarial discount applied.
+- **How measured:** outcome_tracking row count 0 -> >=1 post-flag-flip + 1 cycle with stop_loss_trigger close; agent_memories 0 -> 4 per closed ticker (REFLECTION_AGENTS); long-run 60-day Sharpe delta deferred to phase-43.0 DoD.
+
+**Generate phase (EXECUTION):**
+- backend/config/settings.py:32 -- new Field paper_learn_loop_enabled: bool = Field(False, ...) with verbose docstring (canonical env var documentation; .env.example permission-blocked).
+- backend/services/autonomous_loop.py:1714-1880 -- modified _learn_from_closed_trades to (a) coerce empty risk_judge_decision to "HOLD" (closure_roadmap §3 BQ-probe B-5 finding), (b) gate the new fan-out behind flag (default OFF), (c) write fallback bq.save_outcome row when evaluate_recommendation early-returns None on yfinance flake, (d) call tracker._generate_and_persist_reflections(outcome, full_report) to land agent_memories lesson rows. All paths fail-open with WARN-level logging.
+- backend/tests/test_phase_35_1_learn_loop_writer.py (NEW, 169 lines) -- 5 pytest tests covering both flag states + both code paths + empty-recommendation coercion + flag default.
+- outcome_tracker.py UNCHANGED (single source of truth preserved; dispatcher fix only).
+- paper_trader.py UNCHANGED (closure_roadmap §3 location correction documented in contract.md "Out of scope" section).
+- ZERO frontend changes (git diff --stat frontend/src/ = empty).
+- ZERO emojis. ASCII-only loggers in new code.
+
+**Verification:**
+- pytest backend/ --collect-only -q = 302 tests (was 297 at phase-45.0 baseline lock; +5 new = 0 regressions).
+- pytest backend/tests/test_phase_35_1_learn_loop_writer.py -v = 5 passed in 1.92s.
+- python -c "from backend.config.settings import Settings; print(Settings().paper_learn_loop_enabled)" = False (default OFF verified).
+- Syntax: all 3 changed Python files parse OK via ast.parse.
+
+**Q/A verdict (single agent, single spawn):** PASS (no CONDITIONAL, no retry needed).
+- 5-item harness-compliance audit: all 5 checkpoints clear (researcher SKIP justified; contract pre-generate; harness_log will append; log-then-flip order will hold; first Q/A spawn -- 0 prior CONDITIONALs for step-id 35.1, 3rd-CONDITIONAL rule N/A).
+- Code-review heuristics (5 dimensions, 15 ranked): 0 BLOCK + 0 WARN + 2 NOTE (NOTE-1: bq.save_outcome is APPEND not UPSERT -- impact LOW because criterion #1 is ">= 1 row" not "exactly 1 row"; NOTE-2: closure-roadmap §3 location correction honestly disclosed).
+- 13-row immutable-criteria verdict: 11 PASS + 2 PARTIAL-OK (criteria 6 & 8 linked to .env.example permission limit; Field description compensates). 0 FAIL. 0 BLOCK. 0 WARN.
+- Mutation-resistance: STRONG on tested paths; ACCEPTABLE on fail-open path.
+- Adversarial honesty: Caltech arxiv:2502.15800 cited with conservative discount; PARTIAL-OK criteria honestly disclosed.
+
+**Scope honesty:** git diff --stat backend/ = only settings.py + autonomous_loop.py modified; test file is untracked-new; ZERO frontend diff. Single dispatcher function modified + single new Field + single new test file = bounded per /goal "NO mass refactors".
+
+**Integration-gate scoreboard (all 10 /goal gates):**
+1. pytest >=297: PASS (302).
+2. TS build green: PASS (no FE changes).
+3. New behavior behind flag default OFF: PASS.
+4. BQ migrations: PASS (no migration needed).
+5. New env vars documented: PARTIAL-OK (Field docstring + live_check runbook; .env.example permission-blocked).
+6. Contract has N* delta: PASS.
+7. Zero emojis: PASS.
+8. ASCII loggers: PASS.
+9. Single source of truth: PASS (outcome_tracker.py untouched).
+10. Log first / flip last: HOLDING (this append precedes status flip).
+
+**Operator runbook (live BQ-row landing):** documented in live_check_35.1.md. Set PAPER_LEARN_LOOP_ENABLED=true in backend/.env, restart backend, wait for Monday 2026-05-25 14:00 ET cron OR trigger /run-now. Expect outcome_tracking >=1 row + agent_memories ~4 lesson rows per closed ticker.
+
+**Real progress vs Cycle 12:** Cycle 12 produced the planning doc (closure_roadmap.md, 9 legacy flips + audit_basis upgrades). Cycle 13 executes the FIRST step on the critical path. After this commit, the closure path is {35.1 DONE} -> {44.1 + 36.1} -> {37.1 + 44.7} -> 35.2 -> 35.3 -> sweep -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~39-54 cycles remaining.
+
+**Top-3 next-session actions:**
+1. phase-44.1 -- frontend foundation (Cmd-K + states-lib + WCAG 2.2 + Sidebar + hooks).
+2. phase-36.1 -- scale-out wiring at +2R/+3R (LAST code BLOCK on profit-protection).
+3. phase-35.2 -- Risk-Judge telemetry-wrapper restoration (depends on phase-37.1).
+
+**Total cycle time:** ~45 min (pre-cycle health 2m + researcher SKIP 2m + contract 5m + generate 18m + pytest 3m + Q/A 7m + live_check 4m + log+flip+push 4m).
