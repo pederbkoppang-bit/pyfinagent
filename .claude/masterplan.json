@@ -7249,7 +7249,7 @@
         {
           "id": "23.2.4",
           "name": "Verify pause/resume deadlock did not regress",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "estimated_minutes": 10,
           "verification": "Run live pause-resume-pause cycle through the API; each must complete in <5s; tail handoff/kill_switch_audit.jsonl for clean transitions"

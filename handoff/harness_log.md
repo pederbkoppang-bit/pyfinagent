@@ -22552,3 +22552,54 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-44.7 -- TraceTree (now unblocked by 37.1/37.4 + 35.2 telemetry; may need new deps).
 
 **Total cycle time:** ~30 min.
+
+## Cycle 28 -- 2026-05-23 (phase-23.2.4 P0 Verify pause/resume deadlock did not regress -- VERIFICATION, 4 new pytest regression tests; ZERO source code changes) -- phase=23.2.4 result=PASS
+
+**Step:** phase-23.2.4 (P0) -- Verify pause/resume deadlock did not regress. Live API verification + 4 new pytest regression tests (2 live-skip).
+**Mode:** EXECUTION (live API smoke + structural regression-lock; ZERO source code changes; the phase-23.1.22 fix at commit 0ed72940 is preserved).
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_23_2_4.md` -- 6 external sources read in full (Python 3.14 threading docs, Real Python threading lock, FastAPI concurrency, Techbuddies 2026 FastAPI event-loop case study, Runebook RLock vs Lock, DigitalApplied 2026 agent audit-trail best practices); 18 URLs collected; 6 internal files inspected; gate_passed=true. Researcher delivered fix anchor (commit 0ed72940 = phase-23.1.22, 2026-04-30; `_snapshot_locked()` helper extraction) + locking surface inventory (6 sites in kill_switch.py, all non-reentrant) + existing 7-test regression suite location.
+
+**North-star delta:**
+- **R (operator-control regression resistance, primary):** the pause/resume deadlock is locked at structural pytest layer (7 pre-existing tests) AND live-API layer (4 new). Future operator emergency-pause attempts safe.
+- **B (defensive observability):** audit-log invariant ensures future operator actions remain auditable.
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** verbatim masterplan criterion exercised live; all 3 transitions well under 5s; audit log clean 3-row delta; cleanup row restores pre-cycle state.
+
+**Generate (EXECUTION):**
+- backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py (NEW, ~180 lines, 4 tests).
+- ZERO source code changes. ZERO frontend changes. Existing 7-test regression suite untouched.
+
+**Live evidence:**
+| Transition | Elapsed | Budget |
+|---|---|---|
+| pause #1 | 0.058s | <5s |
+| resume | 1.261s | <5s (includes BQ breach check) |
+| pause #2 | 0.033s | <5s |
+
+Audit log: 226 -> 229 (delta 3 cycle rows) -> 230 (cleanup resume). Pre/post state both `paused=False`.
+
+**Verification:**
+- pytest backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py -v = 4 passed in 4.66s.
+- pytest backend/ --collect-only -q = 391 (was 387 after 41.1; +4 new; 0 regressions; baseline 297 preserved).
+- PYTHONPATH=. pytest tests/services/test_kill_switch_no_deadlock.py tests/api/test_pause_resume_timeout.py -q = 7 passed in 14.44s (re-ran live, NOT cached).
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clear.
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- Verbatim masterplan criterion met live (3 transitions all <5s).
+- Mutation-resistance: 5 directions verified (remove _snapshot_locked / introduce reentrant lock / backend offline => SKIP correctly / delete existing tests / delete phase-23.1.22 anchor).
+- Adversarial honesty: live re-run not cached; cleanup row disclosed; SKIP-vs-FAIL semantics correctly applied for live-API tests.
+
+**Scope honesty:** ZERO backend source. ZERO frontend. Only new file: backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py.
+
+**Integration-gate scoreboard:** 1=PASS(391), 2=N/A(no FE), 3=N/A(verification), 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Real progress vs Cycle 27:** Cycle 27 closed phase-41.1 (P3 trace-link). Cycle 28 closes phase-23.2.4 (P0 live API verification). First P0-priority closure this session; demonstrates the verification-cycle pattern works alongside the engineered-bug-fix + trace-link patterns. After this commit, closure path = {15 closed + 23.2.4 DONE} -> {38.5.1 + 38.5.2 + 23.2.5-16 P0/P1 verifications + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 44.2 + 44.7} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~24-39 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-23.2.5 -- Verify kill-switch breach evaluation never falsely fired (P0; similar shape to 23.2.4).
+2. phase-23.2.6 -- Verify sector cap actually blocked same-sector buys (P1).
+3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
+
+**Total cycle time:** ~35 min (researcher 10m + contract 5m + live curl + pytest 5m + test file 8m + Q/A 5m + log + flip + push 2m).
