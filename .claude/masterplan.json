@@ -7770,7 +7770,8 @@
     {
       "id": "phase-23.7",
       "name": "Harness plumbing: auto-commit-and-push + semver changelog",
-      "status": "in_progress",
+      "status": "done",
+      "notes": "DROP per phase-45.0 closure_roadmap (2026-05-22): verify-then-done -- only listed substep 23.7.0 already done; header was stale.",
       "depends_on": [
         "phase-23.6"
       ],
