@@ -1,0 +1,54 @@
+name: env-syntax-lint
+
+# phase-40.6: CI lane that runs scripts/qa/env_syntax_check.py on
+# backend/.env.example (the canonical template; the actual backend/.env is
+# gitignored). Closes closure_roadmap.md section 3 OPEN-31.
+#
+# `continue-on-error: true` for this cycle (soft-launch). phase-40.7 will
+# flip to hard-gate after the template is verified clean across several
+# cycles. Mirrors the ascii-logger-lint.yml shape (phase-38.5) for git-diff
+# verifiable structural parity.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/.env.example'
+      - 'frontend/.env*'
+      - 'scripts/qa/env_syntax_check.py'
+      - '.github/workflows/env-syntax-lint.yml'
+  pull_request:
+    paths:
+      - 'backend/.env.example'
+      - 'frontend/.env*'
+      - 'scripts/qa/env_syntax_check.py'
+      - '.github/workflows/env-syntax-lint.yml'
+
+jobs:
+  env-syntax-audit:
+    name: Audit .env-shaped files for syntax violations
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # phase-40.7 will flip to false after the template is verified clean.
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Run env syntax check
+        run: |
+          # Exit codes: 0 clean / 1 violations / 2 usage-or-IO error.
+          # continue-on-error: true above absorbs non-zero exits this cycle.
+          python3 scripts/qa/env_syntax_check.py backend/.env.example
+
+      - name: Run script self-tests
+        run: |
+          pip install pytest
+          pytest backend/tests/test_phase_40_6_env_syntax_check.py -v

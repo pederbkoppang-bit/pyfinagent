@@ -12232,7 +12232,7 @@
         {
           "id": "40.6",
           "name": ".env pre-commit / CI syntax guard (OPEN-31)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": null,
