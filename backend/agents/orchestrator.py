@@ -47,7 +47,7 @@ from backend.agents.memory import (
     generate_reflection,
 )
 from backend.agents.risk_debate import run_risk_debate
-from backend.agents.schemas import SynthesisReport, CriticVerdict
+from backend.agents.schemas import SynthesisReport, CriticVerdict, RiskJudgeVerdict
 from backend.agents.trace import AnalysisContext, DecisionTrace, TraceCollector, hash_input
 from backend.config import prompts
 from backend.config.settings import Settings
@@ -105,9 +105,16 @@ _THINKING_MODERATOR_CONFIG = {
     "include_thoughts": True,
 }
 _THINKING_RISK_JUDGE_CONFIG = {
+    # phase-37.1: structured-output discipline. closure_roadmap §3 + masterplan
+    # criterion #1 = "thinking_risk_judge_config_gains_response_mime_type_and_response_schema".
+    # NB: include_thoughts is intentionally OMITTED (Gemini 2.5+ docs: thinking
+    # with include_thoughts=True is incompatible with response_schema; the
+    # _generate_with_retry helpers in risk_debate.py + debate.py now also guard
+    # against the combination -- phase-37.1).
     "temperature": 0.0, "top_k": 1, "max_output_tokens": 1536,
+    "response_mime_type": "application/json",
+    "response_schema": RiskJudgeVerdict,
     "thinking": {"type": "enabled", "budget_tokens": 4096},
-    "include_thoughts": True,
 }
 _THINKING_SYNTHESIS_CONFIG = {
     "temperature": 0.0, "top_k": 1, "max_output_tokens": 4096,

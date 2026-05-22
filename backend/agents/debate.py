@@ -64,7 +64,14 @@ def _generate_with_retry(model: LLMClient, prompt: str, agent_name: str, max_ret
     config = gen_config or _DEBATE_GEN_CONFIG
     # Phase 5: Inject thinking config for Gemini 2.5 judge agents (Gemini-specific)
     if isinstance(model, GeminiClient) and thinking_budget > 0:
-        config = {**config, "thinking": {"type": "enabled", "budget_tokens": thinking_budget}, "include_thoughts": True}
+        thinking_block = {"type": "enabled", "budget_tokens": thinking_budget}
+        # phase-37.1: include_thoughts is INCOMPATIBLE with response_schema in
+        # Gemini 2.5+. See risk_debate.py:62-72 for the rationale -- same fix
+        # applied here for Moderator + structured Bull/Bear configs.
+        new_config = {**config, "thinking": thinking_block}
+        if "response_schema" not in config:
+            new_config["include_thoughts"] = True
+        config = new_config
     for attempt in range(max_retries):
         try:
             response = model.generate_content(prompt, generation_config=config)

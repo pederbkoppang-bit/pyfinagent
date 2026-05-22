@@ -11872,7 +11872,7 @@
         {
           "id": "37.1",
           "name": "RiskJudge response_schema (OPEN-16)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

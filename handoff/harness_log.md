@@ -21870,3 +21870,54 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. phase-37.1 -- RiskJudge response_schema + telemetry-wrapper restoration (closes phase-35.2).
 
 **Total cycle time:** ~55 min (pre-cycle health 2m + researcher SKIP 2m + contract 5m + generate 22m + pytest 3m + Q/A 8m + live_check 5m + log + flip + push 8m).
+
+## Cycle 15 -- 2026-05-22 (phase-37.1 RiskJudge response_schema + include_thoughts incompat fix -- EXECUTION, code change) -- phase=37.1 result=PASS
+
+**Step name:** phase-37.1 RiskJudge response_schema + include_thoughts/response_schema incompatibility fix (closes OPEN-16, root cause of 8/10 Risk-Judge invalid-JSON fallbacks on phase-34.2 cycle 3).
+**Type:** EXECUTION (backend code change, bug fix).
+
+**Researcher (gate):** SKIPPED with rationale per /goal conditional clause. closure_roadmap §3 OPEN-16 already documents diagnosis with file:line precision. Gemini 2.5+ thinking/response_schema incompat is documented vendor constraint covered in cycle-12 brief.
+
+**North-star delta:**
+- **B (primary):** ~0.1-0.3% per-cycle Burn reduction. 8/10 Risk-Judge invocations today drop to raw-text fallback wasting LLM calls + parse work. Risk-Judge ~10% of deep-think tier; 80% recovery = ~8% deep-think savings = ~0.1-0.3% total cycle cost.
+- **R (secondary):** structured paper_trades fields (risk_judge_decision + recommended_position_pct + risk_level + risk_limits) populated on Risk-Judge-gated SELLs, currently empty per BQ-probe B-5. Enables phase-35.2 telemetry restoration + phase-43.0 DoD-7.
+- **P:** N/A (no LLM decision behavior change).
+- **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** grep count of "Risk Judge returned invalid JSON" in backend.log = 0 (was 8+ on cycle 3); paper_trades.risk_judge_decision NULL-rate -> 0% on stop_loss_trigger SELLs.
+
+**Generate (EXECUTION):**
+- backend/agents/orchestrator.py:50 -- import RiskJudgeVerdict.
+- backend/agents/orchestrator.py:107-118 -- _THINKING_RISK_JUDGE_CONFIG gains response_mime_type + response_schema=RiskJudgeVerdict; include_thoughts removed (cosmetic per masterplan criterion #1 verbatim).
+- backend/agents/risk_debate.py:62-72 -- the REAL fix: _generate_with_retry omits include_thoughts when input gen_config has response_schema (Gemini 2.5+ incompat).
+- backend/agents/debate.py:65-72 -- identical guard for Moderator path.
+- backend/tests/test_phase_37_1_risk_judge_schema.py (NEW, 132 lines, 7 tests).
+- schemas.py / bigquery_client.py / paper_trader.py UNCHANGED (single source of truth).
+- ZERO frontend changes; ZERO emojis; ASCII-only loggers.
+
+**Verification:**
+- pytest backend/ --collect-only -q = 318 tests (was 311 after 36.1; +7 new; 0 regressions; baseline 297 preserved).
+- pytest backend/tests/test_phase_37_1_risk_judge_schema.py -v = 7 passed in 1.90s.
+- _THINKING_RISK_JUDGE_CONFIG inspected: response_mime_type=application/json, response_schema=RiskJudgeVerdict, include_thoughts NOT in dict.
+- All 4 changed Python files ast.parse green.
+
+**Q/A verdict (single agent, single spawn):** PASS (no CONDITIONAL).
+- 5-item harness-compliance audit: all 5 clear.
+- Code-review (5 dim, 15 ranked + 5 secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- 4-row immutable-criteria verdict: 4 PASS (criterion #3 is code-path PASS; live BQ verification deferred to Monday's cron).
+- Mutation-resistance: STRONG (4 regression directions each trip a specific test).
+- Adversarial honesty: cosmetic-vs-live distinction (live callsite was correct since phase-3) openly disclosed in contract + live_check; Caltech discount N/A correctly applied.
+
+**Scope honesty:** git diff --stat backend/ = orchestrator.py + risk_debate.py + debate.py only; test new; ZERO frontend diff. Bounded per /goal "NO mass refactors".
+
+**Integration-gate scoreboard (all 10 /goal gates):** 1=PASS(318), 2=PASS, 3=N/A(bug fix not feature), 4=N/A(no BQ), 5=N/A(no env), 6=PASS, 7=PASS, 8=PASS, 9=PASS, 10=HOLDING.
+
+**Operator runbook (live):** documented in live_check_37.1.md. After Monday 2026-05-25 cron: `grep -c "Risk Judge returned invalid JSON, using raw text" backend.log` expect 0; `SELECT risk_judge_decision FROM paper_trades WHERE DATE(created_at)='2026-05-25'` expect populated.
+
+**Real progress vs Cycle 14:** Cycle 14 executed phase-36.1 (scale-out -- LAST code BLOCK on profit-protection). Cycle 15 executes phase-37.1 -- closes OPEN-16 root cause. After this commit, closure path is {35.1 + 36.1 + 37.1 DONE} -> {44.1 + 44.2 + 44.7 + 35.2 unblocked} -> 35.3 -> sweep -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~37-52 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-44.1 -- frontend foundation (Cmd-K + states-lib + WCAG + Sidebar + hooks).
+2. phase-44.2 -- /paper-trading cockpit modernization.
+3. phase-35.2 -- Risk-Judge telemetry-wrapper restoration (now unblocked by 37.1).
+
+**Total cycle time:** ~50 min.

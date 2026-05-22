@@ -60,7 +60,18 @@ def _generate_with_retry(model: LLMClient, prompt: str, agent_name: str, max_ret
     # phase-4.14.12: thinking injection now gated on per-client
     # capability flag; Claude and Gemini both benefit when enabled.
     if getattr(model, "supports_thinking", False) and thinking_budget > 0:
-        config = {**config, "thinking": {"type": "enabled", "budget_tokens": thinking_budget}, "include_thoughts": True}
+        thinking_block = {"type": "enabled", "budget_tokens": thinking_budget}
+        # phase-37.1: include_thoughts is INCOMPATIBLE with response_schema in
+        # Gemini 2.5+. When the structured-output schema is set (e.g.
+        # _JUDGE_STRUCTURED_CONFIG with response_schema=RiskJudgeVerdict), the
+        # API returns a single JSON-text part; adding include_thoughts=True
+        # pollutes response.text with reasoning blocks that fail _parse_json
+        # (caused 8/10 'Risk Judge returned invalid JSON' fallbacks on
+        # phase-34.2 cycle 3; closure_roadmap §3 OPEN-16).
+        new_config = {**config, "thinking": thinking_block}
+        if "response_schema" not in config:
+            new_config["include_thoughts"] = True
+        config = new_config
     for attempt in range(max_retries):
         try:
             response = model.generate_content(prompt, generation_config=config)
