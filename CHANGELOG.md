@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `719065aa` | phase-40.6: .env pre-commit / CI syntax guard (OPEN-31) |
 | 2026-05-23 | `6a71f9ae` | phase-40.5: Cosmetic _LAUNCHD_JOBS description (OPEN-30) |
 | 2026-05-22 | `320b7dbb` | phase-38.7: SPY benchmark anchor at first-funded snapshot (OPEN-9) |
 | 2026-05-22 | `b5e631b7` | phase-38.5: ASCII-only logger audit (OPEN-14) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `05fe9fef` | phase-16: Full-application end-to-end UAT (pre-go-live) |
 | 2026-05-22 | `7087fe7b` | phase-4: Production Readiness |
 | 2026-05-22 | `aa421893` | phase-44.0: Super-planning: deep research + per-page expanded master design |
-| 2026-05-22 | `32ba02e6` | phase-33.2: Master roadmap to production (super-planning) |
 
 ---
 
+### v6.17.19 — phase-40.6: .env pre-commit / CI syntax guard (OPEN-31) (2026-05-23)
+
+- **phase-40.6: .env pre-commit / CI syntax guard (OPEN-31)**
 ### v6.17.18 — phase-40.5: Cosmetic _LAUNCHD_JOBS description (OPEN-30) (2026-05-23)
 
 - **phase-40.5: Cosmetic _LAUNCHD_JOBS description (OPEN-30)**
