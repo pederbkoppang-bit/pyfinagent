@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `ac9c1484` | phase-34: corrective harness_log.md append (Q/A CONDITIONAL post-flip) |
 | 2026-05-22 | `29ab0ff6` | phase-34.2: Post-cron observation -- first clean cycle with phase-32 features in the hot path |
 | 2026-05-21 | `950b9e7a` | phase-33.1: post-cron observation -- verdict FAILED (cycle halted at Step 5.5) |
 | 2026-05-21 | `2aa062f1` | phase-33.0: pre-flight readiness check -- verdict NOT_READY |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-19 | `4e94e4ba` | phase-30.6: price-tolerance pre-trade gate in execute_buy |
 | 2026-05-19 | `1a818932` | phase-30.5: sector cap NAV-percentage cap alongside count cap |
 | 2026-05-19 | `06922866` | phase-30.3: connect stop-loss exits to learn loop |
-| 2026-05-19 | `7aea8a23` | phase-30.2: wire backfill_missing_stops into autonomous_loop Step 5.6 |
 
 ---
 
+### v6.16.3 — phase-34: corrective harness_log.md append (Q/A CONDITIONAL post-flip) (2026-05-22)
+
+- **phase-34: corrective harness_log.md append (Q/A CONDITIONAL post-flip)**
 ### v6.16.2 — phase-34.2: Post-cron observation -- first clean cycle with phase-32... (2026-05-22)
 
 - **phase-34.2: Post-cron observation -- first clean cycle with phase-32 features in the hot path**
