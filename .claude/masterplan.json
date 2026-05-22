@@ -9669,7 +9669,8 @@
     {
       "id": "phase-27",
       "name": "Multi-Provider Full-Path Pipeline (Gemini + Claude)",
-      "status": "pending",
+      "status": "done",
+      "notes": "DROP per phase-45.0 closure_roadmap (2026-05-22): 27.0-27.5 done; 27.6 + 27.6.3 folded into phase-37 (LLM-route + structured-output hardening); 27.6.4 (Cloud Function redeploy) is operator-only sandbox-blocked = treat as deferred like phase-39.",
       "harness_required": true,
       "depends_on": [
         "phase-26"
