@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-22 | `fb5da800` | phase-26: Frontier-sync: adopt 2026-04→05 Anthropic/Google releases + topology gaps |
 | 2026-05-22 | `e9fff90b` | phase-23.7: Harness plumbing: auto-commit-and-push + semver changelog |
 | 2026-05-22 | `05fe9fef` | phase-16: Full-application end-to-end UAT (pre-go-live) |
 | 2026-05-22 | `7087fe7b` | phase-4: Production Readiness |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-20 | `3f020337` | phase-31.1: fix gemini_model misnomer visibility + OutcomeTracker model injection |
 | 2026-05-20 | `e23843ef` | phase-31.0.4-13: e2e smoketest Stages 4-13 (batched) -- ALL PASS |
 | 2026-05-20 | `480d48dd` | phase-31.0.3: Stage 3 Gemini full-path on NVDA via AnalysisOrchestrator |
-| 2026-05-20 | `9190a352` | phase-31.0.2: Stage 2 lite-path analysis via Claude Code subagent (4 tickers) |
 
 ---
 
+### v6.17.4 — phase-26: Frontier-sync: adopt 2026-04→05 Anthropic/Google releases +... (2026-05-22)
+
+- **phase-26: Frontier-sync: adopt 2026-04→05 Anthropic/Google releases + topology gaps**
 ### v6.17.3 — phase-23.7: Harness plumbing: auto-commit-and-push + semver changelog (2026-05-22)
 
 - **phase-23.7: Harness plumbing: auto-commit-and-push + semver changelog**
