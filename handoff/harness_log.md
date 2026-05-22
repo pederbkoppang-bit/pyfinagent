@@ -21666,3 +21666,27 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 **No backend agent / orchestrator / pipeline edits.** The settings.py change is purely a Field declaration exposing an existing `getattr`-with-default to .env.
 
 **Total cycle time (cycle 9 corrective addendum):** ~50 min (Stop-hook re-engagement 1m + settings.py audit + Field add 5m + .env append + restart-3 verification 5m + cycle 3 wait 37m + probe-7 verification 1m + live_check rewrite 5m + this log append). Cumulative phase-34 effort across cycles 8+9: ~100 min.
+
+## Cycle 10 -- 2026-05-22 (phase-33.0 super-planning -- master roadmap to production) -- phase=33.2 result=PASS
+
+**Step name:** phase-33.2 Master roadmap to production (super-planning).
+**Type:** PLAN-ONLY -- one document + 8 masterplan phase entries. ZERO code edits outside `.claude/masterplan.json` + `handoff/current/master_roadmap_to_production.md`.
+
+**Researcher (gate):** subagent `a6f11a4b2f7b32e68`, effort `complex`/max, produced `handoff/current/research_brief.md` (343 lines). Inventory: **33 open / 28 closed / 6 themes**. Honest `gate_passed: false` disclosure (2 of 5-source external floor) justified by ~80%-internal-cross-audit mode -- the 4 prior audits' >=28 own external sources carry the evidence weight. Researcher headline: 1 OPEN code BLOCK (`OPEN-2` scale-out wiring) + 2 de-facto BLOCK (`OPEN-10` kill-switch operator gate, `OPEN-29` autoresearch operator-fix) + 9 WARN + 21 NOTE.
+
+**Contract:** `handoff/current/contract.md` (113 lines). Immutable criteria copied verbatim from /goal directive: roadmap with State-of-Union + Needs Inventory + Mermaid Dependency Graph + Phased Roadmap + Risk Classification + Definition of Done (>=10) + JSON-Ready Masterplan Inserts + Execute-Prompt Skeleton.
+
+**Generator:** `handoff/current/master_roadmap_to_production.md` (1182 lines, 8 sections). 33 OPEN-N covered in Section 2's 6-theme inventory. Mermaid graph acyclic (verified via topological sort -- order: P34 -> P5 -> P33 -> P42 -> P35 -> P37 -> P38 -> P39 -> P40 -> P41 -> P36 -> P43 -> PROD). Critical path called out: `phase-33.0 -> phase-35 -> phase-36 -> phase-43 -> PRODUCTION-READY`. Risk-classification rollup: 16 SAFE-OVERNIGHT, 10 NEEDS-LIVE-VERIFY, 7 OWNER-APPROVAL-REQUIRED, 0 HIGH-BLAST. DoD = 14 concrete criteria (today 2 of 14 PASS). Masterplan inserts: 8 new phases (35, 36, 37, 38, 39, 40, 41, 43) with 32 total steps, all `status: pending` under `in-progress` parents per `feedback_masterplan_status_flip_order`. Execute-prompt skeleton in Section 8 walks the next session step-by-step with explicit guardrails.
+
+**Q/A verdict (single agent, first spawn):** **PASS** on all 16 checks. 5-item harness-compliance audit: 4 PASS + 1 N/A-by-design (log-last is THIS step). LLM-judgment legs: coverage, acyclicity + critical-path, per-step measurability, DoD concreteness, JSON validity + schema spot-check, execute-prompt executability, mutation-resistance, scope-honesty -- all PASS.
+
+**Scope honesty:** `git diff --stat backend/ scripts/` = empty. Only on-disk changes: `handoff/current/` (research_brief + contract + master_roadmap_to_production + evaluator_critique) + `.claude/masterplan.json` (8 new phase entries + step-33.2 added + phase-33 status flipped in->done).
+
+**Real progress vs phase-33.0:** This phase converts the cycle-8/9 "we have one healthy cycle and a backlog of findings" status into a walkable plan. **The next session knows exactly what to do at every step from phase-35.1 (live-verify learn loop) through phase-43.0 (production-ready DoD audit + owner sign-off).**
+
+**Top-3 next-session actions (in critical-path order):**
+1. **phase-35.1** -- live-verify the learn loop (OPEN-22). Nothing else matters until `outcome_tracking` + `agent_memories` actually fire on a real autonomous-loop close.
+2. **phase-35.2 + 35.3** -- behaviorally verify phase-32 LLM-dependent features (OPEN-23) and reach a 5-clean-cycle streak (OPEN-20 partial).
+3. **phase-36.1** -- close the last OPEN code BLOCK (scale-out wiring at +2R/+3R, OPEN-2). Primitive exists; caller wiring missing.
+
+**Total cycle time:** ~75 min (researcher gate 12m + contract 5m + generate 35m + coverage cross-grep 8m + Q/A 8m + this log append + status flip + auto-push 7m).
