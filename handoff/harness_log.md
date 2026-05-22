@@ -21714,3 +21714,38 @@ Test suite: 266 (pre-phase-32) -> 285 (+19 tests across 5 cycles). Zero regressi
 3. **phase-44.7** -- System section (/agents trace-tree). Highest-leverage transparency win -- backend already emits 12 MASEvent span types, frontend just needs LangSmith-style hierarchical render.
 
 **Total cycle time:** ~55 min (researcher gate 15m + contract 5m + generate 20m + masterplan inserts 5m + coverage check 2m + Q/A 5m + live_check write 2m + this log append + status flip + auto-push 1m).
+
+## Cycle 12 -- 2026-05-22 (phase-45.0 super-planning -- CLOSURE re-audit + legacy dedup) -- phase=45.0 result=PASS_AFTER_RETRY
+
+**Step name:** phase-45.0 CLOSURE Roadmap (re-audit + legacy dedup + walk-the-graph + DoD gate).
+**Type:** PLAN-ONLY -- one document (`closure_roadmap.md`) + 9 legacy-phase masterplan status flips (6 DROP -> done + 3 DEFER -> deferred) + 3 KEEP unchanged + 1 new phase-45 entry + 3 audit_basis upgrades (phase-35.1 / phase-35.2 / phase-32.2). ZERO code edits.
+
+**Researcher (gate):** subagent `aeb5b58f03fa94b75`, effort `deep`/max, produced `handoff/current/research_brief.md` (529 lines). 11 external sources read in full (vs >=8 deep-tier floor = 38% buffer), recency scan performed, 18 internal files inspected, `gate_passed: true`. Researcher headline: 6 DROP / 3 DEFER / 3 KEEP verdict on 12 legacy phases (4, 5, 10.7, 13, 16, 23.6-8, 26-29). BQ-probe Section B: phase-35.1 + 35.2 NOT closed by today's c7801712 cron cycle -- `outcome_tracking` + `agent_memories` are SCHEMA-EMPTY (writer missing in code; not just behavior gap) and `llm_call_log` last row is 2026-05-21 (telemetry-wrapper gap on autonomous-loop Risk-Judge path). Silver lining: phase-32.2 trail-stop fired LIVE TWICE today (LITE +9.54% at 16:59 dc3f6cf1 + COHR +17.89% at 18:35 c7801712, both 25-day holds, capture_ratio=0.63 on COHR). Adversarial finding (Caltech arxiv:2502.15800 "LLM Agents Do Not Replicate Human Market Traders") surfaced and connected to phase-35.3 streak success criterion.
+
+**Contract:** `handoff/current/contract.md` (177 lines). Immutable criteria copied verbatim from /goal directive: 10 mechanically-verifiable criteria including legacy-phase coverage / c7801712 BQ-probe-update / 9 masterplan flips / acyclic Mermaid / N* delta per surviving step / regression snapshot / plan-only / JSON valid / Q/A 5-item compliance audit.
+
+**Generator:** `handoff/current/closure_roadmap.md` (~520 lines, 12 sections). Section 2 verdict table covers all 12 legacy phases with fold-mappings + supersession refs. Section 3 BQ-probe table cites cycle_id `c7801712` + real BQ tables + real findings. Section 4 Mermaid graph acyclic (critical path `45.0 -> {35.1, 44.1} -> {36.1, 44.2} -> {37.1, 44.7} -> 35.2 -> 35.3 -> sweep -> 44.10 -> 43.0 -> PROD`). Section 5 N* delta per surviving step has P/R/B + estimate + how-measured. Section 6 integration risk matrix. Section 7 regression baseline locked at 297 tests collected. Section 8 lists 9 masterplan flips + 3 audit_basis upgrades. Section 9 verbatim audit_basis replacement text. Section 12 Coverage Appendix.
+
+**Q/A verdict (single agent, two spawns):**
+- **First spawn:** CONDITIONAL on contract criterion #3 (audit_basis upgrades on phase-35.1 / phase-35.2 / phase-32.2 documented in closure_roadmap §9 with verbatim text but NOT applied to `.claude/masterplan.json` in the same write as the 9 legacy flips). 11 of 12 immutable criteria PASS; this WAS a real protocol gap.
+- **Fix applied:** Main appended audit_basis updates verbatim from closure_roadmap §9 to phase-35.1 / phase-35.2 / phase-32.2 in a single masterplan write. No other content changed. Documented cycle-2 retry-on-CONDITIONAL pattern per CLAUDE.md "canonical cycle-2 flow" -- NOT verdict-shopping (deterministic check confirmed the 3 audit_basis fields changed between spawns).
+- **Second spawn (fresh Q/A on updated evidence):** PASS. All 9 immutable criteria + 13 deterministic checks PASS.
+
+**Scope honesty:** `git diff --stat backend/` = empty, `git diff --stat frontend/src/` = empty. Only on-disk changes: `handoff/current/` (research_brief + contract + closure_roadmap + evaluator_critique + live_check_45.0) + `.claude/masterplan.json` (9 legacy flips + 1 new phase-45 entry + 3 audit_basis upgrades).
+
+**Real progress vs Cycles 10+11:** Cycles 10 and 11 produced the backend (`master_roadmap_to_production.md` 1182 LoC, 14-criterion backend DoD) and frontend (`frontend_ux_master_design.md` 922 LoC, 12-criterion UX-DoD) master roadmaps. Cycle 12 closes the dual-roadmap by (a) DROPping 6 legacy phases that fold into 35-44 work (phase-4 -> 43.0, phase-16 -> 43.0, phase-23.7 -> verify-then-done, phase-26 -> 40.2+40.3+41.x, phase-27 -> 37.x, phase-29 -> 41.0+41.1), (b) DEFERring 3 to post-PROD (phase-5 multi-market, phase-10.7 meta-evo, phase-13 Seatbelt), (c) KEEPing 3 with residual substeps in normal flow (phase-23.6, phase-23.8 partial, phase-28 residual), (d) recording the c7801712 BQ-probe finding in updated audit_basis on phase-35.1 / phase-35.2 / phase-32.2, and (e) producing an acyclic Mermaid critical path. Closure path shrinks from ~80+ cycles to ~40-55 cycles. Regression baseline locked at 297 tests.
+
+**Phase-32 features live status (re-tally based on today's evidence):**
+- phase-32.1 breakeven ratchet -- silent (no new +1R crossings today; correct no-op)
+- phase-32.2 HWM trail -- LIVE-VERIFIED TWICE today across two cycles (LITE + COHR) -- DoD-3 effectively LANDED
+- phase-32.3 portfolio_sector_exposure -- still source-only (llm_call_log not telemetering -> phase-35.2 + phase-37.1 must restore)
+- phase-32.4/32.5 dashboard wiring -- LIVE (paper_positions company_name backfilled, sector data populated)
+
+**Top-3 next-session actions (in critical-path order, NOT deferred):**
+1. **phase-35.1 + phase-44.1 in parallel** -- 35.1 ships writer fan-out in `paper_trader.py` (outcome_tracking + agent_memories writers); 44.1 ships frontend foundation (Cmd-K + states-lib + WCAG 2.2 + Sidebar + hooks).
+2. **phase-36.1 + phase-44.2 in parallel** -- 36.1 scale-out wiring at +2R/+3R (LAST code BLOCK on profit-protection); 44.2 cockpit modernization.
+3. **phase-37.1 + phase-44.7 in parallel** -- 37.1 RiskJudge `response_schema` + telemetry-wrapper restoration (closes phase-35.2); 44.7 LangSmith-style TraceTree.
+
+**Closure path:** `phase-45.0 -> {35.1, 44.1} -> {36.1, 44.2} -> {37.1, 44.7} -> 35.2 -> 35.3 -> sweep -> 44.10 -> 43.0 FINAL GATE (combined 26-criterion DoD) -> PRODUCTION_READY (owner-typed approval)`.
+
+**Total cycle time:** ~95 min (pre-cycle health 2m + researcher gate 18m + contract 5m + generate 25m + 9 legacy flips 5m + first Q/A 8m + audit_basis fix 3m + fresh Q/A 5m + live_check write 3m + this log append + status flip + auto-push 3m).

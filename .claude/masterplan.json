@@ -3192,7 +3192,8 @@
     {
       "id": "phase-10.7",
       "name": "Meta-Evolution Engine",
-      "status": "proposed",
+      "status": "deferred",
+      "notes": "DEFER-POST-PROD per phase-45.0 closure_roadmap (2026-05-22): meta-evolution housekeeping is off the production-readiness critical path; not on the 14-criterion DoD gate.",
       "depends_on": [
         "phase-8.5",
         "phase-4.6",
@@ -5113,7 +5114,8 @@
     },
     {
       "id": "phase-13",
-      "status": "blocked",
+      "status": "deferred",
+      "notes": "DEFER-POST-PROD per phase-45.0 closure_roadmap (2026-05-22): blocked-upstream until Claude Code ships unattended acceptEdits mode that satisfies harness requirements. Was blocked >30 days; reframe as deferred (still respects feedback_permissions_bypass_required).",
       "name": "[T2] Permission mode bypassPermissions -> acceptEdits + enable macOS Seatbelt sandbox",
       "description": "Moved from phase-4.14 step 4.14.6 per operator request on 2026-04-19. BLOCKED: harness needs defaultMode=bypassPermissions for unattended runs; phase-4.14.6 is intentionally blocked until owner sign-off. Placed at very end of masterplan per operator request.",
       "blocker": "User requires bypassPermissions for continuous autonomous-harness operation; acceptEdits + sandbox interrupts workflow. Revisit when harness supports non-interactive acceptEdits or when running in container/VM.",
@@ -6248,7 +6250,8 @@
     {
       "id": "phase-5",
       "name": "Multi-Market Expansion (15-step)",
-      "status": "pending",
+      "status": "deferred",
+      "notes": "DEFER-POST-PROD per phase-45.0 closure_roadmap (2026-05-22): 11 of 14 substeps still pending; master_roadmap §2 explicitly defers (phase-42 depends on phase-5; both out-of-scope for production-readiness). Revisit after phase-43.0 PASS.",
       "depends_on": [
         "phase-4.5"
       ],
@@ -11287,7 +11290,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "32.1",
-          "audit_basis": "phase-31.0 audit P1.2. Port signals_server.py:1052-1154 trailing branch into paper_trader. After P1.1, mutate stop_loss_price = max(stop_loss_price, peak_price * (1 - trail_pct/100)). Adversarial guard (Kaminski-Lo Proposition 2): skip trailing when entry_strategy in ('mean_reversion','pairs'). Research: arXiv 2602.11708 (+0.73 Sharpe / 9.7pp DD reduction), Han-Zhou-Zhu 2014 (-49.79% to -11.36% MaxDD), Carver qoppac. Adversarial: Kaminski-Lo 2014 J. Financial Markets Proposition 1+2.",
+          "audit_basis": "phase-31.0 audit P1.2. Port signals_server.py:1052-1154 trailing branch into paper_trader. After P1.1, mutate stop_loss_price = max(stop_loss_price, peak_price * (1 - trail_pct/100)). Adversarial guard (Kaminski-Lo Proposition 2): skip trailing when entry_strategy in ('mean_reversion','pairs'). Research: arXiv 2602.11708 (+0.73 Sharpe / 9.7pp DD reduction), Han-Zhou-Zhu 2014 (-49.79% to -11.36% MaxDD), Carver qoppac. Adversarial: Kaminski-Lo 2014 J. Financial Markets Proposition 1+2. LIVE-VERIFIED 2026-05-22 across TWO cycles: LITE (cycle dc3f6cf1) trail-stop fired 16:59 UTC +9.54% pnl 25-day hold; COHR (cycle c7801712) trail-stop fired 18:35 UTC +17.89% pnl 25-day hold capture_ratio=0.63 on MFE 28.36% MAE -6.09%. Both fires emitted paper_trades SELL rows correctly. DoD-3 (phase-32.2 live-verified) effectively LANDED on 2026-05-22 ahead of phase-43.0.",
           "verification": {
             "command": "python -m pytest backend/tests/test_phase_32_2_hwm_trailing.py -v && grep -n 'mean_reversion' backend/services/paper_trader.py && grep -n 'trailing_stop_pct' backend/config/settings.py",
             "success_criteria": [
@@ -11665,7 +11668,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
-          "audit_basis": "Per research_brief Section B OPEN-22: 30.0-F13 flagged learn loop missing; phase-30.3 added routing primitives but agent_memories + outcome_tracking remain empty for the autonomous path across 36+ days. Nothing else matters until the loop demonstrably learns from a real closed sell.",
+          "audit_basis": "Per research_brief Section B OPEN-22 + phase-45.0 BQ-probe finding (2026-05-22): outcome_tracking and agent_memories are SCHEMA-EMPTY (not just behaviorally inactive). Writer missing in code: after a stop_loss_trigger SELL emits a paper_trades row, no fan-out to outcome_tracking_writer.write_outcome() or agent_memories_writer.write_lesson() happens. Cycle c7801712 stopped out COHR (+17.89% pnl, capture_ratio=0.63) WITHOUT writing the learn-loop rows. Fix path: add fan-out in backend/services/paper_trader.py immediately after _emit_paper_trade_row() succeeds; idempotent on already-emitted outcome_id.",
           "verification": {
             "command": "test -f handoff/current/live_check_35.1.md && grep -qE 'PASS|FAIL' handoff/current/live_check_35.1.md",
             "success_criteria": [
@@ -11685,7 +11688,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,
-          "audit_basis": "Per research_brief Section B OPEN-23: phase-32 LLM-dependent features (Risk Judge consuming portfolio_sector_exposure, Synthesis emitting portfolio_concentration_warning) are source-confirmed only. No BUY-or-cited-reject decision observed in prod yet.",
+          "audit_basis": "Per research_brief Section B OPEN-23 + phase-45.0 BQ-probe finding (2026-05-22): llm_call_log last row is 2026-05-21 05:15 UTC; cycle c7801712 Risk-Judge invocations are NOT being telemetered. Diagnosis: autonomous-loop Risk-Judge path bypasses backend/agents/llm_client.py::make_client instrumentation wrapper. Fix path: trace why autonomous_loop's Risk-Judge call site doesn't hit the wrapper; restore. Also need to write the risk_judge_decision + signals columns on paper_trades for stop_loss_trigger SELLs (currently empty per BQ-probe B-5).",
           "verification": {
             "command": "test -f handoff/current/live_check_35.2.md && grep -qE 'PASS|FAIL' handoff/current/live_check_35.2.md",
             "success_criteria": [
@@ -12670,6 +12673,41 @@
               "operator_approval_recorded_for_backend_stream_endpoint_additions"
             ],
             "live_check": "live_check_44.10.md captures the SSE Playwright trace + network panel screenshot showing single EventSource + operator-approval row."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-45",
+      "name": "CLOSURE re-audit + walk-the-graph sequencing",
+      "status": "done",
+      "depends_on": [],
+      "gate": null,
+      "steps": [
+        {
+          "id": "45.0",
+          "name": "CLOSURE re-audit: legacy-phase dedup + 2026 frontier scan + walk-the-graph plan",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "User /goal 2026-05-22: walk every open masterplan phase to PRODUCTION_READY with research, integration discipline, north-star alignment, zero new bugs. Researcher subagent aeb5b58f03fa94b75 (deep/max, 11 external sources read in full, gate_passed=true, 18 internal files inspected) produced research_brief.md 529 lines with 12-row legacy verdict table (6 DROP + 3 DEFER + 3 KEEP) AND BQ-probe findings for c7801712 cycle (phase-35.1 NOT closed -- outcome_tracking + agent_memories schema-empty; phase-35.2 NOT verified -- llm_call_log not telemetered for autonomous-loop Risk-Judge; phase-32.2 LIVE-VERIFIED TWICE today: LITE +9.54% + COHR +17.89% trail-stops). Regression baseline locked at 297 tests collected. Closure path shrinks from ~80+ to ~40-55 cycles.",
+          "verification": {
+            "command": "test -f handoff/current/closure_roadmap.md && test -f handoff/current/research_brief.md && test -f handoff/current/contract.md && test -f handoff/current/live_check_45.0.md && grep -qE 'PASS|FAIL' handoff/current/live_check_45.0.md",
+            "success_criteria": [
+              "closure_roadmap_md_exists_with_12_legacy_phase_verdicts_no_silent_drops",
+              "6_DROP_status_flips_applied_phase_4_16_23_7_26_27_29",
+              "3_DEFER_status_flips_applied_phase_5_10_7_13",
+              "3_KEEP_phases_unchanged_phase_23_6_23_8_28",
+              "phase_45_entry_added_with_step_45_0_status_in_progress",
+              "researcher_gate_passed_true_with_at_least_8_external_sources_actual_11",
+              "regression_test_count_at_least_297_baseline_locked",
+              "north_star_delta_per_surviving_step_in_closure_roadmap_section_5",
+              "no_code_changes_git_diff_stat_backend_and_frontend_src_both_empty"
+            ],
+            "live_check": "live_check_45.0.md carries Q/A PASS verdict + verdict tally + BQ-probe findings + regression baseline + plan-only proof."
           },
           "retry_count": 0,
           "max_retries": 3
