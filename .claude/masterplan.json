@@ -10448,7 +10448,8 @@
     {
       "id": "phase-29",
       "name": "Harness MAS + MCP + Academic-Fetch + Frontier-Sync (phase-29.0 audit remediation)",
-      "status": "pending",
+      "status": "done",
+      "notes": "DROP per phase-45.0 closure_roadmap (2026-05-22): 29.0-29.7 done; 29.8 (P2 bundle) IS phase-41.0; 29.9 (P3 bundle) IS phase-41.1.",
       "depends_on": [
         "phase-28"
       ],
