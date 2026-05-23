@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `0c2c6323` | phase-37.3: budget_tokens deprecation cleanup (OPEN-18) |
 | 2026-05-23 | `ae1da259` | phase-38.2: Lost cycle 3a observability (OPEN-11) |
 | 2026-05-23 | `006c4987` | phase-38.6.1: Wire cycle_lock into autonomous_loop + main.py lifespan (depends 38.6) |
 | 2026-05-23 | `fdbb1620` | phase-38.6: Restart-survivable _running flag (OPEN-15) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `def1ce23` | phase-23.2.6: Verify sector cap actually blocked same-sector buys |
 | 2026-05-23 | `4565a222` | phase-23.2.5: Verify kill-switch breach evaluation never falsely fired |
 | 2026-05-23 | `cc8177ae` | phase-23.2.4: Verify pause/resume deadlock did not regress |
-| 2026-05-23 | `8499bb7d` | phase-41.1: Phase-29.9 P3 bundle close (OPEN-33) |
 
 ---
 
+### v6.18.21 — phase-37.3: budget_tokens deprecation cleanup (OPEN-18) (2026-05-23)
+
+- **phase-37.3: budget_tokens deprecation cleanup (OPEN-18)**
 ### v6.18.20 — phase-38.2: Lost cycle 3a observability (OPEN-11) (2026-05-23)
 
 - **phase-38.2: Lost cycle 3a observability (OPEN-11)**
