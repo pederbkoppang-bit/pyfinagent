@@ -7793,7 +7793,7 @@
     {
       "id": "phase-23.8",
       "name": "Dev-MAS Audit Remediation",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-23.7"
       ],
