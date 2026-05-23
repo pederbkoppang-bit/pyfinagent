@@ -7329,7 +7329,7 @@
         {
           "id": "23.2.14",
           "name": "Audit other `with self._lock:` blocks for re-entrant patterns",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "estimated_minutes": 30,
           "verification": "Static scan of all 12 threading.Lock instances (catalogued in phase-23.1.21 audit) for re-entrant call paths; deferred from phase-23.1.22"

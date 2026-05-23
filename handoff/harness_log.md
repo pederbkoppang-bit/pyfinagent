@@ -23044,3 +23044,42 @@ The verification cycles are doing exactly what they should: surfacing real bugs 
 3. phase-44.2 -- /paper-trading cockpit (TanStack + Tremor approval).
 
 **Total cycle time:** ~35 min.
+
+## Cycle 38 -- 2026-05-23 (phase-23.2.14 P2 no-reentrant-Lock static-scan verification -- VERIFICATION, 5 pytest tests; ZERO source code changes; 13 real threading.Lock sites audited clean + 1 docstring-regex artifact; phase-23.1.22 fix shape locked behind 5-layer regression discipline) -- phase=23.2.14 result=PASS
+
+**Step:** phase-23.2.14 (P2) -- Audit other `with self._lock:` blocks for re-entrant patterns.
+
+**Researcher (gate):** SPAWNED FIRST. `handoff/current/research_brief_phase_23_2_14.md` -- 5 external sources read in full (threading docs Python 3.14, Real Python thread lock, SuperFastPython deadlock, GeeksforGeeks Lock vs RLock, Medium Abhishek Jain Lock vs RLock); 12 URLs; 13 internal files inspected (one per lock); gate_passed=true. Per-lock per-method audit found all 13 real instances CLEAN.
+
+**North-star delta:**
+- **R (concurrency-safety audit):** locks phase-23.1.22 design at 5 regression layers.
+- **B (re-entrant-deadlock regression resistance):** future RLock workaround OR helper-recursion caught.
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+
+**Generate (EXECUTION):**
+- backend/tests/test_phase_23_2_14_no_reentrant_locks.py (NEW, ~150 lines, 5 tests).
+- ZERO source code changes. ZERO frontend changes.
+
+**Verification:**
+- pytest backend/tests/test_phase_23_2_14_no_reentrant_locks.py -v = 5 passed in 0.07s.
+- pytest backend/ --collect-only -q = 453 (was 448 after 23.2.13; +5 new; 0 regressions).
+- Independent grep: 14 raw threading.Lock() hits (13 real + 1 docstring artifact at kill_switch.py:112); 0 RLock.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clean.
+- Code-review (5 dim, 15 ranked + secondary): 0 BLOCK + 1 WARN (resolved during cycle) + 0 NOTE.
+- Cycle-2-style mid-cycle fix: Q/A caught misleading comment on EXPECTED_LOCK_COUNT (line 112 is docstring artifact, not real lock); comment fixed to honestly disclose.
+- Mutation-resistance: 5 directions.
+
+**Scope honesty:** ZERO backend source. ZERO frontend.
+
+**Integration-gate scoreboard:** 1=PASS(453), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Real progress vs Cycle 37:** Cycle 37 closed phase-23.2.13 (P2 governance watcher; surfaced new P1 ticket). Cycle 38 closes phase-23.2.14 (P2 lock audit; ALL CLEAN, no new bugs). 11th consecutive verification closure. After this commit, closure path = {26 closed + 23.2.14 DONE} -> {23.2.15 + 23.2.16 + 38.5.1 + 38.5.2 + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 44.2 + 44.7 + 6 new 23.2.*.1 tickets} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~18-33 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-23.2.15 -- phase-23.1.x cycle-by-cycle smoke tests (P2).
+2. phase-23.2.16 -- Phase 2 deferred items triage (P2).
+3. phase-44.2 -- /paper-trading cockpit (TanStack + Tremor approval).
+
+**Total cycle time:** ~30 min.
