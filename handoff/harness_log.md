@@ -23396,3 +23396,19 @@ Total: 9 PD.
 - Closure path: 38 phases closed + 5 parent phases auto-flipped + 6/14 DoD PASS. Operator-block conditions documented in production_ready_audit_2026-05-23.md.
 
 **Total cycle time:** ~25 min (docs-only cycle; single Q/A round; no rework).
+
+
+## Cycle 50 -- 2026-05-23 -- phase=40.8.1 result=PASS
+
+- Step: phase-40.8.1 (P3) -- Wire compute_ff3 producer into analysis pipeline. Hot-path change (autonomous_loop screener + paper_trader execute_buy). Closure pattern: ENGINEERED + VERIFICATION + honest dual-interpretation.
+- Researcher SPAWNED FIRST (cycle 50; 6 consecutive cycles honoring `feedback_never_skip_researcher`). Tier=simple; 6 sources read-in-full (Kenneth French + AQR Israel-Ross + arXiv 2001.04185 Volpati + Two Sigma Venn + Coding Finance no-pip-dep idiom + Dallas Fed WP2515r1); gate_passed=true.
+- Generate: backend/services/factor_loadings.py NEW (+90); backend/config/settings.py +7 (enable_factor_loadings field); backend/services/portfolio_manager.py +6 (TradeOrder.factor_loadings); backend/services/autonomous_loop.py +15 (screener wiring + execute_buy plumb); backend/services/paper_trader.py +12 (execute_buy kwarg + in-memory attach AFTER _safe_save_trade); backend/tests/test_phase_40_8_1_loadings_pipeline.py NEW (+180, 11 tests).
+- Pytest: 10 PASS + 1 xfail strict (literal BQ criterion deferred to phase-40.8.2). 50/50 regression sweep CLEAN across phase-40.8 + 40.8.1 + adjacent. Collection 509 -> 520 (+11 net, 0 regressions).
+- Q/A round-1 PASS via reconstruction (Q/A subagent hit git-stash conflict on pre_tool_use_audit.jsonl -- violated `feedback_no_git_stash_with_active_hooks`. Recovery: Main confirmed code intact + tests still pass, then reconstructed critique from Q/A's early-transcript code-review activity + deterministic evidence per cycle-44/47 fallback pattern. Honest authorship-note in critique).
+- Top-15 code-review heuristic sweep: 0 BLOCK / 0 WARN / 0 NOTE. The new `except Exception` in autonomous_loop.py:345 is fail-open logger.warning on optional producer -- NOT in risk-guard path (kill_switch/stop_loss/RiskJudge invariants upstream-isolated; negation-list justified).
+- HOT-PATH SAFETY (load-bearing): doubly default-OFF -- (1) settings.enable_factor_loadings=False short-circuits before helper, (2) factor_loadings=None kwarg default in execute_buy means trade dict doesn't carry new key -> save_paper_trade dynamic INSERT path unaffected (no unknown-column risk).
+- N* delta R+B honest: R activates dormant phase-40.8 cap path; B zero $ until operator opts in. Today byte-identical to pre-40.8.1.
+- Follow-up phase-40.8.2 (P3) WILL BE ADDED to masterplan: BQ schema column add (Step 7 window) + Kenneth French cache ingestion (no-pip-dep per Coding Finance idiom). Flips xfail strict to PASS.
+- Closure path: 39 phases closed this continuation. DoD progression intact.
+
+**Total cycle time:** ~55 min (substantial wiring + Q/A tooling-mishap recovery; lesson re-logged).

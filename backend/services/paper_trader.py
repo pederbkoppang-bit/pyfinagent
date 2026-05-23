@@ -98,6 +98,9 @@ class PaperTrader:
         # price-tolerance gate. None disables the gate (fail-open) so the
         # lite-Claude path (which can lack a written price) still trades.
         price_at_analysis: Optional[float] = None,
+        # phase-40.8.1 (P3): FF3 factor loadings carried IN-MEMORY only.
+        # BQ persistence deferred to phase-40.8.2 (Step 7 schema window).
+        factor_loadings: Optional[dict] = None,
     ) -> Optional[dict]:
         """Buy shares of a ticker. Returns the trade record or None if can't execute."""
         # phase-25.6: no-stop-on-entry HARD BLOCK. If stop_loss_price is None
@@ -227,6 +230,12 @@ class PaperTrader:
             "signals": json.dumps(signals or []),
         }
         self._safe_save_trade(trade)
+        # phase-40.8.1 (P3): attach FF3 loadings AFTER BQ save so the in-memory
+        # caller sees them but the dynamic INSERT path (which would reject an
+        # unknown column) is not impacted. BQ persistence is phase-40.8.2
+        # (column add inside Step 7 schema window).
+        if factor_loadings is not None:
+            trade["factor_loadings"] = factor_loadings
 
         # Update or create position
         if existing:

@@ -12373,7 +12373,7 @@
         {
           "id": "40.8.1",
           "name": "Wire compute_ff3 into analysis pipeline so positions carry factor_loadings (follow-up to 40.8)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "40.8",

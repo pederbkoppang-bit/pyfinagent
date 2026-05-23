@@ -328,6 +328,22 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
 
+            # phase-40.8.1 (P3): producer for the dormant FF3 cap.
+            # Default-OFF: behavior is byte-identical to today until operator
+            # flips settings.enable_factor_loadings AND populates a real FF3
+            # cache (phase-40.8.2 follow-up). Stubbed factor returns this
+            # cycle so the wiring is tested end-to-end.
+            if getattr(settings, "enable_factor_loadings", False) and screen_data:
+                try:
+                    from backend.services.factor_loadings import compute_candidate_loadings
+                    price_histories = {
+                        s["ticker"]: s.get("price_history", [])
+                        for s in screen_data if s.get("ticker")
+                    }
+                    compute_candidate_loadings(screen_data, price_histories, window_days=60)
+                except Exception as e:
+                    logger.warning("phase-40.8.1: factor_loadings producer failed (fail-open): %r", e)
+
             # phase-28.16: M&A pre-announcement aggregator (Legs 1+2 from 28.9+28.10; Leg 3 stub).
             # Pure compute — no extra fetches; reuses options_surge + insider signals already
             # collected by phase-28.9 + 28.10 when their flags are on. Default OFF.
@@ -992,6 +1008,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     # phase-30.6: analysis-time reference for the
                     # price-tolerance gate inside execute_buy.
                     price_at_analysis=order.price_at_analysis,
+                    # phase-40.8.1 (P3): in-memory FF3 loadings; BQ persist
+                    # deferred to phase-40.8.2.
+                    factor_loadings=order.factor_loadings,
                 )
                 if trade:
                     trades_executed += 1

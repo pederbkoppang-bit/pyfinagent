@@ -187,6 +187,13 @@ class Settings(BaseSettings):
         le=1.0,
         description="Maximum FF3 factor cosine similarity vs portfolio avg before blocking BUY. 0.0 = disabled. Recommended live 0.85.",
     )
+    # phase-40.8.1 (P3): feature flag for the FF3 factor-loadings producer.
+    # Default-OFF preserves byte-identical behavior. Required for the
+    # phase-40.8 cap to fire even when paper_max_factor_corr > 0.
+    enable_factor_loadings: bool = Field(
+        False,
+        description="Enable FF3 factor-loadings producer in screener step. Required for paper_max_factor_corr to fire. Default OFF.",
+    )
     paper_min_cash_reserve_pct: float = Field(5.0, description="Minimum cash reserve as % of NAV")
     paper_screen_top_n: int = Field(10, description="Number of candidates from quant screening")
     paper_analyze_top_n: int = Field(5, description="Number of candidates to deep-analyze per day")

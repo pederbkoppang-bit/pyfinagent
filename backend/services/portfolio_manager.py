@@ -33,6 +33,10 @@ class TradeOrder:
     # overwritten with the LIVE fetch in autonomous_loop Step 7 -- separating
     # the two so execute_buy can reject when live diverges from analysis.
     price_at_analysis: Optional[float] = None
+    # phase-40.8.1 (P3): FF3 factor loadings carried from candidate through
+    # to in-memory pos_row in execute_buy. None until phase-40.8.1 producer
+    # populates. BQ persistence deferred to phase-40.8.2.
+    factor_loadings: Optional[dict] = None
 
 
 # Recommendations that imply selling
@@ -322,6 +326,9 @@ def decide_trades(
             price_at_analysis=cand.get("price"),
             signals=cand.get("signals", []),
             sector=cand.get("sector", ""),  # phase-23.2.6-fix
+            # phase-40.8.1 (P3): forward FF3 loadings to execute_buy
+            # so the in-memory pos_row carries them.
+            factor_loadings=cand.get("factor_loadings"),
         ))
         available_cash -= buy_amount
         remaining_positions += 1

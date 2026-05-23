@@ -1,185 +1,222 @@
-# phase-40.3 -- Q/A evaluator critique (Cycle 49 round-1)
+# phase-40.8.1 -- Q/A evaluator critique (Cycle 50 round-1)
 
 **Date:** 2026-05-23
-**Cycle:** 49
-**Step id:** 40.3 (P3 OPEN-26 -- Stress-test doctrine harness-free Opus 4.7 cycle)
-**Pattern:** VERIFICATION (NO_OP / docs cycle).
+**Cycle:** 50
+**Step id:** 40.8.1 (P3 -- Wire compute_ff3 into analysis pipeline so positions carry factor_loadings)
 **Verdict:** PASS
+**Round:** 1 (no prior CONDITIONAL/FAIL for this step-id)
 
 ---
 
-## 1. 5-item harness-compliance audit (FIRST)
+## 5-item harness-compliance audit
 
-| # | Check | Status | Evidence |
-|---|---|---|---|
-| (a) | Researcher SPAWNED FIRST | PASS | `handoff/current/research_brief_phase_40_3.md` present; JSON envelope `gate_passed: true`, `external_sources_read_in_full: 5`, `urls_collected: 13`, `recency_scan_performed: true`. Tier=SIMPLE. |
-| (b) | Contract pre-generate | PASS | `handoff/current/contract.md` written before doc generation; mode=EXECUTION cycle-49. Diff stat shows 98 line update reflecting phase-40.3. |
-| (c) | experiment_results.md present + on-phase | PASS | Header reads "phase-40.3 -- experiment results (Cycle 49)"; deterministic verdict PASS recorded. |
-| (d) | Log-last discipline | HELD CORRECTLY | `handoff/harness_log.md` NOT yet appended (correct; log is the LAST step after Q/A returns verdict). |
-| (e) | First Q/A spawn | CONFIRMED | No prior phase=40.3 entries in harness_log; no verdict-shopping possible. |
-
-All 5 items pass.
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 1 | Researcher spawned FIRST | PASS | `handoff/current/research_brief_phase_40_8_1.md` (tier=simple, 6 sources, gate_passed=true, recency scan present) |
+| 2 | Contract pre-GENERATE | PASS | `handoff/current/contract.md` header reads phase-40.8.1; immutable success_criteria copied verbatim |
+| 3 | experiment_results.md present + current | PASS | `handoff/current/experiment_results.md` header reads "phase-40.8.1 -- experiment results (Cycle 50)" |
+| 4 | Log-last discipline | PENDING | Main will append harness_log.md AFTER this PASS and BEFORE flipping masterplan status |
+| 5 | No second-opinion shopping | PASS | First Q/A for 40.8.1 (grep `harness_log.md` for `phase=40.8.1` returns 0 prior verdicts) |
 
 ---
 
-## 2. Deterministic checks
+## Deterministic checks (§1)
 
-| Check | Command | Result |
-|---|---|---|
-| Doc artifact exists | `test -f docs/stress-tests/2026-Q2-opus-4.7.md` | EXIT=0 |
-| Line count | `wc -l docs/stress-tests/2026-Q2-opus-4.7.md` | 147 lines |
-| Doc header | `head -3` | "# Harness Stress-Test -- Opus 4.7 (Q2 2026)" + phase-40.3 (OPEN-26) |
-| Criterion 1 keywords (`harness-free|counterfactual|without the harness`) | grep -c -i | 4 hits |
-| Criterion 2 keywords (`harness-produced|comparison|Counterfactual|Gap analysis`) | grep -c -i | 6 hits |
-| Criterion 3 keywords (`Pruning|KEEP|RE-EVALUATE|PRUNE`) | grep -c -i | 15 hits |
-| Masterplan 40.3 status | `python -c "json...status"` | pending (correct -- Main flips post-log) |
-| Verification command | `test -f docs/stress-tests/2026-Q2-opus-4.7.md` | EXIT=0 |
-
-All 3 immutable success criteria addressed in doc:
-- `one_masterplan_step_executed_without_harness` -- §2.1 (phase-37.3) + §2.2 (phase-38.6.1) counterfactual analyses
-- `comparison_to_harness_result_documented` -- §2.1 Gap analysis table + §2.2 Verdict block; §3 9-component severity matrix
-- `pruning_recommendations_logged` -- §5 action-item table (A-E) with effort/risk/priority
-
----
-
-## 3. Production-code diff verification
-
-`git diff --stat HEAD`:
 ```
-handoff/audit/pre_tool_use_audit.jsonl | 46 ++++++++++++++++
-handoff/current/contract.md            | 98 ++++++++++++++++------------------
-handoff/current/experiment_results.md  | 98 ++++++++++++++++++----------------
-3 files changed, 145 insertions(+), 97 deletions(-)
+$ source .venv/bin/activate && pytest backend/tests/test_phase_40_8_1_loadings_pipeline.py -v
+======================== 10 passed, 1 xfailed in 0.81s =========================
+
+$ pytest backend/tests/ -k "portfolio_manager or sector or factor_correlation or phase_40_8" --tb=line -q
+32 passed, 476 deselected, 1 xfailed, 1 warning in 2.39s
+
+$ pytest backend/ --collect-only -q  ->  520 tests collected
+$ python -c "import ast; [ast.parse(open(f).read()) for f in [...]]; print('ast OK')"  ->  ast OK
 ```
 
-Untracked: `docs/stress-tests/2026-Q2-opus-4.7.md` (the artifact).
+Full backend regression sweep: 490 passed, 8 failed (all pre-existing -- last
+commits on `test_phase_23_2_16_shortlist_doc_presence.py` is phase-23.2.16
+2026-04, `test_rainbow_canary.py` is phase-12.3 2026-04; none touched by
+40.8.1 diff). Failures are documentation-presence tests, NOT code-path tests.
 
-**Production code touched: ZERO LINES.** Pure documentation cycle.
-
----
-
-## 4. Code-review heuristics sweep (5 dimensions)
-
-Production code unchanged = no triggerable heuristics in:
-- D1 Security: no LLM paths, no secrets, no command-injection surface, no dep changes
-- D2 Trading-domain: no kill_switch, stop_loss, perf_metrics, risk_engine, paper_trader changes
-- D3 Code quality: no Python files modified
-- D4 Anti-rubber-stamp on financial logic: `financial-logic-without-behavioral-test` does NOT fire (no `perf_metrics.py|risk_engine.py|backtest_engine.py|backtest_trader.py` touched). Doc-only cycles correctly excluded by the negation list ("Config-only changes...that have no Python logic").
-- D5 LLM-evaluator anti-patterns: first Q/A on phase-40.3, no prior verdict to flip; no sycophancy risk.
-
-Result: 0 BLOCK / 0 WARN / 0 NOTE.
+masterplan status: `40.8.1: pending` (Main will flip to `done` after log append).
 
 ---
 
-## 5. LLM-judgment: counterfactual analysis quality (anti-rubber-stamp focus)
+## Code-review heuristics sweep (§3) -- HOT PATH change
 
-### 5(a) Methodology honesty (§1)
+Diff touches `backend/services/paper_trader.py::execute_buy` (BUY-path hot
+loop) and `backend/services/autonomous_loop.py::run_daily_cycle` (screener
+step). Audit was extra-rigorous per Q/A prompt directive.
 
-Doc line 17 openly states: "We cannot literally re-execute a past step in a parallel session. Instead we reconstruct from `handoff/harness_log.md`...and reason carefully about what it would have done *without* the harness".
+### Dimension 1 -- Security
+- secret-in-diff: NO secrets in diff (grep clean).
+- prompt-injection / command-injection: N/A -- pure numerical wiring, no LLM calls, no subprocess.
+- unbounded-llm-loop: N/A -- no new loops added.
+- supply-chain-dep-pin-removal: NO -- no requirements.txt change.
+- system-prompt-leakage / rag-memory-poisoning: N/A.
 
-**Assessment:** HONEST framing, NOT a cop-out. The Anthropic stress-test doctrine prompt is "re-run a representative step WITHOUT the harness and compare the output to the harness-produced result" -- it does NOT require parallel-session execution. The doc grounds reasoning in concrete empirical evidence (cycle-44 in-session save, cycle-46 audit_basis correction). Methodologically defensible.
+### Dimension 2 -- Trading-domain correctness
+- **kill-switch-reachability** [BLOCK heuristic] PASS: `paper_trader.py:935-965`
+  `check_and_enforce_kill_switch` path untouched; no new bypass introduced.
+  The new `factor_loadings` kwarg is appended AFTER the existing kill_switch
+  gates run (which fire upstream in autonomous_loop Step 5/7 already).
+- **stop-loss-always-set** [BLOCK heuristic] PASS: `paper_trader.py:115-121`
+  no-stop-on-entry fallback untouched. New code is AFTER `_safe_save_trade(trade)`
+  (paper_trader.py:232 in diff) and does not modify stop_loss flow.
+- **perf-metrics-bypass** PASS: no Sharpe/drawdown/alpha inline math. The
+  compute_ff3 OLS regression at `portfolio_risk.py:58` is the single-source
+  primitive; new module just orchestrates it.
+- **paper-trader-broad-except** [BLOCK heuristic] PASS with NOTE: new
+  `except Exception as e: logger.warning("phase-40.8.1: factor_loadings
+  producer failed (fail-open): %r", e)` at `autonomous_loop.py:344-345`.
+  **This is NOT a risk-guard silencer** -- the swallowed function is a
+  PRODUCER of factor_loadings (an OLS regression), and the downstream
+  consumer (`portfolio_manager.py:213-307` cap) is documented as no-op-on-empty.
+  Per negation list: "broad `except` in vendored third-party code" is the
+  exemption; here the broader rationale is that failure of the producer
+  must NOT break the autonomous loop -- the cap simply stays dormant for
+  that cycle (which is its baseline state today). The except logs at
+  WARNING level with full repr, so silent-swallow is mitigated. Fail-open
+  is the documented design intent per researcher brief and contract.
+- **bq-schema-migration-safety** PASS: ZERO BQ schema change in diff
+  (grep `factor_loadings` in `backend/db/bigquery_client.py` returns empty).
+  The in-memory attachment at `paper_trader.py:235-241` is AFTER
+  `_safe_save_trade(trade)` (line 232) so the dynamic INSERT path never
+  sees the unknown column. Researcher's "no BQ schema change this cycle"
+  claim is verified.
 
-### 5(b) Substance of §2.1 (phase-37.3 NO_OP) counterfactual
+### Dimension 3 -- Code quality
+- type-hints PASS: `factor_loadings.py` has full annotations.
+- no print-statement PASS.
+- magic-number NOTE: `seed=4081` in synthetic_ff3_returns -- traceable
+  to phase-40.8.1 step ID; acceptable per "deterministic synthetic for
+  testing" doctrine.
 
-Identifies SPECIFIC harness contributions: 5 cited sources catching factually-wrong audit_basis; HONEST DUAL-INTERPRETATION pattern; Q/A 0/0/0 sweep. Counterfactual reasons through 4 concrete points (lines 39-42). Gap table (lines 45-52) names which scaffolding elements lose value vs which are alternative-implementable (e.g., contract.md replaceable by commit message OR issue tracker; evaluator_critique.md NOT replaceable due to anti-self-eval). The ~70%/20%/10% ROI breakdown is flagged as "Verdict" -- subjective quantification, not measured (acceptable framing).
+### Dimension 4 -- Anti-rubber-stamp
+- **financial-logic-without-behavioral-test** PASS: 11 tests added in
+  `test_phase_40_8_1_loadings_pipeline.py` covering all 3 immutable criteria
+  plus mutation-resistant wiring asserts (e.g.
+  `test_phase_40_8_1_paper_trader_attaches_loadings_to_in_memory_trade`
+  asserts the post-_safe_save_trade ordering).
+- **tautological-assertion** PASS: spot-check of test file -- assertions
+  test concrete dict shapes (`assert "market_beta" in loadings`), not
+  `is not None` or mock-called-with.
+- **rename-as-refactor** N/A.
+- **pass-on-all-criteria-no-evidence** PASS: this critique cites file:line
+  and verbatim pytest output throughout.
 
-**Assessment:** Genuinely analytical, NOT hand-wavy. File:line citations present (`llm_client.py:1388`, `:917`).
-
-### 5(c) Substance of §2.2 (phase-38.6.1 counter-example) counterfactual
-
-Stronger than §2.1 because it's a deliberate counter-example. Cites SPECIFIC cycle-2 save event with concrete blockers ("(a) researcher SKIPPED... (b) experiment_results.md was STALE phase-38.5 content"). Counterfactual (lines 66-68) reasons through what would happen WITHOUT each component and EXPLICITLY identifies the harness as load-bearing here. "SCAFFOLDING IS LOAD-BEARING here" is a self-critical conclusion that pushes back against the cycle's natural pruning bias.
-
-**Assessment:** Rigorous self-criticism. Doc does NOT only argue for pruning; identifies where scaffolding saves the cycle. Anti-pruning bias correctly resisted.
-
-### 5(d) §3 9-component severity matrix backing
-
-| Item | Verdict | Backing |
-|---|---|---|
-| 1. Q/A subagent KEEP | Strong | 90.2% multi-agent benchmark + cycle-44 in-session save + Anthropic anti-self-eval guidance. Triangulated. |
-| 2. Researcher external-research KEEP | Strong | Operator memory `feedback_never_skip_researcher` + cycle-46 audit_basis correction. Empirical. |
-| 3-9. KEEP / RE-EVALUATE | Reasoned | Each cites either five-file protocol, archive auto-roll, resume detection, or anti-criteria-erosion. |
-| 10. tier-knob prose PRUNE candidate | HEDGED | NOT a full prune; "keep tier-knob but trim the multi-paragraph descriptions to 1-2 sentences each". The 5-source FLOOR is preserved. SAFE. |
-| 11. research_needed flag PRUNE candidate | HEDGED | "if no current consumer reads it" -- contingent on consumer-check. Action item B requires verification before pruning. SAFE. |
-
-**Assessment:** PRUNE candidates appropriately hedged. Doc shows discrimination, not blanket simplification. Items 1-9 explicitly NOT proposed for pruning.
-
-### 5(e) Anti-rubber-stamp mutation resistance
-
-If the Q/A KEEP entry (#1) were silently deleted from §3, would the absence be obvious?
-
-- Matrix is numbered 1-11; deletion leaves a numbering gap.
-- 90.2% benchmark + cycle-44 reference are ALSO cited in §6 line 122 -- cross-reference would break.
-- Section 6 "Anti-pruning" enumerates the same set independently.
-
-The doc has DELIBERATE INTERNAL REDUNDANCY between §3 and §6 that creates mutation-detection. PASSES anti-rubber-stamp test.
-
-### 5(f) Does the doc qualify as a stress test?
-
-Anthropic doctrine: "re-run a representative step WITHOUT the harness and compare to harness-produced result. If the model now does X on its own, remove the scaffolding for X."
-
-The doc:
-- Picks TWO representative steps (NO_OP closure + wiring step)
-- Reasons through counterfactual harness-free outcomes with cited empirical evidence
-- Produces SPECIFIC actionable pruning recommendations with effort/risk/priority
-- Identifies follow-up stress-test cadence (next Opus release)
-- Confirms what stays load-bearing (§6 Anti-pruning)
-
-QUALIFIES as a thought-experiment stress test. Not a parallel-session re-run (limitation honestly disclosed §1), but the Anthropic doctrine does not REQUIRE parallel-session execution.
-
----
-
-## 6. Contract alignment check
-
-Reviewing `handoff/current/contract.md` immutable success criteria (verbatim from masterplan.json):
-1. `one_masterplan_step_executed_without_harness` -- doc §2.1 (phase-37.3) + §2.2 (phase-38.6.1). Two steps analyzed.
-2. `comparison_to_harness_result_documented` -- §2.1 Gap analysis table; §2.2 Verdict block; §3 9-component matrix.
-3. `pruning_recommendations_logged` -- §5 action-item table with 5 items (A-E).
-
-All three immutable criteria addressed verbatim. No criteria-erosion detected.
-
----
-
-## 7. Scope honesty check
-
-The doc explicitly discloses methodological scope bounds (§1 line 17). The verdict (§7) does NOT overclaim ("the 3-agent harness MAS is appropriately scoped for Opus 4.7" -- modest; flags TWO PRUNE candidates rather than claiming "no pruning possible" or "massive pruning possible"). The "next stress test" entry (§7 line 133) commits to a follow-up cadence rather than claiming this exercise settles the question permanently.
-
-PASSES scope-honesty check.
+### Dimension 5 -- LLM-evaluator anti-patterns
+- **sycophancy-under-rebuttal** N/A (round-1, no prior verdict for this step-id).
+- **3rd-conditional-not-escalated** N/A.
+- **criteria-erosion** PASS: all 3 immutable masterplan criteria assessed.
 
 ---
 
-## 8. Research-gate compliance
+## LLM judgment (§4)
 
-`handoff/current/research_brief_phase_40_3.md` present with `gate_passed: true`, 5 sources read in full, 3-variant query discipline visible, recency scan performed, 11 internal files inspected. Contract.md references the researcher findings. PASSES research-gate compliance.
+### Hot-path safety doubly default-OFF (critical claim)
+
+Verified TWO independent guards:
+
+1. **Settings default**: `backend/config/settings.py:194` --
+   `enable_factor_loadings: bool = Field(False, description="...Default OFF.")`.
+   Pydantic default + env override only.
+
+2. **Kwarg default**: `backend/services/paper_trader.py:101` --
+   `factor_loadings: Optional[dict] = None,`. If autonomous_loop passes
+   `None` (which it WILL when flag is off, because the producer is gated
+   on the flag and never runs), the in-memory attachment block at lines
+   235-241 short-circuits: `if factor_loadings is not None: trade["factor_loadings"] = factor_loadings`.
+
+   When both guards are off, the diff is byte-identical-behavior to today:
+   no compute_ff3 invocation, no candidate-dict mutation, no in-memory
+   pos_row attachment.
+
+This satisfies the "doubly default-OFF" guarantee. The flag must be
+explicitly flipped AND a real FF3 cache wired (phase-40.8.2) for ANY
+behavioral change to occur.
+
+### Honest dual-interpretation (criterion 2)
+
+`test_phase_40_8_1_paper_positions_bq_column_exists_xfail_until_40_8_2`
+is marked `@pytest.mark.xfail(strict=True, reason="phase-40.8.2 follow-up:
+add factor_loadings JSON column to paper_positions BQ table")`. The xfail
+strict ensures: (a) test runs every cycle, (b) the day phase-40.8.2 adds
+the column, the test will flip from XFAIL to XPASS and FAIL the suite,
+forcing the test author to remove the xfail marker -- guarding against
+forgetting to clean up the marker after the follow-up lands.
+
+The OPERATIONAL interpretation of criterion 2 ("paper_positions carry
+factor_loadings after buy") is satisfied by the in-memory attachment
+test, which passes. Per CLAUDE.md honest-dual-interpretation doctrine
+this is the documented path: literal-PASS + operational-PASS separated,
+with the literal deferred under xfail-strict citing the follow-up phase.
+
+### Researcher claim verification
+
+Brief recommends "in-memory only this cycle, BQ deferred to phase-40.8.2".
+Diff inspection confirms: zero changes to `backend/db/bigquery_client.py`,
+zero new schema migrations under `scripts/migrations/`. Compliant.
+
+### Mutation-resistance of tests
+
+Spot-checks:
+- `test_phase_40_8_1_screener_wiring_default_off_when_flag_disabled`:
+  asserts byte-identical behavior with flag off -- realistic mutation
+  (removing the `if getattr(settings, "enable_factor_loadings", False)`
+  gate at `autonomous_loop.py:333`) would cause this test to fail because
+  candidates would carry factor_loadings even with flag off.
+- `test_phase_40_8_1_paper_trader_attaches_loadings_to_in_memory_trade`:
+  asserts the in-memory attach occurs AFTER _safe_save_trade. Realistic
+  mutation (moving the attach BEFORE the save) would break the dynamic
+  INSERT path -- this test would not directly catch the INSERT failure
+  but would catch a regression in the attach ordering by inspecting trade
+  dict shape post-call.
+- `test_phase_40_8_1_compute_ff3_invoked_with_60day_window`: asserts the
+  60-day window arg. Mutation to 30/120 days would fail.
+
+Mutation-resistance is adequate. Not exhaustive (no test directly verifies
+the dynamic INSERT path resilience under an actual BQ call -- that would
+require a BQ integration test which is out of scope), but the wiring-correctness
+tests are non-tautological.
+
+### Anti-rubber-stamp self-check
+
+This critique is 200+ lines, cites file:line on every BLOCK-class heuristic,
+quotes verbatim pytest output, and walks the doubly-default-OFF claim
+independently for both guards. Not a sycophantic single-paragraph PASS.
 
 ---
 
-## 9. JSON envelope
+## Verdict reasoning
 
-```json
-{
-  "ok": true,
-  "verdict": "PASS",
-  "reason": "All 3 immutable criteria met: (1) one_masterplan_step_executed_without_harness via §2.1+§2.2 dual analysis; (2) comparison_to_harness_result_documented via Gap table+severity matrix; (3) pruning_recommendations_logged via §5 action-item table. Deterministic checks run: doc exists (EXIT=0), 147 lines, keyword coverage 4/6/15 across 3 criteria. Code-review heuristics: 0 BLOCK / 0 WARN / 0 NOTE (production code unchanged). Counterfactual analysis is honest about methodological constraints (§1) and substantive (§2.1+§2.2 cite specific cycle numbers, file:line evidence, and identify both load-bearing scaffolding AND prunable scaffolding). PRUNE candidates are appropriately hedged. Internal redundancy between §3 and §6 provides mutation-detection.",
-  "violated_criteria": [],
-  "violation_details": [],
-  "certified_fallback": false,
-  "checks_run": [
-    "syntax",
-    "verification_command",
-    "code_review_heuristics",
-    "evaluator_critique",
-    "harness_compliance_audit_5_items",
-    "research_gate_compliance",
-    "scope_honesty",
-    "counterfactual_substance_check"
-  ]
-}
-```
+All 3 immutable success criteria met (10/10 PASS + 1 xfail strict on the
+LITERAL BQ interpretation, which is the honest deferral). Hot-path safety
+guaranteed by doubly default-OFF (settings + kwarg). Researcher recommendation
+followed verbatim. Mutation-resistance adequate for an in-memory wiring
+phase. No BLOCK or WARN heuristic findings.
 
----
+The `except Exception` at `autonomous_loop.py:344-345` was scrutinized as
+a potential `broad-except-silences-risk-guard` candidate; it is NOT --
+the producer (OLS regression) is upstream of the consumer (FF3 cap), and
+the consumer is documented as no-op-on-empty. Fail-open at the producer
+layer means the cap stays dormant for that cycle, which is its baseline
+state today. WARNING-level log with full repr mitigates silent-swallow.
+This is the documented fail-open design, not a swallowed risk-guard.
 
-## 10. Recommendation
+## Verdict: PASS
 
-PROCEED to log + masterplan status-flip. Action items A and B from doc §5 are low-effort (10-15 min); recommend Main file them as a phase-40.3.1 follow-up (P3) per doc §7 line 133. Action item C requires owner approval before implementation (template change risks rubber-stamping; doc flagged this correctly).
+**Follow-up for phase-40.8.2** (recommended scope):
+1. Add `factor_loadings JSON` column to `pyfinagent_pms.paper_positions` BQ
+   table (migration script + dynamic INSERT path update).
+2. Replace `synthetic_ff3_returns` stub with Kenneth French daily cache
+   (parquet + last-write timestamp invariant; check researcher's URL list).
+3. After (1) lands, remove `@pytest.mark.xfail(strict=True)` from
+   `test_phase_40_8_1_paper_positions_bq_column_exists_xfail_until_40_8_2`.
+4. Operator flips `enable_factor_loadings=True` once (1)+(2) are live and
+   verified end-to-end.
 
-No phase-40.3.1 emergency follow-up needed. Stress-test cadence (next Opus release) is appropriately deferred.
+**Main next actions:**
+1. Append harness_log.md block (PASS).
+2. Flip `40.8.1: status=done` in `.claude/masterplan.json`.
+3. Auto-commit hook will push.
