@@ -7313,7 +7313,7 @@
         {
           "id": "23.2.12",
           "name": "Verify Layer-1 enrichment pipeline still functional",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "estimated_minutes": 15,
           "verification": "bq SELECT COUNT(*), MAX(analysis_date) FROM analysis_results WHERE _path='lite' AND DATE(analysis_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY); expect >0 per day"

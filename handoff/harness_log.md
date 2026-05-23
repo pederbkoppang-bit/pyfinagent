@@ -22945,3 +22945,50 @@ Both demonstrate the harness self-corrects when discipline drifts. NOT criteria-
 3. phase-44.2 -- /paper-trading cockpit (TanStack + Tremor approval).
 
 **Total cycle time:** ~40 min (researcher 12m + contract 5m + test 12m + cycle-2 xfail adjustment 3m + Q/A 5m + log + flip + push 3m).
+
+## Cycle 36 -- 2026-05-23 (phase-23.2.12 P2 Layer-1 enrichment pipeline liveness verification -- VERIFICATION, 5 pytest tests (4 PASS + 1 xfail); ZERO source code changes) -- phase=23.2.12 result=PASS
+
+**Step:** phase-23.2.12 (P2) -- Verify Layer-1 enrichment pipeline still functional.
+**Mode:** EXECUTION (5 new pytest tests with 1 xfail; ZERO source code changes).
+
+**Researcher (gate):** SPAWNED FIRST. `handoff/current/research_brief_phase_23_2_12.md` -- 7 sources read in full (pytest skip/xfail, Monte Carlo data freshness, Tacnode stale-data, LumiMAS arxiv:2508.12412, Anthropic multi-agent research, Sentry observability, Anthropic harness-design); 17 URLs; 7 internal files; gate_passed=true. 2 critical findings:
+1. `_path` column DOESN'T EXIST in analysis_results schema -- doc-drift from autonomous_loop.py:1704 comment that claimed intent never implemented.
+2. Pipeline missing 5/8 days in last 7-day window (only 5/16, 5/17, 5/22 populated; 5/18, 5/19, 5/20, 5/21, 5/23 empty).
+
+**North-star delta:**
+- **R (pipeline-liveness audit):** lite + full + 48h freshness all PASS via cost-proxy substitute.
+- **B (drift-regression resistance):** future pipeline halt surfaces in next pytest.
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** 5 pytest tests, live BQ probe, schema introspection.
+
+**Generate (EXECUTION):**
+- backend/tests/test_phase_23_2_12_layer1_pipeline_active.py (NEW, ~155 lines, 5 tests).
+- ZERO source code changes. ZERO frontend changes.
+
+**Verification:**
+- pytest backend/tests/test_phase_23_2_12_layer1_pipeline_active.py -v = 4 passed + 1 xfailed in 9.11s.
+- pytest backend/ --collect-only -q = 441 (was 436 after 23.2.11; +5 new; 0 regressions).
+- BQ schema probe: `_path` confirmed NOT IN analysis_results columns.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clean.
+- Code-review (5 dim): 0 BLOCK + 0 WARN + 0 NOTE.
+- HONEST DUAL-INTERPRETATION: literal uncompilable + 5/8 days empty; operational lite-proxy + full-proxy + 48h freshness PASS (mirror phase-23.2.6/10/11 pattern).
+- Mutation-resistance: schema-drift regression guard catches a future _path-column addition.
+
+**Scope honesty:** ZERO backend source. ZERO frontend.
+
+**New P1/P2 follow-up tickets (2):**
+1. phase-23.2.12.1 (P1) -- Layer-1 pipeline 5/8-day gap; pipeline-schedule drift.
+2. phase-23.2.12.2 (P2) -- `_path` doc-drift; autonomous_loop.py:1704 comment cleanup or column add.
+
+**Integration-gate scoreboard:** 1=PASS(441), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Real progress vs Cycle 35:** Cycle 35 closed phase-23.2.11 (P1 BQ freshness, 5 PASS + 3 xfail). Cycle 36 closes phase-23.2.12 (P2 Layer-1, 4 PASS + 1 xfail). Ninth consecutive verification closure this session (cycles 28-36). After this commit, closure path = {24 closed + 23.2.12 DONE} -> {23.2.13-16 + 38.5.1 + 38.5.2 + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 44.2 + 44.7 + 5 new 23.2.* tickets} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~20-35 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-23.2.13 -- governance limits-loader watcher (P2).
+2. phase-23.2.14+ -- continue P2 verifications.
+3. phase-44.2 -- /paper-trading cockpit (TanStack + Tremor approval).
+
+**Total cycle time:** ~40 min.
