@@ -23177,3 +23177,45 @@ Total: 9 PD.
 3. phase-44.7 -- TraceTree (needs deps approval).
 
 **Total cycle time:** ~35 min.
+
+## Cycle 41 -- 2026-05-23 (phase-40.4 P3 stop-loss 8% vs 10% A/B -- ADR + turnkey runner + 8 pytest tests; KEEP 8% literature-backed; A/B run DEFERRED to operator) -- phase=40.4 result=PASS
+
+**Step:** 40.4 (P3 OPEN-28).
+**Mode:** EXECUTION (ADR + turnkey + tests; ZERO production-source changes).
+
+**Researcher (gate):** SPAWNED FIRST. `handoff/current/research_brief_phase_40_4.md` -- 6 sources read in full (CAN SLIM Wikipedia, quant-investing 85-yr, tradezella, tradingwithrayner O'Neil rules, arxiv:1609.00869 ar5iv, hellojayng Kaminski/Lo, SSRN 2407199 Han/Zhou/Zhu, SSRN 968338 Kaminski/Lo, chartswatcher 2025); 18 URLs; 14 internal files; gate_passed=true.
+
+**North-star delta:**
+- **R (trading-parameter audit-trail):** locks literature-driven KEEP 8% decision with 4 anchor citations.
+- **P (deferred):** A/B run is operator action; turnkey ready; expected delta negligible at per-position layer (per researcher analysis).
+- **B:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+
+**Generate (EXECUTION):**
+- docs/decisions/stop_loss_default.md (NEW, ~110 lines, ADR).
+- scripts/backtest/run_stop_loss_ab.py (NEW, ~170 lines, executable turnkey runner).
+- backend/tests/test_phase_40_4_stop_loss_doc.py (NEW, ~95 lines, 8 tests).
+- ZERO production-source changes. backend/config/settings.py:330 paper_default_stop_loss_pct=8.0 UNCHANGED.
+
+**Verification:**
+- pytest backend/tests/test_phase_40_4_stop_loss_doc.py -v = 8 passed in 0.01s.
+- pytest backend/ --collect-only -q = 473 (was 465 after 23.2.16; +8 new; 0 regressions).
+- Masterplan: `test -f docs/decisions/stop_loss_default.md` PASS; `grep -q 'stop_loss_default_8_vs_10' quant_results.tsv` DEFERRED-LIVE.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clean.
+- Code-review (5 dim): 0 BLOCK + 0 WARN + 0 NOTE.
+- Literature backing: verified (4 anchor citations).
+- Honest dual-interpretation: ADR delivered + A/B run deferred openly. Mirror of phase-23.2.6/10/11/12/13/15/16 + 38.5 cycle-2 pattern.
+
+**Scope honesty:** ZERO backend source. ZERO frontend.
+
+**Integration-gate scoreboard:** 1=PASS(473), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Real progress vs Cycle 40:** Cycle 40 closed phase-23.2.16 (P2 deferred-items triage; FINAL 23.2.x). Cycle 41 closes phase-40.4 (P3 stop-loss ADR). 14th cumulative closure this session. After this commit, closure path = {29 closed + 40.4 DONE} -> {38.5.1 + 38.5.2 + 39.1 owner + 40.1 + 40.3 + 40.7 + 44.2 + 44.7 + 8 new 23.2.*.1 tickets} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~15-30 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
+2. phase-44.7 -- TraceTree (needs deps approval).
+3. phase-40.3 -- stress-test doctrine (owner sanction needed).
+
+**Total cycle time:** ~40 min.

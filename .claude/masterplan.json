@@ -12196,7 +12196,7 @@
         {
           "id": "40.4",
           "name": "Stop-loss default 8% vs 10% A/B (OPEN-28)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": null,
