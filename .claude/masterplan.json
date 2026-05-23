@@ -7265,7 +7265,7 @@
         {
           "id": "23.2.6",
           "name": "Verify sector cap actually blocked same-sector buys",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 15,
           "verification": "grep 'Skipping BUY .* at cap' backend.log; bq SELECT sector, COUNT(*) FROM paper_positions GROUP BY sector should never show >2 per sector when cap=2"

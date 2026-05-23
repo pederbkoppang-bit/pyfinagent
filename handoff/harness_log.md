@@ -22653,3 +22653,59 @@ Audit log: 226 -> 229 (delta 3 cycle rows) -> 230 (cleanup resume). Pre/post sta
 3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
 
 **Total cycle time:** ~35 min.
+
+## Cycle 30 -- 2026-05-23 (phase-23.2.6 P1 Verify sector cap blocked same-sector buys -- VERIFICATION, 6 new pytest regression tests; ZERO source code changes) -- phase=23.2.6 result=PASS
+
+**Step:** phase-23.2.6 (P1) -- Verify sector cap blocked same-sector buys. Forward-gate verification (24 emits) + 6 new pytest tests + BQ legacy overage explicitly disclosed.
+**Mode:** EXECUTION (regression-lock + structural verification; ZERO source code changes; the phase-23.1.13 cap commit 5b350e4d is preserved).
+
+**Researcher (gate):** SPAWNED (simple tier) per `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_23_2_6.md` -- 6 external sources read in full (pytest stable + 8.x logging docs, Woteq caplog, Pytest with Eric caplog, Motley Fool GICS 11 sectors, Guardfolio concentration risk, HDFC TRU equity portfolio design); 17 URLs collected; 6 internal files inspected; gate_passed=true. Researcher delivered BOTH the forward-gate evidence (24 emits) AND the legacy 8-Tech overage (rows entered 2026-04-26 to 2026-04-28, predating commit c854386f sector-persistence migration).
+
+**North-star delta:**
+- **R (concentration-risk audit integrity, primary):** AFML / Bailey-Lopez de Prado discipline. Forward-gate locks in phase-23.1.13 cap commit 5b350e4d; legacy overage explicitly documented.
+- **B (defensive cap-gate regression resistance):** 6 mutation-resistant test cases protect against silent cap disable / log format drift / default-value flip.
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** verbatim masterplan part 1 (grep backend.log) PASS verbatim (24 emits); part 2 (BQ snapshot) PASS forward-gate + LEGACY-SNAPSHOT-CAVEAT (8 Tech rows pre-migration).
+
+**Generate (EXECUTION):**
+- backend/tests/test_phase_23_2_6_sector_cap_emit.py (NEW, ~205 lines, 6 tests).
+- ZERO source code changes. ZERO frontend changes.
+
+**Evidence:**
+| Metric | Value | Source |
+|---|---|---|
+| backend.log "Skipping BUY" emits | 24 | researcher grep + test 6 |
+| paper_max_per_sector default | 2 | settings.py:162 + test 2 |
+| Emit site at portfolio_manager.py | line 247-252 | test 1 |
+| BQ paper_positions Tech | 8 (legacy) | researcher MCP scan |
+| BQ paper_positions Industrials | 1 | researcher MCP scan |
+
+**Verification:**
+- pytest backend/tests/test_phase_23_2_6_sector_cap_emit.py -v = 6 passed in 0.25s.
+- pytest backend/ --collect-only -q = 406 (was 400 after 23.2.5; +6 new; 0 regressions; baseline 297 preserved).
+- grep -c "Skipping BUY %s: sector %s at cap" backend/services/portfolio_manager.py = 1 hit (emit site intact).
+- git diff --stat backend/{services,agents,api,config}/ backend/main.py = empty.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clear.
+- Code-review (5 dim, 15 ranked + secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- Dual-interpretation: forward-gate PASS verbatim + snapshot CAVEAT honestly disclosed; matches phase-38.5 cycle-2 / phase-38.7 honest-disclosure-PASS precedent (NOT cycle-1 38.5 silent substitution).
+- Mutation-resistance: 6 directions verified each trip predicted test.
+- Adversarial honesty: BQ legacy overage disclosed in 3 places (contract + live_check + harness_log); phase-23.2.6.1 follow-up named explicitly.
+
+**Scope honesty:** ZERO backend source. ZERO frontend. Only new file: backend/tests/test_phase_23_2_6_sector_cap_emit.py.
+
+**Integration-gate scoreboard:** 1=PASS(406), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Honest scope deferrals (not silent drops):**
+- BQ paper_positions legacy divest (8 Tech -> ≤2) -- DEFERRED to phase-23.2.6.1 (operator runbook in live_check_23.2.6.md).
+- Live BQ MCP probe in pytest -- DEFERRED (requires live BQ; pytest uses source + log only).
+
+**Real progress vs Cycle 29:** Cycle 29 closed phase-23.2.5 (P0 false-fire verification, 9 new tests). Cycle 30 closes phase-23.2.6 (P1 sector cap verification, 6 new tests). Third consecutive verification closure. After this commit, closure path = {18 closed + 23.2.6 DONE} -> {38.5.1 + 38.5.2 + 23.2.7-16 P0/P1 verifications + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 44.2 + 44.7 + 23.2.6.1 legacy divest} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~22-37 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-23.2.7 -- Verify Red Line Monitor terminal NAV matches live (P1).
+2. phase-23.2.8 -- Verify home cockpit and paper-trading hero metrics stay in sync (P1).
+3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
+
+**Total cycle time:** ~35 min.
