@@ -12085,7 +12085,7 @@
         {
           "id": "38.5.2",
           "name": "Flip ascii-logger-lint CI workflow from continue-on-error to hard gate (depends 38.5.1)",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": "38.5.1",
