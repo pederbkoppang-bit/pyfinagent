@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `5a859aa5` | phase-38.5.2: Flip ascii-logger-lint CI workflow from continue-on-error to hard gate (depends 38.... |
 | 2026-05-23 | `38768f75` | phase-38.5.1: Sweep 151 ASCII-logger violations identified by phase-38.5 (OPEN-14 follow-up) |
 | 2026-05-23 | `42f9880f` | phase-40.4: Stop-loss default 8% vs 10% A/B (OPEN-28) |
 | 2026-05-23 | `88d57918` | phase-23.2.16: Phase 2 deferred items triage -- pick 3 highest-ROI for next sprint |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `9e2e5dbb` | phase-41.0: Phase-29.8 P2 bundle close (OPEN-32) |
 | 2026-05-23 | `b80e8462` | phase-40.2: Claude Code v2.1.140-143 features (OPEN-25) |
 | 2026-05-23 | `719065aa` | phase-40.6: .env pre-commit / CI syntax guard (OPEN-31) |
-| 2026-05-23 | `6a71f9ae` | phase-40.5: Cosmetic _LAUNCHD_JOBS description (OPEN-30) |
 
 ---
 
+### v6.18.17 — phase-38.5.2: Flip ascii-logger-lint CI workflow from continue-on-err... (2026-05-23)
+
+- **phase-38.5.2: Flip ascii-logger-lint CI workflow from continue-on-error to hard gate (depends 38....**
 ### v6.18.16 — phase-38.5.1: Sweep 151 ASCII-logger violations identified by phase-3... (2026-05-23)
 
 - **phase-38.5.1: Sweep 151 ASCII-logger violations identified by phase-38.5 (OPEN-14 follow-up)**
