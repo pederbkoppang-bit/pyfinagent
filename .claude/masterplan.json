@@ -7337,7 +7337,7 @@
         {
           "id": "23.2.15",
           "name": "Run phase-23.1.x cycle-by-cycle smoke tests",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "estimated_minutes": 45,
           "verification": "Walk the Section A table in phase-23.2.0-internal-codebase-audit.md; for each of 22 cycles, run the listed verification recipe"

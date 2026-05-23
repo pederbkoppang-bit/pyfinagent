@@ -23083,3 +23083,43 @@ The verification cycles are doing exactly what they should: surfacing real bugs 
 3. phase-44.2 -- /paper-trading cockpit (TanStack + Tremor approval).
 
 **Total cycle time:** ~30 min.
+
+## Cycle 39 -- 2026-05-23 (phase-23.2.15 P2 phase-23.1.x cycle-by-cycle smoke verification -- VERIFICATION, 5 pytest tests (3 PASS + 2 xfail); ZERO source code changes; 2 NEW follow-up tickets) -- phase=23.2.15 result=PASS
+
+**Step:** phase-23.2.15 (P2) -- Run phase-23.1.x cycle-by-cycle smoke tests.
+
+**Researcher (gate):** SPAWNED FIRST. `handoff/current/research_brief_phase_23_2_15.md` -- 7 sources read in full (pytest parametrize + exit codes, Virtuoso QA smoke vs regression, Anthropic harness-design + multi-agent, CircleCI smoke tests, Back2Code pattern, Joubert/Sestovic 2024 SSRN, arxiv 2512.12924, ValidMind SR 11-7); 20 URLs; 16 internal files; gate_passed=true.
+
+**North-star delta:**
+- **R (regression-test discipline audit):** locks 8 known-passing scripts; xfail-tracks 6 known-failing.
+- **B (smoke-suite regression resistance):** future drift in any of the 8 surfaces immediately.
+- **P:** N/A.
+
+**Generate (EXECUTION):**
+- backend/tests/test_phase_23_2_15_verify_23_1_smoke.py (NEW, ~150 lines, 5 tests).
+- ZERO source code changes. ZERO frontend changes.
+
+**Verification:**
+- pytest backend/tests/test_phase_23_2_15_verify_23_1_smoke.py -v = 3 passed + 2 xfailed in 23.67s.
+- pytest backend/ --collect-only -q = 458 (was 453 after 23.2.14; +5 new; 0 regressions).
+
+**Q/A verdict:** PASS.
+- 5-item harness-compliance: 5/5 clean.
+- Code-review (5 dim): 0 BLOCK + 0 WARN + 0 NOTE.
+- Mutation-resistance verified independently by Q/A re-running cycles 9, 12, 14, 15.
+- Honest dual-interpretation: 8 locked PASS + 4 stale-import xfail + 2 real-regression xfail + 9 no-script-by-design.
+
+**Scope honesty:** ZERO backend source. ZERO frontend.
+
+**New P1/P2 tickets (2):**
+- phase-23.2.15.1 (P2): 2-line sys.path preamble per stale-import script (cycles 9, 10, 11, 13).
+- phase-23.2.15.2 (P1): root-cause cycles 14 + 16 real-regression scripts.
+
+**Integration-gate scoreboard:** 1=PASS(458), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Real progress vs Cycle 38:** Cycle 38 closed phase-23.2.14 (P2 lock audit; 14 CLEAN). Cycle 39 closes phase-23.2.15 (P2 smoke sweep; 8 locked + 6 xfail + 2 new tickets). 12th consecutive verification closure. Closure path = {27 closed + 23.2.15 DONE} -> {23.2.16 + 38.5.* + 39.1 + 40.* + 44.2/44.7 + 8 cumulative 23.2.*.1 tickets} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~17-32 cycles remaining.
+
+**Cumulative new P1/P2 tickets this session:** 8
+- 23.2.6.1, 23.2.11.1, 23.2.11.2, 23.2.12.1, 23.2.12.2, 23.2.13.1, 23.2.15.1, 23.2.15.2
+
+**Total cycle time:** ~40 min.
