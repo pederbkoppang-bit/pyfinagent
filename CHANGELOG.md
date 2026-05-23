@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `e10da8ef` | phase-23.6: Resolve persistent items deferred from phase-23.5 |
 | 2026-05-23 | `742ab72d` | docs: production-ready audit 2026-05-23 -- 6/14 DoD PASS (up from 2/14) |
 | 2026-05-23 | `85c34d98` | phase-40.8: Correlation cap beyond GICS (OPEN-5) |
 | 2026-05-23 | `0c2c6323` | phase-37.3: budget_tokens deprecation cleanup (OPEN-18) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `8b2878ed` | phase-23.2.9: Verify ticker-meta latency stays low |
 | 2026-05-23 | `f136c0dd` | phase-23.2.8: Verify home cockpit and paper-trading hero metrics stay in sync |
 | 2026-05-23 | `9909422a` | phase-23.2.7: Verify Red Line Monitor terminal NAV matches live across the week |
-| 2026-05-23 | `def1ce23` | phase-23.2.6: Verify sector cap actually blocked same-sector buys |
 
 ---
 
+### v6.18.23 — phase-23.6: Resolve persistent items deferred from phase-23.5 (2026-05-23)
+
+- **phase-23.6: Resolve persistent items deferred from phase-23.5**
 ### v6.18.22 — phase-40.8: Correlation cap beyond GICS (OPEN-5) (2026-05-23)
 
 - **phase-40.8: Correlation cap beyond GICS (OPEN-5)**
