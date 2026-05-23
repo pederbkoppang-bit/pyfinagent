@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `9909422a` | phase-23.2.7: Verify Red Line Monitor terminal NAV matches live across the week |
 | 2026-05-23 | `def1ce23` | phase-23.2.6: Verify sector cap actually blocked same-sector buys |
 | 2026-05-23 | `4565a222` | phase-23.2.5: Verify kill-switch breach evaluation never falsely fired |
 | 2026-05-23 | `cc8177ae` | phase-23.2.4: Verify pause/resume deadlock did not regress |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `25cff9fe` | phase-36.1: Scale-out wiring at +2R / +3R (OPEN-2 -- the last BLOCK) |
 | 2026-05-22 | `f47871fd` | phase-35.1: Live-verify learn loop (OPEN-22) |
 | 2026-05-22 | `bb7d3c55` | phase-45: CLOSURE re-audit + walk-the-graph sequencing |
-| 2026-05-22 | `5ad48c08` | phase-29: Harness MAS + MCP + Academic-Fetch + Frontier-Sync (phase-29.0 audit remediation) |
 
 ---
 
+### v6.18.5 — phase-23.2.7: Verify Red Line Monitor terminal NAV matches live acros... (2026-05-23)
+
+- **phase-23.2.7: Verify Red Line Monitor terminal NAV matches live across the week**
 ### v6.18.4 — phase-23.2.6: Verify sector cap actually blocked same-sector buys (2026-05-23)
 
 - **phase-23.2.6: Verify sector cap actually blocked same-sector buys**
