@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `86e149a2` | phase-40.8.1: Wire compute_ff3 into analysis pipeline so positions carry factor_loadings (follow-... |
 | 2026-05-23 | `ba272fd0` | phase-40.3: Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26) |
 | 2026-05-23 | `9e629628` | phase-41: phase-29.8/29.9 Bundle Closure |
 | 2026-05-23 | `798a8fe8` | phase-34: Unblock the autonomous loop + first live verification of phase-32 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `620c2846` | phase-23.2.15: Run phase-23.1.x cycle-by-cycle smoke tests |
 | 2026-05-23 | `2ae11f76` | phase-23.2.14: Audit other `with self._lock:` blocks for re-entrant patterns |
 | 2026-05-23 | `73fa6a73` | phase-23.2.13: Verify governance limits-loader watcher still active |
-| 2026-05-23 | `45a82b27` | phase-23.2.12: Verify Layer-1 enrichment pipeline still functional |
 
 ---
 
+### v6.18.29 — phase-40.8.1: Wire compute_ff3 into analysis pipeline so positions ca... (2026-05-23)
+
+- **phase-40.8.1: Wire compute_ff3 into analysis pipeline so positions carry factor_loadings (follow-...**
 ### v6.18.28 — phase-40.3: Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26) (2026-05-23)
 
 - **phase-40.3: Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26)**
