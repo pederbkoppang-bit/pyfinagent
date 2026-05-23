@@ -7721,7 +7721,7 @@
     {
       "id": "phase-23.6",
       "name": "Resolve persistent items deferred from phase-23.5",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "phase-23.5"
       ],
