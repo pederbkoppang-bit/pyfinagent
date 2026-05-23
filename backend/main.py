@@ -203,6 +203,24 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.warning("faulthandler registration failed", exc_info=True)
 
+    # phase-38.6.1: cycle-lock stale-recovery hook. If the prior backend
+    # was SIGKILL'd mid-cycle, handoff/.autonomous_loop.lock still exists
+    # with the dead pid; clean_stale_lock detects + unlinks. Fail-open
+    # per existing convention (faulthandler block above also fail-opens).
+    try:
+        from backend.services.cycle_lock import clean_stale_lock as _clean_stale_lock
+        _cleaned = _clean_stale_lock(reason="startup_recovery")
+        if _cleaned:
+            logging.warning(
+                "phase-38.6.1: cleaned stale autonomous_loop lock on startup "
+                "(prior_pid=%s prior_cycle_id=%s age_sec=%.0f). Prior cycle "
+                "did not exit cleanly; recovery complete.",
+                _cleaned.get("pid"), _cleaned.get("cycle_id"),
+                _cleaned.get("age_sec", 0.0),
+            )
+    except Exception:
+        logging.exception("phase-38.6.1: cycle_lock recovery hook failed (fail-open)")
+
     # phase-23.1.19: log RLIMIT_NOFILE so FD-exhaustion crashes are easy to
     # diagnose. The launchd plist sets NumberOfFiles=16384; if the soft limit
     # at boot is dramatically lower, FDs run out faster than expected.

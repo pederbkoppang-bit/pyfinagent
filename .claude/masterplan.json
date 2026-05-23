@@ -12123,6 +12123,27 @@
           "max_retries": 3
         },
         {
+          "id": "38.6.1",
+          "name": "Wire cycle_lock into autonomous_loop + main.py lifespan (depends 38.6)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "38.6",
+          "audit_basis": "phase-38.6 cycle 43 shipped cycle_lock primitive (handoff/.autonomous_loop.lock). 38.6.1 wires it: replace autonomous_loop.py:142-154 `_running` guard + add main.py lifespan startup hook calling clean_stale_lock.",
+          "verification": {
+            "command": "pytest backend/tests/test_phase_38_6_1_wiring.py -v && grep -q 'from backend.services.cycle_lock' backend/services/autonomous_loop.py && grep -q 'clean_stale_lock' backend/main.py",
+            "success_criteria": [
+              "autonomous_loop_imports_cycle_lock_acquire",
+              "_running_guard_at_line_142_replaced_with_acquire_context_manager",
+              "main_py_lifespan_calls_clean_stale_lock_at_startup",
+              "existing_test_phase_38_6_restart_survivable_still_passes"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "38.7",
           "name": "SPY benchmark anchor at first-funded snapshot (OPEN-9)",
           "status": "done",

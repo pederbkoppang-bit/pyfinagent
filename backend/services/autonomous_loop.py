@@ -141,6 +141,14 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
     """
     global _running, _last_run, _last_result, _session_cost, _current_cycle_id
 
+    # phase-38.6.1: replace in-process _running guard with file-based
+    # cycle_lock (handoff/.autonomous_loop.lock). SIGKILL/crash mid-cycle
+    # no longer leaves stale state; flock auto-released on process death;
+    # next startup's clean_stale_lock cleans pidfile. The in-process
+    # _running flag is kept for UI/api status surface (get_loop_status)
+    # but the LOCK is the source of truth for re-entrancy.
+    from backend.services.cycle_lock import acquire as _cycle_lock_acquire, CycleLockError
+
     if _running:
         logger.warning("Paper trading cycle already running, skipping")
         return {"status": "skipped", "reason": "already_running"}
@@ -150,6 +158,17 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         _last_result = {"status": "ok", "dry_run": True, "timestamp": _last_run}
         logger.info("Paper trading dry-run: stamped _last_run, no real work performed")
         return _last_result
+
+    # File-based lock acquire (raises if a live cycle holds it OR if a
+    # stale lock cant be cleaned). We acquire BEFORE setting _running so
+    # the cross-process guard runs first.
+    _cycle_id_for_lock = _current_cycle_id or f"cycle-{int(datetime.now(timezone.utc).timestamp())}"
+    try:
+        _lock_cm = _cycle_lock_acquire(_cycle_id_for_lock)
+        _lock_cm.__enter__()
+    except CycleLockError as _lock_exc:
+        logger.warning("Paper trading cycle already running (file-lock), skipping: %r", _lock_exc)
+        return {"status": "skipped", "reason": "already_running_file_lock"}
 
     _running = True
     settings = settings or get_settings()
@@ -1111,6 +1130,14 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         return summary
     finally:
         _running = False
+        # phase-38.6.1: release the file-based cycle_lock (unlinks pidfile
+        # + releases flock). Idempotent: if already exited, _lock_cm is unset.
+        try:
+            _lock_cm.__exit__(None, None, None)  # type: ignore[name-defined]
+        except (NameError, AttributeError):
+            pass  # _lock_cm not set (e.g. dry-run path)
+        except Exception as _release_exc:
+            logger.warning("phase-38.6.1: cycle_lock release failed (non-fatal): %r", _release_exc)
         # phase-26.1: clear cycle_id so log_llm_call rows OUTSIDE a cycle
         # don't accidentally tag with a stale id from a prior cycle.
         _current_cycle_id = None

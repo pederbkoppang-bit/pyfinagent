@@ -23309,3 +23309,19 @@ Total: 9 PD.
 **Real progress vs Cycle 42:** Cycle 42 BATCHED phase-38.5.1 + 38.5.2 (cycle-2 round-2 PASS). Cycle 43 ships phase-38.6 cycle_lock PRIMITIVE; wiring deferred. After this commit, closure path = {32 closed + 38.6 DONE} -> {38.6.1 wiring + 39.1 owner + 40.1 + 40.3 owner + 40.7 owner + 44.2 + 44.7 + 8 new 23.2.*.1 tickets} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~12-27 cycles remaining.
 
 **Total cycle time:** ~30 min.
+
+
+## Cycle 44 -- 2026-05-23 -- phase=38.6.1 result=PASS
+
+- Step: phase-38.6.1 (P2 OPEN-15) -- wire cycle_lock primitive into autonomous_loop.py + main.py lifespan.
+- Round 1 verdict: CONDITIONAL on 2 process blockers (researcher SKIPPED with rationale + experiment_results.md stale phase-38.5 content).
+- Cycle-2 recovery (per CLAUDE.md/Anthropic file-based flow): researcher RETROACTIVELY spawned at tier=simple -> 7 sources read-in-full, gate_passed=true, work verdict SOUND with one deferred-refactor caveat (manual __exit__ -> ExitStack; defer to phase-38.6.2). experiment_results.md REWRITTEN with phase-38.6.1 header + verbatim 15-test pytest output + 488-tests-collected. Round-1 critique PRESERVED + ROUND-2 FOLLOW-UP appended (NOT overwritten).
+- Fresh Q/A round-2 PASS on UPDATED evidence (not second-opinion-shopping; evidence materially changed).
+- Tests: 15/15 pass (7 new wiring + 8 existing primitive). pytest count 481 -> 488 (+7, 0 regressions).
+- Code-review Top-15 heuristic sweep: 0 BLOCK / 0 WARN / 0 NOTE on diff itself. kill_switch path unchanged; ASCII-only loggers; honest scope (_running kept as UI/api status surface; cycle_lock is SoT for re-entrancy).
+- All 4 immutable criteria PASS: (1) autonomous_loop_imports_cycle_lock_acquire (2) _running_guard_replaced_with_acquire_context_manager + finally release + NameError idempotency (3) main_py_lifespan_calls_clean_stale_lock_at_startup + fail-open try/except (4) 8/8 existing 38.6 primitive tests still pass.
+- OPEN-15 closes at primitive (R, phase-38.6) + wiring (B, phase-38.6.1) layers. R+B materialized. P=N/A. Caltech discount=N/A.
+- Lesson: 3rd consecutive cycle to skip researcher on "wiring-only" rationale. Operator memory `feedback_never_skip_researcher` is non-negotiable. Next cycle's contract MUST spawn researcher FIRST regardless of "literal execution" framing.
+- Closure path: 34 phases closed across cycles 12-44. Next: 39.1 owner / 40.1 .env perm / 40.3 owner / 40.7 owner / 44.2 deps / 44.7 deps / 35.3 / 44.10 / 43.0 FINAL GATE -> PRODUCTION_READY_request_<date>.md -> owner approval.
+
+**Total cycle time:** ~45 min (includes cycle-2 recovery).
