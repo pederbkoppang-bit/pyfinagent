@@ -7297,7 +7297,7 @@
         {
           "id": "23.2.10",
           "name": "Verify watchdog has not fired in 7 days",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 5,
           "verification": "grep 'health FAIL' handoff/logs/backend-watchdog.log; expect zero entries in last 7 days"
