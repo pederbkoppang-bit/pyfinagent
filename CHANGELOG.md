@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `798a8fe8` | phase-34: Unblock the autonomous loop + first live verification of phase-32 |
 | 2026-05-23 | `f458d774` | phase-28: Candidate Picker Expansion |
 | 2026-05-23 | `82a8ba7b` | phase-23.8: Dev-MAS Audit Remediation |
 | 2026-05-23 | `e10da8ef` | phase-23.6: Resolve persistent items deferred from phase-23.5 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `45a82b27` | phase-23.2.12: Verify Layer-1 enrichment pipeline still functional |
 | 2026-05-23 | `b6a95f7e` | phase-23.2.11: Verify BQ table freshness across 7 paper_* + analysis tables |
 | 2026-05-23 | `3732c0d2` | phase-23.2.10: Verify watchdog has not fired in 7 days |
-| 2026-05-23 | `8b2878ed` | phase-23.2.9: Verify ticker-meta latency stays low |
 
 ---
 
+### v6.18.26 — phase-34: Unblock the autonomous loop + first live verification of ph... (2026-05-23)
+
+- **phase-34: Unblock the autonomous loop + first live verification of phase-32**
 ### v6.18.25 — phase-28: Candidate Picker Expansion (2026-05-23)
 
 - **phase-28: Candidate Picker Expansion**
