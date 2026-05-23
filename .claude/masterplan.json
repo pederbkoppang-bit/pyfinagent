@@ -3387,7 +3387,7 @@
         {
           "id": "4.9",
           "name": "Pre-go-live aggregate smoketest (test everything)",
-          "status": "blocked",
+          "status": "deferred",
           "harness_required": true,
           "verification": {
             "command": "bash scripts/smoketest/aggregate.sh",
@@ -9951,7 +9951,7 @@
         {
           "id": "27.6.4",
           "name": "(DEFERRED, Cloud Function redeploy) Cache CIK map inside the Ingestion Agent CF so it doesn't re-fetch SEC per ticker",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "27.6",
@@ -10652,7 +10652,7 @@
         {
           "id": "29.8",
           "name": "P2 bundle: budget_tokens audit + alwaysLoad/continueOnBlock + OPENALEX_API_KEY + Gemini-3.x audit + frontier-sync rule + cross-validation rule + effort-level hook check + v2.1.140-143 feature docs + MCP smoke-test scripts + mid-flight-subagent-stop documentation",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "29.7",
@@ -10678,7 +10678,7 @@
         {
           "id": "29.9",
           "name": "P3 bundle: stress-test cycle (no-harness baseline on a representative step) + Claude Mythos Preview tracker + Gemini 3.1 + GPT-5.5 docs + custom anthropic-docs MCP placeholder + Browserbase placeholder + futurelab fallback + deep-tier multi-subagent fork doc + scaffolding-pruning audit + cycle-2-flow surfacing in qa.md",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": "29.8",
@@ -12384,6 +12384,27 @@
               "screener_candidates_carry_factor_loadings",
               "paper_positions_carry_factor_loadings_after_buy",
               "compute_ff3_invoked_in_analysis_pipeline_with_60day_window"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "40.8.2",
+          "name": "BQ schema column + Kenneth French cache for factor_loadings (follow-up to 40.8.1)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "40.8.1",
+          "audit_basis": "phase-40.8.1 cycle 50 shipped the in-memory factor_loadings producer with xfail-strict on the BQ persistence criterion (LITERAL form of criterion 2). This follow-up adds the factor_loadings JSON column to paper_positions BQ (inside Step 7 schema window per CLAUDE.md guardrail), seeds a Kenneth French daily FF3 cache at backend/data/_cache/ff3_factors_daily.parquet via scripts/ingest/seed_ff3_cache.py (no new pip dep per Coding Finance idiom; divide by 100 to convert from percent), replaces synthetic_ff3_returns with load_ff3_cache(), and flips xfail-strict on test_phase_40_8_1_paper_positions_bq_column_exists_xfail_until_40_8_2 to PASS. After 1-2 weeks of quiet-log, operator considers flipping enable_factor_loadings=True AND paper_max_factor_corr=0.85.",
+          "verification": {
+            "command": "pytest backend/tests/test_phase_40_8_2_bq_cache.py -v && test -f backend/data/_cache/ff3_factors_daily.parquet",
+            "success_criteria": [
+              "paper_positions_bq_schema_has_factor_loadings_column",
+              "ff3_factors_daily_parquet_cache_present",
+              "load_ff3_cache_replaces_synthetic_stub_in_factor_loadings_py",
+              "xfail_strict_on_phase_40_8_1_literal_criterion_now_passes"
             ],
             "live_check": null
           },
