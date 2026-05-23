@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `3732c0d2` | phase-23.2.10: Verify watchdog has not fired in 7 days |
 | 2026-05-23 | `8b2878ed` | phase-23.2.9: Verify ticker-meta latency stays low |
 | 2026-05-23 | `f136c0dd` | phase-23.2.8: Verify home cockpit and paper-trading hero metrics stay in sync |
 | 2026-05-23 | `9909422a` | phase-23.2.7: Verify Red Line Monitor terminal NAV matches live across the week |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `484ec437` | phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23) |
 | 2026-05-22 | `db1e6208` | phase-44.1: Foundation: design tokens + states lib + hooks + Cmd-K + WCAG baseline + Sidebar refresh |
 | 2026-05-22 | `8db36dc3` | phase-37.1: RiskJudge response_schema (OPEN-16) |
-| 2026-05-22 | `25cff9fe` | phase-36.1: Scale-out wiring at +2R / +3R (OPEN-2 -- the last BLOCK) |
 
 ---
 
+### v6.18.8 — phase-23.2.10: Verify watchdog has not fired in 7 days (2026-05-23)
+
+- **phase-23.2.10: Verify watchdog has not fired in 7 days**
 ### v6.18.7 — phase-23.2.9: Verify ticker-meta latency stays low (2026-05-23)
 
 - **phase-23.2.9: Verify ticker-meta latency stays low**
