@@ -12369,6 +12369,26 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "40.8.1",
+          "name": "Wire compute_ff3 into analysis pipeline so positions carry factor_loadings (follow-up to 40.8)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "40.8",
+          "audit_basis": "phase-40.8 cycle 47 shipped the FF3 cosine-similarity cap as a dormant default-OFF gate. The cap stays dormant until upstream analysis populates `factor_loadings` on candidates and positions. This follow-up wires compute_ff3() (portfolio_risk.py:58) into the analysis pipeline so the cap becomes active when operator flips paper_max_factor_corr > 0. Source: handoff/archive/phase-40.8/research_brief_phase_40_8.md.",
+          "verification": {
+            "command": "pytest backend/tests/test_phase_40_8_1_loadings_pipeline.py -v",
+            "success_criteria": [
+              "screener_candidates_carry_factor_loadings",
+              "paper_positions_carry_factor_loadings_after_buy",
+              "compute_ff3_invoked_in_analysis_pipeline_with_60day_window"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },
