@@ -11913,7 +11913,7 @@
         {
           "id": "37.3",
           "name": "budget_tokens deprecation cleanup (OPEN-18)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": null,

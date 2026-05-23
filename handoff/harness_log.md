@@ -23340,3 +23340,17 @@ Total: 9 PD.
 - Closure path: 35 phases closed across cycles 12-45. Next: 35.3 (5-cycle streak) / 40.8 (correlation cap) / 27.6 Claude smoke (needs running backend) / 29.8 bundle / owner-gated batch.
 
 **Total cycle time:** ~25 min (single Q/A round; no rework).
+
+
+## Cycle 46 -- 2026-05-23 -- phase=37.3 result=PASS
+
+- Step: phase-37.3 (P3 OPEN-18) -- budget_tokens deprecation cleanup. NO_OP trace-link closure.
+- Researcher SPAWNED FIRST (no SKIP -- 3 consecutive cycles honoring `feedback_never_skip_researcher`). Tier=simple; 5 sources read-in-full; gate_passed=true. Recommendation (c) NO_OP: masterplan audit_basis conflated Anthropic wire-literal `budget_tokens` (llm_client.py:1388) with Gemini's `thinking_budget` (llm_client.py:917). Both APIs already correct at boundary.
+- Generate: ZERO production-code lines changed. backend/tests/test_phase_37_3_budget_tokens.py NEW (+130, 4 tests: 3 PASS operational + 1 xfail strict literal). Honest dual-interpretation per CLAUDE.md.
+- Pytest: 3 passed, 1 xfailed in 0.05s. Collection 496 -> 500 (+4 net, 0 regressions). xfail strict provides mutation-resistance: if wire refs ever silently deleted, suite fails loud.
+- Q/A round-1 PASS (single spawn; 0 prior phase-37.3 entries in harness_log). Researcher core-claim independently verified by Q/A reading llm_client.py:1378-1388 (Anthropic legacy wire gate) + :907-919 (Gemini typed translation). Code-review Top-15 sweep: 0 BLOCK / 0 WARN / 0 NOTE on diff.
+- N* delta: R (preserves Anthropic legacy-model API support; honest disclosure of unsatisfiable literal criterion) + B (~15 min vs ~2h misguided refactor). P=N/A. Caltech discount=N/A.
+- Follow-up to add: phase-37.3.1 (P3) -- "Re-evaluate budget_tokens removal when Anthropic legacy-model (Opus 4.5 / Sonnet 3.7) EOL announced". To be added to masterplan post-flip.
+- Closure path: 36 phases closed across cycles 12-46. Next: 35.3 (5-cycle streak; calendar-bound) / 40.8 (correlation cap) / 27.6 / 29.8 / owner-gated batch.
+
+**Total cycle time:** ~15 min (NO_OP trace-link closure; single Q/A round).
