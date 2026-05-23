@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `def1ce23` | phase-23.2.6: Verify sector cap actually blocked same-sector buys |
 | 2026-05-23 | `4565a222` | phase-23.2.5: Verify kill-switch breach evaluation never falsely fired |
 | 2026-05-23 | `cc8177ae` | phase-23.2.4: Verify pause/resume deadlock did not regress |
 | 2026-05-23 | `8499bb7d` | phase-41.1: Phase-29.9 P3 bundle close (OPEN-33) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `f47871fd` | phase-35.1: Live-verify learn loop (OPEN-22) |
 | 2026-05-22 | `bb7d3c55` | phase-45: CLOSURE re-audit + walk-the-graph sequencing |
 | 2026-05-22 | `5ad48c08` | phase-29: Harness MAS + MCP + Academic-Fetch + Frontier-Sync (phase-29.0 audit remediation) |
-| 2026-05-22 | `dae19909` | phase-27: Multi-Provider Full-Path Pipeline (Gemini + Claude) |
 
 ---
 
+### v6.18.4 — phase-23.2.6: Verify sector cap actually blocked same-sector buys (2026-05-23)
+
+- **phase-23.2.6: Verify sector cap actually blocked same-sector buys**
 ### v6.18.3 — phase-23.2.5: Verify kill-switch breach evaluation never falsely fired (2026-05-23)
 
 - **phase-23.2.5: Verify kill-switch breach evaluation never falsely fired**
