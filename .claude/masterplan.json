@@ -7281,7 +7281,7 @@
         {
           "id": "23.2.8",
           "name": "Verify home cockpit and paper-trading hero metrics stay in sync",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 10,
           "verification": "Manual: open both pages; NAV / Total P&L should be byte-identical (post phase-23.1.17 useLiveNav SSOT)"

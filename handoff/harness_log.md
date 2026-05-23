@@ -22763,3 +22763,46 @@ Both demonstrate the harness self-corrects when discipline drifts. NOT criteria-
 3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
 
 **Total cycle time:** ~50 min (researcher retroactive 8m + initial tests 12m + Q/A round-1 5m + cycle-2 fix 5m + Q/A round-2 4m + closure 6m + log + flip + push 2m).
+
+## Cycle 32 -- 2026-05-23 (phase-23.2.8 P1 useLiveNav SSOT verification -- VERIFICATION, 6 new pytest tests; ZERO source code changes) -- phase=23.2.8 result=PASS
+
+**Mode:** EXECUTION (SSOT source-grep verification + 6 new pytest tests; ZERO source code changes).
+
+**Researcher (gate):** SPAWNED FIRST per cycle-31 lesson `feedback_never_skip_researcher`. `handoff/current/research_brief_phase_23_2_8.md` -- 6 external sources read in full (+20% over 5-source floor); 18 URLs collected; 5 internal files inspected; gate_passed=true. Sources: React docs Reusing Logic with Custom Hooks, TkDodo Query Options API, TanStack/query #2310, Kent C. Dodds Colocation, testing-library renderHook, Anthropic Harness Design. NO protocol breach this cycle (cycle-31 lesson applied).
+
+**North-star delta:**
+- **R (useLiveNav SSOT discipline):** Source-layer SSOT now locked by 6 mutation-resistant pytest tests. Future refactors that delete the hook, drop imports, drift destructures, change return shape, OR re-inline `cash + positionsValue` math in any .tsx will fail at PR time.
+- **B (regression resistance):** Manual UI check substituted with mutation-resistant source-grep that catches all 6 plausible drift directions.
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+- **How measured:** masterplan verbatim criterion exercised at source layer; 6/6 pytest tests PASS; NAV math confirmed ONLY in frontend/src/lib/useLiveNav.ts (zero leaks in any .tsx).
+
+**Generate (EXECUTION):**
+- backend/tests/test_phase_23_2_8_use_live_nav_ssot.py (NEW, ~135 lines, 6 tests).
+- ZERO source code changes. ZERO frontend changes.
+
+**Verification:**
+- pytest backend/tests/test_phase_23_2_8_use_live_nav_ssot.py -v = 6 passed in 0.02s.
+- pytest backend/ --collect-only -q = 417 (was 411 after 23.2.7; +6 new; 0 regressions; baseline 297 preserved).
+- grep -c 'from "@/lib/useLiveNav"' frontend/src/app/page.tsx = 1; paper-trading/page.tsx = 1.
+- NAV-math leak grep on frontend/src/**/*.tsx (excl useLiveNav) = 0 hits.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clean (researcher-first applied; contract-pre-commit; live_check + critique present; log-last HOLDING; first Q/A so no second-opinion-shopping).
+- Code-review (5 dim, 15 ranked + secondary): 0 BLOCK + 0 WARN + 0 NOTE.
+- Mutation-resistance: 6 directions verified.
+- 3rd-CONDITIONAL check: 0 prior CONDITIONALs; rule does not apply.
+
+**Scope honesty:** ZERO backend source. ZERO frontend source. Only new file: backend/tests/test_phase_23_2_8_use_live_nav_ssot.py.
+
+**Integration-gate scoreboard:** 1=PASS(417), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Protocol-discipline win:** Cycle-31 retroactive-researcher breach NOT repeated. Memory `feedback_never_skip_researcher` applied successfully -- researcher spawned BEFORE test code authored. Cycle demonstrates self-correction working.
+
+**Real progress vs Cycle 31:** Cycle 31 closed phase-23.2.7 (P1 NAV match) with cycle-2 tolerance tightening. Cycle 32 closes phase-23.2.8 (P1 useLiveNav SSOT). Fifth consecutive verification closure. After this commit, closure path = {20 closed + 23.2.8 DONE} -> {38.5.1 + 38.5.2 + 23.2.9-16 P0/P1 verifications + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 44.2 + 44.7 + 23.2.6.1 legacy divest} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~20-35 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-23.2.9 -- next P1 verification in cluster.
+2. phase-23.2.10+ -- continue P0/P1 verification sweep.
+3. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
+
+**Total cycle time:** ~35 min.
