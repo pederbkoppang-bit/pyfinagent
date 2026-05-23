@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `73fa6a73` | phase-23.2.13: Verify governance limits-loader watcher still active |
 | 2026-05-23 | `45a82b27` | phase-23.2.12: Verify Layer-1 enrichment pipeline still functional |
 | 2026-05-23 | `b6a95f7e` | phase-23.2.11: Verify BQ table freshness across 7 paper_* + analysis tables |
 | 2026-05-23 | `3732c0d2` | phase-23.2.10: Verify watchdog has not fired in 7 days |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `3be94e90` | phase-38.3: Startup banner logs deep_think_model (OPEN-12) |
 | 2026-05-22 | `0f6abeff` | phase-37.4: Moderator response_schema (companion to 37.1) |
 | 2026-05-22 | `d887e296` | phase-37.2: gemini deep-think source default = production (OPEN-17) |
-| 2026-05-22 | `484ec437` | phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23) |
 
 ---
 
+### v6.18.11 — phase-23.2.13: Verify governance limits-loader watcher still active (2026-05-23)
+
+- **phase-23.2.13: Verify governance limits-loader watcher still active**
 ### v6.18.10 — phase-23.2.12: Verify Layer-1 enrichment pipeline still functional (2026-05-23)
 
 - **phase-23.2.12: Verify Layer-1 enrichment pipeline still functional**
