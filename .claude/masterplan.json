@@ -7345,7 +7345,7 @@
         {
           "id": "23.2.16",
           "name": "Phase 2 deferred items triage -- pick 3 highest-ROI for next sprint",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "estimated_minutes": 20,
           "verification": "Read Section H of phase-23.2.0 audit; rank 8 deferred items by leverage; produce a 3-item shortlist for next sprint plan"

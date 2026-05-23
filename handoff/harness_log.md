@@ -23123,3 +23123,57 @@ The verification cycles are doing exactly what they should: surfacing real bugs 
 - 23.2.6.1, 23.2.11.1, 23.2.11.2, 23.2.12.1, 23.2.12.2, 23.2.13.1, 23.2.15.1, 23.2.15.2
 
 **Total cycle time:** ~40 min.
+
+## Cycle 40 -- 2026-05-23 (phase-23.2.16 P2 deferred-items triage shortlist -- FINAL 23.2.x step; 7 pytest tests; ZERO source code changes; closes 13-cycle 23.2.x verification arc) -- phase=23.2.16 result=PASS
+
+**Step:** phase-23.2.16 (P2) -- Phase 2 deferred items triage; 3-item shortlist.
+**Mode:** EXECUTION (shortlist deliverable doc + 7 pytest tests; ZERO source code changes). **FINAL 23.2.x step.**
+
+**Researcher (gate):** SPAWNED FIRST. `handoff/current/research_brief_phase_23_2_16.md` -- 10 external sources read in full (Intercom RICE, SAFe WSJF, ProductPlan x2, Centercode RICE vs WSJF, Caltech arxiv:2502.15800, Monday.com 2026 technical debt, CTO Magazine framework, Apparity SR 11-7, Anthropic Harness Design); 20 URLs; 8 internal files; gate_passed=true.
+
+**North-star delta:**
+- **R (planning-discipline audit-trail):** WSJF+RICE-scored 3-item shortlist locks the next-sprint plan with numeric leverage.
+- **B (defensive next-sprint planning):** measurable inputs vs vibes.
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** applied (safety-biased scoring).
+
+**Generate (EXECUTION):**
+- handoff/current/phase-23.2.16-shortlist.md (NEW, ~110 lines, the deliverable).
+- backend/tests/test_phase_23_2_16_shortlist_doc_presence.py (NEW, ~95 lines, 7 tests).
+- ZERO source code changes. ZERO frontend changes.
+
+**Shortlist (verbatim from doc):**
+| Rank | Item | Source | Leverage | PD |
+|---|---|---|---|---|
+| #1 | Add sector column to paper_positions | 23.1.14 | 105.0 | 2 |
+| #2 | RLock + re-entrant lock audit follow-through | 23.1.22 | 86.4 | 4 |
+| #3 | Auto-MtM wrapper + home Sharpe + server-side NAV | 23.1.17 | 40.0 | 3 |
+
+Total: 9 PD.
+
+**Verification:**
+- pytest backend/tests/test_phase_23_2_16_shortlist_doc_presence.py -v = 7 passed in 0.01s.
+- pytest backend/ --collect-only -q = 465 (was 458 after 23.2.15; +7 new; 0 regressions).
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clean.
+- Code-review (5 dim): 0 BLOCK + 0 WARN + 0 NOTE.
+- Mutation-resistance: 3 planted mutations all tripped.
+
+**Scope honesty:** ZERO backend source. ZERO frontend.
+
+**Integration-gate scoreboard:** 1=PASS(465), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Cumulative 23.2.x arc metrics (Cycles 28-40, 13 cycles):**
+- Verifications: 13 consecutive closures (23.2.4 -> 23.2.16).
+- New P1/P2 tickets surfaced: 8 (23.2.6.1, 23.2.11.1, 23.2.11.2, 23.2.12.1, 23.2.12.2, 23.2.13.1, 23.2.15.1, 23.2.15.2).
+- Backend test count growth: ~410 -> 465 (+55 tests).
+- Zero CONDITIONAL or FAIL verdicts across the 13-cycle arc.
+
+**Real progress vs Cycle 39:** Cycle 39 closed phase-23.2.15 (smoke sweep). Cycle 40 closes phase-23.2.16 AND closes the entire 23.2.x arc with a defensible next-sprint plan. After this commit, closure path = {28 closed + 23.2.16 DONE} -> {38.5.1 + 38.5.2 + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 44.2 + 44.7 + 8 new 23.2.*.1 tickets} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~16-31 cycles remaining.
+
+**Top-3 next actions:**
+1. phase-40.4 -- stop-loss 8% vs 10% A/B (needs heavy compute).
+2. phase-44.2 -- /paper-trading cockpit (needs TanStack + Tremor approval).
+3. phase-44.7 -- TraceTree (needs deps approval).
+
+**Total cycle time:** ~35 min.
