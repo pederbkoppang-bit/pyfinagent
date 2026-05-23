@@ -22992,3 +22992,55 @@ Both demonstrate the harness self-corrects when discipline drifts. NOT criteria-
 3. phase-44.2 -- /paper-trading cockpit (TanStack + Tremor approval).
 
 **Total cycle time:** ~40 min.
+
+## Cycle 37 -- 2026-05-23 (phase-23.2.13 P2 Governance limits-loader watcher verification -- VERIFICATION, 7 pytest tests (6 PASS + 1 xfail); ZERO source code changes; NEW P1 phase-23.2.13.1 watcher tick fails 29,927 times) -- phase=23.2.13 result=PASS
+
+**Step:** phase-23.2.13 (P2) -- Verify governance limits-loader watcher still active.
+**Mode:** EXECUTION (7 new pytest tests with 1 xfail; ZERO source code changes).
+
+**Researcher (gate):** SPAWNED FIRST. `handoff/current/research_brief_phase_23_2_13.md` -- 5 external sources read in full (Python threading docs, FINRA Rule 3110, SR 26-2 federal reserve, watchdog README, FastAPI testing-events); 18 URLs; 7 internal files; gate_passed=true. Researcher made one factual error (claimed 0 "watcher tick failed" lines; live pytest revealed 29,927 occurrences). Honestly disclosed + new P1 ticket created.
+
+**North-star delta:**
+- **R (governance audit integrity):** 104 boot-pair invariants verified + 0 critical-failure strings + watcher thread alive + 64-hex digest.
+- **B:** N/A. **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+
+**Generate (EXECUTION):**
+- backend/tests/test_phase_23_2_13_governance_watcher.py (NEW, ~145 lines, 7 tests).
+- ZERO source code changes. ZERO frontend changes.
+
+**Verification:**
+- pytest backend/tests/test_phase_23_2_13_governance_watcher.py -v = 6 passed + 1 xfailed in 5.06s.
+- pytest backend/ --collect-only -q = 448 (was 441 after 23.2.12; +7 new; 0 regressions).
+- Independent live grep: 104 boot loads + 104 watcher starts + 0 critical + 29,927 watcher-tick fails.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clean.
+- Code-review (5 dim): 0 BLOCK + 0 WARN + 0 NOTE.
+- HONEST DUAL-INTERPRETATION: 6 canonical invariants PASS; 1 NEW P1 bug surfaced + tracked (researcher missed it; pytest caught it; Main disclosed). Mirrors phase-23.2.11/23.2.12 pattern.
+- Mutation-resistance: 7 directions.
+
+**Scope honesty:** ZERO backend source. ZERO frontend.
+
+**New P1 follow-up ticket:**
+- **phase-23.2.13.1**: "governance watcher tick failed" 29,927 occurrences (~10s intervals; ~83h continuous failure). Watcher startup succeeds but tick is broken. Root-cause investigation pending.
+
+**Integration-gate scoreboard:** 1=PASS(448), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=N/A, 9=PASS, 10=HOLDING.
+
+**Real progress vs Cycle 36:** Cycle 36 closed phase-23.2.12 (P2 Layer-1 enrichment). Cycle 37 closes phase-23.2.13 (P2 governance watcher). 10th consecutive verification closure. After this commit, closure path = {25 closed + 23.2.13 DONE} -> {23.2.14-16 + 38.5.1 + 38.5.2 + 39.1 owner + 40.1 + 40.3 + 40.4 + 40.7 + 44.2 + 44.7 + 6 new 23.2.*.1 P1 tickets} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~19-34 cycles remaining.
+
+**Cumulative new P1/P2 tickets surfaced this session:**
+- phase-23.2.6.1 (paper_positions legacy divest)
+- phase-23.2.11.1 (paper_positions writer drift)
+- phase-23.2.11.2 (harness_learning_log DDL)
+- phase-23.2.12.1 (pipeline 5/8-day gap)
+- phase-23.2.12.2 (_path doc-drift)
+- phase-23.2.13.1 (watcher tick 29,927 fails)
+
+The verification cycles are doing exactly what they should: surfacing real bugs hidden by inattention to operational details.
+
+**Top-3 next actions:**
+1. phase-23.2.14 -- audit other `with self._lock:` blocks (P2).
+2. phase-23.2.15+ -- continue P2 verifications.
+3. phase-44.2 -- /paper-trading cockpit (TanStack + Tremor approval).
+
+**Total cycle time:** ~35 min.

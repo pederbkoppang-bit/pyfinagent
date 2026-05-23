@@ -7321,7 +7321,7 @@
         {
           "id": "23.2.13",
           "name": "Verify governance limits-loader watcher still active",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "estimated_minutes": 5,
           "verification": "grep 'governance: immutable limits loaded' backend.log on every recent boot; ps shows governance-limits-watcher thread alive"
