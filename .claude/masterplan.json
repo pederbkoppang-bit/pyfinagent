@@ -12274,6 +12274,26 @@
           "max_retries": 3
         },
         {
+          "id": "40.3.1",
+          "name": "Re-run stress-test doctrine on next major Opus release (follow-up to 40.3)",
+          "status": "pending",
+          "harness_required": false,
+          "priority": "P3",
+          "depends_on_step": "40.3",
+          "audit_basis": "phase-40.3 cycle 49 docs/stress-tests/2026-Q2-opus-4.7.md surfaced 2 PRUNE candidates (tier-knob prose, research_needed flag) + 2 RE-EVALUATE-at-Opus-4.8 components (Researcher internal half, contract.md NO_OP-mode template). This follow-up re-runs the stress-test at the next major Opus release (Opus 4.8 or 5.0; ~Q3 2026 if cadence holds). Tracked here to prevent the stress-test from going stale.",
+          "verification": {
+            "command": "test -f docs/stress-tests/2026-Q3-opus-4.8.md || test -f docs/stress-tests/2026-Q4-opus-5.0.md",
+            "success_criteria": [
+              "stress_test_doc_for_next_opus_release_exists",
+              "comparison_to_2026_Q2_baseline_documented",
+              "prune_candidates_from_2026_Q2_re_evaluated"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "40.4",
           "name": "Stop-loss default 8% vs 10% A/B (OPEN-28)",
           "status": "done",
