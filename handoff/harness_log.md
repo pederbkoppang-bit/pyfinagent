@@ -23429,3 +23429,23 @@ Total: 9 PD.
 - Closure path: 41 effective phase closures this continuation (39 cycles + 2 done flips from this housekeeping; deferred flips don't count toward "phases closed" but satisfy coverage).
 
 **Total cycle time:** ~5 min (housekeeping).
+
+
+## Cycle 52 -- 2026-05-23 -- DoD-4 measurement (post-operator-approval) -- result=N/A (status report)
+
+- Operator approved guardrail-clearing dep install ("i approve").
+- Installed pytest-cov 7.1.0 + coverage 7.14.0 in venv (local-only; NOT added to requirements.txt yet -- separate decision).
+- Ran `pytest --cov` per backend layer:
+  - backend/services: 26% (5341 missed / 7180 stmts)
+  - backend/agents:   22% (7604 missed / 9780 stmts)
+  - backend/api:      33% (2441 missed / 3640 stmts)
+- DoD-4 verdict flipped UNKNOWN/PARTIAL -> **FAIL** (all 3 layers <70% threshold).
+- Updated production_ready_audit_2026-05-23.md with concrete measurement + operator-decision-required note.
+- DoD scoreboard unchanged at 6/14 PASS (DoD-4 was previously PARTIAL counted as not-PASS; explicit FAIL clarifies the operator decision needed).
+- Concrete operator-decision required:
+  - (a) Invest ~1700+ new tests across 17K SLOC (multi-week; blocks 1-2 week PRODUCTION_READY estimate)
+  - (b) Relax DoD-4 threshold (verbatim text says ">70% per layer"; relaxing requires audit-trail rationale)
+- .env.example still permission-denied at the system tool layer (operator approval did NOT clear the harness-level permission deny on .env paths). phase-40.1 remains operator-blocked.
+- No masterplan status changes this cycle (DoD measurement is a phase-43.0 sub-criterion; no individual step closes via this measurement).
+
+**Total cycle time:** ~5 min (measurement + audit update).

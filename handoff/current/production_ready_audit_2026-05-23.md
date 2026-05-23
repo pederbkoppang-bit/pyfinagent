@@ -13,7 +13,7 @@
 | **DoD-1** | All cron jobs have last-run within SLA | FAIL | FAIL | autoresearch exit 1 since 2026-05-19; phase-39.1 OWNER-GATED, not closed |
 | **DoD-2** | Sharpe and P&L match between backtest and paper-trading within 0.01 | UNKNOWN | UNKNOWN | needs live cycle + paper vs backtest comparison; no closure work this session |
 | **DoD-3** | Kill-switch hysteresis tested | FAIL | FAIL | phase-38.1 OWNER-GATED, not closed |
-| **DoD-4** | Test coverage >70% per layer | PARTIAL (285 tests) | PARTIAL (509 tests) | pytest collect: 509 tests; coverage % not measured this session |
+| **DoD-4** | Test coverage >70% per layer | PARTIAL (285 tests) | **FAIL** (520 tests; coverage MEASURED 2026-05-23 post-operator-approval) | services 26%, agents 22%, api 33% (all <70%). Per `pytest --cov` post pytest-cov install. **Operator decision required:** invest in ~1700+ new tests across 17K SLOC OR relax DoD-4 threshold. |
 | **DoD-5** | 0 Unknown bands in Data Freshness dashboard | UNKNOWN | UNKNOWN | live probe needed via GET /api/paper-trading/freshness |
 | **DoD-6** | Learn-loop alive in production (outcome_tracking + agent_memories populated) | FAIL | FAIL | OPEN-22; phase-35.1 not closed (live_check requirement: real close + BM25 retrieval) |
 | **DoD-7** | Risk Judge structured-output succeeds >95% | FAIL (80%) | FAIL | OPEN-16; needs live cycle data + LLM call log analysis |
@@ -25,7 +25,7 @@
 | **DoD-13** | Restart-survivable cycle state | FAIL | **PASS** | phase-38.6 + 38.6.1 done; backend/services/cycle_lock.py exists; cycle_lock.acquire() wired into autonomous_loop.py; main.py lifespan calls clean_stale_lock at startup |
 | **DoD-14** | OWASP LLM Top-10 v2.0 compliance | PASS | **PASS** | unchanged; .claude/skills/code-review-trading-domain/SKILL.md covers LLM01-LLM10 |
 
-**Summary:** 6 of 14 PASS (43%). Up from 2 of 14 on 2026-05-22 (+4 net: DoD-8, DoD-10, DoD-12, DoD-13).
+**Summary (updated 2026-05-23 post-operator-approval coverage measurement):** 6 of 14 PASS (43%). DoD-4 flipped UNKNOWN/PARTIAL -> **FAIL** with concrete numbers. Up from 2 of 14 on 2026-05-22 (+4 net: DoD-8, DoD-10, DoD-12, DoD-13; DoD-4 explicit FAIL replaces prior UNKNOWN).
 
 ---
 
@@ -53,11 +53,11 @@
 | DoD-5 | phase-35.x | 0 Unknown bands -- needs live `GET /api/paper-trading/freshness` probe |
 | DoD-6 | phase-35.1 | Learn-loop alive -- needs at least one real sold position with outcome_tracking row + BM25 retrieval on next cycle (`live_check_35.1.md`) |
 
-### Measurement-required (1 criterion)
+### Measurement-required (1 criterion) -- NOW MEASURED 2026-05-23
 
 | DoD | Step | Reason |
 |---|---|---|
-| DoD-4 | n/a (verification command exists) | Run `pytest --cov` per layer; today have 509 tests collected but % not measured. Can be done in a follow-up cycle. |
+| DoD-4 | **operator-decision** | Coverage MEASURED post-operator-approval: services **26%**, agents **22%**, api **33%**. ALL <70%. Operator decision required: (a) invest ~1700+ new tests across 17K SLOC (multi-week effort, blocks 1-2 week PRODUCTION_READY estimate), OR (b) relax DoD-4 threshold (verbatim text says ">70% per layer"; relaxing requires operator override + audit-trail rationale). |
 
 ---
 
