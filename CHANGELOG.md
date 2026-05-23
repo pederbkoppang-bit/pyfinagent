@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `313b050d` | chore: add phase-40.3.1 (next-Opus stress-test) P3 follow-up |
 | 2026-05-23 | `6c3e1592` | chore: housekeeping cycle 51 -- 4 residuals -> deferred per closure_roadmap |
 | 2026-05-23 | `86e149a2` | phase-40.8.1: Wire compute_ff3 into analysis pipeline so positions carry factor_loadings (follow-... |
 | 2026-05-23 | `ba272fd0` | phase-40.3: Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `42f9880f` | phase-40.4: Stop-loss default 8% vs 10% A/B (OPEN-28) |
 | 2026-05-23 | `88d57918` | phase-23.2.16: Phase 2 deferred items triage -- pick 3 highest-ROI for next sprint |
 | 2026-05-23 | `620c2846` | phase-23.2.15: Run phase-23.1.x cycle-by-cycle smoke tests |
-| 2026-05-23 | `2ae11f76` | phase-23.2.14: Audit other `with self._lock:` blocks for re-entrant patterns |
 
 ---
 
