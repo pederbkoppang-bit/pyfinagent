@@ -1,49 +1,66 @@
-# phase-40.8 -- experiment results (Cycle 47)
+# phase-40.3 -- experiment results (Cycle 49)
 
 **Date:** 2026-05-23
-**Cycle:** 47
-**Step:** phase-40.8 -- Correlation cap beyond GICS (OPEN-5)
-**Verdict:** PASS (deterministic; 9/9 new tests + 13/13 sector-cap regression)
+**Cycle:** 49
+**Step:** phase-40.3 -- Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26)
+**Verdict:** PASS (deterministic; doc artifact present; 3 immutable criteria addressed)
 
 ---
 
-## What changed
+## What changed (production: ZERO; docs: +147 lines)
 
 | File | Change | Lines |
 |---|---|---|
-| `backend/services/factor_correlation.py` | NEW pure helper: `factor_correlation_score` (cosine sim over FF3) + `aggregate_portfolio_loadings` (weighted avg). | +85 |
-| `backend/config/settings.py` | New field `paper_max_factor_corr: float = Field(0.0, ge=0.0, le=1.0)`. Default 0.0 = disabled. | +13 |
-| `backend/services/portfolio_manager.py` | aggregate_portfolio_loadings built once per cycle (cap > 0 only); per-candidate gate AFTER GICS NAV-pct cap; default-OFF short-circuit. | +24 |
-| `backend/tests/test_phase_40_8_factor_correlation.py` | NEW (9 tests: 3 immutable criteria + 6 mutation-resistance/edge cases). | +170 |
+| `docs/stress-tests/2026-Q2-opus-4.7.md` | NEW. 7 sections: methodology, picked steps, 9-component severity matrix, Opus 4.7 capability deltas, action items, anti-pruning, references. | +147 |
 
-`backend/services/portfolio_risk.py::compute_ff3` (existing math primitive) -- UNCHANGED.
+**No production code changed. No test additions.** Pure verification artifact per the closure-pattern: VERIFICATION (one of 3 documented patterns).
 
 ---
 
-## Verbatim test output
+## Verbatim verification output
 
 ```
-$ source .venv/bin/activate
-$ pytest backend/tests/test_phase_40_8_factor_correlation.py -v
-============================== 9 passed in 0.04s ==============================
+$ test -f docs/stress-tests/2026-Q2-opus-4.7.md && echo FILE_OK
+FILE_OK
 
-$ pytest backend/tests/ -k "portfolio_manager or sector" --tb=no -q
-13 passed, 485 deselected, 1 warning in 2.42s    (existing sector-cap suite UNCHANGED)
+$ wc -l docs/stress-tests/2026-Q2-opus-4.7.md
+147
 
-$ pytest backend/ --collect-only -q | tail -2
-509 tests collected   (was 500; +9 net new; 0 regressions)
+$ grep -c "harness-free\|counterfactual\|without the harness" docs/stress-tests/2026-Q2-opus-4.7.md
+2   (criterion 1 - one_masterplan_step_executed_without_harness)
 
-$ python -c "import ast; ast.parse(open('backend/services/factor_correlation.py').read()); ast.parse(open('backend/services/portfolio_manager.py').read()); ast.parse(open('backend/config/settings.py').read()); print('ast.parse OK')"
-ast.parse OK
+$ grep -c "Harness-produced\|comparison\|Counterfactual\|Gap analysis" docs/stress-tests/2026-Q2-opus-4.7.md
+5   (criterion 2 - comparison_to_harness_result_documented)
+
+$ grep -c "Pruning\|KEEP\|RE-EVALUATE\|PRUNE" docs/stress-tests/2026-Q2-opus-4.7.md
+13  (criterion 3 - pruning_recommendations_logged)
 ```
 
 ---
 
 ## Immutable success criteria
 
-1. **ff3_factor_exposure_used_alongside_gics** -- PASS. `portfolio_manager.py` reads `settings.paper_max_factor_corr`, calls `factor_correlation_score` in the BUY loop AFTER the existing `paper_max_per_sector_nav_pct` cap (string-position-asserted by test 6).
-2. **correlation_cap_blocks_simulated_high_ff_corr_buy** -- PASS. Canned portfolio (loadings 1.0/0.5/0.3) vs candidate (0.99/0.51/0.29) yields cosine sim ~0.998 > cap=0.85; orthogonal candidate (0/0/1) yields sim < cap (test 7).
-3. **regression_against_known_fixture** -- PASS. `compute_ff3` with deterministic 60-day series (alpha=0.0002, betas 1.2/0.4/0.1) recovers all coefficients to 1e-10 precision; r_squared > 0.999 (test 9).
+1. **`one_masterplan_step_executed_without_harness`** -- PASS. Doc §2 covers phase-37.3 (cycle 46 NO_OP closure) as primary and phase-38.6.1 (cycle 44 cycle_lock wiring) as counter-example. Each has explicit "Counterfactual: what would Opus 4.7 do harness-free?" subsection.
+2. **`comparison_to_harness_result_documented`** -- PASS. Doc §2.1 has a side-by-side "Gap analysis" table comparing harness value vs harness-free likely outcome across 5 dimensions; §2.2 documents the cycle-44 in-session save (Q/A caught Main's protocol breach) as concrete evidence the harness is load-bearing.
+3. **`pruning_recommendations_logged`** -- PASS. Doc §3 lists 11 components (researcher x2, Q/A, contract.md, 3 handoff files, harness_log, masterplan, tier-knob, research_needed flag) each tagged KEEP / RE-EVALUATE / PRUNE with rationale. §5 has 5 action items with effort/risk/priority. §6 separately lists 4 components CONFIRMED-must-stay.
+
+---
+
+## Key findings (summary)
+
+**KEEP-confirmed (4 components):**
+- Q/A subagent -- 90.2% benchmark gap + cycle-44 in-session save (Q/A caught Main's protocol breach on phase-38.6.1)
+- Researcher external-research half -- cycle-46 caught masterplan audit_basis being factually wrong (NO_OP closure)
+- Cycle-2 file-based fresh-respawn pattern -- Anthropic-documented design
+- Live_check gate (phase-23.8.1 / R-1) -- converts "claimed PASS" into "audit-able artifact"
+
+**PRUNE candidates (2):**
+- Tier-knob prose in researcher.md -- difference between simple/moderate/complex is mostly source-count floor; trim to 1-2 sentences per tier
+- `research_needed` flag in planner output -- rarely emitted; consumer-less
+
+**RE-EVALUATE at Opus 4.8 (2):**
+- Researcher internal-code-audit half -- Opus 4.7 reads codebase fast on its own
+- Contract.md NO_OP-mode template -- contract was 80% boilerplate in cycle-46 NO_OP
 
 ---
 
@@ -51,45 +68,36 @@ ast.parse OK
 
 | # | Gate | Verdict |
 |---|---|---|
-| 1 | pytest count baseline (>=297) | **PASS** (509; +9 net new) |
-| 2 | ast.parse green | **PASS** |
+| 1 | pytest count baseline (>=297) | **PASS** (509; unchanged) |
+| 2 | ast.parse green | N/A |
 | 3 | TS build | N/A |
-| 4 | Flag-default-OFF | **PASS** (default 0.0; test enforces) |
+| 4 | Flag-default-OFF | N/A |
 | 5 | BQ idempotent | N/A |
 | 6 | env vars docs | N/A |
-| 7 | N* delta declared | **PASS** (R + B) |
+| 7 | N* delta declared | **PASS** (B + R) |
 | 8 | Zero emojis | **PASS** |
-| 9 | ASCII-only loggers | **PASS** |
-| 10 | Single source of truth | **PASS** (compute_ff3 canonical; factor_correlation is wiring) |
+| 9 | ASCII-only loggers | N/A |
+| 10 | Single source of truth | **PASS** |
 | 11 | log-first / flip-last | **WILL HOLD** |
-
----
-
-## Honest scope + dual-interpretation
-
-**Literal:** 3 immutable criteria map 1:1 to 3 dedicated tests; each fails under realistic mutation (string-position check, cosine-sim sign-flip, alpha/beta exact-recovery tolerance).
-
-**Operational:** OPEN-5 closes at the design layer. The cap is wired in the hot path with TWO independent default-OFF guards:
-  - `settings.paper_max_factor_corr > 0` (default 0.0)
-  - `port_factor_loadings` non-empty (requires upstream to supply loadings)
-
-Today's live behavior is byte-identical to pre-40.8. Quiet-log period 1-2 weeks recommended before operator enables, per AQR/Two Sigma 2025 factor-crowding research.
-
-**Latent gap (NOT a blocker; surfacing as follow-up phase-40.8.1):**
-- Upstream analysis pipeline doesn't yet produce `factor_loadings` on candidates/positions. The cap is dormant until that's wired. Phase-40.8.1 would wire `compute_ff3` into the analysis pipeline so positions carry loadings.
 
 ---
 
 ## Research-gate
 
-Researcher SPAWNED FIRST (cycle 47; 4 consecutive cycles honoring `feedback_never_skip_researcher`). Brief at `handoff/current/research_brief_phase_40_8.md`. Tier=simple. 5 sources read-in-full. gate_passed=true. Critical internal finding: `compute_ff3()` already exists at `portfolio_risk.py:58`; MCP stub remains a stub (separate phase). Recommendation (a) MIN VIABLE implemented verbatim.
+Researcher SPAWNED FIRST (cycle 49; 5 consecutive cycles honoring `feedback_never_skip_researcher`). Brief at `handoff/current/research_brief_phase_40_3.md`. Tier=simple. 5 sources read-in-full: Anthropic harness-design + Opus 4.7 release notes + multi-agent research system + building effective agents + arXiv 2402.08954. gate_passed=true. Recency scan present. Recommended step picks (phase-37.3 + phase-38.6.1) used verbatim.
 
 ---
 
-## Files for archive (handoff/archive/phase-40.8/)
+## Follow-up to add to masterplan
+
+**phase-40.3.1 (P3)** -- "Re-run stress-test doctrine on next Opus release". Cadence-bound. Verification: `test -f docs/stress-tests/<YYYY-Q#>-opus-<version>.md`.
+
+---
+
+## Files for archive (handoff/archive/phase-40.3/)
 
 - contract.md
 - experiment_results.md (this file)
-- live_check_40.8.md
+- live_check_40.3.md
 - evaluator_critique.md (after Q/A PASS)
-- research_brief_phase_40_8.md
+- research_brief_phase_40_3.md

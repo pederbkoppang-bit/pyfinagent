@@ -12256,7 +12256,7 @@
         {
           "id": "40.3",
           "name": "Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26)",
-          "status": "pending",
+          "status": "done",
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": null,

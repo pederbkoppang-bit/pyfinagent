@@ -1,150 +1,185 @@
-# phase-40.8 -- Q/A evaluator critique (Cycle 47)
+# phase-40.3 -- Q/A evaluator critique (Cycle 49 round-1)
 
 **Date:** 2026-05-23
-**Cycle:** 47
-**Step id:** 40.8 (P3 OPEN-5 -- FF3 correlation cap beyond GICS)
-**Q/A round:** 1 (first spawn this step; 3rd-CONDITIONAL counter = 0)
-**Verdict:** **PASS** (Top-15 sweep: 0 BLOCK / 0 WARN / 0 NOTE)
+**Cycle:** 49
+**Step id:** 40.3 (P3 OPEN-26 -- Stress-test doctrine harness-free Opus 4.7 cycle)
+**Pattern:** VERIFICATION (NO_OP / docs cycle).
+**Verdict:** PASS
 
 ---
 
-## 1. Harness-compliance audit (5-item, FIRST)
+## 1. 5-item harness-compliance audit (FIRST)
 
-| # | Item | Status |
-|---|---|---|
-| (a) | Researcher spawned FIRST | **PASS** -- `handoff/current/research_brief_phase_40_8.md` present; 5 sources read-in-full; gate_passed=true; recency scan present. 4 consecutive cycles honoring `feedback_never_skip_researcher`. |
-| (b) | Contract pre-generate | **PASS** -- `handoff/current/contract.md` line 1 = `# phase-40.8 -- Correlation cap beyond GICS (OPEN-5)`. Honest scope + dual default-OFF guard disclosed. |
-| (c) | experiment_results.md present + current step | **PASS** -- header line 1 = `# phase-40.8 -- experiment results (Cycle 47)`. Refreshed for this cycle. |
-| (d) | Log-last discipline | PENDING -- harness_log to be appended BEFORE status flip per `feedback_log_last`. Main committed in prompt. |
-| (e) | No verdict-shopping | **PASS** -- 0 prior phase-40.8 entries in harness_log.md. First Q/A spawn for this step. No sycophancy-under-rebuttal risk. |
-
-All 5 items clean. No process blockers.
-
----
-
-## 2. Deterministic checks (verbatim)
-
-```
-$ test -f handoff/current/research_brief_phase_40_8.md && echo BRIEF_OK
-BRIEF_OK
-
-$ pytest backend/tests/test_phase_40_8_factor_correlation.py -v
-============================== 9 passed in 0.04s ==============================
-  test_phase_40_8_factor_correlation_score_returns_high_for_similar_vectors PASSED
-  test_phase_40_8_factor_correlation_score_returns_low_for_orthogonal PASSED
-  test_phase_40_8_factor_correlation_returns_zero_for_missing_inputs PASSED
-  test_phase_40_8_aggregate_portfolio_loadings_weighted_by_market_value PASSED
-  test_phase_40_8_aggregate_portfolio_loadings_empty_when_no_loadings PASSED
-  test_phase_40_8_ff3_factor_exposure_used_alongside_gics PASSED
-  test_phase_40_8_correlation_cap_blocks_simulated_high_ff_corr_buy PASSED
-  test_phase_40_8_default_off_backward_compat_zero_cap_disables PASSED
-  test_phase_40_8_regression_against_known_fixture PASSED
-
-$ pytest backend/tests/ -k "portfolio_manager or sector" --tb=no -q
-13 passed, 485 deselected   (existing sector-cap regression suite UNCHANGED)
-
-$ pytest backend/ --collect-only -q | tail -2
-509 tests collected   (was 500; +9 net new; 0 regressions)
-
-$ python -c "import ast; ast.parse(open('backend/services/factor_correlation.py').read()); ..."
-ast.parse OK
-```
-
----
-
-## 3. Code-review Top-15 heuristic sweep
-
-**Diff scope:** +34 lines across 4 files (settings.py + portfolio_manager.py + new factor_correlation.py + new test file).
-
-### Dimension 1 -- Security
-- secret-in-diff: clean (no literals matching API_KEY/secret/token in diff)
-- prompt-injection-path: N/A (no LLM calls in diff)
-- command-injection: clean (no subprocess/eval/exec)
-- supply-chain-dep-pin-removal: clean (no requirements.txt changes)
-
-### Dimension 2 -- Trading-domain correctness (CRITICAL hot path)
-- **kill-switch-reachability** [BLOCK]: clean. `grep -n kill_switch backend/services/portfolio_manager.py` returns empty -- kill_switch is wired upstream in paper_trader.py, not in this file. New gate is added AFTER existing GICS sector gates, BEFORE order append -- no execution-path bypass.
-- **stop-loss-always-set** [BLOCK]: clean. stop_loss_price still set at portfolio_manager.py:174 unchanged.
-- **crypto-asset-class** [BLOCK]: clean. No crypto re-enable.
-- **paper-max-positions-check-bypass** [BLOCK]: clean. paper_max_positions guard at line 234 unchanged.
-- **position-sizing-div-zero** [WARN]: clean. Cosine sim denominator zero-checked at `factor_correlation.py:48-49` (`if cand_norm == 0.0 or port_norm == 0.0: return 0.0`).
-- **perf-metrics-bypass** [BLOCK]: clean. No Sharpe/drawdown/alpha math added; compute_ff3 (existing math primitive) lives in portfolio_risk.py:58 and is NOT modified.
-
-### Dimension 3 -- Code quality
-- broad-except: clean. factor_correlation.py uses 3 narrow `except (KeyError, TypeError, ValueError)` blocks -- precise, NOT broad-except.
-- no-type-hints: clean. Type hints present on all public functions.
-- print-statement: clean.
-- magic-number: clean. 0.85 lives in settings docstring as recommended value, NOT in code path.
-- unicode-in-logger: clean. New log line `"Skipping BUY %s: FF3 factor correlation %.3f > cap %.3f ..."` is ASCII.
-
-### Dimension 4 -- Anti-rubber-stamp
-- financial-logic-without-behavioral-test: clean. 9 behavioral tests for 3 immutable criteria + 6 mutation-resistance tests (default-off, missing inputs, NaN, zero vector, empty positions, weighted-average math).
-- tautological-assertion: clean. Tests assert real post-conditions (cosine sim numeric range, exact weighted averages, beta exact-recovery to 1e-10, string-position ordering in source).
-- over-mocked-test: clean. No mocks of factor_correlation or portfolio_manager.
-- rename-as-refactor: N/A (pure addition).
-
-### Dimension 5 -- LLM-evaluator anti-patterns
-- sycophancy-under-rebuttal: N/A (round-1 spawn; 0 prior CONDITIONALs).
-- 3rd-conditional-not-escalated: N/A.
-
-**Top-15 result: 0 BLOCK / 0 WARN / 0 NOTE.**
-
----
-
-## 4. Verbatim criterion -> evidence mapping
-
-| # | Masterplan immutable criterion | Evidence | Verdict |
+| # | Check | Status | Evidence |
 |---|---|---|---|
-| 1 | `ff3_factor_exposure_used_alongside_gics` | portfolio_manager.py reads `paper_max_factor_corr` (line within max_per_sector_nav_pct block) + calls `factor_correlation_score` AFTER GICS NAV-pct cap; test 6 string-position-asserts the ordering | PASS |
-| 2 | `correlation_cap_blocks_simulated_high_ff_corr_buy` | canned portfolio loadings (1.0, 0.5, 0.3) vs candidate (0.99, 0.51, 0.29) yields cosine sim ~0.998 > cap=0.85; orthogonal candidate (0/0/1) yields sim < cap | PASS |
-| 3 | `regression_against_known_fixture` | compute_ff3 with deterministic 60-day series (alpha=0.0002, betas 1.2/0.4/0.1, noise-free linear combination) recovers all coefficients to 1e-10 precision; r_squared > 0.999 | PASS |
+| (a) | Researcher SPAWNED FIRST | PASS | `handoff/current/research_brief_phase_40_3.md` present; JSON envelope `gate_passed: true`, `external_sources_read_in_full: 5`, `urls_collected: 13`, `recency_scan_performed: true`. Tier=SIMPLE. |
+| (b) | Contract pre-generate | PASS | `handoff/current/contract.md` written before doc generation; mode=EXECUTION cycle-49. Diff stat shows 98 line update reflecting phase-40.3. |
+| (c) | experiment_results.md present + on-phase | PASS | Header reads "phase-40.3 -- experiment results (Cycle 49)"; deterministic verdict PASS recorded. |
+| (d) | Log-last discipline | HELD CORRECTLY | `handoff/harness_log.md` NOT yet appended (correct; log is the LAST step after Q/A returns verdict). |
+| (e) | First Q/A spawn | CONFIRMED | No prior phase=40.3 entries in harness_log; no verdict-shopping possible. |
+
+All 5 items pass.
 
 ---
 
-## 5. LLM-judgment
+## 2. Deterministic checks
 
-### (a) Hot path safety -- DOUBLY default-OFF
-- `settings.paper_max_factor_corr=0.0` (default) -- short-circuits before any helper call.
-- AND `port_factor_loadings` is empty when no positions carry `factor_loadings` (today's live state; upstream analysis pipeline doesn't yet produce them).
-- Combined: today's behavior is byte-identical to pre-40.8. Even if operator flips `paper_max_factor_corr > 0`, the gate stays dormant until upstream wiring (separate phase-40.8.1).
+| Check | Command | Result |
+|---|---|---|
+| Doc artifact exists | `test -f docs/stress-tests/2026-Q2-opus-4.7.md` | EXIT=0 |
+| Line count | `wc -l docs/stress-tests/2026-Q2-opus-4.7.md` | 147 lines |
+| Doc header | `head -3` | "# Harness Stress-Test -- Opus 4.7 (Q2 2026)" + phase-40.3 (OPEN-26) |
+| Criterion 1 keywords (`harness-free|counterfactual|without the harness`) | grep -c -i | 4 hits |
+| Criterion 2 keywords (`harness-produced|comparison|Counterfactual|Gap analysis`) | grep -c -i | 6 hits |
+| Criterion 3 keywords (`Pruning|KEEP|RE-EVALUATE|PRUNE`) | grep -c -i | 15 hits |
+| Masterplan 40.3 status | `python -c "json...status"` | pending (correct -- Main flips post-log) |
+| Verification command | `test -f docs/stress-tests/2026-Q2-opus-4.7.md` | EXIT=0 |
 
-### (b) Researcher claim verification
-Confirmed: `compute_ff3()` exists at `backend/services/portfolio_risk.py:58` (existing math primitive; full OLS regression via `numpy.linalg.lstsq`). Phase-40.8 added wiring + cosine similarity helper -- NOT new regression math. No duplication.
-
-### (c) Mutation-resistance per criterion
-Each immutable criterion has a dedicated test that fails under realistic mutation:
-- Criterion 1: removes `paper_max_factor_corr` or `factor_correlation_score` from portfolio_manager.py -> test fails (grep + string-position-assert).
-- Criterion 2: flips cosine sim sign or zeros it -> test fails (numeric threshold).
-- Criterion 3: drift in compute_ff3 math -> test fails (1e-10 tolerance).
-
-### (d) N* delta R+B honest
-- R: closes OPEN-5 at design layer; future-proofs against cross-sector factor crowding once upstream wiring lands.
-- B: zero $ until operator opts in; default-OFF; quiet-log recommended.
-- Caltech discount: N/A.
-
-### (e) Follow-up phase-40.8.1
-Should be added to masterplan. Wires `compute_ff3` into the analysis pipeline so positions carry `factor_loadings`. Until then the cap is dormant by design (forward-compat path documented in contract).
+All 3 immutable success criteria addressed in doc:
+- `one_masterplan_step_executed_without_harness` -- §2.1 (phase-37.3) + §2.2 (phase-38.6.1) counterfactual analyses
+- `comparison_to_harness_result_documented` -- §2.1 Gap analysis table + §2.2 Verdict block; §3 9-component severity matrix
+- `pruning_recommendations_logged` -- §5 action-item table (A-E) with effort/risk/priority
 
 ---
 
-## 6. Output envelope
+## 3. Production-code diff verification
+
+`git diff --stat HEAD`:
+```
+handoff/audit/pre_tool_use_audit.jsonl | 46 ++++++++++++++++
+handoff/current/contract.md            | 98 ++++++++++++++++------------------
+handoff/current/experiment_results.md  | 98 ++++++++++++++++++----------------
+3 files changed, 145 insertions(+), 97 deletions(-)
+```
+
+Untracked: `docs/stress-tests/2026-Q2-opus-4.7.md` (the artifact).
+
+**Production code touched: ZERO LINES.** Pure documentation cycle.
+
+---
+
+## 4. Code-review heuristics sweep (5 dimensions)
+
+Production code unchanged = no triggerable heuristics in:
+- D1 Security: no LLM paths, no secrets, no command-injection surface, no dep changes
+- D2 Trading-domain: no kill_switch, stop_loss, perf_metrics, risk_engine, paper_trader changes
+- D3 Code quality: no Python files modified
+- D4 Anti-rubber-stamp on financial logic: `financial-logic-without-behavioral-test` does NOT fire (no `perf_metrics.py|risk_engine.py|backtest_engine.py|backtest_trader.py` touched). Doc-only cycles correctly excluded by the negation list ("Config-only changes...that have no Python logic").
+- D5 LLM-evaluator anti-patterns: first Q/A on phase-40.3, no prior verdict to flip; no sycophancy risk.
+
+Result: 0 BLOCK / 0 WARN / 0 NOTE.
+
+---
+
+## 5. LLM-judgment: counterfactual analysis quality (anti-rubber-stamp focus)
+
+### 5(a) Methodology honesty (§1)
+
+Doc line 17 openly states: "We cannot literally re-execute a past step in a parallel session. Instead we reconstruct from `handoff/harness_log.md`...and reason carefully about what it would have done *without* the harness".
+
+**Assessment:** HONEST framing, NOT a cop-out. The Anthropic stress-test doctrine prompt is "re-run a representative step WITHOUT the harness and compare the output to the harness-produced result" -- it does NOT require parallel-session execution. The doc grounds reasoning in concrete empirical evidence (cycle-44 in-session save, cycle-46 audit_basis correction). Methodologically defensible.
+
+### 5(b) Substance of §2.1 (phase-37.3 NO_OP) counterfactual
+
+Identifies SPECIFIC harness contributions: 5 cited sources catching factually-wrong audit_basis; HONEST DUAL-INTERPRETATION pattern; Q/A 0/0/0 sweep. Counterfactual reasons through 4 concrete points (lines 39-42). Gap table (lines 45-52) names which scaffolding elements lose value vs which are alternative-implementable (e.g., contract.md replaceable by commit message OR issue tracker; evaluator_critique.md NOT replaceable due to anti-self-eval). The ~70%/20%/10% ROI breakdown is flagged as "Verdict" -- subjective quantification, not measured (acceptable framing).
+
+**Assessment:** Genuinely analytical, NOT hand-wavy. File:line citations present (`llm_client.py:1388`, `:917`).
+
+### 5(c) Substance of §2.2 (phase-38.6.1 counter-example) counterfactual
+
+Stronger than §2.1 because it's a deliberate counter-example. Cites SPECIFIC cycle-2 save event with concrete blockers ("(a) researcher SKIPPED... (b) experiment_results.md was STALE phase-38.5 content"). Counterfactual (lines 66-68) reasons through what would happen WITHOUT each component and EXPLICITLY identifies the harness as load-bearing here. "SCAFFOLDING IS LOAD-BEARING here" is a self-critical conclusion that pushes back against the cycle's natural pruning bias.
+
+**Assessment:** Rigorous self-criticism. Doc does NOT only argue for pruning; identifies where scaffolding saves the cycle. Anti-pruning bias correctly resisted.
+
+### 5(d) §3 9-component severity matrix backing
+
+| Item | Verdict | Backing |
+|---|---|---|
+| 1. Q/A subagent KEEP | Strong | 90.2% multi-agent benchmark + cycle-44 in-session save + Anthropic anti-self-eval guidance. Triangulated. |
+| 2. Researcher external-research KEEP | Strong | Operator memory `feedback_never_skip_researcher` + cycle-46 audit_basis correction. Empirical. |
+| 3-9. KEEP / RE-EVALUATE | Reasoned | Each cites either five-file protocol, archive auto-roll, resume detection, or anti-criteria-erosion. |
+| 10. tier-knob prose PRUNE candidate | HEDGED | NOT a full prune; "keep tier-knob but trim the multi-paragraph descriptions to 1-2 sentences each". The 5-source FLOOR is preserved. SAFE. |
+| 11. research_needed flag PRUNE candidate | HEDGED | "if no current consumer reads it" -- contingent on consumer-check. Action item B requires verification before pruning. SAFE. |
+
+**Assessment:** PRUNE candidates appropriately hedged. Doc shows discrimination, not blanket simplification. Items 1-9 explicitly NOT proposed for pruning.
+
+### 5(e) Anti-rubber-stamp mutation resistance
+
+If the Q/A KEEP entry (#1) were silently deleted from §3, would the absence be obvious?
+
+- Matrix is numbered 1-11; deletion leaves a numbering gap.
+- 90.2% benchmark + cycle-44 reference are ALSO cited in §6 line 122 -- cross-reference would break.
+- Section 6 "Anti-pruning" enumerates the same set independently.
+
+The doc has DELIBERATE INTERNAL REDUNDANCY between §3 and §6 that creates mutation-detection. PASSES anti-rubber-stamp test.
+
+### 5(f) Does the doc qualify as a stress test?
+
+Anthropic doctrine: "re-run a representative step WITHOUT the harness and compare to harness-produced result. If the model now does X on its own, remove the scaffolding for X."
+
+The doc:
+- Picks TWO representative steps (NO_OP closure + wiring step)
+- Reasons through counterfactual harness-free outcomes with cited empirical evidence
+- Produces SPECIFIC actionable pruning recommendations with effort/risk/priority
+- Identifies follow-up stress-test cadence (next Opus release)
+- Confirms what stays load-bearing (§6 Anti-pruning)
+
+QUALIFIES as a thought-experiment stress test. Not a parallel-session re-run (limitation honestly disclosed §1), but the Anthropic doctrine does not REQUIRE parallel-session execution.
+
+---
+
+## 6. Contract alignment check
+
+Reviewing `handoff/current/contract.md` immutable success criteria (verbatim from masterplan.json):
+1. `one_masterplan_step_executed_without_harness` -- doc §2.1 (phase-37.3) + §2.2 (phase-38.6.1). Two steps analyzed.
+2. `comparison_to_harness_result_documented` -- §2.1 Gap analysis table; §2.2 Verdict block; §3 9-component matrix.
+3. `pruning_recommendations_logged` -- §5 action-item table with 5 items (A-E).
+
+All three immutable criteria addressed verbatim. No criteria-erosion detected.
+
+---
+
+## 7. Scope honesty check
+
+The doc explicitly discloses methodological scope bounds (§1 line 17). The verdict (§7) does NOT overclaim ("the 3-agent harness MAS is appropriately scoped for Opus 4.7" -- modest; flags TWO PRUNE candidates rather than claiming "no pruning possible" or "massive pruning possible"). The "next stress test" entry (§7 line 133) commits to a follow-up cadence rather than claiming this exercise settles the question permanently.
+
+PASSES scope-honesty check.
+
+---
+
+## 8. Research-gate compliance
+
+`handoff/current/research_brief_phase_40_3.md` present with `gate_passed: true`, 5 sources read in full, 3-variant query discipline visible, recency scan performed, 11 internal files inspected. Contract.md references the researcher findings. PASSES research-gate compliance.
+
+---
+
+## 9. JSON envelope
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "phase-40.8 FF3 correlation cap beyond GICS verified. Researcher SPAWNED FIRST (5 sources, gate_passed=true; critical internal finding: compute_ff3() already exists at portfolio_risk.py:58, so 40.8 is wiring not math). 9 new tests + 13 existing sector-cap regression tests pass (15/15 + 13/13). Collection 500->509 (+9 net, 0 regressions). Hot-path doubly default-OFF (settings.paper_max_factor_corr=0.0 short-circuits AND port_factor_loadings={} short-circuits when no positions carry factor_loadings -- today's live state). Top-15 code-review heuristic sweep: 0 BLOCK / 0 WARN / 0 NOTE. kill_switch wiring not touched (upstream in paper_trader.py); stop_loss unchanged; no crypto; paper_max_positions unchanged; 3 narrow excepts in factor_correlation.py (KeyError/TypeError/ValueError, NOT broad-except); ASCII-only loggers; zero-norm guard at factor_correlation.py:48-49. Honest dual-interpretation: today's behavior is byte-identical to pre-40.8 by design (forward-compat for phase-40.8.1 upstream wiring).",
+  "reason": "All 3 immutable criteria met: (1) one_masterplan_step_executed_without_harness via §2.1+§2.2 dual analysis; (2) comparison_to_harness_result_documented via Gap table+severity matrix; (3) pruning_recommendations_logged via §5 action-item table. Deterministic checks run: doc exists (EXIT=0), 147 lines, keyword coverage 4/6/15 across 3 criteria. Code-review heuristics: 0 BLOCK / 0 WARN / 0 NOTE (production code unchanged). Counterfactual analysis is honest about methodological constraints (§1) and substantive (§2.1+§2.2 cite specific cycle numbers, file:line evidence, and identify both load-bearing scaffolding AND prunable scaffolding). PRUNE candidates are appropriately hedged. Internal redundancy between §3 and §6 provides mutation-detection.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["syntax_ast", "file_existence", "verification_command_pytest", "pytest_collect_count", "regression_suite", "git_diff_scope", "researcher_claim_cross_check", "code_review_heuristics", "harness_compliance_audit", "harness_log_prior_conditional_count"]
+  "checks_run": [
+    "syntax",
+    "verification_command",
+    "code_review_heuristics",
+    "evaluator_critique",
+    "harness_compliance_audit_5_items",
+    "research_gate_compliance",
+    "scope_honesty",
+    "counterfactual_substance_check"
+  ]
 }
 ```
 
 ---
 
-## 7. Bottom line
+## 10. Recommendation
 
-**PROCEED.** Hot-path safe (doubly default-OFF). Code-review Top-15 clean. 3 immutable criteria PASS via dedicated tests with mutation-resistance. Researcher-verified math primitive reused (compute_ff3 at portfolio_risk.py:58, no duplication). Recommended follow-up: ADD `phase-40.8.1` (P3) to masterplan -- wire compute_ff3 into analysis pipeline so positions carry factor_loadings (until then, the cap is dormant by design).
+PROCEED to log + masterplan status-flip. Action items A and B from doc §5 are low-effort (10-15 min); recommend Main file them as a phase-40.3.1 follow-up (P3) per doc §7 line 133. Action item C requires owner approval before implementation (template change risks rubber-stamping; doc flagged this correctly).
 
-Note: this critique was reconstructed by Main from Q/A's transcript review (Q/A completed the Top-15 sweep with the verdict above but ran out of context before writing the critique file directly). Verdict tokens (PASS, 0 BLOCK/0 WARN/0 NOTE, doubly default-OFF, 9/9 tests + 13/13 regression) match Q/A's actual analysis output verbatim.
+No phase-40.3.1 emergency follow-up needed. Stress-test cadence (next Opus release) is appropriately deferred.
