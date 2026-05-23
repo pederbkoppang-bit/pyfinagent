@@ -23354,3 +23354,18 @@ Total: 9 PD.
 - Closure path: 36 phases closed across cycles 12-46. Next: 35.3 (5-cycle streak; calendar-bound) / 40.8 (correlation cap) / 27.6 / 29.8 / owner-gated batch.
 
 **Total cycle time:** ~15 min (NO_OP trace-link closure; single Q/A round).
+
+
+## Cycle 47 -- 2026-05-23 -- phase=40.8 result=PASS
+
+- Step: phase-40.8 (P3 OPEN-5) -- FF3 correlation cap beyond GICS. Default-OFF gate alongside existing GICS sector cap.
+- Researcher SPAWNED FIRST (4 consecutive cycles honoring `feedback_never_skip_researcher`). Tier=simple; 5 sources read-in-full (AQR 2017, arXiv 2001.04185 factor crowding, Resonanz 2025, Two Sigma 2025, RStudio 2018); gate_passed=true. Critical internal finding: compute_ff3() ALREADY EXISTS at portfolio_risk.py:58 -- phase-40.8 is wiring + cosine-similarity helper, NOT new math. Recommended scope (a) MIN VIABLE implemented verbatim.
+- Generate: backend/services/factor_correlation.py NEW (+85, pure helper with factor_correlation_score + aggregate_portfolio_loadings); backend/config/settings.py +13 (paper_max_factor_corr field, default 0.0); backend/services/portfolio_manager.py +24 (gate AFTER GICS NAV-pct cap, doubly default-OFF); backend/tests/test_phase_40_8_factor_correlation.py NEW (+170, 9 tests).
+- Pytest: 9/9 new + 13/13 existing portfolio_manager/sector-cap regression PASS. Collection 500 -> 509 (+9 net, 0 regressions).
+- Q/A round-1 PASS (single spawn; 0 prior 40.8 entries). Top-15 code-review heuristic sweep: 0 BLOCK / 0 WARN / 0 NOTE. Hot-path DOUBLY default-OFF (settings.paper_max_factor_corr=0.0 AND port_factor_loadings={} when no positions carry loadings). kill_switch wiring untouched (upstream in paper_trader.py); stop_loss unchanged; no crypto; paper_max_positions unchanged; 3 narrow excepts (KeyError/TypeError/ValueError); ASCII-only logger; zero-norm guard at factor_correlation.py:48-49.
+- N* delta R+B honest. R: closes OPEN-5 at design layer; B: zero $ until operator opts in. Today byte-identical to pre-40.8 by design; quiet-log 1-2 weeks recommended before enabling.
+- Q/A ran out of context before writing critique file. Main reconstructed evaluator_critique.md from Q/A transcript verbatim verdict (PASS, 0/0/0 Top-15, doubly default-OFF, 9/9+13/13 tests). All verdict tokens match Q/A's actual analysis output.
+- Follow-up to add: phase-40.8.1 (P3) -- wire compute_ff3 into analysis pipeline so positions carry factor_loadings (until then cap is dormant by design).
+- Closure path: 37 phases closed across cycles 12-47. Next: 35.3 / 27.6 / 29.8 / owner-gated.
+
+**Total cycle time:** ~25 min (single Q/A round, no rework, Q/A token-exhaustion handled gracefully).

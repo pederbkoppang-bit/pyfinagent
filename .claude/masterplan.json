@@ -11931,6 +11931,26 @@
           "max_retries": 3
         },
         {
+          "id": "37.3.1",
+          "name": "Re-evaluate budget_tokens removal when Anthropic legacy-model EOL announced (follow-up to 37.3 NO_OP closure)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "37.3",
+          "audit_basis": "phase-37.3 closed as honest NO_OP trace-link (cycle 46): budget_tokens is Anthropic's wire-literal field for legacy models (Opus 4.5 / Sonnet 3.7); deleted -- not renamed -- in Opus 4.7+. The 45 remaining refs are wire-required. Re-evaluate this closure when Anthropic announces legacy-model EOL. Source: handoff/archive/phase-37.3/research_brief_phase_37_3.md (5 sources read-in-full).",
+          "verification": {
+            "command": "grep -c '\"budget_tokens\"' backend/agents/llm_client.py",
+            "success_criteria": [
+              "anthropic_legacy_model_eol_announcement_confirmed",
+              "budget_tokens_wire_refs_safely_removable",
+              "operator_sign_off_recorded"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "37.4",
           "name": "Moderator response_schema (companion to 37.1)",
           "status": "done",
@@ -12333,7 +12353,7 @@
         {
           "id": "40.8",
           "name": "Correlation cap beyond GICS (OPEN-5)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": null,

@@ -210,6 +210,8 @@ def decide_trades(
     max_sector_nav_pct = float(
         getattr(settings, "paper_max_per_sector_nav_pct", 0.0) or 0.0
     )
+    # phase-40.8 (OPEN-5): FF3 factor-correlation cap. Default-OFF (0.0).
+    max_factor_corr = float(getattr(settings, "paper_max_factor_corr", 0.0) or 0.0)
     sector_counts: dict[str, int] = {}
     sector_market_values: dict[str, float] = {}
     if max_per_sector > 0 or max_sector_nav_pct > 0:
@@ -222,6 +224,11 @@ def decide_trades(
                 sector_market_values.get(s, 0.0)
                 + float(pos.get("market_value", 0) or 0)
             )
+    port_factor_loadings: dict[str, float] = {}
+    if max_factor_corr > 0:
+        from backend.services.factor_correlation import aggregate_portfolio_loadings
+        retained = [p for p in current_positions if p["ticker"] not in selling_tickers]
+        port_factor_loadings = aggregate_portfolio_loadings(retained)
 
     for cand in buy_candidates:
         if remaining_positions >= settings.paper_max_positions:
@@ -282,6 +289,22 @@ def decide_trades(
                     existing_sector_value, buy_amount, nav,
                 )
                 continue
+
+        # phase-40.8 (OPEN-5): FF3 factor-correlation cap. Catches
+        # cross-sector factor crowding that GICS cap misses. Default-OFF:
+        # cap=0 short-circuits; cand missing factor_loadings short-circuits.
+        if max_factor_corr > 0 and port_factor_loadings:
+            cand_loadings = cand.get("factor_loadings")
+            if cand_loadings:
+                from backend.services.factor_correlation import factor_correlation_score
+                corr = factor_correlation_score(cand_loadings, port_factor_loadings)
+                if corr > max_factor_corr:
+                    logger.info(
+                        "Skipping BUY %s: FF3 factor correlation %.3f > cap %.3f "
+                        "(cross-sector crowding -- per phase-40.8/OPEN-5)",
+                        cand["ticker"], corr, max_factor_corr,
+                    )
+                    continue
 
         orders.append(TradeOrder(
             ticker=cand["ticker"],

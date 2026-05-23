@@ -173,6 +173,20 @@ class Settings(BaseSettings):
         le=100.0,
         description="Maximum NAV percentage per single GICS sector. 0 = no limit (legacy). Default 30 per arXiv 2512.02227 Dec 2025 + LSEG/CFA/SEC bracket. Fires alongside paper_max_per_sector count cap.",
     )
+    # phase-40.8 (OPEN-5): Fama-French 3-factor correlation cap. Catches
+    # cross-sector factor crowding that GICS sector cap misses (e.g., two
+    # stocks in different GICS sectors but both high-momentum + small-value
+    # are still correlated by FF3 loadings). Cosine similarity over
+    # (market_beta, smb_beta, hml_beta) > threshold blocks the BUY.
+    # 0.0 = disabled (legacy default). Recommended live value 0.85.
+    # Quiet-log for 1-2 weeks before enabling, per AQR/Two Sigma 2025
+    # factor-crowding research (research_brief_phase_40_8.md).
+    paper_max_factor_corr: float = Field(
+        0.0,
+        ge=0.0,
+        le=1.0,
+        description="Maximum FF3 factor cosine similarity vs portfolio avg before blocking BUY. 0.0 = disabled. Recommended live 0.85.",
+    )
     paper_min_cash_reserve_pct: float = Field(5.0, description="Minimum cash reserve as % of NAV")
     paper_screen_top_n: int = Field(10, description="Number of candidates from quant screening")
     paper_analyze_top_n: int = Field(5, description="Number of candidates to deep-analyze per day")

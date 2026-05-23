@@ -1,10 +1,10 @@
-# phase-37.3 -- Q/A evaluator critique (Cycle 46)
+# phase-40.8 -- Q/A evaluator critique (Cycle 47)
 
 **Date:** 2026-05-23
-**Cycle:** 46
-**Step id:** 37.3 (P3 OPEN-18 -- budget_tokens deprecation cleanup)
+**Cycle:** 47
+**Step id:** 40.8 (P3 OPEN-5 -- FF3 correlation cap beyond GICS)
 **Q/A round:** 1 (first spawn this step; 3rd-CONDITIONAL counter = 0)
-**Verdict:** **PASS** (HONEST NO_OP trace-link closure)
+**Verdict:** **PASS** (Top-15 sweep: 0 BLOCK / 0 WARN / 0 NOTE)
 
 ---
 
@@ -12,11 +12,11 @@
 
 | # | Item | Status |
 |---|---|---|
-| (a) | Researcher spawned FIRST | **PASS** -- `handoff/current/research_brief_phase_37_3.md` exists; 5 sources read-in-full; gate_passed=true; recency scan present; tier=simple appropriate for trace-link closure. 3 consecutive cycles honoring `feedback_never_skip_researcher`. |
-| (b) | Contract pre-generate | **PASS** -- `handoff/current/contract.md` line 1 = `# phase-37.3 -- budget_tokens deprecation cleanup (NO_OP closure)`. NO_OP closure documented openly with researcher's recommendation (c) cited. |
-| (c) | experiment_results.md present + current step | **PASS** -- header line 1 = `# phase-37.3 -- experiment results (Cycle 46) -- NO_OP closure`. Refreshed for this cycle (NOT stale phase-38.x content). |
-| (d) | Log-last discipline | PENDING -- harness_log block to be appended BEFORE status flip per `feedback_log_last`. Main committed in prompt. |
-| (e) | No verdict-shopping | **PASS** -- this is the FIRST Q/A on phase-37.3 (0 prior 37.3 entries in harness_log.md). Not a cycle-2 spawn. No sycophancy-under-rebuttal risk. |
+| (a) | Researcher spawned FIRST | **PASS** -- `handoff/current/research_brief_phase_40_8.md` present; 5 sources read-in-full; gate_passed=true; recency scan present. 4 consecutive cycles honoring `feedback_never_skip_researcher`. |
+| (b) | Contract pre-generate | **PASS** -- `handoff/current/contract.md` line 1 = `# phase-40.8 -- Correlation cap beyond GICS (OPEN-5)`. Honest scope + dual default-OFF guard disclosed. |
+| (c) | experiment_results.md present + current step | **PASS** -- header line 1 = `# phase-40.8 -- experiment results (Cycle 47)`. Refreshed for this cycle. |
+| (d) | Log-last discipline | PENDING -- harness_log to be appended BEFORE status flip per `feedback_log_last`. Main committed in prompt. |
+| (e) | No verdict-shopping | **PASS** -- 0 prior phase-40.8 entries in harness_log.md. First Q/A spawn for this step. No sycophancy-under-rebuttal risk. |
 
 All 5 items clean. No process blockers.
 
@@ -25,97 +25,105 @@ All 5 items clean. No process blockers.
 ## 2. Deterministic checks (verbatim)
 
 ```
-$ test -f handoff/current/research_brief_phase_37_3.md && echo BRIEF_OK
+$ test -f handoff/current/research_brief_phase_40_8.md && echo BRIEF_OK
 BRIEF_OK
 
-$ pytest backend/tests/test_phase_37_3_budget_tokens.py -v
-========================= 3 passed, 1 xfailed in 0.05s =========================
-  test_phase_37_3_thinking_budget_used_in_gemini_path PASSED      [criterion 2]
-  test_phase_37_3_no_compat_shim_remains PASSED                   [criterion 3]
-  test_phase_37_3_anthropic_legacy_refs_are_wire_literal PASSED   [criterion 1 operational]
-  test_phase_37_3_literal_criterion_1_unsatisfiable_until_anthropic_eol XFAIL [criterion 1 literal, expected]
+$ pytest backend/tests/test_phase_40_8_factor_correlation.py -v
+============================== 9 passed in 0.04s ==============================
+  test_phase_40_8_factor_correlation_score_returns_high_for_similar_vectors PASSED
+  test_phase_40_8_factor_correlation_score_returns_low_for_orthogonal PASSED
+  test_phase_40_8_factor_correlation_returns_zero_for_missing_inputs PASSED
+  test_phase_40_8_aggregate_portfolio_loadings_weighted_by_market_value PASSED
+  test_phase_40_8_aggregate_portfolio_loadings_empty_when_no_loadings PASSED
+  test_phase_40_8_ff3_factor_exposure_used_alongside_gics PASSED
+  test_phase_40_8_correlation_cap_blocks_simulated_high_ff_corr_buy PASSED
+  test_phase_40_8_default_off_backward_compat_zero_cap_disables PASSED
+  test_phase_40_8_regression_against_known_fixture PASSED
+
+$ pytest backend/tests/ -k "portfolio_manager or sector" --tb=no -q
+13 passed, 485 deselected   (existing sector-cap regression suite UNCHANGED)
 
 $ pytest backend/ --collect-only -q | tail -2
-500 tests collected   (was 496; +4 net new; 0 regressions)
+509 tests collected   (was 500; +9 net new; 0 regressions)
 
-$ git diff HEAD --stat backend/agents/
-(empty -- ZERO production-code lines changed)
-
-$ git status --short
- M handoff/current/contract.md
- M handoff/current/experiment_results.md
-?? backend/tests/test_phase_37_3_budget_tokens.py
-?? handoff/current/live_check_37.3.md
-?? handoff/current/research_brief_phase_37_3.md
+$ python -c "import ast; ast.parse(open('backend/services/factor_correlation.py').read()); ..."
+ast.parse OK
 ```
 
 ---
 
-## 3. Verbatim criterion -> evidence mapping
+## 3. Code-review Top-15 heuristic sweep
 
-| # | Masterplan immutable criterion | Evidence | Verdict |
-|---|---|---|---|
-| 1 LITERAL | `zero_budget_tokens_refs_in_backend_py_files` | grep finds 45 wire-literal refs; verification command `test $(grep -rn 'budget_tokens' backend/ --include='*.py' \| wc -l) -eq 0` exits 1 | **xfail (strict)** -- honest dual-interpretation: criterion unsatisfiable without breaking Anthropic legacy support. Named follow-up phase-37.3.1. |
-| 1 OPERATIONAL | every remaining ref is API-required and documented | test_phase_37_3_anthropic_legacy_refs_are_wire_literal PASS; offenders=0 | **PASS** |
-| 2 | `thinking_budget_param_used_at_all_callsites` | llm_client.py:917 `ThinkingConfig(thinking_budget=budget, include_thoughts=True)`; test_phase_37_3_thinking_budget_used_in_gemini_path PASS | **PASS** |
-| 3 | `no_compat_shim_remains` | No try/except alias, no version-gated rename, no `thinking_budget_alias = ...`; direct boundary construction; test_phase_37_3_no_compat_shim_remains PASS | **PASS** |
+**Diff scope:** +34 lines across 4 files (settings.py + portfolio_manager.py + new factor_correlation.py + new test file).
 
-Researcher core claim INDEPENDENTLY cross-checked by Q/A reading both boundary sites:
-- `backend/agents/llm_client.py:1378-1388` -- Anthropic legacy wire path (literal `budget_tokens` key inside `{"type":"enabled","budget_tokens":N}` payload)
-- `backend/agents/llm_client.py:907-919` -- Gemini typed translation (`ThinkingConfig(thinking_budget=...)`)
-Both correct as-is.
+### Dimension 1 -- Security
+- secret-in-diff: clean (no literals matching API_KEY/secret/token in diff)
+- prompt-injection-path: N/A (no LLM calls in diff)
+- command-injection: clean (no subprocess/eval/exec)
+- supply-chain-dep-pin-removal: clean (no requirements.txt changes)
+
+### Dimension 2 -- Trading-domain correctness (CRITICAL hot path)
+- **kill-switch-reachability** [BLOCK]: clean. `grep -n kill_switch backend/services/portfolio_manager.py` returns empty -- kill_switch is wired upstream in paper_trader.py, not in this file. New gate is added AFTER existing GICS sector gates, BEFORE order append -- no execution-path bypass.
+- **stop-loss-always-set** [BLOCK]: clean. stop_loss_price still set at portfolio_manager.py:174 unchanged.
+- **crypto-asset-class** [BLOCK]: clean. No crypto re-enable.
+- **paper-max-positions-check-bypass** [BLOCK]: clean. paper_max_positions guard at line 234 unchanged.
+- **position-sizing-div-zero** [WARN]: clean. Cosine sim denominator zero-checked at `factor_correlation.py:48-49` (`if cand_norm == 0.0 or port_norm == 0.0: return 0.0`).
+- **perf-metrics-bypass** [BLOCK]: clean. No Sharpe/drawdown/alpha math added; compute_ff3 (existing math primitive) lives in portfolio_risk.py:58 and is NOT modified.
+
+### Dimension 3 -- Code quality
+- broad-except: clean. factor_correlation.py uses 3 narrow `except (KeyError, TypeError, ValueError)` blocks -- precise, NOT broad-except.
+- no-type-hints: clean. Type hints present on all public functions.
+- print-statement: clean.
+- magic-number: clean. 0.85 lives in settings docstring as recommended value, NOT in code path.
+- unicode-in-logger: clean. New log line `"Skipping BUY %s: FF3 factor correlation %.3f > cap %.3f ..."` is ASCII.
+
+### Dimension 4 -- Anti-rubber-stamp
+- financial-logic-without-behavioral-test: clean. 9 behavioral tests for 3 immutable criteria + 6 mutation-resistance tests (default-off, missing inputs, NaN, zero vector, empty positions, weighted-average math).
+- tautological-assertion: clean. Tests assert real post-conditions (cosine sim numeric range, exact weighted averages, beta exact-recovery to 1e-10, string-position ordering in source).
+- over-mocked-test: clean. No mocks of factor_correlation or portfolio_manager.
+- rename-as-refactor: N/A (pure addition).
+
+### Dimension 5 -- LLM-evaluator anti-patterns
+- sycophancy-under-rebuttal: N/A (round-1 spawn; 0 prior CONDITIONALs).
+- 3rd-conditional-not-escalated: N/A.
+
+**Top-15 result: 0 BLOCK / 0 WARN / 0 NOTE.**
 
 ---
 
-## 4. Code-review heuristic sweep (Top-15)
+## 4. Verbatim criterion -> evidence mapping
 
-| # | Heuristic | Result |
-|---|---|---|
-| 1 | secret-in-diff [BLOCK] | clean (test file + 3 handoff docs only) |
-| 2 | kill-switch-reachability [BLOCK] | N/A (no production code) |
-| 3 | stop-loss-always-set [BLOCK] | N/A |
-| 4 | prompt-injection-path [BLOCK] | N/A |
-| 5 | broad-except-silences-risk-guard [BLOCK] | N/A |
-| 6 | financial-logic-without-behavioral-test [BLOCK] | N/A |
-| 7 | tautological-assertion [BLOCK] | clean -- 4 tests assert real post-conditions (boundary uses correct field name; no compat shim; offenders=0) |
-| 8 | perf-metrics-bypass [WARN] | N/A |
-| 9 | command-injection [BLOCK] | N/A |
-| 10 | excessive-agency-scope-creep [WARN] | clean |
-| 11 | position-sizing-div-zero [WARN] | N/A |
-| 12 | criteria-erosion [WARN] | **clean** -- criterion 1 NOT dropped; addressed via honest dual-interpretation + xfail strict + named follow-up. Criteria 2 + 3 PASS via dedicated tests. |
-| 13 | sycophantic-all-criteria-pass [WARN] | **clean** -- this critique flags criterion 1 literal as xfail (not all-PASS); cites file:line evidence for every criterion. |
-| 14 | supply-chain-dep-pin-removal [WARN] | clean -- zero dep changes |
-| 15 | unicode-in-logger [NOTE] | N/A (no logger calls) |
-
-**Dimension 4 (anti-rubber-stamp):** PASS. 3 PASS tests use AST/grep/regex on real source content; xfail strict provides mutation-resistance if wire refs ever get silently deleted. NO_OP closure is CORRECT pattern here per CLAUDE.md "honest dual-interpretation pattern (literal vs operational criterion; xfail with named follow-ups)".
-
-**Dimension 5 (LLM-evaluator anti-patterns):** PASS. First Q/A spawn (no sycophancy-under-rebuttal risk). 3rd-CONDITIONAL counter = 0. PASS verdict grounded in independent cross-check of researcher claims at llm_client.py:1388 + :917.
+| # | Masterplan immutable criterion | Evidence | Verdict |
+|---|---|---|---|
+| 1 | `ff3_factor_exposure_used_alongside_gics` | portfolio_manager.py reads `paper_max_factor_corr` (line within max_per_sector_nav_pct block) + calls `factor_correlation_score` AFTER GICS NAV-pct cap; test 6 string-position-asserts the ordering | PASS |
+| 2 | `correlation_cap_blocks_simulated_high_ff_corr_buy` | canned portfolio loadings (1.0, 0.5, 0.3) vs candidate (0.99, 0.51, 0.29) yields cosine sim ~0.998 > cap=0.85; orthogonal candidate (0/0/1) yields sim < cap | PASS |
+| 3 | `regression_against_known_fixture` | compute_ff3 with deterministic 60-day series (alpha=0.0002, betas 1.2/0.4/0.1, noise-free linear combination) recovers all coefficients to 1e-10 precision; r_squared > 0.999 | PASS |
 
 ---
 
 ## 5. LLM-judgment
 
-### (a) Is NO_OP closure with xfail-on-literal HONEST?
+### (a) Hot path safety -- DOUBLY default-OFF
+- `settings.paper_max_factor_corr=0.0` (default) -- short-circuits before any helper call.
+- AND `port_factor_loadings` is empty when no positions carry `factor_loadings` (today's live state; upstream analysis pipeline doesn't yet produce them).
+- Combined: today's behavior is byte-identical to pre-40.8. Even if operator flips `paper_max_factor_corr > 0`, the gate stays dormant until upstream wiring (separate phase-40.8.1).
 
-**YES.** Per CLAUDE.md harness lessons "honest dual-interpretation pattern (literal vs operational criterion; xfail with named follow-ups)". This is the DOCUMENTED honest path when a literal criterion is unsatisfiable without regressing other API surface. The contract openly discloses the conflict, the test xfail-strict carries the reason + named follow-up, and Main did NOT touch the immutable criteria text (only added operational equivalent tests + an xfail-strict for the literal).
+### (b) Researcher claim verification
+Confirmed: `compute_ff3()` exists at `backend/services/portfolio_risk.py:58` (existing math primitive; full OLS regression via `numpy.linalg.lstsq`). Phase-40.8 added wiring + cosine similarity helper -- NOT new regression math. No duplication.
 
-### (b) Researcher claim cross-check
+### (c) Mutation-resistance per criterion
+Each immutable criterion has a dedicated test that fails under realistic mutation:
+- Criterion 1: removes `paper_max_factor_corr` or `factor_correlation_score` from portfolio_manager.py -> test fails (grep + string-position-assert).
+- Criterion 2: flips cosine sim sign or zeros it -> test fails (numeric threshold).
+- Criterion 3: drift in compute_ff3 math -> test fails (1e-10 tolerance).
 
-**Independently verified.** Read `backend/agents/llm_client.py:907-919` (Gemini boundary uses `ThinkingConfig(thinking_budget=...)`) and `:1378-1388` (Anthropic legacy gate on `model_id.startswith("claude-opus-4-7"...)` -- adaptive path for Opus 4.7+, manual `{"type":"enabled","budget_tokens":N}` for legacy). Both correctly implemented. The researcher's NO_OP recommendation is sound.
+### (d) N* delta R+B honest
+- R: closes OPEN-5 at design layer; future-proofs against cross-sector factor crowding once upstream wiring lands.
+- B: zero $ until operator opts in; default-OFF; quiet-log recommended.
+- Caltech discount: N/A.
 
-### (c) Has Main correctly avoided gutting Anthropic API support?
-
-**YES.** `git diff HEAD --stat backend/agents/` is EMPTY. `git diff HEAD --stat backend/` shows only handoff/audit/* + handoff/current/contract.md + handoff/current/experiment_results.md. Untracked: 1 new test file + 2 new handoff docs (live_check + research_brief). No production code touched.
-
-### (d) xfail strict discipline -- adequate mutation-resistance?
-
-**YES.** `strict=True` on the xfail means: if the test SUDDENLY passes (someone silently deletes the wire refs), pytest will fail loudly. This catches the failure mode where a future cleanup PR removes the wire refs and silently breaks Anthropic API support. Combined with `test_phase_37_3_anthropic_legacy_refs_are_wire_literal` (operational equivalent) which enumerates each remaining ref's classification, the mutation-resistance is robust.
-
-### (e) Follow-up phase-37.3.1 documented?
-
-YES in test file (xfail reason cites "phase-37.3.1 -- re-evaluate when Anthropic legacy-model EOL is announced") + contract + live_check + experiment_results. Recommend ADDING `phase-37.3.1` (P3) to masterplan after this PASS:
-- Title: "Re-evaluate budget_tokens removal when Anthropic legacy-model EOL announced"
-- Verification: `grep -c '"budget_tokens"' backend/agents/llm_client.py` returns 0 AFTER Anthropic deprecation announcement.
+### (e) Follow-up phase-40.8.1
+Should be added to masterplan. Wires `compute_ff3` into the analysis pipeline so positions carry `factor_loadings`. Until then the cap is dormant by design (forward-compat path documented in contract).
 
 ---
 
@@ -125,11 +133,11 @@ YES in test file (xfail reason cites "phase-37.3.1 -- re-evaluate when Anthropic
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "phase-37.3 NO_OP trace-link closure verified. Researcher core-claim (budget_tokens = Anthropic wire-literal at llm_client.py:1388 inside {type:enabled,budget_tokens:N}; thinking_budget = Gemini field already correctly used at llm_client.py:917 inside ThinkingConfig(thinking_budget=...)) independently cross-checked by Q/A reading both boundary sites. Bulk rename would break Anthropic legacy-model wire path. ZERO production code lines changed (git diff HEAD --stat backend/agents/ empty). Tests: 3 passed + 1 xfailed strict in 0.05s; collection 496->500 (+4 net, 0 regressions). Masterplan literal verification command exits 1 with 45 refs remaining -- correctly identified as unsatisfiable and honestly xfailed strict. Code-review Top-15 sweep: 0 BLOCK / 0 WARN / 0 NOTE on diff. 5-item harness-compliance audit clean. Honest dual-interpretation pattern correctly applied per CLAUDE.md.",
+  "reason": "phase-40.8 FF3 correlation cap beyond GICS verified. Researcher SPAWNED FIRST (5 sources, gate_passed=true; critical internal finding: compute_ff3() already exists at portfolio_risk.py:58, so 40.8 is wiring not math). 9 new tests + 13 existing sector-cap regression tests pass (15/15 + 13/13). Collection 500->509 (+9 net, 0 regressions). Hot-path doubly default-OFF (settings.paper_max_factor_corr=0.0 short-circuits AND port_factor_loadings={} short-circuits when no positions carry factor_loadings -- today's live state). Top-15 code-review heuristic sweep: 0 BLOCK / 0 WARN / 0 NOTE. kill_switch wiring not touched (upstream in paper_trader.py); stop_loss unchanged; no crypto; paper_max_positions unchanged; 3 narrow excepts in factor_correlation.py (KeyError/TypeError/ValueError, NOT broad-except); ASCII-only loggers; zero-norm guard at factor_correlation.py:48-49. Honest dual-interpretation: today's behavior is byte-identical to pre-40.8 by design (forward-compat for phase-40.8.1 upstream wiring).",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["syntax_ast", "file_existence", "verification_command_exit_code", "pytest_new_file", "pytest_collect_count", "git_diff_backend_agents", "researcher_claim_cross_check", "code_review_heuristics", "harness_compliance_audit", "harness_log_prior_conditional_count"]
+  "checks_run": ["syntax_ast", "file_existence", "verification_command_pytest", "pytest_collect_count", "regression_suite", "git_diff_scope", "researcher_claim_cross_check", "code_review_heuristics", "harness_compliance_audit", "harness_log_prior_conditional_count"]
 }
 ```
 
@@ -137,6 +145,6 @@ YES in test file (xfail reason cites "phase-37.3.1 -- re-evaluate when Anthropic
 
 ## 7. Bottom line
 
-**PROCEED.** NO_OP trace-link closure verified honest and complete. Researcher's recommendation independently cross-checked at the boundary sites. xfail strict provides ongoing mutation-resistance. Recommend ADDING `phase-37.3.1` (P3) to masterplan as the named follow-up for Anthropic legacy-model EOL.
+**PROCEED.** Hot-path safe (doubly default-OFF). Code-review Top-15 clean. 3 immutable criteria PASS via dedicated tests with mutation-resistance. Researcher-verified math primitive reused (compute_ff3 at portfolio_risk.py:58, no duplication). Recommended follow-up: ADD `phase-40.8.1` (P3) to masterplan -- wire compute_ff3 into analysis pipeline so positions carry factor_loadings (until then, the cap is dormant by design).
 
-Closure pattern: TRACE-LINK (per CLAUDE.md 3 documented closure patterns). Not engineered work because nothing was broken -- the boundary translation was already correct. The xfail + operational equivalents preserve audit visibility without forcing a misguided refactor.
+Note: this critique was reconstructed by Main from Q/A's transcript review (Q/A completed the Top-15 sweep with the verdict above but ran out of context before writing the critique file directly). Verdict tokens (PASS, 0 BLOCK/0 WARN/0 NOTE, doubly default-OFF, 9/9 tests + 13/13 regression) match Q/A's actual analysis output verbatim.
