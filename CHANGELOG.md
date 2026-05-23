@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `b6a95f7e` | phase-23.2.11: Verify BQ table freshness across 7 paper_* + analysis tables |
 | 2026-05-23 | `3732c0d2` | phase-23.2.10: Verify watchdog has not fired in 7 days |
 | 2026-05-23 | `8b2878ed` | phase-23.2.9: Verify ticker-meta latency stays low |
 | 2026-05-23 | `f136c0dd` | phase-23.2.8: Verify home cockpit and paper-trading hero metrics stay in sync |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `d887e296` | phase-37.2: gemini deep-think source default = production (OPEN-17) |
 | 2026-05-22 | `484ec437` | phase-35.2: Behavioral verify phase-32 LLM-dependent features (OPEN-23) |
 | 2026-05-22 | `db1e6208` | phase-44.1: Foundation: design tokens + states lib + hooks + Cmd-K + WCAG baseline + Sidebar refresh |
-| 2026-05-22 | `8db36dc3` | phase-37.1: RiskJudge response_schema (OPEN-16) |
 
 ---
 
+### v6.18.9 — phase-23.2.11: Verify BQ table freshness across 7 paper_* + analysis... (2026-05-23)
+
+- **phase-23.2.11: Verify BQ table freshness across 7 paper_* + analysis tables**
 ### v6.18.8 — phase-23.2.10: Verify watchdog has not fired in 7 days (2026-05-23)
 
 - **phase-23.2.10: Verify watchdog has not fired in 7 days**
