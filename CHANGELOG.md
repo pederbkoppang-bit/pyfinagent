@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `620c2846` | phase-23.2.15: Run phase-23.1.x cycle-by-cycle smoke tests |
 | 2026-05-23 | `2ae11f76` | phase-23.2.14: Audit other `with self._lock:` blocks for re-entrant patterns |
 | 2026-05-23 | `73fa6a73` | phase-23.2.13: Verify governance limits-loader watcher still active |
 | 2026-05-23 | `45a82b27` | phase-23.2.12: Verify Layer-1 enrichment pipeline still functional |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-22 | `320b7dbb` | phase-38.7: SPY benchmark anchor at first-funded snapshot (OPEN-9) |
 | 2026-05-22 | `b5e631b7` | phase-38.5: ASCII-only logger audit (OPEN-14) |
 | 2026-05-22 | `3be94e90` | phase-38.3: Startup banner logs deep_think_model (OPEN-12) |
-| 2026-05-22 | `0f6abeff` | phase-37.4: Moderator response_schema (companion to 37.1) |
 
 ---
 
+### v6.18.13 — phase-23.2.15: Run phase-23.1.x cycle-by-cycle smoke tests (2026-05-23)
+
+- **phase-23.2.15: Run phase-23.1.x cycle-by-cycle smoke tests**
 ### v6.18.12 — phase-23.2.14: Audit other `with self._lock:` blocks for re-entrant p... (2026-05-23)
 
 - **phase-23.2.14: Audit other `with self._lock:` blocks for re-entrant patterns**
