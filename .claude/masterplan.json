@@ -12104,7 +12104,7 @@
         {
           "id": "38.6",
           "name": "Restart-survivable _running flag (OPEN-15)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,

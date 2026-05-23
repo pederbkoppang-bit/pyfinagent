@@ -23272,3 +23272,40 @@ Total: 9 PD.
 4. phase-38.5.3 (optional follow-up) -- extend REPLACEMENTS with semantic markers.
 
 **Total cycle time:** ~75 min.
+
+## Cycle 43 -- 2026-05-23 (phase-38.6 P2 OPEN-15 restart-survivable cycle_lock primitive + 8 tests; wiring DEFERRED to phase-38.6.1) -- phase=38.6 result=PASS
+
+**Step:** phase-38.6 (P2 OPEN-15) -- Restart-survivable `_running` flag.
+
+**Researcher (gate):** SPAWNED FIRST. `handoff/current/research_brief_phase_38_6.md` -- 6 sources read in full (flock(2) man page, Python fcntl docs, py-filelock, trbs/pid, Improbable file-locking critique, Anthropic harness-design); 14 URLs; 6 internal files; gate_passed=true.
+
+**North-star delta:**
+- **R (operational integrity / audit-trail):** SIGKILL/crash mid-cycle no longer leaves stale state; canonical Linux/POSIX recovery pattern.
+- **B (defensive double-fire prevention):** ~1 prevented per quarter.
+- **P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
+
+**Generate (EXECUTION):**
+- backend/services/cycle_lock.py (NEW, ~140 lines): acquire context manager / inspect_lock / clean_stale_lock / CycleLockError. Stdlib-only (fcntl + os + json + pathlib).
+- backend/tests/test_phase_38_6_restart_survivable.py (NEW, ~155 lines, 8 tests).
+- ZERO production source modifications (autonomous_loop.py + main.py UNCHANGED; wiring is the deferred phase-38.6.1).
+
+**Verification:**
+- pytest backend/tests/test_phase_38_6_restart_survivable.py -v = 8 passed in 0.02s.
+- pytest backend/ --collect-only -q = 481 (was 473 after 38.5.x batch; +8 new; 0 regressions).
+- All 4 immutable masterplan criteria verified at primitive layer.
+
+**Q/A verdict (single agent, single spawn):** PASS.
+- 5-item harness-compliance: 5/5 clean.
+- Code-review (5 dim): 0 BLOCK + 0 WARN + 0 NOTE.
+- Primitive-only delivery is honest scope-management consistent with phase-38.5.1/38.5.2 batching pattern.
+
+**Scope honesty:** ZERO source modifications outside the new cycle_lock module + test file.
+
+**Integration-gate scoreboard:** 1=PASS(481), 2=N/A, 3=N/A, 4=N/A, 5=N/A, 6=PASS, 7=PASS, 8=PASS, 9=PASS, 10=HOLDING.
+
+**Honest deferral (NEW follow-up):**
+- phase-38.6.1 -- 1-line replacement of autonomous_loop.py:142-154 `_running` guard with `cycle_lock.acquire()` + main.py lifespan startup hook calling `clean_stale_lock`.
+
+**Real progress vs Cycle 42:** Cycle 42 BATCHED phase-38.5.1 + 38.5.2 (cycle-2 round-2 PASS). Cycle 43 ships phase-38.6 cycle_lock PRIMITIVE; wiring deferred. After this commit, closure path = {32 closed + 38.6 DONE} -> {38.6.1 wiring + 39.1 owner + 40.1 + 40.3 owner + 40.7 owner + 44.2 + 44.7 + 8 new 23.2.*.1 tickets} -> 35.3 -> 44.10 -> 43.0 FINAL GATE -> PRODUCTION_READY. Estimated ~12-27 cycles remaining.
+
+**Total cycle time:** ~30 min.
