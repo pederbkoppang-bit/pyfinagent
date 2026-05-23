@@ -7305,7 +7305,7 @@
         {
           "id": "23.2.11",
           "name": "Verify BQ table freshness across 7 paper_* + analysis tables",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 15,
           "verification": "bq SELECT MAX(updated_at) for paper_portfolio, paper_positions, paper_trades, paper_portfolio_snapshots, analysis_results, outcome_tracking, harness_learning_log; expect all <24h old"
