@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `ba272fd0` | phase-40.3: Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26) |
 | 2026-05-23 | `9e629628` | phase-41: phase-29.8/29.9 Bundle Closure |
 | 2026-05-23 | `798a8fe8` | phase-34: Unblock the autonomous loop + first live verification of phase-32 |
 | 2026-05-23 | `f458d774` | phase-28: Candidate Picker Expansion |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `2ae11f76` | phase-23.2.14: Audit other `with self._lock:` blocks for re-entrant patterns |
 | 2026-05-23 | `73fa6a73` | phase-23.2.13: Verify governance limits-loader watcher still active |
 | 2026-05-23 | `45a82b27` | phase-23.2.12: Verify Layer-1 enrichment pipeline still functional |
-| 2026-05-23 | `b6a95f7e` | phase-23.2.11: Verify BQ table freshness across 7 paper_* + analysis tables |
 
 ---
 
+### v6.18.28 — phase-40.3: Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26) (2026-05-23)
+
+- **phase-40.3: Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26)**
 ### v6.18.27 — phase-41: phase-29.8/29.9 Bundle Closure (2026-05-23)
 
 - **phase-41: phase-29.8/29.9 Bundle Closure**
