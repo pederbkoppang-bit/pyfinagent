@@ -27,9 +27,10 @@ jobs:
     name: Audit logger.*() strings for non-ASCII chars
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # phase-38.5.2 will flip this to false after phase-38.5.1 sweep completes.
-    # See handoff/current/live_check_38.5.md for the cleanup runbook.
-    continue-on-error: true
+    # phase-38.5.2 (cycle 42): flipped to false; codebase swept clean by
+    # phase-38.5.1 (126 lines / 26 files; ascii_logger_check exits 0).
+    # Future violations now HARD FAIL this lane.
+    continue-on-error: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,8 +46,8 @@ jobs:
         run: |
           python3 scripts/qa/ascii_logger_check.py --roots backend scripts
         # exit 0 = clean; exit 1 = violations found; exit 2 = internal error.
-        # `continue-on-error: true` lets the workflow surface the count but
-        # not break the tree until phase-38.5.1 ships the 151-violation cleanup.
+        # Post phase-38.5.1 sweep + phase-38.5.2 gate-flip: any violation
+        # in a PR now hard-fails this workflow.
 
       - name: Run script self-tests
         run: |

@@ -98,7 +98,7 @@ async def handle_user_message_with_streaming(
         if not user_text:
             return
 
-        logger.info(f"💬 Streaming message: user={user_id}, text={user_text[:50]}")
+        logger.info(f"Streaming message: user={user_id}, text={user_text[:50]}")
 
         # ── Classify via Communication Agent (Sonnet 4.6) ────────
         orchestrator = get_orchestrator()
@@ -114,11 +114,11 @@ async def handle_user_message_with_streaming(
                 )
 
         logger.info(
-            f"📋 → {classification.agent_type.value} "
+            f"[QUEUE] -> {classification.agent_type.value} "
             f"({classification.complexity.value}, {classification.confidence:.0%})"
         )
 
-        # ── DIRECT: instant local response ───────────────────────
+        # ?? DIRECT: instant local response ???????????????????????
         if classification.agent_type == AgentType.DIRECT:
             result = orchestrator._handle_direct(user_text)
             await say(result or "👋 I'm here.")
@@ -139,7 +139,7 @@ async def handle_user_message_with_streaming(
         )
 
     except Exception as e:
-        logger.error(f"❌ Streaming handler failed: {e}")
+        logger.error(f"[FAIL] Streaming handler failed: {e}")
         import traceback
         traceback.print_exc()
         try:
@@ -187,7 +187,7 @@ async def _stream_simple_response(
         await asyncio.sleep(0.04)
 
     streamer.stop()
-    logger.info(f"✅ Streamed {agent_name} ({len(full)} chars, {model_name}) in {(time.time()-start)*1000:.0f}ms")
+    logger.info(f"[OK] Streamed {agent_name} ({len(full)} chars, {model_name}) in {(time.time()-start)*1000:.0f}ms")
 
 
 async def _stream_complex_task_plan(
@@ -290,10 +290,10 @@ async def _stream_complex_task_plan(
                         output=output_summary,
                     ),
                 ])
-                logger.info(f"✅ {agent_type.value} ({config.model if config else '?'}) in {proc_ms:.0f}ms")
+                logger.info(f"[OK] {agent_type.value} ({config.model if config else '?'}) in {proc_ms:.0f}ms")
 
             except Exception as e:
-                logger.error(f"❌ {agent_type.value} failed: {e}")
+                logger.error(f"[FAIL] {agent_type.value} failed: {e}")
                 agent_responses[agent_type] = f"⚠️ Error: {str(e)[:150]}"
                 streamer.append(chunks=[
                     TaskUpdateChunk(
@@ -342,7 +342,7 @@ async def _stream_complex_task_plan(
     streamer.stop()
 
     logger.info(
-        f"✅ Complex: {len(agents)} agents, models={models_used}, "
+        f"[OK] Complex: {len(agents)} agents, models={models_used}, "
         f"{total_ms:.0f}ms, {total_usage['input']}+{total_usage['output']} tok"
     )
 

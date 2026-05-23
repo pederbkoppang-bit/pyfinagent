@@ -125,7 +125,7 @@ def openclaw_chat(
             elapsed = round((time.time() - start) * 1000, 1)
 
             logger.info(
-                f"🔗 OpenClaw [{agent_id}] → {data.get('model', '?')} | "
+                f"[LINK] OpenClaw [{agent_id}] -> {data.get('model', '?')} | "
                 f"tokens: {usage.get('total_tokens', '?')} | "
                 f"{elapsed}ms"
             )
@@ -146,7 +146,7 @@ def openclaw_chat(
         raise
     except httpx.ConnectError:
         logger.error(
-            f"OpenClaw Gateway unreachable at {GATEWAY_URL} — is the gateway running?"
+            f"OpenClaw Gateway unreachable at {GATEWAY_URL} -- is the gateway running?"
         )
         raise
 
@@ -179,7 +179,7 @@ def openclaw_chat_stream(
         "stream": True,
     }
 
-    logger.info(f"🔗 OpenClaw stream [{agent_id}] starting...")
+    logger.info(f"OpenClaw stream [{agent_id}] starting...")
 
     with httpx.Client(timeout=120.0) as client:
         with client.stream(

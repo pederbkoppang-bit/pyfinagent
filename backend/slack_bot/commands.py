@@ -249,7 +249,7 @@ def register_commands(app: AsyncApp):
                     conn.execute("INSERT INTO ticket_counter (id, current_number) VALUES (1, 0)")
                 
                 await say("🔄 HARD RESET COMPLETE\n✅ Database purged\n✅ Counter reset to #1\n✅ Ready for fresh start")
-                logger.info("✅ CLEAR QUEUE: Database reset, ticket counter at 0")
+                logger.info("[OK] CLEAR QUEUE: Database reset, ticket counter at 0")
             except Exception as e:
                 logger.error(f"Error executing clear queue: {e}")
                 await say(f"❌ Clear queue failed: {str(e)[:100]}")
@@ -284,7 +284,7 @@ def register_commands(app: AsyncApp):
 
         if reaction == "white_check_mark":
             # Approved — push to GitHub
-            logger.info("Push approved via ✅ reaction")
+            logger.info("Push approved via [OK] reaction")
             try:
                 result = subprocess.check_output(
                     ["git", "push", "origin", "main"],
@@ -298,5 +298,5 @@ def register_commands(app: AsyncApp):
                 await say(f"❌ *Push error:* {str(e)[:200]}")
 
         elif reaction == "x":
-            logger.info("Push rejected via ❌ reaction")
+            logger.info("Push rejected via [FAIL] reaction")
             await say("❌ Push rejected. Commits stay local.")

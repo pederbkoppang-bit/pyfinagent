@@ -349,7 +349,7 @@ def register_governance(app):
     async def update_app_home(client: WebClient, event, logger):
         """Render the App Home tab with full MAS dashboard."""
         user_id = event["user"]
-        logger.info(f"🏠 App Home opened by {user_id}")
+        logger.info(f"App Home opened by {user_id}")
 
         try:
             data = _get_live_data()
@@ -388,7 +388,7 @@ def register_governance(app):
         if agent_type and agent_type in AGENT_CONFIGS:
             old_model = AGENT_CONFIGS[agent_type].model
             AGENT_CONFIGS[agent_type].model = selected
-            logger.info(f"🔄 Agent model changed: {agent_type.value} {old_model} → {selected} (by {user_id})")
+            logger.info(f"[RETRY] Agent model changed: {agent_type.value} {old_model} -> {selected} (by {user_id})")
 
         # Refresh
         await update_app_home(client=client, event={"user": user_id}, logger=logger)

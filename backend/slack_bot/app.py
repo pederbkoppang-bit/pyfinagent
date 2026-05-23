@@ -58,15 +58,15 @@ async def main():
     # Start ticket queue processor in background (processes tickets every 30s to avoid rate limits)
     # Anthropic API is heavily rate limited; we need significant spacing between requests
     asyncio.create_task(start_queue_processor(batch_interval=30.0))
-    logger.info("🎫 Ticket queue processor started as background task")
+    logger.info("Ticket queue processor started as background task")
 
     # Start SLA monitoring in background (checks every 5 minutes)
     asyncio.create_task(start_sla_monitoring(check_interval=300))
-    logger.info("🔍 SLA monitor started as background task")
+    logger.info("[SCAN] SLA monitor started as background task")
     
     # Start stuck-task reaper (checks every 60s for >15min hung tickets)
     asyncio.create_task(start_stuck_task_reaper(check_interval=60))
-    logger.info("🔪 Stuck-Task Reaper started as background task")
+    logger.info("[KILL] Stuck-Task Reaper started as background task")
 
     handler = AsyncSocketModeHandler(app, settings.slack_app_token.get_secret_value())
     logger.info("Slack bot starting in Socket Mode...")

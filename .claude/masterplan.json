@@ -12063,6 +12063,45 @@
           "max_retries": 3
         },
         {
+          "id": "38.5.1",
+          "name": "Sweep 151 ASCII-logger violations identified by phase-38.5 (OPEN-14 follow-up)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "38.5",
+          "audit_basis": "phase-38.5 cycle 21 shipped scripts/qa/ascii_logger_check.py with continue-on-error CI; the inventory found 151 violations across ~26 files (mostly autonomous_loop.py + slack_bot/* + harness drivers). This step sweeps them.",
+          "verification": {
+            "command": "python scripts/qa/ascii_logger_check.py --roots backend scripts",
+            "success_criteria": [
+              "ascii_logger_check_exits_0_against_backend_and_scripts",
+              "pytest_count_at_or_above_45_0_baseline",
+              "no_logger_emit_drops_semantic_meaning"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "38.5.2",
+          "name": "Flip ascii-logger-lint CI workflow from continue-on-error to hard gate (depends 38.5.1)",
+          "status": "pending",
+          "harness_required": false,
+          "priority": "P3",
+          "depends_on_step": "38.5.1",
+          "audit_basis": "Once 38.5.1 cleans the 151 violations, the CI lane can flip from continue-on-error: true to false (hard gate). One-line workflow edit.",
+          "verification": {
+            "command": "grep -q 'continue-on-error: false' .github/workflows/ascii-logger-lint.yml || ! grep -q 'continue-on-error' .github/workflows/ascii-logger-lint.yml",
+            "success_criteria": [
+              "ci_lane_no_longer_uses_continue_on_error_true",
+              "next_pr_with_violation_actually_fails_ci"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "38.6",
           "name": "Restart-survivable _running flag (OPEN-15)",
           "status": "pending",

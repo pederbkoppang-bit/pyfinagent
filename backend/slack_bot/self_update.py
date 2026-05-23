@@ -362,7 +362,7 @@ log('Restart script complete')
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    logger.info("🔄 Safe restart scheduled (3s delay, with verification)")
+    logger.info("[RETRY] Safe restart scheduled (3s delay, with verification)")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -385,7 +385,7 @@ def _cleanup_old_processes() -> list[str]:
         code, _ = _run(["pkill", "-f", proc_name], timeout=5)
         if code == 0:
             killed.append(proc_name)
-            logger.info(f"🧹 Killed old process: {proc_name}")
+            logger.info(f"Killed old process: {proc_name}")
 
     # Remove mention checker from cron if present
     _run(["bash", "-c", "crontab -l 2>/dev/null | grep -v slack_mention_checker | crontab -"], timeout=5)

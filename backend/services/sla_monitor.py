@@ -202,14 +202,14 @@ class SLAMonitoringService:
             )
             
             if result.returncode == 0:
-                logger.warning(f"📱 SLA escalation sent for ticket #{ticket_num}")
+                logger.warning(f"SLA escalation sent for ticket #{ticket_num}")
                 return True
             else:
-                logger.error(f"❌ Failed to send SLA escalation: {result.stderr}")
+                logger.error(f"[FAIL] Failed to send SLA escalation: {result.stderr}")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Error sending escalation alert: {e}")
+            logger.error(f"[FAIL] Error sending escalation alert: {e}")
             return False
     
     async def monitor_sla_compliance(self) -> Dict[str, Any]:
@@ -246,7 +246,7 @@ class SLAMonitoringService:
     
     async def start_monitoring_loop(self, check_interval: float = 300):  # 5 minutes
         """Start continuous SLA monitoring."""
-        logger.info("🔍 SLA monitoring started")
+        logger.info("[SCAN] SLA monitoring started")
         
         while True:
             try:
@@ -254,18 +254,18 @@ class SLAMonitoringService:
                 
                 if monitoring_result['active_breaches'] > 0:
                     logger.warning(
-                        f"⚠️ SLA status: {monitoring_result['active_breaches']} active breaches, "
+                        f"[WARN] SLA status: {monitoring_result['active_breaches']} active breaches, "
                         f"{monitoring_result['critical_breaches']} critical, "
                         f"{monitoring_result['escalations_sent']} escalations sent"
                     )
                 else:
-                    logger.debug("✅ SLA status: All tickets within SLA")
+                    logger.debug("[OK] SLA status: All tickets within SLA")
                 
                 # Wait for next check
                 await asyncio.sleep(check_interval)
                 
             except Exception as e:
-                logger.error(f"❌ SLA monitoring error: {e}")
+                logger.error(f"[FAIL] SLA monitoring error: {e}")
                 await asyncio.sleep(check_interval)
 
 # Global monitor instance

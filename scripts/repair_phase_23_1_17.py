@@ -55,7 +55,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     logger.info("Pre-repair: cash=$%.2f, total_nav=$%.2f", pre_cash, pre_nav or 0)
 
     if not args.apply:
-        logger.info("DRY RUN — would call mark_to_market() then save_daily_snapshot().")
+        logger.info("DRY RUN -- would call mark_to_market() then save_daily_snapshot().")
         logger.info("Re-run with --apply to execute.")
         return 0
 

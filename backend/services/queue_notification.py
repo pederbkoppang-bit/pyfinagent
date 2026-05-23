@@ -34,7 +34,7 @@ class QueueNotificationService:
                 ["imsg", "send", "--to", "+4794810537", "--text", message],
                 timeout=5
             )
-            logger.info(f"✅ Failover notification sent for ticket #{ticket_number}")
+            logger.info(f"[OK] Failover notification sent for ticket #{ticket_number}")
             return True
         except Exception as e:
             logger.error(f"Failed to send failover notification: {e}")
@@ -114,7 +114,7 @@ class QueueNotificationService:
                     text=message
                 )
             
-            logger.info(f"✅ Slack notification sent for ticket #{ticket.get('ticket_number')}: position #{position}")
+            logger.info(f"[OK] Slack notification sent for ticket #{ticket.get('ticket_number')}: position #{position}")
             return True
         except Exception as e:
             logger.error(f"Failed to send Slack notification: {e}")
@@ -133,7 +133,7 @@ class QueueNotificationService:
             )
             
             if result.returncode == 0:
-                logger.info(f"✅ iMessage notification sent for ticket #{ticket.get('ticket_number')}: position #{position}")
+                logger.info(f"[OK] iMessage notification sent for ticket #{ticket.get('ticket_number')}: position #{position}")
                 return True
             else:
                 logger.error(f"Failed to send iMessage: {result.stderr}")

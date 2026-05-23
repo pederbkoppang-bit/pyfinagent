@@ -446,7 +446,7 @@ class TicketsDB:
                 conn.commit()
                 logger.info(f"Updated queue positions for {len(rows)} active tickets")
                 if position_changes:
-                    logger.info(f"⬆️ QUEUE MOVEMENT: {len(position_changes)} tickets changed position")
+                    logger.info(f"QUEUE MOVEMENT: {len(position_changes)} tickets changed position")
                     return position_changes
             
             return []
@@ -473,7 +473,7 @@ class TicketsDB:
             # Reinitialize with fresh schema
             self._init_database()
             
-            logger.warning(f"🚨 EMERGENCY PURGE: Cleared {deleted_count} tickets, reset counter to 0")
+            logger.warning(f"[ALERT] EMERGENCY PURGE: Cleared {deleted_count} tickets, reset counter to 0")
             
             return {
                 "deleted_count": deleted_count,

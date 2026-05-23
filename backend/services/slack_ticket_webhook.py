@@ -100,7 +100,7 @@ class SlackTicketWebhookHandler:
             # Calculate processing time
             processing_time_ms = (time.time() - start_time) * 1000
             
-            logger.info(f"✅ Slack → Ticket #{ack_info['ticket_number']} "
+            logger.info(f"[OK] Slack -> Ticket #{ack_info['ticket_number']} "
                        f"in {processing_time_ms:.1f}ms (target: <100ms)")
             
             # Return success response
@@ -117,7 +117,7 @@ class SlackTicketWebhookHandler:
             
         except Exception as e:
             processing_time_ms = (time.time() - start_time) * 1000
-            logger.error(f"❌ Failed to process Slack event in {processing_time_ms:.1f}ms: {e}")
+            logger.error(f"[FAIL] Failed to process Slack event in {processing_time_ms:.1f}ms: {e}")
             
             # Return error but don't fail the webhook (Slack will retry)
             return {

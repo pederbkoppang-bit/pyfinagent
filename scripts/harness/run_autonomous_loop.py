@@ -100,14 +100,14 @@ async def run_autonomous_loop(
         
         # Return exit code based on success
         if summary.get("target_reached"):
-            logger.info("✅ SUCCESS: Target Sharpe reached!")
+            logger.info("[OK] SUCCESS: Target Sharpe reached!")
             sys.exit(0)
         else:
-            logger.warning("⚠️  Target not reached, but loop completed normally")
+            logger.warning("[WARN]  Target not reached, but loop completed normally")
             sys.exit(0)
         
     except Exception as e:
-        logger.error(f"🔥 FATAL ERROR: {e}", exc_info=True)
+        logger.error(f"FATAL ERROR: {e}", exc_info=True)
         sys.exit(1)
 
 

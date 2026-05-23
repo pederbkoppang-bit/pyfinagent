@@ -200,7 +200,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                 
                 try:
                     # Heartbeat before call
-                    logger.info(f"🫀 HEARTBEAT: Ticket #{ticket_number} calling {agent_id}...")
+                    logger.info(f"HEARTBEAT: Ticket #{ticket_number} calling {agent_id}...")
                     
                     # Call Claude with timeout wrapped
                     response = client.messages.create(
@@ -216,13 +216,13 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                     response_text = response.content[0].text if response.content else "No response"
                     elapsed = time.time() - start
                     
-                    logger.info(f"✅ Agent {agent_id} completed for ticket #{ticket_number} ({elapsed:.1f}s): "
+                    logger.info(f"[OK] Agent {agent_id} completed for ticket #{ticket_number} ({elapsed:.1f}s): "
                                f"{response_text[:80]}...")
                     return response_text
                 
                 except Exception as api_error:
                     elapsed = time.time() - start
-                    logger.error(f"❌ Agent {agent_id} failed after {elapsed:.1f}s: {str(api_error)[:200]}")
+                    logger.error(f"[FAIL] Agent {agent_id} failed after {elapsed:.1f}s: {str(api_error)[:200]}")
                     raise api_error
             
             # phase-23.1.21: replaced ThreadPoolExecutor (whose `with` block calls
@@ -259,7 +259,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             
             # Check if it's a timeout or 429 error
             if "timeout" in error_msg.lower() or "429" in error_msg:
-                logger.warning(f"⚠️ FAILOVER ELIGIBLE: {agent_id} failed due to timeout/rate-limit")
+                logger.warning(f"[WARN] FAILOVER ELIGIBLE: {agent_id} failed due to timeout/rate-limit")
             
             raise Exception(f"Agent {agent_id} failed: {error_msg}")
 
@@ -320,7 +320,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             )
             
             # CLOSURE PROTOCOL: Mandatory follow-up for closed tickets
-            logger.info(f"🔴 CLOSURE TRIGGER: Ticket #{ticket_number} closed after {retries} retries. Follow-up action pending.")
+            logger.info(f"CLOSURE TRIGGER: Ticket #{ticket_number} closed after {retries} retries. Follow-up action pending.")
             # TODO: Implement follow-up trigger (notify user, escalate, archive, etc.)
             
             return False
@@ -339,7 +339,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                 if prev_agent in ['MAIN', 'Q&A']:  # Was on Opus
                     original_agent = agent_type
                     agent_type = "research"  # Use Sonnet (lighter model)
-                    logger.warning(f"⚠️ FAILOVER: Ticket #{ticket_number} switched from {original_agent} → {agent_type} (Sonnet)")
+                    logger.warning(f"[WARN] FAILOVER: Ticket #{ticket_number} switched from {original_agent} -> {agent_type} (Sonnet)")
                     
                     # Notify user of failover
                     from backend.services.queue_notification import get_queue_notification_service
@@ -356,7 +356,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             
             # DISPATCH STATE TRACKING: Log the moment ticket is assigned to agent
             dispatch_timestamp = datetime.now(timezone.utc).isoformat()
-            logger.info(f"📤 DISPATCH: Ticket #{ticket_number} assigned to {agent_type} agent at {dispatch_timestamp}")
+            logger.info(f"DISPATCH: Ticket #{ticket_number} assigned to {agent_type} agent at {dispatch_timestamp}")
 
             # Step 2: Mark as in progress
             self.db.update_ticket_status(ticket_id, TicketStatus.IN_PROGRESS)
@@ -368,7 +368,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                 # CRITICAL: Anthropic heavily rate limiting — need MASSIVE delays
                 # Formula: 60s base + exponential (60, 120, 240s max)
                 wait_time = min(60 * (2 ** (retry_count - 1)), 240)
-                logger.warning(f"⏸️ Rate limit detected. Waiting {wait_time}s before retry (attempt {retry_count + 1})")
+                logger.warning(f"Rate limit detected. Waiting {wait_time}s before retry (attempt {retry_count + 1})")
                 await asyncio.sleep(wait_time)
             else:
                 # First attempt: wait 10s to spread initial load
@@ -399,7 +399,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                     logger.error(f"Failed to update ticket {ticket_id} status")
                     return False
 
-                logger.info(f"✅ Ticket #{ticket_number} resolved by {agent_type}: "
+                logger.info(f"[OK] Ticket #{ticket_number} resolved by {agent_type}: "
                            f"{response_text[:80]}...")
 
                 # Step 5: Deliver response to user via Slack or iMessage with PRIORITY + REASONING
@@ -462,7 +462,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         
         # NOTIFY USERS OF POSITION CHANGES (but NOT position #1 — save for agent response)
         if position_changes:
-            logger.info(f"🔔 QUEUE MOVEMENT NOTIFICATIONS: {len(position_changes)} tickets moved up in queue")
+            logger.info(f"QUEUE MOVEMENT NOTIFICATIONS: {len(position_changes)} tickets moved up in queue")
             from backend.services.queue_notification import get_queue_notification_service
             notification_service = get_queue_notification_service()
             
@@ -477,7 +477,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                     if ticket and 2 <= new_position <= 5:
                         await notification_service.notify_queue_position_change(ticket, new_position)
                     elif ticket and new_position == 1:
-                        logger.info(f"📍 Ticket #{ticket['ticket_number']} at position #1 — waiting for agent response")
+                        logger.info(f"Ticket #{ticket['ticket_number']} at position #1 -- waiting for agent response")
                 except Exception as e:
                     logger.error(f"Error sending position notification: {e}")
         
@@ -487,7 +487,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         if not open_tickets:
             return 0
 
-        logger.info(f"📥 Processing batch of {len(open_tickets)} tickets")
+        logger.info(f"Processing batch of {len(open_tickets)} tickets")
 
         # Process tickets concurrently (respecting max_concurrent)
         tasks = []
@@ -510,7 +510,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             results = await asyncio.gather(*tasks, return_exceptions=True)
             processed_count = sum(1 for r in results if r is True)
 
-            logger.info(f"✅ Batch complete: {processed_count}/{len(tasks)} succeeded")
+            logger.info(f"[OK] Batch complete: {processed_count}/{len(tasks)} succeeded")
 
         return processed_count
 
@@ -522,7 +522,7 @@ Please provide a helpful response. This will be sent back to the user via {ticke
             batch_interval: Seconds between batch processing cycles
         """
         self.running = True
-        logger.info("🚀 Ticket queue processor started")
+        logger.info("[GO] Ticket queue processor started")
 
         while self.running:
             try:
@@ -531,20 +531,20 @@ Please provide a helpful response. This will be sent back to the user via {ticke
 
                 # Log stats periodically
                 stats = self.db.get_ticket_stats()
-                logger.debug(f"📊 Queue stats: {stats['status_counts']}")
+                logger.debug(f"[CHART] Queue stats: {stats['status_counts']}")
 
                 # Wait before next batch (shorter if we processed tickets)
                 wait_time = batch_interval if processed == 0 else batch_interval / 2
                 await asyncio.sleep(wait_time)
 
             except Exception as e:
-                logger.error(f"❌ Error in processing loop: {e}")
+                logger.error(f"[FAIL] Error in processing loop: {e}")
                 await asyncio.sleep(batch_interval)
 
     def stop(self):
         """Stop the processing loop."""
         self.running = False
-        logger.info("🛑 Ticket queue processor stopping")
+        logger.info("[STOP] Ticket queue processor stopping")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get processor statistics."""

@@ -90,7 +90,7 @@ class AutonomousLoopOrchestrator:
         self.target_sharpe = 1.23  # 5-10% above baseline 1.1705
         self.baseline_sharpe = 1.1705
         
-        logger.info(f"✅ AutonomousLoopOrchestrator initialized")
+        logger.info(f"[OK] AutonomousLoopOrchestrator initialized")
         logger.info(f"   Target Sharpe: {self.target_sharpe}")
         logger.info(f"   Max iterations: {self.max_iterations}")
     
@@ -110,7 +110,7 @@ class AutonomousLoopOrchestrator:
             Summary of loop execution with final Sharpe, iterations, learnings
         """
         
-        logger.info("🚀 AUTONOMOUS LOOP: Starting...")
+        logger.info("[GO] AUTONOMOUS LOOP: Starting...")
         
         current_best_sharpe = initial_sharpe
         current_best_params = None
@@ -139,7 +139,7 @@ class AutonomousLoopOrchestrator:
                 iteration.planner_proposals = proposals
                 
                 if not proposals:
-                    logger.warning("⚠️  No proposals generated. Stopping loop.")
+                    logger.warning("[WARN]  No proposals generated. Stopping loop.")
                     break
                 
                 # 2. GENERATE: Run backtests on top 2 proposals
@@ -152,7 +152,7 @@ class AutonomousLoopOrchestrator:
                 iteration.backtest_results = backtest_results
                 
                 if not backtest_results:
-                    logger.error("❌ Backtest generation failed. Trying next cycle.")
+                    logger.error("[FAIL] Backtest generation failed. Trying next cycle.")
                     continue
                 
                 # 3. EVALUATE: Run spot checks and evaluator
@@ -171,7 +171,7 @@ class AutonomousLoopOrchestrator:
                     current_best_sharpe = new_sharpe
                     current_best_params = selected["parameters"]
                     
-                    logger.info(f"✅ PASS: Sharpe improved {current_best_sharpe:.4f} (+{sharpe_delta:.4f})")
+                    logger.info(f"[OK] PASS: Sharpe improved {current_best_sharpe:.4f} (+{sharpe_delta:.4f})")
                     
                     # Extract learnings for next cycle
                     learnings = await self._extract_learnings(
@@ -184,18 +184,18 @@ class AutonomousLoopOrchestrator:
                     
                     # Check if we've hit target
                     if current_best_sharpe >= self.target_sharpe:
-                        logger.info(f"🎯 TARGET REACHED: {current_best_sharpe:.4f} >= {self.target_sharpe:.4f}")
+                        logger.info(f"TARGET REACHED: {current_best_sharpe:.4f} >= {self.target_sharpe:.4f}")
                         iteration.end_time = datetime.now(timezone.utc).isoformat()
                         await self._log_iteration_to_bq(iteration)
                         break
                 
                 elif verdict_str == "CONDITIONAL":
-                    logger.warning(f"⚠️  CONDITIONAL: Run spot checks and try again")
+                    logger.warning(f"[WARN]  CONDITIONAL: Run spot checks and try again")
                     # In real system, run detailed spot checks here
                     # For now, continue to next proposal
                     
                 else:  # FAIL
-                    logger.info(f"❌ FAIL: Proposal rejected by evaluator")
+                    logger.info(f"[FAIL] FAIL: Proposal rejected by evaluator")
                     # Continue to next cycle with new proposal
                 
                 # 5. LEARN: Log iteration
@@ -203,7 +203,7 @@ class AutonomousLoopOrchestrator:
                 await self._log_iteration_to_bq(iteration)
                 
             except Exception as e:
-                logger.error(f"🔥 ERROR in cycle {cycle}: {e}", exc_info=True)
+                logger.error(f"ERROR in cycle {cycle}: {e}", exc_info=True)
                 continue
         
         # Return summary
@@ -219,7 +219,7 @@ class AutonomousLoopOrchestrator:
         }
         
         logger.info(f"\n{'='*60}")
-        logger.info("🎉 AUTONOMOUS LOOP COMPLETE")
+        logger.info("AUTONOMOUS LOOP COMPLETE")
         logger.info(f"{'='*60}")
         logger.info(f"Final Sharpe: {summary['final_sharpe']:.4f}")
         logger.info(f"Total Gain: {summary['sharpe_gain']:.4f} ({summary['sharpe_gain_pct']:.1f}%)")
@@ -355,13 +355,13 @@ class AutonomousLoopOrchestrator:
         Returns list of 3-5 proposals ranked by expected impact.
         """
         
-        logger.info("📋 PLAN: Calling Planner agent...")
+        logger.info("[QUEUE] PLAN: Calling Planner agent...")
         
         # Import here to avoid circular imports
         try:
             from backend.agents.planner_agent import PlannerAgent
         except ImportError:
-            logger.warning("⚠️  Could not import PlannerAgent. Using mock proposals.")
+            logger.warning("[WARN]  Could not import PlannerAgent. Using mock proposals.")
             return self._get_mock_proposals(current_best_sharpe)
         
         planner = PlannerAgent(model=self.planner_model)
@@ -382,12 +382,12 @@ class AutonomousLoopOrchestrator:
             )
             
             proposals = proposal_json.get("proposals", [])
-            logger.info(f"✅ Planner generated {len(proposals)} proposals")
+            logger.info(f"[OK] Planner generated {len(proposals)} proposals")
             
             return proposals[:5]  # Return top 5
             
         except Exception as e:
-            logger.error(f"❌ Planner call failed: {e}")
+            logger.error(f"[FAIL] Planner call failed: {e}")
             return self._get_mock_proposals(current_best_sharpe)
     
     async def _generate_phase(
@@ -400,20 +400,20 @@ class AutonomousLoopOrchestrator:
         Returns list of backtest results.
         """
         
-        logger.info(f"⚙️  GENERATE: Running {len(proposals)} backtests in parallel...")
+        logger.info(f"[CFG]  GENERATE: Running {len(proposals)} backtests in parallel...")
         
         # Import backtest harness
         try:
             from backend.backtest.backtest_engine import BacktestEngine
         except ImportError:
-            logger.warning("⚠️  Could not import BacktestEngine. Using mock results.")
+            logger.warning("[WARN]  Could not import BacktestEngine. Using mock results.")
             return self._get_mock_backtest_results(len(proposals))
         
         # In real system, we'd run these in parallel via run_harness.py
         # For now, return mock results
         results = self._get_mock_backtest_results(len(proposals))
         
-        logger.info(f"✅ Generated {len(results)} backtest results")
+        logger.info(f"[OK] Generated {len(results)} backtest results")
         return results
     
     async def _evaluate_phase(
@@ -428,12 +428,12 @@ class AutonomousLoopOrchestrator:
         Returns (verdict, sharpe_delta).
         """
         
-        logger.info("🔍 EVALUATE: Running evaluator...")
+        logger.info("[SCAN] EVALUATE: Running evaluator...")
         
         try:
             from backend.agents.evaluator_agent import EvaluatorAgent, EvaluationVerdict
         except ImportError:
-            logger.warning("⚠️  Could not import EvaluatorAgent. Using mock evaluation.")
+            logger.warning("[WARN]  Could not import EvaluatorAgent. Using mock evaluation.")
             # Return mock verdict
             result_sharpe = backtest_results[0].get("sharpe", 1.1705)
             delta = result_sharpe - baseline_sharpe
@@ -540,10 +540,10 @@ class AutonomousLoopOrchestrator:
             # Note: In real system, would insert to BQ
             # self.bq_client.insert_rows_json(table_id, [row])
             
-            logger.debug(f"📝 Logged iteration {iteration.iteration_id} to BQ")
+            logger.debug(f"[NOTE] Logged iteration {iteration.iteration_id} to BQ")
             
         except Exception as e:
-            logger.error(f"⚠️  Failed to log iteration to BQ: {e}")
+            logger.error(f"[WARN]  Failed to log iteration to BQ: {e}")
     
     def _get_mock_proposals(self, baseline_sharpe: float) -> List[Dict[str, Any]]:
         """Generate mock proposals for testing."""

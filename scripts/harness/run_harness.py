@@ -578,7 +578,7 @@ def run_evaluator(params: dict, settings, bq) -> dict:
                     "adjusted_sharpe": round(float(lo_adjusted_sharpe), 4),
                     "inflated": rho_1 > 0.1,
                 }
-                logger.info("  Lo(2002) full: raw=%.4f, ρ₁=%.4f, η(q)=%.2f, adj=%.4f",
+                logger.info("  Lo(2002) full: raw=%.4f, ??=%.4f, ?(q)=%.2f, adj=%.4f",
                            raw_sharpe, rho_1, eta, lo_adjusted_sharpe)
             except Exception as e:
                 logger.warning("  Lo(2002) adjustment failed: %s", e)
@@ -626,7 +626,7 @@ def run_evaluator(params: dict, settings, bq) -> dict:
                 "note": f"Max positions={max_pos} → equal weight {theoretical_max_pct:.1f}%. "
                         f"{'Within 10% limit.' if theoretical_max_pct <= 10.0 else 'Exceeds 10% limit — increase max_positions.'}"
             }
-            logger.info("  Position concentration: %d positions → %.1f%% max (%s)",
+            logger.info("  Position concentration: %d positions -> %.1f%% max (%s)",
                         max_pos, theoretical_max_pct, "PASS" if theoretical_max_pct <= 10.0 else "FAIL")
 
     # -- GRADE (anti-leniency: grade each criterion BEFORE verdict) --

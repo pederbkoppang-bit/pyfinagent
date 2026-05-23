@@ -142,7 +142,7 @@ class MessageIngestionService:
                 }
             )
             
-            logger.info(f"✅ Slack → Ticket #{self.db.get_ticket(ticket_id)['ticket_number']} "
+            logger.info(f"[OK] Slack -> Ticket #{self.db.get_ticket(ticket_id)['ticket_number']} "
                        f"[{priority.value}/{classification.value}]: {message_text[:50]}")
             
             return ticket_id
@@ -194,7 +194,7 @@ class MessageIngestionService:
                 }
             )
             
-            logger.info(f"✅ iMessage → Ticket #{self.db.get_ticket(ticket_id)['ticket_number']} "
+            logger.info(f"[OK] iMessage -> Ticket #{self.db.get_ticket(ticket_id)['ticket_number']} "
                        f"[{priority.value}/{classification.value}]: {message_text[:50]}")
             
             return ticket_id

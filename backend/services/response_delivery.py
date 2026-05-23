@@ -52,17 +52,17 @@ class ResponseDeliveryService:
             )
             
             if result.returncode == 0:
-                logger.info(f"✅ iMessage sent to {phone_number}: {message[:50]}...")
+                logger.info(f"[OK] iMessage sent to {phone_number}: {message[:50]}...")
                 return True
             else:
-                logger.error(f"❌ iMessage send failed: {result.stderr}")
+                logger.error(f"[FAIL] iMessage send failed: {result.stderr}")
                 return False
                 
         except subprocess.TimeoutExpired:
-            logger.error(f"❌ iMessage send timeout to {phone_number}")
+            logger.error(f"[FAIL] iMessage send timeout to {phone_number}")
             return False
         except Exception as e:
-            logger.error(f"❌ iMessage send error to {phone_number}: {e}")
+            logger.error(f"[FAIL] iMessage send error to {phone_number}: {e}")
             return False
 
     async def send_slack_response(
@@ -160,15 +160,15 @@ class ResponseDeliveryService:
         # Get ticket details
         ticket = self.db.get_ticket(ticket_id)
         if not ticket:
-            logger.error(f"❌ Ticket {ticket_id} not found for delivery")
+            logger.error(f"[FAIL] Ticket {ticket_id} not found for delivery")
             return False
         
         if ticket['status'] != 'RESOLVED':
-            logger.error(f"❌ Ticket {ticket_id} not resolved, cannot deliver")
+            logger.error(f"[FAIL] Ticket {ticket_id} not resolved, cannot deliver")
             return False
         
         if not ticket['response_text']:
-            logger.error(f"❌ Ticket {ticket_id} has no response text")
+            logger.error(f"[FAIL] Ticket {ticket_id} has no response text")
             return False
         
         # Use provided priority/classification or fall back to ticket values
@@ -204,19 +204,19 @@ class ResponseDeliveryService:
                 )
                 
             else:
-                logger.error(f"❌ Unknown ticket source: {source}")
+                logger.error(f"[FAIL] Unknown ticket source: {source}")
                 return False
             
             if success:
                 # Update ticket to mark response as delivered
-                logger.info(f"✅ Response delivered for ticket #{ticket_number}")
+                logger.info(f"[OK] Response delivered for ticket #{ticket_number}")
                 return True
             else:
-                logger.error(f"❌ Failed to deliver response for ticket #{ticket_number}")
+                logger.error(f"[FAIL] Failed to deliver response for ticket #{ticket_number}")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Error delivering ticket {ticket_id} response: {e}")
+            logger.error(f"[FAIL] Error delivering ticket {ticket_id} response: {e}")
             return False
 
     async def deliver_pending_responses(self, limit: int = 50) -> int:
@@ -248,7 +248,7 @@ class ResponseDeliveryService:
         if not ticket_ids:
             return 0
         
-        logger.info(f"📤 Delivering responses for {len(ticket_ids)} tickets")
+        logger.info(f"Delivering responses for {len(ticket_ids)} tickets")
         
         delivered_count = 0
         for ticket_id in ticket_ids:
@@ -261,9 +261,9 @@ class ResponseDeliveryService:
                 await asyncio.sleep(0.1)
                 
             except Exception as e:
-                logger.error(f"❌ Failed to deliver ticket {ticket_id}: {e}")
+                logger.error(f"[FAIL] Failed to deliver ticket {ticket_id}: {e}")
         
-        logger.info(f"📤 Delivered {delivered_count}/{len(ticket_ids)} responses")
+        logger.info(f"Delivered {delivered_count}/{len(ticket_ids)} responses")
         return delivered_count
 
     def get_delivery_stats(self) -> Dict[str, int]:

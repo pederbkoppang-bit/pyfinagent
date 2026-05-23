@@ -219,5 +219,5 @@ async def update_agent_model(agent_type: str, body: dict):
     old_model = AGENT_CONFIGS[at].model
     AGENT_CONFIGS[at].model = new_model
 
-    logger.info(f"🔄 Agent model changed: {agent_type} {old_model} → {new_model}")
+    logger.info(f"[RETRY] Agent model changed: {agent_type} {old_model} -> {new_model}")
     return {"ok": True, "agent": agent_type, "old_model": old_model, "new_model": new_model}

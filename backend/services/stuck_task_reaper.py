@@ -30,7 +30,7 @@ class StuckTaskReaper:
     async def start(self):
         """Start the reaper loop."""
         self.running = True
-        logger.info("🔪 Stuck-Task Reaper started (15-minute timeout)")
+        logger.info("[KILL] Stuck-Task Reaper started (15-minute timeout)")
         
         while self.running:
             try:
@@ -79,7 +79,7 @@ class StuckTaskReaper:
                     await self.kill_ticket(ticket)
                 
                 if stuck_tickets:
-                    logger.warning(f"🔪 Reaped {len(stuck_tickets)} stuck tasks")
+                    logger.warning(f"[KILL] Reaped {len(stuck_tickets)} stuck tasks")
         
         except Exception as e:
             logger.error(f"Error checking for stuck tasks: {e}")
@@ -100,7 +100,7 @@ class StuckTaskReaper:
                 error_message=f"Execution timeout: {int(elapsed)}s > 15min threshold"
             )
             
-            logger.warning(f"🔪 KILLED: Ticket #{ticket_number} ({int(elapsed)}s elapsed)")
+            logger.warning(f"[KILL] KILLED: Ticket #{ticket_number} ({int(elapsed)}s elapsed)")
             
             # Notify user
             await self.notify_user_of_kill(ticket_number, source, sender_id, elapsed)
@@ -130,7 +130,7 @@ class StuckTaskReaper:
                     channel=sender_id,
                     text=message
                 )
-                logger.info(f"✅ Notification sent to Slack for killed ticket #{ticket_number}")
+                logger.info(f"[OK] Notification sent to Slack for killed ticket #{ticket_number}")
             
             elif source == 'imessage':
                 # Send to iMessage
@@ -139,7 +139,7 @@ class StuckTaskReaper:
                     ["imsg", "send", "--to", sender_id, "--text", message],
                     timeout=5
                 )
-                logger.info(f"✅ Notification sent to iMessage for killed ticket #{ticket_number}")
+                logger.info(f"[OK] Notification sent to iMessage for killed ticket #{ticket_number}")
         
         except Exception as e:
             logger.error(f"Failed to notify user of killed task: {e}")
@@ -147,7 +147,7 @@ class StuckTaskReaper:
     def stop(self):
         """Stop the reaper loop."""
         self.running = False
-        logger.info("🔪 Stuck-Task Reaper stopped")
+        logger.info("[KILL] Stuck-Task Reaper stopped")
 
 
 # Global instance

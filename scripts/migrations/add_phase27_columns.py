@@ -104,7 +104,7 @@ def main() -> int:
     logger.info("=== phase-27.4 migration ===")
     logger.info("Target: %s", table_fqn)
     logger.info("Already present (no-op): %s", already_present or "none")
-    logger.info("To add: %s", [c[0] for c in needed] or "none — fully idempotent re-run")
+    logger.info("To add: %s", [c[0] for c in needed] or "none -- fully idempotent re-run")
 
     if not needed:
         logger.info("ok phase-27.4 migration is a no-op; all 5 columns already exist")
@@ -117,7 +117,7 @@ def main() -> int:
             f"OPTIONS(description={description!r})"
         )
         if not args.apply:
-            logger.info("DRY RUN — would execute:\n%s", ddl)
+            logger.info("DRY RUN -- would execute:\n%s", ddl)
             continue
         try:
             client.query(ddl, location="us-central1").result(timeout=30)
@@ -135,7 +135,7 @@ def main() -> int:
     post_names = {f.name for f in table_post.schema}
     still_missing = target_names - post_names
     if still_missing:
-        logger.error("POST-FLIGHT FAILED — still missing: %s", still_missing)
+        logger.error("POST-FLIGHT FAILED -- still missing: %s", still_missing)
         return 5
     logger.info("ok phase-27.4 migration: all 5 columns now present")
     return 0

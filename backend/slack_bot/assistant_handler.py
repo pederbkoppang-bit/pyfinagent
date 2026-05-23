@@ -166,7 +166,7 @@ def handle_thread_started(say, set_suggested_prompts, get_thread_context, logger
             "Try a prompt below or ask me anything."
         )
         set_suggested_prompts(prompts=_get_suggested_prompts(thread_context))
-        logger.info("✅ Assistant thread started — prompts set")
+        logger.info("[OK] Assistant thread started -- prompts set")
     except Exception as e:
         logger.exception(f"Failed to handle thread_started: {e}")
         say(f"⚠️ Something went wrong setting up: {e}")
@@ -177,7 +177,7 @@ def handle_context_changed(get_thread_context, logger):
     try:
         ctx = get_thread_context()
         if ctx:
-            logger.info(f"📋 Context changed — channel: {getattr(ctx, 'channel_id', None)}")
+            logger.info(f"[QUEUE] Context changed -- channel: {getattr(ctx, 'channel_id', None)}")
     except Exception as e:
         logger.exception(f"Failed to handle context change: {e}")
 
@@ -211,7 +211,7 @@ def handle_user_message(client, context, get_thread_context, logger, payload, sa
         if not user_message:
             return
 
-        logger.info(f"📨 Assistant message: {user_message[:80]}")
+        logger.info(f"Assistant message: {user_message[:80]}")
 
         # ── Initialize audit record ─────────────────────────────
         audit_record = AuditRecord(
@@ -282,13 +282,13 @@ def handle_user_message(client, context, get_thread_context, logger, payload, sa
         audit_record.parallel_agents = [a.value for a in (classification.parallel_agents or [])]
 
         logger.info(
-            f"📋 → {classification.agent_type.value} "
+            f"[QUEUE] -> {classification.agent_type.value} "
             f"({classification.complexity.value}, {classification.confidence:.0%}) "
-            f"— {classification.reasoning}"
+            f"-- {classification.reasoning}"
         )
 
         # Update loading status with agent-specific messages
-        loading = LOADING_MESSAGES.get(classification.agent_type, ["Working on it…"])
+        loading = LOADING_MESSAGES.get(classification.agent_type, ["Working on it..."])
         if classification.complexity == QueryComplexity.COMPLEX:
             loading = LOADING_MESSAGES_COMPLEX
         set_status(status="thinking…", loading_messages=loading)
@@ -551,7 +551,7 @@ def _stream_simple(
         time.sleep(0.04)
 
     streamer.stop(blocks=_create_feedback_block())
-    logger.info(f"✅ Streamed {agent_name} ({len(full)} chars) in {(time.time()-start)*1000:.0f}ms")
+    logger.info(f"[OK] Streamed {agent_name} ({len(full)} chars) in {(time.time()-start)*1000:.0f}ms")
     return result
 
 
@@ -667,10 +667,10 @@ def _stream_complex_with_task_plan(
                     ),
                 ])
 
-                logger.info(f"✅ {agent_type.value} completed in {proc_ms:.0f}ms")
+                logger.info(f"[OK] {agent_type.value} completed in {proc_ms:.0f}ms")
 
             except Exception as e:
-                logger.error(f"❌ {agent_type.value} failed: {e}")
+                logger.error(f"[FAIL] {agent_type.value} failed: {e}")
                 agent_responses[agent_type] = f"⚠️ Error: {str(e)[:150]}"
 
                 streamer.append(chunks=[
@@ -719,7 +719,7 @@ def _stream_complex_with_task_plan(
     streamer.stop(blocks=_create_feedback_block())
 
     logger.info(
-        f"✅ Complex response — {len(agents)} agents, {total_ms:.0f}ms total, "
+        f"[OK] Complex response -- {len(agents)} agents, {total_ms:.0f}ms total, "
         f"{total_usage['input']}+{total_usage['output']} tokens"
     )
 
@@ -739,7 +739,7 @@ def _stream_complex_with_task_plan(
 def handle_feedback_positive(ack, body, logger):
     ack()
     user = body.get("user", {}).get("id", "unknown")
-    logger.info(f"👍 Positive feedback from {user}")
+    logger.info(f"Positive feedback from {user}")
     from backend.slack_bot.governance import get_audit_logger
     get_audit_logger().record_feedback(user, "positive")
 
@@ -747,7 +747,7 @@ def handle_feedback_positive(ack, body, logger):
 def handle_feedback_negative(ack, body, logger):
     ack()
     user = body.get("user", {}).get("id", "unknown")
-    logger.info(f"👎 Negative feedback from {user}")
+    logger.info(f"Negative feedback from {user}")
     from backend.slack_bot.governance import get_audit_logger
     get_audit_logger().record_feedback(user, "negative")
 

@@ -144,20 +144,14 @@ def test_phase_38_5_json_output_format(tmp_path: Path):
     assert "line" in record and "col" in record and "path" in record
 
 
-def test_phase_38_5_known_existing_violations_surface_in_real_codebase():
-    """Sanity: running the script against the REAL repo should produce
-    a known-bad count (per phase-38.5 research_brief: 138-ish; my count
-    is ~151 with f-string-literal parts). This is the inventory phase-38.5.1
-    will clean up."""
+def test_phase_38_5_real_codebase_clean_post_sweep():
+    """Post phase-38.5.1 sweep: ascii_logger_check.py must exit 0 against
+    the real backend/ + scripts/ tree. Cycle 21 found 151 violations;
+    cycle 42 swept them (22 files + 4 files, 126 lines edited). This test
+    locks the new CLEAN invariant; any future regression trips it."""
     result = _run(["--roots", str(REPO_ROOT / "backend"), str(REPO_ROOT / "scripts")])
-    # Real codebase has violations -- exit 1 is correct + expected today.
-    assert result.returncode == 1, (
-        f"real codebase should still have violations until phase-38.5.1 ships;"
-        f" got exit {result.returncode}"
-    )
-    # Count: should be in the 100-200 range (defensive bound).
-    n_violations = len([ln for ln in result.stdout.splitlines() if ln.strip() and ":" in ln])
-    assert 50 <= n_violations <= 500, (
-        f"violation count {n_violations} is outside the defensive 50-500 range; "
-        "either the codebase changed dramatically OR the script regressed."
+    assert result.returncode == 0, (
+        f"real codebase must be CLEAN of non-ASCII logger violations "
+        f"post phase-38.5.1 sweep; got exit {result.returncode}\n"
+        f"stdout: {result.stdout[:2000]}"
     )

@@ -45,7 +45,7 @@ class AssistantLifecycleHandler:
         channel_id = body.get("assistant_thread", {}).get("channel_id")
         thread_ts = body.get("assistant_thread", {}).get("thread_ts")
         
-        logger.info(f"🔄 Thread started: channel={channel_id}, thread_ts={thread_ts}")
+        logger.info(f"[RETRY] Thread started: channel={channel_id}, thread_ts={thread_ts}")
         
         try:
             # Send welcome message
@@ -81,10 +81,10 @@ class AssistantLifecycleHandler:
                 ]
             })
             
-            logger.info(f"✅ Thread started: welcome + prompts sent")
+            logger.info(f"[OK] Thread started: welcome + prompts sent")
             
         except Exception as e:
-            logger.error(f"❌ handle_thread_started failed: {e}")
+            logger.error(f"[FAIL] handle_thread_started failed: {e}")
             raise
     
     async def handle_context_changed(
@@ -105,12 +105,12 @@ class AssistantLifecycleHandler:
         channel_id = context.get("channel_id")
         team_id = context.get("team_id")
         
-        logger.info(f"🔄 Context changed: channel={channel_id}")
+        logger.info(f"[RETRY] Context changed: channel={channel_id}")
         
         # Store context for use in message handler
         # (In production, store in Redis or thread-local state)
         
-        logger.info(f"✅ Context updated: {channel_id}")
+        logger.info(f"[OK] Context updated: {channel_id}")
     
     async def handle_user_message(
         self,
@@ -142,7 +142,7 @@ class AssistantLifecycleHandler:
             user_text = message.get("text", "").strip()
             action_token = message.get("action_token")  # For workspace search
             
-            logger.info(f"💬 Message: user={user_id}, text={user_text[:50]}")
+            logger.info(f"Message: user={user_id}, text={user_text[:50]}")
             
             # Set visible status
             await set_status({"status": "Thinking..."})
@@ -161,10 +161,10 @@ class AssistantLifecycleHandler:
             # Clear status (handled in streaming_integration)
             await set_status({"status": ""})
             
-            logger.info(f"✅ Message handled")
+            logger.info(f"[OK] Message handled")
             
         except Exception as e:
-            logger.error(f"❌ handle_user_message failed: {e}")
+            logger.error(f"[FAIL] handle_user_message failed: {e}")
             await set_status({"status": ""})  # Clear status on error
             raise
 
@@ -198,4 +198,4 @@ def register_assistant_lifecycle(app):
         )
 
     app.use(assistant)
-    logger.info("✅ Assistant lifecycle handlers registered")
+    logger.info("[OK] Assistant lifecycle handlers registered")
