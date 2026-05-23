@@ -23325,3 +23325,18 @@ Total: 9 PD.
 - Closure path: 34 phases closed across cycles 12-44. Next: 39.1 owner / 40.1 .env perm / 40.3 owner / 40.7 owner / 44.2 deps / 44.7 deps / 35.3 / 44.10 / 43.0 FINAL GATE -> PRODUCTION_READY_request_<date>.md -> owner approval.
 
 **Total cycle time:** ~45 min (includes cycle-2 recovery).
+
+
+## Cycle 45 -- 2026-05-23 -- phase=38.2 result=PASS
+
+- Step: phase-38.2 (P2 OPEN-11) -- Lost cycle 3a observability. Mid-cycle SIGKILL/OOM/power-loss now leaves an orphan trace.
+- Researcher SPAWNED FIRST (no SKIP -- cycle 44 lesson honored). Tier=simple; 6 sources read-in-full; gate_passed=true. Design (a) recommended: append-then-append with status discriminator + POSIX O_APPEND atomicity citation.
+- Generate: backend/services/cycle_health.py (+82): record_cycle_start now appends JSONL row with status="started"; last_cycles gains include_started=False kwarg; new orphan_rows() accessor returns started rows without matching terminal; cycle_heartbeat_alarm now skips "started" rows when picking last_completed_at (else halted cycle would suppress alarm -- the exact lost-cycle-3a failure mode).
+- Tests: backend/tests/test_phase_38_2_cycle_start_logging.py NEW (+155, 8 tests). All 3 immutable criteria + caller-compat + alarm regression + threading-lock mutation-resistance.
+- Pytest: 8/8 new PASS + 7/7 existing cycle_heartbeat_alarm regression PASS = 15/15. Collected 488 -> 496 (+8 net, 0 phase-38.2 regressions).
+- Q/A round-1 PASS (single spawn; no second-opinion-shopping needed). Code-review Top-15 clean (0 BLOCK / 0 WARN / 0 NOTE on diff).
+- Pre-existing failures discovered but unrelated to phase-38.2: (1) test_phase_23_2_16_shortlist_doc_presence brittle path; (2) test_rainbow_canary partition test-order pollution. Both pass in isolation. Surfaced as follow-up P3 tickets phase-38.2.1 + phase-38.2.2.
+- N* delta R+B honest. R: closes OPEN-11 (observability blind spot); 08:14 CEST 2026-05-21 lost-cycle-3a failure mode cannot recur silently. B: ~30 min -> ~30 sec future diagnostic time on halted cycles.
+- Closure path: 35 phases closed across cycles 12-45. Next: 35.3 (5-cycle streak) / 40.8 (correlation cap) / 27.6 Claude smoke (needs running backend) / 29.8 bundle / owner-gated batch.
+
+**Total cycle time:** ~25 min (single Q/A round; no rework).

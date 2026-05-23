@@ -11983,7 +11983,7 @@
         {
           "id": "38.2",
           "name": "Lost cycle 3a observability (OPEN-11)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,

@@ -184,17 +184,22 @@ def cycle_heartbeat_alarm(
             return sentinel
         with _HISTORY_PATH.open(encoding="utf-8") as f:
             lines = f.readlines()
-        # Tail-read newest first; pick the first parseable row.
+        # phase-38.2: skip "started" rows -- they have completed_at=null and
+        # would otherwise short-circuit to sentinel, suppressing the alarm
+        # on a halted cycle (the exact lost-cycle-3a failure mode).
         last_row: Optional[dict] = None
         for line in reversed(lines):
             line = line.strip()
             if not line:
                 continue
             try:
-                last_row = json_io.parse_json_line(line)
-                break
+                parsed = json_io.parse_json_line(line)
             except Exception:
                 continue
+            if parsed.get("status") == "started":
+                continue
+            last_row = parsed
+            break
         if not last_row:
             return sentinel
         completed_at = last_row.get("completed_at")
@@ -257,7 +262,30 @@ class CycleHealthLog:
         self._lock = threading.Lock()
 
     def record_cycle_start(self, cycle_id: str) -> str:
+        # phase-38.2 (OPEN-11): write a "started" row to cycle_history.jsonl
+        # immediately so a halted/SIGKILLd cycle leaves an audit trace.
+        # Design (a) per research_brief_phase_38_2.md: append-then-append --
+        # one started row at start, one terminal row at end, joined by
+        # cycle_id. POSIX O_APPEND atomicity (man write(2)) + the existing
+        # threading.Lock guarantee row-boundary integrity.
         started_at = _now_iso()
+        row = {
+            "cycle_id": cycle_id,
+            "started_at": started_at,
+            "completed_at": None,
+            "duration_ms": None,
+            "status": "started",
+            "n_trades": 0,
+            "error_count": 0,
+            "data_source_ages": {},
+            "bq_ingest_lag_sec": None,
+        }
+        with self._lock:
+            try:
+                with _HISTORY_PATH.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps(row) + "\n")
+            except Exception as e:
+                logger.warning(f"cycle_history start-row write failed: {e}")
         self._write_heartbeat(cycle_id, "start")
         return started_at
 
@@ -296,26 +324,66 @@ class CycleHealthLog:
                 logger.warning(f"cycle_history write failed: {e}")
         self._write_heartbeat(cycle_id, "end")
 
-    def last_cycles(self, n: int = 10) -> list[dict]:
+    def last_cycles(self, n: int = 10, include_started: bool = False) -> list[dict]:
+        # phase-38.2: by default skip "started" rows so existing callers
+        # (UI tabs, alarm) only see terminal rows. Set include_started=True
+        # to surface them for orphan audit (see orphan_rows()).
         if not _HISTORY_PATH.exists():
             return []
         try:
-            # Tail-read: keep memory bounded on large files.
             with _HISTORY_PATH.open(encoding="utf-8") as f:
                 lines = f.readlines()
         except Exception as e:
             logger.warning(f"cycle_history read failed: {e}")
             return []
         out: list[dict] = []
-        for line in lines[-max(n, 1):][::-1]:  # newest first
+        for line in reversed(lines):  # newest first
             line = line.strip()
             if not line:
                 continue
             try:
-                out.append(json_io.parse_json_line(line))
+                row = json_io.parse_json_line(line)
             except Exception:
                 continue
+            if not include_started and row.get("status") == "started":
+                continue
+            out.append(row)
+            if len(out) >= max(n, 1):
+                break
         return out
+
+    def orphan_rows(self) -> list[dict]:
+        # phase-38.2 (OPEN-11 criterion 3): return started rows whose cycle_id
+        # has NO matching terminal row. Detects halted / SIGKILLd cycles.
+        if not _HISTORY_PATH.exists():
+            return []
+        try:
+            with _HISTORY_PATH.open(encoding="utf-8") as f:
+                lines = f.readlines()
+        except Exception as e:
+            logger.warning(f"cycle_history orphan_rows read failed: {e}")
+            return []
+        starts: dict[str, dict] = {}
+        terminated: set[str] = set()
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json_io.parse_json_line(line)
+            except Exception:
+                continue
+            cid = row.get("cycle_id")
+            if not cid:
+                continue
+            status = row.get("status")
+            if status == "started":
+                # Keep only the FIRST started row per cycle_id (deterministic).
+                starts.setdefault(cid, row)
+            else:
+                # Any non-started status (completed/failed/etc.) terminates.
+                terminated.add(cid)
+        return [row for cid, row in starts.items() if cid not in terminated]
 
     def _write_heartbeat(self, cycle_id: str, event: str) -> None:
         payload = {"cycle_id": cycle_id, "event": event, "updated_at": _now_iso()}
