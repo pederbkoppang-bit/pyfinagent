@@ -7289,7 +7289,7 @@
         {
           "id": "23.2.9",
           "name": "Verify ticker-meta latency stays low",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 10,
           "verification": "time curl /api/paper-trading/ticker-meta?tickers=<14 known> should be <100ms cache-hit; grep 'Prewarming ticker-meta cache' backend.log should appear on every boot"
