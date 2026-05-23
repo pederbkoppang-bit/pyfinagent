@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-23 | `f458d774` | phase-28: Candidate Picker Expansion |
 | 2026-05-23 | `82a8ba7b` | phase-23.8: Dev-MAS Audit Remediation |
 | 2026-05-23 | `e10da8ef` | phase-23.6: Resolve persistent items deferred from phase-23.5 |
 | 2026-05-23 | `742ab72d` | docs: production-ready audit 2026-05-23 -- 6/14 DoD PASS (up from 2/14) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `b6a95f7e` | phase-23.2.11: Verify BQ table freshness across 7 paper_* + analysis tables |
 | 2026-05-23 | `3732c0d2` | phase-23.2.10: Verify watchdog has not fired in 7 days |
 | 2026-05-23 | `8b2878ed` | phase-23.2.9: Verify ticker-meta latency stays low |
-| 2026-05-23 | `f136c0dd` | phase-23.2.8: Verify home cockpit and paper-trading hero metrics stay in sync |
 
 ---
 
+### v6.18.25 — phase-28: Candidate Picker Expansion (2026-05-23)
+
+- **phase-28: Candidate Picker Expansion**
 ### v6.18.24 — phase-23.8: Dev-MAS Audit Remediation (2026-05-23)
 
 - **phase-23.8: Dev-MAS Audit Remediation**
