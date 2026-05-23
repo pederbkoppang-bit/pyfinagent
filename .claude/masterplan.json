@@ -7273,7 +7273,7 @@
         {
           "id": "23.2.7",
           "name": "Verify Red Line Monitor terminal NAV matches live across the week",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "estimated_minutes": 10,
           "verification": "curl /api/sovereign/red-line?window=7d; assert last point's nav equals current paper_portfolio.total_nav within fee tolerance"
