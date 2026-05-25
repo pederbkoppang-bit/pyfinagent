@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-25 | `b8c47aaf` | phase-44.4: Reports refresh - useURLState + ARIA tablist + DataTable + Drawer compare + Tremor AreaC |
 | 2026-05-25 | `8f0d03e9` | phase-44.6: Analyze refresh - Home h-full anti-pattern fix + useEnrichmentSignals hook + RecentTicke |
 | 2026-05-25 | `6365906a` | phase-44.2: cockpit route-split + ARIA tablist + DataTable wiring (7/13 code criteria; 6 operator-ga |
 | 2026-05-25 | `cfb74e5f` | phase-44.0 foundation: DataTable + LiveBadge + SectorBarList components |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `86e149a2` | phase-40.8.1: Wire compute_ff3 into analysis pipeline so positions carry factor_loadings (follow-... |
 | 2026-05-23 | `ba272fd0` | phase-40.3: Stress-test doctrine harness-free Opus 4.7 cycle (OPEN-26) |
 | 2026-05-23 | `9e629628` | phase-41: phase-29.8/29.9 Bundle Closure |
-| 2026-05-23 | `798a8fe8` | phase-34: Unblock the autonomous loop + first live verification of phase-32 |
 
 ---
 
+### v6.20.9 — phase-44.4: Reports refresh - useURLState + ARIA tablist + DataTable... (2026-05-25)
+
+- **phase-44.4: Reports refresh - useURLState + ARIA tablist + DataTable + Drawer compare + Tremor AreaC**
 ### v6.20.8 — phase-44.6: Analyze refresh - Home h-full anti-pattern fix + useEnric... (2026-05-25)
 
 - **phase-44.6: Analyze refresh - Home h-full anti-pattern fix + useEnrichmentSignals hook + RecentTicke**
