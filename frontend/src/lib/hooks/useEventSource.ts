@@ -35,6 +35,13 @@ interface UseEventSourceOptions<T> {
   enabled?: boolean;
   /** Cap on consecutive failures before stopping. Default 3. */
   maxFailures?: number;
+  /**
+   * Optional per-event callback fired synchronously when an event arrives.
+   * Used by buffer-accumulating consumers (e.g. /agents Live Stream) that
+   * need every event, not just the last. The default `data` state still
+   * carries the latest event for non-buffered consumers.
+   */
+  onEvent?: (event: T) => void;
 }
 
 const DEFAULT_PARSER = <T>(raw: string): T => {
@@ -54,6 +61,12 @@ export function useEventSource<T = unknown>(
   const parser = options?.parser ?? (DEFAULT_PARSER<T>);
   const eventType = options?.eventType ?? "message";
   const maxFailures = options?.maxFailures ?? 3;
+  // phase-44.7: ref the callback so the connect closure doesn't capture
+  // a stale version of it across renders.
+  const onEventRef = useRef(options?.onEvent);
+  useEffect(() => {
+    onEventRef.current = options?.onEvent;
+  }, [options?.onEvent]);
 
   const [data, setData] = useState<T | null>(null);
   const [status, setStatus] = useState<UseEventSourceState["status"]>("connecting");
@@ -84,7 +97,10 @@ export function useEventSource<T = unknown>(
         backoffRef.current = 1000;
         setLastEventAt(Date.now());
         try {
-          setData(parser(event.data));
+          const parsed = parser(event.data);
+          setData(parsed);
+          // phase-44.7: per-event callback for buffer-accumulating consumers.
+          if (onEventRef.current) onEventRef.current(parsed);
         } catch {
           // parser-internal error -- swallow; raw event preserved at next iter
         }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Sidebar } from "@/components/Sidebar";
+import { useEventSource } from "@/lib/hooks";
 import {
   Robot,
   TreeStructure,
@@ -172,42 +173,29 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export default function AgentsPage() {
   const [tab, setTab] = useState<TabId>("live");
   const [events, setEvents] = useState<MASEvent[]>([]);
-  const [connected, setConnected] = useState(false);
   const [stats, setStats] = useState<EventBusStats | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [activeAgents, setActiveAgents] = useState<Set<string>>(new Set());
   const [openclawData, setOpenclawData] = useState<OpenClawData | null>(null);
   const [costSummary, setCostSummary] = useState<{ total_cost_usd?: number; agents?: Array<{ agent_name?: string; cost_usd?: number }> } | null>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const failCountRef = useRef(0);
 
-  // ── SSE Connection ──────────────────────────────────────────
-
-  const connect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-
-    const es = new EventSource(`${API_BASE}/api/mas/events?include_buffer=true`);
-    eventSourceRef.current = es;
-
-    es.onopen = () => {
-      setConnected(true);
-      setError(null);
-      failCountRef.current = 0;
-    };
-
-    es.onmessage = (e) => {
-      try {
-        const event: MASEvent = JSON.parse(e.data);
+  // phase-44.7 cycle 66: migrated from inline EventSource (~46 LoC) to the
+  // foundation `useEventSource` hook. The hook owns reconnect-on-error +
+  // exp-backoff + maxFailures; the onEvent callback handles per-event
+  // buffer accumulation + active-agent flash.
+  const sseUrl = useMemo(
+    () => `${API_BASE}/api/mas/events?include_buffer=true`,
+    [],
+  );
+  const { status: sseStatus, failures: sseFailures, reconnect: sseReconnect } =
+    useEventSource<MASEvent>(sseUrl, {
+      maxFailures: 5,
+      onEvent: (event) => {
         setEvents((prev) => [...prev.slice(-499), event]);
-
-        // Track active agents (flash for 3s)
         setActiveAgents((prev) => {
           const next = new Set(prev);
           next.add(event.agent);
-          setTimeout(() => {
+          window.setTimeout(() => {
             setActiveAgents((p) => {
               const n = new Set(p);
               n.delete(event.agent);
@@ -216,27 +204,14 @@ export default function AgentsPage() {
           }, 3000);
           return next;
         });
-      } catch {
-        // skip unparseable
-      }
-    };
-
-    es.onerror = () => {
-      failCountRef.current += 1;
-      setConnected(false);
-      if (failCountRef.current >= 5) {
-        es.close();
-        setError("Lost connection to MAS event stream after 5 failures. Backend may be down.");
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    connect();
-    return () => {
-      eventSourceRef.current?.close();
-    };
-  }, [connect]);
+      },
+    });
+  const connected = sseStatus === "connected";
+  const error =
+    sseFailures >= 5
+      ? "Lost connection to MAS event stream after 5 failures. Backend may be down."
+      : null;
+  const connect = sseReconnect;
 
   // ── Fetch stats + OpenClaw data ─────────────────────────────
 
@@ -370,7 +345,7 @@ export default function AgentsPage() {
           {error && (
             <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 flex items-center justify-between">
               <p className="text-sm text-rose-300">{error}</p>
-              <button onClick={() => { setError(null); failCountRef.current = 0; connect(); }}
+              <button onClick={() => connect()}
                 className="text-xs text-rose-300 hover:text-rose-100 underline">
                 Retry
               </button>

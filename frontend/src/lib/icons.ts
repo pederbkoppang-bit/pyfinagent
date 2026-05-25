@@ -222,6 +222,7 @@ export {
   ListBullets as ListBullets,
   MagnifyingGlass as MagnifyingGlass,
   NotePencil as NotePencil,
+  Pause as Pause,
   Play as Play,
   Robot as Robot,
   RocketLaunch as RocketLaunch,

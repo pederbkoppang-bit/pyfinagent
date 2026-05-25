@@ -12,6 +12,19 @@ import {
 } from "@/lib/icons";
 import { getAllJobs, getLogTail } from "@/lib/api";
 import type { JobInfo, LogTailResponse } from "@/lib/types";
+import { LevelFilterPills } from "@/components/cron/LevelFilterPills";
+import { FollowPauseToggle } from "@/components/cron/FollowPauseToggle";
+import { LogEventRateSpark } from "@/components/cron/LogEventRateSpark";
+import {
+  LINE_HEIGHT_CLASS,
+  LINE_FONT_CLASS,
+  readDensity,
+  writeDensity,
+  parseLevel,
+  levelColorClass,
+  type LogDensity,
+  type LogLevel,
+} from "@/components/cron/density-helpers";
 
 // ── Constants ───────────────────────────────────────────────────
 
@@ -323,6 +336,92 @@ function LogsTab() {
   const [loading, setLoading] = useState(false);
   const failuresRef = useRef(0);
   const stoppedRef = useRef(false);
+  // phase-44.7: facet search + level pills + follow/pause + density.
+  const [search, setSearch] = useState("");
+  const [activeLevels, setActiveLevels] = useState<Set<LogLevel>>(new Set());
+  const [following, setFollowing] = useState(true);
+  const [density, setDensity] = useState<LogDensity>("comfortable");
+  const logContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef(0);
+
+  // Hydrate density from localStorage on mount.
+  useEffect(() => {
+    setDensity(readDensity());
+  }, []);
+
+  const handleDensityToggle = useCallback(() => {
+    setDensity((cur) => {
+      const next: LogDensity = cur === "comfortable" ? "compact" : "comfortable";
+      writeDensity(next);
+      return next;
+    });
+  }, []);
+
+  const handleLevelToggle = useCallback((level: LogLevel) => {
+    setActiveLevels((prev) => {
+      const next = new Set(prev);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
+      return next;
+    });
+  }, []);
+
+  // Filter log lines by facet search + level pills.
+  const renderedLines = useMemo(() => {
+    if (!data || !data.exists || data.lines.length === 0) return [];
+    return data.lines.filter((line) => {
+      if (search && !line.toLowerCase().includes(search.toLowerCase())) {
+        return false;
+      }
+      if (activeLevels.size > 0) {
+        const lvl = parseLevel(line);
+        if (!activeLevels.has(lvl)) return false;
+      }
+      return true;
+    });
+  }, [data, search, activeLevels]);
+
+  // Auto-pause when the user scrolls up.
+  const handleScroll = useCallback(() => {
+    const el = logContainerRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 20;
+    // user scrolled up -> auto-pause
+    if (!atBottom && following) setFollowing(false);
+    lastScrollTopRef.current = el.scrollTop;
+  }, [following]);
+
+  // Auto-scroll to bottom when following + new data arrives.
+  useEffect(() => {
+    if (!following) return;
+    const el = logContainerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [renderedLines, following]);
+
+  // Permalink: read `#L1234` on mount + scroll the matching line.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (renderedLines.length === 0) return;
+    const m = window.location.hash.match(/^#L(\d+)$/);
+    if (!m) return;
+    const n = parseInt(m[1], 10);
+    if (!Number.isFinite(n) || n < 1 || n > renderedLines.length) return;
+    // Defer to next tick so the DOM has rendered the lines.
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(`L${n}`);
+      if (target) {
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+        setFollowing(false);
+      }
+    });
+  }, [renderedLines.length]);
+
+  const handleLineClick = useCallback((lineNum: number) => {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.pathname}${window.location.search}#L${lineNum}`;
+    window.history.replaceState(null, "", url);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -389,6 +488,28 @@ function LogsTab() {
             ))}
           </select>
         </label>
+        {/* phase-44.7: facet search input */}
+        <label className="flex items-center gap-2 text-sm text-slate-400">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter lines..."
+            aria-label="Filter log lines by text"
+            className="w-44 rounded border border-navy-700 bg-navy-800 px-2 py-1 text-xs text-slate-200 focus:border-sky-500 focus:outline-none"
+          />
+        </label>
+        <LevelFilterPills active={activeLevels} onToggle={handleLevelToggle} />
+        <FollowPauseToggle following={following} onToggle={() => setFollowing((f) => !f)} />
+        <button
+          type="button"
+          onClick={handleDensityToggle}
+          aria-pressed={density === "compact"}
+          aria-label="Toggle compact / comfortable log density"
+          className="rounded border border-navy-700 px-2 py-1 text-xs text-slate-400 hover:bg-navy-800/60 min-h-[24px]"
+        >
+          {density === "comfortable" ? "Compact" : "Spacious"}
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -403,6 +524,11 @@ function LogsTab() {
           {loading ? "Refreshing" : "Refresh"}
         </button>
       </div>
+
+      {/* phase-44.7: event-rate sparkline above the log container */}
+      {data && data.exists && data.lines.length > 0 && (
+        <LogEventRateSpark lines={data.lines} />
+      )}
 
       {error && (
         <div className="rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
@@ -428,15 +554,47 @@ function LogsTab() {
         <div className="overflow-hidden rounded-xl border border-navy-700">
           <header className="flex items-center justify-between border-b border-navy-700 bg-navy-800/80 px-4 py-2 text-xs text-slate-500">
             <span className="font-mono">
-              {data.log} -- last {data.n_returned} lines
+              {data.log} -- {renderedLines.length} of {data.n_returned} lines
+              {(search || activeLevels.size > 0) && " (filtered)"}
             </span>
             <span className="font-mono">
               {(data.total_size_bytes / 1024).toFixed(1)} KiB total
             </span>
           </header>
-          <pre className="max-h-[60vh] overflow-y-auto scrollbar-thin bg-[#0a1020] px-4 py-3 font-mono text-[11px] leading-relaxed text-slate-300">
-            {data.lines.join("\n")}
-          </pre>
+          {/* phase-44.7: per-line rendering with density + permalink + level color */}
+          <div
+            ref={logContainerRef}
+            onScroll={handleScroll}
+            className="max-h-[60vh] overflow-y-auto scrollbar-thin bg-[#0a1020] font-mono"
+          >
+            <ol className="px-4 py-3 list-none m-0">
+              {renderedLines.map((line, i) => {
+                const lineNum = i + 1;
+                const lvl = parseLevel(line);
+                return (
+                  <li
+                    key={`${lineNum}-${line.slice(0, 40)}`}
+                    id={`L${lineNum}`}
+                    onClick={() => handleLineClick(lineNum)}
+                    className={`group flex items-start gap-3 ${LINE_HEIGHT_CLASS[density]} ${LINE_FONT_CLASS[density]} cursor-pointer hover:bg-navy-800/40 px-2`}
+                    title={`Click to copy permalink #L${lineNum}`}
+                  >
+                    <span className="flex-shrink-0 w-12 select-none text-right text-slate-600 group-hover:text-slate-400 tabular-nums">
+                      {lineNum}
+                    </span>
+                    <span className={`whitespace-pre-wrap break-all ${levelColorClass(lvl)}`}>
+                      {line}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+            {renderedLines.length === 0 && (
+              <p className="px-4 py-8 text-center text-xs text-slate-500">
+                No lines match the current filter.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
