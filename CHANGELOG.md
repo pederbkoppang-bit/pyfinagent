@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-25 | `c65cc9c0` | phase-39.1: autoresearch cron exit-1 root-cause fix (OPEN-29 / DoD-1) |
 | 2026-05-25 | `ee479629` | phase-43.0.2: DoD-4 Tier-1 EXTENDED -> STRICT lift (paper_trader + portfolio_manager + perf_metri... |
 | 2026-05-25 | `4ea86c7d` | phase-43.0.1: DoD-4 Tier-1 EXTENDED floor cleanup (perf_metrics +1pp + cycle_health +6pp) (follow... |
 | 2026-05-25 | `e7b2c201` | chore: gitignore .coverage artifacts (DoD-4 cycle 53 cleanup) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `0c2c6323` | phase-37.3: budget_tokens deprecation cleanup (OPEN-18) |
 | 2026-05-23 | `ae1da259` | phase-38.2: Lost cycle 3a observability (OPEN-11) |
 | 2026-05-23 | `006c4987` | phase-38.6.1: Wire cycle_lock into autonomous_loop + main.py lifespan (depends 38.6) |
-| 2026-05-23 | `fdbb1620` | phase-38.6: Restart-survivable _running flag (OPEN-15) |
 
 ---
 
+### v6.20.1 — phase-39.1: autoresearch cron exit-1 root-cause fix (OPEN-29 / DoD-1) (2026-05-25)
+
+- **phase-39.1: autoresearch cron exit-1 root-cause fix (OPEN-29 / DoD-1)**
 ### v6.20.0 — phase-43.0.2: DoD-4 Tier-1 EXTENDED -> STRICT lift (paper_trader + po... (2026-05-25)
 
 - **phase-43.0.2: DoD-4 Tier-1 EXTENDED -> STRICT lift (paper_trader + portfolio_manager + perf_metri...**
