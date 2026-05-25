@@ -23533,3 +23533,19 @@ Total: 9 PD.
 - Closure: phase-43.0.2 (and its parent gate phase-43.0 DoD-4 row) fully resolved on the tiered-policy track.
 
 **Total cycle time:** ~30 min (test investment + final push).
+
+
+## Cycle 56 -- 2026-05-25 -- phase=39.1 result=PASS (source) + CALENDAR-PENDING
+
+- Step: phase-39.1 (P1 OPEN-29 / DoD-1) -- Autoresearch nightly cron exit 1 fix. Operator UNBLOCKED owner-gate ("i unblock the owner gate steps").
+- Root cause identified from handoff/autoresearch/2026-05-25-ERROR-topic05.md: gpt-researcher's Config.parse_llm at .venv/.../gpt_researcher/config/config.py:204 expects "<provider>:<model>" format; resolve_model returns bare model id. Every nightly cron exited 1 for 38 consecutive nights (2026-04-18 -> 2026-05-25).
+- Fix: scripts/autoresearch/run_memo.py prefix anthropic: at caller boundary (preserves model_tiers.py single-source-of-truth).
+- Generate: +9 lines in run_memo.py; backend/tests/test_phase_39_1_autoresearch_env.py NEW (~75 lines, 3 tests); handoff/autoresearch/root_cause.md NEW (full RCA + verification path + operator-action reload instructions).
+- Pytest: 3/3 PASS (source-fix mutation-resistance + end-to-end gpt-researcher parse_llm verification + double-prefix guard). Collection 592 -> 595 (+3 net, 0 regressions).
+- Source-side fix verdict: PASS. Calendar-bound for masterplan criterion 1 (3 consecutive PASS cron nights). First eligible night 2026-05-26.
+- Operator action required: launchctl unload/load OR wait for next 02:00 fire.
+- DoD-1 unblocks after 3 PASS nights -- estimated 2026-05-28 if operator reloads tonight.
+- live_check_39.1.md filed documenting source PASS + calendar-pending posture.
+- N* delta R: closes DoD-1 cron-SLA criterion (was FAIL since 2026-05-19). B: zero $. Operator-blocked observability blind spot ended.
+
+**Total cycle time:** ~20 min (RCA + 1-line fix + 3 tests + RCA doc + live_check).

@@ -142,10 +142,16 @@ def main() -> int:
     # Added via repo path so the script still runs standalone.
     sys.path.insert(0, str(REPO))
     from backend.config.model_tiers import resolve_model  # noqa: E402
+    # phase-39.1 (OPEN-29): gpt-researcher Config.parse_llm expects the
+    # `<llm_provider>:<llm_model>` format (see
+    # .venv/lib/.../gpt_researcher/config/config.py:204-221). resolve_model
+    # returns just the model id (e.g. "claude-haiku-4-5") -- prefix with
+    # the Anthropic provider tag here at the caller boundary so model_tiers
+    # stays single-source-of-truth for model ids.
     env_defaults = {
-        "FAST_LLM": resolve_model("autoresearch_fast"),
-        "SMART_LLM": resolve_model("autoresearch_smart"),
-        "STRATEGIC_LLM": resolve_model("autoresearch_strategic"),
+        "FAST_LLM": f"anthropic:{resolve_model('autoresearch_fast')}",
+        "SMART_LLM": f"anthropic:{resolve_model('autoresearch_smart')}",
+        "STRATEGIC_LLM": f"anthropic:{resolve_model('autoresearch_strategic')}",
         "EMBEDDING": "huggingface:BAAI/bge-small-en-v1.5",
         "RETRIEVER": "arxiv,semantic_scholar,duckduckgo",
     }
