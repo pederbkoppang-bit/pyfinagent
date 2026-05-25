@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-25 | `cfb74e5f` | phase-44.0 foundation: DataTable + LiveBadge + SectorBarList components |
 | 2026-05-25 | `8e559c12` | phase-44.0 foundation: TanStack v8 + Tremor deps + playwright fix |
 | 2026-05-25 | `f3cc97a1` | phase-38.1.1: Wire check_auto_resume into paper_trader.check_and_enforce_kill_switch cycle (follo... |
 | 2026-05-25 | `87c9b4ba` | chore: DoD scoreboard refresh -- 8/14 PASS post owner-gate unblock |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `798a8fe8` | phase-34: Unblock the autonomous loop + first live verification of phase-32 |
 | 2026-05-23 | `f458d774` | phase-28: Candidate Picker Expansion |
 | 2026-05-23 | `82a8ba7b` | phase-23.8: Dev-MAS Audit Remediation |
-| 2026-05-23 | `e10da8ef` | phase-23.6: Resolve persistent items deferred from phase-23.5 |
 
 ---
 
+### v6.20.6 — phase-44.0 foundation: DataTable + LiveBadge + SectorBarList components (2026-05-25)
+
+- **phase-44.0 foundation: DataTable + LiveBadge + SectorBarList components**
 ### v6.20.5 — phase-44.0 foundation: TanStack v8 + Tremor deps + playwright fix (2026-05-25)
 
 - **phase-44.0 foundation: TanStack v8 + Tremor deps + playwright fix**
