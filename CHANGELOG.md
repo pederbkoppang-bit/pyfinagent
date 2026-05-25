@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-25 | `87c9b4ba` | chore: DoD scoreboard refresh -- 8/14 PASS post owner-gate unblock |
 | 2026-05-25 | `05b7f795` | phase-38.1: Kill-switch auto-resume on no-breach (OPEN-10) -- owner-gated |
 | 2026-05-25 | `393568db` | phase-38.4: Auto-commit hook refuses status-flip without harness_log entry (OPEN-13) -- owner-gated |
 | 2026-05-25 | `c65cc9c0` | phase-39.1: autoresearch cron exit-1 root-cause fix (OPEN-29 / DoD-1) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `e10da8ef` | phase-23.6: Resolve persistent items deferred from phase-23.5 |
 | 2026-05-23 | `742ab72d` | docs: production-ready audit 2026-05-23 -- 6/14 DoD PASS (up from 2/14) |
 | 2026-05-23 | `85c34d98` | phase-40.8: Correlation cap beyond GICS (OPEN-5) |
-| 2026-05-23 | `0c2c6323` | phase-37.3: budget_tokens deprecation cleanup (OPEN-18) |
 
 ---
 
