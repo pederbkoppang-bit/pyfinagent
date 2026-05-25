@@ -67,3 +67,9 @@ handoff/*.log
 # phase-10.10 quarantine dirs (local forensic archive, not pushed to remote)
 handoff/archive/_quarantine_*/
 .claude/_backups_archive/
+
+# Coverage artifacts (cycle 53; .coveragerc + docs/coverage_tier_overrides.md are tracked)
+.coverage
+.coverage.*
+.coverage_html/
+htmlcov/
