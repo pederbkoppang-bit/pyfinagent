@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-25 | `ee479629` | phase-43.0.2: DoD-4 Tier-1 EXTENDED -> STRICT lift (paper_trader + portfolio_manager + perf_metri... |
 | 2026-05-25 | `4ea86c7d` | phase-43.0.1: DoD-4 Tier-1 EXTENDED floor cleanup (perf_metrics +1pp + cycle_health +6pp) (follow... |
 | 2026-05-25 | `e7b2c201` | chore: gitignore .coverage artifacts (DoD-4 cycle 53 cleanup) |
 | 2026-05-25 | `d090d4d3` | phase-DoD4-tiered: cycle 53 -- tiered coverage policy + Tier-1 STRICT lift |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `ae1da259` | phase-38.2: Lost cycle 3a observability (OPEN-11) |
 | 2026-05-23 | `006c4987` | phase-38.6.1: Wire cycle_lock into autonomous_loop + main.py lifespan (depends 38.6) |
 | 2026-05-23 | `fdbb1620` | phase-38.6: Restart-survivable _running flag (OPEN-15) |
-| 2026-05-23 | `5a859aa5` | phase-38.5.2: Flip ascii-logger-lint CI workflow from continue-on-error to hard gate (depends 38.... |
 
 ---
 
+### v6.20.0 — phase-43.0.2: DoD-4 Tier-1 EXTENDED -> STRICT lift (paper_trader + po... (2026-05-25)
+
+- **phase-43.0.2: DoD-4 Tier-1 EXTENDED -> STRICT lift (paper_trader + portfolio_manager + perf_metri...**
 ### v6.19.0 — phase-43.0.1: DoD-4 Tier-1 EXTENDED floor cleanup (perf_metrics +1pp... (2026-05-25)
 
 - **phase-43.0.1: DoD-4 Tier-1 EXTENDED floor cleanup (perf_metrics +1pp + cycle_health +6pp) (follow...**
