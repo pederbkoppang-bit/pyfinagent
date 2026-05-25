@@ -1,15 +1,20 @@
 "use client";
 
-// phase-44.0 foundation -- Tremor BarList wrapper for sector concentration.
+// phase-44.0 foundation -- sector concentration bar list.
 //
-// Used by phase-44.2 cockpit (right column) to show which GICS sectors
-// are at or near the per-sector NAV-pct cap. Color codes amber when a
-// sector is within 5pp of paper_max_per_sector_nav_pct; red when over.
+// phase-44.2 Option B rewrite: replaced the Tremor BarList internals with a
+// Tailwind-only horizontal-bar grid. Tremor BarList does NOT support
+// per-item color (verified against
+// github.com/tremorlabs/tremor/blob/main/src/components/BarList/BarList.tsx
+// on 2026-05-25; the Bar<T> type lacks a `color` field and all bars
+// hard-code `bg-blue-200 dark:bg-blue-900`). The amber-at-5pp-below-cap /
+// red-at-or-over signal is the criticality marker UX-DoD criterion 8
+// requires -- without per-item color it is a uniform-blue chart that
+// undermines the cap visualization.
 //
-// Single source of truth for the sector-cap visualization so phase-44.4
-// reports can reuse the same chart shape.
+// Public API (props) unchanged so existing consumers + tests survive.
 
-import { BarList, Card } from "@tremor/react";
+import { useMemo } from "react";
 
 export interface SectorBarItem {
   name: string;          // GICS sector name (e.g., "Technology")
@@ -26,11 +31,27 @@ export interface SectorBarListProps {
   className?: string;
 }
 
-function colorFor(valuePct: number, capPct: number, amberZonePct: number): "emerald" | "amber" | "rose" {
+type Band = "emerald" | "amber" | "rose";
+
+function bandFor(valuePct: number, capPct: number, amberZonePct: number): Band {
   if (valuePct >= capPct) return "rose";
   if (valuePct >= capPct - amberZonePct) return "amber";
   return "emerald";
 }
+
+// Per-band Tailwind class triples (bar fill / value text). Kept as
+// explicit string literals so Tailwind's content scan keeps them.
+const BAR_CLASS: Record<Band, string> = {
+  emerald: "bg-emerald-500/80 dark:bg-emerald-600/80",
+  amber: "bg-amber-500/80 dark:bg-amber-500/80",
+  rose: "bg-rose-500/85 dark:bg-rose-600/85",
+};
+
+const VALUE_TEXT_CLASS: Record<Band, string> = {
+  emerald: "text-emerald-700 dark:text-emerald-300",
+  amber: "text-amber-700 dark:text-amber-300",
+  rose: "text-rose-700 dark:text-rose-300",
+};
 
 export function SectorBarList({
   items,
@@ -40,39 +61,83 @@ export function SectorBarList({
   emptyState,
   className,
 }: SectorBarListProps) {
+  const sortedDecorated = useMemo(() => {
+    const sorted = [...items].sort((a, b) => b.value - a.value);
+    const maxValue = Math.max(capPct, ...sorted.map((s) => s.value), 1);
+    return sorted.map((item) => ({
+      ...item,
+      band: bandFor(item.value, capPct, amberZonePct),
+      widthPct: Math.min(100, (item.value / maxValue) * 100),
+    }));
+  }, [items, capPct, amberZonePct]);
+
+  const containerClass = `rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 ${className ?? ""}`;
+
   if (items.length === 0) {
     return (
-      <Card className={className}>
+      <div className={containerClass}>
         <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{title}</h3>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           {emptyState ?? "No positions yet."}
         </p>
-      </Card>
+      </div>
     );
   }
 
-  // Tremor BarList accepts color via per-item `color` field.
-  const sorted = [...items].sort((a, b) => b.value - a.value);
-  const decorated = sorted.map((item) => ({
-    ...item,
-    color: colorFor(item.value, capPct, amberZonePct),
-    // BarList shows the raw value -- pre-format as `%` string for clarity
-    // when the consumer doesn't supply a valueFormatter.
-  }));
-
   return (
-    <Card className={className}>
+    <div
+      className={containerClass}
+      role="region"
+      aria-label={title}
+    >
       <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
         {title}
       </h3>
       <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-3">
         Cap: {capPct.toFixed(0)}% per sector (amber within {amberZonePct}pp; red at/over).
       </p>
-      <BarList
-        data={decorated as unknown as Array<{ name: string; value: number; color?: string; href?: string }>}
-        valueFormatter={(n: number) => `${n.toFixed(1)}%`}
-        aria-label="Sector concentration bar list"
-      />
-    </Card>
+      <ul className="space-y-2" aria-label="Sector concentration bar list">
+        {sortedDecorated.map((item) => {
+          const Row = (
+            <div className="flex items-center gap-3">
+              <span className="w-28 truncate text-xs text-zinc-700 dark:text-zinc-300" title={item.name}>
+                {item.name}
+              </span>
+              <div
+                className="relative flex-1 h-5 rounded bg-zinc-100 dark:bg-zinc-800 overflow-hidden"
+                role="progressbar"
+                aria-valuenow={item.value}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${item.name}: ${item.value.toFixed(1)}% of NAV`}
+                data-band={item.band}
+              >
+                <div
+                  className={`h-full ${BAR_CLASS[item.band]}`}
+                  style={{ width: `${item.widthPct}%` }}
+                />
+              </div>
+              <span className={`w-14 text-right font-mono text-xs ${VALUE_TEXT_CLASS[item.band]}`}>
+                {`${item.value.toFixed(1)}%`}
+              </span>
+            </div>
+          );
+          return (
+            <li key={item.name} className="block">
+              {item.href ? (
+                <a
+                  href={item.href}
+                  className="block rounded hover:bg-zinc-50 dark:hover:bg-zinc-800/50 px-1 py-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                >
+                  {Row}
+                </a>
+              ) : (
+                <div className="px-1 py-0.5">{Row}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

@@ -23,7 +23,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HOOK = REPO_ROOT / "frontend" / "src" / "lib" / "useLiveNav.ts"
 HOME_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "page.tsx"
-PT_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "paper-trading" / "page.tsx"
+# phase-44.2 (cycle 63 2026-05-25): /paper-trading was route-split.
+# `useLiveNav` now lives in the shared layout (one tab-bar parent for 6
+# sub-routes), and the SSOT invariant moves with it. `page.tsx` is a
+# `redirect("/paper-trading/positions")` and does NOT import useLiveNav.
+PT_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "paper-trading" / "layout.tsx"
 
 
 def test_phase_23_2_8_use_live_nav_hook_exists_and_exports():
@@ -47,12 +51,14 @@ def test_phase_23_2_8_home_page_imports_use_live_nav():
 
 
 def test_phase_23_2_8_paper_trading_page_imports_use_live_nav():
-    """Paper-trading page must import useLiveNav from @/lib/useLiveNav."""
-    assert PT_PAGE.exists(), f"paper-trading page missing: {PT_PAGE}"
+    """Paper-trading shared LAYOUT must import useLiveNav from @/lib/useLiveNav.
+    (phase-44.2: hook moved from page.tsx monolith into the shared layout
+    so all 6 sub-routes consume the same SSOT-derived NAV.)"""
+    assert PT_PAGE.exists(), f"paper-trading layout missing: {PT_PAGE}"
     text = PT_PAGE.read_text(encoding="utf-8")
     pattern = r'import\s*\{[^}]*useLiveNav[^}]*\}\s*from\s*["\']@/lib/useLiveNav["\']'
     assert re.search(pattern, text), (
-        f"paper-trading page must import useLiveNav from @/lib/useLiveNav; not found"
+        f"paper-trading layout must import useLiveNav from @/lib/useLiveNav; not found"
     )
 
 

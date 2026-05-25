@@ -5177,7 +5177,7 @@
     {
       "id": "phase-16",
       "status": "done",
-      "notes": "DROP per phase-45.0 closure_roadmap (2026-05-22): folded into phase-43.0 DoD audit (aggregate UAT = combined 26-criterion gate).",
+      "notes": "35 of 37 sub-steps done. Continuation /batch (2026-04-26): 16.52-16.57 sovereign+settings UX iteration. Operator ping-pong between 'shrink RedLine' (16.54) -> 'make Alpha fill height' (16.55) -> 'make Alpha wider' (16.56) -> 'revert RedLine wider' (16.57). Final state: RedLine 60% h-64, Alpha 40% with h-full + flex-1 overflow-auto + px-2.5 cells.",
       "name": "Full-application end-to-end UAT (pre-go-live)",
       "description": "Integration-level UAT that exercises every shipped subsystem -- analysis pipeline (Layer 1), MAS orchestrator (Layer 2), autonomous paper-trading loop, self-improving loops (skill_optimizer, perf_optimizer, quant_optimizer, meta_coordinator, outcome_tracker, monthly_champion_challenger), kill switch + risk guards, HITL Champion/Challenger gate, Slack bot + APScheduler jobs, backtest + quant optimizer, all 10 frontend pages, auth + OWASP headers, observability, drills-aggregate gate, and the harness MAS itself. Every sub-step proves the subsystem works plugged into the rest of the system right now, not as a hermetic unit. Culminates in a Go/No-Go verdict that REQUIRES a fresh Q/A PASS before phase-16 can flip done. Planned after the pre-production audit + BLOCKERS 1-3 + observability patches landed on 2026-04-24 (commits dfd57ec1, b60eb413, 8131bb70). Gotchas baked into criteria: cache.preload_macro before backtest (16.9), ALPACA_PAPER_TRADE assertion before paper cycle (16.4), immutable Q/A PASS requirement (16.15).",
       "created_at": "2026-04-24T16:50:08.652240+00:00",
@@ -6083,8 +6083,7 @@
           "max_retries": 3
         }
       ],
-      "completed_at": null,
-      "notes": "35 of 37 sub-steps done. Continuation /batch (2026-04-26): 16.52-16.57 sovereign+settings UX iteration. Operator ping-pong between 'shrink RedLine' (16.54) -> 'make Alpha fill height' (16.55) -> 'make Alpha wider' (16.56) -> 'revert RedLine wider' (16.57). Final state: RedLine 60% h-64, Alpha 40% with h-full + flex-1 overflow-auto + px-2.5 cells."
+      "completed_at": null
     },
     {
       "id": "phase-17",
@@ -6251,7 +6250,7 @@
       "id": "phase-5",
       "name": "Multi-Market Expansion (15-step)",
       "status": "deferred",
-      "notes": "DEFER-POST-PROD per phase-45.0 closure_roadmap (2026-05-22): 11 of 14 substeps still pending; master_roadmap §2 explicitly defers (phase-42 depends on phase-5; both out-of-scope for production-readiness). Revisit after phase-43.0 PASS.",
+      "notes": "DEFER-POST-PROD per phase-45.0 closure_roadmap (2026-05-22): 11 of 14 substeps still pending; master_roadmap \u00a72 explicitly defers (phase-42 depends on phase-5; both out-of-scope for production-readiness). Revisit after phase-43.0 PASS.",
       "depends_on": [
         "phase-4.5"
       ],
@@ -11658,7 +11657,9 @@
       "id": "phase-35",
       "name": "Live-Verify Existing Architecture (learn-loop + LLM-dependent features + sustained-cycle)",
       "status": "in-progress",
-      "depends_on": ["phase-34"],
+      "depends_on": [
+        "phase-34"
+      ],
       "gate": null,
       "steps": [
         {
@@ -11727,7 +11728,9 @@
       "id": "phase-36",
       "name": "Profit-Protection Completion (closes OPEN-2 BLOCK + ATR + triple-barrier + entry_strategy)",
       "status": "in-progress",
-      "depends_on": ["phase-35"],
+      "depends_on": [
+        "phase-35"
+      ],
       "gate": null,
       "steps": [
         {
@@ -11866,7 +11869,9 @@
       "id": "phase-37",
       "name": "LLM-Route + Structured-Output Hardening",
       "status": "in-progress",
-      "depends_on": ["phase-34"],
+      "depends_on": [
+        "phase-34"
+      ],
       "gate": null,
       "steps": [
         {
@@ -11975,7 +11980,9 @@
       "id": "phase-38",
       "name": "Observability + Ops Hardening",
       "status": "in-progress",
-      "depends_on": ["phase-34"],
+      "depends_on": [
+        "phase-34"
+      ],
       "gate": null,
       "steps": [
         {
@@ -12238,7 +12245,9 @@
       "id": "phase-40",
       "name": "Dev-MAS Housekeeping (NOTE-tier batch)",
       "status": "in-progress",
-      "depends_on": ["phase-34"],
+      "depends_on": [
+        "phase-34"
+      ],
       "gate": null,
       "steps": [
         {
@@ -12251,7 +12260,10 @@
           "audit_basis": "Per research_brief Section B OPEN-24 (29.0-F5): no OPENALEX_API_KEY in .env.example.",
           "verification": {
             "command": "grep -q '^OPENALEX_API_KEY=' .env.example && grep -q 'OpenAlex' README.md",
-            "success_criteria": ["env_example_documents_openalex_api_key", "readme_mentions_openalex"],
+            "success_criteria": [
+              "env_example_documents_openalex_api_key",
+              "readme_mentions_openalex"
+            ],
             "live_check": null
           },
           "retry_count": 0,
@@ -12267,7 +12279,10 @@
           "audit_basis": "Per research_brief Section B OPEN-25 (29.0-F8): alwaysLoad, continueOnBlock, effort.level unused in .claude/settings.json.",
           "verification": {
             "command": "grep -q 'alwaysLoad' .claude/settings.json && grep -q 'continueOnBlock' .claude/settings.json",
-            "success_criteria": ["claude_settings_json_adopts_at_least_2_of_alwaysLoad_continueOnBlock_effort_level", "claude_md_documents_the_adoption"],
+            "success_criteria": [
+              "claude_settings_json_adopts_at_least_2_of_alwaysLoad_continueOnBlock_effort_level",
+              "claude_md_documents_the_adoption"
+            ],
             "live_check": "live_check_40.2.md verifies the next session reads the new settings cleanly."
           },
           "retry_count": 0,
@@ -12343,7 +12358,9 @@
           "audit_basis": "Per research_brief Section B OPEN-30 (23.5.19-F2): stale description.",
           "verification": {
             "command": "test $(grep -rn 'FAILING exit 127' backend/ scripts/ | wc -l) -eq 0",
-            "success_criteria": ["zero_stale_FAILING_exit_127_strings_in_source"],
+            "success_criteria": [
+              "zero_stale_FAILING_exit_127_strings_in_source"
+            ],
             "live_check": null
           },
           "retry_count": 0,
@@ -12457,7 +12474,10 @@
       "id": "phase-41",
       "name": "phase-29.8/29.9 Bundle Closure",
       "status": "done",
-      "depends_on": ["phase-37", "phase-40"],
+      "depends_on": [
+        "phase-37",
+        "phase-40"
+      ],
       "gate": null,
       "steps": [
         {
@@ -12504,7 +12524,15 @@
       "id": "phase-43",
       "name": "Definition-of-Done Audit + Production-Ready Gate",
       "status": "in-progress",
-      "depends_on": ["phase-35", "phase-36", "phase-37", "phase-38", "phase-39", "phase-40", "phase-41"],
+      "depends_on": [
+        "phase-35",
+        "phase-36",
+        "phase-37",
+        "phase-38",
+        "phase-39",
+        "phase-40",
+        "phase-41"
+      ],
       "gate": "owner-approval",
       "steps": [
         {
@@ -12634,7 +12662,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "44.1",
-          "audit_basis": "Per master_design Section 3.7: /paper-trading is 1284 LoC cockpit (primary surface); Manage tab duplicates /settings DRY violation across 3 audit cycles; positions+trades use raw <table>; tab bar has no role=tablist a11y gap; 6 tabs cross 4 domains. Owner-approval required for Manage tab removal (operator habit change).",
+          "audit_basis": "Per master_design Section 3.7: /paper-trading is 1284 LoC cockpit (primary surface); Manage tab duplicates /settings DRY violation across 3 audit cycles; positions+trades use raw <table>; tab bar has no role=tablist a11y gap; 6 tabs cross 4 domains. Owner-approval required for Manage tab removal (operator habit change). Per cycle 63 (2026-05-25) phase-44.2 generate: structural refactor COMPLETE on code side -- monolith collapsed to 9-LoC redirect; shared layout.tsx hosts ARIA-compliant link-based tablist + Context + AgentRationaleDrawer single mount; 6 sub-routes under app/paper-trading/{positions,trades,nav,reality-gap,exit-quality,manage}/page.tsx. DataTable foundation wired for positions + trades; LiveBadge per Positions row via bandFromAgeSec helper; SectorBarList rewritten internally as Tailwind grid (Option B; Tremor BarList primitive lacks per-item color support per vendor source); AgentRationaleDrawer opens from both tables (Positions derives trade_id via latestTradeIdForTicker since PaperPosition lacks last_trade_id). 7 of 13 immutable criteria PASS this cycle (2-8); 6 honestly deferred to operator-side (criterion 1 Manage tab removal needs operator_approval_44.2.md; criteria 9/10/11/12 need Playwright + Lighthouse runs; criterion 13 is the gate file). Pytest backend 614/589 passed (+3 net via SSOT pointer cascade), frontend vitest 83/83 (+21 net). Q/A subagent ab102b239432a6fd4 returned PASS (5/5 audits + 8/8 deterministic + LLM judgment clean). Step stays pending until operator_approval_44.2.md file lands -- harness will flip on next pass. live_check_44.2.md captures full per-criterion verdict + operator runbook for closing remaining 6.",
           "verification": {
             "command": "test -f handoff/current/live_check_44.2.md && test -f handoff/current/operator_approval_44.2.md",
             "success_criteria": [

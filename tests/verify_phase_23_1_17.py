@@ -37,15 +37,22 @@ def main() -> int:
     assert "navValue = liveNav ?? nav?.nav" in home_src, \
         "page.tsx NAV tile must prefer liveNav with BQ snapshot fallback"
 
-    # 3 + 4. Paper-trading page refactored to use the shared hook
-    pt_src = (repo / "frontend/src/app/paper-trading/page.tsx").read_text(encoding="utf-8")
+    # 3 + 4. Paper-trading SHARED LAYOUT uses the hook.
+    # phase-44.2 (cycle 63): /paper-trading route-split; the hook moved from
+    # page.tsx into layout.tsx so all 6 sub-routes consume the same SSOT
+    # NAV. page.tsx is now a redirect to /paper-trading/positions.
+    pt_layout_path = repo / "frontend/src/app/paper-trading/layout.tsx"
+    assert pt_layout_path.exists(), (
+        "frontend/src/app/paper-trading/layout.tsx missing (phase-44.2)"
+    )
+    pt_src = pt_layout_path.read_text(encoding="utf-8")
     assert 'import { useLiveNav } from "@/lib/useLiveNav"' in pt_src, \
-        "paper-trading/page.tsx must import useLiveNav"
+        "paper-trading/layout.tsx must import useLiveNav"
     assert "useLiveNav(status, positions, livePrices)" in pt_src, \
-        "paper-trading page must call useLiveNav(...)"
-    # No inline duplication — the explicit `const liveNav = useMemo` block is gone.
+        "paper-trading layout must call useLiveNav(...)"
+    # No inline duplication -- the explicit `const liveNav = useMemo` block must be absent.
     assert "const liveNav = useMemo" not in pt_src, \
-        "paper-trading page inline liveNav useMemo must be removed (use shared hook)"
+        "paper-trading layout inline liveNav useMemo must be removed (use shared hook)"
 
     # 5. Repair script
     repair_path = repo / "scripts/repair_phase_23_1_17.py"

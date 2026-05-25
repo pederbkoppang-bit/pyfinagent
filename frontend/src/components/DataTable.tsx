@@ -83,6 +83,13 @@ export function DataTable<TData>({
                 {hg.headers.map((header) => {
                   const sort = header.column.getIsSorted();
                   const canSort = header.column.getCanSort();
+                  const meta = header.column.columnDef.meta;
+                  const alignClass =
+                    meta?.align === "right"
+                      ? "text-right"
+                      : meta?.align === "center"
+                        ? "text-center"
+                        : "text-left";
                   return (
                     <th
                       key={header.id}
@@ -91,7 +98,7 @@ export function DataTable<TData>({
                         sort === "asc" ? "ascending" : sort === "desc" ? "descending" : "none"
                       }
                       scope="col"
-                      className={`px-3 py-2 text-left font-medium text-zinc-700 dark:text-zinc-300 ${
+                      className={`px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 ${alignClass} ${meta?.className ?? ""} ${
                         canSort ? "cursor-pointer select-none hover:text-zinc-900 dark:hover:text-zinc-100" : ""
                       }`}
                     >
@@ -134,11 +141,23 @@ export function DataTable<TData>({
                     onRowClick ? "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50" : ""
                   }`}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 py-2 text-zinc-800 dark:text-zinc-200">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const meta = cell.column.columnDef.meta;
+                    const alignClass =
+                      meta?.align === "right"
+                        ? "text-right"
+                        : meta?.align === "center"
+                          ? "text-center"
+                          : "text-left";
+                    return (
+                      <td
+                        key={cell.id}
+                        className={`px-3 py-2 text-zinc-800 dark:text-zinc-200 ${alignClass} ${meta?.className ?? ""}`}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}
