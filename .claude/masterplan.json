@@ -12531,7 +12531,7 @@
         {
           "id": "43.0.2",
           "name": "DoD-4 Tier-1 EXTENDED -> STRICT lift (paper_trader + portfolio_manager + perf_metrics to 75% line + 80% branch) (follow-up to cycle 53)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "43.0.1",

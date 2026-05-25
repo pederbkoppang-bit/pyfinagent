@@ -23508,3 +23508,28 @@ Total: 9 PD.
 - 1 follow-up remains: phase-43.0.2 (multi-cycle Tier-1 EXTENDED -> STRICT lift).
 
 **Total cycle time:** ~10 min (targeted test additions).
+
+
+## Cycle 55 -- 2026-05-25 -- phase=43.0.2 result=PASS
+
+- Step: phase-43.0.2 (P3) -- DoD-4 Tier-1 EXTENDED -> STRICT lift. ALL 3 modules cleared 75% line+branch STRICT bar.
+- Generate: +32 targeted tests added to test_dod4_tier1_coverage_investment.py covering high-leverage gaps:
+  - paper_trader: execute_buy-avg-up + backfill_missing_stops + check_scale_out_fires + flatten_all + save_daily_snapshot + check_and_enforce_kill_switch + check_stop_losses
+  - portfolio_manager: _extract_position_pct + _extract_stop_loss + decide_trades branches (stop_loss/sell_signal/signal_downgrade/already-held/max-positions/sector-cap)
+  - perf_metrics: PSR + DSR + Sortino + Calmar + bootstrap-CI + compute_sharpe_gap + shadow_curve_sharpe + reconciliation_divergence_pct + get_scalar_metric_from_bq
+- Pytest: 72/72 PASS. Collection 550 -> 592 (+42 net total across cycles 53+54+55; +32 this cycle).
+- Coverage final state:
+  - paper_trader.py:       51% -> 79.1% (+28pp)  PASS STRICT
+  - portfolio_manager.py:  66% -> 81.2% (+15pp)  PASS STRICT
+  - perf_metrics.py:       54% -> 81.2% (+27pp)  PASS STRICT
+  - kill_switch.py:        63% -> 92.3% (+29pp)  PASS STRICT (further lift from kill_switch enforce tests)
+  - cycle_health.py:       54% -> 72.5% (+18pp)  approaching STRICT (still PASS floor)
+  - cycle_lock.py:         84% (unchanged)        PASS STRICT
+  - factor_correlation.py: 85% (unchanged)        PASS STRICT
+  - factor_loadings.py:    78% (unchanged)        PASS STRICT
+- ALL Tier-1 EXTENDED + STRICT modules now clear the 75% bar (only cycle_health Tier-2 at 72.5%, still above 60% floor).
+- N* delta R: real risk-path safety net on the trading hot path; check_and_enforce_kill_switch + check_stop_losses + decide_trades branches now exercised.
+- DoD-4 verdict: PASS (full Tier-1 STRICT) -- the tiered policy gate is FULL GREEN.
+- Closure: phase-43.0.2 (and its parent gate phase-43.0 DoD-4 row) fully resolved on the tiered-policy track.
+
+**Total cycle time:** ~30 min (test investment + final push).
