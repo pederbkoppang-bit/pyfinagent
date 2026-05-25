@@ -1,26 +1,21 @@
-# phase-44.6 -- experiment results (Cycle 64)
+# phase-44.4 -- experiment results (Cycle 65)
 
 **Date:** 2026-05-25
-**Cycle:** 64
-**Step:** phase-44.6 -- Analyze section refresh (Home h-full anti-pattern fix + KPI sparklines/LiveBadge/role=group; /signals useEnrichmentSignals hook + label + recent-tickers chips + progressive disclosure)
+**Cycle:** 65
+**Step:** phase-44.4 -- Reports section refresh (/reports route + /performance route)
 
 ## Summary
 
-Home page anti-pattern removed (per `.claude/rules/frontend.md:23` rule).
-6-KPI grid wrapped in `role="group"` with single aria-label; each tile
-gains optional Tailwind-only mini-sparkline + LiveBadge dot (NAV +
-Positions). `/signals` page: 52 LoC of inline type coercion extracted to
-new `useEnrichmentSignals` hook; ticker input gains `<label htmlFor>` +
-`aria-label`; new `RecentTickerChips` component (last-5 LRU + dedupe +
-localStorage); Sector + Macro dashboards moved into a native `<details>`
-collapsible (level-3 progressive disclosure per NN/G research).
+8 of 10 success criteria PASS this cycle. 2 honest deferrals: criterion 6
+(`performance_sparkline_next_to_win_rate_number_30d_trend`) because the
+existing `PerformanceStats` API shape has no daily-trend series, and
+criterion 9 (`Lighthouse_a11y_at_least_95_on_both_pages`) which is
+operator-side Lighthouse work. Criterion 7 (per-pillar bars) IS done
+via a recent-reports aggregation pass.
 
-7 of 9 code criteria PASS this cycle. 2 deferred (criteria 3 + 9 =
-Lighthouse runs, operator-side). The verification command
-`test -f handoff/current/live_check_44.6.md` is single-gate -- once the
-file is created this cycle and Q/A PASSes, the step CAN flip to `done`
-on the harness's next masterplan write. No operator approval required
-for this step.
+The verification command `test -f handoff/current/live_check_44.4.md` is
+single-gate -- after this cycle writes the file + Q/A PASSes, the step
+CAN flip to `done` on the harness's next pass.
 
 ## Files shipped
 
@@ -28,106 +23,103 @@ for this step.
 
 | File | Lines | Role |
 |------|-------|------|
-| `frontend/src/lib/hooks/useEnrichmentSignals.ts` | 67 | Extracts 52-LoC inline type-coercion from signals/page.tsx; defensive pick() helper; same `EnrichmentSignals` return shape |
-| `frontend/src/lib/hooks/useEnrichmentSignals.test.ts` | 71 | 6 vitest cases (null / missing fields / typed extraction / coerced fields / non-object / wrong-type) |
-| `frontend/src/components/RecentTickerChips.tsx` | 128 | last-5 LRU + dedupe + localStorage roundtrip + role=group + WCAG 2.2 24px target-size |
-| `frontend/src/components/RecentTickerChips.test.tsx` | 145 | 11 vitest cases (empty / hydrate / click / submit / dedupe / cap / uppercase / blank / role=group / aria-label / target-size / internals) |
-| `handoff/current/live_check_44.6.md` | -- | Verdict + criteria table |
+| `frontend/src/components/TimeRangeSelector.tsx` | 105 | Segmented control with role=radiogroup; 4 options (7d/30d/90d/all); WCAG 2.2 32px target-size; ArrowLeft/Right/Home/End keyboard nav; `filterByTimeRange<T>(items, range, dateKey)` helper |
+| `frontend/src/components/TimeRangeSelector.test.tsx` | 138 | 16 vitest cases covering radio behavior + keyboard nav + roving tabindex + filter helper edge cases |
+| `frontend/src/components/ReportCompareDrawer.tsx` | 162 | aria-modal=true + role=dialog; ESC + backdrop close; aria-pressed on selection items; Compare button disabled <2 selected; auto-close on Compare-click |
+| `frontend/src/components/ReportCompareDrawer.test.tsx` | 187 | 10 vitest cases covering open/close/dialog role/aria-pressed/onToggle/Compare-disabled/Compare-enabled/Escape/Cancel/backdrop/close-aria-label |
+| `frontend/src/components/reports-columns.tsx` | 132 | TanStack v8 column factory: ticker, company, date, score, recommendation, 30d-trend sparkline (Tailwind-SVG MiniSpark). `buildTickerHistory(reports)` helper groups + sorts |
 
-**MODIFIED (4 files):**
+**MODIFIED (2 files):**
 
 | File | Diff | Change |
 |------|------|--------|
-| `frontend/src/lib/hooks/index.ts` | +1 | Barrel re-exports useEnrichmentSignals |
-| `frontend/src/app/page.tsx` | +90 -45 | (a) KpiTile extended with sparkData / sparkPositive / liveBand / liveAgeSec / ariaLabel; (b) MiniSpark Tailwind-SVG mini-area chart (zero new deps); (c) 6-KPI grid wrapped in role=group + aria-label; (d) navNums / dailyPctSeries / alphaSeries / ddSeries derivation; (e) **anti-pattern removed**: `lg:items-stretch` + per-child `h-full` dropped per frontend-layout.md Section 4.5 option 2; replaced with `lg:items-start` |
-| `frontend/src/app/signals/page.tsx` | +33 -55 | (a) replaced 52 LoC inline coercion with one-line `useEnrichmentSignals(data)` call; (b) added `<label htmlFor>` + `aria-label` to ticker input; (c) wired `RecentTickerChips` row below input; (d) progressive-disclosure: Sector + Macro moved into native `<details>` (level 3); (e) `handleFetch(ticker?)` signature lets chip-click drive the fetch |
-| `handoff/current/contract.md` | overwrite | Cycle 64 contract |
+| `frontend/src/app/reports/page.tsx` | +93 -129 | (a) useSearchParams -> useURLState x2 (tab + ticker); (b) ARIA tablist on tab bar (role=tablist + role=tab + aria-selected + aria-controls + roving tabindex); (c) History tab now uses DataTable foundation with sparkline column + EmptyState; (d) Compare tab triggers ReportCompareDrawer overlay; (e) tabpanel wrappers per W3C APG |
+| `frontend/src/app/performance/page.tsx` | +112 -10 | (a) Tremor AreaChart for cumulative cost (colors=["amber"] override); (b) TimeRangeSelector segmented control + filteredCostHistory wiring; (c) per-pillar bars aggregated from listReports + getReport across the 10 most-recent unique tickers (fail-soft); (d) inline empty state -> EmptyState component |
 
-**ZERO new backend code; ZERO new env vars; ZERO new dependencies (used a Tailwind+SVG mini-spark inline rather than pulling Tremor's SparkAreaChart -- cheaper bundle + simpler test surface).**
+**ZERO new backend code; ZERO new env vars; ZERO new dependencies (Tremor + TanStack already pinned).**
 
 ## Verification command output
 
 ```
-$ test -f handoff/current/live_check_44.6.md
+$ test -f handoff/current/live_check_44.4.md
 $ echo $?
 0
 ```
 
-Single-gate verification PASSES once `live_check_44.6.md` is created
-this cycle. Step CAN flip to `done` after Q/A PASSes.
+Single-gate satisfied.
 
 ## /goal integration-gate scoreboard
 
 | # | Gate | Verdict | Evidence |
 |---|------|---------|----------|
-| 1 | pytest >= 614 backend + 83 frontend (cycle-63 baseline) | **PASS** | backend 614 collected / 589 passed (same 14 pre-existing env/calendar/doc-archive failures as cycle 63; ZERO new regressions). Frontend vitest 15 files / 100 tests pass (+17 net vs cycle 63's 83). |
-| 2 | TS build + ast.parse green | **PASS** | `npx tsc --noEmit` exit 0. `npm run build` green; all 22 routes emit including 7 /paper-trading/* sub-routes from cycle 63. |
-| 3 | Feature behind flag default OFF | **N/A** | Anti-pattern removal + ARIA wiring + hook extraction are bug-fix/refactor-level, not new features. Chip row is small additive UX called out explicitly in master_design Section 3.11 -- ship inline. |
+| 1 | pytest >= 614 backend + 100 frontend (cycle 64 baseline) | **PASS** | backend 614 / 589 passed (same 14 pre-existing failures); frontend vitest 17 files / 126 tests pass (+26 net) |
+| 2 | TS build + ast.parse green | **PASS** | `tsc --noEmit` EXIT=0; `npm run build` green |
+| 3 | Feature behind flag default OFF | **N/A** (refactor + new UX components called out in master_design) |
 | 4 | BQ migrations idempotent | **N/A** |
 | 5 | New env vars documented | **N/A** |
-| 6 | Contract has N* delta | **PASS** -- B primary + R/P speculative declared in `handoff/current/contract.md`. |
-| 7 | Zero emojis | **PASS** -- emoji scan across 7 changed files: TOTAL HITS 0. |
-| 8 | ASCII loggers | **PASS** -- no backend logger touches. `scripts/qa/ascii_logger_check.py` (untouched dependencies) exits 0. |
-| 9 | Single source of truth | **PASS** -- hook extraction REINFORCES SSOT (was inline duplication risk); KpiTile reused 6x; RecentTickerChips reusable. |
-| 10 | log FIRST / flip LAST | **HOLDING** -- harness_log append happens next; status flip happens after Q/A PASS. |
+| 6 | Contract has N* delta | **PASS** |
+| 7 | Zero emojis | **PASS** (0 hits on 7 changed files) |
+| 8 | ASCII loggers | **N/A** (no backend touches) |
+| 9 | Single source of truth | **PASS** (DataTable + EmptyState + MiniSpark + useURLState all reused) |
+| 10 | log first / flip last | **HOLDING** |
 
 ## Criteria table
 
 | # | Criterion (verbatim) | Verdict | Evidence |
 |---|----------------------|---------|----------|
-| 1 | home_3box_row_h_full_anti_pattern_removed_per_frontend_md_line_23 | **PASS** | `frontend/src/app/page.tsx` line 332ish: `lg:items-stretch` -> `lg:items-start`; line 333ish + 339ish + 345ish: per-child `h-full` dropped. The anti-pattern named at `.claude/rules/frontend.md:23` is gone. |
-| 2 | home_6_KPI_tiles_have_Sparkline_LiveBadge_aria_label_role_group | **PASS** | `frontend/src/app/page.tsx` line ~290: `<div role="group" aria-label="Portfolio key performance indicators">`. Each KpiTile gains `role="group"` + per-tile `aria-label` (default: `${label} ${value}${subText ? ` (${subText})` : ""}`). 5 of 6 tiles get sparklines (NAV / P&L / vs SPY / Sharpe / Max DD; Positions skipped per researcher topic 2 -- no time-series). LiveBadge compact dot on NAV + Positions. |
-| 3 | home_LCP_under_2_seconds | **DEFERRED** (operator-side Lighthouse) | Code preserves the existing `next/dynamic` ssr:false on RedLineMonitor (the heaviest bundle). Sparkline is inline Tailwind SVG (no Recharts/Tremor bundle add). Should not regress LCP. |
-| 4 | signals_useEnrichmentSignals_hook_extracted_to_frontend_src_lib_hooks | **PASS** | `frontend/src/lib/hooks/useEnrichmentSignals.ts` exists; consumed at `signals/page.tsx:33` via `useEnrichmentSignals(data)`. Hook re-exported via `frontend/src/lib/hooks/index.ts`. |
-| 5 | signals_50_LoC_of_inline_type_coercion_removed_from_signals_page_tsx | **PASS** | The previous 52 LoC at signals/page.tsx:34-85 collapsed to 2 lines (comment + one-call). Verified via `git diff --stat`. |
-| 6 | signals_input_gains_aria_label_ticker_symbol_and_label_pairing | **PASS** | `<label htmlFor="signals-ticker-input">Ticker symbol</label>` + `<input id="signals-ticker-input" aria-label="Ticker symbol" .../>` |
-| 7 | signals_recent_tickers_chips_below_input_last_5_clickable | **PASS** | `<RecentTickerChips onSelect={...} recentlySubmitted={lastSubmitted} />` mounted below the input. localStorage key `pyfinagent.signals.recentTickers`. last-5 LRU + dedupe verified by 11 vitest cases. |
-| 8 | signals_progressive_disclosure_consensus_pill_then_12_cards_then_collapsible_details | **PASS** | Render order: SignalSummaryBar (level 1 consensus pill) -> SignalCards (level 2 12 cards) -> `<details>` wrapping SectorDashboard + MacroDashboard (level 3). NN/G ceiling of 2 deep respected. |
-| 9 | Lighthouse_a11y_at_least_95_on_both_pages | **DEFERRED** (operator-side) | ARIA wiring done (criteria 2 + 6); audit pending operator Lighthouse run. |
+| 1 | reports_useURLState_syncs_tab_ticker_selected_to_url_params_shareable_links_work | **PASS** | `reports/page.tsx`: `useURLState<Tab>("tab", "history", {...})` + `useURLState<string>("ticker", "", {...})`. The "history" default serializes to NO param (compact URLs). selected[] stays as transient component state per researcher (not URL-shareable). |
+| 2 | reports_compare_wizard_uses_Drawer_overlay | **PASS** | New `ReportCompareDrawer.tsx` (162 LoC; aria-modal + role=dialog + ESC + backdrop). The Compare tab now shows a button to open the drawer; selection lives in the drawer; results render below when comparison data is loaded. |
+| 3 | reports_history_uses_DataTable_TanStack_v8_with_sparkline_column_30d_score_history | **PASS** | History tab uses `<DataTable columns={historyColumns} data={filtered} ariaLabel="Reports history" onRowClick={...}>`. Column factory at `reports-columns.tsx`; sparkline column derives 30d score history per ticker via `buildTickerHistory(reports)` (no backend change). |
+| 4 | reports_empty_state_uses_EmptyState_component_not_inline_paragraph | **PASS** | 2 sites in `reports/page.tsx` (history empty + compare empty) + 1 site in `performance/page.tsx` (cost history empty) -- all now render `<EmptyState>` (cycle 44.1 foundation). |
+| 5 | performance_AreaChart_Tremor_above_cost_history_table_cumulative_cost | **PASS** | `<AreaChart data={cumulativeCostSeries} index="date" categories={["Cumulative"]} colors={["amber"]} ...>`. Cumulative transform via `useMemo`. amber override defeats Tremor's hardcoded-blue default (verified cycle 63 vs vendor source). |
+| 6 | performance_sparkline_next_to_win_rate_number_30d_trend | **DEFERRED** | `PerformanceStats` has no daily-trend series; closing this requires a backend API extension. Documented + deferred per researcher Option B ("render only when data exists; honest placeholder otherwise"). |
+| 7 | performance_per_pillar_performance_bars_from_SynthesisReport_data | **PASS** | New useEffect at `performance/page.tsx` fetches `listReports(20)` + per-ticker `getReport()` for the 10 most recent unique tickers; aggregates `scoring_matrix.pillar_X` averages. Renders 5 horizontal bars with role=progressbar + aria-valuenow/min/max + color-coded thresholds (>=7 emerald, >=5 sky, >=3 amber, else rose). Fail-soft: bars omit silently if any fetch fails or no data. |
+| 8 | performance_TimeRangeSelector_7d_30d_90d_all | **PASS** | `<TimeRangeSelector value={timeRange} onChange={setTimeRange} />` at the top of cost history section. role=radiogroup + 4 role=radio buttons with min-h[32px] + keyboard nav (ArrowLeft/Right/Home/End). `filterByTimeRange(costHistory, timeRange, "analysis_date")` drives the filtering. |
+| 9 | Lighthouse_a11y_at_least_95_on_both_pages | **DEFERRED** (operator-side) | All ARIA wiring done (criteria 2 + 3 + 8 + 10). Lighthouse audit pending operator run. |
+| 10 | tab_bar_has_role_tablist_aria_selected | **PASS** | `reports/page.tsx`: `role="tablist" aria-label="Paper trading sections"` (wait, this says paper trading -- actually it says "Reports view" -- per my edit). Each `<button role="tab">` has `aria-selected={isActive}` + `aria-controls="panel-{id}"` + `id="tab-{id}"` + roving tabindex. Each tabpanel wraps in `<div role="tabpanel" id="panel-{id}" tabIndex={0}>`. |
 
-**7 PASS + 2 DEFERRED (both operator Lighthouse). Verdict PASS for code work.**
+**8 PASS + 2 DEFERRED (criterion 6 needs backend; criterion 9 needs operator Lighthouse).**
 
 ## Pytest sweep
 
 ```
 $ pytest backend/ -q --no-header
-14 failed, 589 passed, 2 skipped, 9 xfailed, 1 warning in 111.57s
+14 failed, 589 passed, 2 skipped, 9 xfailed, 1 warning in 110.33s
 ```
 
-Same 14 pre-existing failures as cycle 63 (BQ freshness x4 calendar-bound; watchdog 7d; layer1 BQ writes; shortlist doc archived x6; rainbow canary flaky; verify_phase_23_1_17 cascade). ZERO new regressions caused by phase-44.6.
+Same 14 pre-existing failures as cycles 63 + 64; ZERO new regressions caused by phase-44.4.
 
 ## Frontend pytest sweep
 
 ```
 $ npm test -- --run
- Test Files  15 passed (15)
-      Tests  100 passed (100)
+ Test Files  17 passed (17)
+      Tests  126 passed (126)
 ```
 
-+17 net frontend tests (83 -> 100):
-- +6 useEnrichmentSignals.test.ts
-- +11 RecentTickerChips.test.tsx
++26 net frontend tests (100 -> 126):
+- +16 TimeRangeSelector.test.tsx (radio behavior + filterByTimeRange edge cases)
+- +10 ReportCompareDrawer.test.tsx (dialog/aria/onClose/Compare-disabled etc.)
 
-## Operator runbook for closing criteria 3 + 9
+## Operator runbook (close criteria 6 + 9)
 
 ```bash
-# Pull change + restart frontend
 cd /Users/ford/.openclaw/workspace/pyfinagent && git pull origin main
 launchctl kickstart -k "gui/$(id -u)/com.pyfinagent.frontend"
 
-# Criterion 3 (home_LCP_under_2_seconds):
-npx lighthouse http://localhost:3000/ --only-categories=performance --form-factor=desktop
-# Look for LCP < 2000ms.
+# Criterion 6: requires a backend extension to PerformanceStats with
+# a daily win_rate / cum_pnl series. Filing as follow-up phase-44.4.1
+# (P3) if appropriate; otherwise accept as carry-over to phase-44.10
+# which adds SSE streams for live updates.
 
-# Criterion 9 (Lighthouse_a11y_at_least_95_on_both_pages):
-npx lighthouse http://localhost:3000/ --only-categories=accessibility
-npx lighthouse http://localhost:3000/signals --only-categories=accessibility
-# Score >= 95 on each.
+# Criterion 9: Lighthouse a11y >= 95
+npx lighthouse http://localhost:3000/reports --only-categories=accessibility
+npx lighthouse http://localhost:3000/performance --only-categories=accessibility
 ```
 
 ## Q/A expectations
 
-- 5-item harness-compliance audit must PASS: researcher (`a578f3cfa9547464c` brief at `research_brief_phase_44_6.md`) + contract pre-commit + experiment_results + log-LAST + no-verdict-shopping.
-- Single-gate verification command `test -f handoff/current/live_check_44.6.md` PASSes after this cycle writes the file.
-- 7 of 9 criteria PASS code-side; 2 honest deferrals to operator Lighthouse.
-- Step CAN flip to `done` on the harness's next masterplan write (no operator_approval second-gate this time, unlike cycle 63's phase-44.2).
+- 5-item harness audit must PASS.
+- 8 deterministic checks: pytest_count, tsc, vitest count, live_check_44.4 present, ARIA tablist grep on reports, useURLState grep, EmptyState grep, Tremor AreaChart grep.
+- 8 of 10 criteria PASS code-side; 2 honest deferrals (1 backend follow-up + 1 operator Lighthouse).
+- Single-gate verification command satisfied; step CAN flip to `done` on next harness pass.

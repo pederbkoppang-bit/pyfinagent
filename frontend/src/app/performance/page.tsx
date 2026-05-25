@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AreaChart } from "@tremor/react";
 import { Sidebar } from "@/components/Sidebar";
 import { BentoCard } from "@/components/BentoCard";
-import { evaluateOutcomes, getPerformanceStats, getCostHistory } from "@/lib/api";
-import type { PerformanceStats, CostHistoryEntry } from "@/lib/types";
+import { EmptyState } from "@/components/states/EmptyState";
+import { TimeRangeSelector, filterByTimeRange, type TimeRange } from "@/components/TimeRangeSelector";
+import { evaluateOutcomes, getPerformanceStats, getCostHistory, listReports, getReport } from "@/lib/api";
+import type { PerformanceStats, CostHistoryEntry, ReportSummary, SynthesisReport } from "@/lib/types";
 import { IconDeepThink, TabCost } from "@/lib/icons";
 // phase-25.B12: replace bare <p> loading/error with canonical PageSkeleton + rose error banner
 import { PageSkeleton } from "@/components/Skeleton";
@@ -15,6 +18,97 @@ export default function PerformancePage() {
   const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // phase-44.4: time-range filter for cost history (segmented control).
+  const [timeRange, setTimeRange] = useState<TimeRange>("30d");
+  // phase-44.4: per-pillar averages aggregated from recent reports.
+  const [pillarAverages, setPillarAverages] = useState<Record<string, number> | null>(null);
+
+  // Fetch recent reports + aggregate per-pillar averages for the
+  // per-pillar performance bars criterion. Fail-soft: leave null if
+  // any fetch fails so the bars section silently omits.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const summary: ReportSummary[] = await listReports(20);
+        const tickerLatest = new Map<string, string>();
+        for (const r of summary) {
+          // most recent per ticker (listReports already sorts desc)
+          if (!tickerLatest.has(r.ticker)) tickerLatest.set(r.ticker, r.analysis_date);
+        }
+        const fullReports = await Promise.all(
+          Array.from(tickerLatest.entries()).slice(0, 10).map(async ([t, d]) => {
+            try {
+              const full = (await getReport(t, d)) as Record<string, unknown>;
+              const synth =
+                ((full.full_report_json as Record<string, unknown>)?.final_synthesis ??
+                  full.full_report_json ??
+                  {}) as SynthesisReport;
+              return synth;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        const synths = fullReports.filter((s): s is SynthesisReport => s !== null);
+        if (synths.length === 0) {
+          if (!cancelled) setPillarAverages(null);
+          return;
+        }
+        const keys = [
+          "pillar_1_corporate",
+          "pillar_2_industry",
+          "pillar_3_valuation",
+          "pillar_4_sentiment",
+          "pillar_5_governance",
+        ] as const;
+        const sums: Record<string, number> = {};
+        const counts: Record<string, number> = {};
+        for (const s of synths) {
+          const sm = s.scoring_matrix as unknown as Record<string, number>;
+          if (!sm) continue;
+          for (const k of keys) {
+            const v = sm[k];
+            if (typeof v === "number" && !Number.isNaN(v)) {
+              sums[k] = (sums[k] ?? 0) + v;
+              counts[k] = (counts[k] ?? 0) + 1;
+            }
+          }
+        }
+        const avgs: Record<string, number> = {};
+        for (const k of keys) {
+          if (counts[k] > 0) avgs[k] = sums[k] / counts[k];
+        }
+        if (!cancelled) setPillarAverages(Object.keys(avgs).length > 0 ? avgs : null);
+      } catch {
+        if (!cancelled) setPillarAverages(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Filter + cumulative-transform cost history per the selected range.
+  const filteredCostHistory = useMemo(
+    () => filterByTimeRange(costHistory, timeRange, "analysis_date"),
+    [costHistory, timeRange],
+  );
+
+  // Cumulative cost series for the Tremor AreaChart (chronological).
+  const cumulativeCostSeries = useMemo(() => {
+    const sorted = [...filteredCostHistory].sort((a, b) =>
+      a.analysis_date.localeCompare(b.analysis_date),
+    );
+    let running = 0;
+    return sorted.map((r) => {
+      running += r.total_cost_usd ?? 0;
+      return {
+        date: r.analysis_date,
+        Cumulative: Number(running.toFixed(4)),
+      };
+    });
+  }, [filteredCostHistory]);
 
   useEffect(() => {
     Promise.all([
@@ -119,6 +213,53 @@ export default function PerformancePage() {
               </BentoCard>
             </div>
 
+            {/* phase-44.4: per-pillar performance bars aggregated from
+                SynthesisReport.scoring_matrix across recent reports. Renders
+                only when data exists (fail-soft per researcher Option B). */}
+            {pillarAverages && (
+              <div className="col-span-12">
+                <BentoCard>
+                  <h3 className="mb-4 text-lg font-semibold text-slate-300">
+                    Per-Pillar Average Score
+                  </h3>
+                  <ul className="space-y-2">
+                    {[
+                      ["pillar_1_corporate", "Corporate"],
+                      ["pillar_2_industry", "Industry"],
+                      ["pillar_3_valuation", "Valuation"],
+                      ["pillar_4_sentiment", "Sentiment"],
+                      ["pillar_5_governance", "Governance"],
+                    ].map(([k, label]) => {
+                      const v = pillarAverages[k] ?? 0;
+                      const widthPct = Math.min(100, Math.max(0, (v / 10) * 100));
+                      const bar = v >= 7 ? "bg-emerald-500/80" : v >= 5 ? "bg-sky-500/80" : v >= 3 ? "bg-amber-500/80" : "bg-rose-500/80";
+                      return (
+                        <li key={k} className="flex items-center gap-3">
+                          <span className="w-28 text-xs text-slate-400">{label}</span>
+                          <div
+                            className="relative h-5 flex-1 overflow-hidden rounded bg-zinc-800"
+                            role="progressbar"
+                            aria-valuenow={Number(v.toFixed(2))}
+                            aria-valuemin={0}
+                            aria-valuemax={10}
+                            aria-label={`${label} average ${v.toFixed(2)} of 10`}
+                          >
+                            <div className={`h-full ${bar}`} style={{ width: `${widthPct}%` }} />
+                          </div>
+                          <span className="w-12 text-right font-mono text-xs text-slate-300">
+                            {v.toFixed(2)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Averaged across the latest report per ticker (max 10 tickers).
+                  </p>
+                </BentoCard>
+              </div>
+            )}
+
             <div className="col-span-12">
               <BentoCard>
                 <h3 className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-300">
@@ -147,20 +288,47 @@ export default function PerformancePage() {
           </div>
         )}
         {!loading && costHistory.length === 0 && !error && (
-          <div className="mt-8 flex flex-col items-center justify-center py-16 text-center">
-            <TabCost size={36} weight="duotone" className="text-slate-600" />
-            <p className="mt-3 text-sm text-slate-400">No cost history yet</p>
-            <p className="mt-1 text-xs text-slate-600">
-              Costs appear here after the first analysis runs
-            </p>
+          <div className="mt-8">
+            <EmptyState
+              icon={TabCost}
+              title="No cost history yet"
+              description="Costs appear here after the first analysis runs."
+            />
           </div>
         )}
         {costHistory.length > 0 && (
           <div className="mt-8">
-            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-300">
-              <TabCost size={20} weight="duotone" /> LLM Cost History
-            </h3>
-            <div className="grid grid-cols-12 gap-6 mb-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-300">
+                <TabCost size={20} weight="duotone" /> LLM Cost History
+              </h3>
+              {/* phase-44.4: TimeRangeSelector segmented control */}
+              <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+            </div>
+
+            {/* phase-44.4: Tremor AreaChart -- cumulative cost above the table.
+                colors={["amber"]} overrides Tremor's hardcoded-blue default
+                (verified vs vendor source cycle 63). */}
+            {cumulativeCostSeries.length > 0 && (
+              <BentoCard>
+                <h4 className="mb-3 text-sm font-semibold text-slate-400">
+                  Cumulative Cost ({timeRange})
+                </h4>
+                <AreaChart
+                  data={cumulativeCostSeries}
+                  index="date"
+                  categories={["Cumulative"]}
+                  colors={["amber"]}
+                  yAxisWidth={48}
+                  valueFormatter={(n: number) => `$${n.toFixed(4)}`}
+                  className="h-48"
+                  showAnimation={false}
+                  showLegend={false}
+                />
+              </BentoCard>
+            )}
+
+            <div className="mt-6 grid grid-cols-12 gap-6 mb-6">
               <div className="col-span-12 md:col-span-4">
                 <BentoCard>
                   <p className="text-sm text-slate-400">Total Spend</p>
@@ -222,7 +390,7 @@ export default function PerformancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {costHistory.map((row, i) => (
+                    {filteredCostHistory.map((row, i) => (
                       <tr
                         key={`${row.ticker}-${row.analysis_date}-${i}`}
                         className="border-b border-slate-800 text-slate-300"

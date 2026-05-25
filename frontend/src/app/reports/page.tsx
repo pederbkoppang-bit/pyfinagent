@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import {
   LineChart,
   Line,
@@ -23,10 +22,15 @@ import {
 import { Sidebar } from "@/components/Sidebar";
 import { BentoCard } from "@/components/BentoCard";
 import { PageSkeleton } from "@/components/Skeleton";
+import { DataTable } from "@/components/DataTable";
+import { EmptyState } from "@/components/states/EmptyState";
+import { ReportCompareDrawer } from "@/components/ReportCompareDrawer";
+import { reportsColumns, buildTickerHistory } from "@/components/reports-columns";
+import { useURLState } from "@/lib/hooks";
 import { listReports, getReport } from "@/lib/api";
 import type { ReportSummary, SynthesisReport } from "@/lib/types";
 import {
-  IconChart, IconStar, IconCheck, IconScoringMatrix,
+  IconChart, IconStar, IconScoringMatrix,
 } from "@/lib/icons";
 import { Trophy, ChartPolar, NotePencil, Files, ArrowsLeftRight } from "@/lib/icons";
 import type { Icon } from "@/lib/icons";
@@ -91,23 +95,33 @@ export default function ReportsPage() {
 }
 
 function ReportsContent() {
-  const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as Tab) ?? "history";
+  // phase-44.4: URL-state migration -- replaces manual `searchParams.get` boilerplate.
+  // useURLState (cycle 44.1 foundation) keeps URL <-> state bidirectionally synced
+  // so links like /reports?tab=compare&ticker=AAPL round-trip correctly.
+  const [activeTab, setActiveTab] = useURLState<Tab>("tab", "history", {
+    parser: (raw) => (raw === "compare" || raw === "history" ? raw : "history"),
+    serializer: (v) => (v === "history" ? null : v),
+  });
+  const [filter, setFilter] = useURLState<string>("ticker", "", {
+    parser: (raw) => (raw ?? "").trim().toUpperCase(),
+    serializer: (v) => (v === "" ? null : v),
+  });
 
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // History state
-  const [filter, setFilter] = useState(searchParams.get("ticker") ?? "");
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   // Compare state
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState<FullReport[]>([]);
   const [priceData, setPriceData] = useState<Record<string, PriceRow[]>>({});
   const [comparing, setComparing] = useState(false);
+  // phase-44.4: drawer-open state for the compare wizard. Selection step
+  // lives in the drawer (per master_design Section 3.8); results below.
+  const [compareDrawerOpen, setCompareDrawerOpen] = useState(false);
 
   useEffect(() => {
     listReports(50)
@@ -200,6 +214,14 @@ function ReportsContent() {
       }));
   }, [priceData]);
 
+  // phase-44.4: ticker -> score-history map for the DataTable's sparkline
+  // column. Derived from the same reports array so no extra fetch.
+  const tickerHistory = useMemo(() => buildTickerHistory(reports), [reports]);
+  const historyColumns = useMemo(
+    () => reportsColumns(tickerHistory),
+    [tickerHistory],
+  );
+
   const radarData = useMemo(() => {
     return pillars.map((p) => {
       const entry: Record<string, string | number> = { pillar: p.label };
@@ -229,22 +251,35 @@ function ReportsContent() {
             <p className="text-sm text-slate-500">Browse past analyses or compare companies side-by-side</p>
           </div>
 
-          {/* Tab bar (pinned in fixed-header zone per frontend-layout.md §5) */}
-          <div className="mb-6 flex gap-1 rounded-lg bg-navy-800/60 p-1">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? "bg-sky-500/10 text-sky-400"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <tab.icon size={16} weight={activeTab === tab.id ? "fill" : "regular"} />
-                {tab.label}
-              </button>
-            ))}
+          {/* phase-44.4: ARIA tablist (role=tablist + role=tab + aria-selected
+              + aria-controls per W3C WAI-ARIA APG). Roving tabindex: only the
+              active tab is in focus order. */}
+          <div
+            role="tablist"
+            aria-label="Reports view"
+            className="mb-6 flex gap-1 rounded-lg bg-navy-800/60 p-1"
+          >
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`tab-${tab.id}`}
+                  aria-selected={isActive}
+                  aria-controls={`panel-${tab.id}`}
+                  tabIndex={isActive ? 0 : -1}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 min-h-[24px] ${
+                    isActive ? "bg-sky-500/10 text-sky-400" : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <tab.icon size={16} weight={isActive ? "fill" : "regular"} />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
@@ -256,9 +291,14 @@ function ReportsContent() {
 
         {loading && <PageSkeleton />}
 
-        {/* ═══════════════ HISTORY TAB ═══════════════ */}
+        {/* phase-44.4: HISTORY TAB -- DataTable foundation + EmptyState */}
         {activeTab === "history" && !loading && (
-          <>
+          <div
+            role="tabpanel"
+            id="panel-history"
+            aria-labelledby="tab-history"
+            tabIndex={0}
+          >
             {/* Ticker filter */}
             <div className="mb-6 flex flex-wrap items-center gap-3">
               <input
@@ -266,11 +306,13 @@ function ReportsContent() {
                 placeholder="Filter by ticker..."
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
+                aria-label="Filter reports by ticker"
                 className="w-40 rounded-lg border border-navy-700 bg-navy-800 px-3 py-2 font-mono text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
               />
               {tickers.map((t) => (
                 <button
                   key={t}
+                  type="button"
                   onClick={() => setFilter(filter === t ? "" : t)}
                   className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                     filter === t
@@ -282,102 +324,103 @@ function ReportsContent() {
                 </button>
               ))}
               {filter && (
-                <button onClick={() => setFilter("")} className="text-xs text-slate-500 hover:text-slate-300">
+                <button
+                  type="button"
+                  onClick={() => setFilter("")}
+                  className="text-xs text-slate-500 hover:text-slate-300"
+                >
                   Clear
                 </button>
               )}
             </div>
 
-            {filtered.length === 0 && (
-              <p className="text-slate-500">
-                {filter ? `No reports found for "${filter}".` : "No reports found yet."}
-              </p>
+            {filtered.length === 0 ? (
+              <EmptyState
+                icon={Files}
+                title={filter ? `No reports for ${filter}` : "No reports yet"}
+                description={
+                  filter
+                    ? "Try clearing the ticker filter or running a new analysis."
+                    : "Reports will appear here after the first analysis completes."
+                }
+              />
+            ) : (
+              <div className="rounded-xl border border-navy-700 bg-navy-800/40 p-4">
+                <DataTable
+                  data={filtered}
+                  columns={historyColumns}
+                  ariaLabel="Reports history"
+                  onRowClick={(r) => {
+                    const key = `${r.ticker}|${r.analysis_date}`;
+                    setExpanded((cur) => (cur === key ? null : key));
+                  }}
+                  emptyState={null}
+                />
+                {expanded && (() => {
+                  const [exTicker, exDate] = expanded.split("|");
+                  const exReport = filtered.find(
+                    (r) => r.ticker === exTicker && r.analysis_date === exDate,
+                  );
+                  if (!exReport) return null;
+                  return (
+                    <div className="mt-4 rounded-lg border border-sky-500/20 bg-sky-950/20 p-4">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="font-mono font-semibold text-slate-200">
+                          {exReport.ticker} -- {new Date(exReport.analysis_date).toLocaleDateString()}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setExpanded(null)}
+                          className="text-xs text-slate-400 hover:text-slate-200"
+                        >
+                          Close
+                        </button>
+                      </div>
+                      <p className="text-sm leading-relaxed text-slate-400">
+                        {exReport.summary}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
             )}
-
-            <div className="space-y-3">
-              {filtered.map((r, i) => {
-                const isExpanded = expanded === i;
-                return (
-                  <BentoCard key={i}>
-                    <button
-                      onClick={() => setExpanded(isExpanded ? null : i)}
-                      className="flex w-full items-center justify-between text-left"
-                    >
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono text-lg font-bold text-slate-100">{r.ticker}</span>
-                          {r.company_name && <span className="text-sm text-slate-500">{r.company_name}</span>}
-                          <span className="text-xs text-slate-600">{isExpanded ? "▲" : "▼"}</span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-500">{new Date(r.analysis_date).toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono text-2xl font-bold text-sky-300">{r.final_score.toFixed(2)}</p>
-                        <p className={`text-sm font-medium ${scoreColor(r.recommendation)}`}>{r.recommendation}</p>
-                      </div>
-                    </button>
-                    {isExpanded && (
-                      <div className="mt-4 border-t border-slate-800 pt-4">
-                        <p className="text-sm leading-relaxed text-slate-400">{r.summary}</p>
-                      </div>
-                    )}
-                  </BentoCard>
-                );
-              })}
-            </div>
-          </>
+          </div>
         )}
 
-        {/* ═══════════════ COMPARE TAB ═══════════════ */}
+        {/* phase-44.4: COMPARE TAB -- wizard moved into ReportCompareDrawer overlay.
+            Selection step is in the drawer; results render below when comparison
+            data is loaded. */}
         {activeTab === "compare" && !loading && (
-          <>
-            {reports.length === 0 && <p className="text-slate-500">No reports found yet.</p>}
+          <div
+            role="tabpanel"
+            id="panel-compare"
+            aria-labelledby="tab-compare"
+            tabIndex={0}
+          >
+            {reports.length === 0 && (
+              <EmptyState
+                icon={Files}
+                title="No reports yet"
+                description="Reports will appear here after the first analysis completes; then return to compare them side-by-side."
+              />
+            )}
 
             {reports.length > 0 && loaded.length === 0 && (
-              <>
-                <p className="mb-4 text-sm text-slate-500">Select 2+ reports to compare side-by-side</p>
-                <div className="mb-4 space-y-2">
-                  {reports.map((r) => {
-                    const key = `${r.ticker}|${r.analysis_date}`;
-                    const isSelected = selected.has(key);
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => toggle(key)}
-                        className={`flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors ${
-                          isSelected
-                            ? "border-sky-500/50 bg-sky-500/10"
-                            : "border-slate-800 bg-slate-900/50 hover:border-slate-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`flex h-4 w-4 items-center justify-center rounded border text-[10px] ${
-                              isSelected ? "border-sky-400 bg-sky-400 text-white" : "border-slate-600"
-                            }`}
-                          >
-                            {isSelected && <IconCheck size={12} weight="bold" />}
-                          </span>
-                          <span className="font-mono font-bold text-slate-200">{r.ticker}</span>
-                          <span className="text-sm text-slate-400">{r.company_name}</span>
-                          <span className="text-xs text-slate-500">{new Date(r.analysis_date).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="font-mono text-sm text-sky-300">{r.final_score.toFixed(2)}</span>
-                          <span className={`text-xs font-medium ${scoreColor(r.recommendation)}`}>{r.recommendation}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="flex flex-col items-center justify-center py-12">
+                <p className="mb-4 text-sm text-slate-400">
+                  {selected.size} of {reports.length} reports selected.
+                </p>
                 <button
-                  onClick={startCompare}
-                  disabled={selected.size < 2 || comparing}
-                  className="rounded-lg bg-sky-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  type="button"
+                  onClick={() => setCompareDrawerOpen(true)}
+                  className="rounded-lg bg-sky-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-sky-500 min-h-[24px]"
                 >
-                  {comparing ? "Loading..." : `Compare ${selected.size} Companies`}
+                  {selected.size >= 2 ? "Re-open selection" : "Select reports to compare"}
                 </button>
-              </>
+                {comparing && (
+                  <p className="mt-3 text-xs text-slate-500">Loading comparison data...</p>
+                )}
+              </div>
             )}
 
             {/* Comparison results */}
@@ -595,10 +638,20 @@ function ReportsContent() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
         </div>
       </main>
+      {/* phase-44.4: ReportCompareDrawer overlay -- selection wizard. */}
+      <ReportCompareDrawer
+        open={compareDrawerOpen}
+        onClose={() => setCompareDrawerOpen(false)}
+        reports={reports}
+        selected={selected}
+        onToggle={toggle}
+        onStartCompare={startCompare}
+        comparing={comparing}
+      />
     </div>
   );
 }

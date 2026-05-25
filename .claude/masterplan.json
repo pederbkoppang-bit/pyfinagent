@@ -12710,11 +12710,11 @@
         {
           "id": "44.4",
           "name": "Reports section refresh (/reports + /performance: URL deep-linking + DataTable + Tremor AreaChart)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "44.1",
-          "audit_basis": "Per master_design Section 3.5: /reports has 604 LoC with broken URL deep-linking (?ticker= only seeds filter, tab change loses URL), weak compare-flow UX. Section 3.6: /performance has no time-series visualization (3 metric cards, no trend; cost-history is a 50-row <table>).",
+          "audit_basis": "Per master_design Sections 3.5 + 3.6 + 3.8 + 3.9: /reports used manual searchParams.get() boilerplate + no ARIA tablist + raw BentoCard list (no DataTable) + inline empty paragraphs; /performance had no Tremor AreaChart + no TimeRangeSelector + no per-pillar bars + inline empty state. Per cycle 65 (2026-05-25): 8 of 10 code-side criteria CLOSED. Reports: useSearchParams -> useURLState x2 (tab + ticker); ARIA tablist (role=tablist + per-tab role=tab + aria-selected + aria-controls + roving tabindex + tabpanel wrappers); History uses DataTable foundation with 6-col factory + 30d-trend sparkline (Tailwind-SVG MiniSpark via buildTickerHistory helper); Compare wizard moved to ReportCompareDrawer overlay (aria-modal + role=dialog + ESC + backdrop); 3 inline empty paragraphs -> EmptyState component. Performance: Tremor AreaChart cumulative cost (colors=[\"amber\"] override); TimeRangeSelector segmented control role=radiogroup with 4 options + WCAG 2.2 32px + ArrowLeft/Right/Home/End nav + filterByTimeRange<T> helper; per-pillar bars aggregated from listReports + getReport across 10 most-recent tickers with role=progressbar + aria-valuenow + 4-tier color thresholds. 2 honest deferrals: criterion 6 (sparkline next to win rate) needs backend extension to PerformanceStats with daily series; criterion 9 (Lighthouse a11y >=95) needs operator Lighthouse run. Researcher a2f06d8fdab4b52f4 (7 sources, gate_passed=true). Q/A a284657f50ae721b2 PASS (5/5 audits + 9/9 deterministic + ESLint exit 0 + LLM clean; zero violated_criteria). pytest backend 614/589 (zero new regressions), vitest 17/126 (+26 net).",
           "verification": {
             "command": "test -f handoff/current/live_check_44.4.md",
             "success_criteria": [
