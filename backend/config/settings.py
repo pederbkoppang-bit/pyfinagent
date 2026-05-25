@@ -187,6 +187,16 @@ class Settings(BaseSettings):
         le=1.0,
         description="Maximum FF3 factor cosine similarity vs portfolio avg before blocking BUY. 0.0 = disabled. Recommended live 0.85.",
     )
+    # phase-38.1 (OPEN-10): kill-switch auto-resume hysteresis feature flag.
+    # Default-OFF preserves the manual-resume behavior. When ON, the
+    # autonomous loop's check_and_enforce_kill_switch call also invokes
+    # check_auto_resume; if paused + no breach + >=2h elapsed, the system
+    # auto-resumes (with a T+1h Slack pager alert as a heads-up).
+    # Operator-approval criterion: this flag IS the opt-in surface.
+    kill_switch_auto_resume_enabled: bool = Field(
+        False,
+        description="Enable kill-switch auto-resume after 2h of no-breach. Default OFF. Operator opt-in: phase-38.1 (OPEN-10).",
+    )
     # phase-40.8.1 (P3): feature flag for the FF3 factor-loadings producer.
     # Default-OFF preserves byte-identical behavior. Required for the
     # phase-40.8 cap to fire even when paper_max_factor_corr > 0.

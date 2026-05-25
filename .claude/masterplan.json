@@ -11981,7 +11981,7 @@
         {
           "id": "38.1",
           "name": "Kill-switch auto-resume on no-breach (OPEN-10) -- owner-gated",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

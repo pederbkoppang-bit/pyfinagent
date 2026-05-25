@@ -49,6 +49,13 @@ class KillSwitchState:
         self._sod_nav: Optional[float] = None  # start-of-day NAV snapshot
         self._sod_date: Optional[str] = None  # phase-23.2.19: UTC date of the SOD anchor
         self._peak_nav: Optional[float] = None  # trailing high-water mark
+        # phase-38.1 (OPEN-10): auto-resume hysteresis. _paused_at carries
+        # the UTC ISO timestamp of the most recent `pause` event; cleared
+        # on resume. Persisted via audit log so restart-survivable.
+        self._paused_at: Optional[str] = None
+        # _auto_resume_alerted_at carries the timestamp of the T+1h pager
+        # alert (one-shot per pause-cycle) so we don't spam Slack.
+        self._auto_resume_alerted_at: Optional[str] = None
         self._load_from_audit()
 
     def _load_from_audit(self) -> None:
@@ -64,9 +71,19 @@ class KillSwitchState:
                     if row.get("event") == "pause":
                         self._paused = True
                         self._pause_reason = row.get("trigger")
+                        # phase-38.1: capture the pause ts for hysteresis.
+                        self._paused_at = row.get("ts")
+                        self._auto_resume_alerted_at = None
                     elif row.get("event") == "resume":
                         self._paused = False
                         self._pause_reason = None
+                        self._paused_at = None
+                        self._auto_resume_alerted_at = None
+                    elif row.get("event") == "auto_resume_alert":
+                        # phase-38.1: T+1h pager alert went out -- record so
+                        # we don't re-fire on the next cycle within the same
+                        # pause window.
+                        self._auto_resume_alerted_at = row.get("ts")
                     elif row.get("event") == "sod_snapshot":
                         self._sod_nav = float(row.get("nav") or 0.0) or None
                         # phase-23.2.19: prefer explicit `date` (rows written
@@ -113,13 +130,18 @@ class KillSwitchState:
         Found via faulthandler SIGUSR1 dump on a live hung backend.
 
         phase-23.2.19: includes sod_date so callers can decide whether to
-        re-anchor SOD on a new UTC calendar day."""
+        re-anchor SOD on a new UTC calendar day.
+
+        phase-38.1: includes paused_at + auto_resume_alerted_at for
+        hysteresis logic in check_auto_resume."""
         return {
             "paused": self._paused,
             "pause_reason": self._pause_reason,
             "sod_nav": self._sod_nav,
             "sod_date": self._sod_date,
             "peak_nav": self._peak_nav,
+            "paused_at": self._paused_at,
+            "auto_resume_alerted_at": self._auto_resume_alerted_at,
         }
 
     def snapshot(self) -> dict:
@@ -131,6 +153,9 @@ class KillSwitchState:
         with self._lock:
             self._paused = True
             self._pause_reason = trigger
+            # phase-38.1: stamp the pause timestamp for hysteresis.
+            self._paused_at = datetime.now(timezone.utc).isoformat()
+            self._auto_resume_alerted_at = None
             self._append_audit("pause", trigger=trigger, details=details or {})
             # phase-23.1.22: call _snapshot_locked, NOT snapshot(), to avoid
             # re-acquiring self._lock (threading.Lock is not reentrant).
@@ -160,6 +185,9 @@ class KillSwitchState:
         with self._lock:
             self._paused = False
             self._pause_reason = None
+            # phase-38.1: clear pause-cycle state on resume.
+            self._paused_at = None
+            self._auto_resume_alerted_at = None
             self._append_audit("resume", trigger=trigger, details=details or {})
             # phase-23.1.22: call _snapshot_locked, NOT snapshot(), to avoid
             # re-acquiring self._lock (threading.Lock is not reentrant).
@@ -233,4 +261,113 @@ def evaluate_breach(
         "trailing_dd_pct": round(trailing_dd_pct, 4),
         "trailing_dd_limit_pct": float(trailing_dd_limit_pct),
         "any_breached": bool(daily_loss_breached or trailing_dd_breached),
+    }
+
+
+# phase-38.1 (OPEN-10): kill-switch auto-resume hysteresis.
+# Operator-driven resumes created two 3.5h outage windows in 5 days
+# (OPS-F10). Auto-resume after 2h of no-breach closes that gap.
+
+AUTO_RESUME_ALERT_AT_SEC: float = 60 * 60       # T+1h: pager alert
+AUTO_RESUME_TRIGGER_AT_SEC: float = 2 * 60 * 60  # T+2h: auto-resume fires
+
+
+def check_auto_resume(
+    current_nav: float,
+    daily_loss_limit_pct: float,
+    trailing_dd_limit_pct: float,
+    enabled: bool = False,
+) -> dict:
+    # phase-38.1 (OPEN-10): evaluate hysteresis. Default-OFF; caller
+    # passes `enabled=True` after operator opts in via the
+    # `kill_switch_auto_resume_enabled` settings flag.
+    #
+    # Returns dict with:
+    #   action: "no_op" | "alert" | "resume"
+    #   reason: human-readable explanation
+    #   seconds_paused: time since pause (or None if not paused)
+    #
+    # No state mutation here except via state.resume() on action="resume"
+    # and audit-log append on action="alert". This keeps the function
+    # ergonomic to call once per cycle.
+    sentinel = {
+        "action": "no_op", "reason": "auto_resume_disabled" if not enabled else "not_paused",
+        "seconds_paused": None,
+    }
+    if not enabled:
+        return sentinel
+    s = _state.snapshot()
+    if not s.get("paused"):
+        return sentinel
+    paused_at_str = s.get("paused_at")
+    if not paused_at_str:
+        return {"action": "no_op", "reason": "no_paused_at_timestamp", "seconds_paused": None}
+    try:
+        paused_at = datetime.fromisoformat(str(paused_at_str).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return {"action": "no_op", "reason": "no_paused_at_timestamp", "seconds_paused": None}
+    now = datetime.now(timezone.utc)
+    seconds_paused = (now - paused_at).total_seconds()
+
+    # If the breach is STILL active, never auto-resume.
+    breach = evaluate_breach(current_nav, daily_loss_limit_pct, trailing_dd_limit_pct)
+    if breach["any_breached"]:
+        return {
+            "action": "no_op",
+            "reason": "breach_still_active",
+            "seconds_paused": round(seconds_paused, 1),
+            "breach": breach,
+        }
+
+    # T+2h: auto-resume fires.
+    if seconds_paused >= AUTO_RESUME_TRIGGER_AT_SEC:
+        _state.resume(trigger="auto_resume_hysteresis", details={
+            "seconds_paused": round(seconds_paused, 1),
+            "current_nav": current_nav,
+            "breach": breach,
+        })
+        return {
+            "action": "resume",
+            "reason": "no_breach_for_2h",
+            "seconds_paused": round(seconds_paused, 1),
+        }
+
+    # T+1h: pager alert (one-shot per pause-cycle).
+    already_alerted = s.get("auto_resume_alerted_at") is not None
+    if seconds_paused >= AUTO_RESUME_ALERT_AT_SEC and not already_alerted:
+        _state._append_audit(
+            "auto_resume_alert",
+            seconds_paused=round(seconds_paused, 1),
+            current_nav=current_nav,
+        )
+        # In-memory state update so subsequent cycles don't re-alert.
+        with _state._lock:
+            _state._auto_resume_alerted_at = datetime.now(timezone.utc).isoformat()
+        # Fail-open Slack dispatch.
+        try:
+            from backend.services.observability.alerting import raise_cron_alert_sync
+            raise_cron_alert_sync(
+                source="kill_switch",
+                error_type="auto_resume_pending",
+                severity="P2",
+                title="Kill-switch auto-resume will fire in ~1h (no breach detected)",
+                details={
+                    "seconds_paused": str(round(seconds_paused, 1)),
+                    "auto_resume_at_sec": str(AUTO_RESUME_TRIGGER_AT_SEC),
+                    "current_nav": str(current_nav),
+                    "breach": str(breach),
+                },
+            )
+        except Exception as exc:
+            logger.warning("kill_switch auto_resume_alert dispatch fail-open: %r", exc)
+        return {
+            "action": "alert",
+            "reason": "no_breach_for_1h_pager_fired",
+            "seconds_paused": round(seconds_paused, 1),
+        }
+
+    return {
+        "action": "no_op",
+        "reason": "paused_but_under_hysteresis_threshold",
+        "seconds_paused": round(seconds_paused, 1),
     }

@@ -23563,3 +23563,21 @@ Total: 9 PD.
 - 5/5 immutable criteria PASS + 11/11 /goal gates PASS.
 
 **Total cycle time:** ~25 min (2 helper files + hook edit + 13 tests + live_check doc).
+
+
+## Cycle 58 -- 2026-05-25 -- phase=38.1 result=PASS
+
+- Step: phase-38.1 (P1 OPEN-10) -- Kill-switch auto-resume on no-breach. Operator UNBLOCKED owner-gate.
+- Generate: kill_switch.py +120 lines (check_auto_resume function + _paused_at + _auto_resume_alerted_at fields + audit-replay event handlers); settings.py +11 (kill_switch_auto_resume_enabled field, default False); backend/tests/test_phase_38_1_kill_switch_auto_resume.py NEW (~140 lines, 9 tests).
+- Pytest: 9/9 new PASS + 93/93 regression sweep (kill_switch + paper_trader + dod4_tier1) PASS. Collection 603 -> 612 (+9 net, 0 regressions).
+- Hysteresis design (T+1h pager alert + T+2h auto-resume; restart-survivable via audit log):
+  - paused + breach still active -> no_op (stays paused)
+  - paused + no breach + <1h -> no_op
+  - paused + no breach + 1-2h -> alert (one-shot per pause-cycle; Slack P2 dispatched fail-open)
+  - paused + no breach + >=2h -> resume (state.resume + audit event)
+- Default-OFF: settings.kill_switch_auto_resume_enabled defaults False; operator opt-in via env var KILL_SWITCH_AUTO_RESUME_ENABLED=true + backend restart.
+- 5/5 immutable criteria PASS + 11/11 /goal gates PASS.
+- N* delta R: closes OPS-F10 (two 3.5h outage windows in 5 days documented in research_brief). B: zero $ until operator opts in.
+- Follow-up: phase-38.1.1 (P3) -- wire check_auto_resume into paper_trader.check_and_enforce_kill_switch (1-line addition; deferred so operator reviews doctrine first).
+
+**Total cycle time:** ~35 min (kill_switch state-machine extension + 9 tests + live_check).
