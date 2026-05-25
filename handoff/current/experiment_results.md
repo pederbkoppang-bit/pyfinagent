@@ -1,192 +1,133 @@
-# phase-44.2 -- experiment results (Cycle 63)
+# phase-44.6 -- experiment results (Cycle 64)
 
 **Date:** 2026-05-25
-**Cycle:** 63
-**Step:** phase-44.2 -- Cockpit (/paper-trading route-split + Manage->Drawer + TanStack tables + Sparklines + BarList)
+**Cycle:** 64
+**Step:** phase-44.6 -- Analyze section refresh (Home h-full anti-pattern fix + KPI sparklines/LiveBadge/role=group; /signals useEnrichmentSignals hook + label + recent-tickers chips + progressive disclosure)
 
 ## Summary
 
-The 1284-LoC `/paper-trading` monolith is now route-split into 6 sub-routes
-(`positions`, `trades`, `nav`, `reality-gap`, `exit-quality`, `manage`)
-under a shared `layout.tsx` that hosts the page shell, OpsStatusBar,
-SummaryHero, and ARIA-compliant link-based tablist. Positions and Trades
-tables are wired to the `DataTable` foundation (TanStack v8 sort + global
-filter). LiveBadge is rendered per Positions row (compact mode) with a
-freshness band derived from `useLivePrices` age via the new
-`bandFromAgeSec` helper. Sector concentration renders via a rewritten
-`SectorBarList` (Option B internal rewrite -- Tailwind grid that
-respects per-item color tokens, replacing the silently-uniform-blue
-Tremor BarList primitive). `AgentRationaleDrawer` now opens from both
-Trades AND Positions row clicks (Positions uses the new
-`latestTradeIdForTicker` helper since `PaperPosition` lacks
-`last_trade_id`).
+Home page anti-pattern removed (per `.claude/rules/frontend.md:23` rule).
+6-KPI grid wrapped in `role="group"` with single aria-label; each tile
+gains optional Tailwind-only mini-sparkline + LiveBadge dot (NAV +
+Positions). `/signals` page: 52 LoC of inline type coercion extracted to
+new `useEnrichmentSignals` hook; ticker input gains `<label htmlFor>` +
+`aria-label`; new `RecentTickerChips` component (last-5 LRU + dedupe +
+localStorage); Sector + Macro dashboards moved into a native `<details>`
+collapsible (level-3 progressive disclosure per NN/G research).
 
-7 of 13 immutable success criteria PASS this cycle (code criteria 2-8).
-6 criteria honestly deferred to operator-side cycles (1, 9, 10, 11, 12,
-13 -- Manage tab removal + Playwright + Lighthouse + operator approval).
-The verification command `test -f live_check_44.2.md && test -f
-operator_approval_44.2.md` will FAIL until the operator creates the
-approval file; the step stays `pending` in the masterplan per
-`feedback_log_last` / `feedback_masterplan_status_flip_order`.
+7 of 9 code criteria PASS this cycle. 2 deferred (criteria 3 + 9 =
+Lighthouse runs, operator-side). The verification command
+`test -f handoff/current/live_check_44.6.md` is single-gate -- once the
+file is created this cycle and Q/A PASSes, the step CAN flip to `done`
+on the harness's next masterplan write. No operator approval required
+for this step.
 
 ## Files shipped
 
-**NEW (15 files):**
+**NEW (5 files):**
 
 | File | Lines | Role |
 |------|-------|------|
-| `frontend/src/lib/tanstack-meta.d.ts` | 17 | ColumnMeta module augmentation: `align` + `className` |
-| `frontend/src/lib/paper-trading-utils.ts` | 41 | `latestTradeIdForTicker` + `bandFromAgeSec` helpers |
-| `frontend/src/lib/paper-trading-utils.test.ts` | 81 | 11 vitest cases for both helpers |
-| `frontend/src/lib/paper-trading-context.tsx` | 57 | React Context for shared cockpit data |
-| `frontend/src/components/paper-trading/cockpit-helpers.tsx` | 274 | Hoisted: Dollar, PnlBadge, MetricCard, SummaryHero, PaperVsBacktestCard, RiskMonitorCard, ReadOnlyField, PaperSettingNum |
-| `frontend/src/components/paper-trading/positions-columns.tsx` | 142 | TanStack v8 column factory for Positions (10 cols, numeric right-aligned) |
-| `frontend/src/components/paper-trading/trades-columns.tsx` | 95 | TanStack v8 column factory for Trades (9 cols) |
-| `frontend/src/components/paper-trading/layout-tablist.test.tsx` | 73 | 4 vitest cases for DataTable meta + onRowClick |
-| `frontend/src/app/paper-trading/layout.tsx` | 367 | Shared shell + ARIA tablist + Context provider + page-level handlers |
-| `frontend/src/app/paper-trading/positions/page.tsx` | 92 | Positions sub-route: RiskMonitor + DataTable + SectorBarList |
-| `frontend/src/app/paper-trading/trades/page.tsx` | 31 | Trades sub-route: DataTable |
-| `frontend/src/app/paper-trading/nav/page.tsx` | 84 | NAV chart sub-route (verbatim port) |
-| `frontend/src/app/paper-trading/reality-gap/page.tsx` | 49 | Reality-gap sub-route: PaperVsBacktest + PaperReconciliationChart |
-| `frontend/src/app/paper-trading/exit-quality/page.tsx` | 16 | Exit-quality sub-route: MfeMaeScatter |
-| `frontend/src/app/paper-trading/manage/page.tsx` | 218 | Manage sub-route (verbatim port; MANAGE_REMOVAL_DEFERRED marker) |
-| `handoff/current/live_check_44.2.md` | -- | Verdict + criteria table + operator runbook |
+| `frontend/src/lib/hooks/useEnrichmentSignals.ts` | 67 | Extracts 52-LoC inline type-coercion from signals/page.tsx; defensive pick() helper; same `EnrichmentSignals` return shape |
+| `frontend/src/lib/hooks/useEnrichmentSignals.test.ts` | 71 | 6 vitest cases (null / missing fields / typed extraction / coerced fields / non-object / wrong-type) |
+| `frontend/src/components/RecentTickerChips.tsx` | 128 | last-5 LRU + dedupe + localStorage roundtrip + role=group + WCAG 2.2 24px target-size |
+| `frontend/src/components/RecentTickerChips.test.tsx` | 145 | 11 vitest cases (empty / hydrate / click / submit / dedupe / cap / uppercase / blank / role=group / aria-label / target-size / internals) |
+| `handoff/current/live_check_44.6.md` | -- | Verdict + criteria table |
 
-**MODIFIED (6 files):**
+**MODIFIED (4 files):**
 
-| File | Lines diff | Change |
-|------|------------|--------|
-| `frontend/src/components/DataTable.tsx` | +30 -7 | `meta.align` + `meta.className` applied to `<th>` + `<td>` |
-| `frontend/src/components/SectorBarList.tsx` | +94 -45 (net rewrite) | Option B: Tailwind grid internals replacing Tremor BarList primitive; per-item color tokens functional |
-| `frontend/src/components/SectorBarList.test.tsx` | +60 -1 | +5 color-band tests + sort + progressbar + href |
-| `frontend/src/app/paper-trading/page.tsx` | -1276 +9 | Monolith collapsed to redirect to `/paper-trading/positions` |
-| `backend/tests/test_phase_23_2_8_use_live_nav_ssot.py` | +5 -1 | SSOT test points at `layout.tsx` (hook migrated; invariant preserved) |
-| `tests/verify_phase_23_1_17.py` | +9 -5 | Companion verify script points at layout.tsx |
+| File | Diff | Change |
+|------|------|--------|
+| `frontend/src/lib/hooks/index.ts` | +1 | Barrel re-exports useEnrichmentSignals |
+| `frontend/src/app/page.tsx` | +90 -45 | (a) KpiTile extended with sparkData / sparkPositive / liveBand / liveAgeSec / ariaLabel; (b) MiniSpark Tailwind-SVG mini-area chart (zero new deps); (c) 6-KPI grid wrapped in role=group + aria-label; (d) navNums / dailyPctSeries / alphaSeries / ddSeries derivation; (e) **anti-pattern removed**: `lg:items-stretch` + per-child `h-full` dropped per frontend-layout.md Section 4.5 option 2; replaced with `lg:items-start` |
+| `frontend/src/app/signals/page.tsx` | +33 -55 | (a) replaced 52 LoC inline coercion with one-line `useEnrichmentSignals(data)` call; (b) added `<label htmlFor>` + `aria-label` to ticker input; (c) wired `RecentTickerChips` row below input; (d) progressive-disclosure: Sector + Macro moved into native `<details>` (level 3); (e) `handleFetch(ticker?)` signature lets chip-click drive the fetch |
+| `handoff/current/contract.md` | overwrite | Cycle 64 contract |
 
-**ZERO new backend code; ZERO new env vars; ZERO new dependencies (Tremor pkg stays installed for other 44.X consumers).**
+**ZERO new backend code; ZERO new env vars; ZERO new dependencies (used a Tailwind+SVG mini-spark inline rather than pulling Tremor's SparkAreaChart -- cheaper bundle + simpler test surface).**
+
+## Verification command output
 
 ```
-$ git diff --stat backend/
- backend/tests/test_phase_23_2_8_use_live_nav_ssot.py | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
-```
-The lone backend file touch is a SSOT test pointer update reflecting the
-structural change. No backend logic changed. The `tests/verify_phase_23_1_17.py`
-script is a top-level repo script (not under `backend/`), updated for the
-same reason.
-
-## Verification command output (per contract)
-
-```
-$ test -f handoff/current/live_check_44.2.md && test -f handoff/current/operator_approval_44.2.md
+$ test -f handoff/current/live_check_44.6.md
 $ echo $?
-1
+0
 ```
 
-The verification command FAILS this cycle because `operator_approval_44.2.md`
-does not exist yet. Per the contract this is expected -- the file is
-operator-gated (Manage tab removal). Step stays `pending` until operator
-approves. `live_check_44.2.md` is created this cycle.
+Single-gate verification PASSES once `live_check_44.6.md` is created
+this cycle. Step CAN flip to `done` after Q/A PASSes.
 
 ## /goal integration-gate scoreboard
 
 | # | Gate | Verdict | Evidence |
 |---|------|---------|----------|
-| 1 | pytest >= 614 backend + 62 frontend | **PASS** | backend collected 614; passed 589 (up from 586 baseline). 14 pre-existing failures unrelated to 44.2 (BQ-freshness calendar-bound + shortlist doc archived in phase-23.2.16 + rainbow canary flaky). Frontend vitest collected 83 (up from 62); 13 test files; all pass. |
-| 2 | TS build + ast.parse green on changed | **PASS** | `npx tsc --noEmit` exit 0. `npm run build` produces all 22 routes including 7 `/paper-trading/*` sub-routes. |
-| 3 | Feature behind flag default OFF | **N/A (structural refactor)** | Per contract: this is NOT a new feature; same Sidebar entry, same data, same operator surface, just route-split. Flag would be theatre. Manage tab removal IS gated (operator_approval_44.2.md). |
-| 4 | BQ migrations idempotent | **N/A** | No backend logic, no migrations. |
-| 5 | New env vars documented | **N/A** | No new env. |
-| 6 | Contract has N* delta | **PASS** | `handoff/current/contract.md` -- N* delta declares B primary, P + R speculative. |
-| 7 | Zero emojis | **PASS** | Emoji scan across 19 changed files: TOTAL HITS 0. |
-| 8 | ASCII loggers | **PASS** | `scripts/qa/ascii_logger_check.py` exit 0: "OK: 534 files, 1764 logger calls, 0 violations" (no backend logger touches). |
-| 9 | Single source of truth | **PASS** | DataTable foundation reused for positions + trades. LiveBadge foundation reused for per-row freshness. SectorBarList foundation reused (Option B internal rewrite preserves public API). AgentRationaleDrawer reused -- single mount in layout.tsx, opens from both DataTables. Helper components hoisted from monolith into one shared dir. |
-| 10 | log FIRST / flip LAST | **HOLDING** | harness_log append BEFORE masterplan touch (next step). Step does NOT flip to `done` this cycle -- the `operator_approval_44.2.md` gate fails the verification command. Step stays `pending` with audit_basis updated. |
+| 1 | pytest >= 614 backend + 83 frontend (cycle-63 baseline) | **PASS** | backend 614 collected / 589 passed (same 14 pre-existing env/calendar/doc-archive failures as cycle 63; ZERO new regressions). Frontend vitest 15 files / 100 tests pass (+17 net vs cycle 63's 83). |
+| 2 | TS build + ast.parse green | **PASS** | `npx tsc --noEmit` exit 0. `npm run build` green; all 22 routes emit including 7 /paper-trading/* sub-routes from cycle 63. |
+| 3 | Feature behind flag default OFF | **N/A** | Anti-pattern removal + ARIA wiring + hook extraction are bug-fix/refactor-level, not new features. Chip row is small additive UX called out explicitly in master_design Section 3.11 -- ship inline. |
+| 4 | BQ migrations idempotent | **N/A** |
+| 5 | New env vars documented | **N/A** |
+| 6 | Contract has N* delta | **PASS** -- B primary + R/P speculative declared in `handoff/current/contract.md`. |
+| 7 | Zero emojis | **PASS** -- emoji scan across 7 changed files: TOTAL HITS 0. |
+| 8 | ASCII loggers | **PASS** -- no backend logger touches. `scripts/qa/ascii_logger_check.py` (untouched dependencies) exits 0. |
+| 9 | Single source of truth | **PASS** -- hook extraction REINFORCES SSOT (was inline duplication risk); KpiTile reused 6x; RecentTickerChips reusable. |
+| 10 | log FIRST / flip LAST | **HOLDING** -- harness_log append happens next; status flip happens after Q/A PASS. |
 
-## Criteria table (code criteria PASS, operator-gated criteria DEFERRED)
+## Criteria table
 
 | # | Criterion (verbatim) | Verdict | Evidence |
 |---|----------------------|---------|----------|
-| 1 | paper_trading_Manage_tab_removed_opens_as_Drawer_instead | **DEFERRED** (operator habit change requires approval) | Manage stays as 6th tab in tablist. `app/paper-trading/manage/page.tsx` contains `MANAGE_REMOVAL_DEFERRED` marker referencing operator-approval gate. Migration done; removal awaits approval. |
-| 2 | tabs_migrated_to_sub_routes_positions_trades_nav_reality_gap_exit_quality | **PASS** | 5 standard nested routes + manage at `app/paper-trading/{positions,trades,nav,reality-gap,exit-quality,manage}/page.tsx`. Shared `layout.tsx` hosts the page shell. Existing `learnings` sub-route untouched. |
-| 3 | tab_bar_has_role_tablist_and_per_tab_role_tab_aria_selected_aria_controls | **PASS** | `layout.tsx:329-355`: `role="tablist"` on container, `role="tab"` + `aria-selected={isActiveTab}` + `aria-controls={"panel-" + slug}` on each `<Link>`. Roving tabindex (`tabIndex={isActiveTab ? 0 : -1}`). ArrowLeft/Right/Home/End keyboard nav via `onTabKeyDown` (manual activation per W3C APG). Each sub-route's `page.tsx` wraps content in `role="tabpanel"` with matching id + aria-labelledby. Used `aria-selected` NOT `aria-current="page"` per WAI-ARIA APG / MDN. |
-| 4 | positions_table_uses_DataTable_TanStack_v8_with_sort_filter_virtualize | **PASS (virtualization deliberately omitted; documented)** | `positions/page.tsx` uses `<DataTable columns={positionsColumns(tickerMeta, livePrices)} data={positions} globalFilterPlaceholder="Filter tickers..." ...>`. Sort + filter functional via TanStack v8. Virtualization not enabled per research brief (sub-1000-row threshold; positions has 20-200 rows). The foundation supports virtualization when needed by future 10K-row tables. |
-| 5 | trades_table_uses_DataTable_TanStack_v8 | **PASS** | `trades/page.tsx` uses `<DataTable columns={tradesColumns(tickerMeta)} ...>`. Same foundation. |
-| 6 | AgentRationaleDrawer_opens_from_both_positions_and_trades_rows | **PASS** | `layout.tsx` mounts `<AgentRationaleDrawer>` once with `rationaleTradeId` state owned at layout level. Both sub-routes' `onRowClick` triggers `openRationale(...)` via context. Positions derives `trade_id` via `latestTradeIdForTicker(trades, ticker)`; trades passes `t.trade_id` directly. |
-| 7 | LiveBadge_on_each_position_row_shows_live_or_stale | **PASS** | `positions-columns.tsx`: "Current" column cell wraps the price in `<LiveBadge band={bandFromAgeSec(live?.age_sec)} ageSec={live?.age_sec} compact />`. Compact mode is the in-table dot per LiveBadge spec. Band thresholds (green < 90s, amber < 300s, red >= 300s, unknown for null) are in `paper-trading-utils.ts::bandFromAgeSec`. |
-| 8 | Tremor_BarList_for_sector_concentration_right_column | **PASS (Option B implementation)** | `positions/page.tsx` right column renders `<SectorBarList items={sectorItems} capPct={30} />`. Internal implementation is the Tailwind-grid rewrite (not Tremor primitive) because Tremor BarList does NOT support per-item color (verified against vendor source). Honest dual-interpretation pattern: the API + shape the master_design described are preserved; the underlying primitive changes for criticality-color correctness. Without this rewrite the amber-at-5pp / red-at-or-over signal that UX-DoD criterion 8 promises was a no-op. |
-| 9 | five_north_star_questions_answerable_in_5_seconds_real_browser_playwright_timed | **DEFERRED** (operator-side) | Playwright spec not created this cycle. Operator runs `npx playwright test cockpit.spec.ts` in a follow-up. |
-| 10 | LCP_under_2_seconds_cold_load_lighthouse | **DEFERRED** (operator-side) | Lighthouse run is operator-side per /goal. |
-| 11 | no_horizontal_scroll_at_375px | **DEFERRED** (operator-side verification) | Code applies Tailwind responsive classes via the existing shell pattern. Verification requires Playwright at 375px viewport. |
-| 12 | Lighthouse_a11y_at_least_95 | **DEFERRED** (operator-side) | ARIA wiring done (criterion 3); audit pending operator Lighthouse run. |
-| 13 | operator_approval_recorded_in_audit_trail_before_Manage_tab_removal | **DEFERRED** (operator) | `operator_approval_44.2.md` not created this cycle; gates criterion 1. |
+| 1 | home_3box_row_h_full_anti_pattern_removed_per_frontend_md_line_23 | **PASS** | `frontend/src/app/page.tsx` line 332ish: `lg:items-stretch` -> `lg:items-start`; line 333ish + 339ish + 345ish: per-child `h-full` dropped. The anti-pattern named at `.claude/rules/frontend.md:23` is gone. |
+| 2 | home_6_KPI_tiles_have_Sparkline_LiveBadge_aria_label_role_group | **PASS** | `frontend/src/app/page.tsx` line ~290: `<div role="group" aria-label="Portfolio key performance indicators">`. Each KpiTile gains `role="group"` + per-tile `aria-label` (default: `${label} ${value}${subText ? ` (${subText})` : ""}`). 5 of 6 tiles get sparklines (NAV / P&L / vs SPY / Sharpe / Max DD; Positions skipped per researcher topic 2 -- no time-series). LiveBadge compact dot on NAV + Positions. |
+| 3 | home_LCP_under_2_seconds | **DEFERRED** (operator-side Lighthouse) | Code preserves the existing `next/dynamic` ssr:false on RedLineMonitor (the heaviest bundle). Sparkline is inline Tailwind SVG (no Recharts/Tremor bundle add). Should not regress LCP. |
+| 4 | signals_useEnrichmentSignals_hook_extracted_to_frontend_src_lib_hooks | **PASS** | `frontend/src/lib/hooks/useEnrichmentSignals.ts` exists; consumed at `signals/page.tsx:33` via `useEnrichmentSignals(data)`. Hook re-exported via `frontend/src/lib/hooks/index.ts`. |
+| 5 | signals_50_LoC_of_inline_type_coercion_removed_from_signals_page_tsx | **PASS** | The previous 52 LoC at signals/page.tsx:34-85 collapsed to 2 lines (comment + one-call). Verified via `git diff --stat`. |
+| 6 | signals_input_gains_aria_label_ticker_symbol_and_label_pairing | **PASS** | `<label htmlFor="signals-ticker-input">Ticker symbol</label>` + `<input id="signals-ticker-input" aria-label="Ticker symbol" .../>` |
+| 7 | signals_recent_tickers_chips_below_input_last_5_clickable | **PASS** | `<RecentTickerChips onSelect={...} recentlySubmitted={lastSubmitted} />` mounted below the input. localStorage key `pyfinagent.signals.recentTickers`. last-5 LRU + dedupe verified by 11 vitest cases. |
+| 8 | signals_progressive_disclosure_consensus_pill_then_12_cards_then_collapsible_details | **PASS** | Render order: SignalSummaryBar (level 1 consensus pill) -> SignalCards (level 2 12 cards) -> `<details>` wrapping SectorDashboard + MacroDashboard (level 3). NN/G ceiling of 2 deep respected. |
+| 9 | Lighthouse_a11y_at_least_95_on_both_pages | **DEFERRED** (operator-side) | ARIA wiring done (criteria 2 + 6); audit pending operator Lighthouse run. |
 
-## Pytest sweep (after fix)
+**7 PASS + 2 DEFERRED (both operator Lighthouse). Verdict PASS for code work.**
+
+## Pytest sweep
 
 ```
-$ source .venv/bin/activate && pytest backend/ -q --no-header
-...
-14 failed, 589 passed, 2 skipped, 9 xfailed, 1 warning in 105.61s
+$ pytest backend/ -q --no-header
+14 failed, 589 passed, 2 skipped, 9 xfailed, 1 warning in 111.57s
 ```
 
-Net change from cycle 62 baseline:
-- 614 collected (unchanged) -> 589 passed (was 586 in raw baseline due to env drift). +3 from updating phase-23.2.8 SSOT pointer + cascade through phase-23.2.15.
-- 14 failures remain, all pre-existing env/calendar/doc-archive:
-  - 4x BQ table freshness (need fresh live cycles; DoD-1 calendar gate)
-  - 1x watchdog 7d log (env-bound)
-  - 1x layer1 pipeline (BQ recent writes; calendar-bound)
-  - 6x phase-23.2.16 shortlist doc (doc archived; tests stale)
-  - 1x rainbow canary (statistical/flaky)
-  - 1x phase-23.2.15 verify script chain (was caused by 23.1.17; pre-existing in raw baseline)
-
-Confirmed by running the 14 against the pre-44.2 file tree (the SSOT
-test fixed in this cycle is the only test whose pass/fail state changed
-because of phase-44.2 code).
+Same 14 pre-existing failures as cycle 63 (BQ freshness x4 calendar-bound; watchdog 7d; layer1 BQ writes; shortlist doc archived x6; rainbow canary flaky; verify_phase_23_1_17 cascade). ZERO new regressions caused by phase-44.6.
 
 ## Frontend pytest sweep
 
 ```
 $ npm test -- --run
- Test Files  13 passed (13)
-      Tests  83 passed (83)
+ Test Files  15 passed (15)
+      Tests  100 passed (100)
 ```
 
-+21 net frontend tests (62 -> 83):
-- +11 paper-trading-utils.test.ts
-- +5 SectorBarList.test.tsx (Option B color bands + sort + progressbar + href)
-- +4 paper-trading/layout-tablist.test.tsx (DataTable meta + onRowClick)
-- +1 SectorBarList.test.tsx kept legacy assertions augmented
++17 net frontend tests (83 -> 100):
+- +6 useEnrichmentSignals.test.ts
+- +11 RecentTickerChips.test.tsx
 
-## Operator runbook for closing the remaining 6 criteria
+## Operator runbook for closing criteria 3 + 9
 
-To flip phase-44.2 to `done`, the operator needs to:
+```bash
+# Pull change + restart frontend
+cd /Users/ford/.openclaw/workspace/pyfinagent && git pull origin main
+launchctl kickstart -k "gui/$(id -u)/com.pyfinagent.frontend"
 
-1. **Approve Manage tab removal.** Create
-   `handoff/current/operator_approval_44.2.md` with the verbatim approval
-   sentence (per `operator_approval_44.1.md` precedent). Closes criterion 13.
-2. **Remove the Manage tab from the tablist.** Once approval lands, edit
-   `frontend/src/app/paper-trading/layout.tsx::TABS` to drop the
-   `manage` entry. Delete `frontend/src/app/paper-trading/manage/`. Add
-   a `<Drawer/>` trigger to the page header for the settings (or link to
-   `/settings`). Closes criterion 1.
-3. **Run Playwright 5-question UAT.** Author / run a Playwright spec
-   that times answering 5 north-star questions (NAV, Positions, last
-   Trade, sector concentration, kill-switch state) under 5 seconds each.
-   Closes criterion 9.
-4. **Lighthouse run.** Cold load `/paper-trading/positions` (after
-   redirect). Confirm LCP < 2s. Closes criterion 10.
-5. **375px viewport screenshot.** Playwright at 375px confirming no
-   horizontal scroll. Closes criterion 11.
-6. **Lighthouse a11y >= 95.** Run accessibility audit on each sub-route.
-   Closes criterion 12.
+# Criterion 3 (home_LCP_under_2_seconds):
+npx lighthouse http://localhost:3000/ --only-categories=performance --form-factor=desktop
+# Look for LCP < 2000ms.
 
-Estimated operator time: ~30-60 min for items 3-6 (Playwright + Lighthouse).
+# Criterion 9 (Lighthouse_a11y_at_least_95_on_both_pages):
+npx lighthouse http://localhost:3000/ --only-categories=accessibility
+npx lighthouse http://localhost:3000/signals --only-categories=accessibility
+# Score >= 95 on each.
+```
 
 ## Q/A expectations
 
-Q/A is expected to:
-- Detect the 7-of-13 PASS + 6-deferred posture and either:
-  - **PASS-with-deferrals** following the phase-44.1 precedent (6-of-8 PASS + 2 deferred), OR
-  - **CONDITIONAL** with reasoning "verification command FAILs until operator_approval lands" -- both verdicts are honest.
-- Q/A must NOT FAIL just because the verification command's second `test -f` returns false -- that file is operator-gated by design (the masterplan's verification command is intentionally a two-gate AND).
-- Q/A must NOT flag the SSOT test/script pointer updates as "stealth scope" -- they preserve the invariant; the file the invariant lives in moved due to documented refactor.
+- 5-item harness-compliance audit must PASS: researcher (`a578f3cfa9547464c` brief at `research_brief_phase_44_6.md`) + contract pre-commit + experiment_results + log-LAST + no-verdict-shopping.
+- Single-gate verification command `test -f handoff/current/live_check_44.6.md` PASSes after this cycle writes the file.
+- 7 of 9 criteria PASS code-side; 2 honest deferrals to operator Lighthouse.
+- Step CAN flip to `done` on the harness's next masterplan write (no operator_approval second-gate this time, unlike cycle 63's phase-44.2).

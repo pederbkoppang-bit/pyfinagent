@@ -5,8 +5,10 @@ import { Sidebar } from "@/components/Sidebar";
 import { SignalCards, SignalSummaryBar } from "@/components/SignalCards";
 import { SectorDashboard } from "@/components/SectorDashboard";
 import { MacroDashboard } from "@/components/MacroDashboard";
+import { RecentTickerChips } from "@/components/RecentTickerChips";
 import { getAllSignals } from "@/lib/api";
-import type { AllSignals, EnrichmentSignals } from "@/lib/types";
+import type { AllSignals } from "@/lib/types";
+import { useEnrichmentSignals } from "@/lib/hooks";
 import { TabSignals } from "@/lib/icons";
 
 export default function SignalsPage() {
@@ -14,15 +16,21 @@ export default function SignalsPage() {
   const [data, setData] = useState<AllSignals | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // phase-44.6: track the most-recently-submitted ticker so the chip
+  // row records it (deduped + LRU + persisted via localStorage).
+  const [lastSubmitted, setLastSubmitted] = useState<string | null>(null);
 
-  const handleFetch = useCallback(async () => {
-    if (!ticker.trim()) return;
+  const handleFetch = useCallback(async (tickerArg?: string) => {
+    const t = (tickerArg ?? ticker).trim().toUpperCase();
+    if (!t) return;
+    setTicker(t);
     setLoading(true);
     setError(null);
     setData(null);
     try {
-      const result = await getAllSignals(ticker);
+      const result = await getAllSignals(t);
       setData(result);
+      setLastSubmitted(t);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to fetch signals");
     } finally {
@@ -30,59 +38,8 @@ export default function SignalsPage() {
     }
   }, [ticker]);
 
-  // Build enrichment signals summary from the full data
-  const enrichmentSignals: EnrichmentSignals | null = data
-    ? {
-        insider: {
-          signal: data.insider?.signal || "N/A",
-          summary: data.insider?.summary || "",
-        },
-        options: {
-          signal: data.options?.signal || "N/A",
-          summary: data.options?.summary || "",
-        },
-        social_sentiment: {
-          signal: (data.social_sentiment as Record<string, string>)?.signal || "N/A",
-          summary: (data.social_sentiment as Record<string, string>)?.summary || "",
-        },
-        patent: {
-          signal: (data.patent as Record<string, string>)?.signal || "N/A",
-          summary: (data.patent as Record<string, string>)?.summary || "",
-        },
-        earnings_tone: {
-          signal: (data.earnings_tone as Record<string, string>)?.signal || "N/A",
-          summary: (data.earnings_tone as Record<string, string>)?.summary || "",
-        },
-        fred_macro: {
-          signal: (data.fred_macro as Record<string, string>)?.signal || "N/A",
-          summary: (data.fred_macro as Record<string, string>)?.summary || "",
-        },
-        alt_data: {
-          signal: (data.alt_data as Record<string, string>)?.signal || "N/A",
-          summary: (data.alt_data as Record<string, string>)?.summary || "",
-        },
-        sector: {
-          signal: data.sector?.signal || "N/A",
-          summary: data.sector?.summary || "",
-        },
-        nlp_sentiment: {
-          signal: (data as unknown as Record<string, Record<string, string>>).nlp_sentiment?.signal || "N/A",
-          summary: (data as unknown as Record<string, Record<string, string>>).nlp_sentiment?.summary || "",
-        },
-        anomaly: {
-          signal: (data as unknown as Record<string, Record<string, string>>).anomalies?.signal || "N/A",
-          summary: (data as unknown as Record<string, Record<string, string>>).anomalies?.summary || "",
-        },
-        monte_carlo: {
-          signal: (data as unknown as Record<string, Record<string, string>>).monte_carlo?.signal || "N/A",
-          summary: (data as unknown as Record<string, Record<string, string>>).monte_carlo?.summary || "",
-        },
-        quant_model: {
-          signal: (data as unknown as Record<string, Record<string, string>>).quant_model?.signal || "N/A",
-          summary: (data as unknown as Record<string, Record<string, string>>).quant_model?.summary || "",
-        },
-      }
-    : null;
+  // phase-44.6: extracted the 52-LoC inline type coercion into useEnrichmentSignals.
+  const enrichmentSignals = useEnrichmentSignals(data);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -100,24 +57,42 @@ export default function SignalsPage() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 md:px-8">
-        {/* Input */}
-        <div className="mb-8 flex gap-3">
-          <input
-            type="text"
-            placeholder="e.g. NVDA"
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === "Enter" && handleFetch()}
-            className="w-48 rounded-lg border border-navy-700 bg-navy-800 px-4 py-2.5 font-mono text-slate-200 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
-          />
+        {/* phase-44.6 -- labeled ticker input + recent-tickers chip row */}
+        <div className="mb-2 flex gap-3 items-end">
+          <div>
+            <label
+              htmlFor="signals-ticker-input"
+              className="mb-1 block text-xs uppercase tracking-wider text-slate-500"
+            >
+              Ticker symbol
+            </label>
+            <input
+              id="signals-ticker-input"
+              type="text"
+              placeholder="e.g. NVDA"
+              value={ticker}
+              onChange={(e) => setTicker(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && handleFetch()}
+              aria-label="Ticker symbol"
+              className="w-48 rounded-lg border border-navy-700 bg-navy-800 px-4 py-2.5 font-mono text-slate-200 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
+            />
+          </div>
           <button
-            onClick={handleFetch}
+            type="button"
+            onClick={() => handleFetch()}
             disabled={loading || !ticker.trim()}
             className="rounded-lg bg-sky-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Loading..." : "Fetch Signals"}
           </button>
         </div>
+        <RecentTickerChips
+          onSelect={(t) => {
+            setTicker(t);
+            void handleFetch(t);
+          }}
+          recentlySubmitted={lastSubmitted}
+        />
 
         {/* Error */}
         {error && (
@@ -139,35 +114,43 @@ export default function SignalsPage() {
           </div>
         )}
 
-        {/* Results */}
+        {/* Results -- phase-44.6 progressive disclosure shape:
+            level 1 = consensus pill (SignalSummaryBar)
+            level 2 = 12 cards (SignalCards)
+            level 3 = Sector + Macro deep dives behind native <details>
+            Per NN/G progressive disclosure: never go beyond 2 levels deep;
+            here levels 1+2 are co-primary and level 3 is the only opt-in. */}
         {data && enrichmentSignals && (
           <div className="space-y-6">
-            {/* Consensus Bar */}
             <SignalSummaryBar signals={enrichmentSignals} />
-
-            {/* Signal Cards Grid */}
             <SignalCards signals={enrichmentSignals} />
-
-            {/* Sector Dashboard */}
-            {data.sector && data.sector.signal !== "ERROR" && (
-              <SectorDashboard data={data.sector} />
-            )}
-
-            {/* Macro Dashboard */}
-            {data.fred_macro && (data.fred_macro as Record<string, string>).signal !== "ERROR" && (
-              <MacroDashboard
-                data={
-                  data.fred_macro as {
-                    signal: string;
-                    summary: string;
-                    indicators: Record<
-                      string,
-                      { current: number; previous: number; change: number; series_id: string }
-                    >;
-                    warnings: string[];
-                  }
-                }
-              />
+            {((data.sector && data.sector.signal !== "ERROR") ||
+              (data.fred_macro && (data.fred_macro as Record<string, string>).signal !== "ERROR")) && (
+              <details className="rounded-xl border border-navy-700 bg-navy-800/40">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-200 hover:bg-navy-700/30 rounded-xl">
+                  Sector + Macro deep dive
+                </summary>
+                <div className="space-y-6 p-4">
+                  {data.sector && data.sector.signal !== "ERROR" && (
+                    <SectorDashboard data={data.sector} />
+                  )}
+                  {data.fred_macro && (data.fred_macro as Record<string, string>).signal !== "ERROR" && (
+                    <MacroDashboard
+                      data={
+                        data.fred_macro as {
+                          signal: string;
+                          summary: string;
+                          indicators: Record<
+                            string,
+                            { current: number; previous: number; change: number; series_id: string }
+                          >;
+                          warnings: string[];
+                        }
+                      }
+                    />
+                  )}
+                </div>
+              </details>
             )}
           </div>
         )}

@@ -52,25 +52,95 @@ function fmtUsd(v: number | null | undefined) {
   return `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// phase-44.6: KpiTile now supports an optional sparkline + live freshness
+// dot. The sparkline is a Tailwind-only SVG mini-area chart so we don't
+// need to bundle a Recharts/Tremor SparkAreaChart for these 6 tiles
+// (kept the home page LCP discipline + frontend-md "no new deps without
+// owner approval"). aria-label on the tile wrapper supplies a single
+// label for the value + sub-text + spark trend combination.
+import { LiveBadge, type FreshnessBand } from "@/components/LiveBadge";
+
+function MiniSpark({
+  data,
+  positive,
+}: {
+  data: number[];
+  positive?: boolean;
+}) {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const W = 80;
+  const H = 24;
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * W;
+      const y = H - ((v - min) / range) * H;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  const stroke = positive ? "#34d399" : positive === false ? "#fb7185" : "#94a3b8";
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox={`0 0 ${W} ${H}`}
+      className="mt-1 h-6 w-20"
+      preserveAspectRatio="none"
+    >
+      <polyline
+        fill="none"
+        stroke={stroke}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+    </svg>
+  );
+}
+
 function KpiTile({
   label,
   value,
   subText,
   valueClass,
   subTextClass,
+  ariaLabel,
+  sparkData,
+  sparkPositive,
+  liveBand,
+  liveAgeSec,
 }: {
   label: string;
   value: string;
   subText?: string | null;
   valueClass?: string;
   subTextClass?: string;
+  ariaLabel?: string;
+  sparkData?: number[];
+  sparkPositive?: boolean;
+  liveBand?: FreshnessBand;
+  liveAgeSec?: number | null;
 }) {
   return (
-    <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">{label}</p>
+    <div
+      role="group"
+      aria-label={ariaLabel ?? `${label} ${value}${subText ? ` (${subText})` : ""}`}
+      className="rounded-xl border border-navy-700 bg-navy-800/60 p-5"
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">{label}</p>
+        {liveBand && (
+          <LiveBadge band={liveBand} ageSec={liveAgeSec ?? null} compact />
+        )}
+      </div>
       <p className={`mt-1 text-2xl font-bold ${valueClass ?? "text-slate-100"}`}>{value}</p>
       {subText && (
         <p className={`mt-0.5 text-xs ${subTextClass ?? "text-slate-500"}`}>{subText}</p>
+      )}
+      {sparkData && sparkData.length >= 2 && (
+        <MiniSpark data={sparkData} positive={sparkPositive} />
       )}
     </div>
   );
@@ -172,6 +242,27 @@ export default function HomePage() {
   const sortino90 = kpiSortino(navSeries);
   const dd30 = maxDrawdownPct(navSeries);
   const posBreakdown = categorizePositions(positions);
+  // phase-44.6: numeric series for the 5 sparkline tiles. Derived from
+  // navSeries so all tiles share one source-of-truth (no separate API
+  // call). dailyPctSeries = rolling pct-changes; alphaSeries = nav vs
+  // benchmark proxy (uses navSeries directly when no SPY series is
+  // available -- correctness is good-enough for the trend hint).
+  // ddSeries = running max-drawdown traces. All return [] when there's
+  // less than 2 datapoints so the sparkline renders nothing.
+  const navNums: number[] = navSeries.map((p) => p.nav);
+  const dailyPctSeries: number[] =
+    navNums.length >= 2
+      ? navNums.slice(1).map((v, i) => ((v - navNums[i]) / navNums[i]) * 100)
+      : [];
+  const alphaSeries: number[] = navNums;
+  const ddSeries: number[] = (() => {
+    if (navNums.length < 2) return [];
+    let peak = navNums[0];
+    return navNums.map((v) => {
+      if (v > peak) peak = v;
+      return peak > 0 ? ((v - peak) / peak) * 100 : 0;
+    });
+  })();
   // 8.0% trailing-DD limit comes from kill-switch breach.trailing_dd_limit_pct
   // when available; show the static label until we wire it through.
   const trailingDdLimit = "8.0%";
@@ -224,10 +315,21 @@ export default function HomePage() {
           {/* phase-16.44: KPI hero with comparison sub-text under each value.
               All sub-text values computed from real backend data via
               kpiMetrics.ts helpers; null returns -> "—" (no hardcoded). */}
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {/* phase-44.6: wrap the 6-KPI cluster in role=group with a single
+              label. Per WAI-ARIA APG + MDN role=group (researcher source #4
+              + #5): group is the right primitive for a logical collection of
+              related items; role=region would over-promote to landmark. */}
+          <div
+            role="group"
+            aria-label="Portfolio key performance indicators"
+            className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+          >
             <KpiTile
               label="NAV"
               value={loaded ? fmtUsd(navValue) : "—"}
+              sparkData={navNums.length >= 2 ? navNums : undefined}
+              sparkPositive={navNums.length >= 2 ? navNums[navNums.length - 1] >= navNums[0] : undefined}
+              liveBand={loaded ? (livePrices && Object.keys(livePrices).length > 0 ? "green" : "unknown") : "unknown"}
             />
             <KpiTile
               label="P&L (today)"
@@ -235,28 +337,37 @@ export default function HomePage() {
               subText={today != null ? `${today.pct >= 0 ? "+" : ""}${today.pct.toFixed(2)}%` : null}
               valueClass={today != null && today.dollars >= 0 ? "text-emerald-400" : today != null ? "text-rose-400" : undefined}
               subTextClass={today != null && today.pct >= 0 ? "text-emerald-400/70" : today != null ? "text-rose-400/70" : undefined}
+              sparkData={dailyPctSeries.length >= 2 ? dailyPctSeries : undefined}
+              sparkPositive={today != null ? today.dollars >= 0 : undefined}
             />
             <KpiTile
               label="vs SPY"
               value={loaded ? fmtPct(alpha) : "—"}
               subText={benchmark != null ? `SPY ${fmtPct(benchmark)}` : null}
               valueClass={alpha != null && alpha >= 0 ? "text-emerald-400" : alpha != null ? "text-rose-400" : undefined}
+              sparkData={alphaSeries.length >= 2 ? alphaSeries : undefined}
+              sparkPositive={alpha != null ? alpha >= 0 : undefined}
             />
             <KpiTile
               label="Sharpe (90d)"
               value={sharpe90 != null ? sharpe90.toFixed(2) : "—"}
               subText={sortino90 != null ? `Sortino ${sortino90.toFixed(2)}` : null}
+              sparkData={navNums.length >= 2 ? navNums : undefined}
+              sparkPositive={sharpe90 != null ? sharpe90 >= 0 : undefined}
             />
             <KpiTile
               label="Max DD (30d)"
               value={dd30 != null ? `${dd30.toFixed(2)}%` : "—"}
               subText={`bounded ${trailingDdLimit}`}
               valueClass={dd30 != null ? "text-rose-400" : undefined}
+              sparkData={ddSeries.length >= 2 ? ddSeries : undefined}
+              sparkPositive={false}
             />
             <KpiTile
               label="Positions"
               value={loaded ? String(posBreakdown.total) : "—"}
               subText={loaded && posBreakdown.total > 0 ? `${posBreakdown.long} long · ${posBreakdown.short} short` : null}
+              liveBand={loaded ? "green" : "unknown"}
             />
           </div>
 
@@ -273,29 +384,31 @@ export default function HomePage() {
             />
           </div>
 
-          {/* phase-16.42 + 16.43 + 16.45 + 16.46 + 16.47: 3-box row on the
-              home cockpit. lg:grid-cols-6 with col-span 2/2/2 = equal
-              thirds (33% each). 16.46's 20% Actions slot was too narrow
-              (Analyze button cropped, action labels wrapping); equal
-              thirds gives all three boxes a fair shake. Internal layout
-              hardening (min-w-0 + shrink-0) in HomeQuickActionsPanel
-              keeps the panel safe at narrower viewports. */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-6 lg:items-stretch">
-            <div className="lg:col-span-2 h-full">
+          {/* phase-44.6 fix: removed `lg:items-stretch` + per-child `h-full`.
+              That was the documented anti-pattern named in
+              `.claude/rules/frontend.md:23` (mixing short + tall widgets
+              with equal-height grid). Per `frontend-layout.md` Section 4.5
+              option 2 (researcher source #1 + #6): use items-start +
+              accept visible asymmetry instead of forcing a short card to
+              stretch to a tall neighbor's height. Each child sizes by
+              content; layout reads as 3 distinct cards instead of 3 cards
+              with hidden dead whitespace. */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-6 lg:items-start">
+            <div className="lg:col-span-2">
               <RecentReportsTable
                 reports={reports}
                 loaded={loaded}
                 loadError={loadError}
               />
             </div>
-            <div className="lg:col-span-2 h-full">
+            <div className="lg:col-span-2">
               <LatestTransactionsBox
                 trades={trades}
                 loaded={loaded}
                 loadError={tradesError}
               />
             </div>
-            <div className="lg:col-span-2 h-full">
+            <div className="lg:col-span-2">
               <HomeQuickActionsPanel
                 ticker={ticker}
                 onTickerChange={setTicker}

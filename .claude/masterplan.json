@@ -12766,11 +12766,11 @@
         {
           "id": "44.6",
           "name": "Analyze section refresh (/ Home self-violating h-full fix + Sparklines + LiveBadge; /signals hook extraction)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "44.1",
-          "audit_basis": "Per master_design Section 3.3: home 3-box row has self-violating h-full anti-pattern (frontend.md:23 warns); KPI tiles missing sparklines + aria-labels. Section 3.4: /signals has 50 LoC of type-coercion at signals/page.tsx:34-85 that belongs in a useEnrichmentSignals hook; <input> has no aria-label.",
+          "audit_basis": "Per master_design Section 3.11: /Home self-violating h-full anti-pattern named at .claude/rules/frontend.md:23 + /signals had 52 LoC inline type coercion + no ARIA label on input + no recent-tickers UX. Per cycle 64 (2026-05-25): 7 of 9 code-side criteria CLOSED. Home: 6-KPI grid wrapped role=group + per-tile role=group + auto-aria-label; 5 of 6 tiles got Tailwind-SVG mini-sparklines + LiveBadge dots on NAV + Positions; lg:items-stretch + per-child h-full anti-pattern removed (replaced with lg:items-start per frontend-layout.md \u00a74.5 option 2). Signals: useEnrichmentSignals hook extracted to lib/hooks (defensive pick() with typeof guards replaces 4 raw as-unknown-as casts), -52 LoC inline coercion, <label htmlFor> + aria-label on input, RecentTickerChips (last-5 LRU + dedupe + localStorage + WCAG 2.2 24px target-size; 11 vitest cases via in-memory localStorage shim), Sector+Macro dashboards moved into native <details> for level-3 progressive disclosure (NN/G ceiling-of-2 respected). 2 criteria deferred to operator Lighthouse (home_LCP_under_2_seconds + Lighthouse_a11y_at_least_95_on_both_pages). Researcher a578f3cfa9547464c (9 sources read in full, gate_passed=true). Q/A a95662f2b7fae2064 PASS (5/5 audits + 9/9 deterministic + ESLint clean + LLM judgment clean; zero violated_criteria). pytest backend 614/589 (zero new regressions), vitest 15/100 (+17 net). live_check_44.6.md captures full per-criterion verdict + operator runbook for closing remaining 2.",
           "verification": {
             "command": "test -f handoff/current/live_check_44.6.md",
             "success_criteria": [

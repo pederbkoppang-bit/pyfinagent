@@ -8,3 +8,4 @@ export { useKeyboardShortcut } from "./useKeyboardShortcut";
 export { useURLState } from "./useURLState";
 export { useEventSource } from "./useEventSource";
 export type { UseEventSourceState } from "./useEventSource";
+export { useEnrichmentSignals } from "./useEnrichmentSignals";

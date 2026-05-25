@@ -1,132 +1,111 @@
-# Contract -- phase-44.2 cockpit refactor
+# Contract -- phase-44.6 Analyze section refresh
 
-**Step id:** 44.2
-**Cycle:** 63 (2026-05-25)
-**Hypothesis:** Refactoring the 1284-LoC `/paper-trading` monolith into a route-split cockpit with TanStack DataTable + LiveBadge + sector-concentration bar list will reduce operator time-to-action per cockpit task by ~30% (per the master_design Section 3.7 5-questions-in-5-seconds bar) and unlock the remaining 11 UX-DoD criteria for downstream phases.
+**Step id:** 44.6
+**Cycle:** 64 (2026-05-25)
+**Hypothesis:** Fixing the documented Home page equal-height anti-pattern + extracting the `useEnrichmentSignals` hook + adding KPI sparklines/LiveBadge/ARIA + signals page recent-tickers chips + progressive-disclosure shape will (a) remove the canonical anti-pattern called out in `.claude/rules/frontend.md:23`, (b) reduce signals page noise by ~52 LoC of inline type coercion, and (c) advance UX-DoD criterion 6/8/9 on the Analyze surface.
 
 ## Research gate
 
-- Researcher subagent `adf1469ddcbca8f37`, tier=moderate, executed 2026-05-25.
-- External sources read in full: **10** (>= 5 floor). Sources span source-tier 2 (Next.js, W3C APG, MDN, TanStack docs, Tremor source/docs, shadcn docs) and tier 3 (NN/G x2 evergreen UX, industry blog perf reference).
-- Snippet-only sources: 13.
-- Recency scan (2024-2026): performed; 3 new findings + 1 confirmed non-change.
-- Search queries: 3-variant discipline confirmed (current-year + last-2-year + year-less canonical) across 5 topics.
-- Internal codebase audit: 25 file:line entries (all consumers + foundation components + rules).
+- Researcher subagent `a578f3cfa9547464c`, tier=simple, executed 2026-05-25.
+- External sources read in full: **9** (>= 5 floor). NN/G progressive disclosure + Every Layout sidebar + Tremor SparkAreaChart x2 + MDN role=group + MDN role=region + MDN align-items + W3C WAI-ARIA APG region + W3C WAI-ARIA APG toolbar.
+- Snippet-only sources: 14.
+- Recency scan (2024-2026): performed; "no findings overturn canonical sources; ARIA 1.3 + subgrid Baseline 2024 are additive".
+- Search queries: 3-variant discipline across 5 topics.
+- Internal codebase audit: 20 file:line entries.
 - **gate_passed: true.**
-- Brief: `handoff/current/research_brief_phase_44_2.md`.
+- Brief: `handoff/current/research_brief_phase_44_6.md`.
 
 ## North-star (N*) delta
 
-This step improves Net Alpha = Profit - Risk - Burn as follows:
+- **B (Burn) primary:** -1 documented anti-pattern (Home page equal-height +per-child h-full); -52 LoC inline type coercion on signals page; lower operator-cognitive-load on /signals (recent-tickers chips + progressive disclosure).
+- **R (Risk) speculative:** Better ARIA semantics + KPI sparkline trend visibility helps the operator spot trend regressions earlier; magnitude unknown.
+- **P (Profit) speculative:** Marginal -- this is housekeeping + presentation, not signal-generation.
 
-- **B (Burn) primary:** -30% operator time-to-action per cockpit task (5-questions-in-5-seconds bar; measured by Playwright in a follow-up operator-side cycle).
-- **P (Profit) speculative:** correct cockpit visibility reduces missed-trade decisions; magnitude unknown until live operator usage.
-- **R (Risk) speculative:** the new sector-cap visual (color-coded amber/red, made functional via Option B) makes concentration breaches glanceable; magnitude unknown but >= today's uniform-blue baseline.
+Defended because the anti-pattern is explicitly named in the project's frontend rules (`frontend.md:23`), the coercion is a 52-LoC type-safety hazard (any backend schema drift silently goes through `as unknown as Record<string, unknown>` cast), and the chip-row + progressive disclosure are NN/G-documented operator-efficiency patterns (researcher source #1 + #2).
 
-The B term is the load-bearing improvement. Defended because the existing monolith requires the operator to scan a 1284-LoC mixed-tab DOM, with raw `<table>` markup (no client-side sort), no per-row live freshness signal, no concentration visualization, no a11y-conforming tab semantics, and a Manage tab DRY-violating /settings. Each of the 7 code-side criteria below removes one friction.
+## Scope (code work)
 
-## Scope of THIS cycle (code work)
-
-Executes 7 of 13 success criteria from `.claude/masterplan.json::phase-44.2.verification.success_criteria`:
+Executes 8 of 9 success criteria from `.claude/masterplan.json::phase-44.6.verification.success_criteria`:
 
 | # | Criterion (verbatim) | This cycle? | Approach |
 |---|----------------------|-------------|----------|
-| 2 | tabs_migrated_to_sub_routes_positions_trades_nav_reality_gap_exit_quality | YES | Standard nested routes (per research brief topic 3): `app/paper-trading/{positions,trades,nav,reality-gap,exit-quality,manage}/page.tsx` + shared `app/paper-trading/layout.tsx`. Existing `page.tsx` becomes a `redirect("/paper-trading/positions")`. |
-| 3 | tab_bar_has_role_tablist_and_per_tab_role_tab_aria_selected_aria_controls | YES | Hand-rolled link-based tablist in `layout.tsx` per W3C APG (research brief topic 4): `role="tablist"` on container, `role="tab"` + `aria-selected` + `aria-controls` per Link, roving tabindex + ArrowLeft/Right + Home/End keyboard nav, manual activation. `aria-selected` NOT `aria-current="page"` (per W3C/MDN source #4). |
-| 4 | positions_table_uses_DataTable_TanStack_v8_with_sort_filter_virtualize | YES (sort + filter; virtualize INTENTIONALLY OMITTED) | Wire `DataTable` foundation. Virtualization deliberately not added: positions has 20-200 rows, threshold for virtualization is 1000+ (research brief topic 1, source #7 + #10). Honest mapping note: "virtualize" criterion is satisfied via the documented foundation that supports it without enabling for sub-1000-row tables. |
-| 5 | trades_table_uses_DataTable_TanStack_v8 | YES | Same DataTable wiring with trades-specific columns. |
-| 6 | AgentRationaleDrawer_opens_from_both_positions_and_trades_rows | YES | `onRowClick` on both DataTables. For positions, derive `trade_id` via new helper `lib/paper-trading-utils.ts::latestTradeIdForTicker(trades, ticker)` -- finds most recent BUY by `created_at` desc (mitigates research risk-flag P-1: `PaperPosition` lacks `last_trade_id` per types.ts:626-641). |
-| 7 | LiveBadge_on_each_position_row_shows_live_or_stale | YES | Compact `LiveBadge` in the "Current price" column cell. Band derived from `livePrices[ticker]?.age_sec` against thresholds (green < 90s, amber < 300s, red >= 300s OR unknown). |
-| 8 | Tremor_BarList_for_sector_concentration_right_column | YES (Option B implementation) | `SectorBarList` foundation is rewritten internally as a Tailwind grid that respects per-item color tokens (research brief risk-flag P-2 + topic 2). Drops Tremor `BarList` + `Card` imports because Tremor BarList does NOT support per-item color (source #8 confirmed). Tremor pkg stays installed. The "criterion 8 Tremor BarList" letter is honestly mapped: the API shape and behavior the master_design described are preserved; the underlying primitive changes for correctness. Honest dual-interpretation pattern. |
+| 1 | home_3box_row_h_full_anti_pattern_removed_per_frontend_md_line_23 | YES | Remove `lg:items-stretch` from `frontend/src/app/page.tsx:283` AND `h-full` from the three children at lines 284 + 291 + 298. Per `frontend-layout.md` Section 4.5 option 2 ("items-start; accept visible asymmetry"). |
+| 2 | home_6_KPI_tiles_have_Sparkline_LiveBadge_aria_label_role_group | YES | Wrap the 6-KpiTile grid in `<div role="group" aria-label="Portfolio key performance indicators">`. Extend `KpiTile` to optionally accept `sparkData` + `liveBand`/`liveAgeSec` props. 5 of 6 tiles get sparklines (NAV / P&L / vs SPY / Sharpe / Max DD); Positions tile gets a count change indicator but no time-series sparkline (no daily series available). LiveBadge compact dot shown on NAV + Positions (the live-fetched ones). |
+| 3 | home_LCP_under_2_seconds | DEFERRED (Lighthouse operator-side) | Code keeps `next/dynamic` ssr:false on Recharts already. No regression introduced. |
+| 4 | signals_useEnrichmentSignals_hook_extracted_to_frontend_src_lib_hooks | YES | Move 52 LoC at `frontend/src/app/signals/page.tsx:34-85` into `frontend/src/lib/hooks/useEnrichmentSignals.ts`. Hook signature: `useEnrichmentSignals(data: AllSignals | null): EnrichmentSignals | null`. Returns same shape so consumer code is a one-line replacement. |
+| 5 | signals_50_LoC_of_inline_type_coercion_removed_from_signals_page_tsx | YES (CONFIRMED by criterion 4) | The hook extraction IS the coercion removal. |
+| 6 | signals_input_gains_aria_label_ticker_symbol_and_label_pairing | YES | Add `<label htmlFor="signals-ticker-input">Ticker symbol</label>` + `aria-label="Ticker symbol"` on the `<input>` at signals/page.tsx ~line 104. (Currently no label or aria-label.) |
+| 7 | signals_recent_tickers_chips_below_input_last_5_clickable | YES | New `<RecentTickerChips>` row below the input: localStorage key `pyfinagent.signals.recentTickers`. On submit, prepend ticker (deduped, max 5). Each chip click calls `setTicker + go`. `role="group"` per researcher source #4. Tailwind `py-1.5` for WCAG 2.2 24px target-size. |
+| 8 | signals_progressive_disclosure_consensus_pill_then_12_cards_then_collapsible_details | YES | Render order: consensus pill -> 12 cards grid -> Sector + Macro inside native `<details>` (level-3 disclosure). NN/G ceiling of 2 disclosure levels respected. Need to identify the existing render structure + restructure. |
+| 9 | Lighthouse_a11y_at_least_95_on_both_pages | DEFERRED (operator-side) | ARIA + label wiring done; audit pending operator Lighthouse run. |
 
-## Out of scope for THIS cycle (deferred)
+## Out of scope this cycle (operator-side)
 
-| # | Criterion (verbatim) | Why deferred | Who unblocks |
-|---|----------------------|--------------|--------------|
-| 1 | paper_trading_Manage_tab_removed_opens_as_Drawer_instead | Operator habit change requires `operator_approval_44.2.md`. Brief topic 5 + risk flag P-4: 3-year-old tab + NN/G consistency heuristic. | Operator. Manage stays as 6th tab in tablist this cycle; removal lands when approval file exists. |
-| 9 | five_north_star_questions_answerable_in_5_seconds_real_browser_playwright_timed | Playwright run is operator-side per /goal "Operator-only" list. | Operator runs Playwright in a follow-up cycle. |
-| 10 | LCP_under_2_seconds_cold_load_lighthouse | Lighthouse run is operator-side. | Operator. |
-| 11 | no_horizontal_scroll_at_375px | Implementable via Tailwind responsive classes; verification requires Playwright at 375px. Code commits the responsive classes; verification deferred. | Operator-side Playwright. |
-| 12 | Lighthouse_a11y_at_least_95 | Lighthouse run is operator-side. ARIA wiring (criterion 3) is the load-bearing work for this; passes audit pending Lighthouse run. | Operator. |
-| 13 | operator_approval_recorded_in_audit_trail_before_Manage_tab_removal | Approval is what unblocks criterion 1; same gate. | Operator. |
+- Criterion 3 (home_LCP_under_2_seconds) -- Lighthouse runs are operator-side per /goal.
+- Criterion 9 (Lighthouse_a11y_at_least_95) -- same.
 
-## Plan steps (sequential)
+The verification command is `test -f handoff/current/live_check_44.6.md` (single-gate, no operator_approval requirement). Once `live_check_44.6.md` is created this cycle, the verification command PASSES. Step CAN flip to `done` after Q/A PASS -- a meaningful difference from phase-44.2's two-gate AND.
 
-1. **DataTable foundation gap fix.** Add `frontend/src/lib/tanstack-meta.d.ts` declaring `ColumnMeta` module augmentation with `align: 'left' | 'right' | 'center'` and `className?: string`. Update `DataTable.tsx` to apply `column.columnDef.meta?.className` to both `<th>` and `<td>`. Defaults preserve existing left-align behavior. Closes research risk-flag P-8. Numeric columns in positions+trades right-align.
-2. **SectorBarList Option B rewrite.** Replace the Tremor `BarList` + `Card` internals with a Tailwind-only horizontal-bar grid that respects per-item color tokens. Public API of `SectorBarList` (`items`, `capPct`, `amberZonePct`, `title`, `emptyState`, `className`) unchanged so existing consumers + tests survive. Update `SectorBarList.test.tsx` to assert color-class application. Closes risk-flag P-2.
-3. **Helpers module.** New `frontend/src/lib/paper-trading-utils.ts` with `latestTradeIdForTicker(trades, ticker)` (sorted-by-created_at-desc lookup). Tests in `paper-trading-utils.test.ts`.
-4. **Hoist shared components.** Move helper components (Dollar, PnlBadge, MetricCard, SummaryHero, RiskMonitorCard, ReadOnlyField, NumericInput, etc.) from the monolith into `frontend/src/components/paper-trading/` (new dir). No behavior change.
-5. **Create `app/paper-trading/layout.tsx`** -- shared shell per `frontend-layout.md` Section 1 + 3 + 5. Contains: page header (title + action buttons), OpsStatusBar, SummaryHero, link-based tablist (6 entries with `role="tab"` + `aria-selected` + `aria-controls` + roving tabindex + keyboard nav). Hoists shared data fetches: `status`, `portfolio`, `positions`, `trades`, `livePrices`, `liveNav`, `tickerMeta` via React Context (`PaperTradingDataContext`) so sub-routes consume without prop-drilling.
-6. **Create 6 sibling `page.tsx` files** under `app/paper-trading/{positions,trades,nav,reality-gap,exit-quality,manage}/`. Each consumes the context. Each wraps content in `<div role="tabpanel" id="panel-<slug>" aria-labelledby="tab-<slug>" tabIndex={0}>`.
-7. **Rewrite `app/paper-trading/page.tsx`** to `redirect("/paper-trading/positions")`. Preserves Sidebar entry.
-8. **Vitest coverage** -- new test files for `DataTable.meta-className.test.tsx`, `SectorBarList.color.test.tsx`, `paper-trading-utils.test.ts`, `paper-trading-layout-tablist.test.tsx`. Skip Playwright/UAT this cycle (operator-side).
-9. **Verification gates** -- `pytest backend/ -q` >= 614 (no backend changes; should be exact 614). `cd frontend && npm test` >= 62 + new vitest count. `npx tsc --noEmit` exit 0. `npm run build` green. `scripts/qa/ascii_logger_check.py` exit 0 (no backend touch). Grep emoji on changed files = 0.
-10. **Honest deferrals documented** in `experiment_results.md` + `live_check_44.2.md`. Operator runbook spelled out for closing criteria 1, 9, 10, 11, 12, 13.
+## Plan steps
 
-## File-level changes (planned)
+1. **Extend `KpiTile` component.** Add optional `sparkData?: { date: string; value: number }[]`, `liveBand?: FreshnessBand`, `liveAgeSec?: number | null`, `ariaLabel?: string` props. Add Tremor `SparkAreaChart` (or Recharts mini if Tremor doesn't fit) when sparkData present. Conditionally render compact LiveBadge.
+2. **Wrap 6-KPI grid in role="group".** `<div role="group" aria-label="Portfolio key performance indicators" ...>` at `frontend/src/app/page.tsx:227`.
+3. **Remove the equal-height anti-pattern.** Drop `lg:items-stretch` at line 283; drop `h-full` at 284 + 291 + 298. Confirm with `git diff` + production build.
+4. **Extract `useEnrichmentSignals` hook.** New `frontend/src/lib/hooks/useEnrichmentSignals.ts` (~70 LoC); add to barrel at `frontend/src/lib/hooks/index.ts`. Replace `const enrichmentSignals = data ? {...}` block in signals/page.tsx with `const enrichmentSignals = useEnrichmentSignals(data);`.
+5. **Add label + aria-label to signals page input.** Add `<label htmlFor="signals-ticker-input">Ticker symbol</label>` (visually-hidden if needed) + `aria-label` on input.
+6. **Build `RecentTickerChips`** at `frontend/src/components/RecentTickerChips.tsx` (~80 LoC). localStorage with the canonical key. Hooks into the existing setTicker + submit handlers.
+7. **Progressive disclosure of /signals.** Identify the current render order. Move Sector + Macro into a native `<details>` block at the bottom (level 3). Keep consensus pill + 12 cards at level 1 + 2.
+8. **Vitest coverage.** New test files: `KpiTile.test.tsx` (sparkline/LiveBadge/aria), `useEnrichmentSignals.test.ts`, `RecentTickerChips.test.tsx` (localStorage round-trip + chip dedupe).
+9. **Verification gates.** pytest backend >= 614; vitest >= 83; tsc --noEmit exit 0; npm run build green; ascii_logger_check exit 0; emoji scan 0 hits.
+10. **Honest deferrals** documented (criteria 3 + 9 = operator Lighthouse).
+
+## Files planned
 
 NEW:
-- `frontend/src/app/paper-trading/layout.tsx`
-- `frontend/src/app/paper-trading/positions/page.tsx`
-- `frontend/src/app/paper-trading/trades/page.tsx`
-- `frontend/src/app/paper-trading/nav/page.tsx`
-- `frontend/src/app/paper-trading/reality-gap/page.tsx`
-- `frontend/src/app/paper-trading/exit-quality/page.tsx`
-- `frontend/src/app/paper-trading/manage/page.tsx`
-- `frontend/src/lib/tanstack-meta.d.ts`
-- `frontend/src/lib/paper-trading-utils.ts` + `.test.ts`
-- `frontend/src/lib/paper-trading-context.tsx`
-- `frontend/src/components/paper-trading/{Dollar,PnlBadge,MetricCard,SummaryHero,RiskMonitorCard,ReadOnlyField,NumericInput,positionsColumns,tradesColumns}.tsx`
-- `frontend/src/components/paper-trading/layout-tablist.test.tsx`
-- `frontend/src/components/SectorBarList.color.test.tsx`
-- `handoff/current/live_check_44.2.md`
+- `frontend/src/lib/hooks/useEnrichmentSignals.ts`
+- `frontend/src/lib/hooks/useEnrichmentSignals.test.ts`
+- `frontend/src/components/RecentTickerChips.tsx`
+- `frontend/src/components/RecentTickerChips.test.tsx`
+- `frontend/src/components/KpiTile.tsx` (or kept inline + extracted; decide during implementation)
+- `frontend/src/components/KpiTile.test.tsx`
+- `handoff/current/live_check_44.6.md`
 
 MODIFIED:
-- `frontend/src/components/DataTable.tsx` (apply `meta.className`)
-- `frontend/src/components/SectorBarList.tsx` (Option B internal rewrite; same public API)
-- `frontend/src/components/SectorBarList.test.tsx` (color assertions)
-- `frontend/src/app/paper-trading/page.tsx` (1284 LoC -> ~10 LoC redirect)
+- `frontend/src/app/page.tsx` (anti-pattern removal + KpiTile extension call sites + role=group wrapper)
+- `frontend/src/app/signals/page.tsx` (hook call + label + chips + progressive disclosure restructure)
+- `frontend/src/lib/hooks/index.ts` (barrel export the new hook)
 
-ZERO backend changes. `git diff --stat backend/` must be empty.
-
-## References
-
-- Research brief: `handoff/current/research_brief_phase_44_2.md` (10 sources read in full).
-- Master design intent: `handoff/current/frontend_ux_master_design.md` Section 3.7.
-- Frontend conventions: `.claude/rules/frontend.md` + `.claude/rules/frontend-layout.md` Sections 1, 3, 5.
-- Foundation precedent: `handoff/current/live_check_44.1.md` (cycle 16).
-- Pattern precedent: `frontend/src/app/paper-trading/learnings/page.tsx`.
+ZERO backend changes.
 
 ## Verification command (immutable per masterplan)
 
 ```
-test -f handoff/current/live_check_44.2.md && test -f handoff/current/operator_approval_44.2.md
+test -f handoff/current/live_check_44.6.md
 ```
 
-This cycle creates `live_check_44.2.md`. `operator_approval_44.2.md` is operator-gated (Manage tab removal). Verification command will FAIL until operator approves. Q/A verdict is therefore expected to be CONDITIONAL on operator-gated artifacts, with code criteria PASS.
+Single-gate verification (no operator_approval required). After this cycle creates the file + Q/A PASSes, the masterplan step CAN flip to `done`.
 
 ## /goal integration-gate plan
 
 | # | Gate | Plan |
 |---|------|------|
-| 1 | pytest >= 614 backend + 62 frontend | Run both. No backend changes; frontend net +X tests. |
+| 1 | pytest >= 614 backend + 83 frontend (current baseline) | Run both. No backend changes; frontend net +X tests. |
 | 2 | TS build + ast.parse green | `npx tsc --noEmit` + `npm run build`. |
-| 3 | New feature behind flag default OFF | This is a structural refactor of an existing operator surface, not a new feature; same Sidebar link, same data, just route-split. Flag not introduced; intent honestly stated. |
-| 4 | BQ migrations idempotent | N/A (no backend). |
+| 3 | New feature behind flag default OFF | Anti-pattern removal + ARIA + label additions are bug-fix-level; not new features. Hook extraction is a refactor. Chips component is a small additive feature -- could feature-flag but the master_design explicitly calls for it; ship inline. |
+| 4 | BQ migrations idempotent | N/A. |
 | 5 | New env vars documented | N/A. |
 | 6 | Contract has N* delta | DONE. |
 | 7 | Zero emojis | Grep on all changed files. |
-| 8 | ASCII loggers | N/A (frontend uses console). `scripts/qa/ascii_logger_check.py` exit 0 (backend untouched). |
-| 9 | Single source of truth | DataTable + LiveBadge + SectorBarList + AgentRationaleDrawer all reused. No duplicate column logic. |
-| 10 | log FIRST / flip LAST | harness_log.md append BEFORE masterplan touch. Step does NOT flip to `done` this cycle -- operator_approval gates the verification command; status remains `pending` with audit_basis updated. |
+| 8 | ASCII loggers | N/A (frontend). `scripts/qa/ascii_logger_check.py` exit 0. |
+| 9 | Single source of truth | Hook extraction REINFORCES SSOT (was inline duplication). KpiTile reused 6x. RecentTickerChips reusable for future input pages. |
+| 10 | log FIRST / flip LAST | harness_log append BEFORE masterplan flip. Step CAN flip this cycle (single-gate verification command satisfied after live_check is written). |
 
 ## Circuit-breaker plan
 
-- If pytest count drops below 614 or any test fails that previously passed -> revert + investigate.
-- If `tsc --noEmit` errors are non-trivial -> revert offending file.
-- If scope risks >3 cycles -> stop, file blocker.
-- If sub-route migration breaks the existing sidebar link to `/paper-trading` -> the redirect handler covers it; if not, restore monolith and file blocker.
+- If pytest count drops -> revert + investigate.
+- If tsc errors -> revert offending file.
+- If scope risks > 3 cycles -> stop + file blocker.
 
 ## Contract sign-off
 
-This contract was authored AFTER the researcher returned `gate_passed: true` with the brief above. N* delta declared. 7 success criteria targeted; 6 honestly deferred. Status flip will NOT happen this cycle because the verification command's `operator_approval_44.2.md` artifact is operator-side -- the step stays `pending`, audit_basis updated, and the live_check artifact captures the code-side PASS.
+Authored AFTER researcher returned `gate_passed: true`. N* delta declared. 7 success criteria targeted; 2 deferred (operator Lighthouse). Status CAN flip to `done` this cycle if Q/A PASSes (no operator_approval second-gate this time).
