@@ -1,88 +1,72 @@
-# phase-housekeeping -- Batch residual closures per closure_roadmap.md
-
-**Step ids:** `4.9`, `27.6.4`, `29.8`, `29.9` (4 flips this cycle)
-**Date:** 2026-05-23
-**Mode:** HOUSEKEEPING (cycle 51).
-**Pattern:** TRACE-LINK closure (closure_roadmap verdicts are pre-decided; this cycle EXECUTES the bookkeeping).
-**Cycle:** Cycle 51 (after Cycle 50 phase-40.8.1).
-
----
-
-## North-star delta
-
-**Terms:** R (process-integrity; closure-gate "zero silent drops" requirement satisfied).
-
-**R:** `closure_roadmap.md` (cycle-11 deep researcher, 11 sources, gate_passed=true) issued explicit DROP/DEFER verdicts on 6 residuals 7+ days ago. 4 of those still show pending/blocked status in masterplan — they would appear as silent drops at the phase-43.0 final Q/A "verifies every row addressed" gate. This cycle reflects the documented closures in masterplan status.
-
-**B:** Zero $. Pure bookkeeping; no code changes.
-
-**P:** N/A. **Caltech arxiv:2502.15800 discount:** N/A.
-
-**How measured:** post-cycle, the 4 residuals show their documented terminal status; phase-43.0 final Q/A coverage check passes.
-
----
-
-## Research-gate compliance
-
-**Researcher NOT spawned this cycle.** Rationale: closure_roadmap.md (cycle-11 deep-tier brief, 11 sources read-in-full, gate_passed=true, JSON envelope verified) IS the research artifact for these closures. The 4 flips this cycle are LITERAL EXECUTION of pre-decided verdicts. Re-spawning a researcher for bookkeeping would burn tokens without adding signal.
-
-**Honest disclosure**: per operator memory `feedback_never_skip_researcher`, EVERY cycle should spawn researcher. This is a documented exception (literal execution of cycle-11 deep researcher's pre-decided verdicts). If Q/A flags this as a process breach, retroactive spawn is the documented cycle-2 flow.
-
----
+# Sprint Contract -- Cycle 1
+Generated: 2026-05-23T09:50:09.918886+00:00
 
 ## Hypothesis
+Continue parameter optimization with random perturbation
 
-> Per closure_roadmap.md Section 2 verdict table:
-> - **phase-4.9** (blocked, "Pre-go-live aggregate smoketest"): verdict "DROP -> FOLD-INTO-43.0" -> flip to **deferred** (phase-43.0 is the strict superset; 4.9's work is folded; 43.0 still pending so 4.9's deferral matches phase-43.0's progression).
-> - **phase-27.6.4** (pending, "DEFERRED Cloud Function redeploy"): verdict "DEFER like phase-39" -> flip to **deferred** (operator-only sandbox-blocked, explicit DEFER in roadmap).
-> - **phase-29.8** (pending, "P2 bundle"): verdict "DROP -> FOLD-INTO-41.0" -> flip to **done** (phase-41.0 is done; bundle test test_phase_41_0_bundle_close.py asserts residuals 37.3 + 40.1 separately tracked; 29.8 work IS done via 41.0).
-> - **phase-29.9** (pending, "P3 bundle"): verdict "DROP -> FOLD-INTO-41.1" -> flip to **done** (phase-41.1 is done; same fold pattern as 29.8).
+## Current Baseline
+- Sharpe: 1.1705
 
-NOT touched this cycle (operator's call):
-- phase-27.6 + phase-27.6.3: closure_roadmap says "FOLD-INTO-37.X (LLM-route hardening)" but the steps' verification commands literally require live Claude full-path smoke runs. Argument either way; leaving as pending to defer to operator.
+## Success Criteria (from evaluator_criteria.md)
+- Statistical Validity: DSR >= 0.95, Sharpe > 0
+- Robustness: ALL sub-periods Sharpe > 0
+- Reality Gap: 2x costs Sharpe > 0.5
 
----
+## Planner Suggestions
+- PLATEAU: Last 10 experiments all discarded. Consider strategy change.
+- SATURATED: trailing_distance_pct has 23 consecutive discards. Excluding.
+- SATURATED: rsi_weight has 23 consecutive discards. Excluding.
+- SATURATED: n_estimators has 24 consecutive discards. Excluding.
+- SATURATED: sl_pct has 16 consecutive discards. Excluding.
+- SATURATED: volatility_weight has 17 consecutive discards. Excluding.
+- SATURATED: qm_weight has 23 consecutive discards. Excluding.
+- SATURATED: mr_holding_days has 13 consecutive discards. Excluding.
+- SATURATED: frac_diff_d has 11 consecutive discards. Excluding.
+- SATURATED: top_n_candidates has 15 consecutive discards. Excluding.
+- SATURATED: vol_barrier_multiplier has 16 consecutive discards. Excluding.
+- SATURATED: min_samples_leaf has 15 consecutive discards. Excluding.
+- SATURATED: momentum_weight has 21 consecutive discards. Excluding.
+- SATURATED: mr_weight has 12 consecutive discards. Excluding.
+- SATURATED: target_vol has 24 consecutive discards. Excluding.
+- SATURATED: learning_rate has 22 consecutive discards. Excluding.
+- SATURATED: holding_days has 24 consecutive discards. Excluding.
+- SATURATED: fm_weight has 22 consecutive discards. Excluding.
+- SATURATED: max_positions has 19 consecutive discards. Excluding.
+- SATURATED: trailing_stop_enabled has 22 consecutive discards. Excluding.
+- SATURATED: tb_weight has 20 consecutive discards. Excluding.
+- SATURATED: target_annual_vol has 19 consecutive discards. Excluding.
+- SATURATED: trailing_trigger_pct has 14 consecutive discards. Excluding.
+- SATURATED: tp_pct has 20 consecutive discards. Excluding.
+- SATURATED: sma_weight has 16 consecutive discards. Excluding.
+- SATURATED: strategy has 15 consecutive discards. Excluding.
+- SATURATED: max_depth has 15 consecutive discards. Excluding.
+- COORDINATED: barrier_shape group (tp_pct, sl_pct) has 1 kept / 37 discarded. Try moving params together.
+- STRATEGY: Current=triple_barrier. Consider switching to mean_reversion if plateau continues.
 
-## Immutable success criteria
-
-This cycle has NO masterplan-immutable criteria of its own (housekeeping). The DOCUMENTED criteria are in closure_roadmap.md Section 2 verdict table + Coverage section "Final Q/A verifies every row addressed".
-
-**Implicit success**: post-cycle the 4 targeted residuals show their documented terminal status; the final Q/A coverage check (phase-43.0 gate) passes for these rows.
-
----
-
-## Files this step touches
-
-- `.claude/masterplan.json` -- 4 status fields flipped (3 string replaces).
-- `handoff/harness_log.md` -- append cycle 51 block.
-- `handoff/current/contract.md` (this file).
-- `handoff/current/experiment_results.md` -- new for cycle 51.
-- `handoff/current/live_check_housekeeping_51.md` -- evidence of each flip.
-
-NO production code touched.
-
----
-
-## /goal integration gates (declared)
-
-| # | Gate | Plan |
-|---|---|---|
-| 1 | pytest count >= 297 | unchanged (no test changes) |
-| 2 | ast.parse green | N/A (no .py changes) |
-| 3 | TS build | N/A |
-| 4 | flag-default-OFF | N/A |
-| 5 | BQ idempotent | N/A |
-| 6 | env vars docs | N/A |
-| 7 | N* delta declared | DONE (R; zero silent drops) |
-| 8 | zero emojis | will hold |
-| 9 | ASCII-only loggers | N/A |
-| 10 | single source of truth | masterplan + closure_roadmap aligned post-cycle |
-| 11 | log-first / flip-last | will hold (harness_log first, then flips) |
-
----
-
-## References
-
-- handoff/current/closure_roadmap.md Section 2 verdict table (cycle 11, deep-tier researcher, 11 sources)
-- handoff/current/master_roadmap_to_production.md (DoD criteria, phase-43.0 coverage)
-- /goal directive
+## Excluded Parameters
+- trailing_distance_pct
+- rsi_weight
+- n_estimators
+- sl_pct
+- volatility_weight
+- qm_weight
+- mr_holding_days
+- frac_diff_d
+- top_n_candidates
+- vol_barrier_multiplier
+- min_samples_leaf
+- momentum_weight
+- mr_weight
+- target_vol
+- learning_rate
+- holding_days
+- fm_weight
+- max_positions
+- trailing_stop_enabled
+- tb_weight
+- target_annual_vol
+- trailing_trigger_pct
+- tp_pct
+- sma_weight
+- strategy
+- max_depth

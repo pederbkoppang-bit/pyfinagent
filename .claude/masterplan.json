@@ -12507,6 +12507,47 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "43.0.1",
+          "name": "DoD-4 Tier-1 EXTENDED floor cleanup (perf_metrics +1pp + cycle_health +6pp) (follow-up to cycle 53)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": null,
+          "audit_basis": "Cycle 53 tiered DoD-4 policy adopted (docs/coverage_tier_overrides.md). Tier-1 EXTENDED 60% floor: perf_metrics at 59% (-1pp); Tier-2 cycle_health at 54% (-6pp). Small targeted investment to clear the floor entirely.",
+          "verification": {
+            "command": "pytest backend/tests/ --cov=backend.services.perf_metrics --cov=backend.services.cycle_health --cov-branch --cov-report=term --tb=no -q | grep -E 'perf_metrics|cycle_health'",
+            "success_criteria": [
+              "perf_metrics_combined_coverage_at_least_60_percent",
+              "cycle_health_combined_coverage_at_least_60_percent",
+              "no_regression_on_existing_tier1_strict_modules"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "43.0.2",
+          "name": "DoD-4 Tier-1 EXTENDED -> STRICT lift (paper_trader + portfolio_manager + perf_metrics to 75% line + 80% branch) (follow-up to cycle 53)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "43.0.1",
+          "audit_basis": "Cycle 53 tiered DoD-4 policy. Tier-1 EXTENDED modules currently at 59-62% combined; goal is to lift to Tier-1 STRICT (75% line + 80% branch + mutation-smoke). Multi-cycle effort; ~100-180 additional targeted tests across BUY-path edge cases, rebalance, scalar_metric, drawdown.",
+          "verification": {
+            "command": "pytest backend/tests/ --cov=backend.services.paper_trader --cov=backend.services.portfolio_manager --cov=backend.services.perf_metrics --cov-branch --cov-fail-under=75 --tb=no -q",
+            "success_criteria": [
+              "paper_trader_line_coverage_at_least_75_percent",
+              "portfolio_manager_line_coverage_at_least_75_percent",
+              "perf_metrics_line_coverage_at_least_75_percent",
+              "branch_coverage_at_least_80_percent_per_module"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },

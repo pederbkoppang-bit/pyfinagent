@@ -53,3 +53,7 @@ cryptography>=42.0.0
 slack-bolt[async]>=1.18.0
 slack-sdk>=3.27.0
 APScheduler>=3.10.0
+
+# Test tooling (cycle 53 DoD-4 tiered policy gate; docs/coverage_tier_overrides.md)
+pytest-cov==7.1.0
+coverage==7.14.0

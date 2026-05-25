@@ -1,0 +1,32 @@
+# DoD-4 coverage configuration -- tiered-policy enforcement
+# Source-of-truth: docs/coverage_tier_overrides.md
+# Operator approved: 2026-05-25 (via "i approve" + "you decide which path")
+
+[run]
+branch = True
+source = backend
+omit =
+    # Tier-X (excluded): deferred dead code / vendored
+    backend/markets/risk_engine.py
+    backend/markets/options/*
+    backend/vendor/*
+    backend/tests/*
+    backend/migrations/*
+    # CLI entry points (covered by integration not unit)
+    backend/__main__.py
+    backend/main.py
+    # Auto-generated / pure data
+    backend/schemas.py
+
+[report]
+# Exclude raise-from-importerror lines and pure type hints
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    if __name__ == .__main__.:
+    \.\.\.
+precision = 1
+
+[html]
+directory = .coverage_html
