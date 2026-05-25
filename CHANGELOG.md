@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-25 | `d090d4d3` | phase-DoD4-tiered: cycle 53 -- tiered coverage policy + Tier-1 STRICT lift |
 | 2026-05-23 | `2bb8229a` | chore: DoD-4 measurement post-operator-approval -- FAIL on all 3 layers |
 | 2026-05-23 | `313b050d` | chore: add phase-40.3.1 (next-Opus stress-test) P3 follow-up |
 | 2026-05-23 | `6c3e1592` | chore: housekeeping cycle 51 -- 4 residuals -> deferred per closure_roadmap |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `5a859aa5` | phase-38.5.2: Flip ascii-logger-lint CI workflow from continue-on-error to hard gate (depends 38.... |
 | 2026-05-23 | `38768f75` | phase-38.5.1: Sweep 151 ASCII-logger violations identified by phase-38.5 (OPEN-14 follow-up) |
 | 2026-05-23 | `42f9880f` | phase-40.4: Stop-loss default 8% vs 10% A/B (OPEN-28) |
-| 2026-05-23 | `88d57918` | phase-23.2.16: Phase 2 deferred items triage -- pick 3 highest-ROI for next sprint |
 
 ---
 
+### v6.18.30 — phase-DoD4-tiered: cycle 53 -- tiered coverage policy + Tier-1 STRICT... (2026-05-25)
+
+- **phase-DoD4-tiered: cycle 53 -- tiered coverage policy + Tier-1 STRICT lift**
 ### v6.18.29 — phase-40.8.1: Wire compute_ff3 into analysis pipeline so positions ca... (2026-05-23)
 
 - **phase-40.8.1: Wire compute_ff3 into analysis pipeline so positions carry factor_loadings (follow-...**
