@@ -938,7 +938,7 @@ class PaperTrader:
         flatten all positions and pause new-order generation. Call this at the
         top of every autonomous cycle BEFORE deciding trades.
         """
-        from backend.services.kill_switch import evaluate_breach, get_state
+        from backend.services.kill_switch import evaluate_breach, get_state, check_auto_resume
         portfolio = self.get_or_create_portfolio()
         nav = float(portfolio.get("total_nav") or portfolio.get("starting_capital") or 0.0)
         state = get_state()
@@ -965,7 +965,21 @@ class PaperTrader:
             flatten_result = self.flatten_all(reason="kill_switch_auto_flatten")
             state.pause(trigger="limit_breach", details={"breach": breach, "flatten": flatten_result})
             return {"triggered": True, "breach": breach, "flatten": flatten_result}
-        return {"triggered": False, "breach": breach}
+
+        # phase-38.1.1: hysteresis evaluation -- only fires when paused + no breach.
+        # Default-OFF; operator opts in via settings.kill_switch_auto_resume_enabled.
+        auto_resume = check_auto_resume(
+            current_nav=nav,
+            daily_loss_limit_pct=self.settings.paper_daily_loss_limit_pct,
+            trailing_dd_limit_pct=self.settings.paper_trailing_dd_limit_pct,
+            enabled=bool(getattr(self.settings, "kill_switch_auto_resume_enabled", False)),
+        )
+        if auto_resume["action"] in ("alert", "resume"):
+            logger.warning(
+                "kill_switch auto-resume action=%s reason=%s seconds_paused=%s",
+                auto_resume["action"], auto_resume["reason"], auto_resume.get("seconds_paused"),
+            )
+        return {"triggered": False, "breach": breach, "auto_resume": auto_resume}
 
     # ── Internal ─────────────────────────────────────────────────
 

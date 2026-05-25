@@ -12001,6 +12001,26 @@
           "max_retries": 3
         },
         {
+          "id": "38.1.1",
+          "name": "Wire check_auto_resume into paper_trader.check_and_enforce_kill_switch cycle (follow-up to 38.1)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "38.1",
+          "audit_basis": "phase-38.1 cycle 58 shipped the check_auto_resume helper + 9 tests but did NOT auto-invoke it in the per-cycle path. This follow-up adds the invocation in paper_trader.check_and_enforce_kill_switch so the hysteresis fires per cycle when operator sets kill_switch_auto_resume_enabled=True.",
+          "verification": {
+            "command": "pytest backend/tests/test_phase_38_1_kill_switch_auto_resume.py -k 'phase_38_1_1' -v",
+            "success_criteria": [
+              "paper_trader_imports_check_auto_resume",
+              "check_and_enforce_kill_switch_invokes_auto_resume",
+              "result_dict_includes_auto_resume_key"
+            ],
+            "live_check": null
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "38.2",
           "name": "Lost cycle 3a observability (OPEN-11)",
           "status": "done",

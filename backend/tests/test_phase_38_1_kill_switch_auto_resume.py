@@ -161,6 +161,46 @@ def test_phase_38_1_no_pause_timestamp_returns_no_op(monkeypatch, tmp_path):
     assert "no_paused_at" in out["reason"]
 
 
+# ============================================================
+# phase-38.1.1 -- paper_trader wires check_auto_resume into the cycle
+# ============================================================
+
+
+def test_phase_38_1_1_paper_trader_imports_check_auto_resume():
+    from pathlib import Path
+    pt = (Path(__file__).resolve().parents[2] / "backend" / "services" / "paper_trader.py").read_text(encoding="utf-8")
+    assert "check_auto_resume" in pt, (
+        "paper_trader.py must import check_auto_resume from kill_switch"
+    )
+    assert "phase-38.1.1" in pt, "paper_trader.py must mark the wire site"
+
+
+def test_phase_38_1_1_check_and_enforce_kill_switch_invokes_auto_resume(monkeypatch, tmp_path):
+    """When flag is OFF, the wire is invoked but returns no_op (default-OFF)."""
+    from backend.services import kill_switch, paper_trader
+    from backend.config.settings import Settings
+    monkeypatch.setattr(kill_switch, "_AUDIT_PATH", tmp_path / "ks_audit.jsonl")
+    fresh = kill_switch.KillSwitchState()
+    monkeypatch.setattr(kill_switch, "_state", fresh)
+    monkeypatch.setattr(kill_switch, "get_state", lambda: fresh)
+    s = Settings()
+    s.paper_daily_loss_limit_pct = 4.0
+    s.paper_trailing_dd_limit_pct = 10.0
+    # Flag OFF (default)
+    s.kill_switch_auto_resume_enabled = False
+    bq = MagicMock()
+    bq.get_paper_portfolio.return_value = {
+        "current_cash": 100_000.0, "starting_capital": 100_000.0,
+        "total_nav": 100_000.0, "portfolio_id": "p1",
+    }
+    trader = paper_trader.PaperTrader(settings=s, bq_client=bq)
+    result = trader.check_and_enforce_kill_switch()
+    # Wire fires but is no_op (flag OFF)
+    assert "auto_resume" in result
+    assert result["auto_resume"]["action"] == "no_op"
+    assert "disabled" in result["auto_resume"]["reason"]
+
+
 def test_phase_38_1_resume_clears_pause_cycle_state(monkeypatch, tmp_path):
     ks, state, _ = _fresh_state(monkeypatch, tmp_path)
     state.pause(trigger="test")
