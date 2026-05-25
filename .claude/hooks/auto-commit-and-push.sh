@@ -163,6 +163,32 @@ if [ -f "$GATE_HELPER" ]; then
     esac
 fi
 
+# --- harness_log gate (phase-38.4 / OPEN-13) ---
+# Mirrors live_check_gate above. Default-OFF: only fires when
+# HARNESS_LOG_GATE_ENABLED=true (operator opts in once they're satisfied
+# the doctrine doesn't false-positive). When enabled, requires
+# `handoff/harness_log.md` to contain a `phase=<step_id>` token before
+# the auto-push. Closes the failure mode where Main flips status=done
+# without first appending the cycle block (phase-34 cycle 9 retro).
+# Fail-open on any helper error -- consistent with hook discipline.
+HARNESS_LOG_GATE_HELPER="$PROJECT_ROOT/.claude/hooks/lib/harness_log_gate.py"
+HARNESS_LOG_FILE="$PROJECT_ROOT/handoff/harness_log.md"
+if [ -f "$HARNESS_LOG_GATE_HELPER" ]; then
+    HL_DECISION=$(python3 "$HARNESS_LOG_GATE_HELPER" "$HARNESS_LOG_FILE" "$STEP_ID" 2>/dev/null || echo "proceed")
+    case "$HL_DECISION" in
+        skip)
+            log "WARN: harness_log gate ENABLED + handoff/harness_log.md missing 'phase=$STEP_ID' token -- auto-push skipped. Append the cycle block (see cycle format) and re-trigger by re-editing the masterplan, OR run \`git push origin main\` manually if appropriate."
+            exit 0
+            ;;
+        passed)
+            log "INFO: harness_log gate satisfied for $STEP_ID"
+            ;;
+        proceed|*)
+            # Gate disabled OR step-id missing -> proceed as today.
+            ;;
+    esac
+fi
+
 # --- Build commit subject ---
 # Prefer "phase-<id>: <name>" if the id looks like a phase-style number,
 # else just "<id>: <name>".

@@ -12042,7 +12042,7 @@
         {
           "id": "38.4",
           "name": "Auto-commit hook refuses status-flip without harness_log entry (OPEN-13) -- owner-gated",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
