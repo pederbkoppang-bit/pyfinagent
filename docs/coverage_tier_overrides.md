@@ -41,13 +41,13 @@ Core risk-relevant business logic where 75% is the eventual target but >=60% is 
 |---|---|---|---|
 | `backend/services/paper_trader.py` | **62%** | PASS (>=60% floor) | phase-43.0.1: push to 75% via execute_buy edge + backfill + scale-out tests |
 | `backend/services/portfolio_manager.py` | **62%** | PASS | phase-43.0.1: push to 75% via rebalance + cash-reserve tests |
-| `backend/services/perf_metrics.py` | **59%** | CONDITIONAL (1pp below floor) | phase-43.0.1: push to 75% via compute_drawdown + scalar_metric tests |
+| `backend/services/perf_metrics.py` | **64%** (post-phase-43.0.1) | PASS (>=60% floor) | phase-43.0.2: push to 75% via compute_drawdown + ScalarMetric edge cases + DSR/Sortino/Calmar |
 
 ### Tier-2 (>=60% combined; business-logic services / agents / api)
 
 | Module group | Coverage | Status |
 |---|---|---|
-| `backend/services/cycle_health.py` | 54% | needs +6pp |
+| `backend/services/cycle_health.py` | **72%** (post-phase-43.0.1) | PASS (>=60% floor; near STRICT 75%) |
 | `backend/services/*` rest | varies | acceptable (Tier-3 grade) |
 
 ### Tier-3 (informational only; no fixed minimum)
@@ -69,13 +69,12 @@ Confirmed dead code or deferred-deployment code that no live path reaches. Enume
 
 ## 3. DoD-4 verdict under tiered policy
 
-**PASS (Tier-1 STRICT) + CONDITIONAL (Tier-1 EXTENDED at 60% floor; perf_metrics at 59%; cycle_health Tier-2 at 54%).**
+**PASS (Tier-1 STRICT) + PASS (Tier-1 EXTENDED at 60% floor) + PASS (Tier-2 at 60% floor)** (post-phase-43.0.1).
 
-Two follow-ups remain:
-- **phase-43.0.1 (P3)**: push perf_metrics +1pp + cycle_health +6pp to clear the 60% floor entirely.
+One follow-up remains:
 - **phase-43.0.2 (P3 / multi-cycle)**: push Tier-1 EXTENDED modules to the 75% line + 80% branch STRICT bar.
 
-DoD-4 gate is **GREEN** for Tier-1 STRICT and ACCEPTABLE for Tier-1 EXTENDED at the 60% floor. The remaining work is documented and tracked, not a silent drop.
+DoD-4 gate is **GREEN** for Tier-1 STRICT + EXTENDED + Tier-2 floor. The remaining STRICT lift on EXTENDED modules is documented and tracked, not a silent drop.
 
 ## 4. Defensibility chain
 
@@ -93,3 +92,4 @@ This file is the operator-override record. Append-only on future revisions. No m
 | Date | Cycle | Change | Rationale |
 |---|---|---|---|
 | 2026-05-25 | 53 | Tier policy adopted; baseline measurements recorded | Initial operator override post "i approve" + "you decide". |
+| 2026-05-25 | 54 | phase-43.0.1 Tier-1 EXTENDED floor cleanup: perf_metrics 59% -> 64% (+5pp); cycle_health 54% -> 72% (+18pp). Both above 60% floor; cycle_health approaching 75% STRICT bar. | 10 targeted tests for compute_benchmark_return / beat_benchmark / turnover_ratio / tx_cost_drag / scalar_metric / _band / _worst_band / _bq_max_event_age / compute_freshness. |

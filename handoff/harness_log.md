@@ -23490,3 +23490,21 @@ Total: 9 PD.
 - Closure path: 39 single-step + 5 parent + 4 residual deferrals + Tier-1 coverage investment + 2 follow-ups filed.
 
 **Total cycle time:** ~50 min (substantial test investment + policy documentation).
+
+
+## Cycle 54 -- 2026-05-25 -- phase=43.0.1 result=PASS
+
+- Step: phase-43.0.1 (P3) -- DoD-4 Tier-1 EXTENDED floor cleanup. Follow-up to cycle 53 tiered policy.
+- Generate: +10 targeted tests added to test_dod4_tier1_coverage_investment.py (perf_metrics: benchmark_return / beat_benchmark / turnover_ratio / tx_cost_drag / scalar_metric; cycle_health: _band / _worst_band / _bq_max_event_age fail-open + success / compute_freshness aggregation).
+- Pytest: 30/30 PASS in 1.47s. Collection 540 -> 550 (+10 net, 0 regressions).
+- Coverage lift:
+  - perf_metrics.py:  59% -> 64% (+5pp)  PASS Tier-1 EXTENDED 60% floor
+  - cycle_health.py:  54% -> 72% (+18pp) PASS Tier-2 60% floor + approaching 75% STRICT
+- All Tier-1 STRICT modules still PASS (kill_switch 89%, cycle_lock 85%, factor_correlation 85%, factor_loadings 78%).
+- All Tier-1 EXTENDED modules PASS the 60% floor (paper_trader 62%, portfolio_manager 62%, perf_metrics 64%).
+- Tier-2 cycle_health PASS the 60% floor at 72%.
+- docs/coverage_tier_overrides.md audit-trail appended (cycle 54 row).
+- N* delta R: closes the only remaining CONDITIONAL on the tiered DoD-4 policy; Tier-1 floor entirely cleared.
+- 1 follow-up remains: phase-43.0.2 (multi-cycle Tier-1 EXTENDED -> STRICT lift).
+
+**Total cycle time:** ~10 min (targeted test additions).

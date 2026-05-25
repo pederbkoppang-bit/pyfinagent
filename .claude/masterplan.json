@@ -12511,7 +12511,7 @@
         {
           "id": "43.0.1",
           "name": "DoD-4 Tier-1 EXTENDED floor cleanup (perf_metrics +1pp + cycle_health +6pp) (follow-up to cycle 53)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": null,

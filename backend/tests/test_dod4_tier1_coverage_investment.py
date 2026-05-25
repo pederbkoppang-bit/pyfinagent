@@ -327,6 +327,129 @@ def test_perf_metrics_sharpe_from_snapshots_happy_path():
     assert abs(sharpe) <= 100.0
 
 
+# ============================================================
+# phase-43.0.1 -- additional Tier-1 EXTENDED + Tier-2 push
+# perf_metrics +1pp, cycle_health +6pp
+# ============================================================
+
+
+def test_perf_metrics_benchmark_return_compounds_daily():
+    from backend.services.perf_metrics import compute_benchmark_return
+    # 10% annual, 365 days -> ~10%
+    assert abs(compute_benchmark_return(holding_days=365, annual_rate=0.10) - 10.0) < 0.5
+    # 0 days -> 0
+    assert compute_benchmark_return(holding_days=0) == 0.0
+    # Negative days -> 0 (guard)
+    assert compute_benchmark_return(holding_days=-5) == 0.0
+
+
+def test_perf_metrics_beat_benchmark_returns_bool():
+    from backend.services.perf_metrics import beat_benchmark
+    assert beat_benchmark(return_pct=15.0, holding_days=365) is True
+    assert beat_benchmark(return_pct=5.0, holding_days=365) is False
+
+
+def test_perf_metrics_turnover_ratio_zero_nav_returns_zero():
+    from backend.services.perf_metrics import compute_turnover_ratio
+    assert compute_turnover_ratio(trades=[], avg_nav=0.0) == 0.0
+    trades = [
+        {"action": "SELL", "total_value": 5000.0},
+        {"action": "BUY", "total_value": 5000.0},
+    ]
+    r = compute_turnover_ratio(trades=trades, avg_nav=100_000.0, period_days=365)
+    assert r == 0.05
+
+
+def test_perf_metrics_tx_cost_drag_capped_at_30_percent():
+    from backend.services.perf_metrics import compute_tx_cost_drag
+    # capped at 0.3
+    assert compute_tx_cost_drag(turnover_ratio=10_000.0, tx_cost_pct=0.001) == 0.3
+    # below cap
+    assert compute_tx_cost_drag(turnover_ratio=10.0, tx_cost_pct=0.001) == 0.01
+
+
+def test_perf_metrics_get_scalar_metric_combines_inputs():
+    from backend.services.perf_metrics import ScalarMetricInputs, get_scalar_metric
+    inp = ScalarMetricInputs(
+        avg_return_pct=10.0, benchmark_beat_rate=0.5,
+        turnover_ratio=2.0, tx_cost_pct=0.001,
+    )
+    val = get_scalar_metric(inp)
+    # risk_adjusted = 10 * 0.5 = 5; drag = min(0.3, 2 * 0.001) = 0.002
+    # scalar = 5 * (1 - 0.002) = 4.99
+    assert val == 4.99
+
+
+# ---- cycle_health: _band / _worst_band / _bq_max_event_age / compute_freshness ----
+
+
+def test_cycle_health_band_thresholds():
+    from backend.services.cycle_health import _band
+    # ratio >= 2.0 -> red
+    assert _band(age_sec=200.0, interval_sec=100.0) == "red"
+    # ratio >= 1.5 -> amber
+    assert _band(age_sec=150.0, interval_sec=100.0) == "amber"
+    # ratio < 1.5 -> green
+    assert _band(age_sec=50.0, interval_sec=100.0) == "green"
+    # None / zero -> unknown
+    assert _band(age_sec=None, interval_sec=100.0) == "unknown"
+    assert _band(age_sec=50.0, interval_sec=0.0) == "unknown"
+
+
+def test_cycle_health_worst_band_picks_red_first():
+    from backend.services.cycle_health import _worst_band
+    assert _worst_band(["green", "amber", "red", "green"]) == "red"
+    assert _worst_band(["green", "amber", "green"]) == "amber"
+    assert _worst_band(["green", "green"]) == "green"
+    assert _worst_band([]) == "unknown"
+    assert _worst_band(["unknown", "unknown"]) == "unknown"
+
+
+def test_cycle_health_bq_max_event_age_fail_open_on_query_error():
+    from backend.services import cycle_health
+    bq = MagicMock()
+    bq.client.query.side_effect = Exception("simulated BQ permission denied")
+    # bq._pt_table is also a MagicMock attribute access
+    age = cycle_health._bq_max_event_age(bq, "paper_trades", "created_at")
+    assert age is None  # fail-open
+
+
+def test_cycle_health_bq_max_event_age_returns_float_on_success():
+    from backend.services import cycle_health
+    bq = MagicMock()
+    row = MagicMock()
+    row.get.return_value = 1234.5  # age in seconds
+    bq.client.query.return_value.result.return_value = [row]
+    age = cycle_health._bq_max_event_age(bq, "paper_trades", "created_at")
+    assert age == 1234.5
+
+
+def test_cycle_health_compute_freshness_aggregates_per_source_bands(monkeypatch):
+    from backend.services import cycle_health
+    # Mock all BQ-age helpers to deterministic ages
+    monkeypatch.setattr(
+        cycle_health,
+        "_bq_max_event_age",
+        lambda bq, table, col: {"paper_trades": 100.0,
+                                "paper_portfolio_snapshots": 5000.0,
+                                "historical_prices": 5000.0,
+                                "historical_fundamentals": 5000.0,
+                                "historical_macro": 5000.0,
+                                "signals_log": 100.0}.get(table),
+    )
+    # Make heartbeat fresh
+    monkeypatch.setattr(
+        cycle_health._log,
+        "read_heartbeat",
+        lambda: {"updated_at": cycle_health._now_iso()},
+    )
+    out = cycle_health.compute_freshness(bq=MagicMock(), cycle_interval_sec=100.0)
+    assert "sources" in out
+    assert "overall_band" in out
+    assert "paper_trades" in out["sources"]
+    assert "historical_prices" in out["sources"]
+
+
 def test_paper_trader_execute_sell_price_falls_back_to_live_then_current():
     # When price=None: try _get_live_price, fall back to position.current_price.
     trader, bq, _ = _make_trader()
