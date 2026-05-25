@@ -60,7 +60,6 @@ export default defineConfig({
 
   use: {
     baseURL: BASE_URL,
-    reducedMotion: "reduce",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -71,6 +70,13 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 800 },
+        // phase-44.0 motion-stability: reducedMotion lives at the
+        // project-level use (per @playwright/test types post-1.40);
+        // moved from top-level config use during TanStack/Tremor dep
+        // install (cycle 61) when the TS type tightening surfaced.
+        contextOptions: {
+          reducedMotion: "reduce",
+        },
       },
     },
   ],
