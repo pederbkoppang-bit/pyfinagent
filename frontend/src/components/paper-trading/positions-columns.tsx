@@ -15,8 +15,10 @@ import type { LivePriceEntry, TickerMeta } from "@/lib/paper-trading-context";
 import { bandFromAgeSec } from "@/lib/paper-trading-utils";
 import { Dollar, PnlBadge } from "./cockpit-helpers";
 // phase-76 (2026-05-26): trend tracker for the data-pyfa-trend host
-// attribute. globals.css targets number-flow[data-pyfa-trend="up"]
-// ::part(digit) for color tint on changing digits.
+// attribute. globals.css targets number-flow-react[data-pyfa-trend="up"]
+// ::part(digit) for color tint on changing digits. (Cycle 77 bugfix:
+// the lib's React wrapper renders <number-flow-react>, not
+// <number-flow> -- cycle 76 had the wrong element name in the CSS.)
 import { useTrend } from "@/lib/use-trend";
 
 // phase-75 (2026-05-26): Google-Finance digit-flip via NumberFlow. Per-row
@@ -51,7 +53,7 @@ function CurrentPriceCell({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           }}
-          transformTiming={{ duration: 700 }}
+          transformTiming={{ duration: 900 }}
           willChange
           data-pyfa-trend={trend}
           className="tabular-nums"

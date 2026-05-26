@@ -105,16 +105,25 @@
    on every consumer and target it here.
 
    Colors match the cockpit's existing text-emerald-400 / text-rose-400
-   tokens used app-wide for P&L (#34d399 / #fb7185). 700ms ease-out
-   keyframe duration matches the useTrend hook's auto-reset timer so a
-   single tick produces one visual flash that fades back to the parent
-   text color.
+   tokens used app-wide for P&L (#34d399 / #fb7185). 900ms ease-out
+   keyframe duration matches the useTrend hook's auto-reset timer + the
+   NumberFlow transformTiming duration so a single tick produces one
+   coherent visual flash that fades back to the parent text color
+   exactly when the digit slide settles (cycle 77 timing bump per
+   researcher a750bbbd767273170: NumberFlow's own default + M3
+   extra-long3 token).
+
+   IMPORTANT (cycle 77 bugfix): the React wrapper renders
+   <number-flow-react>, NOT <number-flow>. The lib's elementSuffix
+   '-react' appends the suffix when imported from @number-flow/react.
+   Cycle 76 shipped <number-flow> selectors which silently never
+   matched; cycle 77 corrects this.
 
    prefers-reduced-motion: reduce disables the color flash. NumberFlow's
    respectMotionPreference:true default already disables the slide; this
    block ensures the tint also halts when the operator opts out of
    motion. WCAG SC 2.3.3 still N/A (passive ticks). SC 2.2.2 satisfied
-   (700ms << 5s ceiling). */
+   (900ms << 5s ceiling). */
 @keyframes pyfa-tint-up {
   0% {
     color: #34d399;
@@ -132,18 +141,18 @@
   }
 }
 
-number-flow[data-pyfa-trend="up"]::part(digit),
-number-flow[data-pyfa-trend="up"]::part(symbol) {
-  animation: pyfa-tint-up 700ms ease-out;
+number-flow-react[data-pyfa-trend="up"]::part(digit),
+number-flow-react[data-pyfa-trend="up"]::part(symbol) {
+  animation: pyfa-tint-up 900ms ease-out;
 }
-number-flow[data-pyfa-trend="down"]::part(digit),
-number-flow[data-pyfa-trend="down"]::part(symbol) {
-  animation: pyfa-tint-down 700ms ease-out;
+number-flow-react[data-pyfa-trend="down"]::part(digit),
+number-flow-react[data-pyfa-trend="down"]::part(symbol) {
+  animation: pyfa-tint-down 900ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  number-flow::part(digit),
-  number-flow::part(symbol) {
+  number-flow-react::part(digit),
+  number-flow-react::part(symbol) {
     animation: none !important;
   }
 }

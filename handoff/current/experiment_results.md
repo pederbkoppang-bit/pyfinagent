@@ -1,55 +1,47 @@
-# Experiment Results -- Cycle 76: NumberFlow trend coloring + slowed slide
+# Experiment Results -- Cycle 77: fix CSS element-name bug + bump to 900ms
 
 **Date:** 2026-05-26
-**Phase:** UX visibility hardening (cycle 75 shipped the right pattern but at 900ms silent slide; operator: "didn't notice at all"). No SSOT or data-flow change. No masterplan flip. ZERO new npm deps.
+**Phase:** UX bugfix + timing tune (operator: "i dont see the color tint when digits are moving up and down" + "runs a bit fast"). No SSOT or data-flow change. No masterplan flip. ZERO new npm deps.
 **Result:** GENERATE complete; awaiting Q/A.
 
-## What changed
+## Root cause analysis (the load-bearing find)
 
-Added a 700ms emerald (up) / rose (down) color flash on the digits that
-slide, matching Google Finance's pre-attentive tick signal. The slide
-itself slows from 900ms (NumberFlow's default) to 700ms so it lines up
-with the tint. Reduced-motion preserved.
+Cycle 76 shipped the CSS selector `number-flow[data-pyfa-trend="up"]::part(digit)`. Operator reported no tint. Inspection of `@number-flow/react@0.6.0`'s React wrapper source (`dist/NumberFlow-client-BTpPLmzo.mjs` line ~140) shows the wrapper renders `<number-flow-react>` (NOT `<number-flow>`) -- the lib appends `-react` via its internal `elementSuffix: '-react'` config when called from the React entry point:
 
-Implementation pattern: NumberFlow's `<number-flow>` custom element does
-NOT expose `::part(up)` / `::part(down)` selectors (researcher
-`ae08ef2407507449a` verified against the lib's `lite.ts` source). We
-emit our own `data-pyfa-trend="up" | "down" | "flat"` host attribute via
-a new `useTrend` hook and target it in `globals.css` via
-`number-flow[data-pyfa-trend="up"]::part(digit)`.
+```js
+React.createElement("number-flow-react", { ...rest, ... });
+```
 
-### Files (1 new + 4 modified, ZERO backend, ZERO new deps)
+So the cycle-76 selector never matched the actual DOM element. `...rest` IS spreading `data-pyfa-trend` to the host element correctly -- the prop pass-through works fine; the bug is purely in the CSS element name.
 
-1. `frontend/src/lib/use-trend.ts` -- **NEW** hook. `useTrend(value, durationMs=700)` returns `"up" | "down" | "flat"`. Tracks prev value via `useRef`, sets trend on change, auto-resets to "flat" after 700ms via `setTimeout` (matches CSS animation). Cleared on subsequent change AND on unmount.
+This cycle fixes the selector and bumps all durations to 900ms per researcher `a750bbbd767273170` (NumberFlow's own default; M3 `extra-long3` token; matches NN/g + Smashing 2025 Doherty band).
 
-2. `frontend/src/app/globals.css` -- added:
-   - `@keyframes pyfa-tint-up` (0% color #34d399 emerald-400 -> 100% inherit).
-   - `@keyframes pyfa-tint-down` (0% color #fb7185 rose-400 -> 100% inherit).
-   - Selectors `number-flow[data-pyfa-trend="up"]::part(digit)` and `::part(symbol)` -> `animation: pyfa-tint-up 700ms ease-out`.
-   - Mirror selectors for "down" -> `pyfa-tint-down`.
-   - `@media (prefers-reduced-motion: reduce) { number-flow::part(digit), number-flow::part(symbol) { animation: none !important; } }` -- disables both tint AND NumberFlow's slide for reduced-motion operators.
+## What changed (5 files modified)
 
-3. `frontend/src/components/paper-trading/cockpit-helpers.tsx` -- in `Dollar` + `PnlBadge`: call `useTrend(value)`, add `transformTiming={{ duration: 700 }}` + `data-pyfa-trend={trend}` to NumberFlow.
-
-4. `frontend/src/components/paper-trading/positions-columns.tsx` -- in `CurrentPriceCell`: same edits.
-
-5. `frontend/src/app/page.tsx` -- in `KpiTile`: same edits (one NumberFlow site, fires for all 6 tiles).
+1. `frontend/src/app/globals.css`:
+   - `number-flow[data-pyfa-trend="up"]::part(digit|symbol)` -> `number-flow-react[data-pyfa-trend="up"]::part(digit|symbol)`.
+   - Mirror for "down".
+   - Reduced-motion `@media` selector also updated to `number-flow-react`.
+   - Keyframe animation duration 700ms -> 900ms.
+2. `frontend/src/lib/use-trend.ts` -- default `durationMs` 700 -> 900.
+3. `frontend/src/components/paper-trading/cockpit-helpers.tsx` -- two `transformTiming` literals 700 -> 900 (Dollar + PnlBadge).
+4. `frontend/src/components/paper-trading/positions-columns.tsx` -- one `transformTiming` 700 -> 900 (CurrentPriceCell).
+5. `frontend/src/app/page.tsx` -- one `transformTiming` 700 -> 900 (KpiTile).
 
 ## Verification (verbatim command output)
 
 ### tsc --noEmit
 ```
 $ cd frontend && npx tsc --noEmit
-exit=0
-(no output)
+tsc=0
 ```
 
 ### npx vitest run
 ```
  Test Files  23 passed (23)
       Tests  178 passed (178)
-   Start at  21:31:27
-   Duration  4.05s
+   Start at  21:46:23
+   Duration  4.45s
 ```
 
 ### python tests/verify_phase_23_1_17.py
@@ -57,29 +49,30 @@ exit=0
 ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script (mark_to_market + save_daily_snapshot)
 ```
 
-### `data-pyfa-trend` attribute presence (4 NumberFlow consumers)
+### Audit greps
 ```
-$ grep -n "data-pyfa-trend=" frontend/src/components/paper-trading/cockpit-helpers.tsx frontend/src/components/paper-trading/positions-columns.tsx frontend/src/app/page.tsx
-cockpit-helpers.tsx:47  data-pyfa-trend={trend}   (PnlBadge)
-cockpit-helpers.tsx:68  data-pyfa-trend={trend}   (Dollar)
-positions-columns.tsx:56  data-pyfa-trend={trend}  (CurrentPriceCell)
-page.tsx:179  data-pyfa-trend={trend}              (KpiTile)
-```
-4 prop sites confirmed.
+$ grep -rn "transformTiming.*700\b" frontend/src/
+none
 
-### globals.css trend CSS
-```
-$ grep -E "pyfa-tint|data-pyfa-trend|prefers-reduced-motion" frontend/src/app/globals.css
-@keyframes pyfa-tint-up { ... }
-@keyframes pyfa-tint-down { ... }
-number-flow[data-pyfa-trend="up"]::part(digit),
-number-flow[data-pyfa-trend="up"]::part(symbol) { animation: pyfa-tint-up 700ms ease-out; }
-number-flow[data-pyfa-trend="down"]::part(digit),
-number-flow[data-pyfa-trend="down"]::part(symbol) { animation: pyfa-tint-down 700ms ease-out; }
-@media (prefers-reduced-motion: reduce) { ... animation: none !important; }
+$ grep -rn "transformTiming.*900\b" frontend/src/
+page.tsx:177            transformTiming={{ duration: 900 }}
+positions-columns.tsx:54          transformTiming={{ duration: 900 }}
+cockpit-helpers.tsx:44      transformTiming={{ duration: 900 }}
+cockpit-helpers.tsx:65      transformTiming={{ duration: 900 }}
+(4 hits, one per NumberFlow consumer)
+
+$ grep -c "number-flow\[data-pyfa-trend" frontend/src/app/globals.css
+0  (stale selector gone)
+
+$ grep -c "number-flow-react\[data-pyfa-trend" frontend/src/app/globals.css
+4  (up::part(digit) + up::part(symbol) + down::part(digit) + down::part(symbol))
+
+$ grep -E "pyfa-tint-(up|down) [0-9]+ms" frontend/src/app/globals.css
+animation: pyfa-tint-up 900ms ease-out;
+animation: pyfa-tint-down 900ms ease-out;
 ```
 
-### Zero new deps + zero backend
+### Zero deps + zero backend
 ```
 $ git diff HEAD -- frontend/package.json
 (empty)
@@ -88,39 +81,25 @@ $ git diff --stat HEAD -- backend/
 (empty)
 ```
 
-## A11y compliance
+## Market Value note (operator's second clarification)
 
-- WCAG SC 2.3.3 Animation from Interactions: N/A (passive ticks; researcher cycle 74).
-- WCAG SC 2.2.2 Pause/Stop/Hide: satisfied (700ms tint << 5s ceiling; slide 700ms).
-- `aria-live="off"` preserved on every NumberFlow consumer (MDN stock-ticker default).
-- Reduced-motion: `respectMotionPreference: true` (NumberFlow default) halts the slide; the new `@media (prefers-reduced-motion: reduce)` block also halts the tint via `animation: none !important`.
+Operator said they "forgot to put a red circle on market value in the positions table". Market Value already animates via `<Dollar>` (renders NumberFlow per cycle 75 + 76). This was operator-annotation cleanup, not a missing wiring. With the cycle-77 selector fix, Market Value will tint along with Current and P&L.
 
-## Artifact shape
+## A11y compliance (unchanged from cycle 76)
 
-After cycle 76, every cycle-75 NumberFlow consumer also color-tints on
-tick:
-
-- **Up-tick** ($124.50 -> $124.65): changing digits ("50" -> "65") slide
-  in their cells AND briefly turn emerald-400 (#34d399) before fading
-  back to the parent text color over 700ms.
-- **Down-tick** ($124.65 -> $124.50): same slide + brief rose-400
-  (#fb7185) tint.
-- **Flat** (no change): no slide, no tint.
-
-Surfaces wired (4 NumberFlow consumers, ~25 simultaneous instances):
-- Paper Trading positions table (Current, Market Value, P&L)
-- Paper Trading SummaryHero MetricCards (NAV, Cash, Total P&L, vs SPY)
-- Paper Trading trades table (Total Value, inherited via Dollar)
-- Home KpiTiles (NAV, P&L today, vs SPY, Sharpe, Max DD, Positions)
+- WCAG SC 2.3.3 N/A (passive ticks).
+- SC 2.2.2 satisfied (900ms << 5s ceiling).
+- `aria-live="off"` preserved.
+- Reduced-motion: NumberFlow's `respectMotionPreference: true` halts the slide; the corrected `@media (prefers-reduced-motion: reduce)` block now correctly halts the tint via `number-flow-react::part(*)`.
 
 ## Memory-rule compliance
 
-- NO `npm install` (zero new deps; no `launchctl kickstart` needed).
+- NO `npm install` (zero new deps).
 - NO `npm run build`.
 - NO `rm -rf .next/*`.
 - ZERO emojis introduced.
 
 ## Not in scope
 
-- Reducing live-prices polling interval below 60s (would burn API quota; not the right fix for visibility).
-- Browser visual verification of the tint + slide combination (still pending operator review per `frontend.md` rule 5 -- the operator's last screenshot proved NumberFlow IS rendering via the Norwegian locale formatting `$23 823,74`; this cycle adds the visibility cue they asked for).
+- Browser visual verification still pending operator hard-refresh.
+- Polling interval (60s) unchanged.

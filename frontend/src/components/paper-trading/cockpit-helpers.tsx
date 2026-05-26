@@ -14,7 +14,9 @@ import type {
 // phase-76 (2026-05-26): trend tracker for the data-pyfa-trend host
 // attribute. NumberFlow does not ship trend-coloring CSS parts, so we
 // emit our own host attribute that globals.css targets via
-// number-flow[data-pyfa-trend="up"]::part(digit) etc.
+// number-flow-react[data-pyfa-trend="up"]::part(digit) etc.
+// (Cycle 77 bugfix: lib's React wrapper renders <number-flow-react>,
+// NOT <number-flow> -- cycle 76 had the wrong element name in the CSS.)
 import { useTrend } from "@/lib/use-trend";
 // phase-75 (2026-05-26): Google-Finance digit-flip animation via
 // @number-flow/react@0.6.0 (researcher ad12953b2b579e884). Cycle-74's
@@ -41,7 +43,7 @@ export function PnlBadge({ value }: { value: number | null | undefined }) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }}
-      transformTiming={{ duration: 700 }}
+      transformTiming={{ duration: 900 }}
       willChange
       aria-live="off"
       data-pyfa-trend={trend}
@@ -62,7 +64,7 @@ export function Dollar({ value }: { value: number | null | undefined }) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }}
-      transformTiming={{ duration: 700 }}
+      transformTiming={{ duration: 900 }}
       willChange
       aria-live="off"
       data-pyfa-trend={trend}

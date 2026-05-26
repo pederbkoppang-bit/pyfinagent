@@ -24166,3 +24166,48 @@ Operator screenshot evidence: 4 different NAV values rendered simultaneously acr
 **No masterplan flip** -- UX hardening following cycle 75; not a step closure.
 
 **Total cycle time:** ~30 min (researcher 6 min moderate + contract 3 min + generate 12 min + tests 3 min + Q/A 3 min + log 3 min).
+
+---
+
+## Cycle 77 -- 2026-05-26 -- CSS element-name bugfix + 900ms duration tune -- result=PASS
+
+**Trigger:** Operator screenshots of `/paper-trading` cockpit + Home cockpit after cycle 76 with two complaints: (1) "i dont see the color tint when digits are moving up and down" -- the cycle-76 tint never landed; (2) "i think it also runs a bit fast" -- 700ms slide was too quick to register. Operator also noted Market Value was missing a red circle on the screenshot annotation (already animates via `<Dollar>`; clarification, not a missing wiring).
+
+**Root cause (the load-bearing find):** Inspection of `@number-flow/react@0.6.0`'s React wrapper source (`dist/NumberFlow-client-BTpPLmzo.mjs` line ~93) shows the wrapper renders `<number-flow-react>` (NOT `<number-flow>`) -- the lib appends `-react` via its internal `elementSuffix: '-react'` config when called from the React entry. Cycle 76's CSS targeted `number-flow[data-pyfa-trend="up"]::part(digit)`, which NEVER matched the actual DOM element. `...rest` IS spreading `data-pyfa-trend` to the host element correctly; the bug was purely in the CSS element name.
+
+**Researcher:** `a750bbbd767273170`, tier=moderate, 7 sources read in full, 12 snippet-only, 19 URLs, recency scan performed, internal_files_inspected=5, gate_passed=true. Brief at `handoff/current/research_brief_phase_tick_duration.md`. Recommendation: slide + tint + `useTrend` durationMs all 900ms (NumberFlow's own default; M3 `extra-long3` token; NN/g + Smashing 2025 + Doherty band).
+
+**Contract:** N* delta B-primary = expose the tint by fixing one identifier in CSS + bump durations to 900ms. 5 files modified. ZERO new deps. ZERO backend. ZERO test scaffolding.
+
+**Generate:**
+- `frontend/src/app/globals.css`:
+  - `number-flow[data-pyfa-trend="up"]::part(digit|symbol)` -> `number-flow-react[data-pyfa-trend="up"]::part(digit|symbol)`.
+  - Mirror for "down".
+  - Reduced-motion `@media` selector also updated.
+  - Keyframe animation duration 700ms -> 900ms.
+- `frontend/src/lib/use-trend.ts` -- default `durationMs` 700 -> 900.
+- `frontend/src/components/paper-trading/cockpit-helpers.tsx` -- two `transformTiming` literals 700 -> 900 (Dollar + PnlBadge).
+- `frontend/src/components/paper-trading/positions-columns.tsx` -- one `transformTiming` 700 -> 900 (CurrentPriceCell).
+- `frontend/src/app/page.tsx` -- one `transformTiming` 700 -> 900 (KpiTile).
+
+**Tests:**
+- `npx tsc --noEmit` exit 0.
+- `npx vitest run` -- 178/178 passed.
+- `python tests/verify_phase_23_1_17.py` -- ok.
+- `grep -rn "transformTiming.*700\b" frontend/src/` empty.
+- `grep -c "number-flow\[data-pyfa-trend" frontend/src/app/globals.css` returns 0; `grep -c "number-flow-react\[data-pyfa-trend" frontend/src/app/globals.css` returns 4.
+- `git diff HEAD -- frontend/package.json` empty.
+- `git diff --stat HEAD -- backend/` empty.
+
+**Q/A cycle-2 flow:**
+- First spawn `a7b56853f22a99a63` returned CONDITIONAL on comment-doc lag (6 inline-comment references to `700ms` / `number-flow[` -- executable code was correct, but comments were stale).
+- Main applied 6 comment edits across 5 files + appended a Follow-up section to `evaluator_critique.md` documenting what changed (per CLAUDE.md cycle-2 protocol: fix blockers + update handoff + spawn fresh Q/A on updated evidence -- NOT verdict-shopping).
+- Fresh spawn `a4e087b798eb906fb` returned PASS: 5/5 harness + 11/11 deterministic + 5/5 comment-doc re-audit + 8/8 LLM-judgment. Verdict reversal explicitly attributed to the evidence delta (6 comment edits + Follow-up section), not sycophancy.
+
+**N* delta R+B primary:** With cycle 77 deployed, the operator's next hard-refresh of `/paper-trading` will (a) match the corrected `<number-flow-react>` CSS selector so the emerald-up / rose-down digit tint actually applies, (b) slow the combined slide + tint to 900ms (NumberFlow default + matched tint = single coherent flash that settles at the final digit position), and (c) automatically extend to Market Value via the already-wired `<Dollar>` consumer.
+
+**Visual verification:** STILL PENDING operator browser-probe per frontend.md rule 5. Hard-refresh required.
+
+**No masterplan flip** -- bugfix + tune cycle following cycle 76; not a step closure.
+
+**Total cycle time:** ~45 min (researcher 6 min + contract 3 min + generate 5 min + tests 3 min + first Q/A 3 min + comment fix 5 min + fresh Q/A 3 min + log 3 min).

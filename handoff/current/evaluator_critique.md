@@ -1,140 +1,132 @@
-# Evaluator Critique -- Cycle 76 -- 2026-05-26 -- NumberFlow trend coloring + slowed slide visibility hardening
+# Evaluator critique -- Cycle 77 respawn (2026-05-26)
 
-**Cycle:** 76
-**Phase:** UX visibility hardening on top of cycle 75 (operator: "didn't notice [the 900ms silent slide] at all"). Adds 700ms emerald/rose color tint to changing digits via custom host attribute + ::part(digit) CSS, slows slide to 700ms to align with tint.
-**Reviewer:** Q/A (merged qa-evaluator + harness-verifier)
-**Verdict:** PASS
+> **Note (top-of-file).** Fresh respawn after Main's comment-doc fix per
+> CLAUDE.md cycle-2 flow ("spawning a fresh Q/A AFTER fixing blockers
+> and updating the files IS the documented pattern"). Updated evidence;
+> not verdict-shopping on unchanged evidence. The prior CONDITIONAL
+> verdict and Follow-up section are preserved in
+> `handoff/archive/phase-77/` on step transition; this file is the
+> authoritative cycle-77 verdict on the post-comment-fix state.
 
-## Step 1 — Harness-compliance audit (5 items)
+**Step:** UX bugfix + timing tune. Fix CSS element-name bug shipped in
+cycle 76 (`number-flow` -> `number-flow-react`) and bump all transition
+durations 700ms -> 900ms per researcher `a750bbbd767273170`. Cycle-77
+follow-up addressed 6 stale inline comments flagged in the prior
+CONDITIONAL.
 
-| # | Item | Status | Evidence |
-|---|------|--------|----------|
-| 1 | Researcher spawn evidence | PASS | `handoff/current/research_brief_phase_numberflow_trend.md` exists (17530 bytes). `handoff/current/contract.md` cites `Researcher ae08ef2407507449a, tier=moderate, 6 sources read in full, 14 snippet-only, 20 URLs, recency scan performed, internal_files_inspected=6, gate_passed=true`. |
-| 2 | Contract pre-commit | PASS | `contract.md` mtime `May 26 21:30:15 2026` PRECEDES all 5 modified source files: `use-trend.ts` 21:30:27, `globals.css` 21:30:37, `cockpit-helpers.tsx` 21:30:54, `positions-columns.tsx` 21:31:05, `page.tsx` 21:31:14. |
-| 3 | experiment_results.md content | PASS | Exists (5809 bytes, mtime 21:32). Lists 1 NEW (`use-trend.ts`) + 4 MODIFIED (`globals.css`, `cockpit-helpers.tsx`, `positions-columns.tsx`, `page.tsx`). Includes verbatim tsc, vitest, verify_phase_23_1_17, grep, git-diff output. |
-| 4 | harness_log absence | PASS | `grep "Cycle 76 -- 2026-05-26" handoff/harness_log.md` returns 0 hits (log-LAST discipline observed). |
-| 5 | No verdict-shopping | PASS | `grep -c "Cycle 76 -- 2026-05-26" handoff/current/evaluator_critique.md` returned 0 before this overwrite. |
+**Verdict:** **PASS**
 
-All 5 harness items PASS.
+## Harness-compliance audit (5 items)
 
-## Step 2 — Deterministic checks (8 items)
+1. **Researcher spawn evidence** -- `handoff/current/research_brief_phase_tick_duration.md`
+   present; tier=moderate; 7 sources read in full; 12 snippet-only; 19
+   URLs; recency_scan_performed=true; internal_files_inspected=5;
+   gate_passed=true (researcher id `a750bbbd767273170`). **PASS.**
+2. **Contract pre-commit** -- `contract.md` mtime 1779824741 precedes
+   every source file mtime (earliest source 1779825053). **PASS.**
+3. **experiment_results.md present** -- still lists 5 modified files,
+   verbatim verification block, no functional code reverts during the
+   follow-up comment fix. **PASS.**
+4. **harness_log absence** -- `grep "Cycle 77 -- 2026-05-26" handoff/harness_log.md`
+   returns 0 hits. Log-last discipline respected; Main has not
+   pre-stamped. **PASS.**
+5. **No verdict-shopping** -- the prior CONDITIONAL verdict for
+   comment-doc lag was issued on the original (pre-fix) handoff state.
+   Main applied the 6 inline-comment fixes to actual code, wrote a
+   Follow-up section to the prior `evaluator_critique.md` documenting
+   what changed, and re-spawned a fresh Q/A. The evidence delta is
+   real (sed of `globals.css`, `use-trend.ts`, `cockpit-helpers.tsx`,
+   `positions-columns.tsx`, `page.tsx` between cycles confirms the
+   comment fixes landed). This matches CLAUDE.md's documented cycle-2
+   flow exactly: "fresh Q/A AFTER fixing blockers and updating the
+   handoff files". NOT second-opinion-shopping on unchanged evidence.
+   **PASS.**
 
-| # | Check | Expected | Actual | Status |
-|---|-------|----------|--------|--------|
-| 1 | `cd frontend && npx tsc --noEmit` | exit 0 | EXIT=0 (no output) | PASS |
-| 2 | `cd frontend && npx vitest run` | "Tests 178 passed (178)" | "Test Files 23 passed (23) / Tests 178 passed (178) / Duration 3.99s" | PASS |
-| 3 | `python tests/verify_phase_23_1_17.py` | "ok useLiveNav..." | "ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script (mark_to_market + save_daily_snapshot)" | PASS |
-| 4 | `git diff HEAD -- frontend/package.json` | empty | empty | PASS |
-| 5 | `git diff --stat HEAD -- backend/` | empty | empty | PASS |
-| 6 | `grep -c "data-pyfa-trend=" <3 files>` | 4 prop uses | cockpit-helpers.tsx=2 (L47, L68), positions-columns.tsx=1 (L56), page.tsx=1 (L179). 4 prop uses + 3 doc-comment refs at L17/L18/L27. | PASS |
-| 7 | `grep -c "transformTiming" <3 files>` | >=4 hits | cockpit-helpers.tsx=2 (L44, L65), positions-columns.tsx=1 (L54), page.tsx=1 (L177). 4 hits, one per NumberFlow consumer. | PASS |
-| 8 | `grep -c "pyfa-tint" globals.css` | >=4 hits | 4 hits: L118 `@keyframes pyfa-tint-up`, L126 `@keyframes pyfa-tint-down`, L137 `animation: pyfa-tint-up`, L141 `animation: pyfa-tint-down`. | PASS |
+## Deterministic checks
 
-All 8 deterministic checks PASS.
+| # | Check | Result |
+|---|-------|--------|
+| 1 | `npx tsc --noEmit` | exit 0 |
+| 2 | `npx vitest run` | Test Files 23 passed; Tests 178 passed (178); 4.02s |
+| 3 | `python tests/verify_phase_23_1_17.py` | `ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script (mark_to_market + save_daily_snapshot)` |
+| 4 | `git diff HEAD -- frontend/package.json` | empty |
+| 5 | `git diff --stat HEAD -- backend/` | empty |
+| 6 | `grep -rn "transformTiming.*700\b" frontend/src/` | empty (exit 1) |
+| 7 | `grep -c "transformTiming.*900\b"` across 3 NumberFlow consumers | 2+1+1=4 (cockpit-helpers=2, positions-columns=1, page=1) |
+| 8 | `grep -c "number-flow\[data-pyfa-trend" frontend/src/app/globals.css` | 0 (stale selector gone) |
+| 9 | `grep -c "number-flow-react\[data-pyfa-trend" frontend/src/app/globals.css` | 4 (up::digit + up::symbol + down::digit + down::symbol) |
+| 10 | `grep -E "pyfa-tint-(up|down) 900ms" frontend/src/app/globals.css` | 2 keyframe lines confirmed |
+| 11 | `grep "durationMs: number = 900" frontend/src/lib/use-trend.ts` | 1 hit |
 
-## Step 3 — LLM judgment (11 items)
+All 11 deterministic checks PASS.
 
-### A. useTrend hook correctness — PASS
+## Comment-doc lag re-audit (A-E)
 
-`frontend/src/lib/use-trend.ts`:
+The CONDITIONAL's specific concern was 6 stale `700ms` /
+`number-flow[` references in inline comments. After Main's follow-up:
 
-- Tracks prev value via `useRef<number | null | undefined>(value)` on L26.
-- Returns `"flat"` initial via `useState<Trend>("flat")` on L27.
-- Returns `"flat"` on null/null transitions: L31-34 short-circuits BEFORE setting trend (`if (value == null || prev.current == null) { prev.current = value; return; }`).
-- Returns `"up"` when `value > prev.current`, `"down"` when `value < prev.current` via ternary on L36: `const next: Trend = value > prev.current ? "up" : "down";`.
-- Auto-resets to `"flat"` via `setTimeout(() => setTrend("flat"), durationMs)` on L40-43, default `durationMs: number = 700` on L24.
-- Clears prior `setTimeout` on subsequent change on L39: `if (timeoutRef.current) clearTimeout(timeoutRef.current);`.
-- Clears on unmount via separate `useEffect` returning a cleanup function on L46-50.
+| Item | File | Verified |
+|---|---|---|
+| A | `frontend/src/app/globals.css` (lines 100-120 block) | Block now says "900ms ease-out keyframe duration" (line 108) AND adds a "Cycle 77 bugfix" sub-block (lines 116-120) explaining the `<number-flow-react>` vs `<number-flow>` element-name fix. PASS. |
+| B | `frontend/src/lib/use-trend.ts` (lines 1-25) | Module-doc says "auto-resets to 'flat' after 900ms" (line 15). The historical "cycle 77 bump from 700ms per researcher a750bbbd767273170" reference on lines 16-17 is the legitimate documentation of WHY the bump happened, not a stale current value. PASS. |
+| C | `frontend/src/components/paper-trading/cockpit-helpers.tsx` line 14-19 | Comment now references `number-flow-react[data-pyfa-trend="up"]::part(digit)` and cites the cycle-77 bugfix. PASS. |
+| D | `frontend/src/components/paper-trading/positions-columns.tsx` line 13-18 | Comment now references `number-flow-react[data-pyfa-trend="up"]::part(digit)` and cites the cycle-77 bugfix. PASS. |
+| E | `frontend/src/app/page.tsx` line 26-31 | Comment now references `number-flow-react[data-pyfa-trend="up"]::part(digit)` and cites the cycle-77 bugfix. PASS. |
 
-### B. data-pyfa-trend host attribute on all 4 NumberFlow consumers — PASS
+All 5 comment-doc concerns from the prior CONDITIONAL are resolved.
 
-All 4 NumberFlow consumer prop sites are `data-pyfa-trend={trend}` (interpolated from `useTrend(value)`), NOT a stale string:
+## LLM judgment (F-M)
 
-- `cockpit-helpers.tsx:47` (PnlBadge), L31 `const trend = useTrend(value);`
-- `cockpit-helpers.tsx:68` (Dollar), L54 `const trend = useTrend(value);`
-- `positions-columns.tsx:56` (CurrentPriceCell), L36 `const trend = useTrend(shown);`
-- `page.tsx:179` (KpiTile), L154 `const trend = useTrend(value);`
+| Item | Check | Verified |
+|---|---|---|
+| F | Root cause empirically confirmed | `frontend/node_modules/@number-flow/react/dist/NumberFlow-client-BTpPLmzo.mjs:93` shows `React.createElement("number-flow-react", { ... })`. Cycle-76's `number-flow` selector indeed targeted the wrong element. PASS. |
+| G | All 4 transformTiming literals 900ms | cockpit-helpers.tsx (2x) + positions-columns.tsx (1x) + page.tsx (1x) = 4 hits at 900; 0 hits at 700 anywhere under `frontend/src/`. PASS. |
+| H | `useTrend` default durationMs=900 | confirmed in `frontend/src/lib/use-trend.ts`. PASS. |
+| I | All 4 CSS selectors use `number-flow-react` | up::digit, up::symbol, down::digit, down::symbol in globals.css. PASS. |
+| J | Reduced-motion `@media` block uses `number-flow-react` | `globals.css:153-159` confirms `number-flow-react::part(digit)` + `number-flow-react::part(symbol)` with `animation: none !important;`. PASS. |
+| K | Keyframe duration 900ms | both `pyfa-tint-up 900ms ease-out` and `pyfa-tint-down 900ms ease-out` present. PASS. |
+| L | `aria-live="off"` preserved | cockpit-helpers.tsx PnlBadge:48, Dollar:69; positions-columns.tsx CurrentPriceCell:41; page.tsx KpiTile:170. All 4 NumberFlow call sites carry `aria-live="off"`. PASS. |
+| M | ZERO new npm deps, ZERO backend, ZERO emojis | `git diff HEAD -- frontend/package.json` empty; `git diff --stat HEAD -- backend/` empty; emoji scan of all 5 modified files returns TOTAL EMOJI: 0. PASS. |
 
-### C. transformTiming={{ duration: 700 }} prop on all 4 NumberFlow consumers — PASS
+All 8 LLM judgment checks PASS.
 
-- `cockpit-helpers.tsx:44` (PnlBadge): `transformTiming={{ duration: 700 }}`
-- `cockpit-helpers.tsx:65` (Dollar): `transformTiming={{ duration: 700 }}`
-- `positions-columns.tsx:54` (CurrentPriceCell): `transformTiming={{ duration: 700 }}`
-- `page.tsx:177` (KpiTile): `transformTiming={{ duration: 700 }}`
+## Heuristic dispatch (code-review-trading-domain skill)
 
-### D. CSS selectors target the host data attribute — PASS
+No BLOCK or WARN heuristics fire on the diff. The cycle-77 diff is
+selector-text + numeric-literal swap + 6 inline-comment refreshes. No
+new dependencies; no backend touched; no LLM call paths altered; no
+kill-switch / stop-loss / perf-metrics / risk-engine surfaces touched;
+no prompt-injection / command-injection / secret-in-diff surfaces;
+no test-coverage delta concern (the change is CSS + frontend literal
+swap behind existing tests that cover NumberFlow rendering via
+`paper-trading/__tests__` + KPI tile tests).
 
-`frontend/src/app/globals.css:135-141` uses
-`number-flow[data-pyfa-trend="up"]::part(digit), number-flow[data-pyfa-trend="up"]::part(symbol)`
-and the mirror for `"down"`. NOT `::part(up)`. Researcher's load-bearing finding (NumberFlow does NOT expose `::part(up)`/`::part(down)`) honored.
+`sycophancy-under-rebuttal` deliberately checked: the verdict reversal
+from CONDITIONAL -> PASS is NOT sycophancy because executable evidence
+DID change between cycles (6 file edits to inline comments) per
+CLAUDE.md negation list:
+> "Verdict reversal AFTER the code actually changed (that's the
+> documented cycle-2 flow, not sycophancy)"
 
-### E. Reduced-motion guard — PASS
+## checks_run
 
-`globals.css:144-149`:
-```css
-@media (prefers-reduced-motion: reduce) {
-  number-flow::part(digit),
-  number-flow::part(symbol) {
-    animation: none !important;
-  }
-}
-```
+- `syntax` (via `tsc --noEmit` exit 0)
+- `verification_command` (vitest 178/178; verify_phase_23_1_17 ok)
+- `code_review_heuristics` (5 dimensions; no BLOCK/WARN; sycophancy-
+  under-rebuttal explicitly checked and negated)
+- `evaluator_critique` (this file)
+- `harness_compliance_audit` (5-item PASS)
 
-`animation: none !important` halts BOTH the new `pyfa-tint-up/-down` animation (which is implemented on `::part(digit)`/`::part(symbol)`) AND any other animation NumberFlow might apply to those parts. The slide is additionally halted by NumberFlow's `respectMotionPreference: true` default. Net effect: reduced-motion users see neither tint nor slide.
-
-### F. Emerald/rose hex match the cockpit's existing tokens — PASS
-
-- `globals.css:120` `#34d399` (emerald-400). Matches `text-emerald-400` used throughout `cockpit-helpers.tsx` (L34, L95, L152, L156, L158, L165, L228, L232, L254, L266 etc.).
-- `globals.css:128` `#fb7185` (rose-400). Matches `text-rose-400` (L34, L97, L160, L167, L236, L283 etc.).
-- NOT `#10b981` (emerald-500) or any other clashing shade.
-
-### G. aria-live="off" preserved on Dollar + PnlBadge (and other consumers) — PASS
-
-- `cockpit-helpers.tsx:46` (PnlBadge) — present.
-- `cockpit-helpers.tsx:67` (Dollar) — present.
-- `positions-columns.tsx:39` (CurrentPriceCell parent span) — present.
-- `page.tsx:168` (KpiTile parent `<p>`) — present.
-
-### H. ZERO new npm deps — PASS
-
-`git diff HEAD -- frontend/package.json` returns empty. Dep count unchanged from cycle 75.
-
-### I. ZERO backend file changes — PASS
-
-`git diff --stat HEAD -- backend/` returns empty.
-
-### J. ZERO emojis introduced — PASS
-
-`grep -E "(✅|❌|✨|✔|✖)" <5 files>` returns no hits.
-
-### K. No npm run build / rm -rf .next/* — PASS
-
-`handoff/logs/auto-push.log` tail shows only routine `INVOKED auto-commit-and-push pid=...` lines for this session. No build invocations or cache purges.
-
-## Code-review heuristic sweep
-
-| Dimension | Findings |
-|-----------|----------|
-| Security | clean — no secrets, no prompt-injection path, no command-injection, no LLM call, package.json untouched (no supply-chain change). |
-| Trading-domain correctness | N/A — UX-only diff. No `kill_switch`, `stop_loss`, `paper_trader`, `risk_engine`, `perf_metrics` touch. No buy/sell path. No BQ schema change. |
-| Code quality | clean — no broad except (no try/except added), no print(), no magic numbers (700ms is named via `durationMs` default + matched CSS keyframe), full type hints on `useTrend(value: number | null | undefined, durationMs: number = 700): Trend`. |
-| Anti-rubber-stamp on financial logic | N/A — no financial logic changed. `useTrend` is a pure UI hook; per the negation list, "Added type-hint-only or docstring-only changes don't need new tests" applies but here we have a new file with real behavior. The existing 178 vitest tests still pass; no new test file is required because the heuristic specifically scopes to `perf_metrics.py`/`risk_engine.py`/`backtest_engine.py`/`backtest_trader.py` -- none of which were touched. |
-| LLM-evaluator anti-patterns | clean — fresh cycle (no prior cycle 76 verdict to flip), file:line citations throughout, no sycophancy under rebuttal. |
-
-No BLOCK or WARN heuristics triggered. checks_run: `["syntax", "verification_command", "code_review_heuristics", "evaluator_critique"]`.
-
-## Summary
-
-PASS. All 5 harness-compliance items, all 8 deterministic checks, and all 11 LLM-judgment items passed. The cycle correctly adds an emerald-400 / rose-400 700ms color tint on changing NumberFlow digits via a new `useTrend` hook + custom `data-pyfa-trend` host attribute + targeted `::part(digit)`/`::part(symbol)` CSS, while slowing the slide from NumberFlow's 900ms default to a matched 700ms. The researcher's load-bearing finding (NumberFlow ships no `::part(up)`/`::part(down)`) is honored -- the implementation targets the custom host attribute, not nonexistent state parts. Reduced-motion is hardened with `animation: none !important` on both parts, halting tint AND slide for opt-out users. Hex colors (`#34d399` / `#fb7185`) match the cockpit's existing `text-emerald-400` / `text-rose-400` tokens used app-wide. `aria-live="off"` preserved on all 4 NumberFlow consumers (MDN stock-ticker default). Zero new npm deps, zero backend changes, zero emojis. `useTrend`'s `setTimeout` is correctly cleared on both subsequent change (L39) and unmount (L46-50). No code-review heuristics fired.
+## JSON envelope
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 5 harness-compliance + 8 deterministic + 11 LLM-judgment items passed. Researcher gate cited (ae08ef2407507449a, gate_passed=true). Contract pre-committed (mtime 21:30:15 precedes all 5 source files). tsc=0, vitest 178/178, verify_phase_23_1_17 ok. ZERO new deps, ZERO backend changes. data-pyfa-trend present on all 4 NumberFlow consumers; transformTiming={{duration:700}} present on all 4; CSS targets host attribute (NOT nonexistent ::part(up)) per researcher's load-bearing finding; reduced-motion halts both tint AND slide; emerald-400/rose-400 hex match cockpit tokens; aria-live='off' preserved.",
+  "reason": "Fresh respawn on updated evidence after Main's 6-comment fix. All 5 harness-compliance items pass; all 11 deterministic checks pass; all 5 comment-doc lag concerns (A-E) resolved; all 8 LLM judgment checks (F-M) pass. No BLOCK/WARN heuristics fire. Verdict reversal from CONDITIONAL is documented cycle-2 flow, not sycophancy -- evidence delta is real (6 comment edits across 5 files).",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["syntax", "verification_command", "code_review_heuristics", "evaluator_critique"]
+  "checks_run": ["syntax", "verification_command", "code_review_heuristics", "evaluator_critique", "harness_compliance_audit"]
 }
 ```
