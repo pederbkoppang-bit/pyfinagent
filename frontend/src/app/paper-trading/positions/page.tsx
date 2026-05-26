@@ -63,37 +63,39 @@ export default function PositionsPage() {
       tabIndex={0}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
-          <RiskMonitorCard
-            perf={perf}
-            positions={positions}
-            portfolio={portfolio}
-            tickerMeta={tickerMeta}
-          />
-          <div className="rounded-xl border border-navy-700 bg-navy-800/70 backdrop-blur-lg p-4">
-            <DataTable
-              data={positions}
-              columns={columns}
-              globalFilterPlaceholder="Filter tickers..."
-              ariaLabel="Positions"
-              onRowClick={(pos) => {
-                const tid = latestTradeIdForTicker(trades, pos.ticker);
-                if (tid) openRationale(tid);
-              }}
-              emptyState="No open positions"
-            />
-          </div>
-        </div>
-        <div className="lg:col-span-1">
-          <SectorBarList
-            items={sectorItems}
-            capPct={DEFAULT_SECTOR_CAP_PCT}
-            title="Sector concentration"
-            emptyState="No positions yet."
-            className="bg-navy-800/70 border-navy-700"
-          />
-        </div>
+      {/* phase-44.2 cycle-67 UX-audit fix: Risk Monitor + Sector
+          Concentration are equal-height siblings in a 2-col row (was 2:1
+          which created dead space under the short Sector card). DataTable
+          drops below at full width. items-start so neither card stretches
+          to match the other if they end up uneven (per frontend-layout.md
+          Section 4.5 option 2). */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 items-start">
+        <RiskMonitorCard
+          perf={perf}
+          positions={positions}
+          portfolio={portfolio}
+          tickerMeta={tickerMeta}
+        />
+        <SectorBarList
+          items={sectorItems}
+          capPct={DEFAULT_SECTOR_CAP_PCT}
+          title="Sector concentration"
+          emptyState="No positions yet."
+          className="bg-navy-800/70 border-navy-700"
+        />
+      </div>
+      <div className="rounded-xl border border-navy-700 bg-navy-800/70 backdrop-blur-lg p-4">
+        <DataTable
+          data={positions}
+          columns={columns}
+          globalFilterPlaceholder="Filter tickers..."
+          ariaLabel="Positions"
+          onRowClick={(pos) => {
+            const tid = latestTradeIdForTicker(trades, pos.ticker);
+            if (tid) openRationale(tid);
+          }}
+          emptyState="No open positions"
+        />
       </div>
     </div>
   );

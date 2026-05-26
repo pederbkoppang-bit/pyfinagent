@@ -65,14 +65,18 @@ export function tradesColumns(
       id: "qty",
       accessorKey: "quantity",
       header: "Qty",
-      cell: ({ row }) => row.original.quantity.toFixed(2),
+      cell: ({ row }) => (
+        <span className="text-slate-100">{row.original.quantity.toFixed(2)}</span>
+      ),
       meta: { align: "right", className: "tabular-nums" },
     },
     {
       id: "price",
       accessorKey: "price",
       header: "Price",
-      cell: ({ row }) => `$${row.original.price.toFixed(2)}`,
+      cell: ({ row }) => (
+        <span className="text-slate-100">${row.original.price.toFixed(2)}</span>
+      ),
       meta: { align: "right", className: "tabular-nums" },
     },
     {
@@ -86,11 +90,14 @@ export function tradesColumns(
       id: "fee",
       accessorKey: "transaction_cost",
       header: "Fee",
-      cell: ({ row }) =>
-        row.original.transaction_cost != null
-          ? `$${row.original.transaction_cost.toFixed(2)}`
-          : "—",
-      meta: { align: "right", className: "tabular-nums text-slate-500" },
+      cell: ({ row }) => (
+        <span className="text-slate-400">
+          {row.original.transaction_cost != null
+            ? `$${row.original.transaction_cost.toFixed(2)}`
+            : "—"}
+        </span>
+      ),
+      meta: { align: "right", className: "tabular-nums" },
     },
     {
       id: "reason",

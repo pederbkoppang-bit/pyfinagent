@@ -98,8 +98,8 @@ export function DataTable<TData>({
                         sort === "asc" ? "ascending" : sort === "desc" ? "descending" : "none"
                       }
                       scope="col"
-                      className={`px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 ${alignClass} ${meta?.className ?? ""} ${
-                        canSort ? "cursor-pointer select-none hover:text-zinc-900 dark:hover:text-zinc-100" : ""
+                      className={`px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-700 dark:text-slate-400 ${alignClass} ${meta?.className ?? ""} ${
+                        canSort ? "cursor-pointer select-none hover:text-zinc-900 dark:hover:text-slate-200" : ""
                       }`}
                     >
                       <span className="inline-flex items-center gap-1">
@@ -152,7 +152,7 @@ export function DataTable<TData>({
                     return (
                       <td
                         key={cell.id}
-                        className={`px-3 py-2 text-zinc-800 dark:text-zinc-200 ${alignClass} ${meta?.className ?? ""}`}
+                        className={`px-3 py-2 text-zinc-800 dark:text-slate-200 ${alignClass} ${meta?.className ?? ""}`}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>

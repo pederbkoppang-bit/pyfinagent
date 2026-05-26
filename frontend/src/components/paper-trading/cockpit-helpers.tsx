@@ -25,7 +25,7 @@ export function PnlBadge({ value }: { value: number | null | undefined }) {
 export function Dollar({ value }: { value: number | null | undefined }) {
   if (value == null) return <span className="text-slate-500">—</span>;
   return (
-    <span className="text-slate-200">
+    <span className="text-slate-100">
       ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
   );
@@ -41,9 +41,25 @@ export function MetricCard({
   return (
     <div className="rounded-xl border border-navy-700 bg-navy-800/70 p-4">
       <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{children}</p>
+      <p className="mt-1 text-lg font-semibold text-slate-100">{children}</p>
     </div>
   );
+}
+
+// phase-44.2 cycle-67 UX-audit fix: KPI tile values need consistent
+// color semantics. Neutral values (NAV, Cash, Positions) use slate-100;
+// performance ratios (Sharpe) get color thresholds; +/- metrics (P&L,
+// vs SPY) keep the PnlBadge green/rose treatment.
+function sharpeColor(value: number | null | undefined): string {
+  if (value == null) return "text-slate-500";
+  if (value >= 1) return "text-emerald-400";
+  if (value >= 0) return "text-amber-400";
+  return "text-rose-400";
+}
+
+export function SharpeValue({ value }: { value: number | null | undefined }) {
+  if (value == null) return <span className="text-slate-500">—</span>;
+  return <span className={sharpeColor(value)}>{value.toFixed(2)}</span>;
 }
 
 export function SummaryHero({
@@ -67,11 +83,9 @@ export function SummaryHero({
       <MetricCard label="Cash"><Dollar value={status?.portfolio.cash} /></MetricCard>
       <MetricCard label="Total P&L"><PnlBadge value={pnlDisplay} /></MetricCard>
       <MetricCard label="vs SPY"><PnlBadge value={vsBench} /></MetricCard>
-      <MetricCard label="Sharpe">
-        <span className="text-slate-200">{perf?.sharpe_ratio?.toFixed(2) ?? "—"}</span>
-      </MetricCard>
+      <MetricCard label="Sharpe"><SharpeValue value={perf?.sharpe_ratio} /></MetricCard>
       <MetricCard label="Positions">
-        <span className="text-slate-200">{status?.position_count ?? 0}</span>
+        <span className="text-slate-100">{status?.position_count ?? 0}</span>
       </MetricCard>
     </div>
   );

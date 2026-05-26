@@ -54,14 +54,18 @@ export function positionsColumns(
       id: "qty",
       accessorKey: "quantity",
       header: "Qty",
-      cell: ({ row }) => row.original.quantity.toFixed(2),
+      cell: ({ row }) => (
+        <span className="text-slate-100">{row.original.quantity.toFixed(2)}</span>
+      ),
       meta: { align: "right", className: "tabular-nums" },
     },
     {
       id: "entry",
       accessorKey: "avg_entry_price",
       header: "Entry",
-      cell: ({ row }) => `$${row.original.avg_entry_price.toFixed(2)}`,
+      cell: ({ row }) => (
+        <span className="text-slate-100">${row.original.avg_entry_price.toFixed(2)}</span>
+      ),
       meta: { align: "right", className: "tabular-nums" },
     },
     {
@@ -74,7 +78,7 @@ export function positionsColumns(
         const shown = live?.price ?? pos.current_price;
         const band = bandFromAgeSec(live?.age_sec ?? null);
         return (
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center justify-end gap-2 text-slate-100">
             <LiveBadge band={band} ageSec={live?.age_sec ?? null} compact />
             {shown == null ? (
               <span className="text-slate-500">—</span>
@@ -139,11 +143,14 @@ export function positionsColumns(
       id: "stop_loss",
       accessorKey: "stop_loss_price",
       header: "Stop Loss",
-      cell: ({ row }) =>
-        row.original.stop_loss_price != null
-          ? `$${row.original.stop_loss_price.toFixed(2)}`
-          : "—",
-      meta: { align: "right", className: "tabular-nums text-slate-500" },
+      cell: ({ row }) => (
+        <span className="text-slate-300">
+          {row.original.stop_loss_price != null
+            ? `$${row.original.stop_loss_price.toFixed(2)}`
+            : "—"}
+        </span>
+      ),
+      meta: { align: "right", className: "tabular-nums" },
     },
     {
       id: "days_held",
@@ -158,7 +165,7 @@ export function positionsColumns(
               (Date.now() - new Date(row.original.entry_date).getTime()) / 86_400_000,
             )
           : 0;
-        return <span className="text-slate-500">{daysHeld}d</span>;
+        return <span className="text-slate-400">{daysHeld}d</span>;
       },
       meta: { align: "right", className: "tabular-nums" },
     },
