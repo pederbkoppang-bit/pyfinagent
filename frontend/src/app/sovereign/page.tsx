@@ -28,12 +28,17 @@ import {
   getSovereignLeaderboard,
 } from "@/lib/api";
 import type { SovereignLeaderboardEntry } from "@/lib/api";
+// phase-73: consume cycle-72 LivePortfolioProvider for chart-side SSOT overlay.
+import { useLivePortfolio } from "@/lib/live-portfolio-context";
 import {
   Crown,
 } from "@/lib/icons";
 
 
 export default function SovereignPage() {
+  // phase-73: live NAV + freshness band feed the chart-side overlay
+  // (see RedLineMonitor consumer below).
+  const lp = useLivePortfolio();
   // phase-10.5.3 RedLine state owned by the page; component is props-driven.
   const [redLineWindow, setRedLineWindow] = useState<RedLineWindow>("30d");
   const [redLineSeries, setRedLineSeries] = useState<
@@ -164,6 +169,10 @@ export default function SovereignPage() {
                 events={redLineEvents}
                 window={redLineWindow}
                 onWindowChange={setRedLineWindow}
+                // phase-73: chart-side SSOT overlay (see same-named
+                // comment on the Home page consumer).
+                liveNav={lp.liveNav}
+                liveBand={lp.freshnessBand}
               />
             </div>
             <div className="lg:col-span-2 h-full">

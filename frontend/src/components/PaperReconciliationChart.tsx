@@ -17,9 +17,20 @@ import type { PaperReconciliation } from "@/lib/types";
 interface Props {
   reconciliation: PaperReconciliation | null;
   loading?: boolean;
+  // phase-73 (2026-05-26): chart-side SSOT overlay -- caller passes live
+  // `paper_nav` so the chart appends a "today (live)" rightmost point on
+  // the Paper NAV line. `backtest_nav` stays at the last historical
+  // snapshot (the shadow backtest is historical by definition; the
+  // divergence between live paper and last-known shadow is itself the
+  // signal we want to show).
+  livePaperNav?: number | null;
 }
 
-export function PaperReconciliationChart({ reconciliation, loading = false }: Props) {
+export function PaperReconciliationChart({
+  reconciliation,
+  loading = false,
+  livePaperNav,
+}: Props) {
   if (loading) {
     return (
       <div className="flex items-center gap-3 py-12 text-slate-400">
@@ -42,6 +53,28 @@ export function PaperReconciliationChart({ reconciliation, loading = false }: Pr
   }
 
   const { series, summary } = reconciliation;
+
+  // phase-73 overlay: when livePaperNav is supplied AND today > last
+  // reconciliation date, append a synthetic row with paper_nav = live,
+  // backtest_nav carried forward (historical), divergence recomputed.
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const last = series.length > 0 ? series[series.length - 1] : null;
+  const seriesOverlay =
+    livePaperNav != null && livePaperNav > 0 && last && last.date < todayIso
+      ? [
+          ...series,
+          {
+            ...last,
+            date: todayIso,
+            paper_nav: livePaperNav,
+            backtest_nav: last.backtest_nav,
+            divergence_pct:
+              last.backtest_nav && last.backtest_nav > 0
+                ? ((livePaperNav - last.backtest_nav) / last.backtest_nav) * 100
+                : last.divergence_pct,
+          },
+        ]
+      : series;
 
   return (
     <div className="space-y-4">
@@ -90,7 +123,7 @@ export function PaperReconciliationChart({ reconciliation, loading = false }: Pr
           Paper-live vs shadow backtest
         </h3>
         <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={series}>
+          <LineChart data={seriesOverlay}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
             <XAxis
               dataKey="date"

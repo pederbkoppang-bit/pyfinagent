@@ -398,6 +398,12 @@ export default function HomePage() {
               events={redLineEvents}
               window={redLineWindow}
               onWindowChange={setRedLineWindow}
+              // phase-73: chart-side SSOT overlay -- pass the cycle-72
+              // live NAV + freshness so the chart appends a pulsating
+              // "live now" marker instead of forward-filling the stale
+              // snapshot under today's x-axis position.
+              liveNav={lp.liveNav}
+              liveBand={lp.freshnessBand}
               compact
             />
           </div>

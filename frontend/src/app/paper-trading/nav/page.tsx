@@ -1,6 +1,11 @@
 "use client";
 
 // phase-44.2 -- NAV chart sub-route (verbatim port of monolith lines 969-1027).
+// phase-73 (2026-05-26): chart-side SSOT overlay -- append live "today"
+// row pct = (liveNav - starting_capital) / starting_capital * 100 so the
+// chart ends at the live value instead of forward-filling the stale
+// snapshot. Mirrors RedLineMonitor cycle-73 logic; SPY + Alpha lines
+// stay at the last actual snapshot (they are historical by definition).
 
 import { useMemo } from "react";
 import {
@@ -14,21 +19,47 @@ import {
   Legend,
 } from "recharts";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
+import { useLivePortfolio } from "@/lib/live-portfolio-context";
 
 export default function NavChartPage() {
   const { snapshots } = usePaperTradingData();
+  const lp = useLivePortfolio();
 
-  const chartData = useMemo(
-    () =>
-      [...snapshots].reverse().map((s) => ({
-        date: s.snapshot_date,
-        nav: s.total_nav,
-        portfolio: s.cumulative_pnl_pct,
-        benchmark: s.benchmark_pnl_pct,
-        alpha: s.alpha_pct,
-      })),
-    [snapshots],
-  );
+  const chartData = useMemo(() => {
+    const base = [...snapshots].reverse().map((s) => ({
+      date: s.snapshot_date,
+      nav: s.total_nav,
+      portfolio: s.cumulative_pnl_pct,
+      benchmark: s.benchmark_pnl_pct,
+      alpha: s.alpha_pct,
+      source: "snapshot" as string,
+    }));
+    // phase-73 overlay: append live "today" row when liveNav available AND
+    // today > last snapshot date. Portfolio pct is (liveNav - start) / start;
+    // SPY + Alpha carry the last snapshot (historical-only series).
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const last = base.length > 0 ? base[base.length - 1] : null;
+    const startingCap = lp.status?.portfolio?.starting_capital ?? null;
+    if (
+      lp.liveNav != null &&
+      startingCap != null &&
+      startingCap > 0 &&
+      last != null &&
+      last.date != null &&
+      String(last.date) < todayIso
+    ) {
+      const livePct = ((lp.liveNav - startingCap) / startingCap) * 100;
+      base.push({
+        date: todayIso,
+        nav: lp.liveNav,
+        portfolio: livePct,
+        benchmark: last.benchmark,
+        alpha: livePct - (last.benchmark ?? 0),
+        source: "live_now",
+      });
+    }
+    return base;
+  }, [snapshots, lp.liveNav, lp.status]);
 
   return (
     <div

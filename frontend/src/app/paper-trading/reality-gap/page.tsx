@@ -7,11 +7,15 @@ import { useEffect, useState } from "react";
 import { PaperReconciliationChart } from "@/components/PaperReconciliationChart";
 import { PaperVsBacktestCard } from "@/components/paper-trading/cockpit-helpers";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
+// phase-73: consume cycle-72 LivePortfolioProvider to push live paper NAV into
+// the reconciliation chart (chart-side SSOT overlay).
+import { useLivePortfolio } from "@/lib/live-portfolio-context";
 import { getPaperReconciliation } from "@/lib/api";
 import type { PaperReconciliation } from "@/lib/types";
 
 export default function RealityGapPage() {
   const { perf, snapshots } = usePaperTradingData();
+  const lp = useLivePortfolio();
   const [reconciliation, setReconciliation] = useState<PaperReconciliation | null>(null);
   const [reconciliationLoading, setReconciliationLoading] = useState(false);
 
@@ -45,6 +49,7 @@ export default function RealityGapPage() {
       <PaperReconciliationChart
         reconciliation={reconciliation}
         loading={reconciliationLoading}
+        livePaperNav={lp.liveNav}
       />
     </div>
   );

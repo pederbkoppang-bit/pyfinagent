@@ -1,72 +1,39 @@
-# Sprint Contract -- Cycle 1
-Generated: 2026-05-26T17:36:42.665895+00:00
+# Contract -- Cycle 73: chart-side SSOT overlay
 
-## Hypothesis
-Continue parameter optimization with random perturbation
+**Cycle:** 73 (2026-05-26)
+**Trigger:** Live NAV tiles now agree (cycle 72), but charts forward-fill 4d-stale snapshots to today's x-axis position. Researcher recommends Path 2 (frontend overlay).
 
-## Current Baseline
-- Sharpe: 1.1705
+## Research gate
 
-## Success Criteria (from evaluator_criteria.md)
-- Statistical Validity: DSR >= 0.95, Sharpe > 0
-- Robustness: ALL sub-periods Sharpe > 0
-- Reality Gap: 2x costs Sharpe > 0.5
+- Researcher `a6c2b1e445ca9b644`, tier=deep, 10 sources read in full, gate_passed=true.
+- Brief: `handoff/current/research_brief_phase_chart_ssot.md`.
 
-## Planner Suggestions
-- PLATEAU: Last 10 experiments all discarded. Consider strategy change.
-- SATURATED: trailing_distance_pct has 23 consecutive discards. Excluding.
-- SATURATED: rsi_weight has 23 consecutive discards. Excluding.
-- SATURATED: n_estimators has 24 consecutive discards. Excluding.
-- SATURATED: sl_pct has 16 consecutive discards. Excluding.
-- SATURATED: volatility_weight has 17 consecutive discards. Excluding.
-- SATURATED: qm_weight has 23 consecutive discards. Excluding.
-- SATURATED: mr_holding_days has 13 consecutive discards. Excluding.
-- SATURATED: frac_diff_d has 11 consecutive discards. Excluding.
-- SATURATED: top_n_candidates has 15 consecutive discards. Excluding.
-- SATURATED: vol_barrier_multiplier has 16 consecutive discards. Excluding.
-- SATURATED: min_samples_leaf has 15 consecutive discards. Excluding.
-- SATURATED: momentum_weight has 21 consecutive discards. Excluding.
-- SATURATED: mr_weight has 12 consecutive discards. Excluding.
-- SATURATED: target_vol has 24 consecutive discards. Excluding.
-- SATURATED: learning_rate has 22 consecutive discards. Excluding.
-- SATURATED: holding_days has 24 consecutive discards. Excluding.
-- SATURATED: fm_weight has 22 consecutive discards. Excluding.
-- SATURATED: max_positions has 19 consecutive discards. Excluding.
-- SATURATED: trailing_stop_enabled has 22 consecutive discards. Excluding.
-- SATURATED: tb_weight has 20 consecutive discards. Excluding.
-- SATURATED: target_annual_vol has 19 consecutive discards. Excluding.
-- SATURATED: trailing_trigger_pct has 14 consecutive discards. Excluding.
-- SATURATED: tp_pct has 20 consecutive discards. Excluding.
-- SATURATED: sma_weight has 16 consecutive discards. Excluding.
-- SATURATED: strategy has 15 consecutive discards. Excluding.
-- SATURATED: max_depth has 15 consecutive discards. Excluding.
-- COORDINATED: barrier_shape group (tp_pct, sl_pct) has 1 kept / 37 discarded. Try moving params together.
-- STRATEGY: Current=triple_barrier. Consider switching to mean_reversion if plateau continues.
+## N* delta
 
-## Excluded Parameters
-- trailing_distance_pct
-- rsi_weight
-- n_estimators
-- sl_pct
-- volatility_weight
-- qm_weight
-- mr_holding_days
-- frac_diff_d
-- top_n_candidates
-- vol_barrier_multiplier
-- min_samples_leaf
-- momentum_weight
-- mr_weight
-- target_vol
-- learning_rate
-- holding_days
-- fm_weight
-- max_positions
-- trailing_stop_enabled
-- tb_weight
-- target_annual_vol
-- trailing_trigger_pct
-- tp_pct
-- sma_weight
-- strategy
-- max_depth
+- **B primary:** charts now READ-OUT-LOUD that the rightmost point is live, with a distinct marker -- no more silent forward-fill of a 4d-stale snapshot labeled as today.
+
+## Scope -- 3 chart surfaces, Path 2 frontend overlay
+
+| Surface | File | Change |
+|---|---|---|
+| RedLineMonitor (Home + Sovereign) | `components/RedLineMonitor.tsx` | Optional `liveNav` + `liveBand` props. Append `{date: today, nav: liveNav, source: "live_now"}` to the series when today > last actual snapshot date. Pulsating ReferenceDot + dashed connector. |
+| Home consumer | `app/page.tsx` | Pass `lp.liveNav` + `lp.freshnessBand` to `<RedLineMonitor>`. |
+| Sovereign consumer | `app/sovereign/page.tsx` | Add `useLivePortfolio()` + pass props. |
+| Paper Trading NAV Chart | `app/paper-trading/nav/page.tsx` | Append live "today" data row with portfolio pct from `(liveNav - starting_capital) / starting_capital * 100`. |
+| Paper Trading Reality Gap | `components/PaperReconciliationChart.tsx` + `app/paper-trading/reality-gap/page.tsx` | Append live `paper_nav` point only (backtest_nav stays at last snapshot). |
+
+## Files
+
+MODIFIED:
+- `frontend/src/components/RedLineMonitor.tsx`
+- `frontend/src/app/page.tsx`
+- `frontend/src/app/sovereign/page.tsx`
+- `frontend/src/app/paper-trading/nav/page.tsx`
+- `frontend/src/components/PaperReconciliationChart.tsx`
+- `frontend/src/app/paper-trading/reality-gap/page.tsx`
+
+ZERO backend changes.
+
+## /goal integration gates
+
+1. tsc + vitest green. 2. No `npm run build` (memory rule). 3. Zero emojis. 4. log first / no masterplan flip.

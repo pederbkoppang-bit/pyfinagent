@@ -23883,3 +23883,54 @@ Operator screenshot evidence: 4 different NAV values rendered simultaneously acr
 - No masterplan flip (cycle is a SSOT refactor; UX/regression class, not a masterplan step closure).
 
 **Total cycle time:** ~95 min (researcher 10 min deep + contract 10 min + generate 50 min + tests + cascade test fixes 15 min + Q/A 5 min + log 5 min).
+
+---
+
+## Cycle 1 -- 2026-05-26 18:01 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=5.24% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 73 -- 2026-05-26 -- chart-side SSOT overlay -- result=PASS
+
+**Trigger:** Cycle 72 fixed tile-side SSOT (root LivePortfolioProvider eliminated 4-NAV chaos on KPI tiles), but Red Line Monitor, NAV Chart, and Reality Gap chart continued to FORWARD-FILL the 4-day-stale persisted snapshot ($23,184.70) to today's x-axis, silently showing stale data as if it were live. Operator-flagged 2026-05-26: "chart side also needs SSOT".
+
+**Researcher:** `a6c2b1e445ca9b644`, tier=deep, 10 sources read in full, gate_passed=true. Brief at `handoff/current/research_brief_phase_chart_ssot.md`. Recommended Path 2 (frontend overlay) over Path 1 (backend forward-fill): chart layer is where "live vs close" distinction belongs because operators read charts pre-attentively; backend stays simple.
+
+**Contract `handoff/current/contract.md`:** N* delta B-primary -- charts now READ-OUT-LOUD that the rightmost point is live, with a distinct marker. 6 files in scope (3 chart components, 3 consumer pages). ZERO backend, ZERO test scaffolding.
+
+**Generate (6 changed files):**
+- `frontend/src/components/RedLineMonitor.tsx` -- optional `liveNav` + `liveBand` props. JIT-safe `LIVE_MARKER_COLOR` static literal map (green/amber/red/unknown). Overlay gated by `liveNav != null && liveNav > 0 && lastActual.date < todayIso`. Appends `{date: today, nav: liveNav, source: "live_now"}` to series. Dashed connector Line + pulsating SVG `<animate>` halo on ReferenceDot. Tooltip suffixes "(live now)".
+- `frontend/src/app/page.tsx` -- passes `lp.liveNav` + `lp.freshnessBand` to `<RedLineMonitor>`.
+- `frontend/src/app/sovereign/page.tsx` -- imports `useLivePortfolio`, passes same props.
+- `frontend/src/app/paper-trading/nav/page.tsx` -- imports `useLivePortfolio`. Extends `chartData` useMemo: when today > last persisted date AND `lp.liveNav != null` AND `startingCap > 0`, appends synthetic row with `portfolio = (liveNav - startingCap)/startingCap*100`, benchmark carried forward (Yahoo Finance close-only).
+- `frontend/src/components/PaperReconciliationChart.tsx` -- optional `livePaperNav` prop. Appends to `paper_nav` only; `backtest_nav` carried forward from last actual snapshot (shadow backtest is historical by definition; the divergence between live paper and last-known shadow IS the signal). `divergence_pct` recomputed from live paper NAV.
+- `frontend/src/app/paper-trading/reality-gap/page.tsx` -- imports `useLivePortfolio`, passes `livePaperNav={lp.liveNav}` to chart.
+
+**Tests:**
+- `npx tsc --noEmit` exit 0 (no errors).
+- `npx vitest run` -- 178 passed (178); 23 files.
+- `pytest backend/tests/test_phase_23_2_8_use_live_nav_ssot.py` -- 6 passed in 0.03s.
+- `python tests/verify_phase_23_1_17.py` -- ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script.
+
+**JIT-safety:** `LIVE_MARKER_COLOR` is static literal map (cycle-68 lesson) -- green `#34d399`, amber `#fbbf24`, red `#fb7185`, unknown `#94a3b8`. No template-string concatenation.
+
+**Q/A `ac8954823012c992a` PASS:** 5/5 harness-compliance + 3/3 deterministic + 8/8 LLM-judgment (A-H). Code-review across 5 dimensions returns no findings. Stale critique was for cycle 72 root-LivePortfolioProvider, not for cycle 73 chart-overlay; first Q/A spawn for this cycle. Mtimes confirm clean monotone ordering: research brief (19:58) -> contract (20:03) -> source files (20:04-20:08) -> experiment_results.md (20:11). No verdict-shopping.
+
+**N* delta R+B primary:** Operator now sees a visually-distinct pulsating "live_now" marker at today's x-axis on every chart that previously forward-filled a stale snapshot. Dashed connector + tooltip "(live now)" suffix make the "close vs now" distinction immediate. ZERO emojis introduced. ZERO `npm run build` (memory rule preserved). ZERO backend / test scaffolding changes.
+
+**No masterplan flip** -- cycle is a SSOT integrity refactor (UX/regression class) following cycle 72; not a masterplan step closure.
+
+**Total cycle time:** ~50 min (researcher 10 min deep + contract 5 min + generate 25 min + tests 5 min + Q/A 5 min).
