@@ -23934,3 +23934,94 @@ Operator screenshot evidence: 4 different NAV values rendered simultaneously acr
 **No masterplan flip** -- cycle is a SSOT integrity refactor (UX/regression class) following cycle 72; not a masterplan step closure.
 
 **Total cycle time:** ~50 min (researcher 10 min deep + contract 5 min + generate 25 min + tests 5 min + Q/A 5 min).
+
+---
+
+## Cycle 1 -- 2026-05-26 18:16 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-26 18:16 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-26 18:22 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 74 -- 2026-05-26 -- price-tick flash animation -- result=PASS
+
+**Trigger:** Operator request 2026-05-26: "couple more UX changes on all scorecards/data tables which impacts by stock prices we should have the same UX animation as google shows on their stock overview. the nubers have a nice animation when the stock prices changes". Live-priced numbers in the cockpit (NAV, P&L, position prices) updated SILENTLY -- no visual signal that a tick occurred. Operators reading pre-attentively missed every price change.
+
+**Researcher:** `a3f10c3c35c087f50`, tier=moderate, 11 sources read in full, 28 URLs collected, recency scan performed, internal_files_inspected=8, gate_passed=true. Brief at `handoff/current/research_brief_phase_flash_animation.md`. Canonical reference: lab49/react-value-flash production financial-app lib (200ms hold + 100ms fade approx); WCAG SC 2.3.3 NOT triggered (passive price ticks); SC 2.2.2 satisfied (500ms < 5s ceiling); MDN aria-live="off" for stock-ticker default.
+
+**Contract:** N* delta B-primary = pre-attentive visual signal on every live-priced tick. 1 NEW + 5 MODIFIED files. ZERO backend / ZERO new deps / ZERO test scaffolding.
+
+**Generate (1 new + 5 modified):**
+- `frontend/src/lib/useFlashOnChange.ts` -- NEW hook. `useFlashOnChange(value, { decimals=2, durationMs=500 })` returns `"up" | "down" | null`. JIT-safe `FLASH_CLASS: Record<"up" | "down", string>` static literal map. `requestAnimationFrame`-based className restart trick so consecutive same-direction ticks re-trigger the CSS animation. Cleanup on subsequent tick + on unmount. `prefers-reduced-motion: reduce` short-circuit returns null.
+- `frontend/tailwind.config.js` -- added `theme.extend.keyframes.flash-up` (emerald-500/15 -> transparent) + `flash-down` (rose-500/15 -> transparent) + `animation.flash-up` / `flash-down` (500ms ease-in-out).
+- `frontend/src/app/globals.css` -- added `@media (prefers-reduced-motion: reduce) { .animate-flash-up, .animate-flash-down { animation: none !important; } }` defense-in-depth CSS override.
+- `frontend/src/components/paper-trading/cockpit-helpers.tsx` -- `Dollar` + `PnlBadge` now consume the hook + apply animation class. Both primitives shared by positions table cells AND SummaryHero MetricCards -- one change covers Market Value, P&L, NAV, Cash, Total P&L, vs SPY simultaneously. `aria-live="off"` per MDN.
+- `frontend/src/components/paper-trading/positions-columns.tsx` -- Current price cell pulled into `CurrentPriceCell` component (rules-of-hooks: cannot call hooks inside a TanStack render callback). Flash class applied to the price span.
+- `frontend/src/app/page.tsx` -- `KpiTile` accepts new `numericValue?: number | null` prop. Hook fires per tile; class applied to value `<p>`. Wired 3 live-priced tiles: NAV (`navValue`), P&L today (`today?.dollars`), vs SPY (`alpha`). Sharpe / Max DD / Positions deliberately NOT wired (not live-priced).
+
+**Tests:**
+- `npx tsc --noEmit` exit 0 (no errors).
+- `npx vitest run` -- 178/178 passed (23 files).
+- `python tests/verify_phase_23_1_17.py` -- ok useLiveNav SSOT invariant intact.
+- `git diff HEAD -- frontend/package.json` empty (ZERO new deps).
+- `git diff --stat HEAD -- backend/` empty (ZERO backend changes).
+- Grep audit: `useFlashOnChange.ts` is pure ASCII; em-dash placeholders in `positions-columns.tsx` match pre-existing project convention (not emojis or arrows).
+
+**JIT-safety:** `FLASH_CLASS = { up: "animate-flash-up", down: "animate-flash-down" }` -- both literals appear verbatim in source so Tailwind JIT compiles them. No template-string concatenation anywhere.
+
+**Reduced-motion (defense in depth):** JS layer in hook returns null when `matchMedia("(prefers-reduced-motion: reduce)").matches`; CSS layer in globals.css sets `animation: none !important` so any in-flight class halts immediately when operator toggles preference mid-session.
+
+**A11y:** SC 2.3.3 does NOT apply (passive ticks, not user-initiated interaction; W3C spec scope confirmed by researcher). SC 2.2.2 satisfied (500ms well under 5s). Every flashing span carries `aria-live="off"` per MDN stock-ticker default (do NOT announce every tick or screen readers flood).
+
+**Q/A `a5d890ed881b95201` PASS:** 5/5 harness-compliance + 3/3 deterministic + 8/8 LLM-judgment (A-H). Code-review heuristics across 5 dimensions return no findings. Monotone mtime ordering verified: contract -> source files -> experiment_results.md. No verdict-shopping. Critique written verbatim to `handoff/current/evaluator_critique.md`.
+
+**N* delta R+B primary:** Operator now sees a 500ms green/rose tint on every live-priced number that ticks across the cockpit (positions table Current/Market Value/P&L, SummaryHero NAV/Cash/Total P&L/vs SPY, Home KpiTiles NAV/P&L today/vs SPY). Matches the Google Finance / Bloomberg / Robinhood Legend pre-attentive convention. ZERO emojis introduced, ZERO `npm run build`, ZERO `.next/*` mutation.
+
+**No masterplan flip** -- UX polish cycle following cycle 73; not a step closure.
+
+**Total cycle time:** ~60 min (researcher 6 min moderate + contract 5 min + generate 25 min + tests 5 min + Q/A 3 min + log 2 min).

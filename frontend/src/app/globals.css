@@ -96,3 +96,20 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: #52525b;
 }
+
+/* phase-74 (2026-05-26): price-tick flash-on-change animation
+   prefers-reduced-motion override.
+
+   The useFlashOnChange hook also short-circuits in JS when this media
+   query matches (defense in depth per researcher a3f10c3c35c087f50
+   Section 3), but operators who toggle the OS preference mid-session
+   need a CSS-level guarantee that any in-flight .animate-flash-* class
+   stops animating immediately. WCAG SC 2.2.2 governs (a 500ms flash
+   is well under the 5s ceiling); SC 2.3.3 does not apply (passive
+   price ticks are not user-initiated interaction). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-flash-up,
+  .animate-flash-down {
+    animation: none !important;
+  }
+}

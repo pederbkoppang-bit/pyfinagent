@@ -1,73 +1,122 @@
-# Evaluator critique -- Cycle 73 chart-side SSOT overlay
+# Evaluator Critique — Cycle 74 — 2026-05-26
 
-**Date:** 2026-05-26
-**Cycle:** 73 (chart-side SSOT overlay; complements cycle 72's tile-side fix)
-**Q/A spawn:** 1 of 1 (no prior cycle-73-chart-ssot critique to revise)
-**Verdict:** PASS
-
----
-
-## 1. Harness-compliance audit (5 items, per feedback_qa_harness_compliance_first.md)
-
-| # | Audit item | Evidence | Verdict |
-|---|---|---|---|
-| 1 | Researcher BEFORE contract? | `handoff/current/research_brief_phase_chart_ssot.md` (38,444 bytes, mtime 19:58). Contract cites: "Researcher `a6c2b1e445ca9b644`, tier=deep, 10 sources read in full, gate_passed=true." Both artifacts present; brief mtime PRECEDES contract mtime (20:03) by 5 minutes. | PASS |
-| 2 | Contract pre-commit? | `contract.md` mtime=20:03; source-file mtimes 20:04-20:08; experiment_results.md mtime=20:11. Clean monotone ordering brief -> contract -> code -> results. | PASS |
-| 3 | experiment_results.md content? | File exists (6,212 bytes). Lists exactly 6 modified files (matches contract). Includes verbatim tsc (exit=0), vitest (178 passed/178), pytest (6 passed), verify_phase_23_1_17 (ok) output. Backend-zero + test-zero claims explicit. | PASS |
-| 4 | Log-LAST (cycle 73 NOT yet appended)? | `tail -200 handoff/harness_log.md` shows last entry is `## Cycle 72 -- 2026-05-26 -- SSOT NAV/P&L via root LivePortfolioProvider result=PASS` plus an unrelated dry-run `## Cycle 1 -- 2026-05-26 18:01 UTC`. No `## Cycle 73 -- 2026-05-26` chart-ssot entry. Correct log-LAST discipline (Main appends AFTER this PASS). | PASS |
-| 5 | No verdict-shopping? | Stale `evaluator_critique.md` was for **cycle 72** (root-LivePortfolioProvider), NOT cycle 73 (chart-side overlay). Grep for "cycle 73\|cycle-73\|chart.ssot\|chart_ssot" in the stale critique returned zero. First Q/A spawn for cycle 73 chart-ssot; no prior PASS to overturn. Mtime monotone ordering preserves single-spawn discipline. | PASS |
-
-**All 5 PASS.**
+**Cycle:** 74 (Google-Finance-style price-tick flash animation)
+**Scope:** UX polish — no SSOT change, no masterplan flip
+**Reviewer:** Q/A subagent (single-agent merged role per CLAUDE.md harness protocol)
 
 ---
 
-## 2. Deterministic checks (3 items)
+## 1. Harness-compliance audit (5 items)
 
-| # | Check | Verbatim tail | Verdict |
-|---|---|---|---|
-| 1 | `cd frontend && npx tsc --noEmit; echo "EXIT=$?"` | `EXIT=0` (no output) | PASS |
-| 2 | `cd frontend && npx vitest run 2>&1 \| tail -10` | `Test Files  23 passed (23)` / `Tests  178 passed (178)` / `Duration  4.42s` / `EXIT=0` | PASS |
-| 3 | `source .venv/bin/activate && python tests/verify_phase_23_1_17.py` | `ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script (mark_to_market + save_daily_snapshot)` / `EXIT=0` | PASS |
+| # | Item | Result | One-line reason |
+|---|------|--------|-----------------|
+| 1 | Researcher spawn evidence | **PASS** | `handoff/current/research_brief_phase_flash_animation.md` exists (32215B, mtime 2026-05-26 20:30); `contract.md` line cites verbatim `Researcher a3f10c3c35c087f50, tier=moderate, 11 sources read in full, 28 URLs, recency scan performed, internal_files_inspected=8, gate_passed=true`. |
+| 2 | Contract pre-commit | **PASS** | Monotone mtime ordering verified: contract.md 20:31:15 → useFlashOnChange.ts 20:33:13 → tailwind.config.js 20:33:20 → globals.css 20:33:26 → cockpit-helpers.tsx 20:33:42 → positions-columns.tsx 20:33:58 → page.tsx 20:34:45 → experiment_results.md 20:36:44. |
+| 3 | experiment_results content | **PASS** | File exists (9165B, 168 lines), lists NEW + MODIFIED files and includes verbatim verification command output. |
+| 4 | harness_log absence | **PASS** | `grep -c "Cycle 74 -- 2026-05-26" handoff/harness_log.md` → 0. Log-LAST rule satisfied. |
+| 5 | No verdict-shopping | **PASS** | `grep -c "Cycle 74 -- 2026-05-26" handoff/current/evaluator_critique.md` → 0 prior to this write (prior file content was cycle-73 critique, OVERWRITE per instruction). No prior cycle-74 PASS to overturn. |
 
-**All 3 PASS.**
-
----
-
-## 3. LLM judgment (A-H)
-
-| # | Criterion | File:Line evidence | Verdict |
-|---|---|---|---|
-| A | `LIVE_MARKER_COLOR` STATIC literal map; no template-string concat (cycle-68 JIT-safety) | `RedLineMonitor.tsx:67-75` -- `const LIVE_MARKER_COLOR: Record<...> = { green: "#34d399", amber: "#fbbf24", red: "#fb7185", unknown: "#94a3b8" };`. All four values are static literals; lookup at `:103` is `LIVE_MARKER_COLOR[liveBand]` (key lookup, not concatenation). | PASS |
-| B | Overlay gated by BOTH `liveNav != null && liveNav > 0` AND `lastActual.date < todayIso` (else falls back to raw series) | `RedLineMonitor.tsx:95-99` -- `const shouldOverlay = liveNav != null && liveNav > 0 && lastActual != null && lastActual.date < todayIso;`. Then `:100-102` -- `overlaySeries = shouldOverlay ? [...series, synthetic] : series;`. Matching gate at `NavChartPage:43-50` (`lp.liveNav != null && startingCap != null && startingCap > 0 && last != null && String(last.date) < todayIso`) and `PaperReconciliationChart:62-63` (`livePaperNav != null && livePaperNav > 0 && last && last.date < todayIso`). | PASS |
-| C | PaperReconciliationChart appends to `paper_nav` only; `backtest_nav` carried forward from last actual snapshot; rationale explicit | `PaperReconciliationChart.tsx:65-76` -- synthetic row sets `paper_nav: livePaperNav` and `backtest_nav: last.backtest_nav` (carried forward). Rationale stated verbatim in prop-doc `:20-25`: "shadow backtest is historical by definition; the divergence between live paper and last-known shadow is itself the signal we want to show". Also restated in `experiment_results.md` lines 44-51. | PASS |
-| D | NavChartPage synthetic row uses `(liveNav - startingCap)/startingCap*100`; NO hard-coded $10,000 | `NavChartPage:42` reads `const startingCap = lp.status?.portfolio?.starting_capital ?? null;`. `:51` computes `const livePct = ((lp.liveNav - startingCap) / startingCap) * 100;`. Gate at `:43-50` requires `startingCap != null && startingCap > 0`. NO `10000` literal anywhere in the file (grep clean). | PASS |
-| E | NO `npm run build` ran; NO `rm -rf .next/*` | experiment_results.md `:128-130` -- "Dev server is managed by the launchctl watchdog (cycle-68 memory rule); no `npm run build` ran during this cycle." Q/A independently ran ONLY tsc + vitest + python verify (no `npm run build`, no `rm`). | PASS |
-| F | ZERO emojis in new code | Python regex emoji scan across all 6 files: `emoji_count=0` per file (RedLineMonitor, page.tsx, sovereign, nav, PaperReconciliationChart, reality-gap). Codepoint ranges checked: U+1F300-1FAFF + U+2600-27BF + U+1F000-1F9FF. | PASS |
-| G | Every modified file has `phase-73` or `cycle 73` reason comment | Grep `phase-73\|cycle 73\|cycle-73` per file: RedLineMonitor (5 hits), page.tsx (1 hit), sovereign (3 hits), nav (3 hits), PaperReconciliationChart (2 hits), reality-gap (1 hit). 6/6 covered. | PASS |
-| H | ZERO backend file changes; ZERO test scaffolding changes | `git status --short` lists exactly: 6 frontend src files (.tsx) + 1 tsconfig.tsbuildinfo (auto-regenerated build artifact, not source) + handoff/audit/cycle log files (auto-appended by hooks). NO `backend/**` source. NO `tests/**` or `backend/tests/**`. experiment_results.md lines 60-65 explicitly assert the same and note `verify_phase_23_1_17.py` + `test_phase_23_2_8_use_live_nav_ssot.py` continue to pass UNMODIFIED. | PASS |
-
-**All 8 PASS.**
+**Audit verdict: PASS (5/5).**
 
 ---
 
-## 4. Code-review heuristics (5 dimensions)
+## 2. Deterministic checks (3 commands)
 
-- **D1 Security:** No new API key / secret / prompt-injection / command-injection / unsafe-deserialization. ZERO matches. No-finding.
-- **D2 Trading-domain correctness:** Six frontend chart files. No `kill_switch` / `stop_loss` / `paper_max_positions` / `perf_metrics` / `risk_engine` / asset-class touch points. The synthetic overlay is a UX layer over an already-derived live NAV (cycle 72 SSOT provider); does not bypass any guard. No-finding.
-- **D3 Code quality:** TypeScript strict + Recharts idioms; gates are explicit + symmetric across the 3 chart surfaces; no `try-except`/`broad-except` paths; no `print`/`console.log` debug residue. NavChartPage `useMemo` deps array `[snapshots, lp.liveNav, lp.status]` is correct (re-runs when starting_capital changes). No-finding.
-- **D4 Anti-rubber-stamp on financial logic:** Cycle is UX-layer only (no Sharpe/drawdown/position-sizing math changed). Per anti-rubber-stamp negation-list: "Pure-refactor diffs that move code without changing logic, where pre/post tests pass without modification" -- `tests/verify_phase_23_1_17.py` + `test_phase_23_2_8_use_live_nav_ssot.py` continue to pass UNMODIFIED, validating the SSOT invariant holds. No-finding.
-- **D5 LLM-evaluator anti-patterns:** First Q/A spawn for this cycle; no prior verdict to flip. Critique cites file:line for every criterion (no missing-chain-of-thought). No sycophancy / second-opinion-shopping / criteria-erosion. No-finding.
+| Command | Exit | Verbatim tail | Result |
+|---------|------|---------------|--------|
+| `cd frontend && npx tsc --noEmit` | 0 | (no output) | **PASS** |
+| `cd frontend && npx vitest run \| tail -5` | 0 | `Test Files  23 passed (23)` / `Tests  178 passed (178)` / `Start at  20:37:40` / `Duration  4.20s` | **PASS** (178/178) |
+| `python tests/verify_phase_23_1_17.py` | 0 | `ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script (mark_to_market + save_daily_snapshot)` | **PASS** |
+
+**Deterministic verdict: PASS (3/3).**
 
 ---
 
-## 5. Verdict
+## 3. LLM judgment (A–H)
+
+### A. JIT-safe static map — **PASS**
+
+`useFlashOnChange.ts:124-127` defines `FLASH_CLASS: Record<"up" | "down", string>` with both `"animate-flash-up"` and `"animate-flash-down"` as verbatim string literals. `flashClassName()` consumes via direct property lookup. The verbatim-grep `grep -Pn 'animate-flash-\$\{' (6 source files)` returned 1 hit — line 121 INSIDE a JSDoc comment block explicitly warning against the anti-pattern (`// NEVER via template-string concatenation like \`animate-flash-${dir}\``). Zero code-level template-string concatenation; the lone hit is documentation reinforcing the rule.
+
+### B. Reduced-motion respected — **PASS** (defense in depth verified)
+
+Two independent guard layers confirmed:
+1. **JS layer** (`useFlashOnChange.ts:67-75`): `window.matchMedia("(prefers-reduced-motion: reduce)").matches` short-circuits before `setDirection` runs, so no `animate-flash-*` class lands on the DOM.
+2. **CSS layer** (`globals.css:110-115`): `@media (prefers-reduced-motion: reduce) { .animate-flash-up, .animate-flash-down { animation: none !important; } }`. Catches the mid-session OS-toggle case the JS layer cannot (in-flight classes from before the toggle).
+
+### C. Scope completeness across consumer surfaces — **PASS**
+
+Verified via grep across the 6 touched files:
+- **positions-columns.tsx**: Current price → `<CurrentPriceCell>` at line 122 (hook fires per row, internal `flash` + `animClass`); Market Value → `<Dollar value={liveMarketValue}/>` at line 141; P&L → `<PnlBadge value={livePnlPct}/>` at line 172.
+- **cockpit-helpers.tsx SummaryHero**: NAV → `<Dollar value={navDisplay}/>` (105); Cash → `<Dollar value={status?.portfolio.cash}/>` (106); Total P&L → `<PnlBadge value={pnlDisplay}/>` (107); vs SPY → `<PnlBadge value={vsBench}/>` (108).
+- **page.tsx KpiTile**: NAV `numericValue={navValue ?? null}` (369); P&L today `numericValue={today?.dollars ?? null}` (377); vs SPY `numericValue={alpha ?? null}` (387). Sharpe/Max DD/Positions deliberately omit `numericValue` (Sharpe = backend-authoritative non-tick value, DD = derived ratio, Positions = integer count) — correct exclusions, not gaps.
+
+### D. Zero new npm deps — **PASS**
+
+`git diff HEAD -- frontend/package.json frontend/package-lock.json` returned empty output.
+
+### E. Zero backend file changes — **PASS**
+
+`git diff --stat HEAD -- backend/` returned empty output.
+
+### F. Zero emojis introduced — **PASS**
+
+`git diff HEAD -- (6 files) | grep "^\+" | grep -P "[\x{1F000}-\x{1FFFF}\x{2700}-\x{27BF}\x{2190}-\x{21FF}]"` returned empty (exit=1). No emoji or arrow ranges in the added lines. Em-dash U+2014 allowed per project convention.
+
+### G. Hook cleanup verified — **PASS**
+
+`useFlashOnChange.ts`:
+- **On subsequent value change** (lines 82-89): `if (timeoutRef.current) clearTimeout(...)` AND `if (rafRef.current != null) cancelAnimationFrame(...)` — both nulled.
+- **On unmount** (lines 109-114): dedicated `useEffect(() => return () => {...}, [])` calls both `clearTimeout` and `cancelAnimationFrame` if either ref is non-null.
+
+Both code paths exist; no leak window across rapid ticks or route changes.
+
+### H. ARIA decision documented — **PASS**
+
+Every flashing span carries `aria-live="off"`:
+- `cockpit-helpers.tsx` PnlBadge (line 28), Dollar (line 45).
+- `positions-columns.tsx` CurrentPriceCell wrapper (line 37).
+- `page.tsx` KpiTile value `<p>` (line 155).
+
+JSDoc rationale in `useFlashOnChange.ts:20-22` cites MDN stock-ticker default (do NOT announce every tick or screen readers flood). Researcher Section 3 (WCAG SC 2.2.2 governs, SC 2.3.3 N/A for passive ticks) reflected in the inline comments on globals.css:107-109 and useFlashOnChange.ts:12-14.
+
+**LLM-judgment verdict: PASS (8/8).**
+
+---
+
+## 4. Code-review heuristics (Top-15 dispatch)
+
+Diff scope: 1 NEW file (`useFlashOnChange.ts`) + 5 MODIFIED frontend files. No backend, no financial logic, no risk-guard wiring, no LLM call sites, no deps, no schema migration.
+
+Scanned dimensions:
+- **Security**: no API-key literal; no `subprocess`/`eval`/`exec`; no LLM prompt path; no schema/dep change.
+- **Trading-domain**: no `kill_switch`/`paper_trader`/`risk_engine`/`perf_metrics` touched.
+- **Code quality**: no broad `except`; new hook is fully type-hinted; no `print()`; no globals; the presentational hook is exercised transitively by the existing 23-file / 178-test vitest suite (all passing).
+- **Anti-rubber-stamp**: no financial-logic change → no behavioral-test requirement triggered.
+- **LLM-evaluator anti-patterns**: this is a cycle-1 spawn (no prior cycle-74 verdict); no sycophancy under rebuttal, no second-opinion shopping.
+
+**No heuristics fired (severity NOTE / WARN / BLOCK). All five dimensions evaluated.**
+
+---
+
+## Final Verdict
 
 **PASS**
 
-All 5 harness-compliance items + all 3 deterministic items + all 8 LLM-judgment items pass. Zero code-review-heuristic findings across 5 dimensions. The contract.md was authored AFTER the research brief and BEFORE all 6 source files (mtime monotone); experiment_results.md was authored LAST (mtime 20:11). The chart-side overlay is correctly gated, JIT-safe, scope-disciplined (UX-only, zero backend, zero test scaffolding), comment-tagged with cycle-73 reason markers, and emoji-clean. The cycle-72 LivePortfolioProvider remains the single source-of-truth for live NAV; cycle 73 propagates that SSOT to 3 chart surfaces without re-deriving NAV anywhere.
+All 5 harness-compliance items + all 3 deterministic checks + all 8 LLM-judgment items pass. No code-review heuristics triggered.
+
+**Summary.** Cycle 74 ships a Google-Finance-style flash-on-change effect (~500ms emerald/rose tint) across the live-priced surfaces of the cockpit: paper-trading positions table (Current, Market Value, P&L cells), SummaryHero metric cards (NAV, Cash, Total P&L, vs SPY), and the homepage KPI hero (NAV, P&L today, vs SPY). The implementation respects the cycle-68 Tailwind-JIT-safety lesson via an explicit `Record<"up"|"down", string>` literal map with both class strings present verbatim; reduced-motion users get defense-in-depth via both a JS short-circuit in the hook and a CSS `!important` override in `globals.css`; the hook properly cleans up both `setTimeout` and `requestAnimationFrame` handles on subsequent ticks and on unmount; every flashing region is `aria-live="off"` per MDN stock-ticker guidance. Zero new npm deps, zero backend changes, zero emojis introduced. tsc clean, 178/178 vitest, useLiveNav verify script ok.
 
 **Violated criteria:** none.
 
-**checks_run:** ["harness_compliance_audit", "tsc_typecheck", "vitest", "verify_phase_23_1_17", "code_review_heuristics", "emoji_scan", "scope_check", "mtime_monotone_check"]
-
-**Action for Main:** Append `## Cycle 73 -- 2026-05-26 -- chart-side SSOT overlay result=PASS` block to `handoff/harness_log.md` BEFORE any further commit. No masterplan flip (cycle is a follow-up to phase-72; no masterplan step id).
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 5 harness-compliance + 3 deterministic + 8 LLM-judgment items pass; no code-review heuristics fired",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": ["harness_compliance_audit", "syntax_tsc", "vitest", "verify_phase_23_1_17", "code_review_heuristics", "llm_judgment_A_through_H"]
+}
+```

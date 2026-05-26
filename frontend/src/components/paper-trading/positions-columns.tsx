@@ -13,6 +13,47 @@ import { LiveBadge } from "@/components/LiveBadge";
 import type { LivePriceEntry, TickerMeta } from "@/lib/paper-trading-context";
 import { bandFromAgeSec } from "@/lib/paper-trading-utils";
 import { Dollar, PnlBadge } from "./cockpit-helpers";
+// phase-74 (2026-05-26) -- Google-Finance flash on the Current price
+// cell. Market Value + P&L cells inherit flash via Dollar + PnlBadge.
+import { useFlashOnChange, flashClassName } from "@/lib/useFlashOnChange";
+
+// phase-74: per-row Current cell pulled into its own component so the
+// useFlashOnChange hook can fire per row (React rules-of-hooks require
+// hooks at the top level of a component function, not inside a column
+// cell render callback).
+function CurrentPriceCell({
+  shown,
+  band,
+  ageSec,
+}: {
+  shown: number | null | undefined;
+  band: ReturnType<typeof bandFromAgeSec>;
+  ageSec: number | null;
+}) {
+  const flash = useFlashOnChange(shown);
+  const animClass = flashClassName(flash);
+  return (
+    <span
+      aria-live="off"
+      className="inline-flex items-center justify-end gap-2 text-slate-100"
+    >
+      <LiveBadge band={band} ageSec={ageSec} compact />
+      {shown == null ? (
+        <span className="text-slate-500">—</span>
+      ) : (
+        <span
+          className={
+            animClass
+              ? `tabular-nums ${animClass} rounded px-1`
+              : "tabular-nums"
+          }
+        >
+          ${shown.toFixed(2)}
+        </span>
+      )}
+    </span>
+  );
+}
 
 export function positionsColumns(
   tickerMeta: Record<string, TickerMeta>,
@@ -78,14 +119,7 @@ export function positionsColumns(
         const shown = live?.price ?? pos.current_price;
         const band = bandFromAgeSec(live?.age_sec ?? null);
         return (
-          <span className="inline-flex items-center justify-end gap-2 text-slate-100">
-            <LiveBadge band={band} ageSec={live?.age_sec ?? null} compact />
-            {shown == null ? (
-              <span className="text-slate-500">—</span>
-            ) : (
-              <span className="tabular-nums">${shown.toFixed(2)}</span>
-            )}
-          </span>
+          <CurrentPriceCell shown={shown} band={band} ageSec={live?.age_sec ?? null} />
         );
       },
       meta: { align: "right", className: "tabular-nums" },

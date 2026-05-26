@@ -17,6 +17,10 @@ import { listReports, getPaperTradingStatus, getPaperPortfolio, getPaperTrades, 
 // (operator-flagged 2026-05-26: Home showed $23,732.69 while Paper Trading
 // showed $23,750.37 simultaneously). Now both consume from the root provider.
 import { useLivePortfolio } from "@/lib/live-portfolio-context";
+// phase-74 (2026-05-26): Google-Finance flash-on-change for KPI tiles
+// that show live-priced numbers (NAV, P&L today, vs SPY). KpiTile
+// receives numericValue; the hook compares ticks + emits up/down class.
+import { useFlashOnChange, flashClassName } from "@/lib/useFlashOnChange";
 import {
   dailyDelta,
   sharpe as kpiSharpe,
@@ -107,6 +111,7 @@ function MiniSpark({
 function KpiTile({
   label,
   value,
+  numericValue,
   subText,
   valueClass,
   subTextClass,
@@ -118,6 +123,10 @@ function KpiTile({
 }: {
   label: string;
   value: string;
+  // phase-74 (2026-05-26): numericValue feeds useFlashOnChange. value
+  // stays the pre-formatted display string; numericValue lets the hook
+  // compare ticks without needing to parse the display string back.
+  numericValue?: number | null;
   subText?: string | null;
   valueClass?: string;
   subTextClass?: string;
@@ -127,6 +136,9 @@ function KpiTile({
   liveBand?: FreshnessBand;
   liveAgeSec?: number | null;
 }) {
+  const flash = useFlashOnChange(numericValue);
+  const flashClass = flashClassName(flash);
+  const baseValueClass = valueClass ?? "text-slate-100";
   return (
     <div
       role="group"
@@ -139,7 +151,16 @@ function KpiTile({
           <LiveBadge band={liveBand} ageSec={liveAgeSec ?? null} compact />
         )}
       </div>
-      <p className={`mt-1 text-2xl font-bold ${valueClass ?? "text-slate-100"}`}>{value}</p>
+      <p
+        aria-live="off"
+        className={
+          flashClass
+            ? `mt-1 text-2xl font-bold ${baseValueClass} ${flashClass} rounded px-1`
+            : `mt-1 text-2xl font-bold ${baseValueClass}`
+        }
+      >
+        {value}
+      </p>
       {subText && (
         <p className={`mt-0.5 text-xs ${subTextClass ?? "text-slate-500"}`}>{subText}</p>
       )}
@@ -345,6 +366,7 @@ export default function HomePage() {
             <KpiTile
               label="NAV"
               value={loaded ? fmtUsd(navValue) : "—"}
+              numericValue={navValue ?? null}
               sparkData={navNums.length >= 2 ? navNums : undefined}
               sparkPositive={navNums.length >= 2 ? navNums[navNums.length - 1] >= navNums[0] : undefined}
               liveBand={loaded ? (livePrices && Object.keys(livePrices).length > 0 ? "green" : "unknown") : "unknown"}
@@ -352,6 +374,7 @@ export default function HomePage() {
             <KpiTile
               label="P&L (today)"
               value={today != null ? `${today.dollars >= 0 ? "+" : ""}${fmtUsd(today.dollars).replace("$", "$")}` : "—"}
+              numericValue={today?.dollars ?? null}
               subText={today != null ? `${today.pct >= 0 ? "+" : ""}${today.pct.toFixed(2)}%` : null}
               valueClass={today != null && today.dollars >= 0 ? "text-emerald-400" : today != null ? "text-rose-400" : undefined}
               subTextClass={today != null && today.pct >= 0 ? "text-emerald-400/70" : today != null ? "text-rose-400/70" : undefined}
@@ -361,6 +384,7 @@ export default function HomePage() {
             <KpiTile
               label="vs SPY"
               value={loaded ? fmtPct(alpha) : "—"}
+              numericValue={alpha ?? null}
               subText={benchmark != null ? `SPY ${fmtPct(benchmark)}` : null}
               valueClass={alpha != null && alpha >= 0 ? "text-emerald-400" : alpha != null ? "text-rose-400" : undefined}
               sparkData={alphaSeries.length >= 2 ? alphaSeries : undefined}

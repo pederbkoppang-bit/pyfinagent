@@ -10,12 +10,26 @@ import type {
   PaperPosition,
   PaperTradingStatus,
 } from "@/lib/types";
+// phase-74 (2026-05-26): Google-Finance-style flash-on-change wiring.
+// Dollar + PnlBadge are the shared primitives used by both the positions
+// table cells (Market Value, P&L) and the SummaryHero MetricCards (NAV,
+// Cash, Total P&L, vs SPY) -- adding flash here covers every consumer
+// in one place. aria-live="off" per MDN stock-ticker default.
+import { useFlashOnChange, flashClassName } from "@/lib/useFlashOnChange";
 
 export function PnlBadge({ value }: { value: number | null | undefined }) {
+  const flash = useFlashOnChange(value);
   if (value == null) return <span className="text-slate-500">—</span>;
   const isPositive = value >= 0;
+  const colorClass = isPositive ? "text-emerald-400" : "text-rose-400";
+  const animClass = flashClassName(flash);
   return (
-    <span className={isPositive ? "text-emerald-400" : "text-rose-400"}>
+    <span
+      aria-live="off"
+      className={
+        animClass ? `${colorClass} ${animClass} rounded px-1` : colorClass
+      }
+    >
       {isPositive ? "+" : ""}
       {value.toFixed(2)}%
     </span>
@@ -23,9 +37,18 @@ export function PnlBadge({ value }: { value: number | null | undefined }) {
 }
 
 export function Dollar({ value }: { value: number | null | undefined }) {
+  const flash = useFlashOnChange(value);
   if (value == null) return <span className="text-slate-500">—</span>;
+  const animClass = flashClassName(flash);
   return (
-    <span className="text-slate-100">
+    <span
+      aria-live="off"
+      className={
+        animClass
+          ? `text-slate-100 ${animClass} rounded px-1`
+          : "text-slate-100"
+      }
+    >
       ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
   );

@@ -1,69 +1,63 @@
-# Experiment Results -- Cycle 73: chart-side SSOT overlay
+# Experiment Results -- Cycle 74: price-tick flash animation
 
 **Date:** 2026-05-26
-**Phase:** chart-side SSOT (SSOT integrity work that complements
-cycle 72's tile-side fix; no masterplan step id).
+**Phase:** UX polish (no SSOT or data-flow change; no masterplan flip).
 **Result:** GENERATE complete; awaiting Q/A.
 
 ## What changed
 
-Implemented Path 2 (frontend overlay) per researcher
-`a6c2b1e445ca9b644` Section 7. Every chart surface that previously
-forward-filled a 4-day-stale persisted snapshot to today's x-axis now
-appends an explicit "live_now" point sourced from the cycle-72
-`LivePortfolioProvider`, with a pulsating marker + dashed connector so
-the operator can SEE which point is "as of close" and which is "now".
+Implemented Google-Finance-style flash-on-change animation across every
+numeric cockpit display that updates with live stock prices. When a
+value ticks up, the cell briefly tints `bg-emerald-500/15`; on a
+down-tick, `bg-rose-500/15`. 500ms ease-in-out, then fades to
+transparent. Honors `prefers-reduced-motion: reduce` (hook short-circuits
+in JS AND `globals.css` overrides `animation: none !important` -- defense
+in depth per researcher Section 3).
 
-### Files modified (6)
+### Files (1 new + 5 modified, ZERO backend)
 
-1. `frontend/src/components/RedLineMonitor.tsx`
-   - Added `liveNav?: number | null` + `liveBand?: "green"|"amber"|"red"|"unknown"` props.
-   - Added static `LIVE_MARKER_COLOR` lookup (JIT-safe per cycle-68 lesson).
-   - Computed `shouldOverlay` from `today > lastActual.date`.
-   - Appended synthetic `{date: today, nav: liveNav, source: "live_now"}` to series.
-   - Rendered dashed `Line` overlay between last-actual + live point.
-   - Rendered `ReferenceDot` with inline SVG `<animate>` halo (Gaurav Gupta pattern).
-   - Tooltip formatter appends "(live now)" suffix when payload `source==="live_now"`.
+1. `frontend/src/lib/useFlashOnChange.ts` -- **NEW**
+   - `useFlashOnChange(value, { decimals=2, durationMs=500 })` returns `"up" | "down" | null`.
+   - Tracks previous value via `useRef<string>` (formatted via `value.toFixed(decimals)` so 100.001 vs 100.002 rounding noise does not strobe).
+   - Skips first render (no flash on initial `null -> $124.50` population).
+   - `requestAnimationFrame` between `setDirection(null)` and `setDirection(next)` forces the CSS animation to restart on consecutive same-direction ticks (browsers do not re-run a CSS animation when className is unchanged across renders).
+   - `setTimeout` clears the direction after `durationMs`; cleared on subsequent tick AND on unmount (researcher Section 2 cleanup requirement).
+   - `prefers-reduced-motion: reduce` short-circuit: hook returns `null` so no `animate-flash-*` class lands.
+   - JIT-safe `FLASH_CLASS` static literal map (cycle-68 lesson): `{ up: "animate-flash-up", down: "animate-flash-down" }` -- both literals appear verbatim so Tailwind JIT compiles them.
+   - Public helper `flashClassName(direction)` for consumer ergonomics.
 
-2. `frontend/src/app/page.tsx`
-   - Passes `liveNav={lp.liveNav}` + `liveBand={lp.freshnessBand}` to `<RedLineMonitor>`.
+2. `frontend/tailwind.config.js` -- MODIFIED
+   - Added `theme.extend.keyframes`:
+     - `flash-up`: `0% { backgroundColor: "rgba(16, 185, 129, 0.15)" } -> 100% { backgroundColor: "transparent" }` (emerald-500/15).
+     - `flash-down`: same with `rgba(244, 63, 94, 0.15)` (rose-500/15).
+   - Added `theme.extend.animation.flash-up` / `flash-down` = `flash-up 500ms ease-in-out`.
+   - Tailwind v3 docs (https://v3.tailwindcss.com/docs/animation) confirm this is the canonical extend-keyframes pattern; researcher Section 5 verified.
 
-3. `frontend/src/app/sovereign/page.tsx`
-   - Imported `useLivePortfolio` from `@/lib/live-portfolio-context`.
-   - Called the hook + passed same props to `<RedLineMonitor>`.
+3. `frontend/src/app/globals.css` -- MODIFIED
+   - Added `@media (prefers-reduced-motion: reduce) { .animate-flash-up, .animate-flash-down { animation: none !important; } }`.
+   - Reason: defense in depth -- if an operator toggles the OS preference mid-session, any in-flight `animate-flash-*` class stops immediately at the CSS layer; the JS-layer short-circuit in `useFlashOnChange.ts` only prevents NEW animations.
 
-4. `frontend/src/app/paper-trading/nav/page.tsx`
-   - Imported `useLivePortfolio`.
-   - Extended `chartData` useMemo: when today > last persisted date AND
-     `lp.liveNav != null` AND `startingCap > 0`, appended a synthetic row
-     with `portfolio = (liveNav - startingCap)/startingCap*100` and
-     `alpha = portfolio - lastBenchmark`. Benchmark carried forward
-     (Yahoo Finance close-only; live SPY tracker out of scope per
-     researcher Section 7).
+4. `frontend/src/components/paper-trading/cockpit-helpers.tsx` -- MODIFIED
+   - `Dollar` + `PnlBadge` now consume `useFlashOnChange(value)` and apply the returned animation class via `flashClassName(flash)`. Both primitives are shared by the positions table cells (Market Value, P&L) AND the SummaryHero MetricCards (NAV, Cash, Total P&L, vs SPY) -- one change covers every consumer on the Paper Trading page.
+   - Added `aria-live="off"` on both spans (MDN stock-ticker default; do NOT announce every tick).
 
-5. `frontend/src/components/PaperReconciliationChart.tsx`
-   - Added optional `livePaperNav?: number | null` prop.
-   - Appended synthetic row to series: `paper_nav = livePaperNav`,
-     `backtest_nav = last.backtest_nav` (carried forward, since the
-     shadow backtest is historical by definition -- the divergence
-     between live paper and last-known shadow IS the signal the chart
-     wants to show), `divergence_pct` recomputed from the live paper
-     NAV.
-   - Chart now consumes `seriesOverlay` instead of raw `series`.
+5. `frontend/src/components/paper-trading/positions-columns.tsx` -- MODIFIED
+   - Current price cell pulled into a new `CurrentPriceCell` component so `useFlashOnChange` fires per row (React rules-of-hooks: cannot call hooks inside a TanStack column cell render callback).
+   - Applies `animate-flash-*` class to the `${shown.toFixed(2)}` span.
+   - `aria-live="off"` on the wrapping span.
 
-6. `frontend/src/app/paper-trading/reality-gap/page.tsx`
-   - Added `useLivePortfolio` import + hook call.
-   - Passed `livePaperNav={lp.liveNav}` to `<PaperReconciliationChart>`.
+6. `frontend/src/app/page.tsx` -- MODIFIED
+   - Added `numericValue?: number | null` prop to `KpiTile` so the hook can compare ticks without parsing the pre-formatted display string back.
+   - Hook fires per tile; class applied to the value `<p>` element.
+   - Wired `numericValue` on 3 live-priced KpiTiles: NAV (`navValue`), P&L today (`today?.dollars`), vs SPY (`alpha`). Sharpe / Max DD / Positions tiles deliberately not wired (they update on snapshot persistence, not on price ticks -- researcher scope table).
 
 ### Files unchanged (audit)
 
-- ZERO backend files changed (researcher Section 7 explicit: backend
-  forward-fill is independent of UX overlay).
-- ZERO test scaffolding changed; existing
-  `test_phase_23_2_8_use_live_nav_ssot.py` and
-  `tests/verify_phase_23_1_17.py` continue to assert the page-import
-  SSOT invariant; both pass post-cycle.
-- `frontend/src/lib/live-portfolio-context.tsx` -- READ ONLY.
+- ZERO backend file changes (`git diff --stat HEAD -- backend/` returns empty).
+- ZERO new npm deps (`frontend/package.json` unchanged this cycle).
+- ZERO test scaffolding changes.
+- `frontend/src/components/RedLineMonitor.tsx` -- intentionally NOT wired (cycle-73 live-now overlay is its own visual signal; flashing the line stroke would compete with the pulsating endpoint dot).
+- `frontend/src/components/PaperTradesTable.tsx` -- not wired (researcher Section 6 internal-grep audit found this surface shows realized trades, NOT live mark-to-market; no live-priced numbers).
 
 ## Verification (verbatim command output)
 
@@ -78,63 +72,97 @@ exit=0
 ```
  Test Files  23 passed (23)
       Tests  178 passed (178)
-   Start at  20:09:49
-   Duration  4.01s
+   Start at  20:35:04
+   Duration  4.24s
 ```
 
-### pytest backend/tests/test_phase_23_2_8_use_live_nav_ssot.py
+### python tests/verify_phase_23_1_17.py
 ```
-backend/tests/test_phase_23_2_8_use_live_nav_ssot.py::test_phase_23_2_8_use_live_nav_hook_exists_and_exports PASSED [ 16%]
-backend/tests/test_phase_23_2_8_use_live_nav_ssot.py::test_phase_23_2_8_home_page_imports_use_live_nav PASSED [ 33%]
-backend/tests/test_phase_23_2_8_use_live_nav_ssot.py::test_phase_23_2_8_paper_trading_page_imports_use_live_nav PASSED [ 50%]
-backend/tests/test_phase_23_2_8_use_live_nav_ssot.py::test_phase_23_2_8_both_pages_destructure_live_nav_and_pnl PASSED [ 66%]
-backend/tests/test_phase_23_2_8_use_live_nav_ssot.py::test_phase_23_2_8_nav_math_lives_only_in_hook PASSED [ 83%]
-backend/tests/test_phase_23_2_8_use_live_nav_ssot.py::test_phase_23_2_8_hook_return_shape_is_documented PASSED [100%]
-============================== 6 passed in 0.03s ===============================
-```
-
-### tests/verify_phase_23_1_17.py
-```
-$ python tests/verify_phase_23_1_17.py
 ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script (mark_to_market + save_daily_snapshot)
+```
+
+### Grep audit (zero non-ASCII in new code)
+```
+$ grep -Pn "[^\x00-\x7F]" frontend/src/lib/useFlashOnChange.ts
+(no output -- new file is pure ASCII)
+```
+
+The cycle's diff to `positions-columns.tsx` includes one em-dash
+(U+2014) inside `<span className="text-slate-500">—</span>` for the
+empty-state placeholder. This matches the pre-existing project
+convention -- four other em-dashes in the same file pre-date cycle 74
+(lines 78, 89, 184, and the original Current cell empty state at line
+86 pre-modification). Em-dash is a text-content placeholder, NOT an
+emoji or unicode arrow; the "no emojis" memory rule targets graphic
+Unicode (e.g. green/red circles, arrows) which are forbidden. Contract
+criterion 4 (grep clean on `useFlashOnChange.ts` specifically) passes.
+
+### Zero new deps / zero backend
+```
+$ git diff HEAD -- frontend/package.json
+(empty -- no dep changes)
+
+$ git diff --stat HEAD -- backend/
+(empty -- no backend changes)
 ```
 
 ## Artifact shape
 
-After cycle 73, every chart that previously interpolated the persisted
-snapshot to today's x-axis now renders TWO visually distinct line
-segments:
+After cycle 74, every live-priced numeric display flashes on tick:
 
-1. **Solid line** -- historical NAV from `series[0..N-1]`, each point
-   labeled by its actual snapshot date.
-2. **Dashed line** -- one segment from `series[N-1]` to a new "live_now"
-   point at `today` with `y = lp.liveNav`. Endpoint dot pulses (SVG
-   `<animate>` r=6 -> 12 -> 6 over 1.5s) so the operator's
-   pre-attentive system sees "this is live" without reading text.
-3. **Tooltip** -- on hover over the live point, shows the live value
-   suffixed " (live now)" so screen-reader + verbose-debug paths also
-   see the distinction.
+**Paper Trading positions table (per row):**
+- Current price -- flashes when `livePrices[ticker].price` updates.
+- Market Value -- flashes when `livePrice * quantity` updates (inherited via `<Dollar>`).
+- P&L % -- flashes when the live-derived P&L percentage updates (inherited via `<PnlBadge>`).
+
+**Paper Trading SummaryHero MetricCards (6 tiles):**
+- NAV -- flashes via `<Dollar>` from `lp.liveNav`.
+- Cash -- flashes via `<Dollar>` (snapshot-driven; less frequent).
+- Total P&L -- flashes via `<PnlBadge>` from `lp.liveTotalPnlPct`.
+- vs SPY -- flashes via `<PnlBadge>`.
+- Sharpe -- not wired (snapshot metric, not live-priced).
+- Positions count -- not wired (integer count, not live-priced).
+
+**Home page KpiTiles (3 live-priced of 6 total):**
+- NAV -- flashes from `navValue` numericValue prop.
+- P&L (today) -- flashes from `today?.dollars`.
+- vs SPY -- flashes from `alpha`.
 
 ## JIT-safety verification
 
-`LIVE_MARKER_COLOR` is a static literal map (cycle-68 lesson): green
-`#34d399`, amber `#fbbf24`, red `#fb7185`, unknown `#94a3b8`. No
-template-string concatenation; Tailwind JIT compiles all four classes.
+`FLASH_CLASS` at `useFlashOnChange.ts:124-127` is a static literal map:
+```ts
+export const FLASH_CLASS: Record<"up" | "down", string> = {
+  up: "animate-flash-up",
+  down: "animate-flash-down",
+};
+```
+Both `animate-flash-up` and `animate-flash-down` appear as exact literal
+strings in the bundle. Tailwind JIT compiles them via the
+`theme.extend.animation` declarations in `tailwind.config.js`. No
+template-string concatenation; cycle-68 lesson honored.
 
-## Visual verification status
+## Reduced-motion verification (defense in depth)
 
-Per `.claude/rules/frontend.md` rule 5 (visual verification is
-mandatory for any chart or color-coded UI): pulsing dot + dashed
-connector still pending operator browser-probe. Dev server is managed
-by the launchctl watchdog (cycle-68 memory rule); no `npm run build`
-ran during this cycle.
+1. JS layer: `useFlashOnChange.ts:78-83` checks `window.matchMedia("(prefers-reduced-motion: reduce)").matches` -- when true, hook returns `null` so NO `animate-flash-*` className lands.
+2. CSS layer: `globals.css:108-114` `@media (prefers-reduced-motion: reduce) { .animate-flash-up, .animate-flash-down { animation: none !important; } }` -- if a className did land (e.g. operator toggled preference mid-flash), the animation halts at the CSS layer.
+
+## A11y compliance
+
+- WCAG SC 2.3.3 Animation from Interactions: **does NOT apply** (passive price ticks are not user-initiated interaction -- W3C spec scopes to interactions; researcher Section 3).
+- WCAG SC 2.2.2 Pause/Stop/Hide: **applies**, satisfied (500ms flash is well under the 5-second ceiling).
+- ARIA: every flashing span carries `aria-live="off"` (MDN stock-ticker default; do NOT announce every tick or screen readers flood; researcher Section 4 cited).
+
+## Memory-rule compliance
+
+- `npm run build` NOT invoked.
+- `rm -rf .next/*` NOT invoked.
+- No `launchctl kickstart` needed (no npm install ran).
+- No emojis introduced.
 
 ## Not in scope
 
-- Backend forward-fill in `get_paper_reconciliation` (researcher
-  Section 7 explicit: backend stays simple; UX layer is where "live vs
-  close" distinction matters).
-- Live SPY tracking for NAV-chart benchmark line (deferred per
-  researcher; Yahoo Finance close-only is acceptable for cycle 73).
-- Hover-tooltip i18n / WCAG SC 1.4.13 (tooltip text is short and
-  in-band; passes by default).
+- RedLineMonitor live-now overlay (cycle-73 already provides its own pulsating endpoint signal).
+- Reality-gap chart (chart annotation, not a numeric scorecard).
+- Reports / Backtest / Manage forms (not live-priced).
+- Visual verification of the flash in a browser (still pending operator review per frontend.md rule 5).
