@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-27 | `9c0fdc82` | docs(verify): cycle 6 BLOCKED on cycle-timeout-vs-Claude-Code-rail mismatch |
 | 2026-05-27 | `8cfb0a42` | docs(masterplan): phase-46 Market Insight page scoping (operator-requested, 9 subphases) |
 | 2026-05-26 | `8b43cd0a` | feat(llm): cycle 5 settings exposure + binary-path fix + --max-tokens removal + masterplan 38.10/38. |
 | 2026-05-26 | `08f67ea9` | fix(llm): cycle 4 claude_code_invoke stdin-pipe bugfix (cycle-3 bug) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-26 | `30f68555` | fix(paper-trading): Tremor JIT content path + 3-card height align + filters on trades/reports + fron |
 | 2026-05-26 | `0a3793db` | fix(paper-trading): UX audit -- root-cause dark-mode + filter + donut + layout + headers |
 | 2026-05-26 | `3cd8b6da` | fix(paper-trading): drop light-mode tokens from SectorBarList + bump table header contrast |
-| 2026-05-26 | `354e9c2e` | fix(paper-trading): UX audit of /paper-trading/positions |
 
 ---
 
