@@ -26,10 +26,50 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import shutil
 import subprocess
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
+
+# phase-cycle-5 (2026-05-26): the launchd-supervised backend does NOT
+# inherit the operator's interactive-shell PATH (claude typically lives
+# at ~/.local/bin/claude, not on /usr/bin or /usr/local/bin). subprocess
+# defaults to execvp which only searches the inherited PATH, so a bare
+# "claude" arg fails with FileNotFoundError. Resolve at call-time using
+# shutil.which() against an explicit search list (env override + common
+# install locations) and fall through to "claude" so test mocks still
+# see the literal binary name.
+_DEFAULT_SEARCH_PATHS = [
+    os.environ.get("CLAUDE_CODE_BINARY"),
+    os.path.expanduser("~/.local/bin/claude"),
+    "/opt/homebrew/bin/claude",
+    "/usr/local/bin/claude",
+]
+
+
+def _resolve_claude_binary(binary: str) -> str:
+    """Return an absolute path to the claude CLI, or `binary` as a fallback.
+
+    Searches in order:
+    1. The exact path passed in (if it already resolves via which or exists).
+    2. CLAUDE_CODE_BINARY env override.
+    3. Common install locations (~/.local/bin, Homebrew, /usr/local/bin).
+    4. Original `binary` string as last-resort fallback (preserves test
+       mock behavior so unit tests can patch subprocess.run without
+       caring about absolute paths).
+    """
+    if binary and (os.path.isabs(binary) and os.path.isfile(binary)):
+        return binary
+    resolved = shutil.which(binary)
+    if resolved:
+        return resolved
+    for candidate in _DEFAULT_SEARCH_PATHS:
+        if candidate and os.path.isfile(candidate):
+            return candidate
+    return binary
 
 
 class ClaudeCodeError(RuntimeError):
@@ -83,8 +123,9 @@ def claude_code_invoke(
     # stdin-piping. Do NOT add `--bare` -- per the same researcher's
     # Section 2: --bare rejects OAuth + keychain reads and requires
     # ANTHROPIC_API_KEY, which would break the Max-subscription rail.
+    resolved_binary = _resolve_claude_binary(binary)
     args: list[str] = [
-        binary,
+        resolved_binary,
         "--print",
         "--output-format", "json",
         "--disallowedTools", disallowed_tools,
@@ -93,8 +134,14 @@ def claude_code_invoke(
         args.extend(["--append-system-prompt", system])
     if json_schema is not None:
         args.extend(["--json-schema", json.dumps(json_schema)])
-    if max_tokens is not None:
-        args.extend(["--max-tokens", str(max_tokens)])
+    # phase-cycle-5 follow-up (2026-05-26): --max-tokens is the SDK option
+    # name, NOT the CLI flag. The `claude` CLI uses model-default ceilings
+    # (32K for Haiku, 64K for Opus, 4K for Sonnet via Max plan) and exposes
+    # --max-budget-usd <amount> instead. Q/A cycle-5 caught that ~63% of
+    # calls were rejected with "error: unknown option '--max-tokens'".
+    # Drop the flag entirely; callers that need a tight output budget can
+    # use --json-schema for structured output or rely on the prompt.
+    _ = max_tokens  # accepted but no-op at the CLI layer; preserved in signature for API-compat
 
     logger.info(
         "claude_code_invoke: args=%d prompt_len=%d timeout_s=%d schema=%s",

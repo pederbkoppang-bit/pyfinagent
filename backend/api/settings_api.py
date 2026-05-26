@@ -108,6 +108,11 @@ class FullSettings(BaseModel):
     paper_daily_loss_limit_pct: float = 4.0
     paper_trailing_dd_limit_pct: float = 10.0
     paper_min_cash_reserve_pct: float = 5.0
+    # phase-cycle-5 (2026-05-26): Claude Code CLI rail flag. Operator opt-in
+    # for the testing phase. False = api.anthropic.com direct billing rail
+    # (existing). True = `claude --print` subprocess on Max-subscription
+    # flat-fee rail. Defaults to False so existing path stays intact.
+    paper_use_claude_code_route: bool = False
 
 
 class SettingsUpdate(BaseModel):
@@ -151,6 +156,8 @@ class SettingsUpdate(BaseModel):
     paper_daily_loss_limit_pct: Optional[float] = Field(None, ge=0.5, le=25.0)
     paper_trailing_dd_limit_pct: Optional[float] = Field(None, ge=1.0, le=50.0)
     paper_min_cash_reserve_pct: Optional[float] = Field(None, ge=0.0, le=50.0)
+    # phase-cycle-5 (2026-05-26): Claude Code CLI rail flag.
+    paper_use_claude_code_route: Optional[bool] = None
 
 
 class ModelConfigUpdate(BaseModel):
@@ -272,6 +279,7 @@ _FIELD_TO_ENV = {
     "paper_default_stop_loss_pct": "PAPER_DEFAULT_STOP_LOSS_PCT",
     "paper_screen_top_n": "PAPER_SCREEN_TOP_N",
     "paper_analyze_top_n": "PAPER_ANALYZE_TOP_N",
+    "paper_use_claude_code_route": "PAPER_USE_CLAUDE_CODE_ROUTE",  # phase-cycle-5
     "paper_transaction_cost_pct": "PAPER_TRANSACTION_COST_PCT",
     "paper_daily_loss_limit_pct": "PAPER_DAILY_LOSS_LIMIT_PCT",
     "paper_trailing_dd_limit_pct": "PAPER_TRAILING_DD_LIMIT_PCT",
@@ -341,6 +349,8 @@ def _settings_to_full(s: Settings) -> FullSettings:
         paper_daily_loss_limit_pct=float(getattr(s, "paper_daily_loss_limit_pct", 4.0)),
         paper_trailing_dd_limit_pct=float(getattr(s, "paper_trailing_dd_limit_pct", 10.0)),
         paper_min_cash_reserve_pct=float(getattr(s, "paper_min_cash_reserve_pct", 5.0)),
+        # phase-cycle-5 (2026-05-26): Claude Code CLI rail flag exposure.
+        paper_use_claude_code_route=bool(getattr(s, "paper_use_claude_code_route", False)),
     )
 
 

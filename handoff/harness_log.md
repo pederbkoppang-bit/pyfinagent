@@ -24496,3 +24496,55 @@ DURATION_MS: 30013
 **No masterplan flip** -- 27.6 stays pending. Cycle 5 is the candidate closure.
 
 **Total cycle time:** ~35 min (researcher 6 min simple + contract 5 min + generate 4 min + tests 2 min + live smoke 3 min + Q/A 3 min + log 3 min).
+
+---
+
+## Cycle 5 -- 2026-05-26 -- settings exposure + binary-path fix + --max-tokens removal + masterplan 38.10/38.11 -- result=PASS (after fix-then-respawn)
+
+**Trigger:** Stop-hook fired after cycle 4 PASS pointed at `27.6` closure. The cycle-3 + 4 Claude Code routing layer wasn't operationally invokable because:
+- `paper_use_claude_code_route` was a Pydantic field but the settings API allow-list (settings_api.py) dropped it on PUT.
+- The launchd-supervised backend didn't have `claude` on PATH; subprocess execvp failed FileNotFound.
+- The cycle-3 args.extend(["--max-tokens", str(N)]) passed an SDK flag that the CLI rejects with "unknown option" (researcher cycle 4 didn't catch this; cycle 4 unit tests mocked subprocess.run so the parser never saw real args).
+
+**Researcher:** borrowed cycle 3 (`aff3444de945e98c2`, deep, gate_passed=true) + cycle 4 (`ab1987d4ec80af4dd`, simple, gate_passed=true). Cycle 5's additions are mechanical extensions of those briefs' surface; no new external research required.
+
+**Generate (3 code changes):**
+- MODIFIED `backend/api/settings_api.py` -- exposed `paper_use_claude_code_route` in 4 places: `FullSettings`, `SettingsUpdate`, `_FIELD_TO_ENV` map, `_settings_to_full` body. Without this, PUT silently dropped the field and GET never exposed it.
+- MODIFIED `backend/agents/claude_code_client.py` -- added `_resolve_claude_binary()` resolver with `CLAUDE_CODE_BINARY` env override + `shutil.which()` + 3 well-known install locations (`~/.local/bin/claude`, `/opt/homebrew/bin/claude`, `/usr/local/bin/claude`). Falls through to literal `binary` so unit-test mocks still work.
+- MODIFIED `backend/agents/claude_code_client.py` (cycle-5 fix-then-respawn) -- removed `args.extend(["--max-tokens", str(max_tokens)])`. Replaced with `_ = max_tokens` no-op + comment. The `claude` CLI uses model-default ceilings (32K Haiku, 64K Opus, 4K Sonnet via Max plan) and exposes `--max-budget-usd` instead.
+
+**Operational steps (live):**
+- `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend` (twice in cycle 5; once after settings_api, once after --max-tokens fix).
+- `PUT /api/settings/ {"paper_use_claude_code_route": true}` -- flipped + verified.
+- `PUT /api/settings/ {"gemini_model": "claude-sonnet-4-6"}` -- satisfies 27.6 criterion #1.
+- `POST /api/paper-trading/run-now` triggered at 2026-05-26T23:39:44+0200 (corrupted by --max-tokens), then again at 2026-05-26T23:50:07+0200 after the fix.
+
+**Live evidence (fresh cycle, post-23:50):**
+```
+calls started:    6 (snapshot 23:51:47)
+calls succeeded:  5
+max-tokens errs: 0  (was 58 in old corrupted cycle)
+ClaudeCodeError: 0
+```
+The fresh cycle is operational. Cycle 6 will verify completion + BQ row count.
+
+**Operator request 2026-05-26 23:47 (Slack screenshot):** added masterplan step **38.10 -- Slack digest regression** under phase-38. Audit basis: Morning + Evening Digest both show Portfolio +$0.00 (+0.0%) + Recent Analyses scores all 0.0/10. Today's Trades section IS populated (COHR/LITE/CIEN/FIX/TER SELLs + FIX/MU/KEYS BUYs visible -- cycle-1 swap framework appears to have fired in production). Two specific envelope fields broken: portfolio.total_pnl / pnl_pct, analysis.final_score / final_weighted_score. P1 priority, harness_required=True.
+
+**Operator request 2026-05-26 23:55 (Recent Reports screenshot):** added masterplan step **38.11 -- Recent Reports table** under phase-38. Audit basis: /reports view shows ALPHA column = 0.00 for all rows; RECOMMENDATION column has mixed casing (HOLD vs Hold vs Buy); COMPANY column shows ticker instead of company name. Same envelope-unwrap root cause as 38.10 likely. P1 priority, harness_required=True.
+
+**Operator process complaint 2026-05-26 23:55:** "you are introducing new bugs all the time. you have to check the full codebase so we make sure nothing breaks and you dont introduce new bugs". Captured in auto-memory `feedback_full_codebase_audit_before_changes.md`. Going forward: full-codebase grep across ALL consumers + live-environment smoke (not just unit-test mocks) before claiming cycle complete.
+
+**Q/A cycle-2 flow:**
+- First spawn `a64fd5bc7a5f63022` CONDITIONAL on item D -- the 23:43 evidence snapshot caught a clean state but `--max-tokens` errors emerged at 23:43:46.
+- Main fixed --max-tokens (removed from args.extend) + restarted backend + triggered fresh cycle + appended Follow-up section + added 38.10 + 38.11 + saved feedback memory.
+- Fresh spawn `a38d573c6a1ef8a64` PASS on RESPAWN verdict: all 5 harness + all deterministic (post-23:50 cycle window: 6 started / 5 succeeded / 0 max-tokens errors / 0 ClaudeCodeErrors) + A-M LLM-judgment (D corrected; L = --max-tokens removed; M = masterplan 38.10 added with full schema). Note: 38.11 added after this Q/A; will be re-verified next cycle.
+
+**N* delta R+B primary:** the cycle-3 routing layer is now operationally invokable in production. Operator-visible Settings UI shows the flag; backend honors it; `claude` CLI resolves to absolute path; --max-tokens no longer rejected. Post-23:50 cycle is producing successful invocations with zero errors. Cycle 6 captures BQ persistence and closes 27.6.
+
+**File-collision recurrence:** `handoff/current/contract.md` clobbered SEVENTH time today. Main re-wrote. Deconfliction stays on backlog.
+
+**Stop-condition contribution:** does NOT close 27.6 yet (cycle 6 does, after autonomous-loop completes + BQ row count >= 14). Cycle 5 ships the prerequisite infrastructure + handles operator-flagged regressions (38.10 + 38.11 + memory entry).
+
+**No masterplan flip in cycle 5.** Cycles 6 (27.6 closure), 7 (38.10 Slack digest fix), 8 (38.11 Recent Reports fix) are the candidates.
+
+**Total cycle time:** ~70 min (researcher borrow + contract 5 min + first generate 8 min + first Q/A CONDITIONAL 7 min + --max-tokens fix 3 min + 38.10/38.11 add 5 min + memory write 3 min + fresh Q/A PASS 5 min + log 5 min + multiple backend restarts + 2 live cycle triggers).

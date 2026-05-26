@@ -12210,6 +12210,48 @@
           "retry_count": 0,
           "max_retries": 3
         }
+      ],
+      "subphases": [
+        {
+          "id": "38.10",
+          "name": "Slack digest regression -- Portfolio/EOD totals show $0.00 + Recent Analyses scores all 0.0/10",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "audit_basis": "Operator slack screenshot 2026-05-26 23:47: Morning Digest 14:00 + Evening Digest 23:00 both show 'Portfolio +$0.00 (+0.0%)' AND 'Recent Analyses: ON 0.0/10, WDC 0.0/10, SNDK 0.0/10, INTC 0.0/10, GLW 0.0/10'. Today's Trades section IS populated (COHR/LITE/CIEN/FIX/TER SELLs + FIX/MU/KEYS BUYs -- the cycle-1 swap framework appears to have fired), so the data flow exists but two specific envelope fields are broken: (a) portfolio.total_pnl / pnl_pct serialization; (b) analysis.final_score / final_weighted_score serialization. Mirrors cycle-71/72 envelope-unwrap regressions previously fixed.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_38.10.md && grep -qE 'Portfolio.*\\\\$[0-9]+\\\\.[0-9]+' handoff/current/live_check_38.10.md && grep -qE 'Recent Analyses.*[1-9]\\\\.[0-9]/10' handoff/current/live_check_38.10.md",
+            "success_criteria": [
+              "morning_digest_portfolio_dollars_nonzero_when_NAV_is_nonzero",
+              "evening_digest_portfolio_dollars_nonzero_when_NAV_is_nonzero",
+              "recent_analyses_scores_reflect_actual_final_score_field_not_0.0",
+              "live_check_38_10_quotes_a_post_fix_slack_message"
+            ],
+            "live_check": "live_check_38.10.md captures verbatim post-fix Slack message text showing nonzero Portfolio + real scores."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "38.11",
+          "name": "Recent Reports table -- Alpha score reads 0.00 for all rows + Recommendation labels mix upper/Title case (HOLD vs Hold, Buy)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "audit_basis": "Operator screenshot 2026-05-26 23:55: /reports view 'Recent Reports' DataTable shows ALPHA column = 0.00 for CIEN/STX/AMD/ON/WDC (all rows); RECOMMENDATION column has inconsistent casing: CIEN/STX/AMD = 'HOLD' (uppercase), ON = 'Hold' (title case), WDC = 'Buy' (title case). COMPANY column shows ticker symbol verbatim instead of company name. The 0.00 alphas mirror the 38.10 Slack-digest score regression (likely same envelope-unwrap root cause -- final_score / final_weighted_score serialization). The label-casing bug is a frontend-display normalization issue. Operator also flagged process complaint: 'you are introducing new bugs all the time. you have to check the full codebase so we make sure nothing breaks and you dont introduce new bugs' -- separately captured in auto-memory feedback_full_codebase_audit_before_changes.md.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_38.11.md && grep -qE 'ALPHA.*[1-9]\\\\.[0-9]+' handoff/current/live_check_38.11.md && grep -qE 'recommendation.*normalized' handoff/current/live_check_38.11.md",
+            "success_criteria": [
+              "alpha_column_displays_nonzero_value_when_analysis_has_nonzero_final_score",
+              "recommendation_column_normalized_to_single_case_across_all_rows",
+              "company_column_displays_company_name_not_ticker_symbol",
+              "live_check_38_11_captures_post_fix_screenshot_path_or_html_snippet"
+            ],
+            "live_check": "live_check_38.11.md captures verbatim post-fix Recent Reports table rendering with: non-zero ALPHA values; uniform recommendation casing; company names (not tickers)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
       ]
     },
     {
