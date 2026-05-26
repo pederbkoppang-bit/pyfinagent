@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-26 | `12c577bd` | feat(ux): cycle 76 NumberFlow trend color tint + 700ms slide |
 | 2026-05-26 | `2e679e1d` | fix(ux): cycle 75 Google-Finance digit-flip animation (replaces cycle 74 background flash) |
 | 2026-05-26 | `31029ad5` | feat(ux): cycle 74 Google-Finance-style price-tick flash animation |
 | 2026-05-26 | `9ab7d236` | fix(chart-ssot): cycle 73 chart-side overlay for live NAV across 3 chart surfaces |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-25 | `8f0d03e9` | phase-44.6: Analyze refresh - Home h-full anti-pattern fix + useEnrichmentSignals hook + RecentTicke |
 | 2026-05-25 | `6365906a` | phase-44.2: cockpit route-split + ARIA tablist + DataTable wiring (7/13 code criteria; 6 operator-ga |
 | 2026-05-25 | `cfb74e5f` | phase-44.0 foundation: DataTable + LiveBadge + SectorBarList components |
-| 2026-05-25 | `8e559c12` | phase-44.0 foundation: TanStack v8 + Tremor deps + playwright fix |
 
 ---
 
+### v6.22.0 — feat(ux): cycle 76 NumberFlow trend color tint + 700ms slide (2026-05-26)
+
+- **feat(ux): cycle 76 NumberFlow trend color tint + 700ms slide**
 ### v6.21.1 — fix(ux): cycle 75 Google-Finance digit-flip animation (replaces cycle... (2026-05-26)
 
 - **fix(ux): cycle 75 Google-Finance digit-flip animation (replaces cycle 74 background flash)**
