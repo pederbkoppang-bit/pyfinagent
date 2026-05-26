@@ -15,7 +15,8 @@ import { usePaperTradingData } from "@/lib/paper-trading-context";
 import { latestTradeIdForTicker } from "@/lib/paper-trading-utils";
 
 // Hard-coded default cap; the operator-tunable setting is
-// paper_max_per_sector_nav_pct (lives in /settings post-44.2 Manage removal).
+// paper_max_per_sector_nav_pct (lives at /paper-trading/manage; reachable
+// via the Settings gear button in the layout header).
 // We don't fetch FullSettings at the layout level to avoid an extra
 // round-trip on every cockpit page load; the cap rendered here will
 // update when /manage refetches and the operator returns.

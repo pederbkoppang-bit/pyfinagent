@@ -49,6 +49,7 @@ import {
   TabNavChart,
   TabRealityGap,
   TabExitQuality,
+  Gear,
   type Icon,
 } from "@/lib/icons";
 import { useLivePrices } from "@/lib/useLivePrices";
@@ -89,10 +90,13 @@ const TABS: TabSpec[] = [
   { slug: "reality-gap", href: "/paper-trading/reality-gap", label: "Reality gap", icon: TabRealityGap },
   { slug: "exit-quality", href: "/paper-trading/exit-quality", label: "Exit quality", icon: TabExitQuality },
   // phase-44.2 (operator_approval_44.2.md, 2026-05-26): Manage tab REMOVED
-  // per operator approval. Paper-trading-specific settings now reached
-  // via the global /settings page; "Top up fund" deferred to a follow-up
-  // /paper-trading/deposit route. The manage/ sub-route directory was
-  // also deleted in the same commit.
+  // from the tablist per operator approval. The /paper-trading/manage
+  // sub-route is STILL REACHABLE via the Settings gear button in the
+  // page header (see action-buttons block above) -- removed from tablist,
+  // not from the app. /paper-trading/manage/page.tsx hosts the Top up
+  // fund deposit + all 10 paper-trading knobs (lite_mode, max_positions,
+  // per_sector cap, daily_cost_cap, stop_loss, screen_top_n, analyze_top_n,
+  // transaction_cost, daily_loss_limit, trailing_dd_limit, min_cash_reserve).
 ];
 
 function activeTabIndex(pathname: string | null): number {
@@ -345,6 +349,20 @@ export default function PaperTradingLayout({
                   )}
                   {cycleRunning ? "Running cycle..." : actionLoading ? "Starting..." : "Run Now"}
                 </button>
+              )}
+              {/* phase-44.2 cycle 67 follow-up: Manage settings + Top up fund
+                  reached via a gear button now (removed from tablist per
+                  operator approval but kept reachable so settings aren't
+                  orphaned). Sub-route at /paper-trading/manage was restored. */}
+              {isInitialized && (
+                <Link
+                  href="/paper-trading/manage"
+                  aria-label="Paper trading settings + deposit"
+                  className="flex items-center gap-1.5 rounded-lg border border-navy-700 bg-navy-800/60 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-navy-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 min-h-[24px]"
+                >
+                  <Gear size={16} weight="regular" />
+                  <span>Settings</span>
+                </Link>
               )}
             </div>
           </div>

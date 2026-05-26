@@ -29,14 +29,18 @@ migrated to `app/paper-trading/manage/page.tsx` verbatim.
 
 - Remove the `manage` entry from the `TABS` array in
   `frontend/src/app/paper-trading/layout.tsx`.
-- Delete `frontend/src/app/paper-trading/manage/` (entire directory).
-- Operator workflow change: paper-trading specific settings (lite_mode,
-  paper_max_positions, paper_default_stop_loss_pct, etc.) now reached
-  via the existing Settings link in the Sidebar -- which goes to the
-  global /settings page.
-- The "Top up fund" capability (deposit additional capital) is part of
-  the deleted manage page. Will need to be re-surfaced via /settings or
-  a new dedicated /paper-trading/deposit route in a follow-up cycle.
+- Keep the `/paper-trading/manage` sub-route reachable via a Settings
+  gear button in the page header (Phosphor Gear icon, top-right action
+  bar). This preserves access to the deposit + 10 paper-trading knobs
+  without putting Manage back in the tablist.
+- Note (2026-05-26 cycle 67 follow-up): the original scope-of-approval
+  wording mistakenly said "via the existing Settings link in the
+  Sidebar... global /settings page" -- but the /settings page does NOT
+  expose 9 of 10 paper-trading knobs nor the deposit handler. Operator
+  flagged that the Manage content was no longer reachable. Corrected
+  approach: keep the sub-route + gear-button access. Manage is removed
+  from the TABLIST per the original intent; it is NOT removed from the
+  app.
 
 ## Audit trail
 
@@ -46,3 +50,4 @@ migrated to `app/paper-trading/manage/page.tsx` verbatim.
 | 2026-05-25 (cycle 63) | Main | Built ReportCompareDrawer + migrated Manage content to sub-route; left Manage as 6th tab pending approval |
 | 2026-05-26 ~22:55 CEST | Operator | "you have my approcval for the gate block by me" -- AskUserQuestion confirmed scope = 44.2 + 44.3 + 44.5 + misfire fix |
 | 2026-05-26 (cycle 67) | Main | Executes destructive Manage tab removal + ships the deposit-handoff note |
+| 2026-05-26 (cycle 67 follow-up) | Operator | Reported the Manage content was orphaned (/settings didn't surface the knobs). Fix: restored /paper-trading/manage sub-route + added Settings gear button in page header. Manage REMOVED FROM TABLIST per the original approval; STILL REACHABLE via the gear button. |
