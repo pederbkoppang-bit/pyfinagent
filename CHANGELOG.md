@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-26 | `faeb7b20` | fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider |
 | 2026-05-26 | `b9a1b772` | fix(slack-bot): 3 digest regressions -- NAV $0 + 0.0/10 scores + stale trades |
 | 2026-05-26 | `a51733e8` | fix(reports): mirror paper-trading filter pattern -- drop 24-chip row |
 | 2026-05-26 | `8e4e2145` | fix(paper-trading): PortfolioAllocationDonut Option B -- inline SVG rewrite |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-25 | `87c9b4ba` | chore: DoD scoreboard refresh -- 8/14 PASS post owner-gate unblock |
 | 2026-05-25 | `05b7f795` | phase-38.1: Kill-switch auto-resume on no-breach (OPEN-10) -- owner-gated |
 | 2026-05-25 | `393568db` | phase-38.4: Auto-commit hook refuses status-flip without harness_log entry (OPEN-13) -- owner-gated |
-| 2026-05-25 | `c65cc9c0` | phase-39.1: autoresearch cron exit-1 root-cause fix (OPEN-29 / DoD-1) |
 
 ---
 
+### v6.20.20 — fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider (2026-05-26)
+
+- **fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider**
 ### v6.20.19 — fix(slack-bot): 3 digest regressions -- NAV $0 + 0.0/10 scores + stal... (2026-05-26)
 
 - **fix(slack-bot): 3 digest regressions -- NAV $0 + 0.0/10 scores + stale trades**
