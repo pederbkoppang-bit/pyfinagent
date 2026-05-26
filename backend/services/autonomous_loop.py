@@ -1290,7 +1290,19 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
         return {
             "ticker": ticker,
             "recommendation": rec.get("action", "HOLD") if isinstance(rec, dict) else str(rec),
-            "final_score": synthesis.get("final_score", 0),
+            # phase-71 cycle (2026-05-26): the orchestrator stores the weighted
+            # score under "final_weighted_score" (backend/agents/orchestrator.py:2001),
+            # not "final_score". Reading the wrong key here cascaded into
+            # _persist_analysis writing 0 to analysis_results.final_score for
+            # every full-path autonomous cycle since the first clean run on
+            # 2026-05-22 (commit 29ab0ff6 phase-34.2). Slack morning digests
+            # have been showing "0.0/10" for every ticker as a result.
+            # Manual-path tasks/analysis.py:208 has always used the correct key.
+            # Defensive: keep the legacy "final_score" as fallback for any
+            # future writer that re-introduces the bare key.
+            "final_score": synthesis.get(
+                "final_weighted_score", synthesis.get("final_score", 0)
+            ),
             "risk_assessment": risk,
             "price_at_analysis": quant.get("yf_data", {}).get("valuation", {}).get("currentPrice") if isinstance(quant.get("yf_data"), dict) else None,
             "analysis_date": datetime.now(timezone.utc).isoformat(),

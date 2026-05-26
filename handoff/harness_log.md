@@ -23804,3 +23804,31 @@ Operator visual review on cycle-69 commit caught donut STILL rendering uncolored
 - No masterplan flip (phase-44.2 stays done from cycle 67). This is the final UX polish on the allocation widget.
 
 **Total cycle time:** ~40 min (researcher 5 min + rewrite 20 min + test rewrite + locale fix 5 min + verify 4 min + Q/A 5 min + log 1 min).
+
+
+## Cycle 71 -- 2026-05-26 -- Slack digest regression fix bundle result=PASS
+
+Operator-flagged via Slack scrape this session: `#ford-approvals` Morning + Evening digests have been broken for ~5 days. Three independent symptoms, three independent root causes, three independent single-file fixes.
+
+- Researcher (`a5582c57b590e17be`, tier=moderate, internal-only carve-out): 9 internal files inspected with 23 file:line anchors. Brief at `handoff/current/research_brief_phase_slack_digest.md`. gate_passed=true.
+  - Symptom 1: NAV $0.00 (+0.0%) -- formatter reads top-level `total_pnl` + `total_pnl_pct` but `/api/paper-trading/portfolio` returns a nested `{"portfolio": {...}}` envelope AND `paper_portfolio` BQ row has no `total_pnl` column (only `total_nav` + `starting_capital` + `total_pnl_pct`). Introduced 2026-05-12 by commit `55241e3a` (phase-25.G). Predates 2026-05-22.
+  - Symptom 2: All "Recent Analyses" 0.0/10 -- `autonomous_loop.py:1293` reads `synthesis.get("final_score", 0)` but orchestrator stores at `synthesis["final_weighted_score"]` (orchestrator.py:2001). Cascades into `_persist_analysis` writing 0 to `analysis_results.final_score`. Manual `/analyze` path uses correct key (tasks/analysis.py:208). Bug always present in line 1293; became user-visible 2026-05-22 (commit `29ab0ff6` phase-34.2 -- first clean autonomous cycle).
+  - Symptom 3: "Today's Trades" identical 9 days running -- `bigquery_client.py:get_paper_trades` has no date filter, returns latest N rows forever. Companion `get_paper_trades_in_window` exists at line 928 but not wired into digest.
+- Contract `handoff/current/contract.md` declares N* delta (B primary -- operator's primary off-cockpit touchpoint restored) + 3 fixes + 5-file plan + verification gates (live curl probes).
+- Generate (6 changed files; ZERO frontend touches; ZERO new deps; ZERO schema changes):
+  - `backend/services/autonomous_loop.py:1293` -- Fix 1: defensive key chain `synthesis.get("final_weighted_score", synthesis.get("final_score", 0))`. Legacy key preserved as fallback for forward-compat.
+  - `backend/slack_bot/formatters.py:319-323` (morning) + `:364-368` (evening) -- Fix 2: nested envelope unwrap via `portfolio_data.get("portfolio") if isinstance(..., dict) else portfolio_data`, then `total_pnl = total_nav - starting_capital`. Defensive: works with envelope OR flat dict (forward-compat with future refactors).
+  - `backend/db/bigquery_client.py:674-700` -- Fix 3 helper: new optional `since_iso: str | None` param. When supplied, query gains `WHERE created_at >= @since`. Existing callers (no kwarg) preserve original behavior.
+  - `backend/api/paper_trading.py:233-262` -- Fix 3 API: new optional `since_today: bool = False` query param. When true, computes start-of-today UTC ISO + passes through to `get_paper_trades(since_iso=...)`. Cache key extended to namespace today vs all.
+  - `backend/slack_bot/scheduler.py:324-336` -- Fix 3 wire: evening digest URL now `?limit=10&since_today=true`. Formatter's existing else-branch ("No trades executed today") triggers naturally on zero rows.
+  - `backend/tests/test_phase_slack_digest_71.py` -- NEW: 9 pytest cases covering envelope unwrap (morning + evening + defensive flat-dict + empty-envelope), key-drift source-grep, since_iso signature, since_iso SQL conditional via fake BQ client, scheduler URL grep, API endpoint signature.
+- Pytest: backend 614 collected / 598 passed (+9 net = exactly the new tests). Same 14 pre-existing env/calendar/doc-archive failures across cycles 63-71 untouched (BQ-freshness x4, watchdog 7d, layer1 BQ writes, shortlist doc archived x6, rainbow canary flaky, verify_phase_23_1_17 cascade). ZERO new regressions.
+- Verification: `ast.parse` OK on all 5 modified .py files; emoji scan 0 hits across 6 changed files; ASCII loggers exit 0 (535 files, 1764 logger calls, 0 violations).
+- Live smoke: backend kickstarted; `GET /api/health` 200; `GET /api/paper-trading/portfolio` returns `total_nav=23184.7, total_pnl_pct=15.92, starting_capital=20000` -- formatter math yields `+$3,184.70 / +15.9%` (not $0.00); `GET /api/paper-trading/trades?since_today=true` returns `count=0` (Memorial Day yesterday, market closed until 14:00 EDT today) -- formatter empty-list branch yields "No trades executed today" (not the stale 10-trade list).
+- Q/A (`a5700188784309e2a`) PASS verdict: 5/5 harness-compliance audits + 11/11 deterministic checks + 0 BLOCK / 0 WARN / 0 NOTE across 5 code-review dimensions. Live-curl probes confirmed root-cause fix end-to-end. Zero violated_criteria. Single PASS-with-flag NOTE: experiment_results.md not written (cycle has no masterplan step flip; harness_log captures the diff equivalent).
+- N* delta R+B primary: Slack bot is operator's primary off-cockpit touchpoint, broken for 5 days. After this cycle: morning + evening digests render real NAV, real scores (post-next-autonomous-cycle), and today-only trade list. Operator attention saved per day = direct B win.
+- No masterplan flip (this is a UX/regression cycle, not a masterplan step closure).
+
+**Backfill follow-up (deferred, owner-gated):** `analysis_results.final_score=0` rows from 2026-05-22 onward are permanently 0 unless backfilled from `full_report_json.final_synthesis.final_weighted_score`. One-shot script can restore them. Documented in research_brief Section 3 "Backfill" + contract "deferred" section. Not part of cycle 71's minimal fix.
+
+**Total cycle time:** ~50 min (researcher 10 min + contract 5 min + generate 20 min + tests 5 min + verify + backend kickstart + live probes 5 min + Q/A 5 min + log 1 min).

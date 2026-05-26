@@ -318,9 +318,23 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list) -> list[di
 
     # Portfolio section
     if portfolio_data:
-        total_pnl = portfolio_data.get("total_pnl", 0)
-        # phase-25.G: paper_trading endpoint returns total_pnl_pct, not total_return_pct
-        total_return = portfolio_data.get("total_pnl_pct", portfolio_data.get("total_return_pct", 0))
+        # phase-71 cycle (2026-05-26): /api/paper-trading/portfolio returns a
+        # nested envelope {"portfolio": {...}, "positions": [...],
+        # "sector_breakdown": {...}}. Phase-25.G (commit 55241e3a) switched
+        # the endpoint but missed both (a) the unwrap and (b) the fact that
+        # the new endpoint has no `total_pnl` (dollar P&L) column -- only
+        # `total_nav`, `starting_capital`, `total_pnl_pct`. Compute the
+        # dollar P&L as nav - starting so the digest matches the cockpit.
+        # Defensive: works whether caller passes the envelope or the inner dict.
+        p = (portfolio_data.get("portfolio")
+             if isinstance(portfolio_data.get("portfolio"), dict)
+             else portfolio_data)
+        total_nav = float(p.get("total_nav") or 0.0)
+        starting = float(p.get("starting_capital") or 0.0)
+        total_pnl = total_nav - starting
+        total_return = float(
+            p.get("total_pnl_pct") or p.get("total_return_pct") or 0.0
+        )
         sign = "+" if total_pnl >= 0 else ""
         emoji = ":chart_with_upwards_trend:" if total_pnl >= 0 else ":chart_with_downwards_trend:"
 
@@ -363,9 +377,17 @@ def format_evening_digest(portfolio_data: dict, trades_today: list) -> list[dict
     ]
 
     if portfolio_data:
-        total_pnl = portfolio_data.get("total_pnl", 0)
-        # phase-25.G: paper_trading endpoint returns total_pnl_pct, not total_return_pct
-        total_return = portfolio_data.get("total_pnl_pct", portfolio_data.get("total_return_pct", 0))
+        # phase-71 cycle: same nested-envelope unwrap as format_morning_digest.
+        # See that function's comment for full context.
+        p = (portfolio_data.get("portfolio")
+             if isinstance(portfolio_data.get("portfolio"), dict)
+             else portfolio_data)
+        total_nav = float(p.get("total_nav") or 0.0)
+        starting = float(p.get("starting_capital") or 0.0)
+        total_pnl = total_nav - starting
+        total_return = float(
+            p.get("total_pnl_pct") or p.get("total_return_pct") or 0.0
+        )
         sign = "+" if total_pnl >= 0 else ""
         emoji = ":chart_with_upwards_trend:" if total_pnl >= 0 else ":chart_with_downwards_trend:"
 

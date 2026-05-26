@@ -321,7 +321,15 @@ async def _send_evening_digest(app: AsyncApp):
             portfolio_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/paper-trading/portfolio")
             portfolio_data = portfolio_res.json() if portfolio_res.status_code == 200 else {}
 
-            trades_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/paper-trading/trades?limit=10")
+            # phase-71 cycle (2026-05-26): pass `since_today=true` so the
+            # "Today's Trades" section actually reflects today's rows. The
+            # default dateless query returned the latest N rows forever,
+            # producing the same 10-trade list for 9 consecutive days. The
+            # else-branch in format_evening_digest already prints "No trades
+            # executed today." when the list is empty.
+            trades_res = await client.get(
+                f"{_LOCAL_BACKEND_URL}/api/paper-trading/trades?limit=10&since_today=true"
+            )
             # phase-23.5.7.1: /api/paper-trading/trades returns the dict envelope
             # {"trades": [...], "count": N} (paper_trading.py:226). Unwrap at the
             # HTTP boundary so format_evening_digest's `trades_today[:10]` slice

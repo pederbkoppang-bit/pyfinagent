@@ -231,16 +231,34 @@ async def get_portfolio():
 
 
 @router.get("/trades")
-async def get_trades(limit: int = Query(100, ge=1, le=1000)):
-    """Trade history."""
+async def get_trades(
+    limit: int = Query(100, ge=1, le=1000),
+    since_today: bool = Query(False),
+):
+    """Trade history.
+
+    phase-71 cycle (2026-05-26): optional `since_today=true` flag restricts
+    results to rows with `created_at >= start-of-today UTC`. The Slack
+    evening digest passes this to ensure "Today's Trades" only shows
+    actually-today rows (operator-flagged that the dateless query just
+    returned the latest N rows forever -- same 10 trades repeated 9 days).
+    """
     cache = get_api_cache()
-    cache_key = f"paper:trades:{limit}"
+    cache_key = f"paper:trades:{limit}:{'today' if since_today else 'all'}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
     settings = get_settings()
     bq = BigQueryClient(settings)
-    trades = await asyncio.to_thread(bq.get_paper_trades, limit=limit)
+    since_iso: str | None = None
+    if since_today:
+        start_of_today = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        since_iso = start_of_today.isoformat()
+    trades = await asyncio.to_thread(
+        bq.get_paper_trades, limit=limit, since_iso=since_iso
+    )
     result = {"trades": trades, "count": len(trades)}
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:trades"])
     return result

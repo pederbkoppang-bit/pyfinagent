@@ -1,162 +1,133 @@
-# Evaluator Critique -- phase-44.2 cycle 70 (Donut Option B inline SVG)
+# Evaluator critique -- Cycle 71 Slack digest regression fix bundle
 
 **Date:** 2026-05-26
-**Q/A Agent:** qa subagent (single fresh spawn for cycle 70)
-**Prior cycle verdict:** Cycle 69 PASS (Q/A `a284657f50ae721b2`); cycle 70 triggered by operator visual rejection of cycle-69 Tremor donut.
-
-## Verdict
-
-**PASS.** 5/5 harness-compliance audits + 9/9 deterministic checks + 0
-BLOCK / 0 WARN / 1 NOTE across 5 code-review dimensions.
+**Cycle:** 71 (Slack digest regression fixes -- 3 independent root causes)
+**Q/A spawn:** 1 of 1 (first spawn, no prior CONDITIONAL to revise)
+**Verdict:** **PASS**
+**Q/A type:** merged qa-evaluator + harness-verifier (single Q/A per spec)
 
 ## 5-item harness-compliance audit
 
-1. **Researcher BEFORE contract?** PASS --
-   `handoff/current/research_brief_phase_44_2_donut.md` exists with 6
-   sources read in full (Caron stroke-dasharray, W3C SC 1.4.13, Tailwind
-   stroke docs, AOUAS Angular-Guy, CSS-Tricks Vue donut, MDN role=img),
-   20 URLs collected, recency scan performed, gate_passed=true.
-   Researcher agent id `adb1eab843622bff6`.
-2. **Contract pre-commit?** PASS -- cycle-69 contract carried over;
-   cycle 70 is an immediate UX-polish follow-up driven by operator
-   visual rejection. Mirrors the cycle-67 misfire-fix precedent (a
-   same-contract follow-up cycle to address an operator-flagged
-   regression in the just-shipped work).
-3. **experiment_results.md?** Honest dual-interpretation accepted --
-   harness_log captures equivalent (cycle-66 / cycle-67 precedent).
-4. **Log-LAST?** PASS -- masterplan status unchanged; phase-44.2
-   remains open as a multi-criterion phase.
-5. **No verdict-shopping?** PASS -- first Q/A for cycle 70; no prior
-   Q/A agent ID in the harness_log for this cycle's evidence base.
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Researcher BEFORE contract | PASS | `handoff/current/research_brief_phase_slack_digest.md` exists; researcher `a5582c57b590e17be`, tier=moderate, gate_passed=true under internal-only carve-out, 23 file:line anchors documented. Contract cites at line 11. |
+| 2 | Contract pre-commit | PASS | `handoff/current/contract.md` declares N* delta, 3 fixes, 5-file file-level plan, /goal integration-gate checklist. Authored AFTER researcher (per its own sign-off block). |
+| 3 | experiment_results.md | PASS-with-flag | Not written this cycle. Operator spawn prompt: "harness_log captures equivalent." Cycle 71 has no masterplan step flip (UX/regression fix only), so no archive-handoff hook fires. The harness_log entry at cycle close must enumerate the changed files + verbatim test output to substitute. Documented exception path, not a protocol breach. |
+| 4 | Log-LAST | PASS | masterplan unchanged this cycle -- no premature flip-then-log race possible. |
+| 5 | No verdict-shopping | PASS | First Q/A spawn for cycle 71. Zero prior CONDITIONAL/FAIL on this evidence. |
 
-## Deterministic checks (9/9)
+## 11 deterministic checks
 
-| # | Check | Expected | Actual |
-|---|-------|----------|--------|
-| 1 | `cd frontend && npx tsc --noEmit` | EXIT=0 | EXIT=0 |
-| 2 | `cd frontend && npm test -- --run` | 22 files / 172 tests | 22 files / 172 tests (+6 net vs cycle-69 166) |
-| 3 | `cd frontend && npm run build` | green | exit 0; all routes built |
-| 4 | `grep -n "DonutChart\|@tremor/react" PortfolioAllocationDonut.tsx` | zero matches | one match, comment line 5 only (semantically: explains what was removed) |
-| 5 | `grep -n "SLICE_STROKE_CLASS\|stroke-blue-500\|stroke-amber-500" ...` | static map present | lines 78-95 (16 colors mapped) |
-| 6 | `grep -n "role=\"tooltip\"" ...` | custom tooltip | line 295 |
-| 7 | `grep -n "role=\"img\"\|aria-label.*allocation" ...` | SVG role + summary | lines 190-191 |
-| 8 | `grep -n "Escape\|onKeyDown" ...` | WCAG SC 1.4.13 ESC dismiss | lines 150-154 + 179 (handleEsc useCallback + container onKeyDown wiring) |
-| 9 | `grep -E "stroke-.*-500" .next/static/css/*.css` | stroke-blue-500 in built CSS | 16/16 colors (blue, amber, indigo, emerald, fuchsia, lime, orange, yellow, cyan, violet, rose, slate, pink, teal, sky, purple) in `66394fa6cbfff906.css` |
+| # | Check | Result |
+|---|-------|--------|
+| 1 | `ast.parse` all 5 changed files | OK -- prints "OK" |
+| 2 | `pytest backend/tests/test_phase_slack_digest_71.py -v` | **9/9 PASS** in 1.92s |
+| 3 | Full `pytest backend/ -q` | **598 passed, 14 failed, 2 skipped, 9 xfailed** in 122s -- matches contract baseline. Failures are pre-existing doc-archive / canary-snapshot tests not related to cycle 71 (e.g. `test_phase_23_2_16_doc_ascii_only`, `test_canary_snapshot_from_buffer_partitions_by_source`) |
+| 4 | `grep "final_weighted_score" backend/services/autonomous_loop.py` | Lines 1294 (comment), 1304 (key in `.get()` call) -- defensive chain present |
+| 5 | `grep -c 'portfolio_data.get("total_pnl"' backend/slack_bot/formatters.py` | **0** -- old bug pattern fully removed |
+| 6 | `grep "since_iso" backend/db/bigquery_client.py` | Lines 675, 677, 678, 683, 688, 691 -- param signature, doc, conditional WHERE, query binding |
+| 7 | `grep "since_today" backend/api/paper_trading.py backend/slack_bot/scheduler.py` | scheduler.py:324, 331 (comment + URL); paper_trading.py:236, 240, 247, 254 (param + doc + cache key + branch) |
+| 8 | Live curl `/api/paper-trading/portfolio` | `total_nav=23184.7, total_pnl_pct=15.92, starting_capital=20000.0` -- formatter math yields `+$3,184.70 (+15.9%)` (non-zero, correct) |
+| 9 | Live curl `/api/paper-trading/trades?limit=10&since_today=true` | `count=0` -- correct (no autonomous trades today) |
+| 10 | `python scripts/qa/ascii_logger_check.py` | OK -- 535 files, 1764 logger calls, 0 violations |
+| 11 | Emoji/non-ASCII scan on 6 changed files | 0 hits in changed code (4 pre-existing characters in unmodified comment lines of autonomous_loop.py:445/780/1866/1876) |
 
-Vitest sub-suite passes verbatim (14/14 in the donut file):
-- 8 cycle-69 / pre-cycle-69 tests (DOM contract preserved)
-- 6 cycle-70 additions: SVG circle count + JIT-safe class assertion +
-  tooltip-at-rest absence + tooltip-on-hover content + dismissal-on-
-  mouseleave + `<title>` native SVG hover element
+## Code-review heuristic dispatch (15 x 5 dimensions)
 
-## Code-review heuristic sweep (5 dimensions)
+**0 BLOCKs, 0 WARNs, 0 NOTEs.**
 
-### Dimension 1 -- Security
-CLEAN. No secrets, no prompt-injection paths, no `subprocess`/`eval`/
-`exec`, no system-prompt leakage (presentation only), no RAG mutation,
-no unbounded LLM loops, no new agent capability. Component is a leaf
-React presentational widget.
+### Dimension 1 (Security)
+- secret-in-diff: 0 hits in `git diff` for the 5 changed files
+- command-injection: 0 hits
+- prompt-injection-path: N/A (no LLM call paths touched)
+- supply-chain-dep-pin-removal: 0 (no deps changed)
+- excessive-agency-scope-creep: `since_today: bool = Query(False)` is read-only opt-in, least-privilege; no new write tool
 
-### Dimension 2 -- Trading-domain correctness
-N/A. No `kill_switch.py`, `risk_engine.py`, `paper_trader.py`,
-`perf_metrics.py`, `backtest_engine.py`, or `backtest_trader.py`
-modified. Pure frontend.
+### Dimension 2 (Trading-domain correctness)
+- kill-switch-reachability: not in diff path
+- stop-loss-always-set: not in diff path
+- perf-metrics-bypass: 0 -- the `total_pnl = total_nav - starting_capital` identity is the standard ledger formula, not a Sharpe/drawdown calculation; lives in a UI formatter, not in `services/perf_metrics.py`'s scope
+- bq-schema-migration-safety: NO schema changes; only optional kwarg + conditional WHERE clause on existing `paper_trades` table
+- crypto-asset-class: 0
+- max-position-check-bypass: 0
 
-### Dimension 3 -- Code quality
-1 NOTE: `STROKE_WIDTH + 1.2` at line 213 is a magic literal for the
-hover stroke-width bump. Semantically adjacent context (the hover
-branch of the ternary) makes intent clear; not worth blocking on. All
-other constants (RADIUS, CX, CY, STROKE_WIDTH) are named with the
-explanatory comment at lines 107-113.
+### Dimension 3 (Code quality)
+- broad-except in diff: 0 new
+- no-type-hints: all new params annotated (`since_iso: str | None = None`, `since_today: bool = Query(False)`); all `float(... or 0.0)` casts present
+- print-statement: 0
+- test-coverage-delta: 9 new behavioral tests for ~30 lines net business logic across 5 files -- well above 50-line threshold
+- unicode-in-logger: 0
+- magic-number: defensive `0.0` initial values for missing portfolio fields are graceful-degradation, not financial-formula constants
 
-### Dimension 4 -- Anti-rubber-stamp
-PASS. Critically:
-- The 8 cycle-69 tests pass UNMODIFIED -- this is the behavior-
-  preservation evidence. The component's public API
-  (`slices`/`totalNav`/`title`/`className`) is preserved exactly.
-- The 6 new cycle-70 tests assert REAL behavior, not mocks. The
-  `JIT-safe stroke-* classes` test (lines 130-144) asserts the literal
-  class strings appear in the rendered HTML -- catches the cycle-68
-  template-string-concat regression class deterministically.
-- The `<title>` child element test (lines 200-214) exercises the
-  native-SVG tooltip path -- defensive ARIA layering.
-- The locale-tolerant `replace(/[\s,. ]/g, "")` regex at line 177
-  shows the author thought about Linux locale CI differences from
-  Mac dev. Real defensive test, not rubber-stamp.
+### Dimension 4 (Anti-rubber-stamp on financial logic)
+- financial-logic-without-behavioral-test: 9 new tests covering 3 fixes
+- tautological-assertion: 0 (asserts on real formatted-block text, signature inspection, captured SQL strings)
+- over-mocked-test: 0 (formatters tested with real envelopes; BQ tested via fake-client SQL-string capture)
+- rename-as-refactor: 0
+- formula-drift-without-citation: 0 -- the `total_nav - starting_capital` identity is documented in the inline comment; `final_weighted_score` is documented in inline comment + linked to orchestrator.py:2001
 
-### Dimension 5 -- LLM-evaluator anti-patterns
-PASS. This Q/A is the FIRST for cycle 70 (no prior verdict to flip);
-all 9 deterministic checks have file:line citations; not a
-sycophancy-under-rebuttal situation.
+### Dimension 5 (LLM-evaluator anti-patterns)
+- sycophancy-under-rebuttal: N/A (first spawn)
+- second-opinion-shopping: N/A (first spawn)
+- missing-chain-of-thought: this critique cites file:line + grep outputs + live curl values
+- 3rd-CONDITIONAL escalation: not applicable (no prior CONDITIONAL on this cycle)
 
-## SVG math verification (replaces the cycle-69 guesswork)
+## LLM judgment
 
-Per the research brief F1 (heyoka/Mark Caron formula):
-- `RADIUS = 100 / (2 * Math.PI)` -- line 110 -- circumference = 100.
-- `strokeDasharray="<pct> <100-pct>"` -- line 216 -- each slice's
-  dasharray directly encodes its share of total NAV.
-- `strokeDashoffset = -acc` (negative running sum) -- lines 139, 217.
-- `transform="rotate(-90 cx cy)"` -- line 220 -- rotates entire
-  `<circle>` so first slice starts at 12 o'clock.
+### Root-cause mapping verified
 
-The implementation deviates from the research brief's formula
-(`offset = 100 - sum(prev) + 25`) but the two paths are
-mathematically equivalent: the brief encodes the 12-o'clock-start
-adjustment via the `+25` offset on each slice; the implementation
-encodes it via the SVG `transform` on each `<circle>`. Both correct.
+Re-read the 3 fix patches against the researcher's claims:
 
-`acc += pct` in the `arcs.map` loop guarantees the sum across all
-slices equals `(totalValue / totalValue) * 100 = 100` (by
-construction, the percentages of a normalized total are exhaustive).
+**Fix 1 (autonomous_loop.py:1304):** `synthesis.get("final_weighted_score", synthesis.get("final_score", 0))` -- defensive chain. Orchestrator stores at `final_weighted_score` (verified via `grep -n "final_weighted_score" backend/agents/orchestrator.py` -- 3 hits at the assignment, log line, bias audit). Manual-path `tasks/analysis.py:208` already used the correct key. Fix restores parity. Legacy `final_score` key kept as inner fallback for any future writer that re-introduces the bare key.
 
-## Tooltip stays inside the card (cycle-69 regression fixed)
+**Fix 2 (formatters.py:319-336 + :379-393):** Nested envelope unwrap. The unwrap pattern `p = portfolio_data.get("portfolio") if isinstance(portfolio_data.get("portfolio"), dict) else portfolio_data` is defensive: works whether caller passes the API envelope or the inner dict (forward-compat). `total_pnl = total_nav - starting_capital` is the standard ledger identity for dollar P&L when the row lacks a denormalized `total_pnl` column.
 
-Cycle-69 operator complaint: Tremor's default tooltip portaled outside
-the card with white-on-dark default styling, escaping the navy/slate
-palette.
+**Fix 3 (bigquery_client.py:675-696 + paper_trading.py:233-260 + scheduler.py:321-332):** Optional `since_iso` BQ param + optional `since_today=true` query param + scheduler URL passes the flag only for the evening digest (morning digest still uses `?limit=5` against `/api/reports/`, separate endpoint). The WHERE clause is conditionally added only when `since_iso` is supplied; existing callers (no kwarg) preserve original behavior. Cache key updated to include the today/all suffix so the existing cache doesn't return stale results across the new param.
 
-Cycle-70 fix verified:
-- Line 293-308: `<div role="tooltip">` rendered as a direct sibling
-  of the `<svg>`, both inside the same `containerClass` div (line
-  175). NO portal. Tooltip lives in the document tree position where
-  it CAN'T escape the card border.
-- Styling: `bg-navy-900 border-navy-700 text-slate-200/100/400` --
-  fully navy/slate palette per frontend.md dark-mode rules.
-- WCAG SC 1.4.13:
-  - Dismissible: ESC handler at lines 150-154 + 179.
-  - Hoverable: no `pointer-events: none`; mouse can move from slice
-    to legend list item which also hosts a mouseenter handler
-    (lines 269-270).
-  - Persistent: stays visible until mouseleave (lines 225, 270).
+### Live evidence
 
-## Cross-component impact
+The kickstart + curl probes prove the endpoints respond with REAL data:
+- `/api/paper-trading/portfolio` returns `total_nav=23184.7, total_pnl_pct=15.92, starting_capital=20000.0`. Formatter math: `+$3,184.70 (+15.9%)` -- non-zero, matches the cockpit.
+- `/api/paper-trading/trades?since_today=true` returns `count=0` -- correct for a no-trade day. Empty-list branch in `format_evening_digest` already prints "No trades executed today."
 
-- `frontend/src/app/paper-trading/positions/page.tsx` uses
-  `<PortfolioAllocationDonut slices={...} totalNav={...} />` with no
-  prop shape change. No consumer-side changes needed.
-- `@tremor/react` is still used by `frontend/src/app/performance/page.tsx`
-  (`AreaChart`), so the dep can't be removed yet -- but the donut's
-  Tremor coupling is fully severed.
+This is the strongest end-to-end gate short of waiting for the next 14:00 / 23:00 CEST digest fire.
 
-## Visual-verification posture
+### Anti-rubber-stamp
 
-Cycle 69 lacked deterministic certification that slice colors would
-render -- the test suite couldn't catch Tremor's failure to apply
-`colors` prop to the chart's internal SVG paths.
+The 9-test file is real and behavioral:
+- 4 formatter tests (morning + evening envelope; flat-dict defensive path; empty-envelope graceful degradation)
+- 1 autonomous_loop source-grep test with positional verification (the bare pattern MUST be nested inside the weighted_pattern; outside-position would be a regression and the test would fail)
+- 1 BQ signature test (param exists + defaults to None)
+- 1 BQ SQL-capture test (fake-client captures the query string and parameters; asserts WHERE is conditionally added)
+- 1 scheduler URL source-grep test
+- 1 API endpoint signature test
 
-Cycle 70 fixes this:
-- Check #9 (stroke-* in `.next/static/css/`) demonstrates Tailwind JIT
-  picked up all 16 SLICE_STROKE_CLASS literals into the production CSS
-  bundle. The classes EXIST in the shipped CSS; the `<circle>` elements
-  HAVE the class attribute; therefore the slices WILL render with
-  their colors.
-- Test #11 (JIT-safe stroke-* classes) asserts the literals appear in
-  rendered HTML -- catches template-string regression at the
-  component-render layer.
+Zero tautological asserts. Zero whole-module mocks. Zero pre-existing test deletions.
 
-Operator visual confirmation still recommended for the final
-contrast/density judgment but no longer load-bearing for the "are the
-slices colored at all" question.
+### Scope honesty
+
+`git status --short`:
+- 5 modified backend files (exactly the planned files)
+- 1 new test file (`backend/tests/test_phase_slack_digest_71.py`)
+- 2 handoff files (research brief NEW, contract MODIFIED)
+- 2 audit logs (hook-managed, always touched)
+- 1 kill_switch_audit.jsonl (hook-managed)
+
+Zero frontend changes. Zero schema changes. Zero new deps. Zero new env vars.
+
+### Research-gate compliance
+
+The contract cites the researcher's brief at line 11. The brief documents the internal-only carve-out (no external sources needed -- all three regressions are local field-name + missing-filter bugs traceable to in-tree commits) with file:line anchors for every claim. `gate_passed: true` is justified.
+
+## Verdict justification
+
+**PASS** because:
+1. All 5 harness-compliance audit items satisfied (the `experiment_results.md` flag is explicit per the spawn prompt and acceptable for non-step-flip cycles -- the harness_log entry will substitute).
+2. All 11 deterministic checks green: 9/9 pytest in cycle-71 file; 598 backend pytest baseline maintained (+9 from prior 589); ast.parse OK; all 4 grep checks pass; live curl returns real non-zero portfolio data + correct empty trade list; ASCII logger sweep OK.
+3. Zero code-review heuristics fired (0 BLOCK, 0 WARN, 0 NOTE).
+4. LLM judgment confirms precise root-cause mapping, defensive coding, real behavioral tests, scope honesty, and research-gate compliance.
+
+The live curl probes are the strongest possible end-to-end signal short of waiting for the next digest fire. If the operator wants extra confidence, the next 14:00 CEST morning digest screenshot pasted into `live_check_<cycle>.md` will close the loop -- but the formatter math + live data already prove the fix.
 
 ## JSON envelope
 
@@ -164,21 +135,24 @@ slices colored at all" question.
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "5/5 harness-compliance + 9/9 deterministic + 0 BLOCK / 0 WARN / 1 NOTE (magic-number STROKE_WIDTH+1.2 at line 213; semantically clear). Tremor DonutChart fully replaced by inline-SVG Option B (mirrors cycle-63 SectorBarList precedent). 16/16 stroke-*-500 colors verified in production CSS bundle. WCAG SC 1.4.13 three-leg compliance (dismissible/hoverable/persistent). All 8 pre-cycle-69 tests pass unmodified (behavior contract preserved); +6 new cycle-70 tests exercise SVG correctness + JIT-safe classes + tooltip lifecycle.",
+  "reason": "All 5 harness-compliance + 11 deterministic + 5-dim code-review checks pass. 9/9 cycle-71 tests; 598 baseline pytest; ast.parse OK; live curl returns non-zero NAV ($23184.7 nav, +15.92% return); trades since_today=true returns count=0 (correct empty for no-trade day); 0 BLOCK/WARN/NOTE heuristics fired. Defensive coding throughout; legacy fallbacks preserved; zero schema/deps/frontend changes.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_audit",
-    "syntax",
-    "verification_command",
-    "frontend_typecheck",
-    "frontend_test",
-    "frontend_build",
-    "frontend_eslint",
-    "code_review_heuristics",
-    "css_bundle_jit_verification",
-    "svg_math_verification"
+    "harness_compliance_5_item",
+    "syntax_ast_parse",
+    "verification_command_pytest_cycle71",
+    "verification_command_pytest_full",
+    "grep_fix1_autonomous_loop",
+    "grep_fix2_formatters_old_pattern_removed",
+    "grep_fix3_since_iso_bq",
+    "grep_fix3_since_today_api_and_scheduler",
+    "live_curl_portfolio",
+    "live_curl_trades_since_today",
+    "ascii_logger_check",
+    "emoji_scan_changed_files",
+    "code_review_heuristics_5_dim"
   ]
 }
 ```

@@ -671,15 +671,32 @@ class BigQueryClient:
         job_config = bigquery.QueryJobConfig(query_parameters=params)
         self.client.query(query, job_config=job_config).result()
 
-    def get_paper_trades(self, limit: int = 100) -> list[dict]:
+    def get_paper_trades(
+        self, limit: int = 100, since_iso: str | None = None
+    ) -> list[dict]:
+        # phase-71 cycle (2026-05-26): optional `since_iso` filter -- when
+        # supplied, restricts results to rows with `created_at >= since_iso`.
+        # The Slack evening digest passes the start-of-today UTC ISO so the
+        # "Today's Trades" section only shows actually-today rows (operator-
+        # flagged that the same 10 trades repeated across 9 days because
+        # the dateless query just returned the latest N rows forever).
+        # Existing callers (no `since_iso`) preserve the original behavior.
+        where = ""
+        params: list[bigquery.ScalarQueryParameter] = [
+            bigquery.ScalarQueryParameter("limit", "INT64", limit),
+        ]
+        if since_iso:
+            where = "WHERE created_at >= @since"
+            params.append(
+                bigquery.ScalarQueryParameter("since", "STRING", since_iso)
+            )
         query = f"""
             SELECT * FROM `{self._pt_table("paper_trades")}`
+            {where}
             ORDER BY created_at DESC
             LIMIT @limit
         """
-        job_config = bigquery.QueryJobConfig(query_parameters=[
-            bigquery.ScalarQueryParameter("limit", "INT64", limit),
-        ])
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
         return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
 
     def save_promoted_strategy(self, row: dict) -> None:
