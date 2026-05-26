@@ -41,7 +41,7 @@ const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/paper-trading", label: "Paper Trading", icon: NavPaperTrading },
-      { href: "/paper-trading/learnings", label: "Learnings", icon: NavPerformance },
+      { href: "/learnings", label: "Learnings", icon: NavPerformance },
       { href: "/backtest", label: "Backtest", icon: NavBacktest },
       // phase-16.33: sovereign UI -- alpha leaderboard + red-line monitor +
       // champion strategy detail. Was shipped in commit 1122a021 (phase-10.5)
