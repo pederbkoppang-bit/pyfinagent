@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-26 | `c23ebe59` | docs(verify): cycle 2 step 27.6 BLOCKED-state evidence + operator action surface |
 | 2026-05-26 | `69c710ec` | feat(portfolio): cycle 1 position-swap framework (zero-buy triage) |
 | 2026-05-26 | `29c21b48` | fix(ux): cycle 77 NumberFlow tint CSS element-name bug + 900ms duration |
 | 2026-05-26 | `12c577bd` | feat(ux): cycle 76 NumberFlow trend color tint + 700ms slide |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-26 | `acf33b50` | phase-44.2: operator-approved Manage tab removal + scheduler misfire fix |
 | 2026-05-25 | `ac4554ee` | phase-44.7 (bounded): /cron facet search + level pills + event-rate sparkline + follow/pause + perma |
 | 2026-05-25 | `b8c47aaf` | phase-44.4: Reports refresh - useURLState + ARIA tablist + DataTable + Drawer compare + Tremor AreaC |
-| 2026-05-25 | `8f0d03e9` | phase-44.6: Analyze refresh - Home h-full anti-pattern fix + useEnrichmentSignals hook + RecentTicke |
 
 ---
 
