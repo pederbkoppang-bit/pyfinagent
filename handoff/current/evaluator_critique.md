@@ -1,136 +1,118 @@
-# Evaluator Critique -- Cycle 2 RESPAWN: step 27.6 BLOCKED-state evidence (2026-05-26)
+# Evaluator Critique -- Cycle 3: Claude Code CLI routing layer (2026-05-26)
 
-**Date:** 2026-05-26
-**Cycle:** 2 (verification cycle, BLOCKED-state evidence artifact for masterplan step 27.6)
-**Q/A spawn:** fresh respawn after the prior cycle-2 Q/A `acffe7a0390e79c1f` returned FAIL on harness item #2 (contract.md clobbered by autonomous-loop sprint contract). Per CLAUDE.md cycle-2 flow: Main fixed the blocker (re-wrote `handoff/current/contract.md` with cycle-2 BLOCKED-state content + FOURTH-occurrence collision preamble + researcher `aa204309cdc5f0761` cite + success criterion #12), updated `evaluator_critique.md` with a Follow-up section, and re-spawned a fresh Q/A. Evidence has CHANGED on disk. This is the documented file-based handoff pattern, NOT verdict-shopping on unchanged evidence.
-**Trigger:** today's autonomous loop returned 13/13 ticker failures (Anthropic credit exhaustion), 0 analyses persisted to BQ; operator needs an audit-grade artifact that 27.6 is PENDING-with-evidence (not silently incomplete).
-**Verification cycle:** ZERO code changes, ZERO masterplan flips, single new artifact (`live_check_27.6.md`).
-
----
-
-## 1. Harness-compliance audit (5 items)
-
-| # | Check | Result | Evidence |
-|---|---|---|---|
-| 1 | Researcher spawn produced research_brief, contract cites researcher id + tier + gate_passed | **PASS** | `research_brief_phase_27_6_smoke.md` present (mtime 22:43:48; 16966 bytes). `contract.md:13` contains literal cite `Researcher aa204309cdc5f0761, tier=moderate, 6 sources read in full, 8 snippet-only, 14 URLs, recency scan performed, internal_files_inspected=5, gate_passed=true`. live_check_27.6.md L122-128 + experiment_results.md L23 carry same cite. |
-| 2 | Contract pre-commit -- contract.md contains FOURTH-occurrence preamble + 27.6 BLOCKED-state context + researcher cite + cycle-2 success criteria | **PASS** | `grep -c "FOURTH occurrence" contract.md` = 1 (L9 contains the "FOURTH occurrence today" preamble documenting clobbers at 19:56, 20:36, 20:47, and likely-again). `grep -c "27.6" contract.md` = 11 (cycle-2 contract heavily references step 27.6). `grep -c "aa204309cdc5f0761" contract.md` = 2 (researcher cite on L13). Contract contains cycle-2's 12 immutable success_criteria (L61-74) including L74 the self-presence check. The prior FAIL's blocker is resolved. Note on mtime: contract.md (22:53:39) post-dates live_check_27.6.md (22:49:49) because Main re-wrote contract AFTER the original 22:47:31 clobber and AFTER live_check was finalized -- the cycle-2 contract IS on disk before this Q/A reads it, which is the load-bearing condition. |
-| 3 | experiment_results.md exists, documents 1 NEW artifact + 0 code changes + operator-pending Claude Code routing decision | **PASS** | File present, mtime 22:49:02; 4648 bytes. L11-18 documents `live_check_27.6.md` as the 1 new artifact. L25 + L62-67 confirm ZERO code / npm / masterplan changes. L27-40 dedicates a "Operator-pending decision: Claude Code routing path (cycle 3 candidate)" section with PRO/CON tradeoffs verbatim from cycle-2 plan. |
-| 4 | harness_log absence -- no "Cycle 2 -- 2026-05-26" entry yet (log-last) | **PASS** | `grep "Cycle 2 -- 2026-05-26" handoff/harness_log.md` returned EMPTY. Log append will happen after this Q/A verdict, per the log-last protocol. |
-| 5 | No verdict-shopping -- fresh respawn on UPDATED evidence, not unchanged | **PASS** | The previous evaluator_critique.md (read in full at lines 1-145) returned cycle-2 FAIL on harness item #2. Main's Follow-up section (L132-143) documents the explicit blocker-fix flow per CLAUDE.md: "Fix applied + update handoff + spawn fresh Q/A on UPDATED evidence (NOT verdict-shopping on unchanged evidence)". The contract.md on disk NOW contains the cycle-2 BLOCKED-state content with FOURTH-occurrence preamble + researcher cite + step 27.6 references -- material change vs the prior on-disk Sprint Contract Cycle 1 (parameter-optimization sprint stub the prior Q/A read). This is the canonical cycle-2 flow. |
-
-**Harness audit summary:** 5/5 PASS. The prior FAIL's blocker is resolved on disk.
+**Verdict:** PASS
+**Reviewer:** Q/A subagent (merged qa-evaluator + harness-verifier)
+**Class:** trading-policy-adjacent (LLM rail change). Citation gate APPLIED.
+**Mode:** First Q/A spawn for cycle 3. OVERWRITE of the cycle-2 BLOCKED-state-27.6 critique is the correct cycle-boundary behavior (different cycle, different evidence; not verdict-shopping).
 
 ---
 
-## 2. Deterministic checks
+## Harness-compliance audit (5 items)
+
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Researcher spawn | PASS | `handoff/current/research_brief_phase_claude_code_routing.md` exists (mtime 26 mai 23:06). `contract.md:16-17` cites "Researcher `aff3444de945e98c2`, tier=deep, 24 sources read in full, 34 URLs collected, 3 adversarial sources, recency scan performed, gate_passed=true". |
+| 2 | Contract pre-commit | PASS | `contract.md` mtime 23:08:26 PRECEDES every modified source: settings.py 23:08:52, llm_client.py 23:09:57, claude_code_client.py 23:10:54, autonomous_loop.py 23:11:47, test_claude_code_client.py 23:12:27, experiment_results.md 23:13:25. FIFTH-occurrence preamble present at `contract.md:8` documenting the five overwrites by the autonomous-loop sprint contract at 19:56 / 20:36 / 20:47 / 22:47 / 21:02:13 UTC. |
+| 3 | experiment_results.md | PASS | Exists (mtime 23:13:25). Lists 1 NEW file (`claude_code_client.py`) + 1 NEW test (`test_claude_code_client.py`) + 3 MODIFIED (`settings.py`, `llm_client.py`, `autonomous_loop.py`) + 1 settings field (`paper_use_claude_code_route`). Verbatim pytest (11 passed; 33 passed regression) + AST (4x exit 0) + grep counts present at `experiment_results.md:42-69`. |
+| 4 | harness_log absence | PASS | `grep "Cycle 3 -- 2026-05-26" handoff/harness_log.md` returned 0. Log-LAST discipline respected; cycle-3 log append happens AFTER this Q/A PASS. |
+| 5 | No verdict-shopping | PASS | Prior `evaluator_critique.md` (mtime 22:57) is the cycle-2 BLOCKED-state-27.6 critique (different evidence, different cycle). This is the FIRST cycle-3 Q/A spawn. OVERWRITE is the documented cycle-boundary behavior, not second-opinion-shopping on unchanged evidence. |
+
+---
+
+## Deterministic checks
 
 ```
-$ test -f handoff/current/live_check_27.6.md && echo present
-present                                                      [PASS]
+$ pytest backend/tests/test_claude_code_client.py -v 2>&1 | tail -5
+backend/tests/test_claude_code_client.py::test_claude_code_client_class_returns_empty_on_error PASSED [100%]
+============================== 11 passed in 0.18s ==============================
 
-$ grep -c "BLOCKED" handoff/current/live_check_27.6.md
-3                                                            [PASS, expected >=3]
+$ pytest backend/tests/ -k "llm_client or autonomous_loop or claude_code" 2>&1 | tail -3
+================ 33 passed, 597 deselected, 1 warning in 2.46s =================
 
-$ grep -c "cycle_id=c870fdab" handoff/current/live_check_27.6.md
-2                                                            [PASS, expected >=2]
+$ python -c "import ast; ast.parse(open('backend/agents/claude_code_client.py').read())"  -> exit 0
+$ python -c "import ast; ast.parse(open('backend/config/settings.py').read())"             -> exit 0
+$ python -c "import ast; ast.parse(open('backend/services/autonomous_loop.py').read())"    -> exit 0
+$ python -c "import ast; ast.parse(open('backend/agents/llm_client.py').read())"           -> exit 0
 
-$ grep -c "analyses_persisted=0" handoff/current/live_check_27.6.md
-3                                                            [PASS, expected >=1]
+$ grep -c "paper_use_claude_code_route" backend/config/settings.py        -> 1   (>=1 OK)
+$ grep -c "paper_use_claude_code_route" backend/agents/llm_client.py      -> 3   (>=1 OK)
+$ grep -c "paper_use_claude_code_route" backend/services/autonomous_loop.py -> 2 (>=1 OK)
+$ grep -c "claude_code_invoke" backend/agents/claude_code_client.py       -> 12  (>=2 OK)
+$ grep -c "rail=" backend/services/autonomous_loop.py                     -> 1   (>=1 OK)
 
-$ grep -c "27.6" handoff/current/contract.md
-11                                                           [PASS, expected >=1]
-
-$ grep -c "aa204309cdc5f0761" handoff/current/contract.md
-2                                                            [PASS, expected >=1]
-
-$ grep -c "FOURTH occurrence" handoff/current/contract.md
-1                                                            [PASS, expected >=1]
-
-$ python -c "<masterplan walk>" → 27.6 status
-status=pending                                               [PASS, no premature flip]
-
-$ git diff --stat HEAD -- backend/ frontend/
-(empty)                                                      [PASS, ZERO code changes]
-
-$ git diff HEAD -- frontend/package.json
-(empty)                                                      [PASS, ZERO new deps]
+$ git diff --stat HEAD -- frontend/             -> empty (0 frontend changes)
+$ git diff HEAD -- frontend/package.json        -> empty (0 new deps)
+$ git diff HEAD -- frontend/package-lock.json   -> empty (no lock-churn)
 ```
 
-10/10 deterministic checks PASS.
+All deterministic checks pass.
 
 ---
 
-## 3. LLM judgment (A-K)
+## Code-review heuristics (5 dimensions, phase-16.59 skill)
 
-| Item | Result | Evidence |
-|---|---|---|
-| A | BLOCKED status header at top of live_check_27.6.md | **PASS** | L1 `# Live Check -- Step 27.6 -- BLOCKED on operator action (2026-05-26)`; L3 `## STATUS: BLOCKED`; L5 explicit disclaimer "This file is NOT a PASS artifact." Status flip held; cycle-3 candidate named. |
-| B | 6-criterion table present | **PASS** | L51-60: per-criterion table with 6 rows (model=claude-sonnet-4-6 FAIL, full cycle PASS, lite_mode=False PASS, zero Full orchestrator failed FAIL, analyses_persisted>=14 FAIL, OutcomeTracker step 9 unknown). Each row has verbatim evidence column. |
-| C | Verbatim BQ SELECT query + n=0 result | **PASS** | L62-74: verbatim `SELECT COUNT(*) AS n FROM sunny-might-477607-p8.financial_reports.analysis_results WHERE DATE(analysis_date) = CURRENT_DATE();` query AND `n / 0` result block. L76-80 adds historical context (2026-05-22 = 51 rows, 2026-05-23 through 2026-05-26 = 0). |
-| D | Root cause documents shared-credit anti-pattern from researcher Section 7 | **PASS** | L82-92 "Root cause (researcher Section 7)" -- Anthropic API credit exhaustion (HTTP 400 "credit balance is too low") on direct `api.anthropic.com` rail; shared key for both full orchestrator and lite-mode fallback at `autonomous_loop.py:1322-1328`; Portkey 2026 "shared credit pool failure mode"; compounding settings mismatch `gemini_model=claude-opus-4-7` vs required `claude-sonnet-4-6`. |
-| E | Operator action chain + Claude Code routing alternative | **PASS** | L94-107 "Operator action required (and approved direction)" -- operator-approved 2026-05-26 Claude Code routing for cycle 3 (PRIMARY path) AND 3-step alternative (top up credits + PUT `/api/settings/` + POST `/api/paper-trading/cycles/run-now`). L106-107 documents the re-run + status-flip protocol once cycle 3 ships. |
-| F | "Why grep tokens look like a PASS" explains regex correctly fails on `analyses_persisted=0` | **PASS** | L109-119 "Why this artifact's grep tokens look like a PASS" -- explicitly states the masterplan's regex `analyses_persisted.*1[4-9]|analyses_persisted.*2[0-9]` correctly FAILS on `analyses_persisted=0` (since 0 doesn't match either `1[4-9]` or `2[0-9]`). Authoritative source of truth = per-criterion table + n=0 BQ result, NOT the structural grep. |
-| G | No premature status flip -- masterplan.json `27.6.status` remains `"pending"` | **PASS** | masterplan walk returned `id=27.6, name=End-to-end smoke verify: full path on Claude, status=pending`. Main is correctly HOLDING the flip per BLOCKED state; cycle-2 contract criterion 11 (L73) names this requirement explicitly. |
-| H | ZERO code changes -- verification cycle | **PASS** | `git diff --stat HEAD -- backend/ frontend/` empty. Only handoff/ + audit log files modified. Same in experiment_results.md L62-63. |
-| I | ZERO new npm deps | **PASS** | `git diff HEAD -- frontend/package.json` empty. |
-| J | ZERO emojis introduced in cycle-2 artifacts | **PASS** | `grep -lP "[\x{1F300}-\x{1F9FF}\x{2600}-\x{27BF}]" live_check_27.6.md contract.md experiment_results.md research_brief_phase_27_6_smoke.md` returned empty. No-emoji rule honored. |
-| K | Cycle-3 path forward documented (operator-approved Claude Code routing) | **PASS** | live_check_27.6.md L11-12 names "Cycle-3 candidate (operator-approved 2026-05-26): route through Claude Code CLI to bypass the Anthropic-API credit-exhaustion blocker until production billing is set up." experiment_results.md L27-40 expands to full PRO/CON analysis (PRO: zero per-token cost + same Max rail proven by harness Researcher + Q/A; CON: ~200ms subprocess cold-start + markdown-first prompt shape + undocumented production pattern). Contract L52-58 sketches the cycle-3 implementation (feature flag `paper_use_claude_code_route`, `claude_code_invoke()` in llm_client.py, Stage-1/2/3 call-site switch). |
+Order respected: harness-compliance (5-item) -> deterministic -> code-review -> LLM judgment.
 
-**LLM judgment summary:** 11/11 PASS (A-K all clear).
+- **Dim 1 Security:** No `secret-in-diff`. No `prompt-injection-path` (the subprocess is locked down by `--disallowedTools "Bash,Edit,Write,Read,Glob,Grep,Agent"` at `claude_code_client.py:47`, blocking every side-effect tool). `subprocess.run` uses a list arg with default `shell=False` -- safe. No new `eval`/`exec`/`os.system`. No supply-chain dep changes. `system-prompt-leakage`: NEGATIVE (the `system=` param at `llm_client.py:1548` is passed directly to `claude_code_invoke`, not serialized to a response/log). `rag-memory-poisoning`: N/A. `unbounded-llm-loop`: NEGATIVE (no new loops; existing autonomous-loop bounds preserved).
+- **Dim 2 Trading-domain:** `kill-switch-reachability` PASS (the rail-swap is upstream of the execute path; kill-switch wiring untouched). `stop-loss-always-set` PASS (no `paper_trader.py` change). `perf-metrics-bypass` PASS (no Sharpe/drawdown/alpha math added). `max-position-check-bypass` PASS. `paper-trader-broad-except` PASS (the `ImportError` catch at `llm_client.py:1903-1907` is a defense-in-depth fallthrough, not a risk-guard swallow). `crypto-asset-class` PASS.
+- **Dim 3 Code quality:** ASCII-only logger messages confirmed in `claude_code_client.py`. `broad-except` NEGATIVE -- `claude_code_client.py:104-119` catches specific `TimeoutExpired`/`FileNotFoundError`; `llm_client.py:1903` catches specific `ImportError`. No `print()` in non-script code. Type hints present on the new `claude_code_invoke` public API. Test-coverage delta: 1 new file + 11 tests is proportionate.
+- **Dim 4 Anti-rubber-stamp:** `financial-logic-without-behavioral-test` PASS -- routing changes are paired with 11 behavioral tests that hit subprocess.run mocks at the external boundary. Tests are NOT tautological (envelope-parsing, error propagation, structured-output extraction precedence -- real assertions). `over-mocked-test`: borderline-but-acceptable -- only the external boundary (`subprocess.run`) is mocked, not the module under test. `rename-as-refactor` PASS.
+- **Dim 5 Evaluator anti-patterns:** `sycophancy-under-rebuttal` PASS (no verdict-flip-without-code-change). `second-opinion-shopping` PASS (first cycle-3 spawn; cycle-2 BLOCKED-state-27.6 is different evidence). `missing-chain-of-thought` PASS (this critique cites file:line throughout). `3rd-conditional-not-escalated` N/A (no prior CONDITIONAL chain for this step-id). `criteria-erosion` PASS (all 19 immutable criteria at `contract.md:116-136` evaluated).
+
+No BLOCK or WARN findings.
 
 ---
 
-## 4. Code-review heuristics (5 dimensions)
+## LLM judgment (A-L)
 
-ZERO code changes (`git diff --stat HEAD -- backend/ frontend/` empty) -- Dimensions 1 (Security), 2 (Trading-domain), 3 (Code-quality), 4 (Anti-rubber-stamp on financial logic) all N/A by negation. Dimension 5 (LLM-evaluator anti-patterns):
-
-| Heuristic | Result | Reason |
-|---|---|---|
-| sycophancy-under-rebuttal | **clean** | Prior cycle-2 verdict was FAIL on harness item #2 (contract.md clobbered). Main re-wrote contract.md with cycle-2 content + FOURTH-occurrence preamble + researcher cite + criterion #12. Material code/file change between cycles. Verdict reversal AFTER actual file change is the documented cycle-2 flow per CLAUDE.md, NOT sycophancy. |
-| second-opinion-shopping | **clean** | Fresh respawn after Main's documented fix. The prior Q/A's FAIL named the specific blocker (`grep -c "27.6" contract.md` = 0; `grep -c "aa204309cdc5f0761" contract.md` = 0); the fresh check shows 11 and 2 respectively. Evidence has materially changed. Per CLAUDE.md: "Conversely, spawning a fresh Q/A AFTER fixing blockers and updating the files IS the documented pattern." |
-| missing-chain-of-thought | **clean** | This critique cites file:line throughout (contract.md L9, L13, L61-74; live_check_27.6.md L1, L3, L5, L11-12, L51-60, L62-74, L76-80, L82-92, L94-107, L109-119; experiment_results.md L11-18, L23, L25, L27-40, L62-67). |
-| 3rd-conditional-not-escalated | **N/A** | `grep -nE "^## Cycle.*27\.6.*result=" harness_log.md` returns: Cycle 10 CONDITIONAL, Cycle 11 PASS, Cycle 12 PASS, Cycle 13 BLOCKED-INFRA. Only ONE prior CONDITIONAL on 27.6 (Cycle 10, 2026-05-17) and it was followed by PASS results on sub-phases. Counter reset; not at the 3rd-CONDITIONAL threshold. (Today's cycle-2 verdict is PASS anyway, not CONDITIONAL.) |
-| position-bias / verbosity-bias | **clean** | Verdict driven by deterministic checks (all 10 pass) + harness audit (all 5 pass) + LLM judgment (all 11 pass), not output length or position. |
-| criteria-erosion | **clean** | All 6 27.6 success_criteria listed verbatim in live_check L32-39 + table L53-60. All 12 cycle-2 contract success_criteria carried forward intact L61-74. |
-
-**Code-review summary:** Dimensions 1-4 N/A (no code diff); Dimension 5 all clean.
+| # | Criterion | Verdict | Evidence |
+|---|-----------|---------|----------|
+| A | Citation gate (>=2 AI-in-trading + >=2 academic) | PASS | `contract.md:18` cites TradingAgents `arXiv:2412.20138` + Portkey AI Gateway (2 AI-in-trading, floor 2 met). `contract.md:19` cites Bailey/Borwein/LdP/Zhu PBO `SSRN:2326253` + Harvey/Liu/Zhu NBER w20592 + Yin et al. `arXiv:2603.20319` (3 academic, floor 2 exceeded). All five citation strings physically present in `contract.md`. |
+| B | Feature flag DEFAULTS OFF | PASS | `settings.py:112` -> `paper_use_claude_code_route: bool = Field(False, ...)`. Existing Anthropic-direct path preserved at `llm_client.py:1910-1912` (the existing `ClaudeClient` branch fires only when the new CC branch is skipped). |
+| C | Defense in depth on import | PASS | `llm_client.py:1897-1907` -- the `from backend.agents.claude_code_client import ClaudeCodeClient` is wrapped in `try` and the `ImportError` is caught with `logger.warning(...)`; control falls through to the Anthropic-direct branch. |
+| D | Per-rail log present | PASS | `autonomous_loop.py:1445-1449` -> `logger.info("Analysis ticker=%s rail=%s", ticker, "claude_code" if use_claude_code_route else "anthropic_direct")`. ASCII-only. Fires once per analysis (13 fires per cycle). Matches Yin et al. 2026 per-row engine-provenance prescription. |
+| E | Dual-rail dispatch is symmetric | PASS | Both LLM calls in `_run_claude_analysis` have `if use_claude_code_route` branches: trader analysis at `autonomous_loop.py:1481-1500` (CC route) / `1502-1508` (direct route); risk judge at `1537-1557` (CC route) / `1558-1566` (direct route). Neither call leaks to the direct rail when the flag is True. |
+| F | Direct API client NOT instantiated when flag is True | PASS | `autonomous_loop.py:1458` -> `client = anthropic.Anthropic(api_key=api_key) if not use_claude_code_route else None`. When CC route is active, `client` is None and the code never reaches `api.anthropic.com`. `:1452` also early-skips the no-key error when CC route is active. |
+| G | Async-safe | PASS | Both CC-route calls use `asyncio.to_thread(claude_code_invoke, ...)` at `autonomous_loop.py:1488` and `1544`. Subprocess blocking is offloaded to the threadpool; the event loop stays responsive. |
+| H | subtype check correct | PASS | `claude_code_client.py:147-155` -> `if subtype != "success": raise ClaudeCodeError(...)`. Uses `subtype` (not `is_error`) per researcher source #18. Docstring at `:73-74` and module header at `:54` both call out the `is_error` mis-flag history. |
+| I | `--disallowedTools` lock present | PASS | `claude_code_client.py:47` -> default `disallowed_tools="Bash,Edit,Write,Read,Glob,Grep,Agent"`; threaded into args at `:79-80`. Blocks the subprocess from running every side-effect tool. |
+| J | Error path returns LLMResponse | PASS | `claude_code_client.py:240-249` -> on `ClaudeCodeError`, `ClaudeCodeClient.generate_content` returns `LLMResponse(text="", thoughts=f"errored: {exc}", usage_metadata=UsageMeta())`. Matches existing-convention; downstream callers don't crash. Behavior tested at `test_claude_code_client.py:134-146`. |
+| K | Tests cover the failure modes | PASS | `test_claude_code_client.py` has 11 cases: success envelope (1), error subtype (2), timeout (3), non-zero exit (4), missing binary (5), invalid JSON (6), structured_output preference (7), result fallback (8), empty fallback (9), ClaudeCodeClient adapter happy path (10), ClaudeCodeClient adapter error (11). Floor was 8; this is 11. |
+| L | ZERO frontend changes + ZERO new npm deps + ZERO emojis | PASS | `git diff --stat HEAD -- frontend/` empty. `git diff HEAD -- frontend/package.json` empty. `git diff HEAD -- frontend/package-lock.json` empty. No emojis introduced (visual scan of `claude_code_client.py` shows ASCII only). |
 
 ---
 
-## 5. Final Verdict
+## Final Verdict
 
-**PASS**
+**PASS** -- 5 of 5 harness-compliance items PASS, all 12 deterministic checks PASS, all 12 LLM judgment items (A-L) PASS, all 5 code-review dimensions clear with zero BLOCK/WARN/NOTE findings.
 
-The cycle-2 respawn's evidence on disk meets all immutable criteria. The prior cycle-2 Q/A's FAIL was directly resolved by Main's re-write of `handoff/current/contract.md` with the cycle-2 BLOCKED-state content + FOURTH-occurrence collision preamble + researcher `aa204309cdc5f0761` cite + the cycle-2-self contract-presence success criterion (criterion #12). All 5 harness-compliance items, all 10 deterministic checks, and all 11 A-K LLM-judgment items pass. The BLOCKED-state evidence artifact (`live_check_27.6.md`) correctly preserves audit-grade transparency: the grep tokens that look like a structural PASS are explicitly disarmed by L109-119, the status flip is held at `pending` in masterplan.json, the operator-approved cycle-3 Claude Code routing path is documented with tradeoffs, and the shared-credit anti-pattern is named as a follow-up backlog item. ZERO code changes; ZERO new npm deps; ZERO emojis; ZERO masterplan status flips.
+The cycle-3 implementation is a clean plumbing addition: the feature flag defaults OFF (B), the existing Anthropic-direct path is preserved (E, F), both LLM calls (trader + risk judge) are symmetrically routed (E), the subprocess is async-safe (G), the success check uses `subtype` not `is_error` per the researcher's adversarial source (H), every side-effect tool is locked out of the subprocess via `--disallowedTools` (I), errors fall back to an empty-text `LLMResponse` so downstream callers don't crash (J), an `ImportError` on `ClaudeCodeClient` falls back to the Anthropic-direct branch as defense in depth (C), the per-rail log is in place for future A/B integrity per Yin et al. 2026 (D), and the 11-case test suite covers every failure mode (K). The citation gate is met with 2 AI-in-trading + 3 academic sources (A).
 
-Note on the FOURTH-occurrence file collision: the cycle-2 contract documents this as a recurring structural issue (autonomous-loop parameter-optimization sprint and Layer-3 harness both writing to `handoff/current/contract.md`). The minimum deconfliction fix (separate path for harness-optimizer, e.g. `handoff/current/optimizer_sprint_contract.md`) is correctly scoped OUT of cycle 2 and onto the backlog. This is good scope discipline -- Main resisted the temptation to widen the cycle to fix the collision itself.
+The cycle-4 smoke run with the flag flipped ON is the correct next step: cycle 3 ships the plumbing under a default-OFF flag, cycle 4 verifies the live rail and then enables masterplan step 27.6 closure.
 
-## 6. Violated criteria
+## Violated criteria
 
 None.
-
-## 7. JSON envelope
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "Fresh cycle-2 respawn after Main's documented fix: contract.md re-written with cycle-2 BLOCKED-state content + FOURTH-occurrence collision preamble + researcher aa204309cdc5f0761 cite + criterion #12. All 5 harness-compliance items PASS, all 10 deterministic checks PASS (incl. grep -c '27.6' contract = 11, grep -c 'aa204309cdc5f0761' contract = 2, grep -c 'FOURTH occurrence' contract = 1), all 11 A-K LLM judgment items PASS. masterplan 27.6.status = pending (correctly held). ZERO code changes; ZERO new npm deps; ZERO emojis. BLOCKED-state artifact is audit-grade transparent: grep tokens explicitly disarmed by L109-119 explanation; per-criterion table + BQ n=0 result are authoritative. Operator-approved cycle-3 Claude Code routing path documented. NOT verdict-shopping: contract.md materially changed between cycles (prior Q/A read a parameter-optimization sprint stub with 0 references to 27.6; this Q/A reads cycle-2 content with 11 references to 27.6).",
+  "reason": "All 19 immutable criteria met. Citation gate (>=2 AI-in-trading + >=2 academic) PASS (TradingAgents + Portkey / Bailey-PBO + Harvey-NBER + Yin-2026). Feature flag defaults OFF (settings.py:112). Dual-rail dispatch symmetric (autonomous_loop.py:1481-1557). Per-rail log present (:1445-1449). Direct API client NOT instantiated when flag True (:1458). subtype check used not is_error (claude_code_client.py:147). Async-safe via asyncio.to_thread. 11/11 new tests + 33/33 regression. ZERO frontend / npm / emoji deltas.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_audit_5_items",
-    "deterministic_file_existence",
+    "syntax",
+    "verification_command",
+    "mtime_ordering",
+    "harness_compliance_5_item_audit",
+    "citation_gate",
     "deterministic_grep_counts",
-    "masterplan_status_freeze",
-    "git_diff_zero_backend_frontend",
-    "git_diff_zero_npm_deps",
-    "emoji_scan_handoff_artifacts",
-    "llm_judgment_A_to_K",
-    "code_review_heuristics_5_dimensions",
-    "harness_log_3rd_conditional_check",
-    "fresh_respawn_evidence_change_verification"
+    "regression_test_suite",
+    "new_test_suite",
+    "code_review_heuristics",
+    "evaluator_critique_overwrite_first_cycle3_spawn"
   ]
 }
 ```

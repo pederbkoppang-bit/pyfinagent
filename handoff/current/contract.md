@@ -1,78 +1,140 @@
-# Contract -- Cycle 2: step 27.6 BLOCKED-state evidence + operator action surface
+# Contract -- Cycle 3: Claude Code CLI routing layer (operator-approved)
 
-**Cycle:** 2 (production-readiness mode)
+**Cycle:** 3 (production-readiness mode + testing-phase trading mandate)
 **Date:** 2026-05-26
-**Step targeted:** masterplan `27.6` "End-to-end smoke verify: full path on Claude" (P0)
-**Class:** verification cycle (NOT a trading-policy change; citation floor does NOT apply)
-**Status flip:** NONE -- 27.6 stays `pending` because the criteria cannot be satisfied without operator action. Operator-approved cycle-3 path: Claude Code CLI routing to bypass the credit-exhausted Anthropic rail.
+**Step targeted:** unblocks `27.6` "End-to-end smoke verify: full path on Claude" (P0). New capability not previously enumerated in masterplan; future cycle can map to a step if desired.
+**Class:** trading-policy-adjacent (changes the LLM rail driving every recommendation). Citation floor APPLIES: >=2 AI-in-trading + >=2 academic.
 
-**File-collision note (FOURTH occurrence today):** the autonomous-loop's parameter-optimization sprint clobbered `handoff/current/contract.md` four times today (19:56, 20:36, 20:47, and likely-again). Both Layer-3 harness (this cycle) and the harness optimizer write to this same path. Re-writing the cycle-2 content over the sprint stub each time is the current workaround. Permanent deconfliction (separate paths or discriminator field) is on the follow-up backlog. This document supersedes the parameter-optimization stub for cycle 2.
+**File-collision note (FIFTH occurrence today):** `handoff/current/contract.md` was overwritten by the autonomous-loop's parameter-optimization sprint contract at 19:56, 20:36, 20:47, 22:47, and 21:02:13 UTC. Layer-3 harness Main re-wrote the trading-cycle content each time. Permanent deconfliction (separate paths or discriminator field) is on the follow-up backlog. This document supersedes the parameter-optimization stub for cycle 3.
+
+## North star
+
+Per `project_system_goal`: maximize profit at lowest cost live. Operator approved 2026-05-26: route the autonomous-loop's LLM rail through the Claude Code CLI for the testing phase. Cost rationale: Max-subscription flat-fee tier covers `claude --print --output-format json` invocations; bypasses the credit-exhausted `api.anthropic.com` direct rail; unblocks 13 ticker analyses per cycle without any per-token charge during testing.
 
 ## Research gate
 
-- Researcher `aa204309cdc5f0761`, tier=moderate, 6 sources read in full, 8 snippet-only, 14 URLs, recency scan performed, internal_files_inspected=5, **gate_passed=true**.
-- Brief: `handoff/current/research_brief_phase_27_6_smoke.md`.
+- Researcher `aff3444de945e98c2`, tier=deep, 24 sources read in full, 34 URLs collected, 3 adversarial sources, recency scan performed, **gate_passed=true**.
+- Brief: `handoff/current/research_brief_phase_claude_code_routing.md`.
+- AI-in-trading citations (>=2 required): **2 cited** -- TradingAgents Multi-Agents LLM Framework (`arXiv:2412.20138` Tauric Research v0.2.0 Feb 2026); Portkey AI Gateway (10B+ req/mo, 99.9999% uptime, ToS-compliant LLM-rail abstraction in production).
+- Academic-method citations (>=2 required): **3 cited** -- Bailey/Borwein/Lopez de Prado/Zhu "Probability of Backtest Overfitting" (SSRN 2326253); Harvey/Liu/Zhu NBER w20592 (RFS 2016); Yin et al. "Implementation Risk in Portfolio Backtesting" (`arXiv:2603.20319`) -- justifies per-row engine provenance logging.
 
 ## N* delta
 
-- **B primary:** convert "operator doesn't know the cycle is broken" into "operator has a verbatim audit-grade artifact naming the blocker, the BQ evidence, the remediation chain, and the cost rail". Today's autonomous run at 20:00:41 CEST failed silently from the operator's perspective (UI showed "0 trades"); underlying cause is Anthropic credit exhaustion + a wrong-model setting (`claude-opus-4-7` not `claude-sonnet-4-6`).
-- **R secondary:** the BLOCKED-state evidence enables cycle 3 to ship the Claude Code routing layer with full context.
+- **B primary:** unblock the autonomous-loop without operator action on credits. Backend's 13-ticker analysis pipeline routes through `claude` CLI behind a feature flag. Max-subscription flat-fee rail honored from non-CLI subprocess (verified live 2026-05-26 by researcher: no `ANTHROPIC_API_KEY` env var needed; uses `~/.claude/` auth).
+- **R secondary:** feature flag defaults OFF so existing Anthropic-direct path stays untouched. Operator opt-in via `paper_use_claude_code_route=true` flip. Per-row engine provenance logged so future analysis-quality A/B comparisons (Claude Code rail vs Anthropic-direct rail) are statistically clean per Yin et al. 2026 implementation-risk framework.
 
-## Empirical findings (researcher Section 2)
+## Empirical findings from research (researcher Section 1-4)
 
-Today's cycle `cycle_id=c870fdab` at 2026-05-26 20:00:41 CEST:
+### Verified `claude` CLI invocation pattern (live-tested 2026-05-26)
 
-| # | Criterion (verbatim from masterplan) | Status | Evidence |
-|---|---|---|---|
-| 1 | model = claude-sonnet-4-6 via settings API | **FAIL** | currently set to `claude-opus-4-7` |
-| 2 | full cycle completed, status=completed | PASS | 20:06:36 CEST cycle complete logged |
-| 3 | lite_mode=False observed in Step 3 log | PASS | `Step 3 -- Analyzing 4 new + 9 re-evals (lite_mode=False)` |
-| 4 | zero "Full orchestrator failed" lines | **FAIL** | 13 of 13 failed (Anthropic credit exhaustion 400) |
-| 5 | min 14/15 analyses persisted to BQ analysis_results | **FAIL** | 0 rows for 2026-05-26 |
-| 6 | OutcomeTracker step 9 logged | unknown | Step 9 gated on `closed_tickers != []`; no closures today |
+```
+claude --bare --print --output-format json \
+       --append-system-prompt "<role system>" \
+       --json-schema '<schema>' \
+       --disallowedTools "Bash,Edit,Write,Read,Glob,Grep,Agent" \
+       "<prompt>"
+```
 
-Five of six criteria FAIL. Step 27.6 cannot close PASS today.
+- `--bare` flag suppresses interactive shell init.
+- `--print` returns single JSON envelope and exits.
+- `--output-format json` -- structured envelope.
+- `--disallowedTools` -- locks the invocation to text-only (no side effects). Critical for autonomous use.
+- Max-subscription auth via `~/.claude/` -- no env-var required.
+- `total_cost_usd` field reported but NOT billed under Max flat-fee.
 
-## Structural finding (out of scope; follow-up backlog)
+### JSON output envelope (key fields)
 
-Researcher Section 7 documents a **shared-credit anti-pattern**: backend uses ONE Anthropic API key for BOTH the full orchestrator and the lite Claude fallback at `autonomous_loop.py:1322-1328`. When the key fails, both paths fail in unison. Portkey 2026 "shared credit pool failure mode". The operator-approved cycle-3 Claude Code routing bypasses this entirely (Max-subscription flat-fee rail).
+```
+type, subtype, is_error, result, structured_output, session_id,
+total_cost_usd, duration_ms, duration_api_ms, ttft_ms, num_turns,
+stop_reason, usage{input_tokens, output_tokens, cache_read_input_tokens,
+cache_creation_input_tokens}, modelUsage{<model>:{...}}, uuid
+```
 
-## Scope -- 1 new evidence artifact, ZERO code
+**Critical:** check `subtype == "success"` for success detection -- `is_error` has known mis-flag history (researcher source #18, GitHub issue).
+
+### Rate limits (Max plan)
+
+Per researcher Section 2: 13 concurrent invocations per cycle is well within Max-plan ceilings provided we keep request-level concurrency <= 5 (the empirical safe ceiling per truefoundry.com 2026 Claude-Code-limits writeup). Cycle 3 lowers `_concurrency` from current default to 3 as a conservative ramp.
+
+## Scope -- 1 new file + 3 modified backend files + 1 settings field
 
 ### NEW
 
-1. `handoff/current/live_check_27.6.md` -- BLOCKED-state evidence with verbatim cycle_id, BQ query + result, 6-criterion table, operator remediation chain, BLOCKED header so future readers don't mis-parse as PASS. Supersedes the prior 2026-05-17 capture; preserves git history.
+1. `backend/agents/claude_code_client.py` -- new `ClaudeCodeClient(LLMClient)` subclass + standalone `claude_code_invoke()` function. Signature:
 
-### ZERO code changes
+   ```python
+   def claude_code_invoke(
+       prompt: str,
+       *,
+       max_tokens: int | None = None,
+       system: str | None = None,
+       timeout_s: int = 120,
+       json_schema: dict | None = None,
+       cwd: str | None = None,
+       disallowed_tools: str = "Bash,Edit,Write,Read,Glob,Grep,Agent",
+   ) -> dict[str, Any]:
+       """Invoke `claude --print --output-format json` as a subprocess.
+       Returns the parsed JSON envelope. Checks subtype=='success'."""
+   ```
 
-Verification-only. No backend, no frontend, no tests.
+   Uses `subprocess.run` for sync path; async variant via `asyncio.create_subprocess_exec` for orchestrator concurrent fan-out. ASCII-only log messages per `backend-services.md::Logging`.
 
-## Operator action (approved direction; cycle-3 scope)
+### MODIFIED
 
-The operator approved 2026-05-26: route through Claude Code CLI for testing phase until production Anthropic key is set up. Cycle 3 will implement:
+2. `backend/config/settings.py` -- new field near `anthropic_api_key`:
+   ```python
+   paper_use_claude_code_route: bool = Field(
+       False,
+       description="Route the autonomous-loop LLM rail through the Claude Code CLI ..."
+   )
+   ```
+   Default OFF so existing Anthropic-direct path stays untouched. Operator opt-in.
 
-- Feature flag `paper_use_claude_code_route: bool = False` (default OFF, operator opt-in).
-- `backend/agents/llm_client.py::claude_code_invoke()` shells out to `claude --print --output-format json <prompt>` on the Max-subscription rail.
-- Stage-1 / Stage-2 / Stage-3 call sites in `orchestrator.py` switch on the flag.
-- Cycle 4+ flips the flag ON and re-runs the 27.6 verification.
+3. `backend/agents/llm_client.py` -- in `make_client()` (around the existing Anthropic-vs-Gemini branching, researcher confirms `:1888-1890`):
+   - Gate a new branch BEFORE the existing `ClaudeClient` branch.
+   - When `settings.paper_use_claude_code_route` is True AND model is a Claude variant, return `ClaudeCodeClient(...)` instead of `ClaudeClient(...)`.
 
-Alternative path (if Claude Code routing proves infeasible in cycle 3): top up Anthropic credits + flip model setting + trigger fresh cycle.
+4. `backend/services/autonomous_loop.py` -- in `_run_claude_analysis` (researcher confirms `:1438-1442`):
+   - When `settings.paper_use_claude_code_route` is True, route the analysis through the new client.
+   - Preserve the existing direct `anthropic.Anthropic()` path when the flag is False (default).
+   - Log the rail used per analysis: `logger.info("Analysis ticker=%s rail=%s", ticker, "claude_code" if route else "anthropic_direct")`.
 
-## Immutable success criteria (cycle 2 itself, NOT 27.6)
+### DEFERRED to follow-up cycle
 
-1. `handoff/current/live_check_27.6.md` exists.
-2. Artifact contains verbatim `cycle_id=c870fdab`.
-3. Artifact contains the 6-criterion table.
-4. Artifact contains the operator remediation chain.
-5. Artifact contains a BLOCKED header so future readers don't mis-parse it as PASS.
-6. Researcher brief `handoff/current/research_brief_phase_27_6_smoke.md` exists with gate_passed=true.
-7. `handoff/current/experiment_results.md` documents this cycle's outputs.
-8. ZERO code changes (frontend or backend).
-9. ZERO new npm deps.
-10. NO `npm run build`, NO `rm -rf .next/*`.
-11. `masterplan.json` `27.6.status` UNCHANGED at `pending` (no premature flip).
-12. **THIS contract.md** (cycle-2 trading-verification content + File-collision preamble + researcher `aa204309cdc5f0761` cite) is on-disk at commit time. If the autonomous-loop overwrites it again between now and Q/A, Main re-writes immediately before re-spawning Q/A.
+- BQ schema column `paper_trades.signals.claude_code_route BOOL` -- researcher recommended for per-row engine provenance per Yin et al. 2026. Out of cycle-3 scope (BQ schema change is operator-gated per CLAUDE.md "BQ schema mutations outside autonomous-loop Step 7 stay operator-gated"). Log to backend.log only this cycle.
+
+## Tests (new + existing)
+
+- NEW `backend/tests/test_claude_code_client.py` -- 3 cases:
+  1. `test_claude_code_invoke_returns_envelope` -- mocks subprocess, asserts `result` field extracted from JSON envelope.
+  2. `test_claude_code_invoke_raises_on_error_subtype` -- mocks `subtype != "success"`, asserts exception.
+  3. `test_claude_code_invoke_handles_timeout` -- mocks subprocess timeout, asserts graceful handling.
+- AST parse: new + modified .py files.
+- Regression: existing `pytest backend/tests/ -k "llm_client or autonomous_loop"` still passes (the flag defaults OFF, so existing behavior preserved).
+
+## Immutable success criteria
+
+1. `backend/agents/claude_code_client.py` exists with `claude_code_invoke` function.
+2. `backend/config/settings.py` has `paper_use_claude_code_route` field with default `False`.
+3. `pytest backend/tests/test_claude_code_client.py -v` -- all 3 cases pass.
+4. `pytest backend/tests/ -k "llm_client or autonomous_loop"` regression -- no new failures.
+5. `python -c "import ast; ast.parse(open('backend/agents/claude_code_client.py').read())"` exit 0.
+6. `python -c "import ast; ast.parse(open('backend/config/settings.py').read())"` exit 0.
+7. `python -c "import ast; ast.parse(open('backend/services/autonomous_loop.py').read())"` exit 0.
+8. `python -c "import ast; ast.parse(open('backend/agents/llm_client.py').read())"` exit 0.
+9. `grep -c "claude_code_invoke" backend/agents/claude_code_client.py` >= 1.
+10. `grep -c "paper_use_claude_code_route" backend/agents/llm_client.py` >= 1 (the gating check).
+11. `grep -c "paper_use_claude_code_route" backend/services/autonomous_loop.py` >= 1.
+12. `grep -c "rail=" backend/services/autonomous_loop.py` >= 1 (the per-analysis rail log).
+13. ZERO frontend changes.
+14. ZERO new npm deps.
+15. NO `npm run build`, NO `rm -rf .next/*`.
+16. ZERO emojis introduced.
+17. ASCII-only log messages in `claude_code_client.py`.
+18. Feature flag defaults to `False` so existing Anthropic-direct path unaffected.
+19. Cycle-3 self contract.md content is on disk at commit (collision-protected via re-write if autonomous-loop clobbers).
 
 ## /goal integration gates
 
-1. AST parse N/A (no code). 2. Log LAST. 3. No self-evaluation. 4. Citation floor N/A (verification cycle). 5. Researcher gate_passed=true.
+1. pytest green. 2. AST parse green. 3. Citation gate (>=2 AI-in-trading + >=2 academic) verified above. 4. Log LAST. 5. No self-evaluation. 6. North-star aligned (flat-fee rail saves test-phase token cost; per-row rail logging enables future A/B integrity).

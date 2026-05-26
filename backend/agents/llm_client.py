@@ -1884,6 +1884,28 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
                 "[LLMClient] Gemini-direct init failed (%r); falling through", exc,
             )
 
+    # phase-cycle-3 (2026-05-26): operator-approved Claude Code CLI rail.
+    # When settings.paper_use_claude_code_route is True AND the model is a
+    # Claude variant, route through the `claude` CLI subprocess instead of
+    # api.anthropic.com direct billing. Bypasses credit-exhaustion during
+    # testing phase; uses Max-subscription flat-fee auth at ~/.claude/.
+    # Researcher: aff3444de945e98c2 (deep tier, gate_passed=true).
+    if (
+        model_name.startswith("claude-")
+        and getattr(settings, "paper_use_claude_code_route", False)
+    ):
+        try:
+            from backend.agents.claude_code_client import ClaudeCodeClient  # type: ignore[attr-defined]
+            logger.info(
+                f"[LLMClient] Routing {model_name} -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)"
+            )
+            return ClaudeCodeClient(model_name=model_name)
+        except ImportError as exc:
+            logger.warning(
+                "[LLMClient] ClaudeCodeClient import failed (%r); falling through to Anthropic-direct",
+                exc,
+            )
+
     # 2. Direct Anthropic — wins over GitHub catalog so claude-* never needs GITHUB_TOKEN.
     if model_name.startswith("claude-") and anthropic_key:
         logger.info(f"[LLMClient] Routing {model_name} -> Anthropic direct")

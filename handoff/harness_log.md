@@ -24382,3 +24382,75 @@ ZERO code changes. ZERO new npm deps. ZERO masterplan status flips (27.6 stays `
 **Stop-condition contribution:** 27.6 stays pending (cannot close without operator action OR cycle-3 routing). Cycle 2 is a verification-cycle PASS that captures the BLOCKED state; it does NOT advance the production_ready predicate by itself. Cycle 3 (Claude Code routing) is the load-bearing next step.
 
 **Total cycle time:** ~30 min (researcher 8 min + contract 5 min + generate 3 min + Q/A first FAIL 3 min + contract re-write 2 min + Q/A respawn PASS 3 min + log 6 min).
+
+---
+
+## Cycle 1 -- 2026-05-26 21:01 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 3 -- 2026-05-26 -- Claude Code CLI routing layer -- result=PASS
+
+**Trigger:** Operator approved mid-cycle-2 (2026-05-26): route the autonomous-loop's Claude analysis calls through the `claude` CLI subprocess to use the Max-subscription flat-fee rail instead of the credit-exhausted `api.anthropic.com` direct rail. Unblocks step 27.6 without requiring an operator credit top-up. North-star aligned: zero per-token cost during testing phase.
+
+**Researcher:** `aff3444de945e98c2`, tier=deep, 24 sources read in full, 34 URLs, 3 adversarial sources, recency scan performed, gate_passed=true. Brief at `handoff/current/research_brief_phase_claude_code_routing.md`.
+
+**Citations (>=2 AI-in-trading + >=2 academic per goal):**
+- AI-in-trading (2): TradingAgents `arXiv:2412.20138` (Tauric Research v0.2.0 Feb 2026); Portkey AI Gateway (10B+ req/mo, ToS-compliant LLM-rail abstraction).
+- Academic (3): Bailey/Borwein/Lopez de Prado/Zhu PBO `SSRN:2326253`; Harvey/Liu/Zhu NBER `w20592` (RFS 2016); Yin et al. `arXiv:2603.20319` (per-row implementation-risk logging).
+
+**Verified live `claude` CLI invocation pattern (researcher 2026-05-26):**
+```
+claude --bare --print --output-format json \
+       --append-system-prompt "<system>" \
+       --json-schema '<schema>' \
+       --disallowedTools "Bash,Edit,Write,Read,Glob,Grep,Agent" \
+       "<prompt>"
+```
+Max-subscription auth honored from non-CLI subprocess via `~/.claude/`. `total_cost_usd` reported but NOT billed under Max flat-fee. Success detected via `envelope["subtype"] == "success"` (NOT `is_error`; researcher source #18 documents mis-flag history).
+
+**Generate (1 new file + 1 new test + 3 modified backend files + 1 settings field):**
+- NEW `backend/agents/claude_code_client.py` -- `claude_code_invoke()` standalone function + `ClaudeCodeClient(LLMClient)` adapter. ASCII-only log messages. Lazily-resolved class via module __getattr__ to avoid the llm_client.py import cycle. ImportError defense-in-depth in make_client.
+- NEW `backend/tests/test_claude_code_client.py` -- 11 pytest cases (success, error subtype, timeout, non-zero exit, missing binary, invalid JSON, extract_result_text 3 paths, LLMResponse adapter happy path, LLMResponse adapter error path).
+- MODIFIED `backend/config/settings.py` -- added `paper_use_claude_code_route: bool = Field(False, ...)` next to `anthropic_api_key`. Default OFF; operator opt-in.
+- MODIFIED `backend/agents/llm_client.py::make_client` -- new branch BEFORE the existing Anthropic-direct branch returns `ClaudeCodeClient` when the flag is True AND model is Claude-family. ImportError caught + falls through.
+- MODIFIED `backend/services/autonomous_loop.py::_run_claude_analysis` -- rail-log entry (`Analysis ticker=X rail=claude_code|anthropic_direct`), gated `anthropic.Anthropic(...)` instantiation behind `not use_claude_code_route` (so api.anthropic.com is unreachable when flag is True), wrapped both LLM calls (trader analysis + risk judge) in if/else branches dispatching to `claude_code_invoke` via `asyncio.to_thread` when flag is True.
+
+**Tests:**
+- `pytest backend/tests/test_claude_code_client.py -v` -- 11/11 passed.
+- `pytest backend/tests/ -k "llm_client or autonomous_loop or claude_code"` -- 33/33 passed (regression suite clean).
+- AST parse exit 0 on all 4 modified Python files.
+- ZERO frontend changes (`git diff --stat HEAD -- frontend/` empty).
+- ZERO new npm deps (`git diff HEAD -- frontend/package.json` empty).
+
+**Defense-in-depth notes:**
+- Feature flag default OFF -- existing Anthropic-direct path is the fallback if operator doesn't flip.
+- ImportError on `ClaudeCodeClient` caught in `make_client` -- logs warning + falls through.
+- `--disallowedTools "Bash,Edit,Write,Read,Glob,Grep,Agent"` locks the autonomous subprocess to text-only (no side effects).
+- Both `claude_code_invoke` calls in autonomous_loop use `asyncio.to_thread` so the subprocess doesn't block the event loop.
+- `ClaudeCodeClient.generate_content` on error returns empty-text `LLMResponse(thoughts="errored: ...")` -- matches existing convention; downstream callers don't crash.
+
+**Q/A `a858eedd93792c053` PASS:** 5/5 harness + 12/12 deterministic + 12/12 LLM-judgment (A-L). Citation gate (A) PASS with 2+3 citations. Code-review heuristics across 5 dimensions return 0 findings.
+
+**File-collision recurrence:** `handoff/current/contract.md` was overwritten by the autonomous-loop sprint contract FIVE times today (19:56, 20:36, 20:47, 22:47, 21:02). Layer-3 harness Main re-wrote each time. Permanent deconfliction (separate paths or discriminator field) is on the follow-up backlog.
+
+**N* delta R+B primary:** the operator can now flip `paper_use_claude_code_route=true` via the Settings UI (or `PUT /api/settings/`) to route all 13 daily Claude ticker analyses through the Max-subscription flat-fee rail instead of the credit-exhausted Anthropic direct rail. Cycle 4 candidate: smoke test with the flag ON, observe `rail=claude_code` logs, confirm analyses persist to BQ, re-run step 27.6 verification.
+
+**Stop-condition contribution:** does NOT directly close 27.6 yet (cycle 4 with the flag ON does that). Cycle 3 ships the routing infrastructure; cycle 4 will be the operator-opt-in smoke test that produces verbatim `live_check_27.6.md` PASS evidence.
+
+**No masterplan flip** -- 27.6 stays pending. Cycle 4 will be the candidate closure.
+
+**Total cycle time:** ~70 min (researcher 16 min deep + contract 8 min + generate 25 min + test 5 min + Q/A 7 min + log 4 min + 5 contract.md re-writes due to autonomous-loop clobbering).

@@ -1435,11 +1435,27 @@ async def _run_claude_analysis(ticker: str, settings: Settings) -> dict:
             f"AnalysisOrchestrator fallback in _run_single_analysis."
         )
 
+    # phase-cycle-3 (2026-05-26): rail-selection log + Claude Code CLI route.
+    # When settings.paper_use_claude_code_route is True, route through the
+    # `claude` CLI subprocess on the Max-subscription flat-fee rail instead
+    # of api.anthropic.com direct billing. Bypasses credit-exhaustion in
+    # the testing phase. Per-rail log per Yin et al. 2026 implementation-
+    # risk framework so A/B integrity is preserved when we later compare.
+    use_claude_code_route = bool(getattr(settings, "paper_use_claude_code_route", False))
+    logger.info(
+        "Analysis ticker=%s rail=%s",
+        ticker,
+        "claude_code" if use_claude_code_route else "anthropic_direct",
+    )
+
     api_key = settings.anthropic_api_key.get_secret_value() or os.getenv("ANTHROPIC_API_KEY", "")
-    if not api_key:
+    if not use_claude_code_route and not api_key:
         raise ValueError("No ANTHROPIC_API_KEY available")
 
-    client = anthropic.Anthropic(api_key=api_key)
+    # Only instantiate the direct-API client when actually using that rail.
+    # When the CC route is active, the rail call below shells out to
+    # `claude` CLI via claude_code_invoke and never touches api.anthropic.com.
+    client = anthropic.Anthropic(api_key=api_key) if not use_claude_code_route else None
     prompt = f"""Analyze {ticker} ({name}) for a paper trading portfolio. Be concise.
 
 Stock: {ticker} ({name})
@@ -1462,15 +1478,34 @@ Based on the rules and data above, provide:
 Respond in this exact JSON format:
 {{"action": "BUY", "confidence": 75, "score": 7, "reason": "Strong momentum with reasonable valuation"}}"""
 
-    response = await asyncio.to_thread(
-        client.messages.create,
-        model=model_name,
-        max_tokens=200,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    # Parse response
-    text = response.content[0].text.strip()
+    if use_claude_code_route:
+        from backend.agents.claude_code_client import (
+            ClaudeCodeError,
+            claude_code_invoke,
+            extract_result_text,
+        )
+        try:
+            envelope = await asyncio.to_thread(
+                claude_code_invoke,
+                prompt,
+                max_tokens=200,
+                timeout_s=120,
+            )
+            text = extract_result_text(envelope).strip()
+        except ClaudeCodeError as exc:
+            logger.warning(
+                "claude_code rail failed for %s: %s -- returning empty text",
+                ticker, exc,
+            )
+            text = ""
+    else:
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model=model_name,
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.content[0].text.strip()
     # Extract JSON from response
     import re
     json_match = re.search(r'\{[^}]+\}', text)
@@ -1499,14 +1534,36 @@ Respond in this exact JSON format:
         trader_confidence=analysis["confidence"],
     )
     try:
-        risk_response = await asyncio.to_thread(
-            client.messages.create,
-            model=model_name,
-            max_tokens=300,
-            system=_LITE_RISK_JUDGE_SYSTEM,
-            messages=[{"role": "user", "content": risk_prompt}],
-        )
-        risk_text = risk_response.content[0].text.strip()
+        if use_claude_code_route:
+            from backend.agents.claude_code_client import (
+                ClaudeCodeError,
+                claude_code_invoke,
+                extract_result_text,
+            )
+            try:
+                risk_envelope = await asyncio.to_thread(
+                    claude_code_invoke,
+                    risk_prompt,
+                    max_tokens=300,
+                    system=_LITE_RISK_JUDGE_SYSTEM,
+                    timeout_s=120,
+                )
+                risk_text = extract_result_text(risk_envelope).strip()
+            except ClaudeCodeError as exc:
+                logger.warning(
+                    "claude_code risk-judge rail failed for %s: %s",
+                    ticker, exc,
+                )
+                risk_text = ""
+        else:
+            risk_response = await asyncio.to_thread(
+                client.messages.create,
+                model=model_name,
+                max_tokens=300,
+                system=_LITE_RISK_JUDGE_SYSTEM,
+                messages=[{"role": "user", "content": risk_prompt}],
+            )
+            risk_text = risk_response.content[0].text.strip()
         # re.DOTALL so the nested risk_limits object is captured.
         risk_json_match = re.search(r"\{.*\}", risk_text, re.DOTALL)
         if risk_json_match:

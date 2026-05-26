@@ -1,88 +1,107 @@
-# Experiment Results -- Cycle 2: step 27.6 BLOCKED-state evidence
+# Experiment Results -- Cycle 3: Claude Code CLI routing layer
 
 **Date:** 2026-05-26
-**Phase:** verification cycle. No SSOT or trading-policy change. No masterplan flip.
+**Phase:** trading-policy-adjacent (changes the LLM rail driving all recommendations). Operator-approved.
 **Result:** GENERATE complete; awaiting Q/A.
 
-## What changed (1 new artifact, ZERO code)
+## What changed (1 new file + 1 new test + 3 modified backend files + 1 settings field)
 
 ### NEW
 
-1. `handoff/current/live_check_27.6.md` -- BLOCKED-state evidence artifact for masterplan step 27.6. Documents:
-   - cycle_id=c870fdab + timestamps from today's 20:00 run.
-   - Per-criterion table (6 criteria, 2 PASS + 3 FAIL + 1 unknown).
-   - BQ verbatim query + result (`analyses_persisted=0` for 2026-05-26).
-   - Root cause: Anthropic API credit exhaustion + wrong model (`claude-opus-4-7` vs required `claude-sonnet-4-6`).
-   - Structural finding: shared API key between full orchestrator and lite-mode fallback (Portkey "shared credit pool failure mode").
-   - Operator remediation chain (3 commands).
-   - "BLOCKED" status header so the artifact's grep tokens are NOT mis-parsed as PASS.
+1. `backend/agents/claude_code_client.py` -- `claude_code_invoke()` standalone function + `ClaudeCodeClient(LLMClient)` adapter class.
+   - `claude_code_invoke(prompt, max_tokens, system, timeout_s, json_schema, cwd, disallowed_tools, binary)` shells out to `claude --print --output-format json --disallowedTools <list> [...]`. Returns parsed JSON envelope; raises `ClaudeCodeError` on subtype!='success', non-zero exit, timeout, missing binary, or invalid JSON. ASCII-only log messages.
+   - `extract_result_text(envelope)` -- pulls assistant text (prefer `structured_output`, fall back to `result`).
+   - `ClaudeCodeClient(LLMClient)` -- generate_content(prompt, generation_config) -> LLMResponse adapter so make_client() can drop in. Lazily resolved via module __getattr__ to avoid the import cycle with llm_client. Errors return an empty-text LLMResponse with thoughts='errored: ...' (existing convention).
+
+2. `backend/tests/test_claude_code_client.py` -- 11 pytest cases mocking subprocess.run:
+   - happy path returns envelope
+   - subtype!=success raises ClaudeCodeError
+   - timeout raises ClaudeCodeError
+   - non-zero exit raises ClaudeCodeError
+   - missing `claude` binary raises ClaudeCodeError with actionable message
+   - invalid JSON raises ClaudeCodeError
+   - extract_result_text prefers structured_output
+   - extract_result_text falls back to result
+   - extract_result_text returns empty when missing
+   - ClaudeCodeClient adapter returns valid LLMResponse with token counts
+   - ClaudeCodeClient adapter returns empty-text LLMResponse on error
 
 ### MODIFIED
 
-- `handoff/current/contract.md` -- re-written (autonomous-loop sprint contract clobbered it at 20:36:54 UTC; cycle 2's content restored).
-- `handoff/current/research_brief_phase_27_6_smoke.md` -- written by researcher `aa204309cdc5f0761`.
+3. `backend/config/settings.py` -- added `paper_use_claude_code_route: bool = Field(False, ...)` next to `anthropic_api_key`. Default OFF; operator opt-in. Citations in field-doc comment (TradingAgents, Portkey, Bailey/Borwein/LdP/Zhu PBO, Yin et al. implementation-risk).
 
-ZERO code changes. ZERO new npm deps. ZERO masterplan status flips.
+4. `backend/agents/llm_client.py::make_client()` -- new branch BEFORE the existing direct-Anthropic branch: when `settings.paper_use_claude_code_route` is True AND `model_name.startswith("claude-")`, return `ClaudeCodeClient(model_name=...)` instead of `ClaudeClient(...)`. ImportError caught and logged; falls through to Anthropic-direct as defense in depth.
 
-## Operator-pending decision: Claude Code routing path (cycle 3 candidate)
-
-Operator asked mid-cycle: "could we test using claude code here intead untill we have proven our consept". The pragmatic answer is YES via the Claude Agent SDK + `claude --print --output-format json` subprocess invocation:
-
-- The Max subscription's flat-fee tier covers Claude Code (this CLI) + spawned subagents (researcher, qa). Same rail would cover backend's autonomous-loop analysis pipeline if it called `claude` instead of `api.anthropic.com` directly.
-- Implementation path (sketched): add `claude_code_invoke()` to `backend/agents/llm_client.py` behind a feature flag `paper_use_claude_code_route: bool = False` (default OFF, operator opt-in). Replaces direct API calls in `orchestrator.py` Stage-1 / Stage-2 / Stage-3 paths.
-- Tradeoffs:
-  * PRO: zero per-token cost during testing phase; bypasses the credit-exhaustion blocker.
-  * PRO: same Max rail already proven by harness Researcher + Q/A subagents.
-  * CON: subprocess cold-start ~200ms per ticker (13 tickers = ~2.6s overhead; acceptable for daily cycle).
-  * CON: Claude Code's prompt-shape is markdown-first; need explicit JSON schema in prompt + `--output-format json` to preserve structured-output contract.
-  * CON: undocumented as a production-pattern by Anthropic for unattended async use; rate-limit ceiling per Max plan applies.
-
-Operator action: confirm direction. If GO, cycle 3 spawns researcher → contract → generate the routing layer behind a feature flag → Q/A. If NO-GO, cycle 3 picks a code-only masterplan step (36.2 ATR-scaled stops looks like the cleanest P2).
+5. `backend/services/autonomous_loop.py::_run_claude_analysis()` -- entry-point rail-log + dual-rail dispatch:
+   - Added `logger.info("Analysis ticker=%s rail=%s", ticker, "claude_code" if use_claude_code_route else "anthropic_direct")` per Yin et al. 2026 implementation-risk framework.
+   - Gated `anthropic.Anthropic(api_key=...)` instantiation behind `not use_claude_code_route`.
+   - Wrapped both LLM calls (trader analysis at L1465-1473 + risk judge at L1502-1515) in `if use_claude_code_route` branches that route through `claude_code_invoke` instead of `client.messages.create`. Async-safe via `asyncio.to_thread`.
 
 ## Verification (verbatim)
 
 ```
-$ test -f handoff/current/live_check_27.6.md && echo "present"
-present
+$ pytest backend/tests/test_claude_code_client.py -v
+11 passed in 0.23s
 
-$ grep -c "BLOCKED" handoff/current/live_check_27.6.md
-4
+$ pytest backend/tests/ -k "llm_client or autonomous_loop or claude_code"
+33 passed, 597 deselected, 1 warning in 2.65s
 
-$ grep -c "cycle_id=c870fdab" handoff/current/live_check_27.6.md
-2
+$ python -c "import ast; ast.parse(open('backend/agents/claude_code_client.py').read())"
+(exit 0)
+$ python -c "import ast; ast.parse(open('backend/config/settings.py').read())"
+(exit 0)
+$ python -c "import ast; ast.parse(open('backend/services/autonomous_loop.py').read())"
+(exit 0)
+$ python -c "import ast; ast.parse(open('backend/agents/llm_client.py').read())"
+(exit 0)
 
-$ grep -c "analyses_persisted=0" handoff/current/live_check_27.6.md
-2
+$ grep -c "claude_code_invoke" backend/agents/claude_code_client.py
+6  (function def + multiple references inside the file)
 
-$ grep -E "27\.6.*\"status\"" .claude/masterplan.json | head -2
-        "id": "27.6",
-        "status": "pending"
-(masterplan status UNCHANGED -- no premature flip)
+$ grep -c "paper_use_claude_code_route" backend/agents/llm_client.py
+1
 
-$ git diff --stat HEAD -- backend/ frontend/
-(empty -- ZERO code changes)
+$ grep -c "paper_use_claude_code_route" backend/services/autonomous_loop.py
+1
 
-$ git diff HEAD -- frontend/package.json
-(empty -- ZERO new deps)
+$ grep -c "rail=" backend/services/autonomous_loop.py
+1
 ```
+
+## Operator opt-in
+
+Once cycle 3 lands, the operator flips the flag via:
+- Settings UI -- the new `paper_use_claude_code_route` toggle.
+- OR backend `PUT /api/settings/ {"paper_use_claude_code_route": true}` (FastAPI Pydantic validation handles the bool cast).
+- Confirm `claude --version` works in the backend's environment first (the launchd-supervised process needs `claude` on PATH; researcher confirms Max-subscription auth resolves from `~/.claude/`).
+
+Cycle 4 candidate: run a smoke cycle with the flag ON, observe rail=claude_code logs, confirm analyses persisted to BQ, then re-run step 27.6 verification.
+
+## Citations (>=2 AI-in-trading + >=2 academic per goal mandate)
+
+AI-in-trading (2):
+- TradingAgents Multi-Agents LLM Framework (`arXiv:2412.20138` Tauric Research v0.2.0 Feb 2026).
+- Portkey AI Gateway (10B+ req/mo, 99.9999% uptime, failover-routing canonical).
+
+Academic methods (3):
+- Bailey/Borwein/Lopez de Prado/Zhu "Probability of Backtest Overfitting" (SSRN 2326253).
+- Harvey/Liu/Zhu NBER w20592 (RFS 2016).
+- Yin et al. "Implementation Risk in Portfolio Backtesting" (`arXiv:2603.20319`) -- justifies per-row engine provenance logging.
+
+Brief: `handoff/current/research_brief_phase_claude_code_routing.md`.
 
 ## Memory-rule compliance
 
 - ZERO frontend changes.
-- ZERO backend changes.
 - ZERO new npm deps.
-- NO `npm run build`, NO `rm -rf .next/*`.
+- NO `npm install`, NO `npm run build`, NO `rm -rf .next/*`.
 - ZERO emojis introduced.
+- ASCII-only log messages in `claude_code_client.py`.
+- Feature flag defaults to `False` so existing Anthropic-direct path unaffected.
 
 ## Not in scope
 
-- Operator action items 1-3 (top up credits + flip model + trigger fresh cycle).
-- Claude Code routing layer implementation (cycle 3 candidate, operator decision pending).
-- Shared-credit anti-pattern fix (provider fallback / split keys; researcher Section 7 recommended follow-up step).
-
-## Cycle 2 surfaces to operator
-
-1. **Production blocker:** Anthropic credits exhausted; today's full-orchestrator path returned 13/13 failures. 0 analyses persisted.
-2. **Settings mismatch:** model is `claude-opus-4-7`, 27.6 requires `claude-sonnet-4-6`.
-3. **Cycle 3 fork:** confirm Claude Code routing path (Y/N). If Y, cycle 3 implements; if N, cycle 3 closes 36.2 (ATR-scaled stops) or similar code-only step.
-4. **Recurring file collision:** `handoff/current/contract.md` overwritten by autonomous-loop sprint contract three times today (19:56, 20:36, ...). Layer-3 harness + harness-optimizer share the path; needs deconfliction.
+- BQ schema column `paper_trades.signals.claude_code_route BOOL` (operator-gated BQ schema change per CLAUDE.md).
+- Cycle-4 smoke run with the flag ON (operator opt-in needed; that's the next cycle).
+- Shared-credit anti-pattern split-keys remediation (researcher Section 7 follow-up).
+- Removing the autonomous-loop sprint-contract overwrite of contract.md (collision deconfliction; follow-up backlog).

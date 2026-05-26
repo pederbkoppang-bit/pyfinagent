@@ -95,6 +95,24 @@ class Settings(BaseSettings):
     # --- Multi-Provider LLM Keys (v3.4) ---
     # phase-25.B10: SecretStr-typed so repr() masks values in logs / stack traces.
     anthropic_api_key: SecretStr = Field(SecretStr(""), description="Anthropic API key for direct Claude access (sk-ant-...)")
+    # phase-cycle-3 (2026-05-26): operator-approved testing-phase rail. When
+    # True, the autonomous-loop's Claude analysis calls route through the
+    # `claude` CLI subprocess (`claude --print --output-format json ...`)
+    # which uses the Max-subscription flat-fee auth at ~/.claude/ instead
+    # of api.anthropic.com direct billing. Bypasses credit-exhaustion
+    # failures during testing. Default False -- existing Anthropic-direct
+    # path preserved. Operator opt-in via /api/settings/ PUT.
+    # Citations (research_brief_phase_claude_code_routing.md):
+    # - TradingAgents arXiv:2412.20138 (LLM-rail abstraction in production
+    #   multi-agent trading systems).
+    # - Portkey AI Gateway (10B+ req/mo failover-routing canonical).
+    # - Bailey/Borwein/Lopez de Prado/Zhu PBO SSRN:2326253 (engine-change
+    #   logging required for A/B integrity).
+    # - Yin et al. arXiv:2603.20319 (per-row implementation-risk logging).
+    paper_use_claude_code_route: bool = Field(
+        False,
+        description="Route Claude analysis calls through the `claude` CLI subprocess (Max-subscription rail) instead of api.anthropic.com direct billing. Testing-phase only; flip to False before flipping real_capital_enabled to True.",
+    )
     openai_api_key: SecretStr = Field(SecretStr(""), description="OpenAI API key for direct GPT/o-series access (sk-...)")
     github_token: SecretStr = Field(SecretStr(""), description="GitHub PAT for GitHub Models (Copilot Pro). Routes GITHUB_MODELS_CATALOG models via models.inference.ai.azure.com")
     gemini_api_key: SecretStr = Field(SecretStr(""), description="Google AI Studio API key for direct Gemini access (genai.Client(api_key=...)). When set, gemini-* models route through the direct API instead of Vertex AI ADC. Leave empty to keep using Vertex AI / GCP service-account credentials.")
