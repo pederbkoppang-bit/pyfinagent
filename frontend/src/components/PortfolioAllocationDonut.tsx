@@ -1,16 +1,25 @@
 "use client";
 
-// phase-44.2 cycle 68 -- portfolio allocation donut.
+// phase-44.2 cycle 70 -- inline-SVG portfolio allocation donut.
 //
-// Shows the operator the share of NAV held in each sector + the cash
-// pocket. Uses Tremor DonutChart (already a dep). Center label shows
-// total NAV; the legend below shows sector + percent. Per researcher
-// brief Section A.3 -- DonutChart is the right primitive (already
-// rendered the per-sector amber/red bars on the SectorBarList; this
-// surfaces the SAME data in a more glance-able shape).
+// Replaces the cycle-69 Tremor DonutChart. Tremor's chart-color
+// resolution did not light up the SVG <path> fills even after the
+// node_modules content-path fix (operator-flagged 2026-05-26: donut
+// rendered uniform dark, tooltip escaped the card with white-on-dark
+// styling). This rewrite follows the cycle-63 SectorBarList Option B
+// precedent: take ownership of the SVG so we control every pixel.
+//
+// Math: each <circle> has r = 100/(2*PI) so circumference = 100, making
+// stroke-dasharray = "percent 100-percent" + stroke-dashoffset = -running
+// total a direct, easy-to-reason-about mapping (see Medium / Mark Caron
+// "Scratch-made SVG Donut & Pie Charts" + research_brief_phase_44_2_donut.md).
+//
+// Accessibility: outer SVG carries role="img" + aria-label summarizing
+// the chart for screen readers; the legend list below is the canonical
+// SR data path. Tooltip uses role="tooltip" + ESC dismissibility per
+// WCAG SC 1.4.13.
 
-import { DonutChart } from "@tremor/react";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState, type KeyboardEvent } from "react";
 
 export interface AllocationSlice {
   name: string;       // sector or "Cash"
@@ -24,15 +33,9 @@ export interface PortfolioAllocationDonutProps {
   className?: string;
 }
 
-// Stable per-sector color palette. Cash is the neutral slate. Tremor's
-// `colors` prop expects entries in the same order as the data slices.
-//
-// IMPORTANT (cycle 68 Q/A finding): the legend dot's bg class is a
-// LITERAL utility string per token -- Tailwind's JIT scanner does NOT
-// pick up dynamically-built `bg-${color}-500` concatenations, which
-// would silently break the rendered dot color for any color the
-// scanner hadn't seen elsewhere. The DOT_BG_CLASS map below gives JIT
-// a static reference for every color we ever emit.
+// Per-sector color tokens. Cash is neutral slate. Maintained in parallel
+// with DOT_BG_CLASS (legend dots) + SLICE_STROKE_CLASS (donut slices) so
+// Tailwind JIT picks up every utility literal.
 const SECTOR_COLOR_MAP: Record<string, string> = {
   Technology: "blue",
   Industrials: "amber",
@@ -49,6 +52,10 @@ const SECTOR_COLOR_MAP: Record<string, string> = {
   Cash: "slate",
 };
 
+// JIT-safe lookup maps -- one for the legend dot (bg-) and one for the
+// SVG slice (stroke-). Tailwind's content scanner picks these up as
+// literal class strings; template-string concatenation would NOT work
+// (cycle-68 lesson, codified in .claude/rules/frontend.md cycle-69 section).
 const DOT_BG_CLASS: Record<string, string> = {
   blue: "bg-blue-500",
   amber: "bg-amber-500",
@@ -68,12 +75,42 @@ const DOT_BG_CLASS: Record<string, string> = {
   purple: "bg-purple-500",
 };
 
+const SLICE_STROKE_CLASS: Record<string, string> = {
+  blue: "stroke-blue-500",
+  amber: "stroke-amber-500",
+  indigo: "stroke-indigo-500",
+  emerald: "stroke-emerald-500",
+  fuchsia: "stroke-fuchsia-500",
+  lime: "stroke-lime-500",
+  orange: "stroke-orange-500",
+  yellow: "stroke-yellow-500",
+  cyan: "stroke-cyan-500",
+  violet: "stroke-violet-500",
+  rose: "stroke-rose-500",
+  slate: "stroke-slate-500",
+  pink: "stroke-pink-500",
+  teal: "stroke-teal-500",
+  sky: "stroke-sky-500",
+  purple: "stroke-purple-500",
+};
+
 function colorFor(name: string, fallbackIdx: number): string {
   if (SECTOR_COLOR_MAP[name]) return SECTOR_COLOR_MAP[name];
-  // Deterministic fallback for unmapped sectors
   const palette = ["pink", "teal", "sky", "purple"];
   return palette[fallbackIdx % palette.length];
 }
+
+function fmtDollars(n: number): string {
+  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+// Constants: r = 100/(2*PI) so the circle's circumference is exactly 100,
+// making stroke-dasharray = "<pct> <100-pct>" a direct mapping. cx/cy
+// chosen so the viewBox is 42x42 (radius ~15.92, plus stroke padding).
+const RADIUS = 100 / (2 * Math.PI);
+const CX = 21;
+const CY = 21;
+const STROKE_WIDTH = 4;
 
 export function PortfolioAllocationDonut({
   slices,
@@ -81,6 +118,8 @@ export function PortfolioAllocationDonut({
   title = "Allocation",
   className,
 }: PortfolioAllocationDonutProps) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
   const { data, colors, totalValue } = useMemo(() => {
     const filtered = slices.filter((s) => s.value > 0);
     const sorted = [...filtered].sort((a, b) => b.value - a.value);
@@ -91,8 +130,29 @@ export function PortfolioAllocationDonut({
 
   const navForCenter = totalNav ?? totalValue;
 
-  // cycle-69: h-full + flex-col so the card stretches to match siblings
-  // when items-stretch is used.
+  // Pre-compute per-slice percentage + accumulated offset for stroke
+  // positioning.
+  const arcs = useMemo(() => {
+    let acc = 0;
+    return data.map((s, i) => {
+      const pct = totalValue > 0 ? (s.value / totalValue) * 100 : 0;
+      const offset = -acc; // negative because SVG strokes go counter-clockwise by default
+      acc += pct;
+      return {
+        ...s,
+        pct,
+        offset,
+        color: colors[i],
+      };
+    });
+  }, [data, colors, totalValue]);
+
+  const handleEsc = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape" && hoverIdx !== null) {
+      setHoverIdx(null);
+    }
+  }, [hoverIdx]);
+
   const containerClass = `h-full flex flex-col rounded-xl border border-navy-700 bg-navy-800/70 p-4 ${className ?? ""}`;
 
   if (data.length === 0 || totalValue <= 0) {
@@ -104,49 +164,118 @@ export function PortfolioAllocationDonut({
     );
   }
 
+  // Build the screen-reader summary string for the outer SVG.
+  const ariaSummary = arcs
+    .map((a) => `${a.name} ${a.pct.toFixed(1)} percent`)
+    .join(", ");
+
+  const hovered = hoverIdx !== null ? arcs[hoverIdx] : null;
+
   return (
-    <div className={containerClass} role="region" aria-label={title}>
+    <div
+      className={containerClass}
+      role="region"
+      aria-label={title}
+      onKeyDown={handleEsc}
+    >
       <h3 className="text-sm font-medium text-slate-300 mb-1">{title}</h3>
       <p className="text-[11px] text-slate-400 mb-3">
         NAV split by sector + cash (% of total).
       </p>
-      <div className="flex items-center gap-4">
-        <DonutChart
-          data={data}
-          category="value"
-          index="name"
-          colors={colors}
-          valueFormatter={(n: number) =>
-            navForCenter > 0
-              ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })} (${(
-                  (n / navForCenter) *
-                  100
-                ).toFixed(1)}%)`
-              : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-          }
-          className="h-32 w-32"
-          showAnimation={false}
-          variant="donut"
-          label={
-            navForCenter > 0
-              ? `$${navForCenter.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-              : ""
-          }
-        />
+      <div className="flex items-center gap-4 flex-1">
+        <div className="relative flex-shrink-0">
+          <svg
+            viewBox="0 0 42 42"
+            className="h-32 w-32"
+            role="img"
+            aria-label={`Portfolio allocation: ${ariaSummary}`}
+          >
+            {/* Background track so any gap reads as the card bg, not white */}
+            <circle
+              cx={CX}
+              cy={CY}
+              r={RADIUS}
+              fill="transparent"
+              className="stroke-navy-900"
+              strokeWidth={STROKE_WIDTH}
+            />
+            {arcs.map((a, i) => {
+              const stroke = SLICE_STROKE_CLASS[a.color] ?? "stroke-slate-500";
+              const isHover = hoverIdx === i;
+              const isOtherHover = hoverIdx !== null && hoverIdx !== i;
+              return (
+                <circle
+                  key={`${a.name}-${i}`}
+                  cx={CX}
+                  cy={CY}
+                  r={RADIUS}
+                  fill="transparent"
+                  strokeWidth={isHover ? STROKE_WIDTH + 1.2 : STROKE_WIDTH}
+                  // stroke-dasharray = "<this-slice-pct> <rest>" makes the
+                  // dash show exactly this slice's segment.
+                  strokeDasharray={`${a.pct.toFixed(4)} ${(100 - a.pct).toFixed(4)}`}
+                  strokeDashoffset={a.offset.toFixed(4)}
+                  // Rotate so first slice starts at 12 o'clock (rather than
+                  // 3 o'clock which is the SVG default).
+                  transform={`rotate(-90 ${CX} ${CY})`}
+                  className={`${stroke} transition-opacity duration-150 ${
+                    isOtherHover ? "opacity-40" : "opacity-100"
+                  } cursor-pointer`}
+                  onMouseEnter={() => setHoverIdx(i)}
+                  onMouseLeave={() => setHoverIdx(null)}
+                  onFocus={() => setHoverIdx(i)}
+                  onBlur={() => setHoverIdx(null)}
+                  tabIndex={0}
+                  role="graphics-symbol"
+                  aria-label={`${a.name} ${a.pct.toFixed(1)} percent`}
+                >
+                  <title>{`${a.name}: ${fmtDollars(a.value)} (${a.pct.toFixed(1)}%)`}</title>
+                </circle>
+              );
+            })}
+            {/* Center label */}
+            <text
+              x={CX}
+              y={CY - 0.5}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="fill-slate-100"
+              style={{ fontSize: "4.4px", fontWeight: 600 }}
+            >
+              {hovered
+                ? `${hovered.pct.toFixed(0)}%`
+                : fmtDollars(navForCenter)}
+            </text>
+            <text
+              x={CX}
+              y={CY + 4}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="fill-slate-400"
+              style={{ fontSize: "2.8px" }}
+            >
+              {hovered ? hovered.name : "NAV"}
+            </text>
+          </svg>
+        </div>
         <ul className="flex-1 min-w-0 space-y-1 text-xs">
           {data.map((s, i) => {
             const pct = totalValue > 0 ? (s.value / totalValue) * 100 : 0;
-            // Legend dot color matches the DonutChart slice color. Static
-            // lookup (not template-string interpolation) so Tailwind JIT
-            // picks up every utility in DOT_BG_CLASS.
             const dotBg = DOT_BG_CLASS[colors[i]] ?? "bg-slate-500";
-            const dotClass = `inline-block w-2 h-2 rounded-full ${dotBg} shrink-0`;
+            const isHover = hoverIdx === i;
             return (
               <li
                 key={s.name}
-                className="flex items-center gap-2 text-slate-300"
+                onMouseEnter={() => setHoverIdx(i)}
+                onMouseLeave={() => setHoverIdx(null)}
+                className={`flex items-center gap-2 text-slate-300 rounded px-1 ${
+                  isHover ? "bg-navy-700/40" : ""
+                }`}
               >
-                <span className={dotClass} aria-hidden="true" />
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${dotBg} shrink-0`}
+                  aria-hidden="true"
+                />
                 <span className="flex-1 truncate">{s.name}</span>
                 <span className="font-mono tabular-nums text-slate-100">
                   {pct.toFixed(1)}%
@@ -156,6 +285,27 @@ export function PortfolioAllocationDonut({
           })}
         </ul>
       </div>
+      {/* Tooltip lives under the chart -- inline so it stays inside the
+          card border (cycle-69 operator-flagged: Tremor's portaled tooltip
+          escaped the card with white-on-dark styling). WCAG SC 1.4.13:
+          hoverable via mouseenter; dismissible via Escape (handleEsc on
+          the container); persistent until mouseleave. */}
+      {hovered && (
+        <div
+          role="tooltip"
+          className="mt-3 rounded-md border border-navy-700 bg-navy-900 px-3 py-2 text-xs"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-medium text-slate-200">{hovered.name}</span>
+            <span className="font-mono tabular-nums text-slate-100">
+              {fmtDollars(hovered.value)}
+            </span>
+          </div>
+          <div className="mt-1 text-[11px] text-slate-400">
+            {hovered.pct.toFixed(1)}% of {fmtDollars(totalValue)} total
+          </div>
+        </div>
+      )}
     </div>
   );
 }
