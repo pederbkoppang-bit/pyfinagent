@@ -4,53 +4,59 @@
 // /paper-trading monolith. Pure presentational; consume props.
 
 import { clsx } from "clsx";
+import NumberFlow from "@number-flow/react";
 import type {
   PaperPerformance,
   PaperPortfolio,
   PaperPosition,
   PaperTradingStatus,
 } from "@/lib/types";
-// phase-74 (2026-05-26): Google-Finance-style flash-on-change wiring.
-// Dollar + PnlBadge are the shared primitives used by both the positions
-// table cells (Market Value, P&L) and the SummaryHero MetricCards (NAV,
-// Cash, Total P&L, vs SPY) -- adding flash here covers every consumer
-// in one place. aria-live="off" per MDN stock-ticker default.
-import { useFlashOnChange, flashClassName } from "@/lib/useFlashOnChange";
+// phase-75 (2026-05-26): Google-Finance digit-flip animation via
+// @number-flow/react@0.6.0 (researcher ad12953b2b579e884). Cycle-74's
+// background-tint flash was the Bloomberg pattern; the operator wanted
+// Google's per-digit slide (382.18 -> 382.45 slides only "18"). NumberFlow
+// owns its prev-value tracking + animation timing + prefers-reduced-motion
+// fallback (instant snap on `respectMotionPreference: true` default), so
+// we delete the cycle-74 hook entirely. aria-live="off" stays per MDN
+// stock-ticker default. Dollar + PnlBadge are shared by positions table,
+// trades table, and SummaryHero MetricCards -- one swap covers all
+// consumers. `willChange` per researcher Section 5 perf guidance.
 
 export function PnlBadge({ value }: { value: number | null | undefined }) {
-  const flash = useFlashOnChange(value);
   if (value == null) return <span className="text-slate-500">—</span>;
   const isPositive = value >= 0;
   const colorClass = isPositive ? "text-emerald-400" : "text-rose-400";
-  const animClass = flashClassName(flash);
   return (
-    <span
+    <NumberFlow
+      value={value / 100}
+      format={{
+        style: "percent",
+        signDisplay: "always",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }}
+      willChange
       aria-live="off"
-      className={
-        animClass ? `${colorClass} ${animClass} rounded px-1` : colorClass
-      }
-    >
-      {isPositive ? "+" : ""}
-      {value.toFixed(2)}%
-    </span>
+      className={colorClass}
+    />
   );
 }
 
 export function Dollar({ value }: { value: number | null | undefined }) {
-  const flash = useFlashOnChange(value);
   if (value == null) return <span className="text-slate-500">—</span>;
-  const animClass = flashClassName(flash);
   return (
-    <span
+    <NumberFlow
+      value={value}
+      format={{
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }}
+      willChange
       aria-live="off"
-      className={
-        animClass
-          ? `text-slate-100 ${animClass} rounded px-1`
-          : "text-slate-100"
-      }
-    >
-      ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-    </span>
+      className="text-slate-100"
+    />
   );
 }
 

@@ -17,10 +17,12 @@ import { listReports, getPaperTradingStatus, getPaperPortfolio, getPaperTrades, 
 // (operator-flagged 2026-05-26: Home showed $23,732.69 while Paper Trading
 // showed $23,750.37 simultaneously). Now both consume from the root provider.
 import { useLivePortfolio } from "@/lib/live-portfolio-context";
-// phase-74 (2026-05-26): Google-Finance flash-on-change for KPI tiles
-// that show live-priced numbers (NAV, P&L today, vs SPY). KpiTile
-// receives numericValue; the hook compares ticks + emits up/down class.
-import { useFlashOnChange, flashClassName } from "@/lib/useFlashOnChange";
+// phase-75 (2026-05-26): Google-Finance digit-flip via NumberFlow on KPI
+// tiles that show live-priced numbers (NAV, P&L today, vs SPY). Replaces
+// the cycle-74 background-flash hook (deleted) with the per-digit slide
+// pattern operator pointed at. NumberFlow owns its prev-value tracking
+// and prefers-reduced-motion fallback internally.
+import NumberFlow, { type Format } from "@number-flow/react";
 import {
   dailyDelta,
   sharpe as kpiSharpe,
@@ -111,7 +113,8 @@ function MiniSpark({
 function KpiTile({
   label,
   value,
-  numericValue,
+  fallback,
+  format,
   subText,
   valueClass,
   subTextClass,
@@ -122,11 +125,18 @@ function KpiTile({
   liveAgeSec,
 }: {
   label: string;
-  value: string;
-  // phase-74 (2026-05-26): numericValue feeds useFlashOnChange. value
-  // stays the pre-formatted display string; numericValue lets the hook
-  // compare ticks without needing to parse the display string back.
-  numericValue?: number | null;
+  // phase-75 (2026-05-26): unified numeric value. NumberFlow owns the
+  // formatting via the `format` prop (Intl.NumberFormatOptions). For
+  // non-live tiles (Sharpe, Max DD, Positions count) the caller can pass
+  // value as a number with the appropriate format, OR pass null + a
+  // `fallback` string for the display placeholder ("—" / pre-formatted).
+  value: number | null;
+  fallback?: string;
+  // Omit format for integer / unit-less displays (e.g. Positions count) --
+  // NumberFlow will render plain decimal formatting. Use NumberFlow's
+  // exported `Format` type (subset of Intl.NumberFormatOptions; excludes
+  // "scientific" / "engineering" notation per the lib's design).
+  format?: Format;
   subText?: string | null;
   valueClass?: string;
   subTextClass?: string;
@@ -136,13 +146,11 @@ function KpiTile({
   liveBand?: FreshnessBand;
   liveAgeSec?: number | null;
 }) {
-  const flash = useFlashOnChange(numericValue);
-  const flashClass = flashClassName(flash);
   const baseValueClass = valueClass ?? "text-slate-100";
   return (
     <div
       role="group"
-      aria-label={ariaLabel ?? `${label} ${value}${subText ? ` (${subText})` : ""}`}
+      aria-label={ariaLabel ?? `${label}${subText ? ` (${subText})` : ""}`}
       className="rounded-xl border border-navy-700 bg-navy-800/60 p-5"
     >
       <div className="flex items-center justify-between">
@@ -153,13 +161,13 @@ function KpiTile({
       </div>
       <p
         aria-live="off"
-        className={
-          flashClass
-            ? `mt-1 text-2xl font-bold ${baseValueClass} ${flashClass} rounded px-1`
-            : `mt-1 text-2xl font-bold ${baseValueClass}`
-        }
+        className={`mt-1 text-2xl font-bold ${baseValueClass}`}
       >
-        {value}
+        {value == null ? (
+          fallback ?? "—"
+        ) : (
+          <NumberFlow value={value} format={format} willChange />
+        )}
       </p>
       {subText && (
         <p className={`mt-0.5 text-xs ${subTextClass ?? "text-slate-500"}`}>{subText}</p>
@@ -365,16 +373,16 @@ export default function HomePage() {
           >
             <KpiTile
               label="NAV"
-              value={loaded ? fmtUsd(navValue) : "—"}
-              numericValue={navValue ?? null}
+              value={loaded ? (navValue ?? null) : null}
+              format={{ style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }}
               sparkData={navNums.length >= 2 ? navNums : undefined}
               sparkPositive={navNums.length >= 2 ? navNums[navNums.length - 1] >= navNums[0] : undefined}
               liveBand={loaded ? (livePrices && Object.keys(livePrices).length > 0 ? "green" : "unknown") : "unknown"}
             />
             <KpiTile
               label="P&L (today)"
-              value={today != null ? `${today.dollars >= 0 ? "+" : ""}${fmtUsd(today.dollars).replace("$", "$")}` : "—"}
-              numericValue={today?.dollars ?? null}
+              value={today?.dollars ?? null}
+              format={{ style: "currency", currency: "USD", signDisplay: "always", minimumFractionDigits: 2, maximumFractionDigits: 2 }}
               subText={today != null ? `${today.pct >= 0 ? "+" : ""}${today.pct.toFixed(2)}%` : null}
               valueClass={today != null && today.dollars >= 0 ? "text-emerald-400" : today != null ? "text-rose-400" : undefined}
               subTextClass={today != null && today.pct >= 0 ? "text-emerald-400/70" : today != null ? "text-rose-400/70" : undefined}
@@ -383,8 +391,8 @@ export default function HomePage() {
             />
             <KpiTile
               label="vs SPY"
-              value={loaded ? fmtPct(alpha) : "—"}
-              numericValue={alpha ?? null}
+              value={loaded ? (alpha != null ? alpha / 100 : null) : null}
+              format={{ style: "percent", signDisplay: "always", minimumFractionDigits: 2, maximumFractionDigits: 2 }}
               subText={benchmark != null ? `SPY ${fmtPct(benchmark)}` : null}
               valueClass={alpha != null && alpha >= 0 ? "text-emerald-400" : alpha != null ? "text-rose-400" : undefined}
               sparkData={alphaSeries.length >= 2 ? alphaSeries : undefined}
@@ -392,14 +400,16 @@ export default function HomePage() {
             />
             <KpiTile
               label="Sharpe (90d)"
-              value={sharpe90 != null ? sharpe90.toFixed(2) : "—"}
+              value={sharpe90 ?? null}
+              format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
               subText={sortino90 != null ? `Sortino ${sortino90.toFixed(2)}` : null}
               sparkData={navNums.length >= 2 ? navNums : undefined}
               sparkPositive={sharpe90 != null ? sharpe90 >= 0 : undefined}
             />
             <KpiTile
               label="Max DD (30d)"
-              value={dd30 != null ? `${dd30.toFixed(2)}%` : "—"}
+              value={dd30 != null ? dd30 / 100 : null}
+              format={{ style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 }}
               subText={`bounded ${trailingDdLimit}`}
               valueClass={dd30 != null ? "text-rose-400" : undefined}
               sparkData={ddSeries.length >= 2 ? ddSeries : undefined}
@@ -407,7 +417,8 @@ export default function HomePage() {
             />
             <KpiTile
               label="Positions"
-              value={loaded ? String(posBreakdown.total) : "—"}
+              value={loaded ? posBreakdown.total : null}
+              format={{ maximumFractionDigits: 0 }}
               subText={loaded && posBreakdown.total > 0 ? `${posBreakdown.long} long · ${posBreakdown.short} short` : null}
               liveBand={loaded ? "green" : "unknown"}
             />

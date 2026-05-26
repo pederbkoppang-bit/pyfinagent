@@ -24025,3 +24025,79 @@ Operator screenshot evidence: 4 different NAV values rendered simultaneously acr
 **No masterplan flip** -- UX polish cycle following cycle 73; not a step closure.
 
 **Total cycle time:** ~60 min (researcher 6 min moderate + contract 5 min + generate 25 min + tests 5 min + Q/A 3 min + log 2 min).
+
+---
+
+## Cycle 1 -- 2026-05-26 18:42 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 75 -- 2026-05-26 -- Google-Finance digit-flip via NumberFlow -- result=PASS
+
+**Trigger:** Operator pointed at the Google Finance Alphabet stock page and clarified that cycle 74 shipped the WRONG animation pattern. Cycle 74 used a background-tint flash (Bloomberg / Robinhood Legend pattern); operator wanted Google's per-digit slide (382.18 -> 382.45 animates only the changing "18" digits, "382" stays still). Operator explicitly chose Path B (`react-number-flow`) over CSS-only odometer or Framer Motion.
+
+**Researcher:** `ad12953b2b579e884`, tier=moderate, 6 sources read in full, 10 snippet-only, 16 URLs, recency scan performed, internal_files_inspected=8, gate_passed=true. Brief at `handoff/current/research_brief_phase_number_flow.md`. Confirmed `@number-flow/react@0.6.0` MIT, ~12-15kB gzipped, React 19 / Next.js 15 compatible (all upstream blockers closed), built-in `respectMotionPreference: true` reduced-motion handling. Researcher catch: `trades-columns.tsx` uses `<Dollar>` -- inherits NumberFlow automatically (operator's original list missed it).
+
+**Contract:** N* delta B-primary = replace cycle-74's wrong pattern with the right one. 1 dep added + 1 file deleted + 5 files modified. ZERO backend / ZERO test scaffolding. ONE new dep (justified by researcher + operator approval).
+
+**Generate:**
+- `npm install --legacy-peer-deps @number-flow/react@0.6.0` (Tremor v3 peerDep lag on React 19; documented workaround). 3 packages added.
+- `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend` invoked immediately after install per memory rule `feedback_npm_install_requires_launchctl_kickstart.md`.
+- DELETED `frontend/src/lib/useFlashOnChange.ts` (cycle-74 hook entirely; NumberFlow owns its prev-value tracking + animation timing + reduced-motion fallback).
+- REMOVED `frontend/tailwind.config.js` `flash-up` / `flash-down` keyframes + animation entries.
+- REMOVED `frontend/src/app/globals.css` `@media (prefers-reduced-motion: reduce)` block for `.animate-flash-*` classes.
+- REFACTORED `frontend/src/components/paper-trading/cockpit-helpers.tsx`:
+  - `Dollar` -> `<NumberFlow value={v} format={{style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2}} willChange aria-live="off" className="text-slate-100"/>`.
+  - `PnlBadge` -> `<NumberFlow value={v/100} format={{style:'percent', signDisplay:'always', minimumFractionDigits:2, maximumFractionDigits:2}} willChange aria-live="off" className={isPositive?"text-emerald-400":"text-rose-400"}/>`. Critical: Intl.NumberFormat percent style expects raw decimal -- divide by 100. `signDisplay:'always'` replaces manual cycle-74 "+" prefix.
+- REFACTORED `frontend/src/components/paper-trading/positions-columns.tsx`: `CurrentPriceCell` renders NumberFlow with Dollar-style format.
+- REFACTORED `frontend/src/app/page.tsx`:
+  - `KpiTile` prop signature unified: `value: number | null` + optional `format?: Format` + optional `fallback?: string`. Replaces cycle-74's two-prop `value: string` + `numericValue: number | null`.
+  - Imported `Format` type from `@number-flow/react` (NumberFlow's Format is a strict subset of `Intl.NumberFormatOptions` -- using the raw Intl type triggered TS2322 on the "scientific"/"engineering" notation discriminator; caught at typecheck).
+  - All 6 KpiTile call sites updated: NAV / P&L today / vs SPY / Sharpe / Max DD / Positions -- every tile now animates uniformly (previously only the 3 live-priced tiles had cycle-74 flash).
+- INHERITS automatically (no edit): `frontend/src/components/paper-trading/trades-columns.tsx` (`<Dollar>` consumer at lines 9, 86) -- now flips to digit-slide via the Dollar refactor.
+
+**Tests:**
+- `npx tsc --noEmit` exit 0.
+- `npx vitest run` -- 178/178 passed (23 files).
+- `python tests/verify_phase_23_1_17.py` -- ok useLiveNav SSOT invariant intact.
+- Dead-code shrapnel grep: `grep -rn "useFlashOnChange|flashClassName|FLASH_CLASS|animate-flash-" frontend/src/` returns EMPTY.
+- Cycle-74 leftovers grep: `grep -n "flash" frontend/tailwind.config.js frontend/src/app/globals.css` returns EMPTY.
+- `test -f frontend/src/lib/useFlashOnChange.ts` returns 1 (deleted as expected).
+- `git diff HEAD -- frontend/package.json` shows EXACTLY ONE `+ "@number-flow/react": "^0.6.0"` line.
+- `git diff --stat HEAD -- backend/` empty (ZERO backend changes).
+
+**NumberFlow integration notes:**
+- Percent style: pass raw decimal (1.42% -> 0.0142). PnlBadge + vs SPY + Max DD all divide by 100.
+- `signDisplay: "always"` replaces manual "+" prefix from cycle 74.
+- `willChange` on every NumberFlow consumer per researcher Section 5 perf guidance (~25 simultaneous instances).
+- `Format` type import avoids the TS2322 error from `Intl.NumberFormatOptions`.
+- Tremor v3 peerDep lag (`react@^18.0.0`) bypassed with `--legacy-peer-deps`; React 19 functionally compatible per Tremor docs.
+
+**A11y:**
+- WCAG SC 2.3.3 still N/A (passive ticks).
+- SC 2.2.2 still satisfied (NumberFlow's default animation duration well under 5s).
+- `aria-live="off"` preserved on every flashing span (MDN stock-ticker default).
+- Reduced-motion: NumberFlow's `respectMotionPreference: true` default handles it -- on `prefers-reduced-motion: reduce`, the lib snaps to the new value instantly (no spin). Cycle-74 manual JS + CSS overrides fully removed.
+
+**Q/A `a103c438b4e11e82a` PASS:** 5/5 harness-compliance + 8/8 deterministic + 12/12 LLM-judgment (A-L). Code-review heuristics across 5 dimensions return no findings. Monotone mtime ordering verified: research_brief -> contract -> source files -> experiment_results. No verdict-shopping (first cycle-75 spawn). Critique written verbatim to `handoff/current/evaluator_critique.md`.
+
+**N* delta R+B primary:** Operator now sees Google's per-digit slide on every live-priced cockpit number. Surfaces: positions table (Current/Market Value/P&L), Paper Trading SummaryHero (NAV/Cash/Total P&L/vs SPY), trades table (Total Value, researcher catch), Home KpiTiles (NAV/P&L today/vs SPY/Sharpe/Max DD/Positions). Cycle-74 wrong-pattern code fully removed (no dead shrapnel). ZERO emojis, ZERO `npm run build`, ZERO `.next/*` mutation; mandatory `launchctl kickstart` invoked.
+
+**Visual verification:** STILL PENDING operator browser-probe per frontend.md rule 5. Unit tests cannot see the digit slide; the PASS covers code shape only.
+
+**No masterplan flip** -- UX correction following cycle 74; not a step closure.
+
+**Total cycle time:** ~75 min (researcher 8 min moderate + contract 8 min + generate 35 min including TS2322 fix + tests 5 min + Q/A 4 min + log 5 min).

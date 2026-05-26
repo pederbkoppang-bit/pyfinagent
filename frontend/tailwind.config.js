@@ -42,25 +42,6 @@ module.exports = {
         card: "0 1px 3px 0 rgba(9, 9, 11, 0.4), 0 1px 2px -1px rgba(9, 9, 11, 0.4)",
         "card-hover": "0 4px 12px 0 rgba(9, 9, 11, 0.5), 0 2px 4px -2px rgba(9, 9, 11, 0.4)",
       },
-      // phase-74 (2026-05-26) Google-Finance-style price-tick flash.
-      // 500ms total (200ms hold + 100ms fade approx, ease-in-out) per
-      // researcher a3f10c3c35c087f50 Section 1; rgba(16,185,129,0.15) =
-      // emerald-500/15, rgba(244,63,94,0.15) = rose-500/15. Animation
-      // override for prefers-reduced-motion lives in globals.css.
-      keyframes: {
-        "flash-up": {
-          "0%": { backgroundColor: "rgba(16, 185, 129, 0.15)" },
-          "100%": { backgroundColor: "transparent" },
-        },
-        "flash-down": {
-          "0%": { backgroundColor: "rgba(244, 63, 94, 0.15)" },
-          "100%": { backgroundColor: "transparent" },
-        },
-      },
-      animation: {
-        "flash-up": "flash-up 500ms ease-in-out",
-        "flash-down": "flash-down 500ms ease-in-out",
-      },
     },
   },
   plugins: [],

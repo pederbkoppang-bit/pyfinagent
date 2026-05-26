@@ -8,19 +8,18 @@
 // criterion 7 calls for.
 
 import type { ColumnDef } from "@tanstack/react-table";
+import NumberFlow from "@number-flow/react";
 import type { PaperPosition } from "@/lib/types";
 import { LiveBadge } from "@/components/LiveBadge";
 import type { LivePriceEntry, TickerMeta } from "@/lib/paper-trading-context";
 import { bandFromAgeSec } from "@/lib/paper-trading-utils";
 import { Dollar, PnlBadge } from "./cockpit-helpers";
-// phase-74 (2026-05-26) -- Google-Finance flash on the Current price
-// cell. Market Value + P&L cells inherit flash via Dollar + PnlBadge.
-import { useFlashOnChange, flashClassName } from "@/lib/useFlashOnChange";
 
-// phase-74: per-row Current cell pulled into its own component so the
-// useFlashOnChange hook can fire per row (React rules-of-hooks require
-// hooks at the top level of a component function, not inside a column
-// cell render callback).
+// phase-75 (2026-05-26): Google-Finance digit-flip via NumberFlow. Per-row
+// Current cell stays its own component so React's render path is clean
+// (NumberFlow's internal hooks live inside the component, no rules-of-hooks
+// boundary concern). Market Value + P&L cells inherit NumberFlow via
+// Dollar + PnlBadge.
 function CurrentPriceCell({
   shown,
   band,
@@ -30,8 +29,6 @@ function CurrentPriceCell({
   band: ReturnType<typeof bandFromAgeSec>;
   ageSec: number | null;
 }) {
-  const flash = useFlashOnChange(shown);
-  const animClass = flashClassName(flash);
   return (
     <span
       aria-live="off"
@@ -41,15 +38,17 @@ function CurrentPriceCell({
       {shown == null ? (
         <span className="text-slate-500">—</span>
       ) : (
-        <span
-          className={
-            animClass
-              ? `tabular-nums ${animClass} rounded px-1`
-              : "tabular-nums"
-          }
-        >
-          ${shown.toFixed(2)}
-        </span>
+        <NumberFlow
+          value={shown}
+          format={{
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }}
+          willChange
+          className="tabular-nums"
+        />
       )}
     </span>
   );

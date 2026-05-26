@@ -1,64 +1,87 @@
-# Contract -- Cycle 74: Google-Finance price-tick flash animation
+# Contract -- Cycle 75: Google-Finance digit-flip animation (replace cycle-74 background flash)
 
-**Cycle:** 74 (2026-05-26)
-**Class:** UX polish (no SSOT or data-flow change)
-**Masterplan flip:** NONE (UX-only, follows cycle-73 chart-side SSOT)
+**Cycle:** 75 (2026-05-26)
+**Class:** UX correction (cycle-74 shipped the wrong pattern -- Bloomberg background tint instead of Google's per-digit slide). No SSOT or data-flow change. No masterplan flip.
 
 ## Research gate
 
-- Researcher `a3f10c3c35c087f50`, tier=moderate, 11 sources read in full, 28 URLs, recency scan performed, internal_files_inspected=8, **gate_passed=true**.
-- Brief: `handoff/current/research_brief_phase_flash_animation.md`.
-- Canonical reference: lab49/react-value-flash (production financial-app flash lib): 200ms hold + 100ms fade = ~500ms total, ease-in-out, `#00d865` up / `#d43215` down. We adopt **500ms total** with `bg-emerald-500/15` up / `bg-rose-500/15` down (low-opacity tint preserves slate-text contrast).
-- A11y: WCAG SC 2.3.3 does NOT apply (passive price ticks are not user-initiated interaction); SC 2.2.2 governs and a 500ms flash is compliant (well under the 5s ceiling). `prefers-reduced-motion: reduce` honored via global `@media` override that sets `animation: none`. ARIA: `aria-live="off"` (MDN's explicit stock-ticker default; do NOT announce every tick).
+- Researcher `ad12953b2b579e884`, tier=moderate, 6 sources read in full, 10 snippet-only, 16 URLs, recency scan performed, internal_files_inspected=8, **gate_passed=true**.
+- Brief: `handoff/current/research_brief_phase_number_flow.md`.
+- Canonical reference: `@number-flow/react@0.6.0` by Maxwell Barvian (`barvian`), MIT, ~12-15kB gzipped, React 19 + Next.js 15 compatible (all upstream blockers closed: issues #22, #95, #107). Reduced-motion supported by default via `respectMotionPreference: true` prop (drops the need for the cycle-74 globals.css override + JS short-circuit).
+- **Operator-list correction:** researcher's internal grep flagged `frontend/src/components/paper-trading/trades-columns.tsx:9,86` which uses `<Dollar value={total_value}/>` -- this consumer inherits NumberFlow automatically when we refactor the Dollar primitive. Not in operator's original list but in scope.
 
 ## N* delta
 
-- **B primary:** the cockpit currently shows live-priced numbers as static text -- when a price ticks, the value silently changes from $124.50 to $124.65 with no visual signal. Operators reading the cockpit pre-attentively miss every tick. Flash-on-change makes ticks SEEN, matching the Google Finance / Bloomberg / Robinhood Legend convention.
-- **R secondary:** zero behavioral change, zero data-flow change, zero risk-guard change. The numbers themselves are unchanged; only their visual presentation gains a 500ms tint on update.
+- **B primary:** the cycle-74 background-tint flash matches the Bloomberg / Robinhood pattern -- NOT what the operator wanted. They specifically pointed at Google Finance, which uses a per-digit slide (382.18 -> 382.45: only "18" digits slide, "382" stays still). This cycle replaces the wrong pattern with the right one.
+- **R secondary:** ZERO behavioral change, ZERO data flow change. The numbers themselves are unchanged; only their visual presentation gains per-digit slide on update.
 
-## Scope -- 5 files, NEW hook + 4 modifications
+## Scope -- delete, remove blocks, replace bodies, install dep
 
-| File | Action | Detail |
-|---|---|---|
-| `frontend/src/lib/useFlashOnChange.ts` | **NEW** | `useFlashOnChange(value, { decimals=2, durationMs=500 })` returns `"up" \| "down" \| null`. Tracks prev via `useRef`. Compares `value.toFixed(decimals)` so 100.001 vs 100.002 don't strobe on rounding noise. `setTimeout` cleanup on unmount. |
-| `frontend/tailwind.config.js` | MOD | Add `theme.extend.keyframes.flashUp` + `flashDown` (`bg-emerald-500/15` -> transparent over 500ms ease-in-out; rose for down) + `theme.extend.animation.flashUp` + `flashDown`. |
-| `frontend/src/app/globals.css` | MOD | Add `@media (prefers-reduced-motion: reduce) { .animate-flash-up, .animate-flash-down { animation: none !important; } }`. |
-| `frontend/src/components/paper-trading/positions-columns.tsx` | MOD | Wrap 3 cells with FlashCell: Current price (line ~86 `shown`), Market Value (line ~107 via `Dollar`), P&L (line ~138 via `PnlBadge`). Each cell reads its own value through the hook + applies returned class. |
-| `frontend/src/app/page.tsx` + `frontend/src/components/paper-trading/cockpit-helpers.tsx` | MOD | Wire NAV + P&L Today + vs SPY KPI tiles. SummaryHero MetricCards share the same `lp.liveNav` source so both pages flash in sync. |
+### DELETE entire file (cycle-74 hook no longer needed -- NumberFlow owns its state)
 
-**Out of scope per researcher:** RedLineMonitor's ReferenceLine (cycle-73 live-now overlay is its own visual signal), paper-trading/reality-gap chart prop, paper-trading/nav historical row (one-shot snapshot, never ticks), ReportHeader, StockChart, RiskDashboard, paper-trading/manage form inputs.
+- `frontend/src/lib/useFlashOnChange.ts`
+
+### REMOVE blocks (cycle-74 keyframes / overrides redundant)
+
+- `frontend/tailwind.config.js` -- the `flash-up` / `flash-down` keyframes + animation entries.
+- `frontend/src/app/globals.css` -- the `@media (prefers-reduced-motion: reduce)` block for `.animate-flash-*`. NumberFlow's `respectMotionPreference: true` default supersedes this.
+
+### REPLACE bodies (swap inline-flash code for NumberFlow)
+
+- `frontend/src/components/paper-trading/cockpit-helpers.tsx`:
+  - `Dollar` (lines 20-37 in cycle-74): becomes `<NumberFlow value={v} format={{style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2}} willChange className="text-slate-100"/>`. Inherits at every Dollar consumer including `trades-columns.tsx:9,86` (researcher catch).
+  - `PnlBadge` (lines 39-55 in cycle-74): becomes `<NumberFlow value={v/100} format={{style:'percent', signDisplay:'always', minimumFractionDigits:2, maximumFractionDigits:2}} willChange className={isPositive?'text-emerald-400':'text-rose-400'}/>`. **Important:** Intl.NumberFormat `style:'percent'` expects raw decimal -- divide the prop by 100 (1.42% -> pass 0.0142). Cycle-74 manually appended "+"; NumberFlow does it via `signDisplay:'always'`.
+
+- `frontend/src/components/paper-trading/positions-columns.tsx`:
+  - `CurrentPriceCell` (cycle-74 component): replace the inline-flash span with NumberFlow with the same Dollar format. LiveBadge sibling stays as-is.
+
+- `frontend/src/app/page.tsx`:
+  - `KpiTile`: drop the `value: string` + `numericValue: number | null` two-prop pattern; consolidate to `value: number | null` + optional `format?: Intl.NumberFormatOptions`. Drop `useFlashOnChange` import. Render the value via NumberFlow when `format` provided, fall back to text node when not (e.g. Positions count which is integer-only). Update 3 call sites: NAV (format=currency), P&L today (format=currency with signDisplay='always'), vs SPY (format=percent / 100 divisor).
+
+### ADD dep
+
+- `npm install @number-flow/react@0.6.0` (frontend cwd; the ONE new dep this cycle).
+- **MANDATORY post-install:** `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend` per memory rule `feedback_npm_install_requires_launchctl_kickstart.md`. pkill races the launchd watchdog; kickstart is the reliable path.
 
 ## Files
 
-NEW:
-- `frontend/src/lib/useFlashOnChange.ts`
+NEW deps:
+- `@number-flow/react@0.6.0` added to `frontend/package.json` + `package-lock.json`.
+
+DELETED:
+- `frontend/src/lib/useFlashOnChange.ts` (cycle-74 hook, no longer needed).
 
 MODIFIED:
-- `frontend/tailwind.config.js`
-- `frontend/src/app/globals.css`
-- `frontend/src/components/paper-trading/positions-columns.tsx`
-- `frontend/src/app/page.tsx`
-- `frontend/src/components/paper-trading/cockpit-helpers.tsx`
+- `frontend/tailwind.config.js` (remove flash keyframes block).
+- `frontend/src/app/globals.css` (remove reduced-motion override for flash classes).
+- `frontend/src/components/paper-trading/cockpit-helpers.tsx` (Dollar + PnlBadge refactor).
+- `frontend/src/components/paper-trading/positions-columns.tsx` (CurrentPriceCell refactor).
+- `frontend/src/app/page.tsx` (KpiTile prop signature + 3 wired sites).
 
-ZERO backend changes. ZERO new npm deps. ZERO test scaffolding renames.
+INHERITS (no edit; auto-flips because Dollar + PnlBadge refactor):
+- `frontend/src/components/paper-trading/trades-columns.tsx` (`Dollar` consumer at lines 9, 86).
+- Every `<Dollar value={...}/>` site project-wide (researcher catches any other).
+
+ZERO backend changes. ZERO test scaffolding renames.
 
 ## Immutable success criteria
 
 1. `cd frontend && npx tsc --noEmit` exit 0.
-2. `cd frontend && npx vitest run` -- 178+ passed (current baseline).
+2. `cd frontend && npx vitest run` -- 178+ passed (cycle-74 baseline; cascade tests that touched `useFlashOnChange` need updating IF any exist -- grep first; if not, suite stays at 178).
 3. `python tests/verify_phase_23_1_17.py` -- ok (SSOT invariant intact).
-4. Grep audit: `grep -rn "[^\x00-\x7F]" frontend/src/lib/useFlashOnChange.ts frontend/src/components/paper-trading/positions-columns.tsx` returns clean (zero non-ASCII / zero emojis introduced).
-5. `frontend/package.json` diff against HEAD shows ZERO new dependencies.
-6. ZERO files modified under `backend/`.
-7. `LIVE_MARKER_COLOR`-style static literal class map in the hook -- no template-string concatenation (cycle-68 JIT-safety lesson).
-8. `prefers-reduced-motion: reduce` override present in `globals.css` AND the hook itself short-circuits if `window.matchMedia("(prefers-reduced-motion: reduce)").matches` returns true (defense in depth).
-9. Hook returns `null` on FIRST render (no flash on initial value populating from undefined/null).
-10. Hook's `setTimeout` ID is cleared on unmount AND on subsequent value changes within the duration window (no leak; no double-flash).
-11. ARIA: every FlashCell wrapper that emits a flash sets `aria-live="off"` per MDN stock-ticker default. Confirmed cited source: MDN aria-live docs.
-12. NO `npm run build` invoked (memory rule).
-13. NO `rm -rf .next/*` invoked (memory rule).
-14. NO emojis in any code or comment introduced this cycle.
+4. `frontend/package.json` diff against HEAD shows EXACTLY ONE new dep: `@number-flow/react`. Lock file updates allowed.
+5. `git diff --stat HEAD -- backend/` returns empty (ZERO backend changes).
+6. `frontend/src/lib/useFlashOnChange.ts` no longer exists (`test -f .../useFlashOnChange.ts` returns 1).
+7. `frontend/tailwind.config.js` no longer contains `flash-up` or `flash-down` strings (grep returns empty).
+8. `frontend/src/app/globals.css` no longer contains `.animate-flash-` substring (grep returns empty).
+9. No code references `useFlashOnChange`, `flashClassName`, `FLASH_CLASS`, or `animate-flash-` anywhere in `frontend/src/` (grep returns empty -- no dead-code shrapnel from cycle 74).
+10. NumberFlow rendered in: Dollar, PnlBadge, CurrentPriceCell, KpiTile (greppable via `<NumberFlow `).
+11. Reduced-motion handled by NumberFlow's built-in `respectMotionPreference` prop (default true -- no manual override needed).
+12. ZERO emojis introduced.
+13. NO `npm run build` invoked.
+14. NO `rm -rf .next/*` invoked.
+15. `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend` invoked AFTER `npm install` per memory rule.
 
 ## /goal integration gates
 
-1. tsc + vitest green. 2. No `npm run build`. 3. Zero emojis. 4. Log LAST / no masterplan flip.
+1. tsc + vitest green. 2. ZERO `npm run build`. 3. Zero emojis. 4. Log LAST / no masterplan flip. 5. ONE new dep justified by researcher + operator approval (the package is canonical for the requested pattern; researcher confirms no superior alternative).
