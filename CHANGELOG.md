@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-26 | `9ab7d236` | fix(chart-ssot): cycle 73 chart-side overlay for live NAV across 3 chart surfaces |
 | 2026-05-26 | `0bcd84dd` | fix(learnings): move out of /paper-trading/ -- double-Sidebar regression |
 | 2026-05-26 | `faeb7b20` | fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider |
 | 2026-05-26 | `b9a1b772` | fix(slack-bot): 3 digest regressions -- NAV $0 + 0.0/10 scores + stale trades |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-25 | `8e559c12` | phase-44.0 foundation: TanStack v8 + Tremor deps + playwright fix |
 | 2026-05-25 | `f3cc97a1` | phase-38.1.1: Wire check_auto_resume into paper_trader.check_and_enforce_kill_switch cycle (follo... |
 | 2026-05-25 | `87c9b4ba` | chore: DoD scoreboard refresh -- 8/14 PASS post owner-gate unblock |
-| 2026-05-25 | `05b7f795` | phase-38.1: Kill-switch auto-resume on no-breach (OPEN-10) -- owner-gated |
 
 ---
 
+### v6.20.22 — fix(chart-ssot): cycle 73 chart-side overlay for live NAV across 3 ch... (2026-05-26)
+
+- **fix(chart-ssot): cycle 73 chart-side overlay for live NAV across 3 chart surfaces**
 ### v6.20.21 — fix(learnings): move out of /paper-trading/ -- double-Sidebar regression (2026-05-26)
 
 - **fix(learnings): move out of /paper-trading/ -- double-Sidebar regression**
