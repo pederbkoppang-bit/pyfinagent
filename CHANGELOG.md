@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-26 | `3cd8b6da` | fix(paper-trading): drop light-mode tokens from SectorBarList + bump table header contrast |
 | 2026-05-26 | `354e9c2e` | fix(paper-trading): UX audit of /paper-trading/positions |
 | 2026-05-26 | `a504127c` | phase-44.2 cycle-67 follow-up: restore /paper-trading/manage sub-route + add Settings gear button |
 | 2026-05-26 | `acf33b50` | phase-44.2: operator-approved Manage tab removal + scheduler misfire fix |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-25 | `e7b2c201` | chore: gitignore .coverage artifacts (DoD-4 cycle 53 cleanup) |
 | 2026-05-25 | `d090d4d3` | phase-DoD4-tiered: cycle 53 -- tiered coverage policy + Tier-1 STRICT lift |
 | 2026-05-23 | `2bb8229a` | chore: DoD-4 measurement post-operator-approval -- FAIL on all 3 layers |
-| 2026-05-23 | `313b050d` | chore: add phase-40.3.1 (next-Opus stress-test) P3 follow-up |
 
 ---
 
+### v6.20.14 — fix(paper-trading): drop light-mode tokens from SectorBarList + bump... (2026-05-26)
+
+- **fix(paper-trading): drop light-mode tokens from SectorBarList + bump table header contrast**
 ### v6.20.13 — fix(paper-trading): UX audit of /paper-trading/positions (2026-05-26)
 
 - **fix(paper-trading): UX audit of /paper-trading/positions**
