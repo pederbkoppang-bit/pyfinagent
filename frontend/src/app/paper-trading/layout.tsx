@@ -49,7 +49,6 @@ import {
   TabNavChart,
   TabRealityGap,
   TabExitQuality,
-  TabManage,
   type Icon,
 } from "@/lib/icons";
 import { useLivePrices } from "@/lib/useLivePrices";
@@ -89,7 +88,11 @@ const TABS: TabSpec[] = [
   { slug: "nav", href: "/paper-trading/nav", label: "NAV Chart", icon: TabNavChart },
   { slug: "reality-gap", href: "/paper-trading/reality-gap", label: "Reality gap", icon: TabRealityGap },
   { slug: "exit-quality", href: "/paper-trading/exit-quality", label: "Exit quality", icon: TabExitQuality },
-  { slug: "manage", href: "/paper-trading/manage", label: "Manage", icon: TabManage },
+  // phase-44.2 (operator_approval_44.2.md, 2026-05-26): Manage tab REMOVED
+  // per operator approval. Paper-trading-specific settings now reached
+  // via the global /settings page; "Top up fund" deferred to a follow-up
+  // /paper-trading/deposit route. The manage/ sub-route directory was
+  // also deleted in the same commit.
 ];
 
 function activeTabIndex(pathname: string | null): number {

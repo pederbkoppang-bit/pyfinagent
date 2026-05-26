@@ -1222,6 +1222,16 @@ def _add_scheduler_job(settings):
         id=_scheduler_job_id,
         name="Paper trading daily run",  # phase-23.3.1: human-readable label
         replace_existing=True,
+        # phase-44.2.X (2026-05-26): default APScheduler misfire_grace_time
+        # is 1 second; on 2026-05-25 the cron fired at the right second but
+        # event-loop contention from the ticket-queue interval job + polling
+        # endpoints pushed dispatch 2.10s late, so APScheduler skipped the
+        # run and advanced next_run to tomorrow. A daily job has no harm in
+        # running a few seconds (or minutes) late, so we raise the grace
+        # window to 1 hour. coalesce=True ensures if multiple windows are
+        # missed (e.g. backend down for hours), we run ONCE, not N times.
+        misfire_grace_time=3600,
+        coalesce=True,
     )
 
 
