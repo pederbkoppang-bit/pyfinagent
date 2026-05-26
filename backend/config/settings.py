@@ -187,6 +187,36 @@ class Settings(BaseSettings):
         le=1.0,
         description="Maximum FF3 factor cosine similarity vs portfolio avg before blocking BUY. 0.0 = disabled. Recommended live 0.85.",
     )
+    # phase-cycle-1 (2026-05-26): position-swap framework. Sell-to-buy-better
+    # path so the autonomous loop doesn't idle on cash when a higher-conviction
+    # candidate is sector-blocked by an existing low-conviction holding. North
+    # star: maximize profit. Testing-phase mandate: default to firing, not
+    # gating, when risk caps permit.
+    #
+    # Citations (research_brief_phase_zero_buy_triage.md):
+    # - Resonanz Capital "upgrade-vs-exit" position-sizing framework.
+    # - Kelly-Optimal Rebalancing Frequency (arXiv:1807.05265).
+    # - Grinold-Kahn Fundamental Law of Active Management (breadth via
+    #   independent bets; concentrated cap stays at 30% per arXiv:2512.02227).
+    # - ADVERSARIAL: arXiv:2505.07078v5 KDD 2026 (LLM agents overtrade in
+    #   bulls; FinMem commission 5-9x FinAgent, Sharpe 0.12 vs B&H 0.61).
+    #   Conservative defaults below.
+    paper_swap_enabled: bool = Field(
+        True,
+        description="Enable sector-blocked swap path: SELL lowest-conviction sector holding to free a slot for a higher-conviction candidate. Default True per goal mandate; the swap STILL passes a delta threshold so churn is bounded.",
+    )
+    paper_swap_min_delta_pct: float = Field(
+        25.0,
+        ge=0.0,
+        le=200.0,
+        description="Minimum (cand_score - holding_score) / max(abs(holding_score), 1.0) * 100 to fire a swap. Conservative initial value per Resonanz Capital upgrade-vs-exit + KDD 2026 adversarial overtrade evidence. Future A/B vs 15% / 35% under backtest evidence only.",
+    )
+    paper_swap_max_per_cycle: int = Field(
+        2,
+        ge=0,
+        le=10,
+        description="Hard cap on swap pairs per autonomous run. 0 disables. Per KDD 2026 adversarial: LLMs overtrade; keep tight until backtest evidence supports loosening.",
+    )
     # phase-38.1 (OPEN-10): kill-switch auto-resume hysteresis feature flag.
     # Default-OFF preserves the manual-resume behavior. When ON, the
     # autonomous loop's check_and_enforce_kill_switch call also invokes

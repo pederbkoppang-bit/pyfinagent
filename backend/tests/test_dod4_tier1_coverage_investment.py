@@ -789,6 +789,13 @@ def _settings():
     s.paper_max_per_sector_nav_pct = 30.0
     s.paper_max_factor_corr = 0.0
     s.paper_default_stop_loss_pct = 8.0
+    # phase-cycle-1 (2026-05-26): these tier-1 coverage tests assert the
+    # sector-cap MECHANISM in isolation. The cycle-1 swap framework lets a
+    # sector-blocked candidate still buy by displacing a lower-conviction
+    # holding. Disable swap here so each cap test still characterizes its
+    # specific gate; the swap behavior is exercised by
+    # backend/tests/test_portfolio_swap.py.
+    s.paper_swap_enabled = False
     return s
 
 

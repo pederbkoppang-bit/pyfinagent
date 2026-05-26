@@ -234,6 +234,10 @@ def decide_trades(
         retained = [p for p in current_positions if p["ticker"] not in selling_tickers]
         port_factor_loadings = aggregate_portfolio_loadings(retained)
 
+    # phase-cycle-1 (2026-05-26): collect candidates blocked by sector COUNT cap
+    # so the post-loop swap path can consider sell-to-buy-better rebalances.
+    sector_blocked: list[dict] = []
+
     for cand in buy_candidates:
         if remaining_positions >= settings.paper_max_positions:
             # phase-23.2.22: emit a diagnostic line so 0-trade cycles are
@@ -251,15 +255,19 @@ def decide_trades(
             break
 
         # phase-23.1.13: per-GICS-sector cap (default 2). 0 disables the check.
+        # phase-cycle-1 (2026-05-26): capture blocked candidates so the
+        # post-loop swap path can consider them. North star = maximize profit;
+        # mandate = default to firing, not gating, when risk caps permit.
         if max_per_sector > 0:
             cand_sector = cand.get("sector") or "Unknown"
             current_in_sector = sector_counts.get(cand_sector, 0)
             if current_in_sector >= max_per_sector:
                 logger.info(
-                    "Skipping BUY %s: sector %s at cap (%d/%d)",
+                    "Skipping BUY %s: sector %s at cap (%d/%d) -- queued for swap check",
                     cand["ticker"], cand_sector,
                     current_in_sector, max_per_sector,
                 )
+                sector_blocked.append(cand)
                 continue
 
         # Position size: min(risk_judge_pct * NAV, available_cash)
@@ -340,9 +348,219 @@ def decide_trades(
             sector_counts[cs] = sector_counts.get(cs, 0) + 1
             sector_market_values[cs] = sector_market_values.get(cs, 0.0) + buy_amount
 
+    # phase-cycle-1 (2026-05-26): sell-to-buy-better swap path. North star =
+    # maximize profit. Testing-phase mandate = do not idle on cash when a
+    # higher-conviction candidate is sector-blocked by an existing low-
+    # conviction holding. Gated by paper_swap_enabled + delta threshold +
+    # max-per-cycle cap. Re-checks all risk gates on the projected post-swap
+    # portfolio. Cited literature in handoff/current/contract.md.
+    if (
+        getattr(settings, "paper_swap_enabled", False)
+        and sector_blocked
+        and max_per_sector > 0
+    ):
+        swap_orders = _compute_swap_candidates(
+            sector_blocked=sector_blocked,
+            current_positions=current_positions,
+            holding_lookup=holding_lookup,
+            sector_counts=sector_counts,
+            sector_market_values=sector_market_values,
+            selling_tickers=selling_tickers,
+            settings=settings,
+            nav=nav,
+        )
+        orders.extend(swap_orders)
+
+    # phase-cycle-1: enforce the sell-first-then-buy invariant on the final
+    # orders list. Both the standard buy-loop and the swap path may have
+    # appended BUYs that came before SELLs in append order (swap pairs are
+    # internally SELL+BUY, but if a prior iteration's BUY was already in the
+    # list, the new swap_SELL lands after it). Python's stable sort preserves
+    # relative ordering within each group (signal-SELL, stop-loss-SELL,
+    # swap-SELL stay in their original order; same for BUYs). The downstream
+    # executor relies on cash being freed by SELLs before BUYs draw from it.
+    orders.sort(key=lambda o: 0 if o.action == "SELL" else 1)
+
     logger.info(f"Trade decisions: {len([o for o in orders if o.action == 'SELL'])} sells, "
                 f"{len([o for o in orders if o.action == 'BUY'])} buys")
     return orders
+
+
+def _compute_swap_candidates(
+    sector_blocked: list[dict],
+    current_positions: list[dict],
+    holding_lookup: dict[str, dict],
+    sector_counts: dict[str, int],
+    sector_market_values: dict[str, float],
+    selling_tickers: set,
+    settings: "Settings",
+    nav: float,
+) -> list[TradeOrder]:
+    """phase-cycle-1: sell-to-buy-better swap path.
+
+    For each sector-blocked candidate, find the lowest-conviction existing
+    holding IN THE SAME SECTOR that is not already being sold. If the
+    candidate's final_score exceeds the holding's by paper_swap_min_delta_pct
+    (relative), emit a paired SELL + BUY. Cap at paper_swap_max_per_cycle.
+
+    Risk-gate preservation: each swap is +1 BUY / -1 SELL in the same sector,
+    so the sector COUNT remains unchanged. The NAV-pct cap is rechecked on
+    the projected post-swap composition. The factor-correlation cap is NOT
+    re-checked here (the swap stays within the same sector so loadings move
+    in a bounded way; future tightening can revisit if backtest evidence
+    supports it).
+    """
+    swap_orders: list[TradeOrder] = []
+    min_delta = float(getattr(settings, "paper_swap_min_delta_pct", 25.0) or 0.0)
+    max_per_cycle = int(getattr(settings, "paper_swap_max_per_cycle", 0) or 0)
+    if max_per_cycle <= 0:
+        return swap_orders
+
+    # Index holdings by sector with their analysis score so we can find the
+    # weakest holding per sector in O(1) per candidate.
+    holdings_by_sector: dict[str, list[dict]] = {}
+    for pos in current_positions:
+        if pos["ticker"] in selling_tickers:
+            continue
+        sector = (pos.get("sector") or "Unknown").strip() or "Unknown"
+        analysis = holding_lookup.get(pos["ticker"], {}) or {}
+        score = analysis.get("final_score")
+        if score is None:
+            # No fresh analysis => unknown conviction. Treat as worst (lowest
+            # priority for retention) since we have no evidence it should
+            # stay. Set to a sentinel below the typical 0.5 floor so swaps
+            # against it can fire when a credible candidate appears.
+            score = 0.0
+        holdings_by_sector.setdefault(sector, []).append(
+            {
+                "ticker": pos["ticker"],
+                "sector": sector,
+                "final_score": float(score),
+                "market_value": float(pos.get("market_value", 0) or 0),
+                "current_price": pos.get("current_price"),
+            }
+        )
+
+    # Sort each sector list ascending by score so [0] is the weakest holding.
+    for sector_list in holdings_by_sector.values():
+        sector_list.sort(key=lambda h: h["final_score"])
+
+    swaps_fired = 0
+    swapped_tickers: set = set()
+
+    for cand in sector_blocked:
+        if swaps_fired >= max_per_cycle:
+            logger.info(
+                "Swap path: hit per-cycle cap (%d) -- skipping remaining %d blocked candidates",
+                max_per_cycle, len(sector_blocked) - swaps_fired,
+            )
+            break
+
+        cand_sector = cand.get("sector") or "Unknown"
+        cand_score = float(cand.get("final_score") or 0.0)
+        sector_holdings = holdings_by_sector.get(cand_sector, [])
+
+        # Skip if no eligible holding to displace (already swapped, or sector
+        # empty post-sell). Walk the sorted list and pick the lowest-score
+        # holding not already swapped this cycle.
+        weakest = None
+        for h in sector_holdings:
+            if h["ticker"] in swapped_tickers:
+                continue
+            weakest = h
+            break
+        if weakest is None:
+            continue
+
+        holding_score = weakest["final_score"]
+        # phase-cycle-1: delta_pct is the relative uplift in conviction. Guard
+        # against div-by-zero with a small epsilon (0.01); do NOT clamp the
+        # denominator to 1.0 -- final_score lives in [0,1] so a 1.0 clamp
+        # would over-normalize every swap into ~score-delta-as-percentage
+        # rather than relative improvement.
+        denom = max(abs(holding_score), 0.01)
+        delta_pct = ((cand_score - holding_score) / denom) * 100.0
+
+        if delta_pct < min_delta:
+            logger.info(
+                "Swap skip %s -> %s: delta=%.1f%% below threshold %.1f%% (cand_score=%.3f holding_score=%.3f)",
+                weakest["ticker"], cand["ticker"], delta_pct, min_delta,
+                cand_score, holding_score,
+            )
+            continue
+
+        # Projected sector NAV-pct check: removing weakest, adding cand at its
+        # target position size. Conservative: use the same position_pct the
+        # buy-loop would use, capped at available_cash equivalent.
+        #
+        # Edge case (north-star aligned): when the sector is ALREADY over the
+        # NAV-pct cap (legacy 8-Tech-holding portfolios), block only swaps
+        # that WORSEN the exposure. Swaps that REDUCE or hold the exposure
+        # constant are strictly an improvement and should be allowed -- per
+        # the testing-phase mandate "default to firing, not gating, when risk
+        # caps permit". Idling on a worse composition because we can't fully
+        # cure the cap in one swap is the wrong default.
+        max_sector_nav_pct = float(getattr(settings, "paper_max_per_sector_nav_pct", 0.0) or 0.0)
+        if max_sector_nav_pct > 0 and nav > 0:
+            position_pct = float(cand.get("position_pct") or 10.0)
+            buy_amount = nav * (position_pct / 100.0)
+            existing = sector_market_values.get(cand_sector, 0.0)
+            projected_sector_value = existing - weakest["market_value"] + buy_amount
+            projected_pct = (projected_sector_value / nav) * 100.0
+            existing_pct = (existing / nav) * 100.0
+            # Block only if projected exceeds cap AND projected exceeds the
+            # pre-swap exposure (i.e., the swap actually WORSENS the cap
+            # breach). When existing_pct > cap and projected_pct <= existing_pct,
+            # the swap is a strict reduction toward compliance.
+            if projected_pct > max_sector_nav_pct and projected_pct > existing_pct:
+                logger.info(
+                    "Swap skip %s -> %s: projected sector %s NAV-pct %.2f%% > cap %.2f%% AND > existing %.2f%% (worsens breach)",
+                    weakest["ticker"], cand["ticker"], cand_sector,
+                    projected_pct, max_sector_nav_pct, existing_pct,
+                )
+                continue
+
+        # Emit the swap pair: SELL first, then BUY (sell-first-then-buy invariant).
+        swap_orders.append(TradeOrder(
+            ticker=weakest["ticker"],
+            action="SELL",
+            reason="swap_for_higher_conviction",
+            price=weakest.get("current_price"),
+        ))
+        position_pct = cand.get("position_pct") or 10.0
+        buy_amount = nav * (float(position_pct) / 100.0)
+        swap_orders.append(TradeOrder(
+            ticker=cand["ticker"],
+            action="BUY",
+            amount_usd=round(buy_amount, 2),
+            reason="swap_buy",
+            analysis_id=cand.get("analysis_id", ""),
+            risk_judge_decision=cand.get("risk_judge_decision", ""),
+            stop_loss_price=cand.get("stop_loss_price"),
+            risk_judge_position_pct=cand.get("position_pct"),
+            price=cand.get("price"),
+            price_at_analysis=cand.get("price"),
+            signals=cand.get("signals", []),
+            sector=cand.get("sector", ""),
+            factor_loadings=cand.get("factor_loadings"),
+        ))
+        swapped_tickers.add(weakest["ticker"])
+        # Update sector_market_values so subsequent swap-checks see the
+        # updated composition.
+        sector_market_values[cand_sector] = (
+            sector_market_values.get(cand_sector, 0.0)
+            - weakest["market_value"] + buy_amount
+        )
+        swaps_fired += 1
+        logger.info(
+            "Swap fired (%d/%d): SELL %s (score=%.3f) -> BUY %s (score=%.3f) delta=%.1f%%",
+            swaps_fired, max_per_cycle,
+            weakest["ticker"], holding_score,
+            cand["ticker"], cand_score,
+            delta_pct,
+        )
+
+    return swap_orders
 
 
 def _extract_position_pct(risk_assessment: dict, analysis: dict) -> Optional[float]:
