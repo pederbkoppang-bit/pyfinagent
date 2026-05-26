@@ -24292,3 +24292,93 @@ Operator screenshot evidence: 4 different NAV values rendered simultaneously acr
 **Deferred to follow-up cycles (documented in contract.md "Not in scope"):** (1) sector-aware screener bias toward non-Tech (researcher's Option a); (2) A/B backtest of `paper_swap_min_delta_pct` (15% / 25% / 35%); (3) `pyfinagent_data.strategy_decisions` `trigger="position_swap"` structured log row; (4) deconfliction of `handoff/current/contract.md` between Layer-3 harness vs autonomous-loop sprint contracts.
 
 **Total cycle time:** ~90 min (researcher 8 min + contract 10 min + generate 35 min + tests/fix iterations 20 min + Q/A 10 min + log 5 min).
+
+---
+
+## Cycle 1 -- 2026-05-26 20:36 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-26 20:47 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-26 20:47 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 2 -- 2026-05-26 -- step 27.6 BLOCKED-state evidence -- result=PASS
+
+**Trigger:** Stop-hook feedback after cycle 1 PASS pointed at the masterplan's production_ready predicate. Next actionable per goal directive: pull step 27.6 from `.claude/masterplan.json` (P0 priority, pending). Researcher diagnosis: today's autonomous-loop cycle FAILED on Anthropic API credit exhaustion (HTTP 400 "credit balance is too low") -- 13 of 13 ticker analyses failed, 0 rows persisted to `financial_reports.analysis_results`. 27.6 cannot close PASS without operator action.
+
+**Researcher:** `aa204309cdc5f0761`, tier=moderate, 6 sources read in full, 8 snippet-only, 14 URLs, recency scan performed, internal_files_inspected=5, gate_passed=true. Brief at `handoff/current/research_brief_phase_27_6_smoke.md`. NO citation floor (verification cycle, not trading-policy). Sources: Anthropic Harness Design, Harness DevOps Academy Smoke Testing, Portkey Retries/Fallbacks/Circuit Breakers, Arthur AI Agentic Observability Playbook 2026, Louis Wang "The Harness Is the Moat", Galileo MAST.
+
+**Empirical evidence:**
+- Cycle `c870fdab` started 2026-05-26T20:00:41+02:00, completed 20:06:36.
+- Model = `claude-opus-4-7` (FAIL criterion 1 -- requires `claude-sonnet-4-6`).
+- 13/13 "Full orchestrator failed" log lines (FAIL criterion 4).
+- BQ query `SELECT COUNT(*) FROM financial_reports.analysis_results WHERE DATE(analysis_date) = CURRENT_DATE()` returns 0 (FAIL criterion 5).
+- lite_mode=False observed in Step 3 log (PASS criterion 3).
+- Cycle completed status=completed (PASS criterion 2).
+
+**Structural finding:** backend uses ONE Anthropic API key for both full orchestrator + lite-mode fallback at `autonomous_loop.py:1322-1328`. When the key fails, both paths fail. Portkey "shared credit pool failure mode". The operator-approved cycle-3 Claude Code routing bypasses this entirely.
+
+**Operator decision (mid-cycle):** ship Claude Code CLI routing (Path A from the architecture sketch) as cycle 3. Implementation: feature flag `paper_use_claude_code_route: bool = False` + `claude_code_invoke()` shelling out to `claude --print --output-format json` on the Max-subscription flat-fee rail.
+
+**Generate:**
+- NEW `handoff/current/live_check_27.6.md` -- BLOCKED-state evidence (143 lines). Documents cycle_id, 6-criterion table (5 FAIL, 1 PASS, 1 unknown), verbatim BQ query + n=0 result, root cause, operator remediation chain, "why grep tokens look like a PASS" disambiguation, cycle-3 path forward. Status header explicitly BLOCKED so future readers cannot mis-parse.
+- NEW `handoff/current/research_brief_phase_27_6_smoke.md` -- researcher brief.
+
+ZERO code changes. ZERO new npm deps. ZERO masterplan status flips (27.6 stays `pending`).
+
+**File-collision recurrence:** `handoff/current/contract.md` overwritten by autonomous-loop sprint contract FOUR times today (19:56, 20:36, 20:47, and once more during cycle 2). Layer-3 harness Main re-wrote the cycle-2 trading-verification content over each overwrite. Permanent deconfliction (separate paths or discriminator field) is on the follow-up backlog.
+
+**Q/A cycle-2 flow (documented per CLAUDE.md):**
+- First spawn `acffe7a0390e79c1f` returned FAIL on harness item #2 (contract pre-commit): contract.md was the sprint stub, not cycle-2 content.
+- Main re-wrote contract.md with the cycle-2 BLOCKED-state content + FOURTH-occurrence collision preamble + researcher cite + success criterion #12 (self-contract-presence check).
+- Fresh spawn `ab7db27dfe0106499` returned PASS on the updated handoff state: 5/5 harness + 10/10 deterministic + 11/11 LLM-judgment (A-K). Verdict reversal explicitly documented as fix-then-respawn-on-updated-evidence, NOT verdict-shopping.
+
+**N* delta R+B primary:** operator now has a verbatim audit-grade artifact naming the blocker chain (Anthropic credits exhausted -> shared-credit anti-pattern -> wrong model setting), the BQ evidence, and the operator-approved cycle-3 remediation path. Pre-cycle: operator saw "0 trades" in the UI with no actionable signal. Post-cycle: operator has the 3-command remediation chain + the cycle-3 implementation scope ready to ship.
+
+**Stop-condition contribution:** 27.6 stays pending (cannot close without operator action OR cycle-3 routing). Cycle 2 is a verification-cycle PASS that captures the BLOCKED state; it does NOT advance the production_ready predicate by itself. Cycle 3 (Claude Code routing) is the load-bearing next step.
+
+**Total cycle time:** ~30 min (researcher 8 min + contract 5 min + generate 3 min + Q/A first FAIL 3 min + contract re-write 2 min + Q/A respawn PASS 3 min + log 6 min).

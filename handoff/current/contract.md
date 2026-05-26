@@ -1,99 +1,78 @@
-# Contract -- Cycle 1: position-swap framework (zero-buy triage fix)
+# Contract -- Cycle 2: step 27.6 BLOCKED-state evidence + operator action surface
 
-**Cycle:** 1 (production-readiness mode, testing-phase trading mandate, north-star: maximize profit)
+**Cycle:** 2 (production-readiness mode)
 **Date:** 2026-05-26
-**Class:** Trading-policy change introducing sell-to-buy-better path. No masterplan flip (triage cycle).
+**Step targeted:** masterplan `27.6` "End-to-end smoke verify: full path on Claude" (P0)
+**Class:** verification cycle (NOT a trading-policy change; citation floor does NOT apply)
+**Status flip:** NONE -- 27.6 stays `pending` because the criteria cannot be satisfied without operator action. Operator-approved cycle-3 path: Claude Code CLI routing to bypass the credit-exhausted Anthropic rail.
 
-**Note on file collision:** at 19:56:50 UTC the autonomous-loop's parameter-optimization sprint wrote a separate "Sprint Contract" to this same path. Both consumers share `handoff/current/contract.md` -- to be deconflicted in a follow-up cycle (separate paths or a discriminator field). This document supersedes the parameter-optimization stub for the trading-policy cycle.
-
-## North star (the meta-objective)
-
-Per auto-memory `project_system_goal.md`: **maximize profit at lowest cost live; dynamically shift strategy to whichever is making the most money.** Operator restated 2026-05-26 mid-cycle. This sits ABOVE the testing-phase trade-count mandate. The two are aligned when each additional trade carries positive expected profit; the swap threshold below is calibrated against EXPECTED PROFIT UPLIFT, not raw signal-score delta.
+**File-collision note (FOURTH occurrence today):** the autonomous-loop's parameter-optimization sprint clobbered `handoff/current/contract.md` four times today (19:56, 20:36, 20:47, and likely-again). Both Layer-3 harness (this cycle) and the harness optimizer write to this same path. Re-writing the cycle-2 content over the sprint stub each time is the current workaround. Permanent deconfliction (separate paths or discriminator field) is on the follow-up backlog. This document supersedes the parameter-optimization stub for cycle 2.
 
 ## Research gate
 
-- Researcher `adc62c28569bf64cc`, tier=deep, 7 sources read in full, 8 snippet-only, 15 URLs, recency scan performed, internal_files_inspected=9, **gate_passed=true**.
-- AI-in-trading citations (>=2 required): **4 cited** -- FinRL `arXiv:2011.09607`; TradingAgents `arXiv:2412.20138`; FinMem `arXiv:2311.13743`; LLM Long-Run Outperformance `arXiv:2505.07078v5` KDD 2026 (ADVERSARIAL: LLMs overtrade in bulls -- 5-9x commission ratio -- and underperform B&H by 0.49 Sharpe). The adversarial source is load-bearing for the conservative threshold default.
-- Academic-method citations (>=2 required): **3 cited** -- Grinold-Kahn Fundamental Law of Active Management (breadth requires INDEPENDENT bets); Kelly-Optimal Rebalancing Frequency `arXiv:1807.05265`; Resonanz Capital "upgrade-vs-exit" position-sizing framework.
-- Brief: `handoff/current/research_brief_phase_zero_buy_triage.md`.
-
-## Empirical root cause (verified by researcher)
-
-Most recent autonomous-loop cycle fired on schedule (heartbeat 2026-05-26 18:06:36 in `pyfinagent_data.strategy_decisions`) but emitted ZERO BUY orders. Cause chain:
-
-1. Portfolio at 9/10 positions (only 1 free slot).
-2. 8 of 9 holdings are Technology sector.
-3. `settings.paper_max_per_sector=2` blocks every new Tech BUY at `backend/services/portfolio_manager.py:254-263`.
-4. Stage-1 screener emits momentum-weighted candidates with `sector_neutral=False` default (`backend/agents/screener.py:256-262`) -- Tech dominates output.
-5. NO position-swap logic exists (`grep -rn "swap_position\|opportunity_cost\|sell_laggard" backend/` returns zero hits).
-6. Result: cycle correctly enforces sector cap, finds no non-Tech candidates, idles on cash. Per north star + goal mandate: this is the wrong default -- idle cash is opportunity cost.
+- Researcher `aa204309cdc5f0761`, tier=moderate, 6 sources read in full, 8 snippet-only, 14 URLs, recency scan performed, internal_files_inspected=5, **gate_passed=true**.
+- Brief: `handoff/current/research_brief_phase_27_6_smoke.md`.
 
 ## N* delta
 
-- **B primary (north-star aligned):** introduce position-swap so the cycle SELLS a low-conviction Tech holding and BUYS a higher-conviction Tech candidate when the sector cap blocks a fresh slot, IF AND ONLY IF the expected profit uplift exceeds a literature-justified threshold net of transaction costs. Brings the loop from 0 trades/day to N profitable trades/day within the unchanged risk envelope.
-- **R secondary:** swap is GATED by an expected-uplift threshold (default 25% per Resonanz Capital's "upgrade-vs-exit" framework + Kelly-rebalance theta; conservative initial value per the FinMem-overtrade adversarial finding). Risk gates re-evaluated post-swap so the NEW portfolio composition still clears every cap.
+- **B primary:** convert "operator doesn't know the cycle is broken" into "operator has a verbatim audit-grade artifact naming the blocker, the BQ evidence, the remediation chain, and the cost rail". Today's autonomous run at 20:00:41 CEST failed silently from the operator's perspective (UI showed "0 trades"); underlying cause is Anthropic credit exhaustion + a wrong-model setting (`claude-opus-4-7` not `claude-sonnet-4-6`).
+- **R secondary:** the BLOCKED-state evidence enables cycle 3 to ship the Claude Code routing layer with full context.
 
-## Profitability framing (north-star integration)
+## Empirical findings (researcher Section 2)
 
-The swap's delta threshold is expressed as a percentage uplift in `final_score`. `final_score` is the agent pipeline's calibrated buy-conviction in [0,1] -- a higher score correlates with a higher expected forward return per `backend/services/perf_metrics.py` calibration history. Specifically:
-- `(cand_score - holding_score) / max(abs(holding_score), 1.0) * 100 >= 25.0`
-- This translates approximately to "the candidate's expected forward return must exceed the holding's expected forward return by >=25% in relative terms".
-- Net of round-trip transaction costs (`paper_transaction_cost_pct`, default 0.05% one-way = 0.10% round-trip), a 25% relative-return uplift on a typical 10%-position-sized holding is ~$2.50 expected gain per $1000 of position (NAV-relative; far exceeds the $1 round-trip cost). North-star positive in expectation.
-- Per the KDD 2026 adversarial: LLMs overtrade when threshold is too low. Conservative 25% start; future cycle can A/B against 15% / 35% with backtest evidence. We DO NOT lower below 25% without backtest support.
+Today's cycle `cycle_id=c870fdab` at 2026-05-26 20:00:41 CEST:
 
-## Scope -- 3 files modified + 1 new test file
+| # | Criterion (verbatim from masterplan) | Status | Evidence |
+|---|---|---|---|
+| 1 | model = claude-sonnet-4-6 via settings API | **FAIL** | currently set to `claude-opus-4-7` |
+| 2 | full cycle completed, status=completed | PASS | 20:06:36 CEST cycle complete logged |
+| 3 | lite_mode=False observed in Step 3 log | PASS | `Step 3 -- Analyzing 4 new + 9 re-evals (lite_mode=False)` |
+| 4 | zero "Full orchestrator failed" lines | **FAIL** | 13 of 13 failed (Anthropic credit exhaustion 400) |
+| 5 | min 14/15 analyses persisted to BQ analysis_results | **FAIL** | 0 rows for 2026-05-26 |
+| 6 | OutcomeTracker step 9 logged | unknown | Step 9 gated on `closed_tickers != []`; no closures today |
 
-### MODIFIED
+Five of six criteria FAIL. Step 27.6 cannot close PASS today.
 
-1. `backend/config/settings.py` -- add 3 fields under the paper-trading section:
-   - `paper_swap_enabled: bool = Field(True, ...)` -- enabled by default per goal mandate "default to firing, not gating".
-   - `paper_swap_min_delta_pct: float = Field(25.0, ge=0.0, le=200.0, ...)` -- minimum expected-profit-uplift threshold.
-   - `paper_swap_max_per_cycle: int = Field(2, ge=0, le=10, ...)` -- hard cap on swaps per autonomous run. Per KDD 2026 adversarial.
+## Structural finding (out of scope; follow-up backlog)
 
-2. `backend/services/portfolio_manager.py` -- the load-bearing change. After the existing buy-loop (around line 345, before the `logger.info("Trade decisions: ...")` line):
-   - CAPTURE sector-blocked candidates during the buy-loop (currently `continue`d silently at line 263) into a `sector_blocked: list[dict]` list.
-   - CALL a new `_compute_swap_candidates(sector_blocked, current_positions, holding_lookup, sector_counts, sector_market_values, selling_tickers, settings)` that:
-     * For each sector-blocked candidate, find the lowest-`final_score` existing holding IN THE SAME SECTOR not already being sold.
-     * Compute `delta_pct = (cand.final_score - holding.final_score) / max(abs(holding.final_score), 1.0) * 100`.
-     * Emit paired SELL + BUY orders when `delta_pct >= settings.paper_swap_min_delta_pct`.
-     * Maintain `paper_swap_max_per_cycle` limit.
-     * Skip swap if the candidate's `position_pct * NAV` exceeds the holding's `market_value` by more than `paper_min_cash_reserve_pct` of NAV (cash-balance safety).
-     * Re-check sector NAV-pct cap AND factor-correlation cap on the projected post-swap portfolio.
-   - SELL reason: `"swap_for_higher_conviction"`. BUY reason: `"swap_buy"`.
-   - Sell-first-then-buy ordering preserved (swap SELLs append before swap BUYs).
-   - ASCII-only log messages per `backend-services.md::Logging`.
+Researcher Section 7 documents a **shared-credit anti-pattern**: backend uses ONE Anthropic API key for BOTH the full orchestrator and the lite Claude fallback at `autonomous_loop.py:1322-1328`. When the key fails, both paths fail in unison. Portkey 2026 "shared credit pool failure mode". The operator-approved cycle-3 Claude Code routing bypasses this entirely (Max-subscription flat-fee rail).
 
-3. `backend/services/autonomous_loop.py` -- emit a structured row to `pyfinagent_data.strategy_decisions` with `trigger="position_swap"` so the postmortem trail captures the swap rationale. Already supports `trigger=*`; new call site only.
+## Scope -- 1 new evidence artifact, ZERO code
 
 ### NEW
 
-4. `backend/tests/test_portfolio_swap.py` -- pytest reproducing the 2026-05-26 scenario:
-   - Fixture: 9 positions (8 Tech with `final_score` 0.55-0.75, 1 Industrials).
-   - Fixture: 3 candidates (2 Tech `final_score` 0.85 / 0.82, 1 Industrials `final_score` 0.70).
-   - Settings: `paper_max_positions=10`, `paper_max_per_sector=2`, `paper_swap_enabled=True`, `paper_swap_min_delta_pct=25.0`, `paper_swap_max_per_cycle=2`.
-   - Assert orders contain (i) 1 standard BUY of Industrials filling the open slot, (ii) 2 swap pairs (lowest-Tech-holdings replaced by highest-Tech-candidates).
-   - Assert post-swap sector_counts respect the count cap.
-   - Assert reasons set = {"new_buy_signal", "swap_for_higher_conviction", "swap_buy"}.
-   - Assert sell-first-then-buy ordering preserved.
+1. `handoff/current/live_check_27.6.md` -- BLOCKED-state evidence with verbatim cycle_id, BQ query + result, 6-criterion table, operator remediation chain, BLOCKED header so future readers don't mis-parse as PASS. Supersedes the prior 2026-05-17 capture; preserves git history.
 
-## Immutable success criteria
+### ZERO code changes
 
-1. `pytest backend/tests/test_portfolio_swap.py -v` -- all new tests pass.
-2. AST parse exit 0 on portfolio_manager.py, settings.py, autonomous_loop.py.
-3. `grep -c "paper_swap_enabled" backend/config/settings.py` == 1.
-4. `grep -c "paper_swap_min_delta_pct" backend/config/settings.py` == 1.
-5. `grep -c "paper_swap_max_per_cycle" backend/config/settings.py` == 1.
-6. `grep -c "_compute_swap_candidates" backend/services/portfolio_manager.py` >= 2 (def + call).
-7. `grep -c "swap_for_higher_conviction" backend/services/portfolio_manager.py` >= 1.
-8. `grep -c "swap_buy" backend/services/portfolio_manager.py` >= 1.
-9. All risk gates preserved (count cap, NAV-pct cap, factor-correlation cap, position cap, min cash reserve).
-10. Sell-first-then-buy ordering preserved.
-11. ASCII-only log messages.
-12. ZERO frontend changes.
-13. ZERO new npm deps.
-14. NO `npm run build`, NO `rm -rf .next/*`.
-15. Existing tests (`pytest backend/tests/` for any file touching `portfolio_manager` or `autonomous_loop`) still pass.
+Verification-only. No backend, no frontend, no tests.
+
+## Operator action (approved direction; cycle-3 scope)
+
+The operator approved 2026-05-26: route through Claude Code CLI for testing phase until production Anthropic key is set up. Cycle 3 will implement:
+
+- Feature flag `paper_use_claude_code_route: bool = False` (default OFF, operator opt-in).
+- `backend/agents/llm_client.py::claude_code_invoke()` shells out to `claude --print --output-format json <prompt>` on the Max-subscription rail.
+- Stage-1 / Stage-2 / Stage-3 call sites in `orchestrator.py` switch on the flag.
+- Cycle 4+ flips the flag ON and re-runs the 27.6 verification.
+
+Alternative path (if Claude Code routing proves infeasible in cycle 3): top up Anthropic credits + flip model setting + trigger fresh cycle.
+
+## Immutable success criteria (cycle 2 itself, NOT 27.6)
+
+1. `handoff/current/live_check_27.6.md` exists.
+2. Artifact contains verbatim `cycle_id=c870fdab`.
+3. Artifact contains the 6-criterion table.
+4. Artifact contains the operator remediation chain.
+5. Artifact contains a BLOCKED header so future readers don't mis-parse it as PASS.
+6. Researcher brief `handoff/current/research_brief_phase_27_6_smoke.md` exists with gate_passed=true.
+7. `handoff/current/experiment_results.md` documents this cycle's outputs.
+8. ZERO code changes (frontend or backend).
+9. ZERO new npm deps.
+10. NO `npm run build`, NO `rm -rf .next/*`.
+11. `masterplan.json` `27.6.status` UNCHANGED at `pending` (no premature flip).
+12. **THIS contract.md** (cycle-2 trading-verification content + File-collision preamble + researcher `aa204309cdc5f0761` cite) is on-disk at commit time. If the autonomous-loop overwrites it again between now and Q/A, Main re-writes immediately before re-spawning Q/A.
 
 ## /goal integration gates
 
-1. pytest green. 2. AST parse green. 3. Citations >=2 AI-in-trading + >=2 academic (verified in research gate). 4. Log LAST. 5. No self-evaluation -- Q/A spawned. 6. North-star aligned -- swap threshold framed as expected-profit uplift, not raw score delta.
+1. AST parse N/A (no code). 2. Log LAST. 3. No self-evaluation. 4. Citation floor N/A (verification cycle). 5. Researcher gate_passed=true.
