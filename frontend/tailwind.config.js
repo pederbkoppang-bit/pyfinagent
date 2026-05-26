@@ -1,5 +1,12 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // phase-44.2 cycle 68 UX-audit root-cause fix:
+  // default is "media" which only activates dark: variants when the OS
+  // itself reports prefers-color-scheme: dark. This project is dark-only
+  // and we apply the `dark` class to <html> in app/layout.tsx, so the
+  // "selector" strategy gives us reliable dark: activation regardless of
+  // OS preference. Documented in handoff/current/research_brief_phase_44_2_uxaudit.md.
+  darkMode: "selector",
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {

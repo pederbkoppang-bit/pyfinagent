@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en" className={`dark ${GeistSans.variable} ${GeistMono.variable}`}>
       <body className="font-sans antialiased">
         {/* phase-44.1: WCAG 2.2 SC 2.4.1 Skip Link -- visible only on focus.
             EU AAA mandate 2026 per research_brief Section B.7. */}

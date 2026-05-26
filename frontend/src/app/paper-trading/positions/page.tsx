@@ -6,13 +6,16 @@
 // 6 (AgentRationaleDrawer opens from positions row), 7 (LiveBadge per row),
 // and 8 (SectorBarList right column).
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import type { FilterFn } from "@tanstack/react-table";
 import { DataTable } from "@/components/DataTable";
 import { SectorBarList } from "@/components/SectorBarList";
+import { PortfolioAllocationDonut } from "@/components/PortfolioAllocationDonut";
 import { RiskMonitorCard } from "@/components/paper-trading/cockpit-helpers";
 import { positionsColumns } from "@/components/paper-trading/positions-columns";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
 import { latestTradeIdForTicker } from "@/lib/paper-trading-utils";
+import type { PaperPosition } from "@/lib/types";
 
 // Hard-coded default cap; the operator-tunable setting is
 // paper_max_per_sector_nav_pct (lives at /paper-trading/manage; reachable
@@ -38,6 +41,24 @@ export default function PositionsPage() {
     [tickerMeta, livePrices],
   );
 
+  // phase-44.2 cycle-68: custom global filter that matches ticker OR
+  // company_name OR sector. Default TanStack auto-filter only inspects
+  // primitive accessor values; the operator wants to search by company
+  // (which lives in tickerMeta, NOT on the row). Closes over tickerMeta
+  // so updates to ticker meta data re-create the filter.
+  const positionsFilterFn = useCallback<FilterFn<PaperPosition>>(
+    (row, _columnId, value) => {
+      const q = String(value ?? "").trim().toLowerCase();
+      if (!q) return true;
+      const ticker = (row.original.ticker ?? "").toLowerCase();
+      const meta = tickerMeta[row.original.ticker];
+      const company = (meta?.company_name ?? "").toLowerCase();
+      const sector = (meta?.sector ?? "").toLowerCase();
+      return ticker.includes(q) || company.includes(q) || sector.includes(q);
+    },
+    [tickerMeta],
+  );
+
   // Sector concentration items: aggregate live market value by sector,
   // normalized to NAV. Uses live prices when available, falls back to
   // stored cost basis so a fresh portfolio still renders.
@@ -55,6 +76,23 @@ export default function PositionsPage() {
       .filter((s) => s.value > 0);
   }, [positions, tickerMeta, livePrices, portfolio]);
 
+  // phase-44.2 cycle-68: portfolio allocation slices for the donut.
+  // Each held sector contributes its summed market value; cash is
+  // surfaced as its own slice. Total = sum of all = NAV when consistent.
+  const allocationSlices = useMemo(() => {
+    const acc = new Map<string, number>();
+    for (const pos of positions) {
+      const sector = tickerMeta[pos.ticker]?.sector || "Unknown";
+      const livePrice = livePrices[pos.ticker]?.price ?? pos.current_price ?? pos.avg_entry_price;
+      const mv = livePrice * pos.quantity;
+      acc.set(sector, (acc.get(sector) ?? 0) + mv);
+    }
+    const slices = Array.from(acc.entries()).map(([name, value]) => ({ name, value }));
+    const cash = portfolio?.current_cash ?? 0;
+    if (cash > 0) slices.push({ name: "Cash", value: cash });
+    return slices;
+  }, [positions, tickerMeta, livePrices, portfolio]);
+
   return (
     <div
       role="tabpanel"
@@ -63,13 +101,12 @@ export default function PositionsPage() {
       tabIndex={0}
       className="space-y-4"
     >
-      {/* phase-44.2 cycle-67 UX-audit fix: Risk Monitor + Sector
-          Concentration are equal-height siblings in a 2-col row (was 2:1
-          which created dead space under the short Sector card). DataTable
-          drops below at full width. items-start so neither card stretches
-          to match the other if they end up uneven (per frontend-layout.md
-          Section 4.5 option 2). */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 items-start">
+      {/* phase-44.2 cycle-68 UX-audit fix: 3-col row -- Risk Monitor +
+          Sector concentration + Portfolio allocation donut. items-start so
+          variable-content cards size to their content per frontend-layout.md
+          Section 4.5 option 2 (don't stretch short cards to a tall
+          neighbor's height). Collapses to 1-col on small screens. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 items-start">
         <RiskMonitorCard
           perf={perf}
           positions={positions}
@@ -81,14 +118,19 @@ export default function PositionsPage() {
           capPct={DEFAULT_SECTOR_CAP_PCT}
           title="Sector concentration"
           emptyState="No positions yet."
-          className="bg-navy-800/70 border-navy-700"
+        />
+        <PortfolioAllocationDonut
+          slices={allocationSlices}
+          totalNav={portfolio?.total_nav ?? null}
+          title="Allocation"
         />
       </div>
       <div className="rounded-xl border border-navy-700 bg-navy-800/70 backdrop-blur-lg p-4">
         <DataTable
           data={positions}
           columns={columns}
-          globalFilterPlaceholder="Filter tickers..."
+          globalFilterPlaceholder="Filter ticker, company, or sector..."
+          globalFilterFn={positionsFilterFn}
           ariaLabel="Positions"
           onRowClick={(pos) => {
             const tid = latestTradeIdForTicker(trades, pos.ticker);

@@ -1,72 +1,72 @@
-# Sprint Contract -- Cycle 1
-Generated: 2026-05-26T14:54:21.653832+00:00
+# Contract -- phase-44.2.X UX audit fix bundle (Cycle 68)
 
-## Hypothesis
-Continue parameter optimization with random perturbation
+**Cycle:** 68 (2026-05-26). UX-quality follow-up to phase-44.2 closure; no separate masterplan step (the underlying step flipped done in cycle 67; this cycle polishes operator-flagged issues).
 
-## Current Baseline
-- Sharpe: 1.1705
+## Research gate
 
-## Success Criteria (from evaluator_criteria.md)
-- Statistical Validity: DSR >= 0.95, Sharpe > 0
-- Robustness: ALL sub-periods Sharpe > 0
-- Reality Gap: 2x costs Sharpe > 0.5
+- Researcher `af5fa1f8484539e6d`, tier=moderate.
+- 10 external sources read in full (Tailwind dark-mode + TanStack global filtering + Tremor DonutChart + WCAG 2.2 + WebAIM contrast).
+- 24 URLs / 14 snippet-only / recency scan / 12 internal files.
+- **gate_passed: true.**
+- Brief: `handoff/current/research_brief_phase_44_2_uxaudit.md`.
 
-## Planner Suggestions
-- PLATEAU: Last 10 experiments all discarded. Consider strategy change.
-- SATURATED: trailing_distance_pct has 23 consecutive discards. Excluding.
-- SATURATED: rsi_weight has 23 consecutive discards. Excluding.
-- SATURATED: n_estimators has 24 consecutive discards. Excluding.
-- SATURATED: sl_pct has 16 consecutive discards. Excluding.
-- SATURATED: volatility_weight has 17 consecutive discards. Excluding.
-- SATURATED: qm_weight has 23 consecutive discards. Excluding.
-- SATURATED: mr_holding_days has 13 consecutive discards. Excluding.
-- SATURATED: frac_diff_d has 11 consecutive discards. Excluding.
-- SATURATED: top_n_candidates has 15 consecutive discards. Excluding.
-- SATURATED: vol_barrier_multiplier has 16 consecutive discards. Excluding.
-- SATURATED: min_samples_leaf has 15 consecutive discards. Excluding.
-- SATURATED: momentum_weight has 21 consecutive discards. Excluding.
-- SATURATED: mr_weight has 12 consecutive discards. Excluding.
-- SATURATED: target_vol has 24 consecutive discards. Excluding.
-- SATURATED: learning_rate has 22 consecutive discards. Excluding.
-- SATURATED: holding_days has 24 consecutive discards. Excluding.
-- SATURATED: fm_weight has 22 consecutive discards. Excluding.
-- SATURATED: max_positions has 19 consecutive discards. Excluding.
-- SATURATED: trailing_stop_enabled has 22 consecutive discards. Excluding.
-- SATURATED: tb_weight has 20 consecutive discards. Excluding.
-- SATURATED: target_annual_vol has 19 consecutive discards. Excluding.
-- SATURATED: trailing_trigger_pct has 14 consecutive discards. Excluding.
-- SATURATED: tp_pct has 20 consecutive discards. Excluding.
-- SATURATED: sma_weight has 16 consecutive discards. Excluding.
-- SATURATED: strategy has 15 consecutive discards. Excluding.
-- SATURATED: max_depth has 15 consecutive discards. Excluding.
-- COORDINATED: barrier_shape group (tp_pct, sl_pct) has 1 kept / 37 discarded. Try moving params together.
-- STRATEGY: Current=triple_barrier. Consider switching to mean_reversion if plateau continues.
+## Hypothesis (single load-bearing finding)
 
-## Excluded Parameters
-- trailing_distance_pct
-- rsi_weight
-- n_estimators
-- sl_pct
-- volatility_weight
-- qm_weight
-- mr_holding_days
-- frac_diff_d
-- top_n_candidates
-- vol_barrier_multiplier
-- min_samples_leaf
-- momentum_weight
-- mr_weight
-- target_vol
-- learning_rate
-- holding_days
-- fm_weight
-- max_positions
-- trailing_stop_enabled
-- tb_weight
-- target_annual_vol
-- trailing_trigger_pct
-- tp_pct
-- sma_weight
-- strategy
-- max_depth
+Five UX issues operator reported (hover-row near-white, search doesn't match company name, Sector card unequal height, no portfolio allocation chart, headers still hard to read) are mostly SYMPTOMS of one root cause: `tailwind.config.js` is missing the `darkMode` key, defaulting to `'media'` strategy. The `dark:*` variants in DataTable / SectorBarList / cockpit-helpers only fire when the OS itself is in dark mode -- they don't reliably activate on this Mac. Fixing the dark-mode strategy unlocks ALL the cycle-67 `dark:` color work in one 2-line change.
+
+## N* delta
+
+- **B (Burn) primary:** cockpit readability is operator-blocking. Every dark-mode token landed in cycles 63-67 currently doesn't apply reliably. After this cycle: those tokens activate correctly + 4 additional improvements (filter-by-company, donut, equal-heights via items-start, header bump) compound.
+- **R speculative:** correct allocation visibility helps spot concentration breaches faster.
+- **P:** marginal.
+
+## Scope (5 fixes)
+
+| # | Fix | Approach |
+|---|-----|----------|
+| 1 | Hover-row near-white + every dark-mode token unreliable | Add `darkMode: 'selector'` to `tailwind.config.js` + `className+=" dark"` on `<html>` in `app/layout.tsx`. 2-line patch. Unlocks all existing `dark:*` variants. |
+| 2 | Filter only matches ticker; should match company name | Custom `globalFilterFn` closes over `tickerMeta` + matches ticker OR company_name OR sector (case-insensitive substring). DataTable foundation gains optional `globalFilterFn` prop (TanStack's default behavior when omitted). |
+| 3 | Sector card unequal-height with Risk Monitor | 3-col `items-start` row: Risk Monitor + Sector Concentration + new PortfolioAllocationDonut. Variable heights acceptable with items-start per frontend-layout.md §4.5. |
+| 4 | No portfolio allocation chart | New `PortfolioAllocationDonut.tsx`: Tremor DonutChart wrapper; per-sector + Cash slices; normalized to NAV%; center label "NAV $X". |
+| 5 | Headers still hard to read | DataTable header `dark:text-slate-300` -> `dark:text-slate-200`. The "still hard to read" perception is largely Fix #1's symptom: when darkMode='media' doesn't fire, `dark:text-slate-300` collapses to `text-zinc-700` (3.7:1 fail AA on navy-800/70). |
+
+## Plan steps
+
+1. `tailwind.config.js` -- add `darkMode: 'selector'` line.
+2. `app/layout.tsx` -- add `dark` token to html className.
+3. `DataTable.tsx` -- optional `globalFilterFn` prop wired to useReactTable; header text dark:text-slate-300 -> dark:text-slate-200; sanity-check hover class.
+4. `positions/page.tsx` -- restructure to 3-col `grid items-start`; pass `globalFilterFn` closing over tickerMeta.
+5. New `PortfolioAllocationDonut.tsx` + `.test.tsx` (Tremor DonutChart).
+6. Verify all gates.
+
+## Files
+
+NEW:
+- `frontend/src/components/PortfolioAllocationDonut.tsx`
+- `frontend/src/components/PortfolioAllocationDonut.test.tsx`
+
+MODIFIED:
+- `frontend/tailwind.config.js`
+- `frontend/src/app/layout.tsx`
+- `frontend/src/components/DataTable.tsx`
+- `frontend/src/app/paper-trading/positions/page.tsx`
+
+ZERO backend changes.
+
+## /goal integration-gate plan
+
+| # | Gate | Plan |
+|---|------|------|
+| 1 | pytest >= 614 + vitest >= 158 | Run both; no backend touches. |
+| 2 | TS build green | tsc + build. |
+| 3 | Flag default OFF | N/A (UX polish). |
+| 4-5 | N/A | |
+| 6 | N* delta | DONE. |
+| 7 | Zero emojis | Grep. |
+| 8 | ASCII loggers | N/A. |
+| 9 | SSOT | DonutChart wrapper reusable for /performance criterion 7 if needed. |
+| 10 | log first / flip last | Yes -- no masterplan flip; just log + commit. |
+
+## Sign-off
+
+Authored AFTER researcher gate_passed=true. Operator explicitly requested "full harness with our mas agents" -- protocol observed.

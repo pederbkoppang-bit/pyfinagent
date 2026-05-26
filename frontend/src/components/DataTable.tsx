@@ -14,6 +14,7 @@
 import { useState } from "react";
 import {
   ColumnDef,
+  FilterFn,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -28,6 +29,11 @@ export interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   // Optional global-filter input; pass undefined to hide.
   globalFilterPlaceholder?: string;
+  // phase-44.2 cycle-68: optional custom global filter. When supplied,
+  // overrides the default TanStack "auto" filter so consumers can match
+  // across derived/computed fields (e.g. ticker meta company name not
+  // in the row). Signature per TanStack v8: (row, columnId, value) -> bool.
+  globalFilterFn?: FilterFn<TData>;
   // Optional row click handler (used by AgentRationaleDrawer wire).
   onRowClick?: (row: TData) => void;
   // Optional empty-state slot.
@@ -40,6 +46,7 @@ export function DataTable<TData>({
   data,
   columns,
   globalFilterPlaceholder,
+  globalFilterFn,
   onRowClick,
   emptyState,
   ariaLabel,
@@ -56,6 +63,7 @@ export function DataTable<TData>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    ...(globalFilterFn ? { globalFilterFn } : {}),
   });
 
   const rows = table.getRowModel().rows;
@@ -69,7 +77,7 @@ export function DataTable<TData>({
           onChange={(e) => setGlobalFilter(e.target.value)}
           placeholder={globalFilterPlaceholder}
           aria-label={`Filter ${ariaLabel ?? "table"}`}
-          className="w-full max-w-md px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+          className="w-full max-w-md px-3 py-2 rounded-lg border border-zinc-200 dark:border-navy-700 bg-white dark:bg-navy-900 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
         />
       )}
       <div className="overflow-x-auto scrollbar-thin">
@@ -77,7 +85,7 @@ export function DataTable<TData>({
           aria-label={ariaLabel}
           className="min-w-full text-sm border-collapse"
         >
-          <thead className="border-b border-zinc-200 dark:border-zinc-800">
+          <thead className="border-b border-zinc-200 dark:border-navy-700">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((header) => {
@@ -98,8 +106,8 @@ export function DataTable<TData>({
                         sort === "asc" ? "ascending" : sort === "desc" ? "descending" : "none"
                       }
                       scope="col"
-                      className={`px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-700 dark:text-slate-300 ${alignClass} ${meta?.className ?? ""} ${
-                        canSort ? "cursor-pointer select-none hover:text-zinc-900 dark:hover:text-slate-100" : ""
+                      className={`px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-700 dark:text-slate-200 ${alignClass} ${meta?.className ?? ""} ${
+                        canSort ? "cursor-pointer select-none hover:text-zinc-900 dark:hover:text-slate-50" : ""
                       }`}
                     >
                       <span className="inline-flex items-center gap-1">
@@ -137,8 +145,8 @@ export function DataTable<TData>({
                 <tr
                   key={row.id}
                   onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                  className={`border-b border-zinc-100 dark:border-zinc-800/50 ${
-                    onRowClick ? "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50" : ""
+                  className={`border-b border-zinc-100 dark:border-navy-700/60 ${
+                    onRowClick ? "cursor-pointer hover:bg-navy-700/40 dark:hover:bg-navy-700/40" : ""
                   }`}
                 >
                   {row.getVisibleCells().map((cell) => {
