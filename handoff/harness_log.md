@@ -24548,3 +24548,63 @@ The fresh cycle is operational. Cycle 6 will verify completion + BQ row count.
 **No masterplan flip in cycle 5.** Cycles 6 (27.6 closure), 7 (38.10 Slack digest fix), 8 (38.11 Recent Reports fix) are the candidates.
 
 **Total cycle time:** ~70 min (researcher borrow + contract 5 min + first generate 8 min + first Q/A CONDITIONAL 7 min + --max-tokens fix 3 min + 38.10/38.11 add 5 min + memory write 3 min + fresh Q/A PASS 5 min + log 5 min + multiple backend restarts + 2 live cycle triggers).
+
+---
+
+## Cycle 1 -- 2026-05-26 22:24 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 6 -- 2026-05-27 01:20 -- autonomous-loop completion + 27.6 closure attempt -- result=BLOCKED
+
+**Trigger:** Cycle 5 shipped the Claude Code rail infrastructure. Cycle 6 was the operational closure: wait for the autonomous-loop to complete with `paper_use_claude_code_route=true` + `gemini_model=claude-sonnet-4-6` and produce >=14 analyses_persisted rows for 27.6 criterion #5.
+
+**What happened:** Fresh cycle started 2026-05-26T23:50:07+02:00. The Claude Code rail performed cleanly: 225 successful `claude_code_invoke` calls, 0 errors, 0 `Full orchestrator failed` lines, 0 `--max-tokens` rejections (cycle-4 fix held). But the cycle's serial-orchestrator-per-ticker pipeline at ~30s/call ran past the `paper_cycle_max_seconds=3600` wall-clock budget at 00:50:08 with 7 of 13 tickers analyzed and persisted.
+
+**Verbatim log:**
+```
+00:50:08 E [autonomous_loop] Paper trading cycle TIMED OUT after 3600s
+```
+
+**Per-criterion final (from `handoff/current/live_check_27.6.md` BLOCKED state):**
+- model = claude-sonnet-4-6 ......... PASS
+- cycle status = completed .......... **FAIL** (timeout, not completed)
+- lite_mode=False in Step 3 ......... PASS
+- zero "Full orchestrator failed" ... PASS
+- min 14/15 analyses persisted ...... **FAIL** (7 of 15 universe tickers)
+- OutcomeTracker step 9 attempted ... UNKNOWN (cycle timed out before step 9)
+
+**Root cause:** Claude Code CLI subprocess overhead (~30s per call vs ~5s for Anthropic direct rail) × ~7 calls/ticker × 13 tickers + serial enrichment-debate-risk-synthesis dependencies inside each ticker. Math: ~2700-3500s minimum, doesn't fit in 3600s.
+
+**Path forward (operator-pending decision):**
+1. **Bump `paper_cycle_max_seconds` to 7200s (2h).** Recommended; preserves Max-subscription cost model. Added as masterplan step **38.12** under phase-38 (P0; depends_on=None; harness_required=True). Verification: expose field via settings_api allow-list + raise default + verify next cycle completes inside new timeout.
+2. Restore Anthropic-direct rail (requires operator credit top-up; reverts to cycle-1 to -4 failure mode).
+3. lite_mode=true (violates 27.6 criterion #3).
+4. Reduce universe (violates 27.6 criterion #5).
+
+**Masterplan changes:**
+- Added `38.12` "Bump paper_cycle_max_seconds for Claude Code rail" (P0, harness_required, full success_criteria + live_check).
+- Step 27.6 STAYS `pending`. Main is HOLDING the flip until 38.12 (or alternative remediation) ships.
+
+**Q/A NOT spawned for cycle 6.** This is honest documentation of a BLOCKED state, not a PASS/FAIL verdict. Per CLAUDE.md cycle-2 protocol: when verification criteria fail and the fix is in a separate masterplan step, the proper move is to document + add the next step, not to spawn Q/A on incomplete evidence. The next cycle (cycle 7 if 38.12) WILL spawn Q/A on its closure.
+
+**No commit in cycle 6 alone.** Cycle 6 outputs (live_check_27.6.md, this harness_log entry, masterplan 38.12 add) will commit together as a "cycle 6 close + cycle 7 open" pair.
+
+**Stop-condition contribution:** does NOT close 27.6 yet. The path to 27.6 closure is now: ship 38.12 → trigger fresh cycle → verify analyses_persisted >= 14 + cycle_status=completed → rewrite live_check_27.6.md with PASS evidence → spawn Q/A → flip 27.6 status to done.
+
+**Operator notification (next message):** the cycle 6 BLOCKED state + 38.12 remediation path will be summarized concisely so the operator can decide whether to (a) authorize cycle 7 to ship 38.12, (b) restore Anthropic credits, or (c) accept lite_mode for testing-phase trade-count.
+
+**Total cycle 6 time:** ~90 min (autonomous-loop wait + repeated stop-hook checks + live_check write + masterplan add + harness_log).

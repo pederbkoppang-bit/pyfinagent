@@ -12251,6 +12251,28 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "38.12",
+          "name": "Bump paper_cycle_max_seconds for Claude Code rail (expose in settings_api allow-list + raise default to 7200s) \u2014 unblocks 27.6",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "Cycle 6 (2026-05-27 01:20) closed live_check_27.6.md as BLOCKED on a structural rail-vs-timeout mismatch: Claude Code rail's ~30s per claude_code_invoke + serial orchestrator stages cause a 13-ticker cycle to exceed the 3600s wall-clock at backend/services/autonomous_loop.py:219 (paper_cycle_max_seconds default 1800; operator's .env has 3600). Fresh cycle started 23:50:07, timed out 00:50:08 with 7 of 13 tickers analyzed and 225 successful claude_code calls. To close 27.6: bump to ~7200s (2h) and expose the field via settings_api allow-list so the operator can adjust without code edits.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_38.12.md && grep -qE 'paper_cycle_max_seconds.*[67][0-9]{3}' handoff/current/live_check_38.12.md && curl -sf http://localhost:8000/api/settings/ | python3 -c \"import json,sys;d=json.load(sys.stdin);assert d.get('paper_cycle_max_seconds',0) >= 7200, f'value={d.get(\\\"paper_cycle_max_seconds\\\")}'\"",
+            "success_criteria": [
+              "paper_cycle_max_seconds exposed via FullSettings + SettingsUpdate + _FIELD_TO_ENV + _settings_to_full (all 4 places)",
+              "default raised to 7200s (or operator-set higher) so 13-ticker full-orchestrator cycle fits inside",
+              "GET /api/settings/ returns paper_cycle_max_seconds >= 7200",
+              "next autonomous-loop cycle on Claude Code rail completes status=completed (no timeout)",
+              "live_check_38.12.md captures the verbatim cycle-complete log line + duration_ms"
+            ],
+            "live_check": "live_check_38.12.md captures a post-fix cycle that completes inside the new timeout AND BQ row count >= 14."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },
