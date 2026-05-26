@@ -150,7 +150,6 @@ function ReportsContent() {
     });
   })();
 
-  const tickers = [...new Set(reports.map((r) => r.ticker))];
 
   /* ── Compare logic ── */
   const toggle = (key: string) => {
@@ -315,39 +314,20 @@ function ReportsContent() {
             aria-labelledby="tab-history"
             tabIndex={0}
           >
-            {/* Ticker filter */}
-            <div className="mb-6 flex flex-wrap items-center gap-3">
+            {/* phase-44.4 cycle-70 UX-consistency fix: mirror the paper-
+                trading filter pattern -- single full-width input, no chip
+                row (the 24+ ticker chips were noise once the filter
+                matches ticker/company/recommendation). Style matches
+                DataTable foundation's globalFilter input verbatim. */}
+            <div className="mb-6">
               <input
                 type="text"
                 placeholder="Filter ticker, company, or recommendation..."
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 aria-label="Filter reports by ticker, company, or recommendation"
-                className="w-40 rounded-lg border border-navy-700 bg-navy-800 px-3 py-2 font-mono text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
+                className="w-full max-w-md px-3 py-2 rounded-lg border border-zinc-200 dark:border-navy-700 bg-white dark:bg-navy-900 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
               />
-              {tickers.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setFilter(filter === t ? "" : t)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                    filter === t
-                      ? "bg-sky-500/20 text-sky-300"
-                      : "bg-slate-800 text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-              {filter && (
-                <button
-                  type="button"
-                  onClick={() => setFilter("")}
-                  className="text-xs text-slate-500 hover:text-slate-300"
-                >
-                  Clear
-                </button>
-              )}
             </div>
 
             {filtered.length === 0 ? (
