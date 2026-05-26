@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-26 | `8e4e2145` | fix(paper-trading): PortfolioAllocationDonut Option B -- inline SVG rewrite |
 | 2026-05-26 | `30f68555` | fix(paper-trading): Tremor JIT content path + 3-card height align + filters on trades/reports + fron |
 | 2026-05-26 | `0a3793db` | fix(paper-trading): UX audit -- root-cause dark-mode + filter + donut + layout + headers |
 | 2026-05-26 | `3cd8b6da` | fix(paper-trading): drop light-mode tokens from SectorBarList + bump table header contrast |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-25 | `c65cc9c0` | phase-39.1: autoresearch cron exit-1 root-cause fix (OPEN-29 / DoD-1) |
 | 2026-05-25 | `ee479629` | phase-43.0.2: DoD-4 Tier-1 EXTENDED -> STRICT lift (paper_trader + portfolio_manager + perf_metri... |
 | 2026-05-25 | `4ea86c7d` | phase-43.0.1: DoD-4 Tier-1 EXTENDED floor cleanup (perf_metrics +1pp + cycle_health +6pp) (follow... |
-| 2026-05-25 | `e7b2c201` | chore: gitignore .coverage artifacts (DoD-4 cycle 53 cleanup) |
 
 ---
 
+### v6.20.17 — fix(paper-trading): PortfolioAllocationDonut Option B -- inline SVG r... (2026-05-26)
+
+- **fix(paper-trading): PortfolioAllocationDonut Option B -- inline SVG rewrite**
 ### v6.20.16 — fix(paper-trading): Tremor JIT content path + 3-card height align + f... (2026-05-26)
 
 - **fix(paper-trading): Tremor JIT content path + 3-card height align + filters on trades/reports + fron**
