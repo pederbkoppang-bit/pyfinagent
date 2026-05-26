@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-26 | `0bcd84dd` | fix(learnings): move out of /paper-trading/ -- double-Sidebar regression |
 | 2026-05-26 | `faeb7b20` | fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider |
 | 2026-05-26 | `b9a1b772` | fix(slack-bot): 3 digest regressions -- NAV $0 + 0.0/10 scores + stale trades |
 | 2026-05-26 | `a51733e8` | fix(reports): mirror paper-trading filter pattern -- drop 24-chip row |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-25 | `f3cc97a1` | phase-38.1.1: Wire check_auto_resume into paper_trader.check_and_enforce_kill_switch cycle (follo... |
 | 2026-05-25 | `87c9b4ba` | chore: DoD scoreboard refresh -- 8/14 PASS post owner-gate unblock |
 | 2026-05-25 | `05b7f795` | phase-38.1: Kill-switch auto-resume on no-breach (OPEN-10) -- owner-gated |
-| 2026-05-25 | `393568db` | phase-38.4: Auto-commit hook refuses status-flip without harness_log entry (OPEN-13) -- owner-gated |
 
 ---
 
+### v6.20.21 — fix(learnings): move out of /paper-trading/ -- double-Sidebar regression (2026-05-26)
+
+- **fix(learnings): move out of /paper-trading/ -- double-Sidebar regression**
 ### v6.20.20 — fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider (2026-05-26)
 
 - **fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider**
