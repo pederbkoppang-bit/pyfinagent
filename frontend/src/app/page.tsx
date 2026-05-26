@@ -11,8 +11,12 @@ import { RecentReportsTable } from "@/components/RecentReportsTable";
 import { HomeQuickActionsPanel } from "@/components/HomeQuickActionsPanel";
 import { LatestTransactionsBox } from "@/components/LatestTransactionsBox";
 import { listReports, getPaperTradingStatus, getPaperPortfolio, getPaperTrades, getSovereignRedLine } from "@/lib/api";
-import { useLivePrices } from "@/lib/useLivePrices";
-import { useLiveNav } from "@/lib/useLiveNav";
+// phase-72: ONE app-wide live-portfolio SSOT replaces per-page useLivePrices
+// + useLiveNav. The Home cockpit and Paper Trading layout used to call
+// these hooks separately, producing race conditions on poll timestamps
+// (operator-flagged 2026-05-26: Home showed $23,732.69 while Paper Trading
+// showed $23,750.37 simultaneously). Now both consume from the root provider.
+import { useLivePortfolio } from "@/lib/live-portfolio-context";
 import {
   dailyDelta,
   sharpe as kpiSharpe,
@@ -217,13 +221,17 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [redLineWindow]);
 
-  // phase-23.1.17: live-derive NAV + Total P&L pct via shared useLiveNav hook
-  // so the home cockpit and the paper-trading page render the same number on
-  // every 30s tick. Falls back to the BQ snapshot value when no live ticks
-  // are available (initial paint, empty positions).
-  const positionTickers = positions.map((p) => p.ticker).filter(Boolean);
-  const { prices: livePrices } = useLivePrices(positionTickers, positions.length > 0);
-  const { liveNav, liveTotalPnlPct } = useLiveNav(ptStatus, positions, livePrices);
+  // phase-72: ALL live values now come from the root LivePortfolioProvider.
+  // Per researcher: this collapses the 4-NAV operator-flagged inconsistency
+  // by guaranteeing every cockpit surface shares the same poll instance +
+  // the same derivation. livePrices + liveNav + liveTotalPnlPct + the new
+  // pnlTodayPct (today's live-minus-yesterday's-close) all flow from here.
+  const lp = useLivePortfolio();
+  const liveNav = lp.liveNav;
+  const liveTotalPnlPct = lp.liveTotalPnlPct;
+  const livePrices = lp.livePrices;
+  const freshnessBand = lp.freshnessBand;
+  const freshnessAgeSec = lp.freshnessAgeSec;
 
   const nav = ptStatus?.portfolio;
   const navValue = liveNav ?? nav?.nav;
@@ -234,7 +242,17 @@ export default function HomePage() {
   // phase-16.44: KPI sub-text computed from real data (no hardcoded values).
   // All return null on insufficient/flat data; the tile then renders "—".
   const navSeries = redLineSeries.map((p) => ({ date: p.date, nav: p.nav }));
-  const today = dailyDelta(navSeries);
+  // phase-72: P&L (Today) replaces the broken dailyDelta(navSeries) path.
+  // The old derivation read series[-1] and series[-2] from forward-filled
+  // 4-day-stale snapshots, both same value, dollar/pct delta = 0. The new
+  // formula uses (liveNav - yesterday_close_nav) / yesterday_close_nav
+  // exposed by the LivePortfolioProvider (lp.pnlTodayDollars / .pnlTodayPct).
+  // Falls back to dailyDelta only when the live derivation is unavailable
+  // (initial paint, no live ticks).
+  const liveToday = (lp.pnlTodayDollars != null && lp.pnlTodayPct != null)
+    ? { dollars: lp.pnlTodayDollars, pct: lp.pnlTodayPct }
+    : null;
+  const today = liveToday ?? dailyDelta(navSeries);
   // phase-25.C12: prefer backend-authoritative Sharpe so home + paper-trading
   // tabs render identical numbers. Falls back to local kpiSharpe only when
   // the API value is missing (rolling deploy / fail-open).

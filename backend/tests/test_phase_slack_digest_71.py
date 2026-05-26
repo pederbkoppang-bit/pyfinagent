@@ -223,6 +223,83 @@ def test_evening_digest_scheduler_passes_since_today():
     assert "/api/paper-trading/trades?limit=10&since_today=true" in src
 
 
+# --- phase-72 cycle: snapshot timestamp "as of close YYYY-MM-DD" ---
+
+
+def test_format_morning_digest_appends_snapshot_date_when_present():
+    """phase-72: operator-flagged that Slack values disagreed with cockpit
+    live NAV. Slack correctly shows the persisted close-of-day snapshot
+    (digest cadence is fixed) -- but must be labeled '(as of close
+    YYYY-MM-DD)' so the operator isn't confused vs the live cockpit."""
+    from backend.slack_bot.formatters import format_morning_digest
+
+    envelope = {
+        "portfolio": {
+            "total_nav": 23184.7,
+            "starting_capital": 20000.0,
+            "total_pnl_pct": 15.92,
+            "updated_at": "2026-05-22T20:36:03.095279+00:00",
+        },
+        "positions": [],
+        "sector_breakdown": {},
+    }
+    blocks = format_morning_digest(envelope, [])
+    portfolio_sections = [
+        b for b in blocks
+        if b.get("type") == "section"
+        and "Portfolio:" in b.get("text", {}).get("text", "")
+    ]
+    text = portfolio_sections[0]["text"]["text"]
+    assert "as of close 2026-05-22" in text
+
+
+def test_format_evening_digest_appends_snapshot_date_when_present():
+    from backend.slack_bot.formatters import format_evening_digest
+
+    envelope = {
+        "portfolio": {
+            "total_nav": 23184.7,
+            "starting_capital": 20000.0,
+            "total_pnl_pct": 15.92,
+            "updated_at": "2026-05-22T20:36:03+00:00",
+        },
+        "positions": [],
+        "sector_breakdown": {},
+    }
+    blocks = format_evening_digest(envelope, [])
+    eod_sections = [
+        b for b in blocks
+        if b.get("type") == "section"
+        and "End-of-Day Portfolio:" in b.get("text", {}).get("text", "")
+    ]
+    text = eod_sections[0]["text"]["text"]
+    assert "as of close 2026-05-22" in text
+
+
+def test_format_morning_digest_omits_snapshot_date_when_absent():
+    """Defensive: rows without an updated_at field render the value
+    without the '(as of ...)' suffix (no garbage in the message)."""
+    from backend.slack_bot.formatters import format_morning_digest
+
+    envelope = {
+        "portfolio": {
+            "total_nav": 23184.7,
+            "starting_capital": 20000.0,
+            "total_pnl_pct": 15.92,
+        },
+        "positions": [],
+        "sector_breakdown": {},
+    }
+    blocks = format_morning_digest(envelope, [])
+    portfolio_sections = [
+        b for b in blocks
+        if b.get("type") == "section"
+        and "Portfolio:" in b.get("text", {}).get("text", "")
+    ]
+    text = portfolio_sections[0]["text"]["text"]
+    assert "as of close" not in text
+
+
 # --- Fix 3 wire-up: /api/paper-trading/trades exposes since_today ---
 
 

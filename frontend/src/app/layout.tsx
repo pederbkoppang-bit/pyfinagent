@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { AuthProvider } from "@/components/AuthProvider";
 import { CommandPalette } from "@/components/CommandPalette";
+import { LivePortfolioProvider } from "@/lib/live-portfolio-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,11 +28,18 @@ export default function RootLayout({
           Skip to main content
         </a>
         <AuthProvider>
-          {/* phase-44.1: Cmd-K command palette (cmdk by Vercel/Pacos).
-              Operator-approved 2026-05-22 per handoff/current/operator_approval_44.1.md.
-              Mounted at root so Cmd+K opens from any of the 15 routes. */}
-          <CommandPalette />
-          {children}
+          {/* phase-72 cycle (2026-05-26): root-level LivePortfolio SSOT.
+              ONE useLivePrices + useLiveNav polling instance across the
+              whole app -- Home + Paper Trading + Donut all consume from
+              the same context. Mounted inside AuthProvider so it can
+              gate on session in a future hardening pass. */}
+          <LivePortfolioProvider>
+            {/* phase-44.1: Cmd-K command palette (cmdk by Vercel/Pacos).
+                Operator-approved 2026-05-22 per handoff/current/operator_approval_44.1.md.
+                Mounted at root so Cmd+K opens from any of the 15 routes. */}
+            <CommandPalette />
+            {children}
+          </LivePortfolioProvider>
         </AuthProvider>
       </body>
     </html>

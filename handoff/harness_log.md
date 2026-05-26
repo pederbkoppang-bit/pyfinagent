@@ -23832,3 +23832,54 @@ Operator-flagged via Slack scrape this session: `#ford-approvals` Morning + Even
 **Backfill follow-up (deferred, owner-gated):** `analysis_results.final_score=0` rows from 2026-05-22 onward are permanently 0 unless backfilled from `full_report_json.final_synthesis.final_weighted_score`. One-shot script can restore them. Documented in research_brief Section 3 "Backfill" + contract "deferred" section. Not part of cycle 71's minimal fix.
 
 **Total cycle time:** ~50 min (researcher 10 min + contract 5 min + generate 20 min + tests 5 min + verify + backend kickstart + live probes 5 min + Q/A 5 min + log 1 min).
+
+---
+
+## Cycle 1 -- 2026-05-26 17:36 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=5.24% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+
+## Cycle 72 -- 2026-05-26 -- SSOT NAV/P&L via root LivePortfolioProvider result=PASS
+
+Operator screenshot evidence: 4 different NAV values rendered simultaneously across cockpit surfaces (Slack $23,184.70, Donut $23,185, Home tile $23,732.69, Paper Trading tile $23,750.37). P&L (Today) $0.00 while Total P&L +18.75%. Operator-flagged as "use full harness with max claude settings + mas agents". Tier=deep with maximum scrutiny applied.
+
+- Researcher (`a9c94760e6f0240af`, tier=deep): 21 external sources read in full (Robinhood, QuantConnect, Alpaca, IBKR, TanStack Query, SWR, Kent C Dodds, tkdodo, Patterns.dev, Smashing Magazine adversarial, ...), 37 URLs collected, recency scan 2024-2026 + adversarial pass complete, 21 internal files inspected, gate_passed=true. Brief at `handoff/current/research_brief_phase_ssot_nav.md`.
+- Three independent root causes mapped:
+  - RC1: persisted-NAV (`paper_portfolio.total_nav`) and live-NAV (`useLiveNav`) stored alongside each other -- two competing canonical sources, no surface labels which one it's using.
+  - RC2: `useLivePrices` + `useLiveNav` instantiated TWICE (Home page + Paper Trading layout). Each owned its own `setInterval(60_000)`, mounted at different timestamps. ~$18 gap between Home ($23,732.69) and Paper Trading ($23,750.37) was genuine price movement in the seconds between two independent polls.
+  - RC3: Home "P&L (Today)" derived `dailyDelta(redLineSeries)` from 4-day-stale snapshots; series[-1] == series[-2] = no daily delta = $0.00.
+- Contract `handoff/current/contract.md` declares N* delta (B primary: operator-attention burn from reconciling chaotic NAV; R secondary: misaligned values destroy trust in cockpit data) + Path A migration plan with 8-row file:line target table.
+- Generate (10 changed files; ZERO new deps; ZERO schema changes; minimal lift per researcher recommendation):
+  - NEW: `frontend/src/lib/live-portfolio-context.tsx` (~250 LoC) -- root-level `LivePortfolioProvider`. Owns ONE `useLivePrices` instance + ONE `useLiveNav` derivation + freshness band (deriveFreshness from max age across price entries) + ticker meta + snapshot polling + P&L (Today) derivation via `(liveNav - latestSnapshot.nav) / latestSnapshot.nav * 100` (canonical formula per researcher Section 4 finding 6; Delta-by-eToro reference). Exports `useLivePortfolio()` strict + `useLivePortfolioOptional()` soft.
+  - NEW: `frontend/src/lib/live-portfolio-context.test.tsx` -- 6 vitest cases covering provider/no-provider semantics + freshness band derivation + P&L Today null-safety.
+  - MODIFIED: `app/layout.tsx` -- mount `<LivePortfolioProvider>` inside `<AuthProvider>` (provider order matters; provider can gate on session in a future hardening pass).
+  - MODIFIED: `app/page.tsx` -- delete local `useLivePrices` + `useLiveNav` import + instantiation; consume `lp = useLivePortfolio()`. Replace `dailyDelta(navSeries)` P&L Today path with `lp.pnlTodayDollars / .pnlTodayPct` (falls back to dailyDelta only when live derivation unavailable).
+  - MODIFIED: `app/paper-trading/layout.tsx` -- delete local `useLivePrices` + `useLiveNav` import + instantiation; consume `lp = useLivePortfolio()`.
+  - MODIFIED: `app/paper-trading/positions/page.tsx` -- pass `lp.liveNav` to PortfolioAllocationDonut + new `liveBand` + `liveAgeSec` props for the LiveBadge.
+  - MODIFIED: `components/PortfolioAllocationDonut.tsx` -- accept optional `liveBand` + `liveAgeSec` props + render LiveBadge in card header.
+  - MODIFIED: `backend/slack_bot/formatters.py` -- new `_portfolio_snapshot_date()` helper + append "(as of close YYYY-MM-DD)" to both morning + evening Portfolio lines. Cycle-71 envelope unwrap PRESERVED intact.
+  - MODIFIED: `backend/tests/test_phase_slack_digest_71.py` -- +3 snapshot-date tests (present-when-set + present-on-evening + omitted-when-absent).
+  - MODIFIED (cascade test updates): `backend/tests/test_phase_23_2_8_use_live_nav_ssot.py` + `tests/verify_phase_23_1_17.py` -- accept EITHER "imports useLiveNav directly" OR "imports useLivePortfolio (which imports useLiveNav)". The SSOT invariant tracks the architecture, not a specific import shape. Chain-of-imports verified: live-portfolio-context.tsx is required to itself import useLiveNav, so the source of NAV math stays in one place.
+- ARIA: PortfolioAllocationDonut card header gains the LiveBadge dot with `role="status"` + `aria-label` from the LiveBadge component (cycle-44.0 foundation).
+- Pytest: backend 614 collected / 600 passed (+3 net from cycle 71's 597 -- exactly the 3 new snapshot-date tests + cascade test updates net to zero new failures). Same 14 pre-existing env/calendar/doc-archive failures untouched across cycles 63-72.
+- Frontend vitest 23 files / 178 tests pass (+6 net vs cycle 70's 172).
+- `tsc --noEmit` exit 0. Emoji scan 0 hits across 9 changed files. ASCII loggers clean.
+- Backend kickstarted to ensure Slack snapshot label fires on next digest. Frontend kickstarted to load new bundle.
+- Q/A (`ac0b41bfe56b22ba0`, max-effort) PASS: 5/5 harness-compliance + 10/10 deterministic + 0 BLOCK / 0 WARN across 5 code-review dimensions. SSOT invariant confirmed; race condition structurally eliminated; P&L Today formula matches researcher Section 4 finding 6 verbatim; cascade tests STRENGTHEN the invariant (chain-of-imports verified); cycle-71 envelope unwrap preserved at formatters.py:345-349 + :406-410.
+- N* delta R+B primary: operator now sees ONE live NAV across Home + Paper Trading + Donut (all from root provider); persisted-snapshot surfaces (Slack digest, Red Line tooltip) are LABELED "as of close YYYY-MM-DD" so operator immediately knows which is which; P&L (Today) computes the canonical live-minus-yesterday-close delta and stops showing $0.00 when snapshots are stale. The 4-NAV chaos collapses to a labeled SSOT.
+- Two documented scope deviations (per Q/A): (1) RedLineMonitor card header LiveBadge -- not shipped this cycle since the chart itself already has "Window 30d" + per-point date labels in the tooltip, making the "as of YYYY-MM-DD" implicit. (2) `kpiMetrics.ts::liveDailyDelta` helper -- collapsed into the provider directly (researcher Section 7 suggested both). Architecturally sound reductions, not silent omissions.
+- No masterplan flip (cycle is a SSOT refactor; UX/regression class, not a masterplan step closure).
+
+**Total cycle time:** ~95 min (researcher 10 min deep + contract 10 min + generate 50 min + tests + cascade test fixes 15 min + Q/A 5 min + log 5 min).

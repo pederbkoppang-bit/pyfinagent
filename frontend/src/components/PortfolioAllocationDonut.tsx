@@ -20,6 +20,7 @@
 // WCAG SC 1.4.13.
 
 import { useCallback, useMemo, useState, type KeyboardEvent } from "react";
+import { LiveBadge, type FreshnessBand } from "@/components/LiveBadge";
 
 export interface AllocationSlice {
   name: string;       // sector or "Cash"
@@ -31,6 +32,10 @@ export interface PortfolioAllocationDonutProps {
   totalNav: number | null;
   title?: string;
   className?: string;
+  // phase-72: optional live-freshness badge in the card header so the operator
+  // can immediately tell whether the center label is live or stale-snapshot.
+  liveBand?: FreshnessBand;
+  liveAgeSec?: number | null;
 }
 
 // Per-sector color tokens. Cash is neutral slate. Maintained in parallel
@@ -117,6 +122,8 @@ export function PortfolioAllocationDonut({
   totalNav,
   title = "Allocation",
   className,
+  liveBand,
+  liveAgeSec,
 }: PortfolioAllocationDonutProps) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
@@ -178,7 +185,12 @@ export function PortfolioAllocationDonut({
       aria-label={title}
       onKeyDown={handleEsc}
     >
-      <h3 className="text-sm font-medium text-slate-300 mb-1">{title}</h3>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-medium text-slate-300">{title}</h3>
+        {liveBand && (
+          <LiveBadge band={liveBand} ageSec={liveAgeSec ?? null} compact />
+        )}
+      </div>
       <p className="text-[11px] text-slate-400 mb-3">
         NAV split by sector + cash (% of total).
       </p>

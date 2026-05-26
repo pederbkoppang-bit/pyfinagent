@@ -52,9 +52,10 @@ import {
   Gear,
   type Icon,
 } from "@/lib/icons";
-import { useLivePrices } from "@/lib/useLivePrices";
-import { useLiveNav } from "@/lib/useLiveNav";
 import { useTickerMeta } from "@/lib/useTickerMeta";
+// phase-72: single root-level live-portfolio SSOT (see layout.tsx
+// LivePortfolioProvider mount). Replaces local useLivePrices + useLiveNav.
+import { useLivePortfolio } from "@/lib/live-portfolio-context";
 import {
   PaperTradingDataContext,
   type PaperTradingDataValue,
@@ -130,9 +131,16 @@ export default function PaperTradingLayout({
   const [actionLoading, setActionLoading] = useState(false);
   const [rationaleTradeId, setRationaleTradeId] = useState<string | null>(null);
 
-  const positionTickers = useMemo(() => positions.map((p) => p.ticker), [positions]);
-  const { prices: livePrices } = useLivePrices(positionTickers, positions.length > 0);
-  const { liveNav, liveTotalPnlPct } = useLiveNav(status, positions, livePrices);
+  // phase-72: consume live values from the root LivePortfolioProvider
+  // instead of mounting another useLivePrices + useLiveNav pair here.
+  // The operator-flagged ~$18 NAV gap between Home and Paper Trading
+  // (2026-05-26) came from the two pages running INDEPENDENT polling
+  // loops; each owned its own setInterval(60_000) and polled at
+  // different millisecond offsets. Now ONE poll instance feeds both.
+  const lp = useLivePortfolio();
+  const livePrices = lp.livePrices;
+  const liveNav = lp.liveNav;
+  const liveTotalPnlPct = lp.liveTotalPnlPct;
 
   const allTickersForMeta = useMemo(() => {
     const set = new Set<string>();

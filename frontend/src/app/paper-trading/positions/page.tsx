@@ -14,6 +14,7 @@ import { PortfolioAllocationDonut } from "@/components/PortfolioAllocationDonut"
 import { RiskMonitorCard } from "@/components/paper-trading/cockpit-helpers";
 import { positionsColumns } from "@/components/paper-trading/positions-columns";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
+import { useLivePortfolio } from "@/lib/live-portfolio-context";
 import { latestTradeIdForTicker } from "@/lib/paper-trading-utils";
 import type { PaperPosition } from "@/lib/types";
 
@@ -35,6 +36,9 @@ export default function PositionsPage() {
     livePrices,
     openRationale,
   } = usePaperTradingData();
+  // phase-72: pull live NAV + freshness from the root LivePortfolioProvider
+  // so the donut center label matches every other NAV display.
+  const lp = useLivePortfolio();
 
   const columns = useMemo(
     () => positionsColumns(tickerMeta, livePrices),
@@ -122,7 +126,13 @@ export default function PositionsPage() {
         />
         <PortfolioAllocationDonut
           slices={allocationSlices}
-          totalNav={portfolio?.total_nav ?? null}
+          // phase-72: prefer live NAV (root SSOT) for the center label so the
+          // donut matches the Home + Paper Trading NAV tiles. Falls back to
+          // the persisted snapshot if the live derivation isn't ready
+          // (initial paint, no live ticks).
+          totalNav={lp.liveNav ?? portfolio?.total_nav ?? null}
+          liveBand={lp.freshnessBand}
+          liveAgeSec={lp.freshnessAgeSec}
           title="Allocation"
         />
       </div>

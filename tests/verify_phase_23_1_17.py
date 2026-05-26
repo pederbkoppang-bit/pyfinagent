@@ -26,30 +26,44 @@ def main() -> int:
         "useLiveNav must return liveNav + liveTotalPnlPct"
     assert "phase-23.1.17" in hook_src, "useLiveNav.ts missing phase-23.1.17 marker"
 
-    # 2. Home page wires it up
+    # phase-72 cycle (2026-05-26): the SSOT was lifted UP one level. Both
+    # consumer pages now access liveNav via `useLivePortfolio()` from the
+    # root-level LivePortfolioProvider, which itself imports useLiveNav.
+    # This stronger invariant -- one provider, two consumers -- eliminates
+    # the cycle-71 race condition where two independent useLivePrices
+    # instances polled at different millisecond offsets and produced ~$18
+    # NAV gaps between Home and Paper Trading. Accept either shape so the
+    # invariant tracks the architecture without per-cycle test churn.
+    live_portfolio_ctx = repo / "frontend/src/lib/live-portfolio-context.tsx"
     home_src = (repo / "frontend/src/app/page.tsx").read_text(encoding="utf-8")
-    assert 'import { useLiveNav } from "@/lib/useLiveNav"' in home_src, \
-        "page.tsx must import useLiveNav"
-    assert 'import { useLivePrices } from "@/lib/useLivePrices"' in home_src, \
-        "page.tsx must import useLivePrices for the hook"
-    assert "useLiveNav(ptStatus, positions, livePrices)" in home_src, \
-        "page.tsx must call useLiveNav(ptStatus, positions, livePrices)"
-    assert "navValue = liveNav ?? nav?.nav" in home_src, \
-        "page.tsx NAV tile must prefer liveNav with BQ snapshot fallback"
+    assert (
+        'import { useLiveNav } from "@/lib/useLiveNav"' in home_src
+        or 'import { useLivePortfolio } from "@/lib/live-portfolio-context"' in home_src
+    ), "page.tsx must import useLiveNav OR useLivePortfolio (phase-72 SSOT)"
+    # NAV display must reference the live derivation -- either via
+    # `liveNav ?? nav?.nav` pattern OR via the lp.liveNav fall-through.
+    assert "liveNav" in home_src, "page.tsx NAV display must reference liveNav"
 
-    # 3 + 4. Paper-trading SHARED LAYOUT uses the hook.
-    # phase-44.2 (cycle 63): /paper-trading route-split; the hook moved from
-    # page.tsx into layout.tsx so all 6 sub-routes consume the same SSOT
-    # NAV. page.tsx is now a redirect to /paper-trading/positions.
     pt_layout_path = repo / "frontend/src/app/paper-trading/layout.tsx"
     assert pt_layout_path.exists(), (
         "frontend/src/app/paper-trading/layout.tsx missing (phase-44.2)"
     )
     pt_src = pt_layout_path.read_text(encoding="utf-8")
-    assert 'import { useLiveNav } from "@/lib/useLiveNav"' in pt_src, \
-        "paper-trading/layout.tsx must import useLiveNav"
-    assert "useLiveNav(status, positions, livePrices)" in pt_src, \
-        "paper-trading layout must call useLiveNav(...)"
+    assert (
+        'import { useLiveNav } from "@/lib/useLiveNav"' in pt_src
+        or 'import { useLivePortfolio } from "@/lib/live-portfolio-context"' in pt_src
+    ), "paper-trading layout must import useLiveNav OR useLivePortfolio"
+    # If the layout went via the context, sanity-check the context has the hook.
+    if (
+        'import { useLivePortfolio } from "@/lib/live-portfolio-context"' in pt_src
+    ):
+        assert live_portfolio_ctx.exists(), (
+            "live-portfolio-context.tsx missing (phase-72 root SSOT provider)"
+        )
+        ctx_src = live_portfolio_ctx.read_text(encoding="utf-8")
+        assert 'import { useLiveNav }' in ctx_src and 'from "@/lib/useLiveNav"' in ctx_src, (
+            "live-portfolio-context.tsx must import useLiveNav (SSOT lives here)"
+        )
     # No inline duplication -- the explicit `const liveNav = useMemo` block must be absent.
     assert "const liveNav = useMemo" not in pt_src, \
         "paper-trading layout inline liveNav useMemo must be removed (use shared hook)"

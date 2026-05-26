@@ -307,6 +307,19 @@ def format_report_card(data: dict, ticker: str) -> list[dict]:
     return blocks
 
 
+def _portfolio_snapshot_date(p: dict) -> str | None:
+    """phase-72 helper: extract the snapshot date the persisted portfolio
+    row reflects. `paper_portfolio.updated_at` is the canonical write-time
+    of the snapshot (set by `paper_trader.mark_to_market`). Format as
+    YYYY-MM-DD so the digest reads naturally as "as of close 2026-05-22".
+    Returns None if the row has no usable timestamp."""
+    raw = p.get("updated_at") or p.get("snapshot_date") or p.get("last_updated")
+    if not raw or not isinstance(raw, str):
+        return None
+    # Accept ISO timestamps (with or without timezone) and plain dates.
+    return raw[:10]
+
+
 def format_morning_digest(portfolio_data: dict, recent_reports: list) -> list[dict]:
     """Format the daily morning digest."""
     blocks = [
@@ -337,10 +350,18 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list) -> list[di
         )
         sign = "+" if total_pnl >= 0 else ""
         emoji = ":chart_with_upwards_trend:" if total_pnl >= 0 else ":chart_with_downwards_trend:"
+        # phase-72 cycle (2026-05-26): operator-flagged that Slack values
+        # ($23,184) disagreed with cockpit live NAV ($23,732). The Slack
+        # digest correctly displays the persisted close-of-day snapshot
+        # (digest cadence is fixed; no intraday accuracy needed) -- but
+        # the message MUST be labeled "as of close YYYY-MM-DD" so the
+        # operator isn't confused vs the live cockpit values.
+        snap_date = _portfolio_snapshot_date(p)
+        as_of = f" (as of close {snap_date})" if snap_date else ""
 
         blocks.append({
             "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*Portfolio:* {emoji} {sign}${total_pnl:,.2f} ({sign}{total_return:.1f}%)"},
+            "text": {"type": "mrkdwn", "text": f"*Portfolio:* {emoji} {sign}${total_pnl:,.2f} ({sign}{total_return:.1f}%){as_of}"},
         })
 
     # Recent analyses
@@ -390,10 +411,13 @@ def format_evening_digest(portfolio_data: dict, trades_today: list) -> list[dict
         )
         sign = "+" if total_pnl >= 0 else ""
         emoji = ":chart_with_upwards_trend:" if total_pnl >= 0 else ":chart_with_downwards_trend:"
+        # phase-72: "as of close YYYY-MM-DD" snapshot timestamp.
+        snap_date = _portfolio_snapshot_date(p)
+        as_of = f" (as of close {snap_date})" if snap_date else ""
 
         blocks.append({
             "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*End-of-Day Portfolio:* {emoji} {sign}${total_pnl:,.2f} ({sign}{total_return:.1f}%)"},
+            "text": {"type": "mrkdwn", "text": f"*End-of-Day Portfolio:* {emoji} {sign}${total_pnl:,.2f} ({sign}{total_return:.1f}%){as_of}"},
         })
 
     if trades_today:

@@ -28,6 +28,16 @@ HOME_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "page.tsx"
 # sub-routes), and the SSOT invariant moves with it. `page.tsx` is a
 # `redirect("/paper-trading/positions")` and does NOT import useLiveNav.
 PT_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "paper-trading" / "layout.tsx"
+# phase-72 cycle (2026-05-26): the SSOT was lifted UP one level. useLiveNav
+# is now imported by the root-level LivePortfolioProvider; both consumer
+# pages destructure { liveNav, liveTotalPnlPct } from useLivePortfolio()
+# (the context hook), not from useLiveNav directly. This stronger
+# invariant -- one provider, two consumers -- eliminates the cycle-71
+# race condition where two independent useLivePrices instances polled
+# at different offsets and produced ~$18 NAV gaps between surfaces.
+LIVE_PORTFOLIO_CTX = (
+    REPO_ROOT / "frontend" / "src" / "lib" / "live-portfolio-context.tsx"
+)
 
 
 def test_phase_23_2_8_use_live_nav_hook_exists_and_exports():
@@ -40,41 +50,88 @@ def test_phase_23_2_8_use_live_nav_hook_exists_and_exports():
 
 
 def test_phase_23_2_8_home_page_imports_use_live_nav():
-    """Home page must import useLiveNav from @/lib/useLiveNav."""
+    """Home page must access useLiveNav -- directly via the hook (cycles
+    pre-72) OR via useLivePortfolio from the live-portfolio-context
+    provider (phase-72 SSOT lift). Either is acceptable; the invariant
+    is `the home cockpit consumes the canonical NAV derivation`."""
     assert HOME_PAGE.exists(), f"home page missing: {HOME_PAGE}"
     text = HOME_PAGE.read_text(encoding="utf-8")
-    # Match the import line with whitespace tolerance
-    pattern = r'import\s*\{[^}]*useLiveNav[^}]*\}\s*from\s*["\']@/lib/useLiveNav["\']'
-    assert re.search(pattern, text), (
-        f"home page must import useLiveNav from @/lib/useLiveNav; not found"
+    pattern_direct = r'import\s*\{[^}]*useLiveNav[^}]*\}\s*from\s*["\']@/lib/useLiveNav["\']'
+    pattern_context = r'import\s*\{[^}]*useLivePortfolio[^}]*\}\s*from\s*["\']@/lib/live-portfolio-context["\']'
+    direct = re.search(pattern_direct, text) is not None
+    via_context = re.search(pattern_context, text) is not None
+    assert direct or via_context, (
+        "home page must import useLiveNav directly OR useLivePortfolio "
+        "from the live-portfolio-context provider (phase-72 SSOT)"
     )
+    if via_context:
+        assert LIVE_PORTFOLIO_CTX.exists(), (
+            "LivePortfolioProvider file missing -- expected at "
+            f"{LIVE_PORTFOLIO_CTX}"
+        )
+        ctx_text = LIVE_PORTFOLIO_CTX.read_text(encoding="utf-8")
+        assert re.search(pattern_direct, ctx_text), (
+            "live-portfolio-context.tsx must import useLiveNav (SSOT)"
+        )
 
 
 def test_phase_23_2_8_paper_trading_page_imports_use_live_nav():
-    """Paper-trading shared LAYOUT must import useLiveNav from @/lib/useLiveNav.
-    (phase-44.2: hook moved from page.tsx monolith into the shared layout
-    so all 6 sub-routes consume the same SSOT-derived NAV.)"""
+    """Either the paper-trading shared layout imports useLiveNav DIRECTLY
+    (cycles 44.2 - 71), OR -- post phase-72 -- it imports from the
+    LivePortfolioProvider which itself imports useLiveNav (one level of
+    indirection but SAME SSOT). Both shapes are accepted; the invariant
+    is `useLiveNav is the only NAV-derivation source`."""
     assert PT_PAGE.exists(), f"paper-trading layout missing: {PT_PAGE}"
     text = PT_PAGE.read_text(encoding="utf-8")
-    pattern = r'import\s*\{[^}]*useLiveNav[^}]*\}\s*from\s*["\']@/lib/useLiveNav["\']'
-    assert re.search(pattern, text), (
-        f"paper-trading layout must import useLiveNav from @/lib/useLiveNav; not found"
+    pattern_direct = r'import\s*\{[^}]*useLiveNav[^}]*\}\s*from\s*["\']@/lib/useLiveNav["\']'
+    pattern_context = r'import\s*\{[^}]*useLivePortfolio[^}]*\}\s*from\s*["\']@/lib/live-portfolio-context["\']'
+    direct = re.search(pattern_direct, text) is not None
+    via_context = re.search(pattern_context, text) is not None
+    assert direct or via_context, (
+        "paper-trading layout must import useLiveNav directly OR via "
+        "useLivePortfolio from @/lib/live-portfolio-context (phase-72 SSOT)"
     )
+    # If via context, sanity-check the context itself uses useLiveNav.
+    if via_context:
+        assert LIVE_PORTFOLIO_CTX.exists(), (
+            "LivePortfolioProvider file missing -- expected at "
+            f"{LIVE_PORTFOLIO_CTX}"
+        )
+        ctx_text = LIVE_PORTFOLIO_CTX.read_text(encoding="utf-8")
+        assert re.search(pattern_direct, ctx_text), (
+            "live-portfolio-context.tsx must import useLiveNav (SSOT)"
+        )
 
 
 def test_phase_23_2_8_both_pages_destructure_live_nav_and_pnl():
-    """Both pages must destructure { liveNav, liveTotalPnlPct } from the hook.
-    Catches a future refactor that imports the hook but doesn't use its
-    return values (silent SSOT drift)."""
+    """Both pages must access { liveNav, liveTotalPnlPct } -- either
+    directly via useLiveNav OR via the post-phase-72 LivePortfolio
+    provider (`lp.liveNav` + `lp.liveTotalPnlPct`). Catches a future
+    refactor that imports the hook but doesn't use its return values
+    (silent SSOT drift)."""
     home_text = HOME_PAGE.read_text(encoding="utf-8")
     pt_text = PT_PAGE.read_text(encoding="utf-8")
-    # Either order of destructured fields acceptable
-    pattern = r'\{\s*liveNav\s*,\s*liveTotalPnlPct\s*\}|\{\s*liveTotalPnlPct\s*,\s*liveNav\s*\}'
-    assert re.search(pattern, home_text), (
-        "home page must destructure { liveNav, liveTotalPnlPct } from useLiveNav"
+    direct_pattern = r'\{\s*liveNav\s*,\s*liveTotalPnlPct\s*\}|\{\s*liveTotalPnlPct\s*,\s*liveNav\s*\}'
+    # Post-phase-72: pages consume from useLivePortfolio() and read
+    # `.liveNav` + `.liveTotalPnlPct` off the returned object.
+    context_pattern = r'\.liveNav\b'
+    context_pnl_pattern = r'\.liveTotalPnlPct\b'
+
+    def _has_either(text: str) -> bool:
+        if re.search(direct_pattern, text):
+            return True
+        return bool(
+            re.search(context_pattern, text)
+            and re.search(context_pnl_pattern, text)
+        )
+
+    assert _has_either(home_text), (
+        "home page must access liveNav + liveTotalPnlPct -- directly via "
+        "useLiveNav destructure OR via useLivePortfolio() context object"
     )
-    assert re.search(pattern, pt_text), (
-        "paper-trading page must destructure { liveNav, liveTotalPnlPct } from useLiveNav"
+    assert _has_either(pt_text), (
+        "paper-trading layout must access liveNav + liveTotalPnlPct via "
+        "useLiveNav OR useLivePortfolio()"
     )
 
 
