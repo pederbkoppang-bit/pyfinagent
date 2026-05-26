@@ -45,6 +45,36 @@ def test_claude_code_invoke_returns_envelope():
     assert result["usage"]["input_tokens"] == 120
 
 
+def test_claude_code_invoke_passes_prompt_via_stdin_not_argv():
+    """phase-cycle-4 regression guard: prompt MUST be piped via stdin.
+
+    Cycle 3 erroneously passed the prompt as the final positional argv;
+    `--disallowedTools <tools...>` is variadic and consumed it, causing
+    the CLI to fail with 'Input must be provided either through stdin
+    or as a prompt argument when using --print'. The fix routes the
+    prompt through subprocess.run(input=...) instead.
+    """
+    envelope = {"subtype": "success", "result": "ok", "usage": {}}
+    with patch("backend.agents.claude_code_client.subprocess.run") as run:
+        run.return_value = _mock_completed(stdout=json.dumps(envelope))
+        claude_code_invoke("analyze TSLA")
+
+    assert run.called
+    args, kwargs = run.call_args
+    cmd_args = args[0] if args else kwargs.get("args")
+    # Prompt MUST be in stdin, not in argv.
+    assert kwargs.get("input") == "analyze TSLA", (
+        f"Prompt should be passed via stdin (input=...). kwargs={kwargs}"
+    )
+    assert "analyze TSLA" not in cmd_args, (
+        f"Prompt must NOT appear in argv (it gets eaten by --disallowedTools variadic). cmd_args={cmd_args}"
+    )
+    # And no --bare flag (would break Max-subscription auth per researcher).
+    assert "--bare" not in cmd_args, (
+        f"--bare must not be added: it rejects OAuth and forces ANTHROPIC_API_KEY billing. cmd_args={cmd_args}"
+    )
+
+
 def test_claude_code_invoke_raises_on_error_subtype():
     """When subtype != 'success', the function raises ClaudeCodeError."""
     envelope = {

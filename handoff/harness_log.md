@@ -24454,3 +24454,45 @@ Max-subscription auth honored from non-CLI subprocess via `~/.claude/`. `total_c
 **No masterplan flip** -- 27.6 stays pending. Cycle 4 will be the candidate closure.
 
 **Total cycle time:** ~70 min (researcher 16 min deep + contract 8 min + generate 25 min + test 5 min + Q/A 7 min + log 4 min + 5 contract.md re-writes due to autonomous-loop clobbering).
+
+---
+
+## Cycle 4 -- 2026-05-26 -- claude_code_invoke stdin-pipe bugfix -- result=PASS
+
+**Trigger:** Live smoke of cycle-3's routing layer caught a bug: `claude --print --output-format json --disallowedTools "..." "<prompt>"` fails with `Error: Input must be provided either through stdin or as a prompt argument when using --print`. Root cause: `--disallowedTools <tools...>` is variadic per the CLI reference and consumes the trailing positional prompt. Cycle-3's unit tests mocked `subprocess.run` and never exercised the real parser, so the bug shipped.
+
+**Researcher:** `ab1987d4ec80af4dd`, tier=simple, 5 sources read in full, 7 snippet-only, 12 URLs, recency scan performed, gate_passed=true. Brief at `handoff/current/research_brief_phase_claude_code_stdin_fix.md`. Critical clarification from Section 2: **`--bare` MUST NOT be added** -- it rejects OAuth + keychain reads and requires `ANTHROPIC_API_KEY`, which would break the Max-subscription rail entirely. The cycle-3 contract aspirational pattern included `--bare`, but the cycle-3 code correctly omitted it; cycle-4 preserves that omission.
+
+**Generate (1 modified file + 1 new test + 1 live-evidence artifact):**
+- MODIFIED `backend/agents/claude_code_client.py::claude_code_invoke` -- removed `args.append(prompt)`; added `input=prompt` kwarg to `subprocess.run`. Prompt now flows via stdin.
+- MODIFIED `backend/tests/test_claude_code_client.py` -- added `test_claude_code_invoke_passes_prompt_via_stdin_not_argv` regression test. Asserts three invariants in one mock-inspection: prompt in `kwargs["input"]`; prompt NOT in argv; `--bare` NOT in argv.
+- NEW `handoff/current/live_check_cycle_4_stdin_fix.md` -- verbatim live-smoke envelope from Python-side `claude_code_invoke('Say "ok"...')` call. Confirms: `subtype=success`, `result="ok"`, `output_tokens=6`, `duration_ms=30013`, session_id present. Cache-creation 25k tokens reflects first-call session setup; subsequent calls within the same backend process should benefit from prompt caching.
+
+**Tests:**
+- `pytest backend/tests/test_claude_code_client.py -v` -- 12/12 passed (was 11 in cycle 3; +1 stdin-guard regression).
+- `pytest backend/tests/ -k "llm_client or autonomous_loop or claude_code"` -- 34/34 passed (regression clean).
+- AST parse exit 0 on `claude_code_client.py` + `test_claude_code_client.py`.
+- `grep -c "args.append(prompt)"` -- 0 (line removed).
+- `grep -c "input=prompt"` -- 1 in client.
+- `grep -c "\\-\\-bare" claude_code_client.py` -- 0 in the actual args list at lines 86-97 (2 hits are in defensive negative-instruction comments).
+- ZERO frontend changes; ZERO new deps.
+
+**Live smoke (verbatim Python output):**
+```
+SUBTYPE: success
+RESULT: ok
+OUTPUT_TOKENS: 6
+DURATION_MS: 30013
+```
+
+**Q/A `a88b9521873286d1a` PASS:** 5/5 harness + 13/13 deterministic + 11/11 LLM-judgment (A-K). Live smoke confirmed as real (not synthetic), session_id present, cache tokens consistent with real Anthropic backend response.
+
+**File-collision recurrence:** `handoff/current/contract.md` overwritten by autonomous-loop sprint contract SIXTH time today. Layer-3 harness Main re-wrote. Permanent deconfliction stays on backlog.
+
+**N* delta R+B primary:** the cycle-3 routing layer is now operationally invokable. Operator flipping `paper_use_claude_code_route=true` will route all 13 daily Claude ticker analyses through the Max-subscription flat-fee rail. Without this fix, the flag flip would have failed every analysis.
+
+**Stop-condition contribution:** does NOT directly close 27.6 yet (cycle 5 needs the operator to flip the flag and run a real autonomous-loop cycle). Cycle 4 ships the prerequisite bugfix.
+
+**No masterplan flip** -- 27.6 stays pending. Cycle 5 is the candidate closure.
+
+**Total cycle time:** ~35 min (researcher 6 min simple + contract 5 min + generate 4 min + tests 2 min + live smoke 3 min + Q/A 3 min + log 3 min).

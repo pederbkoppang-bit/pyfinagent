@@ -73,6 +73,16 @@ def claude_code_invoke(
     Note: check `envelope["subtype"] == "success"` for success detection;
     `is_error` has known mis-flag history (researcher source #18).
     """
+    # phase-cycle-4 bugfix (2026-05-26): pass prompt via STDIN, not argv.
+    # `--disallowedTools <tools...>` is variadic; a trailing positional
+    # prompt gets consumed by the tool list and the CLI fails with
+    # "Input must be provided either through stdin or as a prompt
+    # argument when using --print" (cycle-3 unit tests mocked
+    # subprocess.run and never exercised the parser). Researcher
+    # ab1987d4ec80af4dd confirmed the canonical headless pattern is
+    # stdin-piping. Do NOT add `--bare` -- per the same researcher's
+    # Section 2: --bare rejects OAuth + keychain reads and requires
+    # ANTHROPIC_API_KEY, which would break the Max-subscription rail.
     args: list[str] = [
         binary,
         "--print",
@@ -85,7 +95,6 @@ def claude_code_invoke(
         args.extend(["--json-schema", json.dumps(json_schema)])
     if max_tokens is not None:
         args.extend(["--max-tokens", str(max_tokens)])
-    args.append(prompt)
 
     logger.info(
         "claude_code_invoke: args=%d prompt_len=%d timeout_s=%d schema=%s",
@@ -95,6 +104,7 @@ def claude_code_invoke(
     try:
         completed = subprocess.run(
             args,
+            input=prompt,
             capture_output=True,
             text=True,
             timeout=timeout_s,

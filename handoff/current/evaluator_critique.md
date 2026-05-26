@@ -1,118 +1,160 @@
-# Evaluator Critique -- Cycle 3: Claude Code CLI routing layer (2026-05-26)
+# Evaluator Critique -- Cycle 4: claude_code_invoke stdin-pipe bugfix (2026-05-26)
 
-**Verdict:** PASS
-**Reviewer:** Q/A subagent (merged qa-evaluator + harness-verifier)
-**Class:** trading-policy-adjacent (LLM rail change). Citation gate APPLIED.
-**Mode:** First Q/A spawn for cycle 3. OVERWRITE of the cycle-2 BLOCKED-state-27.6 critique is the correct cycle-boundary behavior (different cycle, different evidence; not verdict-shopping).
-
----
+Single-agent Q/A pass. Bugfix on cycle-3 ship. No SSOT change. No
+masterplan flip. NO citation floor (bugfix, not trading-policy change).
+Prior critique (cycle 3 routing PASS) is overwritten in full; this is
+the first cycle-4 Q/A spawn (no verdict-shopping).
 
 ## Harness-compliance audit (5 items)
 
-| # | Item | Result | Evidence |
-|---|------|--------|----------|
-| 1 | Researcher spawn | PASS | `handoff/current/research_brief_phase_claude_code_routing.md` exists (mtime 26 mai 23:06). `contract.md:16-17` cites "Researcher `aff3444de945e98c2`, tier=deep, 24 sources read in full, 34 URLs collected, 3 adversarial sources, recency scan performed, gate_passed=true". |
-| 2 | Contract pre-commit | PASS | `contract.md` mtime 23:08:26 PRECEDES every modified source: settings.py 23:08:52, llm_client.py 23:09:57, claude_code_client.py 23:10:54, autonomous_loop.py 23:11:47, test_claude_code_client.py 23:12:27, experiment_results.md 23:13:25. FIFTH-occurrence preamble present at `contract.md:8` documenting the five overwrites by the autonomous-loop sprint contract at 19:56 / 20:36 / 20:47 / 22:47 / 21:02:13 UTC. |
-| 3 | experiment_results.md | PASS | Exists (mtime 23:13:25). Lists 1 NEW file (`claude_code_client.py`) + 1 NEW test (`test_claude_code_client.py`) + 3 MODIFIED (`settings.py`, `llm_client.py`, `autonomous_loop.py`) + 1 settings field (`paper_use_claude_code_route`). Verbatim pytest (11 passed; 33 passed regression) + AST (4x exit 0) + grep counts present at `experiment_results.md:42-69`. |
-| 4 | harness_log absence | PASS | `grep "Cycle 3 -- 2026-05-26" handoff/harness_log.md` returned 0. Log-LAST discipline respected; cycle-3 log append happens AFTER this Q/A PASS. |
-| 5 | No verdict-shopping | PASS | Prior `evaluator_critique.md` (mtime 22:57) is the cycle-2 BLOCKED-state-27.6 critique (different evidence, different cycle). This is the FIRST cycle-3 Q/A spawn. OVERWRITE is the documented cycle-boundary behavior, not second-opinion-shopping on unchanged evidence. |
-
----
+| # | Item | Evidence | Result |
+|---|------|----------|--------|
+| 1 | Researcher spawn | `handoff/current/research_brief_phase_claude_code_stdin_fix.md` exists (14149 B, mtime 23:25). `contract.md` cites `Researcher ab1987d4ec80af4dd, tier=simple, 5 sources read in full, 7 snippet-only, 12 URLs, recency scan performed, internal_files_inspected=2, gate_passed=true` (line 12). | PASS |
+| 2 | Contract pre-commit | `contract.md` mtime 1779830788 PRECEDES `claude_code_client.py` 1779830808 and `test_claude_code_client.py` 1779830826. SIXTH-occurrence preamble present (`contract.md:8` -- "SIXTH occurrence today"). | PASS |
+| 3 | experiment_results.md | Present (3758 B, mtime 23:29). Documents 1 modified file, 1 new test, 1 live-evidence artifact. Verbatim verification command output included (`experiment_results.md:26-67`). | PASS |
+| 4 | harness_log absence | `grep "Cycle 4 -- 2026-05-26" handoff/harness_log.md` returns exit=1 (empty). Append is correctly held until after Q/A PASS, per the "log-LAST" rule. | PASS |
+| 5 | No verdict-shopping | Prior critique was cycle-3 Claude Code routing PASS. This is the first cycle-4 Q/A spawn. OVERWRITE is correct. Per `code-review-trading-domain` simultaneous-presentation rule: evidence (the diff) IS new, so verdict reflects the fix, not unchanged-evidence shopping. | PASS |
 
 ## Deterministic checks
 
 ```
 $ pytest backend/tests/test_claude_code_client.py -v 2>&1 | tail -5
 backend/tests/test_claude_code_client.py::test_claude_code_client_class_returns_empty_on_error PASSED [100%]
-============================== 11 passed in 0.18s ==============================
-
-$ pytest backend/tests/ -k "llm_client or autonomous_loop or claude_code" 2>&1 | tail -3
-================ 33 passed, 597 deselected, 1 warning in 2.46s =================
-
-$ python -c "import ast; ast.parse(open('backend/agents/claude_code_client.py').read())"  -> exit 0
-$ python -c "import ast; ast.parse(open('backend/config/settings.py').read())"             -> exit 0
-$ python -c "import ast; ast.parse(open('backend/services/autonomous_loop.py').read())"    -> exit 0
-$ python -c "import ast; ast.parse(open('backend/agents/llm_client.py').read())"           -> exit 0
-
-$ grep -c "paper_use_claude_code_route" backend/config/settings.py        -> 1   (>=1 OK)
-$ grep -c "paper_use_claude_code_route" backend/agents/llm_client.py      -> 3   (>=1 OK)
-$ grep -c "paper_use_claude_code_route" backend/services/autonomous_loop.py -> 2 (>=1 OK)
-$ grep -c "claude_code_invoke" backend/agents/claude_code_client.py       -> 12  (>=2 OK)
-$ grep -c "rail=" backend/services/autonomous_loop.py                     -> 1   (>=1 OK)
-
-$ git diff --stat HEAD -- frontend/             -> empty (0 frontend changes)
-$ git diff HEAD -- frontend/package.json        -> empty (0 new deps)
-$ git diff HEAD -- frontend/package-lock.json   -> empty (no lock-churn)
+============================== 12 passed in 0.21s ==============================
 ```
 
-All deterministic checks pass.
+```
+$ pytest backend/tests/ -k "llm_client or autonomous_loop or claude_code" 2>&1 | tail -3
+================ 34 passed, 597 deselected, 1 warning in 2.41s =================
+```
 
----
+```
+$ python -c "import ast; ast.parse(open('backend/agents/claude_code_client.py').read())" && echo client_syntax_ok
+client_syntax_ok
+$ python -c "import ast; ast.parse(open('backend/tests/test_claude_code_client.py').read())" && echo test_syntax_ok
+test_syntax_ok
+```
 
-## Code-review heuristics (5 dimensions, phase-16.59 skill)
+```
+$ grep -c "args.append(prompt)" backend/agents/claude_code_client.py
+0
+$ grep -c "input=prompt" backend/agents/claude_code_client.py
+1
+$ grep -c -- "--bare" backend/agents/claude_code_client.py
+2     # see below: these are in COMMENTS (lines 83-84), not in args[]
+$ grep -c "input=prompt" backend/tests/test_claude_code_client.py
+0     # see below: test asserts via kwargs.get("input")=="analyze TSLA" -- equivalent guard
+$ grep -c -- "--bare" backend/tests/test_claude_code_client.py
+3     # 1 comment + 2 assertion lines that PROHIBIT --bare in cmd_args
+```
 
-Order respected: harness-compliance (5-item) -> deterministic -> code-review -> LLM judgment.
+```
+$ test -f handoff/current/live_check_cycle_4_stdin_fix.md && echo present
+present
+$ grep -c "SUBTYPE: success" handoff/current/live_check_cycle_4_stdin_fix.md
+1
+$ grep -c "RESULT: ok" handoff/current/live_check_cycle_4_stdin_fix.md
+1
+```
 
-- **Dim 1 Security:** No `secret-in-diff`. No `prompt-injection-path` (the subprocess is locked down by `--disallowedTools "Bash,Edit,Write,Read,Glob,Grep,Agent"` at `claude_code_client.py:47`, blocking every side-effect tool). `subprocess.run` uses a list arg with default `shell=False` -- safe. No new `eval`/`exec`/`os.system`. No supply-chain dep changes. `system-prompt-leakage`: NEGATIVE (the `system=` param at `llm_client.py:1548` is passed directly to `claude_code_invoke`, not serialized to a response/log). `rag-memory-poisoning`: N/A. `unbounded-llm-loop`: NEGATIVE (no new loops; existing autonomous-loop bounds preserved).
-- **Dim 2 Trading-domain:** `kill-switch-reachability` PASS (the rail-swap is upstream of the execute path; kill-switch wiring untouched). `stop-loss-always-set` PASS (no `paper_trader.py` change). `perf-metrics-bypass` PASS (no Sharpe/drawdown/alpha math added). `max-position-check-bypass` PASS. `paper-trader-broad-except` PASS (the `ImportError` catch at `llm_client.py:1903-1907` is a defense-in-depth fallthrough, not a risk-guard swallow). `crypto-asset-class` PASS.
-- **Dim 3 Code quality:** ASCII-only logger messages confirmed in `claude_code_client.py`. `broad-except` NEGATIVE -- `claude_code_client.py:104-119` catches specific `TimeoutExpired`/`FileNotFoundError`; `llm_client.py:1903` catches specific `ImportError`. No `print()` in non-script code. Type hints present on the new `claude_code_invoke` public API. Test-coverage delta: 1 new file + 11 tests is proportionate.
-- **Dim 4 Anti-rubber-stamp:** `financial-logic-without-behavioral-test` PASS -- routing changes are paired with 11 behavioral tests that hit subprocess.run mocks at the external boundary. Tests are NOT tautological (envelope-parsing, error propagation, structured-output extraction precedence -- real assertions). `over-mocked-test`: borderline-but-acceptable -- only the external boundary (`subprocess.run`) is mocked, not the module under test. `rename-as-refactor` PASS.
-- **Dim 5 Evaluator anti-patterns:** `sycophancy-under-rebuttal` PASS (no verdict-flip-without-code-change). `second-opinion-shopping` PASS (first cycle-3 spawn; cycle-2 BLOCKED-state-27.6 is different evidence). `missing-chain-of-thought` PASS (this critique cites file:line throughout). `3rd-conditional-not-escalated` N/A (no prior CONDITIONAL chain for this step-id). `criteria-erosion` PASS (all 19 immutable criteria at `contract.md:116-136` evaluated).
+```
+$ git diff --stat HEAD -- frontend/
+(empty)
+$ git diff HEAD -- frontend/package.json
+(empty)
+```
 
-No BLOCK or WARN findings.
+**Resolution of nominal grep mismatches** (the literal-grep heuristics
+in the prompt overshoot the actual intent of the contract):
 
----
+- `grep -c "--bare" claude_code_client.py = 2`: both hits are in the
+  defensive negative-instruction comment block at
+  `claude_code_client.py:83-84` ("Do NOT add `--bare` ...
+  --bare rejects OAuth + keychain reads"). No `--bare` appears in
+  the built `args[]` list at `claude_code_client.py:86-97`. The
+  intent of contract item 7 is "no `--bare` in argv"; the comment
+  documenting WHY enforces the rule. Verified by reading `args[]`
+  directly.
+- `grep -c "input=prompt" test_claude_code_client.py = 0`: the
+  regression test on `test_claude_code_client.py:48-75` asserts the
+  stdin pattern via `kwargs.get("input") == "analyze TSLA"`
+  (line 66) and `"analyze TSLA" not in cmd_args` (line 69) and
+  `"--bare" not in cmd_args` (line 73). The kwargs-based assertion
+  is the canonical mock-guard pattern; matching the literal source
+  string `input=prompt` is not necessary. Intent of contract item 8
+  ("the new test passes a stdin-input assertion") is satisfied --
+  the assertion reads the recorded kwargs dict.
 
-## LLM judgment (A-L)
+## LLM judgment (A-K)
 
-| # | Criterion | Verdict | Evidence |
-|---|-----------|---------|----------|
-| A | Citation gate (>=2 AI-in-trading + >=2 academic) | PASS | `contract.md:18` cites TradingAgents `arXiv:2412.20138` + Portkey AI Gateway (2 AI-in-trading, floor 2 met). `contract.md:19` cites Bailey/Borwein/LdP/Zhu PBO `SSRN:2326253` + Harvey/Liu/Zhu NBER w20592 + Yin et al. `arXiv:2603.20319` (3 academic, floor 2 exceeded). All five citation strings physically present in `contract.md`. |
-| B | Feature flag DEFAULTS OFF | PASS | `settings.py:112` -> `paper_use_claude_code_route: bool = Field(False, ...)`. Existing Anthropic-direct path preserved at `llm_client.py:1910-1912` (the existing `ClaudeClient` branch fires only when the new CC branch is skipped). |
-| C | Defense in depth on import | PASS | `llm_client.py:1897-1907` -- the `from backend.agents.claude_code_client import ClaudeCodeClient` is wrapped in `try` and the `ImportError` is caught with `logger.warning(...)`; control falls through to the Anthropic-direct branch. |
-| D | Per-rail log present | PASS | `autonomous_loop.py:1445-1449` -> `logger.info("Analysis ticker=%s rail=%s", ticker, "claude_code" if use_claude_code_route else "anthropic_direct")`. ASCII-only. Fires once per analysis (13 fires per cycle). Matches Yin et al. 2026 per-row engine-provenance prescription. |
-| E | Dual-rail dispatch is symmetric | PASS | Both LLM calls in `_run_claude_analysis` have `if use_claude_code_route` branches: trader analysis at `autonomous_loop.py:1481-1500` (CC route) / `1502-1508` (direct route); risk judge at `1537-1557` (CC route) / `1558-1566` (direct route). Neither call leaks to the direct rail when the flag is True. |
-| F | Direct API client NOT instantiated when flag is True | PASS | `autonomous_loop.py:1458` -> `client = anthropic.Anthropic(api_key=api_key) if not use_claude_code_route else None`. When CC route is active, `client` is None and the code never reaches `api.anthropic.com`. `:1452` also early-skips the no-key error when CC route is active. |
-| G | Async-safe | PASS | Both CC-route calls use `asyncio.to_thread(claude_code_invoke, ...)` at `autonomous_loop.py:1488` and `1544`. Subprocess blocking is offloaded to the threadpool; the event loop stays responsive. |
-| H | subtype check correct | PASS | `claude_code_client.py:147-155` -> `if subtype != "success": raise ClaudeCodeError(...)`. Uses `subtype` (not `is_error`) per researcher source #18. Docstring at `:73-74` and module header at `:54` both call out the `is_error` mis-flag history. |
-| I | `--disallowedTools` lock present | PASS | `claude_code_client.py:47` -> default `disallowed_tools="Bash,Edit,Write,Read,Glob,Grep,Agent"`; threaded into args at `:79-80`. Blocks the subprocess from running every side-effect tool. |
-| J | Error path returns LLMResponse | PASS | `claude_code_client.py:240-249` -> on `ClaudeCodeError`, `ClaudeCodeClient.generate_content` returns `LLMResponse(text="", thoughts=f"errored: {exc}", usage_metadata=UsageMeta())`. Matches existing-convention; downstream callers don't crash. Behavior tested at `test_claude_code_client.py:134-146`. |
-| K | Tests cover the failure modes | PASS | `test_claude_code_client.py` has 11 cases: success envelope (1), error subtype (2), timeout (3), non-zero exit (4), missing binary (5), invalid JSON (6), structured_output preference (7), result fallback (8), empty fallback (9), ClaudeCodeClient adapter happy path (10), ClaudeCodeClient adapter error (11). Floor was 8; this is 11. |
-| L | ZERO frontend changes + ZERO new npm deps + ZERO emojis | PASS | `git diff --stat HEAD -- frontend/` empty. `git diff HEAD -- frontend/package.json` empty. `git diff HEAD -- frontend/package-lock.json` empty. No emojis introduced (visual scan of `claude_code_client.py` shows ASCII only). |
+| Item | Check | Evidence | Result |
+|------|-------|----------|--------|
+| A | Stdin pattern correct | `claude_code_client.py:105-113`: `subprocess.run(args, input=prompt, capture_output=True, text=True, timeout=timeout_s, cwd=cwd, check=False)`. `args.append(prompt)` is removed (grep=0). | PASS |
+| B | No --bare in args | `args[]` built at `claude_code_client.py:86-97` contains only `binary, --print, --output-format, json, --disallowedTools, <list>, [--append-system-prompt, system], [--json-schema, <schema>], [--max-tokens, N]`. No `--bare`. | PASS |
+| C | Regression test guards both invariants | `test_claude_code_client.py:48-75` (`test_claude_code_invoke_passes_prompt_via_stdin_not_argv`) asserts: (i) `kwargs["input"] == "analyze TSLA"` (stdin); (ii) `"analyze TSLA" not in cmd_args` (no argv leak); (iii) `"--bare" not in cmd_args` (no auth break). Three invariants, one test. | PASS |
+| D | Live smoke evidence real | `live_check_cycle_4_stdin_fix.md:24-29`: `SUBTYPE: success`, `RESULT: ok`, `OUTPUT_TOKENS: 6`, `DURATION_MS: 30013`. Extended block at lines 32-44 includes `session_id: dc9a1440-9a15-4a10-a608-a549daa79b53`, `usage.cache_read_input_tokens: 8682`, `usage.cache_creation_input_tokens: 25727`. These values are mutually consistent (output_tokens matches RESULT length, cache_read>0 implies ~/.claude session reuse, duration 30s matches an Opus-Anthropic round-trip) and could not be plausibly synthesized. | PASS |
+| E | All 12 unit tests pass | `12 passed in 0.21s` -- cycle-3's 11 tests plus the new `test_claude_code_invoke_passes_prompt_via_stdin_not_argv`. | PASS |
+| F | Neighboring suites pass | `pytest -k "llm_client or autonomous_loop or claude_code"` -> `34 passed`. No regressions. | PASS |
+| G | No --bare in modified files | Verified above (B). Comment-only references at `claude_code_client.py:83-84` are defensive negative-instruction; test references at `test_claude_code_client.py:72-74` are the prohibition assertion. | PASS |
+| H | Contract.md cycle-4 content | `contract.md` cites `Researcher ab1987d4ec80af4dd` (line 12, grep=1); SIXTH-occurrence preamble at line 8 ("SIXTH occurrence today: ... 19:56, 20:36, 20:47, 22:47, 21:02, and likely one more"). Note: prompt mentioned both FIFTH and SIXTH; contract explicitly says SIXTH (more recent, matches the prompt's authoritative "SIXTH occurrence" claim). | PASS |
+| I | Zero frontend changes | `git diff --stat HEAD -- frontend/` empty. No files under `frontend/` in modified-set. | PASS |
+| J | Zero new npm deps | `git diff HEAD -- frontend/package.json` empty. No `frontend/package-lock.json` change. | PASS |
+| K | Zero emojis introduced | `grep -P '[^\x00-\x7F]' <all 5 cycle-4 files>` returns 0 lines. ASCII-only across the diff. | PASS |
 
----
+## Code-review heuristic dispatch (5 dimensions)
+
+| Dimension | Findings | Severity |
+|-----------|----------|----------|
+| 1. Security audit | The fix MOVES untrusted prompt from argv to stdin -- an IMPROVEMENT against command-injection surface (argv concat was never an injection risk here because `args` is a list with `shell=False` (implicit), but stdin is strictly safer). No new secrets, no new write capabilities, no new tool grants. `--disallowedTools` correctly blocks all side-effect tools. | NONE |
+| 2. Trading-domain correctness | Diff is in the LLM-routing layer (`backend/agents/claude_code_client.py`), NOT in `paper_trader.py`, `kill_switch.py`, `risk_engine.py`, `perf_metrics.py`, or `backtest_engine.py`. No kill-switch / stop-loss / position-sizing surface touched. No crypto re-enablement. No BQ schema migration. | NONE |
+| 3. Code quality | No new `print()`, no new broad `except`, no new global state, no Unicode in logger calls (`claude_code_client.py:99-102, 114-118` all ASCII). Type hints present on the public function. | NONE |
+| 4. Anti-rubber-stamp on financial logic | Diff touches the LLM-rail abstraction, NOT financial-formula code. The "behavioral test required" guard fires only for `perf_metrics.py / risk_engine.py / backtest_engine.py / backtest_trader.py`. The new test IS a behavioral test of the new code path (exercises mock kwargs, asserts recorded invocation shape). No tautological assertion. | NONE |
+| 5. LLM-evaluator anti-patterns | Q/A self-audit: this verdict is based on (i) direct reads of the modified Python sources, (ii) the pytest tail showing `12 passed`, (iii) the verbatim live-smoke envelope, (iv) the file mtimes, (v) the contract cross-reference. file:line citations are present in every A-K item. No sycophancy (prior verdict was PASS on different scope; no flip-under-rebuttal). No second-opinion-shopping (first cycle-4 spawn). No criteria-erosion. No 3rd-CONDITIONAL escalation needed (cycle 4 is the first cycle on this bugfix scope). | NONE |
+
+`checks_run` appended: `code_review_heuristics`. No findings to
+record in `violated_criteria`.
 
 ## Final Verdict
 
-**PASS** -- 5 of 5 harness-compliance items PASS, all 12 deterministic checks PASS, all 12 LLM judgment items (A-L) PASS, all 5 code-review dimensions clear with zero BLOCK/WARN/NOTE findings.
-
-The cycle-3 implementation is a clean plumbing addition: the feature flag defaults OFF (B), the existing Anthropic-direct path is preserved (E, F), both LLM calls (trader + risk judge) are symmetrically routed (E), the subprocess is async-safe (G), the success check uses `subtype` not `is_error` per the researcher's adversarial source (H), every side-effect tool is locked out of the subprocess via `--disallowedTools` (I), errors fall back to an empty-text `LLMResponse` so downstream callers don't crash (J), an `ImportError` on `ClaudeCodeClient` falls back to the Anthropic-direct branch as defense in depth (C), the per-rail log is in place for future A/B integrity per Yin et al. 2026 (D), and the 11-case test suite covers every failure mode (K). The citation gate is met with 2 AI-in-trading + 3 academic sources (A).
-
-The cycle-4 smoke run with the flag flipped ON is the correct next step: cycle 3 ships the plumbing under a default-OFF flag, cycle 4 verifies the live rail and then enables masterplan step 27.6 closure.
+**PASS**
 
 ## Violated criteria
 
 None.
 
+## Summary (200 words)
+
+Cycle 4 is a clean bugfix on cycle 3's Claude Code routing layer.
+The empirical bug was that `--disallowedTools <tools...>` is variadic
+per the CLI parser, so the trailing positional prompt was getting
+swallowed by the tool-list at runtime. Cycle 3's unit tests mocked
+`subprocess.run` and never exercised the real parser, so the bug
+shipped. Cycle 4 routes the prompt via `subprocess.run(input=prompt,
+...)` -- the canonical headless-SDK pattern -- and adds a regression
+test that asserts three invariants in one mock-inspection: (i) prompt
+in `kwargs["input"]`, (ii) prompt NOT in `cmd_args`, (iii) `--bare`
+NOT in `cmd_args`. The `--bare` prohibition is researcher
+`ab1987d4ec80af4dd`'s Section-2 finding (it rejects OAuth and forces
+ANTHROPIC_API_KEY billing, which would break the Max rail).
+Live-smoke evidence is verbatim Python-side: `subtype=success`,
+`result=ok`, output 6 tokens, 30s duration, session_id present, cache
+tokens consistent with real Anthropic backend. 12 of 12 unit tests
+pass, 34 of 34 neighboring tests pass. Zero frontend / npm / emoji
+delta. Contract cites researcher + SIXTH-collision preamble. Five
+files written before harness_log append (log-last preserved). All
+five harness-audit items PASS; all A-K judgment items PASS. Verdict
+PASS. Main may now append `handoff/harness_log.md` for Cycle 4 and
+hand the routing rail back to the operator for the flag flip that
+unblocks step 27.6.
+
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 19 immutable criteria met. Citation gate (>=2 AI-in-trading + >=2 academic) PASS (TradingAgents + Portkey / Bailey-PBO + Harvey-NBER + Yin-2026). Feature flag defaults OFF (settings.py:112). Dual-rail dispatch symmetric (autonomous_loop.py:1481-1557). Per-rail log present (:1445-1449). Direct API client NOT instantiated when flag True (:1458). subtype check used not is_error (claude_code_client.py:147). Async-safe via asyncio.to_thread. 11/11 new tests + 33/33 regression. ZERO frontend / npm / emoji deltas.",
+  "reason": "Cycle 4 stdin-pipe bugfix is correct. 12/12 unit tests pass (was 11 in cycle 3; +1 stdin-guard regression test). 34/34 neighboring suite tests pass. Verbatim live-smoke envelope shows subtype=success, result=ok, output_tokens=6, duration_ms=30013, session_id present. --bare correctly absent from args (researcher Section 2). All 5 harness-audit items PASS. All A-K LLM-judgment items PASS. No code-review heuristic findings across all 5 dimensions.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": [
-    "syntax",
-    "verification_command",
-    "mtime_ordering",
-    "harness_compliance_5_item_audit",
-    "citation_gate",
-    "deterministic_grep_counts",
-    "regression_test_suite",
-    "new_test_suite",
-    "code_review_heuristics",
-    "evaluator_critique_overwrite_first_cycle3_spawn"
-  ]
+  "checks_run": ["syntax", "verification_command", "pytest_dedicated", "pytest_neighboring", "grep_invariants", "live_evidence_artifact", "git_diff_frontend", "code_review_heuristics", "evaluator_critique"]
 }
 ```
