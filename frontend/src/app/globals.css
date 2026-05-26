@@ -96,3 +96,54 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: #52525b;
 }
+
+/* ── phase-76 (2026-05-26) ── NumberFlow trend color tint ──
+   NumberFlow (@number-flow/react@0.6.0) does NOT expose ::part(up) or
+   ::part(down) selectors -- verified by researcher ae08ef2407507449a
+   against the lib's lite.ts source. To color the changing digits on
+   each tick we set a custom host data attribute via useTrend(value)
+   on every consumer and target it here.
+
+   Colors match the cockpit's existing text-emerald-400 / text-rose-400
+   tokens used app-wide for P&L (#34d399 / #fb7185). 700ms ease-out
+   keyframe duration matches the useTrend hook's auto-reset timer so a
+   single tick produces one visual flash that fades back to the parent
+   text color.
+
+   prefers-reduced-motion: reduce disables the color flash. NumberFlow's
+   respectMotionPreference:true default already disables the slide; this
+   block ensures the tint also halts when the operator opts out of
+   motion. WCAG SC 2.3.3 still N/A (passive ticks). SC 2.2.2 satisfied
+   (700ms << 5s ceiling). */
+@keyframes pyfa-tint-up {
+  0% {
+    color: #34d399;
+  }
+  100% {
+    color: inherit;
+  }
+}
+@keyframes pyfa-tint-down {
+  0% {
+    color: #fb7185;
+  }
+  100% {
+    color: inherit;
+  }
+}
+
+number-flow[data-pyfa-trend="up"]::part(digit),
+number-flow[data-pyfa-trend="up"]::part(symbol) {
+  animation: pyfa-tint-up 700ms ease-out;
+}
+number-flow[data-pyfa-trend="down"]::part(digit),
+number-flow[data-pyfa-trend="down"]::part(symbol) {
+  animation: pyfa-tint-down 700ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  number-flow::part(digit),
+  number-flow::part(symbol) {
+    animation: none !important;
+  }
+}

@@ -14,6 +14,10 @@ import { LiveBadge } from "@/components/LiveBadge";
 import type { LivePriceEntry, TickerMeta } from "@/lib/paper-trading-context";
 import { bandFromAgeSec } from "@/lib/paper-trading-utils";
 import { Dollar, PnlBadge } from "./cockpit-helpers";
+// phase-76 (2026-05-26): trend tracker for the data-pyfa-trend host
+// attribute. globals.css targets number-flow[data-pyfa-trend="up"]
+// ::part(digit) for color tint on changing digits.
+import { useTrend } from "@/lib/use-trend";
 
 // phase-75 (2026-05-26): Google-Finance digit-flip via NumberFlow. Per-row
 // Current cell stays its own component so React's render path is clean
@@ -29,6 +33,7 @@ function CurrentPriceCell({
   band: ReturnType<typeof bandFromAgeSec>;
   ageSec: number | null;
 }) {
+  const trend = useTrend(shown);
   return (
     <span
       aria-live="off"
@@ -46,7 +51,9 @@ function CurrentPriceCell({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           }}
+          transformTiming={{ duration: 700 }}
           willChange
+          data-pyfa-trend={trend}
           className="tabular-nums"
         />
       )}

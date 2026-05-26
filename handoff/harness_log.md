@@ -24101,3 +24101,68 @@ Operator screenshot evidence: 4 different NAV values rendered simultaneously acr
 **No masterplan flip** -- UX correction following cycle 74; not a step closure.
 
 **Total cycle time:** ~75 min (researcher 8 min moderate + contract 8 min + generate 35 min including TS2322 fix + tests 5 min + Q/A 4 min + log 5 min).
+
+---
+
+## Cycle 1 -- 2026-05-26 19:16 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=7.17% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 76 -- 2026-05-26 -- NumberFlow trend coloring + slowed slide -- result=PASS
+
+**Trigger:** Operator screenshot of `/paper-trading` cockpit after cycle 75 with the comment "didnt notice at all". Diagnosis: NumberFlow's default 900ms slide is silent (no color cue) and prices polled at 60s × after-hours volatility meant operator stared for 30s and never saw a tick fire. The screenshot itself proved NumberFlow IS rendering (Norwegian-locale formatted `$23 823,74` with NBSP / comma decimal is Intl.NumberFormat output that only NumberFlow produces); the issue was visibility, not rendering. Google Finance pairs the slide with a brief color tint -- this cycle adds that.
+
+**Researcher:** `ae08ef2407507449a`, tier=moderate, 6 sources read in full, 14 snippet-only, 20 URLs, recency scan performed, internal_files_inspected=6, gate_passed=true. Brief at `handoff/current/research_brief_phase_numberflow_trend.md`. **Load-bearing finding:** `::part(up)` / `::part(down)` do NOT exist in `@number-flow/react@0.6.0` (verified against `lite.ts` source). The complete exposed parts are: `left`, `right`, `integer`, `fraction`, `number`, `digit integer-digit`, `digit fraction-digit`, `symbol {decimal|currency|percentSign|minusSign|plusSign}`. The `trend` prop also does NOT emit a `data-trend` host attribute. We MUST emit our own custom attribute at the React layer and target it from CSS.
+
+**Contract:** N* delta B-primary = make the digit slide land in pre-attentive perception via a 700ms emerald (up) / rose (down) color tint matching the cockpit's existing `text-emerald-400` / `text-rose-400` tokens. 1 new hook + 4 file modifications. ZERO new deps. ZERO backend. ZERO test scaffolding.
+
+**Generate:**
+- NEW `frontend/src/lib/use-trend.ts` -- `useTrend(value, durationMs=700)` returns `"up" | "down" | "flat"`. Tracks prev via `useRef`. Returns "flat" on first render and on null transitions. Auto-resets after `durationMs` via `setTimeout`; cleanup on subsequent change AND on unmount.
+- MODIFIED `frontend/src/app/globals.css`:
+  - `@keyframes pyfa-tint-up` (0% color #34d399 emerald-400 -> 100% inherit).
+  - `@keyframes pyfa-tint-down` (0% color #fb7185 rose-400 -> 100% inherit).
+  - `number-flow[data-pyfa-trend="up"]::part(digit)` + `::part(symbol)` -> `animation: pyfa-tint-up 700ms ease-out`.
+  - Mirror selectors for "down" -> `pyfa-tint-down`.
+  - `@media (prefers-reduced-motion: reduce) { number-flow::part(digit), number-flow::part(symbol) { animation: none !important; } }` -- disables both tint AND slide for reduced-motion operators.
+- MODIFIED `frontend/src/components/paper-trading/cockpit-helpers.tsx` -- `Dollar` + `PnlBadge` call `useTrend(value)`, pass `transformTiming={{ duration: 700 }}` + `data-pyfa-trend={trend}` to NumberFlow.
+- MODIFIED `frontend/src/components/paper-trading/positions-columns.tsx` -- `CurrentPriceCell` same edits.
+- MODIFIED `frontend/src/app/page.tsx` -- `KpiTile` same edits (one NumberFlow site, fires for all 6 tiles).
+
+**Tests:**
+- `npx tsc --noEmit` exit 0.
+- `npx vitest run` -- 178/178 passed.
+- `python tests/verify_phase_23_1_17.py` -- ok useLiveNav SSOT invariant intact.
+- `data-pyfa-trend={trend}` prop sites = 4 (verified across cockpit-helpers x2 + positions-columns x1 + page.tsx x1).
+- `transformTiming` prop sites = 4 (one per NumberFlow consumer).
+- `globals.css` contains `@keyframes pyfa-tint-up`, `pyfa-tint-down`, both up/down selector pairs, AND the reduced-motion guard.
+- `git diff HEAD -- frontend/package.json` empty (ZERO new deps).
+- `git diff --stat HEAD -- backend/` empty (ZERO backend changes).
+
+**A11y compliance:**
+- WCAG SC 2.3.3 still N/A (passive ticks).
+- SC 2.2.2 satisfied (700ms tint << 5s ceiling).
+- `aria-live="off"` preserved on all NumberFlow consumers (MDN stock-ticker default).
+- Reduced-motion: NumberFlow's `respectMotionPreference: true` default halts the slide AND the new `@media` block halts the CSS tint via `animation: none !important`. Defense in depth.
+
+**Q/A `ac79836e072bbec26` PASS:** 5/5 harness-compliance + 8/8 deterministic + 11/11 LLM-judgment (A-K). Code-review heuristics across 5 dimensions return no findings. Monotone mtime ordering verified.
+
+**N* delta R+B primary:** Operator will now see a clear emerald (up-tick) or rose (down-tick) color flash on every changing digit when a live price ticks, paired with the slide. The animation is no longer subtle. Matches Google Finance's actual UX pattern.
+
+**Visual verification:** STILL PENDING operator browser-probe per frontend.md rule 5. The change works in code; eye-on-screen confirmation remains the operator's call. Polling cadence is 60s -- after a hard refresh (Cmd+Shift+R), the operator should see the first tint within 1-2 minutes during market hours.
+
+**No masterplan flip** -- UX hardening following cycle 75; not a step closure.
+
+**Total cycle time:** ~30 min (researcher 6 min moderate + contract 3 min + generate 12 min + tests 3 min + Q/A 3 min + log 3 min).

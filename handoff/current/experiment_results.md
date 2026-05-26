@@ -1,58 +1,55 @@
-# Experiment Results -- Cycle 75: Google-Finance digit-flip via NumberFlow
+# Experiment Results -- Cycle 76: NumberFlow trend coloring + slowed slide
 
 **Date:** 2026-05-26
-**Phase:** UX correction (cycle-74 shipped wrong pattern; this cycle replaces with the requested pattern). No SSOT or data-flow change. No masterplan flip.
+**Phase:** UX visibility hardening (cycle 75 shipped the right pattern but at 900ms silent slide; operator: "didn't notice at all"). No SSOT or data-flow change. No masterplan flip. ZERO new npm deps.
 **Result:** GENERATE complete; awaiting Q/A.
 
 ## What changed
 
-Replaced the cycle-74 background-tint flash (Bloomberg pattern) with
-per-digit slide animation via `@number-flow/react@0.6.0` (Google Finance
-pattern that the operator pointed at on alphabet.googlefinance.com).
-When 382.18 ticks to 382.45, NumberFlow animates only the changing "18"
-digits sliding up to "45"; "382" stays still. The cycle-74 hook +
-keyframes + globals.css override are FULLY removed -- no dead code.
+Added a 700ms emerald (up) / rose (down) color flash on the digits that
+slide, matching Google Finance's pre-attentive tick signal. The slide
+itself slows from 900ms (NumberFlow's default) to 700ms so it lines up
+with the tint. Reduced-motion preserved.
 
-### Files changed
+Implementation pattern: NumberFlow's `<number-flow>` custom element does
+NOT expose `::part(up)` / `::part(down)` selectors (researcher
+`ae08ef2407507449a` verified against the lib's `lite.ts` source). We
+emit our own `data-pyfa-trend="up" | "down" | "flat"` host attribute via
+a new `useTrend` hook and target it in `globals.css` via
+`number-flow[data-pyfa-trend="up"]::part(digit)`.
 
-**ADDED (1 dep):**
-- `@number-flow/react@0.6.0` in `frontend/package.json` + `package-lock.json` (MIT, ~12-15kB gzipped per researcher).
+### Files (1 new + 4 modified, ZERO backend, ZERO new deps)
 
-**DELETED (1 file):**
-- `frontend/src/lib/useFlashOnChange.ts` -- cycle-74 hook. NumberFlow owns its prev-value tracking, animation timing, and `prefers-reduced-motion` handling internally; the custom hook is redundant.
+1. `frontend/src/lib/use-trend.ts` -- **NEW** hook. `useTrend(value, durationMs=700)` returns `"up" | "down" | "flat"`. Tracks prev value via `useRef`, sets trend on change, auto-resets to "flat" after 700ms via `setTimeout` (matches CSS animation). Cleared on subsequent change AND on unmount.
 
-**MODIFIED (5 files):**
+2. `frontend/src/app/globals.css` -- added:
+   - `@keyframes pyfa-tint-up` (0% color #34d399 emerald-400 -> 100% inherit).
+   - `@keyframes pyfa-tint-down` (0% color #fb7185 rose-400 -> 100% inherit).
+   - Selectors `number-flow[data-pyfa-trend="up"]::part(digit)` and `::part(symbol)` -> `animation: pyfa-tint-up 700ms ease-out`.
+   - Mirror selectors for "down" -> `pyfa-tint-down`.
+   - `@media (prefers-reduced-motion: reduce) { number-flow::part(digit), number-flow::part(symbol) { animation: none !important; } }` -- disables both tint AND NumberFlow's slide for reduced-motion operators.
 
-1. `frontend/tailwind.config.js` -- removed `theme.extend.keyframes.flash-up` + `flash-down` + matching `animation` entries.
-2. `frontend/src/app/globals.css` -- removed the `@media (prefers-reduced-motion: reduce) { .animate-flash-* { animation: none !important; } }` block. NumberFlow's `respectMotionPreference: true` default supersedes this.
-3. `frontend/src/components/paper-trading/cockpit-helpers.tsx` -- `Dollar` + `PnlBadge` refactored:
-   - `Dollar` now renders `<NumberFlow value={v} format={{style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2}} willChange aria-live="off" className="text-slate-100"/>`.
-   - `PnlBadge` now renders `<NumberFlow value={v/100} format={{style:'percent', signDisplay:'always', minimumFractionDigits:2, maximumFractionDigits:2}} willChange aria-live="off" className={isPositive?'text-emerald-400':'text-rose-400'}/>`. Intl.NumberFormat `style:'percent'` expects raw decimal -- divide the prop by 100. NumberFlow appends "+" via `signDisplay:'always'`; manual cycle-74 prefix removed.
-4. `frontend/src/components/paper-trading/positions-columns.tsx` -- `CurrentPriceCell` now renders NumberFlow with the same Dollar-style format. LiveBadge sibling preserved.
-5. `frontend/src/app/page.tsx` -- `KpiTile` prop signature unified:
-   - Was: `value: string` + `numericValue: number | null`.
-   - Now: `value: number | null` + optional `fallback?: string` + optional `format?: Format`.
-   - Uses NumberFlow's exported `Format` type (subset of `Intl.NumberFormatOptions` that excludes "scientific" / "engineering" notation; TS error caught + fixed during typecheck).
-   - All 6 call sites updated: NAV (currency), P&L today (currency + signDisplay always), vs SPY (percent, divide alpha by 100), Sharpe (plain decimal), Max DD (percent, divide dd30 by 100), Positions (integer maximumFractionDigits=0). All 6 KpiTiles now animate when their value changes -- previously only the 3 live-priced tiles had cycle-74 flash; under NumberFlow every tile gets the digit-slide treatment uniformly.
+3. `frontend/src/components/paper-trading/cockpit-helpers.tsx` -- in `Dollar` + `PnlBadge`: call `useTrend(value)`, add `transformTiming={{ duration: 700 }}` + `data-pyfa-trend={trend}` to NumberFlow.
 
-**INHERITS automatically (no edit):**
-- `frontend/src/components/paper-trading/trades-columns.tsx` (`<Dollar value={total_value}/>` at lines 9, 86) -- researcher caught this; the operator's original list missed it. Now flips to digit-slide via the Dollar refactor.
+4. `frontend/src/components/paper-trading/positions-columns.tsx` -- in `CurrentPriceCell`: same edits.
+
+5. `frontend/src/app/page.tsx` -- in `KpiTile`: same edits (one NumberFlow site, fires for all 6 tiles).
 
 ## Verification (verbatim command output)
 
-### tsc --noEmit (frontend strict typecheck)
+### tsc --noEmit
 ```
 $ cd frontend && npx tsc --noEmit
 exit=0
-(no errors after Format type fix)
+(no output)
 ```
 
 ### npx vitest run
 ```
  Test Files  23 passed (23)
       Tests  178 passed (178)
-   Start at  21:08:26
-   Duration  3.76s
+   Start at  21:31:27
+   Duration  4.05s
 ```
 
 ### python tests/verify_phase_23_1_17.py
@@ -60,70 +57,70 @@ exit=0
 ok useLiveNav shared hook + home page consumption + paper-trading refactor + repair script (mark_to_market + save_daily_snapshot)
 ```
 
-### Dead-code shrapnel grep (cycle-74 leftovers)
+### `data-pyfa-trend` attribute presence (4 NumberFlow consumers)
 ```
-$ grep -rn "useFlashOnChange\|flashClassName\|FLASH_CLASS\|animate-flash-" frontend/src/
-no dead-code shrapnel
-$ grep -n "flash" frontend/tailwind.config.js frontend/src/app/globals.css
-no flash references in tailwind/globals
-$ test -f frontend/src/lib/useFlashOnChange.ts
-deleted as expected
+$ grep -n "data-pyfa-trend=" frontend/src/components/paper-trading/cockpit-helpers.tsx frontend/src/components/paper-trading/positions-columns.tsx frontend/src/app/page.tsx
+cockpit-helpers.tsx:47  data-pyfa-trend={trend}   (PnlBadge)
+cockpit-helpers.tsx:68  data-pyfa-trend={trend}   (Dollar)
+positions-columns.tsx:56  data-pyfa-trend={trend}  (CurrentPriceCell)
+page.tsx:179  data-pyfa-trend={trend}              (KpiTile)
+```
+4 prop sites confirmed.
+
+### globals.css trend CSS
+```
+$ grep -E "pyfa-tint|data-pyfa-trend|prefers-reduced-motion" frontend/src/app/globals.css
+@keyframes pyfa-tint-up { ... }
+@keyframes pyfa-tint-down { ... }
+number-flow[data-pyfa-trend="up"]::part(digit),
+number-flow[data-pyfa-trend="up"]::part(symbol) { animation: pyfa-tint-up 700ms ease-out; }
+number-flow[data-pyfa-trend="down"]::part(digit),
+number-flow[data-pyfa-trend="down"]::part(symbol) { animation: pyfa-tint-down 700ms ease-out; }
+@media (prefers-reduced-motion: reduce) { ... animation: none !important; }
 ```
 
-### Dependency diff
+### Zero new deps + zero backend
 ```
 $ git diff HEAD -- frontend/package.json
-+    "@number-flow/react": "^0.6.0",
-(exactly one new entry)
+(empty)
 
 $ git diff --stat HEAD -- backend/
-(empty -- ZERO backend changes)
+(empty)
 ```
 
-### Memory rule: launchctl kickstart after npm install
-```
-$ launchctl kickstart -k "gui/$(id -u)/com.pyfinagent.frontend"
-exit=0 (launchd watchdog refreshed; stale dev server bundle invalidated)
-```
+## A11y compliance
 
-## Artifact shape -- surfaces wired
+- WCAG SC 2.3.3 Animation from Interactions: N/A (passive ticks; researcher cycle 74).
+- WCAG SC 2.2.2 Pause/Stop/Hide: satisfied (700ms tint << 5s ceiling; slide 700ms).
+- `aria-live="off"` preserved on every NumberFlow consumer (MDN stock-ticker default).
+- Reduced-motion: `respectMotionPreference: true` (NumberFlow default) halts the slide; the new `@media (prefers-reduced-motion: reduce)` block also halts the tint via `animation: none !important`.
 
-Every live-priced numeric surface in the cockpit now uses NumberFlow:
+## Artifact shape
 
-**Paper Trading positions table (per row):**
-- Current price (`CurrentPriceCell` -> NumberFlow).
-- Market Value (via `<Dollar>` -> NumberFlow).
-- P&L % (via `<PnlBadge>` -> NumberFlow).
+After cycle 76, every cycle-75 NumberFlow consumer also color-tints on
+tick:
 
-**Paper Trading SummaryHero MetricCards (6 tiles):**
-- NAV, Cash, Total P&L, vs SPY, Sharpe, Positions -- all via `<Dollar>` / `<PnlBadge>` / `<SharpeValue>` (Sharpe still uses sharpe-color text; not a digit-slide candidate by design).
+- **Up-tick** ($124.50 -> $124.65): changing digits ("50" -> "65") slide
+  in their cells AND briefly turn emerald-400 (#34d399) before fading
+  back to the parent text color over 700ms.
+- **Down-tick** ($124.65 -> $124.50): same slide + brief rose-400
+  (#fb7185) tint.
+- **Flat** (no change): no slide, no tint.
 
-**Paper Trading trades table (researcher catch):**
-- Total Value (via `<Dollar>`).
-
-**Home page KpiTiles (6 tiles):**
-- NAV (currency), P&L today (currency + signDisplay), vs SPY (percent), Sharpe (decimal), Max DD (percent), Positions (integer). All 6 now uniformly animate via NumberFlow.
-
-## NumberFlow integration notes (for future maintainers)
-
-- The lib exports a `Format` type (subset of `Intl.NumberFormatOptions`) -- importing this avoids the TS2322 error that strict `Intl.NumberFormatOptions` triggers (scientific/engineering notation excluded by design).
-- Percent style: pass raw decimal (1.42% -> 0.0142), NOT the percent number. Caller must divide by 100.
-- `signDisplay: "always"` replaces manual "+" prefix from cycle 74.
-- `willChange` prop recommended for the ~25 simultaneous instances per researcher Section 5 perf guidance.
-- Reduced motion: `respectMotionPreference: true` default. Fallback = instant snap (no animation). No manual override needed.
-- All consumers already had `"use client"` (lib requires it; researcher confirmed).
-- Peer-dep install: `@tremor/react@^3.18.7` pins `react@^18.0.0` in peerDeps but the project runs React 19 in practice. Installed with `--legacy-peer-deps` to bypass the stale peer pin (Tremor v3 documented as React 19 compatible despite peerDep lag).
+Surfaces wired (4 NumberFlow consumers, ~25 simultaneous instances):
+- Paper Trading positions table (Current, Market Value, P&L)
+- Paper Trading SummaryHero MetricCards (NAV, Cash, Total P&L, vs SPY)
+- Paper Trading trades table (Total Value, inherited via Dollar)
+- Home KpiTiles (NAV, P&L today, vs SPY, Sharpe, Max DD, Positions)
 
 ## Memory-rule compliance
 
-- `npm install --legacy-peer-deps @number-flow/react@0.6.0` invoked once.
-- `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend` invoked immediately after install (per `feedback_npm_install_requires_launchctl_kickstart.md`).
-- `npm run build` NOT invoked.
-- `rm -rf .next/*` NOT invoked.
-- No emojis introduced.
+- NO `npm install` (zero new deps; no `launchctl kickstart` needed).
+- NO `npm run build`.
+- NO `rm -rf .next/*`.
+- ZERO emojis introduced.
 
 ## Not in scope
 
-- Visual verification of the digit slide in a browser (still pending operator review per `frontend.md` rule 5 -- "unit tests cannot see what the operator sees").
-- RedLineMonitor live-now overlay (cycle 73 owns this; not a digit-display surface).
-- Reality-gap chart / NAV chart annotation (chart axes, not numeric scorecards).
+- Reducing live-prices polling interval below 60s (would burn API quota; not the right fix for visibility).
+- Browser visual verification of the tint + slide combination (still pending operator review per `frontend.md` rule 5 -- the operator's last screenshot proved NumberFlow IS rendering via the Norwegian locale formatting `$23 823,74`; this cycle adds the visibility cue they asked for).

@@ -23,6 +23,10 @@ import { useLivePortfolio } from "@/lib/live-portfolio-context";
 // pattern operator pointed at. NumberFlow owns its prev-value tracking
 // and prefers-reduced-motion fallback internally.
 import NumberFlow, { type Format } from "@number-flow/react";
+// phase-76 (2026-05-26): trend tracker for the data-pyfa-trend host
+// attribute. globals.css targets number-flow[data-pyfa-trend="up"]
+// ::part(digit) for color tint on changing digits.
+import { useTrend } from "@/lib/use-trend";
 import {
   dailyDelta,
   sharpe as kpiSharpe,
@@ -147,6 +151,7 @@ function KpiTile({
   liveAgeSec?: number | null;
 }) {
   const baseValueClass = valueClass ?? "text-slate-100";
+  const trend = useTrend(value);
   return (
     <div
       role="group"
@@ -166,7 +171,13 @@ function KpiTile({
         {value == null ? (
           fallback ?? "—"
         ) : (
-          <NumberFlow value={value} format={format} willChange />
+          <NumberFlow
+            value={value}
+            format={format}
+            transformTiming={{ duration: 700 }}
+            willChange
+            data-pyfa-trend={trend}
+          />
         )}
       </p>
       {subText && (

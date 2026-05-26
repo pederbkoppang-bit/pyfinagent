@@ -11,6 +11,11 @@ import type {
   PaperPosition,
   PaperTradingStatus,
 } from "@/lib/types";
+// phase-76 (2026-05-26): trend tracker for the data-pyfa-trend host
+// attribute. NumberFlow does not ship trend-coloring CSS parts, so we
+// emit our own host attribute that globals.css targets via
+// number-flow[data-pyfa-trend="up"]::part(digit) etc.
+import { useTrend } from "@/lib/use-trend";
 // phase-75 (2026-05-26): Google-Finance digit-flip animation via
 // @number-flow/react@0.6.0 (researcher ad12953b2b579e884). Cycle-74's
 // background-tint flash was the Bloomberg pattern; the operator wanted
@@ -23,6 +28,7 @@ import type {
 // consumers. `willChange` per researcher Section 5 perf guidance.
 
 export function PnlBadge({ value }: { value: number | null | undefined }) {
+  const trend = useTrend(value);
   if (value == null) return <span className="text-slate-500">—</span>;
   const isPositive = value >= 0;
   const colorClass = isPositive ? "text-emerald-400" : "text-rose-400";
@@ -35,14 +41,17 @@ export function PnlBadge({ value }: { value: number | null | undefined }) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }}
+      transformTiming={{ duration: 700 }}
       willChange
       aria-live="off"
+      data-pyfa-trend={trend}
       className={colorClass}
     />
   );
 }
 
 export function Dollar({ value }: { value: number | null | undefined }) {
+  const trend = useTrend(value);
   if (value == null) return <span className="text-slate-500">—</span>;
   return (
     <NumberFlow
@@ -53,8 +62,10 @@ export function Dollar({ value }: { value: number | null | undefined }) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }}
+      transformTiming={{ duration: 700 }}
       willChange
       aria-live="off"
+      data-pyfa-trend={trend}
       className="text-slate-100"
     />
   );
