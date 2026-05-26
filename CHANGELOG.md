@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-26 | `a504127c` | phase-44.2 cycle-67 follow-up: restore /paper-trading/manage sub-route + add Settings gear button |
 | 2026-05-26 | `acf33b50` | phase-44.2: operator-approved Manage tab removal + scheduler misfire fix |
 | 2026-05-25 | `ac4554ee` | phase-44.7 (bounded): /cron facet search + level pills + event-rate sparkline + follow/pause + perma |
 | 2026-05-25 | `b8c47aaf` | phase-44.4: Reports refresh - useURLState + ARIA tablist + DataTable + Drawer compare + Tremor AreaC |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-23 | `2bb8229a` | chore: DoD-4 measurement post-operator-approval -- FAIL on all 3 layers |
 | 2026-05-23 | `313b050d` | chore: add phase-40.3.1 (next-Opus stress-test) P3 follow-up |
 | 2026-05-23 | `6c3e1592` | chore: housekeeping cycle 51 -- 4 residuals -> deferred per closure_roadmap |
-| 2026-05-23 | `86e149a2` | phase-40.8.1: Wire compute_ff3 into analysis pipeline so positions carry factor_loadings (follow-... |
 
 ---
 
+### v6.20.12 — phase-44.2 cycle-67 follow-up: restore /paper-trading/manage sub-rout... (2026-05-26)
+
+- **phase-44.2 cycle-67 follow-up: restore /paper-trading/manage sub-route + add Settings gear button**
 ### v6.20.11 — phase-44.2: operator-approved Manage tab removal + scheduler misfire fix (2026-05-26)
 
 - **phase-44.2: operator-approved Manage tab removal + scheduler misfire fix**
