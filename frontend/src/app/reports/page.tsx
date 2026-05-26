@@ -102,8 +102,11 @@ function ReportsContent() {
     parser: (raw) => (raw === "compare" || raw === "history" ? raw : "history"),
     serializer: (v) => (v === "history" ? null : v),
   });
+  // phase-44.2 cycle-69: drop the `.toUpperCase()` URL parser -- filter is
+  // now case-insensitive AND matches company names (mixed case in source),
+  // so forcing uppercase strips information.
   const [filter, setFilter] = useURLState<string>("ticker", "", {
-    parser: (raw) => (raw ?? "").trim().toUpperCase(),
+    parser: (raw) => (raw ?? "").trim(),
     serializer: (v) => (v === "" ? null : v),
   });
 
@@ -130,9 +133,22 @@ function ReportsContent() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = filter
-    ? reports.filter((r) => r.ticker.includes(filter.toUpperCase()))
-    : reports;
+  // phase-44.2 cycle-69 UX-audit: filter matches ticker OR company_name
+  // OR recommendation (case-insensitive substring). Operator-flagged
+  // 2026-05-26 that filtering by ticker alone was too restrictive --
+  // company name is the natural search term.
+  const filtered = (() => {
+    if (!filter) return reports;
+    const q = filter.toLowerCase();
+    return reports.filter((r) => {
+      const ticker = (r.ticker ?? "").toLowerCase();
+      const company = (r.company_name ?? "").toLowerCase();
+      const recommendation = (r.recommendation ?? "").toLowerCase();
+      return (
+        ticker.includes(q) || company.includes(q) || recommendation.includes(q)
+      );
+    });
+  })();
 
   const tickers = [...new Set(reports.map((r) => r.ticker))];
 
@@ -303,10 +319,10 @@ function ReportsContent() {
             <div className="mb-6 flex flex-wrap items-center gap-3">
               <input
                 type="text"
-                placeholder="Filter by ticker..."
+                placeholder="Filter ticker, company, or recommendation..."
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                aria-label="Filter reports by ticker"
+                aria-label="Filter reports by ticker, company, or recommendation"
                 className="w-40 rounded-lg border border-navy-700 bg-navy-800 px-3 py-2 font-mono text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
               />
               {tickers.map((t) => (

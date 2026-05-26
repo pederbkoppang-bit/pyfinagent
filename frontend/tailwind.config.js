@@ -7,7 +7,17 @@ module.exports = {
   // "selector" strategy gives us reliable dark: activation regardless of
   // OS preference. Documented in handoff/current/research_brief_phase_44_2_uxaudit.md.
   darkMode: "selector",
-  content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
+  // phase-44.2 cycle-69: include @tremor/** so Tailwind JIT compiles
+  // every utility class Tremor references internally (fill-{color}-500,
+  // text-{color}-500, etc.). Without this path, Tremor DonutChart slices
+  // render uncolored (operator-reported 2026-05-26). This is the
+  // canonical Tremor v3 install step that was missed when @tremor/react
+  // was added in phase-44.0. See:
+  // https://www.tremor.so/docs/getting-started/installation
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
+    "./node_modules/@tremor/**/*.{js,ts,jsx,tsx}",
+  ],
   theme: {
     extend: {
       fontFamily: {

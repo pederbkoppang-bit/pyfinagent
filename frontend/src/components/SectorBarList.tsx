@@ -75,7 +75,9 @@ export function SectorBarList({
   // bg-white + zinc fallbacks that were conflicting with consumer
   // className. The consumer-passed className still extends the
   // container so callers can tweak (border-x, padding, etc.).
-  const containerClass = `rounded-xl border border-navy-700 bg-navy-800/70 p-4 ${className ?? ""}`;
+  // cycle-69: h-full + flex-col so the card stretches to the row height
+  // when items-stretch is used + content pushes to the natural top.
+  const containerClass = `h-full flex flex-col rounded-xl border border-navy-700 bg-navy-800/70 p-4 ${className ?? ""}`;
 
   if (items.length === 0) {
     return (

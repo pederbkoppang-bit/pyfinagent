@@ -16,6 +16,36 @@ paths:
 - Types: `src/lib/types.ts` — all TypeScript interfaces for backend responses
 - Icons: `src/lib/icons.ts` — Phosphor icon aliases (never use emoji in UI)
 
+## Dark-mode + readability (cycle-69 lessons, MANDATORY for any visual work)
+
+This project is dark-mode-only. The `tailwind.config.js` sets `darkMode: "selector"` and `<html>` carries the `dark` class via `app/layout.tsx`. Three rules are non-negotiable for any component that ships pixels:
+
+1. **Use the project's navy + slate palette, NOT Tailwind's default zinc palette.** Cards use `bg-navy-800/70` + `border-navy-700`. Body text is `text-slate-100` (bright) / `text-slate-200` (default cell) / `text-slate-300` (secondary) / `text-slate-400` (tertiary) / `text-slate-500` (dim). Never use `text-zinc-200`, `bg-zinc-900`, `border-zinc-800` etc. -- they're a slightly different palette and will read as "off" in the cockpit. (Cycle 66 SectorBarList + cycle 67 DataTable + cycle 68 root-cause fix all chased this gap.)
+
+2. **NEVER write light-mode `bg-white`/`text-zinc-700` fallbacks `class="bg-white dark:bg-navy-800/70"` as a base default.** Tailwind's CSS resolution order is deterministic by stylesheet position, NOT className-string order, so a consumer-passed `bg-navy-800/70` can't reliably defeat the `bg-white` base. Either (a) write only the dark token (project is dark-only) or (b) accept the consumer can't override.
+
+3. **Tailwind JIT-safe class strings.** Tailwind v3 JIT scans source for LITERAL class strings; it does NOT compile classes built via template-string concatenation like `` `bg-${color}-500` ``. If you need a runtime-chosen color, use a static lookup map that lists every possible literal class:
+   ```ts
+   const DOT_BG: Record<string, string> = {
+     blue: "bg-blue-500",
+     amber: "bg-amber-500",
+     // ... every color you might pass
+   };
+   const dotClass = DOT_BG[color] ?? "bg-slate-500";
+   ```
+   See `frontend/src/components/PortfolioAllocationDonut.tsx::DOT_BG_CLASS` for the canonical pattern.
+
+4. **Third-party visualization libs need their node_modules path in `tailwind.config.js::content`.** Tremor in particular ships class strings INSIDE its package; without `"./node_modules/@tremor/**/*.{js,ts,jsx,tsx}"` in `content`, chart slices render uncolored. This bit cycle 69. If you add a new visualization lib (charts, gauges, sparklines), add its node_modules path to `content` in the same commit.
+
+5. **Visual verification is mandatory for any chart or color-coded UI.** Unit tests + greps cannot see what the operator sees. After shipping a chart or color-coded view, you MUST either (a) open the dev server in a browser and probe, or (b) explicitly mark the work as "visual verification pending operator review". Q/A returning PASS on unit tests + grep is necessary but not sufficient for visual correctness.
+
+6. **Contrast targets (WCAG 2.2 AAA on dark navy):**
+   - Primary text on `bg-navy-800/70` -- use `text-slate-100` (>= 13:1) or `text-slate-200` (>= 12:1).
+   - Secondary text -- use `text-slate-300` (>= 10:1). Avoid `text-slate-400` for primary readable text.
+   - Table headers -- `uppercase tracking-wider text-xs text-slate-200` (12.6:1).
+   - Dim/tertiary -- `text-slate-400` (>= 7:1) is acceptable for chrome (e.g. fee, days held) but NOT for risk-relevant numbers (stop loss, P&L).
+   - Hover row -- `hover:bg-navy-700/40` (subtle elevation, preserves text contrast). Never `hover:bg-zinc-50` / `hover:bg-white` (washes out text).
+
 ## Conventions
 - **Glass Box**: Every agent I/O must be visible. Debate shows bull/bear arguments. Bias flags surfaced prominently.
 - **Scrollbar styling**: All scrollable containers (sidebars, panels, lists) must use the `scrollbar-thin` class for a consistent custom scrollbar, as defined in `globals.css`. Never rely on browser default scrollbars.

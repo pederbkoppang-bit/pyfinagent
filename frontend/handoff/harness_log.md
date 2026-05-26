@@ -516,3 +516,35 @@ $ npx tsc --noEmit && \
 - Status: NO masterplan flip -- phase-44.2 already flipped DONE in cycle 67; this cycle polishes operator-flagged UX issues on the same surface. Harness_log captures the diff equivalent of experiment_results.md/live_check.md since no masterplan-bound verification is in flight.
 
 **Total cycle time:** ~50 min (researcher 5 min + contract 5 min + generate 30 min + Q/A 2 min + JIT-bug discovery 1 min + JIT fix 2 min + Q/A re-verify 4 min + log 4 min).
+
+
+## Cycle 69 -- 2026-05-26 (EXTENSION post-PASS) -- result=PASS
+
+Operator visual review on the cycle-68 commit caught two visible bugs that Q/A's grep+test toolset missed:
+- Tremor DonutChart slices rendered uncolored (uniform navy ring; "Cash" dot blue, other dots missing). Root cause: `tailwind.config.js::content` was missing the Tremor node_modules path -- a canonical install step that was skipped when @tremor/react was added in phase-44.0.
+- 3-card row didn't visually align (Sector card shorter than Risk Monitor + Allocation donut).
+Operator also requested the company/sector filter pattern be applied to Trades + Reports tables (DRY across cockpit + reports) + a `.claude/rules/frontend.md` update so future agents always consider readability against the dark background.
+
+Generate (5 changes):
+1. `frontend/tailwind.config.js` -- added `"./node_modules/@tremor/**/*.{js,ts,jsx,tsx}"` to content array. THE LOAD-BEARING FIX. All Tremor internal `fill-{color}-500` / `text-{color}-500` / etc. classes now compile into the bundle. Without this, charts render uncolored.
+2. `frontend/src/app/paper-trading/positions/page.tsx` -- grid switched from `items-start` to `items-stretch` so the 3 cards equalize heights.
+3. `frontend/src/components/SectorBarList.tsx` + `PortfolioAllocationDonut.tsx` -- containers gained `h-full flex flex-col` so they fill the stretched row height without internal dead whitespace.
+4. `frontend/src/app/paper-trading/trades/page.tsx` -- new custom `tradesFilterFn` closing over `tickerMeta`, matches ticker | company_name | sector | action | reason. Placeholder + ariaLabel updated.
+5. `frontend/src/app/reports/page.tsx` -- page-level filter logic now matches ticker | company_name | recommendation case-insensitively. URL parser dropped `.toUpperCase()` to preserve mixed-case company-name queries. Placeholder + ariaLabel updated.
+
+`.claude/rules/frontend.md` -- NEW "Dark-mode + readability (cycle-69 lessons, MANDATORY)" section codifying 6 lessons from cycles 63-69:
+  1. Navy/slate palette only; never Tailwind's default zinc.
+  2. Never write light-mode `bg-white`/`text-zinc-700` fallbacks (Tailwind class-resolution order is stylesheet-position, NOT className-string order).
+  3. Tailwind JIT-safe static class lookup maps for runtime-chosen colors (`DOT_BG_CLASS` pattern, NOT `` `bg-${color}-500` `` template strings).
+  4. Third-party viz libs MUST be in `tailwind.config.js::content` (the Tremor gotcha that bit cycle 68 and was missed by Q/A).
+  5. Visual verification is MANDATORY for charts/color-coded UI -- grep + tests cannot see what the operator sees.
+  6. WCAG 2.2 AAA contrast targets on dark navy (slate-100 >= 13:1, slate-200 >= 12:1, slate-300 >= 10:1, slate-400 chrome only).
+
+- Researcher reuse: trades + reports filter extensions reuse the SAME pattern as the cycle-68 positions FilterFn. No fresh researcher spawn -- documented in the Q/A audit.
+- Pytest: backend 614/589 (zero new regressions; no backend touches). Frontend vitest 22 files / 166 tests pass (unchanged from cycle-68; trades + reports filter extensions are pure substring closures with low regression risk -- follow-up vitest coverage noted as a P3 to-do).
+- Build: `tsc --noEmit` exit 0; `npm run build` green; emoji scan 0 hits.
+- Q/A (subagent `a825bafce873a8971`, single fresh spawn): PASS verdict. 5/5 harness audits + 9/9 deterministic checks + 0 BLOCK / 0 WARN / 1 NOTE (vitest coverage gap for the trades+reports filter extensions). The Q/A spawn explicitly self-audited the previous Q/A pass (a54bec285082a7671) acknowledging it could not catch the Tremor JIT bug because grep+test cannot see rendered chart colors. The new rules-doc Section "Dark-mode + readability" encodes this limitation as a doctrine going forward.
+- N* delta R+B: cockpit visual correctness restored (donut now renders distinct sector colors per slice); operator-flagged height misalignment eliminated; same multi-field filter UX across paper-trading positions + trades + reports (DRY); future-agent durability via codified rules-doc.
+- No masterplan flip (phase-44.2 stays DONE from cycle 67). Cycle 69 is bookended: original 5-fix bundle (cycle-68 commit `0a3793db` PASS) + this extension (Tremor + heights + 2 filters + rules doc).
+
+**Total cycle time (cycle 69 extension only):** ~30 min (Tremor content path debug + 2 filter ports + rules-doc + Q/A re-spawn).

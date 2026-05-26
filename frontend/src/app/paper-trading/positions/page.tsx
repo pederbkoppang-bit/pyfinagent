@@ -101,12 +101,13 @@ export default function PositionsPage() {
       tabIndex={0}
       className="space-y-4"
     >
-      {/* phase-44.2 cycle-68 UX-audit fix: 3-col row -- Risk Monitor +
-          Sector concentration + Portfolio allocation donut. items-start so
-          variable-content cards size to their content per frontend-layout.md
-          Section 4.5 option 2 (don't stretch short cards to a tall
-          neighbor's height). Collapses to 1-col on small screens. */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 items-start">
+      {/* phase-44.2 cycle-69 UX-audit fix: 3-col row -- Risk Monitor +
+          Sector concentration + Portfolio allocation donut. items-stretch
+          equalizes heights for visual alignment (operator-flagged 2026-05-26).
+          Each card internally uses flex-col + content-grow so the contents
+          fill the stretched height without dead whitespace. Collapses to
+          1-col on small screens. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 items-stretch">
         <RiskMonitorCard
           perf={perf}
           positions={positions}

@@ -91,7 +91,9 @@ export function PortfolioAllocationDonut({
 
   const navForCenter = totalNav ?? totalValue;
 
-  const containerClass = `rounded-xl border border-navy-700 bg-navy-800/70 p-4 ${className ?? ""}`;
+  // cycle-69: h-full + flex-col so the card stretches to match siblings
+  // when items-stretch is used.
+  const containerClass = `h-full flex flex-col rounded-xl border border-navy-700 bg-navy-800/70 p-4 ${className ?? ""}`;
 
   if (data.length === 0 || totalValue <= 0) {
     return (
