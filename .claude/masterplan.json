@@ -12985,6 +12985,193 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-46",
+      "name": "Market Insight Page (/market route -- stratified single-page Bloomberg-grade layout)",
+      "status": "pending",
+      "audit_basis": "Operator request 2026-05-27 02:00 (Norway). Researcher ab1f198f4528ec45a tier=deep gate_passed=true (7 sources read in full / 22 URLs / Bach et al. arXiv:2205.00757 dashboard patterns + arXiv:2507.07037 cognitive-load-18-23% / TradingView / Robinhood Legend / Benzinga / FinViz / Bloomberg). Researcher confirmed 47 distinct data sources already live in the AI paper-trade loop today (news_screen.py, news/fetcher.py Finnhub+Benzinga+Alpaca, macro_regime.py LLM-classified FOMC + Caldara-Iacoviello GPR + WTI z-score + FRED, social_velocity_screen.py via Alpha Vantage NEWS_SENTIMENT bundling Reddit+Twitter+StockTwits+blogs, 12 enrichment signals at /api/signals/{ticker}, autoresearch summaries at /api/harness/sprint-state). Out-of-scope-without-approval additions: native Twitter/X feed (scaffold at backend/alt_data/twitter.py) + native Reddit feed (scaffold at backend/alt_data/reddit_wsb.py). Brief at handoff/current/research_brief_market_page_scope.md.",
+      "subphases": [
+        {
+          "id": "46.0",
+          "name": "/market route shell + Sidebar entry (Tier 1 page-anatomy)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "verification": {
+            "command": "test -f frontend/src/app/market/page.tsx && grep -q '/market' frontend/src/components/Sidebar.tsx && test -f handoff/current/live_check_46.0.md",
+            "success_criteria": [
+              "frontend/src/app/market/page.tsx exists with the 6-tier shell skeleton",
+              "Sidebar.tsx has a Market entry linking to /market",
+              "page renders without console errors in dev mode",
+              "live_check_46.0.md captures the route + sidebar entry screenshot path"
+            ],
+            "live_check": "live_check_46.0.md captures a verbatim curl/Playwright check that the route returns 200 with the expected page shell."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "46.1",
+          "name": "MarketStatusBar + /api/market/status-bar aggregator (Tier 2a always-visible operator status)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "46.0",
+          "verification": {
+            "command": "curl -sf http://localhost:8000/api/market/status-bar | jq -e '.regime, .vix, .top_movers' && grep -q 'MarketStatusBar' frontend/src/app/market/page.tsx && test -f handoff/current/live_check_46.1.md",
+            "success_criteria": [
+              "new /api/market/status-bar endpoint aggregates regime + VIX + top movers + Fed-watch in ONE call",
+              "frontend MarketStatusBar renders the 4 status segments",
+              "endpoint p95 latency under 200ms",
+              "live_check_46.1.md quotes the verbatim JSON shape + UI render"
+            ],
+            "live_check": "live_check_46.1.md captures verbatim JSON response + UI screenshot."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "46.2",
+          "name": "TopActionableEvents widget (5-vs-400 pattern: rank ALL signals, surface top 5)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "46.0",
+          "verification": {
+            "command": "test -f handoff/current/live_check_46.2.md && grep -qE 'top_actionable_events.*[1-5]' handoff/current/live_check_46.2.md",
+            "success_criteria": [
+              "TopActionableEvents component renders the top 5 highest-conviction events across signals + news + Fed + autoresearch",
+              "events ranked by composite priority (final_score + recency-decay + impact-class)",
+              "each event has a 1-sentence rationale + click-to-drill anchor",
+              "live_check_46.2.md captures verbatim event list + ranking inputs"
+            ],
+            "live_check": "live_check_46.2.md captures top-5 list with ranking inputs visible."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "46.3",
+          "name": "Bento layout + SectorMomentum strip + MacroRegimeCard (Tier 4 middle band)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "46.0",
+          "verification": {
+            "command": "grep -q 'SectorMomentum' frontend/src/app/market/page.tsx && grep -q 'MacroRegimeCard' frontend/src/app/market/page.tsx && test -f handoff/current/live_check_46.3.md",
+            "success_criteria": [
+              "SectorMomentum strip shows 11 GICS sector rolling-momentum bars (consumes existing screener.py output)",
+              "MacroRegimeCard shows current regime + FOMC next-event + GPR-Acts + WTI z-score (consumes existing macro_regime.py)",
+              "bento grid follows .claude/rules/frontend-layout.md Section 4.5 (no equal-height short+tall mixing)",
+              "live_check_46.3.md captures the rendered bento with both widgets populated"
+            ],
+            "live_check": "live_check_46.3.md captures rendered bento."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "46.4",
+          "name": "MarketNewsFeed component with pagination (Tier 4 News widget)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "46.3",
+          "verification": {
+            "command": "grep -q 'MarketNewsFeed' frontend/src/app/market/page.tsx && curl -sf http://localhost:8000/api/market/news | jq -e '.items | length > 0' && test -f handoff/current/live_check_46.4.md",
+            "success_criteria": [
+              "MarketNewsFeed consumes the existing news_screen.py + news/fetcher.py outputs via a new /api/market/news endpoint",
+              "pagination (10 per page) with cursor-based loading; no infinite scroll (per UX research: NN/g + Misal pagination pattern)",
+              "each item has source attribution (Finnhub/Benzinga/Alpaca) + sentiment badge + tagged tickers",
+              "live_check_46.4.md captures verbatim feed render + endpoint sample"
+            ],
+            "live_check": "live_check_46.4.md captures feed render + endpoint sample."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "46.5",
+          "name": "Right-column tiles: FedCalendar + AutoresearchSummary + SocialPulse (Tier 4)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "46.3",
+          "verification": {
+            "command": "grep -qE 'FedCalendar|AutoresearchSummary|SocialPulse' frontend/src/app/market/page.tsx && test -f handoff/current/live_check_46.5.md",
+            "success_criteria": [
+              "FedCalendar renders next 5 FOMC/CPI/PCE/NFP events from existing fed_scrape.py",
+              "AutoresearchSummary consumes /api/harness/sprint-state to surface last-cycle research highlights",
+              "SocialPulse consumes existing social_velocity_screen.py (Alpha Vantage bundle of Reddit/Twitter/StockTwits/blogs)",
+              "live_check_46.5.md captures all 3 tiles rendered with non-empty data"
+            ],
+            "live_check": "live_check_46.5.md captures all 3 tiles populated."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "46.6",
+          "name": "Default-collapsed deep-dive section (Tier 6 progressive disclosure)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "46.0",
+          "verification": {
+            "command": "grep -qE 'details.*open=' frontend/src/app/market/page.tsx && test -f handoff/current/live_check_46.6.md",
+            "success_criteria": [
+              "12 per-ticker enrichment-signal cards (reuses existing SignalCards.tsx) rendered behind <details> default-closed",
+              "expansion remembers state per-section via URL fragment",
+              "live_check_46.6.md captures both closed + expanded states"
+            ],
+            "live_check": "live_check_46.6.md captures default-closed + expanded screenshots."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "46.7",
+          "name": "Widget-linking + URL state (Robinhood Legend cross-widget click pattern)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "46.2",
+          "verification": {
+            "command": "grep -q 'pushState\\|router.push' frontend/src/app/market/page.tsx && test -f handoff/current/live_check_46.7.md",
+            "success_criteria": [
+              "clicking a ticker in TopActionableEvents focuses the corresponding signal card in the deep-dive section",
+              "clicking a sector in SectorMomentum filters MarketNewsFeed to that sector via URL query",
+              "URL state survives page reload",
+              "live_check_46.7.md captures the cross-widget interaction trace"
+            ],
+            "live_check": "live_check_46.7.md captures interaction trace."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "46.8",
+          "name": "Mobile + a11y + states-library polish pass",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "46.7",
+          "verification": {
+            "command": "test -f handoff/current/live_check_46.8.md && grep -qE 'wcag.*pass|axe.*0' handoff/current/live_check_46.8.md",
+            "success_criteria": [
+              "axe-core reports 0 violations on /market",
+              "responsive layout: top fold readable at 375px viewport",
+              "loading / error / empty states for every widget",
+              "live_check_46.8.md captures axe report + 375px screenshot"
+            ],
+            "live_check": "live_check_46.8.md captures axe + mobile screenshots."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
