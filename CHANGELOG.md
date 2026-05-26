@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-26 | `08f67ea9` | fix(llm): cycle 4 claude_code_invoke stdin-pipe bugfix (cycle-3 bug) |
 | 2026-05-26 | `c850e79a` | feat(llm): cycle 3 Claude Code CLI routing layer (operator-approved) |
 | 2026-05-26 | `c23ebe59` | docs(verify): cycle 2 step 27.6 BLOCKED-state evidence + operator action surface |
 | 2026-05-26 | `69c710ec` | feat(portfolio): cycle 1 position-swap framework (zero-buy triage) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-26 | `354e9c2e` | fix(paper-trading): UX audit of /paper-trading/positions |
 | 2026-05-26 | `a504127c` | phase-44.2 cycle-67 follow-up: restore /paper-trading/manage sub-route + add Settings gear button |
 | 2026-05-26 | `acf33b50` | phase-44.2: operator-approved Manage tab removal + scheduler misfire fix |
-| 2026-05-25 | `ac4554ee` | phase-44.7 (bounded): /cron facet search + level pills + event-rate sparkline + follow/pause + perma |
 
 ---
 
+### v6.24.1 — fix(llm): cycle 4 claude_code_invoke stdin-pipe bugfix (cycle-3 bug) (2026-05-26)
+
+- **fix(llm): cycle 4 claude_code_invoke stdin-pipe bugfix (cycle-3 bug)**
 ### v6.24.0 — feat(llm): cycle 3 Claude Code CLI routing layer (operator-approved) (2026-05-26)
 
 - **feat(llm): cycle 3 Claude Code CLI routing layer (operator-approved)**
