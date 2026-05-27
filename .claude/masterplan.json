@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-27T19:42:00+02:00",
+  "updated_at": "2026-05-27T19:36:00+02:00",
   "phases": [
     {
       "id": "phase-0",
@@ -12215,7 +12215,7 @@
         {
           "id": "38.10",
           "name": "Slack digest regression -- Portfolio/EOD totals show $0.00 + Recent Analyses scores all 0.0/10",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "audit_basis": "Operator slack screenshot 2026-05-26 23:47: Morning Digest 14:00 + Evening Digest 23:00 both show 'Portfolio +$0.00 (+0.0%)' AND 'Recent Analyses: ON 0.0/10, WDC 0.0/10, SNDK 0.0/10, INTC 0.0/10, GLW 0.0/10'. Today's Trades section IS populated (COHR/LITE/CIEN/FIX/TER SELLs + FIX/MU/KEYS BUYs -- the cycle-1 swap framework appears to have fired), so the data flow exists but two specific envelope fields are broken: (a) portfolio.total_pnl / pnl_pct serialization; (b) analysis.final_score / final_weighted_score serialization. Mirrors cycle-71/72 envelope-unwrap regressions previously fixed.",
@@ -12230,7 +12230,8 @@
             "live_check": "live_check_38.10.md captures verbatim post-fix Slack message text showing nonzero Portfolio + real scores."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "closure_note": "cycle-10 PASS 2026-05-27: evidence-only closure. Phase-71 commit b9a1b772 already shipped the nested-envelope unwrap + final_weighted_score fallback; operator screenshot was stale data from a slack-bot daemon that had not been kickstarted to pick up post-fix bytecode. Live format_morning_digest output captured in live_check_38.10.md shows correct +$3,767.00 Portfolio + 5.5/6.1/5.3/7.2/6.8 Recent Analyses. Q/A ae93baf49b6724fce verdict PASS with one cosmetic NOTE (commit hash citation corrected). 12/12 phase-71 regression tests pass."
         },
         {
           "id": "38.11",

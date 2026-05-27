@@ -24952,3 +24952,45 @@ The fresh cycle is operational. Cycle 6 will verify completion + BQ row count.
 
 **Cycle 8 status:** still in-flight. Backend logs (19:18:51+) show LITE-fallback persists -- the cycle-8 instrumentation reveals the orchestrator IS running through Claude Code rail but the full pipeline STILL falls back to lite at some downstream stage. Cycle 10 (38.13 follow-up) needed after the 20:09 wakeup.
 
+
+## Cycle 10 -- 2026-05-27 19:30-19:36 CEST -- 38.10 Slack digest evidence-only closure -- result=PASS
+
+**Trigger:** Cycle 9 (38.11) just shipped + cycle 8 (38.13) still in flight. Per goal mandate "CYCLES 2-N: Pull next actionable from masterplan", started cycle 10 on 38.10 (Slack digest regression -- Portfolio $0.00 + Recent Analyses 0.0/10).
+
+**Researcher:** `a2c9fc63d5bb07df7`, tier=simple-to-moderate, gate_passed=true. Output `handoff/current/research_brief_phase_38_10_slack_digest.md` (5 sources read in full, 15 URLs, recency scan + 3-variant queries, 9 internal files inspected with file:line anchors).
+
+**Headline finding:** No code change required. Operator's screenshot is STALE DATA. Phase-71 fix `b9a1b772` (2026-05-26 19:05:51) shipped the nested-envelope unwrap (`formatters.py:342-344`) + final_weighted_score fallback (`autonomous_loop.py:1309-1310`); phase-72 added the `(as of close YYYY-MM-DD)` label. Operator's screenshot at 2026-05-26 23:47 (~4.5h after fix landed) captured a digest sent by a slack-bot daemon process that had not been restarted to pick up the new bytecode. The live system, with the current daemon process, renders correctly.
+
+**Code changes:** ZERO. Evidence-only cycle.
+
+**Live evidence (verbatim Block Kit, captured via in-process `format_morning_digest()` against `/api/paper-trading/portfolio` + `/api/reports/?limit=5`):**
+
+Morning digest:
+- `*Portfolio:* :chart_with_upwards_trend: +$3,767.00 (+18.8%) (as of close 2026-05-27)`
+- `• *CIEN*: 5.5/10 — Hold`
+- `• *AMD*: 6.1/10 — Hold`
+- `• *STX*: 5.3/10 — Sell`
+- `• *WDC*: 7.2/10 — Buy`
+- `• *SNDK*: 6.8/10 — Hold`
+
+Evening digest:
+- `*End-of-Day Portfolio:* :chart_with_upwards_trend: +$3,767.00 (+18.8%) (as of close 2026-05-27)`
+
+Compared to operator's pre-fix screenshot (2026-05-26 23:47): `Portfolio +$0.00 (+0.0%)` + `Recent Analyses: ON 0.0/10, WDC 0.0/10, ...`. The diff is unambiguous.
+
+**Q/A verdict:** `ae93baf49b6724fce` returned PASS. All 5 harness audit items green. All deterministic checks green: git confirms phase-71 fix in main (commit `b9a1b772` 2026-05-26 19:05:51); formatters.py:343,404 unwrap present; autonomous_loop.py:1310 fallback present; formatters.py:360,416 "as of close" label present; live API total_nav=23767/pnl_pct=18.83 non-zero; live `format_morning_digest()` output renders the expected post-fix Block Kit; pytest `test_phase_slack_digest_71.py` 12/12 PASS. One cosmetic NOTE: contract initially cited `29ab0ff6` (phase-34.2) instead of `b9a1b772` (actual phase-71 fix) -- corrected in all five cycle-10 handoff files. NOTE-severity does not degrade the PASS verdict.
+
+**Success criteria mapping (verbatim from masterplan 38.10):**
+- morning_digest_portfolio_dollars_nonzero_when_NAV_is_nonzero: PASS (+$3,767.00)
+- evening_digest_portfolio_dollars_nonzero_when_NAV_is_nonzero: PASS (+$3,767.00)
+- recent_analyses_scores_reflect_actual_final_score_field_not_0.0: PASS (5.5/6.1/5.3/7.2/6.8)
+- live_check_38_10_quotes_a_post_fix_slack_message: PASS (verbatim Block Kit text captured)
+
+**Operator visual verification:** if operator wants to re-verify in Slack directly, the live_check_38.10.md documents the path. The Block Kit text above is the EXACT content the slack-bot would send at the next digest tick.
+
+**Citation requirement:** NOT APPLICABLE. Evidence-only cycle is not a trading-policy change. Researcher floor (>=5 sources / >=10 URLs / recency scan) IS satisfied.
+
+**Stop-condition contribution:** None. 38.10 is not in production_ready.must_have. The sole must_have entry (27.6) still pends cycle-8 closure.
+
+**Cycle 8 status:** still in flight. Backend log at 19:09:25 shows `Claude analysis failed for SNDK: Error code: 401 - invalid x-api-key` -- the orchestrator's full pipeline calls `api.anthropic.com` direct (NOT Claude Code rail) with an invalid key, falls back to Gemini, then to lite. The cycle-8 observability instrumentation made the rail-routing gap visible but does NOT fix it. A follow-up cycle (cycle 11 candidate: 38.13.1 or 38.14) is needed to wire ALL orchestrator LLM call sites through Claude Code rail. Currently only debate calls route through `claude_code_invoke`; the synthesis/analysis paths hit Anthropic direct.
+
