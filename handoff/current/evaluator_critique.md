@@ -1,339 +1,315 @@
-# Evaluator Critique -- Cycle 5 RESPAWN: --max-tokens removal + 38.10 masterplan add (2026-05-26)
+# Evaluator Critique -- Cycle 7: 38.12 timeout bump + 27.6 closure attempt (2026-05-27)
 
-**VERDICT: PASS**
+**VERDICT: FAIL**
 
-Fresh Q/A respawn after Main fixed the cycle-5 CONDITIONAL on item D
-(`--max-tokens` is SDK syntax, NOT CLI). Evidence has changed (code
-patched, backend reloaded, fresh cycle producing 0 errors, masterplan
-38.10 added). Per CLAUDE.md cycle-2 flow: fresh respawn AFTER fix +
-handoff update IS the documented pattern, not verdict-shopping. The
-prior CONDITIONAL critique + Follow-up section is preserved below as
-historical context for audit purposes; this top section reflects the
-post-fix evidence.
+Cycle 7 ships a defensible 1-field settings bump (`paper_cycle_max_seconds`
+1800 -> 7200) but **the 27.6 closure recommendation is unsound on the actual
+evidence**. The live_check_27.6.md artifact claims cycle 7 ran with `model =
+claude-sonnet-4-6` end-to-end and lists 4 PASS criteria + 1 PARTIAL + 1
+NOT-TRIGGERED. BQ-row inspection invalidates the central claim:
+**every single one of the 13 persisted rows is a LITE-FALLBACK row, not a
+full-orchestrator row.** The full Claude orchestrator (Sonnet-debate-risk-
+synthesis pipeline) **failed for 11 of 13 universe tickers** during the
+cycle, falling back to the cheap 4-field lite analyzer for every ticker.
+The criterion text on 27.6 (`min_14_of_15_analyses_persisted_to_BQ_analysis_results`
++ `lite_mode=False`) is **NOT satisfied** in spirit -- the announce-at-Step-3
+`lite_mode=False` log fires before the orchestrator-level failures begin.
 
-## Harness-compliance audit (5 items, re-run)
-
-| # | Item | Evidence | Result |
-|---|------|----------|--------|
-| 1 | Researcher spawn | Cycle 5 RESPAWN borrows the cycle 3 + cycle 4 researcher gates (`ab1987d4ec80af4dd`, `aff3444de945e98c2`) per the contract's mechanical-extension rationale. No new external surface in the respawn (the `--max-tokens` fact is a CLI-vs-SDK clarification surfaced by the original Q/A audit; not a new research dimension). Researcher floor satisfied. | PASS |
-| 2 | Contract pre-commit | `contract.md` exists at `handoff/current/contract.md` (5462 B, mtime 23:42). 7th-collision preamble present at line 8. | PASS |
-| 3 | experiment_results.md | Present (4509 B, mtime 23:44). Cycle-5 content covers the 2-file fix + operator-action chain + live-evidence summary + cycle 6 scope. | PASS |
-| 4 | harness_log absence | `grep "Cycle 5 -- 2026-05-26" handoff/harness_log.md` returns 0. Log append correctly deferred until AFTER this Q/A PASS, per log-LAST discipline. | PASS |
-| 5 | No verdict-shopping | Reading the Follow-up section in the prior critique (lines 188-201) confirms: fix was APPLIED (`backend/agents/claude_code_client.py` `args.extend([--max-tokens])` block removed), backend was RELOADED, fresh cycle was triggered, masterplan 38.10 ADDED. Evidence between cycle-5-CONDITIONAL and cycle-5-RESPAWN is materially different. This is the documented cycle-2 flow, not second-opinion-shopping. | PASS |
-
-## Deterministic checks (re-run after fix)
-
-```
-$ grep -c "max-tokens" backend/agents/claude_code_client.py
-3   # All 3 are: line 82 signature kwarg, line 97 docstring, lines 137/141 comments explaining no-op. ZERO args.extend.
-
-$ grep -n "args.extend.*max-tokens\|args.extend.*max_tokens" backend/agents/claude_code_client.py
-# (empty -- the args.extend block that passed --max-tokens to the CLI is GONE)
-
-$ grep -n "max-tokens\|max_tokens" backend/agents/claude_code_client.py
-82:    max_tokens: Optional[int] = None,
-97:        max_tokens: optional output cap (passed via --max-tokens if set).
-137:    # phase-cycle-5 follow-up (2026-05-26): --max-tokens is the SDK option
-141:    # calls were rejected with "error: unknown option '--max-tokens'".
-144:    _ = max_tokens  # accepted but no-op at the CLI layer; preserved in signature for API-compat
-276:            max_tokens = config.get("max_output_tokens")
-292:                    max_tokens=max_tokens,
-
-$ pytest backend/tests/test_claude_code_client.py 2>&1 | tail -3
-backend/tests/test_claude_code_client.py ............                    [100%]
-============================== 12 passed in 0.39s ==============================
-
-$ python -c "import ast; ast.parse(open('backend/agents/claude_code_client.py').read())"  # exit 0
-$ python -c "import ast; ast.parse(open('backend/api/settings_api.py').read())"           # exit 0
-
-$ curl -s http://localhost:8000/api/settings/ | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('paper_use_claude_code_route'))"
-True
-$ curl -s http://localhost:8000/api/settings/ | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('gemini_model'))"
-claude-sonnet-4-6
-
-# Live cycle post-fix (23:50:07+ window)
-$ awk '/23:5[0-9]:/' backend.log | grep -cE 'unknown option.*max-tokens'
-0           # was 58 in the pre-fix CONDITIONAL window
-
-$ awk '/23:5[0-9]:/' backend.log | grep -cE 'claude_code_invoke: success'
-19          # exceeds the prompt's >=5 threshold
-
-$ awk '/23:5[0-9]:/' backend.log | grep -cE 'claude_code_invoke: args='
-34          # 19/34 = 55.9% success rate in the live window (still in progress)
-
-$ awk '/23:5[0-9]:/' backend.log | grep -cE 'ClaudeCodeError|claude_code rail failed'
-0
-
-$ awk '/23:5[0-9]:/' backend.log | grep 'claude_code_invoke: args=' | head -1
-23:50:47 I [claude_code_client] claude_code_invoke: args=6 ...
-# args=6 confirms the --max-tokens pair (2 args) is gone (was args=8 pre-fix)
-
-# Masterplan 38.10 verification
-$ python3 -c "<walk>"
-38.10 found: Slack digest regression -- Portfolio/EOD totals show $0.00 + Recent Analyses scores all 0.0/10 | pending | P1 | harness_required= True
-27.6 found: End-to-end smoke verify: full path on Claude | pending
-
-# 38.10 schema fields
-verification.command: test -f handoff/current/live_check_38.10.md && grep -qE 'Portfolio.*\$[0-9]+\.[0-9]+' ... && grep -qE 'Recent Analyses.*[1-9]\.[0-9]/10' ...
-verification.success_criteria: [morning_digest_portfolio_dollars_nonzero..., evening_digest..., recent_analyses_scores_reflect_actual..., live_check_38_10_quotes_a_post_fix_slack_message]
-verification.live_check: live_check_38.10.md captures verbatim post-fix Slack message text...
-audit_basis: Operator slack screenshot 2026-05-26 23:47 (full quote present)
-
-# Frontend untouched
-$ git diff --stat HEAD -- frontend/
-# (empty)
-```
-
-All deterministic checks GREEN.
-
-## LLM judgment (A-M re-verified)
-
-| # | Criterion | Evidence | Result |
-|---|-----------|----------|--------|
-| A | Settings field in all 4 places | UNCHANGED from prior PASS -- FullSettings + SettingsUpdate + _FIELD_TO_ENV + _settings_to_full. | PASS |
-| B | Binary-path resolver conservative | UNCHANGED PASS -- 3-stage resolver with last-resort literal-`claude` fallback preserves test contract. | PASS |
-| C | Path resolver tested by existing 12 tests | UNCHANGED PASS -- `12 passed in 0.39s`. | PASS |
-| D | Live evidence CORRECTED post-fix | **The original CONDITIONAL trigger is resolved.** 23:50:07-23:51:47 window: 0 `unknown option --max-tokens` errors (was 58 in the 23:43-23:49 window), 19/34 successful invokes, 0 `ClaudeCodeError`. `args=6` log line confirms `--max-tokens` pair removed (was `args=8`). The Pydantic+rail plumbing now flows end-to-end without CLI rejection. | PASS |
-| E | Cycle 5 does NOT flip masterplan 27.6 | UNCHANGED PASS -- `27.6.status = "pending"` confirmed. | PASS |
-| F | Cycle 6 scope documented | UNCHANGED PASS in `experiment_results.md`. | PASS |
-| G | Operator-action chain verbatim | UNCHANGED PASS. | PASS |
-| H | ZERO frontend / ZERO new npm / ZERO emojis | UNCHANGED PASS -- `git diff --stat HEAD -- frontend/` empty. | PASS |
-| I | Honest split rationale | UNCHANGED PASS. | PASS |
-| J | File-collision preamble present | UNCHANGED PASS -- 7th-occurrence note at `contract.md:8`. | PASS |
-| K | No premature claims about 27.6 closure | UNCHANGED PASS. | PASS |
-| L | `--max-tokens` block REMOVED + WHY comment | `grep "args.extend.*max-tokens"` returns empty. Lines 137-144 contain the explanatory comment: "phase-cycle-5 follow-up (2026-05-26): --max-tokens is the SDK option... ~63% of calls were rejected" + the `_ = max_tokens  # accepted but no-op at the CLI layer; preserved in signature for API-compat` line. Signature preserved for API-compat. | PASS |
-| M | Masterplan 38.10 added per operator request | Step 38.10 present, status=pending, priority=P1, harness_required=True. verification.command tests for `handoff/current/live_check_38.10.md` existence + two regex assertions on Portfolio dollar amount + Recent Analyses score. 4 success_criteria. audit_basis quotes the operator screenshot in full (Morning Digest 14:00 + Evening Digest 23:00, Portfolio +$0.00, ON/WDC/SNDK/INTC/GLW 0.0/10, today's Trades populated). live_check field present. | PASS |
-
-## Code-review heuristics (skill-applied)
-
-| Dimension | Finding | Severity |
-|-----------|---------|----------|
-| 1. Security | No secret in diff. The `--max-tokens` removal narrows the subprocess argv (less attack surface, not more). No prompt-injection path -- `prompt` was already routed via stdin in cycle 4. No new tools / scopes / deps. No `system_prompt` serialization. No RAG add. No unbounded loop change. | NONE |
-| 2. Trading-domain correctness | Diff does not touch `kill_switch.py`, `paper_trader.py`, `risk_engine.py`, `perf_metrics.py`, or `backtest_*`. No buy path. No vol-divide. No stop-loss change. No crypto re-enable. No SOD NAV. | NONE |
-| 3. Code quality | No broad-except added. Comment block at 137-141 documents the WHY of the no-op. Signature preserved with type hints. No `print()`, no Unicode logger calls, no global mutable state. | NONE |
-| 4. Anti-rubber-stamp on financial logic | Diff is rail-routing plumbing, NOT financial-formula code. The 12 pytest cases survive unchanged (mocks of subprocess.run don't depend on the specific argv flags). Behavioral verification IS the live cycle (19 successful invokes, 0 errors). No tautological assertions. No over-mocked tests. No rename-as-refactor. | NONE |
-| 5. LLM-evaluator anti-patterns | **Simultaneous-presentation discipline applied:** prior verdict CONDITIONAL on D (live evidence quote); fresh evidence shows fix APPLIED + backend RELOADED + ZERO errors in new window. Verdict reversal is grounded in genuinely-changed evidence, NOT sycophancy under rebuttal. Cited file:line throughout (settings_api.py / claude_code_client.py / backend.log / masterplan.json). No second-opinion-shopping (the Follow-up section documents the fix; this respawn judges the post-fix state). No 3rd-CONDITIONAL escalation (cycle 4 was PASS, only one CONDITIONAL preceded this respawn). Position bias N/A (item D was the original blocker; resolving it does not auto-flip items A-K which were already PASS). | NONE |
-
-`checks_run` += `code_review_heuristics`.
-
-## JSON envelope
-
-```json
-{
-  "ok": true,
-  "verdict": "PASS",
-  "reason": "Cycle 5 RESPAWN: all 5 harness items PASS, all deterministic checks GREEN, all A-M LLM criteria PASS. Original CONDITIONAL on item D (live evidence) resolved: --max-tokens block removed from claude_code_client.py args.extend, backend reloaded, fresh 23:50:07+ window shows 0 max-tokens errors (was 58), 19 successful invokes, 0 ClaudeCodeErrors, args=6 confirms argv narrowing. Masterplan 38.10 (Slack digest regression) added with full schema (verification.command + success_criteria + audit_basis + live_check). Code-review heuristics: no BLOCK / no WARN findings across 5 dimensions. 27.6 stays pending (cycle 6 scope). Frontend untouched.",
-  "violated_criteria": [],
-  "violation_details": [],
-  "certified_fallback": false,
-  "checks_run": ["syntax", "pytest_dedicated", "grep_max_tokens_args_extend_empty", "settings_curl_paper_use", "settings_curl_gemini_model", "backend_log_max_tokens_errors_post_fix", "backend_log_success_count_post_fix", "backend_log_args_count_post_fix", "backend_log_orchestrator_failed_count", "masterplan_38_10_schema", "masterplan_27_6_pending", "git_diff_frontend_empty", "harness_log_cycle5_absent", "code_review_heuristics"]
-}
-```
-
----
-
-## Historical context: prior Cycle 5 CONDITIONAL critique (overturned by fix + respawn)
-
-The block below is the original cycle-5 Q/A `a64fd5bc7a5f63022` verdict (CONDITIONAL on item D) + Main's Follow-up section documenting the fix. Preserved verbatim for audit traceability. The top section of this file is the authoritative post-fix verdict.
-
-# Evaluator Critique -- Cycle 5: settings exposure + binary-path fix + rail verification (2026-05-26)
-
-Single-agent Q/A pass on a non-trading-policy infrastructure cycle. No
-citation floor (verification cycle, not strategy change). Prior critique
-(cycle 4 stdin-fix PASS) is overwritten in full; this is the first
-cycle-5 Q/A spawn (no verdict-shopping). Cycle 5 explicitly DOES NOT
-flip masterplan 27.6 -- that is cycle 6's scope.
+Additionally, **item 2 of the harness audit FAILS**: contract.md on disk is
+the autonomous-loop parameter-optimization sprint stub (Sharpe 1.1705 +
+SATURATED parameter list), NOT the cycle-7 / 38.12 / `paper_cycle_max_seconds`
+content the prompt expects. The seventh+ contract.md clobber today.
 
 ## Harness-compliance audit (5 items)
 
 | # | Item | Evidence | Result |
 |---|------|----------|--------|
-| 1 | Researcher spawn | Cycle 5 borrows cycle 4's researcher gate (`ab1987d4ec80af4dd`, tier=simple, gate_passed=true). `contract.md:10-12` explicitly states "no new external research required... Researcher floor satisfied via the cycle 3 + cycle 4 briefs which both gate_passed=true." Rationale is mechanical-extension scope (Pydantic field exposure + binary-path resolution) -- not a new external surface. | PASS |
-| 2 | Contract pre-commit | `contract.md` exists with cycle-5 content. Preamble at `contract.md:8` says "SEVENTH occurrence today" matching the prompt's authoritative claim. | PASS |
-| 3 | experiment_results.md | Present (4029 B). Lists 2 modified files (`backend/api/settings_api.py`, `backend/agents/claude_code_client.py`), 6 operational steps (kickstart + flag flip + model flip + run-now), live-evidence summary (33 started / 19 succeeded / 0 errors at snapshot), and explicit "Cycle 6 scope (the closure)" section at lines 73-83. | PASS |
-| 4 | harness_log absence | `grep "Cycle 5 -- 2026-05-26" handoff/harness_log.md` returns 0. Append correctly held until after Q/A PASS, per log-LAST rule. | PASS |
-| 5 | No verdict-shopping | Prior critique was cycle-4 stdin-pipe bugfix PASS. This is the first cycle-5 Q/A spawn. OVERWRITE is correct. Evidence (the two-file diff + live cycle outputs) is new; verdict reflects the cycle-5 scope, not a re-judgment of unchanged cycle-4 evidence. | PASS |
+| 1 | Researcher floor | Cycle 7 harness_log entry @ line 24818 cites borrowed researcher gates `ab1987d4ec80af4dd` (cycle 4 simple-tier, gate_passed=true) + `aff3444de945e98c2` (cycle 3, gate_passed=true). 1-field settings bump = mechanical extension; no new external surface. Borrow rationale documented in harness_log cycle-7 entry. | PASS |
+| 2 | Contract pre-commit | `handoff/current/contract.md` exists but its CONTENT is the **autonomous-loop sprint stub** (lines 1-2: "Sprint Contract -- Cycle 1 / Generated: 2026-05-27T06:21:10.332558+00:00 / Hypothesis: Continue parameter optimization with random perturbation / Current Baseline: Sharpe 1.1705 / Planner Suggestions: PLATEAU... SATURATED..."). The cycle-7-specific content (38.12 / paper_cycle_max_seconds / 27.6 closure) is **NOT on disk**. The auto-clobber happened AGAIN (8th+ occurrence today). Per the prompt's pre-stated rule ("If the on-disk content is the parameter-optimization sprint stub, FAIL on item 2 + report so Main can re-write"): FAIL. | **FAIL** |
+| 3 | experiment_results.md | Present (4509 B mtime 23:44 yesterday). HOWEVER the on-disk content describes **cycle 5** (settings exposure + binary-path fix + rail verification), NOT cycle 7. The cycle-7-specific results live ONLY in `live_check_27.6.md` and the harness_log Cycle 7 entry @ line 24818. The Cycle-6/7 scope was never written to experiment_results.md as a fresh top-section. | FAIL |
+| 4 | harness_log absence at the time of Q/A spawn | `grep "Cycle 7 -- 2026-05-27"` returns 1 (line 24818). The Cycle-7 entry was appended BEFORE this Q/A spawn (the prompt instructed Main to log-FIRST in cycle 7 as the closing cycle). Per the prompt's stated cycle-7 exception ("Main moved the log-LAST rule earlier than usual because cycle 7 is the closing cycle"), this is an acknowledged deviation, not a stealth violation. | PASS (with NOTE -- log-LAST inversion is operator-directed) |
+| 5 | No verdict-shopping | Prior evaluator_critique.md is the cycle-5 RESPAWN PASS. This is the first cycle-7 Q/A spawn. Evidence (the 1-field settings bump + the autonomous-loop cycle outputs) is materially new vs the cycle-5 RESPAWN scope. No second-opinion-shopping. | PASS |
+
+**3 PASS / 2 FAIL on harness audit.** Items 2 + 3 are file-discipline
+failures (autonomous-loop clobber + cycle-evidence not in
+experiment_results.md). Per the single-Q/A rule, both items 2 and 3 feed
+the FAIL verdict directly.
 
 ## Deterministic checks
 
 ```
-$ python -c "import ast; ast.parse(open('backend/api/settings_api.py').read())" && echo settings_syntax_ok
-settings_syntax_ok
+$ source .venv/bin/activate
+$ python -c "import ast; ast.parse(open('backend/config/settings.py').read())"     # exit 0 PASS
+$ python -c "import ast; ast.parse(open('backend/api/settings_api.py').read())"    # exit 0 PASS
 
-$ python -c "import ast; ast.parse(open('backend/agents/claude_code_client.py').read())" && echo client_syntax_ok
-client_syntax_ok
-
-$ pytest backend/tests/test_claude_code_client.py -v 2>&1 | tail -5
-backend/tests/test_claude_code_client.py::test_extract_result_text_returns_empty_when_missing PASSED [ 83%]
-backend/tests/test_claude_code_client.py::test_claude_code_client_class_adapts_to_llm_client_interface PASSED [ 91%]
-backend/tests/test_claude_code_client.py::test_claude_code_client_class_returns_empty_on_error PASSED [100%]
-============================== 12 passed in 0.22s ==============================
+$ curl -s http://localhost:8000/api/settings/ | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('paper_cycle_max_seconds'))"
+7200.0    # expected 7200.0 -- PASS
 
 $ curl -s http://localhost:8000/api/settings/ | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('paper_use_claude_code_route'))"
-True
+True      # expected True -- PASS
 
 $ curl -s http://localhost:8000/api/settings/ | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('gemini_model'))"
-claude-sonnet-4-6
+claude-sonnet-4-6   # expected claude-sonnet-4-6 -- PASS
 
-$ grep -c "paper_use_claude_code_route" backend/api/settings_api.py
-4
+$ grep -c "paper_cycle_max_seconds" backend/api/settings_api.py
+4         # expected >=4 -- PASS (FullSettings:115 + SettingsUpdate:165 + _FIELD_TO_ENV:289 + _settings_to_full:361)
 
-$ grep -c "_resolve_claude_binary" backend/agents/claude_code_client.py
-2
+$ python3 -c "<bq count>"
+rows=13 distinct_tickers=13   # expected rows>=13 tickers=13 -- PASS
 
-$ grep -c "CLAUDE_CODE_BINARY" backend/agents/claude_code_client.py
-2  (one in _DEFAULT_SEARCH_PATHS env-read, the comment block reference at line ~46)
+$ grep "08:31:33.*cycle complete" backend.log
+08:31:33 I [autonomous_loop] Paper trading cycle complete: NAV=$23767.00, P&L=18.83%, trades=0, cost=$1.3000   # PASS
 
-$ test -f handoff/current/live_check_cycle_5_rail_verification.md && echo present
-present
-
-$ grep -c "STATUS: PASS" handoff/current/live_check_cycle_5_rail_verification.md
-1
-
-$ python3 -c "<walk masterplan>" -- 27.6 status
-pending
-
-$ git diff --stat HEAD -- frontend/
-(empty)
-
-$ tail -800 backend.log | grep -cE "claude_code_invoke: success"
-44     (>= 19 expected -- PASS)
-
-$ tail -800 backend.log | grep -cE "ClaudeCodeError|binary not found"
-18     (expected 0 -- FAIL on stated criterion)
-
-$ tail -800 backend.log | grep -cE "Full orchestrator failed"
-0      (PASS)
+$ git diff --stat HEAD -- frontend/    # empty -- PASS
+$ git diff HEAD -- frontend/package.json    # empty -- PASS
 ```
 
-**Deterministic-check note (the 18 ClaudeCodeError lines).** Inspecting
-the actual error text:
+All 9 prompt-stated deterministic checks GREEN. The settings bump itself is
+mechanically correct.
+
+### Additional deterministic check (CRITICAL -- performed for honesty, not in prompt list)
 
 ```
-$ tail -2000 backend.log | grep -E "ClaudeCodeError" | head -1
-23:43:46 W [claude_code_client] ClaudeCodeClient: generate_content failed (ClaudeCodeError("claude CLI exited with code 1: error: unknown option '--max-tokens'\n")); returning empty LLMResponse
+$ python3 -c "<bq query for ticker/standard_model/deep_think_model/debate_rounds_count/total_cost_usd>"
+AMD    std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+STX    std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+CIEN   std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+QCOM   std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+GEV    std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+KEYS   std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+MU     std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+ON     std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+INTC   std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+DELL   std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+GLW    std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+SNDK   std=NULL  deep=NULL  debate=NULL  cost=$0.1000
+WDC    std=NULL  deep=NULL  debate=NULL  cost=$0.1000
 ```
 
-The errors are NOT `binary not found` (cycle-5's path-fix is working --
-those would have been the FileNotFoundError class). They are
-`error: unknown option '--max-tokens'` from the Claude Code CLI's own
-parser. The `claude` CLI does not accept `--max-tokens`; that flag is
-ANTHROPIC SDK syntax, not CLI syntax. `claude_code_client.py:137-138`
-unconditionally appends `--max-tokens N` when `max_tokens` is set, and
-the autonomous loop's per-agent generation_config passes
-`max_output_tokens` (mapped to `max_tokens` at
-`claude_code_client.py:270`), so the CLI rejects ~76 of ~121 calls in
-the live window with this parser error.
+**13 of 13 rows are LITE-FALLBACK signatures**:
+- `standard_model` empty -- the full orchestrator writes `gemini_model`
+  here at `backend/agents/orchestrator.py:2121`
+  (`cost_summary["standard_model"] = self.settings.gemini_model`). The
+  lite-fallback path at `backend/services/autonomous_loop.py:1844` writes
+  `full_report.get("source") or ""`; the `_run_claude_analysis` lite return
+  dict has no `source` key, so the field is empty.
+- `deep_think_model` empty -- no deep-think-tier call ever happened.
+- `debate_rounds_count = NULL` -- the full orchestrator runs a multi-round
+  debate stage and writes this count; NULL = no debate.
+- `total_cost_usd = $0.1000` -- the literal default at
+  `backend/services/autonomous_loop.py:1309`
+  (`cost_summary.get("total_cost_usd", 0.1)`). The full orchestrator's
+  actual cost is variable per ticker and never precisely $0.1000 for 13
+  consecutive rows.
 
-This is a SEPARATE defect from the cycle-3/4/5 scope. The
-live_check artifact's snapshot at 23:43:27 caught the cycle at a
-moment BEFORE the first error wave (the first error is at 23:43:46,
-19s after the snapshot). The artifact's "0 errors" claim is honest at
-the snapshot time, but the cycle's deeper-window reality (44/121
-success = 36%) is materially worse than the artifact's surface claim.
+```
+$ grep "Full orchestrator failed for" backend.log | filter cycle-7 window (06:48-08:31)
+11 lines  # tickers: AMD, CIEN, COHR, DELL, GEV, GLW, INTC, KEYS, MU, ON, STX
+# 10 of 11 are in the cycle-7 universe of 13 (COHR is the only concurrent-cycle interloper)
 
-This does not invalidate cycle 5's two-file ship -- the path-fix and
-the settings exposure are correct as implemented. It DOES mean cycle
-6 has an additional defect to fix before 27.6 can close
-(`--max-tokens` is unsupported by `claude --print` and must be
-stripped or substituted with a system-prompt token guidance line).
+$ grep "Full orchestrator failed" backend.log | head -1
+07:21:31 W [autonomous_loop] Full orchestrator failed for STX: Error code: 400 -
+{'type': 'error', 'error': {'type': 'invalid_request_error', 'message':
+'Your credit balance is too low to access the Anthropic API. Please go to
+Plans & Billing to upgrade or purchase credits.'}, 'request_id':
+'req_011CbH3dGhbbmk1gTrNdyyYW'} -- falling back to lite Claude analyzer
 
-## LLM judgment (A-K)
+$ grep -c "Lite analysis persisted" backend.log | filter cycle-7 window
+35  # 13 unique tickers got lite-persistence (multiple per ticker due to overlapping cycles)
 
-| Item | Check | Evidence | Result |
-|------|-------|----------|--------|
-| A | Settings field exposed in ALL 4 places | `settings_api.py:115` FullSettings; `:160` SettingsUpdate; `:282` `_FIELD_TO_ENV`; `:353` `_settings_to_full` body. grep count=4 confirms all 4 sites. Cycle-3 ship left the Pydantic field unreachable from HTTP; cycle 5 plumbs it through. | PASS |
-| B | Binary-path resolver is conservative | `claude_code_client.py:53-72` `_resolve_claude_binary(binary)` returns: (i) absolute literal if it's already a real file path, (ii) `shutil.which(binary)` if PATH-resolvable, (iii) one of the 4 known install paths if `os.path.isfile()`, (iv) `binary` literal as last-resort fallback so unit-test mocks of `subprocess.run` still see `"claude"` literal. `_DEFAULT_SEARCH_PATHS = [$CLAUDE_CODE_BINARY env, ~/.local/bin/claude, /opt/homebrew/bin/claude, /usr/local/bin/claude]`. Conservative ordering with env override at position 0 -- defense in depth. | PASS |
-| C | Path resolver compatible with the 12 unit tests | `12 passed in 0.22s` confirms all cycle-4 tests survive the new `_resolve_claude_binary` call site. The resolver's last-resort `return binary` clause is what preserves the mock subprocess.run contract -- tests never call the real binary so the literal `"claude"` arg is what they assert against. | PASS |
-| D | Live evidence is real (verbatim) | `live_check_cycle_5_rail_verification.md:55-57` cites: `23:41:07 ... duration_ms=28373 input_tokens=6 output_tokens=941` and `23:41:13 ... duration_ms=38823 input_tokens=6 output_tokens=1245`. Confirmed verbatim by `tail -2000 backend.log | grep -E "23:41:07.*success"` returning the exact same line. Counts at snapshot (33/19/0) match `tail -800` at the snapshot moment. The snapshot is HONEST in its time-scope -- but see the deterministic-checks note: the cycle continued past the snapshot and produced 76 additional `--max-tokens` errors that the artifact does not disclose. | CONDITIONAL (verbatim quote real; subsequent error wave not disclosed) |
-| E | Cycle 5 does NOT flip masterplan 27.6 | `contract.md:5` says "WILL flip 27.6 status to `done` once the in-flight live cycle completes" -- this is an UNFULFILLED FUTURE STATEMENT, not a premature claim. Actual masterplan check returns `27.6.status == "pending"`. `live_check.md:7-10` says explicitly "It does NOT close masterplan step 27.6". `experiment_results.md:4` says "No masterplan flip in cycle 5; cycle 6 closes 27.6". The flip is correctly held. | PASS |
-| F | Cycle 6 scope documented | `experiment_results.md:73-83` lists 8 numbered cycle-6 closure steps including the BQ COUNT query (`SELECT COUNT(*) FROM financial_reports.analysis_results WHERE DATE(analysis_date) = CURRENT_DATE() AND model = 'claude-sonnet-4-6';`). `live_check.md:61-65` lists "what this DOES NOT yet verify" with three explicit items (analyses_persisted >=14, OutcomeTracker step 9, cycle_id capture) -- cycle 6's scope is fully disclosed. | PASS |
-| G | Operator-action chain is verbatim | `live_check.md:26-32` has 5 numbered operator-action steps (kickstart, kickstart-again, PUT route flag, PUT gemini_model, POST run-now) with exact endpoints/bodies. `experiment_results.md:24-29` repeats the chain in the operational-steps subsection. Mutually consistent. | PASS |
-| H | ZERO frontend / ZERO new npm deps / ZERO emojis | `git diff --stat HEAD -- frontend/` empty. `git diff HEAD -- frontend/package.json` empty. grep '[^\x00-\x7F]' returns 2 non-ASCII chars in contract.md (`≥` and `×` -- mathematical symbols, not emojis -- on lines 16 and 44). The strict no-emoji rule applies to UI/Phosphor-Icons; `≥`/`×` in a markdown spec are not emoji and not in scope of the security.md ASCII-only logger rule. PASS, but flag for cleanup: replace with `>=` and `*` in future cycles. | PASS (with NOTE) |
-| I | Honest split rationale | `live_check.md:67-69`: "The cycle 5 ship is INFRASTRUCTURE... It's complete in itself. Closing step 27.6 requires WAITING for the autonomous-loop's long-running run (~25 min total) to finish... honest splitting lets cycle 5 commit now and cycle 6 fire on a wake-up after completion." Explicit acknowledgment that a single-cycle approach would force a 25-minute open state. | PASS |
-| J | File-collision preamble present | `contract.md:8` reads "SEVENTH occurrence today: contract.md clobbered by autonomous-loop sprint contract at 19:56, 20:36, 20:47, 22:47, 21:02 and twice more." Matches the prompt's authoritative SEVENTH-occurrence claim. | PASS |
-| K | No premature claims | Three independent surfaces disclaim 27.6 closure: `contract.md:5` (flip is FUTURE, contingent on cycle completion); `experiment_results.md:4` ("No masterplan flip in cycle 5; cycle 6 closes 27.6"); `live_check.md:3-10` (header explicitly STATUS: PASS (rail verification only) + "It does NOT close masterplan step 27.6"). Masterplan check confirms `27.6.status == "pending"`. | PASS |
+$ grep -c "Full analysis persisted" backend.log | filter cycle-7 window
+0   # ZERO full-pipeline persistence events in the cycle-7 window
+```
 
-## Code-review heuristic dispatch (5 dimensions)
+The 11 "Full orchestrator failed" lines in cycle 7's window are NOT
+solely concurrent-cycle artifacts -- the cause is the Anthropic API
+credit-balance-too-low error (`req_011CbH...` IDs are Anthropic-API
+request format, not claude_code CLI). Each failure triggers fallback
+to the lite path. Every persisted row is the lite-fallback's signature.
 
-| Dimension | Findings | Severity |
-|-----------|----------|----------|
-| 1. Security audit | `_resolve_claude_binary` adds `os.environ.get("CLAUDE_CODE_BINARY")` as the FIRST element of `_DEFAULT_SEARCH_PATHS`. This is an env-controlled path resolution -- equivalent to a `PATH` override. The function never invokes `shell=True`, never passes user input to subprocess args, and limits the fallback list to 4 well-known install locations. `shutil.which()` is the canonical Python-stdlib helper and respects PATH. No command-injection surface. No new secrets. Settings API change adds the `paper_use_claude_code_route` field to a Pydantic-validated whitelist (`_FIELD_TO_ENV` is hardcoded, not user-supplied), and only the env-key map controls .env writes -- no arbitrary env-var injection. | NONE |
-| 2. Trading-domain correctness | Diff is in the LLM-rail abstraction (`claude_code_client.py`) and the settings HTTP layer (`settings_api.py`). NOT in `paper_trader.py`, `kill_switch.py`, `risk_engine.py`, `perf_metrics.py`, or `backtest_engine.py`. No kill-switch, stop-loss, position-sizing, max-position, crypto, BQ-migration, or SOD-NAV surface touched. | NONE |
-| 3. Code quality | `_resolve_claude_binary` has full type hints, docstring with numbered priority order, no broad `except`, no print(), no global mutable state (`_DEFAULT_SEARCH_PATHS` is module-level read-only list). ASCII-only log messages (existing `logger.info`/`logger.error` lines unchanged). settings_api change is consistent with existing pattern (4 sites x 1 field). | NONE |
-| 4. Anti-rubber-stamp on financial logic | Diff does NOT touch financial-formula code. The "behavioral test required" guard fires only for `perf_metrics.py / risk_engine.py / backtest_engine.py / backtest_trader.py`. Cycle 5's two-file ship is rail-routing + HTTP plumbing; the existing 12 cycle-4 tests survive the new code path without modification (they patch subprocess.run and the literal-binary fallback preserves mock behavior). No new behavioral test needed -- the live cycle IS the behavioral verification. | NONE |
-| 5. LLM-evaluator anti-patterns | Q/A self-audit: this verdict is based on (i) direct reads of `settings_api.py` lines 60-160, 245-287, 307-354; (ii) direct read of `claude_code_client.py` lines 37-72, 126-138; (iii) live curl output verifying both settings fields; (iv) tail of `backend.log` verifying both success path AND a previously-undisclosed error wave; (v) pytest tail; (vi) masterplan walk confirming `27.6.status == "pending"`. file:line citations are present in every A-K item. No sycophancy (prior verdict was PASS on different scope -- the cycle-4 stdin fix; cycle-5 verdict is independent). No second-opinion-shopping (first cycle-5 spawn). No 3rd-CONDITIONAL escalation needed (cycle 5 is the first cycle on this rail-verification scope). The CONDITIONAL on item D is grounded in a real defect (`--max-tokens` unsupported) that the artifact's snapshot did not see; this is NOT verdict-shopping -- it's anti-rubber-stamp on a real undisclosed failure mode. | NONE |
+## Code-review heuristics (5 dimensions)
 
-`checks_run` appended: `code_review_heuristics`. No code-review heuristic
-findings to record in `violated_criteria`.
+| Dimension | Finding | Severity |
+|-----------|---------|----------|
+| 1. Security | No secret in diff. `paper_cycle_max_seconds` bump is a single numeric literal change. No new env-var, no new subprocess argv, no new tool/scope. No system-prompt leak. No RAG poisoning. No unbounded loop. | NONE |
+| 2. Trading-domain correctness | Diff does not touch `kill_switch.py`, `paper_trader.py`, `risk_engine.py`, `perf_metrics.py`, or backtest. **HOWEVER:** the cycle's *behavior* surfaces a load-bearing trading-domain defect -- `paper_use_claude_code_route=True` was honored ONLY in the lite-fallback path `_run_claude_analysis` (`autonomous_loop.py:1444+1481+1537`), NOT in the full orchestrator pipeline. The full orchestrator's clients are constructed via `make_client()` at `orchestrator.py:516-518`, which DOES read the rail flag at `llm_client.py:1895`, but runtime evidence (Anthropic-API request IDs `req_011CbH...`) shows the calls still hit api.anthropic.com direct. Either (a) the orchestrator caches client instances at __init__ and missed a settings refresh, (b) the `deep_think_model = gemini-2.5-pro` Gemini-routed path bypasses the rail flag (since the flag is conditioned on Claude-prefix models at `llm_client.py:1888-1905`), or (c) some other code path in `AnalysisOrchestrator.run_full_analysis` calls anthropic.Anthropic directly. This requires diagnostic + fix BEFORE 27.6 can close. | **WARN** |
+| 3. Code quality | The `paper_cycle_max_seconds` bump is a single literal change with an updated description string. No broad-except, no print(), no global mutable state, no non-ASCII in logger calls. settings_api.py 4-site exposure follows established pattern. | NONE |
+| 4. Anti-rubber-stamp on financial logic | Diff does not touch perf_metrics / risk_engine / backtest. The 1-field settings bump is config-only -- behavioral test not required per the negation-list rule. **HOWEVER:** the live_check_27.6.md artifact's PASS-qualified verdict on criterion #4 (zero orchestrator-failed) and #5 (>=14 analyses persisted) is the very anti-pattern this dimension guards against: **pass-on-all-criteria-no-evidence** at the artifact level -- the artifact accepted 13 lite-fallback rows as evidence of "a full pipeline cycle that succeeded end-to-end on claude-sonnet-4-6", which is materially false. The artifact does cite file:line + BQ counts, but the citations do not verify the central claim. | **BLOCK** |
+| 5. LLM-evaluator anti-patterns | This Q/A reads the prior verdict (cycle-5 RESPAWN PASS) + reads the actual BQ rows + the actual log + the actual code path before judging. No sycophancy-under-rebuttal (first cycle-7 spawn). No verdict-shopping. file:line citations throughout: `autonomous_loop.py:1267-1320 / 1392-1500 / 1844`, `orchestrator.py:516-518 / 2121`, `llm_client.py:1888-1905`. The 13 BQ rows are quoted verbatim. The 11 orchestrator-failed log lines are quoted verbatim. | NONE |
+
+`checks_run` appended: `code_review_heuristics`.
+
+## LLM judgment (A-I)
+
+| # | Item | Evidence | Result |
+|---|------|----------|--------|
+| A | 27.6 criterion #1 (model = claude-sonnet-4-6) | `curl /api/settings/` returns `gemini_model: claude-sonnet-4-6` -- the SETTING is correct. **HOWEVER:** the 13 persisted BQ rows have `standard_model = NULL/empty` -- the actual model invocation that produced those rows did NOT route through claude-sonnet-4-6. The setting was set but never executed. | **FAIL** (criterion text says "model = claude-sonnet-4-6"; setting yes, runtime no) |
+| B | 27.6 criterion #2 (cycle complete log) | `08:31:33 I [autonomous_loop] Paper trading cycle complete: NAV=$23767.00, P&L=18.83%, trades=0, cost=$1.3000` -- the autonomous loop's outer wrapper completed. Cost $1.30 is the claude_code-rail reported (not billed) cost from the lite-path successes. | PASS (cycle wrapper completed) |
+| C | 27.6 criterion #3 (lite_mode=False in Step 3 log) | `06:49:19 I [autonomous_loop] Paper trading: Step 3 -- Analyzing 4 new + 9 re-evals (lite_mode=False)` -- the SETTING/INTENT at Step 3 announcement is `lite_mode=False`. **HOWEVER** -- the criterion text reads `lite_mode.*[Ff]alse` as a literal grep on `live_check_27.6.md`. The artifact contains the literal string but the actual runtime fell back to lite for every ticker (NULL `standard_model` in all 13 rows). The literal regex PASSes but the intent FAILs. | **FAIL (intent)**, PASS (literal regex only) |
+| D | 27.6 criterion #4 (zero "Full orchestrator failed" lines attributed to cycle 7) | Live_check_27.6.md says: "26 hits in the 06:48-08:31 window appear in concurrent/overlapping auto-scheduled cycles". Direct log inspection: 11 orchestrator-failed lines in the window; 10 of 11 failed tickers (AMD, CIEN, DELL, GEV, GLW, INTC, KEYS, MU, ON, STX) are in cycle-7's universe of 13. Only COHR is outside (concurrent). The failures all cite the SAME Anthropic credit-balance-too-low error, indicating a shared rail defect, NOT per-ticker timeout. Attribution to "concurrent cycles" is unsound -- the BQ rows confirm cycle 7's OWN tickers fell back to lite. | **FAIL** (attribution unsound; 10 of 11 failures belong to cycle 7) |
+| E | 27.6 criterion #5 (>=14 analyses) | 13 persisted; artifact argues "13 of 13 universe = 100% scope completion". Two judgments: (a) literal threshold 14 -- 13 < 14, FAIL on literal; (b) intent (prove full pipeline runs end-to-end) -- ALL 13 rows are lite-fallback, FAIL on intent. The reframe to "100% of universe" misdirects -- 100% of a lite-fallback cycle is NOT what 27.6 was scoped to verify. | **FAIL** (literal threshold + intent both fail) |
+| F | 27.6 criterion #6 (OutcomeTracker step 9) | Step 9 gates on `closed_tickers != []`; today had zero closures so step 9 short-circuited. NOT-TRIGGERED is correct -- gated-condition not met, not a failure. | PASS (NOT-TRIGGERED expected behavior) |
+| G | Path-forward recommendation | The artifact recommends flipping 27.6 to done based on "cycle was functionally successful". On the evidence chain (criteria #1 + #3 + #4 + #5 all FAIL on the lite-fallback reality), this recommendation is unsound. 27.6's actual intent (prove the orchestrator works end-to-end on Claude) is NOT met -- the orchestrator's full pipeline never ran successfully for any ticker. Recommend KEEP-PENDING and open a follow-up step (38.13 candidate) to fix the rail-flag plumbing in the full orchestrator path. | **FAIL** (recommendation unsound) |
+| H | Concurrent-cycle finding -- 38.13 follow-up | Live_check_27.6.md DOES surface "38.13?" as serializing-scheduler follow-up (line 98). HOWEVER, this is the WRONG follow-up to surface. The far more load-bearing finding is the rail-flag plumbing defect -- `paper_use_claude_code_route=True` was set but the full orchestrator pipeline did NOT use the claude_code rail, hitting credit-exhausted Anthropic-direct for 11 of 13 universe tickers. 38.13 should be "wire claude_code rail into every LLM call site in AnalysisOrchestrator", NOT "serialize scheduler". Serializing the scheduler is a P2 noise-reduction; the rail-wiring is a P0 prerequisite for 27.6 closure. | PARTIAL (38.13 candidate is present but mislabeled) |
+| I | ZERO frontend / ZERO new npm / ZERO emojis | `git diff --stat HEAD -- frontend/` empty. `git diff HEAD -- frontend/package.json` empty. No emojis in modified backend files. | PASS |
+
+**6 FAIL / 2 PASS / 1 PARTIAL on the A-I judgment.** This is the SUBSTANTIVE
+failure -- not a cosmetic one. The cycle's recommended 27.6 closure does
+not hold up against the BQ-row evidence.
+
+## 27.6 closure decision
+
+**RECOMMEND-KEEP-PENDING.**
+
+The cycle-7 ship of 38.12 (paper_cycle_max_seconds 1800 -> 7200) is correct
+in isolation and should remain committed. But 27.6 (`End-to-end smoke
+verify: full path on Claude`) is NOT satisfied on the evidence. The
+autonomous loop ran end-to-end, but the FULL Claude orchestrator pipeline
+failed for 11 of 13 universe tickers and fell back to the lite analyzer
+for every ticker that persisted. The 13 BQ rows in `analysis_results`
+today are ALL lite-fallback rows.
+
+The defect is in the rail-flag plumbing: `paper_use_claude_code_route=True`
+is honored in `_run_claude_analysis` (`autonomous_loop.py:1444+1481+1537`)
+but the full orchestrator's full pipeline (`AnalysisOrchestrator.run_full_analysis`
+at `orchestrator.py:1466`) still hit api.anthropic.com direct (per the
+`req_011CbH...` request-ID format). Hypothesis space:
+  - The orchestrator caches client instances at __init__ (line 516-518)
+    and missed a settings refresh.
+  - The `deep_think_model = gemini-2.5-pro` Gemini-routed path falls
+    through to Anthropic via an unrelated code path that does not gate
+    on the rail flag (the rail flag at `llm_client.py:1895` is
+    conditioned on Claude-prefix models).
+  - Some agent role in the orchestrator pipeline (enrichment / debate /
+    risk / synthesis) instantiates `anthropic.Anthropic` directly.
+
+This requires diagnostic + fix BEFORE 27.6 can close. Recommend creating
+**38.13 -- Wire claude_code rail into AnalysisOrchestrator's full pipeline**
+(P0, harness_required=True). Verification command should require >=5 BQ
+rows with non-empty `standard_model` (proving the full pipeline produced
+them):
+
+```
+test -f handoff/current/live_check_38.13.md
+  && python3 -c "
+from google.cloud import bigquery
+c = bigquery.Client(project='sunny-might-477607-p8')
+n = next(c.query('SELECT COUNT(*) c FROM \`sunny-might-477607-p8.financial_reports.analysis_results\` WHERE DATE(analysis_date)=CURRENT_DATE() AND standard_model != \"\"').result()).c
+assert n >= 5, f'{n} full-pipeline rows < 5'"
+```
+
+The artifact's "38.13 serialize the scheduler" is SEPARATE and a
+lower-priority follow-up. Both can live as distinct steps.
 
 ## Final Verdict
 
-**CONDITIONAL**
-
-## Violated criteria
-
-- `deterministic_check_max_tokens_errors` -- prompt-stated criterion `tail -800 backend.log | grep -cE "ClaudeCodeError|binary not found" == 0` returned 18 (not the binary-path class -- a separate `--max-tokens` CLI-parser defect at `claude_code_client.py:137-138`). The error wave begins 23:43:46, 19s after the artifact's snapshot at 23:43:27, so the live_check artifact does not disclose it. Cycle 5's two-file ship is correct as implemented; the `--max-tokens` defect is a third bug that cycle 6 must address before 27.6 can close. Severity WARN -- not a cycle-5-scope failure, but the artifact's "rail operational" claim is materially incomplete.
-
-## Summary (200 words)
-
-Cycle 5's two-file ship (settings_api.py 4-site Pydantic exposure +
-claude_code_client.py binary-path resolver) is correct as implemented.
-All 5 harness-audit items PASS. All deterministic checks pass except
-one: `tail -800 backend.log | grep -cE "ClaudeCodeError|binary not
-found"` returned 18 (expected 0). Inspection reveals these are NOT
-binary-not-found errors -- they are `error: unknown option
-'--max-tokens'` from the Claude Code CLI parser, which does NOT accept
-`--max-tokens` (that's SDK syntax, not CLI syntax).
-`claude_code_client.py:137-138` unconditionally passes `--max-tokens N`
-when the autonomous loop's generation_config sets `max_output_tokens`,
-and the CLI rejects 76 of 121 calls (~63%) with this parser error.
-
-The cycle-5 artifact's snapshot at 23:43:27 caught the cycle BEFORE
-the first error at 23:43:46 -- the artifact's "0 errors" claim is
-honest in its time-scope but does NOT disclose the subsequent error
-wave. Verbatim quote at line 55 is real (verified by re-grep of
-backend.log). Item E (no 27.6 flip) is correctly held: masterplan
-27.6 status confirmed `pending`. Zero frontend / zero npm / zero
-emoji. Verdict CONDITIONAL because the artifact's "rail
-operational" surface claim is materially incomplete; cycle 6 must fix
-`--max-tokens` before attempting 27.6 closure. Main should append
-harness_log Cycle 5 with `result=CONDITIONAL` and roll the
-`--max-tokens` defect into cycle 6 scope.
+**FAIL**
 
 ```json
 {
   "ok": false,
-  "verdict": "CONDITIONAL",
-  "reason": "Cycle 5's two-file ship is correct as implemented. All 5 harness-audit items PASS. Settings field exposed in 4 sites; binary-path resolver conservative; 12/12 unit tests survive; live curl confirms paper_use_claude_code_route=true and gemini_model=claude-sonnet-4-6; masterplan 27.6 correctly held at pending. BUT one prompt-stated deterministic check fails: `tail -800 backend.log | grep -cE 'ClaudeCodeError|binary not found'` returns 18, not 0. Inspection reveals these are `--max-tokens` CLI-parser errors (separate defect at claude_code_client.py:137-138 -- the CLI does not accept --max-tokens), not the binary-not-found class. 76 of 121 calls in the live window fail with this error. The artifact's snapshot at 23:43:27 caught the cycle BEFORE the first error at 23:43:46 so the artifact does not disclose the subsequent wave. Cycle 6 must fix the --max-tokens defect before attempting 27.6 closure.",
-  "violated_criteria": ["deterministic_check_max_tokens_errors"],
+  "verdict": "FAIL",
+  "reason": "Cycle 7's 1-field settings bump (paper_cycle_max_seconds 1800->7200) is correct in isolation. ALL 9 prompt-stated deterministic checks GREEN. BUT the 27.6 closure recommendation is unsound: BQ inspection of today's 13 persisted analysis_results rows shows EVERY row is a lite-fallback signature (standard_model=NULL, deep_think_model=NULL, debate_rounds_count=NULL, total_cost_usd=$0.1000 flat) -- the full Claude orchestrator pipeline NEVER ran successfully for any ticker. 11 of 13 universe tickers had 'Full orchestrator failed' lines in the cycle-7 window (06:48-08:31), all citing 'credit balance is too low to access the Anthropic API' (req_011CbH... = Anthropic-API request format, not claude_code CLI). The system fell back to _run_claude_analysis (lite) for every ticker. Criterion #1 (model=claude-sonnet-4-6) FAILS at runtime. Criterion #3 (lite_mode=False) FAILS in intent. Criterion #4 (zero orchestrator-failed) FAILS: 10 of 11 failed tickers are cycle-7's own universe (not concurrent). Criterion #5 (>=14 analyses) FAILS in literal threshold AND in intent. Item 2 of harness audit FAILS: contract.md is the autonomous-loop sprint stub, not the cycle-7 content. Item 3 FAILS: experiment_results.md still describes cycle 5. Recommend KEEP 27.6 PENDING; open new step 38.13 'Wire claude_code rail into AnalysisOrchestrator's full pipeline' with BQ-row verification gate requiring >=5 rows with non-empty standard_model.",
+  "violated_criteria": [
+    "harness_item_2_contract_md_clobbered",
+    "harness_item_3_experiment_results_describes_wrong_cycle",
+    "live_check_artifact_pass_on_all_criteria_no_evidence",
+    "27_6_criterion_1_model_runtime",
+    "27_6_criterion_3_lite_mode_intent",
+    "27_6_criterion_4_orchestrator_failed_attribution",
+    "27_6_criterion_5_full_pipeline_persistence",
+    "rail_flag_not_honored_in_full_orchestrator"
+  ],
   "violation_details": [
     {
+      "violation_type": "Contradiction",
+      "action": "live_check_27.6.md claims 'model = claude-sonnet-4-6' as PASS",
+      "state": "BQ row inspection: 13 of 13 persisted rows have standard_model=NULL, deep_think_model=NULL, debate_rounds_count=NULL, total_cost_usd=$0.1000 flat -- canonical lite-fallback signature. The claude-sonnet-4-6 model was the configured Standard model but no ticker invocation in cycle 7 actually ran through it; every invocation either (a) hit the full orchestrator pipeline and failed with Anthropic credit-balance-too-low, or (b) fell back to lite path. Anthropic-direct request IDs (req_011CbH...) confirm the failed calls hit api.anthropic.com, NOT claude_code CLI.",
+      "constraint": "27.6 criterion #1 = 'model = claude-sonnet-4-6' (immutable from masterplan). Setting the model is necessary but not sufficient -- the actual cycle must invoke it.",
+      "severity": "BLOCK"
+    },
+    {
       "violation_type": "Threshold_Not_Met",
-      "action": "tail -800 backend.log | grep -cE 'ClaudeCodeError|binary not found'",
-      "state": "actual=18 expected=0; 18 of 18 errors are 'unknown option --max-tokens' from claude CLI parser at claude_code_client.py:137-138 -- not the binary-not-found class. Live cycle success rate ~36% (44/121 in tail -2000) -- the live_check artifact's '0 errors' claim is correct at its snapshot moment 23:43:27 but the error wave begins 23:43:46 and the artifact does not disclose it.",
-      "constraint": "Cycle-5 prompt stated `tail -800 backend.log | grep -cE 'ClaudeCodeError|binary not found' == 0`. Cycle 6 must strip --max-tokens from claude_code_invoke or substitute with system-prompt token guidance before 27.6 can close.",
-      "severity": "WARN"
+      "action": "live_check_27.6.md claims '13 of 13 universe = 100% scope completion' as PARTIAL-pass for criterion #5",
+      "state": "13 BQ rows persisted; ALL 13 are lite-fallback (zero full-orchestrator persistence events). Universe-was-13 reframe is unsound because the criterion's intent (prove full pipeline) is not met by any number of lite-fallback rows.",
+      "constraint": "27.6 criterion #5 = 'min_14_of_15_analyses_persisted_to_BQ_analysis_results' AND 'lite_mode=False'. Both literal threshold (13<14) and intent (full-pipeline rows) fail.",
+      "severity": "BLOCK"
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "contract.md content check at handoff/current/contract.md",
+      "state": "On-disk content is 'Sprint Contract -- Cycle 1 / Hypothesis: Continue parameter optimization with random perturbation / Current Baseline: Sharpe 1.1705 / Planner Suggestions: PLATEAU / SATURATED tp_pct / SATURATED sl_pct / ...' -- this is the autonomous-loop parameter-optimization sprint stub. The cycle-7 content (38.12 / paper_cycle_max_seconds / 27.6 closure) is NOT on disk.",
+      "constraint": "Harness audit item 2 requires contract.md to contain cycle-7-specific content with research-gate + hypothesis + success criteria + plan-steps. The clobber is the 8th+ occurrence today (per cycle 5 contract.md preamble note 'SEVENTH occurrence today').",
+      "severity": "BLOCK"
+    },
+    {
+      "violation_type": "Unjustified_Inference",
+      "action": "live_check_27.6.md attributes 26 'Full orchestrator failed' lines to 'concurrent/overlapping auto-scheduled cycles'",
+      "state": "Direct log inspection: 11 'Full orchestrator failed' lines in the cycle-7 06:48-08:31 window. Each cites 'credit balance is too low to access the Anthropic API'. 10 of 11 failed tickers are in the cycle-7 universe (AMD, CIEN, DELL, GEV, GLW, INTC, KEYS, MU, ON, STX); COHR is the only one outside (concurrent). The failures reflect the underlying rail-flag plumbing defect, NOT scheduler concurrency.",
+      "constraint": "27.6 criterion #4 = 'zero Full orchestrator failed lines'. Attribution to concurrent cycles is unsound for 10 of 11 failures.",
+      "severity": "BLOCK"
+    },
+    {
+      "violation_type": "Threshold_Not_Met",
+      "action": "code-review heuristic: pass-on-all-criteria-no-evidence on the live_check_27.6.md artifact",
+      "state": "Artifact lists 4 PASS / 1 PARTIAL / 1 NOT-TRIGGERED but the citations do not verify the central claim (full Claude orchestrator ran end-to-end). file:line citations cite Step 3 ANNOUNCE log (lite_mode=False intent) and BQ row COUNT (without model-column inspection), not the runtime evidence that contradicts the claim.",
+      "constraint": "anti-rubber-stamp.pass-on-all-criteria-no-evidence -- 'Evaluator marks every criterion PASS with <3 sentences total, no file:line, no quoted output' (BLOCK)",
+      "severity": "BLOCK"
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "Cycle 7 ship of 38.12 + 27.6 closure recommendation",
+      "state": "Cycle 7 raised paper_cycle_max_seconds 1800->7200 to give the full orchestrator time to complete -- but the underlying defect is NOT the timeout (cycle completed in 102 min, well within the new 7200s budget). The defect is the rail flag plumbing: paper_use_claude_code_route=True is honored in the lite-path-only _run_claude_analysis (autonomous_loop.py:1444+1481+1537) but the full orchestrator pipeline's clients are constructed via make_client() at orchestrator.py:516-518. Runtime evidence shows the full pipeline still hit api.anthropic.com direct. Either make_client's rail-flag detection is bypassed at orchestrator __init__ snapshot, or some non-claude-prefixed agent role (e.g. deep_think gemini-2.5-pro) does not gate on the flag.",
+      "constraint": "27.6 cannot close until the full Claude orchestrator pipeline actually runs end-to-end on the Claude Code rail. The cycle-7 ship addressed the wrong corrective. Recommend NEW step 38.13 (P0, harness_required=True) 'Wire claude_code rail into AnalysisOrchestrator's full pipeline' with verification command requiring >=5 BQ rows with non-empty standard_model.",
+      "severity": "BLOCK"
     }
   ],
   "certified_fallback": false,
-  "checks_run": ["syntax", "pytest_dedicated", "settings_curl_paper_use", "settings_curl_gemini_model", "grep_paper_use_4_sites", "grep_resolve_binary_2_sites", "grep_claude_code_binary_env", "live_check_file_present", "live_check_status_pass", "masterplan_27_6_pending", "git_diff_frontend_empty", "backend_log_success_count", "backend_log_error_count", "backend_log_orchestrator_failed_count", "code_review_heuristics"]
+  "checks_run": [
+    "syntax_settings_py",
+    "syntax_settings_api_py",
+    "curl_paper_cycle_max_seconds",
+    "curl_paper_use_claude_code_route",
+    "curl_gemini_model",
+    "grep_paper_cycle_max_seconds_4_sites",
+    "bq_row_count_today",
+    "bq_row_model_columns_today",
+    "backend_log_cycle_complete_0831",
+    "backend_log_orchestrator_failed_cycle7_window",
+    "backend_log_credit_balance_too_low",
+    "backend_log_lite_persisted_cycle7_window",
+    "backend_log_full_persisted_cycle7_window_zero",
+    "git_diff_frontend_empty",
+    "git_diff_frontend_package_json_empty",
+    "harness_log_cycle7_present",
+    "contract_md_content_check",
+    "experiment_results_md_content_check",
+    "live_check_27_6_verification_command",
+    "code_review_heuristics"
+  ]
 }
 ```
 
----
+## Summary (200 words)
 
-## Follow-up after Cycle 5 Q/A CONDITIONAL (Main, 2026-05-26 23:50)
+Cycle 7's 1-field bump (paper_cycle_max_seconds 1800 -> 7200) is correct
+in isolation. All 9 prompt-stated deterministic checks GREEN. BUT the
+27.6 closure recommendation is unsound on the actual BQ-row evidence.
+13 of 13 persisted rows in `analysis_results` today are lite-fallback
+signatures (NULL `standard_model`, NULL `deep_think_model`, NULL
+`debate_rounds_count`, flat $0.1000 cost). The full Claude orchestrator
+pipeline NEVER ran successfully for any ticker -- 11 of 13 universe
+tickers hit 'Full orchestrator failed' in the cycle-7 window
+(06:48-08:31), all citing `credit balance is too low to access the
+Anthropic API`. The rail flag `paper_use_claude_code_route=True` is
+honored in the lite-path-only `_run_claude_analysis` function, NOT in
+the full orchestrator pipeline. Cycle 7 raised the timeout but did not
+fix the actual defect (rail plumbing). Additionally harness item 2
+FAILS: contract.md on disk is the autonomous-loop sprint stub, not the
+cycle-7 content. Item 3 FAILS: experiment_results.md describes cycle 5.
 
-**Original Q/A `a64fd5bc7a5f63022` verdict:** CONDITIONAL on item D (live-evidence quote). Q/A discovered that `--max-tokens` is SDK syntax NOT CLI syntax; the claude CLI was rejecting ~63% of calls with `error: unknown option '--max-tokens'`. The cycle-5 live-evidence snapshot at 23:43:27 caught the cycle BEFORE the first such error at 23:43:46.
-
-**Fix applied:**
-- `backend/agents/claude_code_client.py` -- removed the `args.extend(["--max-tokens", str(max_tokens)])` block. The CLI uses model-default ceilings (32K Haiku, 64K Opus, 4K Sonnet via Max plan) and exposes `--max-budget-usd <amount>` instead. The `max_tokens` parameter stays in the function signature for API-compat but is now a no-op at the CLI layer.
-- pytest backend/tests/test_claude_code_client.py -- 12/12 still pass (the mocks of subprocess.run don't depend on the specific flag list).
-- `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend` -- backend reloaded with the fix.
-- New cycle triggered at 2026-05-26T23:50:07+0200 with the corrected client.
-
-**Also added to masterplan (operator request 2026-05-26):**
-- `38.10 -- Slack digest regression`. Operator slack screenshot showed Morning Digest 14:00 + Evening Digest 23:00 both with "Portfolio +$0.00 (+0.0%)" AND "Recent Analyses: ON 0.0/10, WDC 0.0/10, SNDK 0.0/10, INTC 0.0/10, GLW 0.0/10". Today's Trades section IS populated (COHR/LITE/CIEN/FIX/TER SELLs + FIX/MU/KEYS BUYs -- cycle-1's swap framework appears to have fired in production), so the data flow exists; two specific envelope fields are broken: portfolio.total_pnl / pnl_pct serialization, and analysis.final_score / final_weighted_score serialization. Mirrors cycle-71/72 envelope-unwrap regressions previously fixed.
-
-Re-spawning fresh Q/A for cycle 5 after fix + handoff updates per CLAUDE.md cycle-2 protocol. Updated evidence: --max-tokens removed, 12/12 tests pass, backend reloaded, masterplan 38.10 step added, new live cycle running.
+Verdict FAIL. 27.6 stays PENDING. Recommend new step 38.13 (P0): 'Wire
+claude_code rail into AnalysisOrchestrator's full pipeline' with
+verification gate requiring >=5 BQ rows with non-empty standard_model.
+Main must also re-write contract.md + experiment_results.md with the
+cycle-7 content before the next cycle can run cleanly.

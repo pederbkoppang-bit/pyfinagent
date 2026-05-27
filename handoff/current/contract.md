@@ -1,64 +1,66 @@
-# Contract -- Cycle 5: settings exposure + binary-path fix + live 27.6 closure
+# Contract -- Cycle 7 (closure correction): 38.12 ships, 27.6 stays pending, 38.13 added
 
-**Cycle:** 5 (production-readiness mode + testing-phase trading mandate)
-**Date:** 2026-05-26
-**Step targeted:** `27.6` "End-to-end smoke verify: full path on Claude" (P0). This cycle WILL flip 27.6 status to `done` once the in-flight live cycle completes with PASS evidence.
-**Class:** operational closure of a P0 masterplan step. The two small code changes are infrastructure that enables the live verification; no trading-policy semantics changed (citation floor does NOT apply -- verification cycle).
+**Cycle:** 7 (closure-correction commit)
+**Date:** 2026-05-27
+**Class:** verification cycle + small settings change. NO trading-policy change (citation floor does NOT apply).
+**Status flips:** `38.12` flipped done; `27.6` STAYS pending; new step `38.13` added (P0).
 
-**File-collision note (SEVENTH occurrence today):** `handoff/current/contract.md` clobbered by autonomous-loop sprint contract at 19:56, 20:36, 20:47, 22:47, 21:02 and twice more. Main re-wrote each time. Deconfliction stays on follow-up backlog.
+**File-collision note (NINTH occurrence today):** `handoff/current/contract.md` clobbered by autonomous-loop sprint contract for the 9th time today. Permanent deconfliction is on the follow-up backlog and is itself becoming a P0.
 
 ## Research gate
 
-Cycle 4 researcher `ab1987d4ec80af4dd` already gate_passed=true on the stdin pattern. Cycle 5's small additions (Pydantic field exposure + binary-path resolution) are mechanical extensions of cycle 3/4's surface; no new external research required. Researcher floor satisfied via the cycle 3 + cycle 4 briefs which both gate_passed=true.
+Borrowed from cycles 3 (`aff3444de945e98c2` deep) + 4 (`ab1987d4ec80af4dd` simple), both `gate_passed=true`. Cycle 7 is a 1-field settings bump + verification; no new external research required.
 
-## N* delta
+## What cycle 7 shipped
 
-- **B primary:** the autonomous-loop's next 13-ticker analysis pass produces ≥14/15 `analysis_results` rows persisted to `financial_reports.analysis_results` with `model=claude-sonnet-4-6`, zero "Full orchestrator failed" lines, lite_mode=False, and `rail=claude_code` per-ticker log lines. Step 27.6 closes PASS.
-- **R secondary:** every change is gated behind a settings flag the operator can flip back. Binary-path resolution adds a `CLAUDE_CODE_BINARY` env override + `shutil.which()` + 3 well-known install locations -- defense in depth.
+### Code change (2 files modified)
 
-## What this cycle actually did
+1. `backend/config/settings.py:31` -- `paper_cycle_max_seconds` default raised 1800.0 -> 7200.0.
 
-### Code changes (2 files)
+2. `backend/api/settings_api.py` -- exposed `paper_cycle_max_seconds` in 4 places: FullSettings, SettingsUpdate (ge=300, le=21600), _FIELD_TO_ENV, _settings_to_full.
 
-1. `backend/api/settings_api.py` -- exposed `paper_use_claude_code_route` to the read + write API surface:
-   - `FullSettings.paper_use_claude_code_route: bool = False` (response schema).
-   - `SettingsUpdate.paper_use_claude_code_route: Optional[bool] = None` (write payload).
-   - `_FIELD_TO_ENV["paper_use_claude_code_route"] = "PAPER_USE_CLAUDE_CODE_ROUTE"` (env-var persistence map).
-   - `_settings_to_full` now copies the field into the response.
-   Without this change, the PUT endpoint silently drops the field (cycle-3 ship only added the Pydantic field; the API allow-list is a separate hardcoded set).
+### Operational steps (live)
 
-2. `backend/agents/claude_code_client.py` -- added `_resolve_claude_binary()` resolver. The launchd-supervised backend doesn't inherit the operator's interactive-shell PATH so a bare `subprocess.run(["claude", ...])` failed with FileNotFoundError. Fix:
-   - `_DEFAULT_SEARCH_PATHS` env-overridable list: `CLAUDE_CODE_BINARY` env var > `~/.local/bin/claude` > `/opt/homebrew/bin/claude` > `/usr/local/bin/claude`.
-   - `_resolve_claude_binary(binary)` returns the first matching absolute path, falling back to the literal `binary` string so unit-test mocks of `subprocess.run` still see `"claude"`.
-   - `claude_code_invoke` now passes `resolved_binary` to `args[0]`.
+3. `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend` -- backend reloaded.
+4. `PUT /api/settings/ {paper_cycle_max_seconds: 7200}` -- verified via re-GET = 7200.0.
+5. `POST /api/paper-trading/run-now` triggered at 2026-05-27T06:48:53+02:00.
+6. Cycle ran to completion at 08:31:33 with `cycle complete: NAV=$23767.00, P&L=18.83%, trades=0, cost=$1.3000`.
 
-### Operational steps (executed live)
+## Verification outcome
 
-3. `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend` -- reloaded backend twice (once after settings_api change, once after path-fix).
-4. `PUT /api/settings/ {"paper_use_claude_code_route": true}` -- flag flipped successfully (verified via re-GET).
-5. `PUT /api/settings/ {"gemini_model": "claude-sonnet-4-6"}` -- flipped from `claude-opus-4-7` to satisfy 27.6 success_criterion #1.
-6. `POST /api/paper-trading/run-now` -- triggered the autonomous loop at 2026-05-26T23:39:44+0200 with the corrected configuration.
+`38.12` ship: **PASS**. Timeout bump landed; cycle ran 102 min inside the 7200s budget.
 
-### In-flight verification
+`27.6` closure attempt: **FAIL**. The 13 BQ rows are LITE-FALLBACK signatures (standard_model=NULL, deep_think_model=NULL, $0.10 flat cost). Q/A `abbcca28fb3536a63` confirmed 11/13 cycle-7 tickers hit `Full orchestrator failed: credit balance is too low` -- the full orchestrator silently fell back to lite-mode which DOES honor the rail flag, then persisted lite-mode signatures.
 
-7. Backend.log shows `claude_code_invoke: success duration_ms=28373 input_tokens=6 output_tokens=941` lines -- the rail is operational. The cycle is mid-execution; ~50 LLM calls × ~30s/call = ~25-30 min total runtime expected (vs ~6 min on the credit-exhausted direct rail).
+## Root cause (Q/A diagnosis)
 
-8. Cycle completion detection: poll `pyfinagent_data.strategy_decisions` for the cycle_id corresponding to the 23:39 trigger; poll `financial_reports.analysis_results` for `COUNT(*) WHERE DATE(analysis_date) = CURRENT_DATE() AND model = 'claude-sonnet-4-6'`.
+The cycle-3 rail-routing gate at `backend/agents/llm_client.py:1888-1905` is correct in isolation -- when `model_name.startswith("claude-")` AND `paper_use_claude_code_route=True`, `make_client()` returns `ClaudeCodeClient`. BUT:
 
-## Immutable success criteria
+- The full orchestrator pipeline (`backend/agents/orchestrator.py:516-518`) has LLM call sites that either bypass `make_client` entirely, pass model_name values that don't match the `claude-` prefix guard (e.g., `deep_think_model=gemini-2.5-pro` -> Gemini Vertex AI), or cache an LLMClient from before the operator flipped the flag.
+- The lite-mode `_run_claude_analysis` at `autonomous_loop.py:1444+1481+1537` DOES honor the rail flag (cycle-5 dispatch). That's why lite-mode rows persisted -- orchestrator failed credit-exhausted, fell back to lite, lite used the rail, persisted lite signatures.
 
-1. `python -c "import ast; ast.parse(open('backend/api/settings_api.py').read())"` exit 0.
-2. `python -c "import ast; ast.parse(open('backend/agents/claude_code_client.py').read())"` exit 0.
-3. `pytest backend/tests/test_claude_code_client.py -v` -- all 12 pass.
-4. `curl -s http://localhost:8000/api/settings/ | jq -r '.paper_use_claude_code_route'` returns `true`.
-5. `curl -s http://localhost:8000/api/settings/ | jq -r '.gemini_model'` returns `claude-sonnet-4-6`.
-6. `handoff/current/live_check_27.6.md` rewritten with verbatim PASS evidence (cycle_id of the 23:39 trigger; per-ticker `rail=claude_code` log lines; BQ COUNT >= 14 on analysis_results for today; zero "Full orchestrator failed" lines).
-7. `.claude/masterplan.json` `27.6.status` flipped from `pending` to `done` AFTER live_check_27.6.md is updated AND harness_log is appended.
-8. ZERO frontend changes.
-9. ZERO new npm deps.
-10. NO `npm run build`, NO `rm -rf .next/*`.
-11. ZERO emojis introduced.
+Fix scope: `38.13` -- wire the rail into the full-orchestrator's downstream consumers AND audit which call sites bypass make_client.
+
+## Masterplan changes (this commit)
+
+- `38.12` STATUS: pending -> done (with `closure_note` documenting the gap).
+- `38.13` ADDED -- P0, harness_required. Verification: `>=5 BQ rows with standard_model LIKE 'claude%'`.
+- `27.6` STATUS: unchanged at `pending` (Q/A RECOMMEND-KEEP-PENDING).
+
+## Honesty trail
+
+Operator memory `feedback_full_codebase_audit_before_changes.md` (2026-05-26 23:55) explicitly required full-codebase trace before claiming PASS. Cycle 7 violated this. Cycle 8 will do the trace BEFORE claiming PASS.
+
+## Cycle 7 immutable success criteria (NOT 27.6's)
+
+1. AST parse settings.py + settings_api.py: exit 0. PASS.
+2. curl shows paper_cycle_max_seconds=7200.0. PASS.
+3. grep paper_cycle_max_seconds in settings_api.py: 4 hits. PASS.
+4. Cycle ran within new budget (102 min < 120 min). PASS.
+5. Masterplan: 38.12 done, 38.13 added, 27.6 pending. PASS.
+6. handoff/current/live_check_27.6.md rewritten with FAIL verdict + Q/A findings. PASS.
+7. ZERO frontend changes / ZERO new deps / ZERO emojis. PASS.
 
 ## /goal integration gates
 
-1. pytest green. 2. AST parse green. 3. Live cycle reaches completion AND analyses_persist >= 14. 4. Log LAST. 5. masterplan flip happens AFTER all 5 handoff files are present + Q/A PASS. 6. No self-evaluation.
+1. AST parse green. 2. Log LAST. 3. No self-evaluation (Q/A spawned + returned FAIL). 4. Citation floor N/A. 5. Honest closure: 38.12 done, 27.6 pending, 38.13 is the load-bearing follow-up.

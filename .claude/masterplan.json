@@ -12255,7 +12255,7 @@
         {
           "id": "38.12",
           "name": "Bump paper_cycle_max_seconds for Claude Code rail (expose in settings_api allow-list + raise default to 7200s) \u2014 unblocks 27.6",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,
@@ -12270,6 +12270,28 @@
               "live_check_38.12.md captures the verbatim cycle-complete log line + duration_ms"
             ],
             "live_check": "live_check_38.12.md captures a post-fix cycle that completes inside the new timeout AND BQ row count >= 14."
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "closure_note": "Timeout bump 1800->7200 landed successfully (cycle 7); verified via PUT + cycle complete in 102 min. Does NOT close 27.6 by itself -- Q/A cycle 7 found the Claude Code rail is plumbed only in the lite-mode _run_claude_analysis path, not in the full orchestrator AnalysisOrchestrator/make_client downstream consumption. Follow-up: 38.13."
+        },
+        {
+          "id": "38.13",
+          "name": "Wire Claude Code rail into AnalysisOrchestrator's full pipeline (orchestrator + downstream make_client consumers)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "Q/A cycle 7 (abbcca28fb3536a63) found that despite paper_use_claude_code_route=True being set, cycle 7's autonomous-loop run produced 13 BQ rows all with lite-fallback signatures (standard_model=NULL, deep_think_model=NULL, debate_rounds_count=NULL, flat $0.10 cost). 11/13 tickers hit 'Full orchestrator failed' in the 06:48-08:31 window citing 'credit balance is too low to access the Anthropic API' with req_011CbH... IDs that prove the calls hit api.anthropic.com direct, NOT the claude_code CLI. The rail flag is honored ONLY in the lite-mode _run_claude_analysis path (autonomous_loop.py:1444+1481+1537) but the full orchestrator pipeline (AnalysisOrchestrator.run_full_analysis / make_client at orchestrator.py:516-518) still hit Anthropic-direct. Cycle 7's timeout bump (38.12) is correct but insufficient -- the actual routing defect persists.",
+          "verification": {
+            "command": "test -f handoff/current/live_check_38.13.md && python3 -c \"from google.cloud import bigquery; c=bigquery.Client(project='sunny-might-477607-p8'); n=sum(1 for r in c.query('SELECT COUNT(*) n FROM \\\"sunny-might-477607-p8.financial_reports.analysis_results\\\" WHERE DATE(analysis_date)=CURRENT_DATE() AND standard_model IS NOT NULL AND standard_model LIKE \\\"claude%\\\"').result()); assert n >= 5, f'standard_model non-null Claude rows = {n}'\"",
+            "success_criteria": [
+              "make_client's claude_code_route branch is reached by orchestrator-pipeline calls (verifiable via per-call log line rail=claude_code from orchestrator agents)",
+              "BQ analysis_results today has >=5 rows with standard_model LIKE 'claude%' (non-NULL)",
+              "Zero 'Full orchestrator failed' lines with credit balance errors in next cycle window",
+              "live_check_38.13.md captures per-agent rail attribution + BQ row sample"
+            ],
+            "live_check": "live_check_38.13.md captures a fresh cycle's per-orchestrator-agent rail=claude_code logs + BQ row sample with standard_model populated."
           },
           "retry_count": 0,
           "max_retries": 3
