@@ -149,6 +149,17 @@ def claude_code_invoke(
     )
 
     try:
+        # phase-38.13.1 (cycle 11, 2026-05-27): scrub ANTHROPIC_API_KEY +
+        # ANTHROPIC_AUTH_TOKEN from the subprocess env. Per Anthropic CLI
+        # auth precedence (code.claude.com/docs/en/authentication), API-key
+        # env vars OUTRANK ~/.claude/ OAuth -- so without the scrub the CLI
+        # bills against the (credit-exhausted) direct-API account instead
+        # of the Max subscription. Cycle-8 was a routing observability fix
+        # only; this is the actual rail wiring.
+        scrubbed_env = {
+            k: v for k, v in os.environ.items()
+            if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+        }
         completed = subprocess.run(
             args,
             input=prompt,
@@ -157,6 +168,7 @@ def claude_code_invoke(
             timeout=timeout_s,
             cwd=cwd,
             check=False,
+            env=scrubbed_env,
         )
     except subprocess.TimeoutExpired as exc:
         logger.warning(

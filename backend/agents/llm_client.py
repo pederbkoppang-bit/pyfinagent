@@ -1908,6 +1908,22 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
 
     # 2. Direct Anthropic — wins over GitHub catalog so claude-* never needs GITHUB_TOKEN.
     if model_name.startswith("claude-") and anthropic_key:
+        # phase-38.13.1 (cycle 11, 2026-05-27): when the operator has opted
+        # into the Claude Code rail (paper_use_claude_code_route=True) but
+        # control reaches this fallthrough, the ClaudeCodeClient import
+        # failed earlier and we are about to silently bill against
+        # api.anthropic.com instead of the Max subscription. Hard-fail so
+        # the error is loud and actionable.
+        if getattr(settings, "paper_use_claude_code_route", False):
+            raise ValueError(
+                f"Routing breach: paper_use_claude_code_route=True but "
+                f"make_client is about to construct a direct-Anthropic "
+                f"ClaudeClient for {model_name}. This would silently bill "
+                f"against api.anthropic.com instead of the Max-subscription "
+                f"rail. Likely cause: ClaudeCodeClient import failed earlier "
+                f"(check the [LLMClient] warning above) or paper_use_claude_code_route "
+                f"is False on this Settings instance due to lru_cache desync."
+            )
         logger.info(f"[LLMClient] Routing {model_name} -> Anthropic direct")
         return ClaudeClient(model_name=model_name, api_key=anthropic_key)
 

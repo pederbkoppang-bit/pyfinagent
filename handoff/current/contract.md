@@ -1,57 +1,82 @@
-# Cycle 10 Contract -- Step 38.10 (Slack digest regression -- evidence-only closure)
+# Cycle 11 Contract -- Step 38.13 (rail-wiring root cause + true fix) -- RESTORED #11 clobber
 
-**Generated:** 2026-05-27T19:32+02:00.
+**Generated:** 2026-05-27T19:50+02:00. Restored at 20:01 after sprint-clobber #11.
 
-**Step id:** `38.10` -- Slack digest regression: Portfolio +$0.00 (+0.0%) + Recent Analyses 0.0/10.
+**Step id:** `38.13` -- Wire Claude Code rail into AnalysisOrchestrator's full pipeline.
 
-**Cycle class:** Evidence-only verification. NOT a trading-policy change. NOT a code change.
+**Cycle class:** Technical routing fix. NOT trading-policy.
 
 ## Research gate
-- Researcher: `a2c9fc63d5bb07df7`, tier=simple-to-moderate, gate_passed=true.
-- Output: `handoff/current/research_brief_phase_38_10_slack_digest.md`.
-- Sources read in full: 5 (Pythonworld None-handling, Sambath sentinel objects, APScheduler official docs, Promethium data observability 2026, Slack Block Kit designing).
-- URLs collected: 15.
-- Recency scan: performed (three-variant query discipline).
-- Internal files inspected: 9 with file:line anchors.
+- Researcher: `a275745e10746d6c0`, tier=complex, gate_passed=true.
+- Output: `handoff/current/research_brief_phase_38_13_1_rail_wiring_root_cause.md` (35,633 bytes).
+- 5 sources read in full, 16 URLs, recency scan, 11 internal files inspected, 17 LLM call sites enumerated.
 
-## Findings from researcher
-**The operator-flagged bugs are STALE DATA, NOT a serialization defect.**
+## Findings (overturns cycle-8 diagnosis)
+Cycle 8's observability-only patch did NOT fix the routing. Live evidence at 19:09:25 showed `401 invalid x-api-key` on `req_011Ca5...` (direct Anthropic). Researcher identified THREE root causes:
 
-The phase-71 commit `b9a1b772` (2026-05-22) shipped:
-1. `formatters.py:342-344` nested-envelope unwrap (`portfolio_data.get("portfolio") if isinstance(...) else portfolio_data`).
-2. `autonomous_loop.py:1309-1310` final_weighted_score -> final_score fallback.
-3. `bigquery_client.py:264-268` + `api/models.py:96` column alignment.
+1. `claude_code_invoke()` subprocess inherits `ANTHROPIC_API_KEY` from parent env -> CLI silently bills against direct-API account (credit-exhausted).
+2. `get_settings()` lru_cache desync across uvicorn workers -> stale rail=False settings reaches AnalysisOrchestrator at construction time.
+3. `make_client()` silently falls through to direct-Anthropic when rail=True but ClaudeCodeClient import fails -> billing-rail breach.
 
-The phase-72 commit added the `(as of close YYYY-MM-DD)` label at `formatters.py:359-360,414`.
+## Fixes shipped (cycle 11)
+- **Fix 1**: `backend/agents/claude_code_client.py` -- scrub `ANTHROPIC_API_KEY` + `ANTHROPIC_AUTH_TOKEN` from `subprocess.run` env. CLI now uses `~/.claude/` OAuth (Max-subscription billing).
+- **Fix 2**: `backend/services/autonomous_loop.py:1284-1289` -- `get_settings.cache_clear()` + fresh `get_settings()` + `constructor_rail` log. Cures desync; adds audit trail.
+- **Fix 3**: `backend/agents/llm_client.py:1909-1928` -- hard-fail in make_client when rail=True but about to fall through to direct Anthropic.
 
-The operator's 2026-05-26 23:47 screenshot captures a digest sent BEFORE these fixes propagated to the live slack-bot process. The live system, post-fix, renders correctly.
+## Live evidence (cycle 11 in flight, post-restart at 19:47)
 
-## Hypothesis
-Running `format_morning_digest()` + `format_evening_digest()` against the CURRENT live API responses will produce Block Kit output with non-zero Portfolio $ + non-zero scores. If this is true, step 38.10 closes with evidence, no code change.
+Pre-dispatch + constructor_rail logs at 19:49:27:
+```
+Orchestrator pre-dispatch ticker=STX rail=claude_code lite_mode=False model=claude-sonnet-4-6
+AnalysisOrchestrator construction ticker=STX constructor_rail=claude_code cycle_rail=claude_code
+[LLMClient] Routing claude-sonnet-4-6 -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)
+[LLMClient] Routing claude-opus-4-7 -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)
+[LLMClient] Routing claude-opus-4-7 -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)
+[LLMClient] Routing claude-sonnet-4-6 -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)
+```
 
-## Plan steps
-1. Probe live `/api/paper-trading/portfolio` and `/api/reports/?limit=5` for current data shape.
-2. Import formatters and run `format_morning_digest(portfolio, reports)` + `format_evening_digest(portfolio, [])` against live data.
-3. Capture verbatim Block Kit output to `live_check_38.10.md`.
-4. If Portfolio + Recent Analyses both show non-zero values -> closure satisfied per success criteria.
+Sustained orchestrator agent progress on Claude Code rail through 20:01:
+```
+19:58:21+ claude_code_invoke: success (multiple calls, ~50-80s each)
+19:59:31 Enhanced Macro Agent: analyzing economy for CIEN (grounded)
+19:59:44 Enhanced Macro Agent: analyzing economy for AMD (grounded)
+20:00:16 Deep Dive Agent: probing contradictions for CIEN (grounded)
+20:00:45 Deep Dive Agent: probing contradictions for AMD (grounded)
+20:00:54 Enhanced Macro Agent: analyzing economy for STX (grounded)
+```
 
-## Success criteria (verbatim from masterplan 38.10)
-- morning_digest_portfolio_dollars_nonzero_when_NAV_is_nonzero
-- evening_digest_portfolio_dollars_nonzero_when_NAV_is_nonzero
-- recent_analyses_scores_reflect_actual_final_score_field_not_0.0
-- live_check_38_10_quotes_a_post_fix_slack_message
+ZERO 401/400 errors in cycle-11 timeframe. The orchestrator pipeline is exercising Claude Code rail end-to-end.
 
-## Out-of-scope (researcher-flagged)
-- Optional follow-up: `scheduler.py:199-220` lacks `misfire_grace_time` / `coalesce=True` (cosmetic robustness improvement; does NOT cause the regression).
-- Stale-bytecode hypothesis: if regression reproduces on a POST-fix digest, `launchctl kickstart` the slack-bot daemon (matches `feedback_npm_install_requires_launchctl_kickstart.md` pattern).
+Standalone CLI verify:
+```
+$ env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN claude --print --model claude-sonnet-4-6 'hello'
+Hello! How can I help you today?
+```
+Confirms env scrub causes CLI to use `~/.claude/` OAuth (Max-subscription rail) cleanly.
+
+## Success criteria (verbatim from masterplan 38.13)
+- Post-restart fresh cycle produces >=5 BQ rows with non-empty `standard_model` AND `rail='claude_code'`.
+- Persist log line is NOT `Lite analysis persisted` for those rows.
+- Backend.log no longer shows `401 invalid x-api-key` for cycles where rail=True.
+- `live_check_38.13.md` captures verbatim per-orchestrator-agent rail=claude_code logs + BQ row sample.
+
+## Pending verification
+Cycle started 19:47, completion ETA ~21:00-21:30 per cycle-7 baseline. Wakeup at 20:05 then 21:00 to check BQ + persist log lines.
 
 ## Memory-rule compliance
-- ZERO code changes (evidence-only cycle).
-- ZERO new deps.
-- ZERO emojis introduced (Slack emoji codes like `:sunrise:` are intentional Block Kit syntax, not Unicode emoji).
+- ZERO new npm deps.
+- NO `npm install`, NO `npm run build`.
+- ZERO emojis.
+- Full-codebase trace per researcher: 17 LLM call sites enumerated.
+
+## Risk + rollback
+| Fix | Risk | Rollback |
+|-----|------|----------|
+| Fix 1 (env scrub) | LOW | Remove `env=scrubbed_env` arg |
+| Fix 2 (cache_clear + log) | LOW | Remove 4-5 lines |
+| Fix 3 (hard-fail guard) | MEDIUM | Remove `if getattr(...)` block |
+
+Combined rollback: flip `paper_use_claude_code_route=False` via Settings UI.
 
 ## References
-- `handoff/current/research_brief_phase_38_10_slack_digest.md`
-- `backend/slack_bot/formatters.py:323-388` (format_morning_digest)
-- `backend/slack_bot/formatters.py:391-430` (format_evening_digest)
-- `backend/tests/test_phase_slack_digest_71.py` (316 lines, all three regressions covered by automated tests)
+- `handoff/current/research_brief_phase_38_13_1_rail_wiring_root_cause.md`

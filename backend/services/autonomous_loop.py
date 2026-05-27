@@ -1282,6 +1282,21 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
     _route = "claude_code" if getattr(settings, "paper_use_claude_code_route", False) else "anthropic_direct"
     logger.info("Orchestrator pre-dispatch ticker=%s rail=%s lite_mode=False model=%s", ticker, _route, settings.gemini_model)
     try:
+        # phase-38.13.1 (cycle 11, 2026-05-27): cure the get_settings()
+        # lru_cache desync across uvicorn workers. When the operator flips
+        # paper_use_claude_code_route via Settings UI, only one worker
+        # clears its cache; cron-spawned cycles using a stale snapshot get
+        # rail=False and silently bill against direct Anthropic. Force a
+        # fresh read here so the orchestrator constructs with the same
+        # rail value the autonomous_loop layer logged at _route.
+        from backend.config.settings import get_settings as _get_settings_fresh
+        _get_settings_fresh.cache_clear()
+        settings = _get_settings_fresh()
+        _orch_rail = "claude_code" if getattr(settings, "paper_use_claude_code_route", False) else "anthropic_direct"
+        logger.info(
+            "AnalysisOrchestrator construction ticker=%s constructor_rail=%s cycle_rail=%s",
+            ticker, _orch_rail, _route,
+        )
         orchestrator = AnalysisOrchestrator(settings)
         report = await orchestrator.run_full_analysis(ticker)
         if not report:
