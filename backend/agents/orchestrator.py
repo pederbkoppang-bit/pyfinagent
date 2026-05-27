@@ -2120,6 +2120,11 @@ class AnalysisOrchestrator:
         cost_summary = self._cost_tracker.summarize()
         cost_summary["standard_model"] = self.settings.gemini_model
         cost_summary["deep_think_model"] = self.settings.deep_think_model or self.settings.gemini_model
+        # phase-cycle-8 (38.13, 2026-05-27): per-cycle rail attribution.
+        # Cycle-7 Q/A misdiagnosed lite-vs-full because BQ rows had no
+        # rail tag. With this, downstream consumers (BQ, Slack digest,
+        # /reports table) can definitively answer "did the rail work?".
+        cost_summary["rail"] = "claude_code" if getattr(self.settings, "paper_use_claude_code_route", False) else "anthropic_direct"
         final_json["cost_summary"] = cost_summary
 
         # Budget check (soft warning only, does not abort)

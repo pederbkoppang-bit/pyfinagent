@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ReportSummary } from "@/lib/types";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import { formatRecommendation } from "@/lib/formatRecommendation";
 import { Files } from "@/lib/icons";
 
 type Props = {
@@ -122,14 +123,14 @@ export function RecentReportsTable({ reports, loaded, loadError }: Props) {
                 >
                   <td className="px-4 py-3 font-mono text-sm font-bold text-slate-100">{r.ticker}</td>
                   <td className="px-4 py-3 text-sm text-slate-300">
-                    {r.company_name && r.company_name.trim() ? r.company_name : "—"}
+                    {r.company_name && r.company_name.trim() && r.company_name.trim().toUpperCase() !== r.ticker.toUpperCase() ? r.company_name : "—"}
                   </td>
                   <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${alphaColor(r.final_score)}`}>
                     {r.final_score != null ? r.final_score.toFixed(2) : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${recColor(r.recommendation)}`}>
-                      {r.recommendation ? r.recommendation.replace(/_/g, " ") : "—"}
+                      {formatRecommendation(r.recommendation)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right text-xs text-slate-500" suppressHydrationWarning>

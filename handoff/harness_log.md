@@ -24883,3 +24883,72 @@ The fresh cycle is operational. Cycle 6 will verify completion + BQ row count.
 - 46.0-46.8 (Market Insight page)
 - contract.md collision deconfliction (Layer-3 harness vs autonomous-loop sprint stub)
 - Concurrent-cycles serialization (cron fired overlapping cycles during cycle 7)
+
+---
+
+## Cycle 1 -- 2026-05-27 17:01 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.30% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-27 17:03 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.30% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 9 -- 2026-05-27 19:30-19:42 CEST -- 38.11 Recent Reports table fix -- result=PASS
+
+**Trigger:** Cycle 8 in-flight on autonomous loop (~95min wait). Per goal mandate "CYCLES 2-N: Pull next actionable from masterplan", started cycle 9 in parallel on step 38.11 (Recent Reports table -- Alpha=0.00 + casing mix + company column shows ticker).
+
+**Researcher:** `a2fe26dfb8e227db7`, tier=simple, gate_passed=true. Output `handoff/current/research_brief_phase_38_11_recent_reports.md` (5 sources read in full, 12 URLs, recency scan + 3-variant query discipline, 8 internal files inspected). Headline finding: bug is two-layer (backend write-path + frontend display), with one clean fix per layer.
+
+**Code changes (1 backend + 4 frontend = 5 files):**
+- `backend/services/autonomous_loop.py:1843,1845` -- 2-line edit. `company_name=market_data.get("name") or ticker` -> `or None`; `recommendation=analysis.get("recommendation") or "HOLD"` -> `or "Hold"` (matches `Recommendation` enum Title case at `backend/api/models.py:21-26`).
+- NEW `frontend/src/lib/formatRecommendation.ts` -- 4-line helper, uppercase + underscores->spaces + em-dash for empty.
+- `frontend/src/components/RecentReportsTable.tsx` -- import helper, wire into pill text, add defensive `company_name === ticker` em-dash fallback (retroactive fix for stale BQ rows).
+- `frontend/src/components/reports-columns.tsx` -- import helper, normalize `scoreColor()` input (case-insensitive).
+- `frontend/src/components/ReportCompareDrawer.tsx` -- import helper, normalize `scoreColor()` input.
+
+**Live evidence (curl /api/reports/?limit=5):**
+- Alpha bug ALREADY FIXED by phase-71: fresh rows show `final_score=5.52, 6.12, 5.35, 7.17, 6.77` (non-zero).
+- Casing mix: API returns `Hold, Sell, Buy` (Title case from LLM); frontend formatRecommendation normalizes to UPPERCASE at display.
+- Company column: API returns `company_name == ticker` (stale rows); frontend defensive check shows em-dash retroactively.
+
+**Q/A verdict:** `ad2b54ef236a8c01a` returned PASS. Harness audit 5/5 green. Deterministic checks all green: AST parse OK, `tsc --noEmit` exit=0, helper file exists, formatRecommendation wired in all 3 consumers (grep count >=2 each), `or ticker` bug gone at line 1843, `or "Hold"` present at line 1845, frontend HTTP 302 healthy, /api/reports returns Title-case rows. LLM judgment confirmed scope honest, mutation-resistance adequate, no downstream Python `== "HOLD"` consumer of analysis_results.recommendation breaks. Cycle 8 zero coupling.
+
+**Success criteria mapping (verbatim from masterplan 38.11):**
+- alpha_column_displays_nonzero_value_when_analysis_has_nonzero_final_score: PASS (5.52/6.12/...)
+- recommendation_column_normalized_to_single_case_across_all_rows: PASS (formatRecommendation uppercase)
+- company_column_displays_company_name_not_ticker_symbol: PASS (em-dash on ticker-only rows)
+- live_check_38_11_captures_post_fix_screenshot_path_or_html_snippet: PASS (live_check_38.11.md + API response + rendering table)
+
+**Operator visual verification:** disclosed as pending per frontend.md rule 5; operator should navigate to `/` or `/reports` in a logged-in browser to confirm.
+
+**Citation requirement:** NOT APPLICABLE per goal mandate. Cycle 9 is a frontend display + small backend normalization fix; not a trading-policy change. Researcher floor (>=5 sources / >=10 URLs / recency scan) IS satisfied.
+
+**Stop-condition contribution:** None. 38.11 is not in production_ready.must_have. The sole must_have entry (27.6) still pends cycle-8 closure attempt.
+
+**Cycle 8 status:** still in-flight. Backend logs (19:18:51+) show LITE-fallback persists -- the cycle-8 instrumentation reveals the orchestrator IS running through Claude Code rail but the full pipeline STILL falls back to lite at some downstream stage. Cycle 10 (38.13 follow-up) needed after the 20:09 wakeup.
+

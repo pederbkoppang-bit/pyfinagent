@@ -1275,6 +1275,12 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
             return None
 
     # Full pipeline path (operator chose lite_mode=False)
+    # phase-cycle-8 (38.13, 2026-05-27): rail attribution log. Cycle-7 Q/A
+    # misdiagnosed lite-vs-full because BQ rows had no rail tag. This log
+    # lets us see, per-ticker, which rail the full orchestrator chose
+    # BEFORE diving into the per-agent calls.
+    _route = "claude_code" if getattr(settings, "paper_use_claude_code_route", False) else "anthropic_direct"
+    logger.info("Orchestrator pre-dispatch ticker=%s rail=%s lite_mode=False model=%s", ticker, _route, settings.gemini_model)
     try:
         orchestrator = AnalysisOrchestrator(settings)
         report = await orchestrator.run_full_analysis(ticker)
@@ -1307,7 +1313,12 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
             "price_at_analysis": quant.get("yf_data", {}).get("valuation", {}).get("currentPrice") if isinstance(quant.get("yf_data"), dict) else None,
             "analysis_date": datetime.now(timezone.utc).isoformat(),
             "total_cost_usd": cost_summary.get("total_cost_usd", 0.1) if isinstance(cost_summary, dict) else 0.1,
-            "full_report": report,
+            # phase-cycle-8 (38.13): populate full_report["source"] with the
+            # active standard model so _persist_analysis at line ~1844 writes
+            # standard_model into BQ analysis_results. Lite-path already sets
+            # this; full-path was silently leaving it NULL, which made cycle-7
+            # Q/A misread the BQ signature as lite-fallback.
+            "full_report": {**(report if isinstance(report, dict) else {}), "source": settings.gemini_model, "rail": _route},
             # phase-25.A2: marker so _persist_analysis guard picks up full-pipeline rows.
             # Closes phase-24.2 audit F-2 (orchestrator.py had zero save_report calls;
             # /reports page empty because full-path runs evaporated without persistence).
@@ -1829,9 +1840,9 @@ async def _persist_analysis(analysis: dict, bq: BigQueryClient) -> None:
         await asyncio.to_thread(
             bq.save_report,
             ticker=ticker,
-            company_name=market_data.get("name") or ticker,
+            company_name=market_data.get("name") or None,
             final_score=float(analysis.get("final_score") or 0.0),
-            recommendation=analysis.get("recommendation") or "HOLD",
+            recommendation=analysis.get("recommendation") or "Hold",
             summary=(analysis.get("risk_assessment") or {}).get("reason", "") or "",
             full_report=full_report,
             price_at_analysis=analysis.get("price_at_analysis"),

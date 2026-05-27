@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-21T18:23:53.529842+00:00",
+  "updated_at": "2026-05-27T19:42:00+02:00",
   "phases": [
     {
       "id": "phase-0",
@@ -12235,7 +12235,7 @@
         {
           "id": "38.11",
           "name": "Recent Reports table -- Alpha score reads 0.00 for all rows + Recommendation labels mix upper/Title case (HOLD vs Hold, Buy)",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "audit_basis": "Operator screenshot 2026-05-26 23:55: /reports view 'Recent Reports' DataTable shows ALPHA column = 0.00 for CIEN/STX/AMD/ON/WDC (all rows); RECOMMENDATION column has inconsistent casing: CIEN/STX/AMD = 'HOLD' (uppercase), ON = 'Hold' (title case), WDC = 'Buy' (title case). COMPANY column shows ticker symbol verbatim instead of company name. The 0.00 alphas mirror the 38.10 Slack-digest score regression (likely same envelope-unwrap root cause -- final_score / final_weighted_score serialization). The label-casing bug is a frontend-display normalization issue. Operator also flagged process complaint: 'you are introducing new bugs all the time. you have to check the full codebase so we make sure nothing breaks and you dont introduce new bugs' -- separately captured in auto-memory feedback_full_codebase_audit_before_changes.md.",
@@ -12250,7 +12250,8 @@
             "live_check": "live_check_38.11.md captures verbatim post-fix Recent Reports table rendering with: non-zero ALPHA values; uniform recommendation casing; company names (not tickers)."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "closure_note": "cycle-9 PASS 2026-05-27: frontend formatRecommendation helper + backend or-Hold/or-None normalization. Q/A ad2b54ef236a8c01a verdict PASS. live_check_38.11.md + harness_log appended. See cycle-9 block."
         },
         {
           "id": "38.12",

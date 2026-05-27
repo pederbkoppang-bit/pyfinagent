@@ -8,12 +8,14 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReportSummary } from "@/lib/types";
+import { formatRecommendation } from "@/lib/formatRecommendation";
 
 function scoreColor(r: string | null | undefined): string {
-  if (!r) return "text-slate-400";
-  if (r === "STRONG BUY" || r === "BUY") return "text-emerald-400";
-  if (r === "STRONG SELL" || r === "SELL") return "text-rose-400";
-  if (r === "HOLD") return "text-amber-400";
+  const norm = (r ?? "").toUpperCase().replace(/_/g, " ").trim();
+  if (!norm) return "text-slate-400";
+  if (norm === "STRONG BUY" || norm === "BUY") return "text-emerald-400";
+  if (norm === "STRONG SELL" || norm === "SELL") return "text-rose-400";
+  if (norm === "HOLD") return "text-amber-400";
   return "text-slate-400";
 }
 
@@ -100,7 +102,7 @@ export function reportsColumns(
       header: "Recommendation",
       cell: ({ row }) => (
         <span className={`text-xs font-medium ${scoreColor(row.original.recommendation)}`}>
-          {row.original.recommendation}
+          {formatRecommendation(row.original.recommendation)}
         </span>
       ),
       meta: { align: "left" },
