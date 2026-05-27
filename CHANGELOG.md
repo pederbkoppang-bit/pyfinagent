@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-27 | `fb1aaae3` | fix(rail): cycle 11 ships true 38.13 rail-wiring fix -- 3 BLOCKER fixes |
 | 2026-05-27 | `f82a6d26` | docs(verify): cycle 10 evidence-only closure -- 38.10 Slack digest stale-data diagnosis |
 | 2026-05-27 | `fc1685d1` | fix(reports): 38.11 Recent Reports table -- alpha + casing + company-name normalization |
 | 2026-05-27 | `10031255` | fix(verify): cycle 7 closure correction -- 38.12 done, 27.6 stays pending, 38.13 added |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-26 | `faeb7b20` | fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider |
 | 2026-05-26 | `b9a1b772` | fix(slack-bot): 3 digest regressions -- NAV $0 + 0.0/10 scores + stale trades |
 | 2026-05-26 | `a51733e8` | fix(reports): mirror paper-trading filter pattern -- drop 24-chip row |
-| 2026-05-26 | `8e4e2145` | fix(paper-trading): PortfolioAllocationDonut Option B -- inline SVG rewrite |
 
 ---
 
+### v6.25.3 — fix(rail): cycle 11 ships true 38.13 rail-wiring fix -- 3 BLOCKER fixes (2026-05-27)
+
+- **fix(rail): cycle 11 ships true 38.13 rail-wiring fix -- 3 BLOCKER fixes**
 ### v6.25.2 — fix(reports): 38.11 Recent Reports table -- alpha + casing + company-... (2026-05-27)
 
 - **fix(reports): 38.11 Recent Reports table -- alpha + casing + company-name normalization**
