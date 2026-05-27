@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-27 | `fc1685d1` | fix(reports): 38.11 Recent Reports table -- alpha + casing + company-name normalization |
 | 2026-05-27 | `10031255` | fix(verify): cycle 7 closure correction -- 38.12 done, 27.6 stays pending, 38.13 added |
 | 2026-05-27 | `9c0fdc82` | docs(verify): cycle 6 BLOCKED on cycle-timeout-vs-Claude-Code-rail mismatch |
 | 2026-05-27 | `8cfb0a42` | docs(masterplan): phase-46 Market Insight page scoping (operator-requested, 9 subphases) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-26 | `a51733e8` | fix(reports): mirror paper-trading filter pattern -- drop 24-chip row |
 | 2026-05-26 | `8e4e2145` | fix(paper-trading): PortfolioAllocationDonut Option B -- inline SVG rewrite |
 | 2026-05-26 | `30f68555` | fix(paper-trading): Tremor JIT content path + 3-card height align + filters on trades/reports + fron |
-| 2026-05-26 | `0a3793db` | fix(paper-trading): UX audit -- root-cause dark-mode + filter + donut + layout + headers |
 
 ---
 
+### v6.25.2 — fix(reports): 38.11 Recent Reports table -- alpha + casing + company-... (2026-05-27)
+
+- **fix(reports): 38.11 Recent Reports table -- alpha + casing + company-name normalization**
 ### v6.25.1 — fix(verify): cycle 7 closure correction -- 38.12 done, 27.6 stays pen... (2026-05-27)
 
 - **fix(verify): cycle 7 closure correction -- 38.12 done, 27.6 stays pending, 38.13 added**
