@@ -25244,3 +25244,46 @@ LLM judgment confirmed: (a) Bailey-LdP MinTRL formula is canonical, Two Sigma SE
 **Cycle 16 candidate** (per researcher's Option A+, now legitimized by corrected threshold): implement `compute_paper_sharpe_window(bq, window_days)` helper in perf_metrics.py + extend `compute_sharpe_gap()` with `window_days` kwarg + attach `paper_parity` block in walk-forward result JSON via `result_store.save_result()` call sites in `api/backtest.py:974, :1051`. Closes the MEASUREMENT arm of DoD-2 properly (vs the current all-time-snapshot Sharpe). Closing the VALUE arm (driving gap_rel below 30%) remains a separate root-cause cycle.
 
 **Session status:** 4 cycles completed in this session (cycle 12 audit + cycles 13/14 closed DoD-14/DoD-5 + cycle 15 criterion-alignment). Soft stop at 8 cycles per goal directive; 4 budget remaining. Of remaining open DoDs, only DoD-2 substantive-gap is fully closeable in-session without external conditions (owner approval for DoD-1, live cycles for DoD-6/7, cron elapsing for DoD-9). Cycle 16+ continues per goal directive.
+
+## Cycle 16 -- 2026-05-28 19:10-19:35 CEST -- phase=43.0/DoD-2 result=PASS (measurement instrumentation; DoD-2 value arm still open)
+
+**Trigger:** Goal directive's deferred work from cycle 15 (researcher's Option A+ recommendation -- now legitimized by the corrected DoD-2 threshold).
+
+**Researcher:** `a9873e3700a0eae63` (tight cycle-16 verification), `gate_passed: true`. Output `handoff/current/research_brief_phase_43_0_dod_2_option_a_plus.md`. 6 external sources in full (floor 5: QuantStart Annualised Rolling Sharpe, marketcalls pandas rolling, PyQuantNews Sharpe Ratio, Python typing Optional docs, Effective Python Item 35 additive-kwarg, Anthropic cwc-long-running-agents). 22 URLs. Recency scan + 3-variant queries. Primary research was cycle-15 brief `a697e3b3c9d1da782` (10 sources covering walk-forward + Bailey-LdP + Two Sigma + Jacquier statistical analysis).
+
+**Implementation (3 edits to `backend/services/perf_metrics.py`):**
+
+1. **New helper `compute_paper_sharpe_window(bq, *, window_days=30, ...)`** at perf_metrics.py:118-169. Pulls paper snapshots via `bq.get_paper_snapshots(limit=max(window_days*2, 60))`, sorts ascending by snapshot_date (ISO `YYYY-MM-DD` lexicographic == chronological), slices last `window_days`, delegates to canonical `compute_sharpe_from_snapshots()` at `:87`. Returns None on insufficient data (window_days<6 OR len(window)<6). Reuses primitive -- NOT a fork.
+2. **`compute_sharpe_gap()` signature** extended with `window_days: Optional[int] = None` keyword-only kwarg (at `:246` after `*,` separator -- enforces keyword-only access, eliminating positional-collision risk).
+3. **Live-Sharpe branch** at `:225-243`: when `window_days` is set, calls the new helper; when `None`, executes the original all-time-snapshot path. Backward-compatible: the `else` branch is semantically byte-for-byte identical to pre-cycle behavior (same `bq.get_paper_snapshots(limit=365)`, same min_snapshots>=6 check, same `compute_sharpe_from_snapshots()` call with identical kwargs, same `0.0 -> None` collapse).
+
+**Live-BQ smoke output (cycle's behavioral evidence):**
+
+```
+windowed paper-sharpe (30d): 5.42
+compute_sharpe_gap(window_days=30): live=5.42, backtest=1.17, gap_abs=4.25, gap_rel=3.63, threshold=0.30, gap_within_threshold=False
+compute_sharpe_gap() [no window_days, all-time]: live=-5.72, backtest=1.17, gap_abs=6.89, gap_rel=5.89, threshold=0.30, gap_within_threshold=False
+```
+
+Both modes return well-defined, finite, distinct results. Windowed isolates recent regime (paper Sharpe 5.42 on recent 30 days reflects unrealized gains); all-time dominated by early NAV losses (paper Sharpe -5.72). The windowed-vs-all-time delta proves both branches are exercised end-to-end against real BQ schema.
+
+**Q/A verdict:** `a30ae6755518b9ced` returned PASS (`ok: true`). One NOTE-severity finding: `financial-logic-without-behavioral-test` heuristic warns that perf_metrics.py modification SHOULD ship with a pytest. Live-BQ smoke output is sufficient behavioral evidence for THIS cycle (proves both branches execute + return distinct values against real BQ schema), but a follow-up `tests/test_phase_43_dod2_window.py` is owed. Severity downgraded BLOCK->NOTE per the carve-out for behavioral-evidence-in-experiment-results; verdict is PASS-with-follow-up.
+
+Other audit items: 5-item harness audit fully green (researcher gate; contract mtime predates code edit predates results; harness_log untouched until this append; first Q/A this cycle). All 7 deterministic checks PASS. LLM judgment confirms (a) sort-before-slice correct + ISO-date string-sort is chronological; (b) reuse-not-fork verified; (c) backward compatibility semantic-byte-identity confirmed via diff inspection; (d) no regression in 4 other callers (`paper_go_live_gate.py:92`, `test_dod4_tier1_coverage_investment.py:678/690/701`) -- all pass `bq` positionally and NO 4th positional arg; the `*,` keyword-only separator enforces this; (e) mutation resistance verified (3 mutations detectable); (g) scope honesty preserved (DoD-2 stays FAIL on substantive grounds; NO masterplan flip proposed). Code-review across 5 dimensions: zero security/trading-domain/LLM-evaluator findings; one NOTE on follow-up pytest.
+
+**Success criteria mapping:**
+- New helper `compute_paper_sharpe_window` exists at :118-169 with REUSE not fork: **MET**
+- `compute_sharpe_gap` extended with `window_days: Optional[int] = None`: **MET**
+- Backward compat byte-for-byte when window_days=None: **MET**
+- Functional smoke against live BQ: **MET** (both modes return well-defined finite values)
+- DoD-2 still FAIL preserved (gap_rel 363-589% > 30%): **MET** (honest, no auto-PASS rigging)
+
+**Note: contract.md autogen clobber.** Mid-cycle, the optimizer harness autogenerated content overwrote `handoff/current/contract.md` at 19:12:39 (Sprint Contract Cycle 1 from the cron-driven parameter optimizer). System reminder confirmed the overwrite was intentional; the cycle-16 contract substance is captured in `handoff/current/experiment_results.md`, this harness_log block, and the cycle-16 commit. This pattern (optimizer-harness clobber of handoff/current/contract.md) was previously seen on cycle 11 of phase-38.13 (see `handoff/current/contract_38_13_1.md` restored backup). Going forward: numbered backup of cycle contracts to a sibling `contract_<step>.md` would protect against this. Filing as a follow-up housekeeping note.
+
+**Cumulative tally:** DoD-2 stays FAIL (substantive gap_rel = 363-589% > 30%; measurement infrastructure now in place but value arm still open). DoD count unchanged: **11 most-generous / 7 literal of 14 PASS**.
+
+Cycle 16 value: callers can now request `compute_sharpe_gap(bq, window_days=30)` for window-matched parity measurement (statistically valid per Bailey-LdP MinTRL caveats from cycle 15; SE bound ~0.3 on n=30 acknowledged). The instrument is in place; future cycles can use it to track DoD-2 closure progress.
+
+**Masterplan status policy:** phase-43.0 STAYS `status: pending`. Cycle 16 closes ZERO DoDs (measurement-only). Manual commit + push (no auto-push trigger).
+
+**Session status:** 5 cycles completed (cycle 12 audit + cycles 13/14 closed DoD-14/DoD-5 + cycles 15/16 = DoD-2 wording fix + measurement instrumentation). Soft stop at 8 cycles per goal; 3 budget remaining. Of remaining open DoDs: DoD-1 owner-gated; DoD-2 substantive value-arm (separate root-cause cycle); DoD-6/7 require live cycles to fire; DoD-9 requires 5 cron cycles to elapse (passive wait). Realistic in-session closures from here: minimal without external triggers. Next cycle candidate: follow-up pytest from Q/A's NOTE (test_phase_43_dod2_window.py), OR another doc-edit closure on DoD-11 if needed, OR pause for operator + external conditions.

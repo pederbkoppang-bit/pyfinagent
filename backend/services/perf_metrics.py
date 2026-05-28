@@ -115,6 +115,60 @@ def compute_sharpe_from_snapshots(
     return round(sharpe, 2)
 
 
+def compute_paper_sharpe_window(
+    bq: Any,
+    *,
+    window_days: int = 30,
+    risk_free_rate: float = 0.04,
+    nav_key: str = "total_nav",
+    snapshot_date_key: str = "snapshot_date",
+) -> Optional[float]:
+    """phase-43.0 cycle-16: trailing N-day paper-Sharpe helper.
+
+    Pulls paper-portfolio snapshots, sorts by snapshot_date ascending, slices
+    the last `window_days` entries, and delegates to compute_sharpe_from_snapshots.
+    Returns None on insufficient data (window_days < 6 or fewer-than-6
+    populated NAVs after slice).
+
+    Reuses the canonical compute_sharpe_from_snapshots primitive (line 87);
+    does NOT fork the Sharpe computation. Window slice is the only delta.
+
+    Used by compute_sharpe_gap(window_days=N) to compute a window-matched
+    live Sharpe per the corrected DoD-2 wording (cycle 15: gap_rel <=
+    SR_GAP_THRESHOLD, per Jacquier-Muhle-Karbe arXiv:2501.03938 30% IS-to-OOS
+    decay; statistically valid measurement window per Bailey-LdP MinTRL with
+    the explicit understanding that n=30 has SE ~= 0.3 -- so gap_rel comparisons
+    against the 30% threshold are at the edge of detectability, but at least
+    they are well-defined and not infinite-noise like the deprecated 0.01
+    absolute criterion was).
+    """
+    if window_days < 6:
+        return None
+    try:
+        # Pull window_days * 2 to give headroom for missing days / sort robustness.
+        snapshots = bq.get_paper_snapshots(limit=max(window_days * 2, 60)) or []
+    except Exception:
+        return None
+    if not snapshots:
+        return None
+
+    # Sort ascending by snapshot_date so the last `window_days` is the trailing window.
+    try:
+        snapshots_sorted = sorted(snapshots, key=lambda s: str(s.get(snapshot_date_key, "")))
+    except Exception:
+        snapshots_sorted = snapshots
+    window = snapshots_sorted[-window_days:]
+    if len(window) < 6:
+        return None
+    sharpe = compute_sharpe_from_snapshots(
+        window, nav_key=nav_key, risk_free_rate=risk_free_rate
+    )
+    if sharpe == 0.0:
+        # 0.0 from the helper means could-not-compute; treat as None.
+        return None
+    return sharpe
+
+
 # ── Live-vs-Backtest Sharpe reconciliation (phase-25.A6) ─────────
 
 
@@ -189,6 +243,7 @@ def compute_sharpe_gap(
     backtest_sharpe_source: str = "optimizer_best",
     risk_free_rate: float = 0.04,
     min_snapshots: int = 6,
+    window_days: Optional[int] = None,
 ) -> dict:
     """phase-25.A6: explicit live-vs-backtest Sharpe gap. Industry benchmark
     threshold 30% (Jacquier et al. arxiv 2501.03938; 30-50% IS-to-OOS decay
@@ -214,21 +269,32 @@ def compute_sharpe_gap(
     threshold = SR_GAP_THRESHOLD
     note_parts: list[str] = []
 
-    # Live Sharpe from paper snapshots.
-    snapshots: list[dict] = []
-    try:
-        snapshots = bq.get_paper_snapshots(limit=365) or []
-    except Exception as exc:
-        note_parts.append(f"paper_snapshots_fail:{type(exc).__name__}")
-        snapshots = []
-    if len(snapshots) < min_snapshots:
-        live_sharpe: Optional[float] = None
+    # Live Sharpe from paper snapshots. phase-43.0 cycle-16: when window_days
+    # is set, use the trailing-N-day helper for a window-matched gap measurement
+    # consistent with the corrected DoD-2 threshold (gap_rel <= SR_GAP_THRESHOLD
+    # per Jacquier 2025; the window_days kwarg makes the live Sharpe arm
+    # explicit). When window_days is None the prior all-time-snapshot behavior
+    # is preserved byte-for-byte for backward compatibility.
+    live_sharpe: Optional[float] = None
+    if window_days is not None:
+        live_sharpe = compute_paper_sharpe_window(
+            bq, window_days=window_days, risk_free_rate=risk_free_rate
+        )
+        if live_sharpe is None:
+            note_parts.append(f"windowed_paper_sharpe_unavailable:window_days={window_days}")
     else:
-        live_sharpe = compute_sharpe_from_snapshots(snapshots, risk_free_rate=risk_free_rate)
-        if live_sharpe == 0.0:
-            # 0.0 from the helper means "could not compute" (clamped or insufficient).
-            # Treat as None to make the no-data path unambiguous.
-            live_sharpe = None
+        snapshots: list[dict] = []
+        try:
+            snapshots = bq.get_paper_snapshots(limit=365) or []
+        except Exception as exc:
+            note_parts.append(f"paper_snapshots_fail:{type(exc).__name__}")
+            snapshots = []
+        if len(snapshots) >= min_snapshots:
+            live_sharpe = compute_sharpe_from_snapshots(snapshots, risk_free_rate=risk_free_rate)
+            if live_sharpe == 0.0:
+                # 0.0 from the helper means "could not compute" (clamped or insufficient).
+                # Treat as None to make the no-data path unambiguous.
+                live_sharpe = None
 
     # Backtest Sharpe with fallback chain.
     backtest_sharpe: Optional[float] = None
