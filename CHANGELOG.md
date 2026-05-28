@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `7f4d39cd` | phase-47.3: Opus 4.8 cost_tracker pricing regression (claude-opus-4-8 missing from MODEL_PRICING ... |
 | 2026-05-28 | `d33e7197` | phase-47.1: Restore historical_prices freshness (rewire daily_price_refresh -> ingest_prices full... |
 | 2026-05-28 | `8ecc9efe` | feat: upgrade Claude Opus 4.7 -> 4.8 across runtime + docs |
 | 2026-05-28 | `77b01368` | docs(handoff): cycle 20 SOFT STOP closure -- cycle_block_summary.md |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-27 | `8cfb0a42` | docs(masterplan): phase-46 Market Insight page scoping (operator-requested, 9 subphases) |
 | 2026-05-26 | `8b43cd0a` | feat(llm): cycle 5 settings exposure + binary-path fix + --max-tokens removal + masterplan 38.10/38. |
 | 2026-05-26 | `08f67ea9` | fix(llm): cycle 4 claude_code_invoke stdin-pipe bugfix (cycle-3 bug) |
-| 2026-05-26 | `c850e79a` | feat(llm): cycle 3 Claude Code CLI routing layer (operator-approved) |
 
 ---
 
+### v6.28.2 — phase-47.3: Opus 4.8 cost_tracker pricing regression (claude-opus-4-8... (2026-05-29)
+
+- **phase-47.3: Opus 4.8 cost_tracker pricing regression (claude-opus-4-8 missing from MODEL_PRICING ...**
 ### v6.28.1 — phase-47.1: Restore historical_prices freshness (rewire daily_price_r... (2026-05-28)
 
 - **phase-47.1: Restore historical_prices freshness (rewire daily_price_refresh -> ingest_prices full...**
