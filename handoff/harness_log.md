@@ -25125,3 +25125,75 @@ Deterministic spot-checks on 5 sampled DoDs all matched Main's verdicts: DoD-1 l
 **Stop-condition contribution:** 1 of 7 remaining DoDs closed. Cycle 13 reduces DoD-closure-cycles-remaining from ~7 to ~6 (phase-39.1 widening + DoD-2 instrumentation + DoD-5 wiring + DoD-6 probe + DoD-7 runtime + DoD-9 streak + final 43.0 re-audit). Per goal stop-condition: SOFT STOP at 8 cycles is feasible if the next 6 close cleanly; HARD STOP (43.0 done with all 14 PASS) is the target.
 
 **Cycle 14 candidate** (per goal directive ordering): phase-39.1 widening to cover `langchain_huggingface ModuleNotFoundError`. OWNER-GATED -- pause for approval before pip install / requirements.txt edit.
+
+## Cycle 14 -- 2026-05-28 18:00-18:45 CEST -- phase=43.0/DoD-5 result=PASS
+
+**Trigger:** Goal directive picked DoD-5 freshness wiring as cycle 14 target (cycle 14 candidate per goal "lowest-blast-radius non-owner-gated" — phase-39.1 widening for DoD-1 deferred because owner approval not in-session). DoD-5 was FAIL in cycle 12 audit (4 of 6 sources showed `band: "unknown"`).
+
+**Researcher:** `a6e333f3743b90f0b`, tier=simple-to-moderate, `gate_passed: true`. Output `handoff/current/research_brief_phase_43_0_dod_5_freshness.md`. 6 external sources read in full (floor 5: Google Cloud TIMESTAMP/conversion docs, Metaplane "Stay Fresh" 4-method comparison, Monte Carlo data freshness explainer, Medium "Hidden gems of BigQuery" SAFE-prefix limitations, datawise.dev SAFE_CAST silent-NULL bug, UptimeRobot observability vs monitoring). 13 URLs collected. Recency scan present. 3-variant queries across 4 topics (12+ queries). 7 internal files inspected.
+
+**Researcher overturned Main's premature hypothesis.** Main initially suspected `_pt_table()` dataset-resolution bug (historical_* tables in pyfinagent_data not financial_reports). Researcher verified via live `bigquery.Client.get_table()` that ALL 4 tables (historical_prices, historical_fundamentals, historical_macro, signals_log) ARE in `financial_reports`. The actual bug is the SQL pattern itself.
+
+**Real root cause:** `backend/services/cycle_health.py:_bq_max_event_age()` wraps every `MAX(time_col)` in `SAFE.TIMESTAMP(...)` to coerce STRING/DATE source columns to TIMESTAMP. This is REQUIRED for the 2 STRING columns (paper_trades.created_at RFC3339, paper_portfolio_snapshots.snapshot_date YYYY-MM-DD) but BREAKS for native-TIMESTAMP columns because (a) TIMESTAMP() has no `(TIMESTAMP) -> TIMESTAMP` overload, (b) `SAFE.` prefix is not supported with aggregates. Effect: query returns 400 BadRequest "SAFE with function timestamp is not supported" for the 4 historical/signals sources. Broad except at `:445-452` swallowed it, function returned None, `_band(None, ...)` returned "unknown".
+
+**Fix (Pattern C type-aware branch):**
+
+```python
+# backend/services/cycle_health.py module-scope
+_STRING_DATE_TIMESTAMP_COLS = {
+    ("paper_trades", "created_at"),                  # STRING (RFC3339)
+    ("paper_portfolio_snapshots", "snapshot_date"),  # STRING (YYYY-MM-DD)
+}
+
+# Inside _bq_max_event_age:
+needs_coerce = (table_logical, time_col) in _STRING_DATE_TIMESTAMP_COLS
+max_expr = (
+    f"SAFE.TIMESTAMP(MAX({time_col}))" if needs_coerce
+    else f"MAX({time_col})"
+)
+```
+
+8 LOC + 1 constant. No caller churn. Preserves the working paper-trades / paper_portfolio_snapshots path via `_STRING_DATE_TIMESTAMP_COLS` membership.
+
+Research brief explicitly rejected Pattern A (`_data_table` helper parallel to `_pt_table`) and Pattern B (4th arg `dataset`) because the dataset resolution was ALREADY correct -- rerouting would break the queries with 404.
+
+**Live evidence (verbatim curl):**
+
+Pre-fix: `total_sources: 6, unknown: 4, unknown_keys: ['historical_prices', 'historical_fundamentals', 'historical_macro', 'signals_log']`
+
+Post-fix: `total_sources: 6, unknown: 0, unknown_keys: []`
+
+Post-fix per-source bands:
+- paper_trades: green (1.012x, ~24h, working path unchanged)
+- paper_portfolio_snapshots: amber (1.641x, age-drift during audit window; not regression)
+- historical_prices: **red** (47.98x, ~52 days stale -- real ingestion-pipeline issue, OUT OF SCOPE for this cycle)
+- historical_fundamentals: **green** (0.547x, quarterly cadence, healthy)
+- historical_macro: **amber** (1.843x, past 35d threshold, minor staleness)
+- signals_log: **green** (1.012x, daily cadence, healthy)
+
+Predicted-vs-actual band table: **4 of 4 predictions match.** Overall_band flipped green -> red post-fix, correctly surfacing the historical_prices ingestion staleness instead of masking it via lenient unknown-band handling.
+
+**Q/A verdict:** `a3b104c62961394e2` returned PASS (`ok: true`). 5-item harness audit fully green: researcher gate passed (6 sources in full, 13 URLs, 7 internal files, 3-variant queries, recency scan, gate_passed=true, AND researcher overturned Main's premature hypothesis -- gate doing its job); strict mtime ordering research -> contract -> code edit -> results; log-LAST honored; zero prior CONDITIONALs on DoD-5.
+
+Deterministic verification 6/6 green: syntax OK; backend health 200 ok; unknown_count=0; paper_trades/paper_portfolio_snapshots green/amber (working path preserved, NOT regression -- amber is age-drift); live_check artifact present with PASS verdict; constant + branch present in source at lines 420, 443, 448, 450.
+
+LLM judgment (a)-(h): (a) bug isolation correct via Pattern C; (b) diff inspection confirms Pattern C applied (no `_data_table` helper added, no 4th arg); (c) no regression on working path; (d) mutation resistance verified (removing constant or branch reverts ≥1 source to unknown); (e) operator observability genuinely improved (overall_band correctly red instead of green-false-positive); (f) scope honesty (2 follow-ups -- historical_prices ingestion staleness + sortino.py:108 hardcoded dataset -- explicitly filed as out-of-scope); (g) research-gate compliance confirmed; (h) 3rd-CONDITIONAL N/A.
+
+Code-review heuristics across 5 dimensions: ZERO findings (no secrets / no kill_switch-stop_loss-execute touches / no perf_metrics bypass / observability code outside broad-except negation scope / no rename-as-refactor / no sycophancy).
+
+**Success criteria mapping:**
+- (DoD-5 immutable: 0 unknown bands): **MET** (curl shows unknown=0)
+- (cycle_health.py patched with type-aware branch): **MET** (lines 420 constant + 448-450 branch)
+- (paper-trades / paper_portfolio_snapshots paths preserved): **MET** (both green/amber post-fix, both `last_tick_age_sec` non-null)
+- (predicted-vs-actual band match): **MET** (4 of 4)
+- (syntax + restart + live curl verification): **MET** (all 6 commands green)
+
+**Cycle-12 audit tally update:** DoD-5 flips FAIL -> PASS. Cumulative: **11 most-generous / 7 literal of 14 PASS** (was 10/6 after cycle 13). Remaining open: DoD-1 (phase-39.1, owner-gated), DoD-2 (walk-forward instrumentation), DoD-6 (BQ probe + autonomous loop sell-close), DoD-7 (Risk Judge runtime evidence), DoD-9 (5-cycle stability).
+
+**Masterplan status policy:** phase-43.0 STAYS `status: pending`. Cycle 14 closes ONE of 14 DoDs. Manual commit + push (no auto-push trigger).
+
+**Out-of-scope follow-ups (filed, NOT bundled):**
+1. `historical_prices` 52-day staleness -- real ingestion-pipeline issue. Now correctly visible to operators via red band. Separate cycle to investigate the data ingestion job.
+2. `backend/metrics/sortino.py:108` hardcodes `pyfinagent_data.historical_macro` -- table lives in `financial_reports`; sortino query currently 404'ing. Researcher's separate finding. Small follow-up cycle.
+
+**Cycle 15 candidate** (per goal directive ordering + non-owner-gate preference): DoD-2 walk-forward instrumentation (extend backtest result JSON to carry paper_trading_sharpe column; expose via `compute_sharpe_gap(window_days=30)`). Owner-gated phase-39.1 (DoD-1) deferred until operator available.

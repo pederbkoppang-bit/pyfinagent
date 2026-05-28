@@ -411,29 +411,48 @@ def get_log() -> CycleHealthLog:
 # ── Freshness computation ──────────────────────────────────────────
 
 
+# phase-43.0 cycle-14: STRING/DATE-typed timestamp columns that require
+# SAFE.TIMESTAMP(MAX(col)) coercion to TIMESTAMP before TIMESTAMP_DIFF.
+# All other call sites use bare MAX(col); applying SAFE.TIMESTAMP to a
+# native-TIMESTAMP MAX result raises `SAFE with function timestamp is
+# not supported` because (a) TIMESTAMP() has no (TIMESTAMP)->TIMESTAMP
+# overload and (b) SAFE. prefix is not supported with aggregates.
+_STRING_DATE_TIMESTAMP_COLS = {
+    ("paper_trades", "created_at"),                  # STRING (RFC3339)
+    ("paper_portfolio_snapshots", "snapshot_date"),  # STRING (YYYY-MM-DD)
+}
+
+
 def _bq_max_event_age(bq: Any, table_logical: str, time_col: str) -> Optional[float]:
     """
     Method 1 per Metaplane: SELECT MAX(time_col) FROM table. Returns age in
     seconds, or None if the query fails / table empty. Uses the BQ client's
     existing _pt_table() helper for table name resolution.
 
-    phase-23.2.20: wraps `MAX({time_col})` in `SAFE.TIMESTAMP(...)` so
+    phase-23.2.20 introduced `SAFE.TIMESTAMP(MAX({time_col}))` to coerce
     STRING-typed timestamp columns (paper_trades.created_at as RFC3339,
-    paper_portfolio_snapshots.snapshot_date as bare YYYY-MM-DD) are coerced
-    to TIMESTAMP. Without this wrapper TIMESTAMP_DIFF rejects the call with
-    `Unable to coerce type STRING to expected type TIMESTAMP` and the
-    function silently returns None — the operator sees "unknown" bands
-    forever. SAFE.TIMESTAMP returns NULL on malformed input rather than
-    raising, preserving the fail-open contract for monitoring queries.
-    Note: bare-date inputs (e.g. snapshot_date='2026-05-05') parse to
-    midnight UTC, so the reported age is "since midnight" not "since the
-    actual write time" — acceptable approximation for daily snapshots.
+    paper_portfolio_snapshots.snapshot_date as bare YYYY-MM-DD) to TIMESTAMP.
+    phase-43.0 cycle-14 fix: the SAFE.TIMESTAMP wrapper is REQUIRED for
+    STRING/DATE columns but BREAKS for already-TIMESTAMP-typed columns
+    (historical_prices.ingested_at, historical_fundamentals.ingested_at,
+    historical_macro.ingested_at, signals_log.recorded_at). On a native
+    TIMESTAMP column, `SAFE.TIMESTAMP(MAX(...))` returns BQ 400 BadRequest
+    `SAFE with function timestamp is not supported` -- the broad except
+    swallowed it, returning None, and the band stayed "unknown" indefinitely
+    (DoD-5 cycle-12 FAIL). The fix: branch on column type via
+    `_STRING_DATE_TIMESTAMP_COLS` -- known STRING/DATE columns still use
+    SAFE.TIMESTAMP; everything else uses bare MAX(time_col).
     """
     try:
         table = bq._pt_table(table_logical)
+        needs_coerce = (table_logical, time_col) in _STRING_DATE_TIMESTAMP_COLS
+        max_expr = (
+            f"SAFE.TIMESTAMP(MAX({time_col}))" if needs_coerce
+            else f"MAX({time_col})"
+        )
         sql = (
             f"SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), "
-            f"SAFE.TIMESTAMP(MAX({time_col})), SECOND) AS age "
+            f"{max_expr}, SECOND) AS age "
             f"FROM `{table}`"
         )
         rows = list(bq.client.query(sql).result())
