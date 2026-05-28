@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-28 | `7d71ee3a` | phase-43.0: cycle 12 DoD audit -- NOT_PRODUCTION_READY (5-9 of 14 PASS) |
 | 2026-05-27 | `fb1aaae3` | fix(rail): cycle 11 ships true 38.13 rail-wiring fix -- 3 BLOCKER fixes |
 | 2026-05-27 | `f82a6d26` | docs(verify): cycle 10 evidence-only closure -- 38.10 Slack digest stale-data diagnosis |
 | 2026-05-27 | `fc1685d1` | fix(reports): 38.11 Recent Reports table -- alpha + casing + company-name normalization |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-26 | `0bcd84dd` | fix(learnings): move out of /paper-trading/ -- double-Sidebar regression |
 | 2026-05-26 | `faeb7b20` | fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider |
 | 2026-05-26 | `b9a1b772` | fix(slack-bot): 3 digest regressions -- NAV $0 + 0.0/10 scores + stale trades |
-| 2026-05-26 | `a51733e8` | fix(reports): mirror paper-trading filter pattern -- drop 24-chip row |
 
 ---
 
+### v6.26.0 — phase-43.0: cycle 12 DoD audit -- NOT_PRODUCTION_READY (5-9 of 14 PASS) (2026-05-28)
+
+- **phase-43.0: cycle 12 DoD audit -- NOT_PRODUCTION_READY (5-9 of 14 PASS)**
 ### v6.25.3 — fix(rail): cycle 11 ships true 38.13 rail-wiring fix -- 3 BLOCKER fixes (2026-05-27)
 
 - **fix(rail): cycle 11 ships true 38.13 rail-wiring fix -- 3 BLOCKER fixes**
