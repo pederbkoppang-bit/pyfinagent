@@ -38,9 +38,11 @@ def test_start_scheduler_source_calls_register_phase9_jobs():
     if fn_end == -1:
         fn_end = src.find("\ndef ", fn_start + 1)
     body = src[fn_start:fn_end] if fn_end > 0 else src[fn_start:]
-    assert "register_phase9_jobs(_scheduler)" in body, (
-        "start_scheduler must call register_phase9_jobs(_scheduler) -- "
-        "phase-23.3.3 fix to activate the 7 dormant phase-9 jobs"
+    assert "register_phase9_jobs(_scheduler" in body, (
+        "start_scheduler must call register_phase9_jobs(_scheduler, ...) -- "
+        "phase-23.3.3 fix to activate the 7 dormant phase-9 jobs. "
+        "(phase-23.6 added app=/loop= kwargs; match the call prefix, not the "
+        "full literal -- this de-fragilizes a guard that had been red since 23.6.)"
     )
 
 
@@ -79,7 +81,7 @@ def test_register_phase9_passes_safety_kwargs():
 
 
 def test_register_phase9_grace_times_per_tier():
-    """Daily=3600, weekly=7200, hourly=600."""
+    """daily_price_refresh=21600 (phase-47.1), other daily=3600, weekly=7200, hourly=600."""
     captured_by_id: dict[str, dict] = {}
 
     class _FakeScheduler:
@@ -88,8 +90,14 @@ def test_register_phase9_grace_times_per_tier():
 
     slack_scheduler.register_phase9_jobs(_FakeScheduler())
 
-    daily = ("daily_price_refresh", "nightly_mda_retrain",
-             "nightly_outcome_rebuild", "cost_budget_watcher")
+    # phase-47.1: daily_price_refresh grace raised 3600 -> 21600 (6h). It is the
+    # one daily job whose miss re-rots historical_prices, so it gets a wider
+    # window to be caught on wake (the catch-up-on-start is the primary
+    # restart-survival path; this is belt-and-suspenders).
+    assert captured_by_id["daily_price_refresh"].get("misfire_grace_time") == 21600, \
+        "daily_price_refresh grace should be 21600 (phase-47.1)"
+
+    daily = ("nightly_mda_retrain", "nightly_outcome_rebuild", "cost_budget_watcher")
     for jid in daily:
         assert captured_by_id[jid].get("misfire_grace_time") == 3600, \
             f"{jid} grace should be 3600 (daily)"

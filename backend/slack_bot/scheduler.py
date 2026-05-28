@@ -5,7 +5,7 @@ Uses APScheduler to run tasks within the Slack bot process.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -284,6 +284,34 @@ def start_scheduler(app: AsyncApp):
     # /api/jobs/all has data before any job fires. Run AFTER phase-9
     # registration so all 11 jobs are visible to get_jobs().
     _seed_next_run_registry()
+
+    # phase-47.1: catch-up-on-start. The daily price ingest (hour=1 UTC) is
+    # lost whenever the slack-bot is down/asleep at that tick (in-memory
+    # jobstore). Schedule a one-off run shortly after startup so downtime
+    # self-heals. ingest_prices is idempotent at the BQ level (dedup on
+    # (ticker, date)), so a redundant catch-up after a same-day cron fire
+    # inserts ~0 rows; within a single process lifetime the daily heartbeat
+    # key also skips the duplicate (the store is per-process, in-memory).
+    # Keeps historical_prices fresh across restarts WITHOUT a persistent
+    # jobstore (which cannot pickle the production-fn closures -- see brief).
+    try:
+        from backend.slack_bot.jobs.daily_price_refresh import (
+            run_production as _price_run_production,
+        )
+
+        _scheduler.add_job(
+            _price_run_production,
+            "date",
+            run_date=datetime.now(timezone.utc) + timedelta(seconds=20),
+            id="daily_price_refresh_catchup",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+        logger.info(
+            "phase-47.1: scheduled daily_price_refresh catch-up (+20s, idempotent by day)"
+        )
+    except Exception as exc:
+        logger.warning("phase-47.1 price catch-up scheduling fail-open: %r", exc)
 
 
 async def _send_morning_digest(app: AsyncApp):
@@ -762,10 +790,11 @@ def register_phase9_jobs(
             from backend.slack_bot.jobs import _production_fns as pf
             channel = get_settings().slack_channel_id or ""
             prod_fns_per_job = {
-                "daily_price_refresh": {
-                    "fetch_fn": pf.make_price_fetch_fn(),
-                    "write_fn": pf.make_price_write_fn(),
-                },
+                # phase-47.1: daily_price_refresh no longer uses the close-only
+                # fetch/write closures (they wrote the WRONG table
+                # pyfinagent_data.price_snapshots). It is registered below as the
+                # module-level `run_production` (full-universe OHLCV ->
+                # financial_reports.historical_prices via ingest_prices).
                 "weekly_fred_refresh": {
                     "fetch_fn": pf.make_fred_fetch_fn(),
                     "write_fn": pf.make_fred_write_fn(),
@@ -793,27 +822,35 @@ def register_phase9_jobs(
     # `misfire_grace_time` prevents stale-tick fires on restart;
     # `coalesce=True` collapses missed ticks into one fire (defensive for
     # any future jobstore migration; harmless with default in-memory store).
+    # phase-47.1: pin every phase-9 cron to an explicit UTC timezone (the MAIN
+    # jobs above already pin America/New_York; these previously inherited the
+    # ambiguous system default). daily_price_refresh misfire grace raised to 6h
+    # so a Mac-asleep tick is still caught on wake; the catch-up-on-start in
+    # start_scheduler is the primary restart-survival path.
     mapping = {
         "daily_price_refresh":     ("backend.slack_bot.jobs.daily_price_refresh", "cron",
-                                    {"hour": 1, "misfire_grace_time": 3600, "coalesce": True}),
+                                    {"hour": 1, "misfire_grace_time": 21600, "coalesce": True, "timezone": ZoneInfo("UTC")}),
         "weekly_fred_refresh":     ("backend.slack_bot.jobs.weekly_fred_refresh", "cron",
-                                    {"day_of_week": "sun", "hour": 2, "misfire_grace_time": 7200, "coalesce": True}),
+                                    {"day_of_week": "sun", "hour": 2, "misfire_grace_time": 7200, "coalesce": True, "timezone": ZoneInfo("UTC")}),
         "nightly_mda_retrain":     ("backend.slack_bot.jobs.nightly_mda_retrain", "cron",
-                                    {"hour": 3, "misfire_grace_time": 3600, "coalesce": True}),
+                                    {"hour": 3, "misfire_grace_time": 3600, "coalesce": True, "timezone": ZoneInfo("UTC")}),
         "hourly_signal_warmup":    ("backend.slack_bot.jobs.hourly_signal_warmup", "cron",
-                                    {"minute": 5, "misfire_grace_time": 600, "coalesce": True}),
+                                    {"minute": 5, "misfire_grace_time": 600, "coalesce": True, "timezone": ZoneInfo("UTC")}),
         "nightly_outcome_rebuild": ("backend.slack_bot.jobs.nightly_outcome_rebuild", "cron",
-                                    {"hour": 4, "misfire_grace_time": 3600, "coalesce": True}),
+                                    {"hour": 4, "misfire_grace_time": 3600, "coalesce": True, "timezone": ZoneInfo("UTC")}),
         "weekly_data_integrity":   ("backend.slack_bot.jobs.weekly_data_integrity", "cron",
-                                    {"day_of_week": "mon", "hour": 5, "misfire_grace_time": 7200, "coalesce": True}),
+                                    {"day_of_week": "mon", "hour": 5, "misfire_grace_time": 7200, "coalesce": True, "timezone": ZoneInfo("UTC")}),
         "cost_budget_watcher":     ("backend.slack_bot.jobs.cost_budget_watcher", "cron",
-                                    {"hour": 6, "misfire_grace_time": 3600, "coalesce": True}),
+                                    {"hour": 6, "misfire_grace_time": 3600, "coalesce": True, "timezone": ZoneInfo("UTC")}),
     }
     for job_id, (module_path, trigger, kwargs) in mapping.items():
         try:
             import importlib
             mod = importlib.import_module(module_path)
-            run_fn = getattr(mod, "run")
+            # phase-47.1: daily_price_refresh runs the module-level production
+            # entrypoint (full-universe OHLCV ingest); all others use bare `run`.
+            attr = "run_production" if job_id == "daily_price_refresh" else "run"
+            run_fn = getattr(mod, attr, None) or getattr(mod, "run")
         except Exception as exc:
             logger.warning("register_phase9_jobs: %s import fail-open: %r", job_id, exc)
             continue

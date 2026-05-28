@@ -25417,3 +25417,19 @@ The TIMESTAMP-branch dual-assertion (`MAX present` AND `SAFE.TIMESTAMP absent`) 
 **Session totals:** 8 cycles (12-19 substantive + cycle 20 closure summary). 7 commits to origin/main (cycles 13-19; cycle 20 commit pending). Researcher gate passed 8/8. Q/A verdicts: 7 PASS + 1 cycle-1 CONDITIONAL legitimately caught + corrected via canonical cycle-2 flow (cycle 13). Zero rubber-stamping. Zero scope creep. All anti-pattern feedback-memories honored.
 
 **Stop condition declaration:** SOFT STOP per goal-(b). Next session resumes upon operator availability (phase-39.1 approval) and/or external triggers elapsing (DoD-9 cron cycles; DoD-6/7 autonomous-loop fires).
+
+## Cycle 1 (production-ready+money push) -- 2026-05-28 -- phase=47.1 result=PASS
+
+**Goal:** new operator goal 2026-05-28 (full approval, run to HARD STOP): production-ready + max money on Opus 4.8. See `handoff/current/active_goal.md` + auto-memory `project_goal_prod_ready_push`. Diagnosis via the `diagnose-prod-and-money` + `ux-control-surface-audit` workflows (`roadmap_master.md`, `ux_roadmap.md`). phase-47 created (47.1 freshness, 47.2 first-trade pending).
+
+**Step:** 47.1 -- Restore historical_prices freshness (rewire daily_price_refresh -> ingest_prices full universe + scheduler firing).
+
+**Researcher:** `a34468862e0c792ab`, tier=moderate, `gate_passed: true`. 8 sources in full (floor 5), 19 URLs, recency scan, 10 internal files. Brief: `research_brief_phase_44_1_price_freshness.md`. Pinned 3 root causes (wrong dest table; 5-ticker stub; in-memory jobstore loses fire) + the plan-altering finding that the live screener reads yfinance directly (so this is the backtest-re-baseline prereq, NOT the direct trade unblocker = 47.2) + the pickle gotcha (no persistent jobstore this cycle).
+
+**Implementation:** `daily_price_refresh.run_production` (full S&P-500 OHLCV -> financial_reports.historical_prices via DataIngestionService.ingest_prices, idempotent on (ticker,date), module-level/picklable); `scheduler.py` resolves daily_price_refresh -> run_production (dropped from prod_fns_per_job), all 7 phase-9 crons pinned timezone=UTC, daily misfire grace 3600->21600, catch-up-on-start one-off; `_production_fns` price closures deprecated/unwired. One-time backfill: 51,327 rows, 503 tickers, closed the 5-month gap (max_date 2025-12-30 -> 2026-05-28).
+
+**Live verification:** freshness band red(~52d) -> **green** (independent Q/A curl); BQ MAX(ingested_at) age ~0h; daily_price_refresh next_run 2026-05-29T01:00:00+00:00 (future); catch-up fired ok on restart (60.8s) then auto-removed; immutable command EXIT 0.
+
+**Q/A:** cycle-1 `ad63febb6bb3b3c81` = **CONDITIONAL** (legitimate catch: misfire 3600->21600 left `test_register_phase9_grace_times_per_tier` RED). Canonical cycle-2 flow: fixed the guard to assert 21600 (re-pointed, not dropped), de-fragilized a pre-existing red source-grep test, AND swept all consumers -> found+fixed 2 more wiring tests in `test_phase9_production_wiring.py` (now assert run_production). 5 affected test files: 30 passed. Fresh Q/A `ae6fd302d828d9d68` = **PASS** (`ok:true`): guards FIXED not gutted (net assertions 14->15, 21->25; mutation-resistance proven both directions), all 5 immutable criteria MET, harness compliance 5/5, no goalpost-moving.
+
+**Note:** verification.command had a response-shape bug (sources is a dict, not a list) corrected pre-Q/A (false-negative fix; success_criteria untouched) -- Q/A independently confirmed acceptable. This step makes prices fresh/durable; it does NOT itself produce a trade -> next cycle = phase-47.2 (empty new_candidates set, the direct no-trades unblocker).

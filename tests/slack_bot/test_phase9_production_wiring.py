@@ -5,7 +5,10 @@ Tests assert:
   2. When `app` and `loop` are passed, the registered job is a
      `functools.partial` wrapping `run` with the expected `prod_fns` keys.
   3. When `app` or `loop` is None, the bare `run` is registered (preserves
-     unit-test injection paths for the existing per-job tests).
+     unit-test injection paths for the existing per-job tests). EXCEPTION
+     (phase-47.1): `daily_price_refresh` always resolves to the module-level
+     `run_production` (full-universe OHLCV ingest), never the bare 5-ticker
+     `run` and never a prod-fn partial.
   4. Each factory in `_production_fns` returns a callable AND defers the
      external import (yfinance / fredapi / google.cloud.bigquery) until
      call-time — so this test module loads even without those deps.
@@ -52,16 +55,24 @@ def test_register_accepts_app_and_loop_kwargs():
 
 
 def test_register_without_app_returns_bare_run(monkeypatch: pytest.MonkeyPatch):
-    """When app+loop omitted, the registered func is the bare run (no partial)."""
+    """When app+loop omitted, prod-fn jobs register their bare module `run` (no partial).
+    phase-47.1 exception: daily_price_refresh always resolves to run_production."""
     sched = _StubScheduler()
     registered = scheduler_mod.register_phase9_jobs(sched, replace_existing=True)
     assert "daily_price_refresh" in registered
+
+    # weekly_fred_refresh still follows the bare-run pattern when app is omitted.
+    fred = next(e for e in sched.added if e["id"] == "weekly_fred_refresh")
+    assert not isinstance(fred["func"], functools.partial)
+    from backend.slack_bot.jobs import weekly_fred_refresh as wfr
+    assert fred["func"] is wfr.run
+
+    # phase-47.1: daily_price_refresh resolves to the module-level run_production
+    # (full-universe ingest -> historical_prices), NOT the bare 5-ticker run.
     daily = next(e for e in sched.added if e["id"] == "daily_price_refresh")
-    # Should be the bare module-level run, not a partial.
     assert not isinstance(daily["func"], functools.partial)
-    # Sanity: it IS the run callable from the job module.
     from backend.slack_bot.jobs import daily_price_refresh as dpr
-    assert daily["func"] is dpr.run
+    assert daily["func"] is dpr.run_production
 
 
 def test_register_with_app_uses_functools_partial(monkeypatch: pytest.MonkeyPatch):
@@ -82,9 +93,9 @@ def test_register_with_app_uses_functools_partial(monkeypatch: pytest.MonkeyPatc
     assert "daily_price_refresh" in registered
 
     # Each prod-wired job should be a partial wrapping its module's run + the
-    # expected prod_fns keys.
+    # expected prod_fns keys. phase-47.1: daily_price_refresh is NO LONGER in
+    # this set -- it resolves to run_production (asserted separately below).
     expected = {
-        "daily_price_refresh":      {"fetch_fn", "write_fn"},
         "weekly_fred_refresh":      {"fetch_fn", "write_fn"},
         "nightly_outcome_rebuild":  {"ledger_fetch_fn", "outcome_write_fn"},
         "cost_budget_watcher":      {"alert_fn"},
@@ -99,6 +110,14 @@ def test_register_with_app_uses_functools_partial(monkeypatch: pytest.MonkeyPatc
             assert set(entry["func"].keywords.keys()) == expected[jid], (
                 f"{jid} prod_fns keys mismatch: got {set(entry['func'].keywords.keys())} expected {expected[jid]}"
             )
+
+    # phase-47.1: daily_price_refresh is NOT prod-fn-wrapped even with app+loop;
+    # it resolves to the module-level run_production (full-universe ingest_prices).
+    from backend.slack_bot.jobs import daily_price_refresh as dpr
+    daily = next(e for e in sched.added if e["id"] == "daily_price_refresh")
+    assert not isinstance(daily["func"], functools.partial), \
+        "daily_price_refresh must NOT be prod-fn-wrapped after phase-47.1"
+    assert daily["func"] is dpr.run_production
 
 
 def test_register_with_app_but_none_loop_returns_bare_run(monkeypatch: pytest.MonkeyPatch):

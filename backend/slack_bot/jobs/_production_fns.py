@@ -45,6 +45,13 @@ def _bq_client():
 
 
 # ── daily_price_refresh ────────────────────────────────────────
+# phase-47.1 DEPRECATION: these close-only factories wrote to the WRONG table
+# (pyfinagent_data.price_snapshots -- no `ingested_at`, only 5 tickers) and are
+# NO LONGER WIRED for daily_price_refresh. The job now runs
+# `daily_price_refresh.run_production` (full-universe OHLCV ->
+# financial_reports.historical_prices via DataIngestionService.ingest_prices).
+# Kept for back-compat / existing tests; do NOT re-wire without fixing the
+# destination table + schema (full OHLCV + ingested_at).
 
 
 def make_price_fetch_fn() -> Callable[[list[str]], dict[str, Any]]:

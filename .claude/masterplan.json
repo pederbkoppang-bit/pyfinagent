@@ -13218,6 +13218,57 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-47",
+      "name": "Trade-path unblock + data freshness + Opus-4.8 cost hardening (money-critical production push)",
+      "status": "in-progress",
+      "audit_basis": "diagnose-prod-and-money workflow 2026-05-28 + phase-47.1 freshness research gate; handoff/current/roadmap_master.md + active_goal.md",
+      "steps": [
+        {
+          "id": "47.1",
+          "name": "Restore historical_prices freshness (rewire daily_price_refresh -> ingest_prices full universe + scheduler firing)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_phase_44_1_price_freshness.md: 3 RCs -- wrong dest (pyfinagent_data.price_snapshots vs financial_reports.historical_prices), 5-ticker stub vs full universe, in-memory jobstore loses the daily fire. Live screener uses yfinance so this is prereq for backtest re-baseline, not the direct trade unblocker (that is 47.2).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && python -c \"import ast; ast.parse(open('backend/slack_bot/jobs/daily_price_refresh.py').read()); ast.parse(open('backend/slack_bot/scheduler.py').read())\" && grep -qE 'ingest_prices|DataIngestionService' backend/slack_bot/jobs/daily_price_refresh.py && curl -s --max-time 25 http://localhost:8000/api/paper-trading/freshness | python3 -c \"import sys,json;d=json.load(sys.stdin);b=d.get('sources',{}).get('historical_prices',{}).get('band','unknown');assert b not in ('red','unknown'),('band='+str(b));print('freshness OK band='+str(b))\"",
+            "success_criteria": [
+              "daily_price_refresh production path writes full OHLCV to financial_reports.historical_prices via ingest_prices (NOT pyfinagent_data.price_snapshots, NOT the 5-ticker stub)",
+              "historical_prices freshness band is off-red (not red, not unknown) on /api/paper-trading/freshness after backfill",
+              "BQ MAX(ingested_at) on financial_reports.historical_prices within 2 days of now",
+              "phase-9 cron jobs registered with explicit timezone; daily_price_refresh has a future next_run_time + a catch-up-on-start path when stale",
+              "ast.parse passes on all modified backend files; live_check_47.1.md captures freshness curl + BQ MAX(ingested_at)"
+            ],
+            "live_check": "live_check_47.1.md captures /api/paper-trading/freshness curl + BQ MAX(ingested_at) on historical_prices post-backfill."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "47.2",
+          "name": "First autonomous trade end-to-end (empty new_candidates set + sod_date roll)",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "47.1",
+          "audit_basis": "roadmap_master.md workstream 2: new_candidates = screener - held empties at autonomous_loop.py:658 -> analyze_tickers=[] -> 0 orders. The direct no-trades unblocker.",
+          "verification": {
+            "command": "echo 'see live_check_47.2.md: /api/paper-trading/run-now n_trades>=1 + fresh paper_trades row dated today'",
+            "success_criteria": [
+              "POST /api/paper-trading/run-now returns n_trades >= 1 with non-empty candidate analyses",
+              "a fresh financial_reports.paper_trades row dated today exists",
+              "root cause of empty new_candidates identified + fixed without disabling safety",
+              "live_check_47.2.md captures the run-now response + BQ paper_trades row dated today"
+            ],
+            "live_check": "live_check_47.2.md captures run-now n_trades + BQ paper_trades row dated today."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
