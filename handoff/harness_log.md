@@ -25028,3 +25028,62 @@ Compared to operator's pre-fix screenshot (2026-05-26 23:47): `Portfolio +$0.00 
 - Reconciliation: divergence=4.30% alert=False (threshold=5.0%)
 **Decision:** CONDITIONAL -- kept with warning
 **Total cycle time:** 0s
+
+## Cycle 12 -- 2026-05-28 15:30-16:55 CEST -- phase=43.0 result=PASS (audit) / step-status=pending (gate not met)
+
+**Trigger:** Operator continuation of multi-cycle harness loop. Picked phase-43.0 Production-Ready DoD Audit (P1, H) from active-phase P1 candidates (43.0 selected over 44.7/44.8 frontend P1s; 39.1 owner-gated). Cycle 11 (38.13 true rail-wiring fix) was the prior cycle.
+
+**Researcher:** `a9547514da955b875`, tier=moderate, `gate_passed: true`. Output `handoff/current/research_brief_phase_43_0_dod_audit.md`. 6 external sources read in full (Anthropic harness-design canon x3, OWASP LLM Top 10 2025, Galileo + Arthur AI readiness checklists). 13 snippet-only URLs. Last-2-year recency scan present (2 new findings flagged, neither invalidating the 14-criterion DoD). 3-variant query composition documented. 16 internal files mapped with file:line anchors per DoD-N criterion. Headline expectation: NOT_PRODUCTION_READY; expected best-case 9/14 PASS, worst-case 5/14.
+
+**Audit deliverable:** `handoff/current/production_ready_audit_2026-05-28.md`. The deliverable IS the cycle artifact per masterplan 43.0 live_check. Carries verbatim evidence per DoD-N (immutable criterion #2 satisfied).
+
+**Per-DoD tally:**
+
+| Bucket | Count | DoDs |
+|---|---|---|
+| PASS (literal) | 5 | DoD-3, DoD-8, DoD-10, DoD-12, DoD-13 |
+| PARTIAL PASS (code-shipped, runtime-unverified) | 1 | DoD-7 |
+| CONDITIONAL (tiered-vs-literal interpretation) | 1 | DoD-4 |
+| PARTIAL PASS (documented deferral, no silent drops) | 1 | DoD-11 |
+| UNKNOWN (BQ probe deferred) | 1 | DoD-6 |
+| FAIL | 5 | DoD-1, DoD-2, DoD-5, DoD-9, DoD-14 |
+
+- Most generous count: **9 of 14 PASS** (CONDITIONAL/PARTIAL/UNKNOWN -> PASS).
+- Strict literal count: **5 of 14 PASS**.
+
+**Audit verdict:** `NOT_PRODUCTION_READY`. Operator approval per immutable criterion #4 NOT being sought (verdict precludes it).
+
+**Concrete failures (verbatim evidence):**
+- **DoD-1**: `launchctl list | grep -i pyfinagent` -> `com.pyfinagent.autoresearch` last-exit=`1`. `handoff/autoresearch/2026-05-28-ERROR-topic08.md`: `ModuleNotFoundError: No module named 'langchain_huggingface'`. 14 consecutive ERROR days (2026-05-15 -> 2026-05-28). phase-39.1 still `pending`, owner-gated.
+- **DoD-2**: `curl /api/paper-trading/reconciliation` -> divergence_pct=52.5% on early NAV ($9499 paper vs $20000 backtest). Sharpe gap < 0.01 implausible. No walk-forward result JSON carries paper-trading Sharpe column.
+- **DoD-5**: `/api/paper-trading/freshness` shows 4 of 6 sources with `band: "unknown"` (historical_prices, historical_fundamentals, historical_macro, signals_log). Criterion is "0 Unknown bands".
+- **DoD-9**: Python tally of `handoff/cycle_history.jsonl` last 15 terminal rows -> most-recent consecutive-completed streak = 2 (broken by `2f2f3b64` timeout 2026-05-26T21:50). Researcher brief estimated 6; the deterministic tally is authoritative. Criterion requires 5 consecutive.
+- **DoD-14**: `grep -nE "LLM0[1-9]|LLM10" .claude/skills/code-review-trading-domain/SKILL.md` -> 7 of 10 explicit tags (LLM01/02/03/06/07/08/10). LLM04 (Data and Model Poisoning), LLM05 (Improper Output Handling), LLM09 (Misinformation) NOT explicitly tagged. Cosmetic: SKILL.md cites "v2.0 (2025)" while official label is "OWASP Top 10 for LLM Applications 2025".
+
+**Q/A verdict:** `a4f23ce98a198c8d2` returned PASS (`ok: true`). Harness audit 5/5 green:
+1. Researcher gate PASS (gate_passed=true, 6 sources in full)
+2. Contract written BEFORE generate PASS (mtime 16:46:07 < audit 16:50:51 < results 16:51:38)
+3. Results emitted PASS (cycle-12 framing + tally table + verbatim verification output)
+4. Log-LAST discipline PASS (harness_log untouched until after Q/A verdict)
+5. No-verdict-shopping PASS (first Q/A on these artifacts)
+
+Deterministic spot-checks on 5 sampled DoDs all matched Main's verdicts: DoD-1 last-exit=1 confirmed; DoD-9 streak=2 confirmed via Q/A's own Python tally; DoD-12 exit 0 + 0 violations confirmed; DoD-13 clean_stale_lock present confirmed; DoD-14 7-of-10 tags confirmed. LLM judgment confirmed contract-alignment, mutation-resistance (5 independent FAIL anchors), anti-rubber-stamp (Main self-corrected the researcher's 6-cycle estimate), scope honesty, research-gate compliance. 3rd-CONDITIONAL doctrine N/A (zero prior CONDITIONALs on 43.0).
+
+**Success criteria mapping (verbatim from masterplan 43.0):**
+- `all_14_DoD_criteria_PASS`: **NOT MET** (5-9 of 14 pass)
+- `audit_file_carries_verbatim_evidence_per_criterion`: **MET** (verbatim command output per DoD-N in audit deliverable)
+- `qa_confirms_no_silent_drops`: **MET** (Q/A verified DoD-11 documented-deferral disposition)
+- `operator_approval_recorded_for_PRODUCTION_READY_declaration`: **N/A** (verdict precludes)
+
+**Masterplan status policy:** 43.0 STAYS `status: pending`. The audit DELIVERABLE landed (immutable grep passes, Q/A certified), but the GATE-PASS is contingent on `all_14_DoD_criteria_PASS` which is not met. A Q/A PASS verdict here certifies audit correctness, NOT system production-readiness — those are separate gates per protocol. 43.0 closes only when all 14 DoDs are PASS in a future cycle.
+
+**Follow-up cycle pointers (informational):**
+- Cycle 13 candidate: phase-39.1 widening to cover `langchain_huggingface` (closes DoD-1; owner-gated).
+- Cycle 14 candidate: doc-edit to add explicit `LLM04/05/09:2025` tags to SKILL.md (closes DoD-14).
+- Cycle 15-17 candidates: DoD-5 freshness wiring; DoD-2 walk-forward reconciliation column; DoD-9 5-cycle stability hold (phase-35.3).
+
+**Operator visual verification:** open `handoff/current/production_ready_audit_2026-05-28.md` to read the verdict + verbatim per-DoD evidence.
+
+**Citation requirement:** NOT APPLICABLE per goal mandate. Audit cycle is not a trading-policy change. Researcher floor (>=5 sources / >=10 URLs / recency scan) IS satisfied (6 in full / 19 collected URLs).
+
+**Stop-condition contribution:** 43.0 IS the production_ready stop-condition gate. This cycle PRODUCES the audit DELIVERABLE; the GATE-PASS is contingent on closing the 5 FAIL + 3 PARTIAL/UNKNOWN in future cycles. Estimated 4-6 follow-up cycles to close-out: phase-39.1 (DoD-1), phase-35.1/2/3 live_checks (DoD-6/7/9), DoD-2 walk-forward instrumentation, DoD-5 freshness wiring, DoD-14 doc-edit, DoD-11 doc-edit.

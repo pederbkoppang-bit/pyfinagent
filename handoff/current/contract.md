@@ -1,82 +1,95 @@
-# Cycle 11 Contract -- Step 38.13 (rail-wiring root cause + true fix) -- RESTORED #11 clobber
+# Contract — phase-43.0 Production-Ready DoD Audit (14 criteria)
 
-**Generated:** 2026-05-27T19:50+02:00. Restored at 20:01 after sprint-clobber #11.
+**Cycle:** 12 | **Date:** 2026-05-28 | **Step:** 43.0 (P1, H) | **Author:** Main
 
-**Step id:** `38.13` -- Wire Claude Code rail into AnalysisOrchestrator's full pipeline.
+---
 
-**Cycle class:** Technical routing fix. NOT trading-policy.
+## Research-Gate Summary
 
-## Research gate
-- Researcher: `a275745e10746d6c0`, tier=complex, gate_passed=true.
-- Output: `handoff/current/research_brief_phase_38_13_1_rail_wiring_root_cause.md` (35,633 bytes).
-- 5 sources read in full, 16 URLs, recency scan, 11 internal files inspected, 17 LLM call sites enumerated.
+- Researcher subagent: `a9547514da955b875`
+- Brief: `handoff/current/research_brief_phase_43_0_dod_audit.md`
+- `gate_passed: true` — 6 external sources read in full, 13 snippet-only URLs, recency scan present, 3-variant queries documented, 16 internal files mapped.
+- Headline finding: expected NOT_PRODUCTION_READY; 8 confirmed PASS + 3 drift candidates (DoD-6/7/9) + 1 contested (DoD-14) + 1 structurally unverifiable (DoD-2) + 1 confirmed FAIL (DoD-1).
 
-## Findings (overturns cycle-8 diagnosis)
-Cycle 8's observability-only patch did NOT fix the routing. Live evidence at 19:09:25 showed `401 invalid x-api-key` on `req_011Ca5...` (direct Anthropic). Researcher identified THREE root causes:
+## Hypothesis
 
-1. `claude_code_invoke()` subprocess inherits `ANTHROPIC_API_KEY` from parent env -> CLI silently bills against direct-API account (credit-exhausted).
-2. `get_settings()` lru_cache desync across uvicorn workers -> stale rail=False settings reaches AnalysisOrchestrator at construction time.
-3. `make_client()` silently falls through to direct-Anthropic when rail=True but ClaudeCodeClient import fails -> billing-rail breach.
+The 14-criterion audit will return **NOT_PRODUCTION_READY** today, with concrete PASS counts as follows after live verification:
 
-## Fixes shipped (cycle 11)
-- **Fix 1**: `backend/agents/claude_code_client.py` -- scrub `ANTHROPIC_API_KEY` + `ANTHROPIC_AUTH_TOKEN` from `subprocess.run` env. CLI now uses `~/.claude/` OAuth (Max-subscription billing).
-- **Fix 2**: `backend/services/autonomous_loop.py:1284-1289` -- `get_settings.cache_clear()` + fresh `get_settings()` + `constructor_rail` log. Cures desync; adds audit trail.
-- **Fix 3**: `backend/agents/llm_client.py:1909-1928` -- hard-fail in make_client when rail=True but about to fall through to direct Anthropic.
+| Bucket | Expected count | DoDs |
+|--------|----------------|------|
+| Confirmed PASS | 8 | DoD-3, DoD-4 (tiered), DoD-8, DoD-10, DoD-11, DoD-12, DoD-13, + DoD-9 (drift confirmable via cycle_history.jsonl) |
+| Drift PASS (live-check pending) | 2 | DoD-6 (phase-35.1 shipped writer), DoD-7 (phase-37.1 shipped schema) |
+| Contested | 1 | DoD-14 (3 LLM categories not explicitly tagged) |
+| Structurally unverifiable today | 1 | DoD-2 (no walk-forward result vs paper-trading comparison artifact) |
+| Confirmed FAIL | 1 | DoD-1 (autoresearch cron exit 1 — 9 consecutive ERROR days; phase-39.1 pending) |
+| Live-probe required | 1 | DoD-5 (`/api/paper-trading/freshness` Unknown-band probe) |
 
-## Live evidence (cycle 11 in flight, post-restart at 19:47)
+**Best-case PASS: 10 of 14. Worst-case PASS: 8 of 14. Either way: NOT_PRODUCTION_READY.**
 
-Pre-dispatch + constructor_rail logs at 19:49:27:
-```
-Orchestrator pre-dispatch ticker=STX rail=claude_code lite_mode=False model=claude-sonnet-4-6
-AnalysisOrchestrator construction ticker=STX constructor_rail=claude_code cycle_rail=claude_code
-[LLMClient] Routing claude-sonnet-4-6 -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)
-[LLMClient] Routing claude-opus-4-7 -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)
-[LLMClient] Routing claude-opus-4-7 -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)
-[LLMClient] Routing claude-sonnet-4-6 -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)
-```
+## Immutable Success Criteria (verbatim from `.claude/masterplan.json` 43.0)
 
-Sustained orchestrator agent progress on Claude Code rail through 20:01:
-```
-19:58:21+ claude_code_invoke: success (multiple calls, ~50-80s each)
-19:59:31 Enhanced Macro Agent: analyzing economy for CIEN (grounded)
-19:59:44 Enhanced Macro Agent: analyzing economy for AMD (grounded)
-20:00:16 Deep Dive Agent: probing contradictions for CIEN (grounded)
-20:00:45 Deep Dive Agent: probing contradictions for AMD (grounded)
-20:00:54 Enhanced Macro Agent: analyzing economy for STX (grounded)
+1. `all_14_DoD_criteria_PASS`
+2. `audit_file_carries_verbatim_evidence_per_criterion`
+3. `qa_confirms_no_silent_drops`
+4. `operator_approval_recorded_for_PRODUCTION_READY_declaration`
+
+**Verification command (immutable):**
+```bash
+test -f "handoff/current/production_ready_audit_$(date +%Y-%m-%d).md" && grep -qE 'PRODUCTION_READY|NOT_PRODUCTION_READY' "handoff/current/production_ready_audit_$(date +%Y-%m-%d).md"
 ```
 
-ZERO 401/400 errors in cycle-11 timeframe. The orchestrator pipeline is exercising Claude Code rail end-to-end.
+**Live-check:** `production_ready_audit_<date>.md` IS the deliverable; live verification = read it.
 
-Standalone CLI verify:
-```
-$ env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN claude --print --model claude-sonnet-4-6 'hello'
-Hello! How can I help you today?
-```
-Confirms env scrub causes CLI to use `~/.claude/` OAuth (Max-subscription rail) cleanly.
+## Plan Steps
 
-## Success criteria (verbatim from masterplan 38.13)
-- Post-restart fresh cycle produces >=5 BQ rows with non-empty `standard_model` AND `rail='claude_code'`.
-- Persist log line is NOT `Lite analysis persisted` for those rows.
-- Backend.log no longer shows `401 invalid x-api-key` for cycles where rail=True.
-- `live_check_38.13.md` captures verbatim per-orchestrator-agent rail=claude_code logs + BQ row sample.
+1. **Inspect environment state** — `launchctl list | grep pyfinagent`, `cat handoff/cycle_history.jsonl | tail`, `ls handoff/autoresearch/ | tail -10`, confirm backend alive (`curl -sf http://localhost:8000/health || curl -sf http://localhost:8000/api/health`).
+2. **Per-DoD live verification** — execute the evidence command from the brief's Section 6 table for each of DoD-1..DoD-14. For each: record the verbatim command + verbatim output (truncated to relevant lines) + PASS/FAIL/UNKNOWN classification + cite file:line or commit hash where applicable.
+3. **Handle DoD-2 honestly** — no walk-forward results JSON carrying paper-trading Sharpe comparison exists; mark UNKNOWN, document the structural gap, point to `backend/services/perf_metrics.py:186 compute_sharpe_gap()` as the function that COULD evaluate this if walk-forward results carried the paper-trading comparison column. Do NOT mark PASS without evidence.
+4. **Handle DoD-14 honestly** — re-grep SKILL.md for explicit `LLM0[1-9]:2025|LLM10:2025` tags; if missing for LLM04/05/09, mark CONTESTED (= literal-FAIL per the verbatim criterion text) and flag SKILL.md tagging gap as a documentation follow-up (not in this step's scope to fix mid-audit).
+5. **Render `production_ready_audit_2026-05-28.md`** — must contain (per immutable criterion #2) verbatim evidence per DoD; must contain (per the verification grep) the literal token `PRODUCTION_READY` or `NOT_PRODUCTION_READY` on a line.
+6. **Render `experiment_results.md`** — summarize what was probed, file list touched, verbatim verification command output, artifact shape.
+7. **Verify against immutable criteria** — re-read criterion #1 honestly: if any DoD ≠ PASS, the step cannot satisfy `all_14_DoD_criteria_PASS`, so step 43.0 itself stays `pending` (not `done`). The deliverable can land + Q/A can verify the deliverable is accurate — but the step closes ONLY when all 14 PASS. This is the right behavior per immutable-criteria discipline.
+8. **Spawn Q/A** — single subagent, 5-item harness audit + LLM judgment + deterministic verification grep.
+9. **Append `handoff/harness_log.md`** Cycle 12 block AFTER Q/A PASS, BEFORE any masterplan status edit.
+10. **Masterplan status policy** — 43.0 stays `pending` with `audit_completed: true` annotation in cycle 12 log; DoD-1 / DoD-2 / DoD-5 / DoD-6 / DoD-7 / DoD-14 each get a follow-up cycle pointer (existing pending steps in phase-35/36/37/39).
 
-## Pending verification
-Cycle started 19:47, completion ETA ~21:00-21:30 per cycle-7 baseline. Wakeup at 20:05 then 21:00 to check BQ + persist log lines.
+## What this cycle will NOT do
 
-## Memory-rule compliance
-- ZERO new npm deps.
-- NO `npm install`, NO `npm run build`.
-- ZERO emojis.
-- Full-codebase trace per researcher: 17 LLM call sites enumerated.
+- Fix DoD-1 (`phase-39.1` is owner-gated; widening to cover `langchain_huggingface` requires its own cycle).
+- Fix DoD-14 (SKILL.md tag additions are a doc edit out of scope for the audit cycle).
+- Re-run a 30-day walk-forward backtest to populate DoD-2 evidence (compute budget; separate cycle).
+- Add the LLM04/05/09 tags to SKILL.md (separate doc-edit cycle).
+- Probe BQ via destructive queries — only `COUNT(*)` and `SELECT ... LIMIT 5` style reads, all gated by per-call user approval.
 
-## Risk + rollback
-| Fix | Risk | Rollback |
-|-----|------|----------|
-| Fix 1 (env scrub) | LOW | Remove `env=scrubbed_env` arg |
-| Fix 2 (cache_clear + log) | LOW | Remove 4-5 lines |
-| Fix 3 (hard-fail guard) | MEDIUM | Remove `if getattr(...)` block |
+## Stop-Condition Contribution
 
-Combined rollback: flip `paper_use_claude_code_route=False` via Settings UI.
+43.0 IS the production_ready stop-condition gate. The audit DELIVERABLE landing (production_ready_audit_2026-05-28.md) is the cycle output; the GATE PASS (all 14 criteria PASS) is what flips 43.0 to `done`. Cycle 12 produces the deliverable; the gate PASS is contingent on remaining phase-35/36/37/39 work.
+
+## Anti-Patterns to Avoid (citing project auto-memories)
+
+- `feedback_no_emojis` — no emojis in audit file or evidence sections.
+- `feedback_contract_before_generate` — this contract is being written BEFORE GENERATE.
+- `feedback_log_last` — harness_log.md append comes AFTER Q/A PASS, BEFORE status flip.
+- `feedback_qa_harness_compliance_first` — Q/A prompt will begin with 5-item harness audit.
+- `feedback_harness_rigor` — do not rig PASS by ignoring contested/unverifiable criteria.
+- `feedback_full_codebase_audit_before_changes` — this IS the full audit; surface bugs not hide them.
+- `feedback_never_skip_researcher` — researcher spawned + gate passed BEFORE contract.
 
 ## References
-- `handoff/current/research_brief_phase_38_13_1_rail_wiring_root_cause.md`
+
+- `.claude/masterplan.json:phase-43.0` (immutable spec)
+- `handoff/current/master_roadmap_to_production.md` §6 (14 DoD criteria source)
+- `handoff/current/research_brief_phase_43_0_dod_audit.md` (this cycle's research gate)
+- Anthropic harness-design canon: https://www.anthropic.com/engineering/harness-design-long-running-apps
+- OWASP LLM Top 10 (2025): https://genai.owasp.org/llm-top-10/
+- `backend/services/perf_metrics.py:186` `compute_sharpe_gap()` (DoD-2)
+- `backend/services/kill_switch.py:275` `check_auto_resume()` (DoD-3)
+- `backend/services/paper_trader.py:530` `check_scale_out_fires()` (DoD-8)
+- `backend/services/autonomous_loop.py:1975` phase-35.1 outcome_tracking writer (DoD-6)
+- `backend/agents/orchestrator.py:115-116` Risk Judge response_schema (DoD-7)
+- `backend/services/cycle_lock.py` + `autonomous_loop.py:150,167` (DoD-13)
+- `backend/config/model_tiers.py:66` + `settings.py:30` (DoD-10)
+- `scripts/qa/ascii_logger_check.py` (DoD-12)
+- `.claude/skills/code-review-trading-domain/SKILL.md:56-100,213,230` (DoD-14)
+- `handoff/cycle_history.jsonl` (DoD-9)
+- `handoff/autoresearch/2026-05-28-ERROR-topic08.md` (DoD-1)
