@@ -25494,3 +25494,34 @@ weakening), goalpost intact (additive-only, criteria verbatim), harness complian
 
 **Caveat carried (not fixed here):** at n_obs=27 a point Sharpe is not yet statistically trustworthy
 (Lopez de Prado MinTRL); a sample-size gate on the cockpit Sharpe is a separate follow-up.
+
+## Cycle 5 (production-ready+money push) -- 2026-05-29 -- phase=47.5 result=PASS
+
+**Step:** 47.5 -- UX foundation: design-system enforcement layer (priority-7 UX; the only unblocked
+remaining work -- 47.2 first-trade still parked on operator LLM gate). FREE (frontend; no project LLM spend).
+
+**Researcher:** `a9bfe681d59b10293`, tier=moderate, `gate_passed: true`. 7 sources in full, ~25 URLs,
+recency scan, 11 internal files. Anti-duplication: phase-44.1's "design tokens" title was misleading
+(db1e6208 shipped states/hooks/Cmd-K, NOT a token module) -> design-tokens.ts + ui/ are genuinely new.
+
+**Implementation (ADDITIVE):** NEW `frontend/src/lib/design-tokens.ts` (semantic maps: text/surface/
+border/hover/focusRing/transition/status, JIT-safe literals, navy/slate, no zinc); NEW
+`frontend/src/components/ui/{Button.tsx (primary|secondary|ghost|danger, focusRing + 24px target, CSS
+active:scale-95 not Motion),StatusBadge.tsx,index.ts}`; FIX EmptyState.tsx zinc->slate; FIX
+DataTable.tsx:80 filter light-base dropped. The ~120 existing sites NOT migrated this cycle (that's W5)
+-> regression-free. clsx+motion already installed -> no npm install -> no launchctl kickstart.
+
+**Verification:** tsc --noEmit exit 0. `npm run build` failed under the RUNNING dev server
+(PageNotFoundError on /agents,/agent-map,/paper-trading/learnings -- classic next-build-vs-next-dev
+.next contention; those pages exist on disk + are absent from the diff). Isolated build (frontend
+launchd unloaded, .next cleared): BUILD3_EXIT=0, all routes compiled; frontend reloaded (HTTP 302).
+
+**Q/A:** fresh `a5950fe02a89aa72f` = **PASS** (`ok:true`). Independently: tsc exit 0; confirmed the 3
+failed-build pages exist + are NOT in `git diff --name-only` (contention narrative TRUE, not gaming);
+all values literal JIT-safe navy/slate (no dynamic concat); criteria verbatim-match contract, all-additive;
+@/components/ui imported by zero existing pages (regression-free); rule-5 visual-PENDING for the unwired
+components judged honest. Zero violations. NOTE (deferred to W5): DataTable has 6 other pre-existing zinc
+spots outside the filter line (out of scope for criterion 3).
+
+**Standing operational gotcha documented:** production `npm run build` must unload the `next dev`
+launchd server first (shared `.next`), else PageNotFoundError on unrelated pages.

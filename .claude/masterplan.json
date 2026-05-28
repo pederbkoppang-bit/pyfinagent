@@ -13307,6 +13307,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "47.5",
+          "name": "UX foundation: design-system enforcement layer (semantic tokens + shared ui components)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "ux-control-surface-audit (ux_roadmap.md W2) + research_brief_phase_44_11_design_system.md: design system exists in tailwind.config/globals.css but is NOT enforced (text/hover/focus/button hand-composed across ~120 files; motion.ts orphaned). phase-44.1 shipped states/hooks/Cmd-K, NOT a token module (no duplication). Additive enforcement layer; later cycles migrate the sites. Operator priority-7 (consistent design across all pages). FREE (no project LLM spend; clsx+motion already installed, no npm install).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent/frontend && test -f src/lib/design-tokens.ts && test -f src/components/ui/Button.tsx && test -f src/components/ui/StatusBadge.tsx && test -f src/components/ui/index.ts && ! grep -q 'zinc' src/components/states/EmptyState.tsx && npm run build",
+            "success_criteria": [
+              "NEW frontend/src/lib/design-tokens.ts exports semantic token maps (text, surface, border, hover, focusRing, transition, status) as JIT-safe literal navy/slate class strings (no zinc, no dynamic class concatenation per frontend.md 1.3)",
+              "NEW frontend/src/components/ui/Button.tsx (variants primary|secondary|ghost|danger, focus-visible ring + >=24px target) + StatusBadge.tsx (success|warning|error|neutral) + index.ts barrel",
+              "frontend.md violations fixed: EmptyState.tsx zinc->slate; DataTable.tsx filter drops the bg-white/border-zinc-200 light base",
+              "cd frontend && npm run build succeeds; no new npm dependency added; additive only (the ~120 existing sites NOT migrated this cycle -> regression-free)"
+            ],
+            "live_check": "live_check_47.5.md captures npm run build success + grep showing violations gone; new ui/Button + ui/StatusBadge are additive (variant visual verification pending wiring into a page in a later cycle, per frontend.md rule 5)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

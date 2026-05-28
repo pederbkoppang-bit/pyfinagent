@@ -1,53 +1,52 @@
-# Contract — phase-47.4: Sharpe/maxDD metric integrity
+# Contract — phase-47.5: UX foundation (design-system enforcement layer)
 
-**Cycle:** 4 of the production-ready+money push (FREE — no project LLM spend).
-**Step:** 47.4 | **Phase:** phase-47 | **Status:** in-progress | **Harness:** required | **Tier:** moderate-complex (touches perf_metrics.py, the single source of truth).
+**Cycle:** 5 of the production-ready+money push (priority-7 UX). FREE (frontend; no project LLM spend).
+**Step:** 47.5 | **Phase:** phase-47 | **Status:** in-progress | **Harness:** required | **Tier:** moderate.
+Frontend work — held to `.claude/rules/frontend.md` + `frontend-layout.md`.
 
-NOTE: 47.2 (first trade) still PARKED on operator LLM-spend gate. 47.1 + 47.3 done+pushed. 47.4 is the
-next unblocked, money-critical free item (corrupts the go-live gate + north-star metric).
+NOTE: 47.2 (first trade) PARKED on operator LLM-spend gate; 47.1/47.3/47.4 done+pushed. This is the
+first priority-7 (UX) cycle — the only unblocked remaining work. W1 (live-promote endpoint) deferred
+per test-env-first.
 
 ## Research-gate summary (PASSED)
-Researcher `a4bc11ef3f7d98cbf`, tier=moderate-complex, `gate_passed: true`. 6 sources in full, 17 URLs,
-recency scan, 9 internal files. Both live inconsistencies reproduced exactly against BQ. Brief:
-`research_brief_phase_47_4_metric_integrity.md`.
+Researcher `a9bfe681d59b10293`, tier=moderate, `gate_passed: true`. 7 sources in full, ~25 URLs,
+recency scan, 11 internal files. Brief: `research_brief_phase_44_11_design_system.md`.
 
-**Single shared root cause:** `bq.get_paper_snapshots()` (`bigquery_client.py:1038`) returns rows
-`ORDER BY snapshot_date DESC` (newest-first). Two consumers walk the NAV series WITHOUT re-sorting:
-- `compute_sharpe_from_snapshots` (`perf_metrics.py:87-115`, cockpit path `paper_trading.py:219`):
-  `np.diff(navs)/navs[:-1]` on DESC NAVs flips mean daily return +0.0397 -> -0.0291 -> Sharpe **-5.7156**
-  (= displayed -5.72). Sortino +15.59 stayed positive because its path used the chronological
-  redLineSeries. Sharpe is sign-order-invariant by definition -> bug.
-- `_snapshot_max_dd_pct` (`paper_go_live_gate.py:43-57`): walks DESC, peak=newest(23654), iterates to
-  seed(9499.5) -> (23654-9499)/23654 = **60.08%**. Chronological maxDD = **5.31%** (matches cockpit).
-  Cockpit RIGHT, gate WRONG.
-
-Caveat (carried, not fixed here): at n_obs=27 a point Sharpe is statistically not meaningful
-(Lopez de Prado MinTRL); metrics-v2 already returns None < 30 obs but the cockpit Sharpe does not gate
-on sample size. This step corrects the MATH (order), not the small-sample trustworthiness.
+Key finding (anti-duplication): phase-44.1's "design tokens" title was misleading — `git show db1e6208`
+proves it shipped the states lib + hooks lib + CommandPalette + featureFlags, NOT a token module. So
+`@/lib/design-tokens.ts` + the `ui/` dir are genuinely NEW (no overlap). The design system "exists on
+paper but isn't enforced": tokens in tailwind.config/globals.css, but text/hover/focus/button classes
+hand-composed across ~120 files; `@/lib/motion.ts` (6 presets) orphaned. clsx ^2.1.0 + motion ^12.38.0
+already installed -> NO npm install -> NO launchctl kickstart.
 
 ## Hypothesis
-Sorting snapshots chronologically by `snapshot_date` at the top of both helpers makes Sharpe and
-max-drawdown order-invariant, correcting the cockpit Sharpe sign and the gate maxDD (60% -> 5.31%).
-Fixing the gate maxDD legitimately flips `max_dd_within_tolerance` False->True (5.31 <= 20) — corrects a
-wrongly-red go-live boolean (gate stays 0/5 -> 1/5; still not eligible, needs 100 trades + PSR + DSR + sr_gap).
+An ADDITIVE semantic-token module + the first shared ui components (Button, StatusBadge) give every
+page ONE vocabulary to migrate to, making "consistent layout/design across all pages" enforceable —
+without regressing anything (the ~120 existing sites are NOT migrated this cycle).
 
-## Immutable success criteria (verbatim from masterplan.json phase-47.4)
-1. compute_sharpe_from_snapshots (perf_metrics.py) and _snapshot_max_dd_pct (paper_go_live_gate.py) sort snapshots chronologically by snapshot_date before computing; results are order-invariant
-2. a pytest regression guard asserts Sharpe + maxDD order-invariance (passes post-fix; would fail on the reversed/unsorted pre-fix path); ast.parse clean on edited files
-3. live /api/paper-trading/gate details.realized_max_dd_pct corrected from ~60% to the cockpit-consistent ~5% band after backend reload (live_check_47.4.md captures the curl + cockpit Sharpe sign)
+## Immutable success criteria (verbatim from masterplan.json phase-47.5)
+1. NEW frontend/src/lib/design-tokens.ts exports semantic token maps (text, surface, border, hover, focusRing, transition, status) as JIT-safe literal navy/slate class strings (no zinc, no dynamic class concatenation per frontend.md 1.3)
+2. NEW frontend/src/components/ui/Button.tsx (variants primary|secondary|ghost|danger, focus-visible ring + >=24px target) + StatusBadge.tsx (success|warning|error|neutral) + index.ts barrel
+3. frontend.md violations fixed: EmptyState.tsx zinc->slate; DataTable.tsx filter drops the bg-white/border-zinc-200 light base
+4. cd frontend && npm run build succeeds; no new npm dependency added; additive only (the ~120 existing sites NOT migrated this cycle -> regression-free)
 
 ## Plan steps
-1. `perf_metrics.py::compute_sharpe_from_snapshots` — `snapshots = sorted(snapshots, key=lambda s: s.get("snapshot_date") or "")` before extracting navs (idempotent for compute_paper_sharpe_window which already pre-sorts; fixes the cockpit direct path + all 4 callers).
-2. `paper_go_live_gate.py::_snapshot_max_dd_pct` — same chronological sort before extracting navs.
-3. NEW `tests/services/test_phase_47_4_metric_order_invariance.py` — behavioral: a growth NAV fixture in chronological vs reversed order; assert Sharpe order-invariant + positive, maxDD order-invariant + small. FAILS on pre-fix code, PASSES after.
-4. Verify: pytest green + ast clean (immutable cmd); restart backend, curl /gate showing realized_max_dd_pct ~5% (down from 60%) + cockpit Sharpe sign -> live_check_47.4.md. Fresh Q/A.
+1. NEW `frontend/src/lib/design-tokens.ts` — `tokens` object: text (slate-100..500 per frontend.md §6),
+   surface (navy-800/70 card), border, hover (navy-700/40), focusRing (the exact OpsStatusBar idiom),
+   transition, status (emerald/amber/rose/slate/sky /15). All complete literal strings (JIT-safe).
+2. NEW `frontend/src/components/ui/Button.tsx` (variants via Record maps + clsx; focus ring + 24px
+   target; CSS active:scale-95, NOT Motion), `StatusBadge.tsx` (consumes tokens.status), `index.ts` barrel.
+3. Fix `EmptyState.tsx` zinc->slate (lines 34/40/42 -> slate-400/300/500); `DataTable.tsx:80` drop the
+   `bg-white`/`border-zinc-200` light-mode base (dark-only project, frontend.md rule 2).
+4. Verify: file-existence + grep no-zinc + `cd frontend && npm run build` succeeds. Write live_check_47.5.md.
+   Per frontend.md rule 5: EmptyState palette change is verifiable; new Button/StatusBadge variants are
+   ADDITIVE (not yet wired into a page) -> variant visual verification marked PENDING for a later wiring cycle.
 
 ## Blast radius
-`perf_metrics.py` (single source of truth — sort only, no formula change), `paper_go_live_gate.py`
-(sort only). Changes the gate's max_dd boolean (corrects a bug). No trade execution. No LLM spend.
-Backend reload required for the live /gate value to refresh.
+Frontend only, additive (4 new files) + 2 small compliance fixes to EmptyState/DataTable. No dep
+install. No behavior/trading change. Existing pages untouched (no migration this cycle) -> regression-free.
 
 ## References
-- `research_brief_phase_47_4_metric_integrity.md` (gate); `roadmap_master.md` workstream 4
-- `backend/services/perf_metrics.py:87-115`; `backend/services/paper_go_live_gate.py:43-57`
-- `backend/db/bigquery_client.py:1038` (get_paper_snapshots DESC); `.claude/rules/backend-services.md` (single-metric-source)
+- `research_brief_phase_44_11_design_system.md` (gate); `ux_roadmap.md` (W2); frontend.md §1/§3/§6 + rules 1-5
+- `frontend/src/components/states/EmptyState.tsx`, `frontend/src/components/DataTable.tsx`,
+  `frontend/src/components/OpsStatusBar.tsx` (focus idiom), `frontend/src/lib/motion.ts` (orphaned, for later W6)

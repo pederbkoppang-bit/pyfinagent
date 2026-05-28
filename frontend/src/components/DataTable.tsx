@@ -77,7 +77,7 @@ export function DataTable<TData>({
           onChange={(e) => setGlobalFilter(e.target.value)}
           placeholder={globalFilterPlaceholder}
           aria-label={`Filter ${ariaLabel ?? "table"}`}
-          className="w-full max-w-md px-3 py-2 rounded-lg border border-zinc-200 dark:border-navy-700 bg-white dark:bg-navy-900 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+          className="w-full max-w-md px-3 py-2 rounded-lg border border-navy-700 bg-navy-900 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
         />
       )}
       <div className="overflow-x-auto scrollbar-thin">

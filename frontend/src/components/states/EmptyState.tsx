@@ -31,15 +31,15 @@ export function EmptyState({ icon: IconCmp = MagnifyingGlass, title, description
     <div
       className={clsx(
         "flex flex-col items-center justify-center text-center px-6 py-12",
-        "text-zinc-500 dark:text-zinc-400",
+        "text-slate-400",
         className,
       )}
       role="status"
     >
       <IconCmp size={40} weight="light" aria-hidden="true" />
-      <h3 className="mt-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">{title}</h3>
+      <h3 className="mt-3 text-sm font-medium text-slate-300">{title}</h3>
       {description ? (
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 max-w-md">{description}</p>
+        <p className="mt-1 text-xs text-slate-500 max-w-md">{description}</p>
       ) : null}
       {action ? (
         <button
