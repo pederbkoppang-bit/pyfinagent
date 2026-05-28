@@ -27,7 +27,7 @@ Zero rubber-stamping, zero scope creep, no LLM spend, all anti-pattern memories 
 | Priority | Status |
 |---|---|
 | 1 [MONEY] freshness | **DONE** (47.1) |
-| 2 [MONEY] first trade | **PARKED — operator-gated.** Real fix = enable swap-rotation (committed code now loaded) and/or bump paper_max_per_sector 2->3. Validation = one real `/run-now` cycle = Gemini LLM cost. Free fallback: daily cron mon-fri 14:00 UTC will run with the now-loaded rotation code. |
+| 2 [MONEY] first trade | **PARKED — operator-gated; CODE-VERIFIED READY.** Code audit (portfolio_manager.py:354-518 + settings.py:222-235) confirms the swap-rotation path is ENABLED (paper_swap_enabled=True), CONFIGURED (paper_swap_max_per_cycle=2, paper_swap_min_delta_pct=25%), and CORRECT (delta math valid for 0-10 final_scores; the line-478 [0,1] comment is rationale, not a bug). It never fired only because the backend PREDATED the swap commit 69c710ec -- FIXED by the cycle-2/4 restarts. The 12-Tech-vs-cap-2 book makes rotation the ONLY buy path (raising max_per_sector wouldn't help: 12 > any sane cap). NO code fix is needed. The sole remaining step = run ONE real cycle (fires the Gemini pipeline = LLM spend) so the now-loaded rotation produces the first SELL-weak-Tech + BUY-strong-Tech pair. That cycle = operator LLM-approval (asked, unanswered) OR the free daily cron (mon-fri 14:00 UTC, now loaded with the rotation code). |
 | 3 [OPUS-4.8] cost_tracker | **DONE** (47.3) |
 | 4 [PROD] Sharpe-gap/maxDD mismark | **PARTIAL** — the -5.72/60% mismark is FIXED (47.4). The paper-vs-backtest Sharpe GAP close (DoD-2 value arm) still needs trades + a backtest re-baseline -> gated behind priority 2. |
 | 5 [MONEY] dynamic strategy rotation | **OPEN** — gated behind first trades (L-effort). |
