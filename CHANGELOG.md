@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `2e290c66` | docs(handoff): code-verify swap-rotation path is ready; first trade blocked only on running a real c |
 | 2026-05-29 | `1ce42c78` | docs(handoff): SOFT STOP after cycle 5 (47.5 UX foundation done); remaining work dual operator-gated |
 | 2026-05-29 | `79c39d41` | phase-47.5: UX foundation: design-system enforcement layer (semantic tokens + shared ui components) |
 | 2026-05-29 | `b203bdbe` | docs(handoff): SOFT STOP summary + ledger for production-ready push (47.1/47.3/47.4 done; 47.2 opera |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-27 | `fb1aaae3` | fix(rail): cycle 11 ships true 38.13 rail-wiring fix -- 3 BLOCKER fixes |
 | 2026-05-27 | `f82a6d26` | docs(verify): cycle 10 evidence-only closure -- 38.10 Slack digest stale-data diagnosis |
 | 2026-05-27 | `fc1685d1` | fix(reports): 38.11 Recent Reports table -- alpha + casing + company-name normalization |
-| 2026-05-27 | `10031255` | fix(verify): cycle 7 closure correction -- 38.12 done, 27.6 stays pending, 38.13 added |
 
 ---
 
