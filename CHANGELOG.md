@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-28 | `b9a9a3d5` | docs(roadmap): cycle 18 closes DoD-11 via 3-bucket disposition wording |
 | 2026-05-28 | `816c6536` | test(perf_metrics): cycle 17 DoD-2 windowed-Sharpe pytest follow-up |
 | 2026-05-28 | `14495ac6` | feat(perf_metrics): cycle 16 DoD-2 Option A+ windowed paper-Sharpe instrumentation |
 | 2026-05-28 | `5bed32b0` | docs(roadmap): cycle 15 DoD-2 wording fix -- criterion-statistics mismatch |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-26 | `69c710ec` | feat(portfolio): cycle 1 position-swap framework (zero-buy triage) |
 | 2026-05-26 | `29c21b48` | fix(ux): cycle 77 NumberFlow tint CSS element-name bug + 900ms duration |
 | 2026-05-26 | `12c577bd` | feat(ux): cycle 76 NumberFlow trend color tint + 700ms slide |
-| 2026-05-26 | `2e679e1d` | fix(ux): cycle 75 Google-Finance digit-flip animation (replaces cycle 74 background flash) |
 
 ---
 
