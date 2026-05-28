@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-28 | `2802fa5b` | docs(skill): cycle 13 closes DoD-14 -- OWASP LLM04/05/09 explicit tags |
 | 2026-05-28 | `7d71ee3a` | phase-43.0: cycle 12 DoD audit -- NOT_PRODUCTION_READY (5-9 of 14 PASS) |
 | 2026-05-27 | `fb1aaae3` | fix(rail): cycle 11 ships true 38.13 rail-wiring fix -- 3 BLOCKER fixes |
 | 2026-05-27 | `f82a6d26` | docs(verify): cycle 10 evidence-only closure -- 38.10 Slack digest stale-data diagnosis |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-26 | `9ab7d236` | fix(chart-ssot): cycle 73 chart-side overlay for live NAV across 3 chart surfaces |
 | 2026-05-26 | `0bcd84dd` | fix(learnings): move out of /paper-trading/ -- double-Sidebar regression |
 | 2026-05-26 | `faeb7b20` | fix(cockpit): SSOT NAV/P&L via root-level LivePortfolioProvider |
-| 2026-05-26 | `b9a1b772` | fix(slack-bot): 3 digest regressions -- NAV $0 + 0.0/10 scores + stale trades |
 
 ---
 
