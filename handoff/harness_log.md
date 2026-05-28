@@ -25359,3 +25359,35 @@ All 3 have documented deferral homes; none are silent drops. PASS.
 **Cycle 19 candidate:** pytest follow-up for cycle 14 DoD-5 SAFE.TIMESTAMP fix (regression test mirroring cycle 17's pytest for cycle 16). Closes a similar `financial-logic-without-behavioral-test` risk on observability code.
 
 **Cycle 20 candidate:** write `handoff/current/cycle_block_summary.md` at SOFT STOP (8 cycles elapsed) per goal stop conditions, documenting DoD-by-DoD residual state.
+
+## Cycle 19 -- 2026-05-28 20:35-20:55 CEST -- phase=43.0/DoD-5 result=PASS (pytest follow-up; no DoD flip)
+
+**Trigger:** Mirror of cycle 17 -- add CI-runnable regression coverage for the cycle-14 DoD-5 SAFE.TIMESTAMP fix in `backend/services/cycle_health.py:414-462`.
+
+**Researcher:** `aca2fe1722a1259eb`, tier=simple, `gate_passed: true`. 6 sources in full (unittest.mock docs, pytest-bigquery-mock GH, elvanco BQ-mock tutorial Sep 2025, pytest-with-eric Mar 2026, pytest parametrize docs, pytest-mock usage docs). 19 URLs. Recency scan + 3-variant queries. Brief: `handoff/current/research_brief_phase_43_0_dod_5_pytest.md`.
+
+**Implementation:** new file `backend/tests/test_phase_43_dod5_freshness.py` (79 lines, 2 `@pytest.mark.parametrize` functions × 2 cases = 4 logical tests). Pure test cycle; zero source-code modification.
+
+Test coverage:
+- STRING/DATE branch: `(paper_trades, created_at)` + `(paper_portfolio_snapshots, snapshot_date)` -> SQL contains `SAFE.TIMESTAMP(MAX(col))`
+- TIMESTAMP branch: `(historical_prices, ingested_at)` + `(signals_log, recorded_at)` -> SQL contains `MAX(col)` AND NOT `SAFE.TIMESTAMP`
+
+The TIMESTAMP-branch dual-assertion (`MAX present` AND `SAFE.TIMESTAMP absent`) is the critical mutation-defense -- catches the cycle-12 root-cause bug directly.
+
+**pytest result:** `4 passed in 0.01s` (parametrized as 4 distinct test cases).
+
+**Q/A verdict:** `ab859e62c7478e1ca` returned PASS (`ok: true`). All 5 harness audit items green. All 5 deterministic checks pass: file exists, pytest 4/4, source-code untouched (git diff empty), 4 test cases collected, MagicMock pattern present (9 references). LLM judgment: load-bearing SQL-substring assertions; both branches of `_STRING_DATE_TIMESTAMP_COLS` membership exercised; mutation resistance 3/3 (drop-branch-always-SAFE, drop-branch-always-bare, alter-set-membership all caught); no scope creep. Code-review heuristics across 5 dimensions: zero findings.
+
+**Success criteria mapping:**
+- File `backend/tests/test_phase_43_dod5_freshness.py` exists with 2 parametrized funcs (4 logical cases): **MET**
+- `pytest backend/tests/test_phase_43_dod5_freshness.py -v` exits 0: **MET** (0.01s, 4/4 PASSED)
+- MagicMock chain pattern matching canonical at test_dod4_tier1_coverage_investment.py:417-424: **MET**
+- NO modification to backend/services/cycle_health.py: **MET** (git diff --stat empty)
+
+**Cumulative tally:** **12 most-generous / 8 literal of 14 PASS** (unchanged). Cycle 19 adds test coverage; no DoD count change.
+
+**Masterplan status:** phase-43.0 STAYS `status: pending`. 4 DoDs still open: DoD-1 (owner-gated), DoD-2 value arm (substantive divergence), DoD-6/7 (live cycles), DoD-9 (cron streak).
+
+**Session status:** 8 cycles done in this session (cycle 12 audit + cycles 13-19). Goal cycle count: 13-19 = 7 cycles. SOFT STOP threshold at 8 cycles since goal set; cycle 20 is the final budget cycle.
+
+**Cycle 20 plan:** SOFT STOP closure -- write `handoff/current/cycle_block_summary.md` with DoD-by-DoD residual state per goal stop conditions. This is the documented closure deliverable when HARD STOP (all 14 PASS + operator approval) is not achievable in-session.
