@@ -25321,3 +25321,41 @@ Test coverage matrix:
 **Masterplan status policy:** phase-43.0 STAYS `status: pending`. Manual commit + push.
 
 **Session status:** 6 cycles completed (12 audit + 13 DoD-14 + 14 DoD-5 + 15 DoD-2 wording + 16 DoD-2 measurement + 17 pytest). Soft-stop budget: 2 cycles remaining. Of remaining open DoDs, only DoD-11 (already PARTIAL PASS per cycle 12) is potentially closeable as a small doc-edit cycle; DoD-1/2-value/6/7/9 all require external triggers. Realistic remaining cycles: cycle 18 could close DoD-11 with a roadmap §6 wording edit (add explicit "phase-42 deferred" disposition + OPEN-27 auto-memory references); cycle 19 writes `handoff/current/cycle_block_summary.md` at SOFT STOP.
+
+## Cycle 18 -- 2026-05-28 20:10-20:30 CEST -- phase=43.0/DoD-11 result=PASS (closure)
+
+**Trigger:** Cycle-12 audit verdict on DoD-11 was PARTIAL PASS (documented deferral acknowledged; no silent drops) with two closure options: (a) add explicit phase-42 entries to .claude/masterplan.json, or (b) update master_roadmap §6 DoD-11 wording. Cycle 18 picks option (b) -- wording-only fix to avoid masterplan noise.
+
+**Researcher:** `a0f9bb6b4fc0b351e`, tier=simple, `gate_passed: true`. Output `handoff/current/research_brief_phase_43_0_dod_11_closure.md`. 5 sources in full (Cortex production-readiness x2, SGS-Systems audit-finding governance, Agile Alliance DoD, Medium Silent Disconnect). 17 URLs. Recency scan + 3-variant queries.
+
+**Implementation:** single-line edit to `handoff/current/master_roadmap_to_production.md:330` (DoD-11 row). Replaced "0 silent drops" measurement with formal 3-bucket disposition:
+- (a) closed-in-phase-X (work landed + verification)
+- (b) deferred-to-phase-Y-because-Z (roadmap row names downstream phase OR auto-memory file)
+- (c) silent-drop (no roadmap entry, no auto-memory) -- ONLY (c) counts as FAIL
+
+Cites Cortex 2024 ("document an exception with an expiration date and a plan to remediate") + SGS-Systems ("extensions are risk decisions, not scheduling conveniences"). Includes verification command (grep OPEN-<id> across roadmap + masterplan + MEMORY.md returns >=1 hit for every id).
+
+**OPEN-19/21/27 disposition (now formally classified):**
+- OPEN-19 -> phase-42 (deferred-because-phase-5-pending per roadmap §2 line 93). 6 grep hits.
+- OPEN-21 -> phase-42.3 (deferred). 3 grep hits.
+- OPEN-27 -> phase-40.x doc-only + auto-memory feedback_auto_commit_hook_stalls + feedback_researcher_write_first. 2 grep hits.
+
+All 3 have documented deferral homes; none are silent drops. PASS.
+
+**Q/A verdict:** `a5ff4d7bf4ffb808b` returned PASS (`ok: true`). 5-item harness audit all green. All 5 deterministic checks pass: (a) 3-bucket disposition cited, (b) PASS status preserved, (c) all 3 OPEN-ids have >=1 roadmap hit, (d) masterplan.json unchanged (git diff empty), (e) Cortex + SGS-Systems citations present. LLM judgment: (a) disposition homes are REAL and verifiable; (b) Cortex + SGS URLs are authentic per source-tier hierarchy; (c) new wording is STRICTER than the prior version (adds named verification, named disposition homes, citation requirement, explicit silent-drop FAIL definition); (d) PARTIAL->PASS flip is HONEST -- cycle-12 PARTIAL was a §6-wording-ambiguity finding (§2 already documented dispositions), cycle 18 just harmonizes §6 with §2. Zero code-review heuristic findings.
+
+**Success criteria:**
+- master_roadmap §6 DoD-11 row updated with 3-bucket disposition: **MET**
+- PASS status reflects 33-of-33 finding-ids accounted for, 0 silent drops: **MET**
+- Cortex + SGS-Systems citations + grep verification command in Measurement cell: **MET**
+- NO masterplan.json edits (option (b) wording-only fix): **MET**
+
+**Cumulative tally:** DoD-11 PARTIAL->PASS. **12 most-generous / 8 literal of 14 PASS** (up from 11/7).
+
+**Masterplan status:** phase-43.0 STAYS `status: pending`. 4 DoDs still open: DoD-1 (owner-gated), DoD-2 value arm (substantive paper-trading gap), DoD-6 (live cycle + BQ probe), DoD-7 (live Risk-Judge), DoD-9 (5-cycle streak waiting on cron).
+
+**Session status:** 7 cycles done in this session (12 audit + 13/14/18 closed DoD-14/5/11 + 15/16/17 DoD-2 wording/measurement/pytest). Goal soft-stop budget: cycles 13-18 = 6 cycles; 2 budget remaining (cycles 19, 20).
+
+**Cycle 19 candidate:** pytest follow-up for cycle 14 DoD-5 SAFE.TIMESTAMP fix (regression test mirroring cycle 17's pytest for cycle 16). Closes a similar `financial-logic-without-behavioral-test` risk on observability code.
+
+**Cycle 20 candidate:** write `handoff/current/cycle_block_summary.md` at SOFT STOP (8 cycles elapsed) per goal stop conditions, documenting DoD-by-DoD residual state.

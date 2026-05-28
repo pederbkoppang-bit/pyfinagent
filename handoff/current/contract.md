@@ -1,54 +1,69 @@
-# Contract — cycle 17 / phase-43.0 DoD-2 pytest follow-up
+# Contract — cycle 18 / phase-43.0 DoD-11 closure (roadmap §6 wording fix)
 
-**Cycle:** 17 | **Date:** 2026-05-28 | **Sub-step of:** phase-43.0 (P1, H) | **Author:** Main
+**Cycle:** 18 | **Date:** 2026-05-28 | **Sub-step of:** phase-43.0 (P1, H) | **Author:** Main
 
 ---
 
 ## Research-Gate Summary
 
-- Researcher subagent: `ad51c00cf2fe7d075`
-- Brief: `handoff/current/research_brief_phase_43_0_dod_2_pytest_followup.md`
-- `gate_passed: true` — 5 sources read in full (floor 5: unittest.mock docs, OneUptime pytest mocking Feb 2026, pytest-with-eric MagicMock raises, Carpentries Edge Cases, Wikipedia Boundary Testing), 15 URLs, recency scan, 3-variant queries.
-- Test skeleton ready-to-write in brief §7 (4 test functions).
-- Pattern: `backend/tests/test_phase_43_dod2_window.py` (NOT top-level `tests/`) per existing precedent at `backend/tests/test_dod4_tier1_coverage_investment.py`.
+- Researcher: `a0f9bb6b4fc0b351e`
+- Brief: `handoff/current/research_brief_phase_43_0_dod_11_closure.md`
+- `gate_passed: true` — 5 sources in full (Cortex Production Readiness x2, SGS Systems Audit Finding Management, Agile Alliance DoD, Medium "Silent Disconnect"), 17 URLs, recency scan, 3-variant queries.
+- Recommendation: single-line replacement at `master_roadmap_to_production.md:330` to define the 3-bucket disposition (closed-in-phase-X / deferred-to-phase-Y-because-Z / silent-drop) explicitly, citing Cortex 2024 + SGS Systems.
 
 ## Hypothesis
 
-Adding the 4-case pytest closes the cycle-16 Q/A NOTE (`financial-logic-without-behavioral-test` heuristic owed a follow-up pytest). Live-BQ smoke output in cycle-16 `experiment_results.md` already proved the helpers work end-to-end against real BQ; this cycle commits a CI-runnable test so future regressions are caught automatically.
+Closing DoD-11 by formally distinguishing the 3 disposition buckets converts the cycle-12 audit's PARTIAL-PASS verdict (documented deferral acknowledged but not formally classified) to clean PASS. OPEN-19/21/27 are already documented in the roadmap with deferral homes (phase-42 + auto-memory); the §6 wording fix just makes that disposition explicit.
 
 ## Immutable success criteria
 
-1. `backend/tests/test_phase_43_dod2_window.py` exists with 4 test functions matching the brief §7 skeleton.
-2. `pytest backend/tests/test_phase_43_dod2_window.py -v` exits 0 with 4 passed.
-3. Tests use `MagicMock()` mocking pattern (no live BQ dependency for CI).
-4. No modifications to `backend/services/perf_metrics.py` (this is a pure test cycle).
+1. `master_roadmap_to_production.md:330` (DoD-11 row) updated with 3-bucket disposition (closed-in-phase-X / deferred-to-phase-Y / silent-drop) per researcher's verbatim recommendation.
+2. New "Status today" cell reflects PASS (33-of-33 finding-ids accounted for; 0 silent drops).
+3. The grep verification command in the new Measurement cell returns expected hits for each OPEN-id.
+4. NO change to `.claude/masterplan.json` (option (b) wording-only fix; option (a) masterplan-additions explicitly rejected per researcher recommendation to avoid noise).
 
 **Verification commands:**
 ```bash
-source .venv/bin/activate
-test -f backend/tests/test_phase_43_dod2_window.py && echo OK
-pytest backend/tests/test_phase_43_dod2_window.py -v
-git diff --stat backend/services/perf_metrics.py  # expect: empty (no changes)
+# (a) DoD-11 row updated
+grep "DoD-11" handoff/current/master_roadmap_to_production.md | head -1
+
+# (b) PASS status visible
+grep "DoD-11" handoff/current/master_roadmap_to_production.md | grep -c "PASS"  # expect: 1
+
+# (c) 3-bucket disposition cited
+grep "DoD-11" handoff/current/master_roadmap_to_production.md | grep -c "closed-in-phase\|deferred-to-phase\|silent-drop"  # expect: >=1
+
+# (d) finding-id grep returns expected hits
+for id in 19 21 27; do
+  echo "OPEN-$id roadmap hits:"; grep -c "OPEN-$id" handoff/current/master_roadmap_to_production.md
+done  # expect: each >=1
 ```
 
 ## Plan Steps
 
-1. Write `backend/tests/test_phase_43_dod2_window.py` per brief §7 verbatim.
-2. Run pytest. Expect 4/4 passed.
-3. Write `experiment_results.md` with verbatim pytest output.
-4. Spawn Q/A (tight prompt; this is a small confirming cycle).
+1. Edit master_roadmap §6 DoD-11 row with the researcher's verbatim 3-bucket wording.
+2. Run all 4 verification commands.
+3. Write experiment_results.md.
+4. Spawn tight Q/A.
 5. Append harness_log.
-6. Commit + push.
+6. Commit + push manually.
 
 ## What this cycle will NOT do
 
-- NOT modify perf_metrics.py.
-- NOT add new test infrastructure (no conftest.py, no fixtures, no CI yaml).
-- NOT close any DoD (purely follow-up; cycle 16 already shipped the instrument).
+- NOT add masterplan entries for phase-42 (option (a) rejected; option (b) wording-only chosen).
+- NOT modify the OPEN-19/21/27 rows in §2 (they're already correctly documented).
+- NOT touch backend/ code.
+
+## Stop-condition contribution
+
+Closes DoD-11 (FAIL → PASS in the corrected cycle-12 tally interpretation: was already PARTIAL PASS / documented deferral; this cycle makes it clean PASS).
+
+Cumulative tally: **12 most-generous / 8 literal of 14 PASS** post-cycle (up from 11/7).
 
 ## References
 
-- Cycle 17 brief: `handoff/current/research_brief_phase_43_0_dod_2_pytest_followup.md`
-- Cycle 16 evidence: `backend/services/perf_metrics.py:118-169` (helper), `:240-349` (extended gap fn)
-- Q/A cycle 16 NOTE: `financial-logic-without-behavioral-test` heuristic
-- Existing test precedent: `backend/tests/test_dod4_tier1_coverage_investment.py:312-705`
+- Cycle 18 brief: `handoff/current/research_brief_phase_43_0_dod_11_closure.md`
+- Cycle 12 audit on DoD-11: handoff/current/production_ready_audit_2026-05-28.md (PARTIAL PASS verdict with option (a)/(b) split)
+- `master_roadmap_to_production.md:330` (target line)
+- Cortex 2024: https://www.cortex.io/post/how-to-create-a-great-production-readiness-checklist
+- SGS Systems: https://sgsystemsglobal.com/glossary/audit-finding-management/
