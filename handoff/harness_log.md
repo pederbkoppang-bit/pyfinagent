@@ -25461,3 +25461,36 @@ pytest 2 passed; ast clean (3 files). `sovereign_api.py` imports MODEL_PRICING -
 (not tautological -- exercises the real lookup path); goalpost intact (new all-additive step, criteria
 verbatim with contract); completeness sweep confirmed all 3 gap sites patched; FREE-work sink-scan clean;
 harness compliance 5/5. One NOTE (non-degrading): cost_tracker.py:16 header date cosmetic-stale.
+
+## Cycle 4 (production-ready+money push) -- 2026-05-29 -- phase=47.4 result=PASS
+
+**Step:** 47.4 -- Sharpe/maxDD metric integrity. FREE (no project LLM spend). Unblocked priority-4 part
+(47.2 first-trade still parked on operator LLM gate).
+
+**Researcher:** `a4bc11ef3f7d98cbf`, tier=moderate-complex, `gate_passed: true`. 6 sources in full, 17
+URLs, recency scan, 9 internal files. Both live inconsistencies reproduced exactly against BQ.
+
+**Validated root cause (single, shared):** `get_paper_snapshots()` returns rows newest-first (ORDER BY
+snapshot_date DESC); `compute_sharpe_from_snapshots` (perf_metrics.py, cockpit path) and
+`_snapshot_max_dd_pct` (paper_go_live_gate.py) walked the NAV series without re-sorting -> reversed NAVs
+negate every return (Sharpe -5.72 sign-flip vs Sortino +15.59) and read growth as a crash (gate maxDD
+60.08% vs cockpit 5.31%). Cockpit was right; both helpers wrong.
+
+**Implementation:** two one-line chronological `sorted(..., key=snapshot_date)` fixes (sort-only, no
+formula change; Sharpe still delegates to canonical analytics.compute_sharpe) + NEW
+`tests/services/test_phase_47_4_metric_order_invariance.py` (behavioral order-invariance guards on a
+growth fixture). Idempotent for compute_paper_sharpe_window (already pre-sorts).
+
+**Verification:** pytest 2 passed + ast OK (exit 0). Mutation proof: OLD unsorted Sharpe chron +22.91 vs
+desc -23.35 (opposite signs); post-fix order-invariant. LIVE after backend reload: /gate
+realized_max_dd_pct 60.08% -> 5.3112; live_sharpe -5.72 -> +5.42; max_dd_within_tolerance False -> True
+(corrects a wrongly-red go-live boolean; promote_eligible stays False); /portfolio sharpe_ratio (the
+screenshotted -5.72) -> +5.42.
+
+**Q/A:** fresh `a345b219404e8ead8` = **PASS** (`ok:true`). Independently reproduced the mutation proof
+with its own fixture + independently curled /gate + /portfolio; confirmed sort-only (no formula change),
+behavioral test genuine, the False->True gate flip a legitimate phantom-bug correction (not gate
+weakening), goalpost intact (additive-only, criteria verbatim), harness compliance 5/5. Zero violations.
+
+**Caveat carried (not fixed here):** at n_obs=27 a point Sharpe is not yet statistically trustworthy
+(Lopez de Prado MinTRL); a sample-size gate on the cockpit Sharpe is a separate follow-up.

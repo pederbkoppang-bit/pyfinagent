@@ -13287,6 +13287,26 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "47.4",
+          "name": "Sharpe/maxDD metric integrity (chronological-order fix in perf_metrics + go-live gate)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_phase_47_4_metric_integrity.md: get_paper_snapshots returns rows newest-first (ORDER BY snapshot_date DESC); compute_sharpe_from_snapshots (perf_metrics.py:101-109, cockpit path paper_trading.py:219) and paper_go_live_gate._snapshot_max_dd_pct (:43-57) walk the NAV series without re-sorting -> reversed NAVs negate every return (Sharpe -5.72 sign-flip vs Sortino +15.59) and read growth as a crash (gate maxDD 60.08% vs cockpit 5.31%). Cockpit is correct; both helpers are wrong. Single shared root cause. Fixing the gate maxDD legitimately flips max_dd_within_tolerance False->True (5.31<=20).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest tests/services/test_phase_47_4_metric_order_invariance.py -q && python -c \"import ast; ast.parse(open('backend/services/perf_metrics.py').read()); ast.parse(open('backend/services/paper_go_live_gate.py').read()); print('ast OK')\"",
+            "success_criteria": [
+              "compute_sharpe_from_snapshots (perf_metrics.py) and _snapshot_max_dd_pct (paper_go_live_gate.py) sort snapshots chronologically by snapshot_date before computing; results are order-invariant",
+              "a pytest regression guard asserts Sharpe + maxDD order-invariance (passes post-fix; would fail on the reversed/unsorted pre-fix path); ast.parse clean on edited files",
+              "live /api/paper-trading/gate details.realized_max_dd_pct corrected from ~60% to the cockpit-consistent ~5% band after backend reload (live_check_47.4.md captures the curl + cockpit Sharpe sign)"
+            ],
+            "live_check": "live_check_47.4.md captures /api/paper-trading/gate realized_max_dd_pct ~5% (down from 60%) + cockpit Sharpe sign after backend reload."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

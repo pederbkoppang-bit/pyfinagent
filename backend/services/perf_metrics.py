@@ -98,6 +98,15 @@ def compute_sharpe_from_snapshots(
     if len(snapshots) < 6:
         return 0.0
 
+    # phase-47.4: get_paper_snapshots returns rows newest-first (ORDER BY
+    # snapshot_date DESC). Sharpe is order-sensitive -- np.diff on a reversed
+    # NAV series negates every daily return and flips the Sharpe SIGN (observed
+    # cockpit -5.72 vs the correct positive; Sortino stayed + because its path
+    # was already chronological). Sort chronologically so EVERY caller of this
+    # canonical helper is correct. compute_paper_sharpe_window already
+    # pre-sorts, so this is an idempotent belt-and-suspenders for it.
+    snapshots = sorted(snapshots, key=lambda s: s.get("snapshot_date") or "")
+
     navs = [s.get(nav_key, 0) for s in snapshots if s.get(nav_key)]
     if len(navs) < 6:
         return 0.0

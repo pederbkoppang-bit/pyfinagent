@@ -41,9 +41,16 @@ MAX_DD_ABS_TOLERANCE = 20.0  # percent absolute cap on max drawdown
 
 
 def _snapshot_max_dd_pct(snapshots: list[dict]) -> float:
-    """Max peak-to-trough drawdown across NAV snapshots (positive magnitude %)."""
+    """Max peak-to-trough drawdown across NAV snapshots (positive magnitude %).
+
+    phase-47.4: get_paper_snapshots returns rows newest-first (ORDER BY
+    snapshot_date DESC). Drawdown is order-dependent -- walking a NAV series
+    backwards reads portfolio GROWTH as a crash (observed 60.08% phantom DD vs
+    the correct 5.31%). Sort chronologically before computing peak-to-trough.
+    """
     if not snapshots:
         return 0.0
+    snapshots = sorted(snapshots, key=lambda s: s.get("snapshot_date") or "")
     navs = [float(s.get("total_nav") or 0.0) for s in snapshots]
     navs = [n for n in navs if n > 0]
     if len(navs) < 2:
