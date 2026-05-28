@@ -25391,3 +25391,29 @@ The TIMESTAMP-branch dual-assertion (`MAX present` AND `SAFE.TIMESTAMP absent`) 
 **Session status:** 8 cycles done in this session (cycle 12 audit + cycles 13-19). Goal cycle count: 13-19 = 7 cycles. SOFT STOP threshold at 8 cycles since goal set; cycle 20 is the final budget cycle.
 
 **Cycle 20 plan:** SOFT STOP closure -- write `handoff/current/cycle_block_summary.md` with DoD-by-DoD residual state per goal stop conditions. This is the documented closure deliverable when HARD STOP (all 14 PASS + operator approval) is not achievable in-session.
+
+## Cycle 20 -- 2026-05-28 21:00 CEST -- phase=43.0 SOFT STOP closure -- result=DELIVERED
+
+**Trigger:** Goal soft-stop condition (b): 8 cycles elapsed since goal set (cycles 13-20). HARD STOP not met (only 8 of 14 literal PASS; phase-43.0 stays pending; remaining 4 DoDs require external triggers not available in-session).
+
+**Deliverable:** `handoff/current/cycle_block_summary.md` written per goal stop conditions.
+
+**Final tally:** **8 literal / 12 most-generous of 14 PASS** (up from cycle-12 baseline 5/9). Net forward motion:
+- DoD-5 FAIL -> PASS (cycle 14)
+- DoD-11 PARTIAL -> PASS (cycle 18)
+- DoD-14 FAIL -> PASS (cycle 13)
+- DoD-2: criterion-statistics alignment (cycle 15) + measurement infrastructure (cycle 16); value arm open
+- Plus 2 pytest regression tests (cycles 17 + 19) hardening cycle-14 and cycle-16 closures
+
+**Remaining open (none closeable in-session, all documented with next-session actions):**
+- DoD-1 (FAIL): OWNER-GATED phase-39.1 widening for langchain_huggingface
+- DoD-2 value arm (FAIL): SUBSTANTIVE root-cause cycle on paper-trading execution divergence
+- DoD-6 (UNKNOWN): LIVE TRIGGER -- autonomous loop sell-close + BQ COUNT probe
+- DoD-7 (PARTIAL): live Risk-Judge production-log evidence capture
+- DoD-9 (FAIL): PASSIVE WAIT -- 3 more clean cron cycles to reach 5-consecutive-completed
+
+**Masterplan status:** phase-43.0 STAYS `status: pending`. Cycle 20 is the SOFT STOP closure cycle; no masterplan edit.
+
+**Session totals:** 8 cycles (12-19 substantive + cycle 20 closure summary). 7 commits to origin/main (cycles 13-19; cycle 20 commit pending). Researcher gate passed 8/8. Q/A verdicts: 7 PASS + 1 cycle-1 CONDITIONAL legitimately caught + corrected via canonical cycle-2 flow (cycle 13). Zero rubber-stamping. Zero scope creep. All anti-pattern feedback-memories honored.
+
+**Stop condition declaration:** SOFT STOP per goal-(b). Next session resumes upon operator availability (phase-39.1 approval) and/or external triggers elapsing (DoD-9 cron cycles; DoD-6/7 autonomous-loop fires).
