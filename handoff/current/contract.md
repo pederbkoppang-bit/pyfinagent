@@ -1,72 +1,54 @@
-# Sprint Contract -- Cycle 1
-Generated: 2026-05-28T19:12:39.998155+00:00
+# Contract — cycle 17 / phase-43.0 DoD-2 pytest follow-up
+
+**Cycle:** 17 | **Date:** 2026-05-28 | **Sub-step of:** phase-43.0 (P1, H) | **Author:** Main
+
+---
+
+## Research-Gate Summary
+
+- Researcher subagent: `ad51c00cf2fe7d075`
+- Brief: `handoff/current/research_brief_phase_43_0_dod_2_pytest_followup.md`
+- `gate_passed: true` — 5 sources read in full (floor 5: unittest.mock docs, OneUptime pytest mocking Feb 2026, pytest-with-eric MagicMock raises, Carpentries Edge Cases, Wikipedia Boundary Testing), 15 URLs, recency scan, 3-variant queries.
+- Test skeleton ready-to-write in brief §7 (4 test functions).
+- Pattern: `backend/tests/test_phase_43_dod2_window.py` (NOT top-level `tests/`) per existing precedent at `backend/tests/test_dod4_tier1_coverage_investment.py`.
 
 ## Hypothesis
-Continue parameter optimization with random perturbation
 
-## Current Baseline
-- Sharpe: 1.1705
+Adding the 4-case pytest closes the cycle-16 Q/A NOTE (`financial-logic-without-behavioral-test` heuristic owed a follow-up pytest). Live-BQ smoke output in cycle-16 `experiment_results.md` already proved the helpers work end-to-end against real BQ; this cycle commits a CI-runnable test so future regressions are caught automatically.
 
-## Success Criteria (from evaluator_criteria.md)
-- Statistical Validity: DSR >= 0.95, Sharpe > 0
-- Robustness: ALL sub-periods Sharpe > 0
-- Reality Gap: 2x costs Sharpe > 0.5
+## Immutable success criteria
 
-## Planner Suggestions
-- PLATEAU: Last 10 experiments all discarded. Consider strategy change.
-- SATURATED: trailing_distance_pct has 23 consecutive discards. Excluding.
-- SATURATED: rsi_weight has 23 consecutive discards. Excluding.
-- SATURATED: n_estimators has 24 consecutive discards. Excluding.
-- SATURATED: sl_pct has 16 consecutive discards. Excluding.
-- SATURATED: volatility_weight has 17 consecutive discards. Excluding.
-- SATURATED: qm_weight has 23 consecutive discards. Excluding.
-- SATURATED: mr_holding_days has 13 consecutive discards. Excluding.
-- SATURATED: frac_diff_d has 11 consecutive discards. Excluding.
-- SATURATED: top_n_candidates has 15 consecutive discards. Excluding.
-- SATURATED: vol_barrier_multiplier has 16 consecutive discards. Excluding.
-- SATURATED: min_samples_leaf has 15 consecutive discards. Excluding.
-- SATURATED: momentum_weight has 21 consecutive discards. Excluding.
-- SATURATED: mr_weight has 12 consecutive discards. Excluding.
-- SATURATED: target_vol has 24 consecutive discards. Excluding.
-- SATURATED: learning_rate has 22 consecutive discards. Excluding.
-- SATURATED: holding_days has 24 consecutive discards. Excluding.
-- SATURATED: fm_weight has 22 consecutive discards. Excluding.
-- SATURATED: max_positions has 19 consecutive discards. Excluding.
-- SATURATED: trailing_stop_enabled has 22 consecutive discards. Excluding.
-- SATURATED: tb_weight has 20 consecutive discards. Excluding.
-- SATURATED: target_annual_vol has 19 consecutive discards. Excluding.
-- SATURATED: trailing_trigger_pct has 14 consecutive discards. Excluding.
-- SATURATED: tp_pct has 20 consecutive discards. Excluding.
-- SATURATED: sma_weight has 16 consecutive discards. Excluding.
-- SATURATED: strategy has 15 consecutive discards. Excluding.
-- SATURATED: max_depth has 15 consecutive discards. Excluding.
-- COORDINATED: barrier_shape group (tp_pct, sl_pct) has 1 kept / 37 discarded. Try moving params together.
-- STRATEGY: Current=triple_barrier. Consider switching to mean_reversion if plateau continues.
+1. `backend/tests/test_phase_43_dod2_window.py` exists with 4 test functions matching the brief §7 skeleton.
+2. `pytest backend/tests/test_phase_43_dod2_window.py -v` exits 0 with 4 passed.
+3. Tests use `MagicMock()` mocking pattern (no live BQ dependency for CI).
+4. No modifications to `backend/services/perf_metrics.py` (this is a pure test cycle).
 
-## Excluded Parameters
-- trailing_distance_pct
-- rsi_weight
-- n_estimators
-- sl_pct
-- volatility_weight
-- qm_weight
-- mr_holding_days
-- frac_diff_d
-- top_n_candidates
-- vol_barrier_multiplier
-- min_samples_leaf
-- momentum_weight
-- mr_weight
-- target_vol
-- learning_rate
-- holding_days
-- fm_weight
-- max_positions
-- trailing_stop_enabled
-- tb_weight
-- target_annual_vol
-- trailing_trigger_pct
-- tp_pct
-- sma_weight
-- strategy
-- max_depth
+**Verification commands:**
+```bash
+source .venv/bin/activate
+test -f backend/tests/test_phase_43_dod2_window.py && echo OK
+pytest backend/tests/test_phase_43_dod2_window.py -v
+git diff --stat backend/services/perf_metrics.py  # expect: empty (no changes)
+```
+
+## Plan Steps
+
+1. Write `backend/tests/test_phase_43_dod2_window.py` per brief §7 verbatim.
+2. Run pytest. Expect 4/4 passed.
+3. Write `experiment_results.md` with verbatim pytest output.
+4. Spawn Q/A (tight prompt; this is a small confirming cycle).
+5. Append harness_log.
+6. Commit + push.
+
+## What this cycle will NOT do
+
+- NOT modify perf_metrics.py.
+- NOT add new test infrastructure (no conftest.py, no fixtures, no CI yaml).
+- NOT close any DoD (purely follow-up; cycle 16 already shipped the instrument).
+
+## References
+
+- Cycle 17 brief: `handoff/current/research_brief_phase_43_0_dod_2_pytest_followup.md`
+- Cycle 16 evidence: `backend/services/perf_metrics.py:118-169` (helper), `:240-349` (extended gap fn)
+- Q/A cycle 16 NOTE: `financial-logic-without-behavioral-test` heuristic
+- Existing test precedent: `backend/tests/test_dod4_tier1_coverage_investment.py:312-705`

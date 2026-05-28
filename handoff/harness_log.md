@@ -25287,3 +25287,37 @@ Cycle 16 value: callers can now request `compute_sharpe_gap(bq, window_days=30)`
 **Masterplan status policy:** phase-43.0 STAYS `status: pending`. Cycle 16 closes ZERO DoDs (measurement-only). Manual commit + push (no auto-push trigger).
 
 **Session status:** 5 cycles completed (cycle 12 audit + cycles 13/14 closed DoD-14/DoD-5 + cycles 15/16 = DoD-2 wording fix + measurement instrumentation). Soft stop at 8 cycles per goal; 3 budget remaining. Of remaining open DoDs: DoD-1 owner-gated; DoD-2 substantive value-arm (separate root-cause cycle); DoD-6/7 require live cycles to fire; DoD-9 requires 5 cron cycles to elapse (passive wait). Realistic in-session closures from here: minimal without external triggers. Next cycle candidate: follow-up pytest from Q/A's NOTE (test_phase_43_dod2_window.py), OR another doc-edit closure on DoD-11 if needed, OR pause for operator + external conditions.
+
+## Cycle 17 -- 2026-05-28 19:45-20:05 CEST -- phase=43.0/DoD-2 result=PASS (pytest follow-up; no DoD flip)
+
+**Trigger:** Cycle-16 Q/A `a30ae6755518b9ced` NOTE on `financial-logic-without-behavioral-test` heuristic (perf_metrics.py modified without committed pytest; live-BQ smoke sufficient for cycle 16 but follow-up pytest owed).
+
+**Researcher:** `ad51c00cf2fe7d075`, tier=simple, `gate_passed: true`. Output `handoff/current/research_brief_phase_43_0_dod_2_pytest_followup.md`. 5 sources in full (unittest.mock docs, OneUptime pytest mocking Feb 2026, pytest-with-eric MagicMock raises, Carpentries Edge Cases, Wikipedia Boundary Testing). 15 URLs. Recency scan + 3-variant queries. Brief §7 contained ready-to-write skeleton.
+
+**Implementation:** new file `backend/tests/test_phase_43_dod2_window.py` (152 lines, 4 test functions). Pure test cycle; zero source-code modification (git diff --stat `backend/services/` empty).
+
+Test coverage matrix:
+- Test 1: `window_days < 6` -> None + `assert_not_called` (early-return guard at perf_metrics.py:145)
+- Test 2: `len(window) < 6` post-slice -> None + verifies BQ called with `limit=60` (post-slice guard at :161-162)
+- Test 3: windowed != legacy on synthetic 60-snap divergent series (proves slice path is exercised, not aliased; diff = 28.11 verified by Q/A)
+- Test 4: `compute_sharpe_gap(bq)` with `window_days=None` produces same live_sharpe as direct `compute_sharpe_from_snapshots(snaps)`, same `limit=365` call, same output dict keys, same threshold=0.30
+
+**In-cycle bug fixes during GENERATE (legitimate, not weakenings):**
+- Test 3 initial failure: synthetic monotone uptrend produced Sharpe > 100, hit `compute_sharpe_from_snapshots:113` clamp to 0.0, which my helper translates to None. Fixed by adding `random.uniform(-0.3, 0.3)` noise to both halves so Sharpe stays in finite range. Load-bearing assertion `windowed != legacy` preserved.
+- Test 4 initial failure: `compute_sharpe_gap` legitimately calls `bq.get_paper_snapshots` twice (once for live_sharpe, once via `_shadow_curve_sharpe` fallback when `optimizer_best.json` absent in test env). Fixed by relaxing `assert_called_once_with(limit=365)` to "at least one call with limit=365". Load-bearing piece (limit=365 call shape) preserved.
+
+**pytest result:** `4 passed in 1.30s`.
+
+**Q/A verdict:** `a61602a0f7c6b8db9` returned PASS (`ok: true`). All 5 harness audit items green. All 5 deterministic checks pass (file exists, pytest 4/4, source untouched, MagicMock used, 4 test functions). LLM judgment: tests load-bearing not tautological; in-cycle fixes legitimate workarounds; mutation resistance STRONG on Tests 1/3/4, PARTIAL on Test 2 (post-slice guard removal masked by downstream line-166 0.0->None clamp -- but the partial gap doesn't translate to production silent-wrong because line 166 provides defense-in-depth; severity NOTE-only transparency disclosure, not a blocker). Code-review heuristics across 5 dimensions: zero security/trading-domain/anti-rubber-stamp findings; `financial-logic-without-behavioral-test` from cycle 16 now RESOLVED.
+
+**Success criteria mapping:**
+- File `backend/tests/test_phase_43_dod2_window.py` exists with 4 test functions: **MET**
+- `pytest backend/tests/test_phase_43_dod2_window.py -v` exits 0 with 4 passed: **MET**
+- Tests use `MagicMock()` pattern (no live BQ dependency for CI): **MET** (6 MagicMock references)
+- No modifications to `backend/services/perf_metrics.py`: **MET** (git diff --stat empty)
+
+**Cumulative tally:** **11 most-generous / 7 literal of 14 PASS** (unchanged). Cycle 17 adds test coverage; no DoD count change.
+
+**Masterplan status policy:** phase-43.0 STAYS `status: pending`. Manual commit + push.
+
+**Session status:** 6 cycles completed (12 audit + 13 DoD-14 + 14 DoD-5 + 15 DoD-2 wording + 16 DoD-2 measurement + 17 pytest). Soft-stop budget: 2 cycles remaining. Of remaining open DoDs, only DoD-11 (already PARTIAL PASS per cycle 12) is potentially closeable as a small doc-edit cycle; DoD-1/2-value/6/7/9 all require external triggers. Realistic remaining cycles: cycle 18 could close DoD-11 with a roadmap §6 wording edit (add explicit "phase-42 deferred" disposition + OPEN-27 auto-memory references); cycle 19 writes `handoff/current/cycle_block_summary.md` at SOFT STOP.
