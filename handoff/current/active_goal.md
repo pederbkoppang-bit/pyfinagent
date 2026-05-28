@@ -45,4 +45,5 @@ commit/push to main.
 - SOFT STOP: 12 cycles elapsed OR a blocker needing operator -> write summary + crisp ask.
 
 ## Cycle ledger (this run)
-- Cycle 1 = phase-44.1 "Restore historical_prices freshness" (prerequisite to trading). IN PROGRESS.
+- Cycle 1 = phase-47.1 "Restore historical_prices freshness". DONE (PASS, committed d33e7197, pushed). Band red->green; 5-month gap filled; daily refresh rewired + UTC crons + catch-up-on-start.
+- Cycle 2 = phase-47.2 "First autonomous trade end-to-end". IN PROGRESS. Research REFUTED the diagnostic: real cause = `decide_trades` blocks ALL buys on per-sector COUNT cap (`portfolio_manager.py:264-271`; book 7 Tech + 1 Industrials, candidates all Tech semis, max_per_sector=2) with no rotation; sod_date already wired (no fix). Plan: restart backend to load committed swap-rotation code (69c710ec) -> real cycle rotates weakest Tech holding into top candidate (Fix A); B1 swap-robustness / B2 cap 2->3 as escalation. VALIDATION cycle incurs Gemini LLM cost -> OPERATOR-GATED (or daily cron tomorrow 14:00 runs it free with the now-loaded rotation code).

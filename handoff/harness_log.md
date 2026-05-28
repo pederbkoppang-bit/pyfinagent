@@ -25433,3 +25433,31 @@ The TIMESTAMP-branch dual-assertion (`MAX present` AND `SAFE.TIMESTAMP absent`) 
 **Q/A:** cycle-1 `ad63febb6bb3b3c81` = **CONDITIONAL** (legitimate catch: misfire 3600->21600 left `test_register_phase9_grace_times_per_tier` RED). Canonical cycle-2 flow: fixed the guard to assert 21600 (re-pointed, not dropped), de-fragilized a pre-existing red source-grep test, AND swept all consumers -> found+fixed 2 more wiring tests in `test_phase9_production_wiring.py` (now assert run_production). 5 affected test files: 30 passed. Fresh Q/A `ae6fd302d828d9d68` = **PASS** (`ok:true`): guards FIXED not gutted (net assertions 14->15, 21->25; mutation-resistance proven both directions), all 5 immutable criteria MET, harness compliance 5/5, no goalpost-moving.
 
 **Note:** verification.command had a response-shape bug (sources is a dict, not a list) corrected pre-Q/A (false-negative fix; success_criteria untouched) -- Q/A independently confirmed acceptable. This step makes prices fresh/durable; it does NOT itself produce a trade -> next cycle = phase-47.2 (empty new_candidates set, the direct no-trades unblocker).
+
+## Cycle 3 (production-ready+money push) -- 2026-05-29 -- phase=47.3 result=PASS
+
+**Context:** Cycle 2 (phase-47.2, first autonomous trade) is PARKED in-progress -- research REFUTED the
+diagnostic (real cause = per-sector COUNT cap blocks ALL buys without rotation, not empty candidates;
+sod_date already wired). Backend restarted to load the committed swap-rotation code; the VALIDATION
+cycle incurs Gemini LLM spend -> operator-gated (pushed; or the free daily cron tomorrow 14:00). So I
+advanced FREE work (priorities 3-7 are needed for HARD STOP regardless): phase-47.3 cost_tracker fix.
+
+**Step:** 47.3 -- Opus 4.8 cost_tracker pricing regression. FREE (no project LLM spend).
+
+**Researcher:** `a028675973fbfefd1`, tier=moderate, `gate_passed: true`. 5 sources in full, 17 URLs,
+recency scan (Opus 4.8 launched 2026-05-28), 9 internal files. Confirmed $5/$25 per 1M (= 4.7); found
+the regression PLUS 2 gap sites the diagnostic missed (settings_api allowlist + display table).
+
+**Implementation:** `cost_tracker.py:26` add `claude-opus-4-8:(5.00,25.00)` (was falling to
+_DEFAULT 0.10/0.40 -> 50x/62.5x understatement); `settings_api.py` allowlist + display-pricing 4-8
+rows; NEW `tests/agents/test_cost_tracker_pricing.py` (dict guard + BEHAVIORAL test calling real
+`CostTracker.record(model='claude-opus-4-8')` -> cost_usd==30.00 != default 0.50). model_tiers already
+4-8 (no action); max_tokens-at-xhigh clamp deferred (Gemini-locked); governance.py estimate out of scope.
+
+**Verification:** immutable cmd EXIT 0 (`PASS 4.8 pricing (5.0, 25.0)`, settings_api >=2 entries);
+pytest 2 passed; ast clean (3 files). `sovereign_api.py` imports MODEL_PRICING -> inherits fix.
+
+**Q/A:** fresh `a34c2995362dcb71f` = **PASS** (`ok:true`). All 3 criteria MET; behavioral test GENUINE
+(not tautological -- exercises the real lookup path); goalpost intact (new all-additive step, criteria
+verbatim with contract); completeness sweep confirmed all 3 gap sites patched; FREE-work sink-scan clean;
+harness compliance 5/5. One NOTE (non-degrading): cost_tracker.py:16 header date cosmetic-stale.

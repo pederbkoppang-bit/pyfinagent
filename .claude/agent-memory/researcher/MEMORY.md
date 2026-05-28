@@ -6,3 +6,4 @@
 - [phase-4.7.4 vitest + leaderboard conventions](project_474_vitest_leaderboard.md) — vitest Next.js 15 setup, --filter positional-arg fix, DSR/PBO colour thresholds, fake-timers polling pattern
 - [Research gate discipline — >=5 sources floor and stale file locations](project_research_gate_discipline.md) — phase-4.16.1 raised floor to >=5; stale context/research-gate.md and mas-architecture.md identified
 - [BigQuery dataset locations](project_bq_dataset_locations.md) — financial_reports lives in us-central1 (NOT US); outcome_tracking + agent_memories + paper_* tables live there; pyfinagent_data and pyfinagent_pms are US; timestamp col conventions per table
+- [LLM cost/pricing tables inventory](project_cost_pricing_tables_inventory.md) — 3+ independent pricing tables (cost_tracker MODEL_PRICING canonical, settings_api display list, governance rough estimate); patch ALL on model add; Opus 4.8=$5/$25

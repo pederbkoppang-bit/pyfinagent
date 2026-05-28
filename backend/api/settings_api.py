@@ -28,7 +28,7 @@ _VALID_MODELS = {
     "gpt-5", "gpt-5-chat", "gpt-5-mini", "gpt-5-nano",
     "o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o4-mini",
     # Anthropic — current GA
-    "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5", "claude-opus-4-1",
+    "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5", "claude-opus-4-1",
     "claude-sonnet-4-6", "claude-sonnet-4-5", "claude-haiku-4-5",
     # Legacy — retire 2026-06-15
     "claude-sonnet-4", "claude-opus-4",
@@ -211,6 +211,7 @@ AVAILABLE_MODELS = [
     {"model": "o3-mini",       "provider": "GitHub Models", "input_per_1m": 1.10,  "output_per_1m": 4.40,   "copilot_multiplier": 0.33, "context_limited": True},
     {"model": "o4-mini",       "provider": "GitHub Models", "input_per_1m": 1.10,  "output_per_1m": 4.40,   "copilot_multiplier": 0.33},
     # ── Anthropic direct — current GA ──
+    {"model": "claude-opus-4-8",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
     {"model": "claude-opus-4-7",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
     {"model": "claude-opus-4-6",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
     {"model": "claude-opus-4-5",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},

@@ -13250,7 +13250,7 @@
         {
           "id": "47.2",
           "name": "First autonomous trade end-to-end (empty new_candidates set + sod_date roll)",
-          "status": "pending",
+          "status": "in-progress",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "47.1",
@@ -13264,6 +13264,26 @@
               "live_check_47.2.md captures the run-now response + BQ paper_trades row dated today"
             ],
             "live_check": "live_check_47.2.md captures run-now n_trades + BQ paper_trades row dated today."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "47.3",
+          "name": "Opus 4.8 cost_tracker pricing regression (claude-opus-4-8 missing from MODEL_PRICING + settings_api)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_phase_47_3_cost_tracker.md: commit 8ecc9efe bumped model_tiers 4.7->4.8 but not the pricing tables. claude-opus-4-8 absent from cost_tracker.MODEL_PRICING (falls to _DEFAULT 0.10/0.40 -> ~50x in / 62.5x out understatement) AND from settings_api.py model allowlist + display-pricing table. Opus 4.8 = $5/$25 per 1M confirmed (Anthropic pricing + 4.8 launch). Corrupts the Compute term of Net System Alpha. model_tiers already 4-8 (no action). max_tokens-at-xhigh clamp is a separate latent follow-up (Gemini-locked today).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"from backend.agents.cost_tracker import MODEL_PRICING, _DEFAULT_PRICING as D; o8=MODEL_PRICING.get('claude-opus-4-8'); assert o8==MODEL_PRICING['claude-opus-4-7'] and o8!=D, o8; print('PASS 4.8 pricing', o8)\" && test $(grep -c 'claude-opus-4-8' backend/api/settings_api.py) -ge 2 && echo 'settings_api 4.8 entries OK'",
+            "success_criteria": [
+              "MODEL_PRICING['claude-opus-4-8'] == MODEL_PRICING['claude-opus-4-7'] == (5.00, 25.00) and != _DEFAULT_PRICING in backend/agents/cost_tracker.py",
+              "claude-opus-4-8 present in backend/api/settings_api.py model allowlist AND display-pricing table at 5.00/25.00 (>=2 occurrences)",
+              "a pytest regression guard asserts the 4.8 pricing entry (== 4.7, != default) and passes; ast.parse clean on all edited files"
+            ],
+            "live_check": "n/a -- deterministic import assert + grep; no live system needed."
           },
           "retry_count": 0,
           "max_retries": 3

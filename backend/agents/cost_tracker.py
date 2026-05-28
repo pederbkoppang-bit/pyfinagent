@@ -23,6 +23,7 @@ MODEL_PRICING: dict[str, tuple[float, float]] = {
     "gemini-2.5-flash": (0.15, 0.60),
     "gemini-2.5-pro": (1.25, 10.00),
     # Anthropic Claude — current GA (Opus 4.x, Sonnet 4.6, Haiku 4.5)
+    "claude-opus-4-8": (5.00, 25.00),  # phase-47.3: launched 2026-05-28, $5/$25 (same as 4.7)
     "claude-opus-4-7": (5.00, 25.00),
     "claude-opus-4-6": (5.00, 25.00),
     "claude-opus-4-5": (5.00, 25.00),
