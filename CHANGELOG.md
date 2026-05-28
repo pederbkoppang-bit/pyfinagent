@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `b203bdbe` | docs(handoff): SOFT STOP summary + ledger for production-ready push (47.1/47.3/47.4 done; 47.2 opera |
 | 2026-05-29 | `e3a6b4c7` | phase-47.4: Sharpe/maxDD metric integrity (chronological-order fix in perf_metrics + go-live gate) |
 | 2026-05-29 | `7f4d39cd` | phase-47.3: Opus 4.8 cost_tracker pricing regression (claude-opus-4-8 missing from MODEL_PRICING ... |
 | 2026-05-28 | `d33e7197` | phase-47.1: Restore historical_prices freshness (rewire daily_price_refresh -> ingest_prices full... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-27 | `10031255` | fix(verify): cycle 7 closure correction -- 38.12 done, 27.6 stays pending, 38.13 added |
 | 2026-05-27 | `9c0fdc82` | docs(verify): cycle 6 BLOCKED on cycle-timeout-vs-Claude-Code-rail mismatch |
 | 2026-05-27 | `8cfb0a42` | docs(masterplan): phase-46 Market Insight page scoping (operator-requested, 9 subphases) |
-| 2026-05-26 | `8b43cd0a` | feat(llm): cycle 5 settings exposure + binary-path fix + --max-tokens removal + masterplan 38.10/38. |
 
 ---
 
