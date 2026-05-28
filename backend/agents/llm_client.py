@@ -468,6 +468,7 @@ GITHUB_MODELS_CATALOG: set[str] = {
     "o3-mini",
     "o4-mini",
     # Anthropic models (current GA via direct API; deprecated 4/4.5 via GitHub Models)
+    "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-opus-4-6",
     "claude-opus-4-5",
@@ -580,6 +581,7 @@ _GITHUB_MODELS_ID_MAP: dict[str, str] = {
     "o3-mini":          "openai/o3-mini",
     "o4-mini":          "openai/o4-mini",
     # Anthropic — anthropic/{model_name}
+    "claude-opus-4-8":   "anthropic/claude-opus-4-8",
     "claude-opus-4-7":   "anthropic/claude-opus-4-7",
     "claude-opus-4-6":   "anthropic/claude-opus-4-6",
     "claude-opus-4-5":   "anthropic/claude-opus-4-5",
@@ -1373,13 +1375,14 @@ class ClaudeClient(LLMClient):
         # Extended thinking - model-gated.
         # MF-29 (2026-04-18): Opus 4.7 REJECTS manual
         # {type:"enabled",budget_tokens}; it only accepts adaptive.
+        # Opus 4.8 (2026-05-28) likewise rejects manual; adaptive only.
         # Legacy models (Opus 4.5 and older, 3.7) still use manual.
         # Sonnet 4.6 / Haiku 4.5 accept both; we use adaptive.
         thinking_cfg = config.get("thinking") or {}
         thinking_requested = isinstance(thinking_cfg, dict) and thinking_cfg.get("budget_tokens", 0) > 0
         model_id = self.model_name or ""
         if thinking_requested:
-            if model_id.startswith(("claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5")):
+            if model_id.startswith(("claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5")):
                 # Adaptive path (no budget_tokens accepted).
                 kwargs["thinking"] = {"type": "adaptive"}
             else:
@@ -1395,8 +1398,10 @@ class ClaudeClient(LLMClient):
         # "What's new in Claude Opus 4.7" doc -- the restriction is
         # model-wide, not thinking-gated). Strip AFTER the thinking
         # branch above so the temperature=1 override does not leak
-        # into 4.7 calls either.
-        if model_id.startswith("claude-opus-4-7"):
+        # into 4.7 calls either. 2026-05-28: Opus 4.8 inherits the
+        # same restriction (adaptive-thinking only, no sampling
+        # params); applies to both prefixes.
+        if model_id.startswith(("claude-opus-4-8", "claude-opus-4-7")):
             kwargs.pop("temperature", None)
             kwargs.pop("top_p", None)
             kwargs.pop("top_k", None)
@@ -1409,8 +1414,8 @@ class ClaudeClient(LLMClient):
         #   2. thinking_cfg["effort"] (legacy nesting from older callers)
         #   3. role_hint via config["_role"] -> resolve_effort(role)
         #   4. model-ID prefix fallback -> resolve_effort_by_model(id)
-        # xhigh guard: xhigh is Opus 4.7 only. Downgrade to high with
-        # a WARNING log if applied to any other model.
+        # xhigh guard: xhigh is Opus 4.8 / 4.7 only. Downgrade to
+        # high with a WARNING log if applied to any other model.
         # Model-support guard: Haiku 4.5 and non-Claude models are not
         # in Anthropic's supported-for-effort list; omit output_config.
         from backend.config.model_tiers import (
@@ -1436,9 +1441,9 @@ class ClaudeClient(LLMClient):
                 effort, model_id,
             )
             effort = None
-        if effort == "xhigh" and not model_id.startswith("claude-opus-4-7"):
+        if effort == "xhigh" and not model_id.startswith(("claude-opus-4-8", "claude-opus-4-7")):
             logger.warning(
-                "[ClaudeClient] xhigh downgraded to high; %s is not opus-4-7",
+                "[ClaudeClient] xhigh downgraded to high; %s is not opus-4-8/4-7",
                 model_id,
             )
             effort = "high"
@@ -1468,9 +1473,9 @@ class ClaudeClient(LLMClient):
         # server-side. Response text is still parsed by the caller via
         # backend.utils.json_io.loads -- we do NOT switch to .parse()
         # here (that would change LLMResponse shape; out-of-scope).
-        # Supported on Opus 4.7, Opus 4.6, Sonnet 4.6, Haiku 4.5.
+        # Supported on Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 4.6, Haiku 4.5.
         _fmt_eligible = model_id.startswith((
-            "claude-opus-4-7", "claude-opus-4-6",
+            "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6",
             "claude-sonnet-4-6", "claude-haiku-4-5",
         ))
         if schema is not None and _fmt_eligible:
@@ -1971,9 +1976,9 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
 # advisor pass (opus rates, only if invoked). The agent='<role>_advisor_tool'
 # encoding satisfies live_check without a BQ schema migration.
 #
-# Pairing constraints (per Anthropic docs 2026-05-16):
-#   executor: claude-haiku-4-5-* | claude-sonnet-4-6 | claude-opus-4-6 | claude-opus-4-7
-#   advisor:  claude-opus-4-7  (the only valid advisor model in the current table)
+# Pairing constraints (per Anthropic docs 2026-05-28):
+#   executor: claude-haiku-4-5-* | claude-sonnet-4-6 | claude-opus-4-6 | claude-opus-4-7 | claude-opus-4-8
+#   advisor:  claude-opus-4-8 (default; claude-opus-4-7 also valid as legacy fallback)
 #   Invalid pair -> HTTP 400 invalid_request_error.
 #
 # NOT supported on Bedrock or Vertex AI. pyfinagent uses Anthropic direct API.
@@ -1981,7 +1986,7 @@ def advisor_call(
     prompt: str,
     system_prompt: str = "",
     executor_model: str = "claude-sonnet-4-6",
-    advisor_model: str = "claude-opus-4-7",
+    advisor_model: str = "claude-opus-4-8",
     max_uses: int = 2,
     role: Optional[str] = None,
     max_tokens: int = 4096,

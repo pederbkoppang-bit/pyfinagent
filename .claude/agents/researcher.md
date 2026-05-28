@@ -4,8 +4,10 @@ description: MUST BE USED before every PLAN phase. Combined external-literature 
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage
 model: opus
 maxTurns: 30
-# phase-29.2 (2026-05-18): codified Opus 4.7 + max effort per operator
-# directive (overnight pre-approval). Rationale: Max-subscription flat-fee
+# phase-29.2 (2026-05-18): codified Opus + max effort per operator
+# directive (overnight pre-approval). 2026-05-28: `model: opus` alias
+# now resolves to Opus 4.8 (was 4.7 until flagship release day).
+# Rationale: Max-subscription flat-fee
 # removes per-token ceiling; 17-pt GPQA Diamond + 79-Elo GDPval-AA gap over
 # Sonnet 4.6 favours quality-depth on the research-synthesis role. Researcher
 # fires once per masterplan step (not per ticker), so token cost is contained.

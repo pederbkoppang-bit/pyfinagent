@@ -205,8 +205,8 @@ User (Slack / iMessage / webchat)
                ▼                                        ▼
 ┌──────────────────────┐  ┌──────────┐  ┌──────────────────┐
 │ Ford (Slack Orch.)   │  │ Analyst  │  │ Slack Researcher │
-│ claude-opus-4-7      │  │ (Q&A)   │  │ claude-sonnet-4-6│
-│ max: 1500 tok        │  │ opus-4-7│  │ max: 3000 tok    │
+│ claude-opus-4-8      │  │ (Q&A)   │  │ claude-sonnet-4-6│
+│ max: 1500 tok        │  │ opus-4-8│  │ max: 3000 tok    │
 │ Orchestrates, plans  │  │ max:2500│  │ Literature, arXiv │
 │ Triggers harness     │  │ Quant   │  │ Papers, evidence  │
 │ Delegates to QA/Res  │  │ analysis│  │ RESEARCH.md       │

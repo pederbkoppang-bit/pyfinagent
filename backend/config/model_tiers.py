@@ -43,9 +43,12 @@ _BUILD_TIER: dict[str, str] = {
     # agent_definitions.py:127
     "mas_communication": "claude-sonnet-4-6",
     # agent_definitions.py:177
-    "mas_main": "claude-opus-4-7",
+    # 2026-05-28: bumped 4-7 -> 4-8 on flagship Opus release day.
+    # Same $5/$25 pricing, same TPM tier, strict improvement on
+    # agentic coding + honesty per Anthropic news + benchmarks.
+    "mas_main": "claude-opus-4-8",
     # agent_definitions.py:225
-    "mas_qa": "claude-opus-4-7",
+    "mas_qa": "claude-opus-4-8",
     # agent_definitions.py:271
     "mas_research": "claude-sonnet-4-6",
     # scripts/autoresearch/run_memo.py env_defaults
@@ -54,7 +57,7 @@ _BUILD_TIER: dict[str, str] = {
     # fell through to Gemini). MF-47.
     "autoresearch_fast": "claude-haiku-4-5",
     "autoresearch_smart": "claude-sonnet-4-6",
-    "autoresearch_strategic": "claude-opus-4-7",
+    "autoresearch_strategic": "claude-opus-4-8",
     # settings.py:28 -- TRULY Gemini-locked (Vertex AI Search / Search Grounding /
     # Vertex structured-output schemas). DO NOT swap to Claude.
     "gemini_enrichment": "gemini-2.0-flash",
@@ -164,20 +167,21 @@ def build_tier_snapshot() -> dict[str, str]:
 # (https://platform.claude.com/docs/en/build-with-claude/effort) list
 # the supported levels as low / medium / high / xhigh / max. Two hard
 # constraints we have to respect:
-#   - "xhigh" is accepted only by claude-opus-4-7. Sending it to any
-#     other model returns a 400. We downgrade xhigh to high in
-#     llm_client when the target is not Opus 4.7.
+#   - "xhigh" is accepted only by claude-opus-4-8 and claude-opus-4-7.
+#     Sending it to any other model returns a 400. We downgrade xhigh
+#     to high in llm_client when the target is not one of those two.
 #   - Haiku 4.5 is not listed as a supported model for output_config.
 #     We omit effort entirely on Haiku routes (value = None).
 # API implicit default when effort is omitted = "high".
 # Sonnet 4.6 recommended default in the docs is "medium" (the docs say
 # to "explicitly set" it to avoid unexpected latency at high).
-# Opus 4.7 recommended default for coding/agentic = "xhigh".
+# Opus 4.8 / 4.7 recommended default for coding/agentic = "xhigh".
 # -----------------------------------------------------------------------
 
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
 
 EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
+    "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-opus-4-6",
     "claude-opus-4-5",
@@ -191,7 +195,9 @@ EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
 # Source of truth for per-model recommendations:
 # https://platform.claude.com/docs/en/build-with-claude/effort
 #
-# Anthropic guidance (verbatim, 2026-05-16 fetch):
+# Anthropic guidance (verbatim, 2026-05-28 fetch):
+# - Claude Opus 4.8: "The guidance for Claude Opus 4.7 also applies to
+#   Claude Opus 4.8. Start with `xhigh` for coding and agentic use cases."
 # - Claude Opus 4.7: "Start with `xhigh` for coding and agentic use cases, and
 #   use `high` as the minimum for most intelligence-sensitive workloads."
 # - Claude Sonnet 4.6: "Medium effort (recommended default): best balance of
@@ -199,9 +205,9 @@ EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
 #
 # Applied below:
 # - mas_communication (Sonnet 4.6, low-volume notification routing): low.
-# - mas_main (Opus 4.7, primary orchestrator agentic role): xhigh per doc.
-#   Was "high" pre-2026-05-16; raised per the doc's "xhigh is the recommended
-#   STARTING point for Opus 4.7 coding and agentic work."
+# - mas_main (Opus 4.8 as of 2026-05-28, primary orchestrator agentic role):
+#   xhigh per doc. Was "high" pre-2026-05-16; raised per the doc's "xhigh is
+#   the recommended STARTING point for coding and agentic work."
 # - mas_qa (Sonnet 4.6, quality-critical eval): high per doc's "high for
 #   complex reasoning where quality matters more than speed".
 # - mas_research (Sonnet 4.6, balanced lit search): medium (recommended default).
@@ -225,6 +231,7 @@ EFFORT_DEFAULTS: dict[str, Effort | None] = {
 }
 
 MODEL_EFFORT_FALLBACK: tuple[tuple[str, Effort | None], ...] = (
+    ("claude-opus-4-8",   "xhigh"),
     ("claude-opus-4-7",   "xhigh"),
     ("claude-opus-4-6",   "high"),
     ("claude-opus-4-5",   "high"),
