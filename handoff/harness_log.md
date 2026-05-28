@@ -25087,3 +25087,41 @@ Deterministic spot-checks on 5 sampled DoDs all matched Main's verdicts: DoD-1 l
 **Citation requirement:** NOT APPLICABLE per goal mandate. Audit cycle is not a trading-policy change. Researcher floor (>=5 sources / >=10 URLs / recency scan) IS satisfied (6 in full / 19 collected URLs).
 
 **Stop-condition contribution:** 43.0 IS the production_ready stop-condition gate. This cycle PRODUCES the audit DELIVERABLE; the GATE-PASS is contingent on closing the 5 FAIL + 3 PARTIAL/UNKNOWN in future cycles. Estimated 4-6 follow-up cycles to close-out: phase-39.1 (DoD-1), phase-35.1/2/3 live_checks (DoD-6/7/9), DoD-2 walk-forward instrumentation, DoD-5 freshness wiring, DoD-14 doc-edit, DoD-11 doc-edit.
+
+## Cycle 13 -- 2026-05-28 17:00-17:55 CEST -- phase=43.0/DoD-14 result=PASS (cycle-2)
+
+**Trigger:** Goal directive picked DoD-14 closure as cycle 13 target (smallest closure path, demonstrates the loop). DoD-14 was FAIL in cycle 12 (7 of 10 OWASP LLM categories tagged; LLM04/05/09 missing explicit tags).
+
+**Researcher:** `ab4ba0f2a92122dee`, tier=moderate, `gate_passed: true`. Output `handoff/current/research_brief_phase_43_0_dod_14_owasp.md`. 10 external sources read in full (floor 5: OWASP canonical pages for LLM04/05/09 + OWASP index + Repello AI 2026 status + StackHawk/FireTail/Indusface LLM05 detection patterns + TrustTrade arXiv 2603.22567 + Q2 2026 OWASP landscape update). 21 URLs collected. Recency scan: no new OWASP LLM Top-10 list since March 2025 (Q2 2026 OWASP work is Agentic ASI + Red Teaming, NOT LLM Top-10 revision). 3-variant queries documented. 8 internal files inspected.
+
+**Edits applied to `.claude/skills/code-review-trading-domain/SKILL.md`:**
+
+- **Edit A (cosmetic, line 102 area):** "v2.0 (2025)" -> "OWASP Top 10 for LLM Applications 2025" (canonical name per OWASP; OWASP does not use the "v2.0" label). Added release date (March 12, 2025). Added LLM04 repurposing note (Model Denial of Service in v1.1 -> Data and Model Poisoning in 2025). Added 3 canonical OWASP-page links (LLM04/05/09).
+- **Edit B (LLM04 sentinel, new row in Dimension 1 security table):** `llm04-training-code-added [LLM04:2025]` NOTE-severity row. Grep covers training/fine-tuning code patterns. Default state N/A (pyfinagent uses hosted LLM APIs only — no in-house training or fine-tuning). Auto-promotes to BLOCK if a future diff introduces training code. Negation-list bullet documents the N/A justification.
+- **Edit C (LLM05 explicit tag, line 81):** appended `[LLM05:2025]` to existing `insecure-output-handling` BLOCK heuristic. Expanded detection cue from 1 sub-sink to 5 (command-injection / SQL-injection / path-traversal / SSRF / XSS/HTML-injection) per OWASP canonical + StackHawk + FireTail + Indusface consensus.
+- **Edit D (LLM09 new BLOCK, Dimension 2 trading-domain table):** `llm-output-to-execution-without-validation [LLM09:2025]` BLOCK heuristic. Targets LLM output reaching `paper_trader.execute_buy()` (`paper_trader.py:85`) / `execute_sell()` (`:299`) / signal emission (`agents/mcp_servers/signals_server.py`, `services/{pead,insider_signal_screen,defense}_signal.py`) WITHOUT structured-output enforcement + numeric-range clamping. Auditable grep cue. Negation list (CORRECTED in cycle-2, see below) characterizes the existing pipeline by validator-mechanism.
+
+**Q/A verdict chain (canonical cycle-2 flow):**
+
+- **Cycle-13 cycle-1 (`a775b0e1987da8700`): CONDITIONAL.** Single defect: SKILL.md:129 negation list and contract criterion #3 falsely claimed all 3 deterministic signal files (`pead_signal.py`, `insider_signal_screen.py`, `defense_signal.py`) have zero LLM API calls. Main's verification grep was scoped to 2 of 3 files; Q/A re-ran with all 3 and found 6 LLM matches in `pead_signal.py` (ClaudeClient import at `:277`, claude-haiku-4-5 model at `:279`, generate_content call at `:288`). The false negation-list claim would silently disable the new LLM09 BLOCK heuristic on the one in-tree LLM-driven call site it targets — a self-defeating defect.
+- **Main's cycle-2 fix:** SKILL.md:129 negation list rewritten to characterize the pipeline by VALIDATOR MECHANISM (not deterministic-vs-LLM-driven). Two buckets: (a) Fully deterministic (no LLM call): `insider_signal_screen.py`, `defense_signal.py` -- verified zero matches; (b) LLM-driven WITH structured-output validators: `pead_signal.py` -- IS LLM-driven, BUT routes through `response_schema=cleaned_schema` + `response_mime_type="application/json"` (`:285, :291-292`) + Pydantic `PeadSignalOutput.model_validate` (`:312`) + `sentiment_score` clamp `[0.0, 1.0]` (`:305-306`) + `holding_window_days` whitelist (`:307-308`) + `_fallback(...)` on any error (`:298-299, :315`) + downstream `apply_pead_to_score()` filter (`:382`) + screener `if new_score is None: continue` (screener.py:286-287). These collectively satisfy LLM09 prevention guidance. Negation rule rewritten: only flag NEW paths wiring LLM output to execute_buy/execute_sell WITHOUT BOTH structured-output enforcement AND numeric-range clamping. Updated contract success criterion #3 + experiment_results.md cycle-2 correction section.
+- **Cycle-13 cycle-2 (`aa01c12e83b8d71d8`): PASS.** All 6 deterministic verification commands pass. All 9 cited pead_signal.py line numbers verified exact. LLM09 protection chain closes end-to-end (validated via screener.py:283-288 trace -- None return causes continue/filter before execute_buy). Hypothetical new "ask Claude what to buy and execute directly" path WOULD be flagged by the updated heuristic per its negation rule. 5-item harness audit clean. Evidence CHANGED between cycle-1 and cycle-2 (SKILL.md:129 + contract.md criterion #3 + experiment_results.md all edited) -- documented file-based cycle-2 pattern, NOT verdict-shopping (`Circular_Reasoning` rule explicitly cleared). No regression on LLM01-08/10 tags.
+
+**Success criteria mapping (derived from master_roadmap DoD-14 + cycle 12 audit gap):**
+
+- `grep -oE "LLM0[1-9]|LLM10" SKILL.md | sort -u | wc -l` = **10** (immutable criterion #1 satisfied)
+- `grep -c "v2.0 (2025)" SKILL.md` = **0** (cosmetic fixed)
+- `grep -c "OWASP Top 10 for LLM Applications 2025" SKILL.md` = **1** (canonical name present)
+- `grep -c "pead_signal|insider_signal_screen|defense_signal" SKILL.md` = **3** (all 3 signal files cited in negation list)
+- LLM09 negation list correctly characterizes pead_signal.py as LLM-driven with explicit validators (Q/A-confirmed: validator-mechanism not deterministic-claim)
+- No regression on LLM01/02/03/06/07/08/10 existing tags
+
+**Cycle-12 audit tally update:** DoD-14 flips from FAIL to PASS. Cumulative count: **10 most-generous / 6 literal of 14 PASS** (was 9 / 5 after cycle 12). Remaining open: DoD-1 (phase-39.1, owner-gated), DoD-2 (walk-forward instrumentation), DoD-5 (freshness wiring), DoD-6 (BQ probe), DoD-7 (Risk Judge runtime evidence), DoD-9 (5-cycle stability), DoD-11 (3 IDs documented-deferral — possibly doc-edit closure).
+
+**Masterplan status policy:** phase-43.0 STAYS `status: pending`. Cycle 13 closes ONE of 14 DoDs. The gate-PASS flip is reserved for the final 43.0 re-audit cycle when all 14 PASS. No masterplan edit this cycle -> auto-push hook does not fire -> manual commit + push per `feedback_auto_commit_hook_stalls`.
+
+**Operator visual verification:** open `.claude/skills/code-review-trading-domain/SKILL.md` to read the 4 edits. The new LLM09 BLOCK heuristic + LLM04 sentinel will pick up automatically on next Q/A spawn (SKILL.md is preloaded into Q/A context per its frontmatter).
+
+**Stop-condition contribution:** 1 of 7 remaining DoDs closed. Cycle 13 reduces DoD-closure-cycles-remaining from ~7 to ~6 (phase-39.1 widening + DoD-2 instrumentation + DoD-5 wiring + DoD-6 probe + DoD-7 runtime + DoD-9 streak + final 43.0 re-audit). Per goal stop-condition: SOFT STOP at 8 cycles is feasible if the next 6 close cleanly; HARD STOP (43.0 done with all 14 PASS) is the target.
+
+**Cycle 14 candidate** (per goal directive ordering): phase-39.1 widening to cover `langchain_huggingface ModuleNotFoundError`. OWNER-GATED -- pause for approval before pip install / requirements.txt edit.
