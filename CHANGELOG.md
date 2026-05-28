@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-28 | `14495ac6` | feat(perf_metrics): cycle 16 DoD-2 Option A+ windowed paper-Sharpe instrumentation |
 | 2026-05-28 | `5bed32b0` | docs(roadmap): cycle 15 DoD-2 wording fix -- criterion-statistics mismatch |
 | 2026-05-28 | `87edd880` | fix(observability): cycle 14 closes DoD-5 -- freshness probe SAFE.TIMESTAMP |
 | 2026-05-28 | `2802fa5b` | docs(skill): cycle 13 closes DoD-14 -- OWASP LLM04/05/09 explicit tags |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-26 | `12c577bd` | feat(ux): cycle 76 NumberFlow trend color tint + 700ms slide |
 | 2026-05-26 | `2e679e1d` | fix(ux): cycle 75 Google-Finance digit-flip animation (replaces cycle 74 background flash) |
 | 2026-05-26 | `31029ad5` | feat(ux): cycle 74 Google-Finance-style price-tick flash animation |
-| 2026-05-26 | `9ab7d236` | fix(chart-ssot): cycle 73 chart-side overlay for live NAV across 3 chart surfaces |
 
 ---
 
+### v6.27.0 — feat(perf_metrics): cycle 16 DoD-2 Option A+ windowed paper-Sharpe in... (2026-05-28)
+
+- **feat(perf_metrics): cycle 16 DoD-2 Option A+ windowed paper-Sharpe instrumentation**
 ### v6.26.1 — fix(observability): cycle 14 closes DoD-5 -- freshness probe SAFE.TIM... (2026-05-28)
 
 - **fix(observability): cycle 14 closes DoD-5 -- freshness probe SAFE.TIMESTAMP**
