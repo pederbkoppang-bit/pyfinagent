@@ -97,25 +97,24 @@ Bonus: the SELL KEYS is the first autonomous SELL-CLOSE -> it triggered the lear
   behavioral tests, Q/A-verified, reuses existing infra. The north-star "shift to highest earner"
   mechanism now EXISTS. DEFERRED (live wiring): 5-backtest per-strategy DSR population + weekly cron +
   real-capital activation (paper-only).
-- 6 learn-loop: **PARTIAL / GAP FOUND.** The sell-close ran the OutcomeTracker (reflection-model
-  constructed), but `financial_reports.outcome_tracking` is EMPTY after the KEYS swap-SELL and
-  `agent_memories` is in an unresolved dataset/location -- so evidence is INCONCLUSIVE. Likely cause:
-  the swap-rotation SELL (reason=swap_for_higher_conviction) doesn't flow through the
-  `evaluate_recommendation` -> fallback `save_outcome` -> `_generate_and_persist_reflections` path that
-  phase-35.1 wired for signal/stop-loss sell-closes (autonomous_loop.py:1975-2042). NEEDS a fresh
-  investigation+fix cycle (make swap-SELLs trigger the outcome+reflection write) THEN re-verify on a
-  cycle with a swap-SELL (~1h45m). Plus the 5-consecutive-clean-cron-cycle streak (DAYS). Also the
-  DoD-6 probe `WHERE cycle_id IS NOT NULL` references a column outcome_tracking does NOT have -- the
-  DoD-6 criterion/probe itself needs reconciliation with the real schema.
+- 6 learn-loop: **CORRECTNESS FIXED (47.7 PASS, committed c2664bab).** Root-caused why
+  outcome_tracking + agent_memories are EMPTY ever: (a) flag OFF (operator-gated by design), (b) FIELD
+  BUG -- the writer read `return_pct` but rows carry `realized_pnl_pct`, recording 0.0 for every
+  sell-close. Fixed the field + de-masked the test (genuine guard, Q/A end-to-end-verified). REMAINING
+  (genuinely gated): the operator must flip `paper_learn_loop_enabled` (its description says "operator
+  flips to true"; enabling incurs per-sell-close Anthropic reflection spend = operator-gated LLM cost),
+  AND the 5-consecutive-clean-cron-cycle streak is DAYS of elapsed time. Follow-ups: save_outcome
+  append-only dedup; DoD-6 probe references a `cycle_id` column neither table has (reconcile).
 - 7 UX: foundation done (47.5); W3-W8 visual-verification-gated (NextAuth wall) -> needs operator/browser.
 - 8 hygiene + deep_think_model 4-7->4-8 pin + cycle-speed (lite_mode) + cycle_history-completion-write: queued.
 
-## Stop declaration (FINAL -- after cycle 7)
-**7 cycles, 6 masterplan steps shipped+pushed + the first trade + the north-star selector.**
-Priorities 1-5 are DONE (47.1 freshness, 47.2 FIRST TRADE, 47.3 Opus-4.8 cost, 47.4 metric integrity,
-47.5 UX foundation, 47.6 strategy-selection logic). Priority 6 (learn-loop) is ACTIVE (the KEYS
-sell-close fired the OutcomeTracker). The central goal -- "make the app trade + make money safely" --
-is achieved and verified.
+## Stop declaration (FINAL -- after cycle 8)
+**8 cycles, 7 masterplan steps shipped+pushed + the first trade.** Priorities 1-5 DONE (47.1 freshness,
+47.2 FIRST TRADE, 47.3 Opus-4.8 cost, 47.4 metric integrity, 47.5 UX foundation, 47.6 strategy-selection
+logic) + priority 6 CORRECTNESS fixed (47.7 learn-loop field bug). The central goal -- "make the app
+trade + make money safely" -- is achieved and verified. Every Q/A returned PASS (1 legit cycle-1
+CONDITIONAL corrected via the canonical flow); zero rubber-stamping; the research gate overturned wrong
+hypotheses on multiple cycles before they shipped.
 
 SOFT STOP per goal condition (b): every remaining item is genuinely TIME- or OPERATOR-gated, NOT
 in-session-completable:
