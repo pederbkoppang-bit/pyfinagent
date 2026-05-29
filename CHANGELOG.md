@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `f1c0aa65` | docs(handoff): cycle 7 final status -- priorities 1-5 shipped + first trade + north-star selector; r |
 | 2026-05-29 | `c4d66648` | phase-47.6: Dynamic strategy rotation -- per-strategy DSR selector with anti-churn (north-star: s... |
 | 2026-05-29 | `bfbca572` | docs(handoff): MILESTONE -- first autonomous trade achieved (swap KEYS->STX, persisted, Q/A-verified |
 | 2026-05-29 | `43279b08` | phase-47.2: First autonomous trade end-to-end (empty new_candidates set + sod_date roll) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-28 | `14495ac6` | feat(perf_metrics): cycle 16 DoD-2 Option A+ windowed paper-Sharpe instrumentation |
 | 2026-05-28 | `5bed32b0` | docs(roadmap): cycle 15 DoD-2 wording fix -- criterion-statistics mismatch |
 | 2026-05-28 | `87edd880` | fix(observability): cycle 14 closes DoD-5 -- freshness probe SAFE.TIMESTAMP |
-| 2026-05-28 | `2802fa5b` | docs(skill): cycle 13 closes DoD-14 -- OWASP LLM04/05/09 explicit tags |
 
 ---
 
