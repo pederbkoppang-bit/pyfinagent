@@ -13542,7 +13542,7 @@
         {
           "id": "49.2",
           "name": "Operator cron-control endpoints -- POST /api/jobs/{id}/pause|resume|trigger for the 2 backend-owned in-process APScheduler jobs (paper_trading_daily, ticket_queue_process_batch); confirmation-gated + audited; trigger reuses /run-now's triple-guard; cross-process (slack_bot/launchd) job ids rejected 404 (P7 'cron enable+trigger' deliverable)",
-          "status": "in_progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "49.1",
