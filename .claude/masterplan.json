@@ -13474,6 +13474,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "48.3",
+          "name": "Live rotation runner + full-kwarg engine_factory (make_rotation_engine + run_rotation_bakeoff); verdict persisted AUDIT-ONLY (allocation_pct=0, no deploy); live bake-off + cron + deployment bridge DEFERRED",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "48.2",
+          "audit_basis": "research_brief_phase_48_3_rotation_runner.md (researcher gate PASSED 5 sources + recency scan + 12 internal files). Priority 5 follow-on #2: the live-wiring glue over registry(48.1)->adapter(48.2)->producer(48.1)->selector(47.6). make_engine (run_harness.py:89) drops 8 of ~25 BacktestEngine ctor kwargs; make_rotation_engine threads the full set + validates strategy vs STRATEGY_REGISTRY + maps the seed's target_annual_vol -> the LIVE target_vol ctor arg (read at backtest_trader.py:89; 0 disables, 0.15 enables -- revives tb_risk_managed's vol-targeting). KEY FINDING: the trailing-stop/vol-barrier engine readers were REVERTED in 9fbd9cd6, so tb_risk_managed's trailing_* keys are inert (WARNed, not cargo-culted) -> seed set is ~3.5 distinct until the readers are restored (flagged follow-up). run_rotation_bakeoff records the selector verdict at allocation_pct=0 (AUDIT ONLY -- NO promoted_strategies MERGE, NO settings.paper_* mutation; the deployment bridge is a later cycle).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/autoresearch/rotation_runner.py').read()); print('ast OK')\" && python -m pytest tests/autoresearch/test_phase_48_3_rotation_runner.py -q",
+            "success_criteria": [
+              "make_rotation_engine(params, settings, bq, *, start_date, end_date) threads the FULL BacktestEngine ctor kwarg set (incl. the 8 make_engine drops: market, train/test_window_months, embargo_days, starting_capital, target_vol, commission_model, commission_per_share) with kwarg NAMES matching the ctor exactly; validates strategy vs STRATEGY_REGISTRY (raise on unknown -- no silent triple_barrier fallback); maps the seed's target_annual_vol -> the LIVE target_vol ctor arg (explicit target_vol > target_annual_vol > 0.15); WARNs (does NOT write) the currently-inert trailing_*/vol_barrier/blend keys",
+              "run_rotation_bakeoff wires registry->48.2-adapter->producer->select_best_strategy, resolves the incumbent via load_promoted_params (None -> first_selection), and PERSISTS the selector verdict at allocation_pct=0 (AUDIT ONLY); exposes BOTH test seams (engine_factory full-wiring + adapter_fn narrow); _persist_verdict is fail-open (JSONL + optional fail-open bq_fn)",
+              "AUDIT-ONLY / no-deploy: NO promoted_strategies MERGE, NO settings.paper_* mutation, allocation_pct hard-coded 0.0; the only live-module touch is a READ of load_promoted_params; ZERO edits to autonomous_loop/portfolio_manager/paper_trader/decide_trades; the deployment bridge is documented DEFERRED",
+              "$0 deterministic tests (monkeypatched BacktestEngine ctor-kwarg capture + injected stub engine_factory/adapter_fn + tmp_path persistence; no real backtest/BQ/LLM); the live ~32-backtest bake-off is @pytest.mark.skip (opt-in); ast clean; pytest green; no import cycle; full rotation regression (47.6+48.1+48.2+48.3) stays green"
+            ],
+            "live_check": "n/a -- deterministic $0 tests (monkeypatched engine + injected stubs + tmp_path; no real backtest/BQ/LLM). The LIVE ~32-backtest bake-off is @pytest.mark.skip opt-in; its live_check (real per-seed {dsr,pbo,sharpe} + the persisted rotation_log row) defers to a future live-run cycle. The deployment params->settings.paper_* bridge (the keystone that changes live orders) is its OWN later cycle."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

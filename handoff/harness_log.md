@@ -25790,3 +25790,38 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **DEFERRED (documented):** the LIVE multi-run bake-off (4 seeds x K~8 = ~32 real backtests, tens of minutes) -- behind the @pytest.mark.skip opt-in + a future live-run cycle whose live_check is real per-seed {dsr,pbo,sharpe}; CPCV multi-path; the weekly cron; the deployment params->settings.paper_* bridge; effective-N clustering; a true date-keyed matrix join. Flagged live risk: vanilla make_engine threads only a kwarg SUBSET -> a live run would silently ignore tb_risk_managed's target_vol/trailing overrides (factory-extension is the live caller's job).
 
 **Rotation chain remaining (next cycles, in order):** [48.3] LIVE-run wiring + a real engine_factory that threads the full kwarg set (the live_check artifact) -> [48.4] weekly cron -> [48.5] deployment params->settings.paper_* bridge. Plus CPCV upgrade + effective-N as robustness follow-ons.
+
+---
+
+## Cycle 1 -- 2026-05-29 17:45 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.29% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 14 (production-ready+money push) -- 2026-05-29 -- phase=48.3 result=PASS (cycle-2)
+
+**Step:** Live rotation runner + full-kwarg engine_factory (Priority 5 follow-on #2). OPERATOR APPROVED continuing. $0 (monkeypatched BacktestEngine + injected stub factory/adapter + tmp_path; no real backtest/BQ/LLM).
+
+**Research:** `researcher` gate PASSED (5 sources read in full + recency scan + 12 internal files). Brief: research_brief_phase_48_3_rotation_runner.md. KEY FINDING: make_engine drops 8 of ~25 ctor kwargs; AND the trailing-stop/vol-barrier engine readers were REVERTED in 9fbd9cd6 -> tb_risk_managed's trailing_* keys are inert (the target_annual_vol->target_vol mapping revives its vol-targeting half; trailing half stays dead -> seed set ~3.5 distinct, flagged follow-up).
+
+**Implementation (1 module + 1 test):** backend/autoresearch/rotation_runner.py -- make_rotation_engine (full ctor kwargs, strategy-name validate, target_annual_vol->target_vol map, dead-key WARN no-cargo-cult) + run_rotation_bakeoff (registry->48.2-adapter->producer->selector, incumbent via load_promoted_params, verdict persisted at allocation_pct=0 AUDIT-ONLY) + _resolve_incumbent + _persist_verdict (fail-open). Dual test seams (engine_factory full-wiring / adapter_fn narrow).
+
+**Verification:** ast OK; pytest 8 passed/1 skipped (live @pytest.mark.skip); full rotation regression 40 passed/2 skipped (47.6+48.1+48.2+48.3); no import cycle.
+
+**Q/A:** CYCLE-2 PASS. Cycle-1 Q/A (`a7bde62154482e1d7`) = CONDITIONAL on TWO protocol artifacts lost to concurrent-writer collisions (the scheduled run_harness.py clobbered handoff/current/contract.md; the masterplan 48.3 step was reverted -- reflog clean, NOT a git revert; auto-commit hook INVOKED-but-stalled 7x per feedback_auto_commit_hook_stalls). Engineering passed every adversarial check. Main re-established both artifacts (canonical cycle-2 flow). Fresh Q/A (`aa5c3abbb44b55006`) = **PASS** (`ok:true`, zero violated_criteria): B1 masterplan-48.3 present + valid JSON + 4 criteria; B2 contract-is-48.3 citing the brief + verbatim criteria; kwarg names 27==27 via inspect.signature (no latent live TypeError); target_vol revival sound (live reader backtest_trader.py:89); no-deploy airtight (allocation_pct=0.0, zero live-trading-module edits, only a READ of load_promoted_params); dead keys inert+WARNed; Seam-A genuine end-to-end; immutable command exit 0; full regression 40 passed/2 skipped; no code-review BLOCK/WARN.
+
+**DEFERRED:** the LIVE ~32-backtest bake-off (@pytest.mark.skip opt-in; its live_check = real per-seed {dsr,pbo,sharpe} + the persisted rotation_log row); the weekly cron; **the deployment params->settings.paper_* bridge (the keystone that changes live orders)**; re-enabling the reverted trailing/vol-target engine readers; effective-N clustering; CPCV; incumbent->seed-id mapping.
+
+**SYSTEMIC FINDINGS for the operator:** (1) the scheduled run_harness.py writes the SAME handoff/current/ rolling files as the Layer-3 masterplan cycles -> recurring collisions (caused this CONDITIONAL; clobbered contract.md, coincided with the masterplan revert). Worth pointing run_harness at a separate handoff path or sequencing it. (2) the auto-commit-and-push hook is silently stalling (INVOKED, no commit/push) -> using the manual git fallback this cycle.
