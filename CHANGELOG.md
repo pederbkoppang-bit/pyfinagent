@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `3cebd1e5` | phase-50: PLAN -- international multi-market expansion (operator-requested; PLANNED, not implemented |
 | 2026-05-29 | `16f3ee03` | phase-49.3: GENERATE -- cron-control UI (Actions column on /cron) |
 | 2026-05-29 | `d025240f` | phase-49.3: PLAN -- cron-control UI contract + research gate |
 | 2026-05-29 | `f708efa8` | docs(handoff): cycle_block_summary -- 49.1 + 49.2 shipped, P7 control surface complete |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `2096b6f3` | phase-48.2: Rotation real-engine adapter -- make_engine_backtest_fn (per-strategy K-variant PBO m... |
 | 2026-05-29 | `dfcc57b3` | docs(handoff): cycle 12 close -- built Priority-5 rotation foundation (48.1); 12-cycle SOFT STOP bud |
 | 2026-05-29 | `13e5737b` | phase-48.1: Strategy-rotation foundation -- config-driven seed registry + pure per-strategy DSR/P... |
-| 2026-05-29 | `0b854505` | docs(handoff): correct rotation-cron feasibility -- it's a multi-cycle feature (no strategies define |
 
 ---
 
+### v6.28.24 — phase-50: PLAN -- international multi-market expansion (operator-requ... (2026-05-29)
+
+- **phase-50: PLAN -- international multi-market expansion (operator-requested; PLANNED, not implemented**
 ### v6.28.23 — phase-49.3: GENERATE -- cron-control UI (Actions column on /cron) (2026-05-29)
 
 - **phase-49.3: GENERATE -- cron-control UI (Actions column on /cron)**
