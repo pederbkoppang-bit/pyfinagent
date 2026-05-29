@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `d025240f` | phase-49.3: PLAN -- cron-control UI contract + research gate |
 | 2026-05-29 | `f708efa8` | docs(handoff): cycle_block_summary -- 49.1 + 49.2 shipped, P7 control surface complete |
 | 2026-05-29 | `deb9bd92` | phase-49.2: Operator cron-control endpoints -- POST /api/jobs/{id}/pause|resume|trigger for the 2... |
 | 2026-05-29 | `e2ee9acd` | phase-49.2: GENERATE -- operator cron-control endpoints (live-verified) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `13e5737b` | phase-48.1: Strategy-rotation foundation -- config-driven seed registry + pure per-strategy DSR/P... |
 | 2026-05-29 | `0b854505` | docs(handoff): correct rotation-cron feasibility -- it's a multi-cycle feature (no strategies define |
 | 2026-05-29 | `dd5d2b67` | docs(handoff): cycle 11 SOFT STOP closure -- Priority 3 (Opus 4.8) complete (47.8/47.9/47.10); crisp |
-| 2026-05-29 | `82d2f07f` | phase-47.10: generate_content max_tokens floor -- symmetric close of the Opus-4.8 max_tokens-at-x... |
 
 ---
 
+### v6.28.22 — phase-49.3: PLAN -- cron-control UI contract + research gate (2026-05-29)
+
+- **phase-49.3: PLAN -- cron-control UI contract + research gate**
 ### v6.28.21 — phase-49.2: Operator cron-control endpoints -- POST /api/jobs/{id}/pa... (2026-05-29)
 
 - **phase-49.2: Operator cron-control endpoints -- POST /api/jobs/{id}/pause|resume|trigger for the 2...**
