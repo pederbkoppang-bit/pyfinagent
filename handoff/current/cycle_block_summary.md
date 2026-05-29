@@ -77,6 +77,27 @@ NEXT-SESSION ACTIONS for the first trade + cycle speed (priority):
 Trade path is otherwise CODE-VERIFIED ready (47.1 prices, 47.4 metrics, swap path enabled/configured);
 the gating issue is now cycle SPEED (slow rail), not trade logic.
 
+## MILESTONE (2026-05-29 ~01:00 UTC): FIRST AUTONOMOUS TRADE ACHIEVED + VERIFIED
+Cycle 6a6b548c completed (~1h45m) and at Step 7 fired the sector-rotation swap:
+**SELL KEYS (score 5) -> BUY STX (score 7), delta 40% > 25%**, count-neutral, all safety intact.
+**Both persisted to financial_reports.paper_trades dated 2026-05-29** (BUY STX px=880.72;
+SELL KEYS px=339.13). Independently Q/A-verified (`a8b0c63190046b9e2`, PASS). **phase-47.2 DONE,
+committed 43279b08.** The operator's #1 goal -- "no trades" -- is SOLVED. (My earlier "persistence gap"
+worry was wrong: the ledger was just empty because nothing had traded since 05-27; it writes correctly.)
+
+Bonus: the SELL KEYS is the first autonomous SELL-CLOSE -> it triggered the learn-loop
+(`02:54:16 OutcomeTracker reflection-model constructed`), so **priority 6 / DoD-6 is now ACTIVE**
+(was blocked on a sell-close). Full DoD-6 closure still needs the BQ outcome_tracking row confirm
+(column-name detail) + the 5-consecutive-clean-cron-cycle streak (days, passive).
+
+### Updated priority status
+- 1 freshness, 2 FIRST TRADE, 3 cost, 4 metric-integrity: **DONE + pushed.**
+- 5 dynamic strategy rotation: OPEN (L-effort NEW feature -- per-strategy DSR + weekly promotion; the
+  47.2 swap is POSITION-level rotation, distinct from STRATEGY-level). Best scoped fresh next session.
+- 6 learn-loop: **ACTIVE** (OutcomeTracker fired); remaining = BQ row confirm + 5-cycle cron streak (days).
+- 7 UX: foundation done (47.5); W3-W8 visual-verification-gated (NextAuth wall) -> needs operator/browser.
+- 8 hygiene + deep_think_model 4-7->4-8 pin + cycle-speed (lite_mode) + cycle_history-completion-write: queued.
+
 ## Stop declaration
 SOFT STOP per goal condition (b). 4 cycles shipped+pushed (47.1 freshness, 47.3 Opus-4.8 cost, 47.4
 metric integrity, 47.5 UX foundation) + 1 parked (47.2 first trade). Every remaining item needs the
