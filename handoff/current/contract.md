@@ -1,38 +1,35 @@
-# Contract — phase-47.9: Priority-3 completion (Opus-4.8 max_tokens-at-xhigh floor + driver-pin finish)
+# Contract — phase-47.10: generate_content max_tokens floor (symmetric close of the Opus-4.8 max_tokens audit)
 
-**Cycle:** 10 (Priority 3 "[OPUS-4.8] /claude-api sweep; audit per-agent max_tokens at xhigh" — the two codeable remainders after 47.3 pricing + 47.8 backend sweep). **LLM spend:** $0 (static/structural edits + unit test, no live LLM call).
+**Cycle:** 11 (Priority 3 "audit per-agent max_tokens at xhigh" — closing the audit asymmetry: 47.9 floored the orchestrator Opus path; this floors the SECOND Opus path, `llm_client.generate_content`). **LLM spend:** $0 (static + unit test). **Severity:** LOW / defensive symmetry (operator-override-only reachability — see below).
 
 ## Research-gate summary
-`researcher` `aea7fbf69095873c1` (gate **PASSED**): 6 sources read in full, 7 snippet-only, 13 URLs, recency scan present, 8 internal files. Brief: `handoff/current/research_brief_phase_47_9_opus48_finish.md`.
+`researcher` `a2073408b08340a8d` (gate **PASSED**): 5 sources read in full, 9 snippet-only, 14 URLs, recency scan, 7 internal files. Brief: `handoff/current/research_brief_phase_47_10_generate_content_floor.md` (builds on 47.9's brief — same governing external fact).
 
 Key findings:
-- **Governing fact (resolved a doc contradiction):** on the Opus-4.8 **adaptive** thinking path this project uses, `max_tokens` is a HARD ceiling on **thinking + visible text combined** (adaptive-thinking doc verbatim: "Use `max_tokens` as a hard limit on total output (thinking + response text)"). The older extended-thinking page's `budget_tokens < max_tokens` framing is the manual-mode lens and does NOT govern 4.8. At high/xhigh/max effort Claude "may exhaust the `max_tokens` budget"; Anthropic's floor guidance is "set a large `max_tokens`... starting at 64k" for 4.8 at xhigh/max.
-- **Code reality (REAL latent bug):** every Layer-2 Opus-4.8 agent runs at `effort=max` (`model_tiers.py:221-225`) but the orchestrator's adaptive call sets `max_tokens = agent_config.max_tokens + 2048` (`multi_agent_orchestrator.py:1075`), i.e. ~2548–5048 for the 500–3000 configured agents. Adaptive thinking can exhaust that and starve the visible answer. The plain-**text** `stop_reason=="max_tokens"` path is **swallowed** (retry at `:1177` fires only on a `tool_use` tail; the text tail at `:1198-1202` logs a warning + returns partial).
-- **Three** stale `claude-opus-4-6` driver pins (researcher corrected my `--include=*.py`-only grep): `scripts/harness/run_autonomous_loop.py:73` (overrides the now-correct 4-8 default at `backend/autonomous_loop.py:74`), `scripts/mas_harness/run_cycle.sh:63` (`claude -p --model claude-opus-4-6` CLI flag). PlannerAgent runs on whatever the driver passes.
-- **PlannerAgent safety:** `planner_agent.py:146-153` + `:253-260` call the raw client with ONLY model+max_tokens+system+messages — no temperature/thinking/budget_tokens — so bumping to 4-8 will NOT 400. But `response.content[0].text` (`:156`, `:262`) is fragile if 4.8 ever returns a thinking block first.
+- **External (re-confirmed):** Anthropic adaptive-thinking doc verbatim "Use `max_tokens` as a hard limit on total output (thinking + response text)"; at high/max effort the model "can be more likely to exhaust the `max_tokens` budget". The **effort doc decisively settles** the effort-without-thinking question: "Set `thinking: {type: 'adaptive'}` to enable thinking; **without it, requests run without thinking**" → effort alone creates ZERO hidden thinking tokens. So the floor must gate on `thinking_requested`, NOT on effort.
+- **The gap is real** in `generate_content`: `max_tokens` (`:1285`, default 2048) → kwargs `:1332` with NO floor, while `:1384-1394` sets adaptive thinking + `:1427-1451` sets `output_config.effort` (xhigh for Opus) — identical to what 47.9 fixed in the orchestrator.
+- **REACHABILITY VERDICT — OPERATOR-OVERRIDE-ONLY (low/latent, not a live default-config bug):** the only live thinking-on-Claude path is `risk_debate.py:62` (RiskJudge), gated on `ClaudeClient.supports_thinking`; `debate.py:66` is GeminiClient-gated (can never route thinking to Claude). Reaching the gap needs TWO simultaneous non-default flips: `ENABLE_THINKING=true` (`settings.py:35` default **False**) AND `DEEP_THINK_MODEL=claude-opus-4-8/-4-7` (`settings.py:30` default **gemini-2.5-pro**, deliberately reverted off Opus in phase-37.2 to stop a credit regression). If both flip, the RiskJudge adaptive call shares `max_tokens` of just 1024–1536 between thinking + the verdict. This is a defensive symmetry fix.
 
 ## Hypothesis
-Flooring the adaptive-branch `max_tokens` to a thinking-safe value (root-cause fix), bumping the three stale 4-6 driver pins to 4-8, and hardening the PlannerAgent text extraction (so the pin bump can't trip a content[0] failure) will eliminate the silent-output-starvation risk on the Opus-4.8 MAS path and finish the Priority-3 sweep — all at $0 (max_tokens is a ceiling, not a target; flat-fee Max).
+Flooring `generate_content`'s `max_tokens` on the Opus-4.8/4.7 adaptive-thinking path (mirroring 47.9) removes the last unfloored Opus thinking path, so the max_tokens-at-xhigh audit is symmetric and complete — closing the inconsistency of having one Opus path protected and the other not, at $0.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json phase-47.9)
-1. Opus-4.8/4.7 adaptive branch in multi_agent_orchestrator.py floors max_tokens to a thinking-safe value via a pure, unit-tested helper (low configured budgets raised to the floor; large configured budgets respected); the non-adaptive ELSE branch (manual budget_tokens=2048) is unchanged; the tool_use retry cap stays above the new floor
-2. the three stale claude-opus-4-6 driver pins are bumped to claude-opus-4-8 (run_autonomous_loop.py planner_model, run_cycle.sh --model); no remaining operative claude-opus-4-6 default in scripts/
-3. PlannerAgent response parsing is hardened to extract the first text block robustly (tolerant of a leading thinking block), so running the planner on Opus 4.8 cannot raise on content[0]
-4. a pytest guard asserts the floor helper (floors low / respects high), the orchestrator branch uses it, the 3 pins are 4-8, and the planner text-extraction is thinking-block tolerant; ast.parse clean on all edited files; pytest green
+## Immutable success criteria (verbatim from .claude/masterplan.json phase-47.10)
+1. generate_content floors max_tokens to the thinking-safe value (16384, the same _OPUS_ADAPTIVE_MIN_MAX_TOKENS as 47.9) ONLY when thinking is requested AND the model is Opus-4.8/4.7, via a pure unit-tested helper; the floor is a no-op when thinking is off OR the model is not Opus (effort-without-thinking is NOT floored, per the Anthropic effort doc)
+2. large configured max_output_tokens budgets are respected (floor is a max(), never lowers a caller's higher budget); the helper introduces no import cycle (defined locally in llm_client.py)
+3. a pytest guard asserts the helper floors the thinking+Opus case, no-ops the thinking-off and non-Opus cases, and respects a large budget; ast.parse clean; pytest green; llm_client imports clean
+4. the silent text-tail stop_reason=max_tokens swallow (llm_client.py ~:1591) is NOT in scope and is flagged as a documented follow-up
 
 ## Plan steps
-1. `multi_agent_orchestrator.py`: add `_OPUS_ADAPTIVE_MIN_MAX_TOKENS = 16384` + pure helper `_adaptive_max_tokens(configured)` = `max(configured + 2048, FLOOR)`. In the IF (Opus-4.8/4.7 adaptive) branch set `_max_tokens = _adaptive_max_tokens(agent_config.max_tokens)`; in the ELSE branch set `_max_tokens = agent_config.max_tokens + 2048`. Use `_max_tokens` at the create call (:1075) and the retry (`_retry_max = min(_max_tokens * 2, 32768)`), so the retry stays above the floor.
-2. `scripts/harness/run_autonomous_loop.py:73` + `scripts/mas_harness/run_cycle.sh:63`: `claude-opus-4-6` → `claude-opus-4-8`.
-3. `planner_agent.py`: add `_first_text(response)` helper (`"".join(b.text for b in response.content if getattr(b,"type",None)=="text")` with a content[0] fallback); replace the two `response.content[0].text` sites.
-4. `tests/agents/test_phase_47_9_max_tokens_floor.py`: `_adaptive_max_tokens(500)==16384`, `(4096)==16384`, `(30000)==32048`; orchestrator branch references the helper (source); 3 pins are 4-8 (incl. run_cycle.sh); `_first_text` returns the text when a fake thinking block precedes it.
-5. Verify: `ast.parse` edited .py files + `python -m pytest tests/agents/test_phase_47_9_max_tokens_floor.py -q`.
+1. `llm_client.py`: add module const `_OPUS_ADAPTIVE_MIN_MAX_TOKENS = 16384` + pure helper `_opus_adaptive_max_tokens(max_tokens, model_id, thinking_requested)` before `class ClaudeClient` (`:1184`): returns `max(int(max_tokens), FLOOR)` iff `thinking_requested and model_id.startswith(("claude-opus-4-8","claude-opus-4-7"))`, else `int(max_tokens)`.
+2. In `generate_content`, after the effort block (~after `:1451`): `kwargs["max_tokens"] = _opus_adaptive_max_tokens(kwargs["max_tokens"], model_id, thinking_requested)`. (`thinking_requested` + `model_id` are already locals from `:1382-1383`.)
+3. `tests/agents/test_phase_47_10_generate_content_floor.py`: `_opus_adaptive_max_tokens(2048, "claude-opus-4-8", True)==16384` (floored); `(2048, "claude-opus-4-8", False)==2048` (thinking off → no-op); `(2048, "claude-sonnet-4-6", True)==2048` (non-Opus → no-op); `(30000, "claude-opus-4-8", True)==30000` (large respected); const==16384.
+4. Verify: `ast.parse` llm_client.py + import check + `pytest tests/agents/test_phase_47_10_generate_content_floor.py -q`.
 
-## Out-of-scope (FLAGGED follow-ups, NOT fixed — disclosed to Q/A)
-- `llm_client.generate_content` (:1285) max_tokens=2048 default + its own effort/thinking injection — separate Layer-1 path (primarily Gemini); floor there is a follow-up.
-- COMMUNICATION router at `effort=max` + `max_tokens=500` (worst case) — collides with owner directive on that agent; effort-lowering is an operator call.
-- Making the silent **text** `stop_reason=="max_tokens"` path retry (not just tool_use) — a behavior/cost change (risk of double-billing legitimate long outputs); deferred. The floor makes text truncation rare regardless.
+## Out-of-scope (FLAGGED follow-ups, disclosed to Q/A)
+- The silent **text** `stop_reason=="max_tokens"` swallow in ClaudeClient (~`:1591-1594`) — behavior/cost change, deferred (same call made in 47.9).
+- COMMUNICATION router effort, the `:987` `_handle_direct` emoji, the openclaw token literal — pre-existing, unrelated.
 
 ## References
-- `handoff/current/research_brief_phase_47_9_opus48_finish.md`
-- Anthropic adaptive/extended-thinking docs + Opus 4.8 effort doc (max_tokens = thinking+text ceiling; 64k floor at xhigh/max; 128k hard cap)
-- phase-47.8 (the backend sweep this completes) + `backend/autonomous_loop.py:74` (the good 4-8 default the scripts override)
+- `handoff/current/research_brief_phase_47_10_generate_content_floor.md` + `..._47_9_opus48_finish.md`
+- Anthropic adaptive-thinking + effort docs ("without [thinking arg], requests run without thinking")
+- phase-47.9 (`multi_agent_orchestrator._adaptive_max_tokens`, the orchestrator twin this mirrors)

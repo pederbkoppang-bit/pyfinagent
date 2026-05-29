@@ -1181,6 +1181,28 @@ class OpenAIClient(LLMClient):
 # ClaudeClient — direct Anthropic API
 # ---------------------------------------------------------------------------
 
+# phase-47.10: twin of multi_agent_orchestrator._adaptive_max_tokens (47.9).
+# On the Opus-4.8/4.7 ADAPTIVE thinking path, max_tokens is a HARD ceiling on
+# thinking + visible text COMBINED (Anthropic adaptive-thinking doc), so a small
+# generate_content max_output_tokens can let thinking starve the answer. Defined
+# locally (not imported from multi_agent_orchestrator) to avoid an import cycle.
+_OPUS_ADAPTIVE_MIN_MAX_TOKENS = 16384
+
+
+def _opus_adaptive_max_tokens(max_tokens: int, model_id: str, thinking_requested: bool) -> int:
+    """Floor max_tokens on the Opus-4.8/4.7 adaptive-thinking path.
+
+    Returns max(max_tokens, floor) ONLY when thinking is active AND the model is
+    Opus-4.8/4.7; otherwise a no-op. Effort WITHOUT thinking is deliberately not
+    floored: per Anthropic's effort doc, "without [the adaptive thinking arg],
+    requests run without thinking", so effort alone creates no hidden thinking
+    tokens sharing the ceiling. A larger caller budget is always respected.
+    """
+    if thinking_requested and (model_id or "").startswith(("claude-opus-4-8", "claude-opus-4-7")):
+        return max(int(max_tokens), _OPUS_ADAPTIVE_MIN_MAX_TOKENS)
+    return int(max_tokens)
+
+
 class ClaudeClient(LLMClient):
     # phase-4.14.12: Claude 4.x family supports adaptive/enabled
     # extended thinking; Google Search Grounding is Gemini-only.
@@ -1449,6 +1471,14 @@ class ClaudeClient(LLMClient):
             effort = "high"
         if effort in ("low", "medium", "high", "xhigh", "max"):
             kwargs["output_config"] = {"effort": effort}
+
+        # phase-47.10: on the Opus-4.8/4.7 adaptive-thinking path, max_tokens is
+        # a hard ceiling on thinking + visible text combined; floor it so
+        # thinking can't starve the answer (symmetric with the orchestrator fix
+        # in 47.9). No-op when thinking is off or the model is not Opus.
+        kwargs["max_tokens"] = _opus_adaptive_max_tokens(
+            kwargs["max_tokens"], model_id, thinking_requested
+        )
 
         # phase-4.14.9 (MF-33): citations x structured outputs guard.
         # Anthropic returns 400 when a request sets BOTH

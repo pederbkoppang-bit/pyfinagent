@@ -1,97 +1,188 @@
-# Q/A Evaluator Critique — phase-47.9 (Opus-4.8 max_tokens-at-xhigh floor + driver-pin finish)
+# Q/A Evaluator Critique — phase-47.10: generate_content max_tokens floor
 
-**Verdict: PASS** — first Q/A pass on phase-47.9. Independent gate; orchestrator self-evaluation forbidden.
-**Cycle 10** (Priority-3 completion). **LLM spend asserted $0** (static/structural edits + unit test, no live LLM call). Confirmed: no operator-gated flag/spend triggered.
+**Verdict: PASS** | Cycle 11 | FIRST Q/A pass on 47.10 (no prior CONDITIONAL) |
+Single merged Q/A (deterministic-first, then LLM judgment). Self-evaluation by
+orchestrator forbidden — independent verification performed.
 
 ---
 
-## STEP 1 — Harness-compliance audit (5 items)
+## STEP 1 — Harness-compliance audit (5 items, evidence-cited)
 
-1. **Researcher gate — PASS.** `handoff/current/research_brief_phase_47_9_opus48_finish.md` present; END JSON envelope: `gate_passed: true`, `external_sources_read_in_full: 6` (>=5), `recency_scan_performed: true`, `urls_collected: 13`, `internal_files_inspected: 8`. All 6 sources are Anthropic tier-2 docs (adaptive-thinking, extended-thinking, effort, whats-new-4-8, handling-stop-reasons). `contract.md` cites the brief by name + researcher id `aea7fbf69095873c1` in its Research-gate summary.
-2. **Contract before generate — PASS.** mtime ordering correct: brief `04:24:22` < contract `04:29:18` < experiment_results `04:33:36`. Contract has step id (phase-47.9), research-gate summary, verbatim immutable success_criteria (4, matching masterplan `:13404-13408`), hypothesis, plan steps, references, and an explicit Out-of-scope/FLAGGED section.
-3. **experiment_results present — PASS.** Covers root cause, 7 edits across 4 files + file list, verbatim verification output, success-criteria mapping, scope honesty, AND an "Audited but NOT changed" section disclosing `_call_agent` (:1006), `:817`, `:903`.
-4. **Log-last — PASS (correct ordering).** `grep "phase=47.9" handoff/harness_log.md` returns nothing (exit 1). The 47.9 block is appended only AFTER this PASS; absence here is the correct state, not a defect. Last logged cycle is 9 / phase-47.8 PASS.
-5. **No verdict-shopping — PASS.** First Q/A on 47.9, fresh evidence. No prior CONDITIONAL/FAIL for this step-id in the log. (The prior `evaluator_critique.md` content was the 47.8 verdict, now replaced by this file.)
+1. **Researcher gate — PASS.** `handoff/current/research_brief_phase_47_10_generate_content_floor.md`
+   exists; END JSON envelope reports `gate_passed: true`,
+   `external_sources_read_in_full: 5`, `recency_scan_performed: true`,
+   `urls_collected: 14`, `internal_files_inspected: 7`. Contract `:5-6` cites
+   the brief by name + researcher id `a2073408b08340a8d`. Brief includes the
+   mandatory "Recency scan (2024-2026)" section (brief `:49-60`) and 3-variant
+   query discipline (`:44-47`).
+2. **Contract before generate — PASS.** `contract.md` IS the 47.10 contract:
+   step id (`:1`), research summary (`:5-11`), verbatim immutable criteria
+   (`:16-20`, matched against masterplan), hypothesis (`:13-14`), plan steps
+   (`:22-26`), references (`:32-35`). mtime ordering confirmed by stat:
+   brief `04:45:37` < contract `04:47:11` < experiment_results `04:48:51`.
+   Correct research -> contract -> generate order.
+3. **experiment_results.md present — PASS.** Edits + file list (`:31-32`),
+   verbatim immutable-command output (`:13-19`), success-criteria mapping
+   (`:22-26`), scope-honesty / FLAGGED follow-ups (`:28-29`), reachability
+   disclosure (`:5-6`).
+4. **Log-last — PASS (correctly absent).** `grep "phase=47.10" handoff/harness_log.md`
+   exit=1 (no match). The 47.10 block is correctly NOT yet appended — it is
+   added only after this PASS. Not a defect.
+5. **No verdict-shopping — PASS.** First Q/A on 47.10, fresh evidence; no prior
+   verdict to shop. Diff scope confirmed via `git status`: only
+   `backend/agents/llm_client.py` (modified) + new test file
+   `tests/agents/test_phase_47_10_generate_content_floor.py`. (The pre-existing
+   file content here was the 47.9 verdict, now replaced.)
 
 ---
 
 ## STEP 2 — Deterministic checks (reproduced, not trusted)
 
-**Immutable command** (masterplan `:13403`) — ran verbatim, **exit 0**:
-```
-ast OK 3 py files
-sh OK
-........                                                                 [100%]
-8 passed in 0.17s
-```
-(One pre-existing urllib3 RequestsDependencyWarning — environmental noise, not a failure.)
+| Check | Command | Exit | Result |
+|-------|---------|------|--------|
+| ast + 4 helper asserts (IMMUTABLE) | `python -c "import ast; ast.parse(...llm_client.py...); ...4 asserts..."` | **0** | `ast+helper OK` |
+| pytest 47.10 suite (IMMUTABLE) | `pytest tests/agents/test_phase_47_10_generate_content_floor.py -q` | **0** | `6 passed in 0.17s` |
+| import-cycle check | `python -c "import backend.agents.llm_client"` | **0** | `import llm_client OK` (orchestrator imports llm_client; a reverse import would cycle — none) |
+| symmetry check | import both floors | **0** | llm_client=16384, orchestrator=16384, **equal=True** |
+| regression scan | `pytest tests/agents/ -k "llm_client or phase_47"` | **0** | `25 passed, 21 deselected` |
 
-**Independent floor verification (floor is REAL, not a no-op):**
-- `_OPUS_ADAPTIVE_MIN_MAX_TOKENS == 16384` ✓
-- `_adaptive_max_tokens(500) == 16384` (floored) ✓
-- `_adaptive_max_tokens(30000) == 32048` (respected, +2048) ✓
-- `>= configured` for all of (1, 500, 3000, 4096, 14336, 30000, 100000) ✓
-- Helper body (`:138-145`): `return max(int(configured) + 2048, floor)` — pure, documented, `int()`-coercion is a defensive bonus.
+(One pre-existing urllib3 RequestsDependencyWarning — environmental noise.)
 
-**Applied ONLY to the adaptive branch (verified by reading source):**
-- IF branch `:1086` `agent_config.model.startswith(("claude-opus-4-8","claude-opus-4-7"))` → `_thinking_arg = {"type":"adaptive"}`, `:1095` `_max_tokens = _adaptive_max_tokens(agent_config.max_tokens)`.
-- ELSE branch `:1097-1104` keeps `{"type":"enabled","budget_tokens":2048}` + `temperature=1` and `_max_tokens = agent_config.max_tokens + 2048` (UNCHANGED). ✓
-- create `:1105-1113` uses `max_tokens=_max_tokens`. ✓
-- retry `:1217` `_retry_max = min(_max_tokens * 2, 32768)` → stays above the 16384 floor. ✓
+**Floor is real + correctly gated** (`llm_client.py:1189-1203`):
+- const `_OPUS_ADAPTIVE_MIN_MAX_TOKENS = 16384` (`:1189`).
+- helper floors thinking+Opus (2048->16384, 1024->16384), no-ops thinking-off
+  (2048->2048), no-ops non-Opus (sonnet/haiku/gemini/""->2048), respects large
+  budget (30000->30000), boundary (16384->16384). All asserted by tests.
 
-**Adversarial missed-path check — CLEAN.** Three `messages.create` on the Claude path: `:1006`, `:1105`, `:1218`. `:1006` (`_call_agent`) passes ONLY `model, max_tokens=agent_config.max_tokens, system, messages` — **NO `thinking=` kwarg** (read `:1004-1017` verbatim). So it is NOT on the adaptive-thinking starvation path; Main's disclosure is accurate. No other adaptive Opus create was missed.
+**Wired into generate_content correctly** (`llm_client.py:1479-1481`):
+`kwargs["max_tokens"] = _opus_adaptive_max_tokens(kwargs["max_tokens"], model_id, thinking_requested)`
+placed AFTER thinking resolution (`:1406-1416`) and AFTER effort resolution
+(`:1449-1473`). In-scope locals verified: `model_id` set `:1405`
+(`self.model_name or ""`), `thinking_requested` set `:1404`. **Adversarial
+KeyError check:** `kwargs["max_tokens"]` is set unconditionally in the dict
+literal at `:1352-1358` (`"max_tokens": max_tokens`, where `max_tokens` is bound
+at `:1307`); no code path between `:1354` and `:1479` deletes the key. **No
+KeyError possible.**
 
-**Driver-pin grep — CLEAN.** `grep -rn "claude-opus-4-6" scripts/` → nothing (exit 1). `run_autonomous_loop.py:73` = `planner_model="claude-opus-4-8"`; `run_cycle.sh:63` = `--model claude-opus-4-8`. ✓
+**Symmetry claim verified:** floor value == `multi_agent_orchestrator._OPUS_ADAPTIVE_MIN_MAX_TOKENS`
+(both 16384), confirmed by live import + `test_floor_value_matches_orchestrator`.
 
-**Planner hardening — GENUINE.** `_first_text` (planner_agent.py:26-42) joins `type=="text"` blocks, skips thinking/tool_use, falls back to `content[0].text`. Constructed thinking-block-first response → returns `"X"`. Empirically confirmed the thinking block has NO `.text` attr (`hasattr == False`), so the OLD `content[0].text` would have raised AttributeError — the fix is substantive. Both call sites (`:176`, `:282`) use `_first_text`; the only `content[0].text` remaining is in the docstring (`:32`). ✓
+**Effort-without-thinking decision — CORRECT, not an under-fix.** The helper
+gates on `thinking_requested`, NOT effort. Anthropic effort doc (cited brief
+`:26,67-76`): "Set `thinking: {type: 'adaptive'}` to enable thinking; without
+it, requests run without thinking." Effort raises text/tool tokens but creates
+ZERO thinking tokens absent an explicit `thinking` block — so `max_tokens` on an
+effort-only call is pure visible output the caller's `max_output_tokens`
+intentionally bounds. Flooring it would override the caller's deliberate budget
+for no safety benefit. Confirmed in code: `generate_content` only sets
+`thinking:{type:adaptive}` when `thinking_requested` is true (`:1406-1409`); it
+never auto-enables thinking from effort. `thinking_requested` is the exact-right
+gate. **This is NOT an under-fix.**
 
-**Imports** — `multi_agent_orchestrator` + `planner_agent` both import without error. ✓
+---
 
-**Code-review heuristics (5 dimensions evaluated):**
-- secret-in-diff [BLOCK]: no matches on added lines.
-- unicode-in-logger [NOTE]: no non-ASCII added to any logger call in the diff.
-- financial-logic-without-behavioral-test [BLOCK]: N/A — no perf_metrics/risk_engine/backtest math touched; this is LLM-plumbing and it HAS a behavioral helper test.
-- kill-switch / stop-loss / perf-metrics-bypass [BLOCK]: N/A — no execution-path or risk-guard code touched.
-- tautological-assertion / over-mocked-test [BLOCK]: none — tests assert concrete computed values + real source shape + real `_first_text` returns.
-- broad-except [WARN]: no NEW broad-except added; the `:1018`/`:1114` excepts are pre-existing AuthError handlers (re-raise correctly).
-- **NOTE (out-of-diff, non-blocking):** pre-existing `👋` emoji at `multi_agent_orchestrator.py:987` (`_handle_direct`). Confirmed NOT in this diff (`:987` untouched). Violates the project no-emoji rule; Main disclosed it (parallel to the 47.8 app_home emoji). Recommend a dedicated follow-up to strip it — does NOT degrade this verdict (out of scope).
+## STEP 2b — Code-review heuristics (5 dimensions evaluated)
+
+Scanned the diff (added lines only). **No findings.** No `secret-in-diff`
+(grep exit=1), no `broad-except`, no `print`, no command/SQL/path/SSRF sink, no
+LLM-output-to-execution path (`llm-output-to-execution-without-validation` N/A).
+`financial-logic-without-behavioral-test` does NOT fire: the token-budget guard
+has a dedicated test exercising all four branches + a structural wiring assert.
+Diff touches `frontend/` = 0 files -> **§1b ESLint/tsc gate N/A** (correctly
+skipped). Helper is fully type-hinted with docstring (`no-type-hints` N/A).
+Append `code_review_heuristics` to checks_run.
 
 ---
 
 ## STEP 3 — LLM judgment
 
-**Contract alignment — all 4 immutable success_criteria MET:**
-1. Adaptive branch floors via pure unit-tested helper (low→floor, high respected); ELSE unchanged; retry cap (32768) above floor (16384). **MET.**
-2. Three 4-6 pins → 4-8; no operative 4-6 in `scripts/`. **MET.**
-3. PlannerAgent parse thinking-block tolerant. **MET.**
-4. pytest guard asserts helper + branch + pins + planner; ast clean (3 py); `bash -n` clean; pytest green (8 passed). **MET.**
+**Contract alignment — all 4 immutable criteria MET:**
+1. Floors to 16384 ONLY on thinking+Opus via a pure unit-tested helper; no-op
+   thinking-off / non-Opus (effort-without-thinking NOT floored). MET —
+   `test_floors_opus_with_thinking` + `test_noop_when_thinking_off` +
+   `test_noop_when_not_opus`.
+2. Large budgets respected (max(), never lowers); no import cycle (local def).
+   MET — `test_respects_larger_caller_budget`; import succeeded.
+3. pytest guard + ast clean + green + import clean. MET — `ast+helper OK`;
+   6 passed; import OK.
+4. Silent text-tail swallow NOT in scope, flagged as follow-up. MET — flagged
+   in contract `:29`, experiment_results `:29`; I confirmed the swallow exists
+   (`llm_client.py:1623` `stop_reason=max_tokens on text; partial output`,
+   logs + returns partial, no retry) and is genuinely deferred (same call 47.9
+   made). Honest scope bound, not a silent drop.
 
-**Mutation-resistance — all four guards are REAL (verified, not tautological):**
-- Floor regress to `configured+2048` → `_adaptive_max_tokens(500)` would be 2548 → helper test FAILS.
-- create stops using `_max_tokens` → `"max_tokens=_max_tokens," in src` FAILS (and the negative assertion `"...+ 2048," not in src` does not false-trip on the bare `:1008` non-adaptive form, which has no `+ 2048`).
-- Pin reverts to 4-6 → both pin tests assert `"claude-opus-4-6" not in src` → FAIL.
-- `_first_text` reverts to `content[0].text` → thinking-block-first test FAILS (AttributeError on the absent `.text`). Empirically confirmed.
+**Mutation-resistance — REAL guards (verified by simulation):**
+- Regressed helper that floors UNCONDITIONALLY (drops the gate) returns 16384
+  for the thinking-off case (test expects 2048) AND the non-Opus case (test
+  expects 2048) -> both tests FAIL. Gate is a real guard, not tautological.
+- If the gate dropped the Opus check (fired for sonnet): `test_noop_when_not_opus`
+  asserts `(2048,"claude-sonnet-4-6",True)==2048` -> FAILS. Real guard.
+- If generate_content stopped calling the helper:
+  `test_generate_content_applies_the_floor_at_source` asserts the literal wiring
+  line `kwargs["max_tokens"] = _opus_adaptive_max_tokens(` AND
+  `kwargs["max_tokens"], model_id, thinking_requested` are present in source
+  -> FAILS. Structural guard against silent removal.
 
-**Anti-rubber-stamp / scope — 16384 floor is DEFENSIBLE (judged adversarially):**
-- Anthropic's "start at 64k" guidance (effort doc) is framed for long-horizon Claude-Code/subagent SESSIONS that think+act across many turns. pyfinagent Layer-2 agents are per-turn, `MAX_TOOL_TURNS`-bounded tool-loop calls where `max_tokens` is a PER-TURN ceiling, with configured visible outputs of 500-4096 (largest = Synthesis 4096).
-- 16384 − 4096 = 12288 tokens of per-turn thinking headroom on the largest agent (13-15k+ for the 500-3000 agents). That is a 3-6x improvement over the old 2548-5048 and comfortably above expected single-turn thinking spend. It aligns with Anthropic's own adaptive-thinking doc CODE samples, which uniformly use `max_tokens: 16000` (brief key-finding #3).
-- max_tokens is a CEILING not a target → $0 unless the model needs the room; retry doubles to 32768 on a tool tail. 16384 is adequate for these short-output per-turn agents; the 64k floor is not required here and would be over-provisioning. **Judged adequate — not too low.**
-- **Under-edit check:** Main correctly left the ELSE branch and `_call_agent` (:1006) unchanged. `_call_agent` is genuinely off the adaptive path (no `thinking` kwarg). Main HONESTLY flagged the residual nuance (no `output_config` → effort defaults to `high` where 4.8 may still think) for the live-smoke follow-up rather than silently ignoring it. This is disclosure, not starvation-left-elsewhere — acceptable scope discipline.
-- **Deferrals honestly disclosed + reasonable:** `llm_client.generate_content` floor (separate Layer-1/Gemini path), COMMUNICATION `effort=max`+`max_tokens=500` (owner-directive collision — operator call), and making the silent TEXT `stop_reason=max_tokens` path retry (behavior/cost change risking double-billing; the floor makes text truncation rare regardless). All three are in the contract's Out-of-scope section AND experiment_results. Not ducking — defensible scoping for a Priority-3 completion.
+**Anti-rubber-stamp / severity honesty — severity NOT understated (independently
+re-derived).** The claim is "operator-override-only" reachability (ENABLE_THINKING=true
+AND DEEP_THINK_MODEL=opus, both non-default). Verified against ACTUAL defaults:
+- `settings.py:35` `enable_thinking: bool = Field(False, ...)` — DEFAULT FALSE.
+- `settings.py:30` `deep_think_model = Field("gemini-2.5-pro", ...)` — DEFAULT
+  GEMINI (explicitly reverted off Opus in phase-37.2 to stop a credit regression).
+- `orchestrator.py:613` `self.enable_thinking = settings.enable_thinking`.
 
-**Scope honesty — PASS.** experiment_results explicitly marks the live floor + planner-on-4-8 confirmation DEFERRED to the next real Layer-2 MAS cycle (Anthropic-metered = operator-gated), $0 this cycle. masterplan `live_check` = "n/a -- deterministic static/structural unit test ($0)". Consistent.
+I enumerated ALL thinking-config injection sites that reach `generate_content`:
+`risk_debate.py:62` (Claude-capable: `getattr(model,"supports_thinking")` AND
+`thinking_budget>0`), `debate.py:66` (Gemini-gated: `isinstance(model,GeminiClient)`
+— CANNOT route thinking to Claude, confirms brief), and a path the brief's caller
+table did NOT explicitly enumerate: **`orchestrator.py:703-715`** — the deep-think
+judge injection `if ...supports_thinking AND self.enable_thinking AND is_deep_think
+AND agent in thinking_budgets`. Note the static `_THINKING_*` configs
+(`orchestrator.py:95,102,107,119`) are DEFINED-BUT-UNUSED (grep shows no consumers);
+the live injection is `:703`. **This minor incompleteness in the brief's caller
+enumeration does NOT understate the severity** — the `:703` path is gated on the
+SAME `self.enable_thinking` (default False) AND only floors for Opus (needs
+DEEP_THINK_MODEL=opus, default gemini). Every live thinking-on-Claude path through
+generate_content requires the SAME two non-default operator flips. **No
+default-config path passes `thinking` with budget>0 to an Opus model.** Severity =
+LOW / operator-override-only is correct (the brief slightly UNDER-counted live
+paths; it never OVER-stated safety). NOTE-level observation; does not degrade the
+verdict.
 
-**Research-gate compliance — PASS.** Researcher output present, gate_passed:true, cited in contract.
+**Scope honesty — PASS.** Live confirmation honestly DEFERRED
+(`experiment_results.md:28-29`): $0 static change, no LLM spend; the only live
+exercise requires the operator-override config + a RiskJudge cycle. The text-tail
+swallow is flagged out-of-scope (confirmed real at `:1623`), not silently dropped.
+Unrelated pre-existing items (COMMUNICATION router effort, `:987` emoji, openclaw
+token literal) correctly scoped out.
 
-**Test-strategy NOTE (does not degrade verdict):** `test_orchestrator_uses_the_floor_*` + the two pin tests are source-string (`read_text` + `in`) assertions, structurally weaker than execution tests. Resolved to NOTE not WARN because (a) the floor's BEHAVIOR is covered behaviorally via the pure helper test; (b) pins and branch-wiring have no runtime surface to exercise without a live LLM call (correctly deferred at $0); (c) the assertions match full lines incl. a negative assertion, making comment-only placement implausible. Correct test strategy for a $0 static/structural change.
+**Research-gate compliance — PASS.** Researcher output present
+(`research_brief_phase_47_10_generate_content_floor.md`, gate_passed:true) and
+cited in the contract references section (`:32-35`).
 
 ---
 
 ## checks_run
-syntax (ast 3 py), bash_n (run_cycle.sh), verification_command (exit 0, 8 passed), floor_helper_behavioral (independent import + values), adaptive_branch_only (source read :1086-1113 + :1200-1226), adversarial_missed_create_path (:1006 no thinking kwarg), driver_pin_grep (clean), planner_first_text_behavioral (thinking-first → text, old content[0] AttributeError confirmed), module_imports, code_review_heuristics (5 dims), evaluator_critique, masterplan_success_criteria, mutation_resistance, scope_honesty, research_gate.
+syntax, verification_command (ast+helper exit 0), pytest (6 passed),
+import_cycle, symmetry_check, generate_content_wiring, keyerror_adversarial,
+reachability_severity_audit, mutation_test, code_review_heuristics,
+frontend_scope_check, regression_scan, evaluator_critique, masterplan_success_criteria,
+scope_honesty, research_gate.
 
 ## violated_criteria
 (none)
 
 ## VERDICT: PASS
-All 4 immutable success criteria met and independently reproduced. Floor is real (16384, floors low / respects high / always >= configured), applied only to the adaptive Opus-4.8/4.7 branch, retry stays above floor. Three driver pins clean at 4-8. Planner parse genuinely thinking-block tolerant. All four test guards are falsifiable, not tautological. 16384 floor judged adequate for per-turn short-output Layer-2 agents (12-15k thinking headroom; 64k is session-horizon guidance, not required here). Deferrals and the out-of-diff `:987` emoji honestly disclosed. $0 spend; live confirmation correctly deferred to the next operator-gated MAS cycle.
+All 4 immutable success criteria met and independently reproduced. Deterministic:
+immutable ast+helper command exit=0 (`ast+helper OK`), immutable pytest exit=0
+(6 passed), import clean, symmetry confirmed (both floors=16384), 25/25 regression
+tests green. Mutation-resistance real (gate-drop, opus-check-drop, and
+helper-removal each fail a test). Severity honestly stated and independently
+re-derived against actual settings.py defaults — operator-override-only confirmed;
+no default-config path reaches the floor. Effort-without-thinking correctly NOT
+floored (per Anthropic effort doc) — not an under-fix. Out-of-scope text-tail
+swallow honestly flagged (confirmed real at `:1623`). Wiring placement after
+thinking+effort with in-scope locals and no KeyError exposure. One NOTE: the
+brief's caller table omitted the `orchestrator.py:703` deep-think injection as a
+generate_content thinking path, but that path shares the identical two-flip gating,
+so the severity conclusion is unaffected. PASS-with-NOTE; verdict not degraded.

@@ -13411,6 +13411,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "47.10",
+          "name": "generate_content max_tokens floor -- symmetric close of the Opus-4.8 max_tokens-at-xhigh audit (the second Opus thinking path)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_phase_47_10_generate_content_floor.md: closes the audit asymmetry from 47.9. 47.9 floored the ALWAYS-adaptive orchestrator Opus path but explicitly deferred llm_client.generate_content, which has the SAME gap: max_tokens (default 2048, :1285/:1332) is shared with adaptive thinking (:1384-1394) + xhigh effort (:1427-1451) for Opus-4.8/4.7 with NO floor. REACHABILITY: operator-override-only (low/latent) -- needs ENABLE_THINKING=true (default False) AND DEEP_THINK_MODEL=claude-opus-4-8 (default gemini-2.5-pro, reverted off Opus in phase-37.2); the live near-miss is risk_debate.py RiskJudge sharing 1024-1536 max_tokens. Defensive symmetry fix, not an active-bug fix. Effort doc validates NOT flooring effort-without-thinking (without the thinking arg, requests run without thinking -> no hidden thinking tokens).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/llm_client.py').read()); import backend.agents.llm_client as L; assert L._opus_adaptive_max_tokens(2048,'claude-opus-4-8',True)==16384 and L._opus_adaptive_max_tokens(2048,'claude-opus-4-8',False)==2048 and L._opus_adaptive_max_tokens(2048,'claude-sonnet-4-6',True)==2048 and L._opus_adaptive_max_tokens(30000,'claude-opus-4-8',True)==30000; print('ast+helper OK')\" && python -m pytest tests/agents/test_phase_47_10_generate_content_floor.py -q",
+            "success_criteria": [
+              "generate_content floors max_tokens to the thinking-safe value (16384, the same _OPUS_ADAPTIVE_MIN_MAX_TOKENS as 47.9) ONLY when thinking is requested AND the model is Opus-4.8/4.7, via a pure unit-tested helper; the floor is a no-op when thinking is off OR the model is not Opus (effort-without-thinking is NOT floored, per the Anthropic effort doc)",
+              "large configured max_output_tokens budgets are respected (floor is a max(), never lowers a caller's higher budget); the helper introduces no import cycle (defined locally in llm_client.py)",
+              "a pytest guard asserts the helper floors the thinking+Opus case, no-ops the thinking-off and non-Opus cases, and respects a large budget; ast.parse clean; pytest green; llm_client imports clean",
+              "the silent text-tail stop_reason=max_tokens swallow (llm_client.py ~:1591) is NOT in scope and is flagged as a documented follow-up"
+            ],
+            "live_check": "n/a -- deterministic static/structural unit test ($0, no live LLM call). Reachability is operator-override-only (ENABLE_THINKING=true + DEEP_THINK_MODEL=opus); live confirmation defers to that operator config + a RiskJudge cycle."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
