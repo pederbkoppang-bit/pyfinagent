@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `fa8badc7` | docs: fix risk_overrides docstring (decide_trades, not build_trade_decisions) |
 | 2026-05-29 | `3faddd0d` | phase-49.1: GENERATE -- runtime risk-limit control endpoint (live-verified) |
 | 2026-05-29 | `f81faeac` | phase-49.1: PLAN -- runtime risk-limit control endpoint contract + research gate |
 | 2026-05-29 | `3d18027a` | docs(handoff): 2026-05-29 verification -- priorities 1-4 verified DONE |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `6e712507` | docs(handoff): cycle 8 -- priority-6 learn-loop correctness fixed (47.7); 7 steps + first trade ship |
 | 2026-05-29 | `c2664bab` | phase-47.7: Learn-loop correctness fix -- read real paper_trades P&L field (realized_pnl_pct) in ... |
 | 2026-05-29 | `f02d7c29` | docs(handoff): priority-6 learn-loop GAP found (swap-SELL didn't write outcome_tracking); HARD STOP  |
-| 2026-05-29 | `f1c0aa65` | docs(handoff): cycle 7 final status -- priorities 1-5 shipped + first trade + north-star selector; r |
 
 ---
 
