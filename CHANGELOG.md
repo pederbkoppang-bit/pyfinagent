@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `c4d66648` | phase-47.6: Dynamic strategy rotation -- per-strategy DSR selector with anti-churn (north-star: s... |
 | 2026-05-29 | `bfbca572` | docs(handoff): MILESTONE -- first autonomous trade achieved (swap KEYS->STX, persisted, Q/A-verified |
 | 2026-05-29 | `43279b08` | phase-47.2: First autonomous trade end-to-end (empty new_candidates set + sod_date roll) |
 | 2026-05-29 | `649b9ecd` | docs(handoff): live-run finding -- autonomous cycle too slow via claude_code rail (2+hrs, lite_mode= |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-28 | `5bed32b0` | docs(roadmap): cycle 15 DoD-2 wording fix -- criterion-statistics mismatch |
 | 2026-05-28 | `87edd880` | fix(observability): cycle 14 closes DoD-5 -- freshness probe SAFE.TIMESTAMP |
 | 2026-05-28 | `2802fa5b` | docs(skill): cycle 13 closes DoD-14 -- OWASP LLM04/05/09 explicit tags |
-| 2026-05-28 | `7d71ee3a` | phase-43.0: cycle 12 DoD audit -- NOT_PRODUCTION_READY (5-9 of 14 PASS) |
 
 ---
 
+### v6.28.6 — phase-47.6: Dynamic strategy rotation -- per-strategy DSR selector wi... (2026-05-29)
+
+- **phase-47.6: Dynamic strategy rotation -- per-strategy DSR selector with anti-churn (north-star: s...**
 ### v6.28.5 — phase-47.2: First autonomous trade end-to-end (empty new_candidates s... (2026-05-29)
 
 - **phase-47.2: First autonomous trade end-to-end (empty new_candidates set + sod_date roll)**
