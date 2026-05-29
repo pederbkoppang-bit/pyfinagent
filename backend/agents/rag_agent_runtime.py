@@ -184,14 +184,14 @@ def multimodal_index_claude(
     image_b64: str | None = None,
     image_media_type: str = "image/png",
     top_k: int = 5,
-    model: str = "claude-opus-4-7",
+    model: str = "claude-opus-4-8",
 ) -> dict:
     """phase-26.6: Claude-vision-based multimodal query path. Companion to
     the Gemini File Search path (which is blocked on SDK 1.73.1 + Vertex
     API-path gaps as of 2026-05-16).
 
     Uses Anthropic's `client.messages.create` with an image attachment
-    (via base64 inline OR uploaded PDF). Claude Opus 4.7's vision +
+    (via base64 inline OR uploaded PDF). Claude Opus 4.8's vision +
     Citations feature provide the equivalent of Gemini's media_id citations.
 
     Args:
@@ -201,7 +201,7 @@ def multimodal_index_claude(
         image_b64: optional base64-encoded image (PNG/JPEG). Sent inline.
         image_media_type: MIME type for the inline image.
         top_k: max citations to return (Claude's response may include fewer).
-        model: Claude model (default claude-opus-4-7 for best vision).
+        model: Claude model (default claude-opus-4-8 for best vision).
 
     Returns the same shape as multimodal_index() for cross-provider parity:
         {

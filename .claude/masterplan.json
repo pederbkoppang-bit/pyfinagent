@@ -13369,6 +13369,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "47.8",
+          "name": "Opus-4.8 stale-pin sweep (fix the 4-8 thinking/sampling branch bug + missing context-window/model maps + operative 4-7 default pins)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_phase_47_8_opus48_sweep.md: 8ecc9efe bumped the canonical pins 4-7->4-8 but missed ~8 files. CRITICAL operative bug: multi_agent_orchestrator.py:1061 startswith('claude-opus-4-7') is False for the now-4-8 pin -> 4-8 falls into the ELSE branch that sets manual budget_tokens + temperature=1, which Opus 4.8 REJECTS with a 400 (4.8 inherits 4.7's adaptive-only/no-sampling constraints). Plus missing-4-8 map entries (harness_memory context-window -> 4-8 truncates to 128K default; app_home dropdown) and operative stale 4-7 defaults (ticket_queue_processor [operative, no resolve_model], rag vision, planner, autonomous_loop, openclaw). Priority 3 '/claude-api sweep' + the goal's 'exploit Opus 4.8 fully'.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; [ast.parse(open(f).read()) for f in ['backend/agents/multi_agent_orchestrator.py','backend/agents/harness_memory.py','backend/slack_bot/app_home.py','backend/services/ticket_queue_processor.py','backend/agents/rag_agent_runtime.py','backend/agents/planner_agent.py','backend/autonomous_loop.py','backend/agents/openclaw_client.py','backend/slack_bot/streaming_integration.py']]; print('ast OK 9 files')\" && python -m pytest tests/agents/test_phase_47_8_opus48_pins.py -q",
+            "success_criteria": [
+              "CRITICAL: multi_agent_orchestrator.py thinking/sampling branch widened so claude-opus-4-8 takes the adaptive-only/no-sampling path (startswith includes claude-opus-4-8); 4-8 no longer hits the manual budget_tokens+temperature=1 ELSE branch that Opus 4.8 rejects with a 400",
+              "missing-4-8 map entries ADDED (4-7 kept): harness_memory.MODEL_CONTEXT_WINDOWS['claude-opus-4-8']=1_000_000; app_home.AVAILABLE_MODELS includes claude-opus-4-8",
+              "operative stale 4-7 DEFAULT pins bumped to 4-8 (ticket_queue_processor agent_model_map main/q-and-a + default, rag_agent_runtime vision default, planner_agent + autonomous_loop planner defaults, openclaw_client main/qa); legit compat 4-7 entries (MODEL_EFFORT_FALLBACK, cost_tracker MODEL_PRICING, llm_client xhigh/effort accept-lists) PRESERVED",
+              "a pytest guard asserts the 4-8 map entries + bumped defaults + 4-7-preserved-in-compat; ast.parse clean on all edited files; pytest green"
+            ],
+            "live_check": "n/a -- deterministic static/structural unit test ($0, no live LLM call). The 1061 400-rejection fix's live confirmation defers to the next real cycle on 4-8 (cron/manual)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

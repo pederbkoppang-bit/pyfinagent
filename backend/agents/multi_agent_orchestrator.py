@@ -23,8 +23,8 @@ Ford NEVER evaluates his own output. A different agent does.
 
 Models:
   Communication: claude-sonnet-4-6 (routing + quality gate)
-  Main / Ford:   claude-opus-4-7   (planning + synthesis)
-  Q&A / Analyst: claude-opus-4-7   (quantitative analysis)
+  Main / Ford:   claude-opus-4-8   (planning + synthesis)
+  Q&A / Analyst: claude-opus-4-8   (quantitative analysis)
   Researcher:    claude-sonnet-4-6 (literature + evidence)
 
 References:
@@ -151,7 +151,7 @@ class MultiAgentOrchestrator:
                 )
                 memory, _ = init_session_memory()
                 self._masker = create_masker(
-                    model_name="claude-opus-4-7",
+                    model_name="claude-opus-4-8",
                     memory=memory,
                 )
             except Exception as e:
@@ -933,7 +933,7 @@ class MultiAgentOrchestrator:
         )
         return handoff
 
-    def should_reset_context(self, messages: list[dict], model: str = "claude-opus-4-7") -> bool:
+    def should_reset_context(self, messages: list[dict], model: str = "claude-opus-4-8") -> bool:
         """Check if context should be reset (approaching 80% of window)."""
         from backend.agents.harness_memory import approx_token_count, get_context_window
         total = sum(approx_token_count(str(m.get("content", ""))) for m in messages)
@@ -1058,7 +1058,7 @@ class MultiAgentOrchestrator:
                 # is active (enabled or adaptive). Branch on model id.
                 _thinking_arg: dict
                 _extra_kwargs: dict
-                if agent_config.model.startswith("claude-opus-4-7"):
+                if agent_config.model.startswith(("claude-opus-4-8", "claude-opus-4-7")):
                     # phase-4.14.7: Opus 4.7 rejects temperature /
                     # top_p / top_k with 400 on every request,
                     # thinking or not. Do NOT set any sampling param.

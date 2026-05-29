@@ -55,7 +55,7 @@ def _load_meta_plan_text(path: Path = _META_PLAN_JSON_PATH) -> str:
 class PlannerAgent:
     """LLM-as-Planner for autonomous feature generation."""
 
-    def __init__(self, model: str = "claude-opus-4-7"):
+    def __init__(self, model: str = "claude-opus-4-8"):
         """Initialize planner with Anthropic client.
 
         phase-23.8.0 (R-4): META_PLAN text is now loaded from
@@ -272,7 +272,7 @@ Return revised proposal in JSON format."""
         return revised
 
 
-def get_planner_agent(model: str = "claude-opus-4-7") -> PlannerAgent:
+def get_planner_agent(model: str = "claude-opus-4-8") -> PlannerAgent:
     """Get or create global planner agent."""
     global _planner
     if '_planner' not in globals():

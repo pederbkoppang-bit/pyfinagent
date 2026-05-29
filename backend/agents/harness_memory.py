@@ -48,7 +48,8 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "gemini-2.0-flash": 1_048_576,
     "gemini-2.5-flash": 1_048_576,
     "gemini-2.5-pro": 1_048_576,
-    # Claude — current GA (1M context on Opus 4.7/4.6 + Sonnet 4.6)
+    # Claude — current GA (1M context on Opus 4.8/4.7/4.6 + Sonnet 4.6)
+    "claude-opus-4-8": 1_000_000,
     "claude-opus-4-7": 1_000_000,
     "claude-opus-4-6": 1_000_000,
     "claude-opus-4-5": 200_000,
