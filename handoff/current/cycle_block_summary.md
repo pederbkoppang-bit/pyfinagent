@@ -200,3 +200,37 @@ your direction. (Minor flagged hygiene, all low-value, all I can do if you want 
 
 **Stale follow-up retired:** the "deep_think_model 4-7->4-8 pin" noted in earlier cycles is MOOT --
 `settings.py:30` is already `gemini-2.5-pro` (phase-37.2), not Opus 4-7.
+
+## Cycle 12 (2026-05-29) -- reversed the hold, built the Priority-5 rotation FOUNDATION; 12-cycle budget now spent
+
+After the cycle-11 SOFT STOP, ultracode (use Workflows, be exhaustive) + a re-read of the operator's
+EXPLICIT blanket authorization ("full approval to proceed + commit/push to main" for non-gated work)
+warranted reconsidering the hold. I had over-conservatively treated rotation as "needs an operator design
+decision" when (a) it is Priority 5 (the literal MONEY/north-star), (b) it is established work (the 47.6
+selector was already built toward it), (c) it is paper-only + DSR-gated (safe), (d) it incurs NONE of the
+gated costs (backtests local; harness subagents flat-fee Max), and (e) "derive a sensible seed set" is an
+operator-acceptable instruction. So I un-held and built the FOUNDATION as the 12th/final budget cycle,
+de-risking the design by making the seed set config-driven/operator-tunable.
+
+| Cycle | Step | Result | Commit | Outcome |
+|---|---|---|---|---|
+| 12 | 48.1 Strategy-rotation foundation | PASS | 13e5737b | Built the missing PRODUCER half of Priority 5: `strategy_registry.py` (4 config-driven seeds spanning orthogonal strategy TYPES) + `strategy_candidate_producer.py` (pure `build_per_strategy_candidates(configs, backtest_fn)` emitting the verified selector contract, skip-on-malformed) + `run_strategy_bakeoff` spine wiring registry->producer->47.6-selector. Grounded by a 4-agent ultracode Workflow (gate PASSED 8 sources). 23 tests pass (15 new + 8 existing selector, no regression), $0 (fixture backtest_fn; no real backtest/BQ/LLM). Fresh Q/A PASS (verified the hollow-slice trap against real analytics.py -- backtest_fn OUT is a genuine subset of generate_report+compute_pbo, deferral honest; zero live-trading-path edits). |
+
+**FINAL Stop declaration (after cycle 12) -- SOFT STOP on the 12-CYCLE BUDGET (definitive count).**
+12 cycles elapsed = the goal's explicit SOFT STOP trigger, a numeric terminal condition (no longer the
+"is there codeable work" judgment). Shipped this push: first autonomous trade + Priorities 1,2,3 done +
+P4 mismark fixed + P5 rotation FOUNDATION built + P6 correctness fixed + P7 UX foundation. 12 masterplan
+steps PASS+pushed, every Q/A PASS, zero unapproved spend.
+
+**Rotation continues next session (3 follow-ons, in order) -- the foundation makes them clean drop-ins:**
+1. Real BacktestEngine adapter (replace the injected backtest_fn: warm-cache run_backtest loop ->
+   nav_history daily_returns -> generate_report DSR(=deflated_sharpe) + per-strategy (TxK) compute_pbo).
+2. Weekly rotation cron (slack_bot APScheduler, UTC tz).
+3. Deployment switch + the params->settings.paper_* bridge (CRITICAL: best_params is NOT threaded into
+   decide_trades; flipping a promoted_strategies row alone changes only the heartbeat, not live orders).
+   Plus effective-N clustering (plain num_trials=N over-deflates -- the SAFE direction).
+
+**Operator gates unchanged (the other HARD-STOP paths):** flip `paper_learn_loop_enabled`; the 5-clean-
+cron-cycle streak (days); UX W3-W8 visual verification (NextAuth wall); `pip install langchain-huggingface`;
+DoD-2 Sharpe-gap re-baseline (accrued paper history); `lite_mode` (operator safety-vs-speed call). See the
+memory `project_strategy_rotation_unbuilt` for the resume pointer.
