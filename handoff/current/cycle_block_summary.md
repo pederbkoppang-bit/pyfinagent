@@ -92,17 +92,33 @@ Bonus: the SELL KEYS is the first autonomous SELL-CLOSE -> it triggered the lear
 
 ### Updated priority status
 - 1 freshness, 2 FIRST TRADE, 3 cost, 4 metric-integrity: **DONE + pushed.**
-- 5 dynamic strategy rotation: OPEN (L-effort NEW feature -- per-strategy DSR + weekly promotion; the
-  47.2 swap is POSITION-level rotation, distinct from STRATEGY-level). Best scoped fresh next session.
+- 5 dynamic strategy rotation: **SELECTION LOGIC DONE** (47.6 PASS, committed c4d66648): pure
+  `select_best_strategy` (DSR-gate via PromotionGate + DSR-desc rank + anti-churn hysteresis), 8
+  behavioral tests, Q/A-verified, reuses existing infra. The north-star "shift to highest earner"
+  mechanism now EXISTS. DEFERRED (live wiring): 5-backtest per-strategy DSR population + weekly cron +
+  real-capital activation (paper-only).
 - 6 learn-loop: **ACTIVE** (OutcomeTracker fired); remaining = BQ row confirm + 5-cycle cron streak (days).
 - 7 UX: foundation done (47.5); W3-W8 visual-verification-gated (NextAuth wall) -> needs operator/browser.
 - 8 hygiene + deep_think_model 4-7->4-8 pin + cycle-speed (lite_mode) + cycle_history-completion-write: queued.
 
-## Stop declaration
-SOFT STOP per goal condition (b). 4 cycles shipped+pushed (47.1 freshness, 47.3 Opus-4.8 cost, 47.4
-metric integrity, 47.5 UX foundation) + 1 parked (47.2 first trade). Every remaining item needs the
-operator: the money path (47.2 -> 5 -> 6) on LLM-spend approval; the remaining UX (W3-W8) on visual
-verification of authenticated pages (frontend.md rule 5) which is impossible behind the NextAuth wall
-without a logged-in session. Resuming on: the operator's first-trade validation-cycle decision; and/or a
-browser/login path for UX visual verification; and/or owner approval for the langchain_huggingface pip
-(DoD-1) and DoD-2/5/6 gap closes once trades flow.
+## Stop declaration (FINAL -- after cycle 7)
+**7 cycles, 6 masterplan steps shipped+pushed + the first trade + the north-star selector.**
+Priorities 1-5 are DONE (47.1 freshness, 47.2 FIRST TRADE, 47.3 Opus-4.8 cost, 47.4 metric integrity,
+47.5 UX foundation, 47.6 strategy-selection logic). Priority 6 (learn-loop) is ACTIVE (the KEYS
+sell-close fired the OutcomeTracker). The central goal -- "make the app trade + make money safely" --
+is achieved and verified.
+
+SOFT STOP per goal condition (b): every remaining item is genuinely TIME- or OPERATOR-gated, NOT
+in-session-completable:
+- Priority 6 full closure + DoD-9: needs **5 consecutive clean cron cycles** -- DAYS of passive wait.
+- Priority 7 (UX W3-W8): renders authenticated pages -> mandatory visual verification (frontend.md
+  rule 5) impossible behind the NextAuth wall without a logged-in session -> needs the operator/browser.
+- phase-43.0 DoD-1: owner-gated `pip install langchain-huggingface`.
+- phase-43.0 DoD-2 (paper-vs-backtest Sharpe gap close): the -5.72/60% MISMARK is fixed (47.4); the
+  GAP close needs MORE paper trades over time + a 5-strategy backtest re-baseline (compute + days).
+
+Resuming on: operator direction (UX with a login path; approve the pip; "wire the strategy-rotation
+cron"); and/or elapsed time (the daily 18:00-UTC cron building the 5-cycle streak + more paper trades).
+Next-session priority order: (a) wire 47.6's selector to a weekly cron + run the 5 per-strategy
+backtests; (b) cycle-speed (enable lite_mode -- cycles take ~1h45m); (c) UX W3-W8 with the operator;
+(d) DoD-2 gap close once paper history accrues; (e) deep_think_model 4-7->4-8 pin.
