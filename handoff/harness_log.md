@@ -25669,3 +25669,89 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 ---
 
 **PRIORITY-3 (Opus-4.8 exploit) NOW COMPLETE across the codeable surface:** 47.3 (cost_tracker 4.8 pricing) + 47.8 (backend operative-pin sweep incl. the critical :1061 400-fix) + 47.9 (orchestrator max_tokens floor + scripts/ driver-pin finish + planner hardening) + 47.10 (generate_content max_tokens floor). Both Opus thinking paths floored; all operative 4-7/4-6 pins bumped; the 400-rejection branch widened; pricing correct. Remaining 4.8 items are explicitly API-key-migration-deferred (Priority 9: context-editing/memory-tool + mid-conversation system messages).
+
+---
+
+## Cycle 1 -- 2026-05-29 03:04 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.29% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-29 03:07 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.29% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-29 03:16 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.29% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-29 03:21 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.29% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 12 (production-ready+money push) -- 2026-05-29 -- phase=48.1 result=PASS
+
+**Step:** Strategy-rotation FOUNDATION (Priority 5, MONEY/north-star) -- config-driven seed registry + pure per-strategy DSR/PBO producer wired to the 47.6 selector. $0 (config + pure code + fixture tests; no real backtest, no BQ, no LLM, no macro preload). This un-held the cycle-11 SOFT STOP under explicit operator full-approval + ultracode to build the explicit Priority-5 north-star feature; the seed set is config-driven/operator-tunable to de-risk the "wrong strategies" concern. (Note: the scheduled run_harness.py parameter-optimizer also appends its own "Cycle 1" DRY_RUN blocks to this file -- those are a SEPARATE background process, not this masterplan cycle.)
+
+**Research+design:** 4-agent Workflow wf_784c2e77-298 (ultracode-aligned exhaustive fan-out): research-gate lit agent (gate PASSED, **8 sources read in full** -- DSR/Bailey-LdP, PBO/CSCV, effective-N, jump-model anti-churn, ensemble practice, IS/WFA/OOS) + parallel backtest-engine-interface audit + deployment/param-space audit + design synthesis. Brief: research_brief_phase_48_1_rotation_foundation.md. Decisive finding: diversify on orthogonal strategy-TYPE axes (mean_reversion vs trend/momentum vs the triple_barrier baseline), not param tweaks; each seed must clear the DSR>=0.95/PBO<=0.20 gate on its own. Deploy audit headline: best_params is NOT threaded into decide_trades/paper_trader (live behavior is settings.paper_* driven) -> a real rotation must bridge params->settings (DEFERRED).
+
+**Implementation (2 new modules + 2 new test files):** (1) backend/autoresearch/strategy_registry.py -- SEED_STRATEGIES (4: tb_baseline incumbent rail / mr_short_horizon / qm_trend_tilt / tb_risk_managed) + load_seed_strategies(seeds=None, base_params=None) overlaying param_overrides on optimizer_best.params; operator-tunable + fail-open + pure. (2) backend/autoresearch/strategy_candidate_producer.py -- pure build_per_strategy_candidates(configs, backtest_fn) emitting the verified {strategy,dsr,pbo,params,sharpe} contract (dsr+pbo mandatory floats; SKIPS+warns on raise/non-dict/missing-or-non-numeric so the gate never silently drops a malformed candidate) + run_strategy_bakeoff spine (registry->producer->select_best_strategy). backtest_fn is the ONLY injected dependency (no engine/BQ/LLM import) -- isolates slow/real I/O so the producer is $0-unit-testable now and the real adapter is a drop-in next cycle.
+
+**Verification:** ast OK 2 files; pytest 23 passed (15 new + the 8 existing test_strategy_selector.py -- no selector-contract regression). Import smoke: no cycle; real-base registry loads the 4 seeds off the live optimizer_best.json; run_strategy_bakeoff returns a valid first_selection verdict.
+
+**Q/A:** fresh `a175ffd412e638b20` = **PASS** (`ok:true`, zero violated_criteria). Independently reproduced the immutable command (exit 0); VERIFIED the hollow-slice trap against the REAL backend/backtest/analytics.py -- the backtest_fn OUT {dsr,pbo,sharpe} IS a genuine subset of generate_report()["analytics"] (sharpe exact key; dsr == deflated_sharpe, rename only) + compute_pbo()->float, so the deferred adapter is a real drop-in not a rewrite (deferral HONEST); git-diff confirmed ZERO edits to autonomous_loop/portfolio_manager/paper_trader/decide_trades (no live trading path touched, $0); re-ran the producer with omit-pbo/raise/non-dict/non-numeric -> each malformed candidate ABSENT (skip-guard genuine); confirmed the anti-churn test exercises below_min_improvement (incumbent != top passer, delta 0.005 < 0.01), not incumbent_is_top. 5/5 harness compliance. NOTE (non-blocking): the producer docstring could spell out the deflated_sharpe->dsr rename.
+
+**DEFERRED (documented in both module docstrings + masterplan + contract):** (a) the real BacktestEngine adapter (warm-cache run_backtest loop -> nav_history daily_returns -> generate_report DSR + per-strategy (TxK) compute_pbo); (b) the weekly rotation cron; (c) the deployment switch + the params->settings.paper_* bridge (required for rotation to change live orders, not just the heartbeat); (d) effective-N clustering (plain num_trials=N over-deflates -- the SAFE direction). No live rotation is implied by this cycle.
+
+**Budget:** this is the 12th cycle -> the 12-cycle SOFT STOP now fires on count. Rotation continues next session: real-engine adapter -> weekly cron -> deployment params->settings bridge.

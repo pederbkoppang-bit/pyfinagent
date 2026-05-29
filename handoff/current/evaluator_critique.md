@@ -1,188 +1,88 @@
-# Q/A Evaluator Critique — phase-47.10: generate_content max_tokens floor
+# Evaluator Critique — phase-48.1: Strategy-rotation foundation (config-driven seed registry + pure per-strategy DSR/PBO producer)
 
-**Verdict: PASS** | Cycle 11 | FIRST Q/A pass on 47.10 (no prior CONDITIONAL) |
-Single merged Q/A (deterministic-first, then LLM judgment). Self-evaluation by
-orchestrator forbidden — independent verification performed.
+**Q/A agent (merged qa-evaluator + harness-verifier). FIRST Q/A pass on 48.1. Verdict: PASS.**
+Deterministic-first, then code-review heuristics, then LLM judgment. Self-evaluation by the orchestrator forbidden; this is an independent verification pass.
 
 ---
 
-## STEP 1 — Harness-compliance audit (5 items, evidence-cited)
+## STEP 1 — Harness-compliance audit (5 items)
 
-1. **Researcher gate — PASS.** `handoff/current/research_brief_phase_47_10_generate_content_floor.md`
-   exists; END JSON envelope reports `gate_passed: true`,
-   `external_sources_read_in_full: 5`, `recency_scan_performed: true`,
-   `urls_collected: 14`, `internal_files_inspected: 7`. Contract `:5-6` cites
-   the brief by name + researcher id `a2073408b08340a8d`. Brief includes the
-   mandatory "Recency scan (2024-2026)" section (brief `:49-60`) and 3-variant
-   query discipline (`:44-47`).
-2. **Contract before generate — PASS.** `contract.md` IS the 47.10 contract:
-   step id (`:1`), research summary (`:5-11`), verbatim immutable criteria
-   (`:16-20`, matched against masterplan), hypothesis (`:13-14`), plan steps
-   (`:22-26`), references (`:32-35`). mtime ordering confirmed by stat:
-   brief `04:45:37` < contract `04:47:11` < experiment_results `04:48:51`.
-   Correct research -> contract -> generate order.
-3. **experiment_results.md present — PASS.** Edits + file list (`:31-32`),
-   verbatim immutable-command output (`:13-19`), success-criteria mapping
-   (`:22-26`), scope-honesty / FLAGGED follow-ups (`:28-29`), reachability
-   disclosure (`:5-6`).
-4. **Log-last — PASS (correctly absent).** `grep "phase=47.10" handoff/harness_log.md`
-   exit=1 (no match). The 47.10 block is correctly NOT yet appended — it is
-   added only after this PASS. Not a defect.
-5. **No verdict-shopping — PASS.** First Q/A on 47.10, fresh evidence; no prior
-   verdict to shop. Diff scope confirmed via `git status`: only
-   `backend/agents/llm_client.py` (modified) + new test file
-   `tests/agents/test_phase_47_10_generate_content_floor.py`. (The pre-existing
-   file content here was the 47.9 verdict, now replaced.)
+1. **Researcher gate — PASS.** `handoff/current/research_brief_phase_48_1_rotation_foundation.md` exists; JSON envelope (line 47) `"gate_passed": true`, `"external_sources_read_in_full": 8` (>= the 5 floor), `"recency_scan_performed": true`. 4-agent workflow `wf_784c2e77-298`. Contract section "Research-gate summary" (lines 5-12) cites it + the verified selector/gate contract. Sources are Tier-1/2 (Bailey-LdP DSR PDF, PBO/CSCV CRAN, jump-model arXiv 2402.05272, IS/WFA/OOS arXiv 2603.09219, effective-N vertoxquant, buildalpha ensemble).
+2. **Contract before generate — PASS.** `handoff/current/contract.md` is the 48.1 contract: step id, research summary, the 4 immutable criteria copied VERBATIM (cross-checked against masterplan `id:"48.1"` success_criteria — exact match), hypothesis, 5 plan steps, out-of-scope/DEFERRED, references.
+3. **experiment_results.md present — PASS.** Edits + 2-module/2-test file list + verbatim immutable-command output (`ast OK 2 files` / `23 passed`) + import-spine smoke + success-criteria mapping + explicit "Scope honesty / DEFERRED" block (line 37) naming all 4 deferred items.
+4. **Log-last — PASS (correct ordering).** `grep 'phase=48.1' handoff/harness_log.md` -> ABSENT. The log append is the LAST step (after Q/A PASS, before status flip); its absence now is correct, NOT a defect.
+5. **No verdict-shopping — PASS.** First Q/A on fresh evidence; no prior 48.1 critique to overturn. (`harness_log.md` has zero `phase=48.1` entries -> no prior CONDITIONAL to count toward the 3rd-CONDITIONAL auto-FAIL rule.)
 
 ---
 
 ## STEP 2 — Deterministic checks (reproduced, not trusted)
 
-| Check | Command | Exit | Result |
-|-------|---------|------|--------|
-| ast + 4 helper asserts (IMMUTABLE) | `python -c "import ast; ast.parse(...llm_client.py...); ...4 asserts..."` | **0** | `ast+helper OK` |
-| pytest 47.10 suite (IMMUTABLE) | `pytest tests/agents/test_phase_47_10_generate_content_floor.py -q` | **0** | `6 passed in 0.17s` |
-| import-cycle check | `python -c "import backend.agents.llm_client"` | **0** | `import llm_client OK` (orchestrator imports llm_client; a reverse import would cycle — none) |
-| symmetry check | import both floors | **0** | llm_client=16384, orchestrator=16384, **equal=True** |
-| regression scan | `pytest tests/agents/ -k "llm_client or phase_47"` | **0** | `25 passed, 21 deselected` |
+Immutable command (masterplan `id:"48.1"` verification.command), run verbatim:
+```
+$ python -c "import ast; [ast.parse(open(f).read()) for f in ['backend/autoresearch/strategy_registry.py','backend/autoresearch/strategy_candidate_producer.py']]; print('ast OK 2 files')" \
+  && python -m pytest tests/autoresearch/test_phase_48_1_strategy_registry.py tests/autoresearch/test_phase_48_1_candidate_producer.py tests/autoresearch/test_strategy_selector.py -q
+ast OK 2 files
+....................... [100%]
+23 passed in 0.01s
+EXIT_CODE=0
+```
+23 = 8 (registry) + 7 (producer) + 8 (existing selector) -> **no selector-contract regression** in `test_strategy_selector.py`.
 
-(One pre-existing urllib3 RequestsDependencyWarning — environmental noise.)
+**Selector/gate contract re-read from code (not just the audit):**
+- `strategy_selector.py:54-57` — `_strategy_id` resolves id under `strategy_id | strategy | trial_id`. `:95-98` — ranks DSR-desc / PBO-asc. Matches the producer emitting id under key `strategy`.
+- `gate.py:28-29` — `PromotionGate.evaluate` drops on `dsr is None or pbo is None` ("missing_dsr_or_pbo"); `:35-38` promotes iff `dsr>=0.95 AND pbo<=0.20`. Matches the producer's mandatory-float dsr+pbo.
 
-**Floor is real + correctly gated** (`llm_client.py:1189-1203`):
-- const `_OPUS_ADAPTIVE_MIN_MAX_TOKENS = 16384` (`:1189`).
-- helper floors thinking+Opus (2048->16384, 1024->16384), no-ops thinking-off
-  (2048->2048), no-ops non-Opus (sonnet/haiku/gemini/""->2048), respects large
-  budget (30000->30000), boundary (16384->16384). All asserted by tests.
+**Producer emits the REAL contract + SKIP discipline (independent spot-run, NOT the shipped tests):**
+Fed 5 configs to a fixture `backtest_fn`: complete / pbo-OMITTED / raises / non-dict / non-numeric-dsr. Result: only `has_both` emitted; the other 4 ABSENT (each logged a warning, e.g. `"strategy 'no_pbo' metrics missing/invalid dsr|pbo (dsr=0.97 pbo=None); skipping so the gate cannot silently drop it"`). Survivor = `{strategy,dsr,pbo,params,sharpe}` with `isinstance(dsr,float) and isinstance(pbo,float)`. Confirms the producer **SKIPS (no partial dict)** so the gate cannot silently drop a malformed candidate — criterion 2 satisfied at runtime, not just by assertion.
 
-**Wired into generate_content correctly** (`llm_client.py:1479-1481`):
-`kwargs["max_tokens"] = _opus_adaptive_max_tokens(kwargs["max_tokens"], model_id, thinking_requested)`
-placed AFTER thinking resolution (`:1406-1416`) and AFTER effort resolution
-(`:1449-1473`). In-scope locals verified: `model_id` set `:1405`
-(`self.model_name or ""`), `thinking_requested` set `:1404`. **Adversarial
-KeyError check:** `kwargs["max_tokens"]` is set unconditionally in the dict
-literal at `:1352-1358` (`"max_tokens": max_tokens`, where `max_tokens` is bound
-at `:1307`); no code path between `:1354` and `:1479` deletes the key. **No
-KeyError possible.**
+**Registry (LIVE base):** `load_seed_strategies()` off the LIVE `optimizer_best.json` -> `['tb_baseline','mr_short_horizon','qm_trend_tilt','tb_risk_managed']`, types `{mean_reversion, quality_momentum, triple_barrier}` -> >=4 distinct seeds across >=3 strategy TYPES incl. mr+qm+tb. `test_does_not_mutate_module_constant_or_base` + `test_operator_tunable_injected_seeds` + `test_fail_open_empty_base_still_enumerates_ids` cover non-mutation of the module constant, tunability (injected seeds), and fail-open. `load_base_params` reads the inner `params` dict, `except Exception -> {}` (logged) — fail-open confirmed; it overlays `param_overrides` on `{**base, **overrides}` without mutating `SEED_STRATEGIES`.
 
-**Symmetry claim verified:** floor value == `multi_agent_orchestrator._OPUS_ADAPTIVE_MIN_MAX_TOKENS`
-(both 16384), confirmed by live import + `test_floor_value_matches_orchestrator`.
+**No import cycle:** `python -c "import backend.autoresearch.strategy_candidate_producer"` OK. Producer imports only `logging`, `typing`, `strategy_registry`, `strategy_selector` (no engine/BQ/LLM — purity criterion 2). The lone `strategy_candidate_producer` token in registry.py is a docstring reference (line 6), NOT an `import` -> selector and registry do not import the producer back -> acyclic.
 
-**Effort-without-thinking decision — CORRECT, not an under-fix.** The helper
-gates on `thinking_requested`, NOT effort. Anthropic effort doc (cited brief
-`:26,67-76`): "Set `thinking: {type: 'adaptive'}` to enable thinking; without
-it, requests run without thinking." Effort raises text/tool tokens but creates
-ZERO thinking tokens absent an explicit `thinking` block — so `max_tokens` on an
-effort-only call is pure visible output the caller's `max_output_tokens`
-intentionally bounds. Flooring it would override the caller's deliberate budget
-for no safety benefit. Confirmed in code: `generate_content` only sets
-`thinking:{type:adaptive}` when `thinking_requested` is true (`:1406-1409`); it
-never auto-enables thinking from effort. `thinking_requested` is the exact-right
-gate. **This is NOT an under-fix.**
+**Code-review heuristics (`code_review_heuristics` run, 5 dimensions, no findings that degrade verdict):** no secrets (`secret-in-diff` clean); no bare/silent `except` (`broad-except` clean); no `print`/`eval`/`exec`/`subprocess`/`os.system` (`command-injection`, `insecure-output-handling` clean); logger calls ASCII-clean (`unicode-in-logger` clean); no `requirements`/`pyproject`/`package.json` change (`supply-chain-dep-pin-removal` clean). The two broad `except Exception` (registry:140 fail-open load; producer:94 backtest_fn-raise skip) are the DOCUMENTED fail-open / skip-guard pattern — both LOG a warning and neither sits in a risk-guard/kill-switch/stop-loss/execution path, so the BLOCK-class `broad-except-silences-risk-guard` / `paper-trader-broad-except` do NOT apply. NOTE only, no degradation. No `financial-logic-without-behavioral-test` BLOCK: this cycle does not touch `perf_metrics.py`/`risk_engine.py`/`backtest_engine.py`/`backtest_trader.py`, and the new producer/registry logic ships WITH 15 behavioral tests. No `tautological-assertion` / `over-mocked-test`: the tests use a real in-memory fixture `backtest_fn` and assert ABSENCE of malformed candidates, not mock-called.
 
 ---
 
-## STEP 2b — Code-review heuristics (5 dimensions evaluated)
+## STEP 3 — LLM judgment (adversarial)
 
-Scanned the diff (added lines only). **No findings.** No `secret-in-diff`
-(grep exit=1), no `broad-except`, no `print`, no command/SQL/path/SSRF sink, no
-LLM-output-to-execution path (`llm-output-to-execution-without-validation` N/A).
-`financial-logic-without-behavioral-test` does NOT fire: the token-budget guard
-has a dedicated test exercising all four branches + a structural wiring assert.
-Diff touches `frontend/` = 0 files -> **§1b ESLint/tsc gate N/A** (correctly
-skipped). Helper is fully type-hinted with docstring (`no-type-hints` N/A).
-Append `code_review_heuristics` to checks_run.
+**HOLLOW-SLICE TRAP — HONEST foundation (the key check, verified against the real `backend/backtest/analytics.py`).** The producer uses an injected fixture `backtest_fn`, so a test PASS does NOT prove live DSR/PBO are computable. I checked the claimed subset against the actual analytics module:
+- `generate_report(...)` returns `report["analytics"]` (analytics.py:575-587) containing `"sharpe"` (float = `result.aggregate_sharpe`, :576) and `"deflated_sharpe"` (the DSR in [0,1], float, :577).
+- `compute_pbo(pnl_matrix, S=16) -> float` (analytics.py:184) — a SEPARATE function returning PBO as a float.
 
----
+The producer's `backtest_fn` OUT contract is `{dsr: float, pbo: float, sharpe: float}`. Every one of those three VALUES exists in the real engine and is a float:
+  - `sharpe` -> `analytics["sharpe"]` — exact key match.
+  - `dsr` (the Deflated Sharpe Ratio) -> `analytics["deflated_sharpe"]` — same quantity, the adapter renames `deflated_sharpe` -> `dsr`.
+  - `pbo` -> `compute_pbo(...)` return — a separate float-returning call.
+The experiment_results.md:37 wording ("strict SUBSET of `analytics.generate_report()["analytics"]` + `compute_pbo`") is ACCURATE precisely because it conjoins `compute_pbo` — pbo is NOT claimed to come from `generate_report`. The producer docstring (lines 27-32) describes the adapter exactly: `generate_report(...)["analytics"]` for dsr+sharpe, build a per-strategy (T x K-trial) matrix for `compute_pbo`. **Conclusion: the deferral is HONEST and the next-cycle adapter is a genuine drop-in (a thin key-rename + matrix-assembly shim), NOT a rewrite. This is a legitimate foundation, not a hollow slice.**
+  - NOTE (no verdict effect): the docstrings phrase it as "generate_report ... for dsr+sharpe" without explicitly flagging that the literal analytics key is `deflated_sharpe` (requiring a one-line rename in the adapter). The value is unambiguously present and the deferral is correctly bounded, so this is a documentation nicety, not a defect.
 
-## STEP 3 — LLM judgment
+**DEFERRED documented in BOTH module docstrings — PASS.** registry.py:30-43 + producer.py:24-41 each name: (a) real BacktestEngine adapter (`run_backtest` warm-cache loop -> `nav_history` daily_returns -> `generate_report` DSR + `compute_pbo` T x K matrix), (b) weekly cron, (c) deployment switch + params->settings.paper_* bridge (deploy audit: `best_params` NOT threaded into `decide_trades`/`paper_trader`; flipping a `promoted_strategies` row alone changes only the heartbeat, not live orders), (d) effective-N clustering (plain `num_trials=N` over-deflates — the SAFE direction). Nothing silently dropped (`criteria-erosion` clean).
 
-**Contract alignment — all 4 immutable criteria MET:**
-1. Floors to 16384 ONLY on thinking+Opus via a pure unit-tested helper; no-op
-   thinking-off / non-Opus (effort-without-thinking NOT floored). MET —
-   `test_floors_opus_with_thinking` + `test_noop_when_thinking_off` +
-   `test_noop_when_not_opus`.
-2. Large budgets respected (max(), never lowers); no import cycle (local def).
-   MET — `test_respects_larger_caller_budget`; import succeeded.
-3. pytest guard + ast clean + green + import clean. MET — `ast+helper OK`;
-   6 passed; import OK.
-4. Silent text-tail swallow NOT in scope, flagged as follow-up. MET — flagged
-   in contract `:29`, experiment_results `:29`; I confirmed the swallow exists
-   (`llm_client.py:1623` `stop_reason=max_tokens on text; partial output`,
-   logs + returns partial, no retry) and is genuinely deferred (same call 47.9
-   made). Honest scope bound, not a silent drop.
+**Scope / authorization honesty — PASS.** This cycle reversed a SOFT STOP to build Priority 5's completable slice (registry + producer + spine, fixture-tested). What shipped matches the contract; it does NOT overclaim live rotation (experiment_results:37 "No live rotation is implied by this cycle"). `git status --porcelain` diff: only the 2 new modules, 2 new test files, masterplan (the 48.1 block), researcher agent-memory, contract/experiment_results, and append-only audit logs. **NO edits to `autonomous_loop` / `portfolio_manager` / `paper_trader` / `decide_trades`** — confirmed by grep over the porcelain status (`NO live-trading-path file modified`). $0: no LLM/BQ/macro-preload; no requirements/pyproject/package.json change -> no pip cost. `kill-switch-reachability`, `stop-loss-always-set`, `max-position-check-bypass`, `crypto-asset-class`, `llm-output-to-execution-without-validation` all N/A — no execution path touched.
 
-**Mutation-resistance — REAL guards (verified by simulation):**
-- Regressed helper that floors UNCONDITIONALLY (drops the gate) returns 16384
-  for the thinking-off case (test expects 2048) AND the non-Opus case (test
-  expects 2048) -> both tests FAIL. Gate is a real guard, not tautological.
-- If the gate dropped the Opus check (fired for sonnet): `test_noop_when_not_opus`
-  asserts `(2048,"claude-sonnet-4-6",True)==2048` -> FAILS. Real guard.
-- If generate_content stopped calling the helper:
-  `test_generate_content_applies_the_floor_at_source` asserts the literal wiring
-  line `kwargs["max_tokens"] = _opus_adaptive_max_tokens(` AND
-  `kwargs["max_tokens"], model_id, thinking_requested` are present in source
-  -> FAILS. Structural guard against silent removal.
+**Mutation-resistance — GENUINE.** The skip-guard tests assert the malformed candidate is ABSENT (`"qm_trend_tilt" not in {c["strategy"] ...}`, `"mr_short_horizon" not in ids`, plus `all(c["pbo"] is not None and c["dsr"] is not None ...)`), not merely "no exception raised". If the producer stopped emitting `pbo`, `test_producer_emits_exact_selector_contract`'s `set(c.keys()) == {"strategy","dsr","pbo","params","sharpe"}` + `isinstance(c["pbo"],float)` fail. If a seed's strategy-type override were dropped, `test_seeds_span_at_least_three_strategy_types` (`{mean_reversion,quality_momentum,triple_barrier} <= types`) + `test_param_overrides_apply_on_top_of_base` fail. If the skip-guard were removed (emitting a partial dict), `test_producer_skips_when_pbo_missing` fails on the absence assertion. Independently re-verified all three skip paths in the spot-run above. Tests bite.
 
-**Anti-rubber-stamp / severity honesty — severity NOT understated (independently
-re-derived).** The claim is "operator-override-only" reachability (ENABLE_THINKING=true
-AND DEEP_THINK_MODEL=opus, both non-default). Verified against ACTUAL defaults:
-- `settings.py:35` `enable_thinking: bool = Field(False, ...)` — DEFAULT FALSE.
-- `settings.py:30` `deep_think_model = Field("gemini-2.5-pro", ...)` — DEFAULT
-  GEMINI (explicitly reverted off Opus in phase-37.2 to stop a credit regression).
-- `orchestrator.py:613` `self.enable_thinking = settings.enable_thinking`.
-
-I enumerated ALL thinking-config injection sites that reach `generate_content`:
-`risk_debate.py:62` (Claude-capable: `getattr(model,"supports_thinking")` AND
-`thinking_budget>0`), `debate.py:66` (Gemini-gated: `isinstance(model,GeminiClient)`
-— CANNOT route thinking to Claude, confirms brief), and a path the brief's caller
-table did NOT explicitly enumerate: **`orchestrator.py:703-715`** — the deep-think
-judge injection `if ...supports_thinking AND self.enable_thinking AND is_deep_think
-AND agent in thinking_budgets`. Note the static `_THINKING_*` configs
-(`orchestrator.py:95,102,107,119`) are DEFINED-BUT-UNUSED (grep shows no consumers);
-the live injection is `:703`. **This minor incompleteness in the brief's caller
-enumeration does NOT understate the severity** — the `:703` path is gated on the
-SAME `self.enable_thinking` (default False) AND only floors for Opus (needs
-DEEP_THINK_MODEL=opus, default gemini). Every live thinking-on-Claude path through
-generate_content requires the SAME two non-default operator flips. **No
-default-config path passes `thinking` with budget>0 to an Opus model.** Severity =
-LOW / operator-override-only is correct (the brief slightly UNDER-counted live
-paths; it never OVER-stated safety). NOTE-level observation; does not degrade the
-verdict.
-
-**Scope honesty — PASS.** Live confirmation honestly DEFERRED
-(`experiment_results.md:28-29`): $0 static change, no LLM spend; the only live
-exercise requires the operator-override config + a RiskJudge cycle. The text-tail
-swallow is flagged out-of-scope (confirmed real at `:1623`), not silently dropped.
-Unrelated pre-existing items (COMMUNICATION router effort, `:987` emoji, openclaw
-token literal) correctly scoped out.
-
-**Research-gate compliance — PASS.** Researcher output present
-(`research_brief_phase_47_10_generate_content_floor.md`, gate_passed:true) and
-cited in the contract references section (`:32-35`).
+**Anti-churn correctness — PASS (genuinely the below_min_improvement branch).** Independently reproduced `test_bakeoff_anti_churn_retains_incumbent_below_min_improvement`: incumbent `qm_trend_tilt` dsr=0.985 vs top passer `mr_short_horizon` dsr=0.99. `ranked[0]` (`mr_short_horizon`) != incumbent (`qm_trend_tilt`), so this is NOT `incumbent_is_top`. delta=0.005, strictly in (0, 0.01) -> challenger is STRICTLY BETTER but below the 0.01 `min_improvement` -> `reason="below_min_improvement"`, `switched=False`, incumbent retained. The intended anti-churn hysteresis path is exercised, not an accidental `incumbent_is_top`.
 
 ---
 
-## checks_run
-syntax, verification_command (ast+helper exit 0), pytest (6 passed),
-import_cycle, symmetry_check, generate_content_wiring, keyerror_adversarial,
-reachability_severity_audit, mutation_test, code_review_heuristics,
-frontend_scope_check, regression_scan, evaluator_critique, masterplan_success_criteria,
-scope_honesty, research_gate.
+## Quality-criteria (agent_definitions weights)
+- Statistical Validity (40%): DSR>=0.95/PBO<=0.20 gate reused UNCHANGED from `gate.py`; producer emits exactly what the gate consumes; effective-N over-deflation is the SAFE direction and explicitly deferred. **PASS** (no live numbers asserted by design; the contract's claim is composability, which is proven).
+- Robustness (30%): fail-open registry + skip-on-malformed producer; spine composes on live + fixture base. **PASS.**
+- Simplicity (15%): 2 pure modules, single injected dependency (`backtest_fn`), no new params. **PASS.**
+- Reality Gap (15%): touches NO live trading path; the params->settings bridge (the real reality-gap risk) is correctly named as a hard prerequisite for a later cycle, not silently skipped. **PASS.**
+No criterion scores below 6.
 
-## violated_criteria
-(none)
+---
 
-## VERDICT: PASS
-All 4 immutable success criteria met and independently reproduced. Deterministic:
-immutable ast+helper command exit=0 (`ast+helper OK`), immutable pytest exit=0
-(6 passed), import clean, symmetry confirmed (both floors=16384), 25/25 regression
-tests green. Mutation-resistance real (gate-drop, opus-check-drop, and
-helper-removal each fail a test). Severity honestly stated and independently
-re-derived against actual settings.py defaults — operator-override-only confirmed;
-no default-config path reaches the floor. Effort-without-thinking correctly NOT
-floored (per Anthropic effort doc) — not an under-fix. Out-of-scope text-tail
-swallow honestly flagged (confirmed real at `:1623`). Wiring placement after
-thinking+effort with in-scope locals and no KeyError exposure. One NOTE: the
-brief's caller table omitted the `orchestrator.py:703` deep-think injection as a
-generate_content thinking path, but that path shares the identical two-flip gating,
-so the severity conclusion is unaffected. PASS-with-NOTE; verdict not degraded.
+## Verdict
+
+**PASS.** All 4 immutable criteria met and independently reproduced.
+1. Registry: >=4 distinct seeds, params = base overlaid with `param_overrides`, >=3 strategy types incl. mr+qm+tb, operator-tunable, fail-open, non-mutating (verified on the LIVE optimizer_best.json + injected base).
+2. Producer: PURE (only `backtest_fn` injected, no engine/BQ/LLM import), emits the exact `{strategy,dsr,pbo,params,sharpe}` selector/gate contract (id under `strategy`, dsr+pbo mandatory floats), SKIPS (no partial dict) on raise / non-dict / missing-or-non-numeric dsr|pbo — verified by independent spot-run.
+3. `run_strategy_bakeoff` composes registry->producer->`select_best_strategy`: first_selection picks the top-DSR passer (`mr_short_horizon`), a DSR<0.95/PBO>0.20 seed (`tb_risk_managed`) is gate-vetoed, anti-churn retains a DIFFERENT incumbent below `min_improvement`.
+4. DEFERRED work documented in BOTH docstrings; `ast OK 2 files`; 23 pytest green incl. the 8 existing selector tests (no regression).
+The hollow-slice subset claim is HONEST: every value in the `backtest_fn` OUT contract exists as a float in `generate_report()["analytics"]` (`deflated_sharpe`->`dsr` rename) + `compute_pbo`, so the deferred adapter is a genuine drop-in. No live trading path touched; $0 cost. One NOTE (the `deflated_sharpe`->`dsr` rename is implicit in the docstring) does not degrade the verdict.
+
+violated_criteria: none.
+checks_run: syntax, verification_command, evaluator_critique, mutation_test, code_review_heuristics, import_cycle, registry_live_base, producer_skip_guard_spotrun, anti_churn_branch, hollow_slice_subset_verify, live_path_diff_grep, harness_log_absence.

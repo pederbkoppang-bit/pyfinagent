@@ -13432,6 +13432,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "48.1",
+          "name": "Strategy-rotation foundation -- config-driven seed registry + pure per-strategy DSR/PBO producer wired to the 47.6 selector (real-engine adapter + cron + deployment bridge DEFERRED)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_phase_48_1_rotation_foundation.md (4-agent workflow wf_784c2e77-298; gate PASSED 8 sources). Priority 5 (MONEY/north-star: dynamic strategy rotation). The 47.6 select_best_strategy is a pure fn wired NOWHERE; only 1 strategy config exists (optimizer_best.json); nothing produces its per_strategy DSR/PBO input. This cycle ships the missing PRODUCER half: a config-driven, operator-tunable seed registry of >=4 strategies distinct along orthogonal axes (lit: diversification from strategy TYPE not param tweaks -- triple_barrier/mean_reversion/quality_momentum) + a PURE producer build_per_strategy_candidates(configs, backtest_fn) emitting the exact {strategy,dsr,pbo,params,sharpe} dict the selector+PromotionGate consume (verified: gate.py:28 drops on missing dsr|pbo), with backtest_fn DEPENDENCY-INJECTED so it is $0-unit-testable now and a drop-in for the real engine next cycle. DEFERRED (documented in docstrings): the real BacktestEngine adapter (warm-cache run_backtest loop -> nav_history daily_returns -> generate_report DSR + compute_pbo TxK matrix), the weekly cron, and the deployment switch incl. the params->settings.paper_* bridge (deploy audit: best_params is NOT threaded into decide_trades; flipping a promoted_strategies row alone changes only the heartbeat, not live orders).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; [ast.parse(open(f).read()) for f in ['backend/autoresearch/strategy_registry.py','backend/autoresearch/strategy_candidate_producer.py']]; print('ast OK 2 files')\" && python -m pytest tests/autoresearch/test_phase_48_1_strategy_registry.py tests/autoresearch/test_phase_48_1_candidate_producer.py tests/autoresearch/test_strategy_selector.py -q",
+            "success_criteria": [
+              "strategy_registry.py: load_seed_strategies(seeds=None, base_params=None) returns >=4 distinct seeds, each {id, rationale, params} where params = optimizer_best.params overlaid with the seed's param_overrides; seeds span orthogonal axes (>=3 distinct 'strategy' types incl. mean_reversion + quality_momentum + the triple_barrier baseline); operator-tunable (honors an injected seeds list) and fail-open (empty base still enumerates ids)",
+              "strategy_candidate_producer.py: build_per_strategy_candidates(configs, backtest_fn) is PURE (backtest_fn the only injected dependency, no engine/BQ/LLM import) and emits one {strategy,dsr,pbo,params,sharpe} dict per config matching the verified selector/gate contract; SKIPS+warns (does not emit a partial dict) when backtest_fn raises or omits dsr/pbo so the gate never silently drops a malformed candidate",
+              "registry->producer->select_best_strategy composes end-to-end via run_strategy_bakeoff(backtest_fn, incumbent=None, seeds=None, num_trials=None); a fixture backtest_fn drives a first_selection (top gate-passer by DSR wins, a DSR<0.95 or PBO>0.20 seed is gate-vetoed) and an incumbent case exercises the anti-churn retain",
+              "deferred work (real-engine adapter, weekly cron, deployment params->settings bridge, effective-N clustering) is explicitly documented in both module docstrings; ast.parse clean on both new files; new pytest green; the existing tests/autoresearch/test_strategy_selector.py stays green (no selector-contract regression)"
+            ],
+            "live_check": "n/a -- deterministic fixture-based unit test ($0: no real backtest, no BQ, no LLM, no macro preload). LIVE rotation defers to the next cycles (real-engine adapter -> weekly cron -> deployment params->settings bridge), which are Anthropic/compute-metered and operator/time-gated."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
