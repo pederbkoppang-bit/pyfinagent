@@ -1,4 +1,11 @@
-# Cycle block summary -- 2026-05-29 (verification + triage session)
+# Cycle block summary -- 2026-05-29 (verification + triage + 2 P7 cycles)
+
+## POST-SUMMARY UPDATE (2 clean harness cycles shipped + pushed to origin/main)
+- **phase-49.1** (commit 0d2a768d) -- runtime risk-limit control: `GET/PUT/DELETE /api/paper-trading/risk-limits`, file-backed `risk_overrides.py` (mirrors kill_switch.py), confirmation-gated + bounded + audited + restart-survivable. The SAFE bridge for the operator deploy-idle-cash decision. Fresh-Q/A PASS, live-verified.
+- **phase-49.2** (commit deb9bd92) -- operator cron control: `POST /api/jobs/{id}/pause|resume|trigger` for the 2 backend-owned in-process APScheduler jobs; trigger reuses /run-now's triple-guard; cross-process jobs 404; audited. Fresh-Q/A PASS, live-verified. paper_trading_daily left RESUMED (money loop intact).
+- **P7 backend control surface now substantially COMPLETE**: kill/pause/flatten/gate (pre-existing) + risk-limits (49.1) + cron enable/trigger (49.2). Remaining P7 = the "strategy" control (LOW value -- live loop is momentum/Gemini-driven, not STRATEGY_REGISTRY-driven) + UI consistency (BLOCKED: authenticated-page visual verification behind the NextAuth wall, per frontend.md rule 5 + feedback_harness_rigor).
+- **Production health verified good**: kill-switch sod_date=2026-05-29 (daily-loss anchor rolling correctly, P8 hygiene OK), not paused, loop scheduled (next 2026-06-01T14:00), trading, +20% NAV.
+- **Honest limit reached:** the high-value, fully-autonomously-verifiable work is DONE. Remaining priorities are operator-gated (P6 learn-loop flip, P8 langchain pip), UI-verification-blocked (P7 UI), or low-value (P5 rotation, strategy-select). Per the North-Star (Profit - Risk - Compute), manufacturing low-value churn adds regression Risk without Profit -- so the next real progress needs an operator decision (below).
 
 ## TL;DR
 The money goal is **MET**. The live paper engine works and makes money. Priorities 1-4
