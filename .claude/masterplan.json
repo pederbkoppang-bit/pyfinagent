@@ -13495,6 +13495,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "48.4",
+          "name": "Live rotation bake-off SMOKE -- first REAL validation of the 48.1-48.3 machinery on actual backtests (2 seeds x 2 variants, 2022-01..2024-06, 6 windows); AUDIT-ONLY; full bake-off + deployment bridge DEFERRED",
+          "status": "in-progress",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "48.3",
+          "audit_basis": "research_brief_phase_48_4_live_smoke.md (researcher gate PASSED 5 sources + recency scan + 11 internal files). Priority 5: the FIRST live validation -- everything in 48.1-48.3 was $0 mock-tested; this RUNS run_rotation_bakeoff on REAL backtests to prove the machinery works end-to-end + produce the first real per-strategy {dsr,pbo,sharpe} + selector verdict. CRITICAL window finding: the engine's default 12mo-train/3mo-test needs >=15 months -> a 6-month window yields ZERO walk-forward windows + a degenerate DSR; use 2022-01-01..2024-06-30 (6 windows, T~367 >> 32 floor). BQ confirmed: financial_reports.historical_prices spans 2017-2026, 511,960 rows in-window. AUDIT-ONLY (allocation_pct=0, no deploy); $0 LLM (quant-only); ~6-12 min real compute (backgrounded).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && test -f handoff/current/live_check_48.4.md && tail -1 backend/backtest/experiments/rotation_log.jsonl | python -c \"import sys,json; r=json.loads(sys.stdin.read()); assert r.get('allocation_pct')==0.0 and r.get('status')=='bakeoff_verdict' and r.get('selected_id') is not None or r.get('reason') is not None; print('rotation_log verdict row OK:', r.get('reason'), r.get('selected_id'))\"",
+            "success_criteria": [
+              "run_rotation_bakeoff executes on the real engine over a >=15-month window (2022-01-01..2024-06-30, >=2 walk-forward windows) with 2 seeds (tb_baseline + qm_trend_tilt) x num_param_variants=2, AUDIT-ONLY (allocation_pct=0, no deploy), $0 LLM",
+              "the run produces, for at least the seeds that complete, FINITE per-strategy metrics: dsr in [0,1], pbo in [0,1] that is NOT a degenerate 0.0 (the (T,N) matrix was real: T>=32 from nav_history + N>=2 variants), sharpe finite, n_windows>=2 (so DSR's per-window variance is real, not the 0.5 fallback)",
+              "the selector returns a verdict dict (selected_id + reason + ranked + num_trials); no_candidate_passed_gate / first_selection / a switch are ALL valid plumbing-proven outcomes; exactly ONE rotation_log.jsonl row is persisted at allocation_pct=0.0 matching the verdict",
+              "zero deploy side-effects (NO promoted_strategies MERGE, NO settings.paper_* mutation, NO live order); the captured real {dsr,pbo,sharpe} per seed + the verdict + the persisted row are recorded verbatim in experiment_results.md + live_check_48.4.md"
+            ],
+            "live_check": "REQUIRED -- this step's whole point is live validation. live_check_48.4.md must contain the verbatim real verdict + per-seed {dsr,pbo,sharpe,n_windows} + the persisted rotation_log.jsonl row (allocation_pct=0). This IS the real-system evidence (not n/a)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

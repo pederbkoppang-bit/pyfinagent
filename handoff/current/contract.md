@@ -1,36 +1,37 @@
-# Contract — phase-48.3: Live rotation runner + full-kwarg engine_factory
+# Contract — phase-48.4: Live rotation bake-off SMOKE (first real validation)
 
-**Cycle:** 14 (Priority 5 follow-on #2; operator-approved). **LLM spend:** $0 (monkeypatched BacktestEngine + injected stub factory/adapter + tmp_path persistence; no real backtest/BQ/LLM).
-
-> **Note (cycle-2 re-establishment):** the first 48.3 Q/A returned CONDITIONAL on two protocol artifacts that were lost to concurrent-writer collisions — the masterplan 48.3 step was reverted and this contract was clobbered by the scheduled `run_harness.py` rolling-file regeneration. The engineering passed every adversarial check (kwarg names clean via inspect.signature, target_vol revival sound, no-deploy airtight, Seam-A genuine). This file + the masterplan step are now re-established; a fresh Q/A reads the restored evidence (documented cycle-2 flow, NOT verdict-shopping — the missing files now exist).
+**Cycle:** 15 (Priority 5 — operator said "you decide"; chosen: the safe "verify live" step). **LLM spend:** $0 (quant-only backtests; real BQ + real compute, no LLM). **Run mode:** the live smoke is BACKGROUNDED (~6-12 min, 4 real backtests).
 
 ## Research-gate summary
-`researcher` (gate **PASSED**): 5 external sources read in full + recency scan + 12 internal files. Brief: `handoff/current/research_brief_phase_48_3_rotation_runner.md`.
+`researcher` `a97220b09474e710d` (gate **PASSED**): 5 sources read in full + recency scan + 11 internal files. Brief: `handoff/current/research_brief_phase_48_4_live_smoke.md`.
 
 Decisive findings:
-- **make_engine kwarg gap:** `run_harness.make_engine` threads only 12 of ~25 `BacktestEngine.__init__` kwargs (drops market, train/test_window_months, embargo_days, starting_capital, **target_vol**, commission_model, commission_per_share). `make_rotation_engine` threads the full set.
-- **target_vol revival:** `target_vol` IS a live ctor arg (read at `backtest_trader.py:89`; 0 disables sizing, 0.15 enables). The seeds carry the optimizer name `target_annual_vol`; the factory MAPS it → `target_vol`, reviving tb_risk_managed's vol-targeting (0.15 vs tb_baseline 0).
-- **DEAD-KEY finding:** the trailing-stop/vol-barrier engine readers were REVERTED in `9fbd9cd6` — `trailing_*`/`vol_barrier_multiplier`/blend-weight keys have NO reader. The factory WARNs (does not cargo-cult) them. So tb_risk_managed's trailing half is inert → the 4 seeds are ~3.5 distinct until the readers are restored (flagged follow-up).
-- **Incumbent + persistence:** incumbent via `load_promoted_params` (BQ promoted → optimizer_best.json; None → first_selection); verdict persisted at `allocation_pct=0` (AUDIT ONLY) — precedent `monthly_champion_challenger._emit_deployment_log_row`. The deployment bridge (params→settings.paper_*) is a later cycle.
+- **Viable window (the trap):** the engine's default 12mo-train/3mo-test needs ≥15 months → a 6-month window yields ZERO walk-forward windows + a degenerate DSR (var fallback 0.5). **Use 2022-01-01..2024-06-30 → 6 windows, T~367 ≫ the 32 floor.** BQ confirmed: `financial_reports.historical_prices` spans 2017-01-03..2026-05-28; the window has 511,960 rows / 502 tickers; the ~756-day training lookback is not starved.
+- **Minimal scale:** 2 seeds (tb_baseline + qm_trend_tilt) × num_param_variants=2 = 4 real backtests; N=2 is the floor for a real per-strategy PBO (N<2 → degenerate 0.0 false-passes the gate). T~367 ≫ 32 guaranteed.
+- **Runtime ~6-12 min** (cold first ~5-10 min + warm <30s each) → BACKGROUND. Macro preload is INSIDE run_backtest (no ~40min hang). `load_promoted_params` is a read.
+- **Ctor:** `BigQueryClient(settings)` (takes settings, not no-args).
+- **Q/A PASS bar:** dsr/pbo finite in [0,1] (pbo NOT a degenerate 0.0), sharpe finite, n_windows≥2, a verdict with selected_id/reason, ONE `rotation_log.jsonl` row at `allocation_pct=0.0` matching the verdict, zero deploy side-effects. **`no_candidate_passed_gate` is a VALID outcome** — the smoke proves the PLUMBING runs on real backtests, not that a seed won.
 
 ## Hypothesis
-A full-kwarg `make_rotation_engine` (correct kwarg names + target_annual_vol→target_vol mapping + dead-key WARN) plus a `run_rotation_bakeoff` that wires registry→48.2-adapter→producer→selector, resolves the incumbent, and records the verdict at allocation_pct=0 (no deploy) moves rotation from "scorer exists" to "runnable bake-off," verifiable at $0 by monkeypatching the engine + injecting stub seams. The live ~32-backtest run + the deployment bridge defer.
+Running `run_rotation_bakeoff` on a real ≥15-month window with 2 seeds × 2 variants will exercise the entire 48.1-48.3 chain (full-kwarg engine → 4 real walk-forward backtests → nav→daily-returns → `generate_report` DSR + per-strategy (T×K) `compute_pbo` → producer → selector → persisted verdict) end-to-end on ACTUAL data for the first time, producing finite, sane DSR/PBO/Sharpe + a real verdict — proving the machinery works live (everything prior was $0-mock-tested), at $0 LLM, audit-only (no deploy).
 
-## Immutable success criteria (verbatim from .claude/masterplan.json phase-48.3)
-1. make_rotation_engine(params, settings, bq, *, start_date, end_date) threads the FULL BacktestEngine ctor kwarg set (incl. the 8 make_engine drops: market, train/test_window_months, embargo_days, starting_capital, target_vol, commission_model, commission_per_share) with kwarg NAMES matching the ctor exactly; validates strategy vs STRATEGY_REGISTRY (raise on unknown -- no silent triple_barrier fallback); maps the seed's target_annual_vol -> the LIVE target_vol ctor arg (explicit target_vol > target_annual_vol > 0.15); WARNs (does NOT write) the currently-inert trailing_*/vol_barrier/blend keys
-2. run_rotation_bakeoff wires registry->48.2-adapter->producer->select_best_strategy, resolves the incumbent via load_promoted_params (None -> first_selection), and PERSISTS the selector verdict at allocation_pct=0 (AUDIT ONLY); exposes BOTH test seams (engine_factory full-wiring + adapter_fn narrow); _persist_verdict is fail-open (JSONL + optional fail-open bq_fn)
-3. AUDIT-ONLY / no-deploy: NO promoted_strategies MERGE, NO settings.paper_* mutation, allocation_pct hard-coded 0.0; the only live-module touch is a READ of load_promoted_params; ZERO edits to autonomous_loop/portfolio_manager/paper_trader/decide_trades; the deployment bridge is documented DEFERRED
-4. $0 deterministic tests (monkeypatched BacktestEngine ctor-kwarg capture + injected stub engine_factory/adapter_fn + tmp_path persistence; no real backtest/BQ/LLM); the live ~32-backtest bake-off is @pytest.mark.skip (opt-in); ast clean; pytest green; no import cycle; full rotation regression (47.6+48.1+48.2+48.3) stays green
+## Immutable success criteria (verbatim from .claude/masterplan.json phase-48.4)
+1. run_rotation_bakeoff executes on the real engine over a >=15-month window (2022-01-01..2024-06-30, >=2 walk-forward windows) with 2 seeds (tb_baseline + qm_trend_tilt) x num_param_variants=2, AUDIT-ONLY (allocation_pct=0, no deploy), $0 LLM
+2. the run produces, for at least the seeds that complete, FINITE per-strategy metrics: dsr in [0,1], pbo in [0,1] that is NOT a degenerate 0.0 (i.e. the (T,N) matrix was real: T>=32 from nav_history + N>=2 variants), sharpe finite, n_windows>=2 (so DSR's per-window variance is real, not the 0.5 fallback)
+3. the selector returns a verdict dict (selected_id + reason + ranked + num_trials); `no_candidate_passed_gate` / first_selection / a switch are ALL valid plumbing-proven outcomes; exactly ONE rotation_log.jsonl row is persisted at allocation_pct=0.0 matching the verdict
+4. zero deploy side-effects (NO promoted_strategies MERGE, NO settings.paper_* mutation, NO live order); the captured real {dsr,pbo,sharpe} per seed + the verdict + the persisted row are recorded verbatim in experiment_results.md + live_check_48.4.md
 
-## Plan steps (already executed; this contract is the re-established PLAN artifact)
-1. `backend/autoresearch/rotation_runner.py`: `make_rotation_engine` (full ctor kwargs + strategy validate + target_annual_vol→target_vol map + dead-key WARN), `run_rotation_bakeoff` (factory→adapter→producer→selector + incumbent + persist), `_resolve_incumbent`, `_persist_verdict` (fail-open).
-2. `tests/autoresearch/test_phase_48_3_rotation_runner.py`: 8 $0 tests (kwarg-thread capture, target_vol map, unknown-strategy raise, dead-key WARN, Seam-A full wiring, Seam-B incumbent, incumbent resolution, persist fail-open/persist=False) + 1 `@pytest.mark.skip` live smoke.
-3. Verify: ast + `pytest tests/autoresearch/test_phase_48_3_rotation_runner.py -q` + full rotation regression.
+## Plan steps
+1. Write `scripts/rotation/run_smoke_bakeoff.py` (or an inline script) that imports `get_settings`, `BigQueryClient(settings)`, `backend.backtest.cache.clear_cache`, and `run_rotation_bakeoff`, and invokes it with the smoke params (2 seeds, num_param_variants=2, 2022-01-01..2024-06-30, persist=True, log to a captured path), printing the verdict + per-seed metrics as JSON.
+2. Run it BACKGROUNDED (real compute ~6-12 min); capture stdout + the persisted rotation_log row.
+3. Write experiment_results.md + live_check_48.4.md with the verbatim real verdict/metrics/row.
+4. Spawn a fresh Q/A against the captured output + the rotation_log row (the PASS bar above).
+5. On PASS: append harness_log.md, flip masterplan 48.4 → done.
 
-## Out-of-scope (DEFERRED, documented in the module docstring + masterplan)
-- The LIVE ~32-backtest bake-off run (`@pytest.mark.skip` opt-in); the weekly rotation cron; **the deployment bridge (params→settings.paper_* + promoted_strategies MERGE — the keystone that changes live orders)**; re-enabling the reverted trailing/vol-target engine readers (own cycle); effective-N clustering; CPCV multi-path; refining incumbent→seed-id mapping.
+## Out-of-scope (DEFERRED)
+- The FULL 4-seed × 8-variant bake-off (longer run); the deployment params→settings.paper_* bridge (the keystone — touches live trading, operator-gated activation); the weekly cron; re-enabling the reverted trailing/vol-target readers; effective-N / CPCV.
 
 ## References
-- `handoff/current/research_brief_phase_48_3_rotation_runner.md`
-- `backend/autoresearch/strategy_backtest_adapter.py` (48.2), `strategy_candidate_producer.py` + `strategy_registry.py` (48.1), `strategy_selector.py` (47.6)
-- `backend/backtest/backtest_engine.py` (`__init__:136`, `STRATEGY_REGISTRY:32`), `backend/backtest/backtest_trader.py:89` (the live `target_vol` reader), `scripts/harness/run_harness.py:89` (make_engine precedent), `backend/services/autonomous_loop.py:46` (load_promoted_params)
+- `handoff/current/research_brief_phase_48_4_live_smoke.md`
+- `backend/autoresearch/rotation_runner.py` (48.3), `strategy_backtest_adapter.py` (48.2), producer/registry/selector (48.1/47.6)
+- `backend/backtest/backtest_engine.py` + `analytics.py`; `backend/db/bigquery_client.py:22` (ctor); `financial_reports.historical_prices` (BQ data)
