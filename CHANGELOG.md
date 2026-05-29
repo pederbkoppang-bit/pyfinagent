@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `dd5d2b67` | docs(handoff): cycle 11 SOFT STOP closure -- Priority 3 (Opus 4.8) complete (47.8/47.9/47.10); crisp |
 | 2026-05-29 | `82d2f07f` | phase-47.10: generate_content max_tokens floor -- symmetric close of the Opus-4.8 max_tokens-at-x... |
 | 2026-05-29 | `f27e36b3` | phase-47.9: Priority-3 completion: Opus-4.8 max_tokens-at-xhigh floor (adaptive-path starvation f... |
 | 2026-05-29 | `095ed07d` | phase-47.8: Opus-4.8 stale-pin sweep (fix the 4-8 thinking/sampling branch bug + missing context-... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `7f4d39cd` | phase-47.3: Opus 4.8 cost_tracker pricing regression (claude-opus-4-8 missing from MODEL_PRICING ... |
 | 2026-05-28 | `d33e7197` | phase-47.1: Restore historical_prices freshness (rewire daily_price_refresh -> ingest_prices full... |
 | 2026-05-28 | `8ecc9efe` | feat: upgrade Claude Opus 4.7 -> 4.8 across runtime + docs |
-| 2026-05-28 | `77b01368` | docs(handoff): cycle 20 SOFT STOP closure -- cycle_block_summary.md |
 
 ---
 
