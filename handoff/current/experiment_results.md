@@ -1,40 +1,37 @@
-# Experiment results -- phase-49.1: Runtime risk-limit control endpoint
+# Experiment results -- phase-49.2: Operator cron-control endpoints
 
-**Date:** 2026-05-29 | **Result: built + live-verified** | $0 LLM | backend restarted (v6.28.16) to load the new router.
+**Date:** 2026-05-29 | **Result: built + live-verified** | $0 LLM | backend restarted to load new routes.
 
 ## What was built
-A runtime operator-control surface for the four paper-trading deployment/concentration caps, tunable LIVE without a backend restart, fully bounded + confirmation-gated + audited. The P7 "risk limits" deliverable and the safe bridge for the (operator-only) "deploy idle cash" decision (see cycle_block_summary.md money analysis).
+Operator pause/resume/trigger control for the BACKEND's in-process APScheduler jobs (P7 "cron enable+trigger"), confirmation-gated + audited, with trigger reusing /run-now's triple-guard so it can never double-fire a trading cycle.
 
 ## Files changed/added
-1. **`backend/services/risk_overrides.py`** (NEW, ~200 lines) -- file-backed override store mirroring `kill_switch.py`:
-   - Module singleton `RiskOverrideState` + `threading.Lock`; append-only JSONL audit at `handoff/risk_overrides_audit.jsonl`; `_load_from_audit()` replay-on-init (restart-survivable, re-validates on replay).
-   - `ALLOWED_KEYS` strict allowlist (the 4 deployment caps) + `BOUNDS` (type + min/max per key). Kill-switch loss limits are deliberately absent.
-   - `_coerce_and_validate()` (validate-before-accept; `RiskOverrideError` on bad key / out-of-range / non-coercible).
-   - API: `get_effective(key, default)`, `set_override(key, value, reason)`, `clear_override(key)`, `clear_all()`, `snapshot()`, `describe()`.
-2. **`backend/services/portfolio_manager.py`** -- reader seam: the 4 caps now read via `risk_overrides.get_effective("<key>", <settings default>)` at the at-decide-time read points:
-   - line 77 `paper_min_cash_reserve_pct`; lines 218/221 `paper_max_per_sector` + `paper_max_per_sector_nav_pct`; line 251 `paper_max_positions` (computed once before the buy loop; the diagnostic log + the swap-path nav_pct read at ~520 also use the effective value). Behaviour byte-identical when no override set.
-3. **`backend/api/paper_trading.py`** -- `RiskLimitRequest` model + 3 routes: `GET /risk-limits` (effective values + bounds + overridden flags), `PUT /risk-limits` (confirmation `SET_RISK_LIMIT` + bounded + audited + `get_api_cache().invalidate("paper:*")`), `DELETE /risk-limits/{key}` (revert). Mirrors the existing `/pause` `/resume` `KillSwitchActionRequest` pattern.
+1. **`backend/services/cron_control.py`** (NEW, ~140 lines) -- mirrors the kill_switch/risk_overrides audit pattern:
+   - `CONTROLLABLE = {"paper_trading_daily":"main", "ticket_queue_process_batch":"queue"}` (the 2 backend-owned in-process jobs).
+   - `pause/resume` resolve the scheduler via `cron_dashboard_api.get_registered_schedulers()` (lazy import -> no cycle) and call APScheduler 3.x `pause_job`/`resume_job`; `JobLookupError` + unknown/cross-process id -> `CronControlError` (-> 404).
+   - `status(job_id)` (paused/next_run), `is_controllable`, `record_trigger` (audit), append-only JSONL at `handoff/cron_control_audit.jsonl`.
+2. **`backend/api/cron_dashboard_api.py`** -- `CronControlRequest{confirmation, reason}` + 3 routes: `POST /api/jobs/{job_id}/pause` (PAUSE_JOB), `/resume` (RESUME_JOB), `/trigger` (TRIGGER_JOB). pause/resume invalidate `paper:*` cache. trigger: paper_trading_daily -> `await run_now()` (reuses the 409 running-check + _running + cycle_lock guard); ticket_queue -> 400 (pause/resume only this step). Also added an additive `controllable: bool` key to `_job_to_dict` so `GET /jobs/all` rows flag the 2 controllable jobs.
 
-## Verification command output (the masterplan immutable command)
+## Verification command output (masterplan immutable command)
 ```
-$ python -c "import ast; ast.parse(open('backend/services/risk_overrides.py').read())"   -> syntax OK
-$ python -c "from backend.services import risk_overrides as r; r.clear_all(); assert r.get_effective('paper_max_per_sector',2)==2; r.set_override('paper_max_per_sector',4,reason='test'); assert r.get_effective('paper_max_per_sector',2)==4; r.clear_override('paper_max_per_sector'); assert r.get_effective('paper_max_per_sector',2)==2; print('risk_overrides roundtrip OK')"
-risk_overrides roundtrip OK
-$ test -f handoff/current/live_check_49.1.md   -> exists
+$ python -c "import ast; ast.parse(open('backend/api/cron_dashboard_api.py').read())"   -> OK
+$ python -c "import backend.api.cron_dashboard_api as c; paths=...; assert pause&resume&trigger present"
+cron-control routes: ['/api/jobs/{job_id}/pause', '/api/jobs/{job_id}/resume', '/api/jobs/{job_id}/trigger']
+$ test -f handoff/current/live_check_49.2.md   -> exists
 ```
-All three modules `ast.parse` clean; `import backend.api.paper_trading` registers the 3 risk-limits routes.
+Both modules ast.parse clean; cron_control.CONTROLLABLE correct (is_controllable: paper_trading_daily=True, morning_digest=False).
 
-## Live verification (full evidence in live_check_49.1.md)
-GET(defaults) -> PUT(set=4, effective->4) -> GET(overridden) -> PUT(999)=HTTP400 bounds -> PUT(daily_loss_limit_pct)=HTTP400 disallowed -> PUT(wrong confirmation)=HTTP400 -> DELETE(revert->2) -> GET(clean). Audit JSONL captured 4 rows. **Restart-survival proven**: set paper_max_positions=15 -> restart -> GET shows 15/overridden -> DELETE.
+## Live verification (full evidence in live_check_49.2.md)
+GET(scheduled,controllable) -> PAUSE(paused,next_run=null) -> GET(paused) -> RESUME(scheduled,next_run restored) -> GET(scheduled). Cross-process morning_digest -> HTTP 404. Wrong confirmation -> HTTP 400. ticket_queue trigger -> HTTP 400. Audit JSONL: pause+resume rows. **paper_trading_daily left RESUMED (next_run 2026-06-01T14:00) -- the money loop is intact.**
 
 ## Success criteria mapping (all 5 met)
-1. risk_overrides.py exists/parses/mirrors kill_switch (singleton + JSONL audit + replay + lock) -- YES.
-2. get_effective returns override-or-default; set_override bounded + audited; clear reverts -- YES (round-trip + HTTP 400 on 999).
-3. portfolio_manager reads the 4 caps via get_effective at decide-time; kill-switch loss limits NOT mutable -- YES (5 read points wired; daily_loss_limit_pct rejected HTTP 400).
-4. GET/PUT/DELETE exist with confirmation + bounds + cache-invalidate; live curl round-trip in live_check_49.1.md -- YES.
-5. every mutation appends an audit row (key, old, new, reason, ts) -- YES (verbatim JSONL).
+1. pause/resume/trigger endpoints exist + confirmation-gated + audited to cron_control_audit.jsonl -- YES.
+2. pause/resume act on the in-process registered scheduler (get_registered_schedulers), allowlisted to the 2 jobs; cross-process/unknown -> 404 -- YES (morning_digest 404).
+3. GET /jobs/all reflects paused state after pause + scheduled after resume -- YES (live).
+4. trigger for paper_trading_daily reuses /run-now's guard (409 when running), NOT modify_job -- YES (code: `await run_now()`; the running-check is run_now line 1 at paper_trading.py:1024-1026).
+5. live curl round-trip + 404 captured in live_check_49.2.md; actions audited -- YES.
 
 ## Scope honesty
-- This makes EXISTING caps operator-tunable; it does NOT change trading logic or alpha. No-override behaviour is identical to pre-49.1.
-- `recommended_position_pct` (the lite-risk-judge 3% sizing in autonomous_loop.py ~1390) is NOT a settings field and is intentionally OUT OF SCOPE for this cycle (a future step can add it as a 5th knob).
-- No UI wiring in this cycle (backend control surface only; UI consistency is separate P7 work behind the NextAuth real-browser-verification constraint).
+- Did NOT fire a real paper_trading_daily trigger (would incur LLM spend + real trades -- operator-gated). Criterion #4's guard is verified by code reuse of the already-validated /run-now path, not by firing a cycle.
+- ticket_queue_process_batch trigger is intentionally OUT OF SCOPE (returns 400); pause/resume support it. Cross-process slack_bot/launchd jobs are intentionally NOT controllable (404); a future step can add a flag the slack_bot scheduler polls.
+- pause/resume are reversible (preserve the job + trigger), distinct from /stop's remove_job. Test left the paper job RESUMED.

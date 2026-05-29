@@ -1,0 +1,2 @@
+{"ts": "2026-05-29T21:11:57.954776+00:00", "action": "pause", "job_id": "paper_trading_daily", "reason": "phase-49.2 live test"}
+{"ts": "2026-05-29T21:11:58.013172+00:00", "action": "resume", "job_id": "paper_trading_daily", "reason": "phase-49.2 live test"}

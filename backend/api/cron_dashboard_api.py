@@ -28,12 +28,18 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 
 # phase-23.5.2.5: merge job_status_api's heartbeat registry into
 # /api/jobs/all so slack_bot rows reflect real status + last_run + next_run
 # instead of static "manifest" placeholders. Import is safe (job_status_api
 # does not import from this module).
 from backend.api import job_status_api
+# phase-49.2: operator cron-control (pause/resume/trigger) for the 2
+# backend-owned in-process jobs. cron_control lazy-imports this module's
+# get_registered_schedulers(), so no import cycle here.
+from backend.services import cron_control
+from backend.services.api_cache import get_api_cache
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +196,8 @@ def _job_to_dict(job: Any, source: str) -> dict[str, Any]:
         "last_run": None,  # APScheduler doesn't expose this; phase-2 if needed
         "status": "scheduled" if nrt is not None else "paused",
         "description": getattr(job, "name", None) or getattr(job, "id", "?"),
+        # phase-49.2: operator can pause/resume/trigger this job in-process.
+        "controllable": cron_control.is_controllable(getattr(job, "id", "")),
     }
 
 
@@ -463,6 +471,60 @@ async def get_all_jobs() -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "n_total": len(jobs),
     }
+
+
+# ── phase-49.2: operator cron control (pause / resume / trigger) ──
+# In-process control of the 2 backend-owned APScheduler jobs only
+# (paper_trading_daily, ticket_queue_process_batch); cross-process
+# slack_bot/launchd jobs -> 404. Confirmation-gated + audited. trigger
+# reuses paper_trading /run-now's triple-guard so it can never double-fire.
+class CronControlRequest(BaseModel):
+    """Confirmation token (must equal the action verb) + optional reason."""
+    confirmation: str
+    reason: str = Field("manual", max_length=200)
+
+
+@router.post("/jobs/{job_id}/pause")
+async def pause_job(job_id: str, req: CronControlRequest):
+    if req.confirmation != "PAUSE_JOB":
+        raise HTTPException(400, "Confirmation must equal PAUSE_JOB")
+    try:
+        state = cron_control.pause(job_id, reason=req.reason)
+    except cron_control.CronControlError as e:
+        raise HTTPException(404, str(e))
+    get_api_cache().invalidate("paper:*")
+    return {"status": "paused", "job": state}
+
+
+@router.post("/jobs/{job_id}/resume")
+async def resume_job(job_id: str, req: CronControlRequest):
+    if req.confirmation != "RESUME_JOB":
+        raise HTTPException(400, "Confirmation must equal RESUME_JOB")
+    try:
+        state = cron_control.resume(job_id, reason=req.reason)
+    except cron_control.CronControlError as e:
+        raise HTTPException(404, str(e))
+    get_api_cache().invalidate("paper:*")
+    return {"status": "resumed", "job": state}
+
+
+@router.post("/jobs/{job_id}/trigger")
+async def trigger_job(job_id: str, req: CronControlRequest):
+    if req.confirmation != "TRIGGER_JOB":
+        raise HTTPException(400, "Confirmation must equal TRIGGER_JOB")
+    if not cron_control.is_controllable(job_id):
+        raise HTTPException(404, f"'{job_id}' is not controllable in-process (cross-process or unknown job)")
+    if job_id == "paper_trading_daily":
+        # Reuse /run-now's TRIPLE guard (running-check 409 + _running flag +
+        # cycle_lock flock) -- never double-fire a cycle. Lazy import avoids
+        # any import cycle with paper_trading.
+        from backend.api.paper_trading import run_now
+        result = await run_now()  # raises HTTPException(409) if a cycle is running
+        cron_control.record_trigger(job_id, reason=req.reason, result="delegated_to_run_now")
+        return {"status": "triggered", "job_id": job_id, "detail": result}
+    # ticket_queue_process_batch fires every minute; a guarded manual trigger
+    # is a low-value follow-on. pause/resume are supported for it.
+    raise HTTPException(400, f"trigger not supported for '{job_id}' in phase-49.2 (pause/resume only)")
 
 
 @router.get("/logs/tail")
