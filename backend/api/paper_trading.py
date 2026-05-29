@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from backend.config.settings import get_settings
 from backend.db.bigquery_client import BigQueryClient
 from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
+from backend.services import risk_overrides
 from backend.services.autonomous_loop import run_daily_cycle, get_loop_status
 from backend.services.paper_metrics_v2 import compute_metrics_v2, persist_metrics_v2
 from backend.services.paper_round_trips import compute_round_trips_response
@@ -46,6 +47,16 @@ class StartRequest(BaseModel):
 class KillSwitchActionRequest(BaseModel):
     """Confirmation token required for destructive actions (4.5.7)."""
     confirmation: str  # must equal the action name (e.g. "FLATTEN_ALL")
+
+
+class RiskLimitRequest(BaseModel):
+    """phase-49.1: set a runtime risk-limit override. Bounded + confirmation-
+    gated + audited (SEC 15c3-5 / Fed FEDS-2025-034). `confirmation` must equal
+    'SET_RISK_LIMIT'. `key` must be one of risk_overrides.ALLOWED_KEYS."""
+    key: str
+    value: float
+    confirmation: str
+    reason: str = Field("manual", max_length=200)
 
 
 class DepositRequest(BaseModel):
@@ -557,6 +568,64 @@ async def resume_trading(req: KillSwitchActionRequest):
     get_api_cache().invalidate("paper:*")
     state = _get_ks_state().resume(trigger="manual")
     return {"status": "resumed", "state": state}
+
+
+# ── phase-49.1: runtime risk-limit operator control (P7 "risk limits") ──
+# Lets the operator tune the deployment/concentration caps live, without a
+# backend restart -- the override is read at-decide-time by portfolio_manager
+# and picked up by the next cycle. Bounded + confirmation-gated + audited.
+# The kill-switch loss limits are deliberately NOT here (Knight Capital safety).
+@router.get("/risk-limits")
+async def get_risk_limits():
+    """Effective deployment/concentration caps: each adjustable key with its
+    bounds, current effective value (override if set, else the settings
+    default), and whether it is currently overridden."""
+    settings = get_settings()
+    spec = risk_overrides.describe()
+    out = {}
+    for key, meta in spec.items():
+        out[key] = {
+            **meta,
+            "settings_default": getattr(settings, key, None),
+            "effective_value": risk_overrides.get_effective(key, getattr(settings, key, None)),
+        }
+    return {"risk_limits": out, "allowed_keys": sorted(risk_overrides.ALLOWED_KEYS)}
+
+
+@router.put("/risk-limits")
+async def set_risk_limit(req: RiskLimitRequest):
+    """Set a runtime override for one deployment cap. Bounded (rejects
+    out-of-range / disallowed keys with 400), confirmation-gated, audited."""
+    if req.confirmation != "SET_RISK_LIMIT":
+        raise HTTPException(400, "Confirmation must equal SET_RISK_LIMIT")
+    try:
+        risk_overrides.set_override(req.key, req.value, reason=req.reason)
+    except risk_overrides.RiskOverrideError as e:
+        raise HTTPException(400, str(e))
+    get_api_cache().invalidate("paper:*")
+    settings = get_settings()
+    return {
+        "status": "override_set",
+        "key": req.key,
+        "effective_value": risk_overrides.get_effective(req.key, getattr(settings, req.key, None)),
+        "overrides": risk_overrides.snapshot(),
+    }
+
+
+@router.delete("/risk-limits/{key}")
+async def clear_risk_limit(key: str):
+    """Revert one cap to its settings default (clears the override)."""
+    if key not in risk_overrides.ALLOWED_KEYS:
+        raise HTTPException(400, f"'{key}' is not an adjustable risk limit")
+    risk_overrides.clear_override(key, reason="manual")
+    get_api_cache().invalidate("paper:*")
+    settings = get_settings()
+    return {
+        "status": "override_cleared",
+        "key": key,
+        "effective_value": risk_overrides.get_effective(key, getattr(settings, key, None)),
+        "overrides": risk_overrides.snapshot(),
+    }
 
 
 @router.post("/flatten-all")

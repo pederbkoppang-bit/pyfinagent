@@ -1,0 +1,6 @@
+{"ts": "2026-05-29T20:45:12.597048+00:00", "event": "set", "key": "paper_max_per_sector", "old_value": null, "new_value": 4, "reason": "test"}
+{"ts": "2026-05-29T20:45:12.597266+00:00", "event": "clear", "key": "paper_max_per_sector", "old_value": 4, "new_value": null, "reason": "manual"}
+{"ts": "2026-05-29T20:48:04.037206+00:00", "event": "set", "key": "paper_max_per_sector", "old_value": null, "new_value": 4, "reason": "phase-49.1 live test"}
+{"ts": "2026-05-29T20:48:04.148117+00:00", "event": "clear", "key": "paper_max_per_sector", "old_value": 4, "new_value": null, "reason": "manual"}
+{"ts": "2026-05-29T20:48:28.970622+00:00", "event": "set", "key": "paper_max_positions", "old_value": null, "new_value": 15, "reason": "restart-survival test"}
+{"ts": "2026-05-29T20:48:32.299672+00:00", "event": "clear", "key": "paper_max_positions", "old_value": 15, "new_value": null, "reason": "manual"}

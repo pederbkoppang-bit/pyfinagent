@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from backend.config.settings import Settings
+from backend.services import risk_overrides
 from backend.services.signal_attribution import extract_signals_from_analysis, extract_all_signals
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,10 @@ def decide_trades(
     orders: list[TradeOrder] = []
     nav = portfolio_state.get("nav", settings.paper_starting_capital)
     cash = portfolio_state.get("cash", nav)
-    min_cash = nav * (settings.paper_min_cash_reserve_pct / 100.0)
+    # phase-49.1: runtime-overridable (operator can tune live, no restart).
+    min_cash = nav * (
+        risk_overrides.get_effective("paper_min_cash_reserve_pct", settings.paper_min_cash_reserve_pct) / 100.0
+    )
     held_tickers = {p["ticker"] for p in current_positions}
 
     # ── 1. Sell decisions (process first to free up cash) ────────
@@ -210,9 +214,14 @@ def decide_trades(
     # (conservative, no crash); cap=0 disables; candidate self-exceeds gets
     # blocked because existing_sector_value + buy_amount is checked; already-
     # over sector keeps existing semantics (no force-divest).
-    max_per_sector = int(getattr(settings, "paper_max_per_sector", 0) or 0)
+    # phase-49.1: runtime-overridable via risk_overrides (operator deployment control).
+    max_per_sector = int(
+        risk_overrides.get_effective("paper_max_per_sector", getattr(settings, "paper_max_per_sector", 0)) or 0
+    )
     max_sector_nav_pct = float(
-        getattr(settings, "paper_max_per_sector_nav_pct", 0.0) or 0.0
+        risk_overrides.get_effective(
+            "paper_max_per_sector_nav_pct", getattr(settings, "paper_max_per_sector_nav_pct", 0.0)
+        ) or 0.0
     )
     # phase-40.8 (OPEN-5): FF3 factor-correlation cap. Default-OFF (0.0).
     max_factor_corr = float(getattr(settings, "paper_max_factor_corr", 0.0) or 0.0)
@@ -238,8 +247,12 @@ def decide_trades(
     # so the post-loop swap path can consider sell-to-buy-better rebalances.
     sector_blocked: list[dict] = []
 
+    # phase-49.1: runtime-overridable position cap (operator deployment control).
+    max_positions = int(
+        risk_overrides.get_effective("paper_max_positions", settings.paper_max_positions)
+    )
     for cand in buy_candidates:
-        if remaining_positions >= settings.paper_max_positions:
+        if remaining_positions >= max_positions:
             # phase-23.2.22: emit a diagnostic line so 0-trade cycles are
             # diagnosable from logs without forensic analysis. Without this
             # the loop silently `break`s and the cycle reports "Executing 0
@@ -247,7 +260,7 @@ def decide_trades(
             # like a bug.
             logger.info(
                 "Position cap reached: %d held >= %d max -- skipping all BUY candidates",
-                remaining_positions, settings.paper_max_positions,
+                remaining_positions, max_positions,
             )
             break
 
@@ -500,7 +513,12 @@ def _compute_swap_candidates(
         # the testing-phase mandate "default to firing, not gating, when risk
         # caps permit". Idling on a worse composition because we can't fully
         # cure the cap in one swap is the wrong default.
-        max_sector_nav_pct = float(getattr(settings, "paper_max_per_sector_nav_pct", 0.0) or 0.0)
+        # phase-49.1: runtime-overridable (same key as the buy-loop check above).
+        max_sector_nav_pct = float(
+            risk_overrides.get_effective(
+                "paper_max_per_sector_nav_pct", getattr(settings, "paper_max_per_sector_nav_pct", 0.0)
+            ) or 0.0
+        )
         if max_sector_nav_pct > 0 and nav > 0:
             position_pct = float(cand.get("position_pct") or 10.0)
             buy_amount = nav * (position_pct / 100.0)
