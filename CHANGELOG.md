@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `f02d7c29` | docs(handoff): priority-6 learn-loop GAP found (swap-SELL didn't write outcome_tracking); HARD STOP  |
 | 2026-05-29 | `f1c0aa65` | docs(handoff): cycle 7 final status -- priorities 1-5 shipped + first trade + north-star selector; r |
 | 2026-05-29 | `c4d66648` | phase-47.6: Dynamic strategy rotation -- per-strategy DSR selector with anti-churn (north-star: s... |
 | 2026-05-29 | `bfbca572` | docs(handoff): MILESTONE -- first autonomous trade achieved (swap KEYS->STX, persisted, Q/A-verified |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-28 | `816c6536` | test(perf_metrics): cycle 17 DoD-2 windowed-Sharpe pytest follow-up |
 | 2026-05-28 | `14495ac6` | feat(perf_metrics): cycle 16 DoD-2 Option A+ windowed paper-Sharpe instrumentation |
 | 2026-05-28 | `5bed32b0` | docs(roadmap): cycle 15 DoD-2 wording fix -- criterion-statistics mismatch |
-| 2026-05-28 | `87edd880` | fix(observability): cycle 14 closes DoD-5 -- freshness probe SAFE.TIMESTAMP |
 
 ---
 
