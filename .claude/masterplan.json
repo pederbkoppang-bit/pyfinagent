@@ -13564,7 +13564,7 @@
         {
           "id": "49.3",
           "name": "Cron-control UI -- add an Actions column to the existing /cron dashboard page with pause/resume buttons (rows where controllable===true) + a trigger button (paper_trading_daily only), wired to the phase-49.2 endpoints; confirmation + per-row in-flight + pessimistic re-fetch; conventions (Phosphor icons, no emoji); npm run build passes (P7 'cron enable+trigger' UI)",
-          "status": "in_progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "49.2",

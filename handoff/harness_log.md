@@ -25994,3 +25994,19 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **Scope honesty:** ticket_queue trigger OUT OF SCOPE (400; pause/resume work for it). Cross-process slack_bot/launchd jobs NOT controllable (404; future step can add a flag the slack_bot scheduler polls). Did NOT fire a real paper_trading_daily cycle (LLM spend + real trades, operator-gated) -- criterion #4's no-double-fire guard verified by code reuse of /run-now.
 
 ---
+
+## Cycle 18 (production-ready+money push) -- 2026-05-29 -- phase=49.3 result=PASS
+
+**Step:** Cron-control UI -- Actions column on the existing /cron page (pause/resume on the 2 controllable rows, trigger on paper_trading_daily only), wired to the 49.2 endpoints (P7 "cron enable+trigger" UI). $0 LLM; frontend.
+
+**Research:** `researcher` `a111021636aaadc13` gate PASSED (5 sources read in full + recency scan + 13 URLs + 7 internal files). Brief: research_brief.md. Precise internal map: cron/page.tsx rows + the `controllable` gap, api.ts postPaperKillSwitchAction mirror, types.ts JobInfo, icons (Pause/Play/Lightning/SpinnerGap). CRITICAL backend asymmetry: trigger implemented ONLY for paper_trading_daily (ticket_queue -> 400) -> gate the Trigger button on j.id==='paper_trading_daily'. External: NN/G proportionate confirmation, pessimistic server-confirmed state, accessible icon buttons.
+
+**Generate:** types.ts (JobInfo.controllable?:boolean + JobControlResponse); api.ts (pauseJob/resumeJob/triggerJob, tokens PAUSE_JOB/RESUME_JOB/TRIGGER_JOB, encodeURIComponent); cron/page.tsx (Actions column -- pause/resume when controllable===true, trigger when id==='paper_trading_daily'; window.confirm + per-row SpinnerGap + pessimistic await load(); actionError rose banner; icons from @/lib/icons; aria-labels; subtitle updated). VERIFICATION SPLIT (NextAuth wall): autonomous = `tsc --noEmit` 0 errors + `npm run build` EXIT=0 + API-wiring/convention greps; visual render = operator live_check_49.3.md. **Surfaced + FIXED a PRE-EXISTING build blocker:** /observability SSG-prerender break ('a[d] is not a function') -> added force-dynamic (necessary for criterion #4 build-pass; latent because the app runs on next dev). Flagged a separate INTERMITTENT /agents webpack flake (pre-existing; clean fix is rm -rf .next which I'm permission-denied for -> operator/follow-on).
+
+**Q/A:** fresh `afa6f949af4c43183` = **PASS** (`ok:true`, zero violated_criteria). Ran tsc (0 errors), eslint (0 errors / 52 pre-existing warnings; react-hooks/rules-of-hooks CLEAN -- the bug class that shipped here before), npm run build (EXIT=0, /cron + /observability in route table, no /agents flake this run). Verified backend contract AGAINST SOURCE: cron_control.CONTROLLABLE = the 2 jobs; tokens exact; trigger only paper_trading_daily (else 400) -> the Trigger button is correctly gated on id (avoids an always-400 button). Diff is frontend-only (4 files); no execution/risk-guard/paper_trader path touched. force-dynamic fix present + reasonable + disclosed. Visual-render-pending-operator = the designed live_check split, not a violation. 5/5 harness compliance.
+
+**Scope honesty:** visual render NOT autonomously verified (auth wall) -> operator live_check has an explicit OPERATOR-TO-CONFIRM section (load /cron, verify the Actions column + pause->amber->resume + non-double-fire trigger). Risk-limits UI (49.1's endpoints) = separate follow-on. The intermittent /agents build flake + the production-build hardening = a recommended separate masterplan item.
+
+**Operator pivot (same session):** after 49.3, the operator requested a MAJOR new initiative -- international multi-market expansion (EU + South Korea; multi-exchange/currency; broader sectors) -- researched + planned + added to the masterplan as **phase-50** (6 pending steps, commit 3cebd1e5), NOT implemented (per the operator's "add to masterplan first" directive).
+
+---
