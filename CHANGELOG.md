@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `6e804ae9` | phase-48.3: Live rotation runner + full-kwarg engine_factory (make_rotation_engine + run_rotation... |
 | 2026-05-29 | `2096b6f3` | phase-48.2: Rotation real-engine adapter -- make_engine_backtest_fn (per-strategy K-variant PBO m... |
 | 2026-05-29 | `dfcc57b3` | docs(handoff): cycle 12 close -- built Priority-5 rotation foundation (48.1); 12-cycle SOFT STOP bud |
 | 2026-05-29 | `13e5737b` | phase-48.1: Strategy-rotation foundation -- config-driven seed registry + pure per-strategy DSR/P... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `2e290c66` | docs(handoff): code-verify swap-rotation path is ready; first trade blocked only on running a real c |
 | 2026-05-29 | `1ce42c78` | docs(handoff): SOFT STOP after cycle 5 (47.5 UX foundation done); remaining work dual operator-gated |
 | 2026-05-29 | `79c39d41` | phase-47.5: UX foundation: design-system enforcement layer (semantic tokens + shared ui components) |
-| 2026-05-29 | `b203bdbe` | docs(handoff): SOFT STOP summary + ledger for production-ready push (47.1/47.3/47.4 done; 47.2 opera |
 
 ---
 
+### v6.28.13 — phase-48.3: Live rotation runner + full-kwarg engine_factory (make_ro... (2026-05-29)
+
+- **phase-48.3: Live rotation runner + full-kwarg engine_factory (make_rotation_engine + run_rotation...**
 ### v6.28.12 — phase-48.2: Rotation real-engine adapter -- make_engine_backtest_fn (... (2026-05-29)
 
 - **phase-48.2: Rotation real-engine adapter -- make_engine_backtest_fn (per-strategy K-variant PBO m...**
