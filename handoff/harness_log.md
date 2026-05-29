@@ -25525,3 +25525,40 @@ spots outside the filter line (out of scope for criterion 3).
 
 **Standing operational gotcha documented:** production `npm run build` must unload the `next dev`
 launchd server first (shared `.next`), else PageNotFoundError on unrelated pages.
+
+## Cycle 6 (production-ready+money push) -- 2026-05-29 -- phase=47.2 result=PASS -- FIRST AUTONOMOUS TRADE
+
+**Step:** 47.2 -- First autonomous trade end-to-end. **THE OPERATOR'S #1 GOAL -- ACHIEVED + independently verified.**
+
+**Authorization:** operator "you have my full approval" + "run non-stop to HARD STOP" (HARD STOP requires a
+live trade) interpreted as approval to run one real cycle (= the standing daily cron's own operation).
+
+**What happened:** fired `POST /api/paper-trading/run-now?dry_run=false` -> cycle `6a6b548c` (started
+23:08:45 UTC, completed 00:54:21 UTC, ~1h45m). Full pipeline ran (12 tickers analyzed via claude_code
+rail, scores 6-8). At Step 7 the **sector-rotation swap fired**: `SELL KEYS (score 5) -> BUY STX (score 7)
+delta=40%` (> 25% min_delta). 7-Tech-vs-cap-2 book made direct buys sector-blocked; the swap sold the
+weakest Tech holding + bought the top candidate (count-neutral). AMD/CIEN/HPE correctly swap-skipped
+(delta 16.7% < 25% = bounded churn). **2 trades, n_trades=2.**
+
+**Root cause (resolved):** per-sector COUNT cap blocked 100% of buys with no rotation; the swap path
+(commit 69c710ec) existed but the RUNNING backend predated it -> the cycle-2/4 restarts loaded it; this
+cycle fired it. No code change needed for the swap (code-verified ready prior); operational fix = restart
++ run a cycle. The diagnostic's "empty new_candidates / stale-prices-block / sod_date" hypotheses were all
+REFUTED by the research gate; the validated cause was sector-cap-without-rotation.
+
+**Live verification (BQ canonical):** `financial_reports.paper_trades` 2026-05-29 rows -- BUY STX
+qty=0.537481 px=880.72 (00:53:17, reason=swap_buy) + SELL KEYS qty=4.229682 px=339.13 (00:53:02,
+reason=swap_for_higher_conviction). Safety intact: max_per_sector=2 (not 0), min_delta=25 (not lowered),
+STX stop_loss_price=775.0336 set on entry, kill-switch not force-disabled.
+
+**Q/A:** fresh `a8b0c63190046b9e2` = **PASS** (`ok:true`). Independently re-queried BQ (2 rows, distinct
+trade_ids), confirmed the swap log + bounded churn + count-neutral + stop-loss-set + no-safety-disabled;
+re-ran the existing swap behavioral tests (test_portfolio_swap.py, 4) green; confirmed cycle_history
+completion row resolved (n_trades=2). All 5 harness-compliance items pass. Zero violations.
+
+**Follow-ups (non-blocking, queued):** cycle ~1h45m is slow for a daily loop (lite_mode/faster-rail
+optimization); the KEYS sell-close should now trigger the learn-loop (priority 6, unblocked); stale
+deep_think_model=claude-opus-4-7 pin. See cycle_block_summary.md.
+
+**Money-path status:** the "no trades" problem is SOLVED. The app trades autonomously, safely (rotation
+within caps), and persists to the ledger the UI/gate read.

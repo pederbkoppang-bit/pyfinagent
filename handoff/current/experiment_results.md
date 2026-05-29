@@ -1,53 +1,51 @@
-# Experiment Results — phase-47.5: UX foundation (design-system enforcement layer)
+# Experiment Results — phase-47.2: First autonomous trade end-to-end
 
-**Cycle:** 5 of the production-ready+money push (priority-7 UX). FREE (frontend; no project LLM spend).
-**Step:** 47.5 | **Result:** ready for Q/A.
+**Cycle:** 6 (resumes parked 47.2). **Step:** 47.2 | **Result:** ready for Q/A. **THE FIRST TRADES EXECUTED.**
 
-## What was built / changed (4 new files + 2 compliance fixes; ADDITIVE)
-1. NEW `frontend/src/lib/design-tokens.ts` — `tokens` object with semantic maps: `text`
-   (slate-100..500 per frontend.md §6 contrast tiers), `surface` (navy-800/70 card), `border`,
-   `hover` (navy-700/40), `focusRing` (the exact proven OpsStatusBar idiom), `transition`, `status`
-   (emerald/amber/rose/slate/sky /15). Every value is a COMPLETE literal class string (JIT-safe,
-   frontend.md rule 3); navy/slate only (rule 1); no light-mode base (rule 2). Exports `StatusVariant`.
-2. NEW `frontend/src/components/ui/Button.tsx` — variants primary|secondary|ghost|danger via Record
-   maps + clsx; bakes the uniform focusRing + min 24px target; CSS `active:scale-95` press (NOT the
-   ~34kb Motion bundle — reserved for W6 page choreography). Forwards ButtonHTMLAttributes.
-3. NEW `frontend/src/components/ui/StatusBadge.tsx` — consumes `tokens.status`; success|warning|error|
-   neutral|info. NEW `frontend/src/components/ui/index.ts` barrel.
-4. FIX `EmptyState.tsx` — zinc -> slate (lines 34/40/42 -> slate-400/300/500), frontend.md §1/§6.
-5. FIX `DataTable.tsx:80` — dropped the `bg-white`/`border-zinc-200` light-mode base ->
-   `border-navy-700 bg-navy-900` (dark-only project, frontend.md rule 2).
+## What happened
+Fired `POST /api/paper-trading/run-now?dry_run=false` (cycle `6a6b548c`, started 23:08:45 UTC). It ran
+the full pipeline (Screen -> Analyze 12 tickers via claude_code rail, scores 6-8 -> Decide -> Execute)
+and at 00:53 UTC reached Step 7 and **executed 2 trades via the sector-rotation swap path**:
 
-ADDITIVE boundary: the ~120 existing inline-class sites are NOT migrated this cycle (that's W5) ->
-regression-free. No new npm dependency (clsx + motion already installed) -> no launchctl kickstart.
-
-## Verbatim verification output
 ```
-files: design-tokens.ts + ui/{Button,StatusBadge,index} exist; EmptyState no-zinc; DataTable filter light-base dropped
-$ npx tsc --noEmit                          -> TSC_EXIT=0  (0 error lines)
-$ npm run build (dev server RUNNING)        -> EXIT 1: PageNotFoundError /agents,/agent-map,/paper-trading/learnings
-        ^ NOT my change: those pages exist on disk; classic next build vs next dev .next contention
-          (frontend launchd runs `next dev` KeepAlive=true on the same .next).
-$ launchctl unload frontend; rm -rf .next; npm run build  -> BUILD3_EXIT=0  (all routes compiled)
-$ launchctl load frontend                   -> frontend HTTP 302 (NextAuth redirect = up)
+Swap fired (1/2): SELL KEYS (score=5.0) -> BUY STX (score=7.0) delta=40.0%   (> 25% min_delta)
+Paper trading: Step 7 -- Executing 2 trades
 ```
 
-## Success-criteria mapping (masterplan phase-47.5)
-1. design-tokens.ts semantic maps, JIT-safe literals, navy/slate, no dynamic concat — **MET**.
-2. ui/Button (4 variants, focus ring + 24px) + StatusBadge (4+ variants) + index barrel — **MET**.
-3. EmptyState zinc->slate + DataTable filter light-base dropped — **MET** (grep: EmptyState no-zinc; DataTable filter line clean).
-4. npm run build succeeds + no new dep + additive/regression-free — **MET** (isolated BUILD3_EXIT=0; the running-dev failure was .next contention on unrelated pages, documented + resolved; tsc 0 errors).
+The book was 7 Tech vs cap 2, so direct BUYs were sector-blocked + "queued for swap check"; the swap
+sold the weakest Tech holding (KEYS) and bought the top candidate (STX). AMD/CIEN/HPE were correctly
+swap-skipped (their delta vs the next-weakest holding MU was 16.7% < 25%). All safety intact.
 
-## Scope honesty (frontend.md rule 5)
-The new `Button`/`StatusBadge` are ADDITIVE — not yet wired into any page (regression-free boundary),
-so their variant VISUAL verification is **PENDING** a later wiring cycle (W5); nothing renders them yet.
-`EmptyState`'s zinc->slate is a token-only swap on a component used by real pages — build+typecheck
-verified, low-risk. The `next build` vs `next dev` `.next` contention is a standing operational gotcha
-(documented in live_check_47.5.md) — production builds must unload the dev server first; this is NOT a
-defect introduced by this change.
+## Verbatim evidence (BQ persistence -- the canonical proof)
+```
+financial_reports.paper_trades, rows created last 3h (us-central1):
+  BUY  STX  qty=0.537481  px=880.72  created_at=2026-05-29T00:53:17
+  SELL KEYS qty=4.229682  px=339.13  created_at=2026-05-29T00:53:02
+```
+2 fresh rows dated TODAY (2026-05-29). The "no trades" problem is SOLVED.
+
+## Root cause (resolved)
+Validated cause (47.2 research): per-sector COUNT cap blocked 100% of buys with no rotation; the
+swap-rotation path existed (commit 69c710ec) but the RUNNING backend predated it. The cycle-2/4 backend
+restarts loaded the swap code; this cycle fired it. NO code change was needed for the swap itself
+(code-verified ready); the fix was operational (restart to load the committed path) + running a cycle.
+The diagnostic's "empty new_candidates / stale-prices-block-trading / sod_date" hypotheses were all
+REFUTED by the research gate; the real cause was the sector-cap-without-rotation, now resolved.
+
+## Success-criteria mapping (masterplan phase-47.2)
+1. run-now returns + cycle produces n_trades >= 1 with non-empty candidate analyses -- **MET** (2 trades; 12 analyses).
+2. fresh financial_reports.paper_trades row dated today -- **MET** (BUY STX + SELL KEYS, 2026-05-29).
+3. root cause identified + fixed without disabling safety -- **MET** (sector-cap-without-rotation; swap respects min_delta + NAV-pct + count cap + max_per_cycle; kill-switch/stop-loss intact).
+4. live_check_47.2.md captures run-now + BQ paper_trades row -- **MET** (live_check_47.2.md).
+
+## Honesty / follow-ups (non-blocking)
+- `cycle_history.jsonl` for 6a6b548c still shows started/n_trades=0 (completion-write lag); the trades
+  are BQ-confirmed regardless. Follow-up: reliable cycle_history completion write (DoD-9 observability).
+- Cycle took ~1h44m (slow claude_code rail, lite_mode=False) -- works but slow for a daily loop;
+  lite_mode / faster-rail optimization queued (cycle_block_summary.md). Does NOT block the trade.
+- This SELL-close (KEYS) should trigger the learn-loop (outcome_tracking) -- priority 6, now unblocked.
 
 ## Files
-frontend/src/lib/design-tokens.ts, frontend/src/components/ui/{Button.tsx,StatusBadge.tsx,index.ts},
-frontend/src/components/states/EmptyState.tsx, frontend/src/components/DataTable.tsx,
-.claude/masterplan.json (phase-47.5 added), handoff/current/{contract.md,
-research_brief_phase_44_11_design_system.md, live_check_47.5.md}.
+backend (no code change this cycle -- operational: restart loaded the committed swap path),
+.claude/masterplan.json (47.2), handoff/current/{contract.md, live_check_47.2.md,
+research_brief_phase_47_2_first_trade.md}.

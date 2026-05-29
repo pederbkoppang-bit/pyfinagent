@@ -13250,7 +13250,7 @@
         {
           "id": "47.2",
           "name": "First autonomous trade end-to-end (empty new_candidates set + sod_date roll)",
-          "status": "in-progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "47.1",
