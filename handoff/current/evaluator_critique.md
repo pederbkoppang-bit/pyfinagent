@@ -1,149 +1,97 @@
-# Evaluator Critique — phase-47.8: Opus-4.8 stale-pin sweep
+# Q/A Evaluator Critique — phase-47.9 (Opus-4.8 max_tokens-at-xhigh floor + driver-pin finish)
 
-## Q/A verdict (cycle-1, first Q/A on 47.8) — **PASS**
+**Verdict: PASS** — first Q/A pass on phase-47.9. Independent gate; orchestrator self-evaluation forbidden.
+**Cycle 10** (Priority-3 completion). **LLM spend asserted $0** (static/structural edits + unit test, no live LLM call). Confirmed: no operator-gated flag/spend triggered.
 
-`ok: true`, verdict: **PASS**. First Q/A on step-id 47.8 (brand new step; no prior
-CONDITIONAL/FAIL in `harness_log.md` — `grep -c "phase=47.8"` = 0; not subject to
-3rd-CONDITIONAL auto-FAIL). Evidence is fresh, not a re-spawn → no verdict-shopping.
+---
 
-### STEP 1 — Harness-compliance audit (5/5 PASS)
+## STEP 1 — Harness-compliance audit (5 items)
 
-1. **Researcher / research gate — PASS.** `research_brief_phase_47_8_opus48_sweep.md`
-   present (26,336 bytes). JSON envelope at EOF: `gate_passed: true`,
-   `external_sources_read_in_full: 6` (>= 5 floor), `recency_scan_performed: true`,
-   `urls_collected: 16`, `internal_files_inspected: 12`. Contract cites it in both the
-   research-gate summary (`contract.md:6`) and References (`contract.md:36`).
-2. **Contract-before-generate — PASS.** `contract.md` is the 47.8 contract (header
-   line 1 "phase-47.8: Opus-4.8 stale-pin sweep"), has step id + research-gate summary
-   + verbatim immutable success_criteria (4, matching masterplan + test) + hypothesis +
-   8 plan steps + references. mtime ordering: brief 03:55 < contract 04:02 <
-   experiment_results 04:09 (research → contract → generate, correct).
-3. **experiment_results.md — PASS.** Covers root cause, 11 edits / 9 files, verbatim
-   verification output (`ast OK 9 files` + `11 passed`), behavioral-confirmation list,
-   success-criteria mapping, and a "Scope honesty / deferred" section.
-4. **Log-last discipline — PASS.** No `phase=47.8` block in `harness_log.md` yet
-   (`grep -c` = 0). Correct ordering — orchestrator appends AFTER this PASS, before the
-   status flip. Absence is correct, NOT a defect.
-5. **No verdict-shopping — PASS.** First Q/A on 47.8; fresh evidence.
+1. **Researcher gate — PASS.** `handoff/current/research_brief_phase_47_9_opus48_finish.md` present; END JSON envelope: `gate_passed: true`, `external_sources_read_in_full: 6` (>=5), `recency_scan_performed: true`, `urls_collected: 13`, `internal_files_inspected: 8`. All 6 sources are Anthropic tier-2 docs (adaptive-thinking, extended-thinking, effort, whats-new-4-8, handling-stop-reasons). `contract.md` cites the brief by name + researcher id `aea7fbf69095873c1` in its Research-gate summary.
+2. **Contract before generate — PASS.** mtime ordering correct: brief `04:24:22` < contract `04:29:18` < experiment_results `04:33:36`. Contract has step id (phase-47.9), research-gate summary, verbatim immutable success_criteria (4, matching masterplan `:13404-13408`), hypothesis, plan steps, references, and an explicit Out-of-scope/FLAGGED section.
+3. **experiment_results present — PASS.** Covers root cause, 7 edits across 4 files + file list, verbatim verification output, success-criteria mapping, scope honesty, AND an "Audited but NOT changed" section disclosing `_call_agent` (:1006), `:817`, `:903`.
+4. **Log-last — PASS (correct ordering).** `grep "phase=47.9" handoff/harness_log.md` returns nothing (exit 1). The 47.9 block is appended only AFTER this PASS; absence here is the correct state, not a defect. Last logged cycle is 9 / phase-47.8 PASS.
+5. **No verdict-shopping — PASS.** First Q/A on 47.9, fresh evidence. No prior CONDITIONAL/FAIL for this step-id in the log. (The prior `evaluator_critique.md` content was the 47.8 verdict, now replaced by this file.)
 
-### STEP 2 — Deterministic checks (reproduced, not trusted)
+---
 
-- **Immutable command — EXIT_CODE=0.** Ran the EXACT
-  `verification.command` from masterplan phase-47.8 verbatim:
-  `ast OK 9 files` + `11 passed in 0.88s`. Reproduced independently.
-- **Disclosed command correction — LEGITIMATE wrong-target false-negative fix, NOT
-  goalpost-moving.** The entire phase-47.8 `verification` object is a `+` diff in the
-  working tree (no `-` counterpart → no prior committed criteria weakened). Original
-  command ast-checked `backend/services/autonomous_loop.py` (the 110 KB 47.7 learn-loop
-  file — confirmed it exists and was NOT edited this cycle: `git diff --name-only` shows
-  only `backend/autonomous_loop.py`). ast-checking an untouched file would pass vacuously
-  while missing the real `AutonomousLoopOrchestrator.planner_model` edit — a textbook
-  false-negative. Correction added the right path + `streaming_integration.py` (9 files).
-  The immutable **success_criteria** are unchanged in substance. Same class as the
-  phase-47.1 precedent (which a prior Q/A also accepted).
-- **Independent grep — every remaining 4-7 classified legit; NO operative DEFAULT
-  reads 4-7.** `grep -rn "claude-opus-4-7" backend/ --include="*.py" | grep -v test`:
-  - `main.py:157,184` historical comments; `model_tiers.py:170` comment; `:185`
-    EFFORT_SUPPORTED_MODELS (4-8 co-present :184); `:235` MODEL_EFFORT_FALLBACK xhigh
-    (4-8 :234); `settings.py:30` deep_think historical note (default is Gemini now);
-    `cost_tracker.py:27` legacy pricing (4-8 added 47.3); `harness_memory.py:53` legacy
-    window (4-8 :52); `llm_client.py:472/585/1385/1404/1444/1478/1980/1981`
-    accept-lists/provider-map/comments (4-8 everywhere); `app_home.py:21` legacy dropdown
-    option (4-8 :20); `settings_api.py:31,215` accept-list + legacy pricing (4-8 :214).
-  - `multi_agent_orchestrator.py:1061` is the WIDENED predicate with 4-8 listed first.
-  - **Zero operative DEFAULT pins still read 4-7.** Neither under-edited (no missed
-    operative default) nor over-edited (no purged compat entry).
-- **CRITICAL :1061 fix — VERIFIED.** `backend/agents/multi_agent_orchestrator.py:1061`
-  reads `if agent_config.model.startswith(("claude-opus-4-8", "claude-opus-4-7")):`.
-  Inspected the surrounding block (`:1059-1081`): the IF branch sets
-  `_thinking_arg={"type":"adaptive"}`, `_extra_kwargs={}` (no sampling params); the ELSE
-  branch sets `{"type":"enabled","budget_tokens":2048}` + `temperature=1` — exactly the
-  manual-budget+sampling combo Opus 4.8 rejects with a 400. A 4-8 pin now takes the IF
-  (adaptive-only) path. Fix is real and load-bearing.
-- **Behavioral spot-checks (independent, my own probes, not the test's) — all genuine:**
-  - `get_context_window("claude-opus-4-8") == 1_000_000`;
-    `get_context_window("zzz-nonexistent") == 128_000` — confirms the 4-8=1M assertion is
-    load-bearing (unknown model → 128K default), NOT tautological.
-  - `inspect.signature(...).default == "claude-opus-4-8"` independently confirmed for
-    `PlannerAgent.__init__`, `get_planner_agent`, `AutonomousLoopOrchestrator.planner_model`,
-    `MultiAgentOrchestrator.should_reset_context`, `multimodal_index_claude`.
-  - `AGENT_MODEL_OVERRIDES["main"]/["qa"] == "anthropic/claude-opus-4-8"`;
-    `["research"] == "anthropic/claude-sonnet-4-6"` (deliberately cost-efficient, kept).
-  - `ticket_queue_processor.py:165-171` `agent_model_map` main/q-and-a == 4-8, `.get`
-    default == 4-8, research == sonnet-4-6.
-  - Compat: `MODEL_PRICING["claude-opus-4-7"] == ["claude-opus-4-8"] == (5.0, 25.0)`.
-- **All 9 edited modules import cleanly — 9/9.**
+## STEP 2 — Deterministic checks (reproduced, not trusted)
 
-### STEP 2b — Frontend gate: N/A. `git diff --name-only` shows 0 `frontend/**` files;
-ESLint/tsc gate correctly not triggered.
-
-### Code-review heuristics (5 dimensions evaluated)
-
-- **Security (Dim 1):** No `secret-in-diff`. The `OPENCLAW_GATEWAY_TOKEN` literal in
-  `openclaw_client.py:34` is PRE-EXISTING (NOT in the `+` diff — verified) and was
-  honestly disclosed as an out-of-scope follow-up. No prompt-injection / command-injection /
-  insecure-output-handling surface (model-id string constants only). No dep-pin removal.
-- **Trading-domain (Dim 2):** No execution-path / kill-switch / stop-loss / perf-metrics /
-  position-sizing / crypto-asset touch. Diff is model-pin constants + a thinking-branch
-  predicate + a Slack dropdown list. No BLOCK.
-- **Code quality (Dim 3):** Targeted small edits (`git diff --stat`: 9 code files, +/- a
-  handful of lines each). No new broad-except, print, or unicode-logger introduced.
-- **Anti-rubber-stamp (Dim 4):** The change is config/model-pin + a routing predicate, not
-  Sharpe/drawdown/sizing math — `financial-logic-without-behavioral-test` does NOT apply.
-  Nonetheless a behavioral test exists and exercises real lookups/signatures. No
-  tautological/over-mocked/rename-as-refactor patterns. The disclosed pre-existing emoji in
-  `app_home.py` AGENT_DISPLAY is outside the diff (verified — only `+"claude-opus-4-8",` added).
-- **LLM-evaluator anti-patterns (Dim 5):** First Q/A, fresh evidence → no
-  sycophancy-under-rebuttal / second-opinion-shopping. This critique carries file:line +
-  command-output citations throughout (no missing-chain-of-thought).
-
-### STEP 3 — LLM judgment
-
-- **Contract alignment — all 4 immutable success_criteria MET:**
-  1. CRITICAL :1061 widened to include `claude-opus-4-8` (4-8 takes adaptive-only path,
-     no 400) — MET (verified in source + ELSE-branch inspection).
-  2. `harness_memory.MODEL_CONTEXT_WINDOWS['claude-opus-4-8']=1_000_000` + `app_home`
-     AVAILABLE_MODELS includes 4-8, 4-7 kept — MET (behavioral 1M + 128K-default contrast).
-  3. Operative 4-7 defaults bumped (ticket_queue main/q-and-a/default, rag vision,
-     planner + autonomous_loop, openclaw main/qa); compat (MODEL_EFFORT_FALLBACK,
-     cost_tracker pricing, llm_client accept-lists) PRESERVED — MET (5 signature guards +
-     AST map guard + 2 compat guards, all independently reproduced).
-  4. pytest guard + ast clean + green — MET (`ast OK 9 files`, `11 passed`).
-- **Mutation-resistance — confirmed real guards (simulated each revert):**
-  - Revert :1061 widening → narrow-form-absent assert fails AND wide-form-present assert
-    fails. CAUGHT.
-  - Drop 4-8 context-window entry → `get_context_window` returns 128K != 1M. CAUGHT.
-  - Revert any signature default to 4-7 → `inspect` default mismatch. CAUGHT.
-  - Purge 4-7 compat pricing → `MODEL_PRICING["claude-opus-4-7"]` assert fails. CAUGHT
-    (over-edit guard works in the other direction too).
-- **Anti-rubber-stamp:** Nothing claimed-MET is actually unmet. Not over-edited (compat
-  4-7 entries verified preserved with 4-8 co-present), not under-edited (zero operative
-  4-7 defaults remain).
-- **Scope honesty — HONEST.** experiment_results `:52-53` marks the live 400-fix
-  confirmation as DEFERRED (no live LLM call this cycle, $0 spend), and discloses the
-  pre-existing `OPENCLAW_GATEWAY_TOKEN` secret + pre-existing app_home emoji +
-  `run_autonomous_loop.py:73 claude-opus-4-6` as out-of-scope follow-ups rather than
-  silently fixing or hiding them. No operator-gated flag/spend triggered (verified: no
-  live Anthropic call; pure static/structural + unit test).
-- **Research-gate compliance:** researcher output present, gate_passed true, cited in
-  contract.
-
-### Verdict
-
-All 4 immutable success_criteria independently MET; immutable command exit 0; CRITICAL
-:1061 fix verified at source with ELSE-branch inspection; behavioral guards proven
-load-bearing (128K-default contrast); mutation-resistance confirmed in all four directions;
-zero operative 4-7 defaults remain and zero legit compat entries purged; scope honestly
-disclosed with $0 spend. No BLOCK or WARN from any code-review dimension.
-
-```json
-{
-  "ok": true,
-  "verdict": "PASS",
-  "reason": "All 4 immutable success_criteria MET and independently reproduced. Immutable command exit=0 (ast OK 9 files; 11 passed). CRITICAL multi_agent_orchestrator.py:1061 widened to startswith(('claude-opus-4-8','claude-opus-4-7')) — 4-8 now takes the adaptive-only/no-sampling IF branch instead of the manual budget_tokens+temperature=1 ELSE branch Opus 4.8 rejects with 400; verified at source incl. ELSE branch. harness_memory 4-8=1M added (4-7 kept), proven load-bearing via get_context_window('zzz')==128_000 contrast. All 5 operative signature defaults read claude-opus-4-8 (independent inspect probes). Compat 4-7 (cost_tracker pricing, MODEL_EFFORT_FALLBACK, llm_client accept-lists) preserved. Independent grep: zero operative DEFAULT pins still read 4-7; every remaining 4-7 is a comment/co-present accept-list/legacy-fallback row with 4-8 alongside. Mutation-resistance confirmed in all 4 directions. Disclosed verification.command correction is a legit wrong-target false-negative fix (backend/services/autonomous_loop.py was the untouched 47.7 file; backend/autonomous_loop.py is the file actually edited) on an entirely-new (uncommitted) phase block — success_criteria unchanged. Scope honest: live 400-fix confirmation deferred to next 4-8 cycle, $0 spend, pre-existing secret+emoji disclosed not hidden. No frontend files (ESLint/tsc N/A). 5/5 harness-compliance. No code-review BLOCK/WARN.",
-  "violated_criteria": [],
-  "violation_details": [],
-  "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit", "syntax", "verification_command", "independent_grep_4_7_classification", "critical_1061_source_verification", "behavioral_signature_probes", "context_window_load_bearing_check", "mutation_resistance_simulation", "import_check_9_modules", "code_review_heuristics", "research_gate_envelope", "evaluator_critique"]
-}
+**Immutable command** (masterplan `:13403`) — ran verbatim, **exit 0**:
 ```
+ast OK 3 py files
+sh OK
+........                                                                 [100%]
+8 passed in 0.17s
+```
+(One pre-existing urllib3 RequestsDependencyWarning — environmental noise, not a failure.)
+
+**Independent floor verification (floor is REAL, not a no-op):**
+- `_OPUS_ADAPTIVE_MIN_MAX_TOKENS == 16384` ✓
+- `_adaptive_max_tokens(500) == 16384` (floored) ✓
+- `_adaptive_max_tokens(30000) == 32048` (respected, +2048) ✓
+- `>= configured` for all of (1, 500, 3000, 4096, 14336, 30000, 100000) ✓
+- Helper body (`:138-145`): `return max(int(configured) + 2048, floor)` — pure, documented, `int()`-coercion is a defensive bonus.
+
+**Applied ONLY to the adaptive branch (verified by reading source):**
+- IF branch `:1086` `agent_config.model.startswith(("claude-opus-4-8","claude-opus-4-7"))` → `_thinking_arg = {"type":"adaptive"}`, `:1095` `_max_tokens = _adaptive_max_tokens(agent_config.max_tokens)`.
+- ELSE branch `:1097-1104` keeps `{"type":"enabled","budget_tokens":2048}` + `temperature=1` and `_max_tokens = agent_config.max_tokens + 2048` (UNCHANGED). ✓
+- create `:1105-1113` uses `max_tokens=_max_tokens`. ✓
+- retry `:1217` `_retry_max = min(_max_tokens * 2, 32768)` → stays above the 16384 floor. ✓
+
+**Adversarial missed-path check — CLEAN.** Three `messages.create` on the Claude path: `:1006`, `:1105`, `:1218`. `:1006` (`_call_agent`) passes ONLY `model, max_tokens=agent_config.max_tokens, system, messages` — **NO `thinking=` kwarg** (read `:1004-1017` verbatim). So it is NOT on the adaptive-thinking starvation path; Main's disclosure is accurate. No other adaptive Opus create was missed.
+
+**Driver-pin grep — CLEAN.** `grep -rn "claude-opus-4-6" scripts/` → nothing (exit 1). `run_autonomous_loop.py:73` = `planner_model="claude-opus-4-8"`; `run_cycle.sh:63` = `--model claude-opus-4-8`. ✓
+
+**Planner hardening — GENUINE.** `_first_text` (planner_agent.py:26-42) joins `type=="text"` blocks, skips thinking/tool_use, falls back to `content[0].text`. Constructed thinking-block-first response → returns `"X"`. Empirically confirmed the thinking block has NO `.text` attr (`hasattr == False`), so the OLD `content[0].text` would have raised AttributeError — the fix is substantive. Both call sites (`:176`, `:282`) use `_first_text`; the only `content[0].text` remaining is in the docstring (`:32`). ✓
+
+**Imports** — `multi_agent_orchestrator` + `planner_agent` both import without error. ✓
+
+**Code-review heuristics (5 dimensions evaluated):**
+- secret-in-diff [BLOCK]: no matches on added lines.
+- unicode-in-logger [NOTE]: no non-ASCII added to any logger call in the diff.
+- financial-logic-without-behavioral-test [BLOCK]: N/A — no perf_metrics/risk_engine/backtest math touched; this is LLM-plumbing and it HAS a behavioral helper test.
+- kill-switch / stop-loss / perf-metrics-bypass [BLOCK]: N/A — no execution-path or risk-guard code touched.
+- tautological-assertion / over-mocked-test [BLOCK]: none — tests assert concrete computed values + real source shape + real `_first_text` returns.
+- broad-except [WARN]: no NEW broad-except added; the `:1018`/`:1114` excepts are pre-existing AuthError handlers (re-raise correctly).
+- **NOTE (out-of-diff, non-blocking):** pre-existing `👋` emoji at `multi_agent_orchestrator.py:987` (`_handle_direct`). Confirmed NOT in this diff (`:987` untouched). Violates the project no-emoji rule; Main disclosed it (parallel to the 47.8 app_home emoji). Recommend a dedicated follow-up to strip it — does NOT degrade this verdict (out of scope).
+
+---
+
+## STEP 3 — LLM judgment
+
+**Contract alignment — all 4 immutable success_criteria MET:**
+1. Adaptive branch floors via pure unit-tested helper (low→floor, high respected); ELSE unchanged; retry cap (32768) above floor (16384). **MET.**
+2. Three 4-6 pins → 4-8; no operative 4-6 in `scripts/`. **MET.**
+3. PlannerAgent parse thinking-block tolerant. **MET.**
+4. pytest guard asserts helper + branch + pins + planner; ast clean (3 py); `bash -n` clean; pytest green (8 passed). **MET.**
+
+**Mutation-resistance — all four guards are REAL (verified, not tautological):**
+- Floor regress to `configured+2048` → `_adaptive_max_tokens(500)` would be 2548 → helper test FAILS.
+- create stops using `_max_tokens` → `"max_tokens=_max_tokens," in src` FAILS (and the negative assertion `"...+ 2048," not in src` does not false-trip on the bare `:1008` non-adaptive form, which has no `+ 2048`).
+- Pin reverts to 4-6 → both pin tests assert `"claude-opus-4-6" not in src` → FAIL.
+- `_first_text` reverts to `content[0].text` → thinking-block-first test FAILS (AttributeError on the absent `.text`). Empirically confirmed.
+
+**Anti-rubber-stamp / scope — 16384 floor is DEFENSIBLE (judged adversarially):**
+- Anthropic's "start at 64k" guidance (effort doc) is framed for long-horizon Claude-Code/subagent SESSIONS that think+act across many turns. pyfinagent Layer-2 agents are per-turn, `MAX_TOOL_TURNS`-bounded tool-loop calls where `max_tokens` is a PER-TURN ceiling, with configured visible outputs of 500-4096 (largest = Synthesis 4096).
+- 16384 − 4096 = 12288 tokens of per-turn thinking headroom on the largest agent (13-15k+ for the 500-3000 agents). That is a 3-6x improvement over the old 2548-5048 and comfortably above expected single-turn thinking spend. It aligns with Anthropic's own adaptive-thinking doc CODE samples, which uniformly use `max_tokens: 16000` (brief key-finding #3).
+- max_tokens is a CEILING not a target → $0 unless the model needs the room; retry doubles to 32768 on a tool tail. 16384 is adequate for these short-output per-turn agents; the 64k floor is not required here and would be over-provisioning. **Judged adequate — not too low.**
+- **Under-edit check:** Main correctly left the ELSE branch and `_call_agent` (:1006) unchanged. `_call_agent` is genuinely off the adaptive path (no `thinking` kwarg). Main HONESTLY flagged the residual nuance (no `output_config` → effort defaults to `high` where 4.8 may still think) for the live-smoke follow-up rather than silently ignoring it. This is disclosure, not starvation-left-elsewhere — acceptable scope discipline.
+- **Deferrals honestly disclosed + reasonable:** `llm_client.generate_content` floor (separate Layer-1/Gemini path), COMMUNICATION `effort=max`+`max_tokens=500` (owner-directive collision — operator call), and making the silent TEXT `stop_reason=max_tokens` path retry (behavior/cost change risking double-billing; the floor makes text truncation rare regardless). All three are in the contract's Out-of-scope section AND experiment_results. Not ducking — defensible scoping for a Priority-3 completion.
+
+**Scope honesty — PASS.** experiment_results explicitly marks the live floor + planner-on-4-8 confirmation DEFERRED to the next real Layer-2 MAS cycle (Anthropic-metered = operator-gated), $0 this cycle. masterplan `live_check` = "n/a -- deterministic static/structural unit test ($0)". Consistent.
+
+**Research-gate compliance — PASS.** Researcher output present, gate_passed:true, cited in contract.
+
+**Test-strategy NOTE (does not degrade verdict):** `test_orchestrator_uses_the_floor_*` + the two pin tests are source-string (`read_text` + `in`) assertions, structurally weaker than execution tests. Resolved to NOTE not WARN because (a) the floor's BEHAVIOR is covered behaviorally via the pure helper test; (b) pins and branch-wiring have no runtime surface to exercise without a live LLM call (correctly deferred at $0); (c) the assertions match full lines incl. a negative assertion, making comment-only placement implausible. Correct test strategy for a $0 static/structural change.
+
+---
+
+## checks_run
+syntax (ast 3 py), bash_n (run_cycle.sh), verification_command (exit 0, 8 passed), floor_helper_behavioral (independent import + values), adaptive_branch_only (source read :1086-1113 + :1200-1226), adversarial_missed_create_path (:1006 no thinking kwarg), driver_pin_grep (clean), planner_first_text_behavioral (thinking-first → text, old content[0] AttributeError confirmed), module_imports, code_review_heuristics (5 dims), evaluator_critique, masterplan_success_criteria, mutation_resistance, scope_honesty, research_gate.
+
+## violated_criteria
+(none)
+
+## VERDICT: PASS
+All 4 immutable success criteria met and independently reproduced. Floor is real (16384, floors low / respects high / always >= configured), applied only to the adaptive Opus-4.8/4.7 branch, retry stays above floor. Three driver pins clean at 4-8. Planner parse genuinely thinking-block tolerant. All four test guards are falsifiable, not tautological. 16384 floor judged adequate for per-turn short-output Layer-2 agents (12-15k thinking headroom; 64k is session-horizon guidance, not required here). Deferrals and the out-of-diff `:987` emoji honestly disclosed. $0 spend; live confirmation correctly deferred to the next operator-gated MAS cycle.

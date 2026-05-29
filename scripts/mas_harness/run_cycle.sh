@@ -60,7 +60,7 @@ CYCLE_OUTPUT=$(
     "$CLAUDE_BIN" \
         -p \
         --dangerously-skip-permissions \
-        --model claude-opus-4-6 \
+        --model claude-opus-4-8 \
         < "$PROMPT" \
         2>&1
 ) || {

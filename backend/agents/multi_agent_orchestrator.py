@@ -120,6 +120,30 @@ AGENT_TOOLS = [
 ]
 MAX_RESEARCH_ITERATIONS = 3
 
+# phase-47.9: On the Opus-4.8/4.7 ADAPTIVE thinking path, max_tokens is a hard
+# ceiling on thinking + visible text COMBINED (Anthropic adaptive-thinking doc:
+# "Use max_tokens as a hard limit on total output (thinking + response text)").
+# Layer-2 agents run at effort=max but with small configured output budgets
+# (500-3000), so adaptive thinking can exhaust the budget and silently starve
+# the visible answer. Floor the ceiling so thinking always has headroom. 16384
+# matches the prior tool_use retry cap, leaves room for the largest intended
+# output (Synthesis 4096) plus ample thinking, and is well under Opus 4.8's 128k
+# output cap. max_tokens is a CEILING, not a target -- a higher floor costs
+# nothing unless the model actually needs the room. ONLY the adaptive branch is
+# floored; the manual-thinking ELSE branch caps thinking at budget_tokens=2048
+# and is left unchanged.
+_OPUS_ADAPTIVE_MIN_MAX_TOKENS = 16384
+
+
+def _adaptive_max_tokens(configured: int, floor: int = _OPUS_ADAPTIVE_MIN_MAX_TOKENS) -> int:
+    """Thinking-safe max_tokens for the Opus-4.8/4.7 adaptive path.
+
+    Returns max(configured + 2048, floor) so a small configured output budget is
+    raised to the floor (preventing adaptive thinking from starving the answer),
+    while a large configured budget is respected (+2048 thinking headroom).
+    """
+    return max(int(configured) + 2048, floor)
+
 
 class MultiAgentOrchestrator:
     """
@@ -1058,21 +1082,29 @@ class MultiAgentOrchestrator:
                 # is active (enabled or adaptive). Branch on model id.
                 _thinking_arg: dict
                 _extra_kwargs: dict
+                _max_tokens: int
                 if agent_config.model.startswith(("claude-opus-4-8", "claude-opus-4-7")):
                     # phase-4.14.7: Opus 4.7 rejects temperature /
                     # top_p / top_k with 400 on every request,
                     # thinking or not. Do NOT set any sampling param.
                     _thinking_arg = {"type": "adaptive"}
                     _extra_kwargs = {}
+                    # phase-47.9: adaptive thinking shares max_tokens with the
+                    # visible answer; floor the ceiling so thinking can't starve
+                    # the output at effort=max (see _adaptive_max_tokens).
+                    _max_tokens = _adaptive_max_tokens(agent_config.max_tokens)
                 else:
                     _thinking_arg = {
                         "type": "enabled",
                         "budget_tokens": 2048,
                     }
                     _extra_kwargs = {"temperature": 1}
+                    # Manual thinking caps at budget_tokens=2048, so the answer
+                    # is not starved by unbounded thinking -- unchanged.
+                    _max_tokens = agent_config.max_tokens + 2048
                 response = client.messages.create(
                     model=agent_config.model,
-                    max_tokens=agent_config.max_tokens + 2048,
+                    max_tokens=_max_tokens,
                     system=agent_config.system_prompt,
                     tools=AGENT_TOOLS,
                     messages=messages,
@@ -1180,7 +1212,9 @@ class MultiAgentOrchestrator:
                         f"retrying turn {turn+1} with doubled budget (single-shot)"
                     )
                     _mt_retried_turn = turn
-                    _retry_max = min((agent_config.max_tokens + 2048) * 2, 16384)
+                    # phase-47.9: double the (now floored) per-turn ceiling so the
+                    # retry always exceeds the initial budget; cap at 32768.
+                    _retry_max = min(_max_tokens * 2, 32768)
                     response = client.messages.create(
                         model=agent_config.model,
                         max_tokens=_retry_max,

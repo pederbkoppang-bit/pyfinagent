@@ -70,7 +70,7 @@ async def run_autonomous_loop(
         orchestrator = AutonomousLoopOrchestrator(
             project_id=project_id,
             dataset_id="trading",
-            planner_model="claude-opus-4-6",
+            planner_model="claude-opus-4-8",
             evaluator_model="gemini-2.0-flash",
         )
         

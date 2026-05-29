@@ -22,6 +22,26 @@ from anthropic import Anthropic
 
 logger = logging.getLogger(__name__)
 
+
+def _first_text(response) -> str:
+    """Extract the first text block from an Anthropic response.
+
+    phase-47.9: Opus 4.8 (the model this planner runs on after the 4-6 -> 4-8
+    driver-pin bump) can return a thinking block before the text block, so
+    response.content[0] is not guaranteed to be the text. Join all text-typed
+    blocks (skipping thinking/tool_use), falling back to content[0].text for
+    single-block responses without a typed text block.
+    """
+    blocks = getattr(response, "content", None) or []
+    text = "".join(
+        getattr(b, "text", "") for b in blocks
+        if getattr(b, "type", None) == "text"
+    )
+    if text:
+        return text
+    return getattr(blocks[0], "text", "") if blocks else ""
+
+
 # phase-23.8.0 (R-4): meta-plan thresholds are READ FROM CONFIG, not
 # hardcoded. Edit the JSON file, not this module. See
 # docs/audits/dev-mas-2026-05-11/04-remediation.md R-4 + the
@@ -153,7 +173,7 @@ Be specific about parameters and expected gains. Include reasoning for each prop
         )
 
         # Parse response
-        response_text = response.content[0].text
+        response_text = _first_text(response)
 
         try:
             # Try to extract JSON from response
@@ -259,7 +279,7 @@ Return revised proposal in JSON format."""
             ]
         )
 
-        response_text = response.content[0].text
+        response_text = _first_text(response)
 
         try:
             json_start = response_text.find('{')

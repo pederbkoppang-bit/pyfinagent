@@ -13390,6 +13390,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "47.9",
+          "name": "Priority-3 completion: Opus-4.8 max_tokens-at-xhigh floor (adaptive-path starvation fix) + finish the 4-6 driver-pin sweep",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "research_brief_phase_47_9_opus48_finish.md: completes Priority 3 ('audit per-agent max_tokens at xhigh' + '/claude-api sweep'). REAL latent bug: on the Opus-4.8 adaptive thinking path (multi_agent_orchestrator.py:1061 IF-branch), max_tokens is a HARD ceiling on thinking+visible-text COMBINED (adaptive-thinking doc). Layer-2 agents run effort=max but the adaptive call sets max_tokens=agent_config.max_tokens+2048 (~2548-5048); adaptive thinking can starve the answer and the plain-text stop_reason=max_tokens path is swallowed (retry only on tool_use tail). Plus 3 stale claude-opus-4-6 driver pins (run_autonomous_loop.py:73, run_cycle.sh:63) the backend-only 47.8 sweep didn't reach; PlannerAgent runs on the stale model and its content[0].text parse is fragile if 4.8 emits a thinking block first.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; [ast.parse(open(f).read()) for f in ['backend/agents/multi_agent_orchestrator.py','backend/agents/planner_agent.py','scripts/harness/run_autonomous_loop.py']]; print('ast OK 3 py files')\" && bash -n scripts/mas_harness/run_cycle.sh && echo 'sh OK' && python -m pytest tests/agents/test_phase_47_9_max_tokens_floor.py -q",
+            "success_criteria": [
+              "Opus-4.8/4.7 adaptive branch in multi_agent_orchestrator.py floors max_tokens to a thinking-safe value via a pure, unit-tested helper (low configured budgets raised to the floor; large configured budgets respected); the non-adaptive ELSE branch (manual budget_tokens=2048) is unchanged; the tool_use retry cap stays above the new floor",
+              "the three stale claude-opus-4-6 driver pins are bumped to claude-opus-4-8 (run_autonomous_loop.py planner_model, run_cycle.sh --model); no remaining operative claude-opus-4-6 default in scripts/",
+              "PlannerAgent response parsing is hardened to extract the first text block robustly (tolerant of a leading thinking block), so running the planner on Opus 4.8 cannot raise on content[0]",
+              "a pytest guard asserts the floor helper (floors low / respects high), the orchestrator branch uses it, the 3 pins are 4-8, and the planner text-extraction is thinking-block tolerant; ast.parse clean on all edited files; pytest green"
+            ],
+            "live_check": "n/a -- deterministic static/structural unit test ($0, no live LLM call). The max_tokens-floor + planner-on-4-8 live confirmation defers to the next real Layer-2 MAS cycle (cron/manual; Anthropic-metered = operator-gated)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
