@@ -13538,6 +13538,28 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "49.2",
+          "name": "Operator cron-control endpoints -- POST /api/jobs/{id}/pause|resume|trigger for the 2 backend-owned in-process APScheduler jobs (paper_trading_daily, ticket_queue_process_batch); confirmation-gated + audited; trigger reuses /run-now's triple-guard; cross-process (slack_bot/launchd) job ids rejected 404 (P7 'cron enable+trigger' deliverable)",
+          "status": "in_progress",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "49.1",
+          "audit_basis": "research_brief phase-49.2 (researcher gate PASSED: 7 sources read in full + recency scan + 6 internal files). Decisive internal trace: cron_dashboard_api.py:49 already holds a _RUNNING_SCHEDULERS registry + register_scheduler()/get_registered_schedulers(); main.py:264 registers 'main' (paper AsyncIOScheduler) + :317 'queue' (ticket-queue) -- both in the SAME process/event loop as every /api route -> in-process pause_job/resume_job/get_job control with NO new plumbing. Exactly 2 controllable backend-owned jobs: paper_trading_daily (paper_trading.py:1302 on 'main') + ticket_queue_process_batch (main.py:309 on 'queue'); the 11 _SLACK_BOT_JOBS + 6 _LAUNCHD_JOBS (cron_dashboard_api.py:79-121) are a static cross-process manifest -> reject 404. Double-fire safety: trigger MUST reuse /run-now's TRIPLE guard (paper_trading.py:1024 running-check 409 + autonomous_loop.py:152 _running flag + cycle_lock.py:117 fcntl flock), NOT modify_job(next_run_time=now) (racy, perturbs schedule). APScheduler 3.11.2 (NOT 4.x): pause_job/resume_job/get_job present; note /stop uses remove_job (deletes job) whereas cron-control uses pause_job/resume_job (preserves job+trigger). External: APScheduler 3.x docs (pause/resume/reschedule), Trigger.dev idempotency (repeat trigger != new run), K8s suspend-not-delete (reversible), Hasura (audit every invocation). $0 LLM; backend restart once to load new routes.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/api/cron_dashboard_api.py').read())\" && python -c \"import backend.api.cron_dashboard_api as c; paths=sorted(set(r.path for r in c.router.routes if '/jobs/' in r.path and (r.path.endswith('pause') or r.path.endswith('resume') or r.path.endswith('trigger')))); print('cron-control routes:', paths); assert any(p.endswith('pause') for p in paths) and any(p.endswith('resume') for p in paths) and any(p.endswith('trigger') for p in paths)\" && test -f handoff/current/live_check_49.2.md",
+            "success_criteria": [
+              "POST /api/jobs/{id}/pause, /api/jobs/{id}/resume, /api/jobs/{id}/trigger exist on the cron dashboard router; each is confirmation-gated (mirroring the kill-switch/risk-limits pattern) and appends an audit row to handoff/cron_control_audit.jsonl",
+              "pause/resume act on the IN-PROCESS registered scheduler via get_registered_schedulers() (NOT a newly created scheduler); they are allowlisted to the 2 backend-owned jobs (paper_trading_daily, ticket_queue_process_batch); unknown or cross-process (slack_bot/launchd) job ids are rejected with HTTP 404",
+              "GET /api/jobs/all reflects a paused job's state (status='paused' and/or a paused/controllable flag) after a pause call, and back to running after resume",
+              "trigger for paper_trading_daily reuses the /run-now guarded path (the _running / cycle_lock guard) and therefore returns HTTP 409 (NOT a double-run) when a cycle is already running; it does NOT use modify_job(next_run_time=now)",
+              "a LIVE curl round-trip is captured verbatim in live_check_49.2.md: pause paper_trading_daily -> GET /api/jobs/all shows it paused -> resume -> GET shows it running again, plus a 404 on a cross-process job id; every action appears in handoff/cron_control_audit.jsonl"
+            ],
+            "live_check": "REQUIRED -- live curl pause/resume round-trip against the running backend (port 8000) + a 404 on a cross-process job id, captured verbatim in live_check_49.2.md, plus the resulting handoff/cron_control_audit.jsonl rows."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
