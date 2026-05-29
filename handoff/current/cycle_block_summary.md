@@ -168,10 +168,16 @@ gates, none in-session-completable:
   paper history over time + a 5-strategy backtest re-baseline (compute + days).
 
 ## Crisp operator ask (the exact actions that move toward HARD STOP)
-1. **Strategy-rotation cron (codeable next, ~1 cycle):** say "wire the 47.6 selector to a weekly cron +
-   run the 5 per-strategy backtests" and I'll do it (no live spend -- backtests are local). This is the
-   highest-value remaining codeable item; it makes the north-star "shift to the highest earner" mechanism
-   actually run on a schedule.
+1. **Strategy rotation -- needs a SCOPE decision first (NOT a clean 1-cycle cron wiring).** Cycle-11
+   feasibility check (corrected from my earlier note): the 47.6 `select_best_strategy` is a PURE function
+   wired NOWHERE (only `__all__` references it), and there is only ONE strategy config in the repo
+   (`optimizer_best.json`) -- there is nothing to rotate BETWEEN, and no path yet produces the
+   `per_strategy` DSR/PBO list it consumes. Making this real is a MULTI-cycle feature: (a) DEFINE >=2
+   distinct candidate strategies (a design decision -- which strategies / how they differ -- I'd want your
+   steer on), (b) build a per-strategy backtest -> DSR/PBO population path, (c) a paper-capital allocation
+   switch, THEN (d) the weekly cron + selector wiring. Tell me the strategy SET (or "derive a sensible
+   seed set") and I'll build it across the next cycles. This is the highest-value remaining MONEY/north-star
+   work, but it is genuinely a feature, not a one-liner.
 2. **Cycle speed (codeable next, ~1 cycle):** say "enable lite_mode for the autonomous paper loop" (a
    real cycle currently takes ~1h45m through the full 15-step pipeline) -- this is a config/route change,
    not live spend, and it's the real blocker to a daily loop finishing on time.
@@ -183,10 +189,14 @@ gates, none in-session-completable:
 6. Let elapsed time accrue the 5-consecutive-clean-cron-cycle streak (daily 14:00/18:00-UTC cron, now
    loaded with the rotation code + UTC tz + catch-up).
 
-**Codeable-now without any operator action (I can do these the moment you say "keep going"):** items 1 + 2
-above (rotation cron + lite_mode) are the two genuinely-codeable, non-gated, high-value next steps. After
-those, the surface is operator/time-gated. (Minor flagged hygiene also remains: the `:987` `_handle_direct`
-emoji; the silent text-tail `stop_reason=max_tokens` retry; the openclaw token literal -- all low-value.)
+**Honest correction (cycle-11 feasibility check):** neither item 1 nor item 2 is a clean "just say keep
+going" one-cycle change. Item 1 (rotation) is a multi-cycle feature blocked on a strategy-SET design
+decision (above). Item 2 (lite_mode) drops the Risk Assessment step -- a SAFETY-vs-speed tradeoff on a
+trading loop that is your call to make, not mine to flip silently. So the genuinely-codeable-now,
+non-gated, NON-judgment surface is exhausted -- which is exactly why SOFT STOP (not a 12th forced cycle)
+is the correct terminal state. What remains is either operator/time-gated or a scoped feature awaiting
+your direction. (Minor flagged hygiene, all low-value, all I can do if you want them: the `:987`
+`_handle_direct` emoji; the silent text-tail `stop_reason=max_tokens` retry; the openclaw token literal.)
 
 **Stale follow-up retired:** the "deep_think_model 4-7->4-8 pin" noted in earlier cycles is MOOT --
 `settings.py:30` is already `gemini-2.5-pro` (phase-37.2), not Opus 4-7.
