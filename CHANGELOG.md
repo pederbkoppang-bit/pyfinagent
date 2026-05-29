@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `7211a90b` | phase-48.4: Live rotation bake-off SMOKE -- first REAL validation of the 48.1-48.3 machinery on a... |
 | 2026-05-29 | `88d770bd` | phase-48.4: PLAN (contract + masterplan step in-progress + research brief) before the live smoke GEN |
 | 2026-05-29 | `6e804ae9` | phase-48.3: Live rotation runner + full-kwarg engine_factory (make_rotation_engine + run_rotation... |
 | 2026-05-29 | `2096b6f3` | phase-48.2: Rotation real-engine adapter -- make_engine_backtest_fn (per-strategy K-variant PBO m... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `43279b08` | phase-47.2: First autonomous trade end-to-end (empty new_candidates set + sod_date roll) |
 | 2026-05-29 | `649b9ecd` | docs(handoff): live-run finding -- autonomous cycle too slow via claude_code rail (2+hrs, lite_mode= |
 | 2026-05-29 | `2e290c66` | docs(handoff): code-verify swap-rotation path is ready; first trade blocked only on running a real c |
-| 2026-05-29 | `1ce42c78` | docs(handoff): SOFT STOP after cycle 5 (47.5 UX foundation done); remaining work dual operator-gated |
 
 ---
 
+### v6.28.15 — phase-48.4: Live rotation bake-off SMOKE -- first REAL validation of... (2026-05-29)
+
+- **phase-48.4: Live rotation bake-off SMOKE -- first REAL validation of the 48.1-48.3 machinery on a...**
 ### v6.28.14 — phase-48.4: PLAN (contract + masterplan step in-progress + research b... (2026-05-29)
 
 - **phase-48.4: PLAN (contract + masterplan step in-progress + research brief) before the live smoke GEN**
