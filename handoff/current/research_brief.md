@@ -1,263 +1,333 @@
-# Research Brief — phase-50.1: FX Data Layer
+# Research Brief — phase-50.2: Multi-Currency Portfolio Accounting
 
-**Step:** phase-50.1 — `backend/services/fx_rates.py` + `historical_fx_rates` BQ table (EUR/USD + KRW/USD from yfinance) + fix `data_ingestion.py:146` currency stub.
-**Tier:** moderate
-**Builds on:** `handoff/current/research_brief_multimarket.md` (already gate-passed — the broad multi-market brief). THIS gate = FX-layer implementation specifics + exact internal integration points.
-**Status:** IN PROGRESS (WRITE-FIRST, appended incrementally)
+**Status: COMPLETE | Tier: complex | Step: phase-50.2 | Date: 2026-05-30**
+
+## Objective
+Make `backend/services/paper_trader.py` FX-convert each position from its local
+currency to the portfolio base currency (USD) in NAV / cost-basis / market-value /
+realized+unrealized P&L, using the phase-50.1 `fx_rates` service, with
+local-vs-FX P&L attribution. **NON-NEGOTIABLE: USD-only path stays byte-identical.**
+
+50.1 shipped `backend/services/fx_rates.py`:
+- `get_fx_rate(from_ccy, to_ccy, date=None) -> Optional[float]` — units of `to_ccy` per 1 `from_ccy`; `date=None`→live, ISO str→as-of; `from==to`→`1.0`; returns **None** only if a non-trivial rate genuinely can't be sourced.
+- `market_currency(market) -> str` — delegates to `markets.get_market_config(market)["currency"]` (US→USD, EU→EUR, KR→KRW, NO→NOK, CA→CAD).
 
 ---
 
-## Internal code inventory (Q1-Q6, file:line anchors)
+## EXECUTIVE SUMMARY (the load-bearing decisions)
 
-### Q1 — BQ table creation pattern + which dataset
+1. **Byte-identical is structurally guaranteed by `get_fx_rate(c,c)==1.0`** PLUS one rule: a position with `market` NULL/`"US"` (every current live row) derives currency `"USD"`, base `"USD"` → `get_fx_rate("USD","USD")==1.0` → every money term multiplies by 1.0. The current 100%-USD portfolio's NAV/P&L stay unchanged to the cent. This is provable with a unit test (Section D).
+2. **Position currency is DERIVED, not stored.** Live `paper_positions` schema has `market` (STRING NULLABLE) + `base_currency` (STRING NULLABLE) — NO `currency` column. Currency = `fx_rates.market_currency(pos["market"] or "US")`. `execute_buy`/`execute_sell` currently never populate `market`/`base_currency` (grep-confirmed) → 50.2 must start writing `market` + `base_currency` on position writes; legacy rows with NULL default to US/USD.
+3. **Cash is single-currency USD** (current `current_cash` is one FLOAT). Simplest correct model that preserves byte-identity: **cash stays in base USD**; a non-USD BUY converts USD budget→local at trade-time FX to size shares, books the position in **local** currency, and `mark_to_market` converts local→USD via `fx_rates` for valuation. No multi-currency wallet.
+4. **Cost basis: store in LOCAL currency, fixed at trade date; do NOT re-translate it.** Per IAS 21, a non-monetary asset (equity) carried at cost is held at the **historical transaction-date rate** (CPDbox/IAS 21, fetched in full). The FX gain on a position emerges naturally because `market_value` is converted at the *current* rate while `cost_basis` reflects the *entry* rate — their difference (in USD) contains both the local price move and the FX move. We then decompose it.
+5. **Output shape is UNCHANGED** — `mark_to_market` still writes USD `market_value`/`unrealized_pnl`/`total_nav`; `get_portfolio`/`get_status`/`paper_metrics_v2` read those USD fields unchanged. We ADD optional attribution fields (`local_pnl`, `fx_pnl`), never change existing ones.
 
-**Pattern (two idioms, both idempotent):**
-1. **Standalone migration script** (`scripts/migrations/*.py`) — the CLAUDE.md-mandated, version-controlled, re-runnable path. Two sub-shapes:
-   - **`google.cloud.bigquery.Table` + `create_table` with a Python `SchemaField` list**, guarded by `client.get_table(ref)` in a try/except (create only on miss). Canonical example: `scripts/migrations/migrate_backtest_data.py:88-95` (the file that created `historical_prices`/`historical_fundamentals`/`historical_macro`). This is the closest mirror because `historical_fx_rates` is a sibling historical table.
-   - **`CREATE TABLE IF NOT EXISTS` DDL string + `client.query(SQL).result()`**, with a `--apply`/dry-run flag and `--verbose`. Canonical example: `scripts/migrations/create_data_source_events_table.py:43-98` (PARTITION BY DATE + CLUSTER BY, OPTIONS descriptions, `argparse`, dry-run default). This is the NEWER, cleaner idiom (phase-25.B7) and is preferable for a NEW table because it self-documents partition/cluster and defaults to dry-run.
-2. **Auto-create on first ingest** (`data_ingestion.py:39-49` `_ensure_tables_exist`) — imports `ALL_TABLES` from `migrate_backtest_data` and creates any missing table at ingest time. **This means: if `historical_fx_rates` is added to `migrate_backtest_data.ALL_TABLES`, it auto-creates on the next ingest run** — but a dedicated migration is still the version-controlled source of truth.
+---
 
-**Recommended shape for `historical_fx_rates`:** a NEW `scripts/migrations/create_historical_fx_rates_table.py` mirroring `create_data_source_events_table.py` (DDL string, `--apply` dry-run default, PARTITION BY DATE(date) — but note date is stored as STRING in the sibling tables; see schema note below — CLUSTER BY pair). PLUS add the table to `migrate_backtest_data.ALL_TABLES` so `_ensure_tables_exist` auto-creates it (defense-in-depth, matches how prices/macro work).
+## INTERNAL CODE INVENTORY (Q1-Q6, file:line)
 
-**Dataset: `financial_reports`** (NOT `pyfinagent_data`). Rationale with anchors:
-- The sibling historical tables (`historical_prices`, `historical_fundamentals`, `historical_macro`) live in **`financial_reports`** — `migrate_backtest_data.py:24` (`DATASET = "financial_reports"`), and `data_ingestion.py:34` (`self.dataset = settings.bq_dataset_reports`), `settings.py:43` (`bq_dataset_reports: str = "financial_reports"`).
-- `historical_fx_rates` is read alongside `historical_prices` for backtest NAV conversion (50.5), so co-locating in `financial_reports` avoids a cross-dataset join and matches the `DataIngestionService._table()` helper (`data_ingestion.py:36-37`) that all the other historical tables use. **Location note: `financial_reports` is `us-central1`, not `US`** (per auto-memory + CLAUDE.md BQ table) — the migration's BQ client must not pin `--location US`; the `bigquery.Client(project=...)` default (no location) resolves it correctly, as `migrate_backtest_data.py` does.
-- `data_source_events` is the lone counter-example in `pyfinagent_data` (`create_data_source_events_table.py:39`), but that table is consumed by the analysis-pipeline provenance metric, not the backtest replay path. FX belongs with the historical replay tables.
+### Q1 — paper_trader.py money sites + EXACT FX injection at each
 
-**Schema note (mirror the siblings exactly):** `historical_prices` stores `date` as **STRING** (`migrate_backtest_data.py:31`, `mode="REQUIRED"`), NOT a DATE/TIMESTAMP. To keep joins on `(ticker,date)`↔`(pair,date)` trivial and avoid a type-mismatch, `historical_fx_rates.date` should also be a **STRING** "YYYY-MM-DD". If PARTITION BY is desired it must be on a DATE/TIMESTAMP column, so either (a) skip partitioning (the table is tiny — ~1000 rows/pair/3yr, like `historical_macro` which is unpartitioned) or (b) add a separate `DATE` column for partitioning. Given the table is ~3-4K rows total, **unpartitioned (mirroring `historical_macro`) is the right call** — `historical_macro` at `migrate_backtest_data.py:61-68` is the exact size-class precedent (252-ish rows, no partition).
+Live schema fact (verified via BQ 2026-05-30): `paper_positions` has
+`market STRING NULLABLE` + `base_currency STRING NULLABLE` (NO `currency` col).
+`paper_portfolio` likewise has `market` + `base_currency`. Both NULL on all
+current rows. **Convention for 50.2:** each position carries `market` (e.g.
+`"EU"`, `"US"`); its local currency = `fx_rates.market_currency(market or "US")`;
+`base_currency` = `settings.base_currency` (`"USD"`). `cost_basis`,
+`avg_entry_price`, `current_price`, `market_value`, `unrealized_pnl` are stored in
+**LOCAL** currency (so a .DE row's `current_price` is in EUR); USD conversion
+happens at NAV/valuation read. (Alternative — store everything USD — is REJECTED:
+it would re-translate cost basis every cycle, violating IAS 21 and making
+local-vs-FX attribution impossible.)
 
-### Q2 — yfinance usage in-repo + retry/rate-limit/error pattern
+| Site | file:line | Input ccy today | 50.2 conversion |
+|------|-----------|-----------------|-----------------|
+| **BUY notional / share count** | `paper_trader.py:168` `quantity = amount_usd / price` | `amount_usd` USD; `price` LOCAL | `quantity = (amount_usd * get_fx_rate("USD", local_ccy)) / price`. For USD: rate=1.0 → unchanged. (Convert the USD budget to LOCAL to size shares in local price.) |
+| **BUY cost_basis (new)** | `:275` `"cost_basis": round(amount_usd, 2)` | USD | Store LOCAL cost: `round(amount_usd * get_fx_rate("USD", local_ccy), 2)`. USD → `amount_usd` unchanged. `avg_entry_price` stays `price` (already local). |
+| **BUY cost_basis (add to existing)** | `:243-246` `old_cost...; new_cost = old_cost + amount_usd` | mixed | Add the LOCAL notional: `new_cost = old_cost + amount_usd * get_fx_rate("USD", local_ccy)`. USD unchanged. (existing `old_cost` already local.) |
+| **BUY market_value (new/existing)** | `:255,277` `round(new_qty*price,2)` / `round(amount_usd,2)` | LOCAL | Leave LOCAL at write (it's `qty*local_price`); USD conversion is a *read/NAV* concern, not a *store* concern. No change needed here beyond cost_basis. |
+| **SELL net_proceeds + cash credit** | `:329-331` `sell_value = sell_qty*price`; `:420 new_cash = current_cash + net_proceeds` | `price` LOCAL → `sell_value` LOCAL | Convert proceeds to USD before crediting USD cash: `net_proceeds_usd = (sell_value - tx_cost) * get_fx_rate(local_ccy,"USD")`. USD → 1.0 unchanged. **realized_pnl_usd** at `:383` `(price-entry_price)*sell_qty` is LOCAL → see Q under attribution; convert + decompose. |
+| **MTM market_value** | `:444` `market_value = pos["quantity"] * live_price` | `live_price` LOCAL | This is the LOCAL market value. **USD value = `market_value * get_fx_rate(local_ccy,"USD", None)`** (live rate). USD → 1.0 unchanged. |
+| **MTM cost_basis** | `:445` `cost_basis = pos.get("cost_basis") or (qty*avg_entry_price)` | LOCAL | Already LOCAL (stored local at BUY). USD value = `cost_basis_usd = cost_basis * get_fx_rate(local_ccy,"USD", entry_date_rate?)` — see "fx_pnl" note: the **realized/unrealized FX gain** uses cost at the **entry-date rate** and value at the **current rate**. |
+| **MTM unrealized_pnl / _pct** | `:446-447` `pnl = market_value - cost_basis; pnl_pct = pnl/cost_basis*100` | LOCAL diff | Total USD P&L = `market_value_usd - cost_basis_usd_at_entry_rate`. `pnl_pct` should stay a **local-return %** (`local_pnl/cost_basis_local*100`) so the percentage is currency-clean; the USD dollar `unrealized_pnl` is what feeds NAV. |
+| **NAV** | `:480` `nav = current_cash + total_positions_value` | USD cash + Σ LOCAL mv | `total_positions_value` must accumulate **USD** values: `total_positions_value += market_value * get_fx_rate(local_ccy,"USD")`. USD → 1.0 → byte-identical. `current_cash` already USD. |
+| **MTM persisted fields** | `:460-466` writes `market_value`, `unrealized_pnl`, `unrealized_pnl_pct` | LOCAL today | DECISION: persist `market_value` + `unrealized_pnl` in **USD** (so `get_portfolio`/`save_daily_snapshot` Σ stay USD + shape-identical), persist `current_price` in LOCAL (it's the live local quote), keep `unrealized_pnl_pct` as local-return %. Add `local_pnl`/`fx_pnl` (Section C). For USD rows USD==LOCAL so byte-identical. |
 
-**No shared yfinance wrapper exists.** 20+ call sites each inline `import yfinance as yf` (grep: `data_ingestion.py:11`, `screener.py:11`, `tools/yfinance_tool.py:7`, `paper_trader.py` via `_get_live_price:1127`, `regime_detector.py:102`, `_production_fns.py:62`, etc.). Two call shapes:
-- **Bulk `yf.download(batch, ...)`** — `data_ingestion.py:104-108` and `screener.py:110-111`. Args: `group_by="ticker", auto_adjust=True, threads=True, progress=False`; `start=/end=` (ingestion) or `period=` (screener). FX pairs should use this shape for the backfill.
-- **Single `yf.Ticker(t).history(period=...)`** — `paper_trader.py:_get_live_price:1127-1130` (`period="1d"`, `Close.iloc[-1]`). FX live-mark should mirror this for the daily rate.
+**`_get_live_price` returns a LOCAL quote** (`paper_trader.py:1124-1133`,
+`yf.Ticker(ticker).history`). For a `.DE` ticker yfinance returns EUR — so
+`live_price` IS local-currency. fx_rates does the local→USD step. **No change to
+`_get_live_price`.**
 
-**Error/retry pattern = try/except + skip/return-empty; there is NO exponential-backoff retry around yfinance** despite the backend-tools.md claim ("automatic retry and exponential backoff" applies to AlphaVantage/FRED-keyed APIs, NOT yfinance). Concretely:
-- `data_ingestion.py:103-114` — `try: yf.download(...) except Exception as e: logger.error(...); continue` (skip the batch). Then `if data is None or data.empty: continue`.
-- `screener.py:109-117` — same: `try/except → logger.error → return []`; `if data.empty: return []`.
-- `_get_live_price` (`paper_trader.py:1126-1133`) — `try/except → logger.debug → return None`.
-- Per-ticker inner loop wraps each ticker in its own try/except and `logger.warning` on failure (`data_ingestion.py:120,154-155`).
+### Q2 — Position currency source
 
-**Batch size constant**: `_YF_BATCH = 50` (`data_ingestion.py:24`). For FX (only 2-3 pairs) a single `yf.download([...])` call suffices — no batching needed.
+`paper_positions` has **`market`** + **`base_currency`** (live-verified), NO
+`currency`. **execute_buy/execute_sell never write either today** (grep:
+`paper_trader.py` has no `"market":`/`"currency":`/`"base_currency":` key in any
+`pos_row`). So:
+- 50.2 adds `"market": market` and `"base_currency": base_ccy` to BOTH `pos_row`
+  branches in `execute_buy` (`:248-267`, `:270-286`) and the partial-sell re-insert
+  (`:400-415`).
+- Position local currency = `fx_rates.market_currency(pos.get("market") or "US")`.
+- **Legacy/US rows** have `market=NULL` → `market_currency(None or "US")` →
+  `market_currency("US")` → `"USD"` → byte-identical. (`get_market_config`
+  uppercases + falls back to US for unknown — `markets.py:77-78` — so a NULL/blank
+  is safe.)
+- `execute_buy` needs a `market` argument (default `"US"`) threaded from the caller
+  (`portfolio_manager` / `autonomous_loop`); until callers pass it, default `"US"`
+  keeps current behavior. (50.3 routes the live loop's market through; 50.2 just
+  adds the param + persists it.)
 
-**Implication for `fx_rates.py`:** reuse the existing idiom (try/except → log → return None/empty + per-pair inner guard). FX is low-cardinality (2-3 pairs) and called once/day live + once at backfill, so the documented yfinance rate-limit degradation (multimarket brief finding: 2024-2026 IP bans) is low-risk here. The FRED fallback (Q-external) is the robustness hedge, mirroring `data_ingestion.ingest_macro` (`:284-324`) httpx pattern.
+### Q3 — base_currency wiring
 
-### Q3 — the `data_ingestion.py:146` currency stub
+`settings.py:50-51`: `default_market="US"`, `base_currency="USD"` — declared but
+`paper_trader` never reads them (grep-confirmed). **DECISION: `base_currency`
+defaults to `"USD"`** read once as `base_ccy = getattr(self.settings,
+"base_currency", "USD") or "USD"`. Used as the `to_ccy` in every
+`get_fx_rate(local, base_ccy)` valuation call and persisted to
+`paper_positions.base_currency` / `paper_portfolio.base_currency`. Because
+`base_ccy == "USD"` and all live positions are USD, every conversion is
+`get_fx_rate("USD","USD") == 1.0`.
 
-**Exact bug (`data_ingestion.py:146`):**
-```python
-"currency": "USD" if market == "US" else "USD",  # TODO: lookup from MARKET_CONFIG
-```
-Both branches return `"USD"` — non-US rows get the wrong currency.
+### Q4 — cash currency model
 
-**Context (what writes it / the market arg):**
-- This is inside `ingest_prices` (`:93`), in the per-row dict appended at `:142-153`.
-- `market` is derived at `:137-141`: defaults to `"US"`, and if the ticker is namespaced (`"DE:BAS"`), it splits on `:` → `market="DE", clean_ticker="BAS"` (`:140-141`). So `market` is the market CODE from `markets.py`.
+`current_cash` is a single FLOAT (USD) — `paper_portfolio.current_cash` (live
+schema), `_update_portfolio_cash` (`:986-990`) rounds one scalar. **DECISION:
+cash held in base USD only** (no per-currency wallets — that would be a far
+bigger change and is unnecessary for paper). Mechanics:
+- A non-USD **BUY** converts the USD budget to local at trade-time FX to size
+  shares (`quantity = amount_usd*get_fx_rate("USD",local)/price`), debits USD cash
+  by `total_cost` (already USD: `amount_usd + tx_cost`, `:154-155`) — **no change to
+  the cash-debit path**, the USD budget IS the USD outflow.
+- A non-USD **SELL** converts local proceeds back to USD before crediting cash
+  (Q1 SELL row).
+This is the SIMPLEST correct model and keeps USD-only byte-identical: for a USD
+trade the FX factor is 1.0 so cash math is unchanged.
 
-**The fix:** read currency from `markets.MARKET_CONFIG`. The map already exists at `markets.py:21-52` with the `get_market_config()` accessor at `markets.py:75-78`:
-```python
-from backend.backtest import markets
-...
-"currency": markets.get_market_config(market)["currency"],
-```
-`get_market_config` is robust: it uppercases and falls back to US for unknown markets (`markets.py:77-78`), so a malformed namespace can't crash the ingest. Mapping confirmed: US→USD, EU→EUR, KR→KRW (`markets.py:24,42,48`). **CAVEAT:** the multimarket brief uses market code `DE` for Germany in places, but `markets.py` keys Germany under **`EU`** (XETRA), with no `DE` key — `get_market_config("DE")` would fall back to USD. The namespace→market convention must use `EU` (the markets.py key), or a `DE`→`EU` alias must be added in 50.3. For 50.1's scope (just the currency lookup) the fix is correct as written; the `DE`-vs-`EU` code reconciliation is a 50.3 universe-mapper concern, worth flagging in the contract.
+### Q5 — trade-time conversion convention (execute_buy/execute_sell)
 
-### Q4 — FX consumers (who calls fx_rates) + their date types
+Locked convention: **USD cash is the budget; convert USD→LOCAL at trade-time spot
+to determine share count; store the position in LOCAL.**
+- `execute_buy(:168)`: `quantity = amount_usd / price` → `quantity = amount_usd *
+  fx_rate("USD", local) / price`. (e.g. $1000 budget, EURUSD 1.16 → €862.07 →
+  /€100 price = 8.6207 shares.)
+- `cost_basis` stored LOCAL = `amount_usd * fx_rate("USD", local)` (the local
+  notional, €862.07), fixed at the trade-date rate (IAS 21 historical-cost rule).
+- `avg_entry_price` = `price` (already local; unchanged).
+- transaction_cost stays a USD-budget % (`:154`); for a paper sim the fee on the
+  USD notional is fine and keeps USD byte-identical.
+- The trade-time FX rate is the **live** rate (`date=None`) for live trading;
+  50.5 (backtest) will pass the as-of date.
 
-**TWO consumers with DIFFERENT date semantics — the API must serve both:**
+### Q6 — downstream NAV/P&L consumers (shape must not change)
 
-| Consumer | Function (file:line) | Mark source | Date type | FX need |
-|----------|----------------------|-------------|-----------|---------|
-| **50.2 paper_trader** | `mark_to_market()` `paper_trader.py:432-508` (NAV at `:480`, pnl at `:446`); also `execute_buy:221,245,253,275`, `execute_sell`, `_get_live_price:1124-1133` | LIVE mark via `_get_live_price(ticker)` — `yf.Ticker(t).history(period="1d")`, **no date arg** | "today" (live daily mark) | `get_fx_rate("EUR","USD")` for today's rate — a **live/cached** lookup |
-| **50.5 backtest_trader** | `mark_to_market(date: str, prices: dict)` `backtest_trader.py:188-201`; NAV in `_compute_nav(prices)` `:233-238`; `close_all_positions(date, prices)` `:203`; snapshots keyed by `date` (`DailySnapshot.date`) | Historical close from cache, keyed by **`date: str`** ISO "YYYY-MM-DD" | **point-in-time** as of `date` | `get_fx_rate("EUR","USD", date)` for the rate AS OF that backtest day — a **BQ historical** lookup, point-in-time correct |
+| Consumer | file:line | Reads | 50.2 impact |
+|----------|-----------|-------|-------------|
+| **paper-trading portfolio endpoint** | `backend/api/paper_trading.py:172-241` (`get_portfolio`) | `portfolio.total_nav`, per-position `market_value` (for `sector_breakdown` weights `:202-206`) | **NONE if `market_value` + `total_nav` are persisted in USD.** Endpoint already reads these straight from BQ. Shape identical. |
+| **status endpoint** | `:117-150` (`nav`= `portfolio.total_nav`) | `total_nav` (USD) | None. |
+| **save_daily_snapshot** | `paper_trader.py:819` `positions_value = sum(p["market_value"])` + NAV | per-position USD `market_value`, `total_nav` | None — sums USD `market_value` (now USD-correct). |
+| **paper_metrics_v2._nav_to_returns** | `backend/services/paper_metrics_v2.py:36-81` | `snapshot.total_nav` (USD) only; differences NAVs | None — consumes USD NAV; FX already baked in. **No double-conversion** (it never touches FX). |
+| **perf_metrics.compute_position_pnl** | `backend/services/perf_metrics.py:39-51` | `quantity, current_price, cost_basis` (currency-blind) | **NOT called by paper_trader** (callers: `backend/api/portfolio.py:161` = the legacy `pyfinagent_pms` path, + tests). paper_trader inlines its own P&L at `:446`. So 50.2 does NOT need to touch `perf_metrics`; the canonical helper stays USD-clean for the legacy path. If you want a shared FX-aware helper, ADD `compute_position_pnl_fx(...)` rather than mutate the existing one. |
+| **_compute_attribution** | `backend/api/paper_trading.py:354-424` | per-ticker `realized_pnl_usd` from round-trips | This is where **local-vs-FX attribution** is naturally surfaced (Section C(c)). Round-trip `realized_pnl_usd` must become USD-correct (currently local for non-USD). |
 
-**Date type CONCLUSION:** both use **`str` ISO "YYYY-MM-DD"** (backtest `date` is a str; paper_trader has no date but "today" is naturally `date.today().isoformat()`). So the API signature should be:
-```python
-def get_fx_rate(from_ccy: str, to_ccy: str, date: str | None = None) -> float
-```
-where `date=None` ⇒ latest/live rate (paper_trader path), and `date="2024-03-15"` ⇒ point-in-time historical (backtest path). Accepting `str` matches both consumers with zero conversion. (If a `datetime`/`date` is ever passed, coerce with `.isoformat()[:10]` — but the two real consumers both speak `str`.)
+**Conclusion:** the only OUTPUT-shape-safe path is to keep persisting USD
+`market_value`/`unrealized_pnl`/`total_nav` and add (never rename) attribution
+fields. Every downstream consumer keeps working byte-identically for USD.
 
-**Critical correctness note:** the NAV math is currency-blind today (`backtest_trader.py:235` `pos.quantity * prices.get(...)`; `paper_trader.py:444` `pos["quantity"] * live_price`). 50.2/50.5 will wrap the per-position term with `* get_fx_rate(pos_currency, base_currency, date)`. So `fx_rates.py` must return `1.0` for same-currency (USD→USD) cheaply so the US-only path stays byte-identical (multimarket brief criterion: `["US"]` behavior unchanged). **Add an explicit `if from_ccy == to_ccy: return 1.0` short-circuit** before any lookup.
+---
 
-### Q5 — caching pattern + recommendation (BQ vs in-memory TTL vs both)
-
-**Existing patterns:**
-- **`backend/services/api_cache.py`** — thread-safe in-memory TTL cache, module-level singleton (`get_api_cache()` at `:109`), `get`/`set(key, value, ttl_seconds)`/`invalidate(glob)`/`stats`. Per-endpoint TTL registry `ENDPOINT_TTLS` at `:115-141` (e.g. `paper:status=60s`, `settings:models=3600s`, `paper:ticker_meta=86400s` 24h). This is the right tool for the LIVE daily FX mark.
-- **`backend/backtest/cache.py`** — BQ bulk-preload cache (`preload_prices`/`preload_fundamentals` = 2 queries for an entire backtest; CLAUDE.md "always call `cache.preload_macro()`"). This is the right tool for the HISTORICAL FX series in a backtest (bulk-load the whole FX history once, then in-memory dict lookups during the day-loop).
-
-**RECOMMENDATION: (c) BOTH — split by consumer, mirroring how prices already work:**
-1. **BQ table `historical_fx_rates`** = the point-in-time historical source for backtests (50.5) and the durable backfill. Backtest preloads the FX series into memory once (mirror `cache.preload_prices`), then does dict lookups in the day-loop — NOT a BQ query per day (the per-day-query anti-pattern is exactly what `cache.py` exists to avoid).
-2. **In-memory TTL cache for the LIVE daily mark** (50.2) via `api_cache` with a 24h-ish TTL (FX marks once/day; `paper:ticker_meta` at 86400s is the precedent). Key e.g. `fx:EUR:USD:2026-05-30`. On miss → yfinance live → (FRED fallback) → set. Optionally also persist the live mark into `historical_fx_rates` so today's rate becomes tomorrow's history (write-through), giving the backtest a continuous series without a separate backfill job.
-
-This is the SAME split prices already use: `historical_prices` (BQ, backtest) + `_get_live_price` (live, paper). FX should not invent a new pattern.
-
-**What `markets.py` exposes for currency already:** `MARKET_CONFIG[market]["currency"]` (`markets.py:21-52`) and `get_market_config(market)["currency"]` (`:75-78`). It does NOT expose any FX/conversion — only the static market→currency string. `fx_rates.py` is the missing layer that turns those currency codes into a rate. So `fx_rates.py` should import `markets` for the currency CODES but owns all rate logic.
-
-### Q6 — markets.py currency map (reuse, don't duplicate)
-
-`backend/backtest/markets.py:21-52` `MARKET_CONFIG` — the single source of truth for market→{exchange, currency, timezone, description}:
-- US → {XNYS, **USD**, America/New_York}
-- NO → {XOSL, NOK, Europe/Oslo}
-- CA → {XTSE, CAD, America/Toronto}
-- EU → {XETR, **EUR**, Europe/Berlin}  ← Germany/XETRA is the `EU` key
-- KR → {XKRX, **KRW**, Asia/Seoul}
-
-Accessors: `parse_namespaced_ticker(t)` (`:55-72`), `get_market_config(market)` (`:75-78`), `get_trading_calendar(market)` (`:81-102`, uses `exchange_calendars` — **confirmed installed, v4.13.2**), `is_trading_day(date, market)` (`:105-120`).
-
-**`fx_rates.py` should expose a thin `market_currency(market) -> str` convenience that delegates to `markets.get_market_config(market)["currency"]`** so callers (paper_trader, backtest_trader) can go market→currency→rate without re-importing markets everywhere. Do NOT duplicate the currency strings.
-
-**Confirmed installed deps (`.venv`):** `exchange_calendars 4.13.2`, `yfinance 1.2.0`, `pandas 3.0.1`. No new pip deps needed for 50.1 (yfinance + httpx + google-cloud-bigquery all present).
-
-## External research
+## EXTERNAL RESEARCH
 
 ### Read in full (>=5 required; counts toward the gate)
 
 | URL | Accessed | Kind | Fetched how | Key finding |
 |-----|----------|------|-------------|-------------|
-| https://blog.quantinsti.com/download-forex-price-data-yfinance-library-python/ | 2026-05-30 | blog (quant practitioner) | WebFetch full | yfinance FX ticker = `EURUSD=X`/`GBPUSD=X` with `=X` suffix; download via `yf.download(ticker, ...)` (same as stocks), daily + intraday via `interval`. Confirms the `=X` forex convention and that `yf.download` is the right method. |
-| https://fred.stlouisfed.org/series/DEXUSEU/ (metadata via FRED API) | 2026-05-30 | official (Federal Reserve H.10) | FRED API (page 403'd WebFetch; pulled `/fred/series` JSON) | **Verbatim units: "U.S. Dollars to One Euro"** → USD per 1 EUR (≈1.16). Daily, source Board of Governors, **start 1999-01-04**, "noon buying rates NYC". Direction MATCHES yfinance `EURUSD=X`. |
-| https://fred.stlouisfed.org/series/DEXKOUS (metadata via FRED API) | 2026-05-30 | official (Federal Reserve H.10) | FRED API JSON | **Verbatim units: "South Korean Won to One U.S. Dollar"** → KRW per 1 USD (won-per-dollar). Daily, **start 1981-04-13** (deepest history). Direction MATCHES yfinance `KRW=X`/`USDKRW=X`. |
-| https://insights.glassnode.com/why-use-point-in-time-data/ | 2026-05-30 | industry (data vendor) | WebFetch full | Look-ahead bias = backtest using info unavailable at decision time. "A value you see today for January 15 2024 may not be the value published on January 15 2024." Rule: **PiT data is append-only + immutable; each point reflects only what was known when first computed.** As-of querying + validate revised-vs-PiT to expose the gap. |
-| https://www.ecb.europa.eu/.../euro_reference_exchange_rates/...index.en.html | 2026-05-30 | official (ECB) | WebFetch full | ECB euro reference rates: **foreign-ccy per 1 EUR** (e.g. USD 1.1644/EUR), fixed ~16:00 CET (concertation ~14:10), **business days only, NOT on weekends/TARGET holidays** (the weekend-gap problem, confirmed by an authority). Free for info; "using for transaction purposes strongly discouraged." |
-| https://www.kantox.com/glossary/wmreuters-benchmark-rates | 2026-05-30 | industry (FX treasury vendor) | WebFetch full | WM/Reuters fix = daily 4pm London; **volume-weighted median of trades+order-book in a 5-min window** (mid, not simple bid-offer midpoint). "Widely embedded in fund valuations, custodian reports" — the institutional **mark-to-market / NAV** FX standard. Covers 150+ ISO-4217 pairs. |
-| https://sharpely.in/blog/bias-free-backtesting-explained... | 2026-05-30 | industry (backtest platform) | WebFetch full | PiT controls: "data added only after officially reported"; decisions on rebalance day but **executed at next-day prices**; delisted names sold at last available price; historical index membership. Corroborates glassnode PiT + the forward-fill/last-available convention. |
+| https://analystprep.com/study-notes/cfa-level-iii/currency-movement-on-portfolio-risk-and-return/ | 2026-05-30 | edu (CFA Institute curriculum) | WebFetch full | **Verbatim:** `Total Return on domestic currency = (1+R_FC)*(1+R_FX) - 1`. R_FC = return on the foreign asset in its own currency; R_FX = return due to exchange rates. Expands to `R_FC + R_FX + R_FC*R_FX` (the cross term). This IS the canonical local-vs-FX decomposition. |
+| https://meradia.com/thought-leadership/re-engineering-karnosky-singer-utility-versatility-and-insight-for-practical-multi-currency-management/ | 2026-05-30 | industry (perf-attribution consultancy) | WebFetch full | Karnosky-Singer in gain/loss space: `Naive Local Market = GL(local)*X(BoP)`; `Naive FX = E(local,BoP)*[X(EoP)-X(BoP)]`; `Cross Product = NaiveLocal*NaiveFX/[E(local,BoP)*X(BoP)]`; `KS Local + KS FX + Cross = Total Asset GL in Base`. **Multiplicative-then-additive**: convert multiplicatively, decompose additively; the cross-product term is a real residual you must place, not drop. Interest-rate term only matters for hedged/forward portfolios (not paper spot). |
+| https://www.cpdbox.com/ias21-foreign-exchange-rates/ | 2026-05-30 | official-aligned (IFRS/IAS 21 explainer) | WebFetch full | **IAS 21 verbatim:** initial recognition at "spot exchange rate at the date of the transaction"; non-monetary items at **historical cost** kept "using the exchange rate at the date of transaction (historical rate)" — NOT re-translated at closing rate; non-monetary at **fair value** use "the exchange rate at the date when the fair value was measured." → **cost basis is fixed at entry-date FX; the mark uses the valuation-date FX.** This is the rule that prevents cost-basis double-translation. |
+| https://corporatefinanceinstitute.com/resources/accounting/foreign-exchange-gain-loss/ | 2026-05-30 | industry (CFI) | WebFetch full | **Verbatim formula:** `FX Gain/Loss = Foreign Amount * (Current Rate - Transaction Rate)`. Worked: EUR100k, 1.10→1.15 = +$5,000. Realized on settlement (income stmt); unrealized on period-end revaluation (balance sheet). Gives the exact fx_pnl computation. |
+| https://ar5iv.labs.arxiv.org/html/1611.01463 | 2026-05-29 (carried, re-confirmed) | paper (preprint) | WebFetch full (ar5iv HTML) | Multi-currency return decomposition `r_j = a_j(r_ja - i_j) + c_j(r_jc + i_j)`: local asset return minus carry + currency return plus carry; FX cost-of-carry = interest-rate differential baked into the return, not post-hoc. For UNHEDGED paper spot (i=0 effectively) reduces to local + FX, matching CFA. |
+| https://fundcount.com/nav-valuation-model-how-fund-nav-is-valued/ | 2026-05-30 | industry (fund-accounting vendor) | WebFetch (via search-surfaced methodology) | Multi-currency NAV control: "Confirm GL, holdings, marks, cash, and FX are all as of the SAME measurement date; if not, stop and resolve the mismatch before allocating... When different systems use different FX sources or different timestamps, NAV tie-outs break." → the same-date-FX invariant + single FX source (our `fx_rates`). |
+| https://help.sharesight.com/multi-currency-valuation-report/ | 2026-05-30 | industry (portfolio platform) | WebFetch full | Per-holding: compute EOD value in investment currency, then "applies the prevailing foreign exchange rate to calculate the value" in the chosen currency; reports BOTH investment-currency and base-currency values + the FX rate used. → store/show local AND base; surface the rate for auditability. |
+| https://www.netsuite.com/portal/resource/articles/accounting/multi-currency-accounting.shtml | 2026-05-30 | industry (Oracle NetSuite) | WebFetch (search-surfaced) | "Transactions in foreign currencies get recorded in the company currency at the **spot rate on the day of the transaction**"; period-end revaluation produces unrealized gain/loss; audit trail of rate source required. Corroborates IAS 21 trade-date spot + the audit-trail control. |
 
 ### Identified but snippet-only (context; does NOT count toward gate)
 
 | URL | Kind | Why not fetched in full |
 |-----|------|-------------------------|
-| https://finance.yahoo.com/quote/KRW=X/ | data (Yahoo) | Search snippet confirms `KRW=X` page title = "USD/KRW" (won-per-dollar); direction question answered without full fetch. |
-| https://finance.yahoo.com/quote/USDKRW=X/ | data (Yahoo) | Snippet: `USDKRW=X` = same USD/KRW pair (alternate ticker). |
-| https://finance.yahoo.com/quote/KRWUSD=X/ | data (Yahoo) | Snippet: `KRWUSD=X` = the INVERSE (KRW/USD). Confirms which ticker to AVOID for the won-per-dollar convention. |
-| https://www.lseg.com/content/dam/ftse-russell/.../wmr-fx-methodology.pdf | doc (LSEG/WMR) | PDF; the Kantox glossary (read in full) already gives the mid-rate + 4pm-fix method authoritatively. |
-| https://www.cmegroup.com/articles/case-study/...wm-refinitiv-400-pm-fixing-rate.html | industry | Snippet: asset-manager exposure to the 4pm fix; reinforces WM/R as the valuation standard. |
-| https://analystprep.com/study-notes/cfa-level-2/problems-in-backtesting/ | edu (CFA) | Snippet: backtest biases taxonomy (look-ahead/survivorship); glassnode + sharpely full reads cover it. |
-| https://mikeharrisny.medium.com/look-ahead-bias-in-backtests-and-how-to-detect-it... | blog | Snippet: detection of look-ahead bias; corroborates PiT. |
-| https://arxiv.org/pdf/2601.13770 | paper (preprint) | "Look-Ahead-Bench" 2026 PiT-LLM benchmark; recency signal that PiT is an active 2026 research topic; binary PDF, not needed in full for the FX-storage decision. |
-| https://aws.amazon.com/marketplace/pp/prodview-4ztvijzvvllpa | vendor | Snippet: DEXUSEU redistributed on AWS Marketplace; confirms the series is a recognized canonical feed. |
-| https://blog.quantinsti.com/... (recency variant) | blog | Same domain as the read-in-full source. |
+| https://www.entrilia.com/feature/multi-currency-fund-accounting | vendor | Fetched but marketing-thin; confirmed "average rate for income stmts, closing rate for balance sheets" + "track in both fund + original currency" — corroboration only. |
+| https://arxiv.org/pdf/2309.07667 | paper | "P&L attribution: an empirical study" — OAT/SU/ASU decomposition order-dependence; binary PDF; the cross-product residual point already covered by Karnosky-Singer. |
+| https://arxiv.org/pdf/1606.05877 | paper | "A new decomposition of portfolio return" — additive return decomposition; snippet sufficient (corroborates multiplicative-vs-additive). |
+| https://www.goldendoorasset.com/workflows/multi-currency-pnl-attribution-fx-impact-analyzer | industry | Confirms separating FX impact from selection; workflow marketing. |
+| http://investmentperformanceguy.blogspot.com/2012/08/a-multi-currency-return-puzzle-for-you.html | blog | The classic "geometric vs arithmetic linking" multi-currency puzzle; cross-term placement. |
+| https://insight.factset.com/hubfs/White%20Papers/Currency_Forwards_WP.pdf | doc | Currency forwards in fixed-income attribution (hedged); out of scope for unhedged paper equities. |
+| https://www.kantox.com/glossary/base-currency | glossary | Base-currency definition; trivial. |
+| https://ifrscommunity.com/forum/viewtopic.php?t=606 | forum | IAS 21 realized vs unrealized forex thread; CPDbox (full read) is authoritative. |
+| https://polibit.io/blog/nav-calculation-accuracy-40-percent-get-it-wrong | blog | "40% of private funds get NAV wrong" — FX inconsistency a top cause; motivates the same-date invariant. |
+| https://www.multicharts.com/discussion/viewtopic.php?t=50800 | forum | A real "currency conversion error in portfolio trader" bug report — anecdotal evidence of the double-conversion failure mode. |
+| https://analystprep.com/study-notes/cfa-level-2/presentation-currency-functional-currency-local-currency/ | edu | Functional vs presentation vs local currency taxonomy. |
 
-**URLs collected (unique):** 16+ (7 read-in-full + 9 snippet-only above; additional search hits not listed).
+**URLs collected (unique):** 19 (8 read-in-full + 11 snippet-only).
 
 ### Search-query variants run (3-variant discipline)
-
-1. **Current-year frontier:** the recency scan below used 2026-scoped FX/PiT queries (FRED `DEXKOUS` end date 2026-05-22; "Look-Ahead-Bench" arXiv 2601 = 2026; WM/Reuters methodology v30).
-2. **Last-2-year window:** WM/Reuters reform 2013-2015 + current methodology, glassnode/sharpely PiT pieces (2024-2026 vintage).
-3. **Year-less canonical:** "point-in-time historical FX rates backtest look-ahead bias" (→ glassnode + sharpely + CFA), "FX quote convention base currency mid rate" (→ ECB + WM/Reuters), "yfinance currency pair ticker EURUSD=X KRW=X direction" (→ quantinsti + Yahoo pages). The year-less queries surfaced the canonical PiT and FX-convention authorities.
+1. **Current-year frontier (2025/2026):** "multi-currency portfolio FX accounting 2025 2026 base currency conversion best practices software"; "double conversion currency error NAV ... bug 2025 2026".
+2. **Last-2-year window:** the recency scan (below) — NetSuite/Workday/Xero 2026 guides, beancount.io 2026-05-03 multi-currency guide, polibit 2025 NAV-accuracy.
+3. **Year-less canonical:** "multi-currency portfolio P&L attribution local return FX return decomposition" (→ CFA, Karnosky-Singer, arXiv); "realized unrealized FX gain loss accounting ... IAS 21" (→ CPDbox, CFI, iasplus); "base currency NAV valuation ... fund accounting" (→ fundcount, sharesight). Year-less surfaced the canonical IAS 21 + Karnosky-Singer + CFA authorities.
 
 ---
 
 ## Recency scan (2024-2026)
 
-Searched the last-2-year window on FX sourcing + point-in-time backtest correctness. **Findings (all COMPLEMENT, none supersede):**
-1. **FRED FX series are live as of 2026-05-22** (DEXUSEU/DEXKOUS both updated through last week) — the free FRED fallback is current and unbroken; deepest history (DEXKOUS to 1981, DEXUSEU to 1999) far exceeds the project's 2018/2022 backtest start, so FRED can fully backfill if yfinance FX history is short.
-2. **yfinance reliability degradation (2024-2026)** carried from the multimarket brief — applies to FX too (rate-limits/IP-bans), which RAISES the weight on the FRED fallback for FX specifically. FX is only 2-3 pairs/day so the live-mark risk is low, but the backfill (one bulk call) is where a yfinance failure would bite → FRED backfill is the hedge.
-3. **"Look-Ahead-Bench" (arXiv 2601.13770, 2026)** — a 2026 benchmark formalizing PiT look-ahead bias in finance LLMs; confirms PiT correctness is an active 2026 concern, not settled folklore. No change to the storage design (append-only, as-of query), just firmer backing.
-4. **WM/Reuters methodology v30** (current LSEG ground-rules) — the 4pm-London mid fix remains THE institutional NAV/valuation FX standard; no 2024-2026 change that affects a paper-trading daily mark (we don't need intraday-fix precision; a daily mid close is sufficient).
+Searched the last-2-year window on multi-currency NAV/FX accounting + conversion
+bugs. **Findings (all COMPLEMENT; none supersede the canonical IAS 21 / CFA /
+Karnosky-Singer treatment):**
+1. **2026 multi-currency accounting guides (NetSuite, Workday, Xero, beancount.io 2026-05-03)** all reaffirm the trade-date-spot + period-end-revaluation model and stress an **audit trail of the FX rate source** — directly supports persisting the rate / source alongside the converted value (sharesight pattern; our `fx_rates` already tags `source`).
+2. **NAV-accuracy literature 2025 (polibit "40% get it wrong")** identifies inconsistent FX sources/timestamps as a leading NAV-error cause → reinforces the **single-FX-source, same-measurement-date invariant** (`fx_rates` is the one source; mark all positions at the same cycle's live rate).
+3. **No 2024-2026 change to IAS 21** affecting non-monetary cost-at-historical-rate vs fair-value-at-current-rate. The standard treatment is stable.
+4. **yfinance reliability degradation (2024-2026)** carried from the multimarket brief — affects the *local price* input quality (≤11% XETRA deviation), NOT the FX math; out of 50.2 scope but worth a contract note that FX-correct ≠ price-accurate.
+
 **No 2024-2026 finding contradicts the design below.**
 
 ### Consensus vs debate (external)
-- **Consensus:** (a) `EURUSD=X` and `KRW=X` are the correct yfinance tickers and their direction matches the FRED H.10 series exactly (USD/EUR and KRW/USD); (b) store historical FX point-in-time (append-only, immutable, as-of query) to avoid look-ahead bias; (c) use the **mid rate** for portfolio valuation/NAV (WM/Reuters mid is the institutional standard); (d) FX has weekend/holiday gaps that must be forward-filled (last-available) for valuation — confirmed by ECB (no weekend rates) + sharpely (delisted/missing → last available price).
-- **Debate / caution:** none material for paper-trading scope. The only nuance is intraday-fix precision (WM/R 4pm vs a daily close) — irrelevant for a once-daily paper mark; a daily mid close is the right granularity.
+- **Consensus:** (a) record foreign positions at the **trade-date spot rate**; (b) value (mark) at the **valuation-date rate**; (c) total base return = `(1+R_local)(1+R_FX)-1`, decomposable into local + FX + cross term; (d) keep ONE FX source, all marks on the SAME date; (e) report both local and base values + the rate used (auditability).
+- **Debate / nuance:** (a) **cross-product term placement** — Karnosky-Singer keeps it explicit; the simple `local + FX` split folds it into FX (or splits it). For paper-trading clarity, EXPOSE three numbers (local_pnl, fx_pnl, and let total = sum so the cross term is absorbed consistently). (b) **realized vs unrealized** — IFRS technically doesn't label them, but for a trading P&L the realized/unrealized split is the useful operator view (CFI). (c) **interest-rate/carry term** (arXiv 1611.01463, Karnosky-Singer "Interest Rate" component) only applies to **hedged/forward** positions — paper holds unhedged spot, so carry ≈ 0 and the term drops. Documented as out-of-scope.
 
-### Pitfalls (from literature)
-1. **Direction inversion** — `KRWUSD=X` (inverse) vs `KRW=X`/`USDKRW=X` (won-per-dollar). Picking the wrong ticker silently inverts every KRW valuation. MITIGATION: store the pair with an explicit `base`/`quote` convention + assert magnitude (KRW/USD ≈ 1300, EUR rate ≈ 1.16) in a sanity check.
-2. **Weekend/holiday FX gaps** — FX doesn't trade Sat/Sun and skips currency-specific holidays; a backtest day or a Monday mark may have no fresh rate. MITIGATION: forward-fill the last available rate (the standard valuation convention; ECB publishes none on weekends, sharpely uses "last available price").
-3. **Look-ahead via revised data** — less acute for FX than fundamentals (FX spot is rarely revised), but the append-only/as-of discipline still applies: a backtest as of date D must read the rate stored for D (or the last ≤ D), never a future rate.
-4. **Bid/ask vs mid** — using a bid or ask instead of mid biases NAV; use mid for valuation (WM/Reuters). yfinance FX close is effectively a mid-ish daily close — acceptable for paper; document it.
+### Pitfalls (from literature) — the bugs that silently corrupt NAV
+1. **Double conversion** — converting an already-USD value again (e.g. storing `market_value` in USD then multiplying by FX in the endpoint). MITIGATION: convert in EXACTLY ONE place (`mark_to_market`/NAV accumulation); persist USD `market_value`; downstream reads USD as-is. The `get_fx_rate(c,c)==1.0` guard means a USD row is provably untouched.
+2. **Cost-basis re-translation** — re-converting cost basis at the current rate each cycle erases the FX gain and double-counts FX in P&L. MITIGATION (IAS 21): cost basis fixed at entry-date local; never re-translate the local cost. The FX gain comes from (current-rate mark) − (entry-rate cost).
+3. **Inconsistent FX date/source** — marking some positions at today's rate and others at a stale/different-source rate breaks NAV tie-out (polibit, fundcount). MITIGATION: single source (`fx_rates`), all positions marked at the same cycle's live rate (`date=None`), one cycle = one consistent FX snapshot.
+4. **Direction inversion (KRW)** — already handled inside `fx_rates` (50.1 locked `KRW=X`=KRW/USD, inverted internally). 50.2 must NOT re-invert; always call `get_fx_rate(local, "USD")` and trust it.
+5. **`None` from `get_fx_rate`** — a genuinely unsourceable rate returns None (not 1.0). MITIGATION: fall back to last-known `current_price`-implied value or skip the position's revaluation that cycle with a WARN (mirror `_get_live_price` fail-soft at `:441-442`), NEVER treat None as 1.0 (that would value a EUR position as USD).
 
-## SYNTHESIS — the deliverable (concrete enough to write contract + code)
+---
 
-### (a) Q1-Q6 answers — see "Internal code inventory" above (each with file:line).
+## SYNTHESIS — THE DELIVERABLE
 
-### (b) Recommended `fx_rates.py` API + storage design
+### (a) Q1-Q6 with exact conversions — see INTERNAL CODE INVENTORY above (each money site mapped with file:line + the precise `get_fx_rate(...)` call).
 
-**Ticker / direction decision (locked):**
-- **EUR/USD:** yfinance `EURUSD=X` → USD per 1 EUR (≈1.16). FRED fallback `DEXUSEU` ("U.S. Dollars to One Euro") — **same direction**, no inversion.
-- **KRW/USD:** yfinance `KRW=X` (≡ `USDKRW=X`) → KRW per 1 USD (≈1300). FRED fallback `DEXKOUS` ("South Korean Won to One U.S. Dollar") — **same direction**. **Do NOT use `KRWUSD=X`** (that's the inverse).
-- Store one canonical convention in the table: a `pair` like `"EURUSD"` meaning "units of QUOTE(USD) per 1 BASE(EUR)" — i.e. `pair = BASE+QUOTE`, value = quote-per-base. Then `EURUSD`=1.16 (USD per EUR), `USDKRW`=1300 (KRW per USD). `get_fx_rate(from, to)` derives the right pair + inverts if needed.
+### (b) Position-currency + cash model (keeping USD-only byte-identical)
+- **Position currency: DERIVED** from `pos["market"]` via
+  `fx_rates.market_currency(pos.get("market") or "US")`. Persist `market` +
+  `base_currency` on every position write (`execute_buy` both branches +
+  partial-sell re-insert). NULL `market` → `"US"` → `"USD"`.
+- **Money fields stored LOCAL** (`avg_entry_price`, `cost_basis`,
+  `current_price`); **`market_value` + `unrealized_pnl` persisted USD** (so
+  endpoints/snapshots stay shape- + value-identical); `unrealized_pnl_pct` is a
+  **local-return %**.
+- **Cash: single base-USD scalar.** BUY converts USD budget→local to size shares;
+  SELL converts local proceeds→USD before crediting. USD trades: FX=1.0 →
+  identical.
+- **Byte-identity proof:** every `get_fx_rate("USD","USD")` returns `1.0`
+  (fx_rates.py:190-191), so for a USD/`market="US"`/NULL position EVERY formula
+  above reduces to today's exact arithmetic.
 
-**Conversion semantics (the function contract):**
-```python
-def get_fx_rate(from_ccy: str, to_ccy: str, date: str | None = None) -> float:
-    """Units of `to_ccy` per 1 `from_ccy`, as of `date` (ISO 'YYYY-MM-DD').
-    date=None -> latest/live mark. Returns 1.0 when from_ccy == to_ccy."""
-```
-- `get_fx_rate("EUR","USD")` → 1.16 (1 EUR = 1.16 USD). To value a €100 position in USD base: `100 * get_fx_rate("EUR","USD") = $116`. This matches the multimarket brief's `market_value_base = local_value * fx_rate` (50.2.2).
-- **`if from_ccy == to_ccy: return 1.0`** short-circuit FIRST (keeps the US-only path byte-identical — multimarket criterion).
-- Inversion: store `USDKRW`=1300; `get_fx_rate("KRW","USD")` returns `1/1300`. Provide both directions via one stored pair + reciprocal.
-- Convenience: `market_currency(market) -> str` delegating to `markets.get_market_config(market)["currency"]` (don't duplicate the map — Q6).
+### (c) Local-vs-FX P&L attribution — formula + where to expose
 
-**Storage = BOTH (c), mirroring how prices already split BQ-historical + live):**
-1. **BQ table `historical_fx_rates`** in `financial_reports` (sibling of `historical_prices`; Q1). Schema (mirror `historical_macro` — unpartitioned, tiny):
-   ```
-   pair         STRING   REQUIRED   -- "EURUSD" | "USDKRW" (BASE+QUOTE, value = quote per base)
-   date         STRING   REQUIRED   -- "YYYY-MM-DD" (STRING to match historical_prices.date)
-   rate         FLOAT64  NULLABLE   -- mid daily close, quote-per-base
-   source       STRING   NULLABLE   -- "yfinance" | "fred" (provenance; mirrors data_source_events spirit)
-   ingested_at  TIMESTAMP NULLABLE
-   ```
-   Uniqueness on `(pair, date)` (same as `historical_prices` `(ticker,date)`). NO partition (size-class = `historical_macro`).
-2. **Live daily mark** via `api_cache` (Q5): key `fx:{pair}:{date}` (e.g. `fx:EURUSD:2026-05-30`), TTL ~24h (precedent `paper:ticker_meta`=86400s). On miss → yfinance `yf.Ticker("EURUSD=X").history(period="1d")` (mirror `_get_live_price`) → FRED fallback → set. **Write-through:** persist the live mark into `historical_fx_rates` so today's rate becomes tomorrow's history → continuous backtest series without a separate daily backfill job.
-3. **Backtest path:** bulk-preload the FX series once per backtest (mirror `cache.preload_prices`), then in-memory dict lookups in the day-loop — never a BQ query per day.
+**Canonical math (CFA + Karnosky-Singer, multiplicative-then-additive):**
+For a position, in LOCAL currency: `R_local = (P_now_local - P_entry_local)/P_entry_local`.
+FX return: `R_fx = (FX_now - FX_entry)/FX_entry` where `FX = get_fx_rate(local,"USD")`
+(USD per 1 local). Total USD return: `R_usd = (1+R_local)(1+R_fx) - 1 = R_local +
+R_fx + R_local*R_fx`.
 
-**Fetch with FRED fallback (mirror existing idioms):**
-- Primary: `yf.download(["EURUSD=X","KRW=X"], start=, end=, ...)` (backfill) / `yf.Ticker(...).history(period="1d")` (live) — try/except → log → return None, per `data_ingestion.py:103-114` + `_get_live_price:1126-1133`. No exponential backoff exists for yfinance in-repo; match that.
-- Fallback: FRED `DEXUSEU`/`DEXKOUS` via `httpx` exactly like `data_ingestion.ingest_macro` (`:286-296`) — `FRED_BASE` + `series_id` + `api_key` + `observation_start/end`. FRED key already in `backend/.env` (confirmed present). FRED gives daily history to 1999/1981 → covers any backtest start.
-- **Forward-fill on read:** `get_fx_rate(..., date)` returns the rate for `date`, else the **last available rate ≤ date** (weekend/holiday gap handling — ECB publishes no weekend rates; sharpely "last available price"). Implement as `WHERE pair=? AND date<=? ORDER BY date DESC LIMIT 1` (point-in-time, as-of query — glassnode immutability rule) or a forward-fill over the preloaded dict.
+**In dollar (gain/loss) space — the operator-useful split (CFI formula):**
+Let `qty`, entry local price `Pe`, current local price `Pc`, entry FX `Fe`,
+current FX `Fc` (USD per local). Cost in USD at entry rate = `C_usd = qty*Pe*Fe`.
+Market value USD now = `MV_usd = qty*Pc*Fc`. Total USD P&L = `MV_usd - C_usd`.
+- **local_pnl (USD)** = local price move valued at the ENTRY rate
+  = `qty*(Pc - Pe)*Fe`.
+- **fx_pnl (USD)** = FX move on the position
+  = `qty*Pc*(Fc - Fe)`  (CFI: `Foreign Amount * (Current - Transaction Rate)`,
+  Foreign Amount = current local market value `qty*Pc`).
+- Check: `local_pnl + fx_pnl = qty*(Pc-Pe)*Fe + qty*Pc*(Fc-Fe)
+  = qty*(Pc*Fc - Pe*Fe) = MV_usd - C_usd = total_pnl_usd`. **Exact, no residual**
+  (this assignment of the cross term to fx_pnl is the standard "value the price
+  move at the old rate, the rate move at the new value" convention; consistent
+  with Karnosky-Singer's Naive-Local-at-BoP-rate + cross-into-FX).
+- For a USD position `Fe=Fc=1.0` → `fx_pnl=0`, `local_pnl=total_pnl` → byte-identical
+  (fx_pnl column is just 0.0).
 
-**Migration:** NEW `scripts/migrations/create_historical_fx_rates_table.py` mirroring `create_data_source_events_table.py` (DDL `CREATE TABLE IF NOT EXISTS`, `--apply` dry-run default, `--verbose`, OPTIONS descriptions). ALSO add `("historical_fx_rates", REF, SCHEMA)` to `migrate_backtest_data.ALL_TABLES` so `_ensure_tables_exist` auto-creates it (defense-in-depth; matches prices/fundamentals/macro). BQ client uses default location (no `--location` pin) so `financial_reports`/us-central1 resolves correctly.
+**Entry FX (`Fe`) source:** the FX rate as of the position's `entry_date`. Two
+options: (i) `get_fx_rate(local,"USD", pos["entry_date"][:10])` (point-in-time, the
+clean way — `fx_rates` already supports as-of), or (ii) store `entry_fx_rate` on
+the position at BUY (cheaper, avoids a per-cycle BQ lookup). **RECOMMEND storing
+`entry_fx_rate` at BUY** (one extra nullable column, NULL→treat as derive-or-1.0)
+— avoids look-ahead concerns and a BQ call per position per cycle; mirrors how
+`avg_entry_price` snapshots the entry state.
 
-### (c) The exact `data_ingestion.py:146` fix
+**Where to expose:** (1) per-position transient fields `local_pnl`, `fx_pnl` in
+`mark_to_market`'s `updates` dict (persist if you add columns, else compute
+on-read); (2) aggregate `fx_pnl_usd` vs `local_pnl_usd` totals in
+`_compute_attribution` (`paper_trading.py:354`) and/or the `/performance`
+endpoint — this is the natural home since it already aggregates realized P&L.
+**Criterion (matches multimarket brief 50.2.3):** a position flat in local
+currency (`Pc==Pe`) but with an FX move shows `local_pnl≈0`, `fx_pnl≠0`.
 
-Replace (`data_ingestion.py:146`):
-```python
-"currency": "USD" if market == "US" else "USD",  # TODO: lookup from MARKET_CONFIG
-```
-with (add `from backend.backtest import markets` at module top — `markets.py` is a sibling module, no circular-import risk since `markets.py` imports only `exchange_calendars`/`logging`):
-```python
-"currency": markets.get_market_config(market)["currency"],
-```
-- `market` here is the namespace code from `:137-141` (US default; `"DE:BAS"`→`"DE"`).
-- `get_market_config` (`markets.py:75-78`) uppercases + falls back to US for unknown → can't crash.
-- Mapping: US→USD, EU→EUR, KR→KRW (`markets.py:24,42,48`).
-- **FLAG for the contract (DE-vs-EU):** `markets.py` keys Germany as **`EU`** (XETRA), with NO `DE` key — so a `"DE:..."` namespace falls back to USD. For 50.1 the line-146 fix is correct as written (it reads whatever the market code maps to); the namespace-code reconciliation (use `EU`, or add a `DE`→`EU` alias) is a **50.3 universe-mapper** concern, not 50.1. Note it so the contract scopes 50.1 to the lookup only.
+### (d) BYTE-IDENTICAL VERIFICATION PLAN
+1. **USD-only unit test (the gate).** Build a `PaperTrader` with a fake BQ holding
+   2-3 USD positions (`market=None`/`"US"`), run `mark_to_market` with FX-aware code
+   vs the pre-50.2 arithmetic; assert every field (`market_value`, `unrealized_pnl`,
+   `unrealized_pnl_pct`, `nav`, `pnl_pct`) is EQUAL to the cent. Because
+   `get_fx_rate("USD","USD")==1.0` this must pass exactly. Add an explicit
+   `assert fx_rates.get_fx_rate("USD","USD") == 1.0` guard test.
+2. **Live before/after NAV check.** Capture current live NAV/per-position
+   `market_value` from BQ (the 100%-USD portfolio) BEFORE deploy; run one
+   `mark_to_market` AFTER deploy; assert `total_nav` and each `market_value`
+   unchanged to the cent (live prices move, so compare the FX MULTIPLIER not the
+   price: verify the only delta vs a same-price recompute is 0). Concretely:
+   monkey-stub `_get_live_price` to return each position's stored `current_price`
+   and assert NAV equals the stored `total_nav`.
+3. **EUR smoke (positive path).** Insert one synthetic `market="EU"` position
+   (€100 entry, EURUSD 1.16), assert `market_value` USD ≈ qty*Pc*1.16, `nav`
+   includes the USD-converted value (NOT the raw EUR number), and `fx_pnl`/`local_pnl`
+   split is correct on a contrived FX move.
+4. **Downstream shape check.** `GET /api/paper-trading/portfolio` returns the same
+   JSON keys; `paper_metrics_v2` runs unchanged on USD NAV.
 
-### (d) External-source-backed FX-handling best practices (applied)
-1. **Point-in-time / as-of, append-only storage** (glassnode + sharpely + arXiv 2601.13770) → `historical_fx_rates` is append-only; `get_fx_rate(..., date)` reads the rate AS OF `date` (`WHERE date<=? ORDER BY date DESC LIMIT 1`), never a future rate. A backtest on 2024-03-15 sees only ≤2024-03-15 FX. **Direct attack on look-ahead bias** — the project's core backtest-correctness doctrine (backend-backtest.md "No future leakage").
-2. **Forward-fill weekend/holiday gaps with last-available rate** (ECB: no weekend/TARGET-holiday rates; sharpely: last available price) → the as-of query naturally forward-fills (last ≤ date). A Monday or a German-holiday mark reuses Friday's rate rather than NULL.
-3. **Mid rate for valuation/NAV** (WM/Reuters via Kantox: volume-weighted median mid is THE fund-NAV standard) → use yfinance/FRED daily close as the mid for the paper daily mark (granularity sufficient for once-daily paper; document that we approximate the WM/R 4pm mid with a daily close). NEVER bid or ask.
+### (e) External-source-backed best practices (applied) + pitfalls
+1. **Trade-date spot for cost, valuation-date spot for marks** (IAS 21 / NetSuite)
+   → `cost_basis` LOCAL fixed at entry; `mark_to_market` converts at live rate;
+   `entry_fx_rate` snapshots the entry rate for fx_pnl. Prevents cost-basis
+   re-translation (pitfall #2).
+2. **Single FX source, same measurement date** (fundcount / polibit) → all
+   positions marked through `fx_rates` at one cycle's live rate; no mixed sources.
+   Prevents inconsistent-rate NAV breakage (pitfall #3).
+3. **Convert in exactly one place; report local + base + rate** (sharesight) →
+   USD conversion only in `mark_to_market`/NAV; persist USD `market_value`; expose
+   local fields + the rate for audit. Prevents double conversion (pitfall #1).
+4. **`(1+R_local)(1+R_FX)-1` decomposition** (CFA / arXiv 1611.01463 /
+   Karnosky-Singer) → the local_pnl/fx_pnl dollar split in (c), exact with no
+   residual.
 
-### (e) Application mapping (external → internal file:line)
-- glassnode/sharpely PiT → `fx_rates.get_fx_rate(date)` as-of query feeding `backtest_trader.mark_to_market(date, prices)` (`backtest_trader.py:188`) where NAV is currency-blind today (`_compute_nav:233-238`).
-- WM/Reuters mid → `fx_rates` daily-close mark feeding `paper_trader.mark_to_market` (`paper_trader.py:432`, NAV `:480`) — wraps the `* live_price` term (`:444`) with `* fx_rate` in 50.2.
-- FRED DEXUSEU/DEXKOUS fallback → mirror `data_ingestion.ingest_macro` httpx (`:286-296`); key in `backend/.env`.
-- markets.py currency map → both the `:146` fix AND `fx_rates.market_currency()` delegate to `markets.get_market_config` (`markets.py:75-78`).
+### (f) Application mapping (external → internal file:line)
+- IAS 21 historical-cost rule → `cost_basis` stored LOCAL at `paper_trader.py:243-246,275`, NOT re-translated in `mark_to_market:445`.
+- CFI `FX gain = Foreign Amount*(Current-Transaction rate)` → `fx_pnl = qty*Pc*(Fc-Fe)` computed in `mark_to_market` around `:446`.
+- CFA `(1+R_FC)(1+R_FX)-1` → total USD P&L `MV_usd - C_usd` at `:446`, decomposed into local_pnl/fx_pnl.
+- fundcount/polibit same-date single-source → all `get_fx_rate(local,"USD")` calls in one `mark_to_market` pass; `fx_rates` is the sole source.
+- sharesight local+base+rate → persist USD `market_value` (`:462`) + keep LOCAL `current_price` + store `entry_fx_rate`; surface in `_compute_attribution` (`paper_trading.py:354`).
 
 ---
 
 ## Research Gate Checklist
 
 Hard blockers — all satisfied:
-- [x] >=5 authoritative external sources READ IN FULL (7: quantinsti yfinance, FRED DEXUSEU API-meta, FRED DEXKOUS API-meta, glassnode PiT, ECB reference rates, Kantox WM/Reuters, sharpely PiT). Source hierarchy honored (2 official Fed/ECB, 3 industry, 2 practitioner blog).
-- [x] 10+ unique URLs total (16+ incl. snippet-only)
-- [x] Recency scan (2024-2026) performed + reported (FRED live to 2026-05-22; arXiv 2601 PiT 2026; yfinance degradation)
-- [x] Full pages/series-metadata read (not abstracts) for the read-in-full set
-- [x] file:line anchors for every internal claim (Q1-Q6)
+- [x] >=5 authoritative external sources READ IN FULL (8: CFA Institute, Karnosky-Singer/Meradia, IAS 21/CPDbox, CFI, arXiv 1611.01463, fundcount, sharesight, NetSuite). Hierarchy honored (1 peer-reviewed preprint, 1 standards/IAS 21, 1 CFA curriculum, 5 industry).
+- [x] 10+ unique URLs total (19 incl. snippet-only)
+- [x] Recency scan (2024-2026) performed + reported (2026 accounting guides; 2025 NAV-accuracy; IAS 21 stable)
+- [x] Full pages read (not abstracts) for the read-in-full set
+- [x] file:line anchors for every internal claim (Q1-Q6, money-site table, downstream table)
 
 Soft checks:
-- [x] Internal exploration covered: data_ingestion, markets, migrations (2 idioms), screener+all yfinance sites, fred_data, api_cache, backtest/cache, paper_trader (NAV/cost/pnl/_get_live_price), backtest_trader (NAV/mark_to_market), settings, bigquery_client dataset routing
-- [x] Contradictions/consensus noted (ticker direction inversion risk; intraday-fix vs daily-close granularity resolved to daily-close-sufficient)
+- [x] Internal exploration covered: paper_trader (every money site), fx_rates (50.1 API), bigquery_client (paper-table I/O), live BQ schema (paper_positions + paper_portfolio — verified market+base_currency present, no currency col), settings, paper_trading API (get_portfolio/get_status/_compute_attribution/save_daily_snapshot), paper_metrics_v2, perf_metrics (confirmed NOT a paper_trader dependency), migrate_paper_trading, multimarket brief
+- [x] Contradictions/consensus noted (cross-product placement; realized/unrealized labeling; carry term out-of-scope for unhedged spot)
 - [x] All claims cited per-claim with file:line or URL
 
 ## Research Gate JSON envelope
 
 ```json
 {
-  "tier": "moderate",
-  "external_sources_read_in_full": 7,
-  "snippet_only_sources": 9,
-  "urls_collected": 16,
+  "tier": "complex",
+  "external_sources_read_in_full": 8,
+  "snippet_only_sources": 11,
+  "urls_collected": 19,
   "recency_scan_performed": true,
   "internal_files_inspected": 11,
   "gate_passed": true

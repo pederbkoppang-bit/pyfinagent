@@ -1,48 +1,55 @@
-# Contract -- phase-50.1: FX data layer
+# Contract -- phase-50.2: Multi-currency portfolio accounting
 
-**Step id:** 50.1 | **Priority:** P3 (phase-50 international expansion -- FREE foundation) | **depends_on:** 49.3
-**Date:** 2026-05-30 | **harness_required:** true | **$0 LLM** | No new pip deps (yfinance/pandas/exchange_calendars already installed)
+**Step id:** 50.2 | **Priority:** P3 (phase-50; MONEY-CRITICAL) | **depends_on:** 50.1
+**Date:** 2026-05-30 | **harness_required:** true | **$0 LLM** | no pip
 
 ## Research-gate summary (PASSED)
-`handoff/current/research_brief.md` (researcher gate: **7 sources read in full, recency scan, 16 URLs, 11 internal files, gate_passed=true**). Decisive:
-- **FX ticker direction LOCKED:** yfinance `EURUSD=X` = USD per 1 EUR (matches FRED `DEXUSEU` "USD to One Euro"); yfinance `KRW=X` = KRW per 1 USD (matches FRED `DEXKOUS` "Won to One USD"). **NEVER `KRWUSD=X`** (inverse -- silent KRW inversion is pitfall #1).
-- **BQ:** dataset = `financial_reports` (sibling of historical_prices/_macro; **us-central1 -- migration must NOT pin `--location US`**). Mirror `historical_macro` (unpartitioned, tiny, `date` as STRING). Idempotent via `CREATE TABLE IF NOT EXISTS` (mirror `scripts/migrations/create_data_source_events_table.py:43-98`).
-- **markets.py** `MARKET_CONFIG:21-52` is the currency source of truth (US->USD, EU->EUR, KR->KRW). Verified `from backend.backtest import markets` imports cleanly (no circular dep). `fx_rates.market_currency()` delegates, does not duplicate.
-- **data_ingestion.py:146 stub fix:** `"USD" if market=="US" else "USD"` -> `markets.get_market_config(market)["currency"]`. (Flag: markets keys Germany as `EU` not `DE`; `DE`->USD fallback -- the namespace reconciliation is a 50.3 concern, NOT 50.1.)
-- **Consumers (50.2/50.5):** paper_trader `mark_to_market` (live, no date -> "today") + backtest_trader `mark_to_market(date: str)` (point-in-time). So `get_fx_rate(from, to, date: str | None = None)` -- None=live, str=as-of; both speak str. `if from==to: return 1.0` keeps US-only byte-identical.
-- **Caching:** BOTH -- BQ `historical_fx_rates` for backtest/point-in-time (as-of query `WHERE pair=? AND date<=? ORDER BY date DESC LIMIT 1`, forward-fills weekend/holiday gaps naturally) + `api_cache` TTL for the live daily mark, write-through (today's live mark becomes tomorrow's history). FRED (`DEXUSEU`/`DEXKOUS`, `FRED_API_KEY` present in .env) is the robustness fallback to yfinance.
-- **Best practices:** point-in-time as-of storage (no look-ahead), forward-fill gaps with last-available, mid-rate (daily close) for NAV.
+`handoff/current/research_brief.md` (gate: **8 sources read in full, recency scan, 19 URLs, 11 internal files, gate_passed=true**). Load-bearing decisions:
+- **Byte-identity STRUCTURALLY guaranteed:** `fx_rates.get_fx_rate("USD","USD")==1.0`; every current live position is market NULL/"US" -> currency "USD" -> base "USD" -> every money term x1.0 -> the 100%-USD +20% portfolio's NAV/P&L are unchanged to the cent.
+- **Position currency is DERIVED, not stored:** live `paper_positions` has `market` + `base_currency` (both NULL today), NO `currency` column. currency = `fx_rates.market_currency(pos.get("market") or "US")`. 50.2 starts WRITING `market` + `base_currency` (+ `entry_fx_rate`) on the buy pos_row branches (paper_trader.py:248-267, :270-286) + the partial-sell re-insert (:400-415); `execute_buy` gets a `market="US"` default arg.
+- **Cash = single base-USD scalar** (no wallets). Non-USD BUY converts the USD budget->local at trade-time FX to size shares; non-USD SELL converts local proceeds->USD before crediting. USD trades: FX=1.0 -> cash math unchanged.
+- **Cost basis stored LOCAL, fixed at trade date, NEVER re-translated** (IAS 21). `market_value` + `unrealized_pnl` persisted in **USD** (downstream shape-identical); `current_price` stays LOCAL; `unrealized_pnl_pct` is a local-return %.
+- **Output shape UNCHANGED:** get_portfolio/get_status/save_daily_snapshot/paper_metrics_v2 read USD total_nav/market_value straight -> NO endpoint change; ADD attribution fields, never rename.
+- **Attribution (exact, no residual):** with qty, entry/current local price Pe/Pc, entry/current FX Fe/Fc (USD per local): `local_pnl = qty*(Pc-Pe)*Fe`; `fx_pnl = qty*Pc*(Fc-Fe)`; sum = `qty*(Pc*Fc - Pe*Fe)` = `MV_usd - C_usd` exactly. Store `entry_fx_rate` at BUY (avoids per-cycle lookup + look-ahead). Expose in `_compute_attribution` (paper_trading.py:354). USD: Fe=Fc=1.0 -> fx_pnl=0.
+- **Pitfalls:** double-conversion (convert in exactly ONE place per term), cost-basis re-translation (keep local fixed), inconsistent FX source (single source = fx_rates), and **`None` from get_fx_rate must NOT be coerced to 1.0** (fail-soft to last-known / log WARN, mirroring _get_live_price:441-442).
+
+## Money-site conversions (file:line)
+- BUY share count (:168): `quantity = amount_usd * get_fx_rate("USD", local) / price_local`
+- BUY cost_basis (:243-246/:275): store local = `amount_usd * get_fx_rate("USD", local)`; also store `entry_fx_rate = get_fx_rate(local,"USD")`, `market`, `base_currency="USD"`
+- MTM market_value->USD (:444): `mv_usd = qty * current_price_local * get_fx_rate(local,"USD")`
+- NAV (:480): `total_positions_value` accumulates **USD** mvs; `current_cash` already USD
+- SELL proceeds (:329-331/:420): `net_proceeds_usd = net_proceeds_local * get_fx_rate(local,"USD")` before crediting cash
 
 ## Hypothesis
-A `backend/services/fx_rates.py` exposing `get_fx_rate(from_ccy, to_ccy, date=None)` (BQ as-of for historical + api_cache write-through for live, yfinance primary + FRED fallback, direction-correct EURUSD=X/KRW=X) + a `market_currency(market)` delegating to markets.py + a `historical_fx_rates` BQ table (financial_reports, us-central1) + the data_ingestion.py:146 currency-stub fix, gives every downstream multi-currency calc a correct, look-ahead-free FX rate, with `from==to -> 1.0` keeping the US-only path byte-identical.
+Injecting `fx_rates` conversion at the 5 paper_trader money sites (each in exactly ONE place), deriving position currency from `market`, storing `entry_fx_rate`/`market`/`base_currency` at BUY, and exposing local-vs-FX attribution -- makes the paper portfolio currency-correct for non-USD positions while leaving the all-USD path byte-identical (every conversion x1.0).
 
-## Success criteria (IMMUTABLE -- verbatim from masterplan step 50.1)
-1. backend/services/fx_rates.py exists: get_fx_rate(base, quote, date) + a daily-refresh path; sources EUR/USD and KRW/USD from yfinance (EURUSD=X, KRW=X) with a cache; USD->USD returns 1.0
-2. historical_fx_rates BQ table (or a documented store) holds dated FX rates; backfilled for EUR/USD + KRW/USD over the backtest window
-3. data_ingestion.py currency stub (line ~146) fixed: writes the correct ISO currency per market (US->USD, EU->EUR, KR->KRW), not 'USD' unconditionally
-4. live evidence: a fetched EUR/USD + KRW/USD rate for a recent date captured verbatim
+## Success criteria (IMMUTABLE -- verbatim from masterplan step 50.2)
+1. paper_trader NAV / cost_basis / market_value / realized+unrealized P&L FX-convert each position from its local currency to the portfolio base_currency (USD) using fx_rates (50.1)
+2. USD-only portfolio behaviour is byte-identical to pre-50.2 (regression test: a US-only NAV/P&L computation matches the current value exactly)
+3. a non-USD position (e.g. a EUR holding) values into USD NAV at the correct FX rate; P&L is decomposed into local-return vs FX-return per the arXiv model
+4. live or fixture evidence: a EUR position's USD NAV contribution + the local/FX P&L split shown numerically
 
-**Verification command (finalized post-research; the planning placeholder was intentional):** `ast.parse(fx_rates.py)` + `get_fx_rate('USD','USD')==1.0` + `market_currency('EU'/'KR'/'US')` == EUR/KRW/USD + `test -f live_check_50.1.md`. (The live EUR/USD + KRW/USD network fetch is the live_check evidence, kept out of the deterministic command to avoid network flakiness.)
-**live_check:** REQUIRED -- verbatim fetched EUR/USD + KRW/USD rates + a BQ read showing dated FX rows.
+**Verification command:** ast.parse(paper_trader.py) + get_fx_rate('USD','USD')==1.0 + import paper_trader + `pytest backend/tests/test_phase_50_2_multicurrency.py` + test -f live_check_50.2.md.
+**live_check:** REQUIRED -- numeric evidence: USD-only path unchanged + a EUR position FX-converted into USD NAV with the local/FX P&L split.
 
 ## Plan steps
-1. **`scripts/migrations/create_historical_fx_rates_table.py`** -- idempotent `CREATE TABLE IF NOT EXISTS financial_reports.historical_fx_rates` (cols: `pair` STRING e.g. "EURUSD", `date` STRING, `rate` FLOAT64, `source` STRING; mirror historical_macro shape; NO --location US pin). `--apply` dry-run guard.
-2. **`backend/services/fx_rates.py`** -- `market_currency(market)` (delegates to markets.get_market_config); `get_fx_rate(from_ccy, to_ccy, date=None)`: from==to->1.0; else resolve the pair (USD-base; EURUSD=X gives USD/EUR, KRW=X gives KRW/USD -> invert as needed for the requested direction); date=None -> live (yfinance Ticker.history period=1d, FRED fallback) + api_cache write-through + persist to BQ; date=str -> BQ as-of query (forward-fill); a `backfill_fx(pairs, start, end)` daily-refresh path (yf.download EURUSD=X + KRW=X, FRED fallback) writing to BQ. ASCII logs, encoding utf-8.
-3. **`backend/backtest/data_ingestion.py:146`** -- replace the `'USD' if market=='US' else 'USD'` stub with `markets.get_market_config(market)["currency"]` (guard unknown market -> 'USD').
-4. **Verify:** ast.parse; the masterplan command (USD->USD=1.0 + market_currency); run the migration (`--apply`); backfill a small EUR/USD + KRW/USD window; a LIVE get_fx_rate('EUR','USD') + ('KRW','USD') fetch; a BQ read of historical_fx_rates rows -> capture verbatim into live_check_50.1.md.
-5. **EVALUATE:** fresh qa (no self-eval). Then harness_log.md (LAST), then flip masterplan 50.1 -> done.
+1. **paper_trader.py** -- add a small `_to_usd(value_local, market, date=None)` helper using `fx_rates.get_fx_rate(market_currency(market), "USD", date)` with fail-soft on None (WARN + last-known, NOT 1.0). Inject at the 5 money sites above, each ONCE. `execute_buy(..., market="US")`; write `market`/`base_currency`/`entry_fx_rate` on the 3 pos_row sites. mark_to_market market_value -> USD; NAV sums USD; SELL proceeds -> USD. Guard: USD/US -> x1.0 (byte-identical).
+2. **paper_trading.py `_compute_attribution` (:354)** -- add `local_pnl` + `fx_pnl` per the formula (using stored entry_fx_rate + current FX); USD positions -> fx_pnl=0. ADDITIVE fields only.
+3. **`backend/tests/test_phase_50_2_multicurrency.py`** (NEW) -- (a) USD-only byte-identical: a synthetic USD position's mark_to_market market_value/nav/pnl == the pre-50.2 arithmetic (qty*price, etc.) to the cent + get_fx_rate('USD','USD')==1.0; (b) EUR position: mv_usd == qty*price_eur*fx, and local_pnl+fx_pnl == mv_usd-cost_usd exactly; mock fx_rates.get_fx_rate so the test is deterministic + offline.
+4. **Verify:** ast.parse; the pytest; a LIVE before/after on the current portfolio (stub _get_live_price to stored current_price -> assert total_nav == the stored/pre-50.2 value, proving byte-identical on the real all-USD portfolio); a synthetic EUR numeric example. Capture into live_check_50.2.md.
+5. **EVALUATE:** fresh qa (no self-eval). Then harness_log.md (LAST), then flip masterplan 50.2 -> done.
 
 ## Safety / scope notes
-- 50.1 is PURELY ADDITIVE + market-agnostic: a new service + a new BQ table + a 1-line stub fix. NO change to paper_trader/backtest NAV math (that's 50.2). `from==to->1.0` means US-only/USD flows are untouched.
-- Direction correctness is the #1 risk (KRW inversion) -- the live_check MUST show EUR/USD ~1.1-1.2 and KRW/USD ~0.0007 (1/1300) so an inversion is caught.
-- The `DE` vs `EU` namespace mismatch in markets.py is OUT OF SCOPE (50.3); 50.1 uses the market codes markets.py already defines (US/EU/KR).
-- No owner approval needed (yfinance + FRED free; no pip; financial_reports table create is not a DROP/DELETE).
+- **The working +20% engine is provably untouched** (all-USD -> x1.0). The byte-identical regression test + the live before/after are the proof.
+- Convert in exactly ONE place per money term (no double-conversion). Cost basis local + fixed (no re-translation). `None` FX -> fail-soft (WARN + last-known), never silently 1.0 (that would mis-value a non-USD position as if USD).
+- Output JSON shape unchanged (USD NAV); attribution fields are additive.
+- No new pip; no owner approval (no DROP/DELETE; FX is free). The historical_fx_rates streaming-buffer junk rows from 50.1 remain harmless.
 
 ## References
-- handoff/current/research_brief.md (gate brief) + research_brief_multimarket.md (phase context)
-- backend/backtest/markets.py:21-52 (MARKET_CONFIG currency map)
-- backend/backtest/data_ingestion.py:146 (currency stub), :104-114 (yf.download pattern)
-- scripts/migrations/create_data_source_events_table.py:43-98 (idempotent DDL mirror), migrate_backtest_data.py:61-68 (historical_macro shape)
-- backend/services/paper_trader.py:432/446/480/1127 + backtest_trader.py:188/233 (FX consumers, 50.2/50.5)
-- backend/services/api_cache.py (TTL cache, write-through), settings.py:43 (bq_dataset_reports)
-- FRED DEXUSEU / DEXKOUS; yfinance EURUSD=X / KRW=X; Glassnode point-in-time; ECB/Kantox mid-rate
+- handoff/current/research_brief.md (50.2 gate) + research_brief_multimarket.md
+- backend/services/paper_trader.py:168,221,243-246,275,329-331,400-415,420,432,444,480 (money sites + pos_row writes)
+- backend/services/fx_rates.py (get_fx_rate, market_currency) [50.1]
+- backend/api/paper_trading.py:354 (_compute_attribution)
+- backend/config/settings.py:50-51 (base_currency/default_market)
+- backend/db/bigquery_client.py:512-1075 (paper-table I/O), paper_metrics_v2.py / perf_metrics.py (downstream, shape-unchanged)
+- IAS 21 (cost basis fixed); CFA/CFI/Meradia (local-vs-FX attribution); arXiv 1611.01463; FundCount/Sharesight (base-ccy NAV)

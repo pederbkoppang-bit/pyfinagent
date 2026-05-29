@@ -13615,13 +13615,13 @@
         {
           "id": "50.2",
           "name": "Multi-currency portfolio accounting -- paper_trader.py reads base_currency + per-position market/currency; FX-convert in mark_to_market / NAV / cost-basis / P&L; local-vs-FX P&L attribution (arXiv r=a(r_local-i)+c(r_fx+i)). FREE. MONEY-CRITICAL: must be byte-identical for USD-only portfolios (no regression).",
-          "status": "pending",
+          "status": "in_progress",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "50.1",
           "audit_basis": "Multi-market brief Part C 50.2 + A4 (the core blocker). paper_trader.py is currency-blind today. This touches the LIVE P&L math -> the highest-regression-risk step; the no-override/US-only path MUST stay byte-identical (a EUR position must NOT add raw EUR to a USD NAV).",
           "verification": {
-            "command": "RESEARCH-FIRST then define at GENERATE",
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/paper_trader.py').read())\" && python -c \"from backend.services import fx_rates as fx; assert fx.get_fx_rate('USD','USD')==1.0; import backend.services.paper_trader\" && python -m pytest backend/tests/test_phase_50_2_multicurrency.py -q 2>&1 | tail -3 && test -f handoff/current/live_check_50.2.md",
             "success_criteria": [
               "paper_trader NAV / cost_basis / market_value / realized+unrealized P&L FX-convert each position from its local currency to the portfolio base_currency (USD) using fx_rates (50.1)",
               "USD-only portfolio behaviour is byte-identical to pre-50.2 (regression test: a US-only NAV/P&L computation matches the current value exactly)",
