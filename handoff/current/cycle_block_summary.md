@@ -97,7 +97,16 @@ Bonus: the SELL KEYS is the first autonomous SELL-CLOSE -> it triggered the lear
   behavioral tests, Q/A-verified, reuses existing infra. The north-star "shift to highest earner"
   mechanism now EXISTS. DEFERRED (live wiring): 5-backtest per-strategy DSR population + weekly cron +
   real-capital activation (paper-only).
-- 6 learn-loop: **ACTIVE** (OutcomeTracker fired); remaining = BQ row confirm + 5-cycle cron streak (days).
+- 6 learn-loop: **PARTIAL / GAP FOUND.** The sell-close ran the OutcomeTracker (reflection-model
+  constructed), but `financial_reports.outcome_tracking` is EMPTY after the KEYS swap-SELL and
+  `agent_memories` is in an unresolved dataset/location -- so evidence is INCONCLUSIVE. Likely cause:
+  the swap-rotation SELL (reason=swap_for_higher_conviction) doesn't flow through the
+  `evaluate_recommendation` -> fallback `save_outcome` -> `_generate_and_persist_reflections` path that
+  phase-35.1 wired for signal/stop-loss sell-closes (autonomous_loop.py:1975-2042). NEEDS a fresh
+  investigation+fix cycle (make swap-SELLs trigger the outcome+reflection write) THEN re-verify on a
+  cycle with a swap-SELL (~1h45m). Plus the 5-consecutive-clean-cron-cycle streak (DAYS). Also the
+  DoD-6 probe `WHERE cycle_id IS NOT NULL` references a column outcome_tracking does NOT have -- the
+  DoD-6 criterion/probe itself needs reconciliation with the real schema.
 - 7 UX: foundation done (47.5); W3-W8 visual-verification-gated (NextAuth wall) -> needs operator/browser.
 - 8 hygiene + deep_think_model 4-7->4-8 pin + cycle-speed (lite_mode) + cycle_history-completion-write: queued.
 
