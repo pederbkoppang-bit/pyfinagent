@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-30 | `c452de61` | phase-50.2: GENERATE -- multi-currency accounting (byte-identical, live-verified) |
 | 2026-05-30 | `ffdb8816` | phase-50.2: PLAN -- multi-currency accounting contract + research gate |
 | 2026-05-30 | `5291f772` | phase-50.1: FX data layer -- backend/services/fx_rates.py + historical_fx_rates BQ table sourced ... |
 | 2026-05-30 | `d31069a0` | phase-50.1: GENERATE -- FX data layer (live-verified) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `f81faeac` | phase-49.1: PLAN -- runtime risk-limit control endpoint contract + research gate |
 | 2026-05-29 | `3d18027a` | docs(handoff): 2026-05-29 verification -- priorities 1-4 verified DONE |
 | 2026-05-29 | `9a14d3ec` | chore: strategy-label root-cause diagnostics (train-but-no-trade pin) |
-| 2026-05-29 | `6ce1a9c1` | chore(rotation): add multi-strategy trading diagnostic -- finding: 3 of 5 STRATEGY_REGISTRY strategi |
 
 ---
 
+### v6.28.30 — phase-50.2: GENERATE -- multi-currency accounting (byte-identical, li... (2026-05-30)
+
+- **phase-50.2: GENERATE -- multi-currency accounting (byte-identical, live-verified)**
 ### v6.28.29 — phase-50.2: PLAN -- multi-currency accounting contract + research gate (2026-05-30)
 
 - **phase-50.2: PLAN -- multi-currency accounting contract + research gate**
