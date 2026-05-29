@@ -1,54 +1,48 @@
-# Contract -- phase-49.3: Cron-control UI
+# Contract -- phase-50.1: FX data layer
 
-**Step id:** 49.3 | **Priority:** P2 (P7 "cron enable+trigger" UI) | **depends_on:** 49.2
-**Date:** 2026-05-29 | **harness_required:** true | **$0 LLM** | Frontend (Next 15 + React 19 + TS + Tailwind)
+**Step id:** 50.1 | **Priority:** P3 (phase-50 international expansion -- FREE foundation) | **depends_on:** 49.3
+**Date:** 2026-05-30 | **harness_required:** true | **$0 LLM** | No new pip deps (yfinance/pandas/exchange_calendars already installed)
 
 ## Research-gate summary (PASSED)
-`handoff/current/research_brief.md` (researcher gate: **5 sources read in full, recency scan, 13 URLs, 7 internal files, gate_passed=true**). Decisive:
-- **cron/page.tsx** (`JobsTab`): fetches `getAllJobs()`, renders rows at `:294-320` (4 cols Job/Schedule/Next-run/Status); does NOT read `controllable` yet; subtitle `:114` says "Read-only." -> add a 5th **Actions** column + update subtitle.
-- **Backend contract:** `controllable` emitted ONLY on `main_apscheduler` rows (`_job_to_dict`) -> TS field **optional**. Endpoints `POST /api/jobs/{id}/pause|resume|trigger`, body `{confirmation, reason}`, tokens **exactly** `PAUSE_JOB`/`RESUME_JOB`/`TRIGGER_JOB`. **ASYMMETRY:** trigger is implemented ONLY for `paper_trading_daily`; `ticket_queue_process_batch` trigger -> HTTP 400 -> the Trigger button gates on `j.id==='paper_trading_daily'`, not just `controllable`.
-- **api.ts:** `apiFetch<T>(path, init?)`; POST mirror = `postPaperKillSwitchAction` (`:366-379`). Add `pauseJob`/`resumeJob`/`triggerJob` with `encodeURIComponent(jobId)`.
-- **types.ts:** `JobInfo` (`:1131`) += `controllable?: boolean`; add `JobControlResponse {status; job_id?; job?; detail?}`.
-- **icons.ts:** `Pause`, `Play`, `Lightning` (trigger glyph -- NOT `ArrowsClockwise` which means refresh here), `SpinnerGap` (in-flight). Import from `@/lib/icons`; NO emoji; NO direct `@phosphor-icons/react`.
-- **Confirm pattern:** `window.confirm()` (backend already enforces a token; actions reversible/low-blast) + per-row busy state (`SpinnerGap animate-spin`) + `await load()` after (pessimistic, server-confirmed).
-- **External UX:** NN/G proportionate action-named confirmation; pessimistic server-confirmed state for a financial control; accessible icon buttons (aria-label, focus ring, color-not-alone).
-
-## Verification split (NextAuth wall)
-Authenticated-page VISUAL verification is impossible autonomously (frontend.md rule 5). So:
-- **Autonomous (qa-verifiable):** `cd frontend && npm run build` (Next 15 strict TS + ESLint + compile); API-wiring grep (paths/methods/tokens/trigger-gating match backend); convention adherence (icons source, no emoji, `controllable===true` gating, aria-label).
-- **Operator `live_check_49.3.md`:** the rendered Actions column (only on the 2 controllable rows), a live pause->amber->resume round-trip, a `paper_trading_daily` trigger that doesn't double-fire.
+`handoff/current/research_brief.md` (researcher gate: **7 sources read in full, recency scan, 16 URLs, 11 internal files, gate_passed=true**). Decisive:
+- **FX ticker direction LOCKED:** yfinance `EURUSD=X` = USD per 1 EUR (matches FRED `DEXUSEU` "USD to One Euro"); yfinance `KRW=X` = KRW per 1 USD (matches FRED `DEXKOUS` "Won to One USD"). **NEVER `KRWUSD=X`** (inverse -- silent KRW inversion is pitfall #1).
+- **BQ:** dataset = `financial_reports` (sibling of historical_prices/_macro; **us-central1 -- migration must NOT pin `--location US`**). Mirror `historical_macro` (unpartitioned, tiny, `date` as STRING). Idempotent via `CREATE TABLE IF NOT EXISTS` (mirror `scripts/migrations/create_data_source_events_table.py:43-98`).
+- **markets.py** `MARKET_CONFIG:21-52` is the currency source of truth (US->USD, EU->EUR, KR->KRW). Verified `from backend.backtest import markets` imports cleanly (no circular dep). `fx_rates.market_currency()` delegates, does not duplicate.
+- **data_ingestion.py:146 stub fix:** `"USD" if market=="US" else "USD"` -> `markets.get_market_config(market)["currency"]`. (Flag: markets keys Germany as `EU` not `DE`; `DE`->USD fallback -- the namespace reconciliation is a 50.3 concern, NOT 50.1.)
+- **Consumers (50.2/50.5):** paper_trader `mark_to_market` (live, no date -> "today") + backtest_trader `mark_to_market(date: str)` (point-in-time). So `get_fx_rate(from, to, date: str | None = None)` -- None=live, str=as-of; both speak str. `if from==to: return 1.0` keeps US-only byte-identical.
+- **Caching:** BOTH -- BQ `historical_fx_rates` for backtest/point-in-time (as-of query `WHERE pair=? AND date<=? ORDER BY date DESC LIMIT 1`, forward-fills weekend/holiday gaps naturally) + `api_cache` TTL for the live daily mark, write-through (today's live mark becomes tomorrow's history). FRED (`DEXUSEU`/`DEXKOUS`, `FRED_API_KEY` present in .env) is the robustness fallback to yfinance.
+- **Best practices:** point-in-time as-of storage (no look-ahead), forward-fill gaps with last-available, mid-rate (daily close) for NAV.
 
 ## Hypothesis
-Adding a `controllable`-gated Actions column to the existing cron page (mirroring the existing kill-switch control pattern) + 3 api.ts methods + the type field, with the trigger button gated to `paper_trading_daily`, delivers the P7 cron-control UI; it is fully autonomously-verifiable at the build/API/convention level, with the visual render delegated to an operator live_check.
+A `backend/services/fx_rates.py` exposing `get_fx_rate(from_ccy, to_ccy, date=None)` (BQ as-of for historical + api_cache write-through for live, yfinance primary + FRED fallback, direction-correct EURUSD=X/KRW=X) + a `market_currency(market)` delegating to markets.py + a `historical_fx_rates` BQ table (financial_reports, us-central1) + the data_ingestion.py:146 currency-stub fix, gives every downstream multi-currency calc a correct, look-ahead-free FX rate, with `from==to -> 1.0` keeping the US-only path byte-identical.
 
-## Success criteria (IMMUTABLE -- verbatim from masterplan step 49.3)
-1. frontend/src/lib/types.ts: JobInfo gains an optional controllable?: boolean field + a JobControlResponse type; frontend/src/lib/api.ts gains pauseJob/resumeJob/triggerJob methods POSTing to /api/jobs/{encodeURIComponent(id)}/pause|resume|trigger with the EXACT confirmation tokens PAUSE_JOB/RESUME_JOB/TRIGGER_JOB + a reason
-2. frontend/src/app/cron/page.tsx renders a per-row Actions column: pause/resume controls ONLY when controllable===true (toggled by the row's running/paused status), and a trigger control ONLY when j.id==='paper_trading_daily' (the backend ticket_queue->400 asymmetry); the prior 'Read-only.' subtitle is updated
-3. each action uses a confirmation step + shows per-row in-flight state (SpinnerGap) + re-fetches the job list afterward to show server-confirmed status (pessimistic); icons are imported from @/lib/icons (Pause/Play/Lightning/SpinnerGap) with NO emoji and NO direct @phosphor-icons/react import
-4. cd frontend && npm run build SUCCEEDS (Next 15 strict type-check + ESLint + compile) with the changes
-5. live_check_49.3.md records the autonomous evidence (build pass + API-wiring grep proofs + convention checks) AND flags the rendered Actions column + a live pause->paused->resume round-trip + a non-double-firing trigger for OPERATOR visual confirmation
+## Success criteria (IMMUTABLE -- verbatim from masterplan step 50.1)
+1. backend/services/fx_rates.py exists: get_fx_rate(base, quote, date) + a daily-refresh path; sources EUR/USD and KRW/USD from yfinance (EURUSD=X, KRW=X) with a cache; USD->USD returns 1.0
+2. historical_fx_rates BQ table (or a documented store) holds dated FX rates; backfilled for EUR/USD + KRW/USD over the backtest window
+3. data_ingestion.py currency stub (line ~146) fixed: writes the correct ISO currency per market (US->USD, EU->EUR, KR->KRW), not 'USD' unconditionally
+4. live evidence: a fetched EUR/USD + KRW/USD rate for a recent date captured verbatim
 
-**live_check:** REQUIRED -- autonomous evidence (build PASS + grep proofs) + an explicit OPERATOR-TO-CONFIRM visual section.
+**Verification command (finalized post-research; the planning placeholder was intentional):** `ast.parse(fx_rates.py)` + `get_fx_rate('USD','USD')==1.0` + `market_currency('EU'/'KR'/'US')` == EUR/KRW/USD + `test -f live_check_50.1.md`. (The live EUR/USD + KRW/USD network fetch is the live_check evidence, kept out of the deterministic command to avoid network flakiness.)
+**live_check:** REQUIRED -- verbatim fetched EUR/USD + KRW/USD rates + a BQ read showing dated FX rows.
 
 ## Plan steps
-1. **types.ts**: `JobInfo += controllable?: boolean`; add `JobControlResponse`.
-2. **api.ts**: add `pauseJob(jobId, reason?)`, `resumeJob(jobId, reason?)`, `triggerJob(jobId, reason?)` after the existing job methods, mirroring `postPaperKillSwitchAction` (POST + JSON body `{confirmation, reason}`), `encodeURIComponent(jobId)`.
-3. **cron/page.tsx**: add an Actions `<th>`/`<td>` (5th col); render pause/resume (toggle by status) only when `j.controllable===true`; render trigger only when `j.id==='paper_trading_daily'`; per-row busy state + `window.confirm` + `await load()`; import Pause/Play/Lightning/SpinnerGap from `@/lib/icons`; aria-label on each icon button; update the "Read-only." subtitle.
-4. **Verify**: `cd frontend && npm run build`; grep proofs; write live_check_49.3.md (autonomous evidence + operator-visual section); restart the dev server only if needed (`launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend`).
-5. **EVALUATE**: fresh qa (no self-eval). Then harness_log.md (LAST), then flip masterplan 49.3 -> done.
+1. **`scripts/migrations/create_historical_fx_rates_table.py`** -- idempotent `CREATE TABLE IF NOT EXISTS financial_reports.historical_fx_rates` (cols: `pair` STRING e.g. "EURUSD", `date` STRING, `rate` FLOAT64, `source` STRING; mirror historical_macro shape; NO --location US pin). `--apply` dry-run guard.
+2. **`backend/services/fx_rates.py`** -- `market_currency(market)` (delegates to markets.get_market_config); `get_fx_rate(from_ccy, to_ccy, date=None)`: from==to->1.0; else resolve the pair (USD-base; EURUSD=X gives USD/EUR, KRW=X gives KRW/USD -> invert as needed for the requested direction); date=None -> live (yfinance Ticker.history period=1d, FRED fallback) + api_cache write-through + persist to BQ; date=str -> BQ as-of query (forward-fill); a `backfill_fx(pairs, start, end)` daily-refresh path (yf.download EURUSD=X + KRW=X, FRED fallback) writing to BQ. ASCII logs, encoding utf-8.
+3. **`backend/backtest/data_ingestion.py:146`** -- replace the `'USD' if market=='US' else 'USD'` stub with `markets.get_market_config(market)["currency"]` (guard unknown market -> 'USD').
+4. **Verify:** ast.parse; the masterplan command (USD->USD=1.0 + market_currency); run the migration (`--apply`); backfill a small EUR/USD + KRW/USD window; a LIVE get_fx_rate('EUR','USD') + ('KRW','USD') fetch; a BQ read of historical_fx_rates rows -> capture verbatim into live_check_50.1.md.
+5. **EVALUATE:** fresh qa (no self-eval). Then harness_log.md (LAST), then flip masterplan 50.1 -> done.
 
 ## Safety / scope notes
-- Purely additive UI on an existing page; no backend change. The controls call the already-live, already-validated 49.2 endpoints.
-- pause/resume are reversible; trigger reuses the backend's triple-guard (no double-fire). Confirmation + pessimistic re-fetch prevent fat-finger + stale UI.
-- Risk-limits UI is a SEPARATE follow-on (phase-49.4) -- not in this step.
-- Visual render is operator-verified (auth wall); the build + API-wiring + conventions are the autonomous gate.
+- 50.1 is PURELY ADDITIVE + market-agnostic: a new service + a new BQ table + a 1-line stub fix. NO change to paper_trader/backtest NAV math (that's 50.2). `from==to->1.0` means US-only/USD flows are untouched.
+- Direction correctness is the #1 risk (KRW inversion) -- the live_check MUST show EUR/USD ~1.1-1.2 and KRW/USD ~0.0007 (1/1300) so an inversion is caught.
+- The `DE` vs `EU` namespace mismatch in markets.py is OUT OF SCOPE (50.3); 50.1 uses the market codes markets.py already defines (US/EU/KR).
+- No owner approval needed (yfinance + FRED free; no pip; financial_reports table create is not a DROP/DELETE).
 
 ## References
-- handoff/current/research_brief.md (gate-passing brief)
-- frontend/src/app/cron/page.tsx:114 (subtitle), :161 (getAllJobs), :294-320 (rows)
-- frontend/src/lib/api.ts:65 (apiFetch), :366-379 (postPaperKillSwitchAction mirror)
-- frontend/src/lib/types.ts:1131 (JobInfo)
-- frontend/src/lib/icons.ts (Pause/Play/Lightning/SpinnerGap)
-- backend/api/cron_dashboard_api.py (controllable flag + the 3 endpoints + tokens + ticket_queue 400)
-- .claude/rules/frontend.md + frontend-layout.md
-- NN/G confirmation-dialog + button-states; React useTransition/useOptimistic
+- handoff/current/research_brief.md (gate brief) + research_brief_multimarket.md (phase context)
+- backend/backtest/markets.py:21-52 (MARKET_CONFIG currency map)
+- backend/backtest/data_ingestion.py:146 (currency stub), :104-114 (yf.download pattern)
+- scripts/migrations/create_data_source_events_table.py:43-98 (idempotent DDL mirror), migrate_backtest_data.py:61-68 (historical_macro shape)
+- backend/services/paper_trader.py:432/446/480/1127 + backtest_trader.py:188/233 (FX consumers, 50.2/50.5)
+- backend/services/api_cache.py (TTL cache, write-through), settings.py:43 (bq_dataset_reports)
+- FRED DEXUSEU / DEXKOUS; yfinance EURUSD=X / KRW=X; Glassnode point-in-time; ECB/Kantox mid-rate

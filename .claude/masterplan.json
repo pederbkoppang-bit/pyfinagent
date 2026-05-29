@@ -13594,13 +13594,13 @@
         {
           "id": "50.1",
           "name": "FX data layer -- backend/services/fx_rates.py + historical_fx_rates BQ table sourced from yfinance EURUSD=X / KRW=X; fix the data_ingestion.py:146 currency stub. FREE. Foundation for all multi-currency work.",
-          "status": "pending",
+          "status": "in_progress",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "49.3",
           "audit_basis": "Multi-market brief Part C 50.1. The foundation: every downstream multi-currency calc needs an FX rate. yfinance FX pairs are free + reliable (most-liquid pairs). data_ingestion.py:146 currently writes 'USD' regardless of market (literal stub bug).",
           "verification": {
-            "command": "RESEARCH-FIRST then define at GENERATE",
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/fx_rates.py').read())\" && python -c \"from backend.services import fx_rates as fx; assert fx.get_fx_rate('USD','USD')==1.0; assert fx.market_currency('EU')=='EUR' and fx.market_currency('KR')=='KRW' and fx.market_currency('US')=='USD'; print('fx_rates OK')\" && test -f handoff/current/live_check_50.1.md",
             "success_criteria": [
               "backend/services/fx_rates.py exists: get_fx_rate(base, quote, date) + a daily-refresh path; sources EUR/USD and KRW/USD from yfinance (EURUSD=X, KRW=X) with a cache; USD->USD returns 1.0",
               "historical_fx_rates BQ table (or a documented store) holds dated FX rates; backfilled for EUR/USD + KRW/USD over the backtest window",

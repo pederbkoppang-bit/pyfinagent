@@ -1,103 +1,112 @@
-# Research Brief — phase-49.3: cron-control UI
+# Research Brief — phase-50.1: FX Data Layer
 
+**Step:** phase-50.1 — `backend/services/fx_rates.py` + `historical_fx_rates` BQ table (EUR/USD + KRW/USD from yfinance) + fix `data_ingestion.py:146` currency stub.
 **Tier:** moderate
-**Step:** Add pause/resume/trigger buttons to the cron dashboard page, wired to
-phase-49.2 endpoints (`POST /api/jobs/{id}/pause|resume|trigger`).
-**Stack:** Next.js 15 + React 19 + TS 5.6 + Tailwind.
-**Constraint that shapes the whole design:** Authenticated-page VISUAL verification
-is impossible autonomously (NextAuth wall, frontend.md rule 5). Autonomous
-verification = `npm run build` (type-check + compile + lint) + API-wiring
-correctness (paths/methods/body match backend) + convention adherence. The visual
-render is delegated to operator `live_check_49.3.md`.
+**Builds on:** `handoff/current/research_brief_multimarket.md` (already gate-passed — the broad multi-market brief). THIS gate = FX-layer implementation specifics + exact internal integration points.
+**Status:** IN PROGRESS (WRITE-FIRST, appended incrementally)
 
 ---
 
 ## Internal code inventory (Q1-Q6, file:line anchors)
 
-### Q1 — `frontend/src/app/cron/page.tsx` structure
+### Q1 — BQ table creation pattern + which dataset
 
-| Aspect | Finding (file:line) |
-|--------|---------------------|
-| Page shell | Correct two-zone shell at `cron/page.tsx:105-145` (`flex h-screen overflow-hidden` + Sidebar + fixed header + scrollable `flex-1 overflow-y-auto scrollbar-thin`). Compliant with frontend-layout.md §1. |
-| Tabs | `TabId = "jobs" \| "logs"` at `:31`; pill tabs at `:119-135` (canonical pattern). |
-| Header subtitle | `:114` reads "...Read-only." — **must be updated** when controls are added (it is no longer read-only for the 2 controllable jobs). |
-| Job fetch | `JobsTab` at `:150`. `getAllJobs()` at `:161`, 5s poll at `:182-188`, `MAX_CONSECUTIVE_FAILURES=5` at `:55` (matches polling-failure-limit rule). Loading/error/empty states all present (`:202-246`). |
-| Job grouping | `useMemo` groups by `j.source` at `:194-200` (Rules-of-Hooks-safe — called every render). |
-| Job ROW shape | `:294-320`. 4 columns: **Job** (id + description), **Schedule**, **Next run**, **Status pill**. `key={`${j.source}-${j.id}`}` at `:295`. Status pill via `statusClasses()` at `:77-88` (scheduled=emerald, paused=amber, manifest=slate). |
-| `controllable` read? | **NO.** The page does NOT yet read `controllable`. The backend adds it (see Q1-backend) but the frontend `JobInfo` type and the row JSX ignore it. **This is the gap phase-49.3 fills.** |
-| Where buttons go | New 5th column `<th>Actions</th>` after Status (`:291`), with a matching `<td>` after `:318`. Render buttons ONLY when `j.controllable === true`; otherwise render an em-dash / empty cell so the table stays aligned. |
+**Pattern (two idioms, both idempotent):**
+1. **Standalone migration script** (`scripts/migrations/*.py`) — the CLAUDE.md-mandated, version-controlled, re-runnable path. Two sub-shapes:
+   - **`google.cloud.bigquery.Table` + `create_table` with a Python `SchemaField` list**, guarded by `client.get_table(ref)` in a try/except (create only on miss). Canonical example: `scripts/migrations/migrate_backtest_data.py:88-95` (the file that created `historical_prices`/`historical_fundamentals`/`historical_macro`). This is the closest mirror because `historical_fx_rates` is a sibling historical table.
+   - **`CREATE TABLE IF NOT EXISTS` DDL string + `client.query(SQL).result()`**, with a `--apply`/dry-run flag and `--verbose`. Canonical example: `scripts/migrations/create_data_source_events_table.py:43-98` (PARTITION BY DATE + CLUSTER BY, OPTIONS descriptions, `argparse`, dry-run default). This is the NEWER, cleaner idiom (phase-25.B7) and is preferable for a NEW table because it self-documents partition/cluster and defaults to dry-run.
+2. **Auto-create on first ingest** (`data_ingestion.py:39-49` `_ensure_tables_exist`) — imports `ALL_TABLES` from `migrate_backtest_data` and creates any missing table at ingest time. **This means: if `historical_fx_rates` is added to `migrate_backtest_data.ALL_TABLES`, it auto-creates on the next ingest run** — but a dedicated migration is still the version-controlled source of truth.
 
-**Backend confirmation that `controllable` exists on the row** (`backend/api/cron_dashboard_api.py:199-201`): `_job_to_dict` sets `"controllable": cron_control.is_controllable(job.id)`. Only `main_apscheduler` rows get this key — `_static_to_dict` (slack_bot/launchd manifest rows, `:204-213`) and the slack_bot/launchd merge blocks (`:431-467`) do **NOT** emit `controllable`, so it is `undefined` there → the TS type must make it **optional** (`controllable?: boolean`) and the row must treat `undefined`/`false` identically (no buttons).
+**Recommended shape for `historical_fx_rates`:** a NEW `scripts/migrations/create_historical_fx_rates_table.py` mirroring `create_data_source_events_table.py` (DDL string, `--apply` dry-run default, PARTITION BY DATE(date) — but note date is stored as STRING in the sibling tables; see schema note below — CLUSTER BY pair). PLUS add the table to `migrate_backtest_data.ALL_TABLES` so `_ensure_tables_exist` auto-creates it (defense-in-depth, matches how prices/macro work).
 
-### Q2 — `frontend/src/lib/api.ts` POST-control pattern
+**Dataset: `financial_reports`** (NOT `pyfinagent_data`). Rationale with anchors:
+- The sibling historical tables (`historical_prices`, `historical_fundamentals`, `historical_macro`) live in **`financial_reports`** — `migrate_backtest_data.py:24` (`DATASET = "financial_reports"`), and `data_ingestion.py:34` (`self.dataset = settings.bq_dataset_reports`), `settings.py:43` (`bq_dataset_reports: str = "financial_reports"`).
+- `historical_fx_rates` is read alongside `historical_prices` for backtest NAV conversion (50.5), so co-locating in `financial_reports` avoids a cross-dataset join and matches the `DataIngestionService._table()` helper (`data_ingestion.py:36-37`) that all the other historical tables use. **Location note: `financial_reports` is `us-central1`, not `US`** (per auto-memory + CLAUDE.md BQ table) — the migration's BQ client must not pin `--location US`; the `bigquery.Client(project=...)` default (no location) resolves it correctly, as `migrate_backtest_data.py` does.
+- `data_source_events` is the lone counter-example in `pyfinagent_data` (`create_data_source_events_table.py:39`), but that table is consumed by the analysis-pipeline provenance metric, not the backtest replay path. FX belongs with the historical replay tables.
 
-| Aspect | Finding (file:line) |
-|--------|---------------------|
-| `apiFetch` signature | `apiFetch<T>(path, init?: RequestInit): Promise<T>` at `api.ts:65`. Sets `Content-Type: application/json`, Bearer token, `credentials: "include"`, 30s AbortController timeout (`:78-80`), 401→`/login` (`:112-116`), structured error messages for 422/500/404 (`:125-134`). |
-| POST-with-body idiom | `postPaperKillSwitchAction` at `:366-379` — the canonical mirror. Shape: `apiFetch(path, { method: "POST", body: JSON.stringify({ confirmation: action }) })`. |
-| POST-no-body idiom | `triggerPaperTradingCycle` at `:299-301` — `apiFetch("/api/paper-trading/run-now", { method: "POST" })`. |
-| Existing jobs methods | `getAllJobs()` at `:735-737` → `apiFetch("/api/jobs/all")`. `getLogTail` at `:739-745`. |
-| Where to add | After `getLogTail` (`:745`), in the same phase-23.2.23 cron block. |
+**Schema note (mirror the siblings exactly):** `historical_prices` stores `date` as **STRING** (`migrate_backtest_data.py:31`, `mode="REQUIRED"`), NOT a DATE/TIMESTAMP. To keep joins on `(ticker,date)`↔`(pair,date)` trivial and avoid a type-mismatch, `historical_fx_rates.date` should also be a **STRING** "YYYY-MM-DD". If PARTITION BY is desired it must be on a DATE/TIMESTAMP column, so either (a) skip partitioning (the table is tiny — ~1000 rows/pair/3yr, like `historical_macro` which is unpartitioned) or (b) add a separate `DATE` column for partitioning. Given the table is ~3-4K rows total, **unpartitioned (mirroring `historical_macro`) is the right call** — `historical_macro` at `migrate_backtest_data.py:61-68` is the exact size-class precedent (252-ish rows, no partition).
 
-**Exact backend contract for the 3 new endpoints** (`cron_dashboard_api.py:481-527`):
-- Request model `CronControlRequest` (`:481-484`): `{ confirmation: str, reason: str = "manual" (max_length 200) }`.
-- `POST /api/jobs/{job_id}/pause` (`:487`): requires `confirmation == "PAUSE_JOB"` else HTTP 400; 404 if job not controllable. Returns `{status:"paused", job: <state>}`.
-- `POST /api/jobs/{job_id}/resume` (`:499`): requires `confirmation == "RESUME_JOB"`; returns `{status:"resumed", job: <state>}`.
-- `POST /api/jobs/{job_id}/trigger` (`:511`): requires `confirmation == "TRIGGER_JOB"`; 404 if not controllable; returns `{status:"triggered", job_id, detail}`. **ASYMMETRY (critical):** trigger is implemented **only for `paper_trading_daily`**; for `ticket_queue_process_batch` it returns **HTTP 400** "trigger not supported ... (pause/resume only)" (`:525-527`).
-- Controllable job IDs (`backend/services/cron_control.py:36-38`): exactly **`paper_trading_daily`** and **`ticket_queue_process_batch`** (both `source=main_apscheduler`).
+### Q2 — yfinance usage in-repo + retry/rate-limit/error pattern
 
-So the 3 methods should be:
-```ts
-export function pauseJob(jobId: string, reason = "manual"): Promise<JobControlResponse> {
-  return apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/pause`, {
-    method: "POST",
-    body: JSON.stringify({ confirmation: "PAUSE_JOB", reason }),
-  });
-}
-// resumeJob -> /resume, confirmation "RESUME_JOB"
-// triggerJob -> /trigger, confirmation "TRIGGER_JOB"
+**No shared yfinance wrapper exists.** 20+ call sites each inline `import yfinance as yf` (grep: `data_ingestion.py:11`, `screener.py:11`, `tools/yfinance_tool.py:7`, `paper_trader.py` via `_get_live_price:1127`, `regime_detector.py:102`, `_production_fns.py:62`, etc.). Two call shapes:
+- **Bulk `yf.download(batch, ...)`** — `data_ingestion.py:104-108` and `screener.py:110-111`. Args: `group_by="ticker", auto_adjust=True, threads=True, progress=False`; `start=/end=` (ingestion) or `period=` (screener). FX pairs should use this shape for the backfill.
+- **Single `yf.Ticker(t).history(period=...)`** — `paper_trader.py:_get_live_price:1127-1130` (`period="1d"`, `Close.iloc[-1]`). FX live-mark should mirror this for the daily rate.
+
+**Error/retry pattern = try/except + skip/return-empty; there is NO exponential-backoff retry around yfinance** despite the backend-tools.md claim ("automatic retry and exponential backoff" applies to AlphaVantage/FRED-keyed APIs, NOT yfinance). Concretely:
+- `data_ingestion.py:103-114` — `try: yf.download(...) except Exception as e: logger.error(...); continue` (skip the batch). Then `if data is None or data.empty: continue`.
+- `screener.py:109-117` — same: `try/except → logger.error → return []`; `if data.empty: return []`.
+- `_get_live_price` (`paper_trader.py:1126-1133`) — `try/except → logger.debug → return None`.
+- Per-ticker inner loop wraps each ticker in its own try/except and `logger.warning` on failure (`data_ingestion.py:120,154-155`).
+
+**Batch size constant**: `_YF_BATCH = 50` (`data_ingestion.py:24`). For FX (only 2-3 pairs) a single `yf.download([...])` call suffices — no batching needed.
+
+**Implication for `fx_rates.py`:** reuse the existing idiom (try/except → log → return None/empty + per-pair inner guard). FX is low-cardinality (2-3 pairs) and called once/day live + once at backfill, so the documented yfinance rate-limit degradation (multimarket brief finding: 2024-2026 IP bans) is low-risk here. The FRED fallback (Q-external) is the robustness hedge, mirroring `data_ingestion.ingest_macro` (`:284-324`) httpx pattern.
+
+### Q3 — the `data_ingestion.py:146` currency stub
+
+**Exact bug (`data_ingestion.py:146`):**
+```python
+"currency": "USD" if market == "US" else "USD",  # TODO: lookup from MARKET_CONFIG
 ```
-`encodeURIComponent(jobId)` matters — IDs contain no slashes today but the path-param interpolation should be defensive (mirrors `getPaperTradeRationale` at `:393-395`).
+Both branches return `"USD"` — non-US rows get the wrong currency.
 
-### Q3 — `frontend/src/lib/types.ts`
+**Context (what writes it / the market arg):**
+- This is inside `ingest_prices` (`:93`), in the per-row dict appended at `:142-153`.
+- `market` is derived at `:137-141`: defaults to `"US"`, and if the ticker is namespaced (`"DE:BAS"`), it splits on `:` → `market="DE", clean_ticker="BAS"` (`:140-141`). So `market` is the market CODE from `markets.py`.
 
-| Aspect | Finding (file:line) |
-|--------|---------------------|
-| `JobInfo` | `:1131-1139`. Fields: id, source, schedule, next_run, last_run, status, description. **Add `controllable?: boolean;`** (optional — manifest/slack/launchd rows omit it). |
-| `JobSource` | `:1129` — `"main_apscheduler" \| "slack_bot" \| "launchd"`. No change. |
-| `AllJobsResponse` | `:1141-1145`. No change (jobs/generated_at/n_total). |
-| Control response type | **None exists — add one.** e.g. `export interface JobControlResponse { status: string; job_id?: string; job?: unknown; detail?: unknown; }`. The backend returns slightly different shapes per action (`job` for pause/resume, `job_id`+`detail` for trigger); a permissive interface with optional fields is the honest type. Mirrors how `getPaperKillSwitchState` returns `Promise<unknown>` (`:362`) — the app already tolerates loosely-typed control responses. A typed-but-permissive interface is an improvement over `unknown`. |
+**The fix:** read currency from `markets.MARKET_CONFIG`. The map already exists at `markets.py:21-52` with the `get_market_config()` accessor at `markets.py:75-78`:
+```python
+from backend.backtest import markets
+...
+"currency": markets.get_market_config(market)["currency"],
+```
+`get_market_config` is robust: it uppercases and falls back to US for unknown markets (`markets.py:77-78`), so a malformed namespace can't crash the ingest. Mapping confirmed: US→USD, EU→EUR, KR→KRW (`markets.py:24,42,48`). **CAVEAT:** the multimarket brief uses market code `DE` for Germany in places, but `markets.py` keys Germany under **`EU`** (XETRA), with no `DE` key — `get_market_config("DE")` would fall back to USD. The namespace→market convention must use `EU` (the markets.py key), or a `DE`→`EU` alias must be added in 50.3. For 50.1's scope (just the currency lookup) the fix is correct as written; the `DE`-vs-`EU` code reconciliation is a 50.3 universe-mapper concern, worth flagging in the contract.
 
-### Q4 — `frontend/src/lib/icons.ts` (MUST import from here, never `@phosphor-icons/react`)
+### Q4 — FX consumers (who calls fx_rates) + their date types
 
-| Need | Export (file:line) | Use |
-|------|--------------------|-----|
-| Pause | `Pause` at `icons.ts:225` | Pause button |
-| Resume / Play | `Play` at `:226` | Resume button |
-| Trigger / run-now | `Lightning` at `:220` (also `ArrowClockwise`/`ArrowsClockwise` at `:179-180`) | Trigger button — **`Lightning`** is the closest semantic match (fire-now) and is already the project's "run/trigger" glyph; `ArrowsClockwise` already means "refresh" on this page (`:7`, `:261`), so do NOT reuse it for trigger or the two actions collide visually. |
-| In-flight spinner | `SpinnerGap` at `:234` (alias `IconSpinner` at `:145`) | Per-button loading indicator (`animate-spin`). |
-| Warning (errors) | `Warning` already imported on the page (`:8`). | Inline action error. |
+**TWO consumers with DIFFERENT date semantics — the API must serve both:**
 
-All four (`Pause`, `Play`, `Lightning`, `SpinnerGap`) are confirmed exports. NO emojis anywhere (strict project rule + auto-memory `feedback_no_emojis`).
+| Consumer | Function (file:line) | Mark source | Date type | FX need |
+|----------|----------------------|-------------|-----------|---------|
+| **50.2 paper_trader** | `mark_to_market()` `paper_trader.py:432-508` (NAV at `:480`, pnl at `:446`); also `execute_buy:221,245,253,275`, `execute_sell`, `_get_live_price:1124-1133` | LIVE mark via `_get_live_price(ticker)` — `yf.Ticker(t).history(period="1d")`, **no date arg** | "today" (live daily mark) | `get_fx_rate("EUR","USD")` for today's rate — a **live/cached** lookup |
+| **50.5 backtest_trader** | `mark_to_market(date: str, prices: dict)` `backtest_trader.py:188-201`; NAV in `_compute_nav(prices)` `:233-238`; `close_all_positions(date, prices)` `:203`; snapshots keyed by `date` (`DailySnapshot.date`) | Historical close from cache, keyed by **`date: str`** ISO "YYYY-MM-DD" | **point-in-time** as of `date` | `get_fx_rate("EUR","USD", date)` for the rate AS OF that backtest day — a **BQ historical** lookup, point-in-time correct |
 
-### Q5 — Conventions (`.claude/rules/frontend.md` + `frontend-layout.md`)
+**Date type CONCLUSION:** both use **`str` ISO "YYYY-MM-DD"** (backtest `date` is a str; paper_trader has no date but "today" is naturally `date.today().isoformat()`). So the API signature should be:
+```python
+def get_fx_rate(from_ccy: str, to_ccy: str, date: str | None = None) -> float
+```
+where `date=None` ⇒ latest/live rate (paper_trader path), and `date="2024-03-15"` ⇒ point-in-time historical (backtest path). Accepting `str` matches both consumers with zero conversion. (If a `datetime`/`date` is ever passed, coerce with `.isoformat()[:10]` — but the two real consumers both speak `str`.)
 
-- **Shell / dark theme**: already correct on the page. New buttons must use the navy+slate palette (NOT zinc): borders `border-navy-700`, hover `hover:bg-navy-700/40` or `hover:bg-navy-800/60`, text `text-slate-200/300/400`. Action accents: resume/positive `sky-600`/`emerald`, pause/caution `amber`, destructive `rose-600` (frontend.md dark-mode rules 1+6; color-coding green/amber/red).
-- **Confirmation pattern (TWO precedents exist):**
-  1. **`window.confirm()`** — used by `OpsStatusBar.tsx:96-103` (pause/resume/flatten), `KillSwitchShortcut.tsx:12`, `HomeQuickActionsPanel.tsx:81`, and `backtest/page.tsx:196,593`. Lightweight, one-liner, restates the action.
-  2. **In-app `ConfirmModal`** — `KillSwitchPanel.tsx:212-268`: a `role="dialog" aria-modal="true"` overlay with Cancel (safe) + a colored Confirm button, "recorded in audit log" note, busy-disabled buttons.
-  **Recommendation: `window.confirm()`** for phase-49.3. Rationale: (a) it is the pattern used by the most-similar action sites (OpsStatusBar pause/resume), (b) the backend ALREADY enforces a confirmation TOKEN (`PAUSE_JOB`/`RESUME_JOB`/`TRIGGER_JOB`) server-side, so `window.confirm` is the second layer of a defense-in-depth design, not the only guard, and (c) these actions are reversible (pause↔resume) and low-blast-radius (2 jobs), so the heavier modal (reserved for FLATTEN_ALL, which liquidates positions) is overkill per NN/G "don't cry wolf" (see external findings). Use action-specific wording, not Yes/No.
-- **Loading/error states**: per-row in-flight state (disable the row's buttons + show `SpinnerGap animate-spin` on the clicked one). On error, surface the message — the page has no per-row error slot today, so either `window.alert(msg)` (matches `OpsStatusBar.tsx:109`) or a small inline rose text under the row. After a successful action, call `load()` to refresh the job list so the status pill reflects the server-confirmed state (pessimistic refresh — see external findings).
-- **scrollbar-thin**: already on the scroll zone (`:139`). No new scroll containers.
-- **Dev-server restart after changes (auto-memory `feedback_npm_install_requires_launchctl_kickstart`):** for a code-only change (no `npm install`), the launchd-managed dev server hot-reloads. If a restart is needed, use `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend` — **NOT `pkill`** (pkill races the launchd watchdog and serves stale 404 CSS bundles). `npm install` is NOT needed here (no new deps; all icons already exported).
+**Critical correctness note:** the NAV math is currency-blind today (`backtest_trader.py:235` `pos.quantity * prices.get(...)`; `paper_trader.py:444` `pos["quantity"] * live_price`). 50.2/50.5 will wrap the per-position term with `* get_fx_rate(pos_currency, base_currency, date)`. So `fx_rates.py` must return `1.0` for same-currency (USD→USD) cheaply so the US-only path stays byte-identical (multimarket brief criterion: `["US"]` behavior unchanged). **Add an explicit `if from_ccy == to_ccy: return 1.0` short-circuit** before any lookup.
 
-### Q6 — Build / verify path
+### Q5 — caching pattern + recommendation (BQ vs in-memory TTL vs both)
 
-- Command: `cd frontend && npm run build` (per CLAUDE.md "Frontend build check" + frontend Quick Start). `package.json` script `build` → `next build`.
-- Next.js 15 `next build` runs **TypeScript type-checking AND ESLint** as part of the production build (unless `typescript.ignoreBuildErrors`/`eslint.ignoreDuringBuilds` is set in `next.config` — confirm it is not). A type error in the new api.ts methods or the `JobInfo` change WILL fail the build. This is the primary autonomous gate.
-- TS is `strict` (frontend.md "TypeScript 5.6 strict"). The permissive control-response interface must still satisfy strict null/优先 checks.
+**Existing patterns:**
+- **`backend/services/api_cache.py`** — thread-safe in-memory TTL cache, module-level singleton (`get_api_cache()` at `:109`), `get`/`set(key, value, ttl_seconds)`/`invalidate(glob)`/`stats`. Per-endpoint TTL registry `ENDPOINT_TTLS` at `:115-141` (e.g. `paper:status=60s`, `settings:models=3600s`, `paper:ticker_meta=86400s` 24h). This is the right tool for the LIVE daily FX mark.
+- **`backend/backtest/cache.py`** — BQ bulk-preload cache (`preload_prices`/`preload_fundamentals` = 2 queries for an entire backtest; CLAUDE.md "always call `cache.preload_macro()`"). This is the right tool for the HISTORICAL FX series in a backtest (bulk-load the whole FX history once, then in-memory dict lookups during the day-loop).
 
----
+**RECOMMENDATION: (c) BOTH — split by consumer, mirroring how prices already work:**
+1. **BQ table `historical_fx_rates`** = the point-in-time historical source for backtests (50.5) and the durable backfill. Backtest preloads the FX series into memory once (mirror `cache.preload_prices`), then does dict lookups in the day-loop — NOT a BQ query per day (the per-day-query anti-pattern is exactly what `cache.py` exists to avoid).
+2. **In-memory TTL cache for the LIVE daily mark** (50.2) via `api_cache` with a 24h-ish TTL (FX marks once/day; `paper:ticker_meta` at 86400s is the precedent). Key e.g. `fx:EUR:USD:2026-05-30`. On miss → yfinance live → (FRED fallback) → set. Optionally also persist the live mark into `historical_fx_rates` so today's rate becomes tomorrow's history (write-through), giving the backtest a continuous series without a separate backfill job.
+
+This is the SAME split prices already use: `historical_prices` (BQ, backtest) + `_get_live_price` (live, paper). FX should not invent a new pattern.
+
+**What `markets.py` exposes for currency already:** `MARKET_CONFIG[market]["currency"]` (`markets.py:21-52`) and `get_market_config(market)["currency"]` (`:75-78`). It does NOT expose any FX/conversion — only the static market→currency string. `fx_rates.py` is the missing layer that turns those currency codes into a rate. So `fx_rates.py` should import `markets` for the currency CODES but owns all rate logic.
+
+### Q6 — markets.py currency map (reuse, don't duplicate)
+
+`backend/backtest/markets.py:21-52` `MARKET_CONFIG` — the single source of truth for market→{exchange, currency, timezone, description}:
+- US → {XNYS, **USD**, America/New_York}
+- NO → {XOSL, NOK, Europe/Oslo}
+- CA → {XTSE, CAD, America/Toronto}
+- EU → {XETR, **EUR**, Europe/Berlin}  ← Germany/XETRA is the `EU` key
+- KR → {XKRX, **KRW**, Asia/Seoul}
+
+Accessors: `parse_namespaced_ticker(t)` (`:55-72`), `get_market_config(market)` (`:75-78`), `get_trading_calendar(market)` (`:81-102`, uses `exchange_calendars` — **confirmed installed, v4.13.2**), `is_trading_day(date, market)` (`:105-120`).
+
+**`fx_rates.py` should expose a thin `market_currency(market) -> str` convenience that delegates to `markets.get_market_config(market)["currency"]`** so callers (paper_trader, backtest_trader) can go market→currency→rate without re-importing markets everywhere. Do NOT duplicate the currency strings.
+
+**Confirmed installed deps (`.venv`):** `exchange_calendars 4.13.2`, `yfinance 1.2.0`, `pandas 3.0.1`. No new pip deps needed for 50.1 (yfinance + httpx + google-cloud-bigquery all present).
 
 ## External research
 
@@ -105,99 +114,152 @@ All four (`Pause`, `Play`, `Lightning`, `SpinnerGap`) are confirmed exports. NO 
 
 | URL | Accessed | Kind | Fetched how | Key finding |
 |-----|----------|------|-------------|-------------|
-| https://www.nngroup.com/articles/confirmation-dialog/ | 2026-05-29 | doc (UX authority) | WebFetch full | Confirmation warranted for "serious consequences"; use action-named buttons not Yes/No; **no default Yes** / best no default; "don't cry wolf" — overuse → ignored. |
-| https://react.dev/reference/react/useTransition | 2026-05-29 | doc (official) | WebFetch full | `isPending` true from first `startTransition` until action completes; `disabled={isPending}`; React 19 accepts async fns in `startTransition`; wrap post-`await` state in nested `startTransition`; errors caught via error boundary. |
-| https://www.nngroup.com/articles/button-states-communicate-interaction/ | 2026-05-29 | doc (UX authority) | WebFetch full | Loading state = spinner left of label, may animate to check on success; disabled = action unavailable; **color alone insufficient — use stroke/outline + secondary cue**; focus ring within 100-150ms for keyboard. |
-| https://react.dev/reference/react/useOptimistic | 2026-05-29 | doc (official) | WebFetch full | Optimistic shows a TEMPORARY guessed value; on failure auto-reverts to prior `value`. Canonical uses = likes/follows/"Submitting…". **NOT for state the user must see server-confirmed** → use `useTransition` + render server response. |
-| https://www.sparkcodehub.com/airflow/scheduling/pause-resume | 2026-05-29 | doc (peer practitioner) | WebFetch full | Airflow pauses a DAG via a **toggle**; "No new runs are scheduled; existing runs finish"; **no confirmation step** in their flow; paused shown as toggle "Off". Peer precedent for "pause = stop NEW work, let in-flight finish" (matches our backend semantics). |
+| https://blog.quantinsti.com/download-forex-price-data-yfinance-library-python/ | 2026-05-30 | blog (quant practitioner) | WebFetch full | yfinance FX ticker = `EURUSD=X`/`GBPUSD=X` with `=X` suffix; download via `yf.download(ticker, ...)` (same as stocks), daily + intraday via `interval`. Confirms the `=X` forex convention and that `yf.download` is the right method. |
+| https://fred.stlouisfed.org/series/DEXUSEU/ (metadata via FRED API) | 2026-05-30 | official (Federal Reserve H.10) | FRED API (page 403'd WebFetch; pulled `/fred/series` JSON) | **Verbatim units: "U.S. Dollars to One Euro"** → USD per 1 EUR (≈1.16). Daily, source Board of Governors, **start 1999-01-04**, "noon buying rates NYC". Direction MATCHES yfinance `EURUSD=X`. |
+| https://fred.stlouisfed.org/series/DEXKOUS (metadata via FRED API) | 2026-05-30 | official (Federal Reserve H.10) | FRED API JSON | **Verbatim units: "South Korean Won to One U.S. Dollar"** → KRW per 1 USD (won-per-dollar). Daily, **start 1981-04-13** (deepest history). Direction MATCHES yfinance `KRW=X`/`USDKRW=X`. |
+| https://insights.glassnode.com/why-use-point-in-time-data/ | 2026-05-30 | industry (data vendor) | WebFetch full | Look-ahead bias = backtest using info unavailable at decision time. "A value you see today for January 15 2024 may not be the value published on January 15 2024." Rule: **PiT data is append-only + immutable; each point reflects only what was known when first computed.** As-of querying + validate revised-vs-PiT to expose the gap. |
+| https://www.ecb.europa.eu/.../euro_reference_exchange_rates/...index.en.html | 2026-05-30 | official (ECB) | WebFetch full | ECB euro reference rates: **foreign-ccy per 1 EUR** (e.g. USD 1.1644/EUR), fixed ~16:00 CET (concertation ~14:10), **business days only, NOT on weekends/TARGET holidays** (the weekend-gap problem, confirmed by an authority). Free for info; "using for transaction purposes strongly discouraged." |
+| https://www.kantox.com/glossary/wmreuters-benchmark-rates | 2026-05-30 | industry (FX treasury vendor) | WebFetch full | WM/Reuters fix = daily 4pm London; **volume-weighted median of trades+order-book in a 5-min window** (mid, not simple bid-offer midpoint). "Widely embedded in fund valuations, custodian reports" — the institutional **mark-to-market / NAV** FX standard. Covers 150+ ISO-4217 pairs. |
+| https://sharpely.in/blog/bias-free-backtesting-explained... | 2026-05-30 | industry (backtest platform) | WebFetch full | PiT controls: "data added only after officially reported"; decisions on rebalance day but **executed at next-day prices**; delisted names sold at last available price; historical index membership. Corroborates glassnode PiT + the forward-fill/last-available convention. |
 
 ### Identified but snippet-only (context; does NOT count toward gate)
 
 | URL | Kind | Why not fetched in full |
 |-----|------|-------------------------|
-| https://simonhearne.com/2021/optimistic-ui-patterns/ | blog | Fetched, but article only covers WHERE optimistic works (carts/likes), not the financial-exclusion nuance — superseded by the React useOptimistic doc read in full. |
-| https://adamsilver.io/blog/the-problem-with-disabled-buttons-and-what-to-do-instead/ | blog | Fetched; argues against PERMANENTLY disabled (form-validation) buttons. Not directly about in-flight disabling; the NN/G button-states full read covers the in-flight case better. |
-| https://www.uxtigers.com/post/inactive-buttons | blog (Nielsen) | Snippet: show/disable/hide trade-off; 60% prefer always-clickable + feedback. Reinforces NN/G. |
-| https://www.patternfly.org/components/button/accessibility/ | doc (design system) | Snippet: ARIA for icon buttons. Covered by WCAG findings. |
-| https://github.com/apache/airflow/discussions/41247 | community | Snippet: "pause all DAGs" UI discussion; peer evidence operators want scheduler pause controls. |
-| https://www.uxpin.com/studio/blog/button-states/ | blog | Snippet: 2026 button-states guide; redundant with NN/G full read. |
-| https://medium.com/@fikrim69/optimistic-ui-pessimistic-ui-... | blog | Snippet: "pessimistic prioritizes consistency over instant feedback" — supports the pessimistic choice for financial state. |
-| https://www.nngroup.com/articles/proximity-consequential-options/ | doc (UX authority) | Snippet: keep destructive far from benign — informs button spacing/ordering. |
+| https://finance.yahoo.com/quote/KRW=X/ | data (Yahoo) | Search snippet confirms `KRW=X` page title = "USD/KRW" (won-per-dollar); direction question answered without full fetch. |
+| https://finance.yahoo.com/quote/USDKRW=X/ | data (Yahoo) | Snippet: `USDKRW=X` = same USD/KRW pair (alternate ticker). |
+| https://finance.yahoo.com/quote/KRWUSD=X/ | data (Yahoo) | Snippet: `KRWUSD=X` = the INVERSE (KRW/USD). Confirms which ticker to AVOID for the won-per-dollar convention. |
+| https://www.lseg.com/content/dam/ftse-russell/.../wmr-fx-methodology.pdf | doc (LSEG/WMR) | PDF; the Kantox glossary (read in full) already gives the mid-rate + 4pm-fix method authoritatively. |
+| https://www.cmegroup.com/articles/case-study/...wm-refinitiv-400-pm-fixing-rate.html | industry | Snippet: asset-manager exposure to the 4pm fix; reinforces WM/R as the valuation standard. |
+| https://analystprep.com/study-notes/cfa-level-2/problems-in-backtesting/ | edu (CFA) | Snippet: backtest biases taxonomy (look-ahead/survivorship); glassnode + sharpely full reads cover it. |
+| https://mikeharrisny.medium.com/look-ahead-bias-in-backtests-and-how-to-detect-it... | blog | Snippet: detection of look-ahead bias; corroborates PiT. |
+| https://arxiv.org/pdf/2601.13770 | paper (preprint) | "Look-Ahead-Bench" 2026 PiT-LLM benchmark; recency signal that PiT is an active 2026 research topic; binary PDF, not needed in full for the FX-storage decision. |
+| https://aws.amazon.com/marketplace/pp/prodview-4ztvijzvvllpa | vendor | Snippet: DEXUSEU redistributed on AWS Marketplace; confirms the series is a recognized canonical feed. |
+| https://blog.quantinsti.com/... (recency variant) | blog | Same domain as the read-in-full source. |
 
-**URLs collected (unique):** 13+ (5 read-in-full + 8 snippet-only above; additional search hits not listed).
+**URLs collected (unique):** 16+ (7 read-in-full + 9 snippet-only above; additional search hits not listed).
 
 ### Search-query variants run (3-variant discipline)
 
-1. **Current-year frontier (2026/2025):** "React 19 useTransition button loading state POST request 2026"; "admin panel control button design patterns 2025"; "scheduler job pause resume run-now button UI 2026 Airflow Dagster Prefect".
-2. **Last-2-year window:** covered by the 2025/2026 hits above (Airflow-2026 comparisons, button-states-2026 guides, React-19-Jan-2026 patch note).
-3. **Year-less canonical:** "confirmation dialog for destructive admin actions UX best practices" (→ NN/G confirmation-dialog, the founding reference); "optimistic vs pessimistic UI updates"; "button states design loading disabled hover focus active accessibility" (→ NN/G button-states). The year-less queries surfaced the two canonical NN/G articles that anchor the recommendation.
+1. **Current-year frontier:** the recency scan below used 2026-scoped FX/PiT queries (FRED `DEXKOUS` end date 2026-05-22; "Look-Ahead-Bench" arXiv 2601 = 2026; WM/Reuters methodology v30).
+2. **Last-2-year window:** WM/Reuters reform 2013-2015 + current methodology, glassnode/sharpely PiT pieces (2024-2026 vintage).
+3. **Year-less canonical:** "point-in-time historical FX rates backtest look-ahead bias" (→ glassnode + sharpely + CFA), "FX quote convention base currency mid rate" (→ ECB + WM/Reuters), "yfinance currency pair ticker EURUSD=X KRW=X direction" (→ quantinsti + Yahoo pages). The year-less queries surfaced the canonical PiT and FX-convention authorities.
 
 ---
 
 ## Recency scan (2024-2026)
 
-Searched the last-2-year window explicitly. **Findings that complement (not supersede) the canonical sources:**
-1. **React 19 (Dec 2024) `useTransition` async support** is the modern idiom for in-flight button state — but a **Jan 17 2026 React patch** fixed a Fiber-reconciler race where a fast-resolving action left the UI stuck in pending (vercel/next.js Discussion #88767). Implication: ensure the project's React/Next is current; for a plain client-fetch (no Server Action) the race is not triggered, which is another reason to prefer the existing client-fetch pattern over Server Actions here.
-2. **`useOptimistic`** (React 19) exists but the official doc (read in full, 2026) confirms it is for non-critical UI; **no new finding overturns** the "pessimistic for financial state" guidance.
-3. **WCAG 2.2 (Oct 2023, now the 2025-2026 compliance baseline):** icon-only action buttons need an `aria-label`; focus rings mandatory; color-not-alone. No change to the canonical button-state guidance, just a firmer compliance floor.
-**No finding in the window contradicts the design below.**
+Searched the last-2-year window on FX sourcing + point-in-time backtest correctness. **Findings (all COMPLEMENT, none supersede):**
+1. **FRED FX series are live as of 2026-05-22** (DEXUSEU/DEXKOUS both updated through last week) — the free FRED fallback is current and unbroken; deepest history (DEXKOUS to 1981, DEXUSEU to 1999) far exceeds the project's 2018/2022 backtest start, so FRED can fully backfill if yfinance FX history is short.
+2. **yfinance reliability degradation (2024-2026)** carried from the multimarket brief — applies to FX too (rate-limits/IP-bans), which RAISES the weight on the FRED fallback for FX specifically. FX is only 2-3 pairs/day so the live-mark risk is low, but the backfill (one bulk call) is where a yfinance failure would bite → FRED backfill is the hedge.
+3. **"Look-Ahead-Bench" (arXiv 2601.13770, 2026)** — a 2026 benchmark formalizing PiT look-ahead bias in finance LLMs; confirms PiT correctness is an active 2026 concern, not settled folklore. No change to the storage design (append-only, as-of query), just firmer backing.
+4. **WM/Reuters methodology v30** (current LSEG ground-rules) — the 4pm-London mid fix remains THE institutional NAV/valuation FX standard; no 2024-2026 change that affects a paper-trading daily mark (we don't need intraday-fix precision; a daily mid close is sufficient).
+**No 2024-2026 finding contradicts the design below.**
 
----
+### Consensus vs debate (external)
+- **Consensus:** (a) `EURUSD=X` and `KRW=X` are the correct yfinance tickers and their direction matches the FRED H.10 series exactly (USD/EUR and KRW/USD); (b) store historical FX point-in-time (append-only, immutable, as-of query) to avoid look-ahead bias; (c) use the **mid rate** for portfolio valuation/NAV (WM/Reuters mid is the institutional standard); (d) FX has weekend/holiday gaps that must be forward-filled (last-available) for valuation — confirmed by ECB (no weekend rates) + sharpely (delisted/missing → last available price).
+- **Debate / caution:** none material for paper-trading scope. The only nuance is intraday-fix precision (WM/R 4pm vs a daily close) — irrelevant for a once-daily paper mark; a daily mid close is the right granularity.
 
-## Recommended design (autonomously-verifiable vs operator-eyes)
+### Pitfalls (from literature)
+1. **Direction inversion** — `KRWUSD=X` (inverse) vs `KRW=X`/`USDKRW=X` (won-per-dollar). Picking the wrong ticker silently inverts every KRW valuation. MITIGATION: store the pair with an explicit `base`/`quote` convention + assert magnitude (KRW/USD ≈ 1300, EUR rate ≈ 1.16) in a sanity check.
+2. **Weekend/holiday FX gaps** — FX doesn't trade Sat/Sun and skips currency-specific holidays; a backtest day or a Monday mark may have no fresh rate. MITIGATION: forward-fill the last available rate (the standard valuation convention; ECB publishes none on weekends, sharpely uses "last available price").
+3. **Look-ahead via revised data** — less acute for FX than fundamentals (FX spot is rarely revised), but the append-only/as-of discipline still applies: a backtest as of date D must read the rate stored for D (or the last ≤ D), never a future rate.
+4. **Bid/ask vs mid** — using a bid or ask instead of mid biases NAV; use mid for valuation (WM/Reuters). yfinance FX close is effectively a mid-ish daily close — acceptable for paper; document it.
 
-### What to build
-1. **`types.ts`**: add `controllable?: boolean;` to `JobInfo` (`:1131`); add `export interface JobControlResponse { status: string; job_id?: string; job?: unknown; detail?: unknown; }`.
-2. **`api.ts`** (after `:745`): add `pauseJob`, `resumeJob`, `triggerJob` exactly as in Q2 — POST with `{confirmation: "<VERB>", reason}`, `encodeURIComponent(jobId)`, return `Promise<JobControlResponse>`.
-3. **`cron/page.tsx`**:
-   - Add 5th column `Actions` (header `:291`, cell after `:318`). Render buttons **only when `j.controllable === true`**; else render a dim `--`.
-   - Buttons per controllable row: **Pause** (when `status==="scheduled"`), **Resume** (when `status==="paused"`), and **Trigger** (`Lightning`) **only when `j.id === "paper_trading_daily"`** — because the backend returns HTTP 400 for trigger on `ticket_queue_process_batch` (`cron_dashboard_api.py:525-527`). Showing a trigger button that always errors would be a wiring bug; gate it on the id.
-   - Per-row in-flight state: a `busyJobId`/`busyAction` state (or a `Record<string, action>`); disable the row's buttons + swap the clicked button's icon to `SpinnerGap animate-spin` while the POST is in flight (pessimistic: NN/G + React useTransition).
-   - On click: `window.confirm("<action-specific message>")` first (e.g. "Pause job 'paper_trading_daily'? Scheduled runs stop until resumed; an in-flight run finishes."), then call the api method, then `await load()` to refresh from the server (pessimistic — show server-confirmed status, never an optimistic guess; React `useOptimistic` doc).
-   - On error: `window.alert(msg)` (matches `OpsStatusBar.tsx:109`) or inline rose text. Either is convention-compliant.
-   - Icon buttons MUST carry `aria-label` (e.g. `aria-label="Pause paper_trading_daily"`) and a visible focus ring (WCAG 2.2; NN/G button-states). Color is not the only cue — each button also has its glyph.
-   - Update the page subtitle (`:114`) so it no longer claims "Read-only" (or scope the claim to logs).
-   - Implementation choice: `useTransition` is available, but the page already uses an explicit `refreshing`/`loading` boolean idiom (`:154`, `:336`) and plain `async` handlers. Mirror that (a `busy` state + plain `async` handler) for consistency rather than introducing `useTransition` mid-file. Either is correct; consistency wins. Note: if `useTransition` is used, wrap any post-`await` `setState` in a nested `startTransition` (React 19 caveat from the full read).
+## SYNTHESIS — the deliverable (concrete enough to write contract + code)
 
-### Autonomously verifiable (no operator)
-- `cd frontend && npm run build` passes → TS strict type-check (the `controllable?` field, the 3 method signatures, the response interface all compile) + ESLint + production compile.
-- **API-wiring correctness** (auditable by reading code against `cron_dashboard_api.py`): paths `/api/jobs/{id}/pause|resume|trigger`, method POST, body `{confirmation, reason}`, confirmation tokens exactly `PAUSE_JOB`/`RESUME_JOB`/`TRIGGER_JOB`, trigger gated to `paper_trading_daily`.
-- **Convention adherence** (greppable): icons imported from `@/lib/icons` (not `@phosphor-icons/react`); no emoji; navy/slate palette; `aria-label` on icon buttons; buttons gated on `controllable===true`.
-- Optional: a unit-level assertion that `pauseJob`/`resumeJob`/`triggerJob` build the right path+body (if the project adds a tiny test — not required by the step).
+### (a) Q1-Q6 answers — see "Internal code inventory" above (each with file:line).
 
-### Needs operator eyes (`handoff/current/live_check_49.3.md`)
-- The actual rendered Actions column on the authenticated `/cron` page (dark-theme contrast, button spacing/alignment, that buttons appear ONLY on the 2 controllable `main_apscheduler` rows and NOT on slack/launchd rows).
-- A real pause→status-pill-flips-to-amber→resume round-trip against the running backend, and a trigger on `paper_trading_daily` (confirm the 409-guard path doesn't double-fire). Live-system evidence (curl or screenshot) is what the `live_check` gate (CLAUDE.md `verification.live_check`) converts from "agent claimed PASS" into an auditable artifact.
+### (b) Recommended `fx_rates.py` API + storage design
 
-### 2-3 external-source-backed UX practices applied
-1. **Confirm only proportionate friction; name the action in the button/prompt, no Yes/No, no default-Yes** (NN/G confirmation-dialog). → `window.confirm` with action-specific wording; reserve the heavy modal for FLATTEN_ALL.
-2. **Pessimistic, server-confirmed state for a financial control — not optimistic** (React `useOptimistic` doc + NN/G button-states loading-state). → disable + spinner during the POST, then `load()` to show the backend's actual status.
-3. **Accessible icon buttons: `aria-label`, focus ring, color-not-alone** (NN/G button-states + WCAG 2.2). → every icon button labeled, focusable, with a glyph in addition to color.
+**Ticker / direction decision (locked):**
+- **EUR/USD:** yfinance `EURUSD=X` → USD per 1 EUR (≈1.16). FRED fallback `DEXUSEU` ("U.S. Dollars to One Euro") — **same direction**, no inversion.
+- **KRW/USD:** yfinance `KRW=X` (≡ `USDKRW=X`) → KRW per 1 USD (≈1300). FRED fallback `DEXKOUS` ("South Korean Won to One U.S. Dollar") — **same direction**. **Do NOT use `KRWUSD=X`** (that's the inverse).
+- Store one canonical convention in the table: a `pair` like `"EURUSD"` meaning "units of QUOTE(USD) per 1 BASE(EUR)" — i.e. `pair = BASE+QUOTE`, value = quote-per-base. Then `EURUSD`=1.16 (USD per EUR), `USDKRW`=1300 (KRW per USD). `get_fx_rate(from, to)` derives the right pair + inverts if needed.
+
+**Conversion semantics (the function contract):**
+```python
+def get_fx_rate(from_ccy: str, to_ccy: str, date: str | None = None) -> float:
+    """Units of `to_ccy` per 1 `from_ccy`, as of `date` (ISO 'YYYY-MM-DD').
+    date=None -> latest/live mark. Returns 1.0 when from_ccy == to_ccy."""
+```
+- `get_fx_rate("EUR","USD")` → 1.16 (1 EUR = 1.16 USD). To value a €100 position in USD base: `100 * get_fx_rate("EUR","USD") = $116`. This matches the multimarket brief's `market_value_base = local_value * fx_rate` (50.2.2).
+- **`if from_ccy == to_ccy: return 1.0`** short-circuit FIRST (keeps the US-only path byte-identical — multimarket criterion).
+- Inversion: store `USDKRW`=1300; `get_fx_rate("KRW","USD")` returns `1/1300`. Provide both directions via one stored pair + reciprocal.
+- Convenience: `market_currency(market) -> str` delegating to `markets.get_market_config(market)["currency"]` (don't duplicate the map — Q6).
+
+**Storage = BOTH (c), mirroring how prices already split BQ-historical + live):**
+1. **BQ table `historical_fx_rates`** in `financial_reports` (sibling of `historical_prices`; Q1). Schema (mirror `historical_macro` — unpartitioned, tiny):
+   ```
+   pair         STRING   REQUIRED   -- "EURUSD" | "USDKRW" (BASE+QUOTE, value = quote per base)
+   date         STRING   REQUIRED   -- "YYYY-MM-DD" (STRING to match historical_prices.date)
+   rate         FLOAT64  NULLABLE   -- mid daily close, quote-per-base
+   source       STRING   NULLABLE   -- "yfinance" | "fred" (provenance; mirrors data_source_events spirit)
+   ingested_at  TIMESTAMP NULLABLE
+   ```
+   Uniqueness on `(pair, date)` (same as `historical_prices` `(ticker,date)`). NO partition (size-class = `historical_macro`).
+2. **Live daily mark** via `api_cache` (Q5): key `fx:{pair}:{date}` (e.g. `fx:EURUSD:2026-05-30`), TTL ~24h (precedent `paper:ticker_meta`=86400s). On miss → yfinance `yf.Ticker("EURUSD=X").history(period="1d")` (mirror `_get_live_price`) → FRED fallback → set. **Write-through:** persist the live mark into `historical_fx_rates` so today's rate becomes tomorrow's history → continuous backtest series without a separate daily backfill job.
+3. **Backtest path:** bulk-preload the FX series once per backtest (mirror `cache.preload_prices`), then in-memory dict lookups in the day-loop — never a BQ query per day.
+
+**Fetch with FRED fallback (mirror existing idioms):**
+- Primary: `yf.download(["EURUSD=X","KRW=X"], start=, end=, ...)` (backfill) / `yf.Ticker(...).history(period="1d")` (live) — try/except → log → return None, per `data_ingestion.py:103-114` + `_get_live_price:1126-1133`. No exponential backoff exists for yfinance in-repo; match that.
+- Fallback: FRED `DEXUSEU`/`DEXKOUS` via `httpx` exactly like `data_ingestion.ingest_macro` (`:286-296`) — `FRED_BASE` + `series_id` + `api_key` + `observation_start/end`. FRED key already in `backend/.env` (confirmed present). FRED gives daily history to 1999/1981 → covers any backtest start.
+- **Forward-fill on read:** `get_fx_rate(..., date)` returns the rate for `date`, else the **last available rate ≤ date** (weekend/holiday gap handling — ECB publishes no weekend rates; sharpely "last available price"). Implement as `WHERE pair=? AND date<=? ORDER BY date DESC LIMIT 1` (point-in-time, as-of query — glassnode immutability rule) or a forward-fill over the preloaded dict.
+
+**Migration:** NEW `scripts/migrations/create_historical_fx_rates_table.py` mirroring `create_data_source_events_table.py` (DDL `CREATE TABLE IF NOT EXISTS`, `--apply` dry-run default, `--verbose`, OPTIONS descriptions). ALSO add `("historical_fx_rates", REF, SCHEMA)` to `migrate_backtest_data.ALL_TABLES` so `_ensure_tables_exist` auto-creates it (defense-in-depth; matches prices/fundamentals/macro). BQ client uses default location (no `--location` pin) so `financial_reports`/us-central1 resolves correctly.
+
+### (c) The exact `data_ingestion.py:146` fix
+
+Replace (`data_ingestion.py:146`):
+```python
+"currency": "USD" if market == "US" else "USD",  # TODO: lookup from MARKET_CONFIG
+```
+with (add `from backend.backtest import markets` at module top — `markets.py` is a sibling module, no circular-import risk since `markets.py` imports only `exchange_calendars`/`logging`):
+```python
+"currency": markets.get_market_config(market)["currency"],
+```
+- `market` here is the namespace code from `:137-141` (US default; `"DE:BAS"`→`"DE"`).
+- `get_market_config` (`markets.py:75-78`) uppercases + falls back to US for unknown → can't crash.
+- Mapping: US→USD, EU→EUR, KR→KRW (`markets.py:24,42,48`).
+- **FLAG for the contract (DE-vs-EU):** `markets.py` keys Germany as **`EU`** (XETRA), with NO `DE` key — so a `"DE:..."` namespace falls back to USD. For 50.1 the line-146 fix is correct as written (it reads whatever the market code maps to); the namespace-code reconciliation (use `EU`, or add a `DE`→`EU` alias) is a **50.3 universe-mapper** concern, not 50.1. Note it so the contract scopes 50.1 to the lookup only.
+
+### (d) External-source-backed FX-handling best practices (applied)
+1. **Point-in-time / as-of, append-only storage** (glassnode + sharpely + arXiv 2601.13770) → `historical_fx_rates` is append-only; `get_fx_rate(..., date)` reads the rate AS OF `date` (`WHERE date<=? ORDER BY date DESC LIMIT 1`), never a future rate. A backtest on 2024-03-15 sees only ≤2024-03-15 FX. **Direct attack on look-ahead bias** — the project's core backtest-correctness doctrine (backend-backtest.md "No future leakage").
+2. **Forward-fill weekend/holiday gaps with last-available rate** (ECB: no weekend/TARGET-holiday rates; sharpely: last available price) → the as-of query naturally forward-fills (last ≤ date). A Monday or a German-holiday mark reuses Friday's rate rather than NULL.
+3. **Mid rate for valuation/NAV** (WM/Reuters via Kantox: volume-weighted median mid is THE fund-NAV standard) → use yfinance/FRED daily close as the mid for the paper daily mark (granularity sufficient for once-daily paper; document that we approximate the WM/R 4pm mid with a daily close). NEVER bid or ask.
+
+### (e) Application mapping (external → internal file:line)
+- glassnode/sharpely PiT → `fx_rates.get_fx_rate(date)` as-of query feeding `backtest_trader.mark_to_market(date, prices)` (`backtest_trader.py:188`) where NAV is currency-blind today (`_compute_nav:233-238`).
+- WM/Reuters mid → `fx_rates` daily-close mark feeding `paper_trader.mark_to_market` (`paper_trader.py:432`, NAV `:480`) — wraps the `* live_price` term (`:444`) with `* fx_rate` in 50.2.
+- FRED DEXUSEU/DEXKOUS fallback → mirror `data_ingestion.ingest_macro` httpx (`:286-296`); key in `backend/.env`.
+- markets.py currency map → both the `:146` fix AND `fx_rates.market_currency()` delegate to `markets.get_market_config` (`markets.py:75-78`).
 
 ---
 
 ## Research Gate Checklist
 
-Hard blockers:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (NN/G confirmation, React useTransition, NN/G button-states, React useOptimistic, Airflow pause/resume)
-- [x] 10+ unique URLs total (13+ incl. snippet-only)
-- [x] Recency scan (last 2 years) performed + reported
-- [x] Full pages read (not abstracts) for the read-in-full set
-- [x] file:line anchors for every internal claim
+Hard blockers — all satisfied:
+- [x] >=5 authoritative external sources READ IN FULL (7: quantinsti yfinance, FRED DEXUSEU API-meta, FRED DEXKOUS API-meta, glassnode PiT, ECB reference rates, Kantox WM/Reuters, sharpely PiT). Source hierarchy honored (2 official Fed/ECB, 3 industry, 2 practitioner blog).
+- [x] 10+ unique URLs total (16+ incl. snippet-only)
+- [x] Recency scan (2024-2026) performed + reported (FRED live to 2026-05-22; arXiv 2601 PiT 2026; yfinance degradation)
+- [x] Full pages/series-metadata read (not abstracts) for the read-in-full set
+- [x] file:line anchors for every internal claim (Q1-Q6)
 
 Soft checks:
-- [x] Internal exploration covered every relevant module (page, api, types, icons, backend endpoint, cron_control, OpsStatusBar/KillSwitchPanel confirm patterns)
-- [x] Contradictions / consensus noted (two confirm patterns; optimistic-vs-pessimistic resolved to pessimistic for financial state)
+- [x] Internal exploration covered: data_ingestion, markets, migrations (2 idioms), screener+all yfinance sites, fred_data, api_cache, backtest/cache, paper_trader (NAV/cost/pnl/_get_live_price), backtest_trader (NAV/mark_to_market), settings, bigquery_client dataset routing
+- [x] Contradictions/consensus noted (ticker direction inversion risk; intraday-fix vs daily-close granularity resolved to daily-close-sufficient)
 - [x] All claims cited per-claim with file:line or URL
+
+## Research Gate JSON envelope
 
 ```json
 {
   "tier": "moderate",
-  "external_sources_read_in_full": 5,
-  "snippet_only_sources": 8,
-  "urls_collected": 13,
+  "external_sources_read_in_full": 7,
+  "snippet_only_sources": 9,
+  "urls_collected": 16,
   "recency_scan_performed": true,
-  "internal_files_inspected": 7,
+  "internal_files_inspected": 11,
   "gate_passed": true
 }
 ```
