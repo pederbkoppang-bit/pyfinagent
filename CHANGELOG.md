@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `9a14d3ec` | chore: strategy-label root-cause diagnostics (train-but-no-trade pin) |
 | 2026-05-29 | `6ce1a9c1` | chore(rotation): add multi-strategy trading diagnostic -- finding: 3 of 5 STRATEGY_REGISTRY strategi |
 | 2026-05-29 | `7211a90b` | phase-48.4: Live rotation bake-off SMOKE -- first REAL validation of the 48.1-48.3 machinery on a... |
 | 2026-05-29 | `88d770bd` | phase-48.4: PLAN (contract + masterplan step in-progress + research brief) before the live smoke GEN |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `c4d66648` | phase-47.6: Dynamic strategy rotation -- per-strategy DSR selector with anti-churn (north-star: s... |
 | 2026-05-29 | `bfbca572` | docs(handoff): MILESTONE -- first autonomous trade achieved (swap KEYS->STX, persisted, Q/A-verified |
 | 2026-05-29 | `43279b08` | phase-47.2: First autonomous trade end-to-end (empty new_candidates set + sod_date roll) |
-| 2026-05-29 | `649b9ecd` | docs(handoff): live-run finding -- autonomous cycle too slow via claude_code rail (2+hrs, lite_mode= |
 
 ---
 
