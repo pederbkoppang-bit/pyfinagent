@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `82d2f07f` | phase-47.10: generate_content max_tokens floor -- symmetric close of the Opus-4.8 max_tokens-at-x... |
 | 2026-05-29 | `f27e36b3` | phase-47.9: Priority-3 completion: Opus-4.8 max_tokens-at-xhigh floor (adaptive-path starvation f... |
 | 2026-05-29 | `095ed07d` | phase-47.8: Opus-4.8 stale-pin sweep (fix the 4-8 thinking/sampling branch bug + missing context-... |
 | 2026-05-29 | `6e712507` | docs(handoff): cycle 8 -- priority-6 learn-loop correctness fixed (47.7); 7 steps + first trade ship |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-28 | `d33e7197` | phase-47.1: Restore historical_prices freshness (rewire daily_price_refresh -> ingest_prices full... |
 | 2026-05-28 | `8ecc9efe` | feat: upgrade Claude Opus 4.7 -> 4.8 across runtime + docs |
 | 2026-05-28 | `77b01368` | docs(handoff): cycle 20 SOFT STOP closure -- cycle_block_summary.md |
-| 2026-05-28 | `3d277b32` | test(observability): cycle 19 DoD-5 SAFE.TIMESTAMP pytest regression coverage |
 
 ---
 
+### v6.28.10 — phase-47.10: generate_content max_tokens floor -- symmetric close of... (2026-05-29)
+
+- **phase-47.10: generate_content max_tokens floor -- symmetric close of the Opus-4.8 max_tokens-at-x...**
 ### v6.28.9 — phase-47.9: Priority-3 completion: Opus-4.8 max_tokens-at-xhigh floor... (2026-05-29)
 
 - **phase-47.9: Priority-3 completion: Opus-4.8 max_tokens-at-xhigh floor (adaptive-path starvation f...**
