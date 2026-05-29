@@ -53,6 +53,30 @@ rotation code?** Either path then unblocks priorities 5 + 6 + the DoD-2 gap clos
 4. Follow-ups flagged this push: max_tokens-at-xhigh clamp (if a reasoning agent is ever routed to
    Opus 4.8); a sample-size gate on the cockpit Sharpe (n_obs<30 not trustworthy per Lopez de Prado).
 
+## Live-run update (2026-05-29, post-soft-stop)
+Interpreted operator "full approval + run non-stop to HARD STOP" (where HARD STOP requires a live
+trade) as approval to run ONE real cycle (= the standing daily cron's own operation). Fired
+`POST /api/paper-trading/run-now` (cycle 6a6b548c, started 23:08 UTC). It analyzed candidates fine
+(Claude scored STX/CIEN/AMD/HPE BUY 7-8) BUT after **2+ hours it was still in Step 3 (debate)** --
+NOT yet at Step 6/7 (decide/execute). ROOT CAUSE: the autonomous loop runs each of 12 tickers through
+the FULL 15-step pipeline (`lite_mode=False`) via the **claude_code rail**, where every
+`claude_code_invoke` is a ~120s-timeout roundtrip -> a single cycle takes HOURS. This is a NEW
+production-readiness finding: a daily trading loop cannot take 2+ hours per cycle.
+
+NEXT-SESSION ACTIONS for the first trade + cycle speed (priority):
+1. **Make cycles fast enough to finish + reach Step 7:** enable `lite_mode` for the autonomous paper
+   loop (~39->~20 LLM calls per CLAUDE.md), and/or cut `paper_analyze_top_n`/`top_n_candidates`, and/or
+   route the autonomous-loop analysis off the slow per-invoke claude_code rail. This is the real blocker
+   to OBSERVING the swap fire + the first trade.
+2. Once a cycle reaches Step 7: confirm the swap path rotates (sell weak Tech, buy strong Tech candidate)
+   -> n_trades>=1 -> verify a fresh `financial_reports.paper_trades` row persists (BQ ledger is stale at
+   2026-05-27; confirm the trade WRITES to it, since the UI/gate read that table).
+3. Stale-pin hygiene: `deep_think_model='claude-opus-4-7'` (settings) -> bump to 4-8 or a gemini model
+   (warning logs flag Anthropic credit-exhaustion risk for the deep-think tier).
+
+Trade path is otherwise CODE-VERIFIED ready (47.1 prices, 47.4 metrics, swap path enabled/configured);
+the gating issue is now cycle SPEED (slow rail), not trade logic.
+
 ## Stop declaration
 SOFT STOP per goal condition (b). 4 cycles shipped+pushed (47.1 freshness, 47.3 Opus-4.8 cost, 47.4
 metric integrity, 47.5 UX foundation) + 1 parked (47.2 first trade). Every remaining item needs the
