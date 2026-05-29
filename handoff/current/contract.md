@@ -1,54 +1,59 @@
-# Contract — phase-47.2: First autonomous trade end-to-end
+# Contract — phase-47.6: Dynamic strategy rotation (per-strategy DSR selector + anti-churn)
 
-**Cycle:** 6 (resumes the parked 47.2). **Step:** 47.2 | **Phase:** phase-47 | **Status:** in-progress |
-**Harness:** required | **Tier:** moderate-complex (executes a real paper trade).
+**Cycle:** 7 of the production-ready+money push (priority 5, the NORTH STAR). FREE of LLM spend.
+**Step:** 47.6 | **Phase:** phase-47 | **Status:** in-progress | **Harness:** required | **Tier:** complex.
 
-**Authorization for the LLM cost:** operator said "you have my full approval" + "run non-stop to HARD
-STOP" (HARD STOP explicitly requires a live n_trades>=1). The `paper_trading_daily` cron runs this exact
-Gemini cycle automatically every weekday (standing pre-authorized operation); triggering it now is that
-same operation ~18h early, to produce the operator's #1-priority trade. Treated as approved.
+## Research-gate summary (PASSED)
+Researcher `acb97aa2cc1ee7618`, tier=complex, `gate_passed: true`. 6 sources in full, 19 URLs, recency
+scan, 11 internal files. Brief: `research_brief_phase_47_6_strategy_rotation.md`.
 
-## Research-gate summary (PASSED, from 47.2)
-Researcher `a58bbea89ecbd5d69`, `gate_passed: true`. 5 sources in full, 13 URLs, recency scan, 6 internal
-files. Brief: `research_brief_phase_47_2_first_trade.md`. Validated root cause: `decide_trades` blocks
-100% of buys on the per-sector COUNT cap (book is 11-12 Tech vs cap 2; candidates all Tech semis), so
-ROTATION (sell weak Tech, buy strong Tech) is the only buy path. sod_date already wired (no fix).
-
-## Code-verification (this session)
-`portfolio_manager.py:354-518` + `settings.py:222-235`: the swap-rotation path is ENABLED
-(paper_swap_enabled=True), CONFIGURED (paper_swap_max_per_cycle=2, paper_swap_min_delta_pct=25%), and
-CORRECT (delta math valid for 0-10 final_scores). It never fired only because the running backend
-PREDATED the swap commit 69c710ec -- fixed by the cycle-2/4 restarts (backend now has the code). No code
-fix needed; the path just needs a real cycle to fire it.
+KEY FINDING: the rotation machinery largely EXISTS (quant_optimizer rotates `strategy` as a search
+param; `analytics.compute_deflated_sharpe`; `gate.PromotionGate` DSR>=0.95/PBO<=0.20;
+`friday_promotion.py` weekly DSR-desc ranking + `promoted_strategies` BQ write; `autonomous_loop.py:46
+load_promoted_params` consumes it). The MISSING piece is the incumbent-vs-challengers SELECTION with
+anti-churn hysteresis. Today the live strategy is STATIC (triple_barrier, Sharpe 1.17).
 
 ## Hypothesis
-A real `/run-now` cycle, with the rotation code now loaded + fresh prices (47.1) + correct metrics (47.4),
-fires the swap path: it sells the lowest-conviction Tech holding and buys a higher-conviction Tech
-candidate (e.g. STX final_score 8.0), producing >=1 trade with all safety caps intact (kill-switch,
-stop-loss, sector NAV-pct backstop, max-per-cycle=2). If 0 trades, observe the post-restart swap-decision
-log lines and escalate Fix B1 (swap-score resolution / lower min_delta).
+A pure `select_best_strategy()` that reuses PromotionGate (gate), mirrors friday_promotion's
+DSR-desc/PBO-asc ranking, and adds an anti-churn min-improvement (Delta-DSR) vs the incumbent gives the
+system the north-star "shift to highest earner" behavior WITHOUT whipsaw, and feeds the live loop via
+the existing promoted_strategies path. Unit-testable with synthetic DSR dicts (no live backtest needed
+for the committed deliverable).
 
-## Immutable success criteria (verbatim from masterplan.json phase-47.2)
-1. POST /api/paper-trading/run-now returns n_trades >= 1 with non-empty candidate analyses
-2. a fresh financial_reports.paper_trades row dated today exists
-3. root cause of empty new_candidates identified + fixed without disabling safety
-4. live_check_47.2.md captures the run-now response + BQ paper_trades row dated today
+DESIGN REFINEMENT (vs the brief's placeholder): gate-passers have DSR in [0.95, 1.0], so the max
+possible Delta-DSR is 0.05 -- a 0.05 min_improvement would make switching impossible. Default set to
+**0.01** (one DSR-point), band-appropriate + parameterized.
 
-(Note: criterion 3's wording says "empty new_candidates" -- the research REFUTED that; the validated
-cause is sector-cap-without-rotation, resolved by the loaded rotation path. No safety disabled.)
+## Immutable success criteria (verbatim from masterplan.json phase-47.6)
+1. NEW backend/autoresearch/strategy_selector.py::select_best_strategy is a PURE function that
+   gate-filters per-strategy candidates by DSR>=0.95 & PBO<=0.20 (REUSING PromotionGate, no
+   metric-formula duplication), ranks passers DSR-desc/PBO-asc, and switches from the incumbent ONLY
+   when the top challenger's DSR exceeds the incumbent's by >= min_improvement (anti-churn hysteresis);
+   favors incumbent on tie; handles first-selection (no incumbent) and no-passer (retain incumbent)
+2. NEW tests/autoresearch/test_strategy_selector.py has >=6 behavioral cases (top-DSR pick, DSR-gate
+   veto, PBO veto, anti-churn below-min-improvement retains incumbent, incumbent-tie, first-selection)
+   and all pass
+3. reuses existing PromotionGate (DSR/PBO not re-implemented); ast.parse clean; pytest green
 
 ## Plan steps
-1. POST /api/paper-trading/run-now (real cycle, dry_run=false). Capture n_trades + candidate count.
-2. Read backend.log for the post-restart swap-decision lines (Swap skip / swap pair / sector NAV-pct).
-3. Query BQ financial_reports.paper_trades for a row dated today.
-4. If n_trades>=1 -> write experiment_results + live_check_47.2.md -> fresh Q/A -> log -> flip 47.2 done.
-   If n_trades=0 -> diagnose from the swap log, apply the precise Fix B1 (code), re-run once.
+1. NEW `backend/autoresearch/strategy_selector.py::select_best_strategy(per_strategy, incumbent, *,
+   gate, min_improvement=0.01, num_trials=5)` -- pure; reuses PromotionGate; DSR-desc/PBO-asc ranking;
+   anti-churn hysteresis; first-selection + no-passer + incumbent-tie handling.
+2. NEW `tests/autoresearch/test_strategy_selector.py` -- 8 behavioral cases.
+3. Verify: ast.parse + `pytest tests/autoresearch/test_strategy_selector.py`. Fresh Q/A.
 
 ## Blast radius
-Executes REAL (virtual) paper trades -- reversible via flatten-all. Fires the Gemini Layer-1 pipeline
-(LLM cost = one standing daily cycle). No DROP/DELETE. Kill-switch + stop-loss + sector caps stay intact.
+ADDITIVE: one new pure module + its test. No change to the live loop, gate, or promotion path this
+cycle (the selector is callable but not yet wired into a cron). No LLM spend, no trade execution.
+
+## Deferred (documented, NOT this step)
+- Live per-strategy DSR population via 5 quant-only walk-forward backtests (the selector's real inputs).
+- Weekly cron scheduling of the selection sweep + writing the choice to promoted_strategies.
+- Real-capital activation (stays paper-only).
+- effective-N clustering of the correlated strategies (v1 uses plain num_trials -> over-deflates = safe).
 
 ## References
-- `research_brief_phase_47_2_first_trade.md`; `roadmap_master.md` workstream 2
-- `backend/services/portfolio_manager.py:354-518` (swap path); `backend/services/autonomous_loop.py` (run_daily_cycle)
-- `backend/config/settings.py:222-235` (paper_swap_* defaults)
+- `research_brief_phase_47_6_strategy_rotation.md` (gate); `roadmap_master.md` workstream 6
+- `backend/autoresearch/gate.py::PromotionGate`; `backend/autoresearch/friday_promotion.py` (ranking pattern)
+- `backend/backtest/analytics.py:239` compute_deflated_sharpe; `backend/services/autonomous_loop.py:46` load_promoted_params
+- Bailey & Lopez de Prado 2014 (DSR best-of-N); jump-model 2024 (switch-penalty turnover reduction)

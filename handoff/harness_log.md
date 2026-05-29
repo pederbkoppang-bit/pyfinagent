@@ -25562,3 +25562,33 @@ deep_think_model=claude-opus-4-7 pin. See cycle_block_summary.md.
 
 **Money-path status:** the "no trades" problem is SOLVED. The app trades autonomously, safely (rotation
 within caps), and persists to the ledger the UI/gate read.
+
+## Cycle 7 (production-ready+money push) -- 2026-05-29 -- phase=47.6 result=PASS
+
+**Step:** 47.6 -- Dynamic strategy rotation (per-strategy DSR selector + anti-churn). Priority 5, the
+NORTH STAR ("shift capital to whichever strategy makes the most money"). FREE of LLM spend.
+
+**Researcher:** `acb97aa2cc1ee7618`, tier=complex, `gate_passed: true`. 6 sources in full, 19 URLs,
+recency scan, 11 internal files. Key finding: rotation infra largely EXISTS (quant_optimizer rotates
+strategy; analytics.compute_deflated_sharpe; gate.PromotionGate; friday_promotion; promoted_strategies
+BQ table; autonomous_loop.load_promoted_params). MISSING = the incumbent-vs-challengers SELECTION with
+anti-churn hysteresis. Today the live strategy is STATIC (triple_barrier, Sharpe 1.17).
+
+**Implementation (ADDITIVE):** NEW `backend/autoresearch/strategy_selector.py::select_best_strategy`
+(pure: gate-filter via PromotionGate DSR>=0.95/PBO<=0.20 [reused, 0 metric reimpl], rank DSR-desc/PBO-asc,
+switch off incumbent ONLY when top challenger Delta-DSR >= min_improvement, else retain; first-selection
++ no-passer-retain-never-cash + incumbent-tie handling). NEW `tests/autoresearch/test_strategy_selector.py`
+(8 behavioral cases). Design refinement disclosed: min_improvement default 0.01 not the brief's 0.05
+(gate-passers in DSR[0.95,1.0] -> max Delta 0.05 -> 0.05 unreachable).
+
+**Verification:** ast OK; pytest 8 passed; PromotionGate 5 refs / 0 DSR-PBO reimpl (grep-confirmed).
+
+**Q/A:** fresh `ab49d3a9cf183f0ea` = **PASS** (`ok:true`). Traced the anti-churn arithmetic (incl. the
+exact inc-0.97-vs-0.975 retain case); confirmed tests genuinely behavioral (concrete literal asserts, no
+tautology, no mock-of-unit); DSR-based selection (not selection-biased raw Sharpe); PromotionGate reused
+(perf-metrics-bypass N/A); min_improvement=0.01 justified; scope honestly deferred (no live-rotation
+claim); goalpost all-additive + verbatim; harness compliance 5/5. Zero violations.
+
+**Deferred (documented):** live per-strategy DSR via 5 quant-only backtests; the weekly cron sweep +
+writing the choice to promoted_strategies; real-capital activation; effective-N clustering. The selector
+is integration-ready (loop reads promoted_strategies) but the cron/backtests are a follow-on.

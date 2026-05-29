@@ -13328,6 +13328,26 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "47.6",
+          "name": "Dynamic strategy rotation -- per-strategy DSR selector with anti-churn (north-star: shift to highest earner)",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "47.2",
+          "audit_basis": "research_brief_phase_47_6_strategy_rotation.md: rotation infra largely exists (quant_optimizer rotates strategy, analytics.compute_deflated_sharpe, gate.PromotionGate, friday_promotion, promoted_strategies BQ table, autonomous_loop.load_promoted_params). MISSING = the incumbent-vs-challengers SELECTION with anti-churn hysteresis (Bailey-LdP DSR best-of-N + min-improvement to avoid whipsaw; jump-model 2024: switch-penalty cut turnover 141%->44% while improving net Sharpe). Today the strategy is STATIC (triple_barrier). Minimal-viable = a pure select_best_strategy + behavioral test; live 5-backtest population + cron + real-capital DEFERRED.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/autoresearch/strategy_selector.py').read())\" && python -m pytest tests/autoresearch/test_strategy_selector.py -q",
+            "success_criteria": [
+              "NEW backend/autoresearch/strategy_selector.py::select_best_strategy is a PURE function that gate-filters per-strategy candidates by DSR>=0.95 & PBO<=0.20 (REUSING PromotionGate, no metric-formula duplication), ranks passers DSR-desc/PBO-asc, and switches from the incumbent ONLY when the top challenger's DSR exceeds the incumbent's by >= min_improvement (anti-churn hysteresis); favors incumbent on tie; handles first-selection (no incumbent) and no-passer (retain incumbent)",
+              "NEW tests/autoresearch/test_strategy_selector.py has >=6 behavioral cases (top-DSR pick, DSR-gate veto, PBO veto, anti-churn below-min-improvement retains incumbent, incumbent-tie retains incumbent, first-selection) and all pass",
+              "reuses existing PromotionGate (DSR/PBO not re-implemented); ast.parse clean; pytest green"
+            ],
+            "live_check": "n/a -- deterministic pure-function unit test; live per-strategy 5-backtest population + weekly-cron scheduling + real-capital activation are explicitly DEFERRED (documented in experiment_results)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
