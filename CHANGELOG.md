@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `deb9bd92` | phase-49.2: Operator cron-control endpoints -- POST /api/jobs/{id}/pause|resume|trigger for the 2... |
 | 2026-05-29 | `e2ee9acd` | phase-49.2: GENERATE -- operator cron-control endpoints (live-verified) |
 | 2026-05-29 | `55024d0a` | phase-49.2: PLAN -- operator cron-control endpoints contract + research gate |
 | 2026-05-29 | `0d2a768d` | phase-49.1: Runtime risk-limit control endpoint -- file-backed risk_overrides store (mirrors kill... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `dd5d2b67` | docs(handoff): cycle 11 SOFT STOP closure -- Priority 3 (Opus 4.8) complete (47.8/47.9/47.10); crisp |
 | 2026-05-29 | `82d2f07f` | phase-47.10: generate_content max_tokens floor -- symmetric close of the Opus-4.8 max_tokens-at-x... |
 | 2026-05-29 | `f27e36b3` | phase-47.9: Priority-3 completion: Opus-4.8 max_tokens-at-xhigh floor (adaptive-path starvation f... |
-| 2026-05-29 | `095ed07d` | phase-47.8: Opus-4.8 stale-pin sweep (fix the 4-8 thinking/sampling branch bug + missing context-... |
 
 ---
 
+### v6.28.21 — phase-49.2: Operator cron-control endpoints -- POST /api/jobs/{id}/pa... (2026-05-29)
+
+- **phase-49.2: Operator cron-control endpoints -- POST /api/jobs/{id}/pause|resume|trigger for the 2...**
 ### v6.28.20 — phase-49.2: GENERATE -- operator cron-control endpoints (live-verified) (2026-05-29)
 
 - **phase-49.2: GENERATE -- operator cron-control endpoints (live-verified)**
