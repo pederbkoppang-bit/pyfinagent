@@ -25825,3 +25825,40 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **DEFERRED:** the LIVE ~32-backtest bake-off (@pytest.mark.skip opt-in; its live_check = real per-seed {dsr,pbo,sharpe} + the persisted rotation_log row); the weekly cron; **the deployment params->settings.paper_* bridge (the keystone that changes live orders)**; re-enabling the reverted trailing/vol-target engine readers; effective-N clustering; CPCV; incumbent->seed-id mapping.
 
 **SYSTEMIC FINDINGS for the operator:** (1) the scheduled run_harness.py writes the SAME handoff/current/ rolling files as the Layer-3 masterplan cycles -> recurring collisions (caused this CONDITIONAL; clobbered contract.md, coincided with the masterplan revert). Worth pointing run_harness at a separate handoff path or sequencing it. (2) the auto-commit-and-push hook is silently stalling (INVOKED, no commit/push) -> using the manual git fallback this cycle.
+
+---
+
+## Cycle 1 -- 2026-05-29 18:00 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.29% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 15 (production-ready+money push) -- 2026-05-29 -- phase=48.4 result=PASS
+
+**Step:** Live rotation bake-off SMOKE -- first REAL validation of the 48.1-48.3 rotation machinery on actual backtests. Operator said "you decide"; chose the safe verify-live step. $0 LLM (quant-only); 4 real walk-forward backtests (2022-01..2024-06, 6 windows); AUDIT-ONLY (allocation_pct=0, no deploy).
+
+**Research:** `researcher` `a97220b09474e710d` gate PASSED (5 sources read in full + recency scan + 11 internal files). Brief: research_brief_phase_48_4_live_smoke.md. CRITICAL window finding: 12mo-train/3mo-test needs >=15 months -> 2022-01..2024-06 = 6 windows (a 6-month window = 0 windows = degenerate). BQ confirmed historical_prices 2017-2026, 511,960 in-window rows.
+
+**THE LIVE SMOKE CAUGHT A REAL BUG (the whole point of verify-live):** first run = both seeds dsr=0/sharpe=0 (degenerate). Diagnostic (scripts/diag_rotation_backtest.py): a direct triple_barrier backtest over the same window was HEALTHY (Sharpe 1.75, 160 trades, 228 nav rows). Root cause: make_rotation_engine mapped optimizer_best's target_annual_vol=0 ("vol-targeting DISABLED") onto the trader's target_vol=0, and backtest_trader.py:89 vol_scale=min(target_vol/stock_vol,3.0) makes target_vol=0 ZERO every position -> NO trades -> flat NAV -> degenerate. The $0 mock tests verified the mapping ARITHMETIC but not the trader's target_vol=0 no-trade semantics -- exactly the gap live validation closes.
+
+**Fix (rotation_runner.py make_rotation_engine):** map ONLY a POSITIVE value; 0/missing/negative -> engine default 0.15 (standard sizing). Corrected the docstring + the 48.3 test that had encoded the buggy ==0 assertion. Rotation regression re-ran 40 passed/2 skipped.
+
+**Post-fix REAL metrics:** triple_barrier dsr=1.0, **pbo=0.489 (genuine non-degenerate, from a real T>=32 matrix)**, sharpe=1.82, n_windows=6. quality_momentum still degenerate (Sharpe 0, undersized -> pbo omitted -> producer SKIPPED). Verdict: no_candidate_passed_gate (triple_barrier passed DSR but its pbo 0.489 > 0.20 gate -> vetoed; qm skipped) -> retain incumbent. ONE rotation_log.jsonl row at allocation_pct=0.
+
+**Q/A:** fresh `a94ae9c2bbf3e8da6` = **PASS** (`ok:true`, zero violated_criteria). Confirmed contract == committed 88d770bd PLAN (no clobber this cycle); immutable command exit 0; regression 40 passed/2 skipped; the target_vol _pos() fix real + regression-safe + the corrected 48.3 assertion; captured live evidence validated (triple_barrier pbo=0.489 NOT omitted, unlike qm; diagnostic corroborates the 1.75-Sharpe healthy direct run); no_candidate_passed_gate is the gate working (not a masked chain bug); no-deploy confirmed (allocation_pct=0, zero edits to autonomous_loop/portfolio_manager/paper_trader/decide_trades, $0). 5/5 harness. NOTE addressed: pruned the stale pre-fix rotation_log row -> exactly 1.
+
+**FINDINGS (live-smoke value):** [FIXED] target_vol=0 no-trade bug. [FLAGGED] quality_momentum produces NO trades on 2022-2024 (qm-strategy investigation needed before it's a useful seed). [FLAGGED] post-fix tb_baseline + tb_risk_managed both vol-target at 0.15 -> differ only by tp_pct -> ~3 effective seeds -> reseed. [NOTE] K=2 PBO is coarse (0.489); the real bake-off should use K~8-16.
+
+**DEFERRED:** the full 4-seed x K~8 bake-off; the deployment params->settings.paper_* bridge (the keystone that changes live orders -- operator-gated); the weekly cron; qm investigation; reseed; re-enable reverted trailing readers; effective-N; CPCV.

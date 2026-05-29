@@ -13499,7 +13499,7 @@
         {
           "id": "48.4",
           "name": "Live rotation bake-off SMOKE -- first REAL validation of the 48.1-48.3 machinery on actual backtests (2 seeds x 2 variants, 2022-01..2024-06, 6 windows); AUDIT-ONLY; full bake-off + deployment bridge DEFERRED",
-          "status": "in-progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "48.3",

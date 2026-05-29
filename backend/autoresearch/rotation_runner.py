@@ -8,10 +8,15 @@ audit at allocation_pct=0 -- WITHOUT deploying.
 
 KWARG-GAP FIX (research_brief_phase_48_3_rotation_runner.md): make_engine threads
 only 12 of ~25 BacktestEngine.__init__ kwargs. make_rotation_engine threads the
-full set, most importantly **target_vol** -- which IS read (backtest_trader.py:89
-inverse-vol sizing; 0 disables). The 48.1 seeds carry the optimizer's name
-``target_annual_vol``; this factory MAPS it onto the live ``target_vol`` ctor arg,
-so tb_risk_managed's vol-targeting (0.15) is ACTUALLY live vs tb_baseline (0).
+full set, most importantly **target_vol** -- the trader's inverse-vol sizing target
+(backtest_trader.py:89). The 48.1 seeds carry the optimizer's name
+``target_annual_vol``; this factory maps it onto the live ``target_vol`` arg, but
+ONLY a POSITIVE value -- target_vol=0 ZEROES every position (no trades), and the
+optimizer's target_annual_vol=0 means "disabled / standard sizing", so 0/missing
+maps to the engine default 0.15 (phase-48.4 live finding). CONSEQUENCE: both
+tb_baseline (optimizer_best target_annual_vol=0 -> 0.15) and tb_risk_managed
+(target_annual_vol=0.15 -> 0.15) now vol-target at 0.15, so they differ ONLY by
+tp_pct -- the seed set is even less distinct than thought; RESEED is a follow-up.
 
 DEAD-KEY HONESTY: the seed keys ``trailing_stop_enabled / trailing_trigger_pct /
 trailing_distance_pct / vol_barrier_multiplier`` and the blend weights are written
@@ -96,12 +101,23 @@ def make_rotation_engine(
             f"unknown strategy {strategy!r}; must be one of {sorted(STRATEGY_REGISTRY)}"
         )
 
-    # target_annual_vol (seed/optimizer name) -> target_vol (the LIVE ctor arg).
-    _tv = p.get("target_vol")
-    if _tv is None:
-        _tv = p.get("target_annual_vol")
-    if _tv is None:
-        _tv = 0.15
+    # target_vol (the LIVE ctor arg) drives the trader's inverse-vol sizing
+    # (backtest_trader.py:89: vol_scale=min(target_vol/stock_vol, 3.0)). CRITICAL:
+    # target_vol=0 ZEROES every position size -> NO trades -> a degenerate flat-NAV
+    # backtest (phase-48.4 live-smoke finding). The optimizer/seed key
+    # `target_annual_vol`=0 means "vol-targeting DISABLED / use standard sizing",
+    # NOT "zero positions" -- and optimizer_best.json carries target_annual_vol=0.
+    # So map ONLY a POSITIVE value; 0/missing/negative -> the engine default 0.15
+    # (standard sizing). (The earlier `is None` mapping let optimizer_best's 0 ->
+    # target_vol=0 -> the tb_baseline seed traded nothing.)
+    def _pos(v):
+        try:
+            f = float(v)
+            return f if f > 0 else None
+        except (TypeError, ValueError):
+            return None
+
+    _tv = _pos(p.get("target_vol")) or _pos(p.get("target_annual_vol")) or 0.15
 
     inert = [k for k in _DEAD_KEYS if p.get(k)]
     if inert:

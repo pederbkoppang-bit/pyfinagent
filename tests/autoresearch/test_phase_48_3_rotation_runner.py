@@ -91,11 +91,17 @@ def test_make_rotation_engine_maps_target_annual_vol_to_target_vol(monkeypatch):
     # seed name target_annual_vol=0.15 -> live ctor target_vol=0.15 (vol-targeting ON)
     make_rotation_engine({"strategy": "triple_barrier", "target_annual_vol": 0.15}, _SETTINGS, _BQ)
     assert captured["target_vol"] == 0.15
-    # base target_annual_vol=0 -> target_vol=0 (vol-targeting OFF)
+    # phase-48.4 live-finding fix: target_annual_vol=0 means "disabled / standard
+    # sizing" (NOT zero positions); target_vol=0 would zero every position -> NO
+    # trades -> degenerate. So 0 -> the engine default 0.15, NOT 0.
     captured.clear()
     make_rotation_engine({"strategy": "triple_barrier", "target_annual_vol": 0}, _SETTINGS, _BQ)
-    assert captured["target_vol"] == 0
-    # explicit target_vol wins over target_annual_vol
+    assert captured["target_vol"] == 0.15
+    # missing entirely -> default 0.15 (never 0)
+    captured.clear()
+    make_rotation_engine({"strategy": "triple_barrier"}, _SETTINGS, _BQ)
+    assert captured["target_vol"] == 0.15
+    # explicit POSITIVE target_vol wins over target_annual_vol
     captured.clear()
     make_rotation_engine({"strategy": "triple_barrier", "target_vol": 0.2, "target_annual_vol": 0.1}, _SETTINGS, _BQ)
     assert captured["target_vol"] == 0.2
