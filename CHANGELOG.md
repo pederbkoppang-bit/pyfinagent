@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `55024d0a` | phase-49.2: PLAN -- operator cron-control endpoints contract + research gate |
 | 2026-05-29 | `0d2a768d` | phase-49.1: Runtime risk-limit control endpoint -- file-backed risk_overrides store (mirrors kill... |
 | 2026-05-29 | `fa8badc7` | docs: fix risk_overrides docstring (decide_trades, not build_trade_decisions) |
 | 2026-05-29 | `3faddd0d` | phase-49.1: GENERATE -- runtime risk-limit control endpoint (live-verified) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `f27e36b3` | phase-47.9: Priority-3 completion: Opus-4.8 max_tokens-at-xhigh floor (adaptive-path starvation f... |
 | 2026-05-29 | `095ed07d` | phase-47.8: Opus-4.8 stale-pin sweep (fix the 4-8 thinking/sampling branch bug + missing context-... |
 | 2026-05-29 | `6e712507` | docs(handoff): cycle 8 -- priority-6 learn-loop correctness fixed (47.7); 7 steps + first trade ship |
-| 2026-05-29 | `c2664bab` | phase-47.7: Learn-loop correctness fix -- read real paper_trades P&L field (realized_pnl_pct) in ... |
 
 ---
 
+### v6.28.19 — phase-49.2: PLAN -- operator cron-control endpoints contract + resear... (2026-05-29)
+
+- **phase-49.2: PLAN -- operator cron-control endpoints contract + research gate**
 ### v6.28.18 — phase-49.1: Runtime risk-limit control endpoint -- file-backed risk_o... (2026-05-29)
 
 - **phase-49.1: Runtime risk-limit control endpoint -- file-backed risk_overrides store (mirrors kill...**
