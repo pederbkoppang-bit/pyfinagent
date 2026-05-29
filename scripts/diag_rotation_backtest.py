@@ -18,8 +18,9 @@ def main() -> int:
 
     s = get_settings()
     bq = BigQueryClient(s)
-    print("[diag] running ONE triple_barrier backtest 2022-01-01..2024-06-30", flush=True)
-    eng = make_rotation_engine({"strategy": "triple_barrier"}, s, bq,
+    strat = sys.argv[1] if len(sys.argv) > 1 else "triple_barrier"
+    print(f"[diag] running ONE {strat} backtest (FRESH, isolated) 2022-01-01..2024-06-30", flush=True)
+    eng = make_rotation_engine({"strategy": strat}, s, bq,
                                start_date="2022-01-01", end_date="2024-06-30")
     try:
         r = eng.run_backtest(skip_cache_clear=True)
