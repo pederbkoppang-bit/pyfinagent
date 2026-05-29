@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `6e712507` | docs(handoff): cycle 8 -- priority-6 learn-loop correctness fixed (47.7); 7 steps + first trade ship |
 | 2026-05-29 | `c2664bab` | phase-47.7: Learn-loop correctness fix -- read real paper_trades P&L field (realized_pnl_pct) in ... |
 | 2026-05-29 | `f02d7c29` | docs(handoff): priority-6 learn-loop GAP found (swap-SELL didn't write outcome_tracking); HARD STOP  |
 | 2026-05-29 | `f1c0aa65` | docs(handoff): cycle 7 final status -- priorities 1-5 shipped + first trade + north-star selector; r |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-28 | `3d277b32` | test(observability): cycle 19 DoD-5 SAFE.TIMESTAMP pytest regression coverage |
 | 2026-05-28 | `b9a9a3d5` | docs(roadmap): cycle 18 closes DoD-11 via 3-bucket disposition wording |
 | 2026-05-28 | `816c6536` | test(perf_metrics): cycle 17 DoD-2 windowed-Sharpe pytest follow-up |
-| 2026-05-28 | `14495ac6` | feat(perf_metrics): cycle 16 DoD-2 Option A+ windowed paper-Sharpe instrumentation |
 
 ---
 
