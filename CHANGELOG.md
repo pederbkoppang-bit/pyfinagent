@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-30 | `d31069a0` | phase-50.1: GENERATE -- FX data layer (live-verified) |
 | 2026-05-30 | `238bc024` | phase-50.1: PLAN -- FX data layer contract + research gate |
 | 2026-05-29 | `1d260973` | chore: remove stray frontend/handoff/ (researcher cwd artifact; handoff lives at repo root) |
 | 2026-05-29 | `852e5241` | phase-49.3: Cron-control UI -- add an Actions column to the existing /cron dashboard page with pa... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `6ce1a9c1` | chore(rotation): add multi-strategy trading diagnostic -- finding: 3 of 5 STRATEGY_REGISTRY strategi |
 | 2026-05-29 | `7211a90b` | phase-48.4: Live rotation bake-off SMOKE -- first REAL validation of the 48.1-48.3 machinery on a... |
 | 2026-05-29 | `88d770bd` | phase-48.4: PLAN (contract + masterplan step in-progress + research brief) before the live smoke GEN |
-| 2026-05-29 | `6e804ae9` | phase-48.3: Live rotation runner + full-kwarg engine_factory (make_rotation_engine + run_rotation... |
 
 ---
 
+### v6.28.27 — phase-50.1: GENERATE -- FX data layer (live-verified) (2026-05-30)
+
+- **phase-50.1: GENERATE -- FX data layer (live-verified)**
 ### v6.28.26 — phase-50.1: PLAN -- FX data layer contract + research gate (2026-05-30)
 
 - **phase-50.1: PLAN -- FX data layer contract + research gate**
