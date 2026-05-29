@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `649b9ecd` | docs(handoff): live-run finding -- autonomous cycle too slow via claude_code rail (2+hrs, lite_mode= |
 | 2026-05-29 | `2e290c66` | docs(handoff): code-verify swap-rotation path is ready; first trade blocked only on running a real c |
 | 2026-05-29 | `1ce42c78` | docs(handoff): SOFT STOP after cycle 5 (47.5 UX foundation done); remaining work dual operator-gated |
 | 2026-05-29 | `79c39d41` | phase-47.5: UX foundation: design-system enforcement layer (semantic tokens + shared ui components) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-28 | `7d71ee3a` | phase-43.0: cycle 12 DoD audit -- NOT_PRODUCTION_READY (5-9 of 14 PASS) |
 | 2026-05-27 | `fb1aaae3` | fix(rail): cycle 11 ships true 38.13 rail-wiring fix -- 3 BLOCKER fixes |
 | 2026-05-27 | `f82a6d26` | docs(verify): cycle 10 evidence-only closure -- 38.10 Slack digest stale-data diagnosis |
-| 2026-05-27 | `fc1685d1` | fix(reports): 38.11 Recent Reports table -- alpha + casing + company-name normalization |
 
 ---
 
