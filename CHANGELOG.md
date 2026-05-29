@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `2096b6f3` | phase-48.2: Rotation real-engine adapter -- make_engine_backtest_fn (per-strategy K-variant PBO m... |
 | 2026-05-29 | `dfcc57b3` | docs(handoff): cycle 12 close -- built Priority-5 rotation foundation (48.1); 12-cycle SOFT STOP bud |
 | 2026-05-29 | `13e5737b` | phase-48.1: Strategy-rotation foundation -- config-driven seed registry + pure per-strategy DSR/P... |
 | 2026-05-29 | `0b854505` | docs(handoff): correct rotation-cron feasibility -- it's a multi-cycle feature (no strategies define |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `1ce42c78` | docs(handoff): SOFT STOP after cycle 5 (47.5 UX foundation done); remaining work dual operator-gated |
 | 2026-05-29 | `79c39d41` | phase-47.5: UX foundation: design-system enforcement layer (semantic tokens + shared ui components) |
 | 2026-05-29 | `b203bdbe` | docs(handoff): SOFT STOP summary + ledger for production-ready push (47.1/47.3/47.4 done; 47.2 opera |
-| 2026-05-29 | `e3a6b4c7` | phase-47.4: Sharpe/maxDD metric integrity (chronological-order fix in perf_metrics + go-live gate) |
 
 ---
 
+### v6.28.12 — phase-48.2: Rotation real-engine adapter -- make_engine_backtest_fn (... (2026-05-29)
+
+- **phase-48.2: Rotation real-engine adapter -- make_engine_backtest_fn (per-strategy K-variant PBO m...**
 ### v6.28.11 — phase-48.1: Strategy-rotation foundation -- config-driven seed regist... (2026-05-29)
 
 - **phase-48.1: Strategy-rotation foundation -- config-driven seed registry + pure per-strategy DSR/P...**
