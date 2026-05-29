@@ -1,32 +1,30 @@
-# Experiment results -- phase-49.3: Cron-control UI
+# Experiment results -- phase-50.1: FX data layer
 
-**Date:** 2026-05-29 | **Result: built + autonomously-verified (build/types/API/conventions); visual render = operator live_check** | $0 LLM | Frontend (Next 15).
+**Date:** 2026-05-30 | **Result: built + live-verified** | $0 LLM | no new pip deps | first step of phase-50 (international expansion).
 
 ## What was built
-An Actions column on the existing `/cron` dashboard page exposing the phase-49.2 cron-control endpoints: pause/resume on the 2 backend-owned rows, trigger on `paper_trading_daily` only. Plus the api.ts client methods + the type field.
+The FREE FX foundation for multi-currency work: a `fx_rates` service (correct-direction EUR/USD + KRW/USD from yfinance with FRED fallback, BQ point-in-time + api_cache live mark), a `historical_fx_rates` BQ table, and the `data_ingestion.py:146` currency-stub fix.
 
-## Files changed
-1. **frontend/src/lib/types.ts** -- `JobInfo += controllable?: boolean` (optional; backend emits it only on main_apscheduler rows) + new `JobControlResponse` interface.
-2. **frontend/src/lib/api.ts** -- `pauseJob`/`resumeJob`/`triggerJob` (POST `/api/jobs/{encodeURIComponent(id)}/pause|resume|trigger`, tokens PAUSE_JOB/RESUME_JOB/TRIGGER_JOB + reason), mirroring `postPaperKillSwitchAction`.
-3. **frontend/src/app/cron/page.tsx** -- Actions column: pause/resume when `controllable===true` (toggled by status), trigger when `j.id==='paper_trading_daily'`; `window.confirm` + per-row `SpinnerGap` + pessimistic `await load()`; actionError rose banner w/ dismiss; icons from `@/lib/icons`; aria-labels; subtitle updated from "Read-only.".
-4. **frontend/src/app/observability/page.tsx** -- `export const dynamic = "force-dynamic"` to fix a PRE-EXISTING SSG-prerender break that blocked `npm run build` (necessary to satisfy criterion #4; unrelated to cron but discovered during build verification).
+## Files changed/added
+1. **`backend/services/fx_rates.py`** (NEW) -- `market_currency(market)` (delegates to markets.MARKET_CONFIG); `get_fx_rate(from, to, date=None)` (from==to->1.0; else usd_value(from)/usd_value(to)); `_usd_value_live` (api_cache -> yfinance -> FRED fallback -> BQ write-through), `_usd_value_asof` (BQ as-of `date<=` point-in-time read); `backfill_fx(currencies, start, end)`. Direction map: EUR via EURUSD=X (USD/EUR), KRW via KRW=X (KRW/USD, inverted to usd_value); NEVER KRWUSD=X.
+2. **`scripts/migrations/create_historical_fx_rates_table.py`** (NEW) -- idempotent CREATE TABLE IF NOT EXISTS `financial_reports.historical_fx_rates` (pair STRING, date STRING, rate FLOAT64, source STRING; CLUSTER BY pair; no --location pin -- us-central1 auto-resolved). Dry-run default; --apply.
+3. **`backend/backtest/data_ingestion.py`** -- import `markets`; line 146 stub `"USD" if market=="US" else "USD"` -> `markets.get_market_config(market)["currency"]` (US->USD, EU->EUR, KR->KRW).
 
-## Verification (autonomous)
-- `npx tsc --noEmit` -> **0 type-errors**.
-- `npm run build` -> **EXIT=0, "✓ Compiled successfully"**, full route table (incl. /cron), no prerender error.
-- API-wiring grep: api.ts:384-411 has the 3 methods + exact tokens; types.ts:1141 has controllable + :1146 JobControlResponse.
-- Conventions: icons via `@/lib/icons` (no direct @phosphor-icons import); NO emoji (grep clean); trigger gated to paper_trading_daily (cron/page.tsx:390); pause/resume gated to controllable (:364); aria-label on every button.
-- Frontend dev server restarted (kickstart) -> HTTP 302 (auth redirect; up + serving).
-- Backend endpoints already live-verified in 49.2, so the UI calls a proven API.
+## Live verification (full evidence in live_check_50.1.md)
+- Migration APPLIED (table created in financial_reports / us-central1).
+- get_fx_rate: USD/USD=1.0, EUR/USD=1.166, KRW/USD=0.000664 (DIRECTION CORRECT, no KRW inversion), USD/EUR=0.858 (inverse).
+- backfill 22 rows; well-formed EURUSD 12 rows (avg 1.164) + KRWUSD 12 rows (avg 0.000665), 2026-05-15..29.
+- point-in-time as-of read: EUR/USD @2026-05-20 = 1.1607, KRW/USD @2026-05-20 = 0.000663 (no look-ahead).
+- data_ingestion imports markets + the stub fix verified (market_currency EU/KR/US == EUR/KRW/USD).
 
-## Success criteria mapping
-1. types + api.ts methods/tokens -- YES (grep proofs).
-2. Actions column gated to controllable + trigger gated to paper_trading_daily + subtitle updated -- YES.
-3. confirmation + in-flight SpinnerGap + pessimistic re-fetch + icons from @/lib/icons + no emoji -- YES.
-4. `npm run build` SUCCEEDS -- YES (EXIT=0), AFTER fixing a pre-existing /observability SSG-prerender blocker via force-dynamic.
-5. live_check_49.3.md -- written with autonomous evidence + an explicit OPERATOR-TO-CONFIRM visual section (the render cannot be verified behind the NextAuth wall).
+## Success criteria mapping (all 4 met)
+1. fx_rates.py with get_fx_rate (USD/USD=1.0) + EUR/USD + KRW/USD from yfinance + cache -- YES.
+2. historical_fx_rates table holds dated FX rates, backfilled for EUR/USD + KRW/USD -- YES (12 days each).
+3. data_ingestion.py:146 currency stub fixed (per-market ISO currency) -- YES.
+4. live EUR/USD + KRW/USD rates fetched verbatim -- YES.
 
-## Scope honesty / flags
-- **Visual render is NOT autonomously verified** (NextAuth wall, frontend.md rule 5) -> delegated to the operator live_check (the designed gate). The build/types/API/conventions ARE verified.
-- **Pre-existing production-build issues surfaced** (NOT caused by 49.3): (a) `/observability` SSG-prerender break -- FIXED here via force-dynamic; (b) an intermittent `/agents` "Cannot find module for page" webpack flake observed once (did not recur) -- pre-existing Next 15 SSG-worker/cache flakiness; the clean fix is `rm -rf frontend/.next` (I am permission-denied for rm -rf; operator can run it). Recommend adding a masterplan step to harden the production build (clean-cache CI + audit any other SSG-incompatible client pages).
-- Risk-limits UI (49.1's endpoints) is a SEPARATE follow-on (phase-49.4), not in this step.
+## Scope honesty / hardening flags (NOT criterion violations)
+- **A real bug was caught + fixed during live verification**: single-ticker `yf.download` returns a 1-col (MultiIndex) DataFrame; the initial `.items()` iterated the column name into `date` -> 2 malformed rows (date='EURUSD=X'/'KRW=X'). FIXED (squeeze Close to a Series before `.items()`). The 2 junk rows could NOT be DELETE'd (BQ streaming-buffer blocks DELETE <~90min); they are HARMLESS (the as-of `date<=` filter excludes the non-ISO dates lexically) and cleanable post-flush via `DELETE WHERE date NOT LIKE '2%'`.
+- **Append, not upsert**: backfill + live write-through both append; the as-of `LIMIT 1` read is unaffected by duplicate dates. Hardening follow-up: switch backfill to a BQ load-job (avoids the streaming-buffer DELETE limitation) + MERGE-upsert for dedup.
+- **US-only path byte-identical**: from==to->1.0 means USD-only flows are untouched. This step is purely additive + market-agnostic (no paper_trader / backtest NAV change -- that's 50.2).
+- No owner approval used: yfinance + FRED free; no pip; CREATE TABLE (not DROP/DELETE). The one qualified cleanup DELETE attempt was blocked by the streaming buffer (not executed).

@@ -14,6 +14,7 @@ import httpx
 from google.cloud import bigquery
 
 from backend.config.settings import Settings
+from backend.backtest import markets  # phase-50.1: market -> ISO currency map
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,7 @@ class DataIngestionService:
                             "ticker": clean_ticker,
                             "date": date_str,
                             "market": market,
-                            "currency": "USD" if market == "US" else "USD",  # TODO: lookup from MARKET_CONFIG
+                            "currency": markets.get_market_config(market)["currency"],  # phase-50.1: US->USD, EU->EUR, KR->KRW (was a USD-only stub)
                             "open": float(row.get("Open", 0)) if pd.notna(row.get("Open")) else None,
                             "high": float(row.get("High", 0)) if pd.notna(row.get("High")) else None,
                             "low": float(row.get("Low", 0)) if pd.notna(row.get("Low")) else None,
