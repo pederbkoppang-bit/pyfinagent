@@ -378,6 +378,39 @@ export function postPaperKillSwitchAction(
   });
 }
 
+// ── phase-49.3: cron-control (pause/resume/trigger) for the 2 backend-owned
+// in-process APScheduler jobs. Confirmation tokens must match the backend
+// (cron_dashboard_api.py): PAUSE_JOB / RESUME_JOB / TRIGGER_JOB.
+export function pauseJob(
+  jobId: string,
+  reason = "operator UI",
+): Promise<import("./types").JobControlResponse> {
+  return apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/pause`, {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "PAUSE_JOB", reason }),
+  });
+}
+
+export function resumeJob(
+  jobId: string,
+  reason = "operator UI",
+): Promise<import("./types").JobControlResponse> {
+  return apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/resume`, {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "RESUME_JOB", reason }),
+  });
+}
+
+export function triggerJob(
+  jobId: string,
+  reason = "operator UI",
+): Promise<import("./types").JobControlResponse> {
+  return apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/trigger`, {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "TRIGGER_JOB", reason }),
+  });
+}
+
 export function getPaperFreshness(): Promise<unknown> {
   return apiFetch("/api/paper-trading/freshness");
 }

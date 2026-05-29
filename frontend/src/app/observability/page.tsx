@@ -6,6 +6,12 @@ import { Database } from "@/lib/icons";
 import { getObservabilityDataFreshness } from "@/lib/api";
 import type { FreshnessBand, FreshnessResponse, FreshnessSource } from "@/lib/types";
 
+// phase-49.3: this client page fetches live data at request time and must NOT
+// be statically prerendered at build (SSG prerender hit a webpack-runtime
+// "a[d] is not a function" -- a pre-existing production-build break, latent
+// because the app runs on `next dev`). Render dynamically instead.
+export const dynamic = "force-dynamic";
+
 const BAND_CLASS: Record<FreshnessBand, string> = {
   green: "bg-emerald-500/15 text-emerald-300 border-emerald-700/40",
   amber: "bg-amber-500/15 text-amber-300 border-amber-700/40",

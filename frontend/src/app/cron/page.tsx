@@ -9,8 +9,12 @@ import {
   Check,
   CalendarBlank,
   FileText,
+  Pause,
+  Play,
+  Lightning,
+  SpinnerGap,
 } from "@/lib/icons";
-import { getAllJobs, getLogTail } from "@/lib/api";
+import { getAllJobs, getLogTail, pauseJob, resumeJob, triggerJob } from "@/lib/api";
 import type { JobInfo, LogTailResponse } from "@/lib/types";
 import { LevelFilterPills } from "@/components/cron/LevelFilterPills";
 import { FollowPauseToggle } from "@/components/cron/FollowPauseToggle";
@@ -111,7 +115,7 @@ export default function CronPage() {
             <div>
               <h2 className="text-2xl font-bold text-slate-100">Cron / Logs</h2>
               <p className="text-sm text-slate-500">
-                All scheduled jobs across processes + recent log output. Read-only.
+                All scheduled jobs across processes + recent log output. The backend-owned jobs can be paused, resumed, or triggered.
               </p>
             </div>
           </div>
@@ -152,6 +156,8 @@ function JobsTab() {
   const [error, setError] = useState<string | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [busyJob, setBusyJob] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const failuresRef = useRef(0);
   const stoppedRef = useRef(false);
 
@@ -178,6 +184,30 @@ function JobsTab() {
       setRefreshing(false);
     }
   }, []);
+
+  // phase-49.3: operator pause/resume/trigger for the 2 backend-owned jobs.
+  // Confirmation (backend ALSO enforces a token), per-row in-flight state, and
+  // a pessimistic re-fetch so the row reflects the server-confirmed status.
+  const runAction = useCallback(
+    async (jobId: string, action: "pause" | "resume" | "trigger") => {
+      const label = action.charAt(0).toUpperCase() + action.slice(1);
+      if (!window.confirm(`${label} job "${jobId}"?`)) return;
+      setBusyJob(jobId);
+      setActionError(null);
+      try {
+        if (action === "pause") await pauseJob(jobId);
+        else if (action === "resume") await resumeJob(jobId);
+        else await triggerJob(jobId);
+        await load();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setActionError(`${label} "${jobId}" failed: ${msg}`);
+      } finally {
+        setBusyJob(null);
+      }
+    },
+    [load],
+  );
 
   useEffect(() => {
     load();
@@ -271,6 +301,19 @@ function JobsTab() {
         </div>
       )}
 
+      {actionError && (
+        <div className="flex items-center justify-between rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
+          <p className="text-xs text-rose-300">{actionError}</p>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="ml-3 rounded border border-rose-500/30 px-2 py-0.5 text-xs text-rose-300 hover:bg-rose-900/40"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {Object.entries(grouped).map(([source, sourceJobs]) => (
         <section
           key={source}
@@ -288,6 +331,7 @@ function JobsTab() {
                 <th className="px-4 py-2 font-medium">Schedule</th>
                 <th className="px-4 py-2 font-medium">Next run</th>
                 <th className="px-4 py-2 font-medium">Status</th>
+                <th className="px-4 py-2 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-navy-700/50">
@@ -315,6 +359,50 @@ function JobsTab() {
                     >
                       {j.status}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {j.controllable ? (
+                      busyJob === j.id ? (
+                        <SpinnerGap size={16} className="animate-spin text-slate-400" aria-label="Working" />
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          {j.status === "paused" ? (
+                            <button
+                              type="button"
+                              onClick={() => runAction(j.id, "resume")}
+                              aria-label={`Resume ${j.id}`}
+                              title="Resume"
+                              className="rounded-md p-1.5 text-emerald-400 transition-colors hover:bg-navy-700/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                            >
+                              <Play size={16} weight="fill" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => runAction(j.id, "pause")}
+                              aria-label={`Pause ${j.id}`}
+                              title="Pause"
+                              className="rounded-md p-1.5 text-amber-400 transition-colors hover:bg-navy-700/60 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                            >
+                              <Pause size={16} weight="fill" />
+                            </button>
+                          )}
+                          {j.id === "paper_trading_daily" && (
+                            <button
+                              type="button"
+                              onClick={() => runAction(j.id, "trigger")}
+                              aria-label={`Trigger ${j.id} now`}
+                              title="Trigger now"
+                              className="rounded-md p-1.5 text-sky-400 transition-colors hover:bg-navy-700/60 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                            >
+                              <Lightning size={16} weight="fill" />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    ) : (
+                      <span className="text-slate-600">--</span>
+                    )}
                   </td>
                 </tr>
               ))}

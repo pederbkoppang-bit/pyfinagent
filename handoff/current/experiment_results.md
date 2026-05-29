@@ -1,37 +1,32 @@
-# Experiment results -- phase-49.2: Operator cron-control endpoints
+# Experiment results -- phase-49.3: Cron-control UI
 
-**Date:** 2026-05-29 | **Result: built + live-verified** | $0 LLM | backend restarted to load new routes.
+**Date:** 2026-05-29 | **Result: built + autonomously-verified (build/types/API/conventions); visual render = operator live_check** | $0 LLM | Frontend (Next 15).
 
 ## What was built
-Operator pause/resume/trigger control for the BACKEND's in-process APScheduler jobs (P7 "cron enable+trigger"), confirmation-gated + audited, with trigger reusing /run-now's triple-guard so it can never double-fire a trading cycle.
+An Actions column on the existing `/cron` dashboard page exposing the phase-49.2 cron-control endpoints: pause/resume on the 2 backend-owned rows, trigger on `paper_trading_daily` only. Plus the api.ts client methods + the type field.
 
-## Files changed/added
-1. **`backend/services/cron_control.py`** (NEW, ~140 lines) -- mirrors the kill_switch/risk_overrides audit pattern:
-   - `CONTROLLABLE = {"paper_trading_daily":"main", "ticket_queue_process_batch":"queue"}` (the 2 backend-owned in-process jobs).
-   - `pause/resume` resolve the scheduler via `cron_dashboard_api.get_registered_schedulers()` (lazy import -> no cycle) and call APScheduler 3.x `pause_job`/`resume_job`; `JobLookupError` + unknown/cross-process id -> `CronControlError` (-> 404).
-   - `status(job_id)` (paused/next_run), `is_controllable`, `record_trigger` (audit), append-only JSONL at `handoff/cron_control_audit.jsonl`.
-2. **`backend/api/cron_dashboard_api.py`** -- `CronControlRequest{confirmation, reason}` + 3 routes: `POST /api/jobs/{job_id}/pause` (PAUSE_JOB), `/resume` (RESUME_JOB), `/trigger` (TRIGGER_JOB). pause/resume invalidate `paper:*` cache. trigger: paper_trading_daily -> `await run_now()` (reuses the 409 running-check + _running + cycle_lock guard); ticket_queue -> 400 (pause/resume only this step). Also added an additive `controllable: bool` key to `_job_to_dict` so `GET /jobs/all` rows flag the 2 controllable jobs.
+## Files changed
+1. **frontend/src/lib/types.ts** -- `JobInfo += controllable?: boolean` (optional; backend emits it only on main_apscheduler rows) + new `JobControlResponse` interface.
+2. **frontend/src/lib/api.ts** -- `pauseJob`/`resumeJob`/`triggerJob` (POST `/api/jobs/{encodeURIComponent(id)}/pause|resume|trigger`, tokens PAUSE_JOB/RESUME_JOB/TRIGGER_JOB + reason), mirroring `postPaperKillSwitchAction`.
+3. **frontend/src/app/cron/page.tsx** -- Actions column: pause/resume when `controllable===true` (toggled by status), trigger when `j.id==='paper_trading_daily'`; `window.confirm` + per-row `SpinnerGap` + pessimistic `await load()`; actionError rose banner w/ dismiss; icons from `@/lib/icons`; aria-labels; subtitle updated from "Read-only.".
+4. **frontend/src/app/observability/page.tsx** -- `export const dynamic = "force-dynamic"` to fix a PRE-EXISTING SSG-prerender break that blocked `npm run build` (necessary to satisfy criterion #4; unrelated to cron but discovered during build verification).
 
-## Verification command output (masterplan immutable command)
-```
-$ python -c "import ast; ast.parse(open('backend/api/cron_dashboard_api.py').read())"   -> OK
-$ python -c "import backend.api.cron_dashboard_api as c; paths=...; assert pause&resume&trigger present"
-cron-control routes: ['/api/jobs/{job_id}/pause', '/api/jobs/{job_id}/resume', '/api/jobs/{job_id}/trigger']
-$ test -f handoff/current/live_check_49.2.md   -> exists
-```
-Both modules ast.parse clean; cron_control.CONTROLLABLE correct (is_controllable: paper_trading_daily=True, morning_digest=False).
+## Verification (autonomous)
+- `npx tsc --noEmit` -> **0 type-errors**.
+- `npm run build` -> **EXIT=0, "✓ Compiled successfully"**, full route table (incl. /cron), no prerender error.
+- API-wiring grep: api.ts:384-411 has the 3 methods + exact tokens; types.ts:1141 has controllable + :1146 JobControlResponse.
+- Conventions: icons via `@/lib/icons` (no direct @phosphor-icons import); NO emoji (grep clean); trigger gated to paper_trading_daily (cron/page.tsx:390); pause/resume gated to controllable (:364); aria-label on every button.
+- Frontend dev server restarted (kickstart) -> HTTP 302 (auth redirect; up + serving).
+- Backend endpoints already live-verified in 49.2, so the UI calls a proven API.
 
-## Live verification (full evidence in live_check_49.2.md)
-GET(scheduled,controllable) -> PAUSE(paused,next_run=null) -> GET(paused) -> RESUME(scheduled,next_run restored) -> GET(scheduled). Cross-process morning_digest -> HTTP 404. Wrong confirmation -> HTTP 400. ticket_queue trigger -> HTTP 400. Audit JSONL: pause+resume rows. **paper_trading_daily left RESUMED (next_run 2026-06-01T14:00) -- the money loop is intact.**
+## Success criteria mapping
+1. types + api.ts methods/tokens -- YES (grep proofs).
+2. Actions column gated to controllable + trigger gated to paper_trading_daily + subtitle updated -- YES.
+3. confirmation + in-flight SpinnerGap + pessimistic re-fetch + icons from @/lib/icons + no emoji -- YES.
+4. `npm run build` SUCCEEDS -- YES (EXIT=0), AFTER fixing a pre-existing /observability SSG-prerender blocker via force-dynamic.
+5. live_check_49.3.md -- written with autonomous evidence + an explicit OPERATOR-TO-CONFIRM visual section (the render cannot be verified behind the NextAuth wall).
 
-## Success criteria mapping (all 5 met)
-1. pause/resume/trigger endpoints exist + confirmation-gated + audited to cron_control_audit.jsonl -- YES.
-2. pause/resume act on the in-process registered scheduler (get_registered_schedulers), allowlisted to the 2 jobs; cross-process/unknown -> 404 -- YES (morning_digest 404).
-3. GET /jobs/all reflects paused state after pause + scheduled after resume -- YES (live).
-4. trigger for paper_trading_daily reuses /run-now's guard (409 when running), NOT modify_job -- YES (code: `await run_now()`; the running-check is run_now line 1 at paper_trading.py:1024-1026).
-5. live curl round-trip + 404 captured in live_check_49.2.md; actions audited -- YES.
-
-## Scope honesty
-- Did NOT fire a real paper_trading_daily trigger (would incur LLM spend + real trades -- operator-gated). Criterion #4's guard is verified by code reuse of the already-validated /run-now path, not by firing a cycle.
-- ticket_queue_process_batch trigger is intentionally OUT OF SCOPE (returns 400); pause/resume support it. Cross-process slack_bot/launchd jobs are intentionally NOT controllable (404); a future step can add a flag the slack_bot scheduler polls.
-- pause/resume are reversible (preserve the job + trigger), distinct from /stop's remove_job. Test left the paper job RESUMED.
+## Scope honesty / flags
+- **Visual render is NOT autonomously verified** (NextAuth wall, frontend.md rule 5) -> delegated to the operator live_check (the designed gate). The build/types/API/conventions ARE verified.
+- **Pre-existing production-build issues surfaced** (NOT caused by 49.3): (a) `/observability` SSG-prerender break -- FIXED here via force-dynamic; (b) an intermittent `/agents` "Cannot find module for page" webpack flake observed once (did not recur) -- pre-existing Next 15 SSG-worker/cache flakiness; the clean fix is `rm -rf frontend/.next` (I am permission-denied for rm -rf; operator can run it). Recommend adding a masterplan step to harden the production build (clean-cache CI + audit any other SSG-incompatible client pages).
+- Risk-limits UI (49.1's endpoints) is a SEPARATE follow-on (phase-49.4), not in this step.

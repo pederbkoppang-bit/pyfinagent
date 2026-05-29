@@ -1136,6 +1136,18 @@ export interface JobInfo {
   last_run: string | null;
   status: string;
   description: string;
+  // phase-49.3: present only on main_apscheduler rows; absent on cross-process
+  // slack_bot / launchd manifest rows. Gates the per-row Actions column.
+  controllable?: boolean;
+}
+
+// phase-49.3: response shape for POST /api/jobs/{id}/pause|resume|trigger.
+// Backend returns `job` for pause/resume and `job_id`+`detail` for trigger.
+export interface JobControlResponse {
+  status: string;
+  job_id?: string;
+  job?: unknown;
+  detail?: unknown;
 }
 
 export interface AllJobsResponse {
