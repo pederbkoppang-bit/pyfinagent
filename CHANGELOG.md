@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `852e5241` | phase-49.3: Cron-control UI -- add an Actions column to the existing /cron dashboard page with pa... |
 | 2026-05-29 | `3cebd1e5` | phase-50: PLAN -- international multi-market expansion (operator-requested; PLANNED, not implemented |
 | 2026-05-29 | `16f3ee03` | phase-49.3: GENERATE -- cron-control UI (Actions column on /cron) |
 | 2026-05-29 | `d025240f` | phase-49.3: PLAN -- cron-control UI contract + research gate |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `6e804ae9` | phase-48.3: Live rotation runner + full-kwarg engine_factory (make_rotation_engine + run_rotation... |
 | 2026-05-29 | `2096b6f3` | phase-48.2: Rotation real-engine adapter -- make_engine_backtest_fn (per-strategy K-variant PBO m... |
 | 2026-05-29 | `dfcc57b3` | docs(handoff): cycle 12 close -- built Priority-5 rotation foundation (48.1); 12-cycle SOFT STOP bud |
-| 2026-05-29 | `13e5737b` | phase-48.1: Strategy-rotation foundation -- config-driven seed registry + pure per-strategy DSR/P... |
 
 ---
 
+### v6.28.25 — phase-49.3: Cron-control UI -- add an Actions column to the existing... (2026-05-29)
+
+- **phase-49.3: Cron-control UI -- add an Actions column to the existing /cron dashboard page with pa...**
 ### v6.28.24 — phase-50: PLAN -- international multi-market expansion (operator-requ... (2026-05-29)
 
 - **phase-50: PLAN -- international multi-market expansion (operator-requested; PLANNED, not implemented**
