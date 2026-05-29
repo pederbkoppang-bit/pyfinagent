@@ -13560,6 +13560,28 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "49.3",
+          "name": "Cron-control UI -- add an Actions column to the existing /cron dashboard page with pause/resume buttons (rows where controllable===true) + a trigger button (paper_trading_daily only), wired to the phase-49.2 endpoints; confirmation + per-row in-flight + pessimistic re-fetch; conventions (Phosphor icons, no emoji); npm run build passes (P7 'cron enable+trigger' UI)",
+          "status": "in_progress",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "49.2",
+          "audit_basis": "research_brief phase-49.3 (researcher gate PASSED: 5 sources read in full + recency scan + 7 internal files). Frontend (Next 15 + React 19 + TS). Decisive internal trace: frontend/src/app/cron/page.tsx JobsTab fetches getAllJobs() + renders rows at :294-320 (4 cols, NO controllable read today, subtitle says 'Read-only.'); add a 5th Actions column. Backend contract: `controllable` emitted ONLY on main_apscheduler rows (TS field optional) + trigger implemented ONLY for paper_trading_daily (ticket_queue -> HTTP 400) so the trigger button must gate on j.id==='paper_trading_daily', not just controllable. api.ts POST mirror = postPaperKillSwitchAction (:366-379); tokens PAUSE_JOB/RESUME_JOB/TRIGGER_JOB. types.ts JobInfo (:1131) += controllable?: boolean + JobControlResponse. icons.ts: Pause/Play/Lightning/SpinnerGap (import from @/lib/icons, NEVER @phosphor-icons/react; no emoji). Confirm pattern: window.confirm (backend enforces token; reversible) + per-row SpinnerGap + await load() (pessimistic, server-confirmed). VERIFICATION SPLIT (NextAuth wall blocks autonomous visual verify per frontend.md rule 5): autonomous = npm run build (Next 15 strict TS + ESLint) + API-wiring grep + convention adherence; the rendered Actions column + live round-trip = OPERATOR live_check_49.3.md. External: NN/G proportionate confirmation, pessimistic server-confirmed state for financial controls, accessible icon buttons (aria-label/focus/color-not-alone). $0 LLM; frontend dev-server kickstart if needed (launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend, NOT pkill).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent/frontend && npm run build 2>&1 | tail -5 && cd /Users/ford/.openclaw/workspace/pyfinagent && grep -q 'pauseJob' frontend/src/lib/api.ts && grep -q 'PAUSE_JOB' frontend/src/lib/api.ts && grep -q 'controllable' frontend/src/lib/types.ts && test -f handoff/current/live_check_49.3.md",
+            "success_criteria": [
+              "frontend/src/lib/types.ts: JobInfo gains an optional controllable?: boolean field + a JobControlResponse type; frontend/src/lib/api.ts gains pauseJob/resumeJob/triggerJob methods POSTing to /api/jobs/{encodeURIComponent(id)}/pause|resume|trigger with the EXACT confirmation tokens PAUSE_JOB/RESUME_JOB/TRIGGER_JOB + a reason",
+              "frontend/src/app/cron/page.tsx renders a per-row Actions column: pause/resume controls ONLY when controllable===true (toggled by the row's running/paused status), and a trigger control ONLY when j.id==='paper_trading_daily' (the backend ticket_queue->400 asymmetry); the prior 'Read-only.' subtitle is updated",
+              "each action uses a confirmation step + shows per-row in-flight state (SpinnerGap) + re-fetches the job list afterward to show server-confirmed status (pessimistic); icons are imported from @/lib/icons (Pause/Play/Lightning/SpinnerGap) with NO emoji and NO direct @phosphor-icons/react import",
+              "cd frontend && npm run build SUCCEEDS (Next 15 strict type-check + ESLint + compile) with the changes",
+              "live_check_49.3.md records the autonomous evidence (build pass + API-wiring grep proofs + convention checks) AND flags the rendered Actions column + a live pause->paused->resume round-trip + a non-double-firing trigger for OPERATOR visual confirmation"
+            ],
+            "live_check": "REQUIRED -- live_check_49.3.md must contain the autonomous evidence (npm run build PASS tail + grep proofs that api.ts has the 3 methods/tokens + types.ts has controllable + cron/page.tsx gates buttons on controllable/paper_trading_daily) PLUS an explicit OPERATOR-TO-CONFIRM section for the visual render (Actions column on the 2 controllable rows, dark-theme contrast, pause->amber->resume round-trip). The visual render cannot be verified autonomously behind the NextAuth wall; the operator completes it."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
