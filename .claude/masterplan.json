@@ -13594,7 +13594,7 @@
         {
           "id": "50.1",
           "name": "FX data layer -- backend/services/fx_rates.py + historical_fx_rates BQ table sourced from yfinance EURUSD=X / KRW=X; fix the data_ingestion.py:146 currency stub. FREE. Foundation for all multi-currency work.",
-          "status": "in_progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "49.3",
