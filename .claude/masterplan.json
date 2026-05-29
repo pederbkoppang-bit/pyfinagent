@@ -13584,6 +13584,139 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-50",
+      "name": "International multi-market expansion (EU + South Korea) -- multi-exchange, multi-currency, broader sector coverage. PLANNED per operator 2026-05-29; NOT yet implemented. EU/Germany (.DE via yfinance) is the MVP first market; order is non-negotiable FX (50.1) -> accounting (50.2) -> universe go-live (50.3).",
+      "status": "pending",
+      "audit_basis": "handoff/current/research_brief_multimarket.md (researcher gate PASSED: 6 sources read in full + recency scan + 9 internal files). KEY FRAMING: this is NOT greenfield -- backend/backtest/markets.py already configures 5 markets (US/NO/CA/EU/KR) with exchange code + currency + timezone + exchange_calendars helper; candidate_selector.get_universe_tickers(market=) takes a market arg but returns [] for non-US (lines 127-132); a phase-5 broker ABC + risk engine exist. THE GAP: the LIVE loop (autonomous_loop.py:310-329) selects the universe via screener.get_sp500_tickers (hard US-only Wikipedia scrape) and never touches markets.py. CORE BLOCKER (50.2): paper_trader.py is currency-BLIND -- quantity*price, cost_basis, nav=cash+positions_value, pnl=mkt-cost (lines 221/243/445-480) with ZERO FX conversion; settings.base_currency/default_market exist but paper_trader never reads them; data_ingestion.py:146 has a literal stub bug ('USD' if market=='US' else 'USD'). SECTOR-BREADTH ANSWER (operator's 'what about health + other sectors?'): NO structural sector exclusion -- the composite score is momentum-weighted (0.4) and US momentum is currently Tech/semi-concentrated, so Health/Industrials/etc are OUT-COMPETED, not excluded; the levers are (a) the EXISTING sector_neutral_momentum_enabled flag (currently OFF) and (b) a broader (international) universe which structurally adds non-Tech sectors (EU = more industrials/financials/healthcare). MISSING DATAPOINTS inventory (the operator's explicit ask): (1) EU+KRX EOD price history [source: yfinance suffixes .DE/.PA/.L/.AS/.KS/.KQ -- FREE but quality-risky; EODHD paid v2]; (2) EU+KRX fundamentals [yfinance partial; EODHD $59.99/mo OWNER-APPROVAL]; (3) FX rates EUR/USD + KRW/USD [yfinance EURUSD=X / KRW=X -- FREE]; (4) market calendars XETR/XLON/XPAR/XKRX [pandas_market_calendars v5.4.0 / exchange_calendars -- FREE, pip-verify]; (5) sector taxonomy reconciliation GICS vs ICB vs local. BIGGEST RISK: yfinance international data quality -- up to 11% deviation vs XETRA + 10-24 days/yr of all-identical OHLC that silently break momentum/RSI/vol signals -> 50.5 adds a data-quality gate. Multi-currency total-return model (arXiv 1611.01463): r = a(r_local - i) + c(r_fx + i). Factor-transfer caveat (PMC8074275): momentum/value replicate in EU+KR but momentum FAILED in Japan -> re-optimize params per market, don't assume US-tuned transfer. 50.1-50.5 are FREE; OWNER-APPROVAL gates: EODHD (paid data, quality v2), pykrx (pip, KR-native). Each step below executes via the FULL harness later (researcher -> contract -> generate -> fresh qa -> log -> flip); they are PLANNED here only.",
+      "steps": [
+        {
+          "id": "50.1",
+          "name": "FX data layer -- backend/services/fx_rates.py + historical_fx_rates BQ table sourced from yfinance EURUSD=X / KRW=X; fix the data_ingestion.py:146 currency stub. FREE. Foundation for all multi-currency work.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "49.3",
+          "audit_basis": "Multi-market brief Part C 50.1. The foundation: every downstream multi-currency calc needs an FX rate. yfinance FX pairs are free + reliable (most-liquid pairs). data_ingestion.py:146 currently writes 'USD' regardless of market (literal stub bug).",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "backend/services/fx_rates.py exists: get_fx_rate(base, quote, date) + a daily-refresh path; sources EUR/USD and KRW/USD from yfinance (EURUSD=X, KRW=X) with a cache; USD->USD returns 1.0",
+              "historical_fx_rates BQ table (or a documented store) holds dated FX rates; backfilled for EUR/USD + KRW/USD over the backtest window",
+              "data_ingestion.py currency stub (line ~146) fixed: writes the correct ISO currency per market (US->USD, EU->EUR, KR->KRW), not 'USD' unconditionally",
+              "live evidence: a fetched EUR/USD + KRW/USD rate for a recent date captured verbatim"
+            ],
+            "live_check": "REQUIRED -- verbatim fetched EUR/USD + KRW/USD rates + a BQ/store read showing dated FX rows."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "50.2",
+          "name": "Multi-currency portfolio accounting -- paper_trader.py reads base_currency + per-position market/currency; FX-convert in mark_to_market / NAV / cost-basis / P&L; local-vs-FX P&L attribution (arXiv r=a(r_local-i)+c(r_fx+i)). FREE. MONEY-CRITICAL: must be byte-identical for USD-only portfolios (no regression).",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "50.1",
+          "audit_basis": "Multi-market brief Part C 50.2 + A4 (the core blocker). paper_trader.py is currency-blind today. This touches the LIVE P&L math -> the highest-regression-risk step; the no-override/US-only path MUST stay byte-identical (a EUR position must NOT add raw EUR to a USD NAV).",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "paper_trader NAV / cost_basis / market_value / realized+unrealized P&L FX-convert each position from its local currency to the portfolio base_currency (USD) using fx_rates (50.1)",
+              "USD-only portfolio behaviour is byte-identical to pre-50.2 (regression test: a US-only NAV/P&L computation matches the current value exactly)",
+              "a non-USD position (e.g. a EUR holding) values into USD NAV at the correct FX rate; P&L is decomposed into local-return vs FX-return per the arXiv model",
+              "live or fixture evidence: a EUR position's USD NAV contribution + the local/FX P&L split shown numerically"
+            ],
+            "live_check": "REQUIRED -- numeric evidence: USD-only path unchanged + a EUR position correctly FX-converted into USD NAV with the P&L decomposition."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "50.3",
+          "name": "Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{ticker} -> yfinance suffix (KR:005930 -> 005930.KS); route autonomous_loop's universe through a `paper_markets` setting (default [\"US\"], byte-identical when unchanged) + wire candidate_selector.get_universe_tickers(market) for non-US. FREE.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "50.2",
+          "audit_basis": "Multi-market brief Part C 50.3 + A1/A2. The live loop currently bypasses markets.py via the US-only screener. A `paper_markets` setting (default ['US']) makes US-only behaviour byte-identical while enabling EU/KR. candidate_selector already accepts a market arg (returns [] for non-US today). This step ALSO broadens sector coverage geographically (operator's sector question).",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "a suffix mapper converts {market}:{ticker} to the yfinance symbol (US->bare, EU/DE->.DE, KR->.KS/.KQ); round-trips for sample tickers",
+              "candidate_selector.get_universe_tickers(market='EU') returns a real DAX-40 (or Xetra) universe; market='KR' returns KOSPI-200 (or a documented subset)",
+              "autonomous_loop's universe is driven by a `paper_markets` setting; with paper_markets=['US'] the universe + behaviour are byte-identical to today; with ['US','EU'] the universe includes .DE tickers",
+              "live evidence: the universe for ['US'] vs ['US','EU'] printed, showing .DE tickers added only when EU is enabled"
+            ],
+            "live_check": "REQUIRED -- universe listing for paper_markets=['US'] (unchanged) vs ['US','EU'] (adds .DE)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "50.4",
+          "name": "Market-calendar gating -- verify-install exchange_calendars / pandas_market_calendars; gate trades on is_trading_day(market) per exchange (XETR / XKRX / XNYS) with each market's hours + holidays + timezone. FREE (pip-verify; owner-approval if a new dep ships to requirements).",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "50.3",
+          "audit_basis": "Multi-market brief Part C 50.4 + A5. markets.py already has a calendar helper; this wires it into the live loop so .DE trades skip German holidays + respect Xetra hours. pandas_market_calendars v5.4.0 (2026-05-27, MIT) covers XKRX/XETR/XLON/XPAR/XNYS.",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "the loop/backtest gates each market's trades on is_trading_day(market, date); a US market holiday skips US, a German holiday skips EU/.DE independently",
+              "the calendar dep is verify-installed (import works) without breaking the existing US path; if it ships to requirements it carries owner sign-off",
+              "live/fixture evidence: a known German holiday (or weekend) where EU is correctly marked closed while US logic is unaffected"
+            ],
+            "live_check": "REQUIRED -- a date where one market is open and another closed, per the calendars."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "50.5",
+          "name": "Backtest multi-market -- per-market benchmark (^GDAXI / ^KS11), FX-converted NAV in the backtest, + a DATA-QUALITY gate that drops identical-OHLC bars (the yfinance-international 11%-deviation / identical-OHLC risk). FREE.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "50.2",
+          "audit_basis": "Multi-market brief Part C 50.5 + the biggest-risk finding. International yfinance data has up to 11% deviation vs XETRA + 10-24 days/yr of all-identical OHLC that silently break momentum/RSI/vol -> a data-quality gate is mandatory before trusting any international backtest. Per-market benchmark replaces the SPY hard-code. Factor-transfer caveat: re-optimize params per market.",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "the backtest engine accepts a market, uses its benchmark (^GDAXI for EU, ^KS11 for KR, SPY/^GSPC for US) and FX-converts NAV/returns to base currency",
+              "a data-quality gate detects + drops (or flags) identical-OHLC bars and gross-deviation outliers in international price series, logging how many bars were dropped (no silent truncation)",
+              "an EU (.DE) backtest runs end-to-end with the correct benchmark + FX-converted returns + the data-quality gate active; US backtests unchanged",
+              "live evidence: an EU backtest summary (benchmark, FX-converted return, n bars dropped by the quality gate)"
+            ],
+            "live_check": "REQUIRED -- an EU-ticker backtest run with benchmark + FX-converted NAV + data-quality-gate drop count."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "50.6",
+          "name": "Multi-market UI -- market filter + currency badges + multi-currency NAV breakdown + market-hours indicator on the paper-trading + backtest pages; a paper_markets toggle in settings. Build + API-wiring autonomous; visual render = operator live_check (NextAuth wall).",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "50.3",
+          "audit_basis": "Multi-market brief Part C 50.6. Surfaces the new multi-market state: which exchange a position trades on, its local currency vs USD, a per-currency NAV breakdown, and whether each market is currently open. Follows frontend.md conventions; verification split (build/types/API autonomous, visual operator).",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "paper-trading + backtest pages show per-position market/exchange + local currency + a multi-currency NAV breakdown (USD total + per-currency sub-totals) + a market-open/closed indicator",
+              "a paper_markets toggle exists in settings UI wired to the backend setting; icons via @/lib/icons, no emoji",
+              "cd frontend && npm run build SUCCEEDS with the changes",
+              "live_check_50.6.md records build pass + API wiring + an OPERATOR-TO-CONFIRM visual section"
+            ],
+            "live_check": "REQUIRED -- build pass + API-wiring proofs + operator visual confirmation of the market/currency UI."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
