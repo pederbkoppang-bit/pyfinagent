@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `f708efa8` | docs(handoff): cycle_block_summary -- 49.1 + 49.2 shipped, P7 control surface complete |
 | 2026-05-29 | `deb9bd92` | phase-49.2: Operator cron-control endpoints -- POST /api/jobs/{id}/pause|resume|trigger for the 2... |
 | 2026-05-29 | `e2ee9acd` | phase-49.2: GENERATE -- operator cron-control endpoints (live-verified) |
 | 2026-05-29 | `55024d0a` | phase-49.2: PLAN -- operator cron-control endpoints contract + research gate |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `0b854505` | docs(handoff): correct rotation-cron feasibility -- it's a multi-cycle feature (no strategies define |
 | 2026-05-29 | `dd5d2b67` | docs(handoff): cycle 11 SOFT STOP closure -- Priority 3 (Opus 4.8) complete (47.8/47.9/47.10); crisp |
 | 2026-05-29 | `82d2f07f` | phase-47.10: generate_content max_tokens floor -- symmetric close of the Opus-4.8 max_tokens-at-x... |
-| 2026-05-29 | `f27e36b3` | phase-47.9: Priority-3 completion: Opus-4.8 max_tokens-at-xhigh floor (adaptive-path starvation f... |
 
 ---
 
