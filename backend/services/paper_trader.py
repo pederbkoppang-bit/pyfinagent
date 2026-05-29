@@ -29,6 +29,40 @@ def _parse_iso_date(s: str) -> Optional[datetime]:
 logger = logging.getLogger(__name__)
 
 
+def _fx_local_to_usd(market: Optional[str], date: Optional[str] = None) -> Optional[float]:
+    """phase-50.2: FX rate to convert 1 unit of the market's local currency into USD.
+    Returns 1.0 for US/USD (keeps the USD-only path byte-identical). Returns None when
+    a non-USD rate is genuinely unavailable -- callers fail-soft to last-known, NEVER
+    silently to 1.0 (that would mis-value a non-USD position as if it were USD)."""
+    from backend.services import fx_rates
+    ccy = fx_rates.market_currency(market or "US")
+    if ccy == "USD":
+        return 1.0
+    return fx_rates.get_fx_rate(ccy, "USD", date)
+
+
+def fx_pnl_attribution(qty: float, entry_price_local: float, current_price_local: float,
+                       entry_fx: float, current_fx: float) -> tuple[float, float]:
+    """phase-50.2: decompose a position's USD P&L into local-return + FX-return
+    (arXiv 1611.01463 / CFA / CFI). entry_fx/current_fx = USD per 1 unit of the
+    local currency (1.0 for USD). By construction, with no residual:
+      local_pnl + fx_pnl == qty*(Pc*Fc - Pe*Fe) == market_value_usd - cost_usd.
+    For a USD position (Fe==Fc==1.0): local_pnl = qty*(Pc-Pe), fx_pnl = 0.0."""
+    local_pnl = qty * (current_price_local - entry_price_local) * entry_fx
+    fx_pnl = qty * current_price_local * (current_fx - entry_fx)
+    return round(local_pnl, 2), round(fx_pnl, 2)
+
+
+def _fx_usd_to_local(market: Optional[str], date: Optional[str] = None) -> Optional[float]:
+    """phase-50.2: FX rate to convert 1 USD into the market's local currency (to size a
+    non-USD buy from a USD budget). 1.0 for US/USD."""
+    from backend.services import fx_rates
+    ccy = fx_rates.market_currency(market or "US")
+    if ccy == "USD":
+        return 1.0
+    return fx_rates.get_fx_rate("USD", ccy, date)
+
+
 class PaperTrader:
     """Virtual trade execution engine backed by BigQuery."""
 
@@ -94,6 +128,7 @@ class PaperTrader:
         risk_judge_position_pct: Optional[float] = None,
         signals: Optional[list[dict]] = None,
         sector: Optional[str] = None,  # phase-23.2.6-fix: persist GICS sector
+        market: str = "US",  # phase-50.2: market code (US/EU/KR/...) -> local currency via fx_rates
         # phase-30.6: analysis-time price reference for the pre-trade
         # price-tolerance gate. None disables the gate (fail-open) so the
         # lite-Claude path (which can lack a written price) still trades.
@@ -165,7 +200,16 @@ class PaperTrader:
             logger.warning(f"Max positions ({self.settings.paper_max_positions}) reached, skipping {ticker}")
             return None
 
-        quantity = amount_usd / price
+        # phase-50.2: size shares from the USD budget converted to the stock's
+        # local currency. `price` is in the local currency. x1.0 for US/USD ->
+        # quantity == amount_usd/price (byte-identical). FX-unavailable for a
+        # non-USD market -> skip the buy (never silently treat as USD).
+        _usd_to_local = _fx_usd_to_local(market)
+        _local_to_usd = _fx_local_to_usd(market)
+        if _usd_to_local is None or _local_to_usd is None:
+            logger.warning("phase-50.2: FX unavailable for market=%s; skipping BUY %s", market, ticker)
+            return None
+        quantity = (amount_usd * _usd_to_local) / price
 
         # phase-23.1.15: idempotency guard. Crash-and-retry between
         # autonomous-loop cycles can produce a phantom double-buy: cycle 1
@@ -251,10 +295,10 @@ class PaperTrader:
                 "quantity": round(new_qty, 6),
                 "avg_entry_price": round(new_avg, 4),
                 "cost_basis": round(new_cost, 2),
-                "current_price": price,
-                "market_value": round(new_qty * price, 2),
-                "unrealized_pnl": round(new_qty * price - new_cost, 2),
-                "unrealized_pnl_pct": round(((new_qty * price - new_cost) / new_cost) * 100, 2),
+                "current_price": price,  # phase-50.2: LOCAL price; market_value below is USD
+                "market_value": round(new_qty * price * _local_to_usd, 2),
+                "unrealized_pnl": round(new_qty * price * _local_to_usd - new_cost, 2),
+                "unrealized_pnl_pct": round(((new_qty * price * _local_to_usd - new_cost) / new_cost) * 100, 2),
                 "entry_date": existing["entry_date"],
                 "last_analysis_date": now,
                 "recommendation": reason,
@@ -264,6 +308,8 @@ class PaperTrader:
                 # if the new BUY didn't carry one (None-drop in save_paper_position
                 # leaves the existing column untouched via MERGE).
                 "sector": sector or (existing.get("sector") or None),
+                "market": market,  # phase-50.2
+                "base_currency": "USD",  # phase-50.2: NAV/cost_basis are in USD
             }
             self.bq.save_paper_position(pos_row)
         else:
@@ -283,6 +329,8 @@ class PaperTrader:
                 "risk_judge_position_pct": risk_judge_position_pct,
                 "stop_loss_price": stop_loss_price,
                 "sector": sector or None,  # phase-23.2.6-fix
+                "market": market,  # phase-50.2
+                "base_currency": "USD",  # phase-50.2: cost_basis=amount_usd is already USD
             }
             self.bq.save_paper_position(pos_row)
 
@@ -315,6 +363,15 @@ class PaperTrader:
 
         sell_qty = quantity or position["quantity"]
         sell_qty = min(sell_qty, position["quantity"])
+
+        # phase-50.2: local-currency -> USD rate for this position (x1.0 for US/USD
+        # -> byte-identical). FX unavailable for a non-USD exit -> last-resort 1.0
+        # with a WARN (never block an exit; non-USD only, the live engine is USD).
+        _l2u = _fx_local_to_usd(position.get("market"))
+        if _l2u is None:
+            logger.warning("phase-50.2: FX %s->USD unavailable on SELL %s; crediting at 1.0",
+                           position.get("market"), ticker)
+            _l2u = 1.0
 
         # phase-17.5: route sell through ExecutionRouter (mirrors execute_buy).
         trade_id = str(uuid.uuid4())
@@ -380,7 +437,7 @@ class PaperTrader:
             "entry_price": entry_price,
             "exit_price": price,
             "quantity": round(sell_qty, 6),
-            "realized_pnl_usd": round((price - entry_price) * sell_qty, 2),
+            "realized_pnl_usd": round((price - entry_price) * sell_qty * _l2u, 2),  # phase-50.2: LOCAL pnl -> USD
             "realized_pnl_pct": round(realized_pnl_pct, 4),
             "holding_days": holding_days,
             "mfe_pct": round(mfe_pct, 4),
@@ -397,27 +454,35 @@ class PaperTrader:
         else:
             # Partial - delete and re-insert with reduced quantity
             self.bq.delete_paper_position(ticker)
+            # phase-50.2: remaining cost_basis = proportional USD cost (byte-identical
+            # for USD); market_value is USD (current_price stays LOCAL); x1.0 for US/USD.
+            _orig_cb = position.get("cost_basis") or (position["quantity"] * position["avg_entry_price"])
+            _rem_cb = _orig_cb * (remaining / position["quantity"]) if position["quantity"] else 0.0
+            _rem_mv = remaining * price * _l2u
             pos_row = {
                 "position_id": position["position_id"],
                 "ticker": ticker,
                 "quantity": round(remaining, 6),
                 "avg_entry_price": position["avg_entry_price"],
-                "cost_basis": round(remaining * position["avg_entry_price"], 2),
+                "cost_basis": round(_rem_cb, 2),
                 "current_price": price,
-                "market_value": round(remaining * price, 2),
-                "unrealized_pnl": round(remaining * (price - position["avg_entry_price"]), 2),
-                "unrealized_pnl_pct": round(((price - position["avg_entry_price"]) / position["avg_entry_price"]) * 100, 2),
+                "market_value": round(_rem_mv, 2),
+                "unrealized_pnl": round(_rem_mv - _rem_cb, 2),
+                "unrealized_pnl_pct": round(((_rem_mv - _rem_cb) / _rem_cb) * 100, 2) if _rem_cb else 0.0,
                 "entry_date": position["entry_date"],
                 "last_analysis_date": position.get("last_analysis_date", ""),
                 "recommendation": position.get("recommendation", ""),
                 "risk_judge_position_pct": position.get("risk_judge_position_pct"),
                 "stop_loss_price": position.get("stop_loss_price"),
+                "market": position.get("market") or "US",  # phase-50.2
+                "base_currency": "USD",  # phase-50.2
             }
             self.bq.save_paper_position(pos_row)
 
-        # Update cash
+        # Update cash -- phase-50.2: net_proceeds is in the stock's LOCAL currency;
+        # convert to the USD base before crediting (x1.0 for US/USD).
         portfolio = self.get_or_create_portfolio()
-        new_cash = portfolio["current_cash"] + net_proceeds
+        new_cash = portfolio["current_cash"] + net_proceeds * _l2u
         self._update_portfolio_cash(new_cash)
 
         logger.info(f"SELL {sell_qty:.4f} x {ticker} @ ${price:.2f} = ${sell_value:.2f} (fee: ${tx_cost:.2f})")
@@ -441,9 +506,20 @@ class PaperTrader:
             if live_price is None:
                 live_price = pos.get("current_price", pos["avg_entry_price"])
 
-            market_value = pos["quantity"] * live_price
+            # phase-50.2: live_price is in the position's LOCAL currency; convert
+            # market value to the USD base (x1.0 for US/USD -> byte-identical). FX
+            # unavailable for a non-USD position -> keep the last-known USD mark.
+            _l2u = _fx_local_to_usd(pos.get("market"))
+            if _l2u is None:
+                logger.warning(
+                    "phase-50.2: FX %s->USD unavailable; keeping last-known market_value for %s",
+                    pos.get("market"), ticker,
+                )
+                market_value = float(pos.get("market_value") or (pos["quantity"] * live_price))
+            else:
+                market_value = pos["quantity"] * live_price * _l2u
             cost_basis = pos.get("cost_basis") or (pos["quantity"] * pos["avg_entry_price"])
-            pnl = market_value - cost_basis
+            pnl = market_value - cost_basis  # both USD
             pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0.0
 
             # 4.5.2: MFE/MAE tracked monotonically across the position's holding period.

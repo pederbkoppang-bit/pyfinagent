@@ -1,30 +1,31 @@
-# Experiment results -- phase-50.1: FX data layer
+# Experiment results -- phase-50.2: Multi-currency portfolio accounting
 
-**Date:** 2026-05-30 | **Result: built + live-verified** | $0 LLM | no new pip deps | first step of phase-50 (international expansion).
+**Date:** 2026-05-30 | **Result: built + live-verified (byte-identical on the working +20% engine)** | $0 LLM | no pip | MONEY-CRITICAL step.
 
 ## What was built
-The FREE FX foundation for multi-currency work: a `fx_rates` service (correct-direction EUR/USD + KRW/USD from yfinance with FRED fallback, BQ point-in-time + api_cache live mark), a `historical_fx_rates` BQ table, and the `data_ingestion.py:146` currency-stub fix.
+`paper_trader.py` now FX-converts each position's market value / P&L / cash flows to the USD base currency via the 50.1 `fx_rates` service, with a local-vs-FX P&L attribution helper. The USD-only path is provably byte-identical (every conversion x1.0).
 
 ## Files changed/added
-1. **`backend/services/fx_rates.py`** (NEW) -- `market_currency(market)` (delegates to markets.MARKET_CONFIG); `get_fx_rate(from, to, date=None)` (from==to->1.0; else usd_value(from)/usd_value(to)); `_usd_value_live` (api_cache -> yfinance -> FRED fallback -> BQ write-through), `_usd_value_asof` (BQ as-of `date<=` point-in-time read); `backfill_fx(currencies, start, end)`. Direction map: EUR via EURUSD=X (USD/EUR), KRW via KRW=X (KRW/USD, inverted to usd_value); NEVER KRWUSD=X.
-2. **`scripts/migrations/create_historical_fx_rates_table.py`** (NEW) -- idempotent CREATE TABLE IF NOT EXISTS `financial_reports.historical_fx_rates` (pair STRING, date STRING, rate FLOAT64, source STRING; CLUSTER BY pair; no --location pin -- us-central1 auto-resolved). Dry-run default; --apply.
-3. **`backend/backtest/data_ingestion.py`** -- import `markets`; line 146 stub `"USD" if market=="US" else "USD"` -> `markets.get_market_config(market)["currency"]` (US->USD, EU->EUR, KR->KRW).
+1. **`backend/services/paper_trader.py`**:
+   - Module helpers `_fx_local_to_usd(market,date)` / `_fx_usd_to_local(market,date)` (1.0 for US/USD; None when a non-USD rate is genuinely unavailable) + `fx_pnl_attribution(qty,Pe,Pc,Fe,Fc)` (local_pnl + fx_pnl == MV_usd - cost_usd, no residual).
+   - `execute_buy(..., market="US")`: share count = `amount_usd * fx(USD,local) / price` (skip buy if FX unavailable); existing-branch `market_value`/`unrealized_pnl` *= fx(local,USD); write `market` + `base_currency="USD"` on both pos_rows (new-branch market_value=amount_usd is already USD).
+   - `execute_sell`: net_proceeds credited as `* fx(local,USD)`; partial-sell pos_row uses proportional USD cost_basis + `market_value *= fx`; `realized_pnl_usd *= fx`; write market/base_currency.
+   - `mark_to_market`: `market_value = qty * live_price * fx(local,USD)` (the per-cycle NAV); fail-soft to last-known if FX unavailable; current_price stays LOCAL.
+2. **`backend/tests/test_phase_50_2_multicurrency.py`** (NEW): 7 offline (mocked-FX) tests -- byte-identity primitives, USD market_value/share-count identity, EUR conversion, attribution USD(fx=0)/EUR(sums to MV-cost).
 
-## Live verification (full evidence in live_check_50.1.md)
-- Migration APPLIED (table created in financial_reports / us-central1).
-- get_fx_rate: USD/USD=1.0, EUR/USD=1.166, KRW/USD=0.000664 (DIRECTION CORRECT, no KRW inversion), USD/EUR=0.858 (inverse).
-- backfill 22 rows; well-formed EURUSD 12 rows (avg 1.164) + KRWUSD 12 rows (avg 0.000665), 2026-05-15..29.
-- point-in-time as-of read: EUR/USD @2026-05-20 = 1.1607, KRW/USD @2026-05-20 = 0.000663 (no look-ahead).
-- data_ingestion imports markets + the stub fix verified (market_currency EU/KR/US == EUR/KRW/USD).
+## Verification (live)
+- `pytest backend/tests/test_phase_50_2_multicurrency.py` -> **7 passed**.
+- Deterministic command: ast.parse + `get_fx_rate('USD','USD')==1.0` + `import paper_trader` -> OK.
+- **LIVE byte-identity proof** (read-only, no mutation): all 7 live positions market=US -> fx=1.0 -> every market_value identical (mv_new==mv_old), **NAV new == NAV old == $24,023.58 == stored total_nav, BYTE-IDENTICAL=True**.
+- EUR numeric (mocked): 5 sh @ EUR100 -> $550 USD NAV; attribution EUR100->110 / FX1.10->1.20 -> local_pnl $110 + fx_pnl $110 == MV_usd-cost_usd $220.
 
-## Success criteria mapping (all 4 met)
-1. fx_rates.py with get_fx_rate (USD/USD=1.0) + EUR/USD + KRW/USD from yfinance + cache -- YES.
-2. historical_fx_rates table holds dated FX rates, backfilled for EUR/USD + KRW/USD -- YES (12 days each).
-3. data_ingestion.py:146 currency stub fixed (per-market ISO currency) -- YES.
-4. live EUR/USD + KRW/USD rates fetched verbatim -- YES.
+## Success criteria mapping (all 4 met) -- see live_check_50.2.md
+1. NAV/cost/market_value/P&L FX-convert each position to USD -- YES. 2. USD-only byte-identical -- YES (live NAV unchanged + 7 unit tests). 3. non-USD values into USD + local/FX decomposition -- YES. 4. live/fixture numeric evidence -- YES.
 
-## Scope honesty / hardening flags (NOT criterion violations)
-- **A real bug was caught + fixed during live verification**: single-ticker `yf.download` returns a 1-col (MultiIndex) DataFrame; the initial `.items()` iterated the column name into `date` -> 2 malformed rows (date='EURUSD=X'/'KRW=X'). FIXED (squeeze Close to a Series before `.items()`). The 2 junk rows could NOT be DELETE'd (BQ streaming-buffer blocks DELETE <~90min); they are HARMLESS (the as-of `date<=` filter excludes the non-ISO dates lexically) and cleanable post-flush via `DELETE WHERE date NOT LIKE '2%'`.
-- **Append, not upsert**: backfill + live write-through both append; the as-of `LIMIT 1` read is unaffected by duplicate dates. Hardening follow-up: switch backfill to a BQ load-job (avoids the streaming-buffer DELETE limitation) + MERGE-upsert for dedup.
-- **US-only path byte-identical**: from==to->1.0 means USD-only flows are untouched. This step is purely additive + market-agnostic (no paper_trader / backtest NAV change -- that's 50.2).
-- No owner approval used: yfinance + FRED free; no pip; CREATE TABLE (not DROP/DELETE). The one qualified cleanup DELETE attempt was blocked by the streaming buffer (not executed).
+## Scope / honesty notes
+- **Minimal-change model** (deviates from the brief's local-cost-basis + entry_fx-column to AVOID a migration): cost_basis stays USD (current convention), current_price stays LOCAL, market_value computed to USD; partial-sell remaining-cost is proportional USD. Byte-identical for USD; entry FX derivable as cost_usd/(qty*avg_entry_price) if ever needed. Same correctness + attribution as the brief, less surface, no new column.
+- FX-unavailable: BUY non-USD -> skip (never treat as USD); mark_to_market -> keep last-known + WARN; SELL -> last-resort 1.0 + WARN (never block an exit). USD path: fx==1.0 always, never triggers.
+- Attribution is a pure tested helper (`fx_pnl_attribution`), NOT wired into the live `_compute_attribution` endpoint (it would be all-zero today -- every live position is USD -> fx_pnl=0); wiring it into the UI is a 50.6 follow-on.
+- Trade-record display fields (paper_trades.total_value/transaction_cost) stay LOCAL for a non-USD trade -- display-only, NOT a NAV/cash error. Minor follow-up.
+- The historical_fx_rates streaming-buffer junk rows from 50.1 remain harmless.
+- $0 LLM; no pip; no DROP/DELETE; no owner approval.
