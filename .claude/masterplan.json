@@ -13453,6 +13453,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "48.2",
+          "name": "Rotation real-engine adapter -- make_engine_backtest_fn (per-strategy K-variant PBO matrix + DSR via generate_report), $0 mock-tested; live multi-run bake-off + cron + deployment bridge DEFERRED",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "48.1",
+          "audit_basis": "research_brief_phase_48_2_rotation_adapter.md (3-agent workflow wf_2ab3cff3-74f; gate PASSED 6 sources). Priority 5 follow-on #1: replace the 48.1 producer's INJECTED backtest_fn with a REAL BacktestEngine adapter. CRUX (lit-resolved): a single backtest's walk-forward WINDOWS cannot be CSCV columns (Bailey Algo 2.3: columns = competing CONFIGURATIONS; one series -> compute_pbo returns 0.0 = false gate-pass). Chosen textbook-exact approach: per-strategy K-variant param grid -> (T x K) daily-returns matrix from nav_history -> existing analytics.compute_pbo; DSR from generate_report(...)['analytics']['deflated_sharpe'] (generate_report does NOT compute PBO -- the adapter calls compute_pbo separately). Load-bearing guard: compute_pbo silently returns 0.0 when N<2 or T<32 (PASSES the pbo<=0.20 gate) -> the adapter MUST return NO pbo on an undersized matrix so the producer SKIPS (never emit a fake-good 0.0).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/autoresearch/strategy_backtest_adapter.py').read()); print('ast OK')\" && python -m pytest tests/autoresearch/test_phase_48_2_backtest_adapter.py -q",
+            "success_criteria": [
+              "strategy_backtest_adapter.py: make_engine_backtest_fn(engine_factory, *, num_param_variants, param_grid_fn, num_trials, pbo_S, min_pbo_rows, logger) returns a backtest_fn(params)->{dsr,pbo,sharpe,...} matching the 48.1 producer's BacktestFn boundary; dsr from generate_report(...)['analytics']['deflated_sharpe'], pbo from a separate compute_pbo on a per-strategy (T x K) daily-returns matrix assembled from K param-grid variants' nav_history; pure helpers _daily_returns_from_nav / _default_param_grid / _assemble_pbo_matrix / _extract_dsr_sharpe",
+              "LOAD-BEARING undersize guard: _assemble_pbo_matrix returns None when N<2 OR T<min_pbo_rows(32), and the adapter then emits a dict WITHOUT a pbo key (NOT pbo=0.0) so build_per_strategy_candidates SKIPS that strategy -- preventing compute_pbo's silent 0.0 from false-passing the pbo<=0.20 gate; a test asserts this directly",
+              "strategy-name validated against backtest_engine.STRATEGY_REGISTRY before running (unknown -> raise -> producer skips; NO silent triple_barrier fallback); warm-cache discipline (run_backtest(skip_cache_clear=True) per variant, cache.clear_cache once in finally); adapter imports NO settings/bq (engine_factory closes over them) so it is $0-mockable and free of an import cycle",
+              "$0 mock test: mock engine.run_backtest -> a REAL hand-built BacktestResult (2-3 real WindowResult + ~40 synthetic nav rows) and run the REAL generate_report + compute_pbo; assert dsr/sharpe extraction, a hand-built (T>=32,N>=2) compute_pbo float, the undersize-guard skip path, strategy-name reject, and end-to-end registry->adapter->producer->select_best_strategy; the live multi-minute integration test is @pytest.mark.skip (opt-in); ast clean; pytest green"
+            ],
+            "live_check": "n/a -- deterministic $0 mock test (mocks engine.run_backtest; runs the REAL pure-numpy generate_report + compute_pbo; no real backtest/BQ/LLM/macro). The LIVE multi-run bake-off (4 seeds x K~8 = ~32 real backtests, tens of minutes) is gated behind the @pytest.mark.skip opt-in test + a dedicated future live-run cycle whose live_check is the real {dsr,pbo,sharpe} per seed."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

@@ -1,40 +1,41 @@
-# Experiment Results — phase-48.1: Strategy-rotation foundation (registry + per-strategy DSR/PBO producer)
+# Experiment Results — phase-48.2: Rotation real-engine adapter (make_engine_backtest_fn)
 
-**Cycle:** 12 (Priority 5 — [MONEY/NORTH-STAR]). **LLM spend:** $0 (config + pure code + fixture tests; no real backtest, no BQ, no LLM, no macro preload). **Result:** ready for Q/A.
+**Cycle:** 13 (Priority 5 follow-on #1; operator approved continuing past the 12-cycle budget). **LLM spend:** $0 (mocks engine.run_backtest; runs the REAL pure-numpy generate_report + compute_pbo on a hand-built fake; no real backtest/BQ/LLM/macro). **Result:** ready for Q/A.
 
-## What was built (2 new modules + 2 new test files)
-The 47.6 `select_best_strategy` was a pure fn wired NOWHERE; only one strategy config existed and nothing produced its `per_strategy` input. This cycle ships the missing PRODUCER half + a config-driven seed set, wired end-to-end.
+## What was built (1 new module + 1 new test file)
+Replaces the 48.1 producer's INJECTED `backtest_fn` with a real `BacktestEngine`-backed implementation of that exact boundary.
 
-1. `backend/autoresearch/strategy_registry.py` — `SEED_STRATEGIES` (4 seeds) + `load_seed_strategies(seeds=None, base_params=None)` + `load_base_params()`. Each seed = `param_overrides` overlaid on `optimizer_best.params`. Seeds span orthogonal strategy-TYPE axes (research finding: diversification from TYPE not param tweaks): `tb_baseline` (incumbent rail, empty overrides), `mr_short_horizon` (mean_reversion + short holding/turnover), `qm_trend_tilt` (quality_momentum + long holding), `tb_risk_managed` (triple_barrier + vol-targeting/trailing/tighter-TP — a deliberately correlated risk-axis variant). Operator-tunable (injected `seeds`) + fail-open (empty base still enumerates ids). Pure, ASCII-only.
-2. `backend/autoresearch/strategy_candidate_producer.py` — pure `build_per_strategy_candidates(configs, backtest_fn)` emitting the exact verified selector/gate contract `{strategy,dsr,pbo,params,sharpe}` (id under `strategy`, dsr+pbo mandatory floats), SKIPPING+warning on `backtest_fn` raise / non-dict / missing-or-non-numeric dsr|pbo (so the gate never silently drops a malformed candidate). `run_strategy_bakeoff(backtest_fn, incumbent=None, *, seeds, base_params, num_trials)` = registry → producer → `select_best_strategy`. `backtest_fn` is the ONLY injected dependency (no engine/BQ/LLM import).
-3. Tests `tests/autoresearch/test_phase_48_1_strategy_registry.py` (8) + `test_phase_48_1_candidate_producer.py` (7).
+`backend/autoresearch/strategy_backtest_adapter.py`:
+- `make_engine_backtest_fn(engine_factory, *, num_param_variants=8, param_grid_fn=None, num_trials=None, pbo_S=16, min_pbo_rows=32, clear_cache_fn=None, log=None) -> backtest_fn(params) -> {dsr, pbo, sharpe, n_variants, n_windows}`.
+- Per strategy: validate name vs `STRATEGY_REGISTRY` (raise on unknown — producer skips; NO silent triple_barrier fallback) → build K competing-config variants (`_default_param_grid`, strategy categorical FIXED, risk knob jittered) → `engine_factory(variant).run_backtest(skip_cache_clear=True)` per variant (warm cache; macro preload is inside run_backtest) → DSR/Sharpe from the seed variant's `generate_report(...)["analytics"]` → `_assemble_pbo_matrix` (T×K daily-returns from nav_history) → `compute_pbo`. `clear_cache_fn` called ONCE in finally (lazily imports `cache.clear_cache` if not injected). Per-variant try/except (a bad variant drops a column, not the strategy).
+- **LOAD-BEARING guard:** `_assemble_pbo_matrix` returns None when N<2 OR T<min_pbo_rows(32); the adapter then emits a dict WITHOUT `pbo` → the producer SKIPS the strategy (never a fake-good 0.0 that compute_pbo silently returns on an undersized matrix and that would false-pass the pbo<=0.20 gate).
+- Imports NO settings/BQ (engine_factory closes over them) → $0-mockable, no import cycle.
 
-## Verbatim verification output (immutable command)
+`tests/autoresearch/test_phase_48_2_backtest_adapter.py` (mock-only, $0): 9 tests + 1 `@pytest.mark.skip` opt-in live integration test.
+
+## Verbatim verification output (immutable command + regression)
 ```
-$ python -c "import ast; [ast.parse(open(f).read()) for f in ['backend/autoresearch/strategy_registry.py','backend/autoresearch/strategy_candidate_producer.py']]; print('ast OK 2 files')"
-ast OK 2 files
-$ python -m pytest tests/autoresearch/test_phase_48_1_strategy_registry.py tests/autoresearch/test_phase_48_1_candidate_producer.py tests/autoresearch/test_strategy_selector.py -q
-.......................                                                  [100%]
-23 passed in 0.02s
-```
-(15 new tests + the 8 existing `test_strategy_selector.py` — no selector-contract regression.)
+$ python -c "import ast; ast.parse(open('backend/autoresearch/strategy_backtest_adapter.py').read()); print('ast OK')"
+ast OK
+$ python -m pytest tests/autoresearch/test_phase_48_2_backtest_adapter.py -q
+.........s                                                               [100%]
+9 passed, 1 skipped in 3.12s
 
-Import + end-to-end spine smoke ($0, real-base registry off the live optimizer_best.json):
-```
-real-base seeds: ['tb_baseline', 'mr_short_horizon', 'qm_trend_tilt', 'tb_risk_managed']
-verdict: {'selected_id': 'mr_short_horizon', 'switched': True, 'reason': 'first_selection',
-          'ranked': ['mr_short_horizon', ...], 'num_trials': 4}
-imports OK, no cycle
+# regression (full rotation suite: 48.1 + 48.2 + selector):
+$ python -m pytest tests/autoresearch/test_phase_48_1_* tests/autoresearch/test_phase_48_2_* tests/autoresearch/test_strategy_selector.py -q
+........................s........                                        [100%]
+32 passed, 1 skipped in 2.77s
+# imports OK; no cycle (adapter imports analytics+backtest_engine; producer imports registry+selector; neither imports the adapter back)
 ```
 
-## Success-criteria mapping (masterplan phase-48.1)
-1. registry >=4 distinct seeds, params=base+overrides, >=3 strategy types (mr+qm+tb), operator-tunable, fail-open — **MET** (test_seed_set_has_at_least_four_distinct_ids, test_seeds_span_at_least_three_strategy_types, test_param_overrides_apply_on_top_of_base, test_operator_tunable_injected_seeds, test_fail_open_empty_base_still_enumerates_ids).
-2. producer pure + exact contract + SKIPS malformed (raise / missing dsr|pbo / non-numeric) — **MET** (test_producer_emits_exact_selector_contract + 3 skip-guard tests; backtest_fn the only dependency, no engine/BQ/LLM import).
-3. registry→producer→selector composes (first_selection top-DSR passer; gate-veto; anti-churn retain) — **MET** (test_bakeoff_first_selection_picks_top_dsr_gate_passer [tb_risk_managed vetoed], test_bakeoff_anti_churn_retains_incumbent_below_min_improvement, test_bakeoff_switches_on_material_improvement).
-4. deferred work documented in both docstrings; ast clean; new pytest green; existing selector test green — **MET** (DEFERRED blocks in both modules; ast OK 2 files; 23 passed incl. the 8 existing).
+## Success-criteria mapping (masterplan phase-48.2)
+1. adapter factory + helpers + producer-boundary shape; dsr from generate_report, pbo from a separate per-strategy (T×K) compute_pbo — **MET** (test_extract_dsr_sharpe_matches_generate_report, test_default_param_grid_*, test_adapter_emits_full_metrics_*; dsr asserted == generate_report's deflated_sharpe).
+2. LOAD-BEARING undersize guard → no pbo → producer skips — **MET** (test_assemble_pbo_matrix_guard + test_adapter_undersize_matrix_emits_no_pbo_so_producer_skips: asserts "pbo" not in raw AND build_per_strategy_candidates returns []).
+3. strategy-name validated (reject→skip, no silent fallback); warm-cache clear-once; no settings/BQ import / no cycle — **MET** (test_adapter_unknown_strategy_raises_and_producer_skips; test_adapter_emits_full_metrics_and_clears_cache_once asserts clear called exactly once; import-cycle check passed).
+4. $0 mock test (real generate_report+compute_pbo on fake), undersize/reject/end-to-end; live test skip; ast+pytest green — **MET** (9 passed + 1 skipped; end-to-end registry→adapter→producer→selector yields a verdict; ast OK).
 
-## Scope honesty / DEFERRED (documented in both module docstrings + masterplan + contract)
-$0 fixture-based slice — a test PASS does NOT prove live DSR/PBO are computable (the `backtest_fn` is injected). The `backtest_fn` OUT shape is a deliberate strict SUBSET of the verified `analytics.generate_report()["analytics"]` + `compute_pbo` so the next cycle's real-engine adapter is a drop-in. **DEFERRED (later cycles):** (a) the real BacktestEngine adapter (warm-cache `run_backtest` loop → `nav_history` daily_returns → `generate_report` DSR + per-strategy (T×K) `compute_pbo`); (b) the weekly rotation cron; (c) the deployment switch + the **params→settings.paper_* bridge** (deploy audit headline: `best_params` is NOT threaded into `decide_trades`/`paper_trader`, so flipping a `promoted_strategies` row alone changes only the heartbeat, not live orders); (d) effective-N clustering (plain `num_trials=N` over-deflates DSR for correlated seeds — the SAFE direction). No live rotation is implied by this cycle.
+## Scope honesty / DEFERRED (documented in the module docstring + masterplan + contract)
+The $0 mock proves the metric-extraction WIRING, not live DSR/PBO values (engine.run_backtest is mocked). DEFERRED: (a) the LIVE multi-run bake-off (4 seeds × K≈8 = ~32 real backtests, tens of minutes) — gated behind the `@pytest.mark.skip` opt-in test + a future live-run cycle whose live_check is real per-seed {dsr,pbo,sharpe}; (b) CPCV multi-path PBO upgrade (cpcv_folds exists at gate.py:42); (c) the weekly cron; (d) the deployment params→settings.paper_* bridge (best_params is NOT threaded into decide_trades — a row-flip alone changes only the heartbeat); (e) effective-N (ONC) clustering; (f) a true date-keyed matrix join. **Flagged live risk (not blocking the mock slice):** the vanilla `run_harness.make_engine` factory threads only a SUBSET of kwargs (no target_vol/trailing/blend) → a live run with it would silently ignore tb_risk_managed's risk overrides; the adapter is factory-agnostic and the factory-extension is the live caller's job (documented).
 
 ## Files
-backend/autoresearch/strategy_registry.py, backend/autoresearch/strategy_candidate_producer.py, tests/autoresearch/test_phase_48_1_strategy_registry.py, tests/autoresearch/test_phase_48_1_candidate_producer.py, .claude/masterplan.json (phase-48.1), handoff/current/{contract.md, research_brief_phase_48_1_rotation_foundation.md}.
+backend/autoresearch/strategy_backtest_adapter.py, tests/autoresearch/test_phase_48_2_backtest_adapter.py, .claude/masterplan.json (phase-48.2), handoff/current/{contract.md, research_brief_phase_48_2_rotation_adapter.md}.

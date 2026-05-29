@@ -25755,3 +25755,38 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **DEFERRED (documented in both module docstrings + masterplan + contract):** (a) the real BacktestEngine adapter (warm-cache run_backtest loop -> nav_history daily_returns -> generate_report DSR + per-strategy (TxK) compute_pbo); (b) the weekly rotation cron; (c) the deployment switch + the params->settings.paper_* bridge (required for rotation to change live orders, not just the heartbeat); (d) effective-N clustering (plain num_trials=N over-deflates -- the SAFE direction). No live rotation is implied by this cycle.
 
 **Budget:** this is the 12th cycle -> the 12-cycle SOFT STOP now fires on count. Rotation continues next session: real-engine adapter -> weekly cron -> deployment params->settings bridge.
+
+---
+
+## Cycle 1 -- 2026-05-29 05:53 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.29% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 13 (production-ready+money push) -- 2026-05-29 -- phase=48.2 result=PASS
+
+**Step:** Rotation real-engine adapter (Priority 5 follow-on #1) -- replace the 48.1 producer's INJECTED backtest_fn with a real BacktestEngine-backed implementation. OPERATOR APPROVED continuing past the 12-cycle budget ("continue you have my approval"). $0 (mocks engine.run_backtest; runs the REAL pure-numpy generate_report + compute_pbo on a hand-built fake).
+
+**Research+design:** 3-agent Workflow wf_2ab3cff3-74f (gate PASSED, 6 sources read in full). CRUX resolved: a single backtest's walk-forward WINDOWS cannot be CSCV columns (Bailey Algo 2.3 -- columns = competing CONFIGURATIONS; one series -> compute_pbo returns 0.0 = false gate-pass). Chosen textbook-exact: per-strategy K-variant param grid -> (T x K) daily-returns matrix from nav_history -> existing compute_pbo. DSR from generate_report(...)['analytics']['deflated_sharpe'] (generate_report does NOT compute pbo). CPCV multi-path = deferred next-cycle upgrade. Brief: research_brief_phase_48_2_rotation_adapter.md.
+
+**Implementation (1 module + 1 test):** backend/autoresearch/strategy_backtest_adapter.py -- make_engine_backtest_fn(engine_factory, *, num_param_variants=8, param_grid_fn, num_trials, pbo_S=16, min_pbo_rows=32, clear_cache_fn, log) -> backtest_fn(params)->{dsr,pbo,sharpe,n_variants,n_windows}; pure helpers _daily_returns_from_nav / _default_param_grid (strategy categorical FIXED, name validated vs STRATEGY_REGISTRY -> raise on unknown, no silent triple_barrier fallback) / _assemble_pbo_matrix / _extract_dsr_sharpe. LOAD-BEARING guard: undersized matrix (N<2 or T<32) -> emit NO pbo -> producer SKIPS (never compute_pbo's silent fake-good 0.0). Warm-cache: run_backtest(skip_cache_clear=True) per variant + clear_cache once in finally (lazy import, injectable). Imports NO settings/BQ (engine_factory closes over them) -> $0-mockable, no cycle.
+
+**Verification:** ast OK; pytest 9 passed + 1 skipped (the @pytest.mark.skip live integration test); full rotation regression 32 passed + 1 skipped (48.1 + 48.2 + selector, no regression); no import cycle.
+
+**Q/A:** fresh `a650406dbbfc9c617` = **PASS** (`ok:true`, zero violated_criteria). INDEPENDENTLY reproduced the load-bearing guard (own probe with real BacktestResult + real generate_report+compute_pbo: short T=9 AND single-column both omit pbo -> producer []; healthy 4-col x T>=32 emits real pbo=0.9893 -- guard genuine, not a blanket omit, fake-good 0.0 cannot leak); confirmed PBO method textbook-correct (columns = K configs of ONE strategy, not per-window scalars); mock VALID (dsr genuinely == generate_report deflated_sharpe, varied 0->1; compute_pbo on a real (40,4) matrix; only engine.run_backtest mocked); git-diff confirmed ZERO edits to autonomous_loop/portfolio_manager/paper_trader/decide_trades/backtest_engine/analytics; deferral of the live bake-off HONEST; make_engine-kwarg-subset risk disclosed. 5/5 harness compliance. NOTE (non-blocking): the 48.1 producer docstring still calls the adapter 'deferred/next-cycle' -- now stale (shipped); cosmetic doc-touch follow-up.
+
+**DEFERRED (documented):** the LIVE multi-run bake-off (4 seeds x K~8 = ~32 real backtests, tens of minutes) -- behind the @pytest.mark.skip opt-in + a future live-run cycle whose live_check is real per-seed {dsr,pbo,sharpe}; CPCV multi-path; the weekly cron; the deployment params->settings.paper_* bridge; effective-N clustering; a true date-keyed matrix join. Flagged live risk: vanilla make_engine threads only a kwarg SUBSET -> a live run would silently ignore tb_risk_managed's target_vol/trailing overrides (factory-extension is the live caller's job).
+
+**Rotation chain remaining (next cycles, in order):** [48.3] LIVE-run wiring + a real engine_factory that threads the full kwarg set (the live_check artifact) -> [48.4] weekly cron -> [48.5] deployment params->settings.paper_* bridge. Plus CPCV upgrade + effective-N as robustness follow-ons.
