@@ -13520,7 +13520,7 @@
         {
           "id": "49.1",
           "name": "Runtime risk-limit control endpoint -- file-backed risk_overrides store (mirrors kill_switch.py) + get_effective() reader seam in portfolio_manager + confirmation-gated/bounded/audited GET/PUT/DELETE /api/paper-trading/risk-limits (P7 'risk limits' deliverable; the deployment-decision bridge so the operator can tune deployment/concentration live without a restart)",
-          "status": "in_progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "48.4",

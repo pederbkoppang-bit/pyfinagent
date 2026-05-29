@@ -1,77 +1,55 @@
-# Evaluator Critique — phase-48.4: Live rotation bake-off SMOKE (first REAL validation)
+# Q/A critique -- phase-49.1: Runtime risk-limit control endpoint
 
-**Verdict: PASS** | FIRST Q/A pass on 48.4 | merged Q/A (deterministic-first + LLM judgment)
-**Date:** 2026-05-29 | **LLM spend this step:** $0 (quant-only backtests; real BQ + real compute)
+**Verdict: PASS** | Q/A spawn: single (merged qa-evaluator + harness-verifier) | Date: 2026-05-29
+Fresh Q/A, no orchestrator self-eval. retry_count=0, status=in_progress (correct: log + flip come after this PASS).
 
----
+## 1. Harness-compliance audit (5 items -- all PASS)
+1. **Researcher gate PASS** -- `handoff/current/research_brief.md` ends with `gate_passed:true` envelope (6 sources read in full, recency_scan_performed=true, 30 URLs, 6 internal files). contract.md line 7 cites it verbatim ("6 sources read in full, recency scan done, 30+ URLs, 6 internal files, gate_passed=true").
+2. **Contract-before-generate PASS** -- git log shows `f81faeac phase-49.1: PLAN` PRECEDES `3faddd0d phase-49.1: GENERATE`. contract.md success criteria match masterplan step 49.1 byte-for-byte (verified by extracting the masterplan node).
+3. **experiment_results present PASS** -- lists 3 files changed, verbatim verification command output, live-evidence pointer to live_check_49.1.md, scope-honesty section.
+4. **Log-last PASS** -- zero `phase=49.1` entries in harness_log.md; masterplan 49.1 still `in_progress`. The log append + status flip correctly deferred until after this PASS.
+5. **No verdict-shopping PASS** -- first Q/A for 49.1; zero prior CONDITIONALs for this step-id in harness_log.md.
 
-## STEP 1 — Harness-compliance audit (5 items) — ALL PASS
+## 2. Deterministic checks (all PASS -- run independently)
+- (a) **masterplan immutable command**: `ast.parse(risk_overrides.py)` OK; the python -c round-trip prints `roundtrip OK` (clear_all -> default 2 -> set 4 -> effective 4 -> clear -> default 2); `test -f live_check_49.1.md` -> present.
+- (b) **all 3 files parse**: risk_overrides.py / portfolio_manager.py / paper_trading.py all `ast.parse` clean.
+- (c) **routes registered**: `['/api/paper-trading/risk-limits', '/api/paper-trading/risk-limits/{key}']`.
+- (d) **LIVE re-verify against running backend :8000** (independently reproduced, not trusting the handoff):
+  - `GET /api/paper-trading/risk-limits` -> HTTP 200, all 4 keys with bounds + settings_default + effective_value.
+  - `PUT {key:paper_max_per_sector, value:7, confirmation:SET_RISK_LIMIT}` -> `override_set`, effective_value=7.
+  - `GET` -> effective_value=7, overridden=true, settings_default=2 (override picked up, default preserved).
+  - `PUT value=999` -> **HTTP 400** `out of bounds [0, 20]` (validate-before-accept).
+  - `PUT key=daily_loss_limit_pct` (kill-switch key) -> **HTTP 400** `not an adjustable risk limit` (Knight Capital safety).
+  - `PUT confirmation=WRONG` -> **HTTP 400** (confirmation-gated).
+  - `DELETE /risk-limits/paper_max_per_sector` -> `override_cleared`, effective_value=2, overrides={}.
+  - `GET` final -> effective_value=2, overridden=false (clean revert).
 
-1. **Researcher gate — PASS.** `handoff/current/research_brief_phase_48_4_live_smoke.md` exists; JSON envelope `gate_passed: true`, `external_sources_read_in_full: 5`, `urls_collected: 13`, `recency_scan_performed: true`, `internal_files_inspected: 11`. Recency-scan section ("last 2 years, 2024-2026") present. Floor (>=5 read-in-full) met.
-2. **Contract — PASS, NO clobber this cycle.** `head -1 handoff/current/contract.md` == `git show 88d770bd:handoff/current/contract.md | head -1` (both: "# Contract — phase-48.4: Live rotation bake-off SMOKE (first real validation)"). The scheduled run_harness.py did NOT re-clobber to "Sprint Contract"; the committed 48.4 PLAN at 88d770bd IS the live contract. Immutable success criteria in contract.md lines 18-22 match `.claude/masterplan.json` id="48.4" `verification.success_criteria` verbatim. (The known concurrent-writer collision did not manifest for 48.4 — verified by the git-show head match — so it is a NON-issue here, not a 48.4 protocol breach.)
-3. **experiment_results.md — PASS.** Present; contains the bug-fix narrative (the live smoke CAUGHT a real bug), verbatim post-fix metrics, success-criteria mapping, and 4 FINDINGS.
-4. **Log-last — PASS.** `grep -c "phase=48.4" handoff/harness_log.md` == 0. No 48.4 block yet — correct; the log append is the LAST step (after this PASS, before status flip).
-5. **No verdict-shopping — PASS.** First Q/A on 48.4; no prior 48.4 verdict to overturn. The evaluator_critique.md just replaced held the 48.3 verdict (a different step; archived on step close). No sycophancy-under-rebuttal surface.
+## 3. Independent inspection (the prompt's specific asks)
+- **portfolio_manager reads the 4 caps via get_effective at decide-time**: confirmed all 4 seams INSIDE `decide_trades` (the per-cycle function the loop calls at autonomous_loop.py:943) -- line 77 `paper_min_cash_reserve_pct`, line 219 `paper_max_per_sector`, line 222 `paper_max_per_sector_nav_pct`, line 252 `paper_max_positions` (+ swap-path nav_pct at line 518). AST check: **0 module-level get_effective calls** -- reads are per-cycle, so an override is picked up the NEXT cycle with no restart. Each preserves the exact original coercion/fallback (`... or 0`, `int(...)`, settings value as default) -> byte-identical behaviour when no override is set.
+- **kill-switch loss limit excluded from ALLOWED_KEYS**: confirmed `ALLOWED_KEYS = {paper_max_per_sector, paper_max_per_sector_nav_pct, paper_max_positions, paper_min_cash_reserve_pct}`; `daily_loss_limit_pct`, `trailing_dd_limit_pct`, `paper_daily_loss_limit_pct` all absent. `set_override('daily_loss_limit_pct', 50)` raises `RiskOverrideError`. No `kill_switch.is_paused()` reads removed from the diff.
+- **audit JSONL schema**: every row carries `{ts, event, key, old_value, new_value, reason}` (set/clear rows verified complete; clear_all uses `{ts, event, old_value, reason}` which is correct -- it has no single key). 8 rows present incl. my own qa-verify set/clear pair.
+- **restart-survivability**: live_check_49.1.md section 10 documents PUT paper_max_positions=15 -> `launchctl kickstart` -> GET shows 15/overridden (via `_load_from_audit` replay) -> DELETE -> back to 20. The replay re-validates each row against BOUNDS (skips rows that no longer pass) -- robust to future bound tightening.
 
----
+## 4. Code-review heuristics (5 dimensions evaluated; no BLOCK/WARN)
+- **secret-in-diff** [BLOCK]: no matches in the backend diff. PASS.
+- **kill-switch-reachability** [BLOCK]: no `is_paused()` reads removed; this surface cannot touch the loss-limit breach path. PASS.
+- **max-position-check-bypass** [BLOCK]: `if remaining_positions >= max_positions` guard intact (portfolio_manager.py:255); only widened to be overridable within [1,50]. PASS.
+- **financial-logic-without-behavioral-test** [BLOCK]: N/A -- this changes no Sharpe/drawdown/sizing math; it makes EXISTING caps operator-tunable. The masterplan immutable round-trip command + the live PUT/GET/DELETE ARE the behavioral test exercising the new path. Default (no override) is byte-identical to pre-49.1.
+- **broad-except-silences-risk-guard** [BLOCK]: the three `except Exception` in risk_overrides.py (lines 102/117/130) guard ONLY audit-log I/O (parse/read/write) and fail CLOSED -- a write failure logs a warning while `get_effective` still returns the settings default; a cap is never silently disabled. NOT the swallow-in-execution-path anti-pattern. PASS.
+- LLM05/LLM09 (LLM-output-to-execution): N/A -- no LLM output anywhere in this surface; inputs are operator API values, coerced + bounded + allowlisted.
 
-## STEP 2 — Deterministic checks (reproduced)
+## 5. LLM judgment
+- **Contract alignment**: all 5 immutable criteria met (see mapping in experiment_results.md, each independently confirmed above). 1: file-backed store mirrors kill_switch (singleton + JSONL + replay + Lock). 2: get_effective override-or-default + bounded set_override (HTTP 400 on 999) + clear reverts. 3: 4 caps wired at decide-time, kill-switch loss-limit NOT mutable (HTTP 400). 4: GET/PUT/DELETE exist, confirmation+bounds+cache-invalidate, live round-trip captured. 5: every mutation audited with the full 5-field schema.
+- **Mutation-resistance**: probed directly -- disallowed keys (`daily_loss_limit_pct`, `__class__`, empty) all raise; below-min value (0 for paper_max_positions, min=1) raises and state is UNCHANGED (`snapshot()=={}`) -> validate-before-accept holds before any state mutation. The criteria would still hold if someone tried to weaken the code via the module API, not just the HTTP layer.
+- **Scope honesty**: accurate. No trading-logic/alpha change (no-override path byte-identical). `recommended_position_pct` (lite-judge 3% in autonomous_loop.py) is correctly disclosed as OUT OF SCOPE (not a settings field; a future 5th-knob step). No UI wiring this cycle (backend control surface only) -- disclosed.
+- **Anti-rubber-stamp**: the live evidence is REAL -- I independently reproduced the full PUT(7)->GET(7)->bounds-400->confirm-400->DELETE->GET(2) round-trip against the live backend; outputs match live_check_49.1.md exactly.
 
-| Check | Command | Result |
-|-------|---------|--------|
-| Immutable verification cmd | `test -f live_check_48.4.md && tail -1 rotation_log.jsonl \| python -c "...assert allocation_pct==0.0 and status=='bakeoff_verdict'..."` | **exit 0** → `rotation_log verdict row OK: no_candidate_passed_gate triple_barrier` |
-| Syntax | `ast.parse` rotation_runner.py, run_rotation_smoke.py, test_phase_48_3 | **SYNTAX OK** |
-| Rotation regression | `pytest test_phase_48_3_rotation_runner test_phase_48_1_* test_phase_48_2_* test_strategy_selector -q` | **40 passed, 2 skipped** (5.03s) — matches expected |
+## Recommended cleanup (NON-BLOCKING -- does not violate any criterion)
+- `risk_overrides.py:6` module docstring references `portfolio_manager.build_trade_decisions`; the actual function is `decide_trades`. Cosmetic docstring typo only -- the seams are correctly wired inside `decide_trades` (verified). The 5 immutable criteria concern store/seam/endpoint/audit BEHAVIOR, all of which pass; the wrong symbol name in a comment does not affect runtime, the integration, or any criterion. Fix opportunistically in a future touch of the file.
 
-**The target_vol FIX is real + regression-safe** (`rotation_runner.py:113-120`):
-```python
-def _pos(v):
-    try:
-        f = float(v)
-        return f if f > 0 else None
-    except (TypeError, ValueError):
-        return None
-_tv = _pos(p.get("target_vol")) or _pos(p.get("target_annual_vol")) or 0.15
-```
-- 0 / missing / negative → `_pos` returns None → **0.15** (engine default, standard sizing), NOT 0. Only a POSITIVE value sets a custom target. This is exactly the documented fix: the prior `is None` mapping (visible in the removed-lines of the diff) let optimizer_best's `target_annual_vol=0` pass through to `target_vol=0` → `backtest_trader.py:89 vol_scale=min(target_vol/stock_vol,3.0)=0` → zero positions → no trades → degenerate flat NAV.
-- Docstring (lines 9-19, 104-112) corrected to describe the fix + the consequence (tb_baseline + tb_risk_managed both now vol-target at 0.15, differing only by tp_pct → reseed follow-up, honestly flagged).
-- **The 48.3 test now asserts the CORRECTED semantics** (`test_phase_48_3_rotation_runner.py` diff): `target_annual_vol=0 → 0.15` (was the buggy `== 0`), PLUS a NEW missing-key case (`{} → 0.15`), PLUS explicit-positive-wins (`target_vol=0.2 over target_annual_vol=0.1 → 0.2`). The corrected assertion IS the regression guard.
-- The narrow `except (TypeError, ValueError)` is correct float-coercion scope — NOT a broad-except risk-guard anti-pattern (negation list explicitly allows typed narrow excepts).
-
-**Captured live evidence — validated:**
-- `rotation_smoke.log`: `[smoke] scored strategy=triple_barrier: {'dsr': 1.0, 'pbo': 0.4887334887334887, 'sharpe': 1.8232784959596307, 'n_variants': 2, 'n_windows': 6}` — REAL non-degenerate metrics.
-- qm degenerate → skipped HONESTLY: `[adapter] strategy 'quality_momentum': PBO matrix undersized/degenerate (need >=2 cols and >=32 rows; got 2 usable variant(s)); emitting NO pbo so the producer SKIPS (not a false-good 0.0)` then `[candidate_producer] ... qm_trend_tilt ... skipping so the gate cannot silently drop it`. The guard fired for the degenerate seed and did NOT emit a false-good 0.0. triple_barrier was NOT flagged undersized → its PBO matrix met the T>=32 floor → pbo=0.489 is genuine.
-- Selector verdict: `selected_id=triple_barrier, switched=false, reason=no_candidate_passed_gate, ranked=[], num_trials=2`. Challenger dsr=1.0 vs incumbent dsr=0.9525, but pbo 0.489 > 0.20 → vetoed.
-- **Diagnostic log corroborates root cause** (`diag_backtest.log`): a direct triple_barrier backtest over the SAME window 2022-01-01..2024-06-30 was healthy — `total_trades=160 aggregate_sharpe=1.7509 n_windows=6 nav_history_len=228`, real BUY trades (VRT, KLAC...). 228 nav rows ≫ the 32 T-floor. This is the smoking gun the bug was the target_vol mapping, NOT the strategy.
-
----
-
-## STEP 3 — LLM judgment (adversarial)
-
-- **`no_candidate_passed_gate` — LEGITIMATE PASS, not masking failure.** The full chain ran end-to-end on REAL backtests (make_rotation_engine full-kwarg → 4 real walk-forward backtests → nav→returns → generate_report DSR + per-strategy (T×K) compute_pbo → producer → selector → persisted row). triple_barrier passed DSR (1.0>=0.95) but its pbo 0.489 > the strict 0.20 gate → vetoed; qm degenerate → skipped → retain incumbent. This is the gate's appropriate skepticism at K=2 (coarse PBO), NOT a hidden chain bug. For a SMOKE whose purpose is plumbing + at-least-one-seed valid metrics, both are achieved. The research brief explicitly blessed this outcome.
-- **Criterion #2 (FINITE valid metrics for completing seeds) — MET.** triple_barrier: dsr=1.0 (in [0,1]), **pbo=0.489 (a REAL value from a genuine T>=32 matrix — adapter did NOT omit it, confirmed by asymmetric guard behavior vs qm + the 228-row diag nav)**, sharpe=1.82 (finite), n_windows=6. NOT a degenerate 0.0.
-- **No-deploy — CONFIRMED (critical).** `git status` + `git diff --name-only`: the ONLY production change is `backend/autoresearch/rotation_runner.py` (the fix) + the test correction; new scripts `run_rotation_smoke.py` / `diag_rotation_backtest.py`; handoff/audit artifacts. ZERO edits to autonomous_loop / portfolio_manager / paper_trader / decide_trades / kill_switch / settings. Grep of the diff for `settings.paper_*` assignment / `MERGE INTO promoted_strategies` / `execute_buy|execute_sell` / `allocation_pct>0` → only documentation lines (describing audit-only nature), no actual mutation. allocation_pct=0.0 in both persisted rows. $0 LLM (quant-only).
-- **Honesty — strong.** All 4 findings flagged as follow-ups in experiment_results FINDINGS (lines 28-32) + live_check: (1) target_vol bug FIXED this cycle + disclosed; (2) qm no-trades on 2022-2024 → qm-strategy investigation deferred; (3) tb_baseline/tb_risk_managed redundancy post-fix → reseed deferred; (4) K=2 PBO coarse → real bake-off needs K~8-16. Fixing a 48.3 file WITHIN 48.4 is appropriate (the live smoke is precisely the validation that surfaced the bug the $0 mock tests missed — they tested the mapping arithmetic, not the trader's target_vol=0 no-trade semantics) and is fully disclosed in the docstring + corrected test.
-
-### Code-review heuristics (all 5 dimensions evaluated) — no BLOCK/WARN
-- secret-in-diff: clean. subprocess/eval/exec: clean. print() in non-script: clean.
-- broad-except-silences-risk-guard: N/A — the only added except is narrow `(TypeError, ValueError)` in `_pos()` float coercion (negation-list allowed).
-- kill-switch-reachability / stop-loss / paper-trader / perf-metrics-bypass / max-position-bypass: N/A — no execution-path or perf-metrics file touched.
-- financial-logic-without-behavioral-test: SATISFIED — the target_vol logic change is covered by the corrected `test_make_rotation_engine_maps_target_annual_vol_to_target_vol` (0→0.15, missing→0.15, positive-wins), which passed in the 40-test run. NOT a tautological/over-mocked test.
-- sycophancy / second-opinion-shopping: N/A (first Q/A, no prior 48.4 verdict).
-
----
-
-## NOTE (PASS-with-flag, does NOT degrade verdict)
-
-- **2 rotation_log.jsonl rows, vs "exactly ONE" in criterion #3 wording.** `wc -l` = 2; both `no_candidate_passed_gate`, both allocation_pct=0.0, both window 2022-01-01..2024-06-30. These are the first (degenerate, pre-fix) run's persisted row + the post-fix run's row — both AUDIT-ONLY appends, neither a deploy side-effect. The immutable verification command checks `tail -1` (the authoritative post-fix verdict row), which is correct; experiment_results/live_check say "last row" referring to it. `_persist_verdict` appends one row per run by design, so running the bake-off twice (before + after the fix) yields two harmless rows at allocation_pct=0. Flagged for transparency; strict single-row dedup is a trivial follow-up if ever wanted. Benign — NOTE, not a blocker.
-
----
-
-## Verdict rationale
-
-**PASS.** The 48.1-48.3 rotation machinery is validated end-to-end on REAL backtests for the first time; triple_barrier produced genuine finite metrics (dsr=1.0, pbo=0.489 from a real T>=32 matrix corroborated by a 228-row healthy diagnostic backtest, sharpe=1.82, n_windows=6); the target_vol no-trade bug was a REAL bug the live smoke caught (the whole point of "verify live"), FIXED correctly (`_pos` → 0.15 floor, only positive sets a custom target), regression-guarded by the corrected 48.3 test (40 passed / 2 skipped); zero deploy side-effects ($0 LLM, allocation_pct=0, no settings/promoted_strategies/execution mutation); and all 4 findings (1 fixed, 3 deferred) are honestly flagged. The `no_candidate_passed_gate` outcome is the gate working correctly (coarse K=2 PBO appropriately vetoed triple_barrier; qm degenerate skipped) — NOT a masked chain bug. The only deviation from the literal contract ("exactly ONE row") is a benign 2nd audit-row from the before/after-fix runs, both harmless at allocation_pct=0 — a NOTE.
+## Verdict: PASS
+All 5 immutable success criteria met and independently re-verified live. Deterministic checks (syntax, immutable command, live curl round-trip), mutation-resistance probe, and all applicable code-review heuristics pass. One non-blocking cosmetic docstring nit noted. Orchestrator may now append harness_log.md (cycle format) and flip masterplan 49.1 -> done.
 
 **violated_criteria: []** (none).
 
-**checks_run:** harness_compliance_audit, syntax, verification_command, rotation_regression_suite (40p/2s), target_vol_fix_review, captured_live_evidence_review, diagnostic_log_corroboration, no_deploy_sideeffect_check, code_review_heuristics, evaluator_critique
+**checks_run:** harness_compliance_audit, syntax, verification_command, routes_registered, live_curl_roundtrip, killswitch_exclusion, audit_jsonl_schema, decide_time_seam_inspection, restart_survivability_review, mutation_resistance_probe, code_review_heuristics, no_deploy_sideeffect_scope_review

@@ -4,3 +4,9 @@
 {"ts": "2026-05-29T20:48:04.148117+00:00", "event": "clear", "key": "paper_max_per_sector", "old_value": 4, "new_value": null, "reason": "manual"}
 {"ts": "2026-05-29T20:48:28.970622+00:00", "event": "set", "key": "paper_max_positions", "old_value": null, "new_value": 15, "reason": "restart-survival test"}
 {"ts": "2026-05-29T20:48:32.299672+00:00", "event": "clear", "key": "paper_max_positions", "old_value": 15, "new_value": null, "reason": "manual"}
+{"ts": "2026-05-29T20:51:27.832236+00:00", "event": "set", "key": "paper_max_per_sector", "old_value": null, "new_value": 4, "reason": "test"}
+{"ts": "2026-05-29T20:51:27.832443+00:00", "event": "clear", "key": "paper_max_per_sector", "old_value": 4, "new_value": null, "reason": "manual"}
+{"ts": "2026-05-29T20:51:55.315685+00:00", "event": "set", "key": "paper_max_per_sector", "old_value": null, "new_value": 7, "reason": "qa-49.1-verify"}
+{"ts": "2026-05-29T20:51:55.356080+00:00", "event": "clear", "key": "paper_max_per_sector", "old_value": 7, "new_value": null, "reason": "manual"}
+{"ts": "2026-05-29T20:54:02.542795+00:00", "event": "set", "key": "paper_max_per_sector", "old_value": null, "new_value": 4, "reason": "test"}
+{"ts": "2026-05-29T20:54:02.543003+00:00", "event": "clear", "key": "paper_max_per_sector", "old_value": 4, "new_value": null, "reason": "manual"}

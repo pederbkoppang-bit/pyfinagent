@@ -25862,3 +25862,121 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **FINDINGS (live-smoke value):** [FIXED] target_vol=0 no-trade bug. [FLAGGED] quality_momentum produces NO trades on 2022-2024 (qm-strategy investigation needed before it's a useful seed). [FLAGGED] post-fix tb_baseline + tb_risk_managed both vol-target at 0.15 -> differ only by tp_pct -> ~3 effective seeds -> reseed. [NOTE] K=2 PBO is coarse (0.489); the real bake-off should use K~8-16.
 
 **DEFERRED:** the full 4-seed x K~8 bake-off; the deployment params->settings.paper_* bridge (the keystone that changes live orders -- operator-gated); the weekly cron; qm investigation; reseed; re-enable reverted trailing readers; effective-N; CPCV.
+
+---
+
+## Cycle 1 -- 2026-05-29 19:48 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-29 19:49 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-29 19:50 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-29 19:52 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-29 19:52 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-05-29 20:21 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 16 (production-ready+money push) -- 2026-05-29 -- phase=49.1 result=PASS
+
+**Step:** Runtime risk-limit control endpoint (P7 "risk limits" deliverable + the SAFE bridge for the operator deploy-idle-cash decision). Lets the operator tune the 4 deployment/concentration caps LIVE without a backend restart. $0 LLM; backend-only.
+
+**Context (this session's money triage):** verified live that Priorities 1-4 are DONE (historical_prices FRESH 507 tickers max 2026-05-28; paper NAV +20.1% / +14pts alpha; cost_tracker has claude-opus-4-8; portfolio Sharpe +5.39). Proved via a BQ 6-month momentum scan that the 66% idle cash is MARKET-LIMITED not signal-limited (top-30 momentum names ~all Tech/semis; the loop already owns 7 of the top 10) -> no clean autonomous money lever; deploying the idle cash = a concentration RISK call that is the operator's. Pivoted to P7 production-readiness. See cycle_block_summary.md.
+
+**Research:** `researcher` gate PASSED (6 sources read in full + recency scan + 30 URLs + 6 internal files). Brief: research_brief.md. DECISIVE internal finding: the daily loop runs in the BACKEND's own APScheduler (main.py:256 -> paper_trading.py:1220 cron -> run_daily_cycle), same process as the API (NOT slack_bot) -> an override store is reachable by both. get_settings() is @lru_cache frozen -> use a separate override store. kill_switch.py is the file-backed-JSONL template. Caps are read at-decide-time in portfolio_manager.py. External: SEC 15c3-5 + Fed FEDS-2025-034 (runtime limit changes must be audited + authorized), Knight Capital $440M (never disable the kill switch via this surface), OneUptime/Unleash (validate-before-accept, reversible).
+
+**Generate:** (1) backend/services/risk_overrides.py NEW -- file-backed store mirroring kill_switch.py (singleton + JSONL audit at handoff/risk_overrides_audit.jsonl + replay-on-init + threading.Lock); strict ALLOWED_KEYS allowlist (4 caps) + per-key BOUNDS; kill-switch loss limits deliberately absent. (2) portfolio_manager.py -- reads the 4 caps via risk_overrides.get_effective("<key>", settings.X) at 5 decide-time seams (lines 77/219/222/252 + swap-path 518); no-override behaviour byte-identical. (3) paper_trading.py -- GET/PUT/DELETE /api/paper-trading/risk-limits (confirmation SET_RISK_LIMIT + bounded + audited + paper:* cache-invalidate). LIVE-verified on v6.28.16: full PUT/GET/DELETE round-trip; HTTP 400 on out-of-bounds (999), disallowed kill-switch key (daily_loss_limit_pct), and wrong confirmation; restart-survival proven via audit replay. Evidence: live_check_49.1.md.
+
+**Q/A:** fresh `ad7dd3eb833b1289d` = **PASS** (`ok:true`, zero violated_criteria). INDEPENDENTLY re-reproduced the live round-trip + all 3 HTTP-400 cases against the running backend (not just trusting the handoff); AST-confirmed 0 module-level get_effective calls (override picked up next cycle, no restart); confirmed kill-switch loss limits excluded from ALLOWED_KEYS even via the module API (Knight Capital safety holds); audit JSONL carries the full 5-field schema; backend-only diff (frontend/no-emoji gate N/A); no trading-logic/alpha change. 5/5 harness compliance. One NON-BLOCKING cosmetic nit (docstring build_trade_decisions vs decide_trades) -> already fixed + committed.
+
+**Scope honesty:** makes EXISTING caps operator-tunable; does NOT change alpha or trading logic. recommended_position_pct (lite-risk-judge 3% sizing) is NOT a settings field -> deferred as a future 5th knob. No UI wiring (backend control surface only; UI consistency is separate P7 work behind the NextAuth real-browser-verification constraint).
+
+---
