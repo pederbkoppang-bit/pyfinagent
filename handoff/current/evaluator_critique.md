@@ -1,80 +1,129 @@
-# Q/A Evaluator Critique -- phase-50.1: FX data layer
+# Q/A Evaluator Critique -- phase-50.2: Multi-currency portfolio accounting
 
-**Verdict: PASS** | Date: 2026-05-30 | Fresh Q/A (first for 50.1, no self-eval) | merged qa-evaluator + harness-verifier (deterministic-first)
+**Verdict: PASS** | Date: 2026-05-30 | Fresh Q/A (first for 50.2, no self-eval) | merged qa-evaluator + harness-verifier (deterministic-first) | MONEY-CRITICAL step (touches the live +20% paper P&L engine)
+
+The NON-NEGOTIABLE constraint -- USD-only path byte-identical -- is met and was independently re-proven on the LIVE portfolio (NAV $24,023.58, unchanged to the cent). No live USD-path regression exists.
+
+---
 
 ## 1. Harness-compliance audit (5 items -- ALL PASS)
 
-1. **Research gate**: `handoff/current/research_brief.md` present, a 50.1 FX-layer brief, JSON envelope `gate_passed: true` (7 external sources read in full >= 5 floor; recency scan 2024-2026 performed; 16 URLs collected; 11 internal files inspected). Cited by `contract.md` lines 6-14 + References. PASS.
-2. **Contract-before-generate**: git log `phase-50.1: PLAN` (238bc024, 2026-05-30 00:08:30) precedes `phase-50.1: GENERATE` (d31069a0, 2026-05-30 00:15:05). The 4 `success_criteria` in `contract.md:20-23` are **verbatim** from masterplan step 50.1 `verification.success_criteria`. PASS.
-3. **experiment_results.md**: present; lists 3 files changed (fx_rates.py NEW, migration NEW, data_ingestion.py 1-line); verbatim verification output; live evidence cross-referenced to `live_check_50.1.md`. PASS.
-4. **Log-last**: NO `phase=50.1` entry in `handoff/harness_log.md` yet; masterplan 50.1 still `in_progress`. Correct ordering (log + status-flip come AFTER this PASS). PASS.
-5. **No verdict-shopping**: first Q/A for 50.1; no prior CONDITIONAL/FAIL on this step-id in harness_log. PASS.
+1. **researcher gate** -- PASS. `handoff/current/research_brief.md` is a 50.2 multi-currency brief, gate_passed=true (JSON envelope: `external_sources_read_in_full=8`, `recency_scan_performed=true`, `urls_collected=19`, `internal_files_inspected=11`). 8 sources read in full (CFA Institute, Karnosky-Singer/Meradia, IAS 21/CPDbox, CFI, arXiv 1611.01463 via ar5iv HTML, fundcount, sharesight, NetSuite) with the recency scan (2024-2026) present. Cited by `contract.md` lines 6-7, 49.
+2. **contract-before-generate** -- PASS. `git log`: `ffdb8816 phase-50.2: PLAN` precedes `c452de61 phase-50.2: GENERATE`. The 4 success_criteria in contract.md (lines 27-30) are verbatim from masterplan step 50.2 `verification.success_criteria` (confirmed by extraction).
+3. **results present** -- PASS. `experiment_results.md` present with file list (paper_trader.py + test_phase_50_2_multicurrency.py), verbatim verification output (7 passed; live NAV byte-identical), and `live_check_50.2.md` present with the numeric live re-proof.
+4. **log-last** -- PASS. NO `phase=50.2` entry in `handoff/harness_log.md` yet (last entry is `Cycle 19 ... phase=50.1 result=PASS` at line 26014); masterplan 50.2 still `status: in_progress`. Correct ordering preserved.
+5. **no verdict-shopping** -- PASS. This is the FIRST Q/A for 50.2. The on-disk `evaluator_critique.md` before this write was for 50.1 (PASS). No prior 50.2 CONDITIONAL/FAIL exists, so no simultaneous-presentation / 3rd-CONDITIONAL concern.
 
-## 2. Deterministic checks (run by Q/A, cannot hallucinate)
+---
 
-- `ast.parse(backend/services/fx_rates.py)` -> OK
-- `ast.parse(scripts/migrations/create_historical_fx_rates_table.py)` -> OK
-- `ast.parse(backend/backtest/data_ingestion.py)` -> OK
-- **Immutable masterplan command**: `get_fx_rate('USD','USD')==1.0` + `market_currency('EU'/'KR'/'US')==EUR/KRW/USD` -> `det OK` (exit 0)
-- `test -f handoff/current/live_check_50.1.md` -> present
-- `import backend.backtest.data_ingestion` -> OK (no circular dep from the new `from backend.backtest import markets` at line 17)
+## 2. Deterministic checks (run independently -- ALL PASS)
 
-## 3. LIVE re-verification (independent network + BQ, run by Q/A)
+```
+ast.parse(paper_trader.py)                            -> AST_OK
+pytest backend/tests/test_phase_50_2_multicurrency.py -> 7 passed in 0.81s
+get_fx_rate('USD','USD')==1.0 + import paper_trader   -> det OK
+test -f handoff/current/live_check_50.2.md            -> live_check_present
+```
 
-- **FX direction (THE #1 risk) -- CONFIRMED CORRECT**: independent live fetch returned EUR/USD = **1.1659** (1.0 < e < 1.4 OK) and KRW/USD = **0.0006635** (0.0004 < k < 0.0015 OK -- NOT ~1300, so NOT inverted). Code uses `KRW=X` (fx_rates.py:41) and explicitly avoids `KRWUSD=X` (documented fx_rates.py:14). EUR via `EURUSD=X` (:39). Matches FRED DEXUSEU/DEXKOUS direction.
-- **BQ historical_fx_rates well-formed**: EURUSD n=13 (2026-05-15..29, avg 1.1638), KRWUSD n=13 (avg 0.000665). (13 not 12 vs results -- the Q/A live re-verify write-through added today's mark; expected/correct behavior.)
-- **As-of / no look-ahead**: `get_fx_rate('EUR','USD','2026-05-20')` = 1.1607, `get_fx_rate('KRW','USD','2026-05-20')` = 0.0006632. Query is parameterized `WHERE pair=@pair AND date<=@d ORDER BY date DESC LIMIT 1` (fx_rates.py:165-172). Point-in-time correct.
-- **Junk-row exclusion verified**: as-of @2026-05-20 returned 1.1607 (a real backfilled row ~1.16), NOT the junk row value 1.1729 (`date='EURUSD=X'`). The `date<=` lexical comparison excludes non-ISO dates ('E' > '2'). Disclosure is accurate.
-- **Append-not-upsert unaffected**: `LIMIT 1` returns a single rate despite duplicate dates from append-mode writes. Confirmed.
-- **Migration**: `CREATE TABLE IF NOT EXISTS`, dry-run default + `--apply`, no `--location` pin (correctly auto-resolves financial_reports/us-central1).
-- **data_ingestion stub fix**: line 147 `markets.get_market_config(market)["currency"]` (old `"USD" if market=="US" else "USD"` stub gone). market_currency EU/KR/US == EUR/KRW/USD.
+### THE CRITICAL ONE -- independent LIVE byte-identity re-proof (read-only, no mutation)
 
-## 4. Code-review heuristics (5 dimensions evaluated; no BLOCK, no degrading WARN)
+Re-ran the byte-identity proof myself against the real BQ portfolio (NOT trusting the generator's number):
 
-- **secret-in-diff [BLOCK]**: none.
-- **financial-logic-without-behavioral-test [BLOCK]**: does NOT fire -- diff touches none of perf_metrics/risk_engine/backtest_engine/backtest_trader. fx_rates.py is a NEW additive service; NAV math untouched (correctly deferred to 50.2).
-- **kill-switch / stop-loss / max-position / perf-metrics-bypass [BLOCK]**: do NOT fire -- diff touches no execution/risk path.
-- **SQL-injection (LLM05/insecure-output) [BLOCK]**: does NOT fire -- the f-string at fx_rates.py:165 interpolates only settings-derived constants (`proj`, `dataset`); the actual query VALUES (`pair`, `date`) ARE parameterized via `ScalarQueryParameter` (:170-171). Table names cannot be BQ-parameterized; this is the correct pattern.
-- **broad-except [Dimension-3 WARN, negation-list cleared]**: 9 `except Exception` sites + one `except Exception: pass` (fx_rates.py:100-101). NONE is in a risk-guard / kill-switch / stop-loss path, so the `broad-except-silences-risk-guard [BLOCK]` heuristic does NOT fire. The pattern is the documented degradation-tolerant yfinance try/except->log->return-None idiom (mirrors data_ingestion.py:103-114); the `pass` wraps a non-critical `cache.set()` (failing to cache is harmless, the value is still returned). NOTE-level acceptable for a data fetcher; does not degrade verdict.
-- **unicode-in-logger [NOTE]**: ASCII-clean.
-- **print-statement [WARN]**: none in service code.
+```
+positions 7  NAV_new 24023.58  NAV_old 24023.58  stored 24023.58  BYTE_IDENTICAL True
+```
 
-## 5. Scope-honesty assessment (3 disclosed flags -- all honest + non-blocking)
+Every one of the 7 live positions has `market` US/NULL -> `_fx_local_to_usd(market)==1.0` -> `qty*current_price*fx == qty*current_price` to the cent. NAV recomputed the NEW way equals NAV the OLD way equals the stored `total_nav` ($24,023.58). **The working +20% engine is provably untouched.**
 
-- **(a) single-ticker yf.download MultiIndex bug, caught + FIXED during verification**: the fix is present in the committed code (fx_rates.py:246-247 squeezes Close to a Series before `.items()`). This is honest disclosure of a bug that was fixed and re-verified -- NOT a live defect.
-- **(b) 2 malformed streaming-buffer rows (date='EURUSD=X'/'KRW=X')**: Q/A independently confirmed exactly 2 such rows exist AND that they are excluded from every real as-of read by the `date<=` ISO comparison. DELETE blocked by BQ's ~90-min streaming-buffer rule; cleanable post-flush via `DELETE WHERE date NOT LIKE '2%'`. Harmless to reads. Honest + non-blocking.
-- **(c) append-not-upsert**: confirmed the `LIMIT 1` as-of read is unaffected by duplicate dates. Hardening follow-up (load-job + MERGE) correctly deferred. Honest + non-blocking.
+Helper-guard re-proof (the None/blank/US safety that underpins byte-identity):
+```
+_fx_local_to_usd(None)=1.0   _fx_local_to_usd('US')=1.0   _fx_local_to_usd('')=1.0
+_fx_usd_to_local(None)=1.0   _fx_usd_to_local('US')=1.0
+USD attribution (Fe=Fc=1.0): local_pnl=262.5  fx_pnl=0.0  zero_fx=True
+```
+The `market or "US"` guard in both helpers fires BEFORE `fx_rates.market_currency`, so the raw `AttributeError` on `market_currency(None)` is unreachable from every money site. All live positions confirmed `fx==1.0` (pnl path unchanged).
 
-These are disclosed hardening items, NOT criterion violations -- the FX layer is functionally correct (direction, as-of, byte-identical USD path all verified).
+---
 
-Minor cosmetic NOTE (not a defect): live_check_50.1.md:17 annotation "1/~1507 KRW-per-USD" is an imprecise inverse (1/0.000665 ~= 1504); the actual stored/returned rate value 0.000665 is correct. Documentation annotation only; does not affect code or any criterion.
+## 3. Code-review heuristics (5 dimensions evaluated -- no BLOCK, no WARN)
 
-## 6. Success-criteria mapping (all 4 IMMUTABLE criteria MET)
+Diff scanned: `git diff ffdb8816 c452de61 -- backend/services/paper_trader.py` (+104) and the new test (+80).
 
-1. **fx_rates.py with get_fx_rate(base,quote,date) + daily-refresh + EURUSD=X/KRW=X + cache + USD->USD=1.0** -- MET (verified live + deterministic).
-2. **historical_fx_rates BQ table holds dated FX rates, backfilled EUR/USD + KRW/USD** -- MET (table created in financial_reports; EURUSD n=13 + KRWUSD n=13 over 2026-05-15..29, BQ-read confirmed).
-3. **data_ingestion.py:146 currency stub fixed (per-market ISO, not 'USD' unconditionally)** -- MET (line 147 delegates to markets.get_market_config; old stub gone; import OK).
-4. **live EUR/USD + KRW/USD rate fetched verbatim** -- MET (live_check_50.1.md + Q/A independent re-fetch: 1.1659 / 0.0006635).
+- **Security (Dim 1):** no secrets in diff; no command/SQL/path/SSRF sink; no LLM-output-to-execution path added; no dep-pin removal. CLEAN.
+- **Trading-domain (Dim 2):** NO risk guard removed -- grep on removed lines for `kill_switch|is_paused|stop_loss|paper_max_positions|backfill_stop` returned NONE. `crypto` not re-enabled. `perf_metrics` not bypassed (no inline Sharpe/drawdown/alpha). `execute_buy`/`execute_sell` ordering of kill-switch + stop-loss + max-positions guards is untouched (the diff only injects FX multipliers at money arithmetic, downstream of the guards). CLEAN.
+- **Code quality (Dim 3):** no new `except Exception`/bare except; no `print()`; new module helpers carry full type hints + docstrings; new logger calls are ASCII. CLEAN.
+- **Anti-rubber-stamp (Dim 4):** `financial-logic-without-behavioral-test` does NOT fire -- the GENERATE commit `c452de61` ships `test_phase_50_2_multicurrency.py` (+80, 7 tests) in the SAME commit as the paper_trader money-math change. No tautological assertions (tests assert numeric equalities to 1e-9 / 0.01, not `is not None`); not over-mocked (only `fx_rates.get_fx_rate` is patched, the module under test runs real). CLEAN.
+- **LLM-evaluator anti-patterns (Dim 5):** N/A -- first 50.2 Q/A, no prior verdict to flip; this critique cites file:line + command output throughout (not a no-evidence pass). CLEAN.
+
+`frontend/**` NOT touched -> ESLint/tsc gate N/A.
+
+---
+
+## 4. Adversarial money-site reasoning (the regression hunt)
+
+For each money term I verified (a) USD reduces to exactly x1.0 and (b) each term is converted in exactly ONE place (no double-conversion). Units traced as USD vs LOCAL.
+
+| Site | file:line | USD byte-identity | Single conversion? | Currency consistency |
+|------|-----------|-------------------|--------------------|----------------------|
+| BUY share count | :209 `(amount_usd*_usd_to_local)/price` | `_usd_to_local=1.0` -> `amount_usd/price` exactly | yes (USD->LOCAL once to size shares) | OK |
+| BUY existing-branch MV/pnl | :299-301 `new_qty*price*_local_to_usd` | `_local_to_usd=1.0` -> `new_qty*price` | yes | `new_cost` USD (`old_cost+amount_usd`, :289); MV USD -> `pnl=MV_usd-cost_usd` |
+| BUY new-branch | :321-323 `cost_basis=amount_usd`, `market_value=amount_usd` | already USD, no FX factor needed | n/a | USD - USD |
+| SELL proceeds -> cash | :440 `new_cash += net_proceeds*_l2u` (sell_value=sell_qty*price LOCAL, :386-388) | `_l2u=1.0` -> proceeds unchanged | yes (LOCAL->USD once before crediting USD cash) | OK |
+| SELL realized_pnl_usd | :440 `(price-entry_price)*sell_qty*_l2u` | `_l2u=1.0` -> unchanged | yes (LOCAL pnl ->USD once) | OK |
+| SELL partial pos_row | :457-475 `_rem_cb` proportional USD; `_rem_mv=remaining*price*_l2u` | `_l2u=1.0` -> `remaining*price`; `_rem_cb` proportional of USD `_orig_cb` -> byte-identical | yes | `pnl=_rem_mv(USD)-_rem_cb(USD)` |
+| MTM market_value/pnl | :520-523 `qty*live_price*_l2u`; `pnl=market_value-cost_basis` | `_l2u=1.0` -> `qty*live_price` | yes (LOCAL->USD once) | comment `# both USD` correct: MV USD, cost_basis USD |
+| NAV | accumulation of USD market_values + USD cash | sums USD | n/a | OK |
+
+**No double-conversion** anywhere: each money term is multiplied by an FX factor in exactly one location.
+
+**cost_basis consistency (the trap):** the shipped minimal-change model stores `cost_basis` in USD (NOT local as the brief proposed). In `mark_to_market`, `market_value` is USD and `cost_basis` is USD, so `pnl = market_value - cost_basis` is USD - USD -- no currency mixing. For a non-USD position the entry FX is implicitly baked into the USD `cost_basis`, so `MV(@current FX) - cost(@entry FX)` still captures both the local price move and the FX move (the IAS-21/CFI result), just without an explicit `entry_fx_rate` column. Internally consistent.
+
+**partial-sell:** `_rem_cb = _orig_cb * (remaining/quantity)` -- proportional remaining of the (USD) original cost. For USD this equals the pre-50.2 `remaining*avg_entry_price` because `_orig_cb` defaults to `quantity*avg_entry_price` when `cost_basis` is null, else uses the stored USD cost_basis. Byte-identical for USD; correct proportionality for non-USD.
+
+**FX-None fail-soft (verified acceptable, not a defect):**
+- BUY non-USD with FX unavailable -> `return None` (skip the buy) at :206-207 -- never treats None as USD. Correct.
+- mark_to_market FX unavailable -> keeps last-known `market_value` + WARN at :513-518 -- never mis-marks. Correct.
+- SELL FX unavailable -> last-resort 1.0 + WARN at :371-374 -- accepted: fires only for a non-USD exit when the rate is genuinely unsourceable; the design choice (never block an exit) is defensible for a paper engine; the USD path has `_l2u=1.0` always so this branch is never hit live. NOTE-level, not a money bug.
+
+**attribution (no residual):** `fx_pnl_attribution` at :40-51: `local_pnl = qty*(Pc-Pe)*Fe`, `fx_pnl = qty*Pc*(Fc-Fe)`. Sum `= qty*(Pc*Fc - Pe*Fe) = MV_usd - cost_usd` algebraically with no residual; test `test_attribution_eur_sums_to_total_usd_pnl` asserts this (1320-1100=220 == 110+110). USD: `Fe=Fc=1.0` -> `fx_pnl=0.0` (asserted). Matches CFA `(1+R_local)(1+R_fx)-1` and CFI `FX gain = Foreign Amount*(Current-Transaction rate)`.
+
+**Could ANY non-USD change leak into the USD path?** No. Every new term is gated by an FX factor that is exactly `1.0` for `market` in {US, "", None} via the `market or "US"` guard + `market_currency(...)=="USD"` early-return in both helpers. The live re-proof (NAV $24,023.58 == stored) is the empirical confirmation; the per-site trace above is the by-inspection confirmation. The non-USD path is additionally DORMANT in the live loop today -- grep confirms no caller passes `market=` to `execute_buy` (that wiring is phase-50.3), so `market` defaults to `"US"` -> x1.0 on every live trade.
+
+---
+
+## 5. Scope-honesty assessment
+
+The experiment_results discloses a minimal-change model. Assessed each disclosure:
+- **cost_basis stored USD (not local) + no `entry_fx_rate` column** -- honestly disclosed (experiment_results line 26, live_check line 46) with rationale (avoids a BQ migration) and a correctness argument (entry FX derivable as `cost_usd/(qty*avg_entry_price)`). Internally consistent (USD-USD pnl). Acceptable; not a criterion violation.
+- **attribution not wired into the live `_compute_attribution` endpoint** -- honestly disclosed (it would be all-zero today since every live position is USD -> fx_pnl=0). Criterion #3's decomposition is satisfied by the tested `fx_pnl_attribution` helper + numeric evidence; criteria do not require live-endpoint wiring. Deferred to 50.6. Acceptable.
+- **trade-record display fields (paper_trades.total_value/transaction_cost) stay LOCAL for a non-USD trade** -- honestly disclosed as display-only, NOT a NAV/cash error (NAV uses USD positions + USD-credited cash). Acceptable as a minor follow-up.
+
+These are honest, bounded disclosures, not overclaims. None constitutes a money bug or a criterion violation.
+
+---
+
+## 6. Success-criteria mapping (4/4 met)
+
+1. **paper_trader NAV/cost_basis/market_value/realized+unrealized P&L FX-convert each position to USD via fx_rates** -- MET. Conversions at BUY share-count (:209), existing-branch MV (:299), partial-sell pos_row (:457-475), SELL proceeds (:440) + realized_pnl_usd (:440), mark_to_market MV (:520) + NAV. cost_basis is USD (minimal-change model). All via the 50.1 `fx_rates` service through the two helpers.
+2. **USD-only byte-identical** -- MET. Independently re-proven LIVE: NAV_new == NAV_old == stored == $24,023.58; 7 unit tests confirm x1.0 at every site; per-site by-inspection trace confirms exact reduction.
+3. **non-USD values into USD NAV at correct FX + local-vs-FX P&L decomposition** -- MET. EUR example: 5 sh @ EUR100 -> $550 USD (= 5*100*1.10); `fx_pnl_attribution` decomposes per the arXiv/CFA model with no residual (tested).
+4. **live/fixture numeric evidence of a EUR USD-NAV contribution + local/FX split** -- MET. live_check_50.2.md section 3: EUR $550 NAV contribution; attribution (EUR 100->110, FX 1.10->1.20) local_pnl $110 + fx_pnl $110 == $220 == MV_usd($1320) - cost_usd($1100).
+
+---
+
+## 7. NOTE (non-blocking; recommended follow-up doc clarification)
+
+`mark_to_market`'s `unrealized_pnl_pct` (:523) = `pnl/cost_basis*100` with both terms USD -> it is a **USD-return %**, whereas the contract (lines 11, 52) and brief described it as a **local-return %**. Under the shipped minimal-change model (USD cost_basis) the local-return % is not directly available without the entry FX. This is:
+- **Zero live impact** -- every live position is USD, so local-return == USD-return identically.
+- **NOT one of the 4 immutable success criteria** -- the criteria name NAV/cost_basis/market_value/realized+unrealized P&L conversion and the local-vs-FX *decomposition* (delivered by `fx_pnl_attribution`), not the `_pct` field's reference currency.
+- A **documentation/clarification gap** between the brief's intended `_pct` semantic and the minimal model's. Recommend a one-line note when 50.6 wires attribution into the UI: either relabel `unrealized_pnl_pct` as a base-currency return, or compute a local-return % from `avg_entry_price` (LOCAL) + `current_price` (LOCAL), which are both available on the row.
+
+Severity NOTE -> PASS-with-flag (per skill severity dispatch). Does NOT degrade the verdict.
+
+---
 
 ## Verdict
 
-**PASS.** All 4 immutable criteria met and independently re-verified (live network fetch + BQ read by Q/A, not merely trusting the generator). The #1 risk -- FX direction / KRW inversion -- is correct (`KRW=X`, not `KRWUSD=X`; KRW/USD ~0.00066, not ~1300). No look-ahead (parameterized `date<=` as-of). US-only/USD path byte-identical (`from==to->1.0`). Purely additive, no execution/risk/NAV path touched (50.2 scope correctly deferred). The 3 scope-honesty flags are honest disclosures, independently confirmed harmless, not criterion violations. No code-review BLOCK or verdict-degrading WARN. Frontend ESLint/tsc gate N/A (no frontend/** in diff).
+**PASS.** All 4 immutable criteria met; the MONEY-CRITICAL byte-identity constraint independently re-proven LIVE (NAV $24,023.58 unchanged to the cent); no double-conversion, no currency mixing in any USD-feeding term; FX-None fail-soft is sound; attribution is exact (no residual); the financial-logic change ships with a behavioral test; all scope deviations are honestly disclosed and non-blocking. The one `unrealized_pnl_pct` local-vs-USD semantic is a zero-live-impact NOTE / doc-clarification follow-up, not a criterion violation or money bug.
 
-```json
-{
-  "ok": true,
-  "verdict": "PASS",
-  "reason": "All 4 immutable criteria met + independently re-verified (live yfinance fetch EUR/USD=1.166, KRW/USD=0.00066 NOT inverted; BQ historical_fx_rates EURUSD+KRWUSD n=13 each; parameterized date<= as-of no look-ahead; from==to->1.0 keeps US-only byte-identical). 5/5 harness-compliance pass. No code-review BLOCK/WARN. 3 disclosed hardening flags (MultiIndex bug FIXED+re-verified, 2 harmless streaming-buffer junk rows excluded by date<=, append-not-upsert unaffected by LIMIT 1) confirmed honest + non-blocking.",
-  "violated_criteria": [],
-  "violation_details": [],
-  "certified_fallback": false,
-  "checks_run": ["syntax", "verification_command", "live_fx_direction_reverify", "bq_table_read", "asof_lookahead_check", "junk_row_exclusion", "data_ingestion_stub_fix", "code_review_heuristics", "research_brief", "contract_verbatim", "experiment_results", "harness_log_last", "scope_honesty"],
-  "harness_compliance": {
-    "research_gate": "PASS (gate_passed:true, 7 sources, recency scan, cited by contract)",
-    "contract_before_generate": "PASS (PLAN 00:08:30 < GENERATE 00:15:05; 4 criteria verbatim)",
-    "experiment_results_present": "PASS",
-    "log_last": "PASS (no phase=50.1 in harness_log; masterplan 50.1 in_progress)",
-    "no_verdict_shopping": "PASS (first Q/A for 50.1)"
-  }
-}
-```
+checks_run: syntax, verification_command, live_byte_identity_reproof, fx_helper_guards, code_review_heuristics, research_brief, evaluator_critique

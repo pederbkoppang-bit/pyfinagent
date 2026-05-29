@@ -13615,7 +13615,7 @@
         {
           "id": "50.2",
           "name": "Multi-currency portfolio accounting -- paper_trader.py reads base_currency + per-position market/currency; FX-convert in mark_to_market / NAV / cost-basis / P&L; local-vs-FX P&L attribution (arXiv r=a(r_local-i)+c(r_fx+i)). FREE. MONEY-CRITICAL: must be byte-identical for USD-only portfolios (no regression).",
-          "status": "in_progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "50.1",
