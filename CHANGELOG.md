@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-29 | `3faddd0d` | phase-49.1: GENERATE -- runtime risk-limit control endpoint (live-verified) |
 | 2026-05-29 | `f81faeac` | phase-49.1: PLAN -- runtime risk-limit control endpoint contract + research gate |
 | 2026-05-29 | `3d18027a` | docs(handoff): 2026-05-29 verification -- priorities 1-4 verified DONE |
 | 2026-05-29 | `9a14d3ec` | chore: strategy-label root-cause diagnostics (train-but-no-trade pin) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `c2664bab` | phase-47.7: Learn-loop correctness fix -- read real paper_trades P&L field (realized_pnl_pct) in ... |
 | 2026-05-29 | `f02d7c29` | docs(handoff): priority-6 learn-loop GAP found (swap-SELL didn't write outcome_tracking); HARD STOP  |
 | 2026-05-29 | `f1c0aa65` | docs(handoff): cycle 7 final status -- priorities 1-5 shipped + first trade + north-star selector; r |
-| 2026-05-29 | `c4d66648` | phase-47.6: Dynamic strategy rotation -- per-strategy DSR selector with anti-churn (north-star: s... |
 
 ---
 
+### v6.28.17 — phase-49.1: GENERATE -- runtime risk-limit control endpoint (live-ver... (2026-05-29)
+
+- **phase-49.1: GENERATE -- runtime risk-limit control endpoint (live-verified)**
 ### v6.28.16 — phase-49.1: PLAN -- runtime risk-limit control endpoint contract + re... (2026-05-29)
 
 - **phase-49.1: PLAN -- runtime risk-limit control endpoint contract + research gate**
